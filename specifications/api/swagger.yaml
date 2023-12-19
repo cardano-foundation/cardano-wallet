@@ -3478,12 +3478,6 @@ components:
       properties:
         settings: *settings
 
-    ApiSmashServer: &ApiSmashServer
-      type: string
-      pattern: '^https?:\/\/[a-zA-Z0-9-_~.]+(:[0-9]+)?/?$'
-      example: https://smash.cardano-mainnet.iohk.io/
-      description: A base SMASH uri without endpoint path.
-
     ApiHealthCheck: &ApiHealthCheck
       type: object
       required:
@@ -4264,41 +4258,6 @@ x-responsesErr: &responsesErr
       description: A specific error code for this error, more precise than HTTP ones.
       example: an_error_code
 
-x-errNotFound: &errNotFound
-  <<: *responsesErr
-  title: not_found
-  properties:
-    message:
-      type: string
-      description: A descriptive error message.
-    code:
-      type: string
-      enum: ['not_found']
-
-x-errSoftDerivationRequired: &errSoftDerivationRequired
-  <<: *responsesErr
-  title: not_found
-  properties:
-    message:
-      type: string
-      description: A descriptive error message.
-    code:
-      type: string
-      enum: ['soft_derivation_required']
-
-x-errHardenedDerivationRequired: &errHardenedDerivationRequired
-  <<: *responsesErr
-  title: not_found
-  properties:
-    message:
-      type: string
-      description: |
-        Occurs when hardened derivation is required and soft index is used
-        (without suffix 'H').
-    code:
-      type: string
-      enum: ['hardened_derivation_required']
-
 x-errNoUtxosAvailable: &errNoUtxosAvailable
   <<: *responsesErr
   title: no_utxos_available
@@ -4408,17 +4367,6 @@ x-errWrongMnemonic: &errWrongMnemonic
       type: string
       enum: ['wrong_mnemonic']
 
-x-errMalformedTxPayload: &errMalformedTxPayload
-  <<: *responsesErr
-  title: malformed_tx_payload
-  properties:
-    message:
-      type: string
-      description: May occur when submitting a malformed serialized transaction.
-    code:
-      type: string
-      enum: ['malformed_tx_payload']
-
 x-errMempoolIsFull: &errMempoolIsFull
   <<: *responsesErr
   title: mempool_is_full
@@ -4429,30 +4377,6 @@ x-errMempoolIsFull: &errMempoolIsFull
     code:
       type: string
       enum: [mempool_is_full]
-
-x-errTokensMintedButNotSpentOrBurned: &errTokensMintedButNotSpentOrBurned
-  <<: *responsesErr
-  title: tokens_minted_but_not_spent_or_burned
-  properties:
-    message:
-      type: string
-      description: |
-        Returned when a user mints funds but does not spend or burn them all.
-    code:
-      type: string
-      enum: ['tokens_minted_but_not_spent_or_burned']
-
-# TODO: Map this error to the place it belongs.
-x-errKeyNotFoundForAddress: &errKeyNotFoundForAddress
-  <<: *responsesErr
-  title: key_not_found_for_address
-  properties:
-    message:
-      type: string
-      description: Should never happen unless the server screwed up and has lost track of previously known addresses.
-    code:
-      type: string
-      enum: ['key_not_found_for_address']
 
 x-errNotEnoughMoney: &errNotEnoughMoney
   <<: *responsesErr
@@ -4755,53 +4679,6 @@ x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
       type: string
       enum: ['shared_wallet_script_template_invalid']
 
-# TODO: Map this error to the place it belongs.
-x-errNetworkUnreachable: &errNetworkUnreachable
-  <<: *responsesErr
-  title: network_unreachable
-  properties:
-    message:
-      type: string
-      description: May occur when the connection with the node is lost or not responding.
-    code:
-      type: string
-      enum: ['network_unreachable']
-
-# TODO: Map this error to the place it belongs.
-x-errNetworkMisconfigured: &errNetworkMisconfigured
-  <<: *responsesErr
-  title: network_misconfigured
-  properties:
-    message:
-      type: string
-      description: May occur when trying to connect to a wrong network (e.g. testnet instead of mainnet).
-    code:
-      type: string
-      enum: ['network_misconfigured']
-
-# TODO: Map this error to the place it belongs.
-x-errNetworkQueryFailed: &errNetworkQueryFailed
-  <<: *responsesErr
-  title: network_query_failed
-  properties:
-    message:
-      type: string
-      description: Occurs when a ledger query fails in an unexpected manner.
-    code:
-      type: string
-      enum: ['network_query_failed']
-
-x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
-  <<: *responsesErr
-  title: created_invalid_transaction
-  properties:
-    message:
-      type: string
-      description: Should never happen unless the server screwed up with the creation of transaction.
-    code:
-      type: string
-      enum: ['created_invalid_transaction']
-
 x-errForeignTransaction: &errForeignTransaction
   <<: *responsesErr
   title: foreign_transaction
@@ -4958,30 +4835,6 @@ x-errBalanceTxInternalError: &errBalanceTxInternalError
       type: string
       enum: ["balance_tx_internal_error"]
 
-x-errBalanceTxUnderestimatedFee: &errBalanceTxUnderestimatedFee
-  <<: *responsesErr
-  title: balance_tx_underestimated_fee
-  properties:
-    message:
-      type: string
-      description: |
-        I have somehow underestimated the fee of the transaction
-        and cannot finish balancing.
-    code:
-      type: string
-      enum: ["balance_tx_underestimated_fee"]
-
-x-errMethodNotAllowed: &errMethodNotAllowed
-  <<: *responsesErr
-  title: method_not_allowed
-  properties:
-    message:
-      type: string
-      description: May occur when sending a request on a wrong endpoint.
-    code:
-      type: string
-      enum: ['method_not_allowed']
-
 x-errNotAcceptable: &errNotAcceptable
   <<: *responsesErr
   title: not_acceptable
@@ -5004,18 +4857,6 @@ x-errUnsupportedMediaType: &errUnsupportedMediaType
       type: string
       enum: ['unsupported_media_type']
 
-# TODO: Map this error to the place it belongs.
-x-errUnexpectedError: &errUnexpectedError
-  <<: *responsesErr
-  title: unexpected_error
-  properties:
-    message:
-      type: string
-      description: Should never occur, unless the server screwed up badly.
-    code:
-      type: string
-      enum: ['unexpected_error']
-
 x-errStartTimeLaterThanEndTime: &errStartTimeLaterThanEndTime
   <<: *responsesErr
   title: start_time_later_than_end_time
@@ -5027,31 +4868,6 @@ x-errStartTimeLaterThanEndTime: &errStartTimeLaterThanEndTime
       type: string
       enum: ['start_time_later_than_end_time']
 
-# TODO: Map this error to the place it belongs.
-x-errUnableToDetermineCurrentEpoch: &errUnableToDetermineCurrentEpoch
-  <<: *responsesErr
-  title: unable_to_determine_current_epoch
-  properties:
-    message:
-      type: string
-      description: May occur under rare circumstances if the underlying node isn't enough synced with the network.
-    code:
-      type: string
-      enum: ['unable_to_determine_current_epoch']
-
-# TODO: Map this error to the place it belongs.
-x-errNotSynced: &errNotSynced
-  <<: *responsesErr
-  title: not_synced
-  properties:
-    message:
-      type: string
-      description: May occur under rare circumstances if the underlying node isn't enough synced with the network.
-    code:
-      type: string
-      enum: ['not_synced']
-
-# TODO: Map this error to the place it belongs.
 x-errNothingToMigrate: &errNothingToMigrate
   <<: *responsesErr
   title: nothing_to_migrate
@@ -5095,42 +4911,6 @@ x-errNotDelegatingTo: &errNotDelegatingTo
     code:
       type: string
       enum: ['not_delegating_to']
-
-# TODO: Map this error to the place it belongs.
-x-errNotImplemented: &errNotImplemented
-  <<: *responsesErr
-  title: not_implemented
-  properties:
-    message:
-      type: string
-      description: May occur when reaching an endpoint under construction.
-    code:
-      type: string
-      enum: ['not_implemented']
-
-# TODO: Map this error to the place it belongs.
-x-errWalletNotResponding: &errWalletNotResponding
-  <<: *responsesErr
-  title: wallet_not_responding
-  properties:
-    message:
-      type: string
-      description: Should never occur unless something really wrong happened causing a background worker to die.
-    code:
-      type: string
-      enum: ['wallet_not_responding']
-
-# TODO: Map this error to the place it belongs.
-x-errAddressAlreadyExists: &errAddressAlreadyExists
-  <<: *responsesErr
-  title: address_already_exists
-  properties:
-    message:
-      type: string
-      description: May occur when trying to import an address that is already known of the wallet's account.
-    code:
-      type: string
-      enum: ['address_already_exists']
 
 x-errInvalidWalletType: &errInvalidWalletType
   <<: *responsesErr
@@ -5234,44 +5014,6 @@ x-errAlreadyWithdrawing: &errAlreadyWithdrawing
       type: string
       enum: ['already_withdrawing']
 
-# TODO: Map this error to the place it belongs.
-x-errWithdrawalNotBeneficial: &errWithdrawalNotBeneficial
-  <<: *responsesErr
-  title: withdrawal_not_beneficial
-  properties:
-    message:
-      type: string
-      description: |
-        Occurs when the cost of withdrawing a reward balance would be greater
-        than the reward balance itself.
-    code:
-      type: string
-      enum: ['withdrawal_not_beneficial']
-
-# TODO: Map this error to the place it belongs.
-x-errPastHorizon: &errPastHorizon
-  <<: *responsesErr
-  title: past_horizon
-  properties:
-    message:
-      type: string
-      description: May occur in rare cases when converting slot to time can't be done, typically near hard-forks.
-    code:
-      type: string
-      enum: ['past_horizon']
-
-# TODO: Map this error to the place it belongs.
-x-errUnableToAssignInputOutput: &errUnableToAssignInputOutput
-  <<: *responsesErr
-  title: unable_to_assign_input_output
-  properties:
-    message:
-      type: string
-      description: Should never occur unless the server screwed up with a coin selection.
-    code:
-      type: string
-      enum: ['unable_to_assign_input_output']
-
 x-errAssetNotPresent: &errAssetNotPresent
   <<: *responsesErr
   title: asset_not_present
@@ -5358,18 +5100,6 @@ x-errTranslationError: &errTranslationError
       type: string
       enum: ['translation_error']
 
-x-errExistingKeyWitnesses: &errExistingKeyWitnesses
-  <<: *responsesErr
-  title: existing_key_witnesses
-  properties:
-    message:
-      type: string
-      description: |
-        Occurs when trying to balance a transaction that already has key witnesses.
-    code:
-      type: string
-      enum: ['existing_key_witnesses']
-
 x-errInputResolutionConflicts: &errInputResolutionConflicts
   <<: *responsesErr
   title: input_resolution_conflicts
@@ -5383,975 +5113,6 @@ x-errInputResolutionConflicts: &errInputResolutionConflicts
     code:
       type: string
       enum: ['input_resolution_conflicts']
-
-x-responsesErr400: &responsesErr400
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema: *errBadRequest
-
-x-responsesErr403: &responsesErr403
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema: *responsesErr
-
-x-responsesErr404: &responsesErr404
-  404:
-    description: Not Found
-    content:
-      application/json:
-        schema: *responsesErr
-
-x-responsesErr406: &responsesErr406
-  406:
-    description: Not Acceptable
-    content:
-      application/json:
-        schema: *errNotAcceptable
-
-x-responsesErr409: &responsesErr409
-  409:
-    description: Conflict
-    content:
-      application/json:
-        schema: *responsesErr
-
-x-responsesErr410: &responsesErr410
-  410:
-    description: Gone
-    content:
-      application/json:
-    schema: *responsesErr
-
-x-responsesErr415: &responsesErr415
-  415:
-    description: Unsupported Media Type
-    content:
-      application/json:
-        schema: *responsesErr
-
-x-responsesErr423: &responsesErr423
-  423:
-    description: Locked
-    content:
-      application/json:
-        schema: *responsesErr
-
-x-responsesErr425MempoolIsFull: &responsesErr425MempoolIsFull
-  425:
-    description: Mempool is Full
-    content:
-      application/json:
-        schema: *errMempoolIsFull
-
-x-responsesErr404WalletNotFound: &responsesErr404WalletNotFound
-  404:
-    description: Not Found
-    content:
-      application/json:
-        schema: *errNoSuchWallet
-
-x-responsesErr503WalletMetadataNotFound: &responsesErr503WalletMetadataNotFound
-  503:
-    description: No meta
-    content:
-      application/json:
-        schema: *errWalletMetadataNotFound
-
-x-responsesErr409WalletAlreadyExists: &responsesErr409WalletAlreadyExists
-  409:
-    description: Conflict
-    content:
-      application/json:
-        schema: *errWalletAlreadyExists
-
-x-responsesErr415UnsupportedMediaType: &responsesErr415UnsupportedMediaType
-  415:
-    description: Unsupported Media Type
-    content:
-      application/json:
-        schema: *errUnsupportedMediaType
-
-x-responsesListWallets: &responsesListWallets
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiWallet
-
-x-responsesListSharedWallets: &responsesListSharedWallets
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiSharedWallet
-
-x-responsesErr404AssetNotPresent: &responsesErr404AssetNotPresent
-  404:
-    description: Not Found
-    content:
-      application/json:
-        schema: *errAssetNotPresent
-
-x-responsesListAssets: &responsesListAssets
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiAsset
-
-x-responsesGetAsset: &responsesGetAsset
-  <<: *responsesErr404AssetNotPresent
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiAsset
-
-x-responsesListByronWallets: &responsesListByronWallets
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiByronWallet
-
-x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiWalletUTxOsStatistics
-
-x-responsesGetWalletUtxoSnapshot: &responsesGetWalletUtxoSnapshot
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiWalletUtxoSnapshot
-
-x-responsesPostWallet: &responsesPostWallet
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr409WalletAlreadyExists
-  <<: *responsesErr415UnsupportedMediaType
-  201:
-    description: Created
-    content:
-      application/json:
-        schema: *ApiWallet
-
-x-responsesPostSharedWallet: &responsesPostSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr409WalletAlreadyExists
-  <<: *responsesErr415UnsupportedMediaType
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errSharedWalletScriptTemplateInvalid
-  500:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errMissingRewardAccount
-  201:
-    description: Created
-    content:
-      application/json:
-        schema: *ApiSharedWallet
-
-x-responsesPostByronWallet: &responsesPostByronWallet
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr409
-  <<: *responsesErr415
-  201:
-    description: Created
-    content:
-      application/json:
-        schema: *ApiByronWallet
-
-x-responsesGetWallet: &responsesGetWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiWallet
-
-x-responsesGetByronWallet: &responsesGetByronWallet
-  <<: *responsesErr404
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiByronWallet
-
-x-responsesGetSharedWallet: &responsesGetSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiSharedWallet
-
-x-responsesPatchSharedWallet: &responsesPatchSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr503WalletMetadataNotFound
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errSharedWalletKeyAlreadyExists
-            - <<: *errSharedWalletNoDelegationTemplate
-            - <<: *errSharedWalletActive
-            - <<: *errSharedWalletNoSuchCosigner
-            - <<: *errSharedWalletCannotUpdateKey
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiSharedWallet
-
-x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema: *errNothingToMigrate
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiWalletMigrationPlan
-
-x-responsesMigrateWallet: &responsesMigrateWallet
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errNothingToMigrate
-            - <<: *errNoRootKey
-            - <<: *errWrongEncryptionPassphrase
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiTransaction
-          minItems: 1
-
-x-responsesDeleteWallet: &responsesDeleteWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  204:
-    description: No Content
-
-x-responsesForceResyncWallet: &responsesForceResyncWallet
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr406
-  <<: *responsesErr415
-  204:
-    description: No Content
-
-x-responsesPutWallet: &responsesPutWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiWallet
-
-x-responsesPutSharedWallet: &responsesPutSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiSharedWallet
-
-x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errNoRootKey
-            - <<: *errWrongEncryptionPassphrase
-            - <<: *errWrongMnemonic
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  204:
-    description: No Content
-
-x-responsesSelectCoins: &responsesSelectCoins
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errAlreadyWithdrawing
-            - <<: *errUtxoTooSmall
-            - <<: *errNoUtxosAvailable
-            - <<: *errNotEnoughMoney
-            - <<: *errInsufficientCollateral
-            - <<: *errCannotCoverFee
-            - <<: *errInputsDepleted
-            - <<: *errInvalidCoinSelection
-            - <<: *errOutputTokenQuantityExceedsLimit
-            - <<: *errOutputTokenBundleSizeExceedsLimit
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  200:
-    description: OK
-    content:
-      application/json:
-        schema: *ApiCoinSelection
-
-x-responsesDeleteTransaction: &responsesDeleteTransaction
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema: *errTransactionAlreadyInLedger
-  404:
-    description: Not Found
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errNoSuchWallet
-            - <<: *errNoSuchTransaction
-  <<: *responsesErr406
-  204:
-    description: No Content
-
-x-responsesListTransactions: &responsesListTransactions
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errMinWithdrawalWrong
-            - <<: *errStartTimeLaterThanEndTime
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    headers:
-      Content-Range:
-        schema:
-          type: string
-          format: inserted-at {range-start}-{range-end}/{total}
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiTransaction
-
-x-responsesGetTransaction: &responsesGetTransaction
-  404:
-    description: Not Found
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errNoSuchWallet
-            - <<: *errNoSuchTransaction
-  <<: *responsesErr406
-  200:
-    description: OK
-    content:
-      application/json:
-        schema: *ApiTransaction
-
-# ADP-908 Deprecated
-x-responsesPostTransaction: &responsesPostTransaction
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errInvalidWalletType
-            - <<: *errAlreadyWithdrawing
-            - <<: *errUtxoTooSmall
-            - <<: *errCannotCoverFee
-            - <<: *errNoUtxosAvailable
-            - <<: *errNotEnoughMoney
-            - <<: *errInsufficientCollateral
-            - <<: *errTransactionIsTooBig
-            - <<: *errNoRootKey
-            - <<: *errWrongEncryptionPassphrase
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  <<: *responsesErr425MempoolIsFull
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiTransaction
-
-x-responsesConstructTransaction: &responsesConstructTransaction
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errBadRequest
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errInvalidWalletType
-            - <<: *errAlreadyWithdrawing
-            - <<: *errUtxoTooSmall
-            - <<: *errCannotCoverFee
-            - <<: *errNoUtxosAvailable
-            - <<: *errNotEnoughMoney
-            - <<: *errInsufficientCollateral
-            - <<: *errTransactionIsTooBig
-            - <<: *errCreatedMultidelegationTransaction
-            - <<: *errCreatedMultiaccountTransaction
-            - <<: *errCreatedWrongPolicyScriptTemplate
-            - <<: *errAssetNameTooLong
-            - <<: *errMintOrBurnAssetQuantityOutOfBounds
-            - <<: *errInvalidValidityBounds
-            - <<: *errValidityIntervalNotInsideScriptTimelock
-            - <<: *errSharedWalletIncomplete
-            - <<: *errDelegationInvalid
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiConstructTransaction
-
-x-responsesSignTransaction: &responsesSignTransaction
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errNoRootKey
-            - <<: *errWrongEncryptionPassphrase
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiSignedTransaction
-
-x-responsesDecodedTransaction: &responsesDecodedTransaction
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiDecodedTransaction
-
-x-responsesSubmitTransaction: &responsesSubmitTransaction
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiTxId
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errForeignTransaction
-            - <<: *errMissingWitnessesInTransaction
-            - <<: *errCreatedMultidelegationTransaction
-
-x-responsesPostExternalTransaction: &responsesPostExternalTransaction
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  <<: *responsesErr425MempoolIsFull
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiTxId
-
-x-responsesPostAnyAddress: &responsesPostAnyAddress
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *AnyAddress
-
-x-responsesPostTransactionFee: &responsesPostTransactionFee
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errBadRequest
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errInvalidWalletType
-            - <<: *errAlreadyWithdrawing
-            - <<: *errUtxoTooSmall
-            - <<: *errCannotCoverFee
-            - <<: *errNoUtxosAvailable
-            - <<: *errNotEnoughMoney
-            - <<: *errInsufficientCollateral
-            - <<: *errInputsDepleted
-            - <<: *errInvalidCoinSelection
-            - <<: *errOutputTokenQuantityExceedsLimit
-            - <<: *errOutputTokenBundleSizeExceedsLimit
-            - <<: *errTransactionIsTooBig
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiFee
-
-x-responsesGetDelegationFee: &responsesGetDelegationFee
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema: *errCannotCoverFee
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiFee
-
-x-responsesListAddresses: &responsesListAddresses
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiAddressWithPath
-
-x-responsesGetShelleyKey: &responsesGetShelleyKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiVerificationKeyShelley
-
-x-responsesPostPolicyKey: &responsesPostPolicyKey
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiPolicyKey
-
-x-responsesPostPolicyId: &responsesPostPolicyId
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errInvalidWalletType
-            - <<: *errMissingPolicyPublicKey
-            - <<: *errCreatedWrongPolicyScriptTemplate
-  <<: *responsesErr406
-  <<: *responsesErr415
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiPolicyId
-
-x-responsesGetPolicyKey: &responsesGetPolicyKey
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errInvalidWalletType
-            - <<: *errMissingPolicyPublicKey
-  <<: *responsesErr404
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiPolicyKey
-
-x-responsesGetSharedKey: &responsesGetSharedKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiVerificationKeyShared
-
-x-responsesGetAccountSharedKey: &responsesGetAccountSharedKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiAccountKeyShared
-
-x-responsesPostAccountKey: &responsesPostAccountKey
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiAccountKey
-
-x-responsesGetAccountKey: &responsesGetAccountKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiAccountKey
-
-x-responsesPostAccountKeyShared: &responsesPostAccountKeyShared
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiAccountKeyShared
-
-x-responsesListStakePools: &responsesListStakePools
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema: *errQueryParamMissing
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          type: array
-          items: *ApiStakePool
-
-x-responsesListStakeKeys: &responsesListStakeKeys
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiStakeKeys
-
-x-responsesPostMaintenanceAction: &responsesPostMaintenanceAction
-  <<: *responsesErr404
-  204:
-    description: No Content
-
-x-responsesGetMaintenanceAction: &responsesGetMaintenanceAction
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema:
-          <<: *ApiMaintenanceAction
-
-x-responsesJoinStakePool: &responsesJoinStakePool
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errCannotCoverFee
-            - <<: *errNoRootKey
-            - <<: *errNoUtxosAvailable
-            - <<: *errWrongEncryptionPassphrase
-            - <<: *errPoolAlreadyJoined
-  404:
-    description: Not Found
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errNoSuchWallet
-            - <<: *errNoSuchPool
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiTransaction
-
-x-responsesQuitStakePool: &responsesQuitStakePool
-  <<: *responsesErr400
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errCannotCoverFee
-            - <<: *errNoRootKey
-            - <<: *errNoUtxosAvailable
-            - <<: *errWrongEncryptionPassphrase
-            - <<: *errNotDelegatingTo
-            - <<: *errNonNullRewards
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiTransaction
-
-x-responsesGetNetworkInformation: &responsesGetNetworkInformation
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiNetworkInformation
-
-x-responsesGetNetworkClock: &responsesGetNetworkClock
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiNetworkClock
-
-x-responsesGetNetworkParameters: &responsesGetNetworkParameters
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiNetworkParameters
-
-x-responsesPostRandomAddress: &responsesPostRandomAddress
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr406
-  <<: *responsesErr415
-  201:
-    description: Created
-    content:
-      application/json:
-        schema: *ApiAddressWithPath
-
-x-responsesPutRandomAddress: &responsesPutRandomAddress
-  <<: *responsesErr400
-  <<: *responsesErr403
-  204:
-    description: No Content
-
-x-responsesPutRandomAddresses: &responsesPutRandomAddresses
-  <<: *responsesErr400
-  <<: *responsesErr403
-  204:
-    description: No Content
-
-x-responsesInspectAddress: &responsesInspectAddress
-  <<: *responsesErr400
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiAddressInspect
-
-x-responsesPutSettings: &responsesPutSettings
-  <<: *responsesErr400
-  <<: *responsesErr415UnsupportedMediaType
-  204:
-    description: No Content
-
-x-responsesGetSettings: &responsesGetSettings
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiGetSettings
-
-x-responsesPostSignatures: &responsesPostSignatures
-    <<: *responsesErr400
-    <<: *responsesErr406
-    <<: *responsesErr415
-    200:
-      description: OK
-      content:
-        application/octet-stream:
-          schema:
-            type: string
-            format: binary
-
-x-responsesGetSmashHealth: &responsesGetSmashHealth
-  <<: *responsesErr400
-  <<: *responsesErr406
-  200:
-    description: Ok
-    content:
-      application/json:
-        schema: *ApiHealthCheck
-
-x-responsesBalanceTransaction: &responsesBalanceTransaction
-  400:
-    description: Bad Request
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errBadRequest
-            - <<: *errRedeemerScriptFailure
-            - <<: *errRedeemerTargetNotFound
-            - <<: *errRedeemerInvalidData
-            - <<: *errTranslationError
-            - <<: *errUnresolvedInputs
-            - <<: *errInputResolutionConflicts
-  403:
-    description: Forbidden
-    content:
-      application/json:
-        schema:
-          oneOf:
-            - <<: *errAlreadyWithdrawing
-            - <<: *errNodeNotYetInRecentEra
-            - <<: *errBalanceTxConflictingNetworks
-            - <<: *errBalanceTxExistingCollateral
-            - <<: *errBalanceTxExistingKeyWitnesses
-            - <<: *errBalanceTxExistingReturnCollateral
-            - <<: *errBalanceTxExistingTotalCollateral
-            - <<: *errBalanceTxInternalError
-            - <<: *errCannotCoverFee
-            - <<: *errInsufficientCollateral
-            - <<: *errInvalidWalletType
-            - <<: *errNoUtxosAvailable
-            - <<: *errNotEnoughMoney
-            - <<: *errTransactionAlreadyBalanced
-            - <<: *errTransactionIsTooBig
-            - <<: *errUtxoTooSmall
-            - <<: *errTxNotInNodeEra
-
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  202:
-    description: Accepted
-    content:
-      application/json:
-        schema: *ApiSerialisedTransaction
 
 #############################################################################
 #                                                                           #
@@ -6422,7 +5183,29 @@ paths:
           content:
             application/json:
               schema: *ApiWalletSignData
-        responses: *responsesPostSignatures
+        responses:
+          200:
+            description: OK
+            content:
+              application/octet-stream:
+                schema:
+                  type: string
+                  format: binary
+          400:
+            description: Bad Request
+            content:
+              application/json:
+                schema: *errBadRequest
+          406:
+            description: Not Acceptable
+            content:
+              application/json:
+                schema: *errNotAcceptable
+          415:
+            description: Unsupported Media Type
+            content:
+              application/json:
+                schema: *responsesErr
 
   /wallets:
     post:
@@ -6438,7 +5221,32 @@ paths:
         content:
           application/json:
             schema: *ApiWalletOrAccountPostData
-      responses: *responsesPostWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        409:
+          description: Conflict
+          content:
+            application/json:
+              schema: *errWalletAlreadyExists
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        201:
+          description: Created
+          content:
+            application/json:
+              schema: *ApiWallet
 
     get:
       operationId: listWallets
@@ -6448,7 +5256,19 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known wallets, ordered from oldest to newest.
-      responses: *responsesListWallets
+      responses:
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiWallet
 
   /wallets/{walletId}/assets:
     get:
@@ -6463,7 +5283,19 @@ paths:
         it was spendable by the wallet.
       parameters:
         - *parametersWalletId
-      responses: *responsesListAssets
+      responses:
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiAsset
 
   /wallets/{walletId}/assets/{policyId}/{assetName}:
     get:
@@ -6479,7 +5311,22 @@ paths:
         - *parametersWalletId
         - *parametersPolicyId
         - *parametersAssetName
-      responses: *responsesGetAsset
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAsset
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errAssetNotPresent
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /wallets/{walletId}/assets/{policyId}:
     get:
@@ -6493,7 +5340,22 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersPolicyId
-      responses: *responsesGetAsset
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAsset
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errAssetNotPresent
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /wallets/{walletId}/statistics/utxos:
     get:
@@ -6521,7 +5383,23 @@ paths:
         ```
       parameters:
         - *parametersWalletId
-      responses: *responsesGetUTxOsStatistics
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWalletUTxOsStatistics
+
 
   /wallets/{walletId}/utxo:
     get:
@@ -6534,7 +5412,22 @@ paths:
         This endpoint is intended for debugging purposes.
       parameters:
         - *parametersWalletId
-      responses: *responsesGetWalletUtxoSnapshot
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWalletUtxoSnapshot
 
   /wallets/{walletId}:
     get:
@@ -6545,7 +5438,27 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
-      responses: *responsesGetWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWallet
 
     delete:
       operationId: deleteWallet
@@ -6555,7 +5468,24 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
-      responses: *responsesDeleteWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        204:
+          description: No Content
 
     put:
       operationId: putWallet
@@ -6570,7 +5500,32 @@ paths:
         content:
           application/json:
             schema: *ApiWalletPutDataExtended
-      responses: *responsesPutWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWallet
 
   /wallets/{walletId}/passphrase:
     put:
@@ -6586,7 +5541,38 @@ paths:
         content:
           application/json:
             schema: *ApiWalletPutPassphraseData
-      responses: *responsesPutWalletPassphrase
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoRootKey
+                  - <<: *errWrongEncryptionPassphrase
+                  - <<: *errWrongMnemonic
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        204:
+          description: No Content
 
   /wallets/{walletId}/payment-fees:
     post:
@@ -6616,7 +5602,52 @@ paths:
                   title: "payment"
                 - <<: *ApiPostRedemptionFeeData
                   title: "redemption"
-      responses: *responsesPostTransactionFee
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errCannotCoverFee
+                  - <<: *errInputsDepleted
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidCoinSelection
+                  - <<: *errInvalidWalletType
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errOutputTokenBundleSizeExceedsLimit
+                  - <<: *errOutputTokenQuantityExceedsLimit
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errUtxoTooSmall
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiFee
 
   /wallets/{walletId}/transactions:
     post:
@@ -6641,7 +5672,53 @@ paths:
                   title: "payment"
                 - <<: *ApiPostRedemptionData
                   title: "redemption"
-      responses: *responsesPostTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errCannotCoverFee
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidWalletType
+                  - <<: *errNoRootKey
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errUtxoTooSmall
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        425:
+          description: Mempool is Full
+          content:
+            application/json:
+              schema: *errMempoolIsFull
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTransaction
 
     get:
       operationId: listTransactions
@@ -6660,7 +5737,37 @@ paths:
         - *parametersMinWithdrawal
         - *parametersMetadataFormat
         - *parametersAddress
-      responses: *responsesListTransactions
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errMinWithdrawalWrong
+                  - <<: *errStartTimeLaterThanEndTime
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                format: inserted-at {range-start}-{range-end}/{total}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiTransaction
 
   /wallets/{walletId}/transactions/{transactionId}:
     get:
@@ -6675,7 +5782,25 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
         - *parametersMetadataFormat
-      responses: *responsesGetTransaction
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoSuchWallet
+                  - <<: *errNoSuchTransaction
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiTransaction
 
     delete:
       operationId: deleteTransaction
@@ -6692,7 +5817,27 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
-      responses: *responsesDeleteTransaction
+      responses:
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *errTransactionAlreadyInLedger
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoSuchWallet
+                  - <<: *errNoSuchTransaction
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        204:
+          description: No Content
 
   /wallets/{walletId}/transactions-construct:
     post:
@@ -6710,7 +5855,57 @@ paths:
         content:
           application/json:
             schema: *ApiConstructTransactionData
-      responses: *responsesConstructTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errAssetNameTooLong
+                  - <<: *errCannotCoverFee
+                  - <<: *errCreatedMultiaccountTransaction
+                  - <<: *errCreatedMultidelegationTransaction
+                  - <<: *errCreatedWrongPolicyScriptTemplate
+                  - <<: *errDelegationInvalid
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidValidityBounds
+                  - <<: *errInvalidWalletType
+                  - <<: *errMintOrBurnAssetQuantityOutOfBounds
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errSharedWalletIncomplete
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errUtxoTooSmall
+                  - <<: *errValidityIntervalNotInsideScriptTimelock
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiConstructTransaction
 
   /wallets/{walletId}/transactions-sign:
     post:
@@ -6733,7 +5928,40 @@ paths:
         content:
           application/json:
             schema: *ApiSignTransactionPostData
-      responses: *responsesSignTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoRootKey
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiSignedTransaction
 
   /wallets/{walletId}/transactions-decode:
     post:
@@ -6752,7 +5980,32 @@ paths:
         content:
           application/json:
             schema: *ApiDecodeTransactionPostData
-      responses: *responsesDecodedTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiDecodedTransaction
 
   /wallets/{walletId}/transactions-submit:
     post:
@@ -6771,7 +6024,32 @@ paths:
         content:
           application/json:
             schema: *ApiSignedTransactionEncoded
-      responses: *responsesPostExternalTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        425:
+          description: Mempool is Full
+          content:
+            application/json:
+              schema: *errMempoolIsFull
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTxId
 
   /wallets/{walletId}/addresses:
     get:
@@ -6785,7 +6063,29 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersAddressState
-      responses: *responsesListAddresses
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiAddressWithPath
 
   /wallets/{walletId}/keys/{index}:
     post:
@@ -6810,7 +6110,27 @@ paths:
         content:
           application/json:
             schema: *ApiPostAccountKeyDataWithPurpose
-      responses: *responsesPostAccountKey
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiAccountKey
 
   /wallets/{walletId}/keys:
     get:
@@ -6827,7 +6147,27 @@ paths:
 
       parameters:
         - *parametersWalletId
-      responses: *responsesGetAccountKey
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAccountKey
 
   /wallets/{walletId}/keys/{role}/{index}:
     get:
@@ -6846,7 +6186,27 @@ paths:
         - *parametersWalletId
         - *parametersRole
         - *parametersDerivationSegment
-      responses: *responsesGetShelleyKey
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiVerificationKeyShelley
 
   /wallets/{walletId}/policy-id:
     post:
@@ -6865,7 +6225,36 @@ paths:
         content:
           application/json:
             schema: *ApiPostPolicyIdData
-      responses: *responsesPostPolicyId
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errInvalidWalletType
+                  - <<: *errMissingPolicyPublicKey
+                  - <<: *errCreatedWrongPolicyScriptTemplate
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiPolicyId
 
   /wallets/{walletId}/policy-key:
     post:
@@ -6891,7 +6280,27 @@ paths:
         content:
           application/json:
             schema: *ApiPostPolicyKeyData
-      responses: *responsesPostPolicyKey
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiPolicyKey
 
     get:
       operationId: getPolicyKey
@@ -6906,7 +6315,35 @@ paths:
 
       parameters:
         - *parametersWalletId
-      responses: *responsesGetPolicyKey
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errInvalidWalletType
+                  - <<: *errMissingPolicyPublicKey
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiPolicyKey
 
   /wallets/{walletId}/stake-keys:
     get:
@@ -6919,7 +6356,12 @@ paths:
         List stake-keys relevant to the wallet, and how much ada is associated with each.
       parameters:
         - *parametersWalletId
-      responses: *responsesListStakeKeys
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiStakeKeys
 
   /stake-pools:
     get:
@@ -6936,7 +6378,19 @@ paths:
         Some pools _may_ also have metadata attached to them.
       parameters:
         - *parametersIntendedStakeAmount
-      responses: *responsesListStakePools
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errQueryParamMissing
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiStakePool
 
   /stake-pools/maintenance-actions:
     get:
@@ -6945,7 +6399,13 @@ paths:
       summary: View Maintenance Actions
       description: |
         Returns the current status of the stake pools maintenance actions.
-      responses: *responsesGetMaintenanceAction
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                <<: *ApiMaintenanceAction
 
     post:
       operationId: postMaintenanceAction
@@ -6961,15 +6421,20 @@ paths:
         content:
           application/json:
             schema: *ApiMaintenanceActionPostData
-      responses: *responsesPostMaintenanceAction
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        204:
+          description: No Content
 
   /wallets/{walletId}/delegation-fees:
     get:
       operationId: getDelegationFee
       tags: ["Stake Pools"]
       summary: Estimate Fee
-      # ADP-908 - Deprecated soon
-      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -6979,7 +6444,27 @@ paths:
         fees can only be estimated.
       parameters:
         - *parametersWalletId
-      responses: *responsesGetDelegationFee
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiFee
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *errCannotCoverFee
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /stake-pools/*/wallets/{walletId}:
     delete:
@@ -7007,7 +6492,45 @@ paths:
         content:
           application/json:
             schema: *ApiWalletPassphrase
-      responses: *responsesQuitStakePool
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errCannotCoverFee
+                  - <<: *errNonNullRewards
+                  - <<: *errNoRootKey
+                  - <<: *errNotDelegatingTo
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTransaction
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
     put:
@@ -7029,7 +6552,46 @@ paths:
         content:
           application/json:
             schema: *ApiWalletPassphrase
-      responses: *responsesJoinStakePool
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errCannotCoverFee
+                  - <<: *errNoRootKey
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errWrongEncryptionPassphrase
+                  - <<: *errPoolAlreadyJoined
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoSuchWallet
+                  - <<: *errNoSuchPool
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTransaction
 
   /wallets/{walletId}/coin-selections/random:
     post:
@@ -7050,7 +6612,48 @@ paths:
         content:
           application/json:
             schema: *ApiSelectCoinsData
-      responses: *responsesSelectCoins
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errCannotCoverFee
+                  - <<: *errInputsDepleted
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidCoinSelection
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errOutputTokenBundleSizeExceedsLimit
+                  - <<: *errOutputTokenQuantityExceedsLimit
+                  - <<: *errUtxoTooSmall
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiCoinSelection
 
   /wallets/{walletId}/migrations:
     post:
@@ -7077,14 +6680,45 @@ paths:
         wallet to a new wallet, by providing addresses that belong to the new
         wallet.
       parameters:
-        - <<: *parametersWalletId
-          name: walletId
+        - *parametersWalletId
       requestBody:
         required: true
         content:
           application/json:
             schema: *ApiShelleyWalletMigrationPostData
-      responses: *responsesMigrateWallet
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiTransaction
+                minItems: 1
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNothingToMigrate
+                  - <<: *errNoRootKey
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
   /wallets/{walletId}/migrations/plan:
     post:
@@ -7110,14 +6744,33 @@ paths:
         a subset of the wallet's UTxO set will be included in the resultant
         plan.
       parameters:
-        - <<: *parametersWalletId
-          name: walletId
+        - *parametersWalletId
       requestBody:
         required: true
         content:
           application/json:
             schema: *ApiWalletMigrationPlanPostData
-      responses: *responsesCreateWalletMigrationPlan
+      responses:
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *errNothingToMigrate
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiWalletMigrationPlan
 
   /wallets/{walletId}/transactions-balance:
     post:
@@ -7135,7 +6788,63 @@ paths:
         content:
           application/json:
             schema: *ApiBalanceTransactionPostData
-      responses: *responsesBalanceTransaction
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiSerialisedTransaction
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errBadRequest
+                  - <<: *errInputResolutionConflicts
+                  - <<: *errRedeemerInvalidData
+                  - <<: *errRedeemerScriptFailure
+                  - <<: *errRedeemerTargetNotFound
+                  - <<: *errTranslationError
+                  - <<: *errUnresolvedInputs
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errBalanceTxConflictingNetworks
+                  - <<: *errBalanceTxExistingCollateral
+                  - <<: *errBalanceTxExistingKeyWitnesses
+                  - <<: *errBalanceTxExistingReturnCollateral
+                  - <<: *errBalanceTxExistingTotalCollateral
+                  - <<: *errBalanceTxInternalError
+                  - <<: *errCannotCoverFee
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidWalletType
+                  - <<: *errNodeNotYetInRecentEra
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errTransactionAlreadyBalanced
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errTxNotInNodeEra
+                  - <<: *errUtxoTooSmall
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
   /byron-wallets:
     post:
@@ -7156,7 +6865,32 @@ paths:
         content:
           application/json:
             schema: *SomeByronWalletPostData
-      responses: *responsesPostByronWallet
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema: *ApiByronWallet
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        409:
+          description: Conflict
+          content:
+            application/json:
+              schema: *responsesErr
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
 
     get:
       operationId: listByronWallets
@@ -7166,7 +6900,19 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known Byron wallets, ordered from oldest to newest.
-      responses: *responsesListByronWallets
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiByronWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /byron-wallets/{walletId}/assets:
     get:
@@ -7181,7 +6927,19 @@ paths:
         transaction of the wallet.
       parameters:
         - *parametersWalletId
-      responses: *responsesListAssets
+      responses:
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiAsset
 
   /byron-wallets/{walletId}/assets/{policyId}/{assetName}:
     get:
@@ -7197,7 +6955,22 @@ paths:
         - *parametersWalletId
         - *parametersPolicyId
         - *parametersAssetName
-      responses: *responsesGetAsset
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAsset
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errAssetNotPresent
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /byron-wallets/{walletId}/assets/{policyId}:
     get:
@@ -7211,7 +6984,22 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersPolicyId
-      responses: *responsesGetAsset
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAsset
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errAssetNotPresent
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /byron-wallets/{walletId}/statistics/utxos:
     get:
@@ -7224,22 +7012,37 @@ paths:
         Return the UTxO distribution across the whole wallet, in the form of a histogram.
 
         ```
-             │
-         100 ─
-             │
-             │                                 ┌───┐
+            │
+        100 ─
+            │
+            │                                 ┌───┐
           10 ─                         ┌───┐   │   │                   ┌───┐
-             │                 ┌───┐   │   │   │   │                   │   │
-             │                 │   │   │   │   │   │   ┌───┐           │   │
-           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
-             │ │   │           │   │   │   │   │   │   │   │           │   │
-             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
-             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
-                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+            │                 ┌───┐   │   │   │   │                   │   │
+            │                 │   │   │   │   │   │   ┌───┐           │   │
+          1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+            │ │   │           │   │   │   │   │   │   │   │           │   │
+            │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+            └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                  10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
         ```
       parameters:
         - *parametersWalletId
-      responses: *responsesGetUTxOsStatistics
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWalletUTxOsStatistics
 
   /byron-wallets/{walletId}/utxo:
     get:
@@ -7252,7 +7055,22 @@ paths:
         This endpoint is intended for debugging purposes.
       parameters:
         - *parametersWalletId
-      responses: *responsesGetWalletUtxoSnapshot
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWalletUtxoSnapshot
 
   /byron-wallets/{walletId}:
     get:
@@ -7265,7 +7083,22 @@ paths:
         Return information about a Byron wallet.
       parameters:
         - *parametersWalletId
-      responses: *responsesGetByronWallet
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiByronWallet
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
     delete:
       operationId: deleteByronWallet
@@ -7277,7 +7110,24 @@ paths:
         Delete a Byron wallet.
       parameters:
         - *parametersWalletId
-      responses: *responsesDeleteWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        204:
+          description: No Content
 
     put:
       operationId: putByronWallet
@@ -7292,7 +7142,32 @@ paths:
         content:
           application/json:
             schema: *ApiWalletPutData
-      responses: *responsesPutWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWallet
 
   /byron-wallets/{walletId}/passphrase:
     put:
@@ -7308,84 +7183,184 @@ paths:
         content:
           application/json:
             schema: *ApiByronWalletPutPassphraseData
-      responses: *responsesPutWalletPassphrase
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoRootKey
+                  - <<: *errWrongEncryptionPassphrase
+                  - <<: *errWrongMnemonic
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        204:
+          description: No Content
 
   /byron-wallets/{walletId}/addresses:
-      post:
-        operationId: createAddress
-        tags: ["Byron Addresses"]
-        summary: Create Address
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
+    post:
+      operationId: createAddress
+      tags: ["Byron Addresses"]
+      summary: Create Address
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
 
-          ⚠️  This endpoint is available for `random` wallets only. Any
-          attempt to call this endpoint on another type of wallet will result in
-          a `403 Forbidden` error from the server.
-        parameters:
-          - *parametersWalletId
-        requestBody:
-          required: true
+        ⚠️  This endpoint is available for `random` wallets only. Any
+        attempt to call this endpoint on another type of wallet will result in
+        a `403 Forbidden` error from the server.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostRandomAddressData
+      responses:
+        201:
+          description: Created
           content:
             application/json:
-              schema: *ApiPostRandomAddressData
-        responses: *responsesPostRandomAddress
-
-      get:
-        operationId: listByronAddresses
-        tags: ["Byron Addresses"]
-        summary: List
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          Return a list of known addresses, ordered from newest to oldest for sequential wallets.
-          Arbitrarily ordered for random wallets.
-        parameters:
-          - *parametersWalletId
-          - *parametersAddressState
-        responses: *responsesListAddresses
-
-      put:
-        operationId: importAddresses
-        tags: ["Byron Addresses"]
-        summary: Import Addresses
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
-
-          ⚠️  This endpoint is available for `random` wallets only. Any
-          attempt to call this endpoint on another type of wallet will result in
-          a `403 Forbidden` error from the server.
-        parameters:
-          - *parametersWalletId
-        requestBody:
-          required: true
+              schema: *ApiAddressWithPath
+        400:
+          description: Bad Request
           content:
             application/json:
-              schema: *ApiPutAddressesData
-        responses: *responsesPutRandomAddresses
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
+
+    get:
+      operationId: listByronAddresses
+      tags: ["Byron Addresses"]
+      summary: List
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return a list of known addresses, ordered from newest to oldest for sequential wallets.
+        Arbitrarily ordered for random wallets.
+      parameters:
+        - *parametersWalletId
+        - *parametersAddressState
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiAddressWithPath
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+
+    put:
+      operationId: importAddresses
+      tags: ["Byron Addresses"]
+      summary: Import Addresses
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        ⚠️  This endpoint is available for `random` wallets only. Any
+        attempt to call this endpoint on another type of wallet will result in
+        a `403 Forbidden` error from the server.
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPutAddressesData
+      responses:
+        204:
+          description: No Content
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *responsesErr
 
   /byron-wallets/{walletId}/addresses/{addressId}:
-      put:
-        operationId: importAddress
-        tags: ["Byron Addresses"]
-        summary: Import Address
-        description: |
-          <p align="right">status: <strong>stable</strong></p>
+    put:
+      operationId: importAddress
+      tags: ["Byron Addresses"]
+      summary: Import Address
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
 
-          ⚠️  This endpoint is available for `random` wallets only. Any
-          attempt to call this endpoint on another type of wallet will result in
-          a `403 Forbidden` error from the server.
-        parameters:
-          - *parametersWalletId
-          - *parametersAddressId
-        responses: *responsesPutRandomAddress
+        ⚠️  This endpoint is available for `random` wallets only. Any
+        attempt to call this endpoint on another type of wallet will result in
+        a `403 Forbidden` error from the server.
+      parameters:
+        - *parametersWalletId
+        - *parametersAddressId
+      responses:
+        204:
+          description: No Content
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *responsesErr
 
   /byron-wallets/{walletId}/payment-fees:
     post:
       operationId: postByronTransactionFee
       tags: ["Byron Transactions"]
       summary: Estimate Fee
-      # ADP-908 - Deprecated soon
-      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -7397,7 +7372,52 @@ paths:
         content:
           application/json:
             schema: *ApiPostTransactionFeeDataByron
-      responses: *responsesPostTransactionFee
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiFee
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errCannotCoverFee
+                  - <<: *errInputsDepleted
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidCoinSelection
+                  - <<: *errInvalidWalletType
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errOutputTokenBundleSizeExceedsLimit
+                  - <<: *errOutputTokenQuantityExceedsLimit
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errUtxoTooSmall
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
   /byron-wallets/{walletId}/transactions:
     post:
@@ -7415,7 +7435,53 @@ paths:
           content:
             application/json:
               schema: *ApiPostTransactionDataByron
-      responses: *responsesPostTransaction
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTransaction
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errCannotCoverFee
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidWalletType
+                  - <<: *errNoRootKey
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errUtxoTooSmall
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        425:
+          description: Mempool is Full
+          content:
+            application/json:
+              schema: *errMempoolIsFull
 
     get:
       operationId: listByronTransactions
@@ -7432,7 +7498,37 @@ paths:
         - *parametersSortOrder
         - *parametersMaxCount
         - *parametersAddress
-      responses: *responsesListTransactions
+      responses:
+        200:
+          description: Ok
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                format: inserted-at {range-start}-{range-end}/{total}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiTransaction
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errMinWithdrawalWrong
+                  - <<: *errStartTimeLaterThanEndTime
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /byron-wallets/{walletId}/transactions/{transactionId}:
     get:
@@ -7446,7 +7542,25 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
-      responses: *responsesGetTransaction
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoSuchWallet
+                  - <<: *errNoSuchTransaction
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiTransaction
 
     delete:
       operationId: deleteByronTransaction
@@ -7463,7 +7577,27 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
-      responses: *responsesDeleteTransaction
+      responses:
+        204:
+          description: No Content
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *errTransactionAlreadyInLedger
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoSuchWallet
+                  - <<: *errNoSuchTransaction
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /byron-wallets/{walletId}/coin-selections/random:
     post:
@@ -7487,7 +7621,48 @@ paths:
         content:
           application/json:
             schema: *ApiByronSelectCoinsData
-      responses: *responsesSelectCoins
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiCoinSelection
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errCannotCoverFee
+                  - <<: *errInputsDepleted
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidCoinSelection
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errOutputTokenBundleSizeExceedsLimit
+                  - <<: *errOutputTokenQuantityExceedsLimit
+                  - <<: *errUtxoTooSmall
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
   /byron-wallets/{walletId}/migrations:
     post:
@@ -7514,14 +7689,45 @@ paths:
         wallet to a new wallet, by providing addresses that belong to the new
         wallet.
       parameters:
-        - <<: *parametersWalletId
-          name: walletId
+        - *parametersWalletId
       requestBody:
         required: true
         content:
           application/json:
             schema: *ApiByronWalletMigrationPostData
-      responses: *responsesMigrateWallet
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiTransaction
+                minItems: 1
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNothingToMigrate
+                  - <<: *errNoRootKey
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
   /byron-wallets/{walletId}/migrations/plan:
     post:
@@ -7547,14 +7753,33 @@ paths:
         a subset of the wallet's UTxO set will be included in the resultant
         plan.
       parameters:
-        - <<: *parametersWalletId
-          name: walletId
+        - *parametersWalletId
       requestBody:
         required: true
         content:
           application/json:
             schema: *ApiWalletMigrationPlanPostData
-      responses: *responsesCreateWalletMigrationPlan
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiWalletMigrationPlan
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema: *errNothingToMigrate
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /network/information:
     get:
@@ -7563,7 +7788,17 @@ paths:
       summary: Information
       description: |
         <p align="right">status: <strong>stable</strong></p>
-      responses: *responsesGetNetworkInformation
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiNetworkInformation
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /network/clock:
     get:
@@ -7573,9 +7808,18 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
       parameters:
-        - <<: *parametersForceNtpCheck
-          name: forceNtpCheck
-      responses: *responsesGetNetworkClock
+        - *parametersForceNtpCheck
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiNetworkClock
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /network/parameters:
     get:
@@ -7586,15 +7830,23 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Returns the set of network parameters for the current epoch.
-      responses: *responsesGetNetworkParameters
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiNetworkParameters
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /proxy/transactions:
     post:
       operationId: postExternalTransaction
       tags: ["Proxy"]
       summary: Submit External Transaction
-      # ADP-908 - deprecated soon
-      deprecated: false
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
@@ -7608,7 +7860,32 @@ paths:
         content:
           application/octet-stream:
             schema: *signedTransactionBlob
-      responses: *responsesPostExternalTransaction
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTxId
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        425:
+          description: Mempool is Full
+          content:
+            application/json:
+              schema: *errMempoolIsFull
 
   /addresses/{addressId}:
     get:
@@ -7621,7 +7898,17 @@ paths:
         Give useful information about the structure of a given address.
       parameters:
         - *parametersAddressId
-      responses: *responsesInspectAddress
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAddressInspect
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
 
   /addresses:
     post:
@@ -7660,41 +7947,61 @@ paths:
         Each of which contains one or more script(s) that can be either keys or primitives, and so on. Schematically:
 
         ```
-                                           ┏─────────┓
+                                          ┏─────────┓
         SCRIPT = ──┬───────────────────────┤ pub key ├─────────────────────┬──
-                   │                       ┗─────────┛                     │
-                   │                       ┏──────────────────┓            │
-                   ├───────────────────────┤ ACTIVE_FROM slot ├──── ───────┤
-                   │                       ┗──────────────────┛            │
-                   │                       ┏───────────────────┓           │
-                   ├───────────────────────┤ ACTIVE_UNTIL slot ├───────────┤
-                   │                       ┗───────────────────┛           │
-                   │                                                       │
-                   │  ╭─────╮   ╭────────╮                                 │
-                   ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
-                   │  ╰─────╯ ^ ╰────────╯ │                               │
-                   │          │   ╭───╮    │                               │
-                   │          └───┤ , ├────┘                               │
-                   │              ╰───╯                                    │
-                   │  ╭─────╮   ╭────────╮                                 │
-                   ├──┤ ANY ├───┤ SCRIPT ├─┬───────────────────────────────┤
-                   │  ╰─────╯ ^ ╰────────╯ │                               │
-                   │          │   ╭───╮    │                               │
-                   │          └───┤ , ├────┘                               │
-                   │              ╰───╯                                    │
-                   │  ╭──────╮ ╭──────────╮ ┏───┓ ╭──────╮   ╭────────╮    │
-                   └──┤ SOME ├─┤ AT_LEAST ├─┤ n ├─┤ FROM ├───┤ SCRIPT ├─┬──┘
+                  │                       ┗─────────┛                     │
+                  │                       ┏──────────────────┓            │
+                  ├───────────────────────┤ ACTIVE_FROM slot ├──── ───────┤
+                  │                       ┗──────────────────┛            │
+                  │                       ┏───────────────────┓           │
+                  ├───────────────────────┤ ACTIVE_UNTIL slot ├───────────┤
+                  │                       ┗───────────────────┛           │
+                  │                                                       │
+                  │  ╭─────╮   ╭────────╮                                 │
+                  ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
+                  │  ╰─────╯ ^ ╰────────╯ │                               │
+                  │          │   ╭───╮    │                               │
+                  │          └───┤ , ├────┘                               │
+                  │              ╰───╯                                    │
+                  │  ╭─────╮   ╭────────╮                                 │
+                  ├──┤ ANY ├───┤ SCRIPT ├─┬───────────────────────────────┤
+                  │  ╰─────╯ ^ ╰────────╯ │                               │
+                  │          │   ╭───╮    │                               │
+                  │          └───┤ , ├────┘                               │
+                  │              ╰───╯                                    │
+                  │  ╭──────╮ ╭──────────╮ ┏───┓ ╭──────╮   ╭────────╮    │
+                  └──┤ SOME ├─┤ AT_LEAST ├─┤ n ├─┤ FROM ├───┤ SCRIPT ├─┬──┘
                       ╰──────╯ ╰──────────╯ ┗───┛ ╰──────╯ ^ ╰────────╯ │
-                                                           │   ╭───╮    │
-                                                           └───┤ , ├────┘
-                                                               ╰───╯
+                                                          │   ╭───╮    │
+                                                          └───┤ , ├────┘
+                                                              ╰───╯
         ```
 
       requestBody:
         content:
           application/json:
             schema: *ApiAddressData
-      responses: *responsesPostAnyAddress
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *AnyAddress
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
 
   /settings:
     put:
@@ -7710,7 +8017,19 @@ paths:
         content:
           application/json:
             schema: *ApiSettingsPutData
-      responses: *responsesPutSettings
+      responses:
+        204:
+          description: No Content
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
     get:
       operationId: getSettings
@@ -7720,7 +8039,12 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return the current settings.
-      responses: *responsesGetSettings
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiGetSettings
 
   /smash/health:
     get:
@@ -7732,10 +8056,29 @@ paths:
       parameters:
         - in: query
           name: url
-          schema: *ApiSmashServer
+          schema:
+            type: string
+            pattern: '^https?:\/\/[a-zA-Z0-9-_~.]+(:[0-9]+)?/?$'
+            example: https://smash.cardano-mainnet.iohk.io/
+            description: A base SMASH uri without endpoint path.
           required: false
           description: check this url for health instead of the currently configured one
-      responses: *responsesGetSmashHealth
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiHealthCheck
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /shared-wallets:
     post:
@@ -7752,7 +8095,46 @@ paths:
         content:
           application/json:
             schema: *ApiSharedWalletPostData
-      responses: *responsesPostSharedWallet
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema: *ApiSharedWallet
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        409:
+          description: Conflict
+          content:
+            application/json:
+              schema: *errWalletAlreadyExists
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errSharedWalletScriptTemplateInvalid
+        500:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errMissingRewardAccount
 
     get:
       operationId: listSharedWallets
@@ -7762,7 +8144,19 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known shared wallets, ordered from oldest to newest.
-      responses: *responsesListSharedWallets
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiSharedWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /shared-wallets/{walletId}:
     get:
@@ -7775,7 +8169,27 @@ paths:
 
       parameters:
         - *parametersWalletId
-      responses: *responsesGetSharedWallet
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiSharedWallet
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
     delete:
       operationId: deleteSharedWallet
@@ -7785,7 +8199,24 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
-      responses: *responsesDeleteWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        204:
+          description: No Content
 
     put:
       operationId: putSharedWallet
@@ -7800,7 +8231,32 @@ paths:
         content:
           application/json:
             schema: *ApiWalletPutDataExtended
-      responses: *responsesPutSharedWallet
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiSharedWallet
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
 
   /shared-wallets/{walletId}/statistics/utxos:
     get:
@@ -7813,22 +8269,37 @@ paths:
         Return the UTxO distribution across the whole wallet, in the form of a histogram.
 
         ```
-             │
-         100 ─
-             │
-             │                                 ┌───┐
+            │
+        100 ─
+            │
+            │                                 ┌───┐
           10 ─                         ┌───┐   │   │                   ┌───┐
-             │                 ┌───┐   │   │   │   │                   │   │
-             │                 │   │   │   │   │   │   ┌───┐           │   │
-           1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
-             │ │   │           │   │   │   │   │   │   │   │           │   │
-             │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
-             └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
-                   10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
+            │                 ┌───┐   │   │   │   │                   │   │
+            │                 │   │   │   │   │   │   ┌───┐           │   │
+          1 ─ ┌───┐           │   │   │   │   │   │   │   │           │   │
+            │ │   │           │   │   │   │   │   │   │   │           │   │
+            │ │   │ │       │ │   │ │ │   │ ╷ │   │ ╷ │   │ ╷       ╷ │   │
+            └─┘   └─│───────│─┘   └─│─┘   └─│─┘   └─│─┘   └─│───────│─┘   └────
+                  10μ₳    100μ₳   1000μ₳   0.1₳    1₳      10₳     100₳
         ```
       parameters:
         - *parametersWalletId
-      responses: *responsesGetUTxOsStatistics
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWalletUTxOsStatistics
 
   /shared-wallets/{walletId}/utxo:
     get:
@@ -7841,7 +8312,22 @@ paths:
         This endpoint is intended for debugging purposes.
       parameters:
         - *parametersWalletId
-      responses: *responsesGetWalletUtxoSnapshot
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiWalletUtxoSnapshot
 
   /shared-wallets/{walletId}/payment-script-template:
     patch:
@@ -7863,7 +8349,43 @@ paths:
         content:
           application/json:
             schema: *ApiSharedWalletPatchData
-      responses: *responsesPatchSharedWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        503:
+          description: No meta
+          content:
+            application/json:
+              schema: *errWalletMetadataNotFound
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errSharedWalletKeyAlreadyExists
+                  - <<: *errSharedWalletNoDelegationTemplate
+                  - <<: *errSharedWalletActive
+                  - <<: *errSharedWalletNoSuchCosigner
+                  - <<: *errSharedWalletCannotUpdateKey
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiSharedWallet
 
   /shared-wallets/{walletId}/delegation-script-template:
     patch:
@@ -7885,7 +8407,43 @@ paths:
         content:
           application/json:
             schema: *ApiSharedWalletPatchData
-      responses: *responsesPatchSharedWallet
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        503:
+          description: No meta
+          content:
+            application/json:
+              schema: *errWalletMetadataNotFound
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errSharedWalletKeyAlreadyExists
+                  - <<: *errSharedWalletNoDelegationTemplate
+                  - <<: *errSharedWalletActive
+                  - <<: *errSharedWalletNoSuchCosigner
+                  - <<: *errSharedWalletCannotUpdateKey
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiSharedWallet
 
   /shared-wallets/{walletId}/transactions-construct:
     post:
@@ -7908,7 +8466,57 @@ paths:
         content:
           application/json:
             schema: *ApiConstructTransactionData
-      responses: *responsesConstructTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errAlreadyWithdrawing
+                  - <<: *errAssetNameTooLong
+                  - <<: *errCannotCoverFee
+                  - <<: *errCreatedMultiaccountTransaction
+                  - <<: *errCreatedMultidelegationTransaction
+                  - <<: *errCreatedWrongPolicyScriptTemplate
+                  - <<: *errDelegationInvalid
+                  - <<: *errInsufficientCollateral
+                  - <<: *errInvalidValidityBounds
+                  - <<: *errInvalidWalletType
+                  - <<: *errMintOrBurnAssetQuantityOutOfBounds
+                  - <<: *errNotEnoughMoney
+                  - <<: *errNoUtxosAvailable
+                  - <<: *errSharedWalletIncomplete
+                  - <<: *errTransactionIsTooBig
+                  - <<: *errUtxoTooSmall
+                  - <<: *errValidityIntervalNotInsideScriptTimelock
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiConstructTransaction
 
   /shared-wallets/{walletId}/transactions-decode:
     post:
@@ -7927,7 +8535,32 @@ paths:
         content:
           application/json:
             schema: *ApiDecodeTransactionPostData
-      responses: *responsesDecodedTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiDecodedTransaction
 
   /shared-wallets/{walletId}/transactions-sign:
     post:
@@ -7950,7 +8583,40 @@ paths:
         content:
           application/json:
             schema: *ApiSignTransactionPostData
-      responses: *responsesSignTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoRootKey
+                  - <<: *errWrongEncryptionPassphrase
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiSignedTransaction
 
   /shared-wallets/{walletId}/transactions-submit:
     post:
@@ -7969,7 +8635,32 @@ paths:
         content:
           application/json:
             schema: *ApiSignedTransactionEncoded
-      responses: *responsesPostExternalTransaction
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *errUnsupportedMediaType
+        425:
+          description: Mempool is Full
+          content:
+            application/json:
+              schema: *errMempoolIsFull
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiTxId
 
   /shared-wallets/{walletId}/transactions:
     get:
@@ -7989,7 +8680,37 @@ paths:
         - *parametersMinWithdrawal
         - *parametersMetadataFormat
         - *parametersAddress
-      responses: *responsesListTransactions
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errMinWithdrawalWrong
+                  - <<: *errStartTimeLaterThanEndTime
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          headers:
+            Content-Range:
+              schema:
+                type: string
+                format: inserted-at {range-start}-{range-end}/{total}
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiTransaction
 
   /shared-wallets/{walletId}/transactions/{transactionId}:
     get:
@@ -8004,7 +8725,25 @@ paths:
         - *parametersWalletId
         - *parametersTransactionId
         - *parametersMetadataFormat
-      responses: *responsesGetTransaction
+      responses:
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - <<: *errNoSuchWallet
+                  - <<: *errNoSuchTransaction
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiTransaction
 
   /shared-wallets/{walletId}/keys/{index}:
     post:
@@ -8025,7 +8764,27 @@ paths:
         content:
           application/json:
             schema: *ApiPostAccountKeyData
-      responses: *responsesPostAccountKeyShared
+      responses:
+        202:
+          description: Accepted
+          content:
+            application/json:
+              schema: *ApiAccountKeyShared
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
 
   /shared-wallets/{walletId}/keys:
     get:
@@ -8042,7 +8801,27 @@ paths:
 
       parameters:
         - *parametersWalletId
-      responses: *responsesGetAccountSharedKey
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiAccountKeyShared
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /shared-wallets/{walletId}/keys/{role}/{index}:
     get:
@@ -8063,7 +8842,27 @@ paths:
         - *parametersRole
         - *parametersDerivationSegment
         - *parametersDerivationHash
-      responses: *responsesGetSharedKey
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema: *ApiVerificationKeyShared
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *responsesErr
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
 
   /shared-wallets/{walletId}/addresses:
     get:
@@ -8077,7 +8876,29 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersAddressState
-      responses: *responsesListAddresses
+      responses:
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema: *errBadRequest
+        404:
+          description: Not Found
+          content:
+            application/json:
+              schema: *errNoSuchWallet
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: *ApiAddressWithPath
 
   /blocks/latest/header:
     get:
@@ -8089,9 +8910,13 @@ paths:
 
         Return the latest block-header available at the chain source
       responses:
-          <<: *responsesErr406
-          200:
-            description: OK
-            content:
-              application/json:
-                schema: *ApiBlockHeader
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        200:
+          description: OK
+          content:
+            application/json:
+              schema: *ApiBlockHeader
