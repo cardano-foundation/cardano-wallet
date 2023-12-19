@@ -29,7 +29,6 @@ module Cardano.Wallet.Primitive.Types.Coin
 
       -- * Conversions (Unsafe)
     , unsafeFromIntegral
-    , unsafeToQuantity
     , unsafeToWord64
 
       -- * Arithmetic operations
@@ -237,26 +236,6 @@ unsafeFromIntegral i = fromMaybe onError (fromIntegralMaybe i)
         [ "Coin.unsafeFromIntegral:"
         , show i
         , "is not a natural number."
-        ]
-
--- | Converts a 'Coin' to a 'Quantity'.
---
--- Callers of this function must take responsibility for checking that the
--- given value will fit within the bounds of the target type.
---
--- Produces a run-time error if the given value is out of bounds.
---
-unsafeToQuantity
-    :: HasCallStack
-    => (Bits i, Integral i)
-    => Coin
-    -> Quantity "lovelace" i
-unsafeToQuantity c = fromMaybe onError (toQuantityMaybe c)
-  where
-    onError = error $ unwords
-        [ "Coin.unsafeToQuantity:"
-        , show c
-        , "does not fit within the bounds of the target type."
         ]
 
 -- | Converts a 'Coin' to a 'Word64' value.
