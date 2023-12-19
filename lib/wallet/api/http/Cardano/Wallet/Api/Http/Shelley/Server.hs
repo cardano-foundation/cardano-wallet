@@ -811,7 +811,8 @@ import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     )
 import Internal.Cardano.Write.Tx.Balance
-    ( Redeemer (..)
+    ( PartialTx (timelockVkCounts)
+    , Redeemer (..)
     , UTxOAssumptions (..)
     )
 import Internal.Cardano.Write.Tx.Sign
@@ -3486,7 +3487,13 @@ balanceTransaction
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
 balanceTransaction
-    ctx@ApiLayer{..} argGenChange utxoAssumptions timelockSigners (ApiT wid) body = do
+    ctx@ApiLayer{..}
+    argGenChange
+    utxoAssumptions
+    timelockVkCounts
+    (ApiT wid)
+    body
+    = do
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -3541,7 +3548,7 @@ balanceTransaction
             (Write.fromCardanoApiTx tx)
             externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
-            timelockSigners
+            timelockVkCounts
 
 decodeTransaction
     :: forall s n
