@@ -266,6 +266,9 @@ import Cardano.Wallet.Api.Types
     , XPubOrSelf (..)
     , toApiAsset
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount
+    )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader
     )
@@ -636,6 +639,7 @@ import Test.QuickCheck
     , scale
     , shrinkBoundedEnum
     , shrinkIntegral
+    , shrinkMap
     , shrinkMapBy
     , sized
     , suchThat
@@ -682,6 +686,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -770,6 +775,7 @@ spec = do
         jsonTest @ApiAddressData
         jsonTest @ApiAsset
         jsonTest @ApiAssetMintBurn
+        jsonTest @ApiAmount
         jsonTest @ApiBase64
         jsonTest @ApiBlockReference
         jsonTest @ApiByronWallet
@@ -1180,6 +1186,10 @@ instance FromJSON SchemaApiErrorInfo where
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary ApiAmount where
+    arbitrary = ApiAmount.fromCoin <$> arbitrary
+    shrink = shrinkMap ApiAmount.fromCoin ApiAmount.toCoin
 
 instance Arbitrary (ApiRewardAccount n)
     where
