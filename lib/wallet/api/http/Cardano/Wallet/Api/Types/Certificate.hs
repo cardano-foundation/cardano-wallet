@@ -53,6 +53,9 @@ import Cardano.Wallet.Api.Lib.ExtendedObject
     ( extendAesonObject
     , parseExtendedAesonObject
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount
+    )
 import Cardano.Wallet.Api.Types.Primitive
     ()
 import Cardano.Wallet.Primitive.NetworkId
@@ -61,9 +64,6 @@ import Cardano.Wallet.Primitive.NetworkId
     )
 import Cardano.Wallet.Primitive.Types
     ( NonWalletCertificate
-    )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( unCoin
     )
 import Cardano.Wallet.Util
     ( ShowFmt (..)
@@ -98,10 +98,8 @@ import Data.Quantity
 import GHC.Generics
     ( Generic
     )
-import Numeric.Natural
-    ( Natural
-    )
 
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Aeson.Types as Aeson
@@ -147,8 +145,8 @@ data ApiRegisterPool = ApiRegisterPool
     { poolId :: ApiT PoolId
     , poolOwners :: [ApiT PoolOwner]
     , poolMargin :: Quantity "percent" Percentage
-    , poolCost :: Quantity "lovelace" Natural
-    , poolPledge :: Quantity "lovelace" Natural
+    , poolCost :: ApiAmount
+    , poolPledge :: ApiAmount
     , poolMetadata :: Maybe (ApiT StakePoolMetadataUrl, ApiT StakePoolMetadataHash)
     }
     deriving (Eq, Generic, Show)
@@ -257,8 +255,8 @@ mkApiAnyCertificate acct' acctPath' = \case
            (ApiT poolId')
            (map ApiT poolOwners')
            (Quantity poolMargin')
-           (Quantity $ unCoin poolCost')
-           (Quantity $ unCoin poolPledge')
+           (ApiAmount.fromCoin poolCost')
+           (ApiAmount.fromCoin poolPledge')
            (enrich <$> poolMetadata')
     toApiPoolCert
         (W.Retirement (W.PoolRetirementCertificate poolId' retirementEpoch')) =

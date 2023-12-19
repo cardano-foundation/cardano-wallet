@@ -47,6 +47,9 @@ import Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Faucet.Mnemonics
     ( preregKeyWallet
     )
@@ -279,7 +282,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField #depositTaken (`shouldBe` Quantity deposit)
+            , expectField #depositTaken (`shouldBe` ApiAmount deposit)
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             ]
@@ -290,8 +293,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #depositTaken (`shouldBe` Quantity deposit)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #depositTaken (`shouldBe` ApiAmount deposit)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 ]
 
         let txId = getFromResponse #id rJoin
@@ -303,9 +306,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField #metadata (`shouldBe` Nothing)
-                , expectField #depositTaken (`shouldBe` Quantity deposit)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
-                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                , expectField #depositTaken (`shouldBe` ApiAmount deposit)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
+                , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
                 , expectField #inputs $ \inputs' ->
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
@@ -320,7 +323,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         (previousBalance, walletRewards) <- eventually "Wallet gets rewards" $ do
             let endpoint = Link.getWallet @'Shelley src
             r <- request @ApiWallet ctx endpoint Default Empty
-            verify r [ expectField (#balance . #reward) (.> Quantity 0) ]
+            verify r [ expectField (#balance . #reward) (.> ApiAmount 0) ]
             pure
                 ( getFromResponse (#balance . #available) r
                 , getFromResponse (#balance . #reward) r
@@ -367,14 +370,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectField (#_foreign) (`shouldBe` [])
             , expectField (#_ours) (\case
                 [acc] -> do
-                    (acc ^. #_stake) .> Quantity 0
+                    (acc ^. #_stake) .> ApiAmount 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` Delegating
                     acc ^. (#_delegation . #active . #target)
                         `shouldBe` (Just (ApiT pool))
                 _ -> expectationFailure "wrong number of accounts in \"ours\""
                 )
-            , expectField (#_none . #_stake) (.> Quantity 0)
+            , expectField (#_none . #_stake) (.> ApiAmount 0)
             ]
 
         -- there's currently no withdrawals in the wallet
@@ -403,7 +406,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             (Link.createTransactionOld @'Shelley src)
             Default (Json payloadWithdrawal)
         verify rTx
-            [ expectField #amount (.> (Quantity coin))
+            [ expectField #amount (.> (ApiAmount coin))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
         let txAmount = getFromResponse #amount rTx
@@ -414,7 +417,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 >>= flip verify
                     [ expectField
                         (#balance . #reward)
-                        (`shouldBe` (Quantity 0))
+                        (`shouldBe` (ApiAmount 0))
                     , expectField
                         (#balance . #available)
                         (.> previousBalance)
@@ -440,8 +443,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley dest)
                 Default Empty >>= flip verify
                 [ expectListSize 2
-                , expectListField 0 (#amount . #getQuantity) (`shouldBe` coin)
-                , expectListField 1 (#amount . #getQuantity) (`shouldBe` coin)
+                , expectListField 0 (#amount . #toNatural) (`shouldBe` coin)
+                , expectListField 1 (#amount . #toNatural) (`shouldBe` coin)
                 ]
 
         -- Quit delegation altogether.
@@ -452,9 +455,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Incoming)
-            , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` Quantity deposit)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField #depositTaken (`shouldBe` ApiAmount 0)
+            , expectField #depositReturned (`shouldBe` ApiAmount deposit)
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
             ]
         let txid = getFromResponse Prelude.id rq
         let quitFeeAmt = getFromResponse #amount rq
@@ -469,9 +472,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     #amount (`shouldBe` quitFeeAmt)
                 , expectField
                     (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField #depositTaken (`shouldBe` Quantity 0)
-                , expectField #depositReturned (`shouldBe` Quantity deposit)
-                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                , expectField #depositTaken (`shouldBe` ApiAmount 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount deposit)
+                , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
                 ]
 
             let epl = Link.listTransactions @'Shelley src
@@ -559,14 +562,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ctx (Link.listStakePools arbitraryStake) Empty
         joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` Quantity 0)
+            , expectField #depositTaken (`shouldBe` ApiAmount 0)
+            , expectField #depositReturned (`shouldBe` ApiAmount 0)
             ]
         waitForTxImmutability ctx
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
+            , expectField #depositTaken (`shouldBe` ApiAmount 0)
+            , expectField #depositReturned (`shouldBe` ApiAmount 1_000_000)
             ]
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
@@ -638,13 +641,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         eventually "Rewards are visible" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip verify
-                    [ expectField (#balance . #reward) (.> Quantity 0) ]
+                    [ expectField (#balance . #reward) (.> ApiAmount 0) ]
 
         -- Can quit with rewards
         quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectField #depositReturned (`shouldBe` Quantity 1_000_000)
-            , expectField #withdrawals (\[ApiWithdrawal _ c] -> c .> Quantity 0)
+            , expectField #depositReturned (`shouldBe` ApiAmount 1_000_000)
+            , expectField #withdrawals
+                (\[ApiWithdrawal _ c] -> c .> ApiAmount 0)
             ]
 
     it "STAKE_POOLS_JOIN_05 - \
@@ -940,9 +944,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectField #delegation
                     (`shouldBe` notDelegating [])
                 , expectField (#balance . #total)
-                    (.>= Quantity (depositAmt ctx))
+                    (.>= ApiAmount (depositAmt ctx))
                 , expectField (#balance . #available)
-                    (.>= Quantity (depositAmt ctx))
+                    (.>= ApiAmount (depositAmt ctx))
                 ]
 
         it "STAKE_POOLS_QUIT_01x - \
@@ -979,9 +983,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         w <- fixtureWallet ctx
         delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status200
-            , expectField (#deposit . #getQuantity) (`shouldBe` depositAmt ctx)
-            , expectField (#estimatedMin . #getQuantity) (.< costOfJoining ctx)
-            , expectField (#estimatedMax . #getQuantity) (.< costOfJoining ctx)
+            , expectField (#deposit . #toNatural) (`shouldBe` depositAmt ctx)
+            , expectField (#estimatedMin . #toNatural) (.< costOfJoining ctx)
+            , expectField (#estimatedMax . #toNatural) (.< costOfJoining ctx)
             , expectField #minimumCoins (`shouldBe` [])
             ]
 
@@ -1280,7 +1284,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_KEY_LIST_01 - Can list stake keys" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        let balance = Quantity 1_000_000_000_000
+        let balance = ApiAmount 1_000_000_000_000
 
         -- fixtureWallets have funds on payment addresses, so their entire ada
         -- balance is not associated with their first stake key.
@@ -1290,7 +1294,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#_ours) (\case
                 [acc] -> do
                     (acc ^. #_index) `shouldBe` 0
-                    (acc ^. #_stake) `shouldBe` Quantity 0
+                    (acc ^. #_stake) `shouldBe` ApiAmount 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` NotDelegating
                 _ -> expectationFailure "wrong number of accounts in \"ours\""
@@ -1327,7 +1331,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectField (#_foreign) (`shouldBe` [])
             , expectField (#_ours) (\case
                 [acc] -> do
-                    (acc ^. #_stake) .> Quantity 0
+                    (acc ^. #_stake) .> ApiAmount 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` NotDelegating
                 _ -> expectationFailure "wrong number of accounts in \"ours\""
@@ -1337,7 +1341,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_KEY_LIST_02 - Can list foreign stake key from UTxO" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        let balance = Quantity 1_000_000_000_000
+        let balance = ApiAmount 1_000_000_000_000
         otherWallet <- emptyWallet ctx
 
         -- We send funds to one of our addresses but with a modified stake key.
@@ -1366,14 +1370,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             >>= flip verify
             [ expectField (#_foreign) (\case
                 [acc] -> do
-                    (acc ^. #_stake) .> Quantity 0
+                    (acc ^. #_stake) .> ApiAmount 0
                 _ -> expectationFailure "wrong number of accounts in \"foreign\""
                 )
             , expectField (#_ours) (\case
                 [acc] -> do
                     -- NOTE: because of the change from the transaction, this
                     -- is no longer 0:
-                    (acc ^. #_stake) .> Quantity 0
+                    (acc ^. #_stake) .> ApiAmount 0
                     acc ^. (#_delegation . #active . #status)
                         `shouldBe` NotDelegating
                 _ -> expectationFailure "wrong number of accounts in \"ours\""

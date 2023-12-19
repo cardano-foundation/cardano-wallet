@@ -35,6 +35,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Faucet.Mnemonics
     ( bigDustWallet
     , onlyDustWallet
@@ -75,9 +78,6 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view
     , (^.)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import GHC.Exts
     ( IsList (toList)
@@ -136,8 +136,8 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -163,16 +163,16 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify response
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
+                , expectField (#totalFee . #toNatural)
                     (`shouldBe`
                         if _mainEra ctx >= ApiBabbage
                         then 255_100
                         else 254_900)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
-                , expectField (#balanceSelected . #ada . #getQuantity)
+                , expectField (#balanceSelected . #ada . #toNatural)
                     (`shouldBe` 1_000_000_000_000)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField (#balanceLeftover . #ada . #toNatural)
                     (`shouldBe` 0)
                 ]
 
@@ -265,7 +265,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
+                [ expectField (#balance . #available . #toNatural)
                     (.> 0)
                 , expectField (#assets . #available)
                     ((.> 0) . length . toList)
@@ -315,11 +315,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward . #getQuantity)
+                [ expectField (#balance . #reward . #toNatural)
                     (`shouldBe` 1_000_000_000_000)
-                , expectField (#balance . #available . #getQuantity)
+                , expectField (#balance . #available . #toNatural)
                     (`shouldBe`   100_000_000_000)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` 1_100_000_000_000)
                 ]
             targetWallet <- emptyWallet ctx
@@ -331,7 +331,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify response
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
+                , expectField (#totalFee . #toNatural)
                     (`shouldBe`
                         if _mainEra ctx >= ApiBabbage
                         then 139_200
@@ -342,14 +342,14 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ((`shouldBe` 1) . length . view #withdrawals . NE.head)
                 , expectField (#selections)
                     ((`shouldBe` 1_000_000_000_000)
-                        . view #getQuantity
+                        . view #toNatural
                         . view #amount
                         . head
                         . view #withdrawals
                         . NE.head)
-                , expectField (#balanceSelected . #ada . #getQuantity)
+                , expectField (#balanceSelected . #ada . #toNatural)
                     (`shouldBe` 1_100_000_000_000)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField (#balanceLeftover . #ada . #toNatural)
                     (`shouldBe` 0)
                 ]
 
@@ -371,11 +371,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward . #getQuantity)
+                [ expectField (#balance . #reward . #toNatural)
                     (`shouldBe` 0)
-                , expectField (#balance . #available . #getQuantity)
+                , expectField (#balance . #available . #toNatural)
                     (`shouldBe` 200_000_000)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` 200_000_000)
                 ]
             let expectedSourceDistribution =
@@ -428,9 +428,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
+                [ expectField (#balance . #available . #toNatural)
                     (`shouldBe` expectedBalanceAda)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#assets . #available)
                     ((`shouldBe` expectedAssetCount) . length . toList)
@@ -467,11 +467,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ((`shouldBe` 122) . apiPlanTotalInputCount)
                 , expectField id
                     ((`shouldBe` 2) . apiPlanTotalOutputCount)
-                , expectField (#balanceSelected . #ada . #getQuantity)
+                , expectField (#balanceSelected . #ada . #toNatural)
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#balanceSelected . #assets)
                     ((`shouldBe` expectedAssetCount) . length . toList)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField (#balanceLeftover . #ada . #toNatural)
                     (`shouldBe` 0)
                 , expectField (#balanceLeftover . #assets)
                     ((`shouldBe` 0) . length . toList)
@@ -492,11 +492,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward . #getQuantity)
+                [ expectField (#balance . #reward . #toNatural)
                     (`shouldBe` 0)
-                , expectField (#balance . #available . #getQuantity)
+                , expectField (#balance . #available . #toNatural)
                     (`shouldBe` 100_000_000)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` 100_000_000)
                 ]
             let expectedSourceDistribution =
@@ -548,9 +548,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
+                [ expectField (#balance . #available . #toNatural)
                     (`shouldBe` expectedBalanceAda)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` expectedBalanceAda)
                 , expectField (#assets . #available)
                     ((`shouldBe` expectedAssetCount) . length . toList)
@@ -588,9 +588,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ((`shouldBe` 102) . apiPlanTotalInputCount)
                 , expectField id
                     ((`shouldBe` 1) . apiPlanTotalOutputCount)
-                , expectField (#balanceSelected . #ada . #getQuantity)
+                , expectField (#balanceSelected . #ada . #toNatural)
                     (`shouldBe` 247_712_500)
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                , expectField (#balanceLeftover . #ada . #toNatural)
                     (`shouldBe` 27_787_500)
                 , expectField (#balanceSelected . #assets)
                     ((.> 0) . length . toList)
@@ -623,11 +623,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             response <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
             verify response
-                [ expectField (#balance . #available . #getQuantity)
+                [ expectField (#balance . #available . #toNatural)
                     (`shouldBe` 10_000_100_000_000)
                 ]
             return $ getFromResponse
-                (#balance . #available . #getQuantity) response
+                (#balance . #available . #toNatural) response
 
         -- Create an empty target wallet:
         targetWallet <- emptyWallet ctx
@@ -642,7 +642,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         verify responsePlan
             [ expectResponseCode HTTP.status202
             , expectField
-                (#totalFee . #getQuantity)
+                (#totalFee . #toNatural)
                 (`shouldBe`
                     if _mainEra ctx >= ApiBabbage
                     then 3_120_200
@@ -651,16 +651,16 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (#selections)
                 ((`shouldBe` 2) . length)
             , expectField
-                (#balanceLeftover . #ada . #getQuantity)
+                (#balanceLeftover . #ada . #toNatural)
                 (`shouldBe` 0)
             , expectField
-                (#balanceSelected . #ada . #getQuantity)
+                (#balanceSelected . #ada . #toNatural)
                 (`shouldBe` 10_000_100_000_000)
             ]
         let expectedFee = getFromResponse
-                (#totalFee . #getQuantity) responsePlan
+                (#totalFee . #toNatural) responsePlan
         let balanceLeftover = getFromResponse
-                (#balanceLeftover . #ada . #getQuantity) responsePlan
+                (#balanceLeftover . #ada . #toNatural) responsePlan
 
         -- Perform a migration from the source wallet to the target wallet.
         --
@@ -684,10 +684,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             (Link.getWallet @'Shelley targetWallet) Default Empty
         verify response
             [ expectField
-                (#balance . #available . #getQuantity)
+                (#balance . #available . #toNatural)
                 (`shouldBe` expectedTargetBalance)
             , expectField
-                (#balance . #total . #getQuantity)
+                (#balance . #total . #toNatural)
                 (`shouldBe` expectedTargetBalance)
             ]
 
@@ -706,9 +706,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         verify responseFinalSourceBalance
             [ expectResponseCode HTTP.status200
             , expectField (#balance . #available)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             , expectField (#balance . #total)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             ]
 
     it "SHELLEY_MIGRATE_03 - \
@@ -757,7 +757,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Verify the fee is as expected:
             verify responsePlan
                 [ expectResponseCode HTTP.status202
-                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #totalFee (`shouldBe` ApiAmount feeExpected)
                 , expectField #selections ((`shouldBe` 1) . length)
                 ]
 
@@ -868,12 +868,12 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 response <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley sourceWallet) Default Empty
                 verify response
-                    [ expectField (#balance . #available . #getQuantity)
+                    [ expectField (#balance . #available . #toNatural)
                         (`shouldBe` 43_000_000)
-                    , expectField (#balance . #total . #getQuantity)
+                    , expectField (#balance . #total . #toNatural)
                         (`shouldBe` 43_000_000)
                     ]
-                pure $ getFromResponse (#balance. #available . #getQuantity)
+                pure $ getFromResponse (#balance. #available . #toNatural)
                     response
 
             -- Analyse the source wallet's UTxO distribution:
@@ -908,7 +908,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify responsePlan
                 [ expectResponseCode HTTP.status202
-                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #totalFee (`shouldBe` ApiAmount feeExpected)
                 , expectField #selections ((`shouldBe` 1) . length)
                 ]
 
@@ -941,10 +941,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 Empty >>= flip verify
                 [ expectField
                     (#balance . #available)
-                    ( `shouldBe` Quantity expectedBalance)
+                    ( `shouldBe` ApiAmount expectedBalance)
                 , expectField
                     (#balance . #total)
-                    ( `shouldBe` Quantity expectedBalance)
+                    ( `shouldBe` ApiAmount expectedBalance)
                 ]
 
             -- Analyse the target wallet's UTxO distribution:
@@ -973,11 +973,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #available . #getQuantity)
+                [ expectField (#balance . #available . #toNatural)
                     (`shouldBe` expectedAdaBalanceAvailable)
-                , expectField (#balance . #reward . #getQuantity)
+                , expectField (#balance . #reward . #toNatural)
                     (`shouldBe` expectedAdaBalanceReward)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` expectedAdaBalanceTotal)
                 ]
 
@@ -1018,10 +1018,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 >>= flip verify
                 [ expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (`shouldBe` ApiAmount expectedTargetBalance)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (`shouldBe` ApiAmount expectedTargetBalance)
                 ]
 
             -- Check that the source wallet has been depleted:
@@ -1031,10 +1031,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
     Hspec.it "SHELLEY_MIGRATE_MULTI_ASSET_01 - \
@@ -1050,9 +1050,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 response <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley sourceWallet) Default Empty
                 verify response
-                    [ expectField (#balance . #available . #getQuantity)
+                    [ expectField (#balance . #available . #toNatural)
                         (`shouldBe` expectedAdaBalance)
-                    , expectField (#balance . #total . #getQuantity)
+                    , expectField (#balance . #total . #toNatural)
                         (`shouldBe` expectedAdaBalance)
                     , expectField (#assets . #available)
                         ((`shouldBe` 8) . length . toList)
@@ -1060,7 +1060,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         ((`shouldBe` 8) . length . toList)
                     ]
                 let balanceAda = response
-                        & getFromResponse (#balance . #available . #getQuantity)
+                        & getFromResponse (#balance . #available . #toNatural)
                         & fromIntegral
                         & Coin
                 let balanceAssets = response
@@ -1087,7 +1087,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     else 190_800
             verify responsePlan
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
+                , expectField (#totalFee . #toNatural)
                     (`shouldBe` expectedFee)
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
@@ -1096,8 +1096,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectField id
                     ((`shouldBe` 1) . apiPlanTotalOutputCount)
                 , expectField (#balanceSelected . #ada)
-                    (`shouldBe` Coin.toQuantity (view #coin sourceBalance))
-                , expectField (#balanceLeftover . #ada . #getQuantity)
+                    (`shouldBe` ApiAmount.fromCoin (view #coin sourceBalance))
+                , expectField (#balanceLeftover . #ada . #toNatural)
                     (`shouldBe` 0)
                 , expectField (#balanceSelected . #assets)
                     (`shouldBe`
@@ -1139,10 +1139,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 >>= flip verify
                 [ expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (`shouldBe` ApiAmount expectedTargetBalance)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (`shouldBe` ApiAmount expectedTargetBalance)
                 , expectField
                     (#assets . #available)
                     (`shouldBe` expectedSourceBalance)
@@ -1158,10 +1158,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 , expectField
                     (#assets . #available)
                     (`shouldBe` mempty)
@@ -1172,7 +1172,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
   where
     -- Compute the fee associated with an API transaction.
     apiTransactionFee :: ApiTransaction n -> Natural
-    apiTransactionFee = view (#fee . #getQuantity)
+    apiTransactionFee = view (#fee . #toNatural)
 
     migrateWallet
         :: Context
@@ -1233,7 +1233,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let sourceBalance =
-                    view (#balance. #available . #getQuantity) sourceWallet
+                    view (#balance. #available . #toNatural) sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
@@ -1247,10 +1247,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify response0
                 [ expectResponseCode HTTP.status202
-                , expectField #totalFee (.> Quantity 0)
+                , expectField #totalFee (.> ApiAmount 0)
                 ]
             let expectedFee =
-                    getFromResponse (#totalFee . #getQuantity) response0
+                    getFromResponse (#totalFee . #toNatural) response0
 
             -- Perform a migration from the source wallet to the target wallet:
             response1 <- request @[ApiTransaction n] ctx
@@ -1274,10 +1274,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify response2
                 [ expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (`shouldBe` ApiAmount expectedTargetBalance)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity expectedTargetBalance)
+                    (`shouldBe` ApiAmount expectedTargetBalance)
                 ]
 
             -- Check that the source wallet has a balance of zero:
@@ -1286,10 +1286,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify responseFinalSourceBalance
                 [ expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
 --------------------------------------------------------------------------------

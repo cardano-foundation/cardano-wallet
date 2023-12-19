@@ -49,9 +49,6 @@ import Data.Generics.Internal.VL.Lens
 import Data.Proxy
     ( Proxy (..)
     )
-import Data.Quantity
-    ( Quantity (..)
-    )
 import Data.Text.Class
     ( ToText (..)
     )
@@ -115,6 +112,9 @@ import Test.Integration.Scenario.CLI.Shelley.Wallets
     , walletNamesInvalid
     )
 
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import qualified Data.Text as T
 
 spec
@@ -133,12 +133,12 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
         verifyMsg "Wallet balance is as expected" wDest
-            [ expectCliField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectCliField (#balance . #total) (`shouldBe` Quantity 0)
+            [ expectCliField (#balance . #available) (`shouldBe` ApiAmount 0)
+            , expectCliField (#balance . #total) (`shouldBe` ApiAmount 0)
             ]
 
         --send transaction to the wallet
-        let amount = Quantity . minUTxOValue . _mainEra $ ctx
+        let amount = ApiAmount . minUTxOValue . _mainEra $ ctx
         addrs:_ <- listAddresses @n ctx wDest
         let addr = encodeAddress (sNetworkId @n) (apiAddress $ addrs ^. #id)
         let args = T.unpack <$>
@@ -199,7 +199,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 justRestored <- expectValidJSON (Proxy @ApiWallet) o3
                 verify justRestored
                     [ expectCliField (#balance . #available)
-                        (.> Quantity 0)
+                        (.> ApiAmount 0)
                     ]
 
             -- make sure you cannot send tx from wallet
@@ -263,7 +263,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 Stdout og <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
                 expectValidJSON (Proxy @ApiWallet) og >>= flip verify
                     [ expectCliField (#balance . #available)
-                        (.> Quantity 0)
+                        (.> ApiAmount 0)
                     ]
 
             -- get fee
@@ -279,8 +279,8 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             err `shouldBe` cmdOk
             txJson <- expectValidJSON (Proxy @ApiFee) out
             verify txJson
-                [ expectCliField (#estimatedMin . #getQuantity) (.> 0)
-                , expectCliField (#estimatedMax . #getQuantity) (.> 0)
+                [ expectCliField (#estimatedMin) (.> ApiAmount 0)
+                , expectCliField (#estimatedMax) (.> ApiAmount 0)
                 ]
             code `shouldBe` ExitSuccess
 

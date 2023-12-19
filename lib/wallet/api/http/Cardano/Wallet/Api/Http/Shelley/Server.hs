@@ -461,6 +461,9 @@ import Cardano.Wallet.Api.Types
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader
     , mkApiBlockHeader
@@ -885,6 +888,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
@@ -892,7 +896,6 @@ import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
     ( SealedTx
@@ -1192,9 +1195,9 @@ mkShelleyWallet ctx@ApiLayer{..} wid cp meta delegation pending progress = do
     pure ApiWallet
         { addressPoolGap = ApiT $ getGap $ getState cp ^. #externalPool
         , balance = ApiWalletBalance
-            { available = Coin.toQuantity (available ^. #coin)
-            , total = Coin.toQuantity (total ^. #coin)
-            , reward = Coin.toQuantity reward
+            { available = ApiAmount.fromCoin (available ^. #coin)
+            , total = ApiAmount.fromCoin (total ^. #coin)
+            , reward = ApiAmount.fromCoin reward
             }
         , assets = ApiWalletAssetsBalance
             { available =
@@ -1448,9 +1451,9 @@ mkSharedWallet ctx wid cp meta delegation pending progress =
                 <$> Shared.delegationTemplate st
             , delegation = apiDelegation
             , balance = ApiWalletBalance
-                { available = Coin.toQuantity (available ^. #coin)
-                , total = Coin.toQuantity (total ^. #coin)
-                , reward = Coin.toQuantity reward
+                { available = ApiAmount.fromCoin (available ^. #coin)
+                , total = ApiAmount.fromCoin (total ^. #coin)
+                , reward = ApiAmount.fromCoin reward
                 }
             , assets = ApiWalletAssetsBalance
                 { available =
@@ -1598,8 +1601,8 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
     let total = totalBalance pending (Coin 0) cp
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
-            { available = Coin.toQuantity $ TokenBundle.getCoin available
-            , total = Coin.toQuantity $ TokenBundle.getCoin total
+            { available = ApiAmount.fromCoin $ TokenBundle.getCoin available
+            , total = ApiAmount.fromCoin $ TokenBundle.getCoin total
             }
         , assets = ApiWalletAssetsBalance
             { available =
@@ -2005,7 +2008,7 @@ getWalletUtxoSnapshot ctx (ApiT wid) = do
     mkApiWalletUtxoSnapshotEntry
         :: TokenBundle -> ApiWalletUtxoSnapshotEntry
     mkApiWalletUtxoSnapshotEntry bundle = ApiWalletUtxoSnapshotEntry
-        { ada = Coin.toQuantity $ view #coin bundle
+        { ada = ApiAmount.fromCoin $ view #coin bundle
         , assets = ApiWalletAssets.fromTokenMap $ view #tokens bundle
         }
 
@@ -2070,8 +2073,8 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
             , certificates = uncurry mkApiCoinSelectionCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
-            , depositsTaken = maybeToList $ Coin.toQuantity <$> deposit
-            , depositsReturned = maybeToList $ Coin.toQuantity <$> refund
+            , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
+            , depositsReturned = maybeToList $ ApiAmount.fromCoin <$> refund
             , metadata = ApiBytesT. serialiseToCBOR
                 <$> body ^? #metadata . traverse . #getApiT
             }
@@ -2136,8 +2139,8 @@ selectCoinsForJoin ctx@ApiLayer{..}
             , certificates = uncurry mkApiCoinSelectionCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
-            , depositsTaken = maybeToList $ Coin.toQuantity <$> deposit
-            , depositsReturned = maybeToList $ Coin.toQuantity <$> refund
+            , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
+            , depositsReturned = maybeToList $ ApiAmount.fromCoin <$> refund
             , metadata = Nothing
             }
 
@@ -2193,8 +2196,8 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
             , certificates = uncurry mkApiCoinSelectionCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
-            , depositsTaken = maybeToList $ Coin.toQuantity <$> deposit
-            , depositsReturned = maybeToList $ Coin.toQuantity <$> refund
+            , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
+            , depositsReturned = maybeToList $ ApiAmount.fromCoin <$> refund
             , metadata = Nothing
             }
 
@@ -3068,7 +3071,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     coalesceTokensPerAddr =
         let toTxOut (addr, assets) =
                 addressAmountToTxOut $
-                AddressAmount addr (Quantity 0) $
+                AddressAmount addr mempty $
                 ApiWalletAssets.fromTokenMap assets
         in
         map toTxOut
@@ -3079,7 +3082,7 @@ toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
 toUsignedTxWdrl p = \case
     ApiWithdrawalGeneral (ApiRewardAccount rewardAcc) amount Our ->
-        Just (rewardAcc, Coin.fromQuantity amount, p)
+        Just (rewardAcc, ApiAmount.toCoin amount, p)
     ApiWithdrawalGeneral _ _ External ->
         Nothing
 
@@ -3087,13 +3090,13 @@ toUnsignedTxOut :: ApiTxOutputGeneral n -> TxOut
 toUnsignedTxOut = \case
     WalletOutput o ->
         let address = apiAddress (o ^. #address)
-            coin = Coin.fromQuantity (o ^. #amount)
+            coin = ApiAmount.toCoin (o ^. #amount)
             assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
     ExternalOutput o ->
         let address = apiAddress (o ^. #address)
-            coin = Coin.fromQuantity (o ^. #amount)
+            coin = ApiAmount.toCoin (o ^. #amount)
             assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxOut address (TokenBundle coin assets)
@@ -3107,7 +3110,7 @@ toUnsignedTxInp = \case
             index = i ^. #index
             address = apiAddress (i ^. #address)
             derivationPath = fmap getApiT (i ^. #derivationPath)
-            coin = Coin.fromQuantity (i ^. #amount)
+            coin = ApiAmount.toCoin (i ^. #amount)
             assets = ApiWalletAssets.toTokenMap (i ^. #assets)
             txIn = TxIn txId index
             txOut = TxOut address (TokenBundle coin assets)
@@ -3123,7 +3126,7 @@ toUnsignedTxChange = \case
     WalletOutput o ->
         let address = apiAddress (o ^. #address)
             derivationPath = fmap getApiT (o ^. #derivationPath)
-            coin = Coin.fromQuantity (o ^. #amount)
+            coin = ApiAmount.toCoin (o ^. #amount)
             assets = ApiWalletAssets.toTokenMap (o ^. #assets)
         in
             TxChange address coin assets derivationPath
@@ -3418,7 +3421,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
             )
     pure $ ApiDecodedTransaction
         { id = ApiT txId
-        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
+        , fee = maybe mempty ApiAmount.fromCoin fee
         , inputs = map toInp txinsOutsPaths
         , outputs = map toOut outsPath
         , collateral = map toInp collateralInsOutsPaths
@@ -3432,10 +3435,10 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
         , burn = emptyApiAssetMntBurn
         , certificates = certs
         , depositsTaken =
-            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+            (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountRegistration certs
         , depositsReturned =
-            (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+            (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountDeregistration certs
         , metadata = ApiTxMetadata $ ApiT <$> metadata
         , scriptValidity = ApiT <$> scriptValidity
@@ -3564,7 +3567,7 @@ decodeTransaction
         let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
         pure $ ApiDecodedTransaction
             { id = ApiT txId
-            , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) fee
+            , fee = maybe mempty ApiAmount.fromCoin fee
             , inputs = map toInp inputPaths
             , outputs = map toOut outputPaths
             , collateral = map toInp collateralInputPaths
@@ -3575,10 +3578,10 @@ decodeTransaction
             , burn = burned
             , certificates = certs
             , depositsTaken =
-                (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                     <$ filter ourRewardAccountRegistration certs
             , depositsReturned =
-                (Quantity . fromIntegral . unCoin . W.stakeKeyDeposit $ pp)
+                (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                     <$ filter ourRewardAccountDeregistration certs
             , metadata = ApiTxMetadata $ ApiT <$> metadata
             , scriptValidity = ApiT <$> scriptValidity
@@ -3592,13 +3595,13 @@ toWrdl
     :: RewardAccount
     -> (RewardAccount, Coin)
     -> ApiWithdrawalGeneral n
-toWrdl acct (rewardKey, (Coin c)) =
+toWrdl acct (rewardKey, c) =
     if rewardKey == acct then
         ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
-            (Quantity $ fromIntegral c) Our
+            (ApiAmount.fromCoin c) Our
     else
         ApiWithdrawalGeneral (ApiRewardAccount rewardKey)
-            (Quantity $ fromIntegral c) External
+            (ApiAmount.fromCoin c) External
 
 ourRewardAccountRegistration :: ApiAnyCertificate n -> Bool
 ourRewardAccountRegistration = \case
@@ -3617,13 +3620,13 @@ toInp (txin@(TxIn txid ix), txoutPathM) =
     case txoutPathM of
         Nothing ->
             ExternalInput (ApiT txin)
-        Just (TxOut addr (TokenBundle (Coin c) tmap), path) ->
+        Just (TxOut addr (TokenBundle c tmap), path) ->
             WalletInput $ ApiWalletInput
                 { id = ApiT txid
                 , index = ix
                 , address = ApiAddress addr
                 , derivationPath = NE.map ApiT path
-                , amount = Quantity $ fromIntegral c
+                , amount = ApiAmount.fromCoin c
                 , assets = ApiWalletAssets.fromTokenMap tmap
                 }
 
@@ -3632,10 +3635,10 @@ toOut
     -> ApiTxOutputGeneral n
 toOut (txoutIncoming, Nothing) =
     ExternalOutput $ toAddressAmount @n txoutIncoming
-toOut ((TxOut addr (TokenBundle (Coin c) tmap)), (Just path)) =
+toOut ((TxOut addr (TokenBundle c tmap)), (Just path)) =
         WalletOutput $ ApiWalletOutput
             { address = ApiAddress addr
-            , amount = Quantity $ fromIntegral c
+            , amount = ApiAmount.fromCoin c
             , assets = ApiWalletAssets.fromTokenMap tmap
             , derivationPath = NE.map ApiT path
             }
@@ -3724,14 +3727,14 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
         let generalWdrls = apiDecodedTx ^. #withdrawals
             isWdrlOurs (ApiWithdrawalGeneral _ _ context) = context == Our
         in case filter isWdrlOurs generalWdrls of
-            [ApiWithdrawalGeneral (ApiRewardAccount acct) (Quantity amt) _] ->
+            [ApiWithdrawalGeneral (ApiRewardAccount acct) amt _] ->
                 WithdrawalSelf
                     ( if rewardAcct == acct
                         then acct
                         else error "reward account should be the same"
                     )
                     path
-                    (Coin amt)
+                    (ApiAmount.toCoin amt)
             _ -> NoWithdrawal
 
     countJoinsQuits :: [ApiAnyCertificate n] -> Int
@@ -3758,10 +3761,10 @@ getOurOuts apiDecodedTx =
     isOutOurs _ = False
     toTxOut
         (WalletOutput
-            (ApiWalletOutput (ApiAddress addr) (Quantity amt) assets _)
+            (ApiWalletOutput (ApiAddress addr) amt assets _)
         ) =
         TxOut addr $ TokenBundle
-            (Coin $ fromIntegral amt)
+            (ApiAmount.toCoin amt)
             (ApiWalletAssets.toTokenMap assets)
     toTxOut _ = error "we should have only our outputs at this point"
 
@@ -3774,8 +3777,8 @@ getOurInps apiDecodedTx =
     map toTxInp $ filter isInpOurs generalInps
   where
     generalInps = apiDecodedTx ^. #inputs
-    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ (Quantity amt) _)) =
-        (TxIn txid ix, Coin $ fromIntegral amt)
+    toTxInp (WalletInput (ApiWalletInput (ApiT txid) ix _ _ amt _)) =
+        (TxIn txid ix, ApiAmount.toCoin amt)
     toTxInp _ = error "we should have only our inputs at this point"
 
 isForeign :: ApiDecodedTransaction n -> Bool
@@ -4058,25 +4061,25 @@ listStakeKeys' utxo lookupStakeRef fetchRewards ourKeysWithInfo = do
         let mkOurs (acc, ix, deleg) = ApiOurStakeKey
                 { _index = ix
                 , _key = ApiRewardAccount acc
-                , _rewardBalance = Coin.toQuantity $
+                , _rewardBalance = ApiAmount.fromCoin $
                     rewards acc
                 , _delegation = deleg
-                , _stake = Coin.toQuantity $
+                , _stake = ApiAmount.fromCoin $
                     stake (Just acc) <> rewards acc
                 }
 
         let mkForeign acc = ApiForeignStakeKey
                 { _key = ApiRewardAccount acc
-                , _rewardBalance = Coin.toQuantity $
+                , _rewardBalance = ApiAmount.fromCoin $
                     rewards acc
-                , _stake = Coin.toQuantity $
+                , _stake = ApiAmount.fromCoin $
                     stake (Just acc) <> rewards acc
                 }
 
         let foreignKeys = stakeKeysInUTxO \\ ourKeys
 
         let nullKey = ApiNullStakeKey
-                { _stake = Coin.toQuantity $ stake Nothing
+                { _stake = ApiAmount.fromCoin $ stake Nothing
                 }
 
         return $ ApiStakeKeys
@@ -4180,8 +4183,8 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
         mkUnsignedTx (selection, withdrawal) = W.selectionToUnsignedTx
             withdrawal (selection {change = []}) s
 
-    totalFee :: Quantity "lovelace" Natural
-    totalFee = Coin.toQuantity $ view #totalFee plan
+    totalFee :: ApiAmount
+    totalFee = ApiAmount.fromCoin $ view #totalFee plan
 
     balanceLeftover :: ApiWalletMigrationBalance
     balanceLeftover = plan
@@ -4204,7 +4207,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
 
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
-        { ada = Coin.toQuantity $ view #coin b
+        { ada = ApiAmount.fromCoin $ view #coin b
         , assets = ApiWalletAssets.fromTokenMap $ view #tokens b
         }
 
@@ -4683,9 +4686,9 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             <$> unsignedTx ^. #unsignedWithdrawals
         , certificates = uncurry mkApiCoinSelectionCerts
             <$> mcerts
-        , depositsTaken = Coin.toQuantity
+        , depositsTaken = ApiAmount.fromCoin
             <$> deps
-        , depositsReturned = Coin.toQuantity
+        , depositsReturned = ApiAmount.fromCoin
             <$> refunds
         , metadata = ApiBytesT. serialiseToCBOR
             <$> metadata
@@ -4716,7 +4719,7 @@ mkApiCoinSelectionInput
         { id = ApiT txid
         , index = index
         , address = ApiAddress addr
-        , amount = Coin.toQuantity amount
+        , amount = ApiAmount.fromCoin amount
         , assets = ApiWalletAssets.fromTokenMap assets
         , derivationPath = ApiT <$> path
         }
@@ -4724,7 +4727,7 @@ mkApiCoinSelectionInput
 mkApiCoinSelectionOutput :: forall n. TxOut -> ApiCoinSelectionOutput n
 mkApiCoinSelectionOutput (TxOut addr (TokenBundle amount assets)) =
     ApiCoinSelectionOutput (ApiAddress addr)
-    (Coin.toQuantity amount)
+    (ApiAmount.fromCoin amount)
     (ApiWalletAssets.fromTokenMap assets)
 
 mkApiCoinSelectionChange
@@ -4734,7 +4737,7 @@ mkApiCoinSelectionChange
 mkApiCoinSelectionChange txChange =
     ApiCoinSelectionChange
         { address = (ApiAddress $ view #address txChange)
-        , amount = Coin.toQuantity $ view #amount txChange
+        , amount = ApiAmount.fromCoin $ view #amount txChange
         , assets = ApiWalletAssets.fromTokenMap $ view #assets txChange
         , derivationPath = ApiT <$> view #derivationPath txChange
         }
@@ -4749,7 +4752,7 @@ mkApiCoinSelectionCollateral
         { id = ApiT txid
         , index = index
         , address = ApiAddress addr
-        , amount = Coin.toQuantity amount
+        , amount = ApiAmount.fromCoin amount
         , derivationPath = ApiT <$> path
         }
 
@@ -4760,7 +4763,7 @@ mkApiCoinSelectionWithdrawal
 mkApiCoinSelectionWithdrawal (rewardAcct, wdrl, path) =
     ApiCoinSelectionWithdrawal
         { stakeAddress = ApiRewardAccount rewardAcct
-        , amount = Coin.toQuantity wdrl
+        , amount = ApiAmount.fromCoin wdrl
         , derivationPath = ApiT <$> path
         }
 
@@ -4811,10 +4814,10 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
 
     pure $ set timeRefLens (Just timeRef) $ ApiTransaction
         { id = ApiT $ tx ^. #txId
-        , amount = Quantity . fromIntegral $ tx ^. #txMeta . #amount . #unCoin
-        , fee = Quantity $ maybe 0 (fromIntegral . unCoin) (tx ^. #txFee)
-        , depositTaken = Quantity depositIfAny
-        , depositReturned = Quantity reclaimIfAny
+        , amount = ApiAmount.fromCoin $ tx ^. #txMeta . #amount
+        , fee = maybe mempty ApiAmount.fromCoin (tx ^. #txFee)
+        , depositTaken = ApiAmount depositIfAny
+        , depositReturned = ApiAmount reclaimIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = expRef
@@ -4918,7 +4921,7 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
         :: TxOut
         -> AddressAmountNoAssets (ApiAddress n)
     toAddressAmountNoAssets (TxOut addr (TokenBundle.TokenBundle coin _)) =
-        AddressAmountNoAssets (ApiAddress addr) (Coin.toQuantity coin)
+        AddressAmountNoAssets (ApiAddress addr) (ApiAmount.fromCoin coin)
 
 toAddressAmount
     :: forall n
@@ -4927,7 +4930,7 @@ toAddressAmount
 toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
     AddressAmount
         (ApiAddress addr)
-        (Coin.toQuantity coin)
+        (ApiAmount.fromCoin coin)
         (ApiWalletAssets.fromTokenMap assets)
 
 mkApiFee
@@ -4936,24 +4939,24 @@ mkApiFee
     -> (Percentile 10 Fee, Percentile 90 Fee)
     -> ApiFee
 mkApiFee mDeposit minCoins (Percentile estMin, Percentile estMax) = ApiFee
-    { estimatedMin = Quantity (Coin.toNatural (feeToCoin estMin))
-    , estimatedMax = Quantity (Coin.toNatural (feeToCoin estMax))
-    , minimumCoins = Quantity . Coin.toNatural <$> minCoins
-    , deposit = Quantity . Coin.toNatural $ fromMaybe (Coin 0) mDeposit
+    { estimatedMin = ApiAmount.fromCoin (feeToCoin estMin)
+    , estimatedMax = ApiAmount.fromCoin (feeToCoin estMax)
+    , minimumCoins = ApiAmount.fromCoin <$> minCoins
+    , deposit = maybe mempty ApiAmount.fromCoin mDeposit
     }
 
 mkApiWithdrawal
     :: (RewardAccount, Coin)
     -> ApiWithdrawal n
 mkApiWithdrawal (acct, c) =
-    ApiWithdrawal (ApiRewardAccount acct) (Coin.toQuantity c)
+    ApiWithdrawal (ApiRewardAccount acct) (ApiAmount.fromCoin c)
 
 addressAmountToTxOut
     :: AddressAmount (ApiAddress n)
     -> TxOut
 addressAmountToTxOut (AddressAmount (ApiAddress addr) c assets) =
     TxOut addr $ TokenBundle.TokenBundle
-        (Coin.fromQuantity c)
+        (ApiAmount.toCoin c)
         (ApiWalletAssets.toTokenMap assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
@@ -5012,7 +5015,7 @@ fromExternalInput ApiExternalInput
     { id = ApiT tid
     , index = ix
     , address = ApiAddress addr
-    , amount = Quantity amt
+    , amount
     , assets
     , datum
     }
@@ -5022,7 +5025,7 @@ fromExternalInput ApiExternalInput
         script = Nothing
         addr' = toLedger addr
         val = toLedger $ TokenBundle
-            (Coin.fromNatural amt)
+            (ApiAmount.toCoin amount)
             (ApiWalletAssets.toTokenMap assets)
         datum' = maybe Write.NoDatum (Write.DatumHash . getApiT) datum
         out = Write.TxOutInRecentEra addr' val datum' script

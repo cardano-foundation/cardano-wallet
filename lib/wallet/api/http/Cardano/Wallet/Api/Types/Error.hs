@@ -39,6 +39,9 @@ import Cardano.Wallet.Api.Types
     , ApiCredentialType (..)
     , ApiEra
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount
+    )
 import Control.DeepSeq
     ( NFData (..)
     )
@@ -60,9 +63,6 @@ import Data.Data
     )
 import Data.Maybe
     ( fromMaybe
-    )
-import Data.Quantity
-    ( Quantity
     )
 import Data.Text
     ( Text
@@ -226,9 +226,9 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     { txOutputIndex
         :: !Word32
     , txOutputLovelaceSpecified
-        :: !(Quantity "lovelace" Natural)
+        :: !ApiAmount
     , txOutputLovelaceRequiredMinimum
-        :: !(Quantity "lovelace" Natural)
+        :: !ApiAmount
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
@@ -236,7 +236,7 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     deriving anyclass NFData
 
 data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
-    { underestimation :: !(Quantity "lovelace" Natural)
+    { underestimation :: !ApiAmount
     , estimatedNumberOfKeyWits :: Natural
     , estimatedNumberOfBootstrapKeyWits :: Natural
     , candidateTxHex :: Text

@@ -35,6 +35,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , apiAddress
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -68,9 +71,6 @@ import Data.List.NonEmpty
     )
 import Data.Maybe
     ( isJust
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text.Class
     ( toText
@@ -139,7 +139,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amount = Quantity . minUTxOValue $ _mainEra ctx
+            let amount = ApiAmount . minUTxOValue $ _mainEra ctx
             let payment = AddressAmount targetAddress amount mempty
             let output = ApiCoinSelectionOutput targetAddress amount mempty
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
@@ -169,7 +169,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
             targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
-            let amounts = Quantity <$> [minUTxOValue (_mainEra ctx) ..]
+            let amounts = ApiAmount <$> [minUTxOValue (_mainEra ctx) ..]
             let assets = repeat mempty
             let payments = NE.fromList
                     $ take paymentCount
@@ -191,7 +191,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \Deleted wallet is not available for selection" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let minUTxOValue' = Quantity . minUTxOValue $ _mainEra ctx
+        let minUTxOValue' = ApiAmount . minUTxOValue $ _mainEra ctx
         let payments = AddressAmount addr minUTxOValue' mempty :| []
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
@@ -203,7 +203,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \Wrong selection method (not 'random')" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let minUTxOValue' = Quantity . minUTxOValue $ _mainEra ctx
+        let minUTxOValue' = ApiAmount . minUTxOValue $ _mainEra ctx
         let payments = AddressAmount addr minUTxOValue' mempty :| []
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
@@ -252,7 +252,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-            let amt = Quantity . minUTxOValue . _mainEra $ ctx
+            let amt = ApiAmount . minUTxOValue . _mainEra $ ctx
             let payments = AddressAmount addr amt mempty :| []
             let payload = Json [json| { "payments": #{payments} } |]
             r <- request @(ApiCoinSelection n) ctx
@@ -263,7 +263,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         source <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
 
-        let amount = Quantity . minUTxOValue $ _mainEra ctx
+        let amount = ApiAmount . minUTxOValue $ _mainEra ctx
         let payment = AddressAmount addr amount mempty
         let transform = addField "metadata"
                 [json|{ "1": { "string": "hello" } }|]
@@ -277,7 +277,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         source <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
 
-        let amount = Quantity . minUTxOValue $ _mainEra ctx
+        let amount = ApiAmount . minUTxOValue $ _mainEra ctx
         let payment = AddressAmount addr amount mempty
         let transform = addField "metadata"
                 [json|{ "1": { "string": #{T.replicate 65 "a"} } }|]
@@ -291,7 +291,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         (source,_) <- rewardWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
 
-        let amount = Quantity . minUTxOValue $ _mainEra ctx
+        let amount = ApiAmount . minUTxOValue $ _mainEra ctx
         let payment = AddressAmount addr amount mempty
         let transform = addField "withdrawal" ("self" :: String)
 
@@ -310,7 +310,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         source <- fixtureWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
 
-        let amount = Quantity . minUTxOValue $ _mainEra ctx
+        let amount = ApiAmount . minUTxOValue $ _mainEra ctx
         let payment = AddressAmount addr amount mempty
         let transform = addField "withdrawal" (mnemonicToText mnemonic)
 
@@ -333,7 +333,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let assetName = UnsafeAssetName "1"
             let policyId = UnsafeTokenPolicyId $
                     Hash "1234567890123456789012345678"
-            let adaQuantity = Quantity . minUTxOValue $ _mainEra ctx
+            let adaQuantity = ApiAmount . minUTxOValue $ _mainEra ctx
             let assetId = AssetId policyId assetName
             let excessiveQuantity = TokenQuantity.succ txOutMaxTokenQuantity
             let nonAdaQuantities = TokenMap.singleton assetId excessiveQuantity
@@ -362,7 +362,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
     it "WALLETS_COIN_SELECTION_08 - \
         \Single output with excessively high number of assets." $
         \ctx -> runResourceT $ do
-            let adaQuantity = Quantity . minUTxOValue $ _mainEra ctx
+            let adaQuantity = ApiAmount . minUTxOValue $ _mainEra ctx
             let assetCount = 1_280
             let policyId = UnsafeTokenPolicyId $
                     Hash "1234567890123456789012345678"

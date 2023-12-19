@@ -58,6 +58,9 @@ import Cardano.Wallet.Api.Types
     , fromApiEra
     , insertedAt
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
@@ -123,9 +126,6 @@ import Data.Generics.Wrapped
     )
 import Data.Maybe
     ( isJust
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text.Class
     ( FromText (..)
@@ -340,19 +340,19 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx2
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (>0))
             ]
 
         let txCbor1 = getFromResponse #transaction rTx2
         let decodePayload1 = Json (toJSON txCbor1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload1
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx2
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx2
         let metadata' =
                 ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         let decodedExpectations =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata
@@ -392,7 +392,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
                 , expectField
-                    (traverse . #balance . #available . #getQuantity)
+                    (traverse . #balance . #available . #toNatural)
                     (`shouldBe` (amt - expectedFee))
                 ]
 
@@ -450,7 +450,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (>0))
             ]
 
         -- checking metadata before signing using decodeTransaction
@@ -458,12 +458,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let decodePayload1 = Json (toJSON txCbor1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared wal) Default decodePayload1
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let metadata' =
                 ApiT (TxMetadata (Map.fromList [(1,TxMetaText "hello")]))
         let decodedExpectations =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata
@@ -535,7 +535,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
                 , expectField
-                    (traverse . #balance . #available . #getQuantity)
+                    (traverse . #balance . #available . #toNatural)
                     (`shouldBe` (amt - expectedFee))
                 ]
 
@@ -615,7 +615,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change)
                 (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity)
+            , expectField (#fee . #toNatural)
                 (`shouldSatisfy` (> 0))
             ]
         let txCbor = getFromResponse #transaction rTx
@@ -625,10 +625,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTxTarget <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let sharedExpectationsBetweenWallets =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity)
+                , expectField (#fee . #toNatural)
                     (`shouldBe` expectedFee)
                 , expectField #withdrawals
                     (`shouldBe` [])
@@ -651,7 +651,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let addrDest = (addrs !! addrIx) ^. #id
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
-                , amount = Quantity amt
+                , amount = ApiAmount amt
                 , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
@@ -711,7 +711,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
                 , expectField
-                    (traverse . #balance . #available . #getQuantity)
+                    (traverse . #balance . #available . #toNatural)
                     (`shouldBe` (faucetUtxoAmt - expectedFee - amt))
                 ]
 
@@ -721,7 +721,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt)
                 ]
 
@@ -755,7 +755,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity)
+            , expectField (#fee . #toNatural)
                 (`shouldSatisfy` (> 0))
             ]
 
@@ -773,7 +773,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let txid = getFromResponse #id submittedTx
         let linkSrc = Link.getTransaction @'Shared wa (ApiTxId txid)
         eventually "Source wallet balance is decreased by amt + fee" $ do
@@ -781,17 +781,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
                 , expectField
-                    (traverse . #balance . #available . #getQuantity)
+                    (traverse . #balance . #available . #toNatural)
                     (`shouldBe` (faucetUtxoAmt - expectedFee - amt))
                 ]
             -- check outgoing tx in source wallet
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) (`shouldBe` amt + expectedFee)
+                , expectField (#amount . #toNatural)
+                    (`shouldBe` amt + expectedFee)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 ]
 
         let linkDest = Link.getTransaction @'Shared wb (ApiTxId txid)
@@ -800,17 +801,17 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> rWal)
                 [ expectResponseCode HTTP.status200
                 , expectField
-                    (traverse . #balance . #available . #getQuantity)
+                    (traverse . #balance . #available . #toNatural)
                     (`shouldBe` amt)
                 ]
             -- check incoming tx in destination wallet
             rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
             verify rDst
                 [ expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#amount . #toNatural) (`shouldBe` amt)
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 ]
 
     it "SHARED_TRANSACTIONS_CREATE_04c - \
@@ -884,7 +885,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change)
                 (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity)
+            , expectField (#fee . #toNatural)
                 (`shouldSatisfy` (> 0))
             ]
 
@@ -918,7 +919,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let balanceExp =
                 [ expectResponseCode HTTP.status200
                 , expectField (traverse . #balance . #available)
-                    (`shouldBe` Quantity faucetUtxoAmt)
+                    (`shouldBe` ApiAmount faucetUtxoAmt)
                 ]
 
         verify (fmap (view #wallet) <$> rSharedWal1) balanceExp
@@ -946,7 +947,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx1Target <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload1
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let (ApiScriptTemplate scriptTemplate) =
                 sharedWal1 ^. #paymentScriptTemplate
         let paymentScript =
@@ -1042,7 +1043,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp1 =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity
+                        (`shouldBe` ApiAmount
                             (faucetUtxoAmt - expectedFee - amt)
                         )
                     ]
@@ -1057,7 +1058,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt)
                 ]
 
@@ -1154,9 +1155,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                    (#balance . #total) (`shouldBe` ApiAmount amt)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                    (#balance . #available) (`shouldBe` ApiAmount amt)
                 ]
 
         -- Verify Tx list contains Incoming and Outgoing
@@ -1230,7 +1231,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity amt1)
+                        (`shouldBe` ApiAmount amt1)
                     ]
             verify (fmap (view #wallet) <$> wal) balanceExp
 
@@ -1240,7 +1241,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity (amt1 + amt2))
+                        (`shouldBe` ApiAmount (amt1 + amt2))
                     ]
             verify (fmap (view #wallet) <$> wal) balanceExp
 
@@ -1264,8 +1265,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt1)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt2)
                         ]
                     }
                 , TestCase -- 2
@@ -1276,8 +1277,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 3
@@ -1287,7 +1288,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 4
@@ -1295,8 +1296,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         [ ("start", utcIso8601ToText t1) ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase --5
@@ -1306,7 +1307,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
                         ]
                     }
                 , TestCase -- 6
@@ -1324,7 +1325,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
                         ]
                     }
                 , TestCase -- 8
@@ -1335,7 +1336,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
                         ]
                     }
                 , TestCase -- 9
@@ -1346,7 +1347,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 10
@@ -1356,8 +1357,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 11
@@ -1367,8 +1368,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 12
@@ -1378,16 +1379,16 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 13
                     { query = mempty
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 14
@@ -1395,8 +1396,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         [ ("end", utcIso8601ToText t2) ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 15
@@ -1404,8 +1405,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         [ ("end", utcIso8601ToText $ plusDelta t2) ]
                     , assertions =
                         [ expectListSize 2
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
-                        , expectListField 1 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
+                        , expectListField 1 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 16
@@ -1413,7 +1414,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         [ ("end", utcIso8601ToText $ minusDelta t2) ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 17
@@ -1423,7 +1424,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 , TestCase -- 18
@@ -1433,7 +1434,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
                         ]
                     }
                 , TestCase -- 19
@@ -1442,7 +1443,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt2)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt2)
                         ]
                     }
                 , TestCase -- 20
@@ -1452,7 +1453,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         ]
                     , assertions =
                         [ expectListSize 1
-                        , expectListField 0 #amount (`shouldBe` Quantity amt1)
+                        , expectListField 0 #amount (`shouldBe` ApiAmount amt1)
                         ]
                     }
                 ]
@@ -1701,9 +1702,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (Link.getWallet @'Shared walDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` ApiAmount amt)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` ApiAmount amt)
                 ]
 
         eventually "Transactions are available and in ledger" $ do
@@ -1818,7 +1819,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
        \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
 
         (party1,party2) <- fixtureSharedWalletDelegating @n ctx
-        let depositAmt = Quantity 1_000_000
+        let depositAmt = ApiAmount 1_000_000
 
         pool1:pool2:_ <- map (view #id) <$> notRetiringPools ctx
 
@@ -1863,10 +1864,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shared party1) Default decodePayload1
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shared party2) Default decodePayload1
-        let expectedFee1 = getFromResponse (#fee . #getQuantity) rTx1
+        let expectedFee1 = getFromResponse (#fee . #toNatural) rTx1
         let decodedExpectations1 =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee1)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee1)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #scriptValidity
@@ -1980,7 +1981,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 , expectField #certificates
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty1
                                  , delegatingCert stakeKeyDerPathParty1])
@@ -1994,7 +1995,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 , expectField #certificates
                      (`shouldBe` [ registerStakeKeyCert stakeKeyDerPathParty2
                                  , delegatingCert stakeKeyDerPathParty2])
@@ -2050,12 +2051,12 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         eventually "party1: Wallet gets rewards from pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward) (.> (Quantity 0)) ]
+                [ expectField (#balance . #reward) (.> (ApiAmount 0)) ]
 
         eventually "party2: Wallet gets rewards from pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward) (.> (Quantity 0)) ]
+                [ expectField (#balance . #reward) (.> (ApiAmount 0)) ]
 
         -- join another stake pool
         let delegationRejoin = Json [json|{
@@ -2089,10 +2090,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let delegatingCert2 path =
                 WalletDelegationCertificate $ JoinPool path (ApiT pool2)
 
-        let expectedFee2 = getFromResponse (#fee . #getQuantity) rTx2
+        let expectedFee2 = getFromResponse (#fee . #toNatural) rTx2
         let decodedExpectations2 =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee2)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee2)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #scriptValidity
@@ -2151,8 +2152,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #depositTaken (`shouldBe` Quantity 0)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #depositTaken (`shouldBe` ApiAmount 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 , expectField #certificates
                      (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty1])
                 ]
@@ -2165,8 +2166,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #depositTaken (`shouldBe` Quantity 0)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #depositTaken (`shouldBe` ApiAmount 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 , expectField #certificates
                      (`shouldBe` [ delegatingCert2 stakeKeyDerPathParty2])
                 ]
@@ -2237,14 +2238,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         eventually "Party1's wallet has consumed rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party1) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward) (`shouldBe` (Quantity 0))
+                [ expectField (#balance . #reward) (`shouldBe` (ApiAmount 0))
                 , expectField (#balance . #available) (.> previousBalance)
                 ]
 
         eventually "Party2's wallet has consumed rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shared party2) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward) (`shouldBe` (Quantity 0))
+                [ expectField (#balance . #reward) (`shouldBe` (ApiAmount 0))
                 , expectField (#balance . #available) (.> previousBalance)
                 ]
 
@@ -2313,7 +2314,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rJoin'
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositTaken (`shouldBe` ApiAmount 0)
                 , expectField #depositReturned (`shouldBe` depositAmt)
                 , expectField #certificates
                      (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty1])
@@ -2326,7 +2327,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rJoin'
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField #depositTaken (`shouldBe` Quantity 0)
+                , expectField #depositTaken (`shouldBe` ApiAmount 0)
                 , expectField #depositReturned (`shouldBe` depositAmt)
                 , expectField #certificates
                      (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
@@ -2374,9 +2375,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley parentWal) Default Empty
             verify rGet
                 [ expectField (#balance . #total)
-                    (`shouldBe` Quantity faucetUtxoAmt)
+                    (`shouldBe` ApiAmount faucetUtxoAmt)
                 , expectField (#balance . #available)
-                    (`shouldBe` Quantity faucetUtxoAmt)
+                    (`shouldBe` ApiAmount faucetUtxoAmt)
                 ]
 
         -- create two child shared wallets using the same mnemonic as parent
@@ -2463,18 +2464,18 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (Link.getWallet @'Shared walActive1) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity transfer)
+                        (#balance . #total) (`shouldBe` ApiAmount transfer)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity transfer)
+                        (#balance . #available) (`shouldBe` ApiAmount transfer)
                 ]
         eventually "Child shared wallet 2 balance is increased by target" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shared walActive2) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity transfer)
+                        (#balance . #total) (`shouldBe` ApiAmount transfer)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity transfer)
+                        (#balance . #available) (`shouldBe` ApiAmount transfer)
                 ]
 
         -- child shared wallets delegate to different pools and get rewards
@@ -2539,24 +2540,24 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1) Default Empty
             verify r
                 [ expectField
-                      (#balance . #reward)
-                      (.> (Quantity 0))
+                    (#balance . #reward)
+                    (.> (ApiAmount 0))
                 ]
         eventually "Shared Wallet 2 gets rewards from pool2" $ do
             r <- request @ApiWallet ctx (Link.getWallet @'Shared walActive2) Default Empty
             verify r
                 [ expectField
-                      (#balance . #reward)
-                      (.> (Quantity 0))
+                    (#balance . #reward)
+                    (.> (ApiAmount 0))
                 ]
 
         --sending back funds to parent with self withdrawal
         rGet1 <- request @ApiWallet ctx (Link.getWallet @'Shared walActive1)
                     Default Empty
-        let (Quantity rewards1) = getFromResponse (#balance . #reward) rGet1
+        let (ApiAmount rewards1) = getFromResponse (#balance . #reward) rGet1
         rGet2 <- request @ApiWallet ctx (Link.getWallet @'Shared walActive2)
                     Default Empty
-        let (Quantity rewards2) = getFromResponse (#balance . #reward) rGet2
+        let (ApiAmount rewards2) = getFromResponse (#balance . #reward) rGet2
 
         let payloadWithdrawal amt = Json [json|
                 { "payments":
@@ -2575,7 +2576,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (payloadWithdrawal $ transfer + rewards1 - ada 2)
         verify rTx5a
             [ expectResponseCode HTTP.status202 ]
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx5a
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx5a
 
         rTx5 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared walActive1) Default
@@ -2612,9 +2613,9 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley parentWal) Default Empty
             verify rGet
                 [ expectField (#balance . #total)
-                    (.> (Quantity faucetUtxoAmt))
+                    (.> (ApiAmount faucetUtxoAmt))
                 , expectField (#balance . #available)
-                    (.> (Quantity faucetUtxoAmt))
+                    (.> (ApiAmount faucetUtxoAmt))
                 ]
 
     it "SHARED_TRANSACTIONS_LIST_05 - filter address output side" $
@@ -2653,7 +2654,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rl0 [expectListSize 2]
         let txs0 = getResponse rl0
         let amts0 = fmap (view #amount) txs0
-        Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
+        Set.fromList amts0 `shouldBe` Set.fromList (ApiAmount <$> [a1, a2])
 
         let addr1 = (addrs !! 1) ^. #id
         let linkList1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
@@ -2661,7 +2662,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rl1 [expectListSize 1]
         let txs1 = getResponse rl1
         let amts1 = fmap (view #amount) txs1
-        amts1 `shouldBe` (Quantity <$> [a3])
+        amts1 `shouldBe` (ApiAmount <$> [a3])
 
         let addr2 = (addrs !! 2) ^. #id
         let linkList2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
@@ -2669,7 +2670,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rl2 [expectListSize 3]
         let txs2 = getResponse rl2
         let amts2 = fmap (view #amount) txs2
-        Set.fromList amts2 `shouldBe` Set.fromList (Quantity <$> [a1, a4, a5])
+        Set.fromList amts2 `shouldBe` Set.fromList (ApiAmount <$> [a1, a4, a5])
 
     it "SHARED_TRANSACTIONS_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -2709,7 +2710,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         verify rl2a [expectListSize 3]
         let txs2a = getResponse rl2a
         let amts2a = fmap (view #amount) txs2a
-        amts2a `shouldBe` (Quantity <$> [a3, a3, a3])
+        amts2a `shouldBe` (ApiAmount <$> [a3, a3, a3])
 
         sendAmtToAddr ctx wDest wSrc a4 0
         eventually "There are exactly 9 transactions for wDest" $ do
@@ -2863,7 +2864,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity amt)
+                        (`shouldBe` ApiAmount amt)
                     ]
             verify (fmap (view #wallet) <$> wal) balanceExp
         pure walDest
@@ -3140,7 +3141,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let balanceExp =
                 [ expectResponseCode HTTP.status200
                 , expectField (traverse . #balance . #available)
-                    (`shouldBe` Quantity faucetUtxoAmt)
+                    (`shouldBe` ApiAmount faucetUtxoAmt)
                 ]
 
         verify (fmap (view #wallet) <$> rSharedWal1) balanceExp
@@ -3162,7 +3163,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change)
                 (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity)
+            , expectField (#fee . #toNatural)
                 (`shouldSatisfy` (> 0))
             ]
         let txCbor = getFromResponse #transaction rTx
@@ -3174,10 +3175,10 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         rDecodedTx1Target <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wb) Default decodePayload1
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let sharedExpectationsBetweenWallets =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
@@ -3196,7 +3197,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let addrDest = (addrs !! addrIx) ^. #id
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
-                , amount = Quantity amt
+                , amount = ApiAmount amt
                 , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
@@ -3312,7 +3313,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let balanceExp1 =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity
+                        (`shouldBe` ApiAmount
                             (faucetUtxoAmt - expectedFee - amt)
                         )
                     ]
@@ -3326,6 +3327,6 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt)
                 ]

@@ -22,6 +22,9 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -51,9 +54,6 @@ import Data.Maybe
     )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Test.Hspec
     ( SpecWith
@@ -185,12 +185,17 @@ spec = describe "BYRON_WALLETS" $ do
                         then DiscoveryRandom
                         else DiscoverySequential
                 let expectations =
-                            [ expectField (#name . #getApiT . #getWalletName) (`shouldBe` name)
-                            , expectField (#balance . #available) (`shouldBe` Quantity 0)
-                            , expectField (#balance . #total) (`shouldBe` Quantity 0)
-                            , expectField #passphrase (`shouldNotBe` Nothing)
-                            , expectField #discovery (`shouldBe` discovery)
-                            ]
+                        [ expectField (#name . #getApiT . #getWalletName)
+                            (`shouldBe` name)
+                        , expectField (#balance . #available)
+                            (`shouldBe` ApiAmount 0)
+                        , expectField (#balance . #total)
+                            (`shouldBe` ApiAmount 0)
+                        , expectField #passphrase
+                            (`shouldNotBe` Nothing)
+                        , expectField #discovery
+                            (`shouldBe` discovery)
+                        ]
                 -- create
                 r <- postByronWallet ctx payload
                 liftIO $ verify r expectations
@@ -209,13 +214,13 @@ spec = describe "BYRON_WALLETS" $ do
                         [ expectResponseCode HTTP.status200
                         , expectListSize 1
                         , expectListField 0
-                                (#name . #getApiT . #getWalletName) (`shouldBe` name)
+                            (#name . #getApiT . #getWalletName) (`shouldBe` name)
                         , expectListField 0
-                                (#balance . #available) (`shouldBe` Quantity 0)
+                            (#balance . #available) (`shouldBe` ApiAmount 0)
                         , expectListField 0
-                                (#state . #getApiT) (`shouldBe` Ready)
+                            (#state . #getApiT) (`shouldBe` Ready)
                         , expectListField 0
-                                (#balance . #total) (`shouldBe` Quantity 0)
+                            (#balance . #total) (`shouldBe` ApiAmount 0)
                         ]
 
         let scenarioFailure style mnemonic ctx = runResourceT $ do

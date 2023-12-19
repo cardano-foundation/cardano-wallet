@@ -25,6 +25,9 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , apiAddress
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , detailedMetadata
@@ -70,9 +73,6 @@ import Data.List.Extra
     )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -157,6 +157,7 @@ import UnliftIO.Exception
     ( throwString
     )
 
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Data.Map as Map
 import qualified Data.Text as T
 
@@ -172,13 +173,13 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let amt = fromIntegral . minUTxOValue . _mainEra $ ctx
         args <- postTxArgs ctx wSrc wDest amt Nothing Nothing
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ (Quantity 0) <-
+        ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ (ApiAmount 0) <-
             expectValidJSON Proxy feeOut
 
         txJson <- postTxViaCLI ctx wSrc wDest amt Nothing Nothing
         verify txJson
-            [ expectCliField (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
+            [ expectCliField (#amount)
+                (between (feeMin + amt, feeMax + amt) . ApiAmount.toNatural)
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             , expectCliField #metadata (`shouldBe` Nothing)
@@ -190,7 +191,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         verify gJson
             [ expectCliField
                 (#balance . #total)
-                (.>= Quantity (faucetAmt - feeMax - amt))
+                (.>= ApiAmount (faucetAmt - feeMax - amt))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -199,9 +200,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` ApiAmount amt)
                 , expectCliField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` ApiAmount amt)
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> runResourceT $ do
@@ -218,7 +219,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 ]
 
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
+        ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ _ <-
+            expectValidJSON Proxy feeOut
 
         -- post transaction
         (c, out, err) <- postTransactionViaCLI ctx "cardano-wallet" args
@@ -226,8 +228,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
         verify txJson
             [ expectCliField
-                (#amount . #getQuantity)
-                (between (feeMin + (2*amt), feeMax + (2*amt)))
+                (#amount)
+                ( between (feeMin + (2*amt), feeMax + (2*amt))
+                . ApiAmount.toNatural
+                )
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             ]
@@ -239,7 +243,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         verify gJson
             [ expectCliField
                 (#balance . #total)
-                (.>= Quantity (faucetAmt - feeMax - (2*amt)))
+                (.>= ApiAmount (faucetAmt - feeMax - (2*amt)))
             ]
 
         eventually "balance on dest wallet is OK" $ do
@@ -248,9 +252,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                    (#balance . #available) (`shouldBe` Quantity (2*amt))
+                    (#balance . #available) (`shouldBe` ApiAmount (2*amt))
                 , expectCliField
-                    (#balance . #total) (`shouldBe` Quantity (2*amt))
+                    (#balance . #total) (`shouldBe` ApiAmount (2*amt))
                 ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
@@ -375,13 +379,14 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
         args <- postTxArgs ctx wSrc wDest amt md Nothing
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
+        ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ _ <-
+            expectValidJSON Proxy feeOut
 
         txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
         verify txJson
             [ expectCliField
-                (#amount . #getQuantity)
-                (between (feeMin + amt, feeMax + amt))
+                (#amount)
+                (between (feeMin + amt, feeMax + amt) . ApiAmount.toNatural)
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
             , expectCliField #metadata (`shouldBe` expected)
@@ -454,12 +459,13 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
       args <- postTxArgs ctx wSrc wDest amt Nothing ttl
       Stdout feeOut <- postTransactionFeeViaCLI ctx args
-      ApiFee (Quantity feeMin) (Quantity feeMax) _ _ <- expectValidJSON Proxy feeOut
+      ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ _ <-
+          expectValidJSON Proxy feeOut
 
       txJson <- postTxViaCLI ctx wSrc wDest amt Nothing ttl
       verify txJson
-          [ expectCliField (#amount . #getQuantity)
-              (between (feeMin + amt, feeMax + amt))
+          [ expectCliField (#amount)
+              (between (feeMin + amt, feeMax + amt) . ApiAmount.toNatural)
           , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
           , expectCliField (#status . #getApiT) (`shouldBe` Pending)
           ]
@@ -550,9 +556,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` ApiAmount amt)
                 , expectCliField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` ApiAmount amt)
                 ]
 
         -- Verify Tx list contains Incoming and Outgoing
@@ -599,8 +605,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 code `shouldBe` ExitFailure 1
 
     it "TRANS_LIST_03 - Can order results" $ \ctx -> runResourceT $ do
-        let a1 = Quantity $ sum $ replicate 10 (minUTxOValue (_mainEra ctx))
-        let a2 = Quantity $ sum $ replicate 10 (2 * (minUTxOValue (_mainEra ctx)))
+        let a1 = ApiAmount $ sum $
+                replicate 10 (minUTxOValue (_mainEra ctx))
+        let a2 = ApiAmount $ sum $
+                replicate 10 (2 * (minUTxOValue (_mainEra ctx)))
         w <- fixtureWalletWith @n ctx $ mconcat
                 [ replicate 10 (minUTxOValue (_mainEra ctx))
                 , replicate 10 (2 * (minUTxOValue (_mainEra ctx)))
@@ -787,9 +795,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` ApiAmount amt)
                 , expectCliField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` ApiAmount amt)
                 ]
 
         eventually "Transactions are available and in ledger" $ do

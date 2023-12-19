@@ -43,9 +43,6 @@ import Data.Generics.Internal.VL.Lens
 import Data.Proxy
     ( Proxy (..)
     )
-import Data.Quantity
-    ( Quantity (..)
-    )
 import Data.Text
     ( Text
     )
@@ -90,6 +87,9 @@ import Test.Integration.Framework.TestData
     , falseWalletIds
     )
 
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import qualified Data.Text as T
 
 spec
@@ -219,7 +219,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             w <- expectValidJSON (Proxy @ApiWallet) o2
             expectCliField
                 (#balance . #available)
-                (`shouldBe` Quantity (10 * amt)) w
+                (`shouldBe` ApiAmount (10 * amt)) w
 
         -- verify new address_pool_gap has been created
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI ctx [widDest]
