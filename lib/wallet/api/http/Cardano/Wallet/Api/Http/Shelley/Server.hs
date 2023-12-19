@@ -2876,7 +2876,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 Left ApiMintBurnDataFromScript{} -> mempty
                 Right (ApiMintBurnDataFromInput _ (ApiT policyId) _ _) ->
                     let
-                        Write.PolicyID policyId' =
+                        Write.PolicyId policyId' =
                             Convert.toLedgerTokenPolicyId policyId
                     in
                         Write.SpecifiedTimelockScriptVkCounts

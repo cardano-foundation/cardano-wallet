@@ -1,11 +1,13 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -133,8 +135,8 @@ module Internal.Cardano.Write.Tx
     , utxoFromTxOutsInRecentEra
 
     -- * Policy and asset identifiers
-    , Value.PolicyID (..)
-    , PolicyId
+    , type PolicyId
+    , pattern PolicyId
     , AssetName
 
     -- * Balancing
@@ -858,3 +860,9 @@ evaluateTransactionBalance pp utxo =
 --------------------------------------------------------------------------------
 
 type PolicyId = Value.PolicyID StandardCrypto
+
+{-# COMPLETE PolicyId #-}
+pattern PolicyId
+    :: Core.ScriptHash StandardCrypto
+    -> Value.PolicyID StandardCrypto
+pattern PolicyId h = Value.PolicyID h
