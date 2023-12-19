@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.CoinSelection.UTxOSelection.Gen
     ( genUTxOSelection
@@ -23,12 +22,14 @@ import Data.Maybe
     ( mapMaybe
     )
 import Test.QuickCheck
-    ( Gen
-    , arbitrary
-    , coarbitrary
+    ( Arbitrary (arbitrary)
+    , Gen
     , liftShrink2
     , shrinkMapBy
     , suchThatMap
+    )
+import Test.QuickCheck.Arbitrary
+    ( coarbitraryShow
     )
 import Test.QuickCheck.Extra
     ( genFunction
@@ -40,19 +41,13 @@ import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
 -- Selections that may be empty
 --------------------------------------------------------------------------------
 
-coarbitraryUTxO :: Show u => u -> Gen a -> Gen a
-coarbitraryUTxO = coarbitrary . show
-
-genUTxOFunction :: Show u => Gen a -> Gen (u -> a)
-genUTxOFunction = genFunction coarbitraryUTxO
-
 genUTxOSelection :: forall u. (Ord u, Show u) => Gen u -> Gen (UTxOSelection u)
 genUTxOSelection genUTxO = UTxOSelection.fromIndexFiltered
     <$> genUTxOFilter
     <*> genUTxOIndex genUTxO
   where
     genUTxOFilter :: Gen (u -> Bool)
-    genUTxOFilter = genUTxOFunction (arbitrary @Bool)
+    genUTxOFilter = genFunction coarbitraryShow arbitrary
 
 shrinkUTxOSelection
     :: Ord u => (u -> [u]) -> (UTxOSelection u -> [UTxOSelection u])

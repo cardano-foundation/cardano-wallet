@@ -42,9 +42,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicyId
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
-import Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
-    ( coarbitraryTxIn
-    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -402,8 +399,7 @@ deriving anyclass instance Function AssetName
 deriving anyclass instance CoArbitrary TokenPolicyId
 deriving anyclass instance Function TokenPolicyId
 
-instance CoArbitrary TxIn where
-    coarbitrary = coarbitraryTxIn
+deriving anyclass instance CoArbitrary TxIn
 
 instance Arbitrary UTxO where
     arbitrary = genUTxO
