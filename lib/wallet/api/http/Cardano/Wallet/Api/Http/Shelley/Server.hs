@@ -811,8 +811,7 @@ import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     )
 import Internal.Cardano.Write.Tx.Balance
-    ( PartialTx (timelockVkCounts)
-    , Redeemer (..)
+    ( Redeemer (..)
     , UTxOAssumptions (..)
     )
 import Internal.Cardano.Write.Tx.Sign
