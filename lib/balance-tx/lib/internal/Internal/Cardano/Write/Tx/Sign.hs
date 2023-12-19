@@ -327,6 +327,9 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
                     , "Caller is expected to ensure this does not happen."
                     ]
 
+-- | Used to specify the intended number of timelock script vk witnesses.
+--
+-- Like for the underlying 'Map', '<>' is left-biased.
 newtype SpecifiedTimelockScriptVkCounts = SpecifiedTimelockScriptVkCounts
     { getSpecifiedTimelockScriptVkCounts
         :: Map (ScriptHash StandardCrypto) Natural
