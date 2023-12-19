@@ -21,8 +21,8 @@ jobs:
       - name: "❄ Install Nix"
         uses: cachix/install-nix-action@v20
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
-          nix_path: nixpkgs=channel:nixos-22.11
+          install_url: https://releases.nixos.org/nix/nix-2.19.2/install
+          nix_path: nixpkgs=channel:nixos-23.11
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             substituters = https://hydra.iohk.io https://cache.nixos.org/
