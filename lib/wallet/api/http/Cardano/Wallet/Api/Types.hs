@@ -394,6 +394,7 @@ import Cardano.Wallet.Api.Types.Transaction
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
+    )
 import Cardano.Wallet.Delegation.Model
     ( DRep (..)
     , DRepKeyHash (..)
