@@ -341,15 +341,15 @@ x-assetQuantity: &assetQuantity
 
 x-assetValueNode: &assetValueNode
   description: |
-     Map of asset values along with their quantities.
-     assetName in field name is expected (max length 64-character hex-encoded text)
+    Map of asset values along with their quantities.
+    assetName in field name is expected (max length 64-character hex-encoded text)
   type: object
   additionalProperties: *assetQuantity
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^(assetName)$'
   example:
-    - {"asset1": 12, "asset2": 33}
+    - { "asset1": 12, "asset2": 33 }
 
 x-valueNode: &valueNode
   nullable: false
@@ -361,17 +361,21 @@ x-valueNode: &valueNode
 
 x-valueNodes: &valueNodes
   description: |
-     Map of values along with their quantities. Can be lovelace or asset.
-     In the former case 'lovelace' name is expected.
-     In the latter case assetPolicyId name is expected (56-character hex-encoded text)
+    Map of values along with their quantities. Can be lovelace or asset.
+    In the former case 'lovelace' name is expected.
+    In the latter case assetPolicyId name is expected (56-character hex-encoded text)
   type: object
   additionalProperties: *valueNode
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^(lovelace)|(assetPolicyId)$'
   example:
-    - {"lovelace": 1423}
-    - {"lovelace": 1423, "7191ae0e1286891fe5c027a5dc041b7401689938e18e14ec83cf74fb": {"asset1": 12, "asset2": 33}}
+    - { "lovelace": 1423 }
+    - {
+        "lovelace": 1423,
+        "7191ae0e1286891fe5c027a5dc041b7401689938e18e14ec83cf74fb":
+          { "asset1": 12, "asset2": 33 },
+      }
 
 x-stakePoolId: &stakePoolId
   type: string
@@ -423,7 +427,9 @@ x-cosigners: &cosigners
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - {"cosigner#0": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037"}
+    - {
+        "cosigner#0": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037",
+      }
 
 x-self: &self
   type: string
@@ -446,8 +452,10 @@ x-cosignersEntry: &cosignersEntry
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    - {"cosigner#0": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037"}
-    - {"cosigner#0": "self"}
+    - {
+        "cosigner#0": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037",
+      }
+    - { "cosigner#0": "self" }
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
@@ -748,25 +756,25 @@ x-CredentialValue: &CredentialValue
       title: script hash
   example:
     any:
-    - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
-
-    - stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5
-
-    - all:
       - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
-      - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
 
-    - any:
-      - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+      - stake_shared_vkh1nqc00hvlc6cq0sfhretk0rmzw8dywmusp8retuqnnxzajtzhjg5
+
       - all:
-        - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
-        - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
+          - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+          - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
 
-    - some:
-        at_least: 2
-        from:
-        - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
-        - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
+      - any:
+          - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+          - all:
+              - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+              - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
+
+      - some:
+          at_least: 2
+          from:
+            - addr_shared_vkh1zxt0uvrza94h3hv4jpv0ttddgnwkvdgeyq8jf9w30mcs6y8w3nq
+            - addr_shared_vkh1y3zl4nqgm96ankt96dsdhc86vd5geny0wr7hu8cpzdfcqskq2cp
 
 x-settings: &settings
   description: Settings
@@ -917,7 +925,24 @@ x-walletMnemonicSentence: &walletMnemonicSentence
   items:
     type: string
     format: bip-0039-mnemonic-word{english}
-  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become", "junk", "kingdom", "flee", "squirrel", "silly", "twice"]
+  example:
+    [
+      "squirrel",
+      "material",
+      "silly",
+      "twice",
+      "direct",
+      "slush",
+      "pistol",
+      "razor",
+      "become",
+      "junk",
+      "kingdom",
+      "flee",
+      "squirrel",
+      "silly",
+      "twice",
+    ]
 
 x-walletSecondFactor: &walletSecondFactor
   description: An optional passphrase used to encrypt the mnemonic sentence.
@@ -927,7 +952,18 @@ x-walletSecondFactor: &walletSecondFactor
   items:
     type: string
     format: bip-0039-mnemonic-word{english}
-  example: ["squirrel", "material", "silly", "twice", "direct", "slush", "pistol", "razor", "become"]
+  example:
+    [
+      "squirrel",
+      "material",
+      "silly",
+      "twice",
+      "direct",
+      "slush",
+      "pistol",
+      "razor",
+      "become",
+    ]
 
 x-walletPassphrase: &walletPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
@@ -1313,7 +1349,12 @@ x-certificateNotOurs: &certificateNotOurs
   properties:
     certificate_type:
       type: string
-      enum: ["join_pool_external", "quit_pool_external", "register_reward_account_external"]
+      enum:
+        [
+          "join_pool_external",
+          "quit_pool_external",
+          "register_reward_account_external",
+        ]
     pool:
       <<: *stakePoolId
     reward_account:
@@ -1382,8 +1423,8 @@ x-ours: &ours
 
 x-transactionWithdrawalsGeneral: &transactionWithdrawalsGeneral
   description: |
-     A list of withdrawals from stake addresses. Withdrawal belonging to the wallet
-     is underlined.
+    A list of withdrawals from stake addresses. Withdrawal belonging to the wallet
+    is underlined.
   type: array
   minItems: 0
   items:
@@ -1527,7 +1568,7 @@ x-transactionInputsGeneral: &transactionInputsGeneral
 
 x-transactionOutputsOutsideWallet: &transactionOutputsOutsideWallet
   description: |
-     A transaction output not belonging to the wallet
+    A transaction output not belonging to the wallet
   type: object
   required:
     - address
@@ -1539,7 +1580,7 @@ x-transactionOutputsOutsideWallet: &transactionOutputsOutsideWallet
 
 x-transactionOutputsInsideWallet: &transactionOutputsInsideWallet
   description: |
-     A transaction output not belonging to the wallet
+    A transaction output not belonging to the wallet
   type: object
   required:
     - address
@@ -1729,23 +1770,30 @@ x-transactionMetadata: &transactionMetadata
       title: full
       nullable: true
       additionalProperties:
-            $ref: "#/components/schemas/TransactionMetadataValue"
+        $ref: "#/components/schemas/TransactionMetadataValue"
       example:
         0: { "string": "cardano" }
         1: { "int": 14 }
         2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
-        3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
-        4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }
+        3: { "list": [{ "int": 14 }, { "int": 42 }, { "string": "1337" }] }
+        4:
+          {
+            "map":
+              [
+                { "k": { "string": "key" }, "v": { "string": "value" } },
+                { "k": { "int": 14 }, "v": { "int": 42 } },
+              ],
+          }
     - type: object
       title: simple
       nullable: true
       additionalProperties:
-            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
-            example:
-              0: "cardano"
-              1: 14
-              2: [14, 42 , "1337" ]
-              3: {"key1": "value" , "key2": 42 }
+        $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+        example:
+          0: "cardano"
+          1: 14
+          2: [14, 42, "1337"]
+          3: { "key1": "value", "key2": 42 }
 
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
@@ -1846,32 +1894,32 @@ x-stakePoolMetadata: &stakePoolMetadata
 x-stakePoolRetirement: &stakePoolRetirement
   <<: *epochInfo
   description: |
-      The epoch in which a stake pool retires.
+    The epoch in which a stake pool retires.
 
-      May be omitted if the wallet hasn't yet found a retirement certificate
-      for this stake pool.
+    May be omitted if the wallet hasn't yet found a retirement certificate
+    for this stake pool.
 
 x-stakePoolPledge: &stakePoolPledge
   <<: *amount
   description: |
-      Minimal stake amount that a stake pool is willing to honor.
+    Minimal stake amount that a stake pool is willing to honor.
 
-      May be omitted if the wallet hasn't found the pool's registration cerificate yet.
+    May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolCost: &stakePoolCost
   <<: *amount
   description: |
-      Estimated cost set by the pool operator when registering his pool.
-      This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
+    Estimated cost set by the pool operator when registering his pool.
+    This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
 
-      May be omitted if the wallet hasn't found the pool's registration cerificate yet.
+    May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolMargin: &stakePoolMargin
   <<: *percentage
   description: |
-      Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
+    Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
 
-      May be omitted if the wallet hasn't found the pool's registration cerificate yet.
+    May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolSaturation: &stakePoolSaturation
   type: number
@@ -1921,7 +1969,7 @@ x-stakePoolMetrics: &stakePoolMetrics
 x-stakePoolFlag: &stakePoolFlag
   type: string
   enum:
-  - delisted
+    - delisted
 
 x-stakePoolFlags: &stakePoolFlags
   type: array
@@ -2128,98 +2176,98 @@ components:
         derivation_path: *derivationPath
 
     ApiAddressInspect: &ApiAddressInspect
-        type: object
-        required:
+      type: object
+      required:
         - address_style
         - stake_reference
-        properties:
-          address_style:
-            type: string
-            enum:
+      properties:
+        address_style:
+          type: string
+          enum:
             - Shelley
             - Icarus
             - Byron
-          stake_reference:
-            type: string
-            enum:
+        stake_reference:
+          type: string
+          enum:
             - none
             - by value
             - by pointer
-          network_tag:
-            description: Can be null for 'Icarus' and 'Byron' styles.
-            type: integer
-            minimum: 0
-          spending_key_hash:
-            type: string
-            format: base16
-            minLength: 56
-            maxLength: 56
-          spending_key_bech32:
-            type: string
-            format: bech32
-          stake_key_hash:
-            type: string
-            format: base16
-            minLength: 56
-            maxLength: 56
-          stake_key_bech32:
-            type: string
-            format: bech32
-          script_hash:
-            type: string
-            format: base16
-            minLength: 64
-            maxLength: 64
-          script_hash_bech32:
-            type: string
-            format: bech32
-          pointer:
-            type: object
-            additionalProperties: false
-            required:
+        network_tag:
+          description: Can be null for 'Icarus' and 'Byron' styles.
+          type: integer
+          minimum: 0
+        spending_key_hash:
+          type: string
+          format: base16
+          minLength: 56
+          maxLength: 56
+        spending_key_bech32:
+          type: string
+          format: bech32
+        stake_key_hash:
+          type: string
+          format: base16
+          minLength: 56
+          maxLength: 56
+        stake_key_bech32:
+          type: string
+          format: bech32
+        script_hash:
+          type: string
+          format: base16
+          minLength: 64
+          maxLength: 64
+        script_hash_bech32:
+          type: string
+          format: bech32
+        pointer:
+          type: object
+          additionalProperties: false
+          required:
             - slot_num
             - transaction_index
             - output_index
-            properties:
-              slot_num:
-                type: integer
-                minimum: 0
-              transaction_index:
-                type: integer
-                minimum: 0
-              output_index:
-                type: integer
-                minimum: 0
-          address_root:
-            description: Only for 'Icarus' and 'Byron' styles.
-            type: string
-            format: base16
-          derivation_path:
-            description: Only for 'Byron' style.
-            type: string
-            format: base16
-          address_type:
-            description: |
-              The raw type field of the address.
+          properties:
+            slot_num:
+              type: integer
+              minimum: 0
+            transaction_index:
+              type: integer
+              minimum: 0
+            output_index:
+              type: integer
+              minimum: 0
+        address_root:
+          description: Only for 'Icarus' and 'Byron' styles.
+          type: string
+          format: base16
+        derivation_path:
+          description: Only for 'Byron' style.
+          type: string
+          format: base16
+        address_type:
+          description: |
+            The raw type field of the address.
 
-              Details about possible address types are following (refer also to [cddl](https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl)).
+            Details about possible address types are following (refer also to [cddl](https://github.com/IntersectMBO/cardano-ledger/blob/master/eras/alonzo/test-suite/cddl-files/alonzo.cddl)).
 
-              | address_type | binary prefix  |   Meaning                                                |
-              | ------------ |:--------------:|:--------------------------------------------------------:|
-              |      0       |  0000          |   base address: keyhash28,keyhash28                      |
-              |      1       |  0001          |   base address: scripthash28,keyhash28                   |
-              |      2       |  0010          |   base address: keyhash28,scripthash28                   |
-              |      3       |  0011          |   base address: scripthash28,scripthash28                |
-              |      4       |  0100          |   pointer address: keyhash28, 3 variable length uint     |
-              |      5       |  0101          |   pointer address: scripthash28, 3 variable length uint  |
-              |      6       |  0110          |   enterprise address: keyhash28                          |
-              |      7       |  0111          |   enterprise address: scripthash28                       |
-              |      8       |  1000          |   byron/icarus                                           |
-              |      14      |  1110          |   reward account: keyhash28                              |
-              |      15      |  1111          |   reward account: scripthash28                           |
-            type: integer
-            minimum: 0
-            maximum: 15
+            | address_type | binary prefix  |   Meaning                                                |
+            | ------------ |:--------------:|:--------------------------------------------------------:|
+            |      0       |  0000          |   base address: keyhash28,keyhash28                      |
+            |      1       |  0001          |   base address: scripthash28,keyhash28                   |
+            |      2       |  0010          |   base address: keyhash28,scripthash28                   |
+            |      3       |  0011          |   base address: scripthash28,scripthash28                |
+            |      4       |  0100          |   pointer address: keyhash28, 3 variable length uint     |
+            |      5       |  0101          |   pointer address: scripthash28, 3 variable length uint  |
+            |      6       |  0110          |   enterprise address: keyhash28                          |
+            |      7       |  0111          |   enterprise address: scripthash28                       |
+            |      8       |  1000          |   byron/icarus                                           |
+            |      14      |  1110          |   reward account: keyhash28                              |
+            |      15      |  1111          |   reward account: scripthash28                           |
+          type: integer
+          minimum: 0
+          maximum: 15
 
     ApiNetworkTip: &ApiNetworkTip
       <<: *slotReference
@@ -2249,8 +2297,8 @@ components:
           description: A name just distinguishing mainnet from testnets
           type: string
           enum:
-              - mainnet
-              - testnet
+            - mainnet
+            - testnet
 
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
@@ -2441,12 +2489,12 @@ components:
       properties:
         maintenance_action:
           type: string
-          enum: ['gc_stake_pools']
+          enum: ["gc_stake_pools"]
 
     ApiMaintenanceAction: &ApiMaintenanceAction
       type: object
       required:
-      - gc_stake_pools
+        - gc_stake_pools
       properties:
         gc_stake_pools: *ApiGCStatus
 
@@ -2567,9 +2615,9 @@ components:
         - quantity
         - fingerprint
       properties:
-       asset_name: *assetName
-       quantity: *assetQuantity
-       fingerprint: *assetFingerprint
+        asset_name: *assetName
+        quantity: *assetQuantity
+        fingerprint: *assetFingerprint
 
     PlutusScriptInfo: &PlutusScriptInfo
       type: object
@@ -2577,14 +2625,14 @@ components:
         - language_version
         - script_hash
       properties:
-       language_version:
-         type: string
-         enum: ["v1", "v2"]
-       script_hash:
-         type: string
-         format: hex
-         minLength: 56
-         maxLength: 56
+        language_version:
+          type: string
+          enum: ["v1", "v2"]
+        script_hash:
+          type: string
+          format: hex
+          minLength: 56
+          maxLength: 56
 
     AnyScript: &AnyScript
       oneOf:
@@ -3109,7 +3157,8 @@ components:
         script_validation: *validationLevel
         one_change_address_mode: *oneChangeAddressMode
 
-    ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
+    ApiSharedWalletPostDataFromAccountPubX:
+      &ApiSharedWalletPostDataFromAccountPubX
       type: object
       required:
         - name
@@ -3321,13 +3370,13 @@ components:
           45000000000000000: 0
 
     ApiWalletSignData: &ApiWalletSignData
-        type: object
-        required:
-          - passphrase
-          - metadata
-        properties:
-          passphrase: *lenientPassphrase
-          metadata: *transactionMetadata
+      type: object
+      required:
+        - passphrase
+        - metadata
+      properties:
+        passphrase: *lenientPassphrase
+        metadata: *transactionMetadata
 
     ApiScript: &ApiScript
       <<: *script
@@ -3485,7 +3534,8 @@ components:
       properties:
         health:
           type: string
-          enum: ["available", "unavailable", "unreachable", "no_smash_configured"]
+          enum:
+            ["available", "unavailable", "unreachable", "no_smash_configured"]
       description: |
         The status of the SMASH server. Possible values are:
 
@@ -3496,7 +3546,8 @@ components:
         `"unreachable"`         | server could not be reached or didn't return a health status
         `"no_smash_configured"` | SMASH is currently not configured, adjust the Settings first
 
-    ApiWalletPutPassphraseOldPassphraseData: &ApiWalletPutPassphraseOldPassphraseData
+    ApiWalletPutPassphraseOldPassphraseData:
+      &ApiWalletPutPassphraseOldPassphraseData
       type: object
       required:
         - old_passphrase
@@ -3661,7 +3712,7 @@ components:
         invalid_hereafter: *validityBound
 
     ApiPaymentDestination: &ApiPaymentDestination
-       <<: *transactionOutputs
+      <<: *transactionOutputs
 
     ApiMintData: &ApiMintData
       type: object
@@ -3737,8 +3788,8 @@ components:
           items: *ApiMintBurnData
           minItems: 1
           description: |
-             An entry for each unique asset to be minted and/or burned,
-             containing helpful information.
+            An entry for each unique asset to be minted and/or burned,
+            containing helpful information.
         vote: *ApiVoteAction
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
@@ -3838,7 +3889,7 @@ components:
         - title: Map
           type: object
           additionalProperties:
-              $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
+            $ref: "#/components/schemas/TransactionMetadataValueNoSchema"
 
     ApiGetSettings: &ApiGetSettings
       type: object
@@ -3994,45 +4045,45 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
         inputs:
-            description: A list of additional transaction inputs foreign to the wallet.
-            type: array
-            items:
-              type: object
-              required:
-                - id
-                - index
-                - address
-                - amount
-                - assets
-              properties:
-                id: *transactionId
-                index:
-                  type: integer
-                  minimum: 0
-                address: *addressId
-                amount: *amount
-                datum: *datum
-                assets: *walletAssets
+          description: A list of additional transaction inputs foreign to the wallet.
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - index
+              - address
+              - amount
+              - assets
+            properties:
+              id: *transactionId
+              index:
+                type: integer
+                minimum: 0
+              address: *addressId
+              amount: *amount
+              datum: *datum
+              assets: *walletAssets
         redeemers:
-            description: A list of redeemers data with their purpose.
-            type: array
-            items: *ApiRedeemer
+          description: A list of redeemers data with their purpose.
+          type: array
+          items: *ApiRedeemer
         encoding:
           type: string
           enum: ["base16", "base64"]
           description: Encoding of transaction CBOR returned in response (base64 by default).
 
     ApiBlockHeader: &ApiBlockHeader
-        description: |
-          A Block Header.
-        required:
-          - header_hash
-          - slot_no
-          - block_height
-        properties:
-          header_hash: *blockId
-          slot_no: *numberOfSlots
-          block_height: *numberOfBlocks
+      description: |
+        A Block Header.
+      required:
+        - header_hash
+        - slot_no
+        - block_height
+      properties:
+        header_hash: *blockId
+        slot_no: *numberOfSlots
+        block_height: *numberOfBlocks
 
 #############################################################################
 #                                                                           #
@@ -4079,7 +4130,7 @@ x-parametersStakePoolId: &parametersStakePoolId
     type: string
     format: hex|bech32
 
-x-parametersAddressId:  &parametersAddressId
+x-parametersAddressId: &parametersAddressId
   in: path
   name: addressId
   required: true
@@ -4095,9 +4146,9 @@ x-parametersRole: &parametersRole
   schema:
     type: string
     enum:
-    - utxo_external
-    - utxo_internal
-    - mutable_account
+      - utxo_external
+      - utxo_internal
+      - mutable_account
 
 x-parametersDerivationSegment: &parametersDerivationSegment
   in: path
@@ -4283,7 +4334,7 @@ x-errNoSuchWallet: &errNoSuchWallet
         wallets (because it has been deleted, or has never existed).
     code:
       type: string
-      enum: ['no_such_wallet']
+      enum: ["no_such_wallet"]
 
 x-errNoSuchTransaction: &errNoSuchTransaction
   <<: *responsesErr
@@ -4294,7 +4345,7 @@ x-errNoSuchTransaction: &errNoSuchTransaction
       description: May occur when a given transactionId does not match with any known transactions.
     code:
       type: string
-      enum: ['no_such_transaction']
+      enum: ["no_such_transaction"]
 
 x-errTransactionAlreadyInLedger: &errTransactionAlreadyInLedger
   <<: *responsesErr
@@ -4305,7 +4356,7 @@ x-errTransactionAlreadyInLedger: &errTransactionAlreadyInLedger
       description: Occurs when attempting to delete a transaction which is neither pending nor expired.
     code:
       type: string
-      enum: ['transaction_already_in_ledger']
+      enum: ["transaction_already_in_ledger"]
 
 x-errWalletAlreadyExists: &errWalletAlreadyExists
   <<: *responsesErr
@@ -4316,7 +4367,7 @@ x-errWalletAlreadyExists: &errWalletAlreadyExists
       description: May occur when a otherwise valid request would yield a wallet that already exists.
     code:
       type: string
-      enum: ['wallet_already_exists']
+      enum: ["wallet_already_exists"]
 
 x-errNoRootKey: &errNoRootKey
   <<: *responsesErr
@@ -4327,7 +4378,7 @@ x-errNoRootKey: &errNoRootKey
       description: May occur when an action require a signing key but the wallet has only access to verification keys.
     code:
       type: string
-      enum: ['no_root_key']
+      enum: ["no_root_key"]
 
 x-errWalletMetadataNotFound: &errWalletMetadataNotFound
   <<: *responsesErr
@@ -4343,7 +4394,7 @@ x-errWalletMetadataNotFound: &errWalletMetadataNotFound
         the incomplete state.
     code:
       type: string
-      enum: ['wallet_metadata_not_found']
+      enum: ["wallet_metadata_not_found"]
 
 x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
   <<: *responsesErr
@@ -4354,7 +4405,7 @@ x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
       description: May occur when the given spending passphrase is wrong.
     code:
       type: string
-      enum: ['wrong_encryption_passphrase']
+      enum: ["wrong_encryption_passphrase"]
 
 x-errWrongMnemonic: &errWrongMnemonic
   <<: *responsesErr
@@ -4365,7 +4416,7 @@ x-errWrongMnemonic: &errWrongMnemonic
       description: May occur when the given mnemonic is wrong.
     code:
       type: string
-      enum: ['wrong_mnemonic']
+      enum: ["wrong_mnemonic"]
 
 x-errMempoolIsFull: &errMempoolIsFull
   <<: *responsesErr
@@ -4387,7 +4438,7 @@ x-errNotEnoughMoney: &errNotEnoughMoney
       description: May occur when there's not enough money in the wallet to cover a requested payment.
     code:
       type: string
-      enum: ['not_enough_money']
+      enum: ["not_enough_money"]
 
 x-errInsufficientCollateral: &errInsufficientCollateral
   <<: *responsesErr
@@ -4401,7 +4452,7 @@ x-errInsufficientCollateral: &errInsufficientCollateral
         transaction requiring collateral.
     code:
       type: string
-      enum: ['insufficient_collateral']
+      enum: ["insufficient_collateral"]
 
 x-errTransactionIsTooBig: &errTransactionIsTooBig
   <<: *responsesErr
@@ -4412,7 +4463,7 @@ x-errTransactionIsTooBig: &errTransactionIsTooBig
       description: May occur when the wallet can't cover for all requested outputs without making the transaction too large.
     code:
       type: string
-      enum: ['transaction_is_too_big']
+      enum: ["transaction_is_too_big"]
 
 x-errCreatedMultidelegationTransaction: &errCreatedMultidelegationTransaction
   <<: *responsesErr
@@ -4423,7 +4474,7 @@ x-errCreatedMultidelegationTransaction: &errCreatedMultidelegationTransaction
       description: Occurs when more than 1 delegation action is included in a transaction.
     code:
       type: string
-      enum: ['created_multidelegation_transaction']
+      enum: ["created_multidelegation_transaction"]
 
 x-errCreatedMultiaccountTransaction: &errCreatedMultiaccountTransaction
   <<: *responsesErr
@@ -4434,7 +4485,7 @@ x-errCreatedMultiaccountTransaction: &errCreatedMultiaccountTransaction
       description: Occurs when a delegation action does not use '0H' account.
     code:
       type: string
-      enum: ['created_multiaccount_transaction']
+      enum: ["created_multiaccount_transaction"]
 
 x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
   <<: *responsesErr
@@ -4443,11 +4494,11 @@ x-errCreatedWrongPolicyScriptTemplate: &errCreatedWrongPolicyScriptTemplate
     message:
       type: string
       description: |
-          Occurs when a policy script template either does not pass validation
-          or has more than one cosigner.
+        Occurs when a policy script template either does not pass validation
+        or has more than one cosigner.
     code:
       type: string
-      enum: ['created_wrong_policy_script_template']
+      enum: ["created_wrong_policy_script_template"]
 
 x-errAssetNameTooLong: &errAssetNameTooLong
   <<: *responsesErr
@@ -4458,7 +4509,7 @@ x-errAssetNameTooLong: &errAssetNameTooLong
       description: Occurs when an asset name exceeds 32 bytes in length.
     code:
       type: string
-      enum: ['asset_name_too_long']
+      enum: ["asset_name_too_long"]
 
 x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
   <<: *responsesErr
@@ -4467,11 +4518,11 @@ x-errMintOrBurnAssetQuantityOutOfBounds: &errMintOrBurnAssetQuantityOutOfBounds
     message:
       type: string
       description: |
-          Occurs when attempting to mint or burn an asset quantity that is not
-          greater than zero or exceeds 9223372036854775807 (2^63 - 1).
+        Occurs when attempting to mint or burn an asset quantity that is not
+        greater than zero or exceeds 9223372036854775807 (2^63 - 1).
     code:
       type: string
-      enum: ['mint_or_burn_asset_quantity_out_of_bounds']
+      enum: ["mint_or_burn_asset_quantity_out_of_bounds"]
 
 x-errInvalidValidityBounds: &errInvalidValidityBounds
   <<: *responsesErr
@@ -4485,9 +4536,10 @@ x-errInvalidValidityBounds: &errInvalidValidityBounds
         bound, and the given time values must not be negative.
     code:
       type: string
-      enum: ['invalid_validity_bounds']
+      enum: ["invalid_validity_bounds"]
 
-x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScriptTimelock
+x-errValidityIntervalNotInsideScriptTimelock:
+  &errValidityIntervalNotInsideScriptTimelock
   <<: *responsesErr
   title: validity_interval_not_inside_script_timelock
   properties:
@@ -4498,7 +4550,7 @@ x-errValidityIntervalNotInsideScriptTimelock: &errValidityIntervalNotInsideScrip
         that is not a subinterval of an associated script's timelock interval.
     code:
       type: string
-      enum: ['validity_interval_not_inside_script_timelock']
+      enum: ["validity_interval_not_inside_script_timelock"]
 
 x-errSharedWalletIncomplete: &errSharedWalletIncomplete
   <<: *responsesErr
@@ -4510,7 +4562,7 @@ x-errSharedWalletIncomplete: &errSharedWalletIncomplete
         Occurs when attempting to create a transaction for an incomplete shared wallet.
     code:
       type: string
-      enum: ['shared_wallet_incomplete']
+      enum: ["shared_wallet_incomplete"]
 
 x-errDelegationInvalid: &errDelegationInvalid
   <<: *responsesErr
@@ -4523,7 +4575,7 @@ x-errDelegationInvalid: &errDelegationInvalid
         without a delegation script template.
     code:
       type: string
-      enum: ['staking_invalid']
+      enum: ["staking_invalid"]
 
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
@@ -4534,7 +4586,7 @@ x-errInputsDepleted: &errInputsDepleted
       description: May occur when there's enough money to pay for a payment, but not enough UTxO to allow for paying each output independently.
     code:
       type: string
-      enum: ['inputs_depleted']
+      enum: ["inputs_depleted"]
 
 x-errCannotCoverFee: &errCannotCoverFee
   <<: *responsesErr
@@ -4545,7 +4597,7 @@ x-errCannotCoverFee: &errCannotCoverFee
       description: May occur when a transaction can't be balanced for fees.
     code:
       type: string
-      enum: ['cannot_cover_fee']
+      enum: ["cannot_cover_fee"]
 
 x-errInvalidCoinSelection: &errInvalidCoinSelection
   <<: *responsesErr
@@ -4556,7 +4608,7 @@ x-errInvalidCoinSelection: &errInvalidCoinSelection
       description: Should never happen unless the server screwed up with the creation of a coin selection.
     code:
       type: string
-      enum: ['invalid_coin_selection']
+      enum: ["invalid_coin_selection"]
 
 x-errOutputTokenBundleSizeExceedsLimit: &errOutputTokenBundleSizeExceedsLimit
   <<: *responsesErr
@@ -4570,7 +4622,7 @@ x-errOutputTokenBundleSizeExceedsLimit: &errOutputTokenBundleSizeExceedsLimit
         protocol.
     code:
       type: string
-      enum: ['output_token_bundle_size_exceeds_limit']
+      enum: ["output_token_bundle_size_exceeds_limit"]
 
 x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
   <<: *responsesErr
@@ -4584,7 +4636,7 @@ x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
         protocol.
     code:
       type: string
-      enum: ['output_token_quantity_exceeds_limit']
+      enum: ["output_token_quantity_exceeds_limit"]
 
 x-errSharedWalletActive: &errSharedWalletActive
   <<: *responsesErr
@@ -4597,7 +4649,7 @@ x-errSharedWalletActive: &errSharedWalletActive
         that is active, not incomplete anymore.
     code:
       type: string
-      enum: ['shared_wallet_active']
+      enum: ["shared_wallet_active"]
 
 x-errSharedWalletNoDelegationTemplate: &errSharedWalletNoDelegationTemplate
   <<: *responsesErr
@@ -4610,7 +4662,7 @@ x-errSharedWalletNoDelegationTemplate: &errSharedWalletNoDelegationTemplate
         for delegation, but the shared wallet misses the delegation template.
     code:
       type: string
-      enum: ['shared_wallet_no_delegation_template']
+      enum: ["shared_wallet_no_delegation_template"]
 
 x-errSharedWalletKeyAlreadyExists: &errSharedWalletKeyAlreadyExists
   <<: *responsesErr
@@ -4623,7 +4675,7 @@ x-errSharedWalletKeyAlreadyExists: &errSharedWalletKeyAlreadyExists
         but the same key is already present in a given template.
     code:
       type: string
-      enum: ['shared_wallet_key_already_exists']
+      enum: ["shared_wallet_key_already_exists"]
 
 x-errSharedWalletNoSuchCosigner: &errSharedWalletNoSuchCosigner
   <<: *responsesErr
@@ -4636,7 +4688,7 @@ x-errSharedWalletNoSuchCosigner: &errSharedWalletNoSuchCosigner
         in script template that misses the cosigner.
     code:
       type: string
-      enum: ['shared_wallet_no_such_cosigner']
+      enum: ["shared_wallet_no_such_cosigner"]
     info:
       type: object
       required:
@@ -4664,7 +4716,7 @@ x-errSharedWalletCannotUpdateKey: &errSharedWalletCannotUpdateKey
         Only other cosigner keys can be updated.
     code:
       type: string
-      enum: ['shared_wallet_cannot_update_key']
+      enum: ["shared_wallet_cannot_update_key"]
 
 x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
   <<: *responsesErr
@@ -4677,7 +4729,7 @@ x-errSharedWalletScriptTemplateInvalid: &errSharedWalletScriptTemplateInvalid
         that does not pass validation.
     code:
       type: string
-      enum: ['shared_wallet_script_template_invalid']
+      enum: ["shared_wallet_script_template_invalid"]
 
 x-errForeignTransaction: &errForeignTransaction
   <<: *responsesErr
@@ -4688,7 +4740,7 @@ x-errForeignTransaction: &errForeignTransaction
       description: Occurs when a transaction to be submitted does have neither input, output nor withdrawal belonging to a given wallet.
     code:
       type: string
-      enum: ['foreign_transaction']
+      enum: ["foreign_transaction"]
 
 x-errMissingWitnessesInTransaction: &errMissingWitnessesInTransaction
   <<: *responsesErr
@@ -4699,7 +4751,7 @@ x-errMissingWitnessesInTransaction: &errMissingWitnessesInTransaction
       description: Occurs when a transaction to be submitted is not fully signed.
     code:
       type: string
-      enum: ['missing_witnesses_in_transaction']
+      enum: ["missing_witnesses_in_transaction"]
 
 x-errRejectedByCoreNode: &errRejectedByCoreNode
   <<: *responsesErr
@@ -4710,7 +4762,7 @@ x-errRejectedByCoreNode: &errRejectedByCoreNode
       description: Should never happen unless the server screwed up with the creation of transaction.
     code:
       type: string
-      enum: ['rejected_by_core_node']
+      enum: ["rejected_by_core_node"]
 
 x-errBadRequest: &errBadRequest
   <<: *responsesErr
@@ -4724,7 +4776,7 @@ x-errBadRequest: &errBadRequest
         are missing or, when malformed values are provided.
     code:
       type: string
-      enum: ['bad_request']
+      enum: ["bad_request"]
 
 x-errNodeNotYetInRecentEra: &errNodeNotYetInRecentEra
   <<: *responsesErr
@@ -4735,17 +4787,17 @@ x-errNodeNotYetInRecentEra: &errNodeNotYetInRecentEra
       type: string
     code:
       type: string
-      enum: ['node_not_yet_in_recent_era']
+      enum: ["node_not_yet_in_recent_era"]
     info:
       type: object
       required:
         - node_era
         - recent_eras
       properties:
-          node_era: *ApiEra
-          recent_eras:
-            type: array
-            items: *ApiEra
+        node_era: *ApiEra
+        recent_eras:
+          type: array
+          items: *ApiEra
 
 x-errTxNotInNodeEra: &errTxNotInNodeEra
   <<: *responsesErr
@@ -4844,7 +4896,7 @@ x-errNotAcceptable: &errNotAcceptable
       description: May occur when providing an invalid 'Accept' header.
     code:
       type: string
-      enum: ['not_acceptable']
+      enum: ["not_acceptable"]
 
 x-errUnsupportedMediaType: &errUnsupportedMediaType
   <<: *responsesErr
@@ -4855,7 +4907,7 @@ x-errUnsupportedMediaType: &errUnsupportedMediaType
       description: May occur when providing an invalid 'Content-Type' header.
     code:
       type: string
-      enum: ['unsupported_media_type']
+      enum: ["unsupported_media_type"]
 
 x-errStartTimeLaterThanEndTime: &errStartTimeLaterThanEndTime
   <<: *responsesErr
@@ -4866,7 +4918,7 @@ x-errStartTimeLaterThanEndTime: &errStartTimeLaterThanEndTime
       description: May occur when a provided time-range is unsound.
     code:
       type: string
-      enum: ['start_time_later_than_end_time']
+      enum: ["start_time_later_than_end_time"]
 
 x-errNothingToMigrate: &errNothingToMigrate
   <<: *responsesErr
@@ -4877,7 +4929,7 @@ x-errNothingToMigrate: &errNothingToMigrate
       description: May occur when trying to migrate a wallet that is empty or full of dust.
     code:
       type: string
-      enum: ['nothing_to_migrate']
+      enum: ["nothing_to_migrate"]
 
 x-errNoSuchPool: &errNoSuchPool
   <<: *responsesErr
@@ -4888,7 +4940,7 @@ x-errNoSuchPool: &errNoSuchPool
       description: May occur when a given poolId does not match any known pool.
     code:
       type: string
-      enum: ['no_such_pool']
+      enum: ["no_such_pool"]
 
 x-errPoolAlreadyJoined: &errPoolAlreadyJoined
   <<: *responsesErr
@@ -4899,7 +4951,7 @@ x-errPoolAlreadyJoined: &errPoolAlreadyJoined
       description: May occur when a given poolId matches the current delegation preferences of the wallet's account.
     code:
       type: string
-      enum: ['pool_already_joined']
+      enum: ["pool_already_joined"]
 
 x-errNotDelegatingTo: &errNotDelegatingTo
   <<: *responsesErr
@@ -4910,7 +4962,7 @@ x-errNotDelegatingTo: &errNotDelegatingTo
       description: May occur when trying to quit a pool on an account that isn't delegating.
     code:
       type: string
-      enum: ['not_delegating_to']
+      enum: ["not_delegating_to"]
 
 x-errInvalidWalletType: &errInvalidWalletType
   <<: *responsesErr
@@ -4921,7 +4973,7 @@ x-errInvalidWalletType: &errInvalidWalletType
       description: May occur when trying to perform an operation not supported by this type of wallet.
     code:
       type: string
-      enum: ['invalid_wallet_type']
+      enum: ["invalid_wallet_type"]
 
 x-errMissingPolicyPublicKey: &errMissingPolicyPublicKey
   <<: *responsesErr
@@ -4932,7 +4984,7 @@ x-errMissingPolicyPublicKey: &errMissingPolicyPublicKey
       description: Occurs when trying to construct with minting/burning on shelley wallet without policy public key.
     code:
       type: string
-      enum: ['missing_policy_public_key']
+      enum: ["missing_policy_public_key"]
 
 x-errQueryParamMissing: &errQueryParamMissing
   <<: *responsesErr
@@ -4943,7 +4995,7 @@ x-errQueryParamMissing: &errQueryParamMissing
       description: May occur when an endpoint requires the presence of a query parameter that is missing.
     code:
       type: string
-      enum: ['query_param_missing']
+      enum: ["query_param_missing"]
 
 x-errNonNullRewards: &errNonNullRewards
   <<: *responsesErr
@@ -4954,7 +5006,7 @@ x-errNonNullRewards: &errNonNullRewards
       description: May occur when trying to unregister a stake key that still has rewards attached to it.
     code:
       type: string
-      enum: ['non_null_rewards']
+      enum: ["non_null_rewards"]
 
 x-errMissingRewardAccount: &errMissingRewardAccount
   <<: *responsesErr
@@ -4965,7 +5017,7 @@ x-errMissingRewardAccount: &errMissingRewardAccount
       description: May occur when there is a missing reward account but wallet participates in staking.
     code:
       type: string
-      enum: ['missing_reward_account']
+      enum: ["missing_reward_account"]
 
 x-errUtxoTooSmall: &errUtxoTooSmall
   <<: *responsesErr
@@ -4978,7 +5030,7 @@ x-errUtxoTooSmall: &errUtxoTooSmall
         the minimum required by the ledger.
     code:
       type: string
-      enum: ['utxo_too_small']
+      enum: ["utxo_too_small"]
     info:
       type: object
       required:
@@ -4986,11 +5038,11 @@ x-errUtxoTooSmall: &errUtxoTooSmall
         - tx_output_lovelace_specified
         - tx_output_lovelace_required_minimum
       properties:
-          tx_output_index:
-            type: integer
-            minimum: 0
-          tx_output_lovelace_specified: *amount
-          tx_output_lovelace_required_minimum: *amount
+        tx_output_index:
+          type: integer
+          minimum: 0
+        tx_output_lovelace_specified: *amount
+        tx_output_lovelace_required_minimum: *amount
 
 x-errMinWithdrawalWrong: &errMinWithdrawalWrong
   <<: *responsesErr
@@ -5001,7 +5053,7 @@ x-errMinWithdrawalWrong: &errMinWithdrawalWrong
       description: May occur when trying to withdraw less than the minimal UTxO value.
     code:
       type: string
-      enum: ['min_withdrawal_wrong']
+      enum: ["min_withdrawal_wrong"]
 
 x-errAlreadyWithdrawing: &errAlreadyWithdrawing
   <<: *responsesErr
@@ -5012,7 +5064,7 @@ x-errAlreadyWithdrawing: &errAlreadyWithdrawing
       description: May occur when submitting a withdrawal while another withdrawal is pending.
     code:
       type: string
-      enum: ['already_withdrawing']
+      enum: ["already_withdrawing"]
 
 x-errAssetNotPresent: &errAssetNotPresent
   <<: *responsesErr
@@ -5025,7 +5077,7 @@ x-errAssetNotPresent: &errAssetNotPresent
         involved in any transaction related to the wallet.
     code:
       type: string
-      enum: ['asset_not_present']
+      enum: ["asset_not_present"]
 
 x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
   <<: *responsesErr
@@ -5037,7 +5089,7 @@ x-errTransactionAlreadyBalanced: &errTransactionAlreadyBalanced
         Occurs when a transaction is already balanced.
     code:
       type: string
-      enum: ['transaction_already_balanced']
+      enum: ["transaction_already_balanced"]
 
 x-errRedeemerScriptFailure: &errRedeemerScriptFailure
   <<: *responsesErr
@@ -5049,7 +5101,7 @@ x-errRedeemerScriptFailure: &errRedeemerScriptFailure
         Occurs when balancing transaction with failing scripts.
     code:
       type: string
-      enum: ['redeemer_script_failure']
+      enum: ["redeemer_script_failure"]
 
 x-errRedeemerTargetNotFound: &errRedeemerTargetNotFound
   <<: *responsesErr
@@ -5061,7 +5113,7 @@ x-errRedeemerTargetNotFound: &errRedeemerTargetNotFound
         Occurs when balancing transaction with reedemers that point to unknown entities.
     code:
       type: string
-      enum: ['redeemer_target_not_found']
+      enum: ["redeemer_target_not_found"]
 
 x-errUnresolvedInputs: &errUnresolvedInputs
   <<: *responsesErr
@@ -5074,7 +5126,7 @@ x-errUnresolvedInputs: &errUnresolvedInputs
         could not be found.
     code:
       type: string
-      enum: ['unknown_inputs']
+      enum: ["unknown_inputs"]
 
 x-errRedeemerInvalidData: &errRedeemerInvalidData
   <<: *responsesErr
@@ -5086,7 +5138,7 @@ x-errRedeemerInvalidData: &errRedeemerInvalidData
         Occurs when data in provided redeemers do not decode to valid Plutus data.
     code:
       type: string
-      enum: ['redeemer_invalid_data']
+      enum: ["redeemer_invalid_data"]
 
 x-errTranslationError: &errTranslationError
   <<: *responsesErr
@@ -5098,7 +5150,7 @@ x-errTranslationError: &errTranslationError
         Occurs when any data in a provided transaction cannot be translated in a given era
     code:
       type: string
-      enum: ['translation_error']
+      enum: ["translation_error"]
 
 x-errInputResolutionConflicts: &errInputResolutionConflicts
   <<: *responsesErr
@@ -5112,7 +5164,7 @@ x-errInputResolutionConflicts: &errInputResolutionConflicts
         recorded in the wallet's UTxO set.
     code:
       type: string
-      enum: ['input_resolution_conflicts']
+      enum: ["input_resolution_conflicts"]
 
 #############################################################################
 #                                                                           #
@@ -5123,89 +5175,89 @@ x-errInputResolutionConflicts: &errInputResolutionConflicts
 x-tagGroups:
   - name: Shelley (Sequential)
     tags:
-    - Wallets
-    - Assets
-    - Addresses
-    - Coin Selections
-    - Transactions
-    - Transactions New
-    - Migrations
-    - Stake Pools
-    - Keys
+      - Wallets
+      - Assets
+      - Addresses
+      - Coin Selections
+      - Transactions
+      - Transactions New
+      - Migrations
+      - Stake Pools
+      - Keys
 
   - name: Shelley (Shared Wallets)
     tags:
-    - Shared Wallets
-    - Shared Keys
-    - Shared Addresses
-    - Shared Transactions
+      - Shared Wallets
+      - Shared Keys
+      - Shared Addresses
+      - Shared Transactions
 
   - name: Byron (Random)
     tags:
-    - Byron Wallets
-    - Byron Assets
-    - Byron Addresses
-    - Byron Coin Selections
-    - Byron Transactions
-    - Byron Migrations
+      - Byron Wallets
+      - Byron Assets
+      - Byron Addresses
+      - Byron Coin Selections
+      - Byron Transactions
+      - Byron Migrations
 
   - name: Miscellaneous
     tags:
-    - Utils
-    - Network
-    - Proxy
-    - Settings
-    - Experimental
-    - Node
+      - Utils
+      - Network
+      - Proxy
+      - Settings
+      - Experimental
+      - Node
 
 paths:
   /wallets/{walletId}/signatures/{role}/{index}:
-      post:
-        operationId: signMetadata
-        tags: ["Experimental"]
-        summary: Sign Metadata
-        description: |
-          <p align="right">status: <strong>experimental</strong></p>
+    post:
+      operationId: signMetadata
+      tags: ["Experimental"]
+      summary: Sign Metadata
+      description: |
+        <p align="right">status: <strong>experimental</strong></p>
 
-          **⚠️ WARNING ⚠️**
+        **⚠️ WARNING ⚠️**
 
-          This endpoint is experimental and for internal use in the Catalyst project. This
-          functionality will be refined in the forthcoming future and the interface is likely
-          to change in **NON-BACKWARD COMPATIBLE WAYS**.
+        This endpoint is experimental and for internal use in the Catalyst project. This
+        functionality will be refined in the forthcoming future and the interface is likely
+        to change in **NON-BACKWARD COMPATIBLE WAYS**.
 
-          <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
-        parameters:
-          - *parametersWalletId
-          - *parametersRole
-          - *parametersDerivationSegment
-        requestBody:
-          required: true
+        <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersRole
+        - *parametersDerivationSegment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletSignData
+      responses:
+        200:
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: Bad Request
           content:
             application/json:
-              schema: *ApiWalletSignData
-        responses:
-          200:
-            description: OK
-            content:
-              application/octet-stream:
-                schema:
-                  type: string
-                  format: binary
-          400:
-            description: Bad Request
-            content:
-              application/json:
-                schema: *errBadRequest
-          406:
-            description: Not Acceptable
-            content:
-              application/json:
-                schema: *errNotAcceptable
-          415:
-            description: Unsupported Media Type
-            content:
-              application/json:
-                schema: *responsesErr
+              schema: *errBadRequest
+        406:
+          description: Not Acceptable
+          content:
+            application/json:
+              schema: *errNotAcceptable
+        415:
+          description: Unsupported Media Type
+          content:
+            application/json:
+              schema: *responsesErr
 
   /wallets:
     post:
@@ -5399,7 +5451,6 @@ paths:
           content:
             application/json:
               schema: *ApiWalletUTxOsStatistics
-
 
   /wallets/{walletId}/utxo:
     get:
@@ -7431,10 +7482,10 @@ paths:
       parameters:
         - *parametersWalletId
       requestBody:
-          required: true
-          content:
-            application/json:
-              schema: *ApiPostTransactionDataByron
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostTransactionDataByron
       responses:
         202:
           description: Accepted
