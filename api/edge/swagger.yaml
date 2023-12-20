@@ -4299,6 +4299,20 @@ x-errHardenedDerivationRequired: &errHardenedDerivationRequired
       type: string
       enum: ['hardened_derivation_required']
 
+x-errNoUtxosAvailable: &errNoUtxosAvailable
+  <<: *responsesErr
+  title: no_utxos_available
+  properties:
+    message:
+      type: string
+      description: |
+        Indicates that the wallet has no unspent transaction outputs (UTxOs)
+        available. A transaction must spend at least one UTxO in order to be
+        accepted for inclusion on the Cardano blockchain.
+    code:
+      type: string
+      enum: ['no_utxos_available']
+
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
   title: no_such_wallet
@@ -5734,6 +5748,7 @@ x-responsesSelectCoins: &responsesSelectCoins
           oneOf:
             - <<: *errAlreadyWithdrawing
             - <<: *errUtxoTooSmall
+            - <<: *errNoUtxosAvailable
             - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
             - <<: *errCannotCoverFee
@@ -5821,6 +5836,7 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errAlreadyWithdrawing
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
+            - <<: *errNoUtxosAvailable
             - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
@@ -5854,6 +5870,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errAlreadyWithdrawing
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
+            - <<: *errNoUtxosAvailable
             - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
             - <<: *errTransactionIsTooBig
@@ -5964,6 +5981,7 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
             - <<: *errAlreadyWithdrawing
             - <<: *errUtxoTooSmall
             - <<: *errCannotCoverFee
+            - <<: *errNoUtxosAvailable
             - <<: *errNotEnoughMoney
             - <<: *errInsufficientCollateral
             - <<: *errInputsDepleted
@@ -6157,6 +6175,7 @@ x-responsesJoinStakePool: &responsesJoinStakePool
           oneOf:
             - <<: *errCannotCoverFee
             - <<: *errNoRootKey
+            - <<: *errNoUtxosAvailable
             - <<: *errWrongEncryptionPassphrase
             - <<: *errPoolAlreadyJoined
   404:
@@ -6185,6 +6204,7 @@ x-responsesQuitStakePool: &responsesQuitStakePool
           oneOf:
             - <<: *errCannotCoverFee
             - <<: *errNoRootKey
+            - <<: *errNoUtxosAvailable
             - <<: *errWrongEncryptionPassphrase
             - <<: *errNotDelegatingTo
             - <<: *errNonNullRewards
@@ -6317,6 +6337,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errCannotCoverFee
             - <<: *errInsufficientCollateral
             - <<: *errInvalidWalletType
+            - <<: *errNoUtxosAvailable
             - <<: *errNotEnoughMoney
             - <<: *errTransactionAlreadyBalanced
             - <<: *errTransactionIsTooBig
