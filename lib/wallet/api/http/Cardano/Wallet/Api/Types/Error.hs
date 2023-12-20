@@ -145,6 +145,7 @@ data ApiErrorInfo
     | NoSuchPool
     | NoSuchTransaction
     | NoSuchWallet
+    | NoUtxosAvailable
     | NodeNotYetInRecentEra
         !ApiErrorNodeNotYetInRecentEra
     | NonNullRewards
