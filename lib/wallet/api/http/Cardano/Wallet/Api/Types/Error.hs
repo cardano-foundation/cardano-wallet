@@ -110,7 +110,6 @@ data ApiErrorInfo
     | BalanceTxExistingCollateral
     | BalanceTxExistingKeyWitnesses
     | BalanceTxExistingReturnCollateral
-    | TxNotInNodeEra
     | BalanceTxExistingTotalCollateral
     | BalanceTxInternalError
     | BalanceTxUnderestimatedFee
@@ -142,12 +141,12 @@ data ApiErrorInfo
     | NetworkMisconfigured
     | NetworkQueryFailed
     | NetworkUnreachable
-    | NodeNotYetInRecentEra
-        !ApiErrorNodeNotYetInRecentEra
     | NoRootKey
     | NoSuchPool
     | NoSuchTransaction
     | NoSuchWallet
+    | NodeNotYetInRecentEra
+        !ApiErrorNodeNotYetInRecentEra
     | NonNullRewards
     | NotAcceptable
     | NotDelegatingTo
@@ -180,6 +179,7 @@ data ApiErrorInfo
     | TransactionAlreadyInLedger
     | TransactionIsTooBig
     | TranslationError
+    | TxNotInNodeEra
     | UnableToAssignInputOutput
     | UnableToDetermineCurrentEpoch
     | UnexpectedError
