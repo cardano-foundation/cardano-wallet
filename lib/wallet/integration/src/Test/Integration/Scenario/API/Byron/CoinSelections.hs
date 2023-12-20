@@ -22,6 +22,9 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -31,9 +34,6 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.List.NonEmpty
     ( NonEmpty ((:|))
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Test.Hspec
     ( SpecWith
@@ -87,7 +87,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         rnW <- emptyRandomWallet ctx
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
-        let amt = Quantity . minUTxOValue . _mainEra $ ctx
+        let amt = ApiAmount . minUTxOValue . _mainEra $ ctx
         let payments = pure (AddressAmount addr amt mempty)
         selectCoins @_ @'Byron ctx rnW payments >>= flip verify
             [ expectResponseCode HTTP.status403
@@ -100,7 +100,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             source <- fixtureIcarusWallet ctx
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amt = Quantity . minUTxOValue $ _mainEra ctx
+            let amt = ApiAmount . minUTxOValue $ _mainEra ctx
             let payment = AddressAmount targetAddress amt mempty
             let output = ApiCoinSelectionOutput targetAddress amt mempty
             selectCoins @_ @'Byron ctx source (payment :| []) >>= flip verify
@@ -126,7 +126,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             source <- fixtureIcarusWallet ctx
             target <- emptyWallet ctx
             targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
-            let amounts = Quantity <$> [minUTxOValue (_mainEra ctx) ..]
+            let amounts = ApiAmount <$> [minUTxOValue (_mainEra ctx) ..]
             let targetAssets = repeat mempty
             let payments = NE.fromList
                     $ take paymentCount
@@ -147,7 +147,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         icW <- emptyIcarusWallet ctx
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
-        let minUTxOValue' = Quantity . minUTxOValue $ _mainEra ctx
+        let minUTxOValue' = ApiAmount . minUTxOValue $ _mainEra ctx
         let payments = pure (AddressAmount addr minUTxOValue' mempty)
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron icW) Default Empty
         selectCoins @_ @'Byron ctx icW payments >>= flip verify

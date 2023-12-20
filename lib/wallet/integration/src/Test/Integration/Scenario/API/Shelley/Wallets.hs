@@ -41,6 +41,9 @@ import Cardano.Wallet.Api.Types
     , ApiWalletUtxoSnapshot
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -91,9 +94,6 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -210,9 +210,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "1st Wallet")
             , expectField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 30)
-            , expectField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectField (#balance . #total) (`shouldBe` Quantity 0)
-            , expectField (#balance . #reward) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #total) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #reward) (`shouldBe` ApiAmount 0)
             , expectField (#assets . #total) (`shouldBe` mempty)
             , expectField (#assets . #available) (`shouldBe` mempty)
             , expectField #delegation (`shouldBe` notDelegating [])
@@ -250,11 +250,11 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
                 , expectField
-                    (#balance . #available) (`shouldBe` Quantity 0)
+                    (#balance . #available) (`shouldBe` ApiAmount 0)
                 , expectField
-                    (#balance . #total) (`shouldBe` Quantity 0)
+                    (#balance . #total) (`shouldBe` ApiAmount 0)
                 , expectField
-                    (#balance . #reward) (`shouldBe` Quantity 0)
+                    (#balance . #reward) (`shouldBe` ApiAmount 0)
                 , expectField #delegation (`shouldBe` notDelegating [])
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
@@ -274,8 +274,8 @@ spec = describe "SHELLEY_WALLETS" $ do
         rInit <- postWallet ctx payldCrt
         verify rInit
             [ expectResponseCode HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #total) (`shouldBe` ApiAmount 0)
             , expectField (#assets . #available) (`shouldBe` mempty)
             , expectField (#assets . #total) (`shouldBe` mempty)
             ]
@@ -303,9 +303,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField (#balance . #total)
-                    (`shouldBe` Quantity minUTxOValue')
+                    (`shouldBe` ApiAmount minUTxOValue')
                 , expectField (#balance . #available)
-                    (`shouldBe` Quantity minUTxOValue')
+                    (`shouldBe` ApiAmount minUTxOValue')
                 , expectField (#assets . #available)
                     (`shouldBe` mempty)
                 , expectField (#assets . #total)
@@ -324,9 +324,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
+                        (#balance . #total) (`shouldBe` ApiAmount minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
+                        (#balance . #available) (`shouldBe` ApiAmount minUTxOValue')
                 ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> runResourceT $ do
@@ -677,11 +677,11 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField
                         (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity 0)
+                        (#balance . #available) (`shouldBe` ApiAmount 0)
                 , expectField
-                        (#balance . #total) (`shouldBe` Quantity 0)
+                        (#balance . #total) (`shouldBe` ApiAmount 0)
                 , expectField
-                        (#balance . #reward) (`shouldBe` Quantity 0)
+                        (#balance . #reward) (`shouldBe` ApiAmount 0)
                 , expectField (#state . #getApiT) (`shouldBe` Ready)
                 , expectField #delegation (`shouldBe` notDelegating [])
                 , expectField walletId (`shouldBe` w ^. walletId)
@@ -720,11 +720,11 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectListField 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
             , expectListField 0
-                    (#balance . #available) (`shouldBe` Quantity 0)
+                    (#balance . #available) (`shouldBe` ApiAmount 0)
             , expectListField 0
-                    (#balance . #total) (`shouldBe` Quantity 0)
+                    (#balance . #total) (`shouldBe` ApiAmount 0)
             , expectListField 0
-                    (#balance . #reward) (`shouldBe` Quantity 0)
+                    (#balance . #reward) (`shouldBe` ApiAmount 0)
             , expectListField 0 #delegation (`shouldBe` notDelegating [])
             ]
 
@@ -774,9 +774,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                             (#addressPoolGap . #getApiT . #getAddressPoolGap)
                             (`shouldBe` 20)
                     , expectField
-                            (#balance . #available) (`shouldBe` Quantity 0)
+                            (#balance . #available) (`shouldBe` ApiAmount 0)
                     , expectField
-                            (#balance . #total) (`shouldBe` Quantity 0)
+                            (#balance . #total) (`shouldBe` ApiAmount 0)
                     , expectField #delegation (`shouldBe` notDelegating [])
                     , expectField walletId (`shouldBe` walId)
                     , expectField #passphrase (`shouldBe` passLastUpdateValue)
@@ -1222,11 +1222,11 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total)
-                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                    (#balance . #total)
+                    (`shouldBe` ApiAmount (sum coins))
                 , expectField
-                        (#balance . #available)
-                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                    (#balance . #available)
+                    (`shouldBe` ApiAmount (sum coins))
                 ]
 
         --verify utxo

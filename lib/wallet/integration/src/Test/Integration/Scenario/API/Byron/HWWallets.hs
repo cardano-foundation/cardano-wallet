@@ -48,6 +48,9 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (IcarusKeyS)
     )
@@ -68,9 +71,6 @@ import Control.Monad.Trans.Resource
     )
 import Data.Generics.Internal.VL.Lens
     ( (^.)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -143,8 +143,8 @@ spec = describe "BYRON_HW_WALLETS" $ do
         rInit <- postByronWallet ctx payldCrt
         verify rInit
             [ expectResponseCode HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #total) (`shouldBe` ApiAmount 0)
             ]
         let wDest = getFromResponse id rInit
 
@@ -171,9 +171,9 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 (Link.getWallet @'Byron wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #total) (`shouldBe` ApiAmount minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #available) (`shouldBe` ApiAmount minUTxOValue')
                 ]
 
         -- delete wallet
@@ -190,9 +190,9 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 (Link.getWallet @'Byron wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #total) (`shouldBe` ApiAmount minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #available) (`shouldBe` ApiAmount minUTxOValue')
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
@@ -354,7 +354,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     icarusAddresses @n mnemonics
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let targetAmounts = take paymentCount $
-                    Quantity <$> [minUTxOValue' ..]
+                    ApiAmount <$> [minUTxOValue' ..]
             let targetAssets = repeat mempty
             let payments = NE.fromList $ map ($ mempty) $
                     zipWith AddressAmount targetAddresses targetAmounts

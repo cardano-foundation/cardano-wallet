@@ -35,6 +35,9 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -62,9 +65,6 @@ import Data.Aeson
 import Data.Generics.Internal.VL.Lens
     ( view
     , (^.)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -263,7 +263,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (10 * amt))
+                (`shouldBe` ApiAmount (10 * amt))
                 rb
 
         -- verify new address_pool_gap has been created

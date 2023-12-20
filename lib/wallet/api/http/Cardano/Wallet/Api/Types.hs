@@ -352,6 +352,9 @@ import Cardano.Wallet.Api.Lib.Options
     , strictRecordTypeOptions
     , taggedSumTypeOptions
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount
+    )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate (..)
     , ApiCertificate (..)
@@ -647,6 +650,7 @@ import Web.HttpApiData
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Address.Derivation as AD
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.AssetName as W
 import qualified Cardano.Wallet.Primitive.Types.TokenFingerprint as W
@@ -905,8 +909,8 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , collateral :: ![ApiCoinSelectionCollateral n]
     , withdrawals :: ![ApiCoinSelectionWithdrawal n]
     , certificates :: Maybe (NonEmpty ApiCertificate)
-    , depositsTaken :: ![Quantity "lovelace" Natural]
-    , depositsReturned :: ![Quantity "lovelace" Natural]
+    , depositsTaken :: ![ApiAmount]
+    , depositsReturned :: ![ApiAmount]
     , metadata :: !(Maybe ApiBase64)
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -915,7 +919,7 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiAddress n)
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
     , assets :: !ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
@@ -925,7 +929,7 @@ data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
 
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiAddress n)
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
     , assets :: !ApiWalletAssets
     }
     deriving (Eq, Ord, Generic, Show, Typeable)
@@ -938,7 +942,7 @@ data ApiCoinSelectionCollateral (n :: NetworkDiscriminant) =
         , index :: !Word32
         , address :: !(ApiAddress n)
         , derivationPath :: NonEmpty (ApiT DerivationIndex)
-        , amount :: !(Quantity "lovelace" Natural)
+        , amount :: !ApiAmount
         }
     deriving (Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiCoinSelectionCollateral n)
@@ -960,9 +964,9 @@ data ApiWallet = ApiWallet
     deriving anyclass NFData
 
 data ApiWalletBalance = ApiWalletBalance
-    { available :: !(Quantity "lovelace" Natural)
-    , total :: !(Quantity "lovelace" Natural)
-    , reward :: !(Quantity "lovelace" Natural)
+    { available :: !ApiAmount
+    , total :: !ApiAmount
+    , reward :: !ApiAmount
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiWalletBalance
@@ -1025,7 +1029,7 @@ newtype ApiWalletUtxoSnapshot = ApiWalletUtxoSnapshot
     deriving Show via (Quiet ApiWalletUtxoSnapshot)
 
 data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
-    { ada :: !(Quantity "lovelace" Natural)
+    { ada :: !ApiAmount
     , assets :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
@@ -1033,7 +1037,7 @@ data ApiWalletUtxoSnapshotEntry = ApiWalletUtxoSnapshotEntry
     deriving anyclass NFData
 
 data ApiUtxoStatistics = ApiUtxoStatistics
-    { total :: !(Quantity "lovelace" Natural)
+    { total :: !ApiAmount
     , scale :: !(ApiT BoundType)
     , distribution :: !(Map Word64 Word64)
     }
@@ -1044,7 +1048,7 @@ data ApiUtxoStatistics = ApiUtxoStatistics
 toApiUtxoStatistics :: UTxOStatistics -> ApiUtxoStatistics
 toApiUtxoStatistics (UTxOStatistics histo totalStakes bType) =
     ApiUtxoStatistics
-    { total = Quantity (fromIntegral totalStakes)
+    { total = ApiAmount.fromWord64 totalStakes
     , scale = ApiT bType
     , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
     }
@@ -1201,7 +1205,7 @@ instance ToJSON ApiSealedTxEncoding where
 data ApiConstructTransaction (n :: NetworkDiscriminant) = ApiConstructTransaction
     { transaction :: !ApiSerialisedTransaction
     , coinSelection :: !(ApiCoinSelection n)
-    , fee :: !(Quantity "lovelace" Natural)
+    , fee :: !ApiAmount
     }
     deriving (Eq, Generic, Show, Typeable)
     deriving anyclass NFData
@@ -1411,7 +1415,7 @@ data ApiExternalInput (n :: NetworkDiscriminant) = ApiExternalInput
     { id :: !(ApiT (Hash "Tx"))
     , index :: !Word32
     , address :: !(ApiAddress n)
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
     , assets :: !ApiWalletAssets
     , datum :: !(Maybe (ApiT Write.DatumHash))
     }
@@ -1454,10 +1458,10 @@ data ApiRedeemer (n :: NetworkDiscriminant)
     deriving (Eq, Generic, Show)
 
 data ApiFee = ApiFee
-    { estimatedMin :: !(Quantity "lovelace" Natural)
-    , estimatedMax :: !(Quantity "lovelace" Natural)
-    , minimumCoins :: ![Quantity "lovelace" Natural]
-    , deposit :: !(Quantity "lovelace" Natural)
+    { estimatedMin :: !ApiAmount
+    , estimatedMax :: !ApiAmount
+    , minimumCoins :: ![ApiAmount]
+    , deposit :: !ApiAmount
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiFee
@@ -1556,10 +1560,10 @@ newtype ApiTxId = ApiTxId { id :: ApiT (Hash "Tx") }
 
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
-    , amount :: !(Quantity "lovelace" Natural)
-    , fee :: !(Quantity "lovelace" Natural)
-    , depositTaken :: !(Quantity "lovelace" Natural)
-    , depositReturned :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
+    , fee :: !ApiAmount
+    , depositTaken :: !ApiAmount
+    , depositReturned :: !ApiAmount
     , insertedAt :: !(Maybe ApiBlockReference)
     , pendingSince :: !(Maybe ApiBlockReference)
     , expiresAt :: !(Maybe ApiSlotReference)
@@ -1589,7 +1593,7 @@ data ApiCoinSelectionWithdrawal (n :: NetworkDiscriminant) =
     ApiCoinSelectionWithdrawal
     { stakeAddress :: !(ApiRewardAccount n)
     , derivationPath :: !(NonEmpty (ApiT DerivationIndex))
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiCoinSelectionWithdrawal n)
@@ -1621,7 +1625,7 @@ data ApiTxCollateral (n :: NetworkDiscriminant) = ApiTxCollateral
 
 data AddressAmountNoAssets addr = AddressAmountNoAssets
     { address :: !addr
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (AddressAmountNoAssets addr)
@@ -1787,7 +1791,7 @@ newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     deriving Show via (Quiet (ApiPutAddressesData n))
 
 data ApiWalletMigrationBalance = ApiWalletMigrationBalance
-    { ada :: !(Quantity "lovelace" Natural)
+    { ada :: !ApiAmount
     , assets :: !ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
@@ -1796,7 +1800,7 @@ data ApiWalletMigrationBalance = ApiWalletMigrationBalance
 
 data ApiWalletMigrationPlan (n :: NetworkDiscriminant) = ApiWalletMigrationPlan
     { selections :: !(NonEmpty (ApiCoinSelection n))
-    , totalFee :: Quantity "lovelace" Natural
+    , totalFee :: ApiAmount
     , balanceLeftover :: ApiWalletMigrationBalance
     , balanceSelected :: ApiWalletMigrationBalance
     }
@@ -2157,10 +2161,10 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
 data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
      { _index :: !Natural
     , _key :: !(ApiRewardAccount n)
-    , _stake :: !(Quantity "lovelace" Natural)
+    , _stake :: !ApiAmount
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
-    , _rewardBalance :: !(Quantity "lovelace" Natural)
+    , _rewardBalance :: !ApiAmount
       -- ^ The current reward balance (not lifetime).
     , _delegation :: !ApiWalletDelegation
       -- ^ The delegation of this stake key
@@ -2174,10 +2178,10 @@ data ApiOurStakeKey (n :: NetworkDiscriminant) = ApiOurStakeKey
 -- keys.
 data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
     { _key :: !(ApiRewardAccount n)
-    , _stake :: !(Quantity "lovelace" Natural)
+    , _stake :: !ApiAmount
       -- ^ The total ada this stake key controls / is associated with. This
       -- also includes the reward balance.
-    , _rewardBalance :: !(Quantity "lovelace" Natural)
+    , _rewardBalance :: !ApiAmount
       -- ^ The current reward balance (not lifetime).
     }
     deriving (Generic, Eq, Show)
@@ -2185,7 +2189,7 @@ data ApiForeignStakeKey (n :: NetworkDiscriminant) = ApiForeignStakeKey
 
 -- | For describing how much stake is associated with no stake key.
 newtype ApiNullStakeKey = ApiNullStakeKey
-    { _stake :: Quantity "lovelace" Natural
+    { _stake :: ApiAmount
       -- ^ The total stake of the wallet UTxO that is not associated with a
       -- stake key, because it's part of an enterprise address.
     }
@@ -2616,8 +2620,8 @@ instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 
 data ApiByronWalletBalance = ApiByronWalletBalance
-    { available :: !(Quantity "lovelace" Natural)
-    , total :: !(Quantity "lovelace" Natural)
+    { available :: !ApiAmount
+    , total :: !ApiAmount
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiByronWalletBalance

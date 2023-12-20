@@ -48,6 +48,9 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     , pendingSince
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
@@ -118,9 +121,6 @@ import Data.Generics.Product.Typed
 import Data.Maybe
     ( isJust
     , isNothing
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -234,6 +234,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as TokenPolicy
 import qualified Data.Aeson as Aeson
@@ -271,7 +272,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let targetAddress = (targetAddresses !! 1) ^. #id
         let endpoint = Link.createTransactionOld @'Shelley sourceWallet
         let mkRequest = request @(ApiTransaction n) ctx endpoint Default
-        let mkPayload :: Quantity "lovelace" Natural -> Payload
+        let mkPayload :: ApiAmount -> Payload
             mkPayload lovelaceRequested = Json
                 [json|
                     { "payments":
@@ -293,7 +294,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- required amount.
         --
         e <- counterexample "Attempt #1" $ do
-            let lovelaceRequested = Quantity 1
+            let lovelaceRequested = ApiAmount 1
             response <- mkRequest (mkPayload lovelaceRequested)
             expectResponseCode HTTP.status403 response
             let UtxoTooSmall e = decodeErrorInfo response
@@ -347,8 +348,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         payload <- liftIO $
             mkTxPayload ctx wSrc (minUTxOValue (_mainEra ctx)) fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wSrc) payload
+        (_, ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ _) <-
+            unsafeRequest ctx
+                (Link.getTransactionFeeOld @'Shelley wSrc) payload
 
         r <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSrc) Default payload
@@ -358,7 +360,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             -- tx amount includes only fees because it is tx to self address
             -- when tx is pending
-            , expectField (#amount . #getQuantity) $ between (feeMin, feeMax)
+            , expectField (#amount . #toNatural) $ between (feeMin, feeMax)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
@@ -371,7 +373,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectResponseCode HTTP.status200
                 -- tx amount includes only fees because it is tx to self address
                 -- also when tx is already in ledger
-                , expectListField 0 (#amount . #getQuantity) $
+                , expectListField 0 (#amount . #toNatural) $
                     between (feeMin, feeMax)
                 , expectListField 0 (#direction . #getApiT)
                     (`shouldBe` Outgoing)
@@ -426,7 +428,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) minCoins _) <-
+        (_, ApiFee (ApiAmount feeMin) (ApiAmount feeMax) minCoins _) <-
             unsafeRequest ctx
                 (Link.getTransactionFeeOld @'Shelley wa) payload
         rTx <- request @(ApiTransaction n) ctx
@@ -437,7 +439,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            , expectField (#amount . #toNatural) $
                 between (feeMin + amt, feeMax + amt)
             , const $
                 -- The minimum ada quantities returned within an 'ApiFee'
@@ -453,7 +455,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 -- constant:
                 --
                 minCoins `shouldSatisfy` all
-                    (>= (Quantity $ minUTxOValue (_mainEra ctx)))
+                    (>= (ApiAmount $ minUTxOValue (_mainEra ctx)))
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -465,29 +467,29 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectField (#balance . #total) $
                 between
-                    ( Quantity (initialAmt - feeMax - amt)
-                    , Quantity (initialAmt - feeMin - amt)
+                    ( ApiAmount (initialAmt - feeMax - amt)
+                    , ApiAmount (initialAmt - feeMin - amt)
                     )
             , expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
             ]
 
         let txid = getFromResponse #id rTx
         let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
-        let Quantity fee = getFromResponse #fee rTx
+        let ApiAmount fee = getFromResponse #fee rTx
         eventually "transaction is no longer pending on source wallet" $ do
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) $
+                , expectField (#amount . #toNatural) $
                     between (feeMin + amt, feeMax + amt)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata) (`shouldBe` Nothing)
-                , expectField (#fee . #getQuantity) $
+                , expectField (#fee . #toNatural) $
                     between (feeMin, feeMax)
                 ]
 
@@ -496,13 +498,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
             verify rDst
                 [ expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#amount . #toNatural) (`shouldBe` amt)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isNothing . source)
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata) (`shouldBe` Nothing)
-                , expectField (#fee . #getQuantity) $
+                , expectField (#fee . #toNatural) $
                     between (feeMin, feeMax)
                 ]
 
@@ -511,13 +513,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wb) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (initialAmt + amt)) rb
+                (`shouldBe` ApiAmount (initialAmt + amt)) rb
 
             ra2 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (initialAmt - fee - amt)) ra2
+                (`shouldBe` ApiAmount (initialAmt - fee - amt)) ra2
 
     it "TRANS_CREATE_02x - Multiple Output Tx to single wallet" $
         \ctx -> runResourceT $ do
@@ -547,7 +549,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "passphrase": "cardano-wallet"
             }|]
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <-
+        (_, ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ _) <-
             unsafeRequest ctx
                 (Link.getTransactionFeeOld @'Shelley wSrc) payload
 
@@ -559,7 +561,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         verify r
             [ expectResponseCode HTTP.status202
-            , expectField (#amount . #getQuantity) $
+            , expectField (#amount . #toNatural) $
                 between (feeMin + (2*amt), feeMax + (2*amt))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
@@ -570,12 +572,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify ra
             [ expectField (#balance . #total) $
                 between
-                    ( Quantity (faucetAmt - feeMax - (2*amt))
-                    , Quantity (faucetAmt - feeMin - (2*amt))
+                    ( ApiAmount (faucetAmt - feeMax - (2*amt))
+                    , ApiAmount (faucetAmt - feeMin - (2*amt))
                     )
             , expectField
                     (#balance . #available)
-                    (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
+                    (.>= ApiAmount (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "wDest balance is as expected" $ do
             rd <- request @ApiWallet ctx
@@ -583,10 +585,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rd
                 [ expectField
                         (#balance . #available)
-                        (`shouldBe` Quantity (2*amt))
+                        (`shouldBe` ApiAmount (2*amt))
                 , expectField
                         (#balance . #total)
-                        (`shouldBe` Quantity (2*amt))
+                        (`shouldBe` ApiAmount (2*amt))
                 ]
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $
@@ -602,7 +604,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- fixtureWalletWith @n ctx [amt]
         payload <- liftIO $ mkTxPayload ctx wDest amt fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
+        (_, ApiFee (ApiAmount feeMin) _ _ _) <- unsafeRequest ctx
             (Link.getTransactionFeeOld @'Shelley wDest) payload
 
         -- NOTE It's a little tricky to estimate the fee needed for a
@@ -628,8 +630,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         ra <- request @ApiWallet ctx
             (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
-            [ expectField (#balance . #total) (`shouldBe` Quantity 0)
-            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            [ expectField (#balance . #total) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
             ]
 
         eventually "Wallet balance is as expected" $ do
@@ -638,17 +640,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rd
                 [ expectField
                         (#balance . #available)
-                        (`shouldBe` Quantity (2*amt))
+                        (`shouldBe` ApiAmount (2*amt))
                 , expectField
                         (#balance . #total)
-                        (`shouldBe` Quantity (2*amt))
+                        (`shouldBe` ApiAmount (2*amt))
                 ]
 
         ra2 <- request @ApiWallet ctx
             (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra2
-            [ expectField (#balance . #total) (`shouldBe` Quantity 0)
-            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            [ expectField (#balance . #total) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> runResourceT $ do
@@ -658,7 +660,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $
             mkTxPayload ctx wDest minUTxOValue' fixturePassphrase
-        (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
+        (_, ApiFee (ApiAmount feeMin) _ _ _) <- unsafeRequest ctx
             (Link.getTransactionFeeOld @'Shelley wDest) payload
 
         wSrc <- fixtureWalletWith @n ctx [minUTxOValue' + (feeMin `div` 2)]
@@ -789,7 +791,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         payloadFee <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
         rFee <- request @ApiFee ctx
             (Link.getTransactionFeeOld @'Shelley wSrc) Default payloadFee
-        let [Quantity minCoin] = getFromResponse #minimumCoins rFee
+        let [ApiAmount minCoin] = getFromResponse #minimumCoins rFee
 
         payload <- mkTxPayloadMA @n destination minCoin [val] fixturePassphrase
         rtx <- request @(ApiTransaction n) ctx
@@ -804,7 +806,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldNotBe` mempty)
                 , expectField (#assets . #total)
                     (`shouldNotBe` mempty)
-                , expectField (#balance . #total . #getQuantity)
+                , expectField (#balance . #total . #toNatural)
                     (`shouldBe` minCoin)
                 ]
         -- todo: asset balance values more exactly
@@ -1109,7 +1111,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Nothing
                 , expectedFee =
-                    Quantity 129_500
+                    ApiAmount 129_500
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1119,7 +1121,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                     Just $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
                 , expectedFee =
-                    Quantity 134_200
+                    ApiAmount 134_200
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1129,7 +1131,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 151_800
+                    ApiAmount 151_800
                 }
             , CreateTransactionWithMetadataTest
                 { testName =
@@ -1144,7 +1146,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata =
                       Just txMetadata_ADP_1005
                 , expectedFee =
-                    Quantity 165_200
+                    ApiAmount 165_200
                 }
             ]
 
@@ -1228,8 +1230,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
-        let (Quantity feeEstMin) = getFromResponse #estimatedMin ra
-        let (Quantity feeEstMax) = getFromResponse #estimatedMax ra
+        let (ApiAmount feeEstMin) = getFromResponse #estimatedMin ra
+        let (ApiAmount feeEstMax) = getFromResponse #estimatedMax ra
 
         -- check that it's estimated to have less fees for transactions without
         -- metadata.
@@ -1237,8 +1239,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.getTransactionFeeOld @'Shelley wa) Default payload
         verify rb
             [ expectResponseCode HTTP.status202
-            , expectField (#estimatedMin . #getQuantity) (.< feeEstMin)
-            , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
+            , expectField (#estimatedMin . #toNatural) (.< feeEstMin)
+            , expectField (#estimatedMax . #toNatural) (.< feeEstMax)
             ]
 
     it "TRANSMETA_ESTIMATE_01b - \
@@ -1264,8 +1266,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
-        let (Quantity feeEstMin) = getFromResponse #estimatedMin ra
-        let (Quantity feeEstMax) = getFromResponse #estimatedMax ra
+        let (ApiAmount feeEstMin) = getFromResponse #estimatedMin ra
+        let (ApiAmount feeEstMax) = getFromResponse #estimatedMax ra
 
         -- check that it's estimated to have less fees for transactions without
         -- metadata.
@@ -1278,8 +1280,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify
             rb
             [ expectResponseCode HTTP.status202
-            , expectField (#estimatedMin . #getQuantity) (.< feeEstMin)
-            , expectField (#estimatedMax . #getQuantity) (.< feeEstMax)
+            , expectField (#estimatedMin . #toNatural) (.< feeEstMin)
+            , expectField (#estimatedMax . #toNatural) (.< feeEstMax)
             ]
 
     it "TRANSMETA_ESTIMATE_02a - \
@@ -1376,8 +1378,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.getTransactionFeeOld @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectField (#estimatedMin . #getQuantity) (.>= 0)
-            , expectField (#estimatedMax . #getQuantity) (.<= oneAda)
+            , expectField (#estimatedMin . #toNatural) (.>= 0)
+            , expectField (#estimatedMax . #toNatural) (.<= oneAda)
             ]
 
     it "TRANS_ESTIMATE_03b - \
@@ -1407,8 +1409,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.getTransactionFeeOld @'Shelley wSrc) Default payload
         verify r
             [ expectResponseCode HTTP.status202
-            , expectField (#estimatedMin . #getQuantity) (.>= 0)
-            , expectField (#estimatedMax . #getQuantity) (.<= oneAda)
+            , expectField (#estimatedMin . #toNatural) (.>= 0)
+            , expectField (#estimatedMax . #toNatural) (.<= oneAda)
             ]
 
     it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> runResourceT $ do
@@ -1464,9 +1466,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                    (#balance . #total) (`shouldBe` ApiAmount amt)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                    (#balance . #available) (`shouldBe` ApiAmount amt)
                 ]
 
         -- Verify Tx list contains Incoming and Outgoing
@@ -1508,17 +1510,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
-        let a1 = Quantity minUTxOValue'
-        let a2 = Quantity (2 * minUTxOValue')
+        let a1 = ApiAmount minUTxOValue'
+        let a2 = ApiAmount (2 * minUTxOValue')
         (wSrc, w) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post txs
         let linkTx =
                 (wSrc, Link.createTransactionOld @'Shelley, "cardano-wallet")
         _ <- postTx @n ctx linkTx w minUTxOValue'
-        verifyWalletBalance ctx w (Quantity minUTxOValue')
+        verifyWalletBalance ctx w (ApiAmount minUTxOValue')
 
         _ <- postTx @n ctx linkTx w (2 * minUTxOValue')
-        verifyWalletBalance ctx w (Quantity (3 * minUTxOValue'))
+        verifyWalletBalance ctx w (ApiAmount (3 * minUTxOValue'))
 
         txs <- eventually "I make sure there are exactly 2 transactions" $ do
             let linkList = Link.listTransactions' @'Shelley w
@@ -1949,9 +1951,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` ApiAmount amt)
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` ApiAmount amt)
                 ]
 
         eventually "Transactions are available and in ledger" $ do
@@ -2063,14 +2065,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- As a workaround we also pass if the tx is already accepted.
         case (statusDelete, rBalance) of
             (s, balance)
-                | s == HTTP.status204 && balance == Quantity faucetAmt ->
+                | s == HTTP.status204 && balance == ApiAmount faucetAmt ->
                     eventually "transaction eventually is in source wallet"
                         assertSourceTx
-                | s == HTTP.status204 && balance < Quantity faucetAmt ->
+                | s == HTTP.status204 && balance < ApiAmount faucetAmt ->
                     liftIO assertSourceTx
                 | s == HTTP.status403 -> liftIO $ do
                     assertSourceTx
-                    balance .< Quantity faucetAmt
+                    balance .< ApiAmount faucetAmt
             _ ->
                 expectationFailure $ "invalid combination of results: "
                     <> show statusDelete
@@ -2157,7 +2159,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 [ expectField (#balance . #available)
                     (.> (wSrc ^. #balance . #available))
                 , expectField (#balance . #reward)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
     it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $
@@ -2177,24 +2179,24 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity estimatedFeeMin) (Quantity estimatedFeeMax) _ _)
+        (_, ApiFee (ApiAmount estimatedFeeMin) (ApiAmount estimatedFeeMax) _ _)
             <- unsafeRequest ctx
                 (Link.getTransactionFeeOld @'Shelley wSelf) payload
 
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSelf) Default payload
-        let Quantity fee = getFromResponse #fee rTx
+        let ApiAmount fee = getFromResponse #fee rTx
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField #withdrawals
                 (`shouldSatisfy` (not . null))
             , expectField (#direction . #getApiT)
                 (`shouldBe` Incoming)
-            , expectField (#amount . #getQuantity)
+            , expectField (#amount . #toNatural)
                 (`shouldBe` (oneMillionAda - fee))
 
             -- TODO: Drop https://cardanofoundation.atlassian.net/browse/ADP-2935
-            , expectField (#fee . #getQuantity)
+            , expectField (#fee . #toNatural)
                 (between (estimatedFeeMin, estimatedFeeMax))
             ]
         let tid = getFromResponse Prelude.id rTx
@@ -2204,7 +2206,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wOther) Default payload
             verify rWOther
                 [ expectField (#balance . #reward)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
         eventually "withdrawal transaction is listed on other" $ do
@@ -2217,7 +2219,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldSatisfy` (not . null))
                 , expectField (#direction . #getApiT)
                     (`shouldBe` Outgoing)
-                , expectField (#amount . #getQuantity)
+                , expectField (#amount . #toNatural)
                     (`shouldBe` oneMillionAda)
                 ]
 
@@ -2239,7 +2241,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldSatisfy` (not . null))
                 , expectField (#direction . #getApiT)
                     (`shouldBe` Incoming)
-                , expectField (#amount . #getQuantity)
+                , expectField (#amount . #toNatural)
                     (`shouldBe` (oneMillionAda - fee))
                 , expectField (#status . #getApiT)
                     (`shouldBe` InLedger)
@@ -2272,7 +2274,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wOther) Default payload
             verify rWOther
                 [ expectField (#balance . #reward)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
         -- Try withdrawing AGAIN, rewards that aren't there anymore.
@@ -2409,7 +2411,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wRewards) Default Empty
             verify rWOther
                 [ expectField (#balance . #available)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
         -- Try withdrawing when no UTxO on a wallet
@@ -2511,11 +2513,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let payments = NE.fromList $ map ($ mempty) $ zipWith
                 (AddressAmount)
                 (targetAddresses)
-                (Quantity <$> outputQuantities)
+                (ApiAmount <$> outputQuantities)
         let outputs = zipWith3
                 ApiCoinSelectionOutput
                 (targetAddresses)
-                (Quantity <$> outputQuantities)
+                (ApiAmount <$> outputQuantities)
                 (targetAssets)
 
         -- First, perform a dry-run selection using the 'selectCoins' endpoint.
@@ -2536,8 +2538,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let apiCoinSelection = getFromResponse Prelude.id coinSelectionResponse
         let fee = computeApiCoinSelectionFee apiCoinSelection
-        let withinToleranceTo (Quantity expected) tol
-                = between (Quantity $ expected - tol, Quantity $ expected + tol)
+        let withinToleranceTo (ApiAmount expected) tol =
+                between (ApiAmount $ expected - tol, ApiAmount $ expected + tol)
 
         -- Some tolerance is needed as 'selectCoins' doesn't make room for a
         -- validity interval / TTL, whereas 'postTransaction' does. We seem to
@@ -2552,7 +2554,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         liftIO $ withinToleranceTo
             expectedFee
             1_000
-            (Quantity (fromIntegral (unCoin (fee))))
+            (ApiAmount.fromCoin fee)
 
         -- Next, actually create a transaction and submit it to the network.
         -- This transaction should have a fee that is identical to the fee
@@ -2684,7 +2686,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
-        -> Quantity "lovelace" Natural
+        -> ApiAmount
         -> m ()
     verifyWalletBalance ctx wallet amt = do
         eventually "Wallet Ada balance is as expected" $ do
@@ -2756,5 +2758,5 @@ data CreateTransactionWithMetadataTest = CreateTransactionWithMetadataTest
     , txMetadata
         :: Maybe TxMetadata
     , expectedFee
-        :: Quantity "lovelace" Natural
+        :: ApiAmount
     }

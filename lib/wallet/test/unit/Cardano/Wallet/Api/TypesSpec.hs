@@ -266,6 +266,9 @@ import Cardano.Wallet.Api.Types
     , XPubOrSelf (..)
     , toApiAsset
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount
+    )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader
     )
@@ -636,6 +639,7 @@ import Test.QuickCheck
     , scale
     , shrinkBoundedEnum
     , shrinkIntegral
+    , shrinkMap
     , shrinkMapBy
     , sized
     , suchThat
@@ -682,8 +686,8 @@ import Web.HttpApiData
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
@@ -770,6 +774,7 @@ spec = do
         jsonTest @ApiAddressData
         jsonTest @ApiAsset
         jsonTest @ApiAssetMintBurn
+        jsonTest @ApiAmount
         jsonTest @ApiBase64
         jsonTest @ApiBlockReference
         jsonTest @ApiByronWallet
@@ -1180,6 +1185,10 @@ instance FromJSON SchemaApiErrorInfo where
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary ApiAmount where
+    arbitrary = ApiAmount.fromCoin <$> arbitrary
+    shrink = shrinkMap ApiAmount.fromCoin ApiAmount.toCoin
 
 instance Arbitrary (ApiRewardAccount n)
     where
@@ -2557,7 +2566,7 @@ instance Arbitrary ApiWalletUtxoSnapshot where
             adaValue2 <- genCoinPositive
             -- The actual ada quantity of an output's token bundle must be
             -- greater than or equal to the minimum permissible ada quantity:
-            let ada = Coin.toQuantity $ max adaValue1 adaValue2
+            let ada = ApiAmount.fromCoin $ max adaValue1 adaValue2
             assets <- ApiWalletAssets.fromTokenMap <$> genTokenMapSmallRange
             pure ApiWalletUtxoSnapshotEntry
                 { ada
@@ -2572,7 +2581,7 @@ instance Arbitrary ApiUtxoStatistics where
         let boundCountMap =
                 Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histoBars
         return $ ApiUtxoStatistics
-            (Quantity $ fromIntegral stakes)
+            (ApiAmount.fromWord64 stakes)
             (ApiT bType)
             boundCountMap
 

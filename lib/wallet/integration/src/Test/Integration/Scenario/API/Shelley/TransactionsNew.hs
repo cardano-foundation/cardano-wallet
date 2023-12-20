@@ -103,6 +103,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , fromApiEra
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     )
@@ -333,6 +336,7 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -400,10 +404,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (>0))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -450,7 +454,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
@@ -465,10 +469,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldSatisfy` isJust)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (>0))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
@@ -513,13 +517,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                    (#balance . #available . #getQuantity)
+                    (#balance . #available . #toNatural)
                     (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
-        let initialBalance = wa ^. #balance . #available . #getQuantity
+        let initialBalance = wa ^. #balance . #available . #toNatural
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -529,7 +533,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` null)
             ]
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
 
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
 
@@ -557,10 +561,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` initialBalance - fromIntegral expectedFee)
                 , expectField
-                        (#balance . #reward . #getQuantity)
+                        (#balance . #reward . #toNatural)
                         (`shouldBe` 0)
                 ]
 
@@ -575,11 +579,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #metadata) (`shouldBe` Nothing)
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (>0))
             , expectField (#coinSelection . #withdrawals) (`shouldSatisfy` (not . null))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
@@ -587,7 +591,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let decodePayload = Json (toJSON signedTx)
         let withdrawalWith ownership wdrls = case wdrls of
                 [wdrl] ->
-                    wdrl ^. #amount == Quantity withdrawalAmt &&
+                    wdrl ^. #amount == ApiAmount withdrawalAmt &&
                     wdrl ^. #context == ownership
                 _ -> False
 
@@ -612,7 +616,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` rewardInitialBalance + (withdrawalAmt - fromIntegral expectedFee))
                 ]
 
@@ -622,7 +626,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #reward . #getQuantity)
+                        (#balance . #reward . #toNatural)
                         (`shouldBe` 0)
                 ]
 
@@ -649,7 +653,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
                 , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
                 , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
                 ]
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -661,12 +665,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payloadHex
         verify rTxHex expectedCreateTx
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let txCbor = getFromResponse #transaction rTx
         let decodePayload = Json (toJSON txCbor)
         let sharedExpectationsBetweenWallets =
                 [ expectResponseCode HTTP.status202
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 , expectField #withdrawals (`shouldBe` [])
                 , expectField #collateral (`shouldBe` [])
                 , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
@@ -684,7 +688,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let addrDest = (addrs !! addrIx) ^. #id
         let expectedTxOutTarget = WalletOutput $ ApiWalletOutput
                 { address = addrDest
-                , amount = Quantity amt
+                , amount = ApiAmount amt
                 , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
@@ -740,7 +744,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let filterInitialAmt =
                 filter $ \(ApiWalletInput _ _ _ _ amt' _) ->
-                    amt' == Quantity initialAmt
+                    amt' == ApiAmount initialAmt
         let coinSelInputs = filterInitialAmt $
                 getFromResponse (#coinSelection . #inputs) rTx
         length coinSelInputs `shouldBe` 1
@@ -763,17 +767,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWb
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt)
                 ]
             -- check incoming tx in destination wallet
             rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
             verify rDst
                 [ expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField (#amount . #toNatural) (`shouldBe` amt)
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 ]
 
         let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
@@ -783,17 +787,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` (initialAmt - amt - expectedFee))
                 ]
             -- check outgoing tx in source wallet
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) (`shouldBe` amt + expectedFee)
+                , expectField (#amount . #toNatural) (`shouldBe` amt + expectedFee)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#fee . #getQuantity) (`shouldBe` expectedFee)
+                , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 ]
 
         -- After signing tx the cbor is as before modulo added wtinesses,
@@ -801,7 +805,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- accommodated in ledger output change in amount for target wallet
         let expectedTxOutTarget' = WalletOutput $ ApiWalletOutput
                 { address = addrDest
-                , amount = Quantity amt
+                , amount = ApiAmount amt
                 , assets = mempty
                 , derivationPath = NE.fromList
                     [ ApiT (DerivationIndex 2_147_485_500)
@@ -825,7 +829,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let addrSrc =  addrSourceChange ^. #id
         let expectedTxOutSource = WalletOutput $ ApiWalletOutput
                 { address = addrSrc
-                , amount = Quantity $ initialAmt - (amt + fromIntegral expectedFee)
+                , amount = ApiAmount $ initialAmt - (amt + fromIntegral expectedFee)
                 , assets = mempty
                 , derivationPath = derPath
                 }
@@ -927,7 +931,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
-        initialAmt <- getFromResponse (#balance . #available . #getQuantity) <$>
+        initialAmt <- getFromResponse (#balance . #available . #toNatural) <$>
                           request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -958,10 +962,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
@@ -978,7 +982,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWb
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` 2*amt)
                 ]
 
@@ -988,7 +992,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` (initialAmt - 2*amt - expectedFee))
                 ]
 
@@ -1010,7 +1014,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
             ]
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
 
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
 
@@ -1036,7 +1040,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` initialAmt - (amt + fromIntegral expectedFee))
                 ]
 
@@ -1054,14 +1058,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWr
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt)
                 ]
 
     it "TRANS_NEW_ASSETS_CREATE_01a - Multi-asset tx with Ada" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
-        initialAmt <- getFromResponse (#balance . #available . #getQuantity) <$>
+        initialAmt <- getFromResponse (#balance . #available . #toNatural) <$>
                           request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         -- pick out an asset to send
@@ -1084,10 +1088,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
@@ -1104,7 +1108,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWb
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt)
                 , expectField (#assets . #available)
                     (`shouldNotBe` mempty)
@@ -1118,7 +1122,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` (initialAmt - amt - expectedFee))
                 ]
 
@@ -1150,7 +1154,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
-        initialAmt <- getFromResponse (#balance . #available . #getQuantity) <$>
+        initialAmt <- getFromResponse (#balance . #available . #toNatural) <$>
                           request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
 
         -- pick out an asset to send
@@ -1173,10 +1177,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
 
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
@@ -1196,7 +1200,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
-            pure $ getFromResponse (#amount . #getQuantity) r1
+            pure $ getFromResponse (#amount . #toNatural) r1
 
         let inTxAmt = outTxAmt - expectedFee
         eventually "Target wallet balance is increased by inTxAmt and assets" $ do
@@ -1205,7 +1209,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWb
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` inTxAmt)
                 , expectField (#assets . #available)
                     (`shouldNotBe` mempty)
@@ -1219,7 +1223,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` (initialAmt - outTxAmt))
                 ]
 
@@ -1286,7 +1290,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
                 , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
                 , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-                , expectField (#fee . #getQuantity) (`shouldSatisfy` (> 0))
+                , expectField (#fee . #toNatural) (`shouldSatisfy` (> 0))
                 ]
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -1569,7 +1573,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodePayload
         verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 144_600)
+            , expectField (#fee . #toNatural) (`shouldBe` 144_600)
             , expectField #withdrawals (`shouldBe` [])
             , expectField #collateral (`shouldBe` [])
             , expectField #metadata (`shouldBe` (ApiTxMetadata Nothing))
@@ -1658,7 +1662,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodeMintPayload
         verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
+            , expectField (#fee . #toNatural) (`shouldBe` 202_725)
             , expectField #mint (`shouldBe` activeAssetsInfo)
             , expectField #burn (`shouldBe` inactiveAssetsInfo)
             ]
@@ -1687,7 +1691,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley wa) Default decodeBurnPayload
         verify rTx'
             [ expectResponseCode HTTP.status202
-            , expectField (#fee . #getQuantity) (`shouldBe` 202_725)
+            , expectField (#fee . #toNatural) (`shouldBe` 202_725)
             , expectField #mint (`shouldBe` inactiveAssetsInfo)
             , expectField #burn (`shouldBe` activeAssetsInfo)
             ]
@@ -2262,8 +2266,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                  { poolId = ApiT poolId'
                  , poolOwners = [ ApiT (PoolOwner "\DC2H'\240\159mP)\164k}\t\133J\198\169\171\SYN\243\169\145\195\226\177\154\192)Q") ]
                  , poolMargin = Quantity percentage
-                 , poolCost = Quantity 0
-                 , poolPledge = Quantity 1_000_000_000_000
+                 , poolCost = ApiAmount 0
+                 , poolPledge = ApiAmount 1_000_000_000_000
                  , poolMetadata =
                          Just (ApiT (StakePoolMetadataUrl "http://localhost:44107/metadata.json")
                               ,ApiT (StakePoolMetadataHash "\241\148\ESC\ACK\216\137\161\169\189\138}\215-!`\170)M\129\164IO\153\&5<k\187\DC2\aF\128\137"))
@@ -2581,7 +2585,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default (Json (toJSON serTx))
             >>= flip verify
-            [ expectField (#fee . #getQuantity) (`shouldBe` expectedFee) ]
+            [ expectField (#fee . #toNatural) (`shouldBe` expectedFee) ]
 
         signedTx <- signTx ctx wa (getFromResponse #serialisedTxSealed rTx)
             [ expectResponseCode HTTP.status202 ]
@@ -2594,7 +2598,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` 0)
                 ]
 
@@ -2870,7 +2874,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                             (_, result) <- selectCoins @n @'Shelley ctx w $
                                 singleton $ AddressAmount
                                     { address = ApiAddress addr
-                                    , amount  = Quantity 10_000_000
+                                    , amount  = ApiAmount 10_000_000
                                     , assets  = mempty
                                     }
                             pure $ head . view #inputs <$> result
@@ -2949,7 +2953,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
 
-        let depositAmt = Quantity 1_000_000
+        let depositAmt = ApiAmount 1_000_000
 
         pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
 
@@ -3012,7 +3016,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #depositTaken (`shouldBe` depositAmt)
-                , expectField #depositReturned (`shouldBe` Quantity 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 ]
 
         let txId1 = getFromResponse #id submittedTx1
@@ -3042,7 +3046,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         eventually "Wallet gets rewards from pool1" $ do
             getSrcWallet >>= flip verify
-                [ expectField (#balance . #reward) (.> Quantity 0) ]
+                [ expectField (#balance . #reward) (.> ApiAmount 0) ]
 
         -- join another stake pool
         let delegationRejoin = Json [json|{
@@ -3084,8 +3088,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let queryTx2 = Link.getTransaction @'Shelley src (ApiTxId txid2)
         request @(ApiTransaction n) ctx queryTx2 Default Empty >>= flip verify
             [ expectResponseCode HTTP.status200
-            , expectField #depositTaken (`shouldBe` Quantity 0)
-            , expectField #depositReturned (`shouldBe` Quantity 0)
+            , expectField #depositTaken (`shouldBe` ApiAmount 0)
+            , expectField #depositReturned (`shouldBe` ApiAmount 0)
             ]
 
         -- Wait for the certificate to be inserted
@@ -3143,13 +3147,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }|]
 
         verify submittedWithdrawalTx
-            [ expectField #amount (.> Quantity withdrawalAmount)
+            [ expectField #amount (.> ApiAmount withdrawalAmount)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]
 
         eventually "Rewards have been consumed" $ do
             getSrcWallet >>= flip verify
-                [ expectField (#balance . #reward) (`shouldBe` Quantity 0)
+                [ expectField (#balance . #reward) (`shouldBe` ApiAmount 0)
                   -- this assumes that we have received no new rewards
                 , expectField (#balance . #available)
                     (.>  (walletBeforeWithdrawal ^. #balance . #available))
@@ -3195,7 +3199,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         request @(ApiTransaction n) ctx queryTx3 Default Empty
             >>= flip verify
             [ expectResponseCode HTTP.status200
-            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositTaken (`shouldBe` ApiAmount 0)
             , expectField #depositReturned (`shouldBe` depositAmt)
             ]
 
@@ -3209,7 +3213,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         request @(ApiTransaction n) ctx queryTx3 Default Empty
             >>= flip verify
             [ expectResponseCode HTTP.status200
-            , expectField #depositTaken (`shouldBe` Quantity 0)
+            , expectField #depositTaken (`shouldBe` ApiAmount 0)
             , expectField #depositReturned (`shouldBe` depositAmt)
             ]
 
@@ -3344,7 +3348,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         eventually "Wallet gets rewards from pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
-                [ expectField (#balance . #reward) (.> Quantity 0) ]
+                [ expectField (#balance . #reward) (.> ApiAmount 0) ]
 
         eventually "Wallet is delegating to pool1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
@@ -3402,7 +3406,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWb
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` (3 * amt))
                 ]
 
@@ -3423,7 +3427,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
         verify rTx1
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity 1_000_000])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [ApiAmount 1_000_000])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
 
@@ -3435,7 +3439,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.decodeTransaction @'Shelley src) Default decodePayload1
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
-            , expectField #depositsTaken (`shouldBe` [Quantity 1_000_000])
+            , expectField #depositsTaken (`shouldBe` [ApiAmount 1_000_000])
             , expectField #depositsReturned (`shouldBe` [])
             ]
 
@@ -3455,8 +3459,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                -- , expectField #depositTaken (`shouldBe` Quantity 1000000)
-                -- , expectField #depositReturned (`shouldBe` Quantity 0)
+                -- , expectField #depositTaken (`shouldBe` ApiAmount 1000000)
+                -- , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 ]
 
     it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
@@ -3561,7 +3565,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 getFromResponse #transaction rUnsignedTx2
         verify rUnsignedTx2
             [ expectField (#coinSelection . #depositsReturned)
-                (`shouldBe` [Quantity 1_000_000])
+                (`shouldBe` [ApiAmount 1_000_000])
             , expectField (#coinSelection . #depositsTaken)
                 (`shouldBe` [])
             ]
@@ -3635,13 +3639,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#coinSelection . #inputs) (`shouldSatisfy` (not . null))
             , expectField (#coinSelection . #outputs) (`shouldSatisfy` (not . null))
-            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [Quantity deposit])
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [ApiAmount deposit])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             , expectField (#coinSelection . #change) (`shouldSatisfy` (not . null))
-            , expectField (#fee . #getQuantity) (`shouldSatisfy` (>0))
+            , expectField (#fee . #toNatural) (`shouldSatisfy` (>0))
             ]
 
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
 
         -- Sign tx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
@@ -3682,7 +3686,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWb
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` amt * 2)
                 ]
 
@@ -3693,7 +3697,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
+                        (#balance . #available . #toNatural)
                         (`shouldBe` balance)
                 ]
 
@@ -4101,7 +4105,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                    (#balance . #available . #getQuantity)
+                    (#balance . #available . #toNatural)
                     (`shouldBe` initialBalance
                         - fromIntegral expectedFee
                         - minUtxoWithAsset
@@ -4120,7 +4124,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rForeign
                 [ expectSuccess
                 , expectField
-                    (#balance . #available . #getQuantity)
+                    (#balance . #available . #toNatural)
                     (`shouldBe` minUtxoWithAsset)
                 , expectField (#assets . #available)
                     (`shouldBe` tokens')
@@ -4216,8 +4220,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             submittedTx <- submitTxWithWid ctx w signedTx
             verify submittedTx [ expectResponseCode HTTP.status202 ]
 
-            let initialBalance = w ^. #balance . #available . #getQuantity
-            let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+            let initialBalance = w ^. #balance . #available . #toNatural
+            let expectedFee = getFromResponse (#fee . #toNatural) rTx
 
             eventually "Assets are minted!" $ do
                 rW <- request @ApiWallet ctx
@@ -4225,7 +4229,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 verify rW
                     [ expectSuccess
                     , expectField
-                            (#balance . #available . #getQuantity)
+                            (#balance . #available . #toNatural)
                             (`shouldBe` initialBalance - fromIntegral expectedFee)
                     , expectField (#assets . #available)
                         (`shouldNotBe` mempty)
@@ -4268,7 +4272,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify submittedTx2 [ expectResponseCode HTTP.status202 ]
 
             let newBalance = initialBalance - fromIntegral expectedFee
-            let expectedFeeBurn = getFromResponse (#fee . #getQuantity) rTx2
+            let expectedFeeBurn = getFromResponse (#fee . #toNatural) rTx2
 
             eventually "Assets are burned!" $ do
                 rW <- request @ApiWallet ctx
@@ -4276,7 +4280,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 verify rW
                     [ expectSuccess
                     , expectField
-                            (#balance . #available . #getQuantity)
+                            (#balance . #available . #toNatural)
                             (`shouldBe` newBalance - fromIntegral expectedFeeBurn)
                     , expectField (#assets . #available)
                         (`shouldBe` mempty)
@@ -4485,7 +4489,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rl0 [expectListSize 2]
         let txs0 = getResponse rl0
         let amts0 = fmap (view #amount) txs0
-        Set.fromList amts0 `shouldBe` Set.fromList (Quantity <$> [a1, a2])
+        Set.fromList amts0 `shouldBe` Set.fromList (ApiAmount <$> [a1, a2])
 
         let addr1 = (addrs !! 1) ^. #id
         let query1 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr1))
@@ -4493,7 +4497,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rl1 [expectListSize 1]
         let txs1 = getResponse rl1
         let amts1 = fmap (view #amount) txs1
-        amts1 `shouldBe` (Quantity <$> [a3])
+        amts1 `shouldBe` (ApiAmount <$> [a3])
 
         let addr2 = (addrs !! 2) ^. #id
         let query2 = listTransactionsFilteredByAddress wDest (Just (apiAddress addr2))
@@ -4501,7 +4505,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rl2 [expectListSize 3]
         let txs2 = getResponse rl2
         let amts2 = fmap (view #amount) txs2
-        Set.fromList amts2 `shouldBe` Set.fromList (Quantity <$> [a1, a4, a5])
+        Set.fromList amts2 `shouldBe` Set.fromList (ApiAmount <$> [a1, a4, a5])
 
     it "TRANS_NEW_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -4539,7 +4543,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify rl2a [expectListSize 3]
         let txs2a = getResponse rl2a
         let amts2a = fmap (view #amount) txs2a
-        amts2a `shouldBe` (Quantity <$> [a3, a3, a3])
+        amts2a `shouldBe` (ApiAmount <$> [a3, a3, a3])
 
         sendAmtToAddr ctx wDest wSrc a4 0
         eventually "There are exactly 9 transactions for wDest" $ do
@@ -5103,8 +5107,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-        let initialBalance = wa ^. #balance . #available . #getQuantity
-        let expectedFee = getFromResponse (#fee . #getQuantity) rTx
+        let initialBalance = wa ^. #balance . #available . #toNatural
+        let expectedFee = getFromResponse (#fee . #toNatural) rTx
 
         pure (initialBalance, expectedFee, ApiWalletAssets.fromTokenMap tokens')
 
@@ -5129,8 +5133,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             verify rWa
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` initialBalance - fromIntegral expectedFee)
+                    (#balance . #available)
+                    (`shouldBe` ApiAmount
+                        (initialBalance - fromIntegral expectedFee)
+                    )
                 , expectField (#assets . #available)
                         (`shouldBe` tokens')
                 , expectField (#assets . #total)

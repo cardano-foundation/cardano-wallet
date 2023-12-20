@@ -35,6 +35,9 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
@@ -61,9 +64,6 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Maybe
     ( mapMaybe
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -134,7 +134,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify response
                 [ expectResponseCode HTTP.status202
-                , expectField (#totalFee . #getQuantity)
+                , expectField (#totalFee . #toNatural)
                     (`shouldBe`
                         if _mainEra ctx >= ApiBabbage
                         then 334_100
@@ -142,9 +142,9 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectField (#selections)
                     ((`shouldBe` 1) . length)
                 , expectField (#balanceSelected . #ada)
-                    (`shouldBe` Quantity 1_000_000_000_000)
+                    (`shouldBe` ApiAmount 1_000_000_000_000)
                 , expectField (#balanceLeftover . #ada)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]
 
     it "BYRON_CREATE_MIGRATION_PLAN_01r \
@@ -217,7 +217,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 request @ApiByronWallet ctx
                     (Link.getWallet @'Byron sourceWallet) Default Empty
                     >>= flip verify
-                    [ expectField (#balance . #available . #getQuantity)
+                    [ expectField (#balance . #available . #toNatural)
                         (.> 0)
                     ]
 
@@ -306,11 +306,11 @@ spec = describe "BYRON_MIGRATIONS" $ do
             response <- request @ApiByronWallet ctx
                 (Link.getWallet @'Byron sourceWallet) Default Empty
             verify response
-                [ expectField (#balance . #available . #getQuantity)
+                [ expectField (#balance . #available . #toNatural)
                     (`shouldBe` 1_000_000_000_100)
                 ]
             return $ getFromResponse
-                (#balance . #available . #getQuantity) response
+                (#balance . #available . #toNatural) response
 
         -- Create an empty target wallet:
         targetWallet <- emptyWallet ctx
@@ -325,7 +325,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         verify responsePlan
             [ expectResponseCode HTTP.status202
             , expectField
-                (#totalFee . #getQuantity)
+                (#totalFee . #toNatural)
                 (`shouldBe`
                     if _mainEra ctx >= ApiBabbage
                     then 2_460_200
@@ -334,16 +334,16 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 (#selections)
                 ((`shouldBe` 2) . length)
             , expectField
-                (#balanceLeftover . #ada . #getQuantity)
+                (#balanceLeftover . #ada . #toNatural)
                 (`shouldBe` 100)
             , expectField
-                (#balanceSelected . #ada . #getQuantity)
+                (#balanceSelected . #ada . #toNatural)
                 (`shouldBe` 1_000_000_000_000)
             ]
         let expectedFee = getFromResponse
-                (#totalFee . #getQuantity) responsePlan
+                (#totalFee . #toNatural) responsePlan
         let balanceLeftover =getFromResponse
-                (#balanceLeftover . #ada . #getQuantity) responsePlan
+                (#balanceLeftover . #ada . #toNatural) responsePlan
 
         -- Perform a migration from the source wallet to the target wallet.
         --
@@ -367,10 +367,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
             (Link.getWallet @'Shelley targetWallet) Default Empty
             >>= flip verify
             [ expectField
-                (#balance . #available . #getQuantity)
+                (#balance . #available . #toNatural)
                 (`shouldBe` expectedTargetBalance)
             , expectField
-                (#balance . #total . #getQuantity)
+                (#balance . #total . #toNatural)
                 (`shouldBe` expectedTargetBalance)
             ]
 
@@ -389,9 +389,9 @@ spec = describe "BYRON_MIGRATIONS" $ do
         verify responseFinalSourceBalance
             [ expectResponseCode HTTP.status200
             , expectField (#balance . #available)
-                (`shouldBe` Quantity 100)
+                (`shouldBe` ApiAmount 100)
             , expectField (#balance . #total)
-                (`shouldBe` Quantity 100)
+                (`shouldBe` ApiAmount 100)
             ]
 
     it "BYRON_MIGRATE_03 - \
@@ -441,7 +441,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 Json [json|{addresses: #{targetAddressIds}}|]
             verify responsePlan
                 [ expectResponseCode HTTP.status202
-                , expectField #totalFee (`shouldBe` Quantity feeExpected)
+                , expectField #totalFee (`shouldBe` ApiAmount feeExpected)
                 , expectField #selections ((`shouldBe` 1) . length)
                 ]
 
@@ -573,7 +573,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     Default
                     Empty >>= flip verify
                     [ expectField (#balance . #available)
-                        (`shouldBe` Quantity 15)
+                        (`shouldBe` ApiAmount 15)
                     ]
             let sourceWalletId = sourceWallet ^. walletId
 
@@ -614,12 +614,12 @@ spec = describe "BYRON_MIGRATIONS" $ do
       where
         inputBalance = fromIntegral
             . sum
-            . fmap (view (#amount . #getQuantity))
+            . fmap (view (#amount . #toNatural))
             . mapMaybe source
             . view #inputs
         outputBalance = fromIntegral
             . sum
-            . fmap (view (#amount . #getQuantity))
+            . fmap (view (#amount . #toNatural))
             . view #outputs
 
     migrateWallet
@@ -683,7 +683,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- mkSourceWallet ctx
             let sourceBalance =
-                    view (#balance. #available . #getQuantity) sourceWallet
+                    view (#balance . #available . #toNatural) sourceWallet
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
@@ -698,12 +698,12 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify response0
                 [ expectResponseCode HTTP.status202
-                , expectField #totalFee (.> Quantity 0)
+                , expectField #totalFee (.> ApiAmount 0)
                 ]
             let expectedFee = getFromResponse
-                    (#totalFee . #getQuantity) response0
+                    (#totalFee . #toNatural) response0
             let balanceLeftover = getFromResponse
-                    (#balanceLeftover . #ada . #getQuantity) response0
+                    (#balanceLeftover . #ada . #toNatural) response0
 
             -- Perform a migration from the source wallet to the target wallet:
             response1 <- request @[ApiTransaction n] ctx
@@ -727,10 +727,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 >>= flip verify
                     [ expectField
                         (#balance . #available)
-                        (`shouldBe` Quantity expectedTargetBalance)
+                        (`shouldBe` ApiAmount expectedTargetBalance)
                     , expectField
                         (#balance . #total)
-                        (`shouldBe` Quantity expectedTargetBalance)
+                        (`shouldBe` ApiAmount expectedTargetBalance)
                     ]
 
             -- Check that the source wallet has a balance of zero:
@@ -739,8 +739,8 @@ spec = describe "BYRON_MIGRATIONS" $ do
             verify responseFinalSourceBalance
                 [ expectField
                     (#balance . #available)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 , expectField
                     (#balance . #total)
-                    (`shouldBe` Quantity 0)
+                    (`shouldBe` ApiAmount 0)
                 ]

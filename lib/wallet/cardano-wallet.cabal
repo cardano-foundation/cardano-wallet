@@ -362,6 +362,7 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Lib.Options
     Cardano.Wallet.Api.Link
     Cardano.Wallet.Api.Types
+    Cardano.Wallet.Api.Types.Amount
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
     Cardano.Wallet.Api.Types.Error

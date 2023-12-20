@@ -58,6 +58,9 @@ import Cardano.Wallet.Api.Types
     , KeyFormat (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
@@ -100,9 +103,6 @@ import Data.Either.Combinators
 import Data.Generics.Internal.VL.Lens
     ( view
     , (^.)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -237,11 +237,11 @@ spec = describe "SHARED_WALLETS" $ do
                 (traverse . #addressPoolGap . #getApiT . #getAddressPoolGap)
                 (`shouldBe` 20)
             , expectField
-                (traverse . #balance . #available) (`shouldBe` Quantity 0)
+                (traverse . #balance . #available) (`shouldBe` ApiAmount 0)
             , expectField
-                (traverse . #balance . #total) (`shouldBe` Quantity 0)
+                (traverse . #balance . #total) (`shouldBe` ApiAmount 0)
             , expectField
-                (traverse . #balance . #reward) (`shouldBe` Quantity 0)
+                (traverse . #balance . #reward) (`shouldBe` ApiAmount 0)
             , expectField (traverse . #assets . #total)
                 (`shouldBe` mempty)
             , expectField (traverse . #assets . #available)
@@ -529,11 +529,11 @@ spec = describe "SHARED_WALLETS" $ do
                 (traverse . #addressPoolGap . #getApiT . #getAddressPoolGap)
                 (`shouldBe` 20)
             , expectField (traverse . #balance . #available)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             , expectField (traverse . #balance . #total)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             , expectField (traverse . #balance . #reward)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             , expectField (traverse . #assets . #total)
                 (`shouldBe` mempty)
             , expectField (traverse . #assets . #available)
@@ -1522,11 +1522,11 @@ spec = describe "SHARED_WALLETS" $ do
                 (traverse . #addressPoolGap . #getApiT . #getAddressPoolGap)
                 (`shouldBe` 20)
             , expectListField 0
-                (traverse . #balance . #available) (`shouldBe` Quantity 0)
+                (traverse . #balance . #available) (`shouldBe` ApiAmount 0)
             , expectListField 0 (traverse . #balance . #total)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             , expectListField 0 (traverse . #balance . #reward)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             , expectListField 0 (traverse . #assets . #total)
                 (`shouldBe` mempty)
             , expectListField 0 (traverse . #assets . #available)
@@ -1605,7 +1605,7 @@ spec = describe "SHARED_WALLETS" $ do
         verify (fmap (view #wallet) <$> rPost)
             [ expectResponseCode HTTP.status201
             , expectField (traverse . #balance . #available)
-                (`shouldBe` Quantity 0)
+                (`shouldBe` ApiAmount 0)
             ]
         let walShared@(ApiSharedWallet (Right wal)) = getFromResponse Prelude.id rPost
 
@@ -1627,30 +1627,31 @@ spec = describe "SHARED_WALLETS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <- unsafeRequest ctx
-            (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
+        (_, ApiFee (ApiAmount feeMin) (ApiAmount feeMax) _ _) <-
+            unsafeRequest ctx
+                (Link.getTransactionFeeOld @'Shelley wShelley) payloadTx
         let ep = Link.createTransactionOld @'Shelley
         rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
         expectResponseCode HTTP.status202 rTx
 
         -- TODO Drop expectation https://cardanofoundation.atlassian.net/browse/ADP-2935
         expectField
-            (#fee . #getQuantity)
+            (#fee . #toNatural)
             (between (feeMin, feeMax))
             rTx
-        let Quantity fee = getFromResponse #fee rTx
+        let ApiAmount fee = getFromResponse #fee rTx
         eventually "wShelley balance is decreased" $ do
             ra <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wShelley) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (faucetAmt - fee - amt)) ra
+                (`shouldBe` ApiAmount (faucetAmt - fee - amt)) ra
 
         rWal <- getSharedWallet ctx walShared
         verify (fmap (view #wallet) <$> rWal)
             [ expectResponseCode HTTP.status200
             , expectField (traverse . #balance . #available)
-                (`shouldBe` Quantity amt)
+                (`shouldBe` ApiAmount amt)
             ]
 
     it "SHARED_WALLETS_UTXO_01 - \
@@ -1695,7 +1696,7 @@ spec = describe "SHARED_WALLETS" $ do
             let balanceExp =
                     [ expectResponseCode HTTP.status200
                     , expectField (traverse . #balance . #available)
-                        (`shouldBe` Quantity (fromIntegral $ sum coins))
+                        (`shouldBe` ApiAmount (fromIntegral $ sum coins))
                     ]
             verify (fmap (view #wallet) <$> wal) balanceExp
 

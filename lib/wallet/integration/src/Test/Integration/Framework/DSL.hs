@@ -323,6 +323,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
@@ -646,6 +649,7 @@ import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -805,7 +809,7 @@ expectWalletUTxO coins = \case
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
         let (UTxOStatistics hist stakes bType) = UTxOStatistics.compute utxo
         let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
-        (ApiUtxoStatistics (Quantity (fromIntegral stakes)) (ApiT bType) distr)
+        (ApiUtxoStatistics (ApiAmount.fromWord64 stakes) (ApiT bType) distr)
             `shouldBe` stats
 
 --
@@ -973,30 +977,28 @@ computeApiCoinSelectionFee selection
     balanceOfInputs
         = selection
         & view #inputs
-        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
         & getSum
     balanceOfOutputs
         = selection
         & view #outputs
-        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
         & getSum
     balanceOfChange
         = selection
         & view #change
-        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
         & getSum
     balanceOfRewardWithdrawals
         = selection
         & view #withdrawals
-        & F.foldMap (Sum . quantityToInteger . view #amount)
+        & F.foldMap (Sum . ApiAmount.toInteger . view #amount)
         & getSum
     balanceOfDeposits
         = selection
         & view #depositsTaken
-        & F.foldMap (Sum . quantityToInteger)
+        & F.foldMap (Sum . ApiAmount.toInteger)
         & getSum
-    quantityToInteger :: Quantity "lovelace" Natural -> Integer
-    quantityToInteger (Quantity n) = fromIntegral n
 
 isValidDerivationPath
     :: Index 'Hardened 'PurposeK
@@ -1810,11 +1812,11 @@ rewardWallet ctx = do
 
     eventually "MIR wallet has available balance" $
         fetchWallet w >>=
-            flip verify [expectField (#balance . #available) (.> Quantity 0)]
+            flip verify [expectField (#balance . #available) (.> ApiAmount 0)]
 
     eventually "MIR wallet has a reward balance" $
         fetchWallet w >>=
-            flip verify [expectField (#balance . #reward) (.> Quantity 0)]
+            flip verify [expectField (#balance . #reward) (.> ApiAmount 0)]
 
     (,mw) . getResponse <$> liftIO (fetchWallet w)
 
@@ -2065,20 +2067,20 @@ fundSharedWallet ctx amt sharedWals = do
    let ep = Link.createTransactionOld @'Shelley
    rTx <- request @(ApiTransaction n) ctx (ep wShelley) Default payloadTx
    expectResponseCode HTTP.status202 rTx
-   let fee = unsafeResponse rTx ^. #fee . #getQuantity
+   let fee = ApiAmount.toNatural (unsafeResponse rTx ^. #fee)
    eventually "wShelley balance is decreased" $ do
        ra <- request @ApiWallet ctx
            (Link.getWallet @'Shelley wShelley) Default Empty
        expectField
            (#balance . #available)
-           (`shouldBe` Quantity (faucetAmt - fee - amt)) ra
+           (`shouldBe` ApiAmount (faucetAmt - fee - amt)) ra
 
    forM_ sharedWals $ \walShared -> do
        rWal <- getSharedWallet ctx walShared
        verify (fmap (view #wallet) <$> rWal)
            [ expectResponseCode HTTP.status200
            , expectField (traverse . #balance . #available)
-               (`shouldBe` Quantity amt)
+               (`shouldBe` ApiAmount amt)
            ]
 
 fixtureSharedWallet
@@ -2281,7 +2283,7 @@ fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
 
     checkBalance w = do
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
-        if getFromResponse (#balance . #available) r > Quantity 0
+        if getFromResponse (#balance . #available) r > ApiAmount 0
             then return (getResponse r)
             else threadDelay oneSecond *> checkBalance w
 
@@ -2393,7 +2395,7 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
     checkBalance w = do
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
-        if getFromResponse (#balance . #available) r > Quantity 0
+        if getFromResponse (#balance . #available) r > ApiAmount 0
             then pure (getResponse r)
             else threadDelay oneSecond *> checkBalance w
 
@@ -2435,7 +2437,7 @@ fixtureWalletWith ctx coins0 = do
             -- ^ Coins to move
         -> IO ()
     moveCoins src dest coins = do
-        balance <- getFromResponse (#balance . #available . #getQuantity)
+        balance <- getFromResponse (#balance . #available . #toNatural)
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getResponse
@@ -2460,7 +2462,7 @@ fixtureWalletWith ctx coins0 = do
                 (Link.getWallet @'Shelley dest) Default Empty
             expectField
                 (#balance . #available)
-                (`shouldBe` Quantity (sum (balance:coins))) rb
+                (`shouldBe` ApiAmount (sum (balance:coins))) rb
             ra <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley src) Default Empty
 
@@ -2499,8 +2501,9 @@ moveByronCoins
         -- ^ Coins to move
     -> IO ()
 moveByronCoins ctx src (dest, addrs) coins = do
-    balance <- getFromResponse (#balance . #available . #getQuantity)
-        <$> request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
+    balance <- getFromResponse (#balance . #available . #toNatural)
+        <$> request @ApiByronWallet ctx
+            (Link.getWallet @'Byron dest) Default Empty
     let payments = for (zip coins addrs) $ \(amt, addr) ->
             let addrStr = encodeAddress (sNetworkId @n) addr
             in [aesonQQ|{
@@ -2521,7 +2524,7 @@ moveByronCoins ctx src (dest, addrs) coins = do
         rb <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron dest) Default Empty
         expectField (#balance . #available)
-            (`shouldBe` Quantity (sum (balance:coins))) rb
+            (`shouldBe` ApiAmount (sum (balance:coins))) rb
         ra <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron src) Default Empty
         getFromResponse (#balance . #available) ra

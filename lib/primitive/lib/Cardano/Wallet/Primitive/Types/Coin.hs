@@ -20,17 +20,14 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Conversions (Safe)
     , fromIntegralMaybe
     , fromNatural
-    , fromQuantity
     , fromWord64
     , toInteger
     , toNatural
     , toQuantity
-    , toQuantityMaybe
     , toWord64Maybe
 
       -- * Conversions (Unsafe)
     , unsafeFromIntegral
-    , unsafeToQuantity
     , unsafeToWord64
 
       -- * Arithmetic operations
@@ -174,14 +171,6 @@ fromIntegralMaybe i = Coin <$> intCastMaybe i
 fromNatural :: Natural -> Coin
 fromNatural = Coin
 
--- | Constructs a 'Coin' from a 'Quantity'.
---
-fromQuantity
-    :: (Integral i, IsIntSubType i Natural ~ 'True)
-    => Quantity "lovelace" i
-    -> Coin
-fromQuantity (Quantity c) = Coin (intCast c)
-
 -- | Constructs a 'Coin' from a 'Word64' value.
 --
 fromWord64 :: Word64 -> Coin
@@ -204,17 +193,6 @@ toQuantity
     => Coin
     -> Quantity "lovelace" i
 toQuantity (Coin c) = Quantity (intCast c)
-
--- | Converts a 'Coin' to a 'Quantity'.
---
--- Returns 'Nothing' if the given value does not fit within the bounds of
--- the target type.
---
-toQuantityMaybe
-    :: (Bits i, Integral i)
-    => Coin
-    -> Maybe (Quantity "lovelace" i)
-toQuantityMaybe (Coin c) = Quantity <$> intCastMaybe c
 
 -- | Converts a 'Coin' to a 'Word64' value.
 --
@@ -246,26 +224,6 @@ unsafeFromIntegral i = fromMaybe onError (fromIntegralMaybe i)
         [ "Coin.unsafeFromIntegral:"
         , show i
         , "is not a natural number."
-        ]
-
--- | Converts a 'Coin' to a 'Quantity'.
---
--- Callers of this function must take responsibility for checking that the
--- given value will fit within the bounds of the target type.
---
--- Produces a run-time error if the given value is out of bounds.
---
-unsafeToQuantity
-    :: HasCallStack
-    => (Bits i, Integral i)
-    => Coin
-    -> Quantity "lovelace" i
-unsafeToQuantity c = fromMaybe onError (toQuantityMaybe c)
-  where
-    onError = error $ unwords
-        [ "Coin.unsafeToQuantity:"
-        , show c
-        , "does not fit within the bounds of the target type."
         ]
 
 -- | Converts a 'Coin' to a 'Word64' value.

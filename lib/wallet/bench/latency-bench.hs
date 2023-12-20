@@ -357,8 +357,10 @@ walletApiBench capture ctx = do
             verify rWal1
                 [ expectSuccess
                 , expectField
-                        (#balance . #available . #getQuantity)
-                        (`shouldBe` ((minUTxOValue era) * (fromIntegral utxoNumber)))
+                    (#balance . #available . #toNatural)
+                    (`shouldBe`
+                        ((minUTxOValue era) * (fromIntegral utxoNumber))
+                    )
                 ]
 
         rStat <- request @ApiUtxoStatistics ctx
@@ -382,8 +384,12 @@ walletApiBench capture ctx = do
         verify rWal
             [ expectSuccess
             , expectField
-                    (#balance . #available . #getQuantity)
-                    (`shouldBe` (fromIntegral massiveWalletUTxOSize * unCoin massiveWalletAmt))
+                (#balance . #available . #toNatural)
+                (`shouldBe`
+                    ( fromIntegral massiveWalletUTxOSize
+                    * unCoin massiveWalletAmt
+                    )
+                )
             ]
         let wal1 = getFromResponse Prelude.id rWal
         pure (wal1, wal2, walMA, maWalletToMigrate)
@@ -397,7 +403,7 @@ walletApiBench capture ctx = do
             verify rWal1
                 [ expectSuccess
                 , expectField
-                    (#balance . #available . #getQuantity)
+                    (#balance . #available . #toNatural)
                     (`shouldBe` amtExp)
                 ]
         rDel <- request @ApiWallet  ctx (Link.deleteWallet @'Shelley wSrc) Default Empty

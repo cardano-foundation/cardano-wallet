@@ -31,6 +31,9 @@ import Cardano.Wallet.Api.Types
     , apiAddress
     , getApiT
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
@@ -65,9 +68,6 @@ import Data.Generics.Product.Typed
     )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -214,9 +214,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             [ expectCliField (#name . #getApiT . #getWalletName) (`shouldBe` "n")
             , expectCliField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
-            , expectCliField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectCliField (#balance . #total) (`shouldBe` Quantity 0)
-            , expectCliField (#balance . #reward) (`shouldBe` Quantity 0)
+            , expectCliField (#balance . #available) (`shouldBe` ApiAmount 0)
+            , expectCliField (#balance . #total) (`shouldBe` ApiAmount 0)
+            , expectCliField (#balance . #reward) (`shouldBe` ApiAmount 0)
             , expectCliField #delegation (`shouldBe` notDelegating [])
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
@@ -237,9 +237,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
         verify wDest
             [ expectCliField
-                    (#balance . #available) (`shouldBe` Quantity 0)
+                    (#balance . #available) (`shouldBe` ApiAmount 0)
             , expectCliField
-                    (#balance . #total) (`shouldBe` Quantity 0)
+                    (#balance . #total) (`shouldBe` ApiAmount 0)
             ]
 
         --send transaction to the wallet
@@ -260,9 +260,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#balance . #available)
-                (`shouldBe` Quantity amount) jg
+                (`shouldBe` ApiAmount amount) jg
             expectCliField (#balance . #total)
-                (`shouldBe` Quantity amount) jg
+                (`shouldBe` ApiAmount amount) jg
 
         -- delete wallet
         Exit cd <- deleteWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
@@ -284,9 +284,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         justRestored <- expectValidJSON (Proxy @ApiWallet) o3
         verify justRestored
             [ expectCliField
-                    (#balance . #available) (`shouldBe` Quantity amount)
+                    (#balance . #available) (`shouldBe` ApiAmount amount)
             , expectCliField
-                    (#balance . #total) (`shouldBe` Quantity amount)
+                    (#balance . #total) (`shouldBe` ApiAmount amount)
             , expectCliField walletId (`shouldBe` wDest ^. walletId)
             ]
 
@@ -469,11 +469,11 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             , expectCliField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
             , expectCliField
-                    (#balance . #available) (`shouldBe` Quantity 0)
+                    (#balance . #available) (`shouldBe` ApiAmount 0)
             , expectCliField
-                    (#balance . #total) (`shouldBe` Quantity 0)
+                    (#balance . #total) (`shouldBe` ApiAmount 0)
             , expectCliField
-                    (#balance . #reward) (`shouldBe` Quantity 0)
+                    (#balance . #reward) (`shouldBe` ApiAmount 0)
             , expectCliField #delegation (`shouldBe` notDelegating [])
             , expectCliField #passphrase (`shouldNotBe` Nothing)
             ]
@@ -512,11 +512,11 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             , expectCliListField 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 21)
             , expectCliListField 0
-                    (#balance . #available) (`shouldBe` Quantity 0)
+                    (#balance . #available) (`shouldBe` ApiAmount 0)
             , expectCliListField 0
-                    (#balance . #total) (`shouldBe` Quantity 0)
+                    (#balance . #total) (`shouldBe` ApiAmount 0)
             , expectCliListField 0
-                    (#balance . #reward) (`shouldBe` Quantity 0)
+                    (#balance . #reward) (`shouldBe` ApiAmount 0)
             , expectCliListField 0 #delegation (`shouldBe` notDelegating [])
             , expectCliListField 0 walletId (`shouldBe` T.pack w1)
             ]
@@ -813,9 +813,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#balance . #available)
-                (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
+                (`shouldBe` ApiAmount (sum coins)) jg
             expectCliField (#balance . #total)
-                (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
+                (`shouldBe` ApiAmount (sum coins)) jg
 
         --verify utxo
         (Exit c, Stdout o, Stderr e) <-

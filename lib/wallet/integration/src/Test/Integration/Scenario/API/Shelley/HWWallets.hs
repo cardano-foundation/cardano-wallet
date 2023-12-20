@@ -31,6 +31,9 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -52,9 +55,6 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Text
     ( Text
@@ -121,8 +121,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         rInit <- postWallet ctx payldCrt
         verify rInit
             [ expectResponseCode HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity 0)
-            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
+            , expectField (#balance . #total) (`shouldBe` ApiAmount 0)
             ]
 
         --send funds
@@ -149,9 +149,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #total) (`shouldBe` ApiAmount minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #available) (`shouldBe` ApiAmount minUTxOValue')
                 ]
 
         -- delete wallet
@@ -168,9 +168,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #total) (`shouldBe` ApiAmount minUTxOValue')
                 , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue')
+                    (#balance . #available) (`shouldBe` ApiAmount minUTxOValue')
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do

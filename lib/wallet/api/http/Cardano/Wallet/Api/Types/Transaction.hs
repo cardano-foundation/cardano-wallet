@@ -57,6 +57,9 @@ import Cardano.Wallet.Api.Lib.ApiT
 import Cardano.Wallet.Api.Lib.Options
     ( DefaultRecord (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount
+    )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiAnyCertificate
     , ApiRewardAccount
@@ -129,9 +132,6 @@ import Data.Hashable
 import Data.List.NonEmpty
     ( NonEmpty
     )
-import Data.Quantity
-    ( Quantity (..)
-    )
 import Data.Text
     ( Text
     )
@@ -159,7 +159,7 @@ import Servant
     , ToHttpApiData (..)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Data.Aeson.Types as Aeson
 
 newtype ApiAddress (n :: NetworkDiscriminant)
@@ -195,7 +195,7 @@ instance ToJSON ApiTxMetadata where
 
 data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     { id :: ApiT (Hash "Tx")
-    , fee :: Quantity "lovelace" Natural
+    , fee :: ApiAmount
     , inputs :: [ApiTxInputGeneral n]
     , outputs :: [ApiTxOutputGeneral n]
     , collateral :: [ApiTxInputGeneral n]
@@ -205,8 +205,8 @@ data ApiDecodedTransaction (n :: NetworkDiscriminant) = ApiDecodedTransaction
     , mint :: ApiAssetMintBurn
     , burn :: ApiAssetMintBurn
     , certificates :: [ApiAnyCertificate n]
-    , depositsTaken :: [Quantity "lovelace" Natural]
-    , depositsReturned :: [Quantity "lovelace" Natural]
+    , depositsTaken :: [ApiAmount]
+    , depositsReturned :: [ApiAmount]
     , metadata :: ApiTxMetadata
     , scriptValidity :: Maybe (ApiT TxScriptValidity)
     , validityInterval :: Maybe ApiValidityIntervalExplicit
@@ -227,7 +227,7 @@ data ApiWalletInput (n :: NetworkDiscriminant) = ApiWalletInput
     , index :: Word32
     , address :: ApiAddress n
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
-    , amount :: Quantity "lovelace" Natural
+    , amount :: ApiAmount
     , assets :: ApiWalletAssets
     }
     deriving (Eq, Generic, Show, Typeable)
@@ -282,7 +282,7 @@ data ResourceContext = External | Our
 
 data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
     { stakeAddress :: ApiRewardAccount n
-    , amount :: Quantity "lovelace" Natural
+    , amount :: ApiAmount
     , context :: ResourceContext
     }
     deriving (Eq, Generic, Show)
@@ -290,7 +290,7 @@ data ApiWithdrawalGeneral (n :: NetworkDiscriminant) = ApiWithdrawalGeneral
 
 data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
     { address :: ApiAddress n
-    , amount :: Quantity "lovelace" Natural
+    , amount :: ApiAmount
     , assets :: ApiWalletAssets
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     }
@@ -300,7 +300,7 @@ data ApiWalletOutput (n :: NetworkDiscriminant) = ApiWalletOutput
 
 data AddressAmount addr = AddressAmount
     { address :: addr
-    , amount :: Quantity "lovelace" Natural
+    , amount :: ApiAmount
     , assets :: ApiWalletAssets
     }
     deriving (Eq, Generic, Show)
@@ -316,7 +316,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             <*> v .:? "assets" .!= mempty
       where
         validateCoin q
-            | coinIsValidForTxOut (Coin.fromQuantity q) = pure q
+            | coinIsValidForTxOut (ApiAmount.toCoin q) = pure q
             | otherwise = fail $
                 "invalid coin value: value has to be lower than or equal to "
                 <> show (unCoin txOutMaxCoin) <> " lovelace."
@@ -361,7 +361,7 @@ newtype ApiPostPolicyKeyData = ApiPostPolicyKeyData
 
 data ApiWithdrawal (n :: NetworkDiscriminant) = ApiWithdrawal
     { stakeAddress :: !(ApiRewardAccount n)
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !ApiAmount
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord (ApiWithdrawal n)

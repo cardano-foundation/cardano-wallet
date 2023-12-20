@@ -17,6 +17,9 @@ import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.Passphrase
     ( PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -42,9 +45,6 @@ import Data.Maybe
     )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import System.Command
     ( Exit (..)
@@ -161,9 +161,9 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         [ expectCliField (#name . #getApiT . #getWalletName)
                             (`shouldBe` (T.pack name))
                         , expectCliField (#balance .  #available)
-                            (`shouldBe` Quantity 0)
+                            (`shouldBe` ApiAmount 0)
                         , expectCliField (#balance .  #total)
-                            (`shouldBe` Quantity 0)
+                            (`shouldBe` ApiAmount 0)
                         , expectCliField #passphrase (`shouldNotBe` Nothing)
                         ]
                 -- create

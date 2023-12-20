@@ -199,7 +199,7 @@ import Servant.Server
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -620,7 +620,7 @@ instance
 
           where
             info = ApiErrorBalanceTxUnderestimatedFee
-                { underestimation = Coin.toQuantity $ toWalletCoin coin
+                { underestimation = ApiAmount.fromCoin $ toWalletCoin coin
                 , candidateTxHex = hexText $ Write.serializeTx @era candidateTx
                 , candidateTxReadable = T.pack (show candidateTx)
                 , estimatedNumberOfKeyWits = intCast nWits
@@ -966,13 +966,14 @@ instance IsServerError ErrBalanceTxOutputError where
                             , show index
                             ]
                 , txOutputLovelaceSpecified =
-                    Coin.toQuantity
+                    ApiAmount.fromCoin
                         $ TokenBundle.getCoin
                         $ toWallet
                         $ snd
                         $ view #output e
                 , txOutputLovelaceRequiredMinimum =
-                    Coin.toQuantity $ toWalletCoin $ view #minimumExpectedCoin e
+                    ApiAmount.fromCoin $
+                    toWalletCoin $ view #minimumExpectedCoin e
                 }
         ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
