@@ -72,11 +72,12 @@ export NODE_DB=`pwd`/node-db
 # clean up the node-db directory
 rm -rf $NODE_DB/db
 
-if [$NETWORK == "mainnet"]
+if [ $NETWORK == "mainnet" ]
 then
     # download the node-db snapshot, or wait for the node to sync for a long time
     curl -o - https://downloads.csnapshots.io/snapshots/mainnet/$(curl -s https://downloads.csnapshots.io/snapshots/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
-elif [$NETWORK == "preprod"]
+elif [ $NETWORK == "preprod" ]
+then
     curl -o - https://downloads.csnapshots.io/snapshots/testnet/$(curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
 else
     echo "NETWORK must be mainnet or preprod"
@@ -85,7 +86,8 @@ fi
 
 # set the node tag and wallet tag to compatible versions
 export NODE_TAG=8.1.2
-export WALLET_TAG=v2023-12-18
+export WALLET_TAG=2023.12.18
+export WALLET_VERSION=v2023-12-18
 
 # set a directory for the wallet-db
 export WALLET_DB=`pwd`/wallet-db
@@ -95,7 +97,7 @@ export WALLET_PORT=8090
 
 # get the docker-compose.yml file
 rm -rf docker-compose.yml
-wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/$WALLET_TAG/docker-compose.yml
+wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/$WALLET_VERSION/docker-compose.yml
 
 # start the services
 docker-compose up
