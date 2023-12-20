@@ -4460,7 +4460,9 @@ x-errNotEnoughMoney: &errNotEnoughMoney
   properties:
     message:
       type: string
-      description: May occur when there's not enough money in the wallet to cover a requested payment.
+      description: |
+        Indicates that there's not enough money in the wallet to cover a
+        requested payment.
     code:
       type: string
       enum: ['not_enough_money']
