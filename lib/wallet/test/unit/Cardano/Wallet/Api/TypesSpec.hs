@@ -388,12 +388,8 @@ import Cardano.Wallet.Primitive.Types.TokenFingerprint
     ( TokenFingerprint
     , mkTokenFingerprint
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap
-    )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMapSmallRange
-    , shrinkTokenMap
     )
 import Cardano.Wallet.Primitive.Types.TokenMetadata
     ( AssetDecimals (..)
@@ -2528,10 +2524,6 @@ instance Arbitrary UTxO where
 instance Arbitrary TokenBundle where
     shrink = shrinkTokenBundleSmallRange
     arbitrary = genTokenBundleSmallRange
-
-instance Arbitrary TokenMap where
-    shrink = shrinkTokenMap
-    arbitrary = genTokenMapSmallRange
 
 instance Arbitrary TxOut where
     -- Shrink token bundle but not address
