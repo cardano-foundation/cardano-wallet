@@ -4466,6 +4466,19 @@ x-errNotEnoughMoney: &errNotEnoughMoney
     code:
       type: string
       enum: ['not_enough_money']
+    info:
+      type: object
+      required:
+        - shortfall
+      properties:
+        shortfall:
+          type: object
+          required:
+            - ada
+            - assets
+          properties:
+            ada: *amount
+            assets: *walletAssets
 
 x-errInsufficientCollateral: &errInsufficientCollateral
   <<: *responsesErr
