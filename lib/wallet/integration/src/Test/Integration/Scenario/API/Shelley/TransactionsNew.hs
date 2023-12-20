@@ -109,6 +109,9 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
     , ApiValidityIntervalExplicit (..)
@@ -267,6 +270,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , arbitraryStake
+    , decodeErrorInfo
     , delegating
     , emptyIcarusWallet
     , emptyRandomWallet
@@ -321,7 +325,6 @@ import Test.Integration.Framework.TestData
     , errMsg403MultidelegationTransaction
     , errMsg403NonNullReward
     , errMsg403NotDelegating
-    , errMsg403NotEnoughMoney
     , errMsg403ValidityIntervalNotInsideScriptTimelock
     , errMsg404NoSuchPool
     , errMsg404NoWallet
@@ -909,10 +912,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "TRANS_NEW_CREATE_04d - Not enough money emptyWallet" $ \ctx -> runResourceT $ do
         wa <- emptyWallet ctx
@@ -922,10 +925,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "TRANS_NEW_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -1249,10 +1252,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         --construct transaction
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "TRANS_NEW_ASSETS_CREATE_02 - using reference script" $ \ctx -> runResourceT $ do
 
@@ -2367,10 +2370,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let balancePayload = Json PlutusScenario.pingPong_1
         rTx <- request @ApiSerialisedTransaction ctx
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
         \ctx -> runResourceT $ do
