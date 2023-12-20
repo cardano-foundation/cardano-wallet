@@ -4299,6 +4299,20 @@ x-errHardenedDerivationRequired: &errHardenedDerivationRequired
       type: string
       enum: ['hardened_derivation_required']
 
+x-errNoUtxosAvailable: &errNoUtxosAvailable
+  <<: *responsesErr
+  title: no_utxos_available
+  properties:
+    message:
+      type: string
+      description: |
+        Indicates that the wallet has no unspent transaction outputs (UTxOs)
+        available. A transaction must spend at least one UTxO in order to be
+        accepted for inclusion on the Cardano blockchain.
+    code:
+      type: string
+      enum: ['no_utxos_available']
+
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
   title: no_such_wallet
