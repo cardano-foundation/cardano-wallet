@@ -50,6 +50,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (NoUtxosAvailable)
+    )
 import Cardano.Wallet.Faucet.Mnemonics
     ( preregKeyWallet
     )
@@ -150,6 +153,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , arbitraryStake
     , bracketSettings
+    , decodeErrorInfo
     , delegating
     , delegationFee
     , emptyWallet
@@ -198,8 +202,7 @@ import Test.Integration.Framework.DSL
     , (.>=)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403EmptyUTxO
-    , errMsg403Fee
+    ( errMsg403Fee
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
@@ -974,10 +977,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
                 ]
 
-            quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403EmptyUTxO
-                ]
+            response <- quitStakePool @n ctx (w, fixturePassphrase)
+            verify response [expectResponseCode HTTP.status403]
+            decodeErrorInfo response `shouldBe` NoUtxosAvailable
 
     it "STAKE_POOLS_ESTIMATE_FEE_01 - can estimate fees" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
@@ -992,10 +994,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
         \empty wallet cannot estimate fee" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        delegationFee ctx w >>= flip verify
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403EmptyUTxO
-            ]
+        response <- delegationFee ctx w
+        verify response [expectResponseCode HTTP.status403]
+        decodeErrorInfo response `shouldBe` NoUtxosAvailable
 
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
 

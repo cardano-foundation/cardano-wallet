@@ -212,7 +212,6 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
-    , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg403MinUTxOValue
@@ -327,10 +326,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         rTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shared wal) Default metadata
-        verify rTx1
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403EmptyUTxO
-            ]
+        verify rTx1 [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx1 `shouldBe` NoUtxosAvailable
 
         let amt = 10 * minUTxOValue (_mainEra ctx)
         fundSharedWallet @n ctx amt (pure walShared)
