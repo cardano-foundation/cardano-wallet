@@ -83,15 +83,27 @@ loadS' = do
 data DecodeDelegationError
     = ActiveDelegationWithoutAPool
     | UnknownDelegationStatus Int
+    | VotingWithoutAVoteAction
+    | ActiveVotingWithoutAVoteAction
+    | ActiveVotingWithoutAPool
+    | ActiveVotingWithoutPoolAndVoteAction
     deriving (Show, Eq, Exception)
 
 decodeStatus :: Delegations -> (Either SomeException (SlotNo, Status PoolId))
-decodeStatus (Delegations sn n m_pi) = case n of
+decodeStatus (Delegations sn n m_pi m_v) = case n of
     InactiveE -> Right (sn, Inactive)
     RegisteredE -> Right (sn, Registered)
     ActiveE -> case m_pi of
         Nothing -> Left $ SomeException ActiveDelegationWithoutAPool
         Just pi' -> Right (sn, Active pi')
+    VotedE -> case m_v of
+        Nothing -> Left $ SomeException VotingWithoutAVoteAction
+        Just v' -> Right (sn, Voted v')
+    ActiveAndVotedE -> case (m_pi, m_v) of
+        (Just _, Nothing) -> Left $ SomeException ActiveVotingWithoutAVoteAction
+        (Nothing, Just _) -> Left $ SomeException ActiveVotingWithoutAPool
+        (Nothing, Nothing) -> Left $ SomeException ActiveVotingWithoutPoolAndVoteAction
+        (Just pi', Just v') -> Right (sn, ActiveAndVoted pi' v')
 
 updateS'
     :: Maybe (History SlotNo PoolId)
@@ -114,9 +126,11 @@ updateS' = updateLoad loadS' throwIO $ \h op -> do
 
 encodeStatus :: SlotNo -> Status PoolId -> Delegations
 encodeStatus slot = \case
-    Inactive -> Delegations slot InactiveE Nothing
-    Registered -> Delegations slot RegisteredE Nothing
-    Active pi' -> Delegations slot ActiveE (Just pi')
+    Inactive -> Delegations slot InactiveE Nothing Nothing
+    Registered -> Delegations slot RegisteredE Nothing Nothing
+    Active pi' -> Delegations slot ActiveE (Just pi') Nothing
+    Voted v' -> Delegations slot VotedE Nothing (Just v')
+    ActiveAndVoted pi' v' -> Delegations slot ActiveAndVotedE (Just pi') (Just v')
 
 writeS' :: History SlotNo PoolId -> SqlPersistT IO ()
 writeS' h = do

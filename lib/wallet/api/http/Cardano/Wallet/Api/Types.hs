@@ -397,8 +397,6 @@ import Cardano.Wallet.Api.Types.WalletAssets
     )
 import Cardano.Wallet.Delegation.Model
     ( DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
     , VoteAction (..)
     , decodeDRepKeyHashBech32
     , decodeDRepScriptHashBech32

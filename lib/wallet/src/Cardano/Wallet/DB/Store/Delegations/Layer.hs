@@ -129,6 +129,8 @@ readDelegation CurrentEpochSlotting{..} history =
         Inactive -> NotDelegating
         Registered -> NotDelegating
         Active pid -> Delegating pid
+        ActiveAndVoted pid vote -> DelegatingVoting pid vote
+        Voted vote -> Voting vote
 
 -- | Construct 'CurrentEpochSlotting' from an 'EpochNo' using a 'TimeInterpreter'
 -- .

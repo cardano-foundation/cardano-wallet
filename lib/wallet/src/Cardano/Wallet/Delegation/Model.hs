@@ -47,7 +47,9 @@ import Data.Text
     ( Text
     )
 import Data.Text.Class
-    ( TextDecodingError (..)
+    ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
     )
 import Fmt
     ( Buildable (..)
@@ -237,6 +239,30 @@ data VoteAction
     | VoteTo !DRep
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
+
+instance ToText VoteAction where
+    toText Abstain = "abstain"
+    toText NoConfidence = "no confidence"
+    toText (VoteTo (DRepFromKeyHash keyhash)) =
+        encodeDRepKeyHashBech32 keyhash
+    toText (VoteTo (DRepFromScriptHash scripthash)) =
+        encodeDRepScriptHashBech32 scripthash
+
+instance FromText VoteAction where
+    fromText txt = case txt of
+        "abstain" -> Right Abstain
+        "no confidence" -> Right NoConfidence
+        _ -> case decodeDRepKeyHashBech32 txt of
+                Right keyhash ->
+                     Right $ VoteTo $ DRepFromKeyHash keyhash
+                Left _ -> case decodeDRepScriptHashBech32 txt of
+                    Right scripthash ->
+                        Right $ VoteTo $ DRepFromScriptHash scripthash
+                    Left _ -> Left $ TextDecodingError $ unwords
+                        [ "I couldn't parse the given vote action."
+                        , "I am expecting either 'abstain', 'no confidence'"
+                        , "or bech32 encoded drep having prefixes: 'drep_script'"
+                        , "or 'drep_script'."]
 
 instance Buildable VoteAction where
     build = \case

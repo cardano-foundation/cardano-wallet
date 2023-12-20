@@ -39,5 +39,5 @@ instance Buildable DeltaDelegations where
             Deregister slot -> "Deregister " <> build slot
             Delegate pool slot -> "Delegate " <> build pool <> " " <> build slot
             Rollback slot -> "Rollback " <> build slot
-            DelegateAndVote pool vote slot -> "Delegate and vote" <> build pool <> " "<> build vote <> " " <> build slot
+            DelegateAndVote pool vote slot -> "Delegate " <> build pool <> " and vote "<> build vote <> " " <> build slot
             Vote vote slot -> "Vote " <> build vote <> " " <> build slot
