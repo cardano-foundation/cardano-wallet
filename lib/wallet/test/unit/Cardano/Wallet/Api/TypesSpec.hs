@@ -377,9 +377,6 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle
-    )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange
@@ -2521,14 +2518,10 @@ instance Arbitrary UTxO where
             <*> vector n
         return $ UTxO $ Map.fromList utxo
 
-instance Arbitrary TokenBundle where
-    shrink = shrinkTokenBundleSmallRange
-    arbitrary = genTokenBundleSmallRange
-
 instance Arbitrary TxOut where
     -- Shrink token bundle but not address
-    shrink (TxOut a t) = TxOut a <$> shrink t
-    arbitrary = TxOut <$> arbitrary <*> arbitrary
+    shrink (TxOut a t) = TxOut a <$> shrinkTokenBundleSmallRange t
+    arbitrary = TxOut <$> arbitrary <*> genTokenBundleSmallRange
 
 instance Arbitrary TxIn where
     -- No Shrinking
