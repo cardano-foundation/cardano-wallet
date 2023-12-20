@@ -216,7 +216,6 @@ import Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
-    , errMsg403EmptyUTxO
     , errMsg403Fee
     , errMsg403MinUTxOValue
     , errMsg403NotEnoughMoney
@@ -2383,10 +2382,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- Try withdrawing when no UTxO on a wallet
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSelf) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403EmptyUTxO
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldBe` NoUtxosAvailable
 
     it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self" $
         \ctx -> runResourceT $ do

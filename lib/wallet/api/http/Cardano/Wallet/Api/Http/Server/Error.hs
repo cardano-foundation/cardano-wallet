@@ -592,10 +592,11 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
                 ]
         ErrBalanceTxOutputError err -> toServerError err
         ErrBalanceTxUnableToCreateInput ->
-            apiError err403 NotEnoughMoney $ T.unwords
-                [ "Cannot create a transaction because the wallet"
-                , "has no UTxO entries. At least one UTxO entry is"
-                , "required in order to create a transaction."
+            apiError err403 NoUtxosAvailable $ T.unwords
+                [ "Unable to create a transaction because the wallet has"
+                , "no unspent transaction outputs (UTxOs) available."
+                , "A transaction must spend at least one UTxO in order to"
+                , "be accepted for inclusion on the Cardano blockchain."
                 ]
         ErrBalanceTxUnableToCreateChange e ->
             apiError err403 CannotCoverFee $ T.unwords
