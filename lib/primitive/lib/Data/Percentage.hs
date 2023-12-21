@@ -84,7 +84,7 @@ instance Buildable Percentage where
 instance ToJSON Percentage where
     toJSON =
         toJSON
-        . rationalToToScientific percentageNumberOfFractionalDigits
+        . rationalToToScientific numberOfFractionalDigits
         . (* 100)
         . toRational
 
@@ -104,13 +104,13 @@ instance ToText Percentage where
         (<> "%")
         . T.pack
         . showS
-        . rationalToToScientific percentageNumberOfFractionalDigits
+        . rationalToToScientific numberOfFractionalDigits
         . (* 100)
         . toRational
       where
         showS = formatScientific
             Fixed
-            (Just percentageNumberOfFractionalDigits)
+            (Just numberOfFractionalDigits)
 
 instance FromText Percentage where
     fromText txt = do
@@ -152,8 +152,8 @@ complement (Percentage p) = Percentage (1-p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.
-percentageNumberOfFractionalDigits :: Int
-percentageNumberOfFractionalDigits = 2
+numberOfFractionalDigits :: Int
+numberOfFractionalDigits = 2
 
 -- | Round a @Rational@ to the given amount of fractional digits.
 --
