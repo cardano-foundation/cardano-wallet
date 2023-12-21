@@ -329,13 +329,17 @@ estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
 
 -- | Used to specify the intended number of timelock script vk witnesses.
 --
--- Like for the underlying 'Map', '<>' is left-biased.
+-- The 'Semigroup' instance resolves conflicts using 'max'.
 newtype TimelockKeyWitnessCounts = TimelockKeyWitnessCounts
     { getTimelockKeyWitnessCounts
         :: Map (ScriptHash StandardCrypto) Natural
     }
     deriving (Show, Eq)
-    deriving newtype (Monoid, Semigroup)
+    deriving newtype (Monoid)
+
+instance Semigroup TimelockKeyWitnessCounts where
+    (TimelockKeyWitnessCounts a) <> (TimelockKeyWitnessCounts b)
+        = TimelockKeyWitnessCounts (Map.unionWith max a b)
 
 --------------------------------------------------------------------------------
 -- Helpers
