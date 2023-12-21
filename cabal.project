@@ -54,7 +54,7 @@ index-state: 2023-06-06T00:00:00Z
 
 index-state:
   , hackage.haskell.org 2023-06-06T00:00:00Z
-  , cardano-haskell-packages 2023-06-05T06:39:32Z
+  , cardano-haskell-packages 2023-12-18T12:30:16Z
 
 packages:
     lib/address-derivation-discovery
