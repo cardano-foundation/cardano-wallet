@@ -15,7 +15,7 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Data.Map
     ( Map
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage
     )
 import Fmt

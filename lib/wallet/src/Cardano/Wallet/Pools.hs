@@ -206,9 +206,11 @@ import Data.Maybe
 import Data.Ord
     ( Down (..)
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
-    , Quantity (..)
+    )
+import Data.Quantity
+    ( Quantity (..)
     )
 import Data.Set
     ( Set

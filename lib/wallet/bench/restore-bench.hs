@@ -272,12 +272,14 @@ import Data.Functor.Contravariant
 import Data.List
     ( foldl'
     )
+import Data.Percentage
+    ( Percentage (..)
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
-    ( Percentage (..)
-    , Quantity (..)
+    ( Quantity (..)
     )
 import Data.Set
     ( Set

@@ -52,7 +52,7 @@ import Data.List
 import Data.Maybe
     ( fromMaybe
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
     )
 import Data.Sequence

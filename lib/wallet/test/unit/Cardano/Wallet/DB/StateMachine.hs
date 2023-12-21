@@ -254,9 +254,11 @@ import Data.Maybe
     ( catMaybes
     , fromJust
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
-    , Quantity (..)
+    )
+import Data.Quantity
+    ( Quantity (..)
     )
 import Data.Set
     ( Set

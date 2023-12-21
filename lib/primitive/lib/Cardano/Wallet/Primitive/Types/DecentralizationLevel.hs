@@ -13,7 +13,7 @@ import Prelude
 import Control.DeepSeq
     ( NFData
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage
     , complementPercentage
     )

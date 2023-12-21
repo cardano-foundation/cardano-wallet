@@ -250,11 +250,11 @@ import Data.Map
 import Data.Maybe
     ( fromMaybe
     )
+import Data.Percentage
+    ( Percentage
+    )
 import Data.Proxy
     ( Proxy (..)
-    )
-import Data.Quantity
-    ( Percentage
     )
 import Data.Set
     ( Set

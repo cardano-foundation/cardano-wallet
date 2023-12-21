@@ -259,11 +259,13 @@ import Data.Maybe
     ( fromMaybe
     , mapMaybe
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage
-    , Quantity (..)
     , clipToPercentage
     , mkPercentage
+    )
+import Data.Quantity
+    ( Quantity (..)
     )
 import Data.Type.Equality
     ( (:~:) (..)

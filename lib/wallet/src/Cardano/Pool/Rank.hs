@@ -48,7 +48,7 @@ import Data.Map
 import Data.Ord
     ( Down (..)
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
     , clipToPercentage
     )

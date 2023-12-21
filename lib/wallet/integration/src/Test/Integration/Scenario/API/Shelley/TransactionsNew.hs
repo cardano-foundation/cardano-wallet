@@ -223,12 +223,14 @@ import Data.Maybe
     ( fromJust
     , isJust
     )
+import Data.Percentage
+    ( mkPercentage
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
     ( Quantity (..)
-    , mkPercentage
     )
 import Data.Ratio
     ( (%)

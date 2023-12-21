@@ -91,9 +91,11 @@ import Data.Bifunctor
 import Data.List.NonEmpty
     ( NonEmpty
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage
-    , Quantity (..)
+    )
+import Data.Quantity
+    ( Quantity (..)
     )
 import GHC.Generics
     ( Generic

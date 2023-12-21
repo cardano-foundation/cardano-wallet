@@ -133,9 +133,11 @@ import Data.List
 import Data.Map.Strict
     ( Map
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
-    , Quantity (..)
+    )
+import Data.Quantity
+    ( Quantity (..)
     )
 import Data.Ratio
     ( denominator

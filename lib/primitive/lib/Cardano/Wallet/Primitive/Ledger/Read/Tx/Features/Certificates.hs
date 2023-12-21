@@ -71,7 +71,7 @@ import Cardano.Wallet.Util
 import Data.Foldable
     ( toList
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage
     , mkPercentage
     )

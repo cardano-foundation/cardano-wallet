@@ -53,7 +53,7 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
 import Cardano.Wallet.Primitive.Types
     ( Slot
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
     )
 import Data.Text
