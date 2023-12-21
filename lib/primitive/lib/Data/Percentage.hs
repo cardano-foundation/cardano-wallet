@@ -13,14 +13,17 @@
 module Data.Percentage
     ( Percentage
     , PercentageError (..)
-    , mkPercentage
+    , fromRational
     , getPercentage
     , clipToPercentage
     , complementPercentage
     , percentageToDouble
     ) where
 
-import Prelude
+import Prelude hiding
+    ( fromRational
+    , toRational
+    )
 
 import Control.Arrow
     ( left
@@ -63,6 +66,7 @@ import Quiet
     )
 
 import qualified Data.Text as T
+import qualified Prelude
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
@@ -87,8 +91,8 @@ instance ToJSON Percentage where
 instance FromJSON Percentage where
     parseJSON = withScientific "Percentage [0,100]" $ \s ->
         either (fail . show) return
-        . mkPercentage
-        . toRational
+        . fromRational
+        . Prelude.toRational
         $ s / 100
 
 instance Bounded Percentage where
@@ -112,7 +116,7 @@ instance FromText Percentage where
     fromText txt = do
         (p, u) <- left (const err) $ rational txt
         unless (u == "%") $ Left err
-        left (const err) . mkPercentage $ p / 100
+        left (const err) . fromRational $ p / 100
       where
         err = TextDecodingError
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
@@ -120,10 +124,10 @@ instance FromText Percentage where
 -- | Safe constructor for 'Percentage'
 --
 -- Takes an input in the range [0, 1].
-mkPercentage
+fromRational
     :: Rational
     -> Either PercentageError Percentage
-mkPercentage r
+fromRational r
     | r < 0 =
         Left PercentageOutOfBoundsError
     | r > 1 =
@@ -162,10 +166,10 @@ rationalToToScientific fracDigits x = conv i / conv factor
     i = round (factor * x)
 
     conv :: (Real a, Fractional b) => a -> b
-    conv = fromRational . toRational
+    conv = Prelude.fromRational . Prelude.toRational
 
     factor = 10 ^ fracDigits
 
 -- | Turn a @Percentage@ to a @Double@ (without any extra rounding.)
 percentageToDouble :: Percentage -> Double
-percentageToDouble = fromRational . toRational . getPercentage
+percentageToDouble = Prelude.fromRational . Prelude.toRational . getPercentage
