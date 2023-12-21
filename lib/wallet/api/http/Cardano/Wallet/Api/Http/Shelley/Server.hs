@@ -815,7 +815,7 @@ import Internal.Cardano.Write.Tx.Balance
     , UTxOAssumptions (..)
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( TimelockScriptVkCounts
+    ( TimelockKeyWitnessCounts
     )
 import Network.Ntp
     ( NtpClient
@@ -2882,7 +2882,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                         Write.TimelockKeyWitnessCounts
                             $ Map.singleton policyId' 1
         let mintBurnTimelockKeyWitCounts =
-                foldMap intendedSignersForMintBurn
+                foldMap timelockKeyWitCountsForMintBurn
                 $ maybe [] NE.toList mintBurnDatum
 
         balancedTx <-
@@ -3481,7 +3481,7 @@ balanceTransaction
     => ApiLayer s
     -> ArgGenChange s
     -> UTxOAssumptions
-    -> TimelockScriptVkCounts
+    -> TimelockKeyWitnessCounts
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
@@ -3489,7 +3489,7 @@ balanceTransaction
     ctx@ApiLayer{..}
     argGenChange
     utxoAssumptions
-    timelockVkCounts
+    timelockKeyWitnessCounts
     (ApiT wid)
     body
     = do
@@ -3547,7 +3547,7 @@ balanceTransaction
             (Write.fromCardanoApiTx tx)
             externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
-            timelockVkCounts
+            timelockKeyWitnessCounts
 
 decodeTransaction
     :: forall s n

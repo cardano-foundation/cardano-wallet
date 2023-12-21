@@ -240,11 +240,12 @@ estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
     timelockTotalWitCount :: Natural
     timelockTotalWitCount = sum $ Map.elems $ Map.unionWith
         (\_est spec -> spec) -- Allow specified values to override
-        upperBoundEstimatedTimelockVkCounts
-        specifiedTimelockVkCounts
+        upperBoundEstimatedTimelockKeyWitnessCounts
+        specifiedTimelockKeyWitnessCounts
       where
-        specifiedTimelockVkCounts :: Map (ScriptHash StandardCrypto) Natural
-        specifiedTimelockVkCounts = Map.fromList $ mapMaybe resolve
+        specifiedTimelockKeyWitnessCounts
+            :: Map (ScriptHash StandardCrypto) Natural
+        specifiedTimelockKeyWitnessCounts = Map.fromList $ mapMaybe resolve
             $ F.toList scriptsNeeded
           where
             resolve
@@ -253,9 +254,9 @@ estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
             resolve h = (h,) <$> Map.lookup h
                 (getTimelockKeyWitnessCounts timelockKeyWitCounts)
 
-        upperBoundEstimatedTimelockVkCounts
+        upperBoundEstimatedTimelockKeyWitnessCounts
             :: Map (ScriptHash StandardCrypto) Natural
-        upperBoundEstimatedTimelockVkCounts = Map.mapMaybe
+        upperBoundEstimatedTimelockKeyWitnessCounts = Map.mapMaybe
             (fmap (estimateMaxWitnessRequiredPerInput . toCAScript)
                 . toTimelockScript)
             -- TODO [ADP-2675] https://cardanofoundation.atlassian.net/browse/ADP-2675
@@ -327,7 +328,7 @@ estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
                     , "Caller is expected to ensure this does not happen."
                     ]
 
--- | Used to specify the intended number of timelock script vk witnesses.
+-- | Used to specify the intended number of timelock script key witnesses.
 --
 -- The 'Semigroup' instance resolves conflicts using 'max'.
 newtype TimelockKeyWitnessCounts = TimelockKeyWitnessCounts
