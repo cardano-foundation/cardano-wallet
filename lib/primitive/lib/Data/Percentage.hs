@@ -15,9 +15,9 @@ module Data.Percentage
     , PercentageError (..)
     , fromRational
     , fromRationalClipped
+    , toDouble
     , toRational
     , complementPercentage
-    , percentageToDouble
     ) where
 
 import Prelude hiding
@@ -171,5 +171,5 @@ rationalToToScientific fracDigits x = conv i / conv factor
     factor = 10 ^ fracDigits
 
 -- | Turn a @Percentage@ to a @Double@ (without any extra rounding.)
-percentageToDouble :: Percentage -> Double
-percentageToDouble = Prelude.fromRational . Prelude.toRational . toRational
+toDouble :: Percentage -> Double
+toDouble = Prelude.fromRational . Prelude.toRational . toRational

@@ -26,7 +26,7 @@ import Data.Percentage
     ( Percentage (..)
     , PercentageError (..)
     , fromRational
-    , percentageToDouble
+    , toDouble
     , toRational
     )
 import Data.Proxy
@@ -102,7 +102,7 @@ spec = do
 
         forM_ tests $ \(p,txt,json) -> do
             let desc = mconcat
-                    [ show (percentageToDouble p)
+                    [ show (toDouble p)
                     , " -> toText: "
                     , T.unpack txt
                     , ", toJSON: "
