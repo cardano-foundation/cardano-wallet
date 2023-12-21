@@ -159,6 +159,7 @@ data ApiErrorInfo
     | NotAcceptable
     | NotDelegatingTo
     | NotEnoughMoney
+        !ApiErrorNotEnoughMoney
     | NotFound
     | NotImplemented
     | NotSynced
