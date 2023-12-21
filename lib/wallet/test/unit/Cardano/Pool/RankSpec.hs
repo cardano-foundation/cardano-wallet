@@ -32,7 +32,7 @@ import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
     )
-import Data.Quantity
+import Data.Percentage
     ( clipToPercentage
     )
 import Test.Hspec

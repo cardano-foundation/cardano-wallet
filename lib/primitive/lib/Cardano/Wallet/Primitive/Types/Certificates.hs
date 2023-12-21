@@ -54,7 +54,7 @@ import Control.Lens
     )
 import Data.Generics.Labels
     ()
-import Data.Quantity
+import Data.Percentage
     ( Percentage
     )
 import Data.Text.Class

@@ -147,12 +147,14 @@ import Data.Maybe
     ( fromMaybe
     , mapMaybe
     )
+import Data.Percentage
+    ( Percentage
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
-    ( Percentage
-    , Quantity (..)
+    ( Quantity (..)
     )
 import Data.Text
     ( Text

@@ -251,12 +251,14 @@ import Data.Generics.Labels
 import Data.List
     ( unfoldr
     )
+import Data.Percentage
+    ( Percentage (..)
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
-    ( Percentage (..)
-    , Quantity (..)
+    ( Quantity (..)
     )
 import Data.Ratio
     ( (%)

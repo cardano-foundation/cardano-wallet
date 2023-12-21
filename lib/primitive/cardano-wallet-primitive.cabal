@@ -212,6 +212,7 @@ library
     Cardano.Wallet.Util
     Control.Monad.Random.NonRandom
     Data.Aeson.Extra
+    Data.Percentage
     Data.Quantity
 
 test-suite test

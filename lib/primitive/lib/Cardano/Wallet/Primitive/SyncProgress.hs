@@ -36,10 +36,12 @@ import Data.Bifunctor
 import Data.Either
     ( fromRight
     )
-import Data.Quantity
+import Data.Percentage
     ( Percentage (..)
-    , Quantity (..)
     , mkPercentage
+    )
+import Data.Quantity
+    ( Quantity (..)
     )
 import Data.Ratio
     ( (%)

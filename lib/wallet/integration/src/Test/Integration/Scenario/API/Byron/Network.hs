@@ -14,9 +14,11 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiNetworkParameters (..)
     )
+import Data.Percentage
+    ( mkPercentage
+    )
 import Data.Quantity
     ( Quantity (..)
-    , mkPercentage
     )
 import Data.Ratio
     ( (%)

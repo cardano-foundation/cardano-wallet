@@ -19,15 +19,17 @@ import Control.Monad
 import Data.Either
     ( isRight
     )
+import Data.Percentage
+    ( MkPercentageError (..)
+    , Percentage (..)
+    , mkPercentage
+    , percentageToDouble
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
-    ( MkPercentageError (..)
-    , Percentage (..)
-    , Quantity (..)
-    , mkPercentage
-    , percentageToDouble
+    ( Quantity (..)
     )
 import Data.Ratio
     ( (%)

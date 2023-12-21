@@ -565,12 +565,14 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map
     )
+import Data.Percentage
+    ( Percentage
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
-    ( Percentage
-    , Quantity (..)
+    ( Quantity (..)
     )
 import Data.String
     ( IsString

@@ -25,9 +25,11 @@ import Cardano.Wallet.Primitive.Types
 import Data.List
     ( (\\)
     )
+import Data.Percentage
+    ( mkPercentage
+    )
 import Data.Quantity
     ( Quantity (..)
-    , mkPercentage
     )
 import Data.Ratio
     ( (%)

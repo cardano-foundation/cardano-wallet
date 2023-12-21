@@ -90,12 +90,12 @@ import Data.Char
 import Data.Either
     ( fromRight
     )
-import Data.Proxy
-    ( Proxy (..)
-    )
-import Data.Quantity
+import Data.Percentage
     ( Percentage
     , mkPercentage
+    )
+import Data.Proxy
+    ( Proxy (..)
     )
 import Data.Text
     ( Text

@@ -531,12 +531,14 @@ import Data.OpenApi.Declare
     , declare
     , look
     )
+import Data.Percentage
+    ( Percentage
+    )
 import Data.Proxy
     ( Proxy (..)
     )
 import Data.Quantity
-    ( Percentage
-    , Quantity (..)
+    ( Quantity (..)
     )
 import Data.Text
     ( Text
