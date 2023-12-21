@@ -17,7 +17,7 @@ module Data.Percentage
     , fromRationalClipped
     , toDouble
     , toRational
-    , complementPercentage
+    , complement
     ) where
 
 import Prelude hiding
@@ -146,9 +146,9 @@ fromRationalClipped = Percentage . min 1 . max 0
 
 -- | The complement is the amount that is missing to make it 100%.
 --
--- Example: The 'complementPercentage' of 0.7 is 0.3.
-complementPercentage :: Percentage -> Percentage
-complementPercentage (Percentage p) = Percentage (1-p)
+-- Example: The 'complement' of 0.7 is 0.3.
+complement :: Percentage -> Percentage
+complement (Percentage p) = Percentage (1-p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.
