@@ -50,7 +50,6 @@ import Data.Ord
     )
 import Data.Percentage
     ( Percentage (..)
-    , clipToPercentage
     )
 import Fmt
     ( Buildable (..)
@@ -62,6 +61,7 @@ import Fmt
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 
 {-------------------------------------------------------------------------------
     Pool information necessary to compute rewards
@@ -202,10 +202,12 @@ epochsPerYear = 73
 -- Rewards compound every epoch.
 currentROS :: RewardParams -> RewardInfoPool -> Coin -> Percentage
 currentROS rp RewardInfoPool{..} x
-    | ownerStake < ownerPledge = clipToPercentage 0
-    | otherwise = clipToPercentage $ (1 + astar)^epochsPerYear - 1
+    | ownerStake < ownerPledge = Percentage.fromRationalClipped 0
+    | otherwise =
+        Percentage.fromRationalClipped $ (1 + astar) ^ epochsPerYear - 1
   where
-    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
     sigma = getPercentage stakeRelative + (x `proportionTo` totalStake rp)
 
     astar
@@ -218,10 +220,12 @@ currentROS rp RewardInfoPool{..} x
 -- for a pool that has reached saturation.
 saturationROS :: RewardParams -> RewardInfoPool -> Percentage
 saturationROS rp RewardInfoPool{..}
-    | ownerStake < ownerPledge = clipToPercentage 0
-    | otherwise = clipToPercentage $ (1 + bstar)^epochsPerYear - 1
+    | ownerStake < ownerPledge = Percentage.fromRationalClipped 0
+    | otherwise = Percentage.fromRationalClipped $
+        (1 + bstar) ^ epochsPerYear - 1
   where
-    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
     sigma = z0 rp -- saturation, never = 0
 
     bstar = shareAfterFees (1/sigma) cost margin fhat
@@ -243,9 +247,10 @@ nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
         $ (performanceEstimate `fractionOf`)
         $ optimalRewards rp s sigma_nonmyopic
   where
-    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
     sigma = stakeRelative
-    t     = tcoin `proportionTo` (totalStake rp)
+    t = tcoin `proportionTo` (totalStake rp)
 
     memberShare = t / sigma_nonmyopic
 
@@ -289,7 +294,8 @@ desirability rp RewardInfoPool{..}
     $ (performanceEstimate `fractionOf`)
     $ optimalRewards rp s (z0 rp)
   where
-    s = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
 
 -- | The saturation of a pool is the ratio of the current pool stake
 -- to the fully saturated stake.

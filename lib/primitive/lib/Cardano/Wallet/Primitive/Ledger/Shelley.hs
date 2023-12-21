@@ -261,7 +261,6 @@ import Data.Maybe
     )
 import Data.Percentage
     ( Percentage
-    , clipToPercentage
     )
 import Data.Quantity
     ( Quantity (..)
@@ -686,7 +685,7 @@ fromBabbagePParams
 fromBabbagePParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
-            W.fromFederationPercentage $ clipToPercentage 0
+            W.fromFederationPercentage $ Percentage.fromRationalClipped 0
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
             (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
@@ -711,7 +710,7 @@ fromConwayPParams
 fromConwayPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
-            W.fromFederationPercentage $ clipToPercentage 0
+            W.fromFederationPercentage $ Percentage.fromRationalClipped 0
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
             (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))

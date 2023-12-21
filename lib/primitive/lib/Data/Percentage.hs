@@ -14,8 +14,8 @@ module Data.Percentage
     ( Percentage
     , PercentageError (..)
     , fromRational
+    , fromRationalClipped
     , getPercentage
-    , clipToPercentage
     , complementPercentage
     , percentageToDouble
     ) where
@@ -141,8 +141,8 @@ data PercentageError
 
 -- | Safe way to make a 'Percentage' by clipping values that are
 -- out of bounds.
-clipToPercentage :: Rational -> Percentage
-clipToPercentage = Percentage . min 1 . max 0
+fromRationalClipped :: Rational -> Percentage
+fromRationalClipped = Percentage . min 1 . max 0
 
 -- | The complement is the amount that is missing to make it 100%.
 --
