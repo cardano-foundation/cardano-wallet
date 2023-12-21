@@ -223,9 +223,6 @@ import Data.Maybe
     ( fromJust
     , isJust
     )
-import Data.Percentage
-    ( mkPercentage
-    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -345,6 +342,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -2261,7 +2259,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let cborHexPool = fromTextEnvelope cborHex
 
-        let (Right percentage) = mkPercentage (1 % 10)
+        let (Right percentage) = Percentage.fromRational (1 % 10)
         let poolId' = PoolId "\187\DC1L\179}u\250\ENQ&\ETX(\194\&5\163\218\226\149\163=\v\166t\165\235\RS>V\142"
         let containRegPool = elem
                 (StakePoolRegister ApiRegisterPool

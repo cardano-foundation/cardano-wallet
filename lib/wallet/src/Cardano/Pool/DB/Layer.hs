@@ -133,9 +133,6 @@ import Data.List
 import Data.Map.Strict
     ( Map
     )
-import Data.Percentage
-    ( Percentage (..)
-    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -209,6 +206,7 @@ import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -384,12 +382,12 @@ newDBLayer tr ti SqliteContext{runQuery} =
                     (slotInternalIndex)
                     ( fromIntegral
                         $ numerator
-                        $ getPercentage
+                        $ Percentage.toRational
                         $ poolMargin cert
                     )
                     ( fromIntegral
                         $ denominator
-                        $ getPercentage
+                        $ Percentage.toRational
                         $ poolMargin cert
                     )
                     (Coin.unsafeToWord64 $ poolCost cert)

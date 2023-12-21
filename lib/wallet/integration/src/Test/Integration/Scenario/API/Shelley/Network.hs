@@ -25,9 +25,6 @@ import Cardano.Wallet.Primitive.Types
 import Data.List
     ( (\\)
     )
-import Data.Percentage
-    ( mkPercentage
-    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -60,6 +57,7 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Percentage as Percentage
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
@@ -67,7 +65,7 @@ spec = describe "SHELLEY_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
-        let Right d = fmap Quantity . mkPercentage $
+        let Right d = fmap Quantity . Percentage.fromRational $
                 if _mainEra ctx >= ApiBabbage
                 then 1 % 1
                 else 3 % 4

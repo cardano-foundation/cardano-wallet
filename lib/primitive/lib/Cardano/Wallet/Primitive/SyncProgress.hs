@@ -37,8 +37,7 @@ import Data.Either
     ( fromRight
     )
 import Data.Percentage
-    ( Percentage (..)
-    , mkPercentage
+    ( Percentage
     )
 import Data.Quantity
     ( Quantity (..)
@@ -71,6 +70,8 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
     , diffRelTime
     )
+
+import qualified Data.Percentage as Percentage
 
 data SyncProgress
     = Ready
@@ -153,7 +154,7 @@ syncProgress (SyncTolerance tolerance) ti slot now = do
         else Syncing
             . Quantity
             . fromRight (error $ errMsg progress)
-            . mkPercentage
+            . Percentage.fromRational
             $ toRational progress
   where
     start = RelativeTime 0

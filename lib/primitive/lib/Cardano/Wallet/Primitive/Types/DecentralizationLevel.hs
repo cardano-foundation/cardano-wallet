@@ -15,7 +15,6 @@ import Control.DeepSeq
     )
 import Data.Percentage
     ( Percentage
-    , complementPercentage
     )
 import Fmt
     ( Buildable (..)
@@ -23,6 +22,8 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
+
+import qualified Data.Percentage as Percentage
 
 -- | Indicates the current level of decentralization in the network.
 --
@@ -48,10 +49,10 @@ fromDecentralizationLevel = DecentralizationLevel
 -- | Percentage of federated nodes.
 -- Equal to the "decentralization parameter" /d/ from the ledger specification.
 fromFederationPercentage :: Percentage -> DecentralizationLevel
-fromFederationPercentage = fromDecentralizationLevel . complementPercentage
+fromFederationPercentage = fromDecentralizationLevel . Percentage.complement
 
 getFederationPercentage :: DecentralizationLevel -> Percentage
-getFederationPercentage = complementPercentage . getDecentralizationLevel
+getFederationPercentage = Percentage.complement . getDecentralizationLevel
 
 instance NFData DecentralizationLevel
 

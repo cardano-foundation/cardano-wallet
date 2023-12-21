@@ -261,8 +261,6 @@ import Data.Maybe
     )
 import Data.Percentage
     ( Percentage
-    , clipToPercentage
-    , mkPercentage
     )
 import Data.Quantity
     ( Quantity (..)
@@ -391,6 +389,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
 import qualified Data.ListMap as ListMap
 import qualified Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
@@ -686,7 +685,7 @@ fromBabbagePParams
 fromBabbagePParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
-            W.fromFederationPercentage $ clipToPercentage 0
+            W.fromFederationPercentage $ Percentage.fromRationalClipped 0
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
             (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
@@ -711,7 +710,7 @@ fromConwayPParams
 fromConwayPParams eraInfo pp =
     W.ProtocolParameters
         { decentralizationLevel =
-            W.fromFederationPercentage $ clipToPercentage 0
+            W.fromFederationPercentage $ Percentage.fromRationalClipped 0
         , txParameters = txParametersFromPParams
             (W.TokenBundleMaxSize $ W.TxSize $ pp ^. ppMaxValSizeL)
             (fromLedgerExUnits (pp ^. ppMaxTxExUnitsL))
@@ -982,11 +981,15 @@ fromCardanoAddress :: Cardano.Address Cardano.ShelleyAddr -> W.Address
 fromCardanoAddress = W.Address . Cardano.serialiseToRawBytes
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
-fromUnitInterval x =
-    either bomb id . mkPercentage . toRational . SL.unboundRational $ x
+fromUnitInterval x
+    = either bomb id
+    . Percentage.fromRational
+    . toRational
+    . SL.unboundRational
+    $ x
   where
     bomb = internalError $
-        "fromUnitInterval: encountered invalid parameter value: "+||x||+""
+        "fromUnitInterval: encountered invalid parameter value: " +|| x ||+ ""
 
 toCardanoTxId :: W.Hash "Tx" -> Cardano.TxId
 toCardanoTxId (W.Hash h) = Cardano.TxId $ UnsafeHash $ toShort h

@@ -92,7 +92,6 @@ import Data.Either
     )
 import Data.Percentage
     ( Percentage
-    , mkPercentage
     )
 import Data.Proxy
     ( Proxy (..)
@@ -130,6 +129,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Percentage as Percentage
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -275,7 +275,7 @@ unsafeBech32Decode txt = case Bech32.decodeLenient txt of
         ++ " because " ++ msg
 
 unsafeMkPercentage :: HasCallStack => Rational -> Percentage
-unsafeMkPercentage r = fromRight bomb $ mkPercentage r
+unsafeMkPercentage r = fromRight bomb $ Percentage.fromRational r
   where
     bomb = error $ "unsafeMkPercentage: " ++ show r ++ " is out of bounds."
 

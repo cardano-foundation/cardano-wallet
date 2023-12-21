@@ -73,7 +73,6 @@ import Data.Foldable
     )
 import Data.Percentage
     ( Percentage
-    , mkPercentage
     )
 import Fmt
     ( (+||)
@@ -91,6 +90,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.EpochNo as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 
 -- | Compute wallet primitive certificates from ledger certificates
@@ -212,12 +212,15 @@ fromOwnerKeyHash (SL.KeyHash h) =
     PoolOwner (hashToBytes h)
 
 fromUnitInterval :: HasCallStack => SL.UnitInterval -> Percentage
-fromUnitInterval x =
-    either bomb id . mkPercentage . toRational . SL.unboundRational $ x
+fromUnitInterval x
+    = either bomb id
+    . Percentage.fromRational
+    . toRational
+    . SL.unboundRational
+    $ x
   where
-    bomb =
-        internalError
-            $ "fromUnitInterval: encountered invalid parameter value: " +|| x ||+ ""
+    bomb = internalError $
+        "fromUnitInterval: encountered invalid parameter value: " +|| x ||+ ""
 
 toWalletCoin :: HasCallStack => SL.Coin -> W.Coin
 toWalletCoin (SL.Coin c) = Coin.unsafeFromIntegral c

@@ -32,9 +32,6 @@ import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
     )
-import Data.Percentage
-    ( clipToPercentage
-    )
 import Test.Hspec
     ( Spec
     , describe
@@ -61,6 +58,7 @@ import Cardano.Pool.Types
     )
 import qualified Data.ByteString as BS
 import Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 
 spec :: Spec
 spec = do
@@ -98,8 +96,10 @@ genRewardInfoPool :: RewardParams -> Gen RewardInfoPool
 genRewardInfoPool RewardParams{totalStake} = do
     stake <- chooseCoin (Coin 0,totalStake)
     owner <- chooseCoin (Coin 0,stake)
-    let stakeRelative = clipToPercentage (stake `proportionTo` totalStake)
-        ownerStakeRelative = clipToPercentage (owner `proportionTo` totalStake)
+    let stakeRelative = Percentage.fromRationalClipped
+            (stake `proportionTo` totalStake)
+        ownerStakeRelative = Percentage.fromRationalClipped
+            (owner `proportionTo` totalStake)
         ownerStake = owner
     ownerPledge <- oneof
         [pure (Coin 0), chooseCoin (Coin 0,owner), chooseCoin (owner,stake)]

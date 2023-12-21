@@ -14,9 +14,6 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiNetworkParameters (..)
     )
-import Data.Percentage
-    ( mkPercentage
-    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -40,6 +37,7 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Percentage as Percentage
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
@@ -47,7 +45,7 @@ spec = describe "BYRON_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
-        let Right d = Quantity <$> mkPercentage (0 % 1)
+        let Right d = Quantity <$> Percentage.fromRational (0 % 1)
         -- for Byron desiredPoolNumber is 0
         let nOpt = 0
         verify r

@@ -50,7 +50,6 @@ import Data.Ord
     )
 import Data.Percentage
     ( Percentage (..)
-    , clipToPercentage
     )
 import Fmt
     ( Buildable (..)
@@ -62,6 +61,7 @@ import Fmt
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 
 {-------------------------------------------------------------------------------
     Pool information necessary to compute rewards
@@ -202,11 +202,15 @@ epochsPerYear = 73
 -- Rewards compound every epoch.
 currentROS :: RewardParams -> RewardInfoPool -> Coin -> Percentage
 currentROS rp RewardInfoPool{..} x
-    | ownerStake < ownerPledge = clipToPercentage 0
-    | otherwise = clipToPercentage $ (1 + astar)^epochsPerYear - 1
+    | ownerStake < ownerPledge = Percentage.fromRationalClipped 0
+    | otherwise =
+        Percentage.fromRationalClipped $ (1 + astar) ^ epochsPerYear - 1
   where
-    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
-    sigma = getPercentage stakeRelative + (x `proportionTo` totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
+    sigma
+        = Percentage.toRational stakeRelative
+        + (x `proportionTo` totalStake rp)
 
     astar
         | sigma == 0 = 0
@@ -218,10 +222,12 @@ currentROS rp RewardInfoPool{..} x
 -- for a pool that has reached saturation.
 saturationROS :: RewardParams -> RewardInfoPool -> Percentage
 saturationROS rp RewardInfoPool{..}
-    | ownerStake < ownerPledge = clipToPercentage 0
-    | otherwise = clipToPercentage $ (1 + bstar)^epochsPerYear - 1
+    | ownerStake < ownerPledge = Percentage.fromRationalClipped 0
+    | otherwise = Percentage.fromRationalClipped $
+        (1 + bstar) ^ epochsPerYear - 1
   where
-    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
     sigma = z0 rp -- saturation, never = 0
 
     bstar = shareAfterFees (1/sigma) cost margin fhat
@@ -243,21 +249,22 @@ nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
         $ (performanceEstimate `fractionOf`)
         $ optimalRewards rp s sigma_nonmyopic
   where
-    s     = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
     sigma = stakeRelative
-    t     = tcoin `proportionTo` (totalStake rp)
+    t = tcoin `proportionTo` (totalStake rp)
 
     memberShare = t / sigma_nonmyopic
 
     sigma_nonmyopic
-        | isTop      = max (getPercentage sigma + t) (z0 rp)
-        | otherwise  = getPercentage s + t
+        | isTop = max (Percentage.toRational sigma + t) (z0 rp)
+        | otherwise = Percentage.toRational s + t
 
 -- | Compute share of 'Coin' after subtracting fixed cost and
 -- percentage margin.
 shareAfterFees :: Rational -> Coin -> Percentage -> Coin -> Coin
 shareAfterFees share cost margin x = case x `Coin.subtract` cost of
-    Just y  -> (share * (1 - getPercentage margin)) `fractionOf` y
+    Just y  -> (share * (1 - Percentage.toRational margin)) `fractionOf` y
     Nothing -> Coin 0
 
 -- | Optimal rewards for a stake pool
@@ -278,7 +285,7 @@ optimalRewards params s sigma = factor `fractionOf` r params
     z0_    = fromRational (z0 params)
     a0_    = fromRational (a0 params)
     sigma' = min (fromRational sigma) z0_
-    s'     = min (fromRational $ getPercentage s) z0_
+    s'     = min (fromRational $ Percentage.toRational s) z0_
 
 -- | The desirabilty of a pool is equal to the total
 -- member rewards at saturation
@@ -289,13 +296,14 @@ desirability rp RewardInfoPool{..}
     $ (performanceEstimate `fractionOf`)
     $ optimalRewards rp s (z0 rp)
   where
-    s = clipToPercentage $ ownerPledge `proportionTo` (totalStake rp)
+    s = Percentage.fromRationalClipped $
+        ownerPledge `proportionTo` (totalStake rp)
 
 -- | The saturation of a pool is the ratio of the current pool stake
 -- to the fully saturated stake.
 poolSaturation :: RewardParams -> RewardInfoPool -> Double
 poolSaturation rp RewardInfoPool{stakeRelative}
-    = fromRational (getPercentage stakeRelative) / fromRational (z0 rp)
+    = fromRational (Percentage.toRational stakeRelative) / fromRational (z0 rp)
 
 data PoolScore = PoolScore
     { _desirability :: Coin
@@ -377,12 +385,12 @@ redelegationWarning
 redelegationWarning timeOfDelegation (info,user) StakePoolsSummary{..} now
     | (sigma <= 0.6 * s && p < 0.85) || (sigma > 0.6 * s && p < 0.9)
         = TooFewBlocks
-    | getPercentage mr < getPercentage mrstar * w
+    | Percentage.toRational mr < Percentage.toRational mrstar * w
         = OtherPoolsBetter
     | otherwise
         = AllGood
   where
-    sigma = getPercentage $ stakeRelative info
+    sigma = Percentage.toRational $ stakeRelative info
     s = 1 / fromIntegral (nOpt rewardParams)
     p = performanceEstimate info
 

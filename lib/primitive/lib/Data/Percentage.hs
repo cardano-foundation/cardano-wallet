@@ -12,15 +12,18 @@
 --
 module Data.Percentage
     ( Percentage
-    , MkPercentageError(..)
-    , mkPercentage
-    , getPercentage
-    , clipToPercentage
-    , complementPercentage
-    , percentageToDouble
+    , PercentageError (..)
+    , fromRational
+    , fromRationalClipped
+    , toDouble
+    , toRational
+    , complement
     ) where
 
-import Prelude
+import Prelude hiding
+    ( fromRational
+    , toRational
+    )
 
 import Control.Arrow
     ( left
@@ -63,10 +66,11 @@ import Quiet
     )
 
 import qualified Data.Text as T
+import qualified Prelude
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
-    { getPercentage :: Rational }
+    { toRational :: Rational }
     deriving stock (Generic, Eq, Ord)
     deriving Show via Quiet Percentage
 
@@ -80,15 +84,15 @@ instance Buildable Percentage where
 instance ToJSON Percentage where
     toJSON =
         toJSON
-        . rationalToToScientific percentageNumberOfFractionalDigits
+        . rationalToToScientific numberOfFractionalDigits
         . (* 100)
-        . getPercentage
+        . toRational
 
 instance FromJSON Percentage where
     parseJSON = withScientific "Percentage [0,100]" $ \s ->
         either (fail . show) return
-        . mkPercentage
-        . toRational
+        . fromRational
+        . Prelude.toRational
         $ s / 100
 
 instance Bounded Percentage where
@@ -100,19 +104,19 @@ instance ToText Percentage where
         (<> "%")
         . T.pack
         . showS
-        . rationalToToScientific percentageNumberOfFractionalDigits
+        . rationalToToScientific numberOfFractionalDigits
         . (* 100)
-        . getPercentage
+        . toRational
       where
         showS = formatScientific
             Fixed
-            (Just percentageNumberOfFractionalDigits)
+            (Just numberOfFractionalDigits)
 
 instance FromText Percentage where
     fromText txt = do
         (p, u) <- left (const err) $ rational txt
         unless (u == "%") $ Left err
-        left (const err) . mkPercentage $ p / 100
+        left (const err) . fromRational $ p / 100
       where
         err = TextDecodingError
             "expected a value between 0 and 100 with a '%' suffix (e.g. '14%')"
@@ -120,10 +124,10 @@ instance FromText Percentage where
 -- | Safe constructor for 'Percentage'
 --
 -- Takes an input in the range [0, 1].
-mkPercentage
+fromRational
     :: Rational
-    -> Either MkPercentageError Percentage
-mkPercentage r
+    -> Either PercentageError Percentage
+fromRational r
     | r < 0 =
         Left PercentageOutOfBoundsError
     | r > 1 =
@@ -131,25 +135,25 @@ mkPercentage r
     | otherwise =
         pure . Percentage $ r
 
-data MkPercentageError
+data PercentageError
     = PercentageOutOfBoundsError
     deriving (Show, Eq)
 
 -- | Safe way to make a 'Percentage' by clipping values that are
 -- out of bounds.
-clipToPercentage :: Rational -> Percentage
-clipToPercentage = Percentage . min 1 . max 0
+fromRationalClipped :: Rational -> Percentage
+fromRationalClipped = Percentage . min 1 . max 0
 
 -- | The complement is the amount that is missing to make it 100%.
 --
--- Example: The 'complementPercentage' of 0.7 is 0.3.
-complementPercentage :: Percentage -> Percentage
-complementPercentage (Percentage p) = Percentage (1-p)
+-- Example: The 'complement' of 0.7 is 0.3.
+complement :: Percentage -> Percentage
+complement (Percentage p) = Percentage (1-p)
 
 -- | Desired number of digits after the decimal point for presenting the
 -- @Percentage@ type.
-percentageNumberOfFractionalDigits :: Int
-percentageNumberOfFractionalDigits = 2
+numberOfFractionalDigits :: Int
+numberOfFractionalDigits = 2
 
 -- | Round a @Rational@ to the given amount of fractional digits.
 --
@@ -162,10 +166,10 @@ rationalToToScientific fracDigits x = conv i / conv factor
     i = round (factor * x)
 
     conv :: (Real a, Fractional b) => a -> b
-    conv = fromRational . toRational
+    conv = Prelude.fromRational . Prelude.toRational
 
     factor = 10 ^ fracDigits
 
 -- | Turn a @Percentage@ to a @Double@ (without any extra rounding.)
-percentageToDouble :: Percentage -> Double
-percentageToDouble = fromRational . toRational . getPercentage
+toDouble :: Percentage -> Double
+toDouble = Prelude.fromRational . Prelude.toRational . toRational
