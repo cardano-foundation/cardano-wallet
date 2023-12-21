@@ -115,9 +115,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (TokenBundle)
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( Flat (..)
-    )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..)
     )
@@ -547,9 +544,7 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
         ErrBalanceTxAssetsInsufficient e ->
             apiError err403 (NotEnoughMoney info) $ mconcat
                 [ "I can't process this payment as there are not "
-                , "enough funds available in the wallet. I am "
-                , "missing: "
-                , pretty . Flat . toWalletTokenBundle $ e ^. #shortfall
+                , "enough funds available in the wallet."
                 ]
               where
                 info = ApiErrorNotEnoughMoney ApiErrorNotEnoughMoneyShortfall
