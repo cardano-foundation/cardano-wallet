@@ -1516,7 +1516,7 @@ prop_balanceTransactionValid
                     (estimateKeyWitnessCount
                         utxo
                         tx
-                        (timelockVkCounts partialTx))
+                        (timelockKeyWitnessCounts partialTx))
                     tx
         let limit = ledgerPParams ^. ppMaxTxSizeL
         let msg = unwords
@@ -1568,7 +1568,7 @@ prop_balanceTransactionValid
         Write.evaluateMinimumFee ledgerPParams
             tx
             (estimateKeyWitnessCount utxo tx
-                (timelockVkCounts partialTx))
+                (timelockKeyWitnessCounts partialTx))
 
     txBalance
         :: Tx era
@@ -2169,13 +2169,13 @@ restrictResolution
     :: forall era. IsRecentEra era
     => PartialTx era
     -> PartialTx era
-restrictResolution (PartialTx tx inputs redeemers timelockVkCounts) =
+restrictResolution (PartialTx tx inputs redeemers timelockKeyWitnessCounts) =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO @era inputs
         u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx @era tx))
         inputs' = fromCardanoApiUTxO @era (CardanoApi.UTxO u')
     in
-        PartialTx tx inputs' redeemers timelockVkCounts
+        PartialTx tx inputs' redeemers timelockKeyWitnessCounts
   where
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
@@ -2456,7 +2456,7 @@ pingPong_2 = PartialTx
             (unsafeFromHex "D87A80")
             (Convert.toLedger (W.TxIn (W.Hash tid) 0))
         ]
-    , timelockVkCounts = mempty
+    , timelockKeyWitnessCounts = mempty
     }
   where
     tid = B8.replicate 32 '1'
@@ -2620,8 +2620,8 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
             (fromCardanoApiUTxO inputUTxO)
             (redeemers)
             mempty
-    shrink (PartialTx tx inputUTxO redeemers timelockVkCounts) =
-        [ PartialTx tx inputUTxO' redeemers timelockVkCounts
+    shrink (PartialTx tx inputUTxO redeemers timelockKeyWitnessCounts) =
+        [ PartialTx tx inputUTxO' redeemers timelockKeyWitnessCounts
         | inputUTxO' <- shrinkInputResolution @Write.BabbageEra inputUTxO
         ] <>
         [ restrictResolution $
@@ -2629,7 +2629,7 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 (fromCardanoApiTx tx')
                 inputUTxO
                 redeemers
-                timelockVkCounts
+                timelockKeyWitnessCounts
         | tx' <- shrinkTxBabbage (toCardanoApiTx tx)
         ]
 

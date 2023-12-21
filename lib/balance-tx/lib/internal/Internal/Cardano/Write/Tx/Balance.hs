@@ -251,7 +251,7 @@ import Internal.Cardano.Write.Tx.Redeemers
     , assignScriptRedeemers
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( TimelockScriptVkCounts (..)
+    ( TimelockKeyWitnessCounts (..)
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     )
@@ -439,7 +439,13 @@ data PartialTx era = PartialTx
     , inputs :: UTxO era
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
-    , timelockVkCounts :: TimelockScriptVkCounts
+    , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
+      -- ^ Specifying the intended number of timelock script key witnesses may
+      -- save space and fees when constructing a transaction.
+      --
+      -- Timelock scripts without entries in this map will have their key
+      -- witness counts estimated according to
+      -- 'estimateMaxWitnessRequiredPerInput'.
     }
     deriving Generic
 
@@ -448,15 +454,15 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers timelockVkCounts)
+    build (PartialTx tx (UTxO ins) redeemers timelockKeyWitnessCounts)
         = nameF "PartialTx" $ mconcat
             [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
             , nameF "redeemers" (pretty redeemers)
             , nameF "tx" (txF tx)
-            , nameF "intended number of timelock signers"
+            , nameF "intended timelock key witness counts"
                 $ blockListF' "-" (build . show)
                 $ Map.toList
-                $ getTimelockScriptVkCounts timelockVkCounts
+                $ getTimelockKeyWitnessCounts timelockKeyWitnessCounts
             ]
       where
         inF = build . show
@@ -643,7 +649,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers timelockVkCounts)
+    ptx@(PartialTx partialTx inputUTxO redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
@@ -853,7 +859,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: Tx era
         -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCount)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
-        let witCount = estimateKeyWitnessCount combinedUTxO tx timelockVkCounts
+        let witCount =
+                estimateKeyWitnessCount combinedUTxO tx timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update

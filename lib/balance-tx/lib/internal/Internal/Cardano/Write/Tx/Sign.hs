@@ -20,7 +20,7 @@ module Internal.Cardano.Write.Tx.Sign
       estimateSignedTxSize
 
     , KeyWitnessCount (..)
-    , TimelockScriptVkCounts (..)
+    , TimelockKeyWitnessCounts (..)
     , estimateKeyWitnessCount
 
     , estimateMaxWitnessRequiredPerInput
@@ -181,14 +181,14 @@ estimateKeyWitnessCount
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
     -> Tx era
-    -> TimelockScriptVkCounts
-    -- ^ Specifying the intended number of timelock script signers may
+    -> TimelockKeyWitnessCounts
+    -- ^ Specifying the intended number of timelock script key witnesses may
     -- save space and fees when constructing a transaction.
     --
-    -- Timelock scripts without entries in this map will have their VK witness
+    -- Timelock scripts without entries in this map will have their key witness
     -- counts estimated according to 'estimateMaxWitnessRequiredPerInput'.
     -> KeyWitnessCount
-estimateKeyWitnessCount utxo tx timelockVkCounts =
+estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
     let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
             case CardanoApi.txInsCollateral txbodycontent of
@@ -222,7 +222,7 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
             length txWithdrawals' +
             txUpdateProposal' +
             fromIntegral txCerts +
-            fromIntegral timelockScriptVkCount
+            fromIntegral timelockTotalWitCount
         inputWits = KeyWitnessCount
             { nKeyWits = fromIntegral
                 . length
@@ -237,9 +237,9 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
     CardanoApi.Tx (CardanoApi.TxBody txbodycontent) _keyWits
         = toCardanoApiTx tx
 
-    timelockScriptVkCount :: Natural
-    timelockScriptVkCount = sum $ Map.elems $ Map.unionWith
-        (\_est spec -> spec)
+    timelockTotalWitCount :: Natural
+    timelockTotalWitCount = sum $ Map.elems $ Map.unionWith
+        (\_est spec -> spec) -- Allow specified values to override
         upperBoundEstimatedTimelockVkCounts
         specifiedTimelockVkCounts
       where
@@ -251,7 +251,7 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
                 :: (ScriptHash StandardCrypto)
                 -> Maybe (ScriptHash StandardCrypto, Natural)
             resolve h = (h,) <$> Map.lookup h
-                (getTimelockScriptVkCounts timelockVkCounts)
+                (getTimelockKeyWitnessCounts timelockKeyWitCounts)
 
         upperBoundEstimatedTimelockVkCounts
             :: Map (ScriptHash StandardCrypto) Natural
@@ -330,8 +330,8 @@ estimateKeyWitnessCount utxo tx timelockVkCounts =
 -- | Used to specify the intended number of timelock script vk witnesses.
 --
 -- Like for the underlying 'Map', '<>' is left-biased.
-newtype TimelockScriptVkCounts = TimelockScriptVkCounts
-    { getTimelockScriptVkCounts
+newtype TimelockKeyWitnessCounts = TimelockKeyWitnessCounts
+    { getTimelockKeyWitnessCounts
         :: Map (ScriptHash StandardCrypto) Natural
     }
     deriving (Show, Eq)

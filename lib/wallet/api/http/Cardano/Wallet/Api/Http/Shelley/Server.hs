@@ -2868,20 +2868,20 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     PreSelection { outputs = outs <> mintingOuts }
 
         -- We need to assume that mint/burn scripts in reference inputs require
-        -- 1 vk witness each, and we need to tell 'balanceTransaction' about
+        -- 1 key witness each, and we need to tell 'balanceTransaction' about
         -- this assumption.
-        let intendedSignersForMintBurn
-                :: ApiMintBurnData n -> Write.TimelockScriptVkCounts
-            intendedSignersForMintBurn mb = case mb ^. #mintBurnData of
+        let timelockKeyWitCountsForMintBurn
+                :: ApiMintBurnData n -> Write.TimelockKeyWitnessCounts
+            timelockKeyWitCountsForMintBurn mb = case mb ^. #mintBurnData of
                 Left ApiMintBurnDataFromScript{} -> mempty
                 Right (ApiMintBurnDataFromInput _ (ApiT policyId) _ _) ->
                     let
                         Write.PolicyId policyId' =
                             Convert.toLedgerTokenPolicyId policyId
                     in
-                        Write.TimelockScriptVkCounts
+                        Write.TimelockKeyWitnessCounts
                             $ Map.singleton policyId' 1
-        let intendedMintBurnVkCount =
+        let mintBurnTimelockKeyWitCounts =
                 foldMap intendedSignersForMintBurn
                 $ maybe [] NE.toList mintBurnDatum
 
@@ -2890,7 +2890,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 api
                 argGenChange
                 (utxoAssumptionsForWallet (walletFlavor @s))
-                intendedMintBurnVkCount
+                mintBurnTimelockKeyWitCounts
                 apiWalletId
                 ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
