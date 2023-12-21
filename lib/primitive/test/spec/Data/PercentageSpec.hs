@@ -20,7 +20,7 @@ import Data.Either
     ( isRight
     )
 import Data.Percentage
-    ( MkPercentageError (..)
+    ( PercentageError (..)
     , Percentage (..)
     , mkPercentage
     , percentageToDouble

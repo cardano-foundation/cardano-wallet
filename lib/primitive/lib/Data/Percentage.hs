@@ -12,7 +12,7 @@
 --
 module Data.Percentage
     ( Percentage
-    , MkPercentageError(..)
+    , PercentageError (..)
     , mkPercentage
     , getPercentage
     , clipToPercentage
@@ -122,7 +122,7 @@ instance FromText Percentage where
 -- Takes an input in the range [0, 1].
 mkPercentage
     :: Rational
-    -> Either MkPercentageError Percentage
+    -> Either PercentageError Percentage
 mkPercentage r
     | r < 0 =
         Left PercentageOutOfBoundsError
@@ -131,7 +131,7 @@ mkPercentage r
     | otherwise =
         pure . Percentage $ r
 
-data MkPercentageError
+data PercentageError
     = PercentageOutOfBoundsError
     deriving (Show, Eq)
 
