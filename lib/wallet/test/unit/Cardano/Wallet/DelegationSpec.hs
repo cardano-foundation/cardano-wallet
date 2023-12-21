@@ -253,7 +253,7 @@ instance Arbitrary DRep where
 
 instance Arbitrary VoteAction where
     arbitrary =
-        oneof [pure Abstain, pure NoConfidence, arbitrary]
+        oneof [pure Abstain, pure NoConfidence, VoteTo <$> arbitrary]
 
 instance Arbitrary WalletDelegationStatus where
     shrink = genericShrink

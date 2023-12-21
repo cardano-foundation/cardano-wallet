@@ -99,6 +99,12 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( TxHistory
     , filterTxHistory
     )
+import Cardano.Wallet.Delegation.Model
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0
     , mkTx
@@ -933,6 +939,17 @@ instance Arbitrary TxScriptValidity where
 instance Arbitrary ChangeAddressMode where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary DRep where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+              ]
+
+instance Arbitrary VoteAction where
+    arbitrary =
+        oneof [pure Abstain, pure NoConfidence, VoteTo <$> arbitrary]
 
 {-------------------------------------------------------------------------------
                                    Buildable
