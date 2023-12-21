@@ -37,7 +37,7 @@ import Data.Either
     ( fromRight
     )
 import Data.Percentage
-    ( Percentage (..)
+    ( Percentage
     )
 import Data.Quantity
     ( Quantity (..)

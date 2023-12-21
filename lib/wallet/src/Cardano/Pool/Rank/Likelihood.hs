@@ -52,9 +52,6 @@ import Data.List
 import Data.Maybe
     ( fromMaybe
     )
-import Data.Percentage
-    ( Percentage (..)
-    )
 import Data.Sequence
     ( Seq
     )
@@ -72,6 +69,7 @@ import Numeric.Natural
     )
 import Quiet
 
+import qualified Data.Percentage as Percentage
 import qualified Data.Sequence as Seq
 import qualified Data.Sequence.Strict as StrictSeq
 
@@ -111,7 +109,7 @@ estimatePoolPerformance sp d history =
     prob perf = leaderProbability
         (toActiveSlotCoeff $ getActiveSlotCoefficient sp)
         (stakeRelative perf)
-        (getPercentage $ getFederationPercentage d)
+        (Percentage.toRational $ getFederationPercentage d)
     likelihood' perf = likelihood
         (blocksProduced perf)
         (prob perf)

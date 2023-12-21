@@ -15,7 +15,7 @@ module Data.Percentage
     , PercentageError (..)
     , fromRational
     , fromRationalClipped
-    , getPercentage
+    , toRational
     , complementPercentage
     , percentageToDouble
     ) where
@@ -70,7 +70,7 @@ import qualified Prelude
 
 -- | Opaque Haskell type to represent values between 0 and 100 (incl).
 newtype Percentage = Percentage
-    { getPercentage :: Rational }
+    { toRational :: Rational }
     deriving stock (Generic, Eq, Ord)
     deriving Show via Quiet Percentage
 
@@ -86,7 +86,7 @@ instance ToJSON Percentage where
         toJSON
         . rationalToToScientific percentageNumberOfFractionalDigits
         . (* 100)
-        . getPercentage
+        . toRational
 
 instance FromJSON Percentage where
     parseJSON = withScientific "Percentage [0,100]" $ \s ->
@@ -106,7 +106,7 @@ instance ToText Percentage where
         . showS
         . rationalToToScientific percentageNumberOfFractionalDigits
         . (* 100)
-        . getPercentage
+        . toRational
       where
         showS = formatScientific
             Fixed
@@ -172,4 +172,4 @@ rationalToToScientific fracDigits x = conv i / conv factor
 
 -- | Turn a @Percentage@ to a @Double@ (without any extra rounding.)
 percentageToDouble :: Percentage -> Double
-percentageToDouble = Prelude.fromRational . Prelude.toRational . getPercentage
+percentageToDouble = Prelude.fromRational . Prelude.toRational . toRational

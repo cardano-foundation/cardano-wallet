@@ -27,6 +27,7 @@ import Data.Percentage
     , PercentageError (..)
     , fromRational
     , percentageToDouble
+    , toRational
     )
 import Data.Proxy
     ( Proxy (..)
@@ -127,11 +128,11 @@ spec = do
                 Left _  -> property False
                 Right _ -> property True
 
-    it "fromRational $ getPercentage maxBound succeeds" $ do
-        fromRational (getPercentage minBound) `shouldSatisfy` isRight
+    it "fromRational $ toRational maxBound succeeds" $ do
+        fromRational (toRational minBound) `shouldSatisfy` isRight
 
-    it "fromRational $ getPercentage minBound succeeds" $ do
-        fromRational (getPercentage minBound) `shouldSatisfy` isRight
+    it "fromRational $ toRational minBound succeeds" $ do
+        fromRational (toRational minBound) `shouldSatisfy` isRight
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

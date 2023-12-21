@@ -208,7 +208,9 @@ currentROS rp RewardInfoPool{..} x
   where
     s = Percentage.fromRationalClipped $
         ownerPledge `proportionTo` (totalStake rp)
-    sigma = getPercentage stakeRelative + (x `proportionTo` totalStake rp)
+    sigma
+        = Percentage.toRational stakeRelative
+        + (x `proportionTo` totalStake rp)
 
     astar
         | sigma == 0 = 0
@@ -255,14 +257,14 @@ nonMyopicMemberReward rp RewardInfoPool{..} isTop tcoin
     memberShare = t / sigma_nonmyopic
 
     sigma_nonmyopic
-        | isTop      = max (getPercentage sigma + t) (z0 rp)
-        | otherwise  = getPercentage s + t
+        | isTop = max (Percentage.toRational sigma + t) (z0 rp)
+        | otherwise = Percentage.toRational s + t
 
 -- | Compute share of 'Coin' after subtracting fixed cost and
 -- percentage margin.
 shareAfterFees :: Rational -> Coin -> Percentage -> Coin -> Coin
 shareAfterFees share cost margin x = case x `Coin.subtract` cost of
-    Just y  -> (share * (1 - getPercentage margin)) `fractionOf` y
+    Just y  -> (share * (1 - Percentage.toRational margin)) `fractionOf` y
     Nothing -> Coin 0
 
 -- | Optimal rewards for a stake pool
@@ -283,7 +285,7 @@ optimalRewards params s sigma = factor `fractionOf` r params
     z0_    = fromRational (z0 params)
     a0_    = fromRational (a0 params)
     sigma' = min (fromRational sigma) z0_
-    s'     = min (fromRational $ getPercentage s) z0_
+    s'     = min (fromRational $ Percentage.toRational s) z0_
 
 -- | The desirabilty of a pool is equal to the total
 -- member rewards at saturation
@@ -301,7 +303,7 @@ desirability rp RewardInfoPool{..}
 -- to the fully saturated stake.
 poolSaturation :: RewardParams -> RewardInfoPool -> Double
 poolSaturation rp RewardInfoPool{stakeRelative}
-    = fromRational (getPercentage stakeRelative) / fromRational (z0 rp)
+    = fromRational (Percentage.toRational stakeRelative) / fromRational (z0 rp)
 
 data PoolScore = PoolScore
     { _desirability :: Coin
@@ -383,12 +385,12 @@ redelegationWarning
 redelegationWarning timeOfDelegation (info,user) StakePoolsSummary{..} now
     | (sigma <= 0.6 * s && p < 0.85) || (sigma > 0.6 * s && p < 0.9)
         = TooFewBlocks
-    | getPercentage mr < getPercentage mrstar * w
+    | Percentage.toRational mr < Percentage.toRational mrstar * w
         = OtherPoolsBetter
     | otherwise
         = AllGood
   where
-    sigma = getPercentage $ stakeRelative info
+    sigma = Percentage.toRational $ stakeRelative info
     s = 1 / fromIntegral (nOpt rewardParams)
     p = performanceEstimate info
 

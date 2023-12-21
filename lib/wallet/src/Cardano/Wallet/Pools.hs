@@ -207,7 +207,7 @@ import Data.Ord
     ( Down (..)
     )
 import Data.Percentage
-    ( Percentage (..)
+    ( Percentage
     )
 import Data.Quantity
     ( Quantity (..)
@@ -299,6 +299,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
+import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 import qualified UnliftIO.STM as STM
 
@@ -575,7 +576,7 @@ combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
     -- calculate the saturation from the relative stake
-    sat s = fromRational $ getPercentage s / (1 / fromIntegral nOpt)
+    sat s = fromRational $ Percentage.toRational s / (1 / fromIntegral nOpt)
 
     -- If we fetch non-myopic member rewards of pools using the wallet
     -- balance of 0, the resulting map will be empty. So we set the rewards

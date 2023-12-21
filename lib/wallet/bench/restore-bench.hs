@@ -273,7 +273,7 @@ import Data.List
     ( foldl'
     )
 import Data.Percentage
-    ( Percentage (..)
+    ( Percentage
     )
 import Data.Proxy
     ( Proxy (..)

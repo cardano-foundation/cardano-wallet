@@ -76,7 +76,7 @@ import Data.Maybe
     ( fromMaybe
     )
 import Data.Percentage
-    ( Percentage (..)
+    ( Percentage
     )
 import Data.Proxy
     ( Proxy (..)
@@ -116,6 +116,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
+import qualified Data.Percentage as Percentage
 
 -- | Generates an arbitrary mnemonic of a size according to the type parameter.
 --
@@ -143,8 +144,8 @@ shrinkPercentage :: Percentage -> [Percentage]
 shrinkPercentage x = unsafeMkPercentage <$>
     ((% q) <$> shrink p) ++ (map (p %) . filter (/= 0) $ shrink q)
   where
-    p = numerator $ getPercentage x
-    q = denominator $ getPercentage x
+    p = numerator $ Percentage.toRational x
+    q = denominator $ Percentage.toRational x
 
 genLegacyAddress :: Maybe ProtocolMagic -> Gen Address
 genLegacyAddress pm = do
