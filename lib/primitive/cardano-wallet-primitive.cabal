@@ -283,6 +283,7 @@ test-suite test
     Cardano.Wallet.Primitive.Types.TokenQuantitySpec
     Cardano.Wallet.Primitive.Types.TxSpec
     Cardano.Wallet.Primitive.Types.UTxOSpec
+    Data.PercentageSpec
     Data.QuantitySpec
     Spec
     SpecHook
