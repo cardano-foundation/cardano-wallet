@@ -6,6 +6,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -fno-specialise #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use newtype instead of data" #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
@@ -25,6 +27,8 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorNodeNotYetInRecentEra (..)
+    , ApiErrorNotEnoughMoney (..)
+    , ApiErrorNotEnoughMoneyShortfall (..)
     )
     where
 
@@ -41,6 +45,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount
+    )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -152,6 +159,7 @@ data ApiErrorInfo
     | NotAcceptable
     | NotDelegatingTo
     | NotEnoughMoney
+        !ApiErrorNotEnoughMoney
     | NotFound
     | NotImplemented
     | NotSynced
@@ -255,4 +263,20 @@ data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
+    deriving anyclass NFData
+
+data ApiErrorNotEnoughMoney = ApiErrorNotEnoughMoney
+    { shortfall :: !ApiErrorNotEnoughMoneyShortfall
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNotEnoughMoney
+    deriving anyclass NFData
+
+data ApiErrorNotEnoughMoneyShortfall = ApiErrorNotEnoughMoneyShortfall
+    { ada :: !ApiAmount
+    , assets :: !ApiWalletAssets
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via
+        DefaultRecord ApiErrorNotEnoughMoneyShortfall
     deriving anyclass NFData

@@ -4460,10 +4460,31 @@ x-errNotEnoughMoney: &errNotEnoughMoney
   properties:
     message:
       type: string
-      description: May occur when there's not enough money in the wallet to cover a requested payment.
+      description: |
+        Indicates that there's not enough money in the wallet for the operation
+        to succeed.
+
+        The 'shortfall' object indicates the additional quantity of each asset
+        that would be needed in order for the operation to succeed.
     code:
       type: string
       enum: ['not_enough_money']
+    info:
+      type: object
+      required:
+        - shortfall
+      properties:
+        shortfall:
+          description: |
+            The additional quantity of each asset that would be needed in order
+            for the operation to succeed.
+          type: object
+          required:
+            - ada
+            - assets
+          properties:
+            ada: *amount
+            assets: *walletAssets
 
 x-errInsufficientCollateral: &errInsufficientCollateral
   <<: *responsesErr

@@ -98,6 +98,8 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
     , ApiErrorNodeNotYetInRecentEra (..)
+    , ApiErrorNotEnoughMoney (..)
+    , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
@@ -110,8 +112,8 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( Flat (..)
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle (TokenBundle)
     )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..)
@@ -200,6 +202,7 @@ import Servant.Server
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
@@ -539,12 +542,17 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
                 , "Please sign the transaction after it is balanced instead."
                 ]
         ErrBalanceTxAssetsInsufficient e ->
-            apiError err403 NotEnoughMoney $ mconcat
+            apiError err403 (NotEnoughMoney info) $ mconcat
                 [ "I can't process this payment as there are not "
-                , "enough funds available in the wallet. I am "
-                , "missing: "
-                , pretty . Flat . toWalletTokenBundle $ e ^. #shortfall
+                , "enough funds available in the wallet."
                 ]
+              where
+                info = ApiErrorNotEnoughMoney ApiErrorNotEnoughMoneyShortfall
+                    { ada = ApiAmount.fromCoin shortfallAda
+                    , assets = ApiWalletAssets.fromTokenMap shortfallAssets
+                    }
+                TokenBundle shortfallAda shortfallAssets =
+                    toWalletTokenBundle $ e ^. #shortfall
         ErrBalanceTxAssignRedeemers err -> toServerError err
         ErrBalanceTxConflictingNetworks ->
             apiError err403 BalanceTxConflictingNetworks $ T.unwords

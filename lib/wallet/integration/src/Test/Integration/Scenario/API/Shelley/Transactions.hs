@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -218,7 +219,6 @@ import Test.Integration.Framework.TestData
     , errMsg403AlreadyInLedger
     , errMsg403Fee
     , errMsg403MinUTxOValue
-    , errMsg403NotEnoughMoney
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -679,10 +679,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         payload <- mkTxPayload ctx wDest reqAmt fixturePassphrase
         r <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify r [expectResponseCode HTTP.status403]
+        decodeErrorInfo r `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
@@ -1420,10 +1420,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         payload <- mkTxPayload ctx wDest reqAmt fixturePassphrase
         r <- request @ApiFee ctx
             (Link.getTransactionFeeOld @'Shelley wSrc) Default payload
-        verify r
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify r [expectResponseCode HTTP.status403]
+        decodeErrorInfo r `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -2422,10 +2422,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             }|]
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wRewards) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
 
     it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee" $
         \ctx -> runResourceT $ do
@@ -2472,10 +2472,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- Try withdrawing when no not enough money
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransactionOld @'Shelley wSelf) Default payload
-        verify rTx
-            [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotEnoughMoney
-            ]
+        verify rTx [expectResponseCode HTTP.status403]
+        decodeErrorInfo rTx `shouldSatisfy` \case
+            NotEnoughMoney {} -> True
+            _someOtherError -> False
   where
     spec_createTransactionWithMetadata
         :: CreateTransactionWithMetadataTest

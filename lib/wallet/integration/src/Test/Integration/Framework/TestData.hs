@@ -50,7 +50,6 @@ module Test.Integration.Framework.TestData
     , errMsg403Collateral
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
-    , errMsg403NotEnoughMoney
     , errMsg403WrongPass
     , errMsg403WrongMnemonic
     , errMsg403AlreadyInLedger
@@ -377,11 +376,6 @@ errMsg403NotAnIcarusWallet :: String
 errMsg403NotAnIcarusWallet =
     "I cannot derive new address for this wallet type.\
     \ Make sure to use a sequential wallet style, like Icarus."
-
-errMsg403NotEnoughMoney :: String
-errMsg403NotEnoughMoney =
-    "I can't process this payment as there are not enough funds available in \
-    \the wallet."
 
 errMsg403TxTooBig :: String
 errMsg403TxTooBig =
