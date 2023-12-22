@@ -300,7 +300,7 @@ import Internal.Cardano.Write.Tx.Balance
     )
 import Internal.Cardano.Write.Tx.Sign
     ( KeyWitnessCounts (..)
-    , estimateKeyWitnessCount
+    , estimateKeyWitnessCounts
     , estimateSignedTxSize
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -943,7 +943,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     minFee tx u =
         Write.evaluateMinimumFee mockPParamsForBalancing
             tx
-            (estimateKeyWitnessCount u tx mempty)
+            (estimateKeyWitnessCounts u tx mempty)
 
 spec_distributeSurplus :: Spec
 spec_distributeSurplus = describe "distributeSurplus" $ do
@@ -1109,7 +1109,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -> IO ()
     test _name bs tx = do
         let pparams = mockPParamsForBalancing @era
-            witCount dummyAddr = estimateKeyWitnessCount
+            witCount dummyAddr = estimateKeyWitnessCounts
                 (utxoPromisingInputsHaveAddress dummyAddr tx)
                 tx
                 mempty
@@ -1513,7 +1513,7 @@ prop_balanceTransactionValid
     prop_validSize tx utxo = do
         let (W.TxSize size) =
                 estimateSignedTxSize ledgerPParams
-                    (estimateKeyWitnessCount
+                    (estimateKeyWitnessCounts
                         utxo
                         tx
                         (timelockKeyWitnessCounts partialTx))
@@ -1567,7 +1567,7 @@ prop_balanceTransactionValid
     minFee tx utxo =
         Write.evaluateMinimumFee ledgerPParams
             tx
-            (estimateKeyWitnessCount utxo tx
+            (estimateKeyWitnessCounts utxo tx
                 (timelockKeyWitnessCounts partialTx))
 
     txBalance

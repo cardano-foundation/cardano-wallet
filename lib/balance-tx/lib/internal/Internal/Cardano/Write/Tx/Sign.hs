@@ -21,7 +21,7 @@ module Internal.Cardano.Write.Tx.Sign
 
     , KeyWitnessCounts (..)
     , TimelockKeyWitnessCounts (..)
-    , estimateKeyWitnessCount
+    , estimateKeyWitnessCounts
 
     , estimateMaxWitnessRequiredPerInput
     , estimateMinWitnessRequiredPerInput
@@ -175,11 +175,11 @@ numberOfShelleyWitnesses n = KeyWitnessCounts n 0
 --
 -- NOTE: Similar to 'estimateTransactionKeyWitnessCount' from cardano-api, which
 -- we cannot use because it requires a 'TxBodyContent BuildTx era'.
-estimateKeyWitnessCount
+estimateKeyWitnessCounts
     :: forall era. IsRecentEra era
     => UTxO era
     -- ^ Must contain all inputs from the 'TxBody' or
-    -- 'estimateKeyWitnessCount will 'error'.
+    -- 'estimateKeyWitnessCounts will 'error'.
     -> Tx era
     -> TimelockKeyWitnessCounts
     -- ^ Specifying the intended number of timelock script key witnesses may
@@ -188,7 +188,7 @@ estimateKeyWitnessCount
     -- Timelock scripts without entries in this map will have their key witness
     -- counts estimated according to 'estimateMaxWitnessRequiredPerInput'.
     -> KeyWitnessCounts
-estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
+estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
     let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
             case CardanoApi.txInsCollateral txbodycontent of

@@ -252,7 +252,7 @@ import Internal.Cardano.Write.Tx.Redeemers
     )
 import Internal.Cardano.Write.Tx.Sign
     ( TimelockKeyWitnessCounts (..)
-    , estimateKeyWitnessCount
+    , estimateKeyWitnessCounts
     , estimateSignedTxSize
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -860,7 +860,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCounts)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount =
-                estimateKeyWitnessCount combinedUTxO tx timelockKeyWitnessCounts
+                estimateKeyWitnessCounts
+                    combinedUTxO
+                    tx
+                    timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
