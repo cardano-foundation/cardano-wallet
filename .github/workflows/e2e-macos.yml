@@ -5,13 +5,15 @@ on:
   - cron:  "0 3 * * *"
   workflow_dispatch:
     inputs:
-
       branch:
         description: 'Run tests against branch'
         default: 'rc-latest'
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
+      id:
+        description: 'run identifier'
+        required: false
 
 defaults:
   run:

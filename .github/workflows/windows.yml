@@ -3,7 +3,6 @@ name: Windows Unit Tests
 on:
   schedule:
   - cron:  "0 20 * * *"
-
   workflow_dispatch:
     inputs:
       branch:
@@ -21,6 +20,9 @@ on:
         description: 'Run tests against build number'
         required: false
         default: 'latest'
+      id:
+        description: 'run identifier'
+        required: false
 
 jobs:
   setup:

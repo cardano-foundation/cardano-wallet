@@ -11,6 +11,9 @@ on:
       tags:
         description: 'Test tags (all, light, offchain...)'
         default: 'all'
+      id:
+        description: 'run identifier'
+        required: false
 jobs:
   test:
 

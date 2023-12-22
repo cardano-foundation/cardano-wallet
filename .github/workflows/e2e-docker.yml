@@ -19,6 +19,9 @@ on:
       branch:
         description: 'Clone E2E tests from branch'
         default: 'rc-latest'
+      id:
+        description: 'run identifier'
+        required: false
 
 defaults:
   run:

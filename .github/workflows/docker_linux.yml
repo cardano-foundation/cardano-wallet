@@ -16,6 +16,9 @@ on:
         description: 'Branch to checkout'
         required: true
         default: 'rc-latest'
+      id:
+        description: 'run identifier'
+        required: false
 
 
 jobs:
