@@ -294,12 +294,12 @@ import UnliftIO.STM
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
+import qualified Data.Quantity as Quantity
 import qualified Data.Set as Set
 import qualified UnliftIO.STM as STM
 
@@ -551,14 +551,16 @@ combineDbAndLsqData ti nOpt lsqData =
                 { id = pid
                 , metrics =
                     StakePoolMetrics
-                        { nonMyopicMemberRewards = Coin.toQuantity prew
+                        { nonMyopicMemberRewards = Quantity.fromCoin prew
                         , relativeStake = Quantity pstk
                         , saturation = psat
                         , producedBlocks = (fmap fromIntegral . nProducedBlocks) dbData
                         }
                 , metadata = poolDbMetadata dbData
-                , cost = Coin.toQuantity $ poolCost $ registrationCert dbData
-                , pledge = Coin.toQuantity $ poolPledge $ registrationCert dbData
+                , cost = Quantity.fromCoin $
+                    poolCost $ registrationCert dbData
+                , pledge = Quantity.fromCoin $
+                    poolPledge $ registrationCert dbData
                 , margin = Quantity $ poolMargin $ registrationCert dbData
                 , retirement = retirementEpochInfo
                 , flags = [Delisted | delisted dbData]

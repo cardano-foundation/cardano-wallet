@@ -3,8 +3,6 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -23,7 +21,6 @@ module Cardano.Wallet.Primitive.Types.Coin
     , fromWord64
     , toInteger
     , toNatural
-    , toQuantity
     , toWord64Maybe
 
       -- * Conversions (Unsafe)
@@ -63,8 +60,7 @@ import Data.Hashable
     ( Hashable
     )
 import Data.IntCast
-    ( IsIntSubType
-    , intCast
+    ( intCast
     , intCastMaybe
     )
 import Data.List.NonEmpty
@@ -92,9 +88,6 @@ import Data.Monoid.Monus
     )
 import Data.Monoid.Null
     ( MonoidNull
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.Semigroup.Commutative
     ( Commutative
@@ -185,14 +178,6 @@ toInteger = intCast . unCoin
 --
 toNatural :: Coin -> Natural
 toNatural = unCoin
-
--- | Converts a 'Coin' to a 'Quantity'.
---
-toQuantity
-    :: (Integral i, IsIntSubType Natural i ~ 'True)
-    => Coin
-    -> Quantity "lovelace" i
-toQuantity (Coin c) = Quantity (intCast c)
 
 -- | Converts a 'Coin' to a 'Word64' value.
 --

@@ -4,10 +4,11 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -18,12 +19,16 @@
 -- bases depending on the context.
 
 module Data.Quantity
-    ( Quantity(..)
+    ( Quantity (..)
+    , fromCoin
     )
     where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (Coin)
+    )
 import Control.DeepSeq
     ( NFData
     )
@@ -44,6 +49,10 @@ import Data.Data
     )
 import Data.Hashable
     ( Hashable
+    )
+import Data.IntCast
+    ( IsIntSubType
+    , intCast
     )
 import Data.Proxy
     ( Proxy (..)
@@ -66,6 +75,9 @@ import GHC.TypeLits
     )
 import NoThunks.Class
     ( NoThunks (..)
+    )
+import Numeric.Natural
+    ( Natural
     )
 import Quiet
     ( Quiet (..)
@@ -140,3 +152,11 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
     build (Quantity a) = build a <> fmt " " <> build u
       where
         u = symbolVal (Proxy :: Proxy unit)
+
+-- | Constructs a 'Quantity` from a 'Coin'.
+--
+fromCoin
+    :: (Integral i, IsIntSubType Natural i ~ 'True)
+    => Coin
+    -> Quantity "lovelace" i
+fromCoin (Coin c) = Quantity (intCast c)
