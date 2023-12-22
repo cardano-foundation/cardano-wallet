@@ -20,3 +20,8 @@ steps:
     command: "./scripts/buildkite/run-GH-workflow.sh windows.yml $BUILDKITE_TAG"
     agents:
       system: x86_64-linux
+  - label: Run linux docker smoke test
+    key: linux-docker-smoke-test
+    command: "./scripts/buildkite/run-GH-workflow.sh docker_linux.yml $BUILDKITE_TAG"
+    agents:
+      system: x86_64-linux
