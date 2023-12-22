@@ -161,8 +161,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( AnyCardanoEra (..)
-    , CardanoBlock
+    ( CardanoBlock
     , NodeToClientVersionData
     , StandardCrypto
     , emptyGenesis
@@ -239,9 +238,6 @@ import Cardano.Wallet.Unsafe
     )
 import Control.Arrow
     ( first
-    )
-import Control.Exception
-    ( throwIO
     )
 import Control.Monad
     ( unless
@@ -325,9 +321,6 @@ import GHC.TypeLits
     , Nat
     , natVal
     )
-import Internal.Cardano.Write.Tx
-    ( AnyRecentEra (..)
-    )
 import Numeric
     ( fromRat
     , showFFloat
@@ -369,7 +362,6 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Sqlite
-import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -1133,19 +1125,6 @@ showPercentFromPermyriad =
 
 sTol :: SyncTolerance
 sTol = mkSyncTolerance 3600
-
-guardIsRecentEra :: AnyCardanoEra -> IO AnyRecentEra
-guardIsRecentEra (Cardano.AnyCardanoEra era) = case era of
-    Cardano.ConwayEra -> pure $ Write.AnyRecentEra Write.RecentEraConway
-    Cardano.BabbageEra -> pure $ Write.AnyRecentEra Write.RecentEraBabbage
-    Cardano.AlonzoEra -> invalidEra
-    Cardano.MaryEra -> invalidEra
-    Cardano.AllegraEra -> invalidEra
-    Cardano.ShelleyEra -> invalidEra
-    Cardano.ByronEra -> invalidEra
-    where
-    invalidEra = throwIO $ W.ExceptionWriteTxEra $ W.ErrNodeNotYetInRecentEra $
-        Cardano.AnyCardanoEra era
 
 withNonEmptyUTxO :: Wallet s -> Set Tx -> e -> IO a -> IO (Either e a)
 withNonEmptyUTxO wallet pendingTxs failure action
