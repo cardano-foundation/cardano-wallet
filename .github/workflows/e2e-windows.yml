@@ -21,6 +21,7 @@ jobs:
     steps:
       - name: ${{github.event.inputs.id}}
         run: echo run identifier ${{ inputs.id }}
+        working-directory: ./ 
   test:
 
     runs-on: windows-latest

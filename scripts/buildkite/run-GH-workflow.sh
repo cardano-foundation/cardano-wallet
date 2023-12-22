@@ -67,9 +67,13 @@ done
 echo "Run id is $INFO"
 
 status="null"
+# completed, action_required, cancelled, failure, neutral, skipped, stale, success, timed_out, in_progress, queued, requested, waiting, pending
 
 echo "Waiting for workflow run to complete..."
-until [ $status == "completed" ] || [ $status == "failure" ] || [ $status == "success" ]
+while [ $status == "waiting" ] || [ $status == "in_progress" ] \
+    || [ $status == "pending" ] || [ $status == "queued" ] \
+    || [ $status == "requested" ] || [ $status == "skipped" ] \
+    || [ $status == "null" ]
 
 do
     status=$(curl -s \
@@ -79,16 +83,13 @@ do
         "https://api.github.com/repos/$GH_USER/$REPO/actions/runs/$INFO" \
             | jq -r '.status'\
         )
-    sleep 10s
+    echo "$status"
+    sleep 30s
 done
 
 case $status in
     "completed")
         echo "Workflow completed"
-        ;;
-    "failure")
-        echo "Workflow failed"
-        exit 1
         ;;
     "success")
         echo "Workflow succeeded"

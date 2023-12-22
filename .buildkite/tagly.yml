@@ -25,3 +25,8 @@ steps:
     command: "./scripts/buildkite/run-GH-workflow.sh docker_linux.yml $BUILDKITE_TAG"
     agents:
       system: x86_64-linux
+  - label: Run docker E2E test
+    key: docker-e2e-test
+    command: "./scripts/buildkite/run-GH-workflow.sh e2e-docker.yml $BUILDKITE_TAG"
+    agents:
+      system: x86_64-linux
