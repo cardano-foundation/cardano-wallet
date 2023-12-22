@@ -19,7 +19,7 @@ module Internal.Cardano.Write.Tx.Sign
     -- * Signing-related utilities required for balancing
       estimateSignedTxSize
 
-    , KeyWitnessCount (..)
+    , KeyWitnessCounts (..)
     , TimelockKeyWitnessCounts (..)
     , estimateKeyWitnessCount
 
@@ -73,7 +73,7 @@ import Data.Set
     )
 import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
-    , KeyWitnessCount (..)
+    , KeyWitnessCounts (..)
     , PParams
     , Script
     , Tx
@@ -108,7 +108,7 @@ import qualified Internal.Cardano.Write.Tx as Write
 estimateSignedTxSize
     :: forall era. IsRecentEra era
     => PParams era
-    -> KeyWitnessCount
+    -> KeyWitnessCounts
     -> Tx era -- ^ existing wits in tx are ignored
     -> W.TxSize
 estimateSignedTxSize pparams nWits txWithWits =
@@ -150,7 +150,7 @@ estimateSignedTxSize pparams nWits txWithWits =
     coinQuotRem :: W.Coin -> W.Coin -> (Natural, Natural)
     coinQuotRem (W.Coin p) (W.Coin q) = quotRem p q
 
-    minfee :: KeyWitnessCount -> W.Coin
+    minfee :: KeyWitnessCounts -> W.Coin
     minfee witCount = Convert.toWalletCoin $ Write.evaluateMinimumFee
         pparams unsignedTx witCount
 
@@ -158,8 +158,8 @@ estimateSignedTxSize pparams nWits txWithWits =
     feePerByte = Convert.toWalletCoin $
         pparams ^. ppMinFeeAL
 
-numberOfShelleyWitnesses :: Word -> KeyWitnessCount
-numberOfShelleyWitnesses n = KeyWitnessCount n 0
+numberOfShelleyWitnesses :: Word -> KeyWitnessCounts
+numberOfShelleyWitnesses n = KeyWitnessCounts n 0
 
 -- | Estimates the required number of Shelley-era witnesses.
 --
@@ -187,7 +187,7 @@ estimateKeyWitnessCount
     --
     -- Timelock scripts without entries in this map will have their key witness
     -- counts estimated according to 'estimateMaxWitnessRequiredPerInput'.
-    -> KeyWitnessCount
+    -> KeyWitnessCounts
 estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
     let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
@@ -223,7 +223,7 @@ estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
             txUpdateProposal' +
             fromIntegral txCerts +
             fromIntegral timelockTotalWitCount
-        inputWits = KeyWitnessCount
+        inputWits = KeyWitnessCounts
             { nKeyWits = fromIntegral
                 . length
                 $ filter (not . hasBootstrapAddr utxo) vkInsUnique

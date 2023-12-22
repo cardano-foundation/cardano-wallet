@@ -45,7 +45,7 @@ module Internal.Cardano.Write.Tx
     , RecentEraConstraints
 
     -- ** Key witness counts
-    , KeyWitnessCount (..)
+    , KeyWitnessCounts (..)
 
     -- ** Helpers for cardano-api compatibility
     , cardanoEra
@@ -479,7 +479,7 @@ fromAnyCardanoEra = \case
 -- Key witness counts
 --------------------------------------------------------------------------------
 
-data KeyWitnessCount = KeyWitnessCount
+data KeyWitnessCounts = KeyWitnessCounts
     { nKeyWits :: !Word
     -- ^ "Normal" verification key witnesses introduced with the Shelley era.
 
@@ -487,12 +487,12 @@ data KeyWitnessCount = KeyWitnessCount
     -- ^ Bootstrap key witnesses, a.k.a Byron witnesses.
     } deriving (Eq, Show)
 
-instance Semigroup KeyWitnessCount where
-    KeyWitnessCount s1 b1 <> KeyWitnessCount s2 b2
-        = KeyWitnessCount (s1 + s2) (b1 + b2)
+instance Semigroup KeyWitnessCounts where
+    KeyWitnessCounts s1 b1 <> KeyWitnessCounts s2 b2
+        = KeyWitnessCounts (s1 + s2) (b1 + b2)
 
-instance Monoid KeyWitnessCount where
-    mempty = KeyWitnessCount 0 0
+instance Monoid KeyWitnessCounts where
+    mempty = KeyWitnessCounts 0 0
 
 --------------------------------------------------------------------------------
 -- TxIn
@@ -790,12 +790,12 @@ evaluateMinimumFee
     :: IsRecentEra era
     => PParams era
     -> Core.Tx era
-    -> KeyWitnessCount
+    -> KeyWitnessCounts
     -> Coin
 evaluateMinimumFee pp tx kwc =
     mainFee <> bootWitnessFee
   where
-    KeyWitnessCount {nKeyWits, nBootstrapWits} = kwc
+    KeyWitnessCounts {nKeyWits, nBootstrapWits} = kwc
 
     mainFee :: Coin
     mainFee = Shelley.evaluateTransactionFee pp tx nKeyWits

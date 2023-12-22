@@ -167,7 +167,7 @@ import Fmt
     , pretty
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..)
+    ( KeyWitnessCounts (..)
     )
 import Network.HTTP.Media
     ( renderHeader
@@ -619,7 +619,7 @@ instance
                 , pretty (toWalletCoin coin), "and cannot finish balancing."
                 ]
           where
-            KeyWitnessCount nWits nBootWits = keyWitnessCounts
+            KeyWitnessCounts nWits nBootWits = keyWitnessCounts
             info = ApiErrorBalanceTxUnderestimatedFee
                 { underestimation = ApiAmount.fromCoin $ toWalletCoin coin
                 , candidateTxHex = hexText $ Write.serializeTx @era candidateTx

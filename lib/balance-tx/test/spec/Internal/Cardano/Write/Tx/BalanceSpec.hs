@@ -299,7 +299,7 @@ import Internal.Cardano.Write.Tx.Balance
     , updateTx
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..)
+    ( KeyWitnessCounts (..)
     , estimateKeyWitnessCount
     , estimateSignedTxSize
     )
@@ -525,7 +525,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 $ Write.evaluateMinimumFee
                     pp
                     (withNoKeyWits tx)
-                    (KeyWitnessCount 0 (fromIntegral $ length wits))
+                    (KeyWitnessCounts 0 (fromIntegral $ length wits))
               where
                 wits = tx ^. witsTxL . bootAddrTxWitsL
 
