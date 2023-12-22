@@ -488,7 +488,7 @@ data KeyWitnessCount = KeyWitnessCount
     } deriving (Eq, Show)
 
 instance Semigroup KeyWitnessCount where
-    (KeyWitnessCount s1 b1) <> (KeyWitnessCount s2 b2)
+    KeyWitnessCount s1 b1 <> KeyWitnessCount s2 b2
         = KeyWitnessCount (s1 + s2) (b1 + b2)
 
 instance Monoid KeyWitnessCount where
