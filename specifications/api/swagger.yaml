@@ -4461,8 +4461,11 @@ x-errNotEnoughMoney: &errNotEnoughMoney
     message:
       type: string
       description: |
-        Indicates that there's not enough money in the wallet to cover a
-        requested payment.
+        Indicates that there's not enough money in the wallet for the operation
+        to succeed.
+
+        The 'shortfall' object indicates the additional quantity of each asset
+        that would be needed in order for the operation to succeed.
     code:
       type: string
       enum: ['not_enough_money']
@@ -4472,6 +4475,9 @@ x-errNotEnoughMoney: &errNotEnoughMoney
         - shortfall
       properties:
         shortfall:
+          description: |
+            The additional quantity of each asset that would be needed in order
+            for the operation to succeed.
           type: object
           required:
             - ada
