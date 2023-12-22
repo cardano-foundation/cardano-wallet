@@ -1161,8 +1161,32 @@ instance FromJSON SchemaApiErrorInfo where
     parseJSON = withObject "SchemaApiErrorInfo" $ \o -> do
         let constructors :: [String] =
                 showConstr <$> dataTypeConstrs (dataTypeOf NoSuchWallet)
+        let exclusions =
+                [ "AddressAlreadyExists"
+                , "BalanceTxUnderestimatedFee"
+                , "CreatedInvalidTransaction"
+                , "ExistingKeyWitnesses"
+                , "HardenedDerivationRequired"
+                , "KeyNotFoundForAddress"
+                , "MalformedTxPayload"
+                , "MethodNotAllowed"
+                , "NetworkMisconfigured"
+                , "NetworkQueryFailed"
+                , "NetworkUnreachable"
+                , "NotFound"
+                , "NotImplemented"
+                , "NotSynced"
+                , "PastHorizon"
+                , "SoftDerivationRequired"
+                , "TokensMintedButNotSpentOrBurned"
+                , "UnableToAssignInputOutput"
+                , "UnableToDetermineCurrentEpoch"
+                , "UnexpectedError"
+                , "WalletNotResponding"
+                , "WithdrawalNotBeneficial"
+                ]
         vals :: [Either String Yaml.Value] <-
-            forM constructors $ \c ->
+            forM (filter (not . (`elem` exclusions)) constructors) $ \c ->
                 maybe (Left c) Right <$> o .:? Aeson.fromString (toSchemaName c)
         case lefts vals of
             [] -> pure SchemaApiErrorInfo
