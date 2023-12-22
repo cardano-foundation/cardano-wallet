@@ -15,6 +15,12 @@ on:
         description: 'run identifier'
         required: false
 jobs:
+  id:
+    name: Workflow ID Provider
+    runs-on: ubuntu-latest
+    steps:
+      - name: ${{github.event.inputs.id}}
+        run: echo run identifier ${{ inputs.id }}
   test:
 
     runs-on: windows-latest
@@ -60,7 +66,6 @@ jobs:
         choco install unzip
         choco install nssm
         choco install archiver
-
 
     - name: 🕒 Get Date/Time
       working-directory: C:/cardano-wallet/test/e2e

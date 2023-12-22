@@ -25,6 +25,12 @@ on:
         required: false
 
 jobs:
+  id:
+    name: Workflow ID Provider
+    runs-on: ubuntu-latest
+    steps:
+      - name: ${{github.event.inputs.id}}
+        run: echo run identifier ${{ inputs.id }}
   setup:
     env:
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
@@ -33,6 +39,7 @@ jobs:
     runs-on: windows-2022
     name: Download testing bundle
     steps:
+
       - uses: actions/checkout@v3.2.0
         with:
             ref: ${{ env.BRANCH }}

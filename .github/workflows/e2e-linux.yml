@@ -20,6 +20,12 @@ defaults:
     working-directory: ./test/e2e
 
 jobs:
+  id:
+    name: Workflow ID Provider
+    runs-on: ubuntu-latest
+    steps:
+      - name: ${{github.event.inputs.id}}
+        run: echo run identifier ${{ inputs.id }}
   test:
     runs-on: ubuntu-latest
 
