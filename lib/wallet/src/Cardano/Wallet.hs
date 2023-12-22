@@ -2377,6 +2377,7 @@ buildTransactionPure
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , inputs = Write.UTxO mempty
                 , redeemers = []
+                , timelockKeyWitnessCounts = mempty
                 }
 
 -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
@@ -3014,6 +3015,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , inputs = Write.UTxO mempty
                 , redeemers = []
+                , timelockKeyWitnessCounts = mempty
                 }
 
         wrapErrBalanceTx $ calculateFeePercentiles $ do

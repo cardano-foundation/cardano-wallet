@@ -817,6 +817,9 @@ import Internal.Cardano.Write.Tx.Balance
     ( Redeemer (..)
     , UTxOAssumptions (..)
     )
+import Internal.Cardano.Write.Tx.Sign
+    ( TimelockKeyWitnessCounts
+    )
 import Network.Ntp
     ( NtpClient
     , getNtpStatus
@@ -2867,11 +2870,30 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
+        -- We need to assume that mint/burn scripts in reference inputs require
+        -- 1 key witness each, and we need to tell 'balanceTransaction' about
+        -- this assumption.
+        let timelockKeyWitCountsForMintBurn
+                :: ApiMintBurnData n -> Write.TimelockKeyWitnessCounts
+            timelockKeyWitCountsForMintBurn mb = case mb ^. #mintBurnData of
+                Left ApiMintBurnDataFromScript{} -> mempty
+                Right (ApiMintBurnDataFromInput _ (ApiT policyId) _ _) ->
+                    let
+                        Write.PolicyId policyId' =
+                            Convert.toLedgerTokenPolicyId policyId
+                    in
+                        Write.TimelockKeyWitnessCounts
+                            $ Map.singleton policyId' 1
+        let mintBurnTimelockKeyWitCounts =
+                foldMap timelockKeyWitCountsForMintBurn
+                $ maybe [] NE.toList mintBurnDatum
+
         balancedTx <-
             balanceTransaction
                 api
                 argGenChange
                 (utxoAssumptionsForWallet (walletFlavor @s))
+                mintBurnTimelockKeyWitCounts
                 apiWalletId
                 ApiBalanceTransactionPostData
                     { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
@@ -3295,6 +3317,7 @@ constructSharedTransaction
                         (Shared.paymentTemplate (getState cp))
                         (scriptLookup . Convert.toWalletAddress)
                     )
+                    mempty
                     (ApiT wid)
                         ApiBalanceTransactionPostData
                         { transaction =
@@ -3461,11 +3484,18 @@ balanceTransaction
     => ApiLayer s
     -> ArgGenChange s
     -> UTxOAssumptions
+    -> TimelockKeyWitnessCounts
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
 balanceTransaction
-    ctx@ApiLayer{..} argGenChange utxoAssumptions (ApiT wid) body = do
+    ctx@ApiLayer{..}
+    argGenChange
+    utxoAssumptions
+    timelockKeyWitnessCounts
+    (ApiT wid)
+    body
+    = do
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -3520,6 +3550,7 @@ balanceTransaction
             (Write.fromCardanoApiTx tx)
             externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
+            timelockKeyWitnessCounts
 
 decodeTransaction
     :: forall s n

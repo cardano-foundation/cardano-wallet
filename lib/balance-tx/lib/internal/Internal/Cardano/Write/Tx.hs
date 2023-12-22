@@ -1,11 +1,13 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -122,6 +124,7 @@ module Internal.Cardano.Write.Tx
     -- ** Script
     , Script
     , Alonzo.isPlutusScript
+    , ScriptHash
 
     -- * TxIn
     , TxIn
@@ -132,7 +135,8 @@ module Internal.Cardano.Write.Tx
     , utxoFromTxOutsInRecentEra
 
     -- * Policy and asset identifiers
-    , PolicyId
+    , type PolicyId
+    , pattern PolicyId
     , AssetName
 
     -- * Balancing
@@ -190,7 +194,6 @@ import Cardano.Ledger.Mary
     )
 import Cardano.Ledger.Mary.Value
     ( AssetName
-    , PolicyID
     )
 import Cardano.Ledger.SafeHash
     ( SafeHash
@@ -264,6 +267,7 @@ import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Keys as Ledger
+import qualified Cardano.Ledger.Mary.Value as Value
 import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
@@ -518,6 +522,7 @@ type Address = Ledger.Addr StandardCrypto
 
 type RewardAccount = Ledger.RewardAcnt StandardCrypto
 type Script = AlonzoScript
+type ScriptHash = Core.ScriptHash StandardCrypto
 type Value = MaryValue StandardCrypto
 
 unsafeAddressFromBytes :: ByteString -> Address
@@ -854,4 +859,10 @@ evaluateTransactionBalance pp utxo =
 -- Policy and asset identifiers
 --------------------------------------------------------------------------------
 
-type PolicyId = PolicyID StandardCrypto
+type PolicyId = Value.PolicyID StandardCrypto
+
+{-# COMPLETE PolicyId #-}
+pattern PolicyId
+    :: Core.ScriptHash StandardCrypto
+    -> Value.PolicyID StandardCrypto
+pattern PolicyId h = Value.PolicyID h

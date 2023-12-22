@@ -398,7 +398,10 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> postTransactionOld shelley (delegationAddressS @n)
         :<|> postTransactionFeeOld shelley
         :<|> balanceTransaction
-            shelley (delegationAddressS @n) (utxoAssumptionsForWallet ShelleyWallet)
+            shelley
+            (delegationAddressS @n)
+            (utxoAssumptionsForWallet ShelleyWallet)
+            mempty
         :<|> decodeTransaction shelley
         :<|> submitTransaction @_ @_ @_ @n shelley
 

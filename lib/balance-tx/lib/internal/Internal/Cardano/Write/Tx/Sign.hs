@@ -1,6 +1,9 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -17,6 +20,7 @@ module Internal.Cardano.Write.Tx.Sign
       estimateSignedTxSize
 
     , KeyWitnessCount (..)
+    , TimelockKeyWitnessCounts (..)
     , estimateKeyWitnessCount
 
     , estimateMaxWitnessRequiredPerInput
@@ -26,12 +30,19 @@ module Internal.Cardano.Write.Tx.Sign
 
 import Prelude
 
+import Cardano.Ledger.Allegra.Scripts
+    ( Timelock
+    )
 import Cardano.Ledger.Api
     ( Addr (..)
+    , ScriptHash
+    , StandardCrypto
     , addrTxOutL
     , addrTxWitsL
+    , bodyTxL
     , bootAddrTxWitsL
     , ppMinFeeAL
+    , scriptTxWitsL
     , sizeTxF
     , witsTxL
     )
@@ -39,7 +50,8 @@ import Cardano.Ledger.Credential
     ( Credential (..)
     )
 import Cardano.Ledger.UTxO
-    ( txinLookup
+    ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
+    , txinLookup
     )
 import Control.Lens
     ( view
@@ -47,17 +59,23 @@ import Control.Lens
     , (.~)
     , (^.)
     )
+import Data.Map.Strict
+    ( Map
+    )
 import Data.Maybe
     ( mapMaybe
     )
 import Data.Monoid.Monus
     ( Monus ((<\>))
     )
+import Data.Set
+    ( Set
+    )
 import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
     , KeyWitnessCount (..)
     , PParams
-    , RecentEra (..)
+    , Script
     , Tx
     , TxIn
     , UTxO
@@ -69,7 +87,6 @@ import Numeric.Natural
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
@@ -164,8 +181,14 @@ estimateKeyWitnessCount
     -- ^ Must contain all inputs from the 'TxBody' or
     -- 'estimateKeyWitnessCount will 'error'.
     -> Tx era
+    -> TimelockKeyWitnessCounts
+    -- ^ Specifying the intended number of timelock script key witnesses may
+    -- save space and fees when constructing a transaction.
+    --
+    -- Timelock scripts without entries in this map will have their key witness
+    -- counts estimated according to 'estimateMaxWitnessRequiredPerInput'.
     -> KeyWitnessCount
-estimateKeyWitnessCount utxo tx =
+estimateKeyWitnessCount utxo tx timelockKeyWitCounts =
     let txIns = map fst $ CardanoApi.txIns txbodycontent
         txInsCollateral =
             case CardanoApi.txInsCollateral txbodycontent of
@@ -193,28 +216,13 @@ estimateKeyWitnessCount utxo tx =
             CardanoApi.TxCertificatesNone -> 0
             CardanoApi.TxCertificates _ certs _ ->
                 sumVia estimateDelegSigningKeys certs
-        scriptVkWitsUpperBound =
-            fromIntegral
-            $ sumVia estimateMaxWitnessRequiredPerInput
-            $ mapMaybe toTimelockScript scripts
-        -- when wallets uses reference input it means script containing its
-        -- policy key was already published in previous tx if so we need to add
-        -- one witness that will stem from policy signing key. As it is not
-        -- allowed to publish and consume in the same transaction we are not
-        -- going to double count.
-        txRefInpsWit = case CardanoApi.txInsReference txbodycontent of
-            CardanoApi.TxInsReferenceNone -> 0
-            CardanoApi.TxInsReference{} ->
-                case CardanoApi.txMintValue txbodycontent of
-                    CardanoApi.TxMintNone -> 0
-                    CardanoApi.TxMintValue{} -> 1
+
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
             length txWithdrawals' +
             txUpdateProposal' +
             fromIntegral txCerts +
-            scriptVkWitsUpperBound +
-            txRefInpsWit
+            fromIntegral timelockTotalWitCount
         inputWits = KeyWitnessCount
             { nKeyWits = fromIntegral
                 . length
@@ -226,16 +234,45 @@ estimateKeyWitnessCount utxo tx =
         in
             nonInputWits <> inputWits
   where
-    CardanoApi.Tx txbody@(CardanoApi.TxBody txbodycontent) _keyWits
+    CardanoApi.Tx (CardanoApi.TxBody txbodycontent) _keyWits
         = toCardanoApiTx tx
 
-    scripts = case txbody of
-        CardanoApi.ShelleyTxBody _ _ shelleyBodyScripts _ _ _ ->
-            shelleyBodyScripts
-        CardanoApi.ByronTxBody {} ->
-            error "estimateKeyWitnessCount: ByronTxBody"
+    timelockTotalWitCount :: Natural
+    timelockTotalWitCount = sum $ Map.elems $ Map.unionWith
+        (\_est spec -> spec) -- Allow specified values to override
+        upperBoundEstimatedTimelockKeyWitnessCounts
+        specifiedTimelockKeyWitnessCounts
+      where
+        specifiedTimelockKeyWitnessCounts
+            :: Map (ScriptHash StandardCrypto) Natural
+        specifiedTimelockKeyWitnessCounts = Map.fromList $ mapMaybe resolve
+            $ F.toList scriptsNeeded
+          where
+            resolve
+                :: (ScriptHash StandardCrypto)
+                -> Maybe (ScriptHash StandardCrypto, Natural)
+            resolve h = (h,) <$> Map.lookup h
+                (getTimelockKeyWitnessCounts timelockKeyWitCounts)
 
-    dummyKeyRole = CA.Payment
+        upperBoundEstimatedTimelockKeyWitnessCounts
+            :: Map (ScriptHash StandardCrypto) Natural
+        upperBoundEstimatedTimelockKeyWitnessCounts = Map.mapMaybe
+            (fmap (estimateMaxWitnessRequiredPerInput . toCAScript)
+                . toTimelockScript)
+            -- TODO [ADP-2675] https://cardanofoundation.atlassian.net/browse/ADP-2675
+            -- Use `txscripts` restricted by `scriptsNeeded` instead. This would
+            -- 1. take referenced scripts into account
+            -- 2. ignore all non-needed scripts
+            scriptsAvailableInBody
+
+        scriptsNeeded :: Set (ScriptHash StandardCrypto)
+        scriptsNeeded =
+            getScriptsHashesNeeded
+            $ getScriptsNeeded utxo
+            $ view bodyTxL tx
+
+        scriptsAvailableInBody :: Map (ScriptHash StandardCrypto) (Script era)
+        scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
     estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
     estimateDelegSigningKeys = \case
@@ -251,20 +288,16 @@ estimateKeyWitnessCount utxo tx =
         estimateWitNumForCred = \case
             CardanoApi.StakeCredentialByKey _ -> 1
             CardanoApi.StakeCredentialByScript _ -> 0
+
+    toCAScript = Convert.toWalletScript (const dummyKeyRole)
+      where
+        dummyKeyRole = CA.Payment
+
     toTimelockScript
         :: Ledger.Script era
-        -> Maybe (CA.Script CA.KeyHash)
-    toTimelockScript anyScript = case recentEra @era of
-        RecentEraConway ->
-            case anyScript of
-                Alonzo.TimelockScript timelock ->
-                    Just $ Convert.toWalletScript (const dummyKeyRole) timelock
-                Alonzo.PlutusScript _ _ -> Nothing
-        RecentEraBabbage ->
-            case anyScript of
-                Alonzo.TimelockScript timelock ->
-                    Just $ Convert.toWalletScript (const dummyKeyRole) timelock
-                Alonzo.PlutusScript _ _ -> Nothing
+        -> Maybe (Timelock era)
+    toTimelockScript (Alonzo.TimelockScript timelock) = Just timelock
+    toTimelockScript (Alonzo.PlutusScript _ _)        = Nothing
 
     hasScriptCred
         :: UTxO era
@@ -294,6 +327,20 @@ estimateKeyWitnessCount utxo tx =
                     [ "estimateMaxWitnessRequiredPerInput: input not in utxo."
                     , "Caller is expected to ensure this does not happen."
                     ]
+
+-- | Used to specify the intended number of timelock script key witnesses.
+--
+-- The 'Semigroup' instance resolves conflicts using 'max'.
+newtype TimelockKeyWitnessCounts = TimelockKeyWitnessCounts
+    { getTimelockKeyWitnessCounts
+        :: Map (ScriptHash StandardCrypto) Natural
+    }
+    deriving (Show, Eq)
+    deriving newtype (Monoid)
+
+instance Semigroup TimelockKeyWitnessCounts where
+    (TimelockKeyWitnessCounts a) <> (TimelockKeyWitnessCounts b)
+        = TimelockKeyWitnessCounts (Map.unionWith max a b)
 
 --------------------------------------------------------------------------------
 -- Helpers
