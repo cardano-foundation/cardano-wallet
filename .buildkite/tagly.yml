@@ -7,11 +7,16 @@ env:
   TMPDIR: "/cache"
 
 steps:
-  - label: 'Build Docker Image (linux)'
-    key: build-docker
-    command:
-      - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
-      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
-      - "./docker-build-push"
+  # - label: 'Build Docker Image (linux)'
+  #   key: build-docker
+  #   command:
+  #     - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+  #     - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+  #     - "./docker-build-push"
+  #   agents:
+  #     system: x86_64-linux
+  - label: Run windows tests
+    key: windows-tests
+    command: "./scripts/buildkite/run-GH-workflow.sh windows.yml $BUILDKITE_TAG"
     agents:
       system: x86_64-linux
