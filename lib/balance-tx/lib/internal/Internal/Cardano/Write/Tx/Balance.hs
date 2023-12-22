@@ -207,7 +207,7 @@ import Internal.Cardano.Write.Tx
     , Coin (..)
     , FeePerByte (..)
     , IsRecentEra (..)
-    , KeyWitnessCount (..)
+    , KeyWitnessCounts (..)
     , PParams
     , PolicyId
     , RecentEra (..)
@@ -252,7 +252,7 @@ import Internal.Cardano.Write.Tx.Redeemers
     )
 import Internal.Cardano.Write.Tx.Sign
     ( TimelockKeyWitnessCounts (..)
-    , estimateKeyWitnessCount
+    , estimateKeyWitnessCounts
     , estimateSignedTxSize
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -385,7 +385,7 @@ data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxInternalError era
-    = ErrUnderestimatedFee Coin (Tx era) KeyWitnessCount
+    = ErrUnderestimatedFee Coin (Tx era) KeyWitnessCounts
     | ErrFailedBalancing Value
 
 deriving instance IsRecentEra era => Eq (ErrBalanceTxInternalError era)
@@ -830,7 +830,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
-        :: KeyWitnessCount
+        :: KeyWitnessCounts
         -> Tx era
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     guardTxSize witCount tx = do
@@ -857,10 +857,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     balanceAfterSettingMinFee
         :: Tx era
-        -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCount)
+        -> ExceptT (ErrBalanceTx era) m (Value, Coin, KeyWitnessCounts)
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount =
-                estimateKeyWitnessCount combinedUTxO tx timelockKeyWitnessCounts
+                estimateKeyWitnessCounts
+                    combinedUTxO
+                    tx
+                    timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update

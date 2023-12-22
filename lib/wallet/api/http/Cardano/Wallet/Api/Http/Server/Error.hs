@@ -167,7 +167,7 @@ import Fmt
     , pretty
     )
 import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCount (..)
+    ( KeyWitnessCounts (..)
     )
 import Network.HTTP.Media
     ( renderHeader
@@ -613,13 +613,13 @@ instance
     Write.IsRecentEra era => IsServerError (ErrBalanceTxInternalError era)
   where
     toServerError = \case
-        ErrUnderestimatedFee coin candidateTx (KeyWitnessCount nWits nBootWits) ->
+        ErrUnderestimatedFee coin candidateTx keyWitnessCounts ->
             apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
                 [ "I have somehow underestimated the fee of the transaction by"
                 , pretty (toWalletCoin coin), "and cannot finish balancing."
                 ]
-
           where
+            KeyWitnessCounts nWits nBootWits = keyWitnessCounts
             info = ApiErrorBalanceTxUnderestimatedFee
                 { underestimation = ApiAmount.fromCoin $ toWalletCoin coin
                 , candidateTxHex = hexText $ Write.serializeTx @era candidateTx
