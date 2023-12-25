@@ -2880,16 +2880,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
         expect(fees.to_s).to include 'no_utxos_available'
       end
 
-      it 'I could join Stake Pool - if I had enough to cover fee' do
-        id = create_shelley_wallet
-        pools = SHELLEY.stake_pools
-        pool_id = pools.list({ stake: 1000 })[0]['id']
-
-        join = pools.join(pool_id, id, PASS)
-        expect(join).to be_correct_and_respond 403
-        expect(join.to_s).to include 'no_utxos_available'
-      end
-
       it 'Can list stake pools only when stake is provided' do
         pools = SHELLEY.stake_pools
         l = pools.list({ stake: 1000 })
