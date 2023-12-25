@@ -125,7 +125,7 @@ One can run specific tests using by providing `SPEC` or `SPEC_OPTS` arguments to
  ```
   - run only `non-e2e` tests on downloaded binaries and don't wait for node to be synced
  ```ruby
- $ rake run_on[preprod,bins,no-sync] SPEC_OPTS="-t ~e2e"
+ $ rake run_on[preprod,no-sync] SPEC_OPTS="-t ~e2e"
  ```
   - run only tests matching specific string
  ```ruby

@@ -367,30 +367,34 @@ end
 ##
 # Setup utility task getting node and wallet binaries, configs and decoding fixtures
 # so it is ready to start
-task :setup, [:env, :branch, :skip_configs] do |_task, args|
+task :setup, [:env, :branch, :skip_bins, :skip_configs] do |_task, args|
   log '>> Getting latest binaries and configs and decoding fixtures...'
   env = args[:env]
   branch = args[:branch] || 'master'
-  skip_configs = args[:skip_configs] || nil
 
-  if BINS == ''
+  if args[:skip_bins]
     log '>> Skipping getting latest binaries. Will test wallet and node from $PATH.'
   else
     Rake::Task[:get_latest_bins].invoke(branch)
   end
-  Rake::Task[:get_latest_configs].invoke(env) unless skip_configs
+
+  if args[:skip_configs]
+    log '>> Skipping getting latest configs.'
+  else
+    Rake::Task[:get_latest_configs].invoke(env)
+  end
+
   Rake::Task[:secrets_decode].invoke
 end
 
-task :run_on, [:env, :sync_strategy, :skip_configs, :branch] do |_task, args|
+task :run_on, [:env, :sync_strategy, :skip_bins, :skip_configs, :branch] do |_task, args|
   log '>> Setting up env and running tests...'
   log "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
-  skip_configs = args[:skip_configs]
   sync_strategy = args[:sync_strategy] || :sync
   branch = args[:branch] || nil
 
-  Rake::Task[:setup].invoke(env, branch, skip_configs)
+  Rake::Task[:setup].invoke(env, branch, args[:skip_bins], args[:skip_configs])
   Rake::Task[:display_versions].invoke
   Rake::Task[:start_node_and_wallet].invoke(env)
 
