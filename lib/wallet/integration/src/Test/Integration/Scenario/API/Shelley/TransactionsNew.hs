@@ -276,6 +276,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , eventually
+    , expectErrorInfo
     , expectErrorMessage
     , expectField
     , expectListField
@@ -917,18 +918,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             NotEnoughMoney {} -> True
             _someOtherError -> False
 
-    it "TRANS_NEW_CREATE_04d - Not enough money emptyWallet" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_CREATE_04d - No UTxOs available" $ \ctx -> runResourceT $ do
         wa <- emptyWallet ctx
         wb <- emptyWallet ctx
 
         payload <- liftIO $ mkTxPayload ctx wb (minUTxOValue (_mainEra ctx)) 1
 
-        rTx <- request @(ApiConstructTransaction n) ctx
+        request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
-        verify rTx [expectResponseCode HTTP.status403]
-        decodeErrorInfo rTx `shouldSatisfy` \case
-            NotEnoughMoney {} -> True
-            _someOtherError -> False
+            >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorInfo (`shouldBe` NoUtxosAvailable)
+            ]
 
     it "TRANS_NEW_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -2368,12 +2369,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
         wa <- emptyWallet ctx
         let balancePayload = Json PlutusScenario.pingPong_1
-        rTx <- request @ApiSerialisedTransaction ctx
-            (Link.balanceTransaction @'Shelley wa) Default balancePayload
-        verify rTx [expectResponseCode HTTP.status403]
-        decodeErrorInfo rTx `shouldSatisfy` \case
-            NotEnoughMoney {} -> True
-            _someOtherError -> False
+        request @ApiSerialisedTransaction
+            ctx (Link.balanceTransaction @'Shelley wa) Default balancePayload
+            >>= flip verify
+            [ expectResponseCode HTTP.status403
+            , expectErrorInfo (`shouldBe` NoUtxosAvailable)
+            ]
 
     it "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
         \ctx -> runResourceT $ do
