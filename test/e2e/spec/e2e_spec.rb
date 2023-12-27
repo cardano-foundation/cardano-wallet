@@ -2077,8 +2077,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                         burn)
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['info']['shortfall'].to_s).to include "assetName: #{asset_name('AmazingNFTIdontHave')}"
-        expect(tx_constructed['info']['shortfall'].to_s).to include 'quantity: 1'
+        shortfall = tx_constructed['info']['shortfall']['assets'][0]
+        expect(shortfall['asset_name']).to eq asset_name('AmazingNFTIdontHave')
+        expect(shortfall['quantity']).to eq 1
       end
 
       ##
@@ -2115,8 +2116,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['info']['shortfall'].to_s).to include "assetName: #{asset_name('MintIt')}"
-        expect(tx_constructed['info']['shortfall'].to_s).to include 'quantity: 1000'
+        shortfall = tx_constructed['info']['shortfall']['assets'][0]
+        expect(shortfall['asset_name']).to eq asset_name('MintIt')
+        expect(shortfall['quantity']).to eq 1000
 
         #  - correct policy_script but too much
         burn2 = [burn(asset_name('MintIt'), 1022, policy_script)]
@@ -2129,8 +2131,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['info']['shortfall'].to_s).to include "assetName: #{asset_name('MintIt')}"
-        expect(tx_constructed['info']['shortfall'].to_s).to include 'quantity: 22'
+        shortfall = tx_constructed['info']['shortfall']['assets'][0]
+        expect(shortfall['asset_name']).to eq asset_name('MintIt')
+        expect(shortfall['quantity']).to eq 22
 
         # Burn it:
         burn3 = [burn(asset_name('MintIt'), 1000, policy_script)]
@@ -2200,8 +2203,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                         burn)
         expect(tx_constructed).to be_correct_and_respond 403
         expect(tx_constructed['code'].to_s).to eq 'not_enough_money'
-        expect(tx_constructed['info']['shortfall'].to_s).to include "assetName: #{assets_name}"
-        expect(tx_constructed['info']['shortfall'].to_s).to include "quantity: #{assets_quantity}"
+        shortfall = tx_constructed['info']['shortfall']['assets'][0]
+        expect(shortfall['asset_name']).to eq assets_name
+        expect(shortfall['quantity']).to eq assets_quantity
 
         # Send them back to src wallet:
         src_address = SHELLEY.addresses.list(@wid).first['id']
@@ -2274,8 +2278,6 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
                                                             mint)
             expect(tx_constructed).to be_correct_and_respond code
             expect(tx_constructed['code'].to_s).to eq message
-            # expect(tx_constructed['info']['shortfall'].to_s).to include "assetName: #{asset_name('AmazingNFTIdontHave')}"
-            # expect(tx_constructed['info']['shortfall'].to_s).to include "quantity: 1"
           end
 
           it "Cannot burn #{quantity} assets" do
