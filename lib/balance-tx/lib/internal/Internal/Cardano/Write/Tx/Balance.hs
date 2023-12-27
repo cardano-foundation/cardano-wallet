@@ -688,14 +688,19 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     )
 
         externalSelectedUtxo <- extractExternallySelectedUTxO ptx
+        let utxoSelection =
+                UTxOSelection.fromIndexPair
+                    (internalUtxoAvailable, externalSelectedUtxo)
+
+        when (UTxOSelection.availableSize utxoSelection == 0) $
+            throwE ErrBalanceTxUnableToCreateInput
 
         let mSel = selectAssets
                 pp
                 utxoAssumptions
                 (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
                 redeemers
-                (UTxOSelection.fromIndexPair
-                    (internalUtxoAvailable, externalSelectedUtxo))
+                utxoSelection
                 balance0
                 (Convert.toWalletCoin minfee0)
                 randomSeed

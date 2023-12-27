@@ -159,6 +159,7 @@ import Test.Integration.Framework.DSL
     , emptyWallet
     , eventually
     , eventuallyUsingDelay
+    , expectErrorInfo
     , expectErrorMessage
     , expectField
     , expectListField
@@ -533,6 +534,16 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         r <- joinStakePool @n ctx (SpecificPool retiredPoolId) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoSuchPool (toText retiredPoolId)) r
+
+    it "STAKE_POOLS_JOIN_EMPTY - Empty wallet cannot join a pool" $ \ctx ->
+        runResourceT $ do
+            w <- emptyWallet ctx
+            pool : _  <- map (view #id) <$> notRetiringPools ctx
+            r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+            verify r
+                [ expectResponseCode HTTP.status403
+                , expectErrorInfo (`shouldBe` NoUtxosAvailable)
+                ]
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx

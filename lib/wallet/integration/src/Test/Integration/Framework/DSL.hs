@@ -693,7 +693,7 @@ expectErrorMessage
     -> m ()
 expectErrorMessage want = either expectation wantedErrorButSuccess . snd
   where
-    expectation msg = fmt msg `shouldContain` want
+    expectation exception = fmt exception `shouldContain` want
     fmt = \case
         DecodeFailure res msg -> msg ++ "\n" ++ BL8.unpack res
         ClientError val       -> BL8.unpack $ Aeson.encode val

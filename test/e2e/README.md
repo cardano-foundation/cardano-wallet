@@ -125,13 +125,13 @@ One can run specific tests using by providing `SPEC` or `SPEC_OPTS` arguments to
  ```
   - run only `non-e2e` tests on downloaded binaries and don't wait for node to be synced
  ```ruby
- $ rake run_on[preprod,bins,no-sync] SPEC_OPTS="-t ~e2e"
+ $ rake run_on[preprod,no-sync] SPEC_OPTS="-t ~e2e"
  ```
   - run only tests matching specific string
  ```ruby
  $ rake run_on[preprod] SPEC_OPTS="-e 'CardanoWallet::Shelley::Wallets'"
  ```
-  - run only specific test identified by line of test code against node and wallet from the `$PATH` (skips downloading from Hydra)
+  - run only specific test identified by line of test code against node and wallet from the `$PATH` (skips downloading from CI)
  ```ruby
  $ TESTS_E2E_BINDIR="" rake run_on[preprod] SPEC=spec/shelley_spec.rb:9
  ```
