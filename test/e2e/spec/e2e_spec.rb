@@ -371,7 +371,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       payload = get_plutus_tx 'ping-pong_1.json'
       tx_balanced = SHELLEY.transactions.balance(wid, payload)
       expect(tx_balanced).to be_correct_and_respond 403
-      expect(tx_balanced.to_s).to include 'not_enough_money'
+      expect(tx_balanced.to_s).to include 'no_utxos_available'
     end
 
     it 'ping-pong' do
@@ -3067,7 +3067,7 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
 
         rnd = SHELLEY.coin_selections.random_deleg wid, action_join
         expect(rnd).to be_correct_and_respond 403
-        expect(rnd.to_s).to include 'not_enough_money'
+        expect(rnd.to_s).to include 'no_utxos_available'
       end
 
       it 'I could trigger random coin selection delegation action - if I known pool id' do
