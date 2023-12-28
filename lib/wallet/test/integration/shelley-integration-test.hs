@@ -19,7 +19,6 @@ import Prelude
 
 import Cardano.Address
     ( NetworkTag (..)
-    , base58
     )
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
@@ -224,8 +223,6 @@ import UnliftIO.MVar
     , takeMVar
     , withMVar
     )
-
-import Debug.Trace
 
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.BM.Backend.EKGView as EKG
@@ -451,15 +448,12 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     in KeyCredential (Shelley.getKey xpub)
             pure [(mkRewardAccountCred m, oneMioAda) | m <- mnemonics]
 
-        let traceFunds fs = trace (unlines $
-                map (T.unpack . base58 . fst) fs) fs
-
         pure FaucetFunds
             { pureAdaFunds = mconcat
                 [ shelleyFunds
                 , byronFunds
                 , Faucet.hwLedgerFunds networkTag
-                , traceFunds icarusFunds
+                , icarusFunds
                 , onlyDustWallet
                 , bigDustWallet
                 , preregKeyWallet
