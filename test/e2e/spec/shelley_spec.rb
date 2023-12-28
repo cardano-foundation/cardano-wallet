@@ -300,7 +300,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       rnd = SHELLEY.coin_selections.random wid, addr_amount
       expect(rnd).to be_correct_and_respond 403
-      expect(rnd.to_s).to include 'not_enough_money'
+      expect(rnd.to_s).to include 'no_utxos_available'
     end
   end
 
@@ -335,7 +335,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       tx_sent = txs.create(id, PASS, amt)
       expect(tx_sent).to be_correct_and_respond 403
-      expect(tx_sent.to_s).to include 'not_enough_money'
+      expect(tx_sent.to_s).to include 'no_utxos_available'
     end
 
     it 'I could create transaction using rewards - if I had money' do
@@ -347,7 +347,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       tx_sent = txs.create(id, PASS, amt, 'self')
       expect(tx_sent).to be_correct_and_respond 403
-      expect(tx_sent.to_s).to include 'not_enough_money'
+      expect(tx_sent.to_s).to include 'no_utxos_available'
     end
 
     it 'I could estimate transaction fee - if I had money' do
@@ -360,11 +360,11 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       fees = txs.payment_fees(id, amt)
       expect(fees).to be_correct_and_respond 403
-      expect(fees.to_s).to include 'not_enough_money'
+      expect(fees.to_s).to include 'no_utxos_available'
 
       fees = txs.payment_fees(id, amt, 'self')
       expect(fees).to be_correct_and_respond 403
-      expect(fees.to_s).to include 'not_enough_money'
+      expect(fees.to_s).to include 'no_utxos_available'
 
       metadata = { '0' => { 'string' => 'cardano' },
                    '1' => { 'int' => 14 },
@@ -375,7 +375,7 @@ RSpec.describe CardanoWallet::Shelley, :all, :shelley do
 
       fees = txs.payment_fees(id, amt, 'self', metadata)
       expect(fees).to be_correct_and_respond 403
-      expect(fees.to_s).to include 'not_enough_money'
+      expect(fees.to_s).to include 'no_utxos_available'
     end
 
     it 'I could forget transaction' do

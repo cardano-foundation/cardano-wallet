@@ -250,7 +250,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
       rnd = BYRON.coin_selections.random wid, addr_amount
 
       expect(rnd).to be_correct_and_respond 403
-      expect(rnd.to_s).to include 'not_enough_money'
+      expect(rnd.to_s).to include 'no_utxos_available'
     end
   end
 
@@ -288,7 +288,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
 
         tx_sent = BYRON.transactions.create(id, PASS, [{ target_addr => 1_000_000 }])
         expect(tx_sent).to be_correct_and_respond 403
-        expect(tx_sent.to_s).to include 'not_enough_money'
+        expect(tx_sent.to_s).to include 'no_utxos_available'
       end
 
       it "I could estimate fees if I had money - #{style}" do
@@ -298,7 +298,7 @@ RSpec.describe CardanoWallet::Byron, :all, :byron do
 
         fees = BYRON.transactions.payment_fees(id, [{ target_addr => 1_000_000 }])
         expect(fees).to be_correct_and_respond 403
-        expect(fees.to_s).to include 'not_enough_money'
+        expect(fees.to_s).to include 'no_utxos_available'
       end
 
       it "I could forget transaction - #{style}" do
