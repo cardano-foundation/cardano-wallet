@@ -241,7 +241,7 @@ bigDustWallet clientEnv networkTag = do
                 & executeClientM clientEnv
     pure $ zip
         (map (unFaucetAddress . unIndexedAddress) addrs)
-        (replicate 100 (defaultAmount) ++ replicate 100 (adaToCoin 1))
+        (replicate 100 defaultAmount ++ replicate 100 (adaToCoin 1))
 
 preregKeyWalletIndex :: MnemonicIndex
 preregKeyWalletIndex = bigDustWalletIndex + 1

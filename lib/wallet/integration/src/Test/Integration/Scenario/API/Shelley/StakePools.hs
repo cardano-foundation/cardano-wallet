@@ -607,7 +607,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     (view #epochNumber <$> dlg ^. #changesAt) `shouldSatisfy`
                         (\x -> x == Just (currentEpoch + 2)
                             || x == Just (currentEpoch + 3)
-                            -- ^^^^ This is to reduce flakiness of the test.
+                            -- _^^^^ This is to reduce flakiness of the test.
                             -- The reason why we can't be sure which epoch
                             -- exactly the delegation change will happen is
                             -- because the transaction might be submitted

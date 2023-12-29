@@ -142,10 +142,7 @@ import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
-spec
-    :: forall n
-     . HasSNetworkId n
-    => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
 
     it "SHELLEY_CREATE_MIGRATION_PLAN_01 - \
