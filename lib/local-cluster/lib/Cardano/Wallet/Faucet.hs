@@ -116,8 +116,7 @@ import Control.Monad.IO.Class
     ( liftIO
     )
 import Data.Bifunctor
-    ( Bifunctor (bimap)
-    , first
+    ( first
     )
 import Data.Function
     ( (&)
@@ -186,7 +185,7 @@ initFaucet clientEnv = do
         }
 
 shelleyMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-shelleyMnemonicRange = (0, 99)
+shelleyMnemonicRange = (0, 199)
 
 -- | Takes 10 addresses for each of the first hundred mnemonics
 shelleyFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
@@ -197,7 +196,7 @@ shelleyFunds clientEnv networkTag = fmap (, defaultAmount) <$>
                 & executeClientM clientEnv
 
 byronMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-byronMnemonicRange = (0, 99)
+byronMnemonicRange = (0, 199)
 
 -- | Takes 10 addresses for each mnemonic within the byron mnemonic range
 byronFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
@@ -208,7 +207,8 @@ byronFunds clientEnv networkTag = fmap (, defaultAmount) <$>
                 & executeClientM clientEnv
 
 icarusMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-icarusMnemonicRange = bimap (+100) (+100) shelleyMnemonicRange
+icarusMnemonicRange =
+    let from = snd shelleyMnemonicRange + 1 in (from, from + 199)
 
 -- | Takes 10 addresses for each mnemonic within the icarus mnemonic range
 icarusFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
@@ -257,7 +257,7 @@ preregKeyWallet clientEnv networkTag = do
         (replicate 100 (defaultAmount))
 
 mirMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-mirMnemonicRange = (0, 99)
+mirMnemonicRange = (0, 199)
 
 mirMnemonics :: ClientEnv -> IO [SomeMnemonic]
 mirMnemonics clientEnv =
@@ -355,7 +355,8 @@ maryAssetScripts =
         ]
 
 maryAllegraMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-maryAllegraMnemonicRange = bimap (+100) (+100) mirMnemonicRange
+maryAllegraMnemonicRange =
+    let from = snd mirMnemonicRange + 1 in (from, from + 100)
 
 -- | A list of addresses, and assets to be provisioned there.
 --
