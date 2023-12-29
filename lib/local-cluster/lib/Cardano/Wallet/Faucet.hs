@@ -149,6 +149,9 @@ data Faucet = Faucet
     , nextByronMnemonic :: IO SomeMnemonic
     , nextRewardMnemonic :: IO SomeMnemonic
     , nextMaryAllegraMnemonic :: IO SomeMnemonic
+    , bigDustWalletMnemonic :: IO SomeMnemonic
+    , onlyDustWalletMnemonic :: IO SomeMnemonic
+    , preregKeyWalletMnemonic :: IO SomeMnemonic
     }
 
 initFaucet :: ClientEnv -> IO Faucet
@@ -165,12 +168,21 @@ initFaucet clientEnv = do
                 executeClientM clientEnv $ fetchMnemonicByIndex len index
             pure (succ index, mnemonic)
 
+    let fixedMnemonic :: MnemonicIndex -> MnemonicLength -> IO SomeMnemonic
+        fixedMnemonic index len = do
+            Faucet.Mnemonic mnemonic <-
+                executeClientM clientEnv $ fetchMnemonicByIndex len index
+            pure mnemonic
+
     pure Faucet
         { nextShelleyMnemonic = nextMnemonic shelley M15
         , nextIcarusMnemonic = nextMnemonic icarus M15
         , nextByronMnemonic = nextMnemonic byron M12
         , nextRewardMnemonic = nextMnemonic reward M24
         , nextMaryAllegraMnemonic = nextMnemonic maryAllegra M24
+        , bigDustWalletMnemonic = fixedMnemonic bigDustWalletIndex M15
+        , onlyDustWalletMnemonic = fixedMnemonic onlyDustWalletIndex M15
+        , preregKeyWalletMnemonic = fixedMnemonic preregKeyWalletIndex M15
         }
 
 shelleyMnemonicRange :: (MnemonicIndex, MnemonicIndex)

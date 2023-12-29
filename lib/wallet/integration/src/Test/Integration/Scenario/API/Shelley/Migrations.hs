@@ -16,12 +16,8 @@ module Test.Integration.Scenario.API.Shelley.Migrations
 
 import Prelude
 
-import Cardano.Faucet.Mnemonics
-    ( bigDustWallet
-    , onlyDustWallet
-    )
-import Cardano.Mnemonic
-    ( mnemonicToText
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
@@ -39,6 +35,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Faucet
+    ( Faucet (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -611,11 +610,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 
+        bigDustWallet <- liftIO $ bigDustWalletMnemonic (_faucet ctx)
+
         -- Create a large source wallet from which funds will be migrated:
         sourceWallet <- unsafeResponse <$> postWallet ctx
             (Json [json|{
                 "name": "Big Shelley Wallet",
-                "mnemonic_sentence": #{mnemonicToText bigDustWallet},
+                "mnemonic_sentence": #{someMnemonicToWords bigDustWallet},
                 "passphrase": #{fixturePassphrase}
             }|])
         sourceBalance <- eventually "Source wallet balance is correct." $ do
@@ -858,11 +859,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \minimum ada quantity for an output."
         $ \ctx -> runResourceT @IO $ do
 
+            onlyDustWallet <- liftIO $ onlyDustWalletMnemonic (_faucet ctx)
+
             -- Create a source wallet with many small ada quantities:
             sourceWallet <- unsafeResponse <$> postWallet ctx
                 (Json [json|{
                     "name": "Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
+                    "mnemonic_sentence": #{someMnemonicToWords onlyDustWallet},
                     "passphrase": #{fixturePassphrase}
                 }|])
             sourceBalance <- eventually "Source wallet balance is correct." $ do

@@ -17,11 +17,8 @@ import Prelude hiding
     ( id
     )
 
-import Cardano.Faucet.Mnemonics
-    ( preregKeyWallet
-    )
-import Cardano.Mnemonic
-    ( mnemonicToText
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (..)
@@ -55,6 +52,9 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (NoUtxosAvailable)
+    )
+import Cardano.Wallet.Faucet
+    ( Faucet (..)
     )
 import Cardano.Wallet.Pools
     ( StakePool (..)
@@ -667,9 +667,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists" $ \ctx -> runResourceT $ do
+        preregKeyWallet <- liftIO $ preregKeyWalletMnemonic (_faucet ctx)
+
         let payload = Json [json| {
                 "name": "Wallet with pre-registered stake key",
-                "mnemonic_sentence": #{mnemonicToText preregKeyWallet},
+                "mnemonic_sentence": #{someMnemonicToWords preregKeyWallet},
                 "passphrase": #{fixturePassphrase}
                 } |]
 

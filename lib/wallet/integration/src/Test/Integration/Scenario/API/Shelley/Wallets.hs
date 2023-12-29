@@ -16,8 +16,12 @@ module Test.Integration.Scenario.API.Shelley.Wallets
 
 import Prelude
 
+import Cardano.Faucet.Mnemonics
+    ( unsafeMnemonic
+    )
 import Cardano.Mnemonic.Extended
-    ( someMnemonicToWords
+    ( mnemonicToText
+    , someMnemonicToWords
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
