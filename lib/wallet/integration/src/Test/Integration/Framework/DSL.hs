@@ -1607,7 +1607,7 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
 
 postWallet'
-    :: MonadUnliftIO m
+    :: MonadIO m
     => Context
     -> Headers
     -> Payload
@@ -1622,14 +1622,14 @@ postWallet' ctx headers payload = snd <$> allocate create (free . snd)
     free (Left _) = return ()
 
 postWallet
-    :: MonadUnliftIO m
+    :: MonadIO m
     => Context
     -> Payload
     -> ResourceT m (HTTP.Status, Either RequestException ApiWallet)
 postWallet ctx = postWallet' ctx Default
 
 postByronWallet
-    :: MonadUnliftIO m
+    :: MonadIO m
     => Context
     -> Payload
     -> ResourceT m (HTTP.Status, Either RequestException ApiByronWallet)
@@ -1791,7 +1791,7 @@ rewardWallet ctx = do
     (,mnemonic) . getResponse <$> liftIO (fetchWallet w)
 
 fixtureMultiAssetWallet
-    :: MonadIO m
+    :: MonadUnliftIO m
     => HasCallStack
     => Context
     -> ResourceT m ApiWallet
@@ -2214,47 +2214,41 @@ fixturePassphraseEncrypted =
 -- wallets through small blocks of @runResourceT@ (e.g. once per test). It
 -- doesn't return @ReleaseKey@ since manual releasing is not needed.
 fixtureWallet
-    :: (HasCallStack, MonadIO m)
+    :: (HasCallStack, MonadUnliftIO m)
     => Context
     -> ResourceT m ApiWallet
 fixtureWallet ctx =
     fst <$> fixtureWalletWithMnemonics nextShelleyMnemonic ctx "shelley"
 
 fixtureShelleyWallet
-    :: (HasCallStack, MonadIO m)
+    :: (HasCallStack, MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiWallet, SomeMnemonic)
 fixtureShelleyWallet ctx =
     fixtureWalletWithMnemonics nextShelleyMnemonic ctx "shelley"
 
 fixtureWalletWithMnemonics
-    :: (HasCallStack, MonadIO m)
+    :: (HasCallStack, MonadUnliftIO m)
     => (Faucet -> IO SomeMnemonic)
     -> Context
     -> String -- wallet label
     -> ResourceT m (ApiWallet, SomeMnemonic)
-fixtureWalletWithMnemonics nextWalletMnemonic ctx label =
-    snd <$> allocate create (free . fst)
+fixtureWalletWithMnemonics nextWalletMnemonic ctx label = do
+    mnemonic@(SomeMnemonic sm) <- liftIO $ nextWalletMnemonic (_faucet ctx)
+    r <- postWallet ctx $ Json
+        [aesonQQ| {
+            "name": "Faucet Wallet",
+            "mnemonic_sentence": #{mnemonicToText sm},
+            "passphrase": #{fixturePassphrase}
+        } |]
+    expectResponseCode HTTP.status201 r
+    let w = getResponse r
+    liftIO $ race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
+        Left _ -> expectationFailure'
+            $ "fixtureWallet (" <> label
+            <> "): waited too long for initial transaction"
+        Right a -> pure (a, mnemonic)
   where
-    create = do
-        mnemonic@(SomeMnemonic sm) <- nextWalletMnemonic (_faucet ctx)
-        let payload = Json [aesonQQ| {
-                "name": "Faucet Wallet",
-                "mnemonic_sentence": #{mnemonicToText sm},
-                "passphrase": #{fixturePassphrase}
-                } |]
-        r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-        expectResponseCode HTTP.status201 r
-        let w = getResponse r
-        race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
-            Left _ -> expectationFailure'
-                $ "fixtureWallet (" <> label
-                <> "): waited too long for initial transaction"
-            Right a -> pure (a, mnemonic)
-
-    free w = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shelley w) Default Empty
-
     checkBalance w = do
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         if getFromResponse (#balance . #available) r > ApiAmount 0
