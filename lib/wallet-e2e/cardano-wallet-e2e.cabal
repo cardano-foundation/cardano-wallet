@@ -118,6 +118,7 @@ executable wallet-e2e
   hs-source-dirs: exe
   main-is:        Main.hs
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  other-modules: Options
   build-depends:
     , base                         ^>=4.14.3.0
     , cardano-wallet-e2e
