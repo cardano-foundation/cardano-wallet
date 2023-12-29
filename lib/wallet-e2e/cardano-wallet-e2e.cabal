@@ -98,6 +98,7 @@ library
     Cardano.Wallet.Spec.Effect.Random
     Cardano.Wallet.Spec.Effect.Timeout
     Cardano.Wallet.Spec.Effect.Trace
+    Cardano.Wallet.Spec.Interpreters.Config
     Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure
     Cardano.Wallet.Spec.Network.Configured
