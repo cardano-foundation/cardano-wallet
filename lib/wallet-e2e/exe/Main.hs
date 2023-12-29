@@ -8,6 +8,9 @@ import Cardano.Wallet.Spec
     , effectsSpec
     , walletSpec
     )
+import Cardano.Wallet.Spec.Interpreters.Config
+    ( TraceConfiguration (..)
+    )
 import Data.Tagged
     ( Tagged (..)
     )
@@ -29,7 +32,9 @@ import Options.Applicative
     , short
     )
 import Path
-    ( Dir
+    ( Abs
+    , Dir
+    , Path
     , SomeBase (..)
     , parseSomeDir
     )
@@ -42,18 +47,48 @@ import Test.Syd
 
 main :: IO ()
 main = withUtf8 do
-    testNetworkOptions <-
+    TestOptions{..} :: TestOptions <-
         execParser
             $ info
-                (parser <**> helper)
+                (parserTestOptions <**> helper)
                 (fullDesc <> progDesc "E2E Wallet test suite")
     testNetwork <- testNetworkOptionsToConfig testNetworkOptions
+    traceConfiguration <- do
+        absTraceDir <-
+            traverse makeDirAbsolute
+                $ testGlobalOptionsTraceOutput testGlobalOptions
+        pure $ TraceConfiguration absTraceDir
     sydTestWith SydTest.defaultSettings{SydTest.settingRetries = 1} do
         effectsSpec
-        walletSpec testNetwork
+        walletSpec traceConfiguration testNetwork
+
+parserTestOptions :: Parser TestOptions
+parserTestOptions = TestOptions <$> parserNetworkOptions <*> parserGlobalOptions
 
 --------------------------------------------------------------------------------
 -- Command line options --------------------------------------------------------
+
+data TestOptions = TestOptions
+    { testNetworkOptions :: TestNetworkOptions
+    , testGlobalOptions :: TestGlobalOptions
+    }
+
+newtype TestGlobalOptions = TestGlobalOptions
+    { testGlobalOptionsTraceOutput :: Tagged "tracing-dir" (SomeBase Dir)
+    }
+
+parserGlobalOptions :: Parser TestGlobalOptions
+parserGlobalOptions = TestGlobalOptions <$> traceOutputOption
+  where
+    traceOutputOption :: Parser (Tagged "tracing-dir" (SomeBase Dir)) =
+        option
+            (eitherReader (bimap show Tagged . parseSomeDir))
+            ( long "tracing-dir"
+                <> short 't'
+                <> metavar "TRACE_OUTPUT_DIR"
+                <> help
+                    "Absolute or relative directory path to save trace output"
+            )
 
 data TestNetworkOptions
     = TestNetworkOptionManual
@@ -76,13 +111,14 @@ testNetworkOptionsToConfig = \case
         absStateDir <- traverse makeDirAbsolute stateDir
         absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
         pure (TestNetworkPreprod absStateDir absNodeConfigsDir)
-  where
-    makeDirAbsolute = \case
-        Abs absDir -> pure absDir
-        Rel relDir -> makeAbsolute relDir
 
-parser :: Parser TestNetworkOptions
-parser = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
+makeDirAbsolute :: SomeBase Dir -> IO (Path Abs Dir)
+makeDirAbsolute = \case
+    Abs absDir -> pure absDir
+    Rel relDir -> makeAbsolute relDir
+
+parserNetworkOptions :: Parser TestNetworkOptions
+parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
   where
     cmdManual =
         OptParse.command
