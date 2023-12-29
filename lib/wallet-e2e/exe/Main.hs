@@ -11,6 +11,10 @@ import Cardano.Wallet.Spec
 import Cardano.Wallet.Spec.Interpreters.Config
     ( TraceConfiguration (..)
     )
+import Cardano.Wallet.Spec.Lib.Paths
+    ( SomeDirOf
+    , makeDirAbsolute
+    )
 import Data.Tagged
     ( Tagged (..)
     )
@@ -32,14 +36,7 @@ import Options.Applicative
     , short
     )
 import Path
-    ( Abs
-    , Dir
-    , Path
-    , SomeBase (..)
-    , parseSomeDir
-    )
-import Path.IO
-    ( AnyPath (makeAbsolute)
+    ( parseSomeDir
     )
 import Test.Syd
     ( sydTestWith
@@ -55,7 +52,7 @@ main = withUtf8 do
     testNetwork <- testNetworkOptionsToConfig testNetworkOptions
     traceConfiguration <- do
         absTraceDir <-
-            traverse makeDirAbsolute
+            makeDirAbsolute
                 $ testGlobalOptionsTraceOutput testGlobalOptions
         pure $ TraceConfiguration absTraceDir
     sydTestWith SydTest.defaultSettings{SydTest.settingRetries = 1} do
@@ -74,13 +71,13 @@ data TestOptions = TestOptions
     }
 
 newtype TestGlobalOptions = TestGlobalOptions
-    { testGlobalOptionsTraceOutput :: Tagged "tracing-dir" (SomeBase Dir)
+    { testGlobalOptionsTraceOutput :: SomeDirOf "tracing-dir"
     }
 
 parserGlobalOptions :: Parser TestGlobalOptions
 parserGlobalOptions = TestGlobalOptions <$> traceOutputOption
   where
-    traceOutputOption :: Parser (Tagged "tracing-dir" (SomeBase Dir)) =
+    traceOutputOption :: Parser (SomeDirOf "tracing-dir") =
         option
             (eitherReader (bimap show Tagged . parseSomeDir))
             ( long "tracing-dir"
@@ -92,30 +89,21 @@ parserGlobalOptions = TestGlobalOptions <$> traceOutputOption
 
 data TestNetworkOptions
     = TestNetworkOptionManual
-    | TestNetworkOptionLocal
-        (Tagged "state" (SomeBase Dir))
-        (Tagged "config" (SomeBase Dir))
-    | TestNetworkOptionPreprod
-        (Tagged "state" (SomeBase Dir))
-        (Tagged "config" (SomeBase Dir))
+    | TestNetworkOptionLocal (SomeDirOf "state") (SomeDirOf "config")
+    | TestNetworkOptionPreprod (SomeDirOf "state") (SomeDirOf "config")
 
 testNetworkOptionsToConfig :: TestNetworkOptions -> IO TestNetworkConfig
 testNetworkOptionsToConfig = \case
     TestNetworkOptionManual ->
         pure TestNetworkManual
     TestNetworkOptionLocal stateDir nodeConfigsDir -> do
-        absStateDir <- traverse makeDirAbsolute stateDir
-        absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
+        absStateDir <- makeDirAbsolute stateDir
+        absNodeConfigsDir <- makeDirAbsolute nodeConfigsDir
         pure (TestNetworkLocal absStateDir absNodeConfigsDir)
     TestNetworkOptionPreprod stateDir nodeConfigsDir -> do
-        absStateDir <- traverse makeDirAbsolute stateDir
-        absNodeConfigsDir <- traverse makeDirAbsolute nodeConfigsDir
+        absStateDir <- makeDirAbsolute stateDir
+        absNodeConfigsDir <- makeDirAbsolute nodeConfigsDir
         pure (TestNetworkPreprod absStateDir absNodeConfigsDir)
-
-makeDirAbsolute :: SomeBase Dir -> IO (Path Abs Dir)
-makeDirAbsolute = \case
-    Abs absDir -> pure absDir
-    Rel relDir -> makeAbsolute relDir
 
 parserNetworkOptions :: Parser TestNetworkOptions
 parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
@@ -151,7 +139,7 @@ parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
                     "Automatically starts a preprod node and wallet."
                 )
             )
-    stateDirOption :: Parser (Tagged "state" (SomeBase Dir)) =
+    stateDirOption :: Parser (SomeDirOf "state") =
         option
             (eitherReader (bimap show Tagged . parseSomeDir))
             ( long "state-dir"
@@ -161,7 +149,7 @@ parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
                     "Absolute or relative directory path \
                     \ to save node and wallet state"
             )
-    nodeConfigsDirOption :: Parser (Tagged "config" (SomeBase Dir)) =
+    nodeConfigsDirOption :: Parser (SomeDirOf "config") =
         option
             (eitherReader (bimap show Tagged . parseSomeDir))
             ( long "node-configs-dir"
