@@ -452,6 +452,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
             { pureAdaFunds = mconcat
                 [ shelleyFunds
                 , byronFunds
+                , Faucet.byronIntegrationTestFunds networkTag
                 , Faucet.hwLedgerFunds networkTag
                 , icarusFunds
                 , onlyDustWallet

@@ -83,6 +83,9 @@ import Control.Monad.Trans.Resource
 import Data.Aeson
     ( ToJSON (..)
     )
+import Data.Aeson.QQ
+    ( aesonQQ
+    )
 import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
@@ -121,7 +124,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , constFixtureWalletNoWait
     , counterexample
     , emptyByronWalletWith
     , emptyRandomWallet
@@ -141,6 +143,7 @@ import Test.Integration.Framework.DSL
     , fixtureShelleyWallet
     , fixtureWallet
     , getFromResponse
+    , getResponse
     , json
     , listAddresses
     , listFilteredByronWallets
@@ -1344,7 +1347,19 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
     it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
-        w <- constFixtureWalletNoWait ctx
+        let mnemonic = unsafeMnemonic @15
+                [ "vintage", "poem", "topic", "machine", "hazard"
+                , "cement", "dune", "glimpse", "fix", "brief", "account"
+                , "badge", "mass", "silly", "business"
+                ]
+        response <- postWallet ctx $ Json
+            [aesonQQ|{
+                "name": "Signing Wallet",
+                "mnemonic_sentence": #{mnemonicToText mnemonic},
+                "passphrase": #{fixturePassphrase}
+            }|]
+        expectResponseCode HTTP.status201 response
+        let w = getResponse response
 
         let (role_, index) = (MutableAccount, DerivationIndex 0)
         let payload = [json|

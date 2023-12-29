@@ -25,8 +25,7 @@ import Cardano.Address.Script
     , ScriptTemplate (..)
     )
 import Cardano.Mnemonic.Extended
-    ( someMnemonicToSentence
-    , someMnemonicToWords
+    ( someMnemonicToWords
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
@@ -934,8 +933,8 @@ spec = describe "SHARED_WALLETS" $ do
                 sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payloadPost = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{someMnemonicToSentence m15},
-                "mnemonic_second_factor": #{someMnemonicToSentence m12},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "one_change_address_mode": true,
