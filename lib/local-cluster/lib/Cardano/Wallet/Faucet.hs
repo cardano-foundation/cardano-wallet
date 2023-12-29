@@ -111,6 +111,7 @@ import Control.Exception
     )
 import Control.Monad.Extra
     ( concatMapM
+    , when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -155,17 +156,22 @@ data Faucet = Faucet
 
 initFaucet :: ClientEnv -> IO Faucet
 initFaucet clientEnv = do
-    shelley <- newMVar (fst shelleyMnemonicRange)
-    icarus <- newMVar (fst icarusMnemonicRange)
-    byron <- newMVar (fst byronMnemonicRange)
-    reward <- newMVar (fst mirMnemonicRange)
-    maryAllegra <- newMVar (fst maryAllegraMnemonicRange)
+    shelley <- newMVar shelleyMnemonicRange
+    icarus <- newMVar icarusMnemonicRange
+    byron <- newMVar byronMnemonicRange
+    reward <- newMVar mirMnemonicRange
+    maryAllegra <- newMVar maryAllegraMnemonicRange
 
-    let nextMnemonic :: MVar MnemonicIndex -> MnemonicLength -> IO SomeMnemonic
-        nextMnemonic var len = liftIO $ modifyMVar var $ \index -> do
+    let nextMnemonic
+            :: MVar (MnemonicIndex, MnemonicIndex)
+            -> MnemonicLength
+            -> IO SomeMnemonic
+        nextMnemonic var len = liftIO $ modifyMVar var $ \(lo, hi) -> do
             Faucet.Mnemonic mnemonic <-
-                executeClientM clientEnv $ fetchMnemonicByIndex len index
-            pure (succ index, mnemonic)
+                executeClientM clientEnv $ fetchMnemonicByIndex len lo
+            when (succ lo == hi) $
+                throwIO $ userError "Faucet: no more mnemonics available"
+            pure ((succ lo, hi), mnemonic)
 
     let fixedMnemonic :: MnemonicIndex -> MnemonicLength -> IO SomeMnemonic
         fixedMnemonic index len = do
