@@ -101,6 +101,7 @@ library
     Cardano.Wallet.Spec.Interpreters.Config
     Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure
+    Cardano.Wallet.Spec.Lib.Paths
     Cardano.Wallet.Spec.Network.Configured
     Cardano.Wallet.Spec.Network.Local
     Cardano.Wallet.Spec.Network.Manual

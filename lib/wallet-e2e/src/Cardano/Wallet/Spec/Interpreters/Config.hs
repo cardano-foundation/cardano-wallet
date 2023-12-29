@@ -1,14 +1,9 @@
 module Cardano.Wallet.Spec.Interpreters.Config where
 
-import Data.Tagged
-    ( Tagged
-    )
-import Path
-    ( Abs
-    , Dir
-    , Path
+import Cardano.Wallet.Spec.Lib.Paths
+    ( DirOf
     )
 
 newtype TraceConfiguration = TraceConfiguration
-    { traceConfigurationDir :: Tagged "tracing-dir" (Path Abs Dir)
+    { traceConfigurationDir :: DirOf "tracing-dir"
     }

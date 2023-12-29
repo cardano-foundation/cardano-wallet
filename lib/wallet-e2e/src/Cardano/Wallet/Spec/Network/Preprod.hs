@@ -14,6 +14,9 @@ import Cardano.Node.Cli.Launcher
 import Cardano.Wallet.Cli.Launcher
     ( WalletProcessConfig (..)
     )
+import Cardano.Wallet.Spec.Lib.Paths
+    ( DirOf
+    )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork (..)
     )
@@ -22,21 +25,17 @@ import Control.Monad.Trans.Resource
     , allocate
     )
 import Data.Tagged
-    ( Tagged
-    , untag
+    ( untag
     )
 import Path
-    ( Abs
-    , Dir
-    , Path
-    , reldir
+    ( reldir
     , relfile
     , (</>)
     )
 
 configuredNetwork
-    :: Tagged "state" (Path Abs Dir)
-    -> Tagged "config" (Path Abs Dir)
+    :: DirOf "state"
+    -> DirOf "config"
     -> ResourceT IO ConfiguredNetwork
 configuredNetwork stateDir nodeConfigDir = do
     nodeApi <- startNode

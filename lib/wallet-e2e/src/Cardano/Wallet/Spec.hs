@@ -14,6 +14,9 @@ import Cardano.Wallet.Spec.Interpreters.Config
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story
     )
+import Cardano.Wallet.Spec.Lib.Paths
+    ( DirOf
+    )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork
     )
@@ -27,14 +30,6 @@ import Cardano.Wallet.Spec.TimeoutSpec
     )
 import Control.Monad.Trans.Resource
     ( runResourceT
-    )
-import Data.Tagged
-    ( Tagged
-    )
-import Path
-    ( Abs
-    , Dir
-    , Path
     )
 import Test.Syd
     ( Spec
@@ -71,12 +66,8 @@ effectsSpec = describe "Effect interpreters" do
 
 data TestNetworkConfig
     = TestNetworkManual
-    | TestNetworkLocal
-        (Tagged "state" (Path Abs Dir))
-        (Tagged "config" (Path Abs Dir))
-    | TestNetworkPreprod
-        (Tagged "state" (Path Abs Dir))
-        (Tagged "config" (Path Abs Dir))
+    | TestNetworkLocal (DirOf "state") (DirOf "config")
+    | TestNetworkPreprod (DirOf "state") (DirOf "config")
 
 configureTestNet :: TestNetworkConfig -> (ConfiguredNetwork -> IO ()) -> IO ()
 configureTestNet testNetworkConfig withConfiguredNetwork = runResourceT $ do

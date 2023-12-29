@@ -9,6 +9,9 @@ import qualified Cardano.Wallet.Spec.Network.Wait as Wait
 import Cardano.Wallet.Cli.Launcher
     ( WalletApi (..)
     )
+import Cardano.Wallet.Spec.Lib.Paths
+    ( DirOf
+    )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork (..)
     )
@@ -17,14 +20,10 @@ import Control.Monad.Trans.Resource
     , allocate
     )
 import Data.Tagged
-    ( Tagged
-    , untag
+    ( untag
     )
 import Path
-    ( Abs
-    , Dir
-    , Path
-    , relfile
+    ( relfile
     , toFilePath
     , (</>)
     )
@@ -42,8 +41,8 @@ import System.Process.Typed
     )
 
 configuredNetwork
-    :: Tagged "state" (Path Abs Dir)
-    -> Tagged "config" (Path Abs Dir)
+    :: DirOf "state"
+    -> DirOf "config"
     -> ResourceT IO ConfiguredNetwork
 configuredNetwork stateDir clusterConfigsDir = do
     walletApi <- startCluster
