@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               cardano-api-extra
-version:            2023.12.18
+version:            2023.12.31
 synopsis:           Useful extensions to the Cardano API.
 description:        Please see README.md.
 homepage:           https://github.com/cardano-foundation/cardano-wallet
