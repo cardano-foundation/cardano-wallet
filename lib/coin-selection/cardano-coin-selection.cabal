@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               cardano-coin-selection
-version:            2023.12.18
+version:            2024.1.1
 synopsis:           Coin selection algorithms for the Cardano blockchain.
 description:        Please see README.md.
 homepage:           https://github.com/cardano-foundation/cardano-wallet
