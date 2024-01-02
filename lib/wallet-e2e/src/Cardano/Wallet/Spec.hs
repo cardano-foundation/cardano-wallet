@@ -8,8 +8,14 @@ import qualified Cardano.Wallet.Spec.Network.Local as Local
 import qualified Cardano.Wallet.Spec.Network.Manual as Manual
 import qualified Cardano.Wallet.Spec.Network.Preprod as Preprod
 
+import Cardano.Wallet.Spec.Interpreters.Config
+    ( TraceConfiguration
+    )
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story
+    )
+import Cardano.Wallet.Spec.Lib.Paths
+    ( DirOf
     )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork
@@ -25,14 +31,6 @@ import Cardano.Wallet.Spec.TimeoutSpec
 import Control.Monad.Trans.Resource
     ( runResourceT
     )
-import Data.Tagged
-    ( Tagged
-    )
-import Path
-    ( Abs
-    , Dir
-    , Path
-    )
 import Test.Syd
     ( Spec
     , aroundAll
@@ -40,12 +38,24 @@ import Test.Syd
     , sequential
     )
 
-walletSpec :: TestNetworkConfig -> Spec
-walletSpec config = aroundAll (configureTestNet config) do
-    describe "Wallet Backend API" $ sequential do
-        story "Created wallet is listed" createdWalletListed
-        story "Created wallet can be retrieved by id" createdWalletRetrievable
-        story "Created wallet has zero ADA balance" createdWalletHasZeroAda
+walletSpec :: TraceConfiguration -> TestNetworkConfig -> Spec
+walletSpec tracingConfig config =
+    aroundAll (configureTracing tracingConfig)
+        $ aroundAll (configureTestNet config)
+        $ do
+            describe "Wallet Backend API" $ sequential do
+                story
+                    "Created wallet is listed"
+                    createdWalletListed
+                story
+                    "Created wallet can be retrieved by id"
+                    createdWalletRetrievable
+                story
+                    "Created wallet has zero ADA balance"
+                    createdWalletHasZeroAda
+
+configureTracing :: TraceConfiguration -> (TraceConfiguration -> IO ()) -> IO ()
+configureTracing config f = f config
 
 effectsSpec :: Spec
 effectsSpec = describe "Effect interpreters" do
@@ -56,12 +66,8 @@ effectsSpec = describe "Effect interpreters" do
 
 data TestNetworkConfig
     = TestNetworkManual
-    | TestNetworkLocal
-        (Tagged "state" (Path Abs Dir))
-        (Tagged "config" (Path Abs Dir))
-    | TestNetworkPreprod
-        (Tagged "state" (Path Abs Dir))
-        (Tagged "config" (Path Abs Dir))
+    | TestNetworkLocal (DirOf "state") (DirOf "config")
+    | TestNetworkPreprod (DirOf "state") (DirOf "config")
 
 configureTestNet :: TestNetworkConfig -> (ConfiguredNetwork -> IO ()) -> IO ()
 configureTestNet testNetworkConfig withConfiguredNetwork = runResourceT $ do

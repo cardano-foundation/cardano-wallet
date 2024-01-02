@@ -98,8 +98,10 @@ library
     Cardano.Wallet.Spec.Effect.Random
     Cardano.Wallet.Spec.Effect.Timeout
     Cardano.Wallet.Spec.Effect.Trace
+    Cardano.Wallet.Spec.Interpreters.Config
     Cardano.Wallet.Spec.Interpreters.Effectfully
     Cardano.Wallet.Spec.Interpreters.Pure
+    Cardano.Wallet.Spec.Lib.Paths
     Cardano.Wallet.Spec.Network.Configured
     Cardano.Wallet.Spec.Network.Local
     Cardano.Wallet.Spec.Network.Manual
@@ -116,6 +118,7 @@ executable wallet-e2e
   hs-source-dirs: exe
   main-is:        Main.hs
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  other-modules: Options
   build-depends:
     , base                         ^>=4.14.3.0
     , cardano-wallet-e2e

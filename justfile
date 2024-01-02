@@ -2,8 +2,8 @@ default:
   @just --list
 
 # check that the code is formatted with stylish-haskell
-check target="stylish":
-  ./.buildkite/check-{{target}}.sh
+check:
+  ./.buildkite/check-code-format.sh
 
 # build wallet-e2e suite with cabal
 build:
@@ -36,14 +36,19 @@ integration:
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
   nix run '.#cardano-wallet-e2e' -- preprod \
-    -s lib/wallet-e2e/test-state \
-    -c lib/wallet-e2e/config/cardano-node/preprod
+    -s lib/wallet-e2e/test-state/preprod \
+    -c lib/wallet-e2e/config/cardano-node/preprod \
+    -t lib/wallet-e2e/test-output/preprod
+
 
 # run wallet-e2e suite against the local test cluster
 e2e-local:
   nix shell \
-    '.#local-cluster' '.#cardano-node' '.#cardano-wallet' '.#cardano-wallet-e2e' '.#local-cluster' \
-    -c wallet-e2e local -s lib/wallet-e2e/test-state -c lib/local-cluster/test/data/cluster-configs
+    '.#local-cluster' '.#cardano-node' '.#cardano-wallet' '.#cardano-wallet-e2e' \
+    -c wallet-e2e local \
+    -s lib/wallet-e2e/test-state/local \
+    -c lib/local-cluster/test/data/cluster-configs \
+    -t lib/wallet-e2e/test-output/local
 
 # run wallet-e2e suite against the manually started node/wallet
 e2e-manual:
