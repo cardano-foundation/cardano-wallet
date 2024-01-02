@@ -384,18 +384,30 @@ x-drepKeyHash: &drepKeyHash
   format: bech32
   example: drep_vkh1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's key hash.
+  pattern: "^(drep_vkh)1[0-9a-z]*$"
 
 x-drepScriptHash: &drepScriptHash
   type: string
   format: bech32
   example: drep_script1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's script hash.
+  pattern: "^(drep_script)1[0-9a-z]*$"
 
-x-drep: &drep
+x-noVote: &noVote
+  type: string
+  enum:
+    - abstain
+    - no_confidence
+
+x-anyVoting: &anyVoting
   nullable: false
   oneOf:
     - <<: *drepKeyHash
+      title: vote to a drep represented by key hash
     - <<: *drepScriptHash
+      title: vote to a drep represented by script hash
+    - <<: *noVote
+      title: casting no vote
 
 x-walletAccountXPubkey: &walletAccountXPubkey
   description: An extended account public key (public key + chain code)
@@ -2915,17 +2927,12 @@ components:
         The result of signing a transaction (serialized and encoded).
 
     ApiVoteAction: &ApiVoteAction
+      <<: *anyVoting
       description: |
         Voting action. One can abstain, give no confidence vote
         or vote for a representative by specifying its key hash or script hash.
-        Voting can be done together with delegation action.
-      oneOf:
-        - type: string
-          enum:
-            - abstain
-            - no_confidence
-        - type: string
-          <<: *drep
+        Voting can be done together with delegation action or as a standalone action.
+      type: string
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
