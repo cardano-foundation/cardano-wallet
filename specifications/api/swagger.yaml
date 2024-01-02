@@ -117,6 +117,16 @@ x-numberOfBlocks: &numberOfBlocks
         - block
       example: "block"
 
+x-genesis: &genesis
+  type: string
+  enum: ["from_genesis"]
+  example: "from_genesis"
+
+x-tip: &tip
+  type: string
+  enum: ["from_tip"]
+  example: "from_tip"
+
 x-blockReference: &blockReference
   description: A reference to a particular time slot, and the block height at that point.
   type: object
@@ -132,6 +142,16 @@ x-blockReference: &blockReference
     epoch_number: *epochNumber
     time: *date
     height: *numberOfBlocks
+
+x-chainPoint : &chainPoint
+  description: A reference to a particular block.
+  type: object
+  required:
+    - block_header_hash
+    - absolute_slot_number
+  properties:
+    block_header_hash: *blockId
+    absolute_slot_number: *absoluteSlot
 
 x-slotId: &slotId
   description: A slot identifier, given by epoch number and local slot index.
@@ -464,6 +484,27 @@ x-walletDiscovery: &walletDiscovery
 x-oneChangeAddressMode: &oneChangeAddressMode
   type: boolean
   default: false
+
+x-restorationMode: &restorationMode
+  description: |
+    The wallet restoration mode determines since when the wallet should
+    be restored from the blockchain.
+  oneOf:
+    - title: Restore from genesis
+      description: |
+        Restore the wallet from the genesis block. This will cause the wallet
+        to be restored from the very beginning of the blockchain.
+      <<: *genesis
+    - title: Restore from tip
+      description: |
+        Restore the wallet from the tip of the blockchain. This will cause the
+        wallet to be restored from the tip of the blockchain.
+      <<: *tip
+    - title: Restore from block
+      description: |
+        Restore the wallet from a specific block. This will cause the wallet
+        to be restored from the specified block.
+      <<: *chainPoint
 
 x-walletName: &walletName
   type: string
@@ -3025,6 +3066,7 @@ components:
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
         one_change_address_mode: *oneChangeAddressMode
+        restoration_mode: *restorationMode
 
     ApiAccountPostData: &ApiAccountPostData
       type: object
