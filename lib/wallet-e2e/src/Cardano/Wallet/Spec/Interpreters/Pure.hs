@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Cardano.Wallet.Spec.Interpreters.Pure
     ( pureStory
     , PureStory
@@ -26,12 +24,6 @@ import Cardano.Wallet.Spec.Effect.Trace
     , recordTraceLog
     , runTracePure
     )
-import Cardano.Wallet.Spec.Interpreters.Config
-    ( TraceConfiguration (..)
-    )
-import Data.Tagged
-    ( Tagged (..)
-    )
 import Effectful
     ( Eff
     , runPureEff
@@ -39,15 +31,6 @@ import Effectful
 import Effectful.Fail
     ( Fail
     , runFail
-    )
-import GHC.IO
-    ( unsafePerformIO
-    )
-import Path.IO
-    ( makeAbsolute
-    )
-import Path.Posix
-    ( reldir
     )
 import Test.Syd
     ( TestDefM
@@ -66,23 +49,13 @@ type PureStory a =
         ]
         a
 
-defaultTraceConfiguration :: TraceConfiguration
-defaultTraceConfiguration =
-    TraceConfiguration
-        { traceConfigurationDir =
-            Tagged @"tracing-dir"
-                $ unsafePerformIO
-                $ makeAbsolute [reldir|lib/wallet-e2e/test-output|]
-        }
-
 pureStory :: String -> PureStory a -> TestDefM outers () ()
 pureStory label story =
     it label do
         interpretStoryPure story & \case
             Left err -> expectationFailure (show err)
             Right (Left err) -> expectationFailure err
-            Right (Right (_unit :: a, log)) ->
-                recordTraceLog defaultTraceConfiguration label log
+            Right (Right (_unit :: a, log)) -> recordTraceLog label log
 
 interpretStoryPure
     :: PureStory a

@@ -30,9 +30,6 @@ import Cardano.Wallet.Spec.Effect.Trace
     , recordTraceLog
     , runTracePure
     )
-import Cardano.Wallet.Spec.Interpreters.Config
-    ( TraceConfiguration
-    )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork
     )
@@ -58,10 +55,9 @@ import System.Random
     ( initStdGen
     )
 import Test.Syd
-    ( HList (..)
-    , TestDefM
+    ( TestDefM
     , expectationFailure
-    , itWithAll
+    , itWithOuter
     )
 
 type Story a =
@@ -77,26 +73,11 @@ type Story a =
         ]
         a
 
-type StoryConfig =
-    '[ ConfiguredNetwork
-     , TraceConfiguration
-     ]
-
-onStoryConfig
-    :: HList StoryConfig
-    -> (ConfiguredNetwork -> TraceConfiguration -> a)
-    -> a
-onStoryConfig (HCons network (HCons traceOutput HNil)) f = f network traceOutput
-
-story
-    :: String
-    -> Story ()
-    -> TestDefM StoryConfig () ()
+story :: String -> Story () -> TestDefM '[ConfiguredNetwork] () ()
 story label story' =
-    itWithAll label \config () -> onStoryConfig config
-        $ \network traceOutput -> do
-            (result, log) <- interpretStory network story'
-            recordTraceLog traceOutput label log
+    itWithOuter label \network -> do
+        interpretStory network story' >>= \(result, log) -> do
+            recordTraceLog label log
             case result of
                 Left err -> expectationFailure err
                 Right () -> pass
