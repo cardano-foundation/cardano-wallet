@@ -38,6 +38,6 @@ library
     , safe                   ^>=0.3.19
     , streaming-commons      ^>=0.2.2.6
     , text                   ^>=1.2.4.1
-    , text-class             ^>=2023.12.18
+    , text-class             ^>=2024.1.3
     , unliftio               ^>=0.2.24
     , unliftio-core          ^>=0.2.1
