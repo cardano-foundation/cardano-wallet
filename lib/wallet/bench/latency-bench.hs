@@ -558,7 +558,7 @@ walletApiBench capture ctx = do
 
 withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
 withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
-    faucetFunds <- mkFaucetFunds faucetClientEnv
+    faucetFunds <- Faucet.runFaucetM faucetClientEnv mkFaucetFunds
     ctx <- newEmptyMVar
     let testnetMagic = Cluster.TestnetMagic 42
     let setupContext np baseUrl = do
@@ -585,10 +585,10 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
         (takeMVar ctx >>= action)
         (withServer testnetMagic faucetFunds setupContext)
   where
-    mkFaucetFunds clientEnv = do
-        shelleyFunds <- Faucet.shelleyFunds clientEnv shelleyTestnet
+    mkFaucetFunds = do
+        shelleyFunds <- Faucet.shelleyFunds shelleyTestnet
         maryAllegraFunds <-
-            Faucet.maryAllegraFunds clientEnv shelleyTestnet (Coin 10_000_000)
+            Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
         pure FaucetFunds
             { pureAdaFunds = shelleyFunds
             , maryAllegraFunds

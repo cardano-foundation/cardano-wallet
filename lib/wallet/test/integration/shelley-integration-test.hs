@@ -69,6 +69,10 @@ import Cardano.Wallet.Api.Http.Shelley.Server
 import Cardano.Wallet.Api.Types
     ( ApiEra (..)
     )
+import Cardano.Wallet.Faucet
+    ( FaucetM
+    , runFaucetM
+    )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog
@@ -167,9 +171,6 @@ import Network.HTTP.Client
     )
 import Network.URI
     ( URI
-    )
-import Servant.Client
-    ( ClientEnv
     )
 import System.Directory
     ( createDirectory
@@ -416,7 +417,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                                 [(ScriptCredential script, coin)]
                     }
 
-        faucetFunds <- mkFaucetFunds faucetClientEnv
+        faucetFunds <- runFaucetM faucetClientEnv mkFaucetFunds
 
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
@@ -426,22 +427,22 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
             (takeMVar ctx >>= bracketTracer' tr "spec" . action)
         whenLeft res (throwIO . ProcessHasExited "integration")
 
-    mkFaucetFunds :: ClientEnv -> IO FaucetFunds
-    mkFaucetFunds env = do
+    mkFaucetFunds :: FaucetM FaucetFunds
+    mkFaucetFunds = do
         let networkTag = NetworkTag . fromIntegral $
                 Cluster.testnetMagicToNatural testnetMagic
-        shelleyFunds <- Faucet.shelleyFunds env shelleyTestnet
-        byronFunds <- Faucet.byronFunds env networkTag
-        icarusFunds <- Faucet.icarusFunds env networkTag
-        onlyDustWallet <- Faucet.onlyDustWallet env shelleyTestnet
-        bigDustWallet <- Faucet.bigDustWallet env shelleyTestnet
-        preregKeyWallet <- Faucet.preregKeyWallet env shelleyTestnet
-        instantaneousRewardFunds <- Faucet.mirFunds env shelleyTestnet
-        maryAllegraFunds <- Faucet.maryAllegraFunds env shelleyTestnet
-            (Coin 10__000_000)
+        shelleyFunds <- Faucet.shelleyFunds shelleyTestnet
+        byronFunds <- Faucet.byronFunds networkTag
+        icarusFunds <- Faucet.icarusFunds networkTag
+        onlyDustWallet <- Faucet.onlyDustWallet shelleyTestnet
+        bigDustWallet <- Faucet.bigDustWallet shelleyTestnet
+        preregKeyWallet <- Faucet.preregKeyWallet shelleyTestnet
+        instantaneousRewardFunds <- Faucet.mirFunds shelleyTestnet
+        maryAllegraFunds <- Faucet.maryAllegraFunds (Coin 10__000_000)
+            shelleyTestnet
 
         mirCredentials <- do
-            mnemonics <- Faucet.mirMnemonics env
+            mnemonics <- Faucet.mirMnemonics
             let oneMioAda = Coin 1_000_000__000_000
                 mkRewardAccountCred (SomeMnemonic m) =
                     let (xpub, _prv) = Addresses.shelleyRewardAccount m

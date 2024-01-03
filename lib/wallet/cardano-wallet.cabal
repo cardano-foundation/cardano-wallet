@@ -796,7 +796,6 @@ test-suite integration
     , local-cluster
     , mock-token-metadata
     , network-uri
-    , servant-client                     ^>=0.19
     , tagged                             ^>=0.8.7
     , temporary-extra
     , text

@@ -1,18 +1,21 @@
-{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
-
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Faucet
     ( Faucet (..)
+    , FaucetM
     , initFaucet
 
       -- * Sea horses
@@ -28,11 +31,12 @@ module Cardano.Wallet.Faucet
     , preregKeyWallet
     , mirFunds
     , mirMnemonics
-
     , byronIntegrationTestFunds
     , maryAllegraFunds
     , hwLedgerFunds
     , seaHorseTestAssets
+    , runFaucetM
+
     ) where
 
 import Prelude hiding
@@ -111,7 +115,6 @@ import Control.Exception
     )
 import Control.Monad.Extra
     ( concatMapM
-    , when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -119,8 +122,8 @@ import Control.Monad.IO.Class
 import Data.Bifunctor
     ( first
     )
-import Data.Function
-    ( (&)
+import Data.Functor
+    ( (<&>)
     )
 import Data.List
     ( unfoldr
@@ -142,6 +145,27 @@ import UnliftIO.MVar
     )
 
 --------------------------------------------------------------------------------
+data MnemonicRange = MnemonicRange
+    { from :: MnemonicIndex
+    , to :: MnemonicIndex
+    }
+    deriving stock (Show, Eq, Ord)
+
+enumRange :: MnemonicRange -> [MnemonicIndex]
+enumRange = enumFromTo <$> from <*> to
+
+nextRange :: MnemonicIndex -> MnemonicRange -> MnemonicRange
+nextRange step MnemonicRange{..} =
+    MnemonicRange (to + 1) (to + step)
+
+consumeRange :: MnemonicRange -> Maybe (MnemonicIndex, MnemonicRange)
+consumeRange (MnemonicRange from to) =
+    let
+        next = succ from
+    in
+        if next <= to
+            then Just (from, MnemonicRange next to)
+            else Nothing
 
 data Faucet = Faucet
     { nextShelleyMnemonic :: IO SomeMnemonic
@@ -154,6 +178,19 @@ data Faucet = Faucet
     , preregKeyWalletMnemonic :: IO SomeMnemonic
     }
 
+newtype FaucetM a = FaucetM
+   { unFaucetM :: ClientM a
+   }
+    deriving newtype (Functor, Applicative, Monad)
+
+runFaucetM :: ClientEnv -> FaucetM a -> IO a
+runFaucetM env action =
+    runClientM (unFaucetM action) env
+        >>= either throwIO pure
+
+executeClientM :: ClientEnv -> ClientM a -> IO a
+executeClientM env action = runClientM action env >>= either throwIO pure
+
 initFaucet :: ClientEnv -> IO Faucet
 initFaucet clientEnv = do
     shelley <- newMVar shelleyMnemonicRange
@@ -163,129 +200,139 @@ initFaucet clientEnv = do
     maryAllegra <- newMVar maryAllegraMnemonicRange
 
     let nextMnemonic
-            :: MVar (MnemonicIndex, MnemonicIndex)
+            :: MVar MnemonicRange
             -> MnemonicLength
             -> IO SomeMnemonic
-        nextMnemonic var len = liftIO $ modifyMVar var $ \(lo, hi) -> do
-            Faucet.Mnemonic mnemonic <-
-                executeClientM clientEnv $ fetchMnemonicByIndex len lo
-            when (succ lo == hi) $
-                throwIO $ userError "Faucet: no more mnemonics available"
-            pure ((succ lo, hi), mnemonic)
+        nextMnemonic var len = liftIO $ modifyMVar var $ \range -> do
+            case consumeRange range of
+                Just (index, range') -> do
+                    Faucet.Mnemonic mnemonic <-
+                        executeClientM clientEnv
+                            $ fetchMnemonicByIndex len index
+                    pure (range', mnemonic)
+                Nothing -> throwIO
+                    $ userError "Faucet: no more mnemonics available"
 
-    let fixedMnemonic :: MnemonicIndex -> MnemonicLength -> IO SomeMnemonic
+    let fixedMnemonic :: MnemonicRange -> MnemonicLength -> IO SomeMnemonic
         fixedMnemonic index len = do
             Faucet.Mnemonic mnemonic <-
-                executeClientM clientEnv $ fetchMnemonicByIndex len index
+                executeClientM clientEnv $ fetchMnemonicByIndex len $ from index
             pure mnemonic
 
-    pure Faucet
-        { nextShelleyMnemonic = nextMnemonic shelley M15
-        , nextIcarusMnemonic = nextMnemonic icarus M15
-        , nextByronMnemonic = nextMnemonic byron M12
-        , nextRewardMnemonic = nextMnemonic reward M24
-        , nextMaryAllegraMnemonic = nextMnemonic maryAllegra M24
-        , bigDustWalletMnemonic = fixedMnemonic bigDustWalletIndex M15
-        , onlyDustWalletMnemonic = fixedMnemonic onlyDustWalletIndex M15
-        , preregKeyWalletMnemonic = fixedMnemonic preregKeyWalletIndex M15
-        }
+    pure
+        Faucet
+            { nextShelleyMnemonic = nextMnemonic shelley M15
+            , nextIcarusMnemonic = nextMnemonic icarus M15
+            , nextByronMnemonic = nextMnemonic byron M12
+            , nextRewardMnemonic = nextMnemonic reward M24
+            , nextMaryAllegraMnemonic = nextMnemonic maryAllegra M24
+            , bigDustWalletMnemonic = fixedMnemonic bigDustWalletRange M15
+            , onlyDustWalletMnemonic = fixedMnemonic onlyDustWalletRange M15
+            , preregKeyWalletMnemonic = fixedMnemonic preregKeyWalletRange M15
+            }
 
-shelleyMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-shelleyMnemonicRange = (0, 199)
+anyFunds
+    :: MnemonicRange
+    -- ^ Mnemonic range
+    -> MnemonicLength
+    -- ^ Mnemonic length
+    -> AddressStyle
+    -- ^ Address style
+    -> Faucet.AddressIndex
+    -- ^ Address index start
+    -> Faucet.AddressIndex
+    -- ^ Address index end
+    -- ^ Network tag
+    -> CA.NetworkTag
+    -> FaucetM [Address]
+    -- ^ Resulting list of addresses and coins
+anyFunds mnemonicRange mlength style start end networkTag= FaucetM $ do
+    let run' index = do
+            ias <-
+                fetchMnemonicAddresses
+                    mlength
+                    index
+                    style
+                    networkTag
+                    start
+                    end
+            pure $ ias <&> \ia ->
+                (unFaucetAddress . unIndexedAddress $ ia)
+    concatMapM run' $ enumRange mnemonicRange
+
+shelleyMnemonicRange :: MnemonicRange
+shelleyMnemonicRange = MnemonicRange 0 399
 
 -- | Takes 10 addresses for each of the first hundred mnemonics
-shelleyFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-shelleyFunds clientEnv networkTag = fmap (, defaultAmount) <$>
-    (`concatMapM` listEnumRange shelleyMnemonicRange) \index -> do
-        (unFaucetAddress . unIndexedAddress <$>) <$> do
-            fetchMnemonicAddresses M15 index AddressStyleShelley networkTag 0 9
-                & executeClientM clientEnv
+shelleyFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+shelleyFunds tag = do
+    as <- anyFunds shelleyMnemonicRange M15 AddressStyleShelley 0 9 tag
+    pure $ as <&> (,defaultAmount)
 
-byronMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-byronMnemonicRange = (0, 199)
+byronMnemonicRange :: MnemonicRange
+byronMnemonicRange = MnemonicRange 0 199
 
 -- | Takes 10 addresses for each mnemonic within the byron mnemonic range
-byronFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-byronFunds clientEnv networkTag = fmap (, defaultAmount) <$>
-    (`concatMapM` listEnumRange byronMnemonicRange) \index -> do
-        (unFaucetAddress . unIndexedAddress <$>) <$> do
-            fetchMnemonicAddresses M12 index AddressStyleByron networkTag 0 9
-                & executeClientM clientEnv
+byronFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+byronFunds tag = do
+    as <- anyFunds byronMnemonicRange M12 AddressStyleByron 0 9 tag
+    pure $ as <&> (,defaultAmount)
 
-icarusMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-icarusMnemonicRange =
-    let from = snd shelleyMnemonicRange + 1 in (from, from + 199)
+icarusMnemonicRange :: MnemonicRange
+icarusMnemonicRange = nextRange 200 shelleyMnemonicRange
 
 -- | Takes 10 addresses for each mnemonic within the icarus mnemonic range
-icarusFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-icarusFunds clientEnv networkTag = fmap (, defaultAmount) <$> do
-    (`concatMapM` listEnumRange icarusMnemonicRange) \index -> do
-        (unFaucetAddress . unIndexedAddress <$>) <$> do
-            fetchMnemonicAddresses M15 index AddressStyleIcarus networkTag 0 9
-                & executeClientM clientEnv
+icarusFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+icarusFunds tag = do
+    as <- anyFunds icarusMnemonicRange M15 AddressStyleIcarus 0 9 tag
+    pure $ as <&> (,defaultAmount)
 
-onlyDustWalletIndex :: MnemonicIndex
-onlyDustWalletIndex = snd icarusMnemonicRange + 1
+onlyDustWalletRange :: MnemonicRange
+onlyDustWalletRange = nextRange 1 icarusMnemonicRange
 
-onlyDustWallet :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-onlyDustWallet clientEnv networkTag = flip zip dustAmounts .
-    (unFaucetAddress . unIndexedAddress <$>) <$> do
-        fetchMnemonicAddresses
-            M15 onlyDustWalletIndex AddressStyleShelley networkTag 1 10
-                & executeClientM clientEnv
+onlyDustWallet :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+onlyDustWallet tag = do
+    as <- anyFunds onlyDustWalletRange M15 AddressStyleShelley 1 10 tag
+    pure $ zip as dustAmounts
   where
     dustAmounts :: [Coin] = map adaToCoin [1, 1, 5, 12, 1, 5, 3, 10, 2, 3]
 
-bigDustWalletIndex :: MnemonicIndex
-bigDustWalletIndex = onlyDustWalletIndex + 1
+bigDustWalletRange :: MnemonicRange
+bigDustWalletRange = nextRange 1 onlyDustWalletRange
 
-bigDustWallet :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-bigDustWallet clientEnv networkTag = do
-    addrs <-
-        fetchMnemonicAddresses
-            M15 bigDustWalletIndex AddressStyleShelley networkTag 0 199
-                & executeClientM clientEnv
-    pure $ zip
-        (map (unFaucetAddress . unIndexedAddress) addrs)
-        (replicate 100 defaultAmount ++ replicate 100 (adaToCoin 1))
+bigDustWallet :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+bigDustWallet tag = do
+    as <- anyFunds bigDustWalletRange M15 AddressStyleShelley 0 199 tag
+    pure
+        $ zip as
+        $ replicate 100 defaultAmount ++ replicate 100 (adaToCoin 1)
 
-preregKeyWalletIndex :: MnemonicIndex
-preregKeyWalletIndex = bigDustWalletIndex + 1
+preregKeyWalletRange :: MnemonicRange
+preregKeyWalletRange = nextRange 1 bigDustWalletRange
 
-preregKeyWallet :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-preregKeyWallet clientEnv networkTag = do
-    addrs <-
-        fetchMnemonicAddresses
-            M15 preregKeyWalletIndex AddressStyleShelley networkTag 0 99
-                & executeClientM clientEnv
-    pure $ zip
-        (map (unFaucetAddress . unIndexedAddress) addrs)
-        (replicate 100 (defaultAmount))
+preregKeyWallet :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+preregKeyWallet tag = do
+    as <- anyFunds preregKeyWalletRange M15 AddressStyleShelley 0 99 tag
+    pure $ as <&> (,defaultAmount)
 
-mirMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-mirMnemonicRange = (0, 199)
+mirMnemonicRange :: MnemonicRange
+mirMnemonicRange = MnemonicRange 0 199
 
-mirMnemonics :: ClientEnv -> IO [SomeMnemonic]
-mirMnemonics clientEnv =
-    map (Faucet.toSomeMnemonic . unIndexedMnemonic) <$>
-        uncurry (fetchMnemonicRange M24) mirMnemonicRange
-            & executeClientM clientEnv
+mirMnemonics :: FaucetM [SomeMnemonic]
+mirMnemonics = FaucetM $
+    fmap (Faucet.toSomeMnemonic . unIndexedMnemonic)
+        <$> fetchMnemonicRange M24 (from mirMnemonicRange) (to mirMnemonicRange)
 
-mirFunds :: ClientEnv -> CA.NetworkTag -> IO [(Address, Coin)]
-mirFunds clientEnv networkTag = fmap (, defaultAmount) <$> do
-    (`concatMapM` listEnumRange mirMnemonicRange) \index -> do
-        (unFaucetAddress . unIndexedAddress <$>) <$> do
-            fetchMnemonicAddresses M24 index AddressStyleShelley networkTag 0 0
-                & executeClientM clientEnv
+mirFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+mirFunds tag = do
+    as <- anyFunds mirMnemonicRange M24 AddressStyleShelley 0 0 tag
+    pure $ as <&> (,defaultAmount)
 
 adaToCoin :: Natural -> Coin
 adaToCoin = Coin . (* 1_000_000)
 
 defaultAmount :: Coin
 defaultAmount = adaToCoin 100_000
-
-executeClientM :: ClientEnv -> ClientM a -> IO a
-executeClientM env action = runClientM action env >>= either throwIO pure
 
 -- | A list of pre-generated policy IDs, paired with
 -- @(signing key, verification key hash)@ string tuples.
@@ -360,26 +407,18 @@ maryAssetScripts =
             )
         ]
 
-maryAllegraMnemonicRange :: (MnemonicIndex, MnemonicIndex)
-maryAllegraMnemonicRange =
-    let from = snd mirMnemonicRange + 1 in (from, from + 100)
+maryAllegraMnemonicRange :: MnemonicRange
+maryAllegraMnemonicRange = nextRange 200 mirMnemonicRange
 
 -- | A list of addresses, and assets to be provisioned there.
 --
 -- Beside the assets, there is a list of @(signing key, verification key hash)@,
 -- so that they can be minted by the faucet.
-maryAllegraFunds
-    :: ClientEnv
-    -> CA.NetworkTag
-    -> Coin
-    -- ^ Amount of ada in each bundle
-    -> IO [(Address, (TokenBundle, [(String, String)]))]
-maryAllegraFunds clientEnv networkTag tips =
-    (`concatMapM` listEnumRange maryAllegraMnemonicRange) \index -> do
-        addresses <- (unFaucetAddress . unIndexedAddress <$>) <$> do
-            fetchMnemonicAddresses M24 index AddressStyleShelley networkTag 0 2
-                & executeClientM clientEnv
-        pure $ take 3 $ zip addresses (cycle maryTokenBundles)
+
+maryAllegraFunds :: Coin -> CA.NetworkTag -> FaucetM [(Address, (TokenBundle, [(String, String)]))]
+maryAllegraFunds tips tag  = do
+    as <- anyFunds maryAllegraMnemonicRange M24 AddressStyleShelley 0 2 tag
+    pure $ zip as $ cycle maryTokenBundles
   where
     maryTokenBundles :: [(TokenBundle, [(String, String)])]
     maryTokenBundles = zipWith mint [simple, fruit, combined] maryAssetScripts
@@ -453,8 +492,8 @@ chunks n xs =
 byronIntegrationTestFunds :: CA.NetworkTag -> [(Address, Coin)]
 byronIntegrationTestFunds networkTag =
     mconcat
-        [ Mnemonics.random >>=
-            take 10 . map (,defaultAmount) . (Addresses.byron networkTag)
+        [ Mnemonics.random
+            >>= take 10 . map (,defaultAmount) . (Addresses.byron networkTag)
         , dustWallet1Funds
         , dustWallet2Funds
         ]
@@ -520,10 +559,4 @@ hwLedgerFunds networkTag = do
         addrXPrv = deriveAddressPrivateKey accXPrv Icarus.UTxOExternal
         paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
             let firstIx = minBound
-            in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
-
---------------------------------------------------------------------------------
--- Helpers ---------------------------------------------------------------------
-
-listEnumRange :: Enum x => (x, x) -> [x]
-listEnumRange (x0, xn) = [x0 .. xn]
+            in  firstIx : unfoldr (fmap dupe . nextIndex) firstIx

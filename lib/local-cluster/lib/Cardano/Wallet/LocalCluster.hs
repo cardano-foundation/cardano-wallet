@@ -27,6 +27,9 @@ import Cardano.Startup
     ( installSignalHandlers
     , setDefaultFilePermissions
     )
+import Cardano.Wallet.Faucet
+    ( runFaucetM
+    )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
     , withFaucet
@@ -215,11 +218,8 @@ main = withUtf8 $ do
                 , cfgTestnetMagic = Cluster.TestnetMagic 42
                 , cfgShelleyGenesisMods = [ over #sgSlotLength \_ -> 0.2 ]
                 }
-        maryAllegraFunds <-
-            Faucet.maryAllegraFunds
-                faucetClientEnv
-                shelleyTestnet
-                (Coin 10_000_000)
+        maryAllegraFunds <- runFaucetM faucetClientEnv $
+            Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
         Cluster.withCluster stdoutTextTracer clusterCfg
             Cluster.FaucetFunds
             { pureAdaFunds = []

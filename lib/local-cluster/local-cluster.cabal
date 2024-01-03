@@ -35,8 +35,8 @@ library
   ghc-options:
     -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
     -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
-    -fprint-explicit-kinds -Wcompat -Widentities
+    -Wunused-foralls
+    -Wcompat -Widentities
     -Werror=incomplete-patterns -Wredundant-constraints
     -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
     -fprint-expanded-synonyms -fwarn-unused-do-bind
@@ -93,6 +93,7 @@ library
     , text
     , text-class
     , time                               ^>=1.9.3
+    , transformers
     , typed-process                      ^>=0.2.11
     , unliftio                           ^>=0.2
     , warp                               ^>=3.3.25
