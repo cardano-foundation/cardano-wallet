@@ -5,9 +5,9 @@ module Cardano.Wallet.Spec.Interpreters.Effectfully
 
 import qualified Network.HTTP.Client as Http
 
-import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import Cardano.Mnemonic
-    ( SomeMnemonic (..)
+    ( Mnemonic
+    , SomeMnemonic (..)
     )
 import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert
@@ -44,6 +44,9 @@ import Cardano.Wallet.Spec.Interpreters.Config
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkMnemonic
+    )
 import Effectful
     ( Eff
     , IOE
@@ -55,12 +58,6 @@ import Effectful.Fail
     )
 import Network.HTTP.Client
     ( ManagerSettings (managerResponseTimeout)
-    )
-import Prelude hiding
-    ( Show
-    , State
-    , evalState
-    , show
     )
 import System.Random
     ( initStdGen
@@ -123,7 +120,7 @@ interpretStory configuredNetwork story' = do
     stdGen <- initStdGen
     story'
         & runQuery configuredNetwork
-        & runFaucetPure (SomeMnemonic Mnemonics.preregKeyWallet :| [])
+        & runFaucetPure (SomeMnemonic preregKeyWallet :| [])
         & runHttpClient connectionManager
         & runRandom stdGen
         & runTimeout
@@ -131,3 +128,23 @@ interpretStory configuredNetwork story' = do
         & runFail
         & runTracePure
         & runEff
+
+preregKeyWallet :: Mnemonic 15
+preregKeyWallet =
+    unsafeMkMnemonic @15
+        [ "squirrel"
+        , "material"
+        , "silly"
+        , "twice"
+        , "direct"
+        , "slush"
+        , "pistol"
+        , "razor"
+        , "become"
+        , "junk"
+        , "kingdom"
+        , "flee"
+        , "squirrel"
+        , "silly"
+        , "twice"
+        ]

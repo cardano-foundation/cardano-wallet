@@ -5,8 +5,6 @@ module Cardano.Wallet.Spec.Interpreters.Pure
     , PureStory
     ) where
 
-import qualified Cardano.Faucet.Mnemonics as Mnemonics
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Effectful.Error.Static as E
 
@@ -32,6 +30,9 @@ import Cardano.Wallet.Spec.Effect.Trace
     )
 import Cardano.Wallet.Spec.Interpreters.Config
     ( TraceConfiguration (..)
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkMnemonic
     )
 import Data.Tagged
     ( Tagged (..)
@@ -99,6 +100,23 @@ interpretStoryPure =
         >>> runFail
         >>> E.runErrorNoCallStack
         >>> runPureEff
-
   where
-    predefinedMnemonic = SomeMnemonic (head (NE.fromList Mnemonics.sequential))
+    predefinedMnemonic =
+        SomeMnemonic
+            $ unsafeMkMnemonic @15
+                [ "vintage"
+                , "poem"
+                , "topic"
+                , "machine"
+                , "hazard"
+                , "cement"
+                , "dune"
+                , "glimpse"
+                , "fix"
+                , "brief"
+                , "account"
+                , "badge"
+                , "mass"
+                , "silly"
+                , "business"
+                ]

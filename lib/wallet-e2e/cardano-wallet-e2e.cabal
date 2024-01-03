@@ -64,6 +64,7 @@ library
     , cardano-addresses      ^>=3.12
     , cardano-crypto         ^>=1.1.2
     , cardano-wallet-client  ^>=0.1
+    , cardano-wallet-primitive
     , effectful-core         ^>=2.2.2.0
     , effectful-th           ^>=1.0.0.1
     , faucet
@@ -125,7 +126,6 @@ executable wallet-e2e
     , cardano-wallet-e2e
     , optparse-applicative  ^>=0.17.1
     , path                  ^>=0.9.2
-    , path-io               ^>=1.7.0
     , relude                ^>=1.2.0.0
     , sydtest               ^>=0.15
     , tagged                ^>=0.8.7

@@ -24,7 +24,6 @@ import Cardano.Wallet.Spec.Stories.Wallet
     ( createdWalletHasZeroAda
     , createdWalletListed
     , createdWalletRetrievable
-    , faucetWalletHasNonZeroAda
     )
 import Cardano.Wallet.Spec.TimeoutSpec
     ( timeoutSpec
