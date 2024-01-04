@@ -7,9 +7,9 @@
 
 module Cardano.Faucet
     ( initialState
-    , handleMnemonicIndexRange
-    , handleMnemonicIndex
-    , handleMnemonicAddresses
+    , serveMnemonics
+    , serveMenmonic
+    , serveAddresses
     ) where
 
 import Prelude
@@ -71,25 +71,26 @@ import Servant
 
 initialState :: IO FaucetState
 initialState = do
-    indexedMnemonics <- forM [minBound..maxBound] \len ->
+    indexedMnemonics <- forM [minBound .. maxBound] \len ->
         (len,) <$> genIndexedMnemonics len
     pure $ FaucetState $ Map.fromAscList indexedMnemonics
 
 genIndexedMnemonics :: MnemonicLength -> IO (NonEmpty IndexedMnemonic)
 genIndexedMnemonics len =
-    (:|) <$> genIndexedMnemonic len minBound
-         <*> traverse (genIndexedMnemonic len) [succ minBound..maxBound]
+    (:|)
+        <$> genIndexedMnemonic len minBound
+        <*> traverse (genIndexedMnemonic len) [succ minBound .. maxBound]
 
 genIndexedMnemonic :: MnemonicLength -> MnemonicIndex -> IO IndexedMnemonic
 genIndexedMnemonic len index =
     IndexedMnemonic index . Mnemonic <$> Mnemonic.generateSome len
 
-handleMnemonicIndexRange
+serveMnemonics
     :: MnemonicLength
     -> MnemonicIndex
     -> MnemonicIndex
     -> FaucetM [IndexedMnemonic]
-handleMnemonicIndexRange mnLen minIndex maxIndex = do
+serveMnemonics mnLen minIndex maxIndex = do
     unless (minIndex <= maxIndex) (throwError err404)
     get <&> \FaucetState{indexedMnemonics} ->
         case Map.lookup mnLen indexedMnemonics of
@@ -99,13 +100,13 @@ handleMnemonicIndexRange mnLen minIndex maxIndex = do
                     & NE.filter \(IndexedMnemonic index _mnemonic) ->
                         index >= minIndex && index <= maxIndex
 
-handleMnemonicIndex :: MnemonicLength -> MnemonicIndex -> FaucetM Mnemonic
-handleMnemonicIndex mnLen index =
-    handleMnemonicIndexRange mnLen index index >>= \case
+serveMenmonic :: MnemonicLength -> MnemonicIndex -> FaucetM Mnemonic
+serveMenmonic mnLen index =
+    serveMnemonics mnLen index index >>= \case
         [IndexedMnemonic _index mnemonic] -> pure mnemonic
         _ -> throwError err404
 
-handleMnemonicAddresses
+serveAddresses
     :: MnemonicLength
     -> MnemonicIndex
     -> AddressStyle
@@ -113,16 +114,16 @@ handleMnemonicAddresses
     -> AddressIndex
     -> AddressIndex
     -> FaucetM [IndexedAddress]
-handleMnemonicAddresses mnLen mnIdx style netTag minAddrIdx maxAddrIdx = do
-    Mnemonic (SomeMnemonic mnemonic) <- handleMnemonicIndex mnLen mnIdx
+serveAddresses mnLen mnIdx style netTag minAddrIdx maxAddrIdx = do
+    Mnemonic (SomeMnemonic mnemonic) <- serveMenmonic mnLen mnIdx
     let stylishEncoder = case style of
-          AddressStyleShelley -> Addresses.shelley
-          AddressStyleByron -> Addresses.byron
-          AddressStyleIcarus -> Addresses.icarus
-    mnemonic
+            AddressStyleShelley -> Addresses.shelley
+            AddressStyleByron -> Addresses.byron
+            AddressStyleIcarus -> Addresses.icarus
+    pure
+        $ mnemonic
         & stylishEncoder netTag
         & fmap FaucetAddress
-        & zipWith IndexedAddress [0..]
+        & zipWith IndexedAddress [0 ..]
         & drop (fromEnum minAddrIdx)
         & take (fromEnum maxAddrIdx - fromEnum minAddrIdx + 1)
-        & pure

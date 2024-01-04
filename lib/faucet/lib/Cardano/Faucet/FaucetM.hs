@@ -15,6 +15,14 @@ import Cardano.Faucet.Mnemonics
 import Cardano.Faucet.Types
     ( IndexedMnemonic
     )
+import Control.Concurrent.STM
+    ( TVar
+    , atomically
+    , newTVarIO
+    , readTVar
+    , readTVarIO
+    , writeTVar
+    )
 import Control.Monad.Error.Class
     ( MonadError
     )
@@ -35,50 +43,37 @@ import Data.List.NonEmpty
 import Data.Map.Lazy
     ( Map
     )
-import Data.Tuple
-    ( swap
-    )
-import GHC.IORef
-    ( IORef
-    , atomicModifyIORef'
-    , newIORef
-    , readIORef
-    , writeIORef
-    )
 
 newtype FaucetState = FaucetState
     { indexedMnemonics :: Map MnemonicLength (NonEmpty IndexedMnemonic)
     }
 
-newtype FaucetM a = FaucetM (ReaderT (IORef FaucetState) Servant.Handler a)
+newtype FaucetM a = FaucetM (ReaderT (TVar FaucetState) Servant.Handler a)
   deriving newtype
     ( Functor
     , Applicative
     , Monad
     , MonadIO
     , MonadError Servant.ServerError
-    , MonadReader (IORef FaucetState)
+    , MonadReader (TVar FaucetState)
     )
 
 runFaucetM :: FaucetState -> FaucetM a -> Servant.Handler a
-runFaucetM s (FaucetM r) = runReaderT r =<< liftIO (newIORef s)
+runFaucetM s (FaucetM r) = runReaderT r =<< liftIO (newTVarIO s)
 
 instance MonadState FaucetState FaucetM where
   get = FaucetM do
     ref <- ask
-    liftIO $ readIORef ref
+    liftIO $ readTVarIO ref
 
   put s = FaucetM do
     ref <- ask
-    liftIO $ writeIORef ref s
+    liftIO $ atomically $ writeTVar ref s
 
   state f = FaucetM do
     ref <- ask
-    liftIO $ atomicModifyIORef' ref (swap . f)
-
-modifyFaucetState :: (FaucetState -> FaucetM (FaucetState, a)) -> FaucetM a
-modifyFaucetState f = do
-  s <- get
-  (s', a) <- f s
-  put s'
-  pure a
+    liftIO $ atomically $ do
+      s <- readTVar ref
+      let (a, s') = f s
+      writeTVar ref s'
+      pure a

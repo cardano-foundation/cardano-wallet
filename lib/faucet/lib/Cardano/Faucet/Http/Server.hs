@@ -16,9 +16,9 @@ import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant
 
 import Cardano.Faucet
-    ( handleMnemonicAddresses
-    , handleMnemonicIndex
-    , handleMnemonicIndexRange
+    ( serveAddresses
+    , serveMenmonic
+    , serveMnemonics
     )
 import Cardano.Faucet.FaucetM
     ( FaucetM
@@ -41,7 +41,7 @@ import Servant
 --------------------------------------------------------------------------------
 
 newtype TcpPort = TcpPort Int
-  deriving newtype Show
+    deriving newtype (Show)
 
 serve :: TcpPort -> IO ()
 serve (TcpPort port) = do
@@ -59,8 +59,7 @@ server :: FaucetState -> Servant.Server FaucetApi
 server state0 =
     Servant.hoistServer api (runFaucetM state0) faucetServer
   where
+    serveMnemmonicOrAddresses len index =
+        serveMenmonic len index :<|> serveAddresses len index
     faucetServer :: Servant.ServerT FaucetApi FaucetM
-    faucetServer mnemonicLen =
-        handleMnemonicIndexRange mnemonicLen :<|> \mnemonicIndex ->
-            handleMnemonicIndex mnemonicLen mnemonicIndex
-                :<|> handleMnemonicAddresses mnemonicLen mnemonicIndex
+    faucetServer len = serveMnemonics len :<|> serveMnemmonicOrAddresses len
