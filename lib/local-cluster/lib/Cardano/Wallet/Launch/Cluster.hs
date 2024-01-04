@@ -25,6 +25,7 @@
 module Cardano.Wallet.Launch.Cluster
     ( -- * Local test cluster launcher
       withCluster
+    , withFaucet
     , Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
@@ -58,7 +59,6 @@ module Cardano.Wallet.Launch.Cluster
     , sendFaucetFundsTo
     , sendFaucetAssetsTo
     , moveInstantaneousRewardsTo
-    , oneMillionAda
     , genMonetaryPolicyScript
 
       -- * Logging
@@ -296,6 +296,13 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..)
     )
+import Servant.Client
+    ( BaseUrl (..)
+    , ClientEnv
+    , Scheme (..)
+    , mkClientEnv
+    , showBaseUrl
+    )
 import System.Directory
     ( copyFile
     , createDirectory
@@ -363,6 +370,7 @@ import UnliftIO.MVar
 import qualified Cardano.Address as Address
 import qualified Cardano.Address as CA
 import qualified Cardano.Codec.Cbor as CBOR
+import qualified Cardano.Faucet.Http.Server as Faucet
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
@@ -386,6 +394,8 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Yaml as Yaml
+import qualified Network.HTTP.Client as Http
+import qualified Network.Wai.Handler.Warp as Warp
 
 newtype PoolId = PoolId {getPoolId :: ByteString}
     deriving stock (Generic, Eq, Show, Ord)
@@ -1210,24 +1220,16 @@ generateGenesis Config{..} initialFunds genesisMods = do
 
 data FaucetFunds = FaucetFunds
     { pureAdaFunds :: [(Address, Coin)]
-    -- ^ Pure ada funds
-    , maFunds :: [(Address, (TokenBundle, [(String, String)]))]
+    , maryAllegraFunds :: [(Address, (TokenBundle, [(String, String)]))]
     -- ^ Multi asset funds. Slower to setup than pure ada funds.
     --
     -- Beside the assets, there is a list of
     -- @(signing key, verification key hash)@, so that they can be minted by
     -- the faucet.
-    , mirFunds :: [(Credential, Coin)]
+    , mirCredentials :: [(Credential, Coin)]
     -- ^ "Move instantaneous rewards" - for easily funding reward accounts.
     }
     deriving stock (Eq, Show)
-
-instance Semigroup FaucetFunds where
-    FaucetFunds ada1 ma1 mir1 <> FaucetFunds ada2 ma2 mir2 =
-        FaucetFunds (ada1 <> ada2) (ma1 <> ma2) (mir1 <> mir2)
-
-instance Monoid FaucetFunds where
-    mempty = FaucetFunds [] [] []
 
 -- | Execute an action after starting a cluster of stake pools. The cluster also
 -- contains a single BFT node that is pre-configured with keys available in the
@@ -1241,7 +1243,7 @@ instance Monoid FaucetFunds where
 -- and then to Allegra at epoch 2. Callback actions can be provided to run
 -- a little time after the hard forks are scheduled.
 --
--- The callback actions are not guaranteed to use the same node.
+-- The onClusterStart actions are not guaranteed to use the same node.
 withCluster
     :: HasCallStack
     => Tracer IO ClusterLog
@@ -1266,11 +1268,15 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         let federalizeNetwork =
                 over #sgProtocolParams (set ppDL (unsafeUnitInterval 0.25))
 
-        faucetAddresses <- readFaucetAddresses cfgClusterConfigs
+        -- TODO (yura): Use Faucet API isntead of these fixed addresses
+        faucetAddresses <-
+            map (,Coin 1_000_000_000_000_000)
+                <$> readFaucetAddresses cfgClusterConfigs
+
         genesisFiles <-
             generateGenesis
                 config
-                (adaFunds <> map (,Coin 1_000_000_000_000_000) faucetAddresses)
+                (pureAdaFunds <> faucetAddresses)
                 ((if postAlonzo then addGenesisPools else federalizeNetwork)
                     : cfgShelleyGenesisMods)
 
@@ -1350,7 +1356,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
   where
     postAlonzo = cfgLastHardFork >= BabbageHardFork
 
-    FaucetFunds adaFunds maFunds mirFunds = faucetFunds
+    FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials = faucetFunds
 
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
@@ -1359,7 +1365,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
-        moveInstantaneousRewardsTo tr config conn mirFunds
+        moveInstantaneousRewardsTo tr config conn mirCredentials
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -1374,7 +1380,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
             $ forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
-        sendFaucetAssetsTo tr config conn 20 maFunds
+        sendFaucetAssetsTo tr config conn 20 maryAllegraFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration tr config
@@ -1445,8 +1451,8 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                         ("cluster didn't start correctly: " <> errors)
                         (ExitFailure 1)
             else do
-                -- Run the action using the connection to the first pool, or the
-                -- fallback.
+                -- Run the action using the connection to the first pool,
+                -- or the fallback.
                 let node = case group of
                         [] -> fallbackNode
                         Right firstPool : _ -> firstPool
@@ -1586,7 +1592,7 @@ withRelayNode
     -> (RunningNode -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr clusterDir setupDir params act = do
+withRelayNode tr clusterDir setupDir params onClusterStart = do
     let name = "node"
     let nodeDir = Tagged @"output" $ untag clusterDir </> name
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
@@ -1618,11 +1624,21 @@ withRelayNode tr clusterDir setupDir params act = do
                     , nodeExecutable = Nothing
                     }
 
-        let act' socket = act $ RunningNode socket genesisData vd
-        withCardanoNodeProcess tr name cfg act'
+        let onClusterStart' socket = onClusterStart (RunningNode socket genesisData vd)
+        withCardanoNodeProcess tr name cfg onClusterStart'
 
 toTextPoolId :: PoolId -> Text
 toTextPoolId = decodeUtf8 . convertToBase Base16 . getPoolId
+
+withFaucet :: (ClientEnv -> IO a) -> IO a
+withFaucet useBaseUrl = Warp.withApplication Faucet.initApp $ \port -> do
+    let baseUrl = BaseUrl Http "localhost" port ""
+    putStrLn $ "Faucet started at " <> showBaseUrl baseUrl
+    let tenSeconds = 10 * 1_000_000 -- 10s in microseconds
+    manager <- Http.newManager Http.defaultManagerSettings {
+            Http.managerResponseTimeout = Http.responseTimeoutMicro tenSeconds
+        }
+    useBaseUrl $ mkClientEnv manager baseUrl
 
 -- | Run a SMASH stub server, serving some delisted pool IDs.
 withSMASH
@@ -2681,10 +2697,9 @@ depositAmt = 1_000_000
 -- | Initial amount in each of these special cluster faucet
 faucetAmt :: Integer
 faucetAmt = 1_000 * oneMillionAda
-
--- | Just one million Ada, in Lovelace.
-oneMillionAda :: Integer
-oneMillionAda = 1_000_000_000_000
+  where
+    -- | Just one million Ada, in Lovelace.
+    oneMillionAda = 1_000_000_000_000
 
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.

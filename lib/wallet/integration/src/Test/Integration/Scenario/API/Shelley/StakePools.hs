@@ -17,8 +17,8 @@ import Prelude hiding
     ( id
     )
 
-import Cardano.Mnemonic
-    ( mnemonicToText
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Pool.Metadata
     ( HealthCheckSMASH (..)
@@ -53,8 +53,8 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (NoUtxosAvailable)
     )
-import Cardano.Wallet.Faucet.Mnemonics
-    ( preregKeyWallet
+import Cardano.Wallet.Faucet
+    ( Faucet (..)
     )
 import Cardano.Wallet.Pools
     ( StakePool (..)
@@ -607,7 +607,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     (view #epochNumber <$> dlg ^. #changesAt) `shouldSatisfy`
                         (\x -> x == Just (currentEpoch + 2)
                             || x == Just (currentEpoch + 3)
-                            -- ^^^^ This is to reduce flakiness of the test.
+                            -- _^^^^ This is to reduce flakiness of the test.
                             -- The reason why we can't be sure which epoch
                             -- exactly the delegation change will happen is
                             -- because the transaction might be submitted
@@ -667,9 +667,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists" $ \ctx -> runResourceT $ do
+        preregKeyWallet <- liftIO $ preregKeyWalletMnemonic (_faucet ctx)
+
         let payload = Json [json| {
                 "name": "Wallet with pre-registered stake key",
-                "mnemonic_sentence": #{mnemonicToText preregKeyWallet},
+                "mnemonic_sentence": #{someMnemonicToWords preregKeyWallet},
                 "passphrase": #{fixturePassphrase}
                 } |]
 

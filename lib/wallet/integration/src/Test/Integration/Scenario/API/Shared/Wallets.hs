@@ -24,8 +24,8 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , ScriptTemplate (..)
     )
-import Cardano.Mnemonic
-    ( MkSomeMnemonic (..)
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
@@ -127,7 +127,6 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
-    , MnemonicLength (..)
     , Payload (..)
     , bech32Text
     , between
@@ -145,7 +144,6 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureSharedWallet
     , fixtureWallet
-    , genMnemonics
     , genXPubsBech32
     , getAccountKeyShared
     , getFromResponse
@@ -181,6 +179,7 @@ import Test.Integration.Framework.TestData
     , errMsg406
     )
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteArray as BA
@@ -200,10 +199,8 @@ spec = describe "SHARED_WALLETS" $ do
         \Create an active shared wallet from root xprv" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let passphrase = Passphrase
                 $ BA.convert
                 $ T.encodeUtf8 fixturePassphrase
@@ -212,8 +209,8 @@ spec = describe "SHARED_WALLETS" $ do
                 m15 (Just m12) index passphrase
         let payloadPost = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -260,10 +257,8 @@ spec = describe "SHARED_WALLETS" $ do
         \Compare wallet ids" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let passphrase = Passphrase $
                 BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
@@ -271,8 +266,8 @@ spec = describe "SHARED_WALLETS" $ do
                 sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payloadPost = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -438,10 +433,8 @@ spec = describe "SHARED_WALLETS" $ do
         \Create a pending shared wallet from root xprv" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let passphrase = Passphrase $ BA.convert $
                 T.encodeUtf8 fixturePassphrase
         let index = 30
@@ -449,8 +442,8 @@ spec = describe "SHARED_WALLETS" $ do
                 sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -601,10 +594,8 @@ spec = describe "SHARED_WALLETS" $ do
         \Create an active shared wallet from root xprv with self" $
         \ctx -> runResourceT $ do
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let passphrase = Passphrase $ BA.convert $
                 T.encodeUtf8 fixturePassphrase
         let index = 30
@@ -612,8 +603,8 @@ spec = describe "SHARED_WALLETS" $ do
                 sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payloadPost = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -639,8 +630,8 @@ spec = describe "SHARED_WALLETS" $ do
 
         let payloadPostWithSelf = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
@@ -933,10 +924,8 @@ spec = describe "SHARED_WALLETS" $ do
                 expectResponseCode HTTP.status200 rAddr
                 pure $ getResponse rAddr
 
-        m15txt <- liftIO $ genMnemonics M15
-        m12txt <- liftIO $ genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- liftIO $ Mnemonics.generateSome Mnemonics.M15
+        m12 <- liftIO $ Mnemonics.generateSome Mnemonics.M12
         let passphrase = Passphrase $
                 BA.convert $ T.encodeUtf8 fixturePassphrase
         let index = 30
@@ -944,8 +933,8 @@ spec = describe "SHARED_WALLETS" $ do
                 sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
         let payloadPost = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15txt},
-                "mnemonic_second_factor": #{m12txt},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "one_change_address_mode": true,

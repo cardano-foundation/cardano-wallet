@@ -51,7 +51,9 @@ configuredNetwork stateDir nodeConfigDir = do
     unlessM (Wait.untilWalletIsConnected walletApi) do
         fail "Wallet is not synced, giving up. Please check wallet logs."
 
-    pure ConfiguredNetwork{configuredNetworkWallet = walletApi, ..}
+    pure ConfiguredNetwork
+      { configuredNetworkWallet = walletApi
+      }
   where
     startNode = do
         let nodeDir = untag stateDir </> [reldir|node|]

@@ -21,6 +21,7 @@ import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog (..)
     , Config (..)
+    , FaucetFunds (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
@@ -326,7 +327,7 @@ withTestNode tr action = do
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = []
                     }
-            withCluster tr clusterConfig mempty $
+            withCluster tr clusterConfig (FaucetFunds [] [] []) $
                 \(RunningNode sock genesisData vData) -> do
                     let (np, _, _ ) = fromGenesisData genesisData
                     action np sock vData

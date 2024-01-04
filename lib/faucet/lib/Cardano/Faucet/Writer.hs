@@ -7,19 +7,30 @@
      It is not used at the moment by the local cluster, but it might be useful
      for troubleshooting to introspect addresses derived from mnemonics.
 -}
-module Cardano.Wallet.Faucet.Writer
+module Cardano.Faucet.Writer
     ( genByronFaucets
     , genIcarusFaucets
     , genShelleyFaucets
     , genMaryAllegraFaucets
     ) where
 
+--------------------------------------------------------------------------------
+
 import Prelude
+
+import qualified Cardano.Address as CA
+import qualified Cardano.Faucet.Addresses as Addresses
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as TIO
 
 import Cardano.Address
     ( Address
     , base58
     , unAddress
+    )
+import Cardano.Address.Style.Shelley
+    ( shelleyTestnet
     )
 import Cardano.Mnemonic
     ( Mnemonic
@@ -37,11 +48,7 @@ import Data.Text
     ( Text
     )
 
-import qualified Cardano.Address as CA
-import qualified Cardano.Wallet.Faucet.Addresses as Addresses
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Data.Text.IO as TIO
+--------------------------------------------------------------------------------
 
 -- | Generate faucets addresses and mnemonics to a file.
 --
@@ -59,13 +66,15 @@ genIcarusFaucets = genFaucet base58 . Addresses.icarus
 --
 -- >>> genMnemonics 100 >>= genShelleyFaucets "shelley-faucets.yaml"
 genShelleyFaucets :: FilePath -> [Mnemonic 15] -> IO [[Text]]
-genShelleyFaucets = genFaucet encodeAddressHex Addresses.shelley
+genShelleyFaucets =
+    genFaucet encodeAddressHex (Addresses.shelley shelleyTestnet)
 
 -- | Generate faucet addresses and mnemonics to a file.
 --
 -- >>> genMnemonics 100 >>= genMaryAllegraFaucets "ma-faucets.yaml"
 genMaryAllegraFaucets :: FilePath -> [Mnemonic 24] -> IO [[Text]]
-genMaryAllegraFaucets = genFaucet encodeAddressHex Addresses.shelley
+genMaryAllegraFaucets =
+    genFaucet encodeAddressHex (Addresses.shelley shelleyTestnet)
 
 -- | Abstract function for generating a faucet as a YAML file.
 --

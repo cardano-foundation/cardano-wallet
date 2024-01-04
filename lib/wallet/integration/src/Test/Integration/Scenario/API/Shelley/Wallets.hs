@@ -16,10 +16,12 @@ module Test.Integration.Scenario.API.Shelley.Wallets
 
 import Prelude
 
-import Cardano.Mnemonic
-    ( entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
+import Cardano.Faucet.Mnemonics
+    ( unsafeMnemonic
+    )
+import Cardano.Mnemonic.Extended
+    ( mnemonicToText
+    , someMnemonicToWords
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
@@ -81,6 +83,9 @@ import Control.Monad.Trans.Resource
 import Data.Aeson
     ( ToJSON (..)
     )
+import Data.Aeson.QQ
+    ( aesonQQ
+    )
 import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
@@ -118,9 +123,7 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
-    , MnemonicLength (..)
     , Payload (..)
-    , constFixtureWalletNoWait
     , counterexample
     , emptyByronWalletWith
     , emptyRandomWallet
@@ -137,10 +140,10 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixtureMultiAssetWallet
     , fixturePassphrase
+    , fixtureShelleyWallet
     , fixtureWallet
-    , fixtureWalletWithMnemonics
-    , genMnemonics
     , getFromResponse
+    , getResponse
     , json
     , listAddresses
     , listFilteredByronWallets
@@ -181,6 +184,7 @@ import Test.Integration.Framework.TestData
 -- e.g. xsignatureFromBytes / xsignatureToBytes so that we can avoid the import
 -- of cardano-crypto here.
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -194,12 +198,12 @@ spec
     => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
-        m15 <- liftIO $ genMnemonics M15
-        m12 <- liftIO $ genMnemonics M12
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let payload = Json [json| {
                 "name": "1st Wallet",
-                "mnemonic_sentence": #{m15},
-                "mnemonic_second_factor": #{m12},
+                "mnemonic_sentence": #{someMnemonicToWords m15},
+                "mnemonic_second_factor": #{someMnemonicToWords m12},
                 "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 30
                 } |]
@@ -235,10 +239,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                     \'\346\949\8466\8455\8450\430\8217'); DROP TABLE \"wallet\"; --"
                   ) ]
         forM_ matrix $ \(nameIn, nameOut) -> it nameIn $ \ctx -> runResourceT $ do
-            mnemonics <- liftIO $ genMnemonics M24
+            mnemonics <- Mnemonics.generateSome Mnemonics.M24
             let payload = Json [json| {
                     "name": #{nameIn},
-                    "mnemonic_sentence": #{mnemonics},
+                    "mnemonic_sentence": #{someMnemonicToWords mnemonics},
                     "passphrase": "12345678910"
                     } |]
             r <- postWallet ctx payload
@@ -269,7 +273,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         wSrc <- fixtureWallet ctx
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         -- create wallet
-        mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        mnemonics <- Mnemonics.generateSome Mnemonics.M15
         let payldCrt = payloadWith "!st created" mnemonics
         rInit <- postWallet ctx payldCrt
         verify rInit
@@ -330,10 +334,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
     it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> runResourceT $ do
-        m21 <- liftIO $ genMnemonics M21
+        m21 <- Mnemonics.generateSome Mnemonics.M21
         let payload = Json [json| {
                 "name": "Some Wallet",
-                "mnemonic_sentence": #{m21},
+                "mnemonic_sentence": #{someMnemonicToWords m21},
                 "passphrase": #{fixturePassphrase}
                 } |]
         r1 <- postWallet ctx payload
@@ -399,10 +403,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> runResourceT $ do
-            m24 <- liftIO $ genMnemonics M24
+            m24 <- Mnemonics.generateSome Mnemonics.M24
             let payload = Json [json| {
                     "name": #{walName},
-                    "mnemonic_sentence": #{m24},
+                    "mnemonic_sentence": #{someMnemonicToWords m24},
                     "passphrase": #{fixturePassphrase}
                     } |]
             r <- postWallet ctx payload
@@ -410,17 +414,17 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "WALLETS_CREATE_05 - Mnemonics" $ do
         let matrix =
-             [ ( "15 mnemonic words", M15 )
-             , ( "18 mnemonic words", M18 )
-             , ( "21 mnemonic words", M21 )
-             , ( "24 mnemonic words", M24 )
+             [ ( "15 mnemonic words", Mnemonics.M15 )
+             , ( "18 mnemonic words", Mnemonics.M18 )
+             , ( "21 mnemonic words", Mnemonics.M21 )
+             , ( "24 mnemonic words", Mnemonics.M24 )
              ]
 
         forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> runResourceT $ do
-            m <- liftIO $ genMnemonics mnemonics
+            m <- Mnemonics.generateSome mnemonics
             let payload = Json [json| {
                     "name": "Just a łallet",
-                    "mnemonic_sentence": #{m},
+                    "mnemonic_sentence": #{someMnemonicToWords m},
                     "passphrase": #{fixturePassphrase}
                     } |]
             r <- postWallet ctx payload
@@ -428,17 +432,17 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "WALLETS_CREATE_06 - Mnemonics second factor" $ do
         let matrix =
-                 [ ( "9 mnemonic words", M9 )
-                 , ( "12 mnemonic words", M12 )
+                 [ ( "9 mnemonic words", Mnemonics.M9 )
+                 , ( "12 mnemonic words", Mnemonics.M12 )
                  ]
         forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> runResourceT $ do
-            m15 <- liftIO $ genMnemonics M15
-            mSecondFactor <- liftIO $ genMnemonics mnemonics
+            m15 <- Mnemonics.generateSome Mnemonics.M15
+            mSecondFactor <- Mnemonics.generateSome mnemonics
 
             let payload = Json [json| {
                     "name": "Just a łallet",
-                    "mnemonic_sentence": #{m15},
-                    "mnemonic_second_factor": #{mSecondFactor},
+                    "mnemonic_sentence": #{someMnemonicToWords m15},
+                    "mnemonic_second_factor": #{someMnemonicToWords mSecondFactor},
                     "passphrase": #{fixturePassphrase}
                     } |]
             r <- postWallet ctx payload
@@ -459,10 +463,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
         forM_ matrix $ \(title, passphrase) -> it title $ \ctx -> runResourceT $ do
-            m24 <- liftIO $ genMnemonics M24
+            m24 <- Mnemonics.generateSome Mnemonics.M24
             let payload = Json [json| {
                     "name": "Secure Wallet",
-                    "mnemonic_sentence": #{m24},
+                    "mnemonic_sentence": #{someMnemonicToWords m24},
                     "passphrase": #{passphrase}
                     } |]
             r <- postWallet ctx payload
@@ -493,7 +497,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> runResourceT $ do
-            m24 <- liftIO $ genMnemonics M24
+            m24 <- Mnemonics.generateSome Mnemonics.M24
             let payload = payloadWith' "Secure Wallet" m24 (fromIntegral addrPoolGap)
             rW <- postWallet ctx payload
             verify rW expectations
@@ -508,10 +512,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
     it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> runResourceT $ do
-        m21 <- liftIO $ genMnemonics M21
+        m21 <- Mnemonics.generateSome Mnemonics.M21
         let payload = Json [json| {
                 "name": "Secure Wallet",
-                "mnemonic_sentence": #{m21},
+                "mnemonic_sentence": #{someMnemonicToWords m21},
                 "passphrase": "Secure passphrase"
                 } |]
         r <- postWallet ctx payload
@@ -550,10 +554,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                    )
                  ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
-            m21 <- liftIO $ genMnemonics M21
+            m21 <- Mnemonics.generateSome Mnemonics.M21
             let payload = Json [json| {
                     "name": "Secure Wallet",
-                    "mnemonic_sentence": #{m21},
+                    "mnemonic_sentence": #{someMnemonicToWords m21},
                     "passphrase": "Secure passphrase"
                     } |]
             r <- postWallet' ctx headers payload
@@ -565,10 +569,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
                 liftIO (length onlyUsed `shouldBe` nUsed)
 
-        m21 <- liftIO $ genMnemonics M21
+        m21 <- liftIO $ Mnemonics.generateSome Mnemonics.M21
         let payloadCreate = Json [json| {
                 "name": "Some Wallet",
-                "mnemonic_sentence": #{m21},
+                "mnemonic_sentence": #{someMnemonicToWords m21},
                 "passphrase": #{fixturePassphrase},
                 "one_change_address_mode": true
                 } |]
@@ -698,12 +702,12 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
 
     it "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
-        m18 <- liftIO $ genMnemonics M18
-        m9 <- liftIO $ genMnemonics M9
+        m18 <- Mnemonics.generateSome Mnemonics.M18
+        m9 <- Mnemonics.generateSome Mnemonics.M9
         let payload = Json [json| {
                 "name": "Wallet to be listed",
-                "mnemonic_sentence": #{m18},
-                "mnemonic_second_factor": #{m9},
+                "mnemonic_sentence": #{someMnemonicToWords m18},
+                "mnemonic_second_factor": #{someMnemonicToWords m9},
                 "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 20
                 } |]
@@ -729,11 +733,10 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do
-        m15 <- liftIO $ genMnemonics M15
-        m18 <- liftIO $ genMnemonics M18
-        m21 <- liftIO $ genMnemonics M21
-        let walletDetails = [("1", m15), ("2", m18)
-                    , ("3", m21)]
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m18 <- Mnemonics.generateSome Mnemonics.M18
+        m21 <- Mnemonics.generateSome Mnemonics.M21
+        let walletDetails = [("1", m15), ("2", m18), ("3", m21)]
         wids <- forM walletDetails $ \(name, mnemonics) -> do
             let payload = payloadWith name mnemonics
             rp <- postWallet ctx payload
@@ -989,7 +992,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_UPDATE_PASS_03 - Mnemonic incorrect" $ \ctx -> runResourceT $ do
         (w,_mnemonic) <- emptyWalletAndMnemonic ctx
-        otherMnemonic <- liftIO $ genMnemonics M24
+        otherMnemonic <- Mnemonics.generateSome Mnemonics.M24
         let payload = updatePassPayloadMnemonic otherMnemonic "whatever-pass"
         rup <- request @ApiWallet ctx
             (Link.putWalletPassphrase @'Shelley w) Default payload
@@ -1012,10 +1015,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
         forM_ matrix $ \(title, oldPass) -> it title $ \ctx -> runResourceT $ do
-            m24 <- liftIO $ genMnemonics M24
+            m24 <- Mnemonics.generateSome Mnemonics.M24
             let createPayload = Json [json| {
                      "name": "Name of the wallet",
-                     "mnemonic_sentence": #{m24},
+                     "mnemonic_sentence": #{someMnemonicToWords m24},
                      "passphrase": #{oldPass}
                      } |]
             w <- unsafeResponse <$> postWallet ctx createPayload
@@ -1095,8 +1098,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify r expectations
         forM_ matrix $ \(title, pass, expectations) -> it title
           $ \ctx -> runResourceT $ do
-            (wSrc, mnemonic) <-
-              fixtureWalletWithMnemonics (Proxy @"shelley") ctx
+            (wSrc, mnemonic) <- fixtureShelleyWallet ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayloadMnemonic mnemonic newPass
             rup <- request @ApiWallet
@@ -1149,7 +1151,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
-            mnemonic <- liftIO $ genMnemonics M24
+            mnemonic <- Mnemonics.generateSome Mnemonics.M24
             w <- unsafeResponse <$> postWallet ctx (simplePayload mnemonic)
             let payload = updatePassPayload fixturePassphrase "Passphrase"
             let endpoint = Link.putWalletPassphrase @'Shelley w
@@ -1345,7 +1347,19 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
     it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
-        w <- constFixtureWalletNoWait ctx
+        let mnemonic = unsafeMnemonic @15
+                [ "vintage", "poem", "topic", "machine", "hazard"
+                , "cement", "dune", "glimpse", "fix", "brief", "account"
+                , "badge", "mass", "silly", "business"
+                ]
+        response <- postWallet ctx $ Json
+            [aesonQQ|{
+                "name": "Signing Wallet",
+                "mnemonic_sentence": #{mnemonicToText mnemonic},
+                "passphrase": #{fixturePassphrase}
+            }|]
+        expectResponseCode HTTP.status201 response
+        let w = getResponse response
 
         let (role_, index) = (MutableAccount, DerivationIndex 0)
         let payload = [json|
@@ -1356,7 +1370,10 @@ spec = describe "SHELLEY_WALLETS" $ do
         -- sign metadata
         rSig <- rawRequest ctx
             (Link.signMetadata w role_ index)
-            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Headers
+                [ (HTTP.hAccept, "*/*")
+                , (HTTP.hContentType, "application/json")
+                ])
             (Json payload)
         expectResponseCode HTTP.status200 rSig
 
@@ -1386,10 +1403,14 @@ spec = describe "SHELLEY_WALLETS" $ do
         let sigBytes = BL.toStrict $ getFromResponse Prelude.id rSig
         let sig = CC.xsignature sigBytes
         let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
-        let msgHash = unsafeFromHexText "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
+        let msgHash = unsafeFromHexText
+                "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
         liftIO $ CC.verify key msgHash <$> sig `shouldBe` Right True
 
-        let goldenSig = "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c954ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b96356ba65598ec159d0c" :: ByteString
+        let goldenSig =
+                "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c95\
+                \4ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b\
+                \96356ba65598ec159d0c" :: ByteString
         convertToBase Base16 sigBytes `shouldBe` goldenSig
 
     it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $  do
@@ -1480,9 +1501,9 @@ spec = describe "SHELLEY_WALLETS" $ do
     it "BYRON_WALLETS_LIST_02,03 - \
         \Byron wallets listed only via Byron endpoints + \
         \Shelley wallets listed only via new endpoints" $ \ctx -> runResourceT $ do
-        m1 <- liftIO $ genMnemonics M12
-        m2 <- liftIO $ genMnemonics M12
-        m3 <- liftIO $ genMnemonics M12
+        m1 <- Mnemonics.generateSome Mnemonics.M12
+        m2 <- Mnemonics.generateSome Mnemonics.M12
+        m3 <- Mnemonics.generateSome Mnemonics.M12
         r1 <- emptyByronWalletWith ctx "random" ("byron1", m1, fixturePassphrase)
         r2 <- emptyByronWalletWith ctx "random" ("byron2", m2, fixturePassphrase)
         r3 <- emptyByronWalletWith ctx "random" ("byron3", m3, fixturePassphrase)
@@ -1522,9 +1543,9 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "BYRON_WALLETS_LIST_04, DELETE_01 - \
         \Deleted wallets cannot be listed" $ \ctx -> runResourceT $ do
-        m1 <- liftIO $ genMnemonics M12
-        m2 <- liftIO $ genMnemonics M12
-        m3 <- liftIO $ genMnemonics M12
+        m1 <- Mnemonics.generateSome Mnemonics.M12
+        m2 <- Mnemonics.generateSome Mnemonics.M12
+        m3 <- Mnemonics.generateSome Mnemonics.M12
         _wb1   <- emptyByronWalletWith ctx "random" ("byron1", m1, fixturePassphrase)
         wb2 <- emptyByronWalletWith ctx "random" ("byron2", m2, fixturePassphrase)
         _wb3   <- emptyByronWalletWith ctx "random" ("byron3", m3, fixturePassphrase)

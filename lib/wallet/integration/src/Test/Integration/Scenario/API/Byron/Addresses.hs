@@ -18,7 +18,7 @@ module Test.Integration.Scenario.API.Byron.Addresses
 import Prelude
 
 import Cardano.Mnemonic
-    ( Mnemonic
+    ( SomeMnemonic
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( purposeBIP44
@@ -108,8 +108,8 @@ spec = do
         scenario_ADDRESS_LIST_01 @n emptyRandomWallet 2
         scenario_ADDRESS_LIST_01 @n emptyIcarusWallet 5
 
-        scenario_ADDRESS_LIST_02 @n fixtureRandomWallet
-        scenario_ADDRESS_LIST_02 @n fixtureIcarusWallet
+        scenario_ADDRESS_LIST_02 @n "Random" fixtureRandomWallet
+        scenario_ADDRESS_LIST_02 @n "Icarus" fixtureIcarusWallet
 
         scenario_ADDRESS_LIST_04 @n emptyRandomWallet
         scenario_ADDRESS_LIST_04 @n emptyIcarusWallet
@@ -152,9 +152,10 @@ scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $
 scenario_ADDRESS_LIST_02
     :: forall n
      . HasSNetworkId n
-    => (Context -> ResourceT IO ApiByronWallet)
+    => String
+    -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
-scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_LIST_02 label fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- filtering ?state=used
@@ -175,7 +176,8 @@ scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
     forM_ [0..nUnused-1] $ \addrIx -> do
         expectListField addrIx #state (`shouldBe` ApiT Unused) rUnused
   where
-    title = "ADDRESS_LIST_02 - Can filter used and unused addresses"
+    title = "ADDRESS_LIST_02 (" <> label
+        <> ") - Can filter used and unused addresses"
 
 scenario_ADDRESS_LIST_04
     :: forall n
@@ -287,7 +289,7 @@ scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
 scenario_ADDRESS_IMPORT_01
     :: forall n
      . HasSNetworkId n
-    => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -313,7 +315,7 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
 scenario_ADDRESS_IMPORT_02
     :: forall n
      . HasSNetworkId n
-    => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 15))
+    => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -332,7 +334,7 @@ scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
 scenario_ADDRESS_IMPORT_03
     :: forall n
      . HasSNetworkId n
-    => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -380,7 +382,7 @@ scenario_ADDRESS_IMPORT_05
     :: forall n
      . HasSNetworkId n
     => Int
-    -> (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    -> (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -410,7 +412,7 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
 scenario_ADDRESS_IMPORT_06
     :: forall n
      . HasSNetworkId n
-    => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
 scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do
     (w, _)   <- fixture ctx

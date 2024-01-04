@@ -17,7 +17,6 @@
 
 module Test.Integration.Framework.DSL
     ( Context(..)
-    , MnemonicLength(..)
     , TxDescription(..)
 
     -- * Steps
@@ -110,8 +109,6 @@ module Test.Integration.Framework.DSL
     , isValidDerivationPath
     , derivationPathValidationErrors
     , isValidRandomDerivationPath
-    , genMnemonics
-    , genMnemonics'
     , getResponse
     , getFromResponse
     , getFromResponseList
@@ -140,12 +137,12 @@ module Test.Integration.Framework.DSL
     , fixtureIcarusWalletMws
     , fixtureIcarusWalletAddrs
     , fixtureWallet
+    , fixtureShelleyWallet
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
     , fixtureMultiAssetWallet
     , fixtureMultiAssetRandomWallet
     , fixtureMultiAssetIcarusWallet
-    , constFixtureWalletNoWait
     , faucetAmt
     , faucetUtxoAmt
     , proc'
@@ -172,7 +169,6 @@ module Test.Integration.Framework.DSL
     , icarusAddresses
     , randomAddresses
     , shelleyAddresses
-    , pubKeyFromMnemonics
     , rootPrvKeyFromMnemonics
     , unsafeGetTransactionTime
     , getTxId
@@ -245,15 +241,14 @@ import Cardano.CLI
     ( Port (..)
     )
 import Cardano.Mnemonic
-    ( ConsistentEntropy
-    , EntropySize
-    , MkSomeMnemonic (..)
-    , Mnemonic
-    , MnemonicWords
+    ( MkSomeMnemonic (..)
     , SomeMnemonic (..)
     , entropyToMnemonic
     , genEntropy
     , mnemonicToText
+    )
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Pool.Metadata.Types
     ( PoolMetadataGCStatus (..)
@@ -347,8 +342,12 @@ import Cardano.Wallet.Compat
     ( (^?)
     )
 import Cardano.Wallet.Faucet
-    ( NextWallet
-    , nextWallet
+    ( Faucet
+    , nextByronMnemonic
+    , nextIcarusMnemonic
+    , nextMaryAllegraMnemonic
+    , nextRewardMnemonic
+    , nextShelleyMnemonic
     )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
@@ -644,13 +643,13 @@ import Web.HttpApiData
     ( ToHttpApiData (..)
     )
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
-import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -1156,27 +1155,6 @@ verifyMaintenanceAction ctx s = do
     expectResponseCode HTTP.status200 r
     expectField (#gcStakePools . #getApiT) (`shouldBe` s) r
 
-data MnemonicLength = M9 | M12 | M15 | M18 | M21 | M24 deriving (Show)
-
-genMnemonics :: MnemonicLength -> IO [Text]
-genMnemonics M9 = genMnemonics' @9
-genMnemonics M12 = genMnemonics' @12
-genMnemonics M15 = genMnemonics' @15
-genMnemonics M18 = genMnemonics' @18
-genMnemonics M21 = genMnemonics' @21
-genMnemonics M24 = genMnemonics' @24
-
-genMnemonics'
-   :: forall mw ent csz m.
-       ( ConsistentEntropy ent mw csz
-       , ent ~ EntropySize mw
-       , mw ~ MnemonicWords ent
-       , MonadIO m
-       )
-   => m [Text]
-genMnemonics' =
-    liftIO $ mnemonicToText . entropyToMnemonic @mw <$> genEntropy
-
 accPubKeyFromMnemonics
     :: SomeMnemonic
     -> Maybe SomeMnemonic
@@ -1207,33 +1185,27 @@ sharedAccPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
     rootXPrv = Shared.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
 
 genXPubs :: Int -> IO [(XPub,Text)]
-genXPubs num =
-    replicateM num genXPub
+genXPubs num = replicateM num genXPub
   where
     genXPub = do
-        m15txt <- genMnemonics M15
-        m12txt <- genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let accXPubTxt = accPubKeyFromMnemonics m15 (Just m12) 10 mempty
-        let (Just accXPub) = xpubFromText accXPubTxt
-        return (accXPub, accXPubTxt)
+        let Just accXPub = xpubFromText accXPubTxt
+        pure (accXPub, accXPubTxt)
 
     xpubFromText :: Text -> Maybe XPub
     xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
 
 genXPubsBech32 :: Int -> IO [(XPub,Text)]
-genXPubsBech32 num =
-    replicateM num genXPub
+genXPubsBech32 num = replicateM num genXPub
   where
     genXPub = do
-        m15txt <- genMnemonics M15
-        m12txt <- genMnemonics M12
-        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        m15 <- Mnemonics.generateSome Mnemonics.M15
+        m12 <- Mnemonics.generateSome Mnemonics.M12
         let accXPubTxt = sharedAccPubKeyFromMnemonics m15 (Just m12) 10 mempty
-        let (Just accXPub) = xpubFromText accXPubTxt
-        return (accXPub, accXPubTxt)
+        let Just accXPub = xpubFromText accXPubTxt
+        pure (accXPub, accXPubTxt)
 
     xpubFromText :: Text -> Maybe XPub
     xpubFromText = fmap (getApiT . sharedKey) . fmap eitherToMaybe
@@ -1585,36 +1557,36 @@ emptyRandomWallet
     => Context
     -> ResourceT m ApiByronWallet
 emptyRandomWallet ctx = do
-    mnemonic <- liftIO $ mnemonicToText @12 . entropyToMnemonic <$> genEntropy
+    mnemonic <- Mnemonics.generateSome Mnemonics.M12
     emptyByronWalletWith ctx "random"
         ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletMws
     :: MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiByronWallet, Mnemonic 12)
+    -> ResourceT m (ApiByronWallet, SomeMnemonic)
 emptyRandomWalletMws ctx = do
-    mnemonic <- liftIO $ entropyToMnemonic <$> genEntropy
+    mnemonic <- Mnemonics.generateSome Mnemonics.M12
     (,mnemonic) <$> emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonicToText @12 mnemonic, fixturePassphrase)
+        ("Random Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWallet
     :: MonadUnliftIO m
     => Context
     -> ResourceT m ApiByronWallet
 emptyIcarusWallet ctx = do
-    mnemonic <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+    mnemonic <- Mnemonics.generateSome Mnemonics.M15
     emptyByronWalletWith ctx "icarus"
         ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyIcarusWalletMws
     :: MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiByronWallet, Mnemonic 15)
+    -> ResourceT m (ApiByronWallet, SomeMnemonic)
 emptyIcarusWalletMws ctx = do
-    mnemonic <- liftIO $ entropyToMnemonic <$> genEntropy
+    mnemonic <- Mnemonics.generateSome Mnemonics.M15
     (,mnemonic) <$> emptyByronWalletWith ctx "icarus"
-        ("Icarus Wallet",mnemonicToText @15 mnemonic, fixturePassphrase)
+        ("Icarus Wallet", mnemonic, fixturePassphrase)
 
 emptyRandomWalletWithPasswd
     :: MonadUnliftIO m
@@ -1626,7 +1598,7 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
             $ Passphrase
             $ BA.convert
             $ T.encodeUtf8 rawPwd
-    seed <- liftIO $ SomeMnemonic @12 . entropyToMnemonic <$> genEntropy
+    seed <- Mnemonics.generateSome Mnemonics.M12
     let key = T.decodeUtf8
             $ hex
             $ Byron.getKey
@@ -1635,7 +1607,7 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
 
 postWallet'
-    :: MonadUnliftIO m
+    :: MonadIO m
     => Context
     -> Headers
     -> Payload
@@ -1650,14 +1622,14 @@ postWallet' ctx headers payload = snd <$> allocate create (free . snd)
     free (Left _) = return ()
 
 postWallet
-    :: MonadUnliftIO m
+    :: MonadIO m
     => Context
     -> Payload
     -> ResourceT m (HTTP.Status, Either RequestException ApiWallet)
 postWallet ctx = postWallet' ctx Default
 
 postByronWallet
-    :: MonadUnliftIO m
+    :: MonadIO m
     => Context
     -> Payload
     -> ResourceT m (HTTP.Status, Either RequestException ApiByronWallet)
@@ -1674,12 +1646,12 @@ emptyByronWalletWith
     :: forall m. MonadUnliftIO m
     => Context
     -> String
-    -> (Text, [Text], Text)
+    -> (Text, SomeMnemonic, Text)
     -> ResourceT m ApiByronWallet
 emptyByronWalletWith ctx style (name, mnemonic, pass) = do
     let payload = Json [aesonQQ| {
             "name": #{name},
-            "mnemonic_sentence": #{mnemonic},
+            "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "passphrase": #{pass},
             "style": #{style}
         }|]
@@ -1707,12 +1679,12 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
 emptyWalletAndMnemonic
     :: MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiWallet, [Text])
+    -> ResourceT m (ApiWallet, SomeMnemonic)
 emptyWalletAndMnemonic ctx = do
-    mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    mnemonic <- Mnemonics.generateSome Mnemonics.M15
     let payload = Json [aesonQQ| {
             "name": "Empty Wallet",
-            "mnemonic_sentence": #{mnemonic},
+            "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "passphrase": #{fixturePassphrase}
         }|]
     r <- postWallet ctx payload
@@ -1722,15 +1694,14 @@ emptyWalletAndMnemonic ctx = do
 emptyWalletAndMnemonicAndSndFactor
     :: MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiWallet, [Text], [Text])
+    -> ResourceT m (ApiWallet, SomeMnemonic, [Text])
 emptyWalletAndMnemonicAndSndFactor ctx = do
-    mnemonic <-
-        liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    mnemonic <- Mnemonics.generateSome Mnemonics.M15
     sndFactor <-
         liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @128
     let payload = Json [aesonQQ| {
             "name": "Empty Wallet",
-            "mnemonic_sentence": #{mnemonic},
+            "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "mnemonic_second_factor": #{sndFactor},
             "passphrase": #{fixturePassphrase}
         }|]
@@ -1744,10 +1715,10 @@ emptyWallet
     => Context
     -> ResourceT m ApiWallet
 emptyWallet ctx = do
-    mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
+    mnemonic <- Mnemonics.generateSome Mnemonics.M15
     let payload = Json [aesonQQ| {
             "name": "Empty Wallet",
-            "mnemonic_sentence": #{mnemonic},
+            "mnemonic_sentence": #{someMnemonicToWords mnemonic},
             "passphrase": #{fixturePassphrase}
         }|]
     r <- postWallet ctx payload
@@ -1792,13 +1763,12 @@ emptyWalletAndMnemonicWith ctx (name, passphrase, addrPoolGap) = do
 rewardWallet
     :: MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiWallet, Mnemonic 24)
+    -> ResourceT m (ApiWallet, SomeMnemonic)
 rewardWallet ctx = do
-    mw <- liftIO $ nextWallet @"reward" (_faucet ctx)
-    let mnemonic = mnemonicToText mw
+    mnemonic@(SomeMnemonic m) <- liftIO $ nextRewardMnemonic (_faucet ctx)
     let payload = Json [aesonQQ|{
             "name": "MIR Wallet",
-            "mnemonic_sentence": #{mnemonic},
+            "mnemonic_sentence": #{mnemonicToText m},
             "passphrase": #{fixturePassphrase}
         }|]
     r <- postWallet ctx payload
@@ -1818,18 +1788,20 @@ rewardWallet ctx = do
         fetchWallet w >>=
             flip verify [expectField (#balance . #reward) (.> ApiAmount 0)]
 
-    (,mw) . getResponse <$> liftIO (fetchWallet w)
+    (,mnemonic) . getResponse <$> liftIO (fetchWallet w)
 
 fixtureMultiAssetWallet
-    :: MonadIO m
+    :: MonadUnliftIO m
     => HasCallStack
     => Context
     -> ResourceT m ApiWallet
-fixtureMultiAssetWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"ma")
+fixtureMultiAssetWallet ctx =
+    fst <$> fixtureWalletWithMnemonics nextMaryAllegraMnemonic ctx "muilti-asset"
 
 fixtureMultiAssetRandomWallet
     :: forall n m.
-        ( HasSNetworkId n
+        ( HasCallStack
+        , HasSNetworkId n
         , MonadUnliftIO m
         )
     => Context
@@ -1912,19 +1884,16 @@ emptySharedWallet
     => Context
     -> ResourceT m ApiSharedWallet
 emptySharedWallet ctx = do
-   m15txt <- liftIO $ genMnemonics M15
-   m12txt <- liftIO $ genMnemonics M12
-   let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
-   let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
-   let passphrase = Passphrase $
-           BA.convert $ T.encodeUtf8 fixturePassphrase
+   m15 <- Mnemonics.generateSome Mnemonics.M15
+   m12 <- Mnemonics.generateSome Mnemonics.M12
+   let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
    let index = 30
    let accXPubDerived =
            sharedAccPubKeyFromMnemonics m15 (Just m12) index passphrase
    let payload = Json [aesonQQ| {
            "name": "Shared Wallet",
-           "mnemonic_sentence": #{m15txt},
-           "mnemonic_second_factor": #{m12txt},
+           "mnemonic_sentence": #{someMnemonicToWords m15},
+           "mnemonic_second_factor": #{someMnemonicToWords m12},
            "passphrase": #{fixturePassphrase},
            "account_index": "30H",
            "payment_script_template":
@@ -1948,28 +1917,23 @@ emptySharedWalletDelegating
     -> ResourceT m (ApiSharedWallet,ApiSharedWallet)
 emptySharedWalletDelegating ctx = do
    --cosigner#0
-   m15txtA <- liftIO $ genMnemonics M15
-   m12txtA <- liftIO $ genMnemonics M12
-   let (Right m15A) = mkSomeMnemonic @'[ 15 ] m15txtA
-   let (Right m12A) = mkSomeMnemonic @'[ 12 ] m12txtA
-   let passphrase = Passphrase $
-           BA.convert $ T.encodeUtf8 fixturePassphrase
+   m15A <- Mnemonics.generateSome Mnemonics.M15
+   m12A <- Mnemonics.generateSome Mnemonics.M12
+   let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
    let indexA = 30
    let accXPubDerivedA =
            sharedAccPubKeyFromMnemonics m15A (Just m12A) indexA passphrase
    --cosigner#1
-   m15txtB <- liftIO $ genMnemonics M15
-   m12txtB <- liftIO $ genMnemonics M12
-   let (Right m15B) = mkSomeMnemonic @'[ 15 ] m15txtB
-   let (Right m12B) = mkSomeMnemonic @'[ 12 ] m12txtB
+   m15B <- Mnemonics.generateSome Mnemonics.M15
+   m12B <- Mnemonics.generateSome Mnemonics.M12
    let indexB = 40
    let accXPubDerivedB =
            sharedAccPubKeyFromMnemonics m15B (Just m12B) indexB passphrase
 
    let payloadA = Json [aesonQQ| {
            "name": "Shared Wallet",
-           "mnemonic_sentence": #{m15txtA},
-           "mnemonic_second_factor": #{m12txtA},
+           "mnemonic_sentence": #{someMnemonicToWords m15A},
+           "mnemonic_second_factor": #{someMnemonicToWords m12A},
            "passphrase": #{fixturePassphrase},
            "account_index": "30H",
            "payment_script_template":
@@ -2000,8 +1964,8 @@ emptySharedWalletDelegating ctx = do
 
    let payloadB = Json [aesonQQ| {
            "name": "Shared Wallet",
-           "mnemonic_sentence": #{m15txtB},
-           "mnemonic_second_factor": #{m12txtB},
+           "mnemonic_sentence": #{someMnemonicToWords m15B},
+           "mnemonic_second_factor": #{someMnemonicToWords m12B},
            "passphrase": #{fixturePassphrase},
            "account_index": "40H",
            "payment_script_template":
@@ -2250,37 +2214,41 @@ fixturePassphraseEncrypted =
 -- wallets through small blocks of @runResourceT@ (e.g. once per test). It
 -- doesn't return @ReleaseKey@ since manual releasing is not needed.
 fixtureWallet
-    :: (HasCallStack, MonadIO m)
+    :: (HasCallStack, MonadUnliftIO m)
     => Context
     -> ResourceT m ApiWallet
-fixtureWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"shelley")
+fixtureWallet ctx =
+    fst <$> fixtureWalletWithMnemonics nextShelleyMnemonic ctx "shelley"
+
+fixtureShelleyWallet
+    :: (HasCallStack, MonadUnliftIO m)
+    => Context
+    -> ResourceT m (ApiWallet, SomeMnemonic)
+fixtureShelleyWallet ctx =
+    fixtureWalletWithMnemonics nextShelleyMnemonic ctx "shelley"
 
 fixtureWalletWithMnemonics
-    :: forall m scheme
-     . (HasCallStack, MonadIO m, NextWallet scheme)
-    => Proxy scheme
+    :: (HasCallStack, MonadUnliftIO m)
+    => (Faucet -> IO SomeMnemonic)
     -> Context
-    -> ResourceT m (ApiWallet, [Text])
-fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
+    -> String -- wallet label
+    -> ResourceT m (ApiWallet, SomeMnemonic)
+fixtureWalletWithMnemonics nextWalletMnemonic ctx label = do
+    mnemonic@(SomeMnemonic sm) <- liftIO $ nextWalletMnemonic (_faucet ctx)
+    r <- postWallet ctx $ Json
+        [aesonQQ| {
+            "name": "Faucet Wallet",
+            "mnemonic_sentence": #{mnemonicToText sm},
+            "passphrase": #{fixturePassphrase}
+        } |]
+    expectResponseCode HTTP.status201 r
+    let w = getResponse r
+    liftIO $ race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
+        Left _ -> expectationFailure'
+            $ "fixtureWallet (" <> label
+            <> "): waited too long for initial transaction"
+        Right a -> pure (a, mnemonic)
   where
-    create = do
-        mnemonics <- mnemonicToText <$> nextWallet @scheme (_faucet ctx)
-        let payload = Json [aesonQQ| {
-                "name": "Faucet Wallet",
-                "mnemonic_sentence": #{mnemonics},
-                "passphrase": #{fixturePassphrase}
-                } |]
-        r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-        expectResponseCode HTTP.status201 r
-        let w = getResponse r
-        race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
-            Left _ -> expectationFailure'
-                "fixtureWallet: waited too long for initial transaction"
-            Right a -> return (a, mnemonics)
-
-    free w = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shelley w) Default Empty
-
     checkBalance w = do
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         if getFromResponse (#balance . #available) r > ApiAmount 0
@@ -2289,15 +2257,19 @@ fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
 
 -- | Restore a faucet Random wallet and wait until funds are available.
 fixtureRandomWalletMws
-    :: MonadUnliftIO m
+    :: ( MonadUnliftIO m
+       , HasCallStack
+       )
     => Context
-    -> ResourceT m (ApiByronWallet, Mnemonic 12)
+    -> ResourceT m (ApiByronWallet, SomeMnemonic)
 fixtureRandomWalletMws ctx = do
-    mnemonics <- liftIO $ nextWallet @"random" (_faucet ctx)
-    (,mnemonics) <$> fixtureLegacyWallet ctx "random" (mnemonicToText mnemonics)
+    sm@(SomeMnemonic m) <- liftIO $ nextByronMnemonic (_faucet ctx)
+    (,sm) <$> fixtureLegacyWallet ctx "random" (mnemonicToText m)
 
 fixtureRandomWallet
-    :: MonadUnliftIO m
+    :: ( MonadUnliftIO m
+       , HasCallStack
+       )
     => Context
     -> ResourceT m ApiByronWallet
 fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
@@ -2320,16 +2292,16 @@ fixtureRandomWalletAddrs =
 -- TODO: Remove duplication between Shelley / Byron fixtures.
 fixtureRandomWalletWith
     :: forall n m
-     . ( HasSNetworkId n , MonadUnliftIO m)
+     . (HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> [Natural]
     -> ResourceT m ApiByronWallet
 fixtureRandomWalletWith ctx coins0 = do
     src  <- fixtureRandomWallet ctx
-    mws  <- liftIO $ entropyToMnemonic <$> genEntropy
-    dest <- emptyByronWalletWith ctx "random"
-        ("Random Wallet", mnemonicToText @12 mws, fixturePassphrase)
-    let addrs = randomAddresses @n mws
+    mnemonic <- Mnemonics.generateSome Mnemonics.M12
+    dest <- emptyByronWalletWith
+        ctx "random" ("Random Wallet", mnemonic, fixturePassphrase)
+    let addrs = randomAddresses @n mnemonic
     liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
     void $ request @() ctx
         (Link.deleteWallet @'Byron src) Default Empty
@@ -2342,10 +2314,10 @@ fixtureRandomWalletWith ctx coins0 = do
 fixtureIcarusWalletMws
     :: MonadUnliftIO m
     => Context
-    -> ResourceT m (ApiByronWallet, Mnemonic 15)
+    -> ResourceT m (ApiByronWallet, SomeMnemonic)
 fixtureIcarusWalletMws ctx = do
-    mnemonics <- liftIO $ nextWallet @"icarus" (_faucet ctx)
-    (,mnemonics) <$> fixtureLegacyWallet ctx "icarus" (mnemonicToText mnemonics)
+    mnemonic@(SomeMnemonic m) <- liftIO $ nextIcarusMnemonic (_faucet ctx)
+    (,mnemonic) <$> fixtureLegacyWallet ctx "icarus" (mnemonicToText m)
 
 fixtureIcarusWallet
     :: MonadUnliftIO m
@@ -2355,7 +2327,7 @@ fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
     :: forall n m
-     . ( HasSNetworkId n , MonadUnliftIO m)
+     . (HasSNetworkId n , MonadUnliftIO m)
     => Context
     -> ResourceT m (ApiByronWallet, [Address])
 fixtureIcarusWalletAddrs =
@@ -2363,19 +2335,22 @@ fixtureIcarusWalletAddrs =
 
 -- | Restore a legacy wallet (Byron or Icarus)
 fixtureLegacyWallet
-    :: forall m. MonadUnliftIO m
+    :: forall m
+      . ( MonadUnliftIO m
+        , HasCallStack
+        )
     => Context
     -> String
     -> [Text]
     -> ResourceT m ApiByronWallet
-fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
+fixtureLegacyWallet ctx style mnemonic = snd <$> allocate create free
   where
     create = do
         r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default $
             let name = "Faucet Legacy Byron Wallet " <> style
              in Json [aesonQQ|{
                 "name": #{name},
-                "mnemonic_sentence": #{mnemonics},
+                "mnemonic_sentence": #{mnemonic},
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
             }|]
@@ -2469,23 +2444,6 @@ fixtureWalletWith ctx coins0 = do
             getFromResponse (#balance . #available) ra
                 `shouldBe`
                     getFromResponse (#balance . #total) ra
-
--- | Create a fixture from the same mnemonic every time.
--- Don't wait for it to restore before returning.
-constFixtureWalletNoWait :: MonadIO m => Context -> ResourceT m ApiWallet
-constFixtureWalletNoWait ctx = snd <$> allocate create free
-  where
-    payload = Json [aesonQQ| {
-            "name": "Fixed empty spec wallet",
-            "mnemonic_sentence": #{mnemonicToText (head Mnemonics.sequential)},
-            "passphrase": #{fixturePassphrase}
-        } |]
-    create = do
-        r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-        expectResponseCode HTTP.status201 r
-        pure $ getResponse r
-    free w = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shelley w) Default Empty
 
 -- | Move coins from a wallet to another
 moveByronCoins
@@ -2685,12 +2643,12 @@ delegationFee ctx w = do
 randomAddresses
     :: forall n
      . HasSNetworkId n
-    => Mnemonic 12
+    => SomeMnemonic
     -> [Address]
 randomAddresses mw =
     let
         (seed, pwd) =
-            (SomeMnemonic mw, mempty)
+            (mw, mempty)
         rootXPrv =
             Byron.generateKeyFromSeed seed pwd
         accXPrv =
@@ -2711,12 +2669,12 @@ randomAddresses mw =
 icarusAddresses
     :: forall n
      . HasSNetworkId n
-    => Mnemonic 15
+    => SomeMnemonic
     -> [Address]
 icarusAddresses mw =
     let
         (seed, pwd) =
-            (SomeMnemonic mw, mempty)
+            (mw, mempty)
         rootXPrv =
             Icarus.generateKeyFromSeed seed pwd
         accXPrv =
@@ -2737,12 +2695,12 @@ icarusAddresses mw =
 shelleyAddresses
     :: forall n
      . HasSNetworkId n
-    => Mnemonic 15
+    => SomeMnemonic
     -> [Address]
 shelleyAddresses mw =
     let
         (seed, pwd) =
-            (SomeMnemonic mw, mempty)
+            (mw, mempty)
         rootXPrv =
             Shelley.generateKeyFromSeed (seed, Nothing) pwd
         accXPrv =
@@ -2755,7 +2713,8 @@ shelleyAddresses mw =
         ]
 
 listAddresses
-    :: forall n m. (MonadUnliftIO m, HasSNetworkId n)
+    :: forall n m
+     . (MonadUnliftIO m, HasSNetworkId n)
     => Context
     -> ApiWallet
     -> m [ApiAddressWithPath n]
@@ -3113,7 +3072,7 @@ createWalletViaCLI
     -> String
     -> String
     -> ResourceT m (ExitCode, String, Text)
-createWalletViaCLI ctx args mnemonics secondFactor passphrase =
+createWalletViaCLI ctx args mnemonic secondFactor passphrase =
     snd <$> allocate create free
   where
     create = do
@@ -3124,7 +3083,7 @@ createWalletViaCLI ctx args mnemonics secondFactor passphrase =
         let process = proc' commandName fullArgs
         liftIO $ withCreateProcess process $
             \(Just stdin) (Just stdout) (Just stderr) h -> do
-                hPutStr stdin mnemonics
+                hPutStr stdin mnemonic
                 hPutStr stdin secondFactor
                 hPutStr stdin (passphrase ++ "\n")
                 hPutStr stdin (passphrase ++ "\n")
@@ -3466,23 +3425,12 @@ for = flip map
 -- Helper for random wallets from Xprv
 --
 rootPrvKeyFromMnemonics :: [Text] -> Text -> Text
-rootPrvKeyFromMnemonics mnemonics pass =
+rootPrvKeyFromMnemonics mnemonic pass =
     T.decodeUtf8 $ hex $ getKey $ Byron.generateKeyFromSeed seed
         (preparePassphrase W.EncryptWithScrypt rawPassd)
  where
-     (Right seed) = mkSomeMnemonic @'[12] mnemonics
+     (Right seed) = mkSomeMnemonic @'[12] mnemonic
      rawPassd = Passphrase $ BA.convert $ T.encodeUtf8 pass
-
---
--- Helper for HWWallets, getting pubKey from mnemonic sentence
---
-pubKeyFromMnemonics :: [Text] -> Text
-pubKeyFromMnemonics mnemonics =
-    T.decodeUtf8 $ serializeXPub $ publicKey ShelleyKeyS
-       $ deriveAccountPrivateKey mempty rootXPrv minBound
- where
-     seed = either (error . show) id $ mkSomeMnemonic @'[15,24] mnemonics
-     rootXPrv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
 
 --
 -- Helper for delegation statuses

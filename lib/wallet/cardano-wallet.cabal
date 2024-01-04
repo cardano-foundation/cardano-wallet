@@ -406,6 +406,7 @@ library cardano-wallet-integration
     , directory
     , either
     , extra
+    , faucet
     , flat
     , fmt
     , generic-lens
@@ -576,7 +577,7 @@ test-suite unit
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-alonzo
-    , cardano-ledger-babbage:{cardano-ledger-babbage}
+    , cardano-ledger-babbage
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-sl-x509
@@ -602,7 +603,7 @@ test-suite unit
     , delta-types
     , directory
     , either
-    , extra                                                     >=1.6.17
+    , extra                                              >=1.6.17
     , file-embed
     , filepath
     , fmt
@@ -611,8 +612,8 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog-corpus
-    , hspec                                                     >=2.8.2
-    , hspec-core                                                >=2.8.2
+    , hspec                                              >=2.8.2
+    , hspec-core                                         >=2.8.2
     , http-api-data
     , http-client
     , http-client-tls
@@ -635,18 +636,18 @@ test-suite unit
     , network-uri
     , nothunks
     , OddWord
-    , openapi3                                                  ==3.2.3
+    , openapi3                                           ==3.2.3
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network
     , ouroboros-network-api
-    , persistent                                                ^>=2.13
-    , persistent-sqlite                                         ^>=2.13
+    , persistent                                         ^>=2.13
+    , persistent-sqlite                                  ^>=2.13
     , pretty-simple
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine                                  >=0.6.0
+    , quickcheck-state-machine                           >=0.6.0
     , random
     , regex-pcre-builtin
     , retry
@@ -658,7 +659,7 @@ test-suite unit
     , sop-core
     , splitmix
     , string-interpolate
-    , tagged                                                    ^>=0.8.7
+    , tagged                                             ^>=0.8.7
     , temporary
     , temporary-extra
     , text
@@ -677,6 +678,7 @@ test-suite unit
     , x509
     , x509-store
     , yaml
+
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Byron.Codec.CborSpec
@@ -784,6 +786,7 @@ test-suite integration
     , contra-tracer
     , directory
     , either
+    , faucet
     , filepath
     , hspec-core
     , http-client
@@ -850,6 +853,7 @@ benchmark latency
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , directory
+    , faucet
     , filepath
     , fmt
     , generic-lens

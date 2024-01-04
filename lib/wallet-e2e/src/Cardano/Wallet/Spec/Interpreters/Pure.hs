@@ -5,10 +5,12 @@ module Cardano.Wallet.Spec.Interpreters.Pure
     , PureStory
     ) where
 
-import qualified Cardano.Wallet.Spec.Data.Mnemonic as Mnemonic
 import qualified Data.Set as Set
 import qualified Effectful.Error.Static as E
 
+import Cardano.Mnemonic
+    ( SomeMnemonic (..)
+    )
 import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert
     , runAssertFailsFast
@@ -28,6 +30,9 @@ import Cardano.Wallet.Spec.Effect.Trace
     )
 import Cardano.Wallet.Spec.Interpreters.Config
     ( TraceConfiguration (..)
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeMkMnemonic
     )
 import Data.Tagged
     ( Tagged (..)
@@ -89,9 +94,29 @@ interpretStoryPure
     -> (Either SomeException (Either String (a, Seq Text)))
 interpretStoryPure =
     runQueryMock Set.empty
-        >>> runRandomMock (Mnemonic.fromWords $ "foo" :| ["bar", "baz"])
+        >>> runRandomMock predefinedMnemonic
         >>> runAssertFailsFast
         >>> runTracePure
         >>> runFail
         >>> E.runErrorNoCallStack
         >>> runPureEff
+  where
+    predefinedMnemonic =
+        SomeMnemonic
+            $ unsafeMkMnemonic @15
+                [ "vintage"
+                , "poem"
+                , "topic"
+                , "machine"
+                , "hazard"
+                , "cement"
+                , "dune"
+                , "glimpse"
+                , "fix"
+                , "brief"
+                , "account"
+                , "badge"
+                , "mass"
+                , "silly"
+                , "business"
+                ]

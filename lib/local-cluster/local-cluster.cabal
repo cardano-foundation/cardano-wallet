@@ -17,12 +17,26 @@ common language
     NoImplicitPrelude
     OverloadedStrings
 
-common opts-lib
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language
+  hs-source-dirs:  lib
+  exposed-modules:
+    Cardano.Node.Cli.Launcher
+    Cardano.Wallet.Cli.Launcher
+    Cardano.Wallet.Faucet
+    Cardano.Wallet.Launch.Cluster
+    Cardano.Wallet.LocalCluster
+
   ghc-options:
     -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
     -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
-    -fprint-explicit-kinds -Wcompat -Widentities
+    -Wunused-foralls
+    -Wcompat -Widentities
     -Werror=incomplete-patterns -Wredundant-constraints
     -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
     -fprint-expanded-synonyms -fwarn-unused-do-bind
@@ -31,28 +45,6 @@ common opts-lib
   if flag(release)
     ghc-options: -O2 -Werror
 
-common opts-exe
-  import:      opts-lib
-  ghc-options: -threaded -rtsopts
-
-flag release
-  description: Enable optimization and `-Werror`
-  default:     False
-  manual:      True
-
-library
-  import:          language, opts-lib
-  exposed-modules:
-    Cardano.Node.Cli.Launcher
-    Cardano.Wallet.Cli.Launcher
-    Cardano.Wallet.Faucet
-    Cardano.Wallet.Faucet.Writer
-    Cardano.Wallet.Faucet.Addresses
-    Cardano.Wallet.Faucet.Mnemonics
-    Cardano.Wallet.Launch.Cluster
-    Cardano.Wallet.LocalCluster
-
-  hs-source-dirs:  lib
   build-depends:
     , aeson                              ^>=2.1.2.1
     , aeson-qq                           ^>=0.8.4
@@ -63,7 +55,6 @@ library
     , cardano-api
     , cardano-binary                     ^>=1.7.0.1
     , cardano-cli
-    , cardano-crypto                     ^>=1.1.2
     , cardano-data
     , cardano-ledger-api
     , cardano-ledger-core
@@ -78,8 +69,10 @@ library
     , crypto-hash-extra                  ^>=0.1
     , directory
     , extra                              ^>=1.7
+    , faucet
     , filepath
     , generic-lens                       ^>=2.2.2
+    , http-client                        ^>=0.7.13.1
     , int-cast                           ^>=0.2
     , iohk-monitoring
     , iohk-monitoring-extra
@@ -93,21 +86,37 @@ library
     , path-io                            ^>=1.7.0
     , resourcet                          ^>=1.3
     , retry                              ^>=0.9.3.1
+    , servant-client                     ^>=0.19
     , tagged                             ^>=0.8.7
     , temporary                          ^>=1.3
     , temporary-extra
     , text
     , text-class
     , time                               ^>=1.9.3
+    , transformers
     , typed-process                      ^>=0.2.11
     , unliftio                           ^>=0.2
+    , warp                               ^>=3.3.25
     , with-utf8                          ^>=1.0.2.4
     , yaml                               ^>=0.11.11
 
 executable local-cluster
-  import:         language, opts-exe
-  main-is:        Main.hs
+  import:         language
+  main-is:        Cluster.hs
   hs-source-dirs: exe
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates -Wmissing-deriving-strategies
+    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
+    -fprint-explicit-kinds -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
+    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
+    -fprint-expanded-synonyms -fwarn-unused-do-bind
+    -fwarn-incomplete-uni-patterns -freverse-errors -threaded -rtsopts
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
   build-depends:
     , base
     , local-cluster

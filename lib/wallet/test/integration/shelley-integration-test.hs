@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,6 +17,12 @@ module Main where
 
 import Prelude
 
+import Cardano.Address
+    ( NetworkTag (..)
+    )
+import Cardano.Address.Style.Shelley
+    ( shelleyTestnet
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
@@ -49,6 +56,9 @@ import Cardano.Launcher
 import Cardano.Ledger.Shelley.Genesis
     ( sgNetworkMagic
     )
+import Cardano.Mnemonic
+    ( SomeMnemonic (..)
+    )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
@@ -60,12 +70,8 @@ import Cardano.Wallet.Api.Types
     ( ApiEra (..)
     )
 import Cardano.Wallet.Faucet
-    ( byronIntegrationTestFunds
-    , hwLedgerTestFunds
-    , initFaucet
-    , maryIntegrationTestFunds
-    , seaHorseTestAssets
-    , shelleyIntegrationTestFunds
+    ( FaucetM
+    , runFaucetM
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
@@ -77,12 +83,12 @@ import Cardano.Wallet.Launch.Cluster
     , clusterEraFromEnv
     , clusterEraToString
     , moveInstantaneousRewardsTo
-    , oneMillionAda
     , sendFaucetAssetsTo
     , testLogDirFromEnv
     , testMinSeverityFromEnv
     , walletMinSeverityFromEnv
     , withCluster
+    , withFaucet
     , withSMASH
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
@@ -219,14 +225,13 @@ import UnliftIO.MVar
     , withMVar
     )
 
-import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.CLI as CLI
+import qualified Cardano.Faucet.Addresses as Addresses
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
-import qualified Cardano.Wallet.Faucet.Addresses as Addresses
-import qualified Cardano.Wallet.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Blocks as Blocks
@@ -350,23 +355,33 @@ specWithServer
 specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
-    withContext action = bracketTracer' tr "withContext" $ do
+    withContext action = bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
         ctx <- newEmptyMVar
 
         clusterConfigs <- Cluster.localClusterConfigsFromEnv
 
         poolGarbageCollectionEvents <- newIORef []
-        let dbEventRecorder =
-                recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
-        let setupContext smashUrl conn np baseUrl = bracketTracer' tr "setupContext" $ do
-                prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
-                ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
+
+        faucet <- Faucet.initFaucet faucetClientEnv
+
+        let setupContext
+                smashUrl
+                nodeConnection
+                networkParameters
+                baseUrl = bracketTracer' tr "setupContext" $ do
+                prometheusUrl <-
+                    let packPort (h, p) =
+                            T.pack h <> ":" <> toText @(Port "Prometheus") p
+                     in maybe "none" packPort <$> getPrometheusURL
+                ekgUrl <-
+                    let packPort (h, p) =
+                            T.pack h <> ":" <> toText @(Port "EKG") p
+                     in maybe "none" packPort <$> getEKGURL
                 traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
-                let fiveMinutes = 300 * 1_000 * 1_000 -- 5 minutes in microseconds
+                let fiveMinutes = 300 * 1_000 * 1_000 -- 5 min in microseconds
                 manager <- newManager $ defaultManagerSettings
                     { managerResponseTimeout = responseTimeoutMicro fiveMinutes
                     }
-                faucet <- initFaucet
 
                 era <- clusterEraFromEnv
 
@@ -387,7 +402,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     , _manager = (baseUrl, manager)
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
-                    , _networkParameters = np
+                    , _networkParameters = networkParameters
                     , _testnetMagic = testnetMagic
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = clusterToApiEra era
@@ -395,17 +410,60 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
                             sendFaucetAssetsTo
-                                tr' config conn batchSize
-                                (seaHorseTestAssets nPerAddr c addrs)
+                                tr' config nodeConnection batchSize
+                                (Faucet.seaHorseTestAssets nPerAddr c addrs)
                     , _moveRewardsToScript = \(script, coin) ->
-                            moveInstantaneousRewardsTo tr' config conn
+                            moveInstantaneousRewardsTo tr' config nodeConnection
                                 [(ScriptCredential script, coin)]
                     }
-        let action' = bracketTracer' tr "spec" . action
+
+        faucetFunds <- runFaucetM faucetClientEnv mkFaucetFunds
+
+        let dbEventRecorder =
+                recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
+
         res <- race
-            (withServer clusterConfigs dbEventRecorder setupContext)
-            (takeMVar ctx >>= action')
+            (withServer clusterConfigs faucetFunds dbEventRecorder setupContext)
+            (takeMVar ctx >>= bracketTracer' tr "spec" . action)
         whenLeft res (throwIO . ProcessHasExited "integration")
+
+    mkFaucetFunds :: FaucetM FaucetFunds
+    mkFaucetFunds = do
+        let networkTag = NetworkTag . fromIntegral $
+                Cluster.testnetMagicToNatural testnetMagic
+        shelleyFunds <- Faucet.shelleyFunds shelleyTestnet
+        byronFunds <- Faucet.byronFunds networkTag
+        icarusFunds <- Faucet.icarusFunds networkTag
+        onlyDustWallet <- Faucet.onlyDustWallet shelleyTestnet
+        bigDustWallet <- Faucet.bigDustWallet shelleyTestnet
+        preregKeyWallet <- Faucet.preregKeyWallet shelleyTestnet
+        instantaneousRewardFunds <- Faucet.mirFunds shelleyTestnet
+        maryAllegraFunds <- Faucet.maryAllegraFunds (Coin 10__000_000)
+            shelleyTestnet
+
+        mirCredentials <- do
+            mnemonics <- Faucet.mirMnemonics
+            let oneMioAda = Coin 1_000_000__000_000
+                mkRewardAccountCred (SomeMnemonic m) =
+                    let (xpub, _prv) = Addresses.shelleyRewardAccount m
+                    in KeyCredential (Shelley.getKey xpub)
+            pure [(mkRewardAccountCred m, oneMioAda) | m <- mnemonics]
+
+        pure FaucetFunds
+            { pureAdaFunds = mconcat
+                [ shelleyFunds
+                , byronFunds
+                , Faucet.byronIntegrationTestFunds networkTag
+                , Faucet.hwLedgerFunds networkTag
+                , icarusFunds
+                , onlyDustWallet
+                , bigDustWallet
+                , preregKeyWallet
+                , instantaneousRewardFunds
+                ]
+            , maryAllegraFunds
+            , mirCredentials
+            }
 
     -- A decorator for the pool database that records all calls to the
     -- 'removeRetiredPools' operation.
@@ -429,42 +487,29 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     atomicModifyIORef' eventsRef ((,()) . (event :))
                 pure certificates
 
-    withServer clusterConfigs dbDecorator onReady =
-        bracketTracer' tr "withServer" $
-        withSMASH tr' testDir $ \smashUrl -> do
-            let clusterConfig = Cluster.Config
-                    { cfgStakePools = Cluster.defaultPoolConfigs
-                    , cfgLastHardFork = BabbageHardFork
-                    , cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , cfgClusterDir = Tagged @"cluster" testDir
-                    , cfgClusterConfigs = clusterConfigs
-                    , cfgTestnetMagic = testnetMagic
-                    , cfgShelleyGenesisMods = []
-                    }
-            withCluster tr' clusterConfig faucetFunds
-                $ onClusterStart (onReady $ T.pack smashUrl) dbDecorator
+    withServer clusterConfigs faucetFunds dbDecorator onReady =
+        bracketTracer' tr "withServer" $ do
+            withSMASH tr' testDir $ \smashUrl -> do
+                let clusterConfig = Cluster.Config
+                        { cfgStakePools = Cluster.defaultPoolConfigs
+                        , cfgLastHardFork = BabbageHardFork
+                        , cfgNodeLogging = LogFileConfig Info Nothing Info
+                        , cfgClusterDir = Tagged @"cluster" testDir
+                        , cfgClusterConfigs = clusterConfigs
+                        , cfgTestnetMagic = testnetMagic
+                        , cfgShelleyGenesisMods = []
+                        }
+                withCluster tr' clusterConfig faucetFunds
+                        $ onClusterStart
+                            (onReady (T.pack smashUrl))
+                            dbDecorator
 
     tr' = contramap MsgCluster tr
 
-    faucetFunds = FaucetFunds
-        { pureAdaFunds =
-            let networkTag = CA.NetworkTag
-                    (fromIntegral (Cluster.testnetMagicToNatural testnetMagic))
-             in shelleyIntegrationTestFunds networkTag
-                <> byronIntegrationTestFunds networkTag
-                <> hwLedgerTestFunds networkTag
-        , maFunds =
-            maryIntegrationTestFunds (Coin 10_000_000)
-        , mirFunds =
-            [ ( KeyCredential (Shelley.getKey xpub)
-              , Coin (fromIntegral oneMillionAda)
-              )
-            | m <- Mnemonics.mir
-            , let (xpub, _prv) = Addresses.shelleyRewardAccount m
-            ]
-        }
-
-    onClusterStart action dbDecorator (RunningNode conn genesisData vData) = do
+    onClusterStart
+        callback
+        dbDecorator
+        (RunningNode nodeConnection genesisData vData) = do
         let (networkParameters, block0, genesisPools) =
                 fromGenesisData genesisData
         let db = testDir </> "wallets"
@@ -473,7 +518,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
         let testMetadata = $(getTestData) </> "token-metadata.json"
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
             serveWallet
-                (NodeSource conn vData (SyncTolerance 10))
+                (NodeSource nodeConnection vData (SyncTolerance 10))
                 networkParameters
                 tunedForMainnetPipeliningStrategy
                 (NTestnet (fromIntegral (sgNetworkMagic genesisData)) )
@@ -487,7 +532,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                 Nothing
                 (Just tokenMetaUrl)
                 block0
-                (action conn networkParameters)
+                (callback nodeConnection networkParameters)
                 `withException` (traceWith tr . MsgServerError)
 
 {-------------------------------------------------------------------------------

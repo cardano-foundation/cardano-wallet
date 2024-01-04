@@ -13,7 +13,7 @@
 {- | Module contains functionality to generate addresses
      of various styles for the faucet.
 -}
-module Cardano.Wallet.Faucet.Addresses
+module Cardano.Faucet.Addresses
     ( byron
     , icarus
     , shelley
@@ -69,14 +69,14 @@ import qualified Cardano.Address.Style.Icarus as Icarus
 import qualified Cardano.Address.Style.Shelley as Shelley
 
 byron :: KnownNat mw => CA.NetworkTag -> Mnemonic mw -> [Address]
-byron networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
+byron netTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Byron) PaymentK] =
         let firstIx = minBound
         in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
         Byron.paymentAddress
-            (CA.RequiresNetworkTag, networkTag)
+            (CA.RequiresNetworkTag, netTag)
             (toXPub <$> paymentKey)
       where
         secondFactor = ()
@@ -90,15 +90,15 @@ byron networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
                 accountIx :: Index (AddressIndexDerivationType Byron) AccountK =
                     coerceWholeDomainIndex (minBound :: Index Hardened AccountK)
 
-icarus :: CA.NetworkTag -> Mnemonic 15 -> [Address]
-icarus networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
+icarus :: KnownNat mw => CA.NetworkTag -> Mnemonic mw -> [Address]
+icarus netTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
         let firstIx = minBound
         in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
         Icarus.paymentAddress
-            (CA.RequiresNetworkTag, networkTag)
+            (CA.RequiresNetworkTag, netTag)
             (toXPub <$> paymentKey)
       where
         paymentKey =
@@ -110,14 +110,14 @@ icarus networkTag mw = mkPaymentAddrForIx <$> paymentKeyIxs
                     minBound
                 masterKey = genMasterKeyFromMnemonic (SomeMnemonic mw) mempty
 
-shelley :: KnownNat n => Mnemonic n -> [Address]
-shelley mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
+shelley :: KnownNat n => CA.NetworkTag -> Mnemonic n -> [Address]
+shelley netTag mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
   where
     paymentKeyIxs :: [Index (AddressIndexDerivationType Shelley) PaymentK] =
         let firstIx = minBound
             in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
-        Shelley.paymentAddress Shelley.shelleyTestnet credential
+        Shelley.paymentAddress netTag credential
       where
         credential :: Shelley.Credential PaymentK =
             Shelley.PaymentFromExtendedKey (toXPub <$> paymentKey)

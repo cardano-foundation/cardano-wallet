@@ -1,0 +1,90 @@
+cabal-version: 3.0
+name:          faucet
+version:       0.1.0.0
+synopsis:      Faucet for the local Cardano cluster.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+license:       Apache-2.0
+license-file:  LICENSE
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2023 Cardano Foundation
+category:      API
+build-type:    Simple
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates -Wmissing-deriving-strategies
+    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
+    -fprint-explicit-kinds -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
+    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
+    -fprint-expanded-synonyms -fwarn-unused-do-bind
+    -fwarn-incomplete-uni-patterns -freverse-errors
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+  exposed-modules:
+    Cardano.Faucet
+    Cardano.Faucet.Addresses
+    Cardano.Faucet.FaucetM
+    Cardano.Faucet.Http.Api.OpenApi
+    Cardano.Faucet.Http.Api.OrphanInstances
+    Cardano.Faucet.Http.Api.Servant
+    Cardano.Faucet.Http.Api.Utils
+    Cardano.Faucet.Http.Client
+    Cardano.Faucet.Http.Server
+    Cardano.Faucet.Mnemonics
+    Cardano.Faucet.Types
+    Cardano.Faucet.Writer
+    Cardano.Mnemonic.Extended
+
+  hs-source-dirs:  lib
+  build-depends:
+    , aeson                      ^>=2.1.2.1
+    , aeson-pretty               ^>=0.8.9
+    , base
+    , bytestring                 ^>=0.10.12
+    , cardano-addresses
+    , containers                 ^>=0.6.5.1
+    , directory                  ^>=1.3.6
+    , extra                      ^>=1.7
+    , filepath                   ^>=1.4.2.1
+    , http-media                 ^>=0.8.0
+    , insert-ordered-containers  ^>=0.2.5.2
+    , lens                       ^>=5.1.1
+    , memory                     ^>=0.18
+    , mtl                        ^>=2.2.2
+    , openapi3                   ^>=3.2.2
+    , servant                    ^>=0.19.1
+    , servant-client             ^>=0.19
+    , servant-openapi3           ^>=2.0.1.4
+    , servant-server             ^>=0.19.1
+    , stm
+    , text                       ^>=1.2.4.1
+    , wai                        ^>=3.2.3
+    , wai-extra                  ^>=3.1.13
+    , warp                       ^>=3.3.25
+
+executable faucet
+  import:         language
+  main-is:        Faucet.hs
+  hs-source-dirs: exe
+  ghc-options:    -threaded -rtsopts
+  build-depends:
+    , base
+    , faucet
+    , with-utf8  ^>=1.0.2.4

@@ -16,10 +16,8 @@ module Test.Integration.Scenario.API.Shelley.Migrations
 
 import Prelude
 
-import Cardano.Mnemonic
-    ( entropyToMnemonic
-    , genEntropy
-    , mnemonicToText
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
     )
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
@@ -38,9 +36,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
-import Cardano.Wallet.Faucet.Mnemonics
-    ( bigDustWallet
-    , onlyDustWallet
+import Cardano.Wallet.Faucet
+    ( Faucet (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -134,6 +131,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Address as CA
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
@@ -144,10 +142,7 @@ import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
-spec
-    :: forall n
-     . HasSNetworkId n
-    => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
 
     it "SHELLEY_CREATE_MIGRATION_PLAN_01 - \
@@ -612,11 +607,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 
+        bigDustWallet <- liftIO $ bigDustWalletMnemonic (_faucet ctx)
+
         -- Create a large source wallet from which funds will be migrated:
         sourceWallet <- unsafeResponse <$> postWallet ctx
             (Json [json|{
                 "name": "Big Shelley Wallet",
-                "mnemonic_sentence": #{mnemonicToText bigDustWallet},
+                "mnemonic_sentence": #{someMnemonicToWords bigDustWallet},
                 "passphrase": #{fixturePassphrase}
             }|])
         sourceBalance <- eventually "Source wallet balance is correct." $ do
@@ -816,12 +813,14 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let addrShelley = (addrs !! 1) ^. #id
 
             -- Create an Icarus address:
-            addrIcarus <- liftIO $ encodeAddress (sNetworkId @n) . head . icarusAddresses @n
-                . entropyToMnemonic @15 <$> genEntropy
+            addrIcarus <-
+                encodeAddress (sNetworkId @n) . head . icarusAddresses @n
+                    <$> Mnemonics.generateSome Mnemonics.M15
 
             -- Create a Byron address:
-            addrByron <- liftIO $ encodeAddress (sNetworkId @n) . head . randomAddresses @n
-                . entropyToMnemonic @12 <$> genEntropy
+            addrByron <-
+                encodeAddress (sNetworkId @n) . head . randomAddresses @n
+                    <$> Mnemonics.generateSome Mnemonics.M12
 
             -- Create a source wallet:
             sourceWallet <- emptyWallet ctx
@@ -857,11 +856,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \minimum ada quantity for an output."
         $ \ctx -> runResourceT @IO $ do
 
+            onlyDustWallet <- liftIO $ onlyDustWalletMnemonic (_faucet ctx)
+
             -- Create a source wallet with many small ada quantities:
             sourceWallet <- unsafeResponse <$> postWallet ctx
                 (Json [json|{
                     "name": "Shelley Wallet",
-                    "mnemonic_sentence": #{mnemonicToText onlyDustWallet},
+                    "mnemonic_sentence": #{someMnemonicToWords onlyDustWallet},
                     "passphrase": #{fixturePassphrase}
                 }|])
             sourceBalance <- eventually "Source wallet balance is correct." $ do
@@ -1229,7 +1230,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , "."
                 ]
         it title $ \ctx -> runResourceT $ do
-
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let sourceBalance =

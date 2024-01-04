@@ -11,12 +11,25 @@ module Test.Integration.Scenario.CLI.Shelley.HWWallets
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( mkSomeMnemonic
+    )
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
+    )
+import Cardano.Wallet.Address.Derivation
+    ( deriveAccountPrivateKey
+    , serializeXPub
+    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( defaultAddressPoolGap
     , getAddressPoolGap
     )
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
+    )
+import Cardano.Wallet.Address.Keys.WalletKey
+    ( publicKey
     )
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
@@ -26,8 +39,14 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , apiAddress
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
+    )
+import Cardano.Wallet.Flavor
+    ( KeyFlavorS (ShelleyKeyS)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -83,8 +102,8 @@ import Test.Integration.Framework.DSL
     , expectValidJSON
     , expectWalletUTxO
     , fixturePassphrase
+    , fixtureShelleyWallet
     , fixtureWallet
-    , fixtureWalletWithMnemonics
     , generateMnemonicsViaCLI
     , getWalletUtxoStatisticsViaCLI
     , getWalletViaCLI
@@ -95,7 +114,6 @@ import Test.Integration.Framework.DSL
     , minUTxOValue
     , postTransactionFeeViaCLI
     , postTransactionViaCLI
-    , pubKeyFromMnemonics
     , updateWalletNameViaCLI
     , updateWalletPassphraseViaCLI
     , verify
@@ -112,15 +130,12 @@ import Test.Integration.Scenario.CLI.Shelley.Wallets
     , walletNamesInvalid
     )
 
-import Cardano.Wallet.Api.Types.Amount
-    ( ApiAmount (ApiAmount)
-    )
+import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
-spec
-    :: forall n
-     . HasSNetworkId n
-    => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
     it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
@@ -164,7 +179,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         cd `shouldBe` ExitSuccess
 
         -- restore wallet from account public key
-        let accXPub = pubKeyFromMnemonics' (words m)
+        let accXPub = pubKeyFromMnemonics (words m)
         (Exit c2, Stdout o2, Stderr e2) <-
             createWalletFromPublicKeyViaCLI ctx [restoredWalletName, accXPub]
         c2 `shouldBe` ExitSuccess
@@ -183,8 +198,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
         it "Cannot send tx" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
-            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
-            let pubKey = T.unpack $ pubKeyFromMnemonics mnemonics
+            (w, mnemonics) <- fixtureShelleyWallet ctx
+            let pubKey = pubKeyFromMnemonics
+                    (map T.unpack (NE.toList (someMnemonicToWords mnemonics)))
             Exit cd <- deleteWalletViaCLI ctx $ T.unpack (w ^. walletId)
             cd `shouldBe` ExitSuccess
 
@@ -248,8 +264,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         it "Can get tx fee" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
-            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
-            let pubKey = T.unpack $ pubKeyFromMnemonics mnemonics
+            (w, mnemonics) <- fixtureShelleyWallet ctx
+            let pubKey = pubKeyFromMnemonics
+                    (map T.unpack (NE.toList (someMnemonicToWords mnemonics)))
             Exit cd <- deleteWalletViaCLI ctx $ T.unpack (w ^. walletId)
             cd `shouldBe` ExitSuccess
 
@@ -317,7 +334,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         it "Can have address pool gap" $ \ctx -> runResourceT $ do
             Stdout m <- generateMnemonicsViaCLI []
-            let accXPub = pubKeyFromMnemonics' (words m)
+            let accXPub = pubKeyFromMnemonics (words m)
             let addrPoolGap = 55 -- arbitrary but known
             let args =
                     [ restoredWalletName
@@ -354,7 +371,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             mnemonicWal <- expectValidJSON (Proxy @ApiWallet) o1
 
             -- create wallet from pub key
-            let accXPub = pubKeyFromMnemonics' (words m)
+            let accXPub = pubKeyFromMnemonics (words m)
             (Exit c2, Stdout o2, Stderr e2) <-
                 createWalletFromPublicKeyViaCLI ctx [pubKeyWalName, accXPub]
             c2 `shouldBe` ExitSuccess
@@ -377,7 +394,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         describe "Wallet names invalid" $ do
             forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> runResourceT $ do
                 Stdout m <- generateMnemonicsViaCLI []
-                let accXPub = pubKeyFromMnemonics' (words m)
+                let accXPub = pubKeyFromMnemonics (words m)
                 (Exit c, Stdout o, Stderr e) <-
                     createWalletFromPublicKeyViaCLI ctx [name, accXPub]
                 c `shouldBe` ExitFailure 1
@@ -400,7 +417,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             let poolGapsInvalid = [-1, 0, addrPoolMin - 1, addrPoolMax + 1]
             forM_ poolGapsInvalid $ \pGap -> it ("Pool gap: " ++ show pGap) $ \ctx -> runResourceT $ do
                 Stdout m <- generateMnemonicsViaCLI []
-                let accXPub = pubKeyFromMnemonics' (words m)
+                let accXPub = pubKeyFromMnemonics (words m)
                 (Exit c, Stdout o, Stderr e) <-
                     createWalletFromPublicKeyViaCLI ctx
                         [ restoredWalletName
@@ -418,15 +435,21 @@ emptyWalletFromPubKeyViaCLI
     -> ResourceT IO ApiWallet
 emptyWalletFromPubKeyViaCLI ctx name = do
     Stdout m <- generateMnemonicsViaCLI []
-    let accXPub = pubKeyFromMnemonics' (words m)
+    let accXPub = pubKeyFromMnemonics (words m)
     (Exit c, Stdout o, Stderr e) <-
         createWalletFromPublicKeyViaCLI ctx [name, accXPub]
     c `shouldBe` ExitSuccess
     e `shouldContain` cmdOk
     expectValidJSON (Proxy @ApiWallet) o
 
-pubKeyFromMnemonics' :: [String] -> String
-pubKeyFromMnemonics' m = T.unpack $ pubKeyFromMnemonics (T.pack <$> m)
+pubKeyFromMnemonics :: [String] -> String
+pubKeyFromMnemonics mnemonics =
+    T.unpack . T.decodeUtf8 $ serializeXPub $ publicKey ShelleyKeyS
+       $ deriveAccountPrivateKey mempty rootXPrv minBound
+ where
+     seed = either (error . show) id $
+        mkSomeMnemonic @'[15,24] (map T.pack mnemonics)
+     rootXPrv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
 
 restoredWalletName :: String
 restoredWalletName = "Wallet from pub key"

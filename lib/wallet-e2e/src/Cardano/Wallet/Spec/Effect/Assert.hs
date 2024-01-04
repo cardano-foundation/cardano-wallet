@@ -5,6 +5,7 @@ module Cardano.Wallet.Spec.Effect.Assert
       FxAssert
     , assert
     , assertEq
+    , assertGt
     , assertFail
 
       -- ** Handlers
@@ -36,6 +37,7 @@ import Prelude hiding
 data FxAssert :: Effect where
     Assert :: Text -> Bool -> FxAssert m ()
     AssertEq :: (Show a, Eq a) => Text -> a -> a -> FxAssert m ()
+    AssertGt :: (Show a, Ord a) => Text -> a -> a -> FxAssert m ()
 
 $(makeEffect ''FxAssert)
 
@@ -54,3 +56,7 @@ runAssertFailsFast = interpret \_ -> \case
         let equality = x == y
         trace $ "Asserting that " <> msg <> ": " <> show equality
         unless equality . fail $ show x <> " == " <> show y
+    AssertGt msg x y -> do
+        let greater = x > y
+        trace $ "Asserting that " <> msg <> ": " <> show greater
+        unless greater . fail $ show x <> " > " <> show y

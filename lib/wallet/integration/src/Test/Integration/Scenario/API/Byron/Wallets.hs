@@ -15,6 +15,9 @@ module Test.Integration.Scenario.API.Byron.Wallets
 
 import Prelude
 
+import Cardano.Mnemonic.Extended
+    ( someMnemonicToWords
+    )
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiUtxoStatistics
@@ -71,7 +74,6 @@ import Test.Hspec.Extra
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
-    , MnemonicLength (..)
     , Payload (..)
     , emptyByronWalletFromXPrvWith
     , emptyByronWalletWith
@@ -91,7 +93,6 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixturePassphraseEncrypted
     , fixtureRandomWallet
-    , genMnemonics
     , getFromResponse
     , json
     , listFilteredByronWallets
@@ -114,15 +115,14 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec
-    :: forall n
-     . HasSNetworkId n
-    => SpecWith Context
+spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "BYRON_WALLETS" $ do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
@@ -133,9 +133,9 @@ spec = describe "BYRON_WALLETS" $ do
 
     it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> runResourceT $ do
-            m1 <- liftIO $ genMnemonics M12
-            m2 <- liftIO $ genMnemonics M12
-            m3 <- liftIO $ genMnemonics M12
+            m1 <- Mnemonics.generateSome Mnemonics.M12
+            m2 <- Mnemonics.generateSome Mnemonics.M12
+            m3 <- Mnemonics.generateSome Mnemonics.M12
             r1 <- emptyByronWalletWith ctx "random" ("b1", m1, fixturePassphrase)
             r2 <- emptyByronWalletWith ctx "random" ("b2", m2, fixturePassphrase)
             r3 <- emptyByronWalletWith ctx "random" ("b3", m3, fixturePassphrase)
@@ -155,9 +155,12 @@ spec = describe "BYRON_WALLETS" $ do
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> runResourceT $ do
         let pwd = fixturePassphrase
-        r1 <- liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
-        r2 <- liftIO (genMnemonics M12) >>= \m -> (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
-        r3 <- liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
+        r1 <- Mnemonics.generateSome Mnemonics.M15 >>= \m ->
+            emptyByronWalletWith ctx "icarus" ("ica1", m, pwd)
+        r2 <- Mnemonics.generateSome Mnemonics.M12 >>= \m ->
+            emptyByronWalletWith ctx "random" ("rnd2", m, pwd)
+        r3 <- Mnemonics.generateSome Mnemonics.M15 >>= \m ->
+            emptyByronWalletWith ctx "icarus" ("ica3", m, pwd)
         let wids = Set.fromList $ map (view walletId) [r1,r2,r3]
         rl <- listFilteredByronWallets wids ctx
         verify rl
@@ -176,7 +179,7 @@ spec = describe "BYRON_WALLETS" $ do
                 let name = "Empty Byron Wallet"
                 let payload = Json [json| {
                         "name": #{name},
-                        "mnemonic_sentence": #{mnemonic},
+                        "mnemonic_sentence": #{someMnemonicToWords mnemonic},
                         "passphrase": #{fixturePassphrase},
                         "style": #{style}
                     }|]
@@ -226,7 +229,7 @@ spec = describe "BYRON_WALLETS" $ do
         let scenarioFailure style mnemonic ctx = runResourceT $ do
                 let payload = Json [json| {
                         "name": "Empty Byron Wallet",
-                        "mnemonic_sentence": #{mnemonic},
+                        "mnemonic_sentence": #{someMnemonicToWords mnemonic},
                         "passphrase": #{fixturePassphrase},
                         "style": #{style}
                     }|]
@@ -240,41 +243,41 @@ spec = describe "BYRON_WALLETS" $ do
                 mnemonic <- runIO genMnemonicIO
                 flip it (test style mnemonic) $ unwords
                     [ style
-                    , show (length mnemonic)
+                    , show (length (someMnemonicToWords mnemonic))
                     , "words"
                     ]
 
-        it' "random" (liftIO $ genMnemonics M9)  scenarioFailure -- ❌
-        it' "random" (liftIO $ genMnemonics M12) scenarioSuccess -- ✔️
-        it' "random" (liftIO $ genMnemonics M15) scenarioSuccess -- ✔️
-        it' "random" (liftIO $ genMnemonics M18) scenarioSuccess -- ✔️
-        it' "random" (liftIO $ genMnemonics M21) scenarioSuccess -- ✔️
-        it' "random" (liftIO $ genMnemonics M24) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "random" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "random" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "icarus" (liftIO $ genMnemonics M9)  scenarioFailure -- ❌
-        it' "icarus" (liftIO $ genMnemonics M12) scenarioSuccess -- ✔️
-        it' "icarus" (liftIO $ genMnemonics M15) scenarioSuccess -- ✔️
-        it' "icarus" (liftIO $ genMnemonics M18) scenarioSuccess -- ✔️
-        it' "icarus" (liftIO $ genMnemonics M21) scenarioSuccess -- ✔️
-        it' "icarus" (liftIO $ genMnemonics M24) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "icarus" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "trezor" (liftIO $ genMnemonics M9)  scenarioFailure -- ❌
-        it' "trezor" (liftIO $ genMnemonics M12) scenarioSuccess -- ✔️
-        it' "trezor" (liftIO $ genMnemonics M15) scenarioSuccess -- ✔️
-        it' "trezor" (liftIO $ genMnemonics M18) scenarioSuccess -- ✔️
-        it' "trezor" (liftIO $ genMnemonics M21) scenarioSuccess -- ✔️
-        it' "trezor" (liftIO $ genMnemonics M24) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "trezor" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "ledger" (liftIO $ genMnemonics M9)  scenarioFailure -- ❌
-        it' "ledger" (liftIO $ genMnemonics M12) scenarioSuccess -- ✔️
-        it' "ledger" (liftIO $ genMnemonics M15) scenarioSuccess -- ✔️
-        it' "ledger" (liftIO $ genMnemonics M18) scenarioSuccess -- ✔️
-        it' "ledger" (liftIO $ genMnemonics M21) scenarioSuccess -- ✔️
-        it' "ledger" (liftIO $ genMnemonics M24) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        it' "ledger" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
     it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
         \ctx -> runResourceT $ do
-            m <- liftIO $ genMnemonics M12
+            m <- Mnemonics.generateSome Mnemonics.M12
             w <- emptyByronWalletWith ctx "random"
                 ("Byron Wallet", m, fixturePassphrase)
             rd <- request
@@ -285,10 +288,11 @@ spec = describe "BYRON_WALLETS" $ do
             w ^. walletId `shouldBe` wr ^. walletId
 
     it "BYRON_RESTORE_03 - Cannot restore wallet that exists" $ \ctx -> runResourceT $ do
-        mnemonic <- liftIO $ genMnemonics M12
+        mnemonic <- Mnemonics.generateSome Mnemonics.M12
+        let mnemonicWords = someMnemonicToWords mnemonic
         let payload = Json [json| {
                 "name": "Some Byron Wallet",
-                "mnemonic_sentence": #{mnemonic},
+                "mnemonic_sentence": #{mnemonicWords},
                 "passphrase": #{fixturePassphrase},
                 "style": "random"
                 } |]
@@ -333,10 +337,10 @@ spec = describe "BYRON_WALLETS" $ do
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $
             \ctx -> runResourceT $ do
-                mnemonics12 <- liftIO $ genMnemonics M12
+                mnemonic <- Mnemonics.generateSome Mnemonics.M12
                 let payload = Json [json| {
                         "name": "Secure Wallet",
-                        "mnemonic_sentence": #{mnemonics12},
+                        "mnemonic_sentence": #{someMnemonicToWords mnemonic},
                         "passphrase": #{passphrase},
                         "style": "random"
                         } |]
@@ -367,8 +371,10 @@ spec = describe "BYRON_WALLETS" $ do
     it "BYRON_UPDATE_NAME_02 - Update names of wallets from Xprv" $ \ctx -> runResourceT $ do
         -- Wallet from XPRV
         let wName = "Byron Wallet from XPRV"
-        mnemonics <- liftIO $ genMnemonics M12
-        let rootXPrv = rootPrvKeyFromMnemonics mnemonics fixturePassphrase
+        mnemonic <- Mnemonics.generateSome Mnemonics.M12
+        let rootXPrv = rootPrvKeyFromMnemonics
+                (NE.toList (someMnemonicToWords mnemonic))
+                fixturePassphrase
         w <- emptyByronWalletFromXPrvWith ctx "random"
             (wName, rootXPrv, fixturePassphraseEncrypted)
 

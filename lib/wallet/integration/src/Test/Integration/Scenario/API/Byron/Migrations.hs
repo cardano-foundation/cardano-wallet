@@ -16,10 +16,6 @@ module Test.Integration.Scenario.API.Byron.Migrations
 
 import Prelude
 
-import Cardano.Mnemonic
-    ( entropyToMnemonic
-    , genEntropy
-    )
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
     )
@@ -115,6 +111,7 @@ import Test.Integration.Framework.TestData
     , errMsg404NoWallet
     )
 
+import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
@@ -506,16 +503,14 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 let addrShelley = (addrs !! 1) ^. #id
 
                 -- Create an Icarus address:
-                addrIcarus <- liftIO $ encodeAddress (sNetworkId @n)
-                    . head
-                    . icarusAddresses @n
-                    . entropyToMnemonic @15 <$> genEntropy
+                addrIcarus <-
+                    encodeAddress (sNetworkId @n) . head . icarusAddresses @n
+                        <$> Mnemonics.generateSome Mnemonics.M15
 
                 -- Create a Byron address:
-                addrByron <- liftIO $ encodeAddress (sNetworkId @n)
-                    . head
-                    . randomAddresses @n
-                    . entropyToMnemonic @12 <$> genEntropy
+                addrByron <-
+                    encodeAddress (sNetworkId @n) . head . randomAddresses @n
+                        <$> Mnemonics.generateSome Mnemonics.M12
 
                 -- Create a source wallet:
                 sourceWallet <- destWallet ctx
