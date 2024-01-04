@@ -197,6 +197,7 @@ data ApiErrorInfo
     | UtxoTooSmall
         !ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
+    | VotingInInvalidEra
     | WalletAlreadyExists
     | WalletMetadataNotFound
     | WalletNotResponding

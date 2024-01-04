@@ -2722,6 +2722,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 } -> liftHandler $ throwE ErrConstructTxWrongPayload
             _ -> pure ()
 
+    when (isJust (body ^. #vote)) $
+        liftHandler $ W.votingEraValidation nl
+
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
@@ -2944,6 +2947,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (api ^. networkLayer)
+
+    nl = api ^. networkLayer @IO
 
     walletId = getApiT apiWalletId
 

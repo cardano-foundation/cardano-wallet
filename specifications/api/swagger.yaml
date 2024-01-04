@@ -4633,6 +4633,19 @@ x-errDelegationInvalid: &errDelegationInvalid
       type: string
       enum: ['staking_invalid']
 
+x-errVotingInInvalidEra: &errVotingInInvalidEra
+  <<: *responsesErr
+  title: voting_in_invalid_era
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when attempting to create a transaction that has voting
+        before Conway era.
+    code:
+      type: string
+      enum: ['voting_in_invalid_era']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5915,6 +5928,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errValidityIntervalNotInsideScriptTimelock
             - <<: *errSharedWalletIncomplete
             - <<: *errDelegationInvalid
+            - <<: *errVotingInInvalidEra
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
