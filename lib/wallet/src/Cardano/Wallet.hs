@@ -150,6 +150,7 @@ module Cardano.Wallet
     , signTransaction
     , constructTransaction
     , constructTxMeta
+    , votingEraValidation
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -2646,6 +2647,15 @@ submitExternalTx tr nw tl sealedTx = do
         pure sealedTx
     pure txid
 
+votingEraValidation
+    :: NetworkLayer IO block
+    -> ExceptT ErrConstructTx IO ()
+votingEraValidation nw = do
+    era <- liftIO $ currentNodeEra nw
+    case era of
+        Cardano.AnyCardanoEra Cardano.ConwayEra -> pure ()
+        _ -> throwE ErrConstructTxVotingInWrongEra
+
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
 -- or is missing from the transaction history, an error will be returned.
@@ -3564,6 +3574,7 @@ data ErrConstructTx
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
+    | ErrConstructTxVotingInWrongEra
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 

@@ -492,6 +492,11 @@ instance IsServerError ErrConstructTx where
             [ "I cannot construct a delegating transaction for a shared wallet "
             , "that is lacking a delegation script template."
             ]
+        ErrConstructTxVotingInWrongEra ->
+            apiError err403 VotingInInvalidEra $ mconcat
+            [ "I cannot construct a transaction that includes voting before "
+            , "the Conway era."
+            ]
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
