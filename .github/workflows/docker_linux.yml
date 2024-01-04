@@ -7,7 +7,7 @@ on:
       nodeTag:
         description: 'Node docker image tag'
         required: true
-        default: '8.1.2'
+        default: '8.7.2'
       walletTag:
         description: 'Wallet docker image tag'
         required: true
@@ -39,7 +39,7 @@ jobs:
           docker-compose up -d
           ./scripts/connect_wallet.rb
         env:
-            NODE_TAG: ${{ github.event.inputs.nodeTag || '8.1.2'}}
+            NODE_TAG: ${{ github.event.inputs.nodeTag || '8.7.2'}}
             WALLET_TAG: ${{ github.event.inputs.walletTag || 'rc-latest'}}
             NETWORK: preprod
             WALLET_DB: /tmp/wallet-db
