@@ -603,7 +603,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             testAddressCycling  3
             testAddressCycling 10
 
-    Hspec.it "SHELLEY_MIGRATE_02 - \
+    it "SHELLEY_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 

@@ -8,7 +8,7 @@ on:
       nodeTag:
         description: 'Node docker-image tag to use'
         required: true
-        default: '8.1.2'
+        default: '8.7.2'
       walletTag:
         description: 'Wallet docker-image tag to use'
         required: true
@@ -33,7 +33,7 @@ jobs:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
       BUILDKITE_API_TOKEN: ${{ secrets.BUILDKITE_TOKEN_READ_BUILDS_ARTIFACTS }}
       WALLET: ${{ github.event.inputs.walletTag || 'rc-latest' }}
-      NODE: ${{ github.event.inputs.nodeTag || '8.1.2' }}
+      NODE: ${{ github.event.inputs.nodeTag || '8.7.2' }}
       TESTS_E2E_TOKEN_METADATA: https://metadata.world.dev.cardano.org/
       TAGS: ${{ github.event.inputs.tags || 'all' }}
       E2E_DOCKER_RUN: 1
