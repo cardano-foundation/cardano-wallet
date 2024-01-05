@@ -3,7 +3,7 @@ version: "3.5"
 services:
   cardano-node:
     container_name: cardano-node
-    image: inputoutput/cardano-node:${NODE}
+    image: ghcr.io/intersectmbo/cardano-node:${NODE}
     volumes:
       - ${DATA}:/data
       - ${DATA}:/ipc

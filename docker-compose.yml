@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:${NODE_TAG}
+    image: ghcr.io/intersectmbo/cardano-node:${NODE_TAG}
     environment:
       NETWORK:
       CARDANO_NODE_SOCKET_PATH: /ipc/node.socket

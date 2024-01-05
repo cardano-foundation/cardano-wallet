@@ -2,7 +2,7 @@ name: E2E Docker
 
 on:
   schedule:
-  - cron:  "0 6 * * *"
+    - cron:  "0 6 * * *"
   workflow_dispatch:
     inputs:
       nodeTag:
@@ -92,7 +92,7 @@ jobs:
     - name: 🔍 Display versions
       run: |
         docker run --rm cardanofoundation/cardano-wallet:$WALLET version
-        docker run --rm inputoutput/cardano-node:${{ env.NODE }} cli version
+        docker run --rm ghcr.io/intersectmbo/cardano-node:${{ env.NODE }} cli version
 
     - name: ⏳ Wait until node is synced
       run: rake wait_until_node_synced
