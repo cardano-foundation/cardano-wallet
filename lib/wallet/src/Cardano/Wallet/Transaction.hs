@@ -24,6 +24,7 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , VotingAction (..)
     , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
@@ -74,6 +75,9 @@ import Cardano.Api.Extra
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex
+    )
+import Cardano.Wallet.Delegation.Model
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase
@@ -228,6 +232,8 @@ data TransactionCtx = TransactionCtx
     -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
+    , txVotingAction :: Maybe VotingAction
+    -- ^ An additional delegation to take.
     , txAssetsToMint :: (TokenMap, Map AssetId ScriptSource)
     -- ^ The assets to mint.
     , txAssetsToBurn :: (TokenMap, Map AssetId ScriptSource)
@@ -312,6 +318,7 @@ defaultTransactionCtx = TransactionCtx
     , txMetadata = Nothing
     , txValidityInterval = (Nothing, maxBound)
     , txDelegationAction = Nothing
+    , txVotingAction = Nothing
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
     , txPaymentCredentialScriptTemplate = Nothing
@@ -332,6 +339,16 @@ data DelegationAction
     deriving (Show, Eq, Generic)
 
 instance Buildable DelegationAction where
+    build = genericF
+
+data VotingAction
+    = VoteRegisteringKey VoteAction
+    -- ^ Vote and registering stake key.
+    | Vote VoteAction
+    -- ^ Vote
+    deriving (Show, Eq, Generic)
+
+instance Buildable VotingAction where
     build = genericF
 
 data ErrMkTransaction
