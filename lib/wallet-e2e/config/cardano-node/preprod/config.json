@@ -6,7 +6,7 @@
   "ByronGenesisFile": "byron-genesis.json",
   "ByronGenesisHash": "d4b8de7a11d929a323373cbab6c1a9bdc931beffff11db111cf9d57356ee1937",
   "ConwayGenesisFile": "conway-genesis.json",
-  "ConwayGenesisHash": "f28f1c1280ea0d32f8cd3143e268650d6c1a8e221522ce4a7d20d62fc09783e1",
+  "ConwayGenesisHash": "4c14cc9ca7934a59575e57bb1c11954f25299bb5a9cb82b72923522d23b0acd5",
   "EnableP2P": true,
   "LastKnownBlockVersion-Alt": 0,
   "LastKnownBlockVersion-Major": 2,
