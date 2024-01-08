@@ -496,6 +496,9 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     it "doesn't balance transactions with existing 'returnCollateral'"
         $ property prop_balanceTransactionExistingReturnCollateral
 
+    it "does not balance transactions if no inputs can be created"
+        $ property prop_balanceTransactionUnableToCreateInput
+
     it "produces valid transactions or fails"
         $ property prop_balanceTransactionValid
 
@@ -1322,6 +1325,48 @@ prop_balanceTransactionExistingTotalCollateral
             e -> counterexample (show e) False
   where
     pp = mockPParamsForBalancing
+
+-- If 'balanceTx' is able to balance a transaction, then repeating the attempt
+-- with all potential inputs removed (from the partial transaction and the
+-- UTxO set) should always fail with 'ErrBalanceTxUnableToCreateInput'.
+--
+-- Note that we /cannot/ expect 'balanceTx' to fail with
+-- 'ErrBalanceTxUnableToCreateInput' in all situations where there are no
+-- potential inputs available, since:
+--
+-- 1. only at most one failure condition is ever reported by 'balanceTx';
+-- 2. there can be multiple competing failure conditions;
+-- 3. the order in which failure conditions are checked is unspecified.
+--
+prop_balanceTransactionUnableToCreateInput
+    -- TODO: Test with all recent eras [ADP-2997]
+    :: forall era. era ~ Write.BabbageEra
+    => Wallet
+    -> PartialTx era
+    -> StdGenSeed
+    -> Property
+prop_balanceTransactionUnableToCreateInput w ptx seed =
+    case r0 of
+        Right _balancedTx -> r1 === Left ErrBalanceTxUnableToCreateInput
+        Left _someFailure -> property True
+    & cover 1
+        (isRight r0)
+        "isRight r0"
+    & checkCoverage
+  where
+    r0 = balanceTx w pp tt seed ptx
+    r1 = balanceTx
+        (eraseWalletUTxOSet w) pp tt seed (erasePartialTxInputList ptx)
+
+    pp = mockPParamsForBalancing
+    tt = dummyTimeTranslation
+
+    erasePartialTxInputList :: PartialTx era -> PartialTx era
+    erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
+
+    eraseWalletUTxOSet :: Wallet -> Wallet
+    eraseWalletUTxOSet (Wallet utxoAssumptions _utxo changeAddressGen) =
+        Wallet utxoAssumptions mempty changeAddressGen
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
