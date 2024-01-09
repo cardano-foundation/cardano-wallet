@@ -2066,7 +2066,8 @@ prop_splitSignedValue_mergeSignedValue (MixedSign v) =
 -- | A set of arguments for the 'balanceTx' function.
 --
 data BalanceTxArgs era = BalanceTxArgs
-    { wallet :: !Wallet
+    { protocolParams :: !(Write.PParams era)
+    , wallet :: !Wallet
     , partialTx :: !(PartialTx era)
     , seed :: !StdGenSeed
     }
@@ -2099,10 +2100,10 @@ genBalanceTxArgsForSuccess =
     genBalanceTxArgsForSuccessOrFailure `suchThat` producesSuccess
   where
     producesSuccess :: BalanceTxArgs era -> Bool
-    producesSuccess BalanceTxArgs {wallet, partialTx, seed} =
+    producesSuccess BalanceTxArgs {protocolParams, wallet, partialTx, seed} =
         isRight $ balanceTx
             wallet
-            mockPParamsForBalancing
+            protocolParams
             dummyTimeTranslation
             seed
             partialTx
@@ -2112,9 +2113,12 @@ genBalanceTxArgsForSuccessOrFailure
     => Gen (BalanceTxArgs era)
 genBalanceTxArgsForSuccessOrFailure =
     BalanceTxArgs
-        <$> arbitrary @Wallet
+        <$> genProtocolParams
+        <*> arbitrary @Wallet
         <*> arbitrary @(PartialTx era)
         <*> arbitrary @StdGenSeed
+  where
+    genProtocolParams = pure mockPParamsForBalancing
 
 shrinkBalanceTxArgs
     :: forall era. era ~ Write.BabbageEra
@@ -2122,10 +2126,13 @@ shrinkBalanceTxArgs
     -> [BalanceTxArgs era]
 shrinkBalanceTxArgs =
     genericRoundRobinShrink
-        <@> shrink @Wallet
+        <@> shrinkProtocolParams
+        <:> shrink @Wallet
         <:> shrink @(PartialTx era)
         <:> shrink @StdGenSeed
         <:> Nil
+  where
+    shrinkProtocolParams = const []
 
 --------------------------------------------------------------------------------
 -- Utility types
