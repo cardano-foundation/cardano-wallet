@@ -2118,6 +2118,14 @@ genBalanceTxArgsForSuccess =
     `suchThat`
     (isRight . applyBalanceTxArgs)
 
+shrinkBalanceTxArgsForSuccess
+    :: forall era. era ~ Write.BabbageEra
+    => BalanceTxArgs era
+    -> [BalanceTxArgs era]
+shrinkBalanceTxArgsForSuccess
+    = filter (isRight . applyBalanceTxArgs)
+    . shrinkBalanceTxArgsForSuccessOrFailure
+
 genBalanceTxArgsForSuccessOrFailure
     :: forall era. era ~ Write.BabbageEra
     => Gen (BalanceTxArgs era)
