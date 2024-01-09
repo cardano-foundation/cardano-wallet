@@ -173,6 +173,9 @@ import Data.ByteString
 import Data.Char
     ( isDigit
     )
+import Data.Coerce
+    ( coerce
+    )
 import Data.Default
     ( Default (..)
     )
@@ -242,6 +245,9 @@ import Fmt
     , fmt
     , nameF
     , pretty
+    )
+import Generics.SOP
+    ( NP (Nil)
     )
 import GHC.Generics
     ( Generic
@@ -393,11 +399,14 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( DisjointPair
     , genDisjointPair
+    , genericRoundRobinShrink
     , getDisjointPair
     , report
     , shrinkDisjointPair
     , shrinkNatural
     , (.>=.)
+    , (<:>)
+    , (<@>)
     )
 import Test.QuickCheck.Gen
     ( Gen (..)
@@ -2068,6 +2077,34 @@ data BalanceTxArgs era = BalanceTxArgs
     , seed :: !StdGenSeed
     }
     deriving stock Generic
+
+-- | A set of arguments that can either lead to success or to failure.
+--
+newtype SuccessOrFailure a = SuccessOrFailure a
+
+instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
+    arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
+    shrink = coerce shrinkBalanceTxArgs
+
+genBalanceTxArgsForSuccessOrFailure
+    :: forall era. era ~ Write.BabbageEra
+    => Gen (BalanceTxArgs era)
+genBalanceTxArgsForSuccessOrFailure =
+    BalanceTxArgs
+        <$> arbitrary @Wallet
+        <*> arbitrary @(PartialTx era)
+        <*> arbitrary @StdGenSeed
+
+shrinkBalanceTxArgs
+    :: forall era. era ~ Write.BabbageEra
+    => BalanceTxArgs era
+    -> [BalanceTxArgs era]
+shrinkBalanceTxArgs =
+    genericRoundRobinShrink
+        <@> shrink @Wallet
+        <:> shrink @(PartialTx era)
+        <:> shrink @StdGenSeed
+        <:> Nil
 
 --------------------------------------------------------------------------------
 -- Utility types
