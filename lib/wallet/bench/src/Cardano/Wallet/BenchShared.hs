@@ -191,7 +191,7 @@ withNetworkConfiguration args action = do
     port <- fromIntegral <$> getRandomPort
     withNodeDir $ \dir -> action CardanoNodeConfig
         { nodeDir          = dir
-        , nodeConfigFile   = networkDir </> "configuration.json"
+        , nodeConfigFile   = networkDir </> "config.json"
         , nodeDatabaseDir  = fromMaybe "db" (argNodeDatabaseDir args)
         , nodeDlgCertFile  = Nothing
         , nodeSignKeyFile  = Nothing

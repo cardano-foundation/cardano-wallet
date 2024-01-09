@@ -22,7 +22,9 @@ mkdir -p $TMPDIR
 echo "--- Build"
 nix build .#ci.benchmarks.restore -o bench-restore
 
-bench="./bench-restore/bin/restore $network --node-db $node_db"
+CARDANO_NODE_CONFIGS=`pwd`/configs/cardano
+
+bench="./bench-restore/bin/restore $network --node-db $node_db --cardano-node-configs $CARDANO_NODE_CONFIGS"
 
 echo "--- Run benchmarks - $network"
 
