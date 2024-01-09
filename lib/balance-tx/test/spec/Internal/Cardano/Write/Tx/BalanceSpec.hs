@@ -1311,16 +1311,19 @@ prop_balanceTransactionExistingReturnCollateral
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionExistingReturnCollateral
-    (SuccessOrFailure (BalanceTxArgs {wallet, partialTx, seed})) =
+    (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 10 $
         hasReturnCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasTotalCollateral @era tx) ==>
-        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
+        let result = balanceTx
+                wallet protocolParams dummyTimeTranslation seed partialTx
+        in
+        case result of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockPParamsForBalancing
+    BalanceTxArgs {protocolParams, wallet, partialTx, seed} = balanceTxArgs
     PartialTx {tx} = partialTx
 
 prop_balanceTransactionExistingTotalCollateral
@@ -1328,16 +1331,19 @@ prop_balanceTransactionExistingTotalCollateral
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionExistingTotalCollateral
-    (SuccessOrFailure (BalanceTxArgs {wallet, partialTx, seed})) =
+    (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 10 $
         hasTotalCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasReturnCollateral @era tx) ==>
-        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
+        let result = balanceTx
+                wallet protocolParams dummyTimeTranslation seed partialTx
+        in
+        case result of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockPParamsForBalancing
+    BalanceTxArgs {protocolParams, wallet, partialTx, seed} = balanceTxArgs
     PartialTx {tx} = partialTx
 
 -- If 'balanceTx' is able to balance a transaction, then repeating the attempt
@@ -1358,17 +1364,19 @@ prop_balanceTransactionUnableToCreateInput
     => Success (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionUnableToCreateInput
-    (Success (BalanceTxArgs {wallet, partialTx, seed})) =
+    (Success balanceTxArgs) =
         withMaxSuccess 10 $
         balanceTx
             (eraseWalletUTxOSet wallet)
-            mockPParamsForBalancing
+            protocolParams
             dummyTimeTranslation
             seed
             (erasePartialTxInputList partialTx)
         ===
         Left ErrBalanceTxUnableToCreateInput
   where
+    BalanceTxArgs {protocolParams, wallet, partialTx, seed} = balanceTxArgs
+
     erasePartialTxInputList :: PartialTx era -> PartialTx era
     erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
 
@@ -1388,9 +1396,8 @@ prop_balanceTransactionValid
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionValid
-    (SuccessOrFailure (BalanceTxArgs {wallet, partialTx, seed})) =
+    (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 1_000 $ do
-        let Wallet _ walletUTxO _ = wallet
         let combinedUTxO =
                 view #inputs partialTx
                 <> fromWalletUTxO walletUTxO
@@ -1416,7 +1423,7 @@ prop_balanceTransactionValid
         let res =
                 balanceTx
                     wallet
-                    mockPParamsForBalancing
+                    protocolParams
                     dummyTimeTranslation
                     seed
                     partialTx
@@ -1521,6 +1528,10 @@ prop_balanceTransactionValid
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
+    BalanceTxArgs {protocolParams, wallet, partialTx, seed} =
+        balanceTxArgs
+    Wallet _ walletUTxO _ = wallet
+
     prop_expectFeeExcessSmallerThan
         :: Coin
         -> Tx era
@@ -1603,7 +1614,7 @@ prop_balanceTransactionValid
                     out
                 ]
 
-    ledgerPParams = mockPParamsForBalancing @era
+    ledgerPParams = protocolParams
 
     hasZeroAdaOutputs :: Tx era -> Bool
     hasZeroAdaOutputs tx =
