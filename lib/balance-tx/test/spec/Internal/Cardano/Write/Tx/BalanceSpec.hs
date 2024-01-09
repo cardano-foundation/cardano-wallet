@@ -2076,6 +2076,7 @@ prop_splitSignedValue_mergeSignedValue (MixedSign v) =
 --
 data BalanceTxArgs era = BalanceTxArgs
     { protocolParams :: !(Write.PParams era)
+    , timeTranslation :: !TimeTranslation
     , wallet :: !Wallet
     , partialTx :: !(PartialTx era)
     , seed :: !StdGenSeed
@@ -2109,11 +2110,13 @@ genBalanceTxArgsForSuccess =
     genBalanceTxArgsForSuccessOrFailure `suchThat` producesSuccess
   where
     producesSuccess :: BalanceTxArgs era -> Bool
-    producesSuccess BalanceTxArgs {protocolParams, wallet, partialTx, seed} =
+    producesSuccess
+        BalanceTxArgs
+            {protocolParams, timeTranslation, wallet, partialTx, seed} =
         isRight $ balanceTx
             wallet
             protocolParams
-            dummyTimeTranslation
+            timeTranslation
             seed
             partialTx
 
@@ -2123,11 +2126,13 @@ genBalanceTxArgsForSuccessOrFailure
 genBalanceTxArgsForSuccessOrFailure =
     BalanceTxArgs
         <$> genProtocolParams
+        <*> genTimeTranslation
         <*> arbitrary @Wallet
         <*> arbitrary @(PartialTx era)
         <*> arbitrary @StdGenSeed
   where
     genProtocolParams = pure mockPParamsForBalancing
+    genTimeTranslation = pure dummyTimeTranslation
 
 shrinkBalanceTxArgs
     :: forall era. era ~ Write.BabbageEra
@@ -2136,12 +2141,14 @@ shrinkBalanceTxArgs
 shrinkBalanceTxArgs =
     genericRoundRobinShrink
         <@> shrinkProtocolParams
+        <:> shrinkTimeTranslation
         <:> shrink @Wallet
         <:> shrink @(PartialTx era)
         <:> shrink @StdGenSeed
         <:> Nil
   where
     shrinkProtocolParams = const []
+    shrinkTimeTranslation = const []
 
 --------------------------------------------------------------------------------
 -- Utility types
@@ -3086,3 +3093,6 @@ instance Semigroup (CardanoApi.UTxO era) where
 
 instance Monoid (CardanoApi.UTxO era) where
     mempty = CardanoApi.UTxO mempty
+
+instance Show TimeTranslation where
+    show = const "TimeTranslation"
