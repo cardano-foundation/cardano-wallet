@@ -1324,12 +1324,11 @@ prop_balanceTransactionExistingReturnCollateral
 
 prop_balanceTransactionExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
-    => Wallet
-    -> ShowBuildable (PartialTx era)
-    -> StdGenSeed
+    => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionExistingTotalCollateral
-    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
+    (SuccessOrFailure (BalanceTxArgs {wallet, partialTx, seed})) =
+        withMaxSuccess 10 $
         hasTotalCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasReturnCollateral @era tx) ==>
@@ -1338,6 +1337,7 @@ prop_balanceTransactionExistingTotalCollateral
             e -> counterexample (show e) False
   where
     pp = mockPParamsForBalancing
+    PartialTx {tx} = partialTx
 
 -- If 'balanceTx' is able to balance a transaction, then repeating the attempt
 -- with all potential inputs removed (from the partial transaction and the
@@ -2076,11 +2076,12 @@ data BalanceTxArgs era = BalanceTxArgs
     , partialTx :: !(PartialTx era)
     , seed :: !StdGenSeed
     }
-    deriving stock Generic
+    deriving stock (Generic, Show)
 
 -- | A set of arguments that can either lead to success or to failure.
 --
 newtype SuccessOrFailure a = SuccessOrFailure a
+    deriving newtype Show
 
 instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
     arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
