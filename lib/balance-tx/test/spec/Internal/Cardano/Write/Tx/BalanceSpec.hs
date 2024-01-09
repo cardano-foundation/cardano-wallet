@@ -1307,12 +1307,11 @@ spec_updateTx = describe "updateTx" $ do
 
 prop_balanceTransactionExistingReturnCollateral
     :: forall era. (era ~ BabbageEra)
-    => Wallet
-    -> ShowBuildable (PartialTx era)
-    -> StdGenSeed
+    => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionExistingReturnCollateral
-    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
+    (SuccessOrFailure (BalanceTxArgs {wallet, partialTx, seed})) =
+        withMaxSuccess 10 $
         hasReturnCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasTotalCollateral @era tx) ==>
@@ -1321,6 +1320,7 @@ prop_balanceTransactionExistingReturnCollateral
             e -> counterexample (show e) False
   where
     pp = mockPParamsForBalancing
+    PartialTx {tx} = partialTx
 
 prop_balanceTransactionExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
