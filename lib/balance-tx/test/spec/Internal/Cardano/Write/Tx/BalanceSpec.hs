@@ -2114,18 +2114,9 @@ genBalanceTxArgsForSuccess
 genBalanceTxArgsForSuccess =
     -- For the moment, we use the brute force tactic of repeatedly generating
     -- arguments until we have a set of arguments that leads to success:
-    genBalanceTxArgsForSuccessOrFailure `suchThat` producesSuccess
-  where
-    producesSuccess :: BalanceTxArgs era -> Bool
-    producesSuccess
-        BalanceTxArgs
-            {protocolParams, timeTranslation, wallet, partialTx, seed} =
-        isRight $ balanceTx
-            wallet
-            protocolParams
-            timeTranslation
-            seed
-            partialTx
+    genBalanceTxArgsForSuccessOrFailure
+    `suchThat`
+    (isRight . applyBalanceTxArgs)
 
 genBalanceTxArgsForSuccessOrFailure
     :: forall era. era ~ Write.BabbageEra
