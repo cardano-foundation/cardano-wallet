@@ -1316,14 +1316,12 @@ prop_balanceTransactionExistingReturnCollateral
         hasReturnCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasTotalCollateral @era tx) ==>
-        let result = balanceTx
-                wallet protocolParams dummyTimeTranslation seed partialTx
-        in
-        case result of
+        case balanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    BalanceTxArgs {protocolParams, wallet, partialTx, seed} = balanceTxArgs
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
     PartialTx {tx} = partialTx
 
 prop_balanceTransactionExistingTotalCollateral
@@ -1336,14 +1334,12 @@ prop_balanceTransactionExistingTotalCollateral
         hasTotalCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasReturnCollateral @era tx) ==>
-        let result = balanceTx
-                wallet protocolParams dummyTimeTranslation seed partialTx
-        in
-        case result of
+        case balanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    BalanceTxArgs {protocolParams, wallet, partialTx, seed} = balanceTxArgs
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
     PartialTx {tx} = partialTx
 
 -- If 'balanceTx' is able to balance a transaction, then repeating the attempt
@@ -1369,13 +1365,14 @@ prop_balanceTransactionUnableToCreateInput
         balanceTx
             (eraseWalletUTxOSet wallet)
             protocolParams
-            dummyTimeTranslation
+            timeTranslation
             seed
             (erasePartialTxInputList partialTx)
         ===
         Left ErrBalanceTxUnableToCreateInput
   where
-    BalanceTxArgs {protocolParams, wallet, partialTx, seed} = balanceTxArgs
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
 
     erasePartialTxInputList :: PartialTx era -> PartialTx era
     erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
@@ -1424,7 +1421,7 @@ prop_balanceTransactionValid
                 balanceTx
                     wallet
                     protocolParams
-                    dummyTimeTranslation
+                    timeTranslation
                     seed
                     partialTx
         classifications $ case res of
@@ -1528,7 +1525,7 @@ prop_balanceTransactionValid
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
-    BalanceTxArgs {protocolParams, wallet, partialTx, seed} =
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
         balanceTxArgs
     Wallet _ walletUTxO _ = wallet
 
