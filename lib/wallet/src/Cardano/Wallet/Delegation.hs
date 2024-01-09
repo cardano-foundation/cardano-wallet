@@ -16,6 +16,7 @@ module Cardano.Wallet.Delegation
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
     , handleDelegationRequest
+    , voteAction
     ) where
 
 import Prelude
@@ -51,6 +52,9 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
+    )
+import Cardano.Wallet.Delegation.Model
+    ( VoteAction
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
@@ -141,6 +145,24 @@ handleDelegationRequest
             tr db currentEpochSlotting pools poolId poolStatus
     Quit -> liftIO
         $ quitStakePoolDelegationAction db currentEpochSlotting withdrawal
+
+voteAction
+    :: Tracer IO WalletLog
+    -> DBLayer IO s
+    -> VoteAction
+    -> IO Tx.VotingAction
+voteAction tr DBLayer{..} action = do
+    (_, stakeKeyIsRegistered) <-
+        atomically $
+            (,) <$> readDelegation walletState
+                <*> isStakeKeyRegistered walletState
+
+    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
+
+    pure $
+        if stakeKeyIsRegistered
+        then Tx.Vote action
+        else Tx.VoteRegisteringKey action
 
 joinStakePoolDelegationAction
     :: Tracer IO WalletLog
