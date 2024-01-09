@@ -2080,6 +2080,16 @@ data BalanceTxArgs era = BalanceTxArgs
     }
     deriving stock (Generic, Show)
 
+-- | Applies the 'balanceTx' function to the given arguments.
+--
+applyBalanceTxArgs
+    :: IsRecentEra era
+    => BalanceTxArgs era
+    -> Either (ErrBalanceTx era) (Tx era)
+applyBalanceTxArgs
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTx wallet protocolParams timeTranslation seed partialTx
+
 -- | A set of arguments that will always lead to success.
 --
 newtype Success a = Success a
