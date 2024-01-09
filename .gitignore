@@ -73,3 +73,6 @@ bench-restore
 restore-time.txt
 restore.log
 test-output
+
+## Membench uncompressed data
+lib/wallet-benchmarks/data/membench-snapshot
