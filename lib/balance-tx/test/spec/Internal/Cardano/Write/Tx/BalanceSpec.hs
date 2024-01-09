@@ -2102,11 +2102,11 @@ newtype SuccessOrFailure a = SuccessOrFailure a
 
 instance Arbitrary (Success (BalanceTxArgs Write.BabbageEra)) where
     arbitrary = coerce genBalanceTxArgsForSuccess
-    shrink = coerce shrinkBalanceTxArgs
+    shrink = coerce shrinkBalanceTxArgsForSuccessOrFailure
 
 instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
     arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
-    shrink = coerce shrinkBalanceTxArgs
+    shrink = coerce shrinkBalanceTxArgsForSuccessOrFailure
 
 genBalanceTxArgsForSuccess
     :: forall era. era ~ Write.BabbageEra
@@ -2132,11 +2132,11 @@ genBalanceTxArgsForSuccessOrFailure =
     genProtocolParams = pure mockPParamsForBalancing
     genTimeTranslation = pure dummyTimeTranslation
 
-shrinkBalanceTxArgs
+shrinkBalanceTxArgsForSuccessOrFailure
     :: forall era. era ~ Write.BabbageEra
     => BalanceTxArgs era
     -> [BalanceTxArgs era]
-shrinkBalanceTxArgs =
+shrinkBalanceTxArgsForSuccessOrFailure =
     genericRoundRobinShrink
         <@> shrinkProtocolParams
         <:> shrinkTimeTranslation
