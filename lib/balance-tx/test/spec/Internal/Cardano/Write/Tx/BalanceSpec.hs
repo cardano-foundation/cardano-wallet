@@ -1575,13 +1575,13 @@ prop_balanceTransactionValid
         -> Property
     prop_validSize tx utxo = do
         let (W.TxSize size) =
-                estimateSignedTxSize ledgerPParams
+                estimateSignedTxSize protocolParams
                     (estimateKeyWitnessCounts
                         utxo
                         tx
                         (timelockKeyWitnessCounts partialTx))
                     tx
-        let limit = ledgerPParams ^. ppMaxTxSizeL
+        let limit = protocolParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
                 , show size
@@ -1600,7 +1600,7 @@ prop_balanceTransactionValid
       where
         valid :: TxOut era -> Property
         valid out = counterexample msg $ property $
-            not $ Write.isBelowMinimumCoinForTxOut ledgerPParams out
+            not $ Write.isBelowMinimumCoinForTxOut protocolParams out
           where
             msg = unwords
                 [ "ada quantity is"
@@ -1610,11 +1610,9 @@ prop_balanceTransactionValid
                 , "\n"
                 , "Suggested ada quantity (may overestimate requirement):"
                 , show $ Write.computeMinimumCoinForTxOut
-                    ledgerPParams
+                    protocolParams
                     out
                 ]
-
-    ledgerPParams = protocolParams
 
     hasZeroAdaOutputs :: Tx era -> Bool
     hasZeroAdaOutputs tx =
@@ -1628,7 +1626,7 @@ prop_balanceTransactionValid
         -> UTxO era
         -> Coin
     minFee tx utxo =
-        Write.evaluateMinimumFee ledgerPParams
+        Write.evaluateMinimumFee protocolParams
             tx
             (estimateKeyWitnessCounts utxo tx
                 (timelockKeyWitnessCounts partialTx))
@@ -1639,7 +1637,7 @@ prop_balanceTransactionValid
         -> Value
     txBalance tx u =
         Write.evaluateTransactionBalance
-            ledgerPParams
+            protocolParams
             u
             (tx ^. bodyTxL)
 
