@@ -2102,7 +2102,7 @@ newtype SuccessOrFailure a = SuccessOrFailure a
 
 instance Arbitrary (Success (BalanceTxArgs Write.BabbageEra)) where
     arbitrary = coerce genBalanceTxArgsForSuccess
-    shrink = coerce shrinkBalanceTxArgsForSuccessOrFailure
+    shrink = coerce shrinkBalanceTxArgsForSuccess
 
 instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
     arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
