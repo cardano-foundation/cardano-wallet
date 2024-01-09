@@ -1355,26 +1355,20 @@ prop_balanceTransactionExistingTotalCollateral
 prop_balanceTransactionUnableToCreateInput
     -- TODO: Test with all recent eras [ADP-2997]
     :: forall era. era ~ Write.BabbageEra
-    => Wallet
-    -> PartialTx era
-    -> StdGenSeed
+    => Success (BalanceTxArgs era)
     -> Property
-prop_balanceTransactionUnableToCreateInput w ptx seed =
-    case r0 of
-        Right _balancedTx -> r1 === Left ErrBalanceTxUnableToCreateInput
-        Left _someFailure -> property True
-    & cover 1
-        (isRight r0)
-        "isRight r0"
-    & checkCoverage
+prop_balanceTransactionUnableToCreateInput
+    (Success (BalanceTxArgs {wallet, partialTx, seed})) =
+        withMaxSuccess 10 $
+        balanceTx
+            (eraseWalletUTxOSet wallet)
+            mockPParamsForBalancing
+            dummyTimeTranslation
+            seed
+            (erasePartialTxInputList partialTx)
+        ===
+        Left ErrBalanceTxUnableToCreateInput
   where
-    r0 = balanceTx w pp tt seed ptx
-    r1 = balanceTx
-        (eraseWalletUTxOSet w) pp tt seed (erasePartialTxInputList ptx)
-
-    pp = mockPParamsForBalancing
-    tt = dummyTimeTranslation
-
     erasePartialTxInputList :: PartialTx era -> PartialTx era
     erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
 
