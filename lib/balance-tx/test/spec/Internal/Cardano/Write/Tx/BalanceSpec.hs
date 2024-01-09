@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE EmptyCase #-}
@@ -241,6 +242,9 @@ import Fmt
     , fmt
     , nameF
     , pretty
+    )
+import GHC.Generics
+    ( Generic
     )
 import GHC.Stack
     ( HasCallStack
@@ -2051,6 +2055,19 @@ prop_splitSignedValue_mergeSignedValue (MixedSign v) =
     & cover 10
         (valueHasNegativeAndPositiveParts v)
         "valueHasNegativeAndPositiveParts v"
+
+--------------------------------------------------------------------------------
+-- Arguments for balanceTx
+--------------------------------------------------------------------------------
+
+-- | A set of arguments for the 'balanceTx' function.
+--
+data BalanceTxArgs era = BalanceTxArgs
+    { wallet :: !Wallet
+    , partialTx :: !(PartialTx era)
+    , seed :: !StdGenSeed
+    }
+    deriving stock Generic
 
 --------------------------------------------------------------------------------
 -- Utility types
