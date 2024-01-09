@@ -1390,13 +1390,12 @@ prop_balanceTransactionValid
     :: forall era. era ~ Write.BabbageEra
     -- TODO [ADP-2997] Test with all RecentEras
     -- https://cardanofoundation.atlassian.net/browse/ADP-2997
-    => Wallet
-    -> ShowBuildable (PartialTx Write.BabbageEra)
-    -> StdGenSeed
+    => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionValid
-    wallet@(Wallet _ walletUTxO _) (ShowBuildable partialTx) seed =
+    (SuccessOrFailure (BalanceTxArgs {wallet, partialTx, seed})) =
         withMaxSuccess 1_000 $ do
+        let Wallet _ walletUTxO _ = wallet
         let combinedUTxO =
                 view #inputs partialTx
                 <> fromWalletUTxO walletUTxO
