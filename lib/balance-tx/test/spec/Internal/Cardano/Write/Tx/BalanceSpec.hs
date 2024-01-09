@@ -390,6 +390,7 @@ import Test.QuickCheck
     , shrinkBoundedEnum
     , shrinkList
     , shrinkMapBy
+    , suchThat
     , tabulate
     , vectorOf
     , withMaxSuccess
@@ -2077,14 +2078,40 @@ data BalanceTxArgs era = BalanceTxArgs
     }
     deriving stock (Generic, Show)
 
+-- | A set of arguments that will always lead to success.
+--
+newtype Success a = Success a
+    deriving newtype Show
+
 -- | A set of arguments that can either lead to success or to failure.
 --
 newtype SuccessOrFailure a = SuccessOrFailure a
     deriving newtype Show
 
+instance Arbitrary (Success (BalanceTxArgs Write.BabbageEra)) where
+    arbitrary = coerce genBalanceTxArgsForSuccess
+    shrink = coerce shrinkBalanceTxArgs
+
 instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
     arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
     shrink = coerce shrinkBalanceTxArgs
+
+genBalanceTxArgsForSuccess
+    :: forall era. era ~ Write.BabbageEra
+    => Gen (BalanceTxArgs era)
+genBalanceTxArgsForSuccess =
+    -- For the moment, we use the brute force tactic of repeatedly generating
+    -- arguments until we have a set of arguments that leads to success:
+    genBalanceTxArgsForSuccessOrFailure `suchThat` producesSuccess
+  where
+    producesSuccess :: BalanceTxArgs era -> Bool
+    producesSuccess BalanceTxArgs {wallet, partialTx, seed} =
+        isRight $ balanceTx
+            wallet
+            mockPParamsForBalancing
+            dummyTimeTranslation
+            seed
+            partialTx
 
 genBalanceTxArgsForSuccessOrFailure
     :: forall era. era ~ Write.BabbageEra
