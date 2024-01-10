@@ -2799,11 +2799,17 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     db currentEpochSlotting knownPools
                     poolStatus withdrawal
 
+        optionalVoteAction <- case (body ^. #vote) of
+            Just (ApiT action) -> liftIO$ Just <$> WD.voteAction trWorker db action
+            Nothing -> pure Nothing
+
         let transactionCtx1 =
                 case optionalDelegationAction of
                     Nothing -> transactionCtx0
                     Just action ->
-                        transactionCtx0 { txDelegationAction = Just action }
+                        transactionCtx0
+                        { txDelegationAction = Just action
+                        , txVotingAction = optionalVoteAction }
 
         (policyXPub, _) <-
             liftHandler $ W.readPolicyPublicKey wrk
@@ -2968,10 +2974,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             , fee = apiDecoded ^. #fee
             }
   where
-    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (api ^. networkLayer)
-
     nl = api ^. networkLayer @IO
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter nl
 
     walletId = getApiT apiWalletId
 
@@ -3302,6 +3307,9 @@ constructSharedTransaction
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
+    when (isJust (body ^. #vote)) $
+        liftHandler $ W.votingEraValidation nl
+
     withWorkerCtx @_ @_ @Handler api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
@@ -3333,11 +3341,16 @@ constructSharedTransaction
                     trWorker db currentEpochSlotting knownPools
                     getPoolStatus NoWithdrawal
 
+        optionalVoteAction <- case (body ^. #vote) of
+            Just (ApiT action) -> liftIO$ Just <$> WD.voteAction trWorker db action
+            Nothing -> pure Nothing
+
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
                 , txDelegationAction = optionalDelegationAction
+                , txVotingAction = optionalVoteAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
                 , txStakingCredentialScriptTemplate = delegationTemplateM
@@ -3404,8 +3417,9 @@ constructSharedTransaction
                     , fee = apiDecoded ^. #fee
                     }
   where
+    nl = api ^. networkLayer @IO
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (api ^. networkLayer)
+    ti = timeInterpreter nl
 
     unsignedTx initialOuts decodedTx pathM = UnsignedTx
         { unsignedCollateral =
