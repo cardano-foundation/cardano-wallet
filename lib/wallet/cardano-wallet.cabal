@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               cardano-wallet
-version:            2023.12.18
+version:            2024.1.10
 synopsis:           The Wallet Backend for a Cardano node.
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
