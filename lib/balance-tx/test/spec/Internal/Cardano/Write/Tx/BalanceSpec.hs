@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE EmptyCase #-}
@@ -172,6 +173,9 @@ import Data.ByteString
 import Data.Char
     ( isDigit
     )
+import Data.Coerce
+    ( coerce
+    )
 import Data.Default
     ( Default (..)
     )
@@ -241,6 +245,12 @@ import Fmt
     , fmt
     , nameF
     , pretty
+    )
+import Generics.SOP
+    ( NP (Nil)
+    )
+import GHC.Generics
+    ( Generic
     )
 import GHC.Stack
     ( HasCallStack
@@ -380,6 +390,7 @@ import Test.QuickCheck
     , shrinkBoundedEnum
     , shrinkList
     , shrinkMapBy
+    , suchThat
     , tabulate
     , vectorOf
     , withMaxSuccess
@@ -389,11 +400,14 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( DisjointPair
     , genDisjointPair
+    , genericRoundRobinShrink
     , getDisjointPair
     , report
     , shrinkDisjointPair
     , shrinkNatural
     , (.>=.)
+    , (<:>)
+    , (<@>)
     )
 import Test.QuickCheck.Gen
     ( Gen (..)
@@ -495,6 +509,9 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     it "doesn't balance transactions with existing 'returnCollateral'"
         $ property prop_balanceTransactionExistingReturnCollateral
+
+    it "does not balance transactions if no inputs can be created"
+        $ property prop_balanceTransactionUnableToCreateInput
 
     it "produces valid transactions or fails"
         $ property prop_balanceTransactionValid
@@ -1291,37 +1308,78 @@ spec_updateTx = describe "updateTx" $ do
 
 prop_balanceTransactionExistingReturnCollateral
     :: forall era. (era ~ BabbageEra)
-    => Wallet
-    -> ShowBuildable (PartialTx era)
-    -> StdGenSeed
+    => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionExistingReturnCollateral
-    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
+    (SuccessOrFailure balanceTxArgs) =
+        withMaxSuccess 10 $
         hasReturnCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasTotalCollateral @era tx) ==>
-        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
+        case balanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockPParamsForBalancing
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
+    PartialTx {tx} = partialTx
 
 prop_balanceTransactionExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
-    => Wallet
-    -> ShowBuildable (PartialTx era)
-    -> StdGenSeed
+    => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionExistingTotalCollateral
-    wallet (ShowBuildable partialTx@PartialTx{tx}) seed = withMaxSuccess 10 $
+    (SuccessOrFailure balanceTxArgs) =
+        withMaxSuccess 10 $
         hasTotalCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasReturnCollateral @era tx) ==>
-        case balanceTx wallet pp dummyTimeTranslation seed partialTx of
+        case balanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    pp = mockPParamsForBalancing
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
+    PartialTx {tx} = partialTx
+
+-- If 'balanceTx' is able to balance a transaction, then repeating the attempt
+-- with all potential inputs removed (from the partial transaction and the
+-- UTxO set) should always fail with 'ErrBalanceTxUnableToCreateInput'.
+--
+-- Note that we /cannot/ expect 'balanceTx' to fail with
+-- 'ErrBalanceTxUnableToCreateInput' in all situations where there are no
+-- potential inputs available, since:
+--
+-- 1. only at most one failure condition is ever reported by 'balanceTx';
+-- 2. there can be multiple competing failure conditions;
+-- 3. the order in which failure conditions are checked is unspecified.
+--
+prop_balanceTransactionUnableToCreateInput
+    -- TODO: Test with all recent eras [ADP-2997]
+    :: forall era. era ~ Write.BabbageEra
+    => Success (BalanceTxArgs era)
+    -> Property
+prop_balanceTransactionUnableToCreateInput
+    (Success balanceTxArgs) =
+        withMaxSuccess 10 $
+        balanceTx
+            (eraseWalletUTxOSet wallet)
+            protocolParams
+            timeTranslation
+            seed
+            (erasePartialTxInputList partialTx)
+        ===
+        Left ErrBalanceTxUnableToCreateInput
+  where
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
+
+    erasePartialTxInputList :: PartialTx era -> PartialTx era
+    erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
+
+    eraseWalletUTxOSet :: Wallet -> Wallet
+    eraseWalletUTxOSet (Wallet utxoAssumptions _utxo changeAddressGen) =
+        Wallet utxoAssumptions mempty changeAddressGen
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
@@ -1332,12 +1390,10 @@ prop_balanceTransactionValid
     :: forall era. era ~ Write.BabbageEra
     -- TODO [ADP-2997] Test with all RecentEras
     -- https://cardanofoundation.atlassian.net/browse/ADP-2997
-    => Wallet
-    -> ShowBuildable (PartialTx Write.BabbageEra)
-    -> StdGenSeed
+    => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTransactionValid
-    wallet@(Wallet _ walletUTxO _) (ShowBuildable partialTx) seed =
+    (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
                 view #inputs partialTx
@@ -1364,8 +1420,8 @@ prop_balanceTransactionValid
         let res =
                 balanceTx
                     wallet
-                    mockPParamsForBalancing
-                    dummyTimeTranslation
+                    protocolParams
+                    timeTranslation
                     seed
                     partialTx
         classifications $ case res of
@@ -1469,6 +1525,10 @@ prop_balanceTransactionValid
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
+    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
+        balanceTxArgs
+    Wallet _ walletUTxO _ = wallet
+
     prop_expectFeeExcessSmallerThan
         :: Coin
         -> Tx era
@@ -1512,13 +1572,13 @@ prop_balanceTransactionValid
         -> Property
     prop_validSize tx utxo = do
         let (W.TxSize size) =
-                estimateSignedTxSize ledgerPParams
+                estimateSignedTxSize protocolParams
                     (estimateKeyWitnessCounts
                         utxo
                         tx
                         (timelockKeyWitnessCounts partialTx))
                     tx
-        let limit = ledgerPParams ^. ppMaxTxSizeL
+        let limit = protocolParams ^. ppMaxTxSizeL
         let msg = unwords
                 [ "The tx size "
                 , show size
@@ -1537,7 +1597,7 @@ prop_balanceTransactionValid
       where
         valid :: TxOut era -> Property
         valid out = counterexample msg $ property $
-            not $ Write.isBelowMinimumCoinForTxOut ledgerPParams out
+            not $ Write.isBelowMinimumCoinForTxOut protocolParams out
           where
             msg = unwords
                 [ "ada quantity is"
@@ -1547,11 +1607,9 @@ prop_balanceTransactionValid
                 , "\n"
                 , "Suggested ada quantity (may overestimate requirement):"
                 , show $ Write.computeMinimumCoinForTxOut
-                    ledgerPParams
+                    protocolParams
                     out
                 ]
-
-    ledgerPParams = mockPParamsForBalancing @era
 
     hasZeroAdaOutputs :: Tx era -> Bool
     hasZeroAdaOutputs tx =
@@ -1565,7 +1623,7 @@ prop_balanceTransactionValid
         -> UTxO era
         -> Coin
     minFee tx utxo =
-        Write.evaluateMinimumFee ledgerPParams
+        Write.evaluateMinimumFee protocolParams
             tx
             (estimateKeyWitnessCounts utxo tx
                 (timelockKeyWitnessCounts partialTx))
@@ -1576,7 +1634,7 @@ prop_balanceTransactionValid
         -> Value
     txBalance tx u =
         Write.evaluateTransactionBalance
-            ledgerPParams
+            protocolParams
             u
             (tx ^. bodyTxL)
 
@@ -2006,6 +2064,97 @@ prop_splitSignedValue_mergeSignedValue (MixedSign v) =
     & cover 10
         (valueHasNegativeAndPositiveParts v)
         "valueHasNegativeAndPositiveParts v"
+
+--------------------------------------------------------------------------------
+-- Arguments for balanceTx
+--------------------------------------------------------------------------------
+
+-- | A set of arguments for the 'balanceTx' function.
+--
+data BalanceTxArgs era = BalanceTxArgs
+    { wallet :: !Wallet
+    , protocolParams :: !(Write.PParams era)
+    , timeTranslation :: !TimeTranslation
+    , seed :: !StdGenSeed
+    , partialTx :: !(PartialTx era)
+    }
+    deriving stock (Generic, Show)
+
+-- | Applies the 'balanceTx' function to the given arguments.
+--
+applyBalanceTxArgs
+    :: IsRecentEra era
+    => BalanceTxArgs era
+    -> Either (ErrBalanceTx era) (Tx era)
+applyBalanceTxArgs
+    (BalanceTxArgs wallet protocolParams timeTranslation seed partialTx) =
+        (balanceTx wallet protocolParams timeTranslation seed partialTx)
+
+-- | A set of arguments that will always lead to success.
+--
+newtype Success a = Success a
+    deriving newtype Show
+
+-- | A set of arguments that can either lead to success or to failure.
+--
+newtype SuccessOrFailure a = SuccessOrFailure a
+    deriving newtype Show
+
+instance Arbitrary (Success (BalanceTxArgs Write.BabbageEra)) where
+    arbitrary = coerce genBalanceTxArgsForSuccess
+    shrink = coerce shrinkBalanceTxArgsForSuccess
+
+instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
+    arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
+    shrink = coerce shrinkBalanceTxArgsForSuccessOrFailure
+
+genBalanceTxArgsForSuccess
+    :: forall era. era ~ Write.BabbageEra
+    => Gen (BalanceTxArgs era)
+genBalanceTxArgsForSuccess =
+    -- For the moment, we use the brute force tactic of repeatedly generating
+    -- arguments until we have a set of arguments that leads to success:
+    genBalanceTxArgsForSuccessOrFailure
+    `suchThat`
+    (isRight . applyBalanceTxArgs)
+
+shrinkBalanceTxArgsForSuccess
+    :: forall era. era ~ Write.BabbageEra
+    => BalanceTxArgs era
+    -> [BalanceTxArgs era]
+shrinkBalanceTxArgsForSuccess
+    = filter (isRight . applyBalanceTxArgs)
+    . shrinkBalanceTxArgsForSuccessOrFailure
+
+genBalanceTxArgsForSuccessOrFailure
+    :: forall era. era ~ Write.BabbageEra
+    => Gen (BalanceTxArgs era)
+genBalanceTxArgsForSuccessOrFailure =
+    BalanceTxArgs
+        <$> arbitrary @Wallet
+        <*> genProtocolParams
+        <*> genTimeTranslation
+        <*> arbitrary @StdGenSeed
+        <*> arbitrary @(PartialTx era)
+  where
+    genProtocolParams = pure mockPParamsForBalancing
+    genTimeTranslation = pure dummyTimeTranslation
+
+shrinkBalanceTxArgsForSuccessOrFailure
+    :: forall era. era ~ Write.BabbageEra
+    => BalanceTxArgs era
+    -> [BalanceTxArgs era]
+shrinkBalanceTxArgsForSuccessOrFailure =
+    genericRoundRobinShrink
+        <@> shrink @Wallet
+        <:> shrinkProtocolParams
+        <:> shrinkTimeTranslation
+        <:> shrink @StdGenSeed
+        <:> shrink @(PartialTx era)
+        <:> Nil
+  where
+    shrinkProtocolParams = const []
+    shrinkTimeTranslation = const []
 
 --------------------------------------------------------------------------------
 -- Utility types
@@ -2950,3 +3099,6 @@ instance Semigroup (CardanoApi.UTxO era) where
 
 instance Monoid (CardanoApi.UTxO era) where
     mempty = CardanoApi.UTxO mempty
+
+instance Show TimeTranslation where
+    show = const "TimeTranslation"
