@@ -85,7 +85,7 @@ else
 fi
 
 # set the node tag and wallet tag to compatible versions
-export NODE_TAG=8.7.2
+export NODE_TAG=8.7.3
 export WALLET_TAG=2023.12.18
 export WALLET_VERSION=v2023-12-18
 
