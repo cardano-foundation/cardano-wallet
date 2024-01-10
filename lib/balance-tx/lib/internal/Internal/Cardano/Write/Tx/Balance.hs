@@ -422,7 +422,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- | A 'PartialTx' is an an unbalanced transaction along with the necessary
 -- information to balance it.
 --
--- The 'TxIn's of the 'inputs' must exactly match the inputs contained in the
+-- The 'TxIn's of the 'inputUTxO' must exactly match the inputs contained in the
 -- 'tx'. If not, the behaviour is undefined. This will be fixed by ADP-1662.
 --
 -- The provided 'redeemers' will overwrite any redeemers inside the 'tx'. This
@@ -435,8 +435,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Tx era
-    , inputs :: UTxO era
-      -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
+    , inputUTxO :: UTxO era
     , redeemers :: [Redeemer]
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
       -- ^ Specifying the intended number of timelock script key witnesses may
@@ -453,9 +452,9 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers timelockKeyWitnessCounts)
+    build (PartialTx tx (UTxO inputUTxO) redeemers timelockKeyWitnessCounts)
         = nameF "PartialTx" $ mconcat
-            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
+            [ nameF "inputUTxO" (blockListF' "-" inF (Map.toList inputUTxO))
             , nameF "redeemers" (pretty redeemers)
             , nameF "tx" (txF tx)
             , nameF "intended timelock key witness counts"
@@ -797,15 +796,15 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     --
     -- === Examples using pseudo-code
     --
-    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
+    -- >>> let inputUTxO = {inA -> outA, inB -> outB }
     -- >>> let tx = addInputs [inA] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> let ptx = PartialTx tx inputUTxO []
     -- >>> extractExternallySelectedUTxO ptx
     -- Right (UTxOIndex.fromMap {inA -> outA})
     --
-    -- >>> let extraUTxO = {inB -> outB }
+    -- >>> let inputUTxO = {inB -> outB }
     -- >>> let tx = addInputs [inA, inC] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> let ptx = PartialTx tx inputUTxO []
     -- >>> extractExternallySelectedUTxO ptx
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
