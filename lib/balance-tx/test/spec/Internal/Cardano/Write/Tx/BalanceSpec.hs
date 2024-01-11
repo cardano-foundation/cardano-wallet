@@ -878,18 +878,18 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                 }
 
     describe "results when varying wallet balance (1 UTxO)" $ do
-        test "pingPong_1" (unPartialTxWithUTxO pingPong_1)
-        test "pingPong_2" (unPartialTxWithUTxO pingPong_2)
-        test "delegate" delegate
-        test "1ada-payment" payment
+        test "pingPong_1" pingPong_1
+        test "pingPong_2" pingPong_2
+        test "delegate" (mkPartialTxWithUTxO delegate)
+        test "1ada-payment" (mkPartialTxWithUTxO payment)
   where
     toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
 
-    test :: String -> PartialTx BabbageEra -> Spec
-    test name partialTx = it name $ do
-        goldenText name
-            (map (mkGolden partialTx . W.Coin) defaultWalletBalanceRange)
+    test :: String -> PartialTxWithUTxO BabbageEra -> Spec
+    test name partialTxWithUTxO = it name $ do
+        goldenText name $
+            map (mkGolden partialTxWithUTxO . W.Coin) defaultWalletBalanceRange
       where
         defaultWalletBalanceRange = [0, 50_000 .. 4_000_000]
 
@@ -908,10 +908,10 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             dir = $(getTestData) </> "balanceTx"
 
         mkGolden
-            :: PartialTx BabbageEra
+            :: PartialTxWithUTxO BabbageEra
             -> W.Coin
             -> BalanceTxGolden
-        mkGolden ptx c =
+        mkGolden ptxWithUTxO c =
             let
                 walletUTxO = utxo [c]
                 res = balanceTx
@@ -919,9 +919,9 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     mockPParamsForBalancing
                     dummyTimeTranslation
                     testStdGenSeed
-                    (mkPartialTxWithUTxO ptx)
+                    ptxWithUTxO
                 combinedUTxO = mconcat
-                    [ view #inputUTxO ptx
+                    [ view #inputUTxO ptxWithUTxO
                     , fromWalletUTxO walletUTxO
                     ]
             in
