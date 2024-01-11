@@ -1416,13 +1416,7 @@ prop_balanceTransactionValid
                 . classify (length originalOuts > 100)
                     ">100 payment outputs"
 
-        let res =
-                balanceTx
-                    wallet
-                    protocolParams
-                    timeTranslation
-                    seed
-                    partialTx
+        let res = applyBalanceTxArgs balanceTxArgs
         classifications $ case res of
             Right tx -> counterexample ("\nResult: " <> show (Pretty tx)) $ do
                 label "success"
@@ -1524,8 +1518,7 @@ prop_balanceTransactionValid
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
-    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
-        balanceTxArgs
+    BalanceTxArgs {protocolParams, wallet, partialTx} = balanceTxArgs
     Wallet _ walletUTxO _ = wallet
 
     prop_expectFeeExcessSmallerThan
