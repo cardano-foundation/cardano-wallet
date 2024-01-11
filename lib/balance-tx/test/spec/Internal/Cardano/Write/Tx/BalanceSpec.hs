@@ -1333,7 +1333,7 @@ prop_balanceTransactionExistingReturnCollateral
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    BalanceTxArgs {partialTx = PartialTx {tx}} = balanceTxArgs
+    BalanceTxArgs {partialTxWithUTxO = PartialTxWithUTxO {tx}} = balanceTxArgs
 
 prop_balanceTransactionExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
@@ -1349,7 +1349,7 @@ prop_balanceTransactionExistingTotalCollateral
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    BalanceTxArgs {partialTx = PartialTx {tx}} = balanceTxArgs
+    BalanceTxArgs {partialTxWithUTxO = PartialTxWithUTxO {tx}} = balanceTxArgs
 
 -- If 'balanceTx' is able to balance a transaction, then repeating the attempt
 -- with all potential inputs removed (from the partial transaction and the
@@ -1376,14 +1376,15 @@ prop_balanceTransactionUnableToCreateInput
             protocolParams
             timeTranslation
             seed
-            (mkPartialTxWithUTxO $ erasePartialTxInputList partialTx)
+            (erasePartialTxInputList partialTxWithUTxO)
         ===
         Left ErrBalanceTxUnableToCreateInput
   where
-    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
-        balanceTxArgs
+    BalanceTxArgs
+        {protocolParams, timeTranslation, wallet, partialTxWithUTxO, seed} =
+            balanceTxArgs
 
-    erasePartialTxInputList :: PartialTx era -> PartialTx era
+    erasePartialTxInputList :: PartialTxWithUTxO era -> PartialTxWithUTxO era
     erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
 
     eraseWalletUTxOSet :: Wallet -> Wallet
@@ -1528,8 +1529,9 @@ prop_balanceTransactionValid
             Left err -> label "other error" $
                 counterexample ("balanceTransaction failed: " <> show err) False
   where
-    BalanceTxArgs {protocolParams, wallet, partialTx} = balanceTxArgs
+    BalanceTxArgs {protocolParams, wallet, partialTxWithUTxO} = balanceTxArgs
     Wallet _ walletUTxO _ = wallet
+    partialTx = unPartialTxWithUTxO partialTxWithUTxO
 
     prop_expectFeeExcessSmallerThan
         :: Coin
@@ -2078,7 +2080,7 @@ data BalanceTxArgs era = BalanceTxArgs
     , protocolParams :: !(Write.PParams era)
     , timeTranslation :: !TimeTranslation
     , seed :: !StdGenSeed
-    , partialTx :: !(PartialTx era)
+    , partialTxWithUTxO :: !(PartialTxWithUTxO era)
     }
     deriving stock (Generic, Show)
 
@@ -2089,10 +2091,8 @@ applyBalanceTxArgs
     => BalanceTxArgs era
     -> Either (ErrBalanceTx era) (Tx era)
 applyBalanceTxArgs
-    (BalanceTxArgs wallet pparams timeTranslation seed partialTx) =
-        (balanceTx wallet pparams timeTranslation seed
-            (mkPartialTxWithUTxO partialTx)
-        )
+    (BalanceTxArgs wallet pparams timeTranslation seed partialTxWithUTxO) =
+        (balanceTx wallet pparams timeTranslation seed partialTxWithUTxO)
 
 -- | A set of arguments that will always lead to success.
 --
@@ -2139,7 +2139,7 @@ genBalanceTxArgsForSuccessOrFailure =
         <*> genProtocolParams
         <*> genTimeTranslation
         <*> arbitrary @StdGenSeed
-        <*> arbitrary @(PartialTx era)
+        <*> arbitrary @(PartialTxWithUTxO era)
   where
     genProtocolParams = pure mockPParamsForBalancing
     genTimeTranslation = pure dummyTimeTranslation
@@ -2154,7 +2154,7 @@ shrinkBalanceTxArgsForSuccessOrFailure =
         <:> shrinkProtocolParams
         <:> shrinkTimeTranslation
         <:> shrink @StdGenSeed
-        <:> shrink @(PartialTx era)
+        <:> shrink @(PartialTxWithUTxO era)
         <:> Nil
   where
     shrinkProtocolParams = const []
