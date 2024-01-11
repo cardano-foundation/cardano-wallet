@@ -650,6 +650,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 mockPParamsForBalancing
                 dummyTimeTranslation
                 testStdGenSeed
+                .
+                mkPartialTxWithUTxO
 
         let totalOutput :: Tx BabbageEra -> Coin
             totalOutput tx =
@@ -815,6 +817,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         mockPParamsForBalancing
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
+        .
+        mkPartialTxWithUTxO
 
     utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
       where
@@ -854,7 +858,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     mockPParamsForBalancing
                     dummyTimeTranslation
                     testStdGenSeed
-                    ptx
+                    (mkPartialTxWithUTxO ptx)
 
             let name = "pingPong_2"
             Golden
@@ -916,7 +920,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                     mockPParamsForBalancing
                     dummyTimeTranslation
                     testStdGenSeed
-                    ptx
+                    (mkPartialTxWithUTxO ptx)
                 combinedUTxO = mconcat
                     [ view #inputUTxO ptx
                     , fromWalletUTxO walletUTxO
@@ -1372,7 +1376,7 @@ prop_balanceTransactionUnableToCreateInput
             protocolParams
             timeTranslation
             seed
-            (erasePartialTxInputList partialTx)
+            (mkPartialTxWithUTxO $ erasePartialTxInputList partialTx)
         ===
         Left ErrBalanceTxUnableToCreateInput
   where
@@ -2086,7 +2090,9 @@ applyBalanceTxArgs
     -> Either (ErrBalanceTx era) (Tx era)
 applyBalanceTxArgs
     (BalanceTxArgs wallet pparams timeTranslation seed partialTx) =
-        (balanceTx wallet pparams timeTranslation seed partialTx)
+        (balanceTx wallet pparams timeTranslation seed
+            (mkPartialTxWithUTxO partialTx)
+        )
 
 -- | A set of arguments that will always lead to success.
 --
@@ -2233,14 +2239,14 @@ balanceTx
     -> Write.PParams era
     -> TimeTranslation
     -> StdGenSeed
-    -> PartialTx era
+    -> PartialTxWithUTxO era
     -> Either (ErrBalanceTx era) (Tx era)
 balanceTx
     (Wallet utxoAssumptions utxo (AnyChangeAddressGenWithState genChangeAddr s))
     protocolParameters
     timeTranslation
     seed
-    partialTx
+    partialTxWithUTxO
     =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
         (transactionInEra, _nextChangeState) <-
@@ -2254,6 +2260,7 @@ balanceTx
                 partialTx
         pure transactionInEra
   where
+    partialTx = unPartialTxWithUTxO partialTxWithUTxO
     utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
 
 -- | Also returns the updated change state
