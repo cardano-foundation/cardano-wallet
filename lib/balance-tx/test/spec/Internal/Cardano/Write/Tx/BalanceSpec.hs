@@ -1335,13 +1335,11 @@ prop_balanceTransactionExistingTotalCollateral
         hasTotalCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasReturnCollateral @era tx) ==>
-        case balanceTx wallet protocolParams timeTranslation seed partialTx of
+        case applyBalanceTxArgs balanceTxArgs of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
-    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
-        balanceTxArgs
-    PartialTx {tx} = partialTx
+    BalanceTxArgs {partialTx = PartialTx {tx}} = balanceTxArgs
 
 -- If 'balanceTx' is able to balance a transaction, then repeating the attempt
 -- with all potential inputs removed (from the partial transaction and the
