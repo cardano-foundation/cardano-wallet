@@ -179,13 +179,11 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , ValidityIntervalExplicit
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
     , selectionDelta
-    )
-import Cardano.Wallet.Transaction.Delegation
-    ( certificateFromDelegationAction
     )
 import Cardano.Wallet.Util
     ( HasCallStack
@@ -352,7 +350,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                     mempty
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
-                    in certificateFromDelegationAction era (Left stakeXPub) action
+                    in mkVotingDelegationCertificates (Just action) Nothing (Left stakeXPub)
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
@@ -693,6 +691,7 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
     let stakingScriptM =
             flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
             view #txStakingCredentialScriptTemplate ctx
+    let va = view #txVotingAction ctx
     case view #txDelegationAction ctx of
         Nothing -> do
             let md = view #txMetadata ctx
@@ -722,9 +721,9 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
         Just action -> do
             let certs = case stakeCred of
                     Left xpub ->
-                        certificateFromDelegationAction era (Left xpub) action
+                        mkVotingDelegationCertificates (Just action) va (Left xpub)
                     Right (Just script) ->
-                        certificateFromDelegationAction era (Right script) action
+                        mkVotingDelegationCertificates (Just action) va (Right script)
                     Right Nothing ->
                         error $ unwords
                             [ "stakeCred in mkUnsignedTransaction must be"
@@ -751,6 +750,25 @@ _decodeSealedTx preferredLatestEra witCtx sealedTx =
     case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
         Cardano.InAnyCardanoEra _ tx ->
             fromCardanoTx witCtx tx
+
+mkVotingDelegationCertificates
+    :: Maybe DelegationAction
+        -- Pool Id to which we're planning to delegate
+    -> Maybe VotingAction
+        -- optional vote action in Conway era onwards
+    -> Either XPub (Script KeyHash)
+        --Staking credential
+    -> [Cardano.Certificate]
+mkVotingDelegationCertificates da va cred =
+    case (da, va) of
+       (Just (Join poolId), Nothing) ->
+               [ toStakePoolDlgCert cred poolId ]
+       (Just (JoinRegisteringKey poolId), Nothing) ->
+            [ toStakeKeyRegCert cred
+            , toStakePoolDlgCert cred poolId
+            ]
+       (Just Quit, Nothing) -> [toStakeKeyDeregCert cred]
+       (Nothing, _) -> []
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:
