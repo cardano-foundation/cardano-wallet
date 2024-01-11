@@ -697,7 +697,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 let withNoUTxO :: PartialTx era -> PartialTx era
                     withNoUTxO ptx = ptx { inputUTxO = Write.UTxO mempty }
 
-                balance (withNoUTxO pingPong_2)
+                balance (withNoUTxO $ unPartialTxWithUTxO pingPong_2)
                     `shouldBe` Left
                         (ErrBalanceTxUnresolvedInputs $ NE.fromList
                             [ Convert.toLedger $ W.TxIn
@@ -710,7 +710,10 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 $ ValidityInterval SNothing (SJust beyondHorizon)
         describe "with some Plutus redeemers" $ do
             it "fails with TimeTranslationPastHorizon" $ do
-                case balance (withValidityBeyondHorizon pingPong_2) of
+                let result = balance
+                        $ withValidityBeyondHorizon
+                        $ unPartialTxWithUTxO pingPong_2
+                case result of
                     Left
                         (ErrBalanceTxAssignRedeemers
                             (ErrAssignRedeemersTranslationError
@@ -721,7 +724,10 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
         describe "with no redeemers" $ do
             it "succeeds at balancing" $ do
-                case balance (withValidityBeyondHorizon pingPong_1) of
+                let result = balance
+                        $ withValidityBeyondHorizon
+                        $ unPartialTxWithUTxO pingPong_1
+                case result of
                     Right _tx -> return ()
                     other -> expectationFailure $
                         "Expected (Right tx); got " <> show other
@@ -740,7 +746,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             -- 2) whether it would work techincally, aside from lack of
             -- protective guard in balanceTx, so failing might still be saner.
             let withNoRedeemers = over #redeemers (const [])
-            case balance (withNoRedeemers pingPong_2) of
+            case balance (withNoRedeemers $ unPartialTxWithUTxO pingPong_2) of
                 Right _tx -> pure ()
                 other -> expectationFailure $
                     "Expected (Right tx); got " <> show other
@@ -760,7 +766,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             let withFaultyRedeemer =
                     over #redeemers $ mapFirst $ const faultyRedeemer
 
-            balance (withFaultyRedeemer pingPong_2)
+            balance (withFaultyRedeemer $ unPartialTxWithUTxO pingPong_2)
                 `shouldBe`
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
@@ -842,7 +848,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         let dir = $(getTestData) </> "balanceTx" </> "binary" </> "balanced"
         let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
-            let ptx = pingPong_2
+            let ptx = unPartialTxWithUTxO pingPong_2
             let tx = either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
@@ -869,8 +875,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
                 }
 
     describe "results when varying wallet balance (1 UTxO)" $ do
-        test "pingPong_1" pingPong_1
-        test "pingPong_2" pingPong_2
+        test "pingPong_1" (unPartialTxWithUTxO pingPong_1)
+        test "pingPong_2" (unPartialTxWithUTxO pingPong_2)
         test "delegate" delegate
         test "1ada-payment" payment
   where
@@ -2577,9 +2583,9 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     , CardanoApi.protocolParamMaxCollateralInputs = Just 3
     }
 
-pingPong_1 :: PartialTx BabbageEra
+pingPong_1 :: PartialTxWithUTxO BabbageEra
 pingPong_1 =
-    PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
+    PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
   where
     tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
         [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
@@ -2590,9 +2596,9 @@ pingPong_1 =
     redeemers = []
     timelockKeyWitnessCounts = mempty
 
-pingPong_2 :: PartialTx BabbageEra
+pingPong_2 :: PartialTxWithUTxO BabbageEra
 pingPong_2 =
-    PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
+    PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
   where
     tx = deserializeBabbageTx $ mconcat
         [ unsafeFromHex "84a50081825820"
