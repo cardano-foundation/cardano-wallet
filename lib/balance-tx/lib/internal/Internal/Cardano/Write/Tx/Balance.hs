@@ -810,7 +810,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms _) = do
+    extractExternallySelectedUTxO PartialTx {tx} = do
         let res = flip map txIns $ \i-> do
                 case txinLookup i combinedUTxO of
                     Nothing ->
