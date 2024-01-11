@@ -632,6 +632,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 874_930))
         let tx = either (error . show) id
                 $ balance
+                $ mkPartialTxWithUTxO
                 $ paymentPartialTx [ out ]
         let outs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
 
@@ -688,17 +689,17 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                         [ W.TxOut dummyAddr
                             (W.TokenBundle.fromCoin (W.Coin 1_000_000))
                         ]
-            balance partialTx
+            balance (mkPartialTxWithUTxO partialTx)
                 `shouldBe`
                 Left
                     (ErrBalanceTxUnresolvedInputs (Convert.toLedger txin :| []))
 
         describe "with redeemers" $
             it "fails with ErrBalanceTxUnresolvedInputs" $ do
-                let withNoUTxO :: PartialTx era -> PartialTx era
+                let withNoUTxO :: PartialTxWithUTxO era -> PartialTxWithUTxO era
                     withNoUTxO ptx = ptx { inputUTxO = Write.UTxO mempty }
 
-                balance (withNoUTxO $ unPartialTxWithUTxO pingPong_2)
+                balance (withNoUTxO pingPong_2)
                     `shouldBe` Left
                         (ErrBalanceTxUnresolvedInputs $ NE.fromList
                             [ Convert.toLedger $ W.TxIn
@@ -711,9 +712,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 $ ValidityInterval SNothing (SJust beyondHorizon)
         describe "with some Plutus redeemers" $ do
             it "fails with TimeTranslationPastHorizon" $ do
-                let result = balance
-                        $ withValidityBeyondHorizon
-                        $ unPartialTxWithUTxO pingPong_2
+                let result = balance (withValidityBeyondHorizon pingPong_2)
                 case result of
                     Left
                         (ErrBalanceTxAssignRedeemers
@@ -725,9 +724,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
         describe "with no redeemers" $ do
             it "succeeds at balancing" $ do
-                let result = balance
-                        $ withValidityBeyondHorizon
-                        $ unPartialTxWithUTxO pingPong_1
+                let result = balance (withValidityBeyondHorizon pingPong_1)
                 case result of
                     Right _tx -> return ()
                     other -> expectationFailure $
@@ -747,7 +744,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             -- 2) whether it would work techincally, aside from lack of
             -- protective guard in balanceTx, so failing might still be saner.
             let withNoRedeemers = over #redeemers (const [])
-            case balance (withNoRedeemers $ unPartialTxWithUTxO pingPong_2) of
+            case balance (withNoRedeemers pingPong_2) of
                 Right _tx -> pure ()
                 other -> expectationFailure $
                     "Expected (Right tx); got " <> show other
@@ -767,7 +764,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
             let withFaultyRedeemer =
                     over #redeemers $ mapFirst $ const faultyRedeemer
 
-            balance (withFaultyRedeemer $ unPartialTxWithUTxO pingPong_2)
+            balance (withFaultyRedeemer pingPong_2)
                 `shouldBe`
                 Left (ErrBalanceTxAssignRedeemers
                         (ErrAssignRedeemersTargetNotFound faultyRedeemer))
@@ -816,8 +813,6 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         mockPParamsForBalancing
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
-        .
-        mkPartialTxWithUTxO
 
     utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
       where
@@ -2383,8 +2378,8 @@ valueHasNegativeAndPositiveParts v =
 
 withValidityInterval
     :: ValidityInterval
-    -> PartialTx BabbageEra
-    -> PartialTx BabbageEra
+    -> PartialTxWithUTxO BabbageEra
+    -> PartialTxWithUTxO BabbageEra
 withValidityInterval vi = #tx . bodyTxL %~ vldtTxBodyL .~ vi
 
 walletToCardanoValue :: W.TokenBundle -> CardanoApi.Value
