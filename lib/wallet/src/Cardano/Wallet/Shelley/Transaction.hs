@@ -768,7 +768,28 @@ mkVotingDelegationCertificates da va cred =
             , toStakePoolDlgCert cred poolId
             ]
        (Just Quit, Nothing) -> [toStakeKeyDeregCert cred]
-       (Nothing, _) -> []
+       -- waiting until cardano-api is updated
+       -- we will need here also deposit value sneaked in
+       (Nothing, Just (VoteRegisteringKey _action)) -> undefined
+            --[ toStakeKeyRegCert cred deposit
+            --, toStakePoolDlgCert cred Nothing (Just action)
+            --]
+       (Nothing, Just (Vote _action)) -> undefined
+            --[ toStakePoolDlgCert cred Nothing (Just action) ]
+       (Just (Join _poolId), Just (Vote _action)) -> undefined
+            --[ toStakePoolDlgCert cred (Just poolId) (Just action) ]
+       (Just (JoinRegisteringKey _poolId), Just (VoteRegisteringKey _action)) -> undefined
+           --[ toStakeKeyRegCert cred deposit
+           --, toStakePoolDlgCert cred (Just poolId) (Just action)
+           --]
+       (Just Quit, Just (Vote _action)) -> undefined
+            --[ toStakePoolDlgCert cred Nothing (Just action) ]
+
+       (Just (Join _poolId), Just (VoteRegisteringKey _action)) -> undefined
+            -- this should not happen
+       (Just (JoinRegisteringKey _poolId), Just (Vote _action)) -> undefined
+            -- this should not happen
+       _ -> []
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:
