@@ -1319,13 +1319,11 @@ prop_balanceTransactionExistingReturnCollateral
         hasReturnCollateral @era tx
             && not (hasInsCollateral @era tx)
             && not (hasTotalCollateral @era tx) ==>
-        case balanceTx wallet protocolParams timeTranslation seed partialTx of
+        case applyBalanceTxArgs balanceTxArgs of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
-    BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
-        balanceTxArgs
-    PartialTx {tx} = partialTx
+    BalanceTxArgs {partialTx = PartialTx {tx}} = balanceTxArgs
 
 prop_balanceTransactionExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
