@@ -490,8 +490,15 @@ instance IsServerError ErrConstructTx where
             ]
         ErrConstructTxVotingInWrongEra ->
             apiError err403 VotingInInvalidEra $ mconcat
-            [ "It looks like I've created a transaction "
-            , "that includes voting before Conway era. "
+            [ "I cannot construct a transaction "
+            , "that includes voting before the Conway era. "
+            ]
+        ErrConstructTxWithdrawalWithoutVoting ->
+            apiError err403 WithdrawalNotPossibleWithoutVote $ mconcat
+            [ "I cannot construct a transaction that contains withdrawals "
+            , "if voting was not cast in the Conway era onwards. Please re-delegate "
+            , "(in that case abstain vote will be cast) or make a vote transaction "
+            , "before the withdrawal transaction."
             ]
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented

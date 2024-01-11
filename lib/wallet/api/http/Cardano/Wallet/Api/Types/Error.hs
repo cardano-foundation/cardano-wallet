@@ -202,6 +202,7 @@ data ApiErrorInfo
     | WalletMetadataNotFound
     | WalletNotResponding
     | WithdrawalNotBeneficial
+    | WithdrawalNotPossibleWithoutVote
     | WrongEncryptionPassphrase
     | WrongMnemonic
     deriving (Eq, Generic, Show, Data, Typeable)

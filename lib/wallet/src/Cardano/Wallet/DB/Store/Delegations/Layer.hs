@@ -9,6 +9,7 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     , readDelegation
     , CurrentEpochSlotting (..)
     , mkCurrentEpochSlotting
+    , hasAlreadyVoted
     )
 where
 
@@ -59,6 +60,16 @@ isStakeKeyRegistered :: Delegations -> Bool
 isStakeKeyRegistered m = fromMaybe False $ do
     (_, v) <- lookupMax m
     pure $ v /= Inactive
+
+-- | Check whether the voting has been casted in the delegation state.
+hasAlreadyVoted :: Delegations -> Bool
+hasAlreadyVoted m = fromMaybe False $ do
+    (_, v) <- lookupMax m
+    let votedAlready = \case
+            ActiveAndVoted _ _ -> True
+            Voted _ -> True
+            _ -> False
+    pure $ votedAlready v
 
 -- | Binds a stake pool id to a wallet. This will have an influence on
 -- the wallet metadata: the last known certificate will indicate to
