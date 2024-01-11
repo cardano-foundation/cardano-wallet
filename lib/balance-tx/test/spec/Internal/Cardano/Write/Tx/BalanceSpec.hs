@@ -2768,21 +2768,24 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 o <- CardanoApi.genTxOut CardanoApi.BabbageEra
                 return (fst i, o)
         let redeemers = []
-        return $ PartialTx
-            (fromCardanoApiTx tx)
-            (fromCardanoApiUTxO inputUTxO)
-            (redeemers)
-            mempty
-    shrink (PartialTx tx inputUTxO redeemers timelockKeyWitnessCounts) =
-        [ PartialTx tx inputUTxO' redeemers timelockKeyWitnessCounts
+        return PartialTx
+            { tx = fromCardanoApiTx tx
+            , inputUTxO = fromCardanoApiUTxO inputUTxO
+            , redeemers
+            , timelockKeyWitnessCounts = mempty
+            }
+    shrink PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
+        [ PartialTx
+            {tx, inputUTxO = inputUTxO', redeemers, timelockKeyWitnessCounts}
         | inputUTxO' <- shrinkInputResolution @Write.BabbageEra inputUTxO
         ] <>
         [ restrictResolution $
             PartialTx
-                (fromCardanoApiTx tx')
-                inputUTxO
-                redeemers
-                timelockKeyWitnessCounts
+                { tx = fromCardanoApiTx tx'
+                , inputUTxO
+                , redeemers
+                , timelockKeyWitnessCounts
+                }
         | tx' <- shrinkTxBabbage (toCardanoApiTx tx)
         ]
 
