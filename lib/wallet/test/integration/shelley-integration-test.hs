@@ -385,7 +385,7 @@ specWithServer testnetMagic testDir (tr, tracers) = aroundAll withContext
                     }
 
                 era <- clusterEraFromEnv
-
+                traceWith tr $ MsgCluster $ Cluster.MsgHardFork era
                 mintSeaHorseAssetsLock <- newMVar ()
 
                 let config = Cluster.Config

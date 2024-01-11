@@ -34,6 +34,10 @@ import Cardano.Launcher
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( ClusterEra
+    , clusterEraToString
+    )
 import Control.Monad
     ( liftM2
     )
@@ -89,6 +93,7 @@ data ClusterLog
     | MsgDebug Text
     | MsgGenOperatorKeyPair FilePath
     | MsgCLI [String]
+    | MsgHardFork ClusterEra
     deriving stock (Show)
 
 instance ToText ClusterLog where
@@ -161,6 +166,8 @@ instance ToText ClusterLog where
         MsgGenOperatorKeyPair dir ->
             "Generating stake pool operator key pair in " <> T.pack dir
         MsgCLI args -> T.pack $ unwords ("cardano-cli" : args)
+        MsgHardFork era ->
+            "Hard fork to " <> T.pack (clusterEraToString era)
       where
         indent =
             T.unlines
@@ -194,6 +201,7 @@ instance HasSeverityAnnotation ClusterLog where
         MsgCLI _ -> Debug
         MsgRegisteringPoolMetadataInSMASH{} -> Info
         MsgRegisteringPoolMetadata{} -> Info
+        MsgHardFork _ -> Info
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
