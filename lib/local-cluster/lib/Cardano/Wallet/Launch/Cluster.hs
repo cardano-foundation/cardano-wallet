@@ -152,9 +152,6 @@ import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
     , ShelleyGenesisStaking (sgsPools)
     )
-import Cardano.Startup
-    ( restrictFileMode
-    )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts
     )
@@ -181,7 +178,6 @@ import Cardano.Wallet.Util
     )
 import Control.Lens
     ( over
-    , set
     , (&)
     , (.~)
     , (<&>)
@@ -592,7 +588,6 @@ data ConfiguredPool = ConfiguredPool
     , finalizeShelleyGenesisSetup :: RunningNode -> IO ()
     -- ^ Submit any pool retirement certificate according to the 'recipe'
     -- on-chain.
-    , registerViaTx :: RunningNode -> IO ()
     }
 
 data PoolMetadataServer = PoolMetadataServer
@@ -641,7 +636,7 @@ configurePool
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr config@Config{..} metadataServer recipe = do
+configurePool tr Config{..} metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
     -- Use pool-specific dir
@@ -767,84 +762,7 @@ configurePool tr config@Config{..} metadataServer recipe = do
                         submitTx tr cfgTestnetMagic socket "retirement cert" tx
 
                 traverse_ retire mretirementEpoch
-            , registerViaTx = \(RunningNode socket _ _) -> do
-                stakeCert <-
-                    issueStakeVkCert tr
-                    (retag @"cluster" @_ @"output" cfgClusterDir)
-                    (Tagged @"prefix" "stake-pool")
-                    ownerPub
-                let poolRegistrationCert =
-                        Tagged @"pool-reg-cert" $ untag poolDir </> "pool.cert"
-                cli
-                    tr
-                    [ "stake-pool"
-                    , "registration-certificate"
-                    , "--cold-verification-key-file"
-                    , untag opPub
-                    , "--vrf-verification-key-file"
-                    , untag vrfPub
-                    , "--pool-pledge"
-                    , show pledgeAmt
-                    , "--pool-cost"
-                    , "0"
-                    , "--pool-margin"
-                    , "0.1"
-                    , "--pool-reward-account-verification-key-file"
-                    , untag ownerPub
-                    , "--pool-owner-stake-verification-key-file"
-                    , untag ownerPub
-                    , "--metadata-url"
-                    , metadataURL
-                    , "--metadata-hash"
-                    , blake2b256S (BL.toStrict metadataBytes)
-                    , "--testnet-magic"
-                    , show cfgTestnetMagic
-                    , "--out-file"
-                    , untag poolRegistrationCert
-                    ]
 
-                mPoolRetirementCert <- forM mretirementEpoch $ do
-                    issuePoolRetirementCert tr poolDir opPub
-
-                dlgCert <- issueDlgCert tr poolDir ownerPub opPub
-
-                -- In order to get a working stake pool we need to.
-                --
-                -- 1. Register a stake key for our pool.
-                -- 2. Register the stake pool
-                -- 3. Delegate funds to our pool's key.
-                --
-                -- We cheat a bit here by delegating to our stake address right away
-                -- in the transaction used to registered the stake key and the pool
-                -- itself.  Thus, in a single transaction, we end up with a
-                -- registered pool with some stake!
-
-                let certificates =
-                        catMaybes
-                            [ pure $ untag stakeCert
-                            , pure $ untag poolRegistrationCert
-                            , pure $ untag dlgCert
-                            , untag <$> mPoolRetirementCert
-                            ]
-                (rawTx, faucetPrv) <-
-                    preparePoolRegistration
-                        tr
-                        config
-                        poolDir
-                        ownerPub
-                        certificates
-                        pledgeAmt
-                tx <-
-                    signTx
-                        tr
-                        cfgTestnetMagic
-                        (retag @"pool" @_ @"output" poolDir)
-                        (retag @"registration-tx" @_ @"tx-body" rawTx)
-                        [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
-                        , retag @"stake-prv" @_ @"signing-key" ownerPrv
-                        , retag @"op-prv" @_ @"signing-key" opPrv
-                        ]
-                submitTx tr cfgTestnetMagic socket (Tagged @"name" name) tx
             , metadataUrl = T.pack metadataURL
             , recipe = recipe
             }
@@ -1265,8 +1183,6 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         addGenesisPools <- do
             genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
             pure $ foldr (.) id genesisDeltas
-        let federalizeNetwork =
-                over #sgProtocolParams (set ppDL (unsafeUnitInterval 0.25))
 
         -- TODO (yura): Use Faucet API isntead of these fixed addresses
         faucetAddresses <-
@@ -1277,85 +1193,51 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
             generateGenesis
                 config
                 (pureAdaFunds <> faucetAddresses)
-                ((if postAlonzo then addGenesisPools else federalizeNetwork)
-                    : cfgShelleyGenesisMods)
+                (addGenesisPools : cfgShelleyGenesisMods)
 
         extraPort : poolsTcpPorts <-
             randomUnusedTCPPorts (length cfgStakePools + 1)
 
-        if postAlonzo
-            then do
-                let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
-                let pool0 :| otherPools = configuredPools
+        let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
+        let pool0 :| otherPools = configuredPools
 
-                let pool0Cfg =
-                        NodeParams
-                            genesisFiles
-                            cfgLastHardFork
-                            pool0port
-                            cfgNodeLogging
-                operatePool pool0 pool0Cfg $ \runningPool0 -> do
-                    extraClusterSetupUsingNode configuredPools runningPool0
-                    case NE.nonEmpty otherPools of
-                        Nothing -> onClusterStart runningPool0
-                        Just others -> do
-                            let relayNodeParams =
-                                    NodeParams
-                                    { nodeGenesisFiles = genesisFiles
-                                    , nodeHardForks = maxBound
-                                    , nodePeers = (extraPort, poolsTcpPorts)
-                                    , nodeLogConfig =
-                                        LogFileConfig
-                                        { minSeverityTerminal = Info
-                                        , extraLogDir = Nothing
-                                        , minSeverityFile = Info
-                                        }
-                                    }
-                            launchPools
-                                others
-                                genesisFiles
-                                poolPorts
-                                runningPool0
-                                $ \_poolNode ->
-                                    withRelayNode
-                                        tr
-                                        cfgClusterDir
-                                        cfgClusterConfigs
-                                        relayNodeParams
-                                        onClusterStart
-
-            else do
-                -- NOTE: We should soon be able to drop Alonzo support here
-                -- after the Vasil HF, which should enable some simplifications
-                -- of the logic in 'withCluster'.
-                let bftNodePorts :| poolPorts =
-                        NE.fromList (rotate (extraPort : poolsTcpPorts))
-                let bftCfg =
-                        NodeParams
-                            genesisFiles
-                            cfgLastHardFork
-                            bftNodePorts
-                            cfgNodeLogging
-                withBFTNode tr cfgClusterDir cfgClusterConfigs bftCfg $
-                    \runningBFTNode -> do
-                    extraClusterSetupUsingNode configuredPools runningBFTNode
-
-                    -- NOTE: We used to perform 'registerViaTx' as part of
-                    -- 'launchPools' where we waited for the pools to become
-                    -- active (e.g. be in the stake distribution) in parallel.
-                    -- Just submitting the registration certs in sequence
-                    -- /seems/ to work though, and the setup working 100%
-                    -- correctly in alonzo will soon not be important.
-                    traverse_ (`registerViaTx` runningBFTNode) configuredPools
+        let pool0Cfg =
+                NodeParams
+                    genesisFiles
+                    cfgLastHardFork
+                    pool0port
+                    cfgNodeLogging
+        operatePool pool0 pool0Cfg $ \runningPool0 -> do
+            extraClusterSetupUsingNode configuredPools runningPool0
+            case NE.nonEmpty otherPools of
+                Nothing -> onClusterStart runningPool0
+                Just others -> do
+                    let relayNodeParams =
+                            NodeParams
+                            { nodeGenesisFiles = genesisFiles
+                            , nodeHardForks = maxBound
+                            , nodePeers = (extraPort, poolsTcpPorts)
+                            , nodeLogConfig =
+                                LogFileConfig
+                                { minSeverityTerminal = Info
+                                , extraLogDir = Nothing
+                                , minSeverityFile = Info
+                                }
+                            }
                     launchPools
-                        configuredPools
+                        others
                         genesisFiles
                         poolPorts
-                        runningBFTNode
-                        onClusterStart
-  where
-    postAlonzo = cfgLastHardFork >= BabbageHardFork
+                        runningPool0
+                        $ \_poolNode ->
+                            withRelayNode
+                                tr
+                                cfgClusterDir
+                                cfgClusterConfigs
+                                relayNodeParams
+                                onClusterStart
 
+  where
     FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials = faucetFunds
 
     -- Important cluster setup to run without rollbacks
@@ -1376,8 +1258,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         -- integration tests, the integration tests /will fail/ (c.f. #3440).
         -- Later setup is less sensitive. Using a wallet with retrying
         -- submission pool might also be an idea for the future.
-        when postAlonzo
-            $ forM_ configuredPools
+        forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
         sendFaucetAssetsTo tr config conn 20 maryAllegraFunds
@@ -1507,68 +1388,6 @@ singleNodeParams genesisFiles severity extraLogFile =
         , extraLogDir = fmap fst extraLogFile
         , minSeverityFile = maybe severity snd extraLogFile
         }
-
-withBFTNode
-    :: Tracer IO ClusterLog
-    -- ^ Trace for subprocess control logging
-    -> Tagged "cluster" FilePath
-    -- ^ Parent cluster state directory.
-    -- Node data will be created in a subdirectory of this.
-    -> Tagged "cluster-configs" FilePath
-    -> NodeParams
-    -- ^ Parameters used to generate config files.
-    -> (RunningNode -> IO a)
-    -- ^ Callback function with genesis parameters
-    -> IO a
-withBFTNode tr clusterDir setupDir params action = do
-    let name = "bft"
-    let NodeParams genesisFiles hardForks (port, peers) logCfg = params
-    let nodeDir = untag clusterDir </> name
-    bracketTracer' tr "withBFTNode" $ do
-        createDirectoryIfMissing False nodeDir
-
-        let copyKeyFile f = do
-                let dst = nodeDir </> f
-                copyFile (untag setupDir </> f) dst
-                restrictFileMode dst
-                pure dst
-
-        [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <-
-            traverse copyKeyFile
-                [ "delegate-keys/byron.000.cert.json"
-                , "delegate-keys/byron.000.key"
-                , "delegate-keys/shelley.000.vrf.skey"
-                , "delegate-keys/shelley.000.kes.skey"
-                , "delegate-keys/shelley.000.opcert.json"
-                ]
-
-        (config, genesisData, versionData) <-
-            genNodeConfig
-                (Tagged @"output" nodeDir)
-                setupDir
-                (Tagged @"node-name" "-bft")
-                genesisFiles hardForks
-                (setLoggingName name logCfg)
-
-        topology <- genTopology (Tagged @"output" nodeDir) peers
-
-        let nodeConfig = CardanoNodeConfig
-                { nodeDir = nodeDir
-                , nodeConfigFile = untag config
-                , nodeTopologyFile = untag topology
-                , nodeDatabaseDir = "db"
-                , nodeDlgCertFile = Just bftCert
-                , nodeSignKeyFile = Just bftPrv
-                , nodeOpCertFile = Just opCert
-                , nodeKesKeyFile = Just kesPrv
-                , nodeVrfKeyFile = Just vrfPrv
-                , nodePort = Just (NodePort port)
-                , nodeLoggingHostname = Just name
-                , nodeExecutable = Nothing
-                }
-
-        withCardanoNodeProcess tr name nodeConfig $ \socket ->
-            action $ RunningNode socket genesisData versionData
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -2060,66 +1879,6 @@ issuePoolRetirementCert tr poolDir opPub retirementEpoch = do
         , file
         ]
     pure $ Tagged @"retirement-cert" file
-
--- | Create a stake address delegation certificate.
-issueDlgCert
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
-    -> Tagged "stake-pub" FilePath
-    -> Tagged "op-pub" FilePath
-    -> IO (Tagged "stake-addr-deleg-cert" FilePath)
-issueDlgCert tr poolDir stakePub opPub = do
-    let file = untag poolDir </> "dlg.cert"
-    cli
-        tr
-        [ "stake-address"
-        , "delegation-certificate"
-        , "--staking-verification-key-file"
-        , untag stakePub
-        , "--stake-pool-verification-key-file"
-        , untag opPub
-        , "--out-file"
-        , file
-        ]
-    pure $ Tagged file
-
--- | Generate a raw transaction. We kill two birds one stone here by also
--- automatically delegating 'pledge' amount to the given stake key.
-preparePoolRegistration
-    :: Tracer IO ClusterLog
-    -> Config
-    -> Tagged "pool" FilePath
-    -> Tagged "stake-pub" FilePath
-    -> [FilePath]
-    -> Integer
-    -> IO (Tagged "registration-tx" FilePath, Tagged "faucet-prv" FilePath)
-preparePoolRegistration tr config poolDir stakePub certs pledgeAmt = do
-    let file = untag poolDir </> "tx.raw"
-    addr <-
-        genSinkAddress
-            tr
-            (cfgTestnetMagic config)
-            (retag @"pool" @_ @"output" poolDir)
-            (Just stakePub)
-    (faucetInput, faucetPrv) <- takeFaucet (cfgClusterConfigs config)
-    cli tr
-        $ [ "transaction"
-          , "build-raw"
-          , cliEraFlag (cfgLastHardFork config)
-          , "--tx-in"
-          , untag faucetInput
-          , "--tx-out"
-          , addr <> "+" <> show pledgeAmt
-          , "--ttl"
-          , "400"
-          , "--fee"
-          , show (faucetAmt - pledgeAmt - depositAmt)
-          , "--out-file"
-          , file
-          ]
-            ++ mconcat ((\cert -> ["--certificate-file", cert]) <$> certs)
-
-    pure (Tagged file, faucetPrv)
 
 preparePoolRetirement
     :: Tracer IO ClusterLog
