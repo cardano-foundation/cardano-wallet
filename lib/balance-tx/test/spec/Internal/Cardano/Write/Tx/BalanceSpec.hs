@@ -13,6 +13,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -310,6 +311,7 @@ import Internal.Cardano.Write.Tx.Balance
     )
 import Internal.Cardano.Write.Tx.Sign
     ( KeyWitnessCounts (..)
+    , TimelockKeyWitnessCounts
     , estimateKeyWitnessCounts
     , estimateSignedTxSize
     )
@@ -1576,7 +1578,7 @@ prop_balanceTransactionValid
                     (estimateKeyWitnessCounts
                         utxo
                         tx
-                        (timelockKeyWitnessCounts partialTx))
+                        (timelockKeyWitnessCounts (partialTx :: PartialTx era)))
                     tx
         let limit = protocolParams ^. ppMaxTxSizeL
         let msg = unwords
@@ -1626,7 +1628,7 @@ prop_balanceTransactionValid
         Write.evaluateMinimumFee protocolParams
             tx
             (estimateKeyWitnessCounts utxo tx
-                (timelockKeyWitnessCounts partialTx))
+                (timelockKeyWitnessCounts (partialTx :: PartialTx era)))
 
     txBalance
         :: Tx era
@@ -2183,6 +2185,27 @@ newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
 -- | Encapsulates a value that may be negative or positive or a mixture of both.
 newtype MixedSign a = MixedSign a
     deriving (Eq, Show)
+
+data PartialTxWithUTxO era = PartialTxWithUTxO
+    { tx :: Tx era
+    , inputUTxO :: UTxO era
+    , redeemers :: [Redeemer]
+    , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
+    }
+    deriving Generic
+
+deriving instance IsRecentEra era => Eq (PartialTxWithUTxO era)
+deriving instance IsRecentEra era => Show (PartialTxWithUTxO era)
+
+mkPartialTxWithUTxO :: PartialTx era -> PartialTxWithUTxO era
+mkPartialTxWithUTxO
+    PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
+    PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
+
+unPartialTxWithUTxO :: PartialTxWithUTxO era -> PartialTx era
+unPartialTxWithUTxO
+    PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
+    PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
 
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
