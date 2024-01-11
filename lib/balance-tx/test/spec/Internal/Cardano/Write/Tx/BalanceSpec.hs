@@ -2079,8 +2079,8 @@ applyBalanceTxArgs
     => BalanceTxArgs era
     -> Either (ErrBalanceTx era) (Tx era)
 applyBalanceTxArgs
-    (BalanceTxArgs wallet protocolParams timeTranslation seed partialTx) =
-        (balanceTx wallet protocolParams timeTranslation seed partialTx)
+    (BalanceTxArgs wallet pparams timeTranslation seed partialTx) =
+        (balanceTx wallet pparams timeTranslation seed partialTx)
 
 -- | A set of arguments that will always lead to success.
 --
