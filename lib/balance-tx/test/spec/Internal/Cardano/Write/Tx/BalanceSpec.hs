@@ -391,7 +391,6 @@ import Test.QuickCheck
     , scale
     , shrinkBoundedEnum
     , shrinkList
-    , shrinkMap
     , shrinkMapBy
     , suchThat
     , tabulate
@@ -2779,10 +2778,6 @@ instance Arbitrary (MixedSign Value) where
         genNegative = arbitrary <&> invert
         genPositive = arbitrary
     shrink (MixedSign v) = MixedSign <$> shrink v
-
-instance Arbitrary (PartialTx Write.BabbageEra) where
-    arbitrary = unPartialTxWithUTxO <$> arbitrary
-    shrink = shrinkMap unPartialTxWithUTxO mkPartialTxWithUTxO
 
 instance Arbitrary (PartialTxWithUTxO Write.BabbageEra) where
     arbitrary = do
