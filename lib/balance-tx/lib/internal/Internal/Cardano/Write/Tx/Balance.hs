@@ -422,9 +422,6 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- | A 'PartialTx' is an an unbalanced transaction along with the necessary
 -- information to balance it.
 --
--- The 'TxIn's of the 'inputUTxO' must exactly match the inputs contained in the
--- 'tx'. If not, the behaviour is undefined. This will be fixed by ADP-1662.
---
 -- The provided 'redeemers' will overwrite any redeemers inside the 'tx'. This
 -- is done as the internal redeemers in the 'tx' use an index referring to a
 -- 'TxIn', rather than an actual 'TxIn'. When we are adding extra inputs as part
@@ -435,7 +432,6 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Tx era
-    , inputUTxO :: UTxO era
     , redeemers :: [Redeemer]
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
       -- ^ Specifying the intended number of timelock script key witnesses may
@@ -644,7 +640,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers timelockKeyWitnessCounts)
+    ptx@(PartialTx partialTx redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
@@ -871,16 +867,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         return (balance, minfee', witCount)
 
     combinedUTxO :: UTxO era
-    combinedUTxO = mconcat
-         -- The @CardanoApi.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
-         [ inputUTxO
-         , walletLedgerUTxO
-         ]
+    combinedUTxO = walletLedgerUTxO
 
     assembleTransaction
         :: TxUpdate

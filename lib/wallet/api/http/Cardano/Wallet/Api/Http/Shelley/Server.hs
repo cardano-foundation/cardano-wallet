@@ -3501,11 +3501,15 @@ balanceTransaction
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (walletUTxO, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-        partialTx <- parsePartialTx era
-        let externalUTxO = view #inputUTxO partialTx
+        let externalUTxO = parseExternalUTxO era
         let internalUTxO = Write.fromWalletUTxO walletUTxO
         liftHandler (guardUTxOConsistency externalUTxO internalUTxO)
-        let utxoIndex = Write.constructUTxOIndex internalUTxO
+        -- When combining the external and internal UTxO sets, we give
+        -- precedence to the external UTxO set. Here we rely on the
+        -- left-biased behaviour of the Semigroup instance for Map:
+        let combinedUTxO = externalUTxO <> internalUTxO
+        let utxoIndex = Write.constructUTxOIndex combinedUTxO
+        partialTx <- parsePartialTx era
         balancedTx <- liftHandler
             . fmap
                 ( Cardano.InAnyCardanoEra Write.cardanoEra
@@ -3565,7 +3569,6 @@ balanceTransaction
 
         pure Write.PartialTx
             { tx = Write.fromCardanoApiTx tx
-            , inputUTxO = parseExternalUTxO era
             , redeemers = fromApiRedeemer <$> body ^. #redeemers
             , timelockKeyWitnessCounts
             }

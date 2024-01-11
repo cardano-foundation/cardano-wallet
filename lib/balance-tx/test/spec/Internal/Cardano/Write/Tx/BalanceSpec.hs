@@ -632,7 +632,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 874_930))
         let tx = either (error . show) id
                 $ balance
-                $ mkPartialTxWithUTxO
+                $ flip mkPartialTxWithUTxO mempty
                 $ paymentPartialTx [ out ]
         let outs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
 
@@ -651,7 +651,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 dummyTimeTranslation
                 testStdGenSeed
                 .
-                mkPartialTxWithUTxO
+                flip mkPartialTxWithUTxO mempty
 
         let totalOutput :: Tx BabbageEra -> Coin
             totalOutput tx =
@@ -689,7 +689,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                         [ W.TxOut dummyAddr
                             (W.TokenBundle.fromCoin (W.Coin 1_000_000))
                         ]
-            balance (mkPartialTxWithUTxO partialTx)
+            balance (mkPartialTxWithUTxO partialTx mempty)
                 `shouldBe`
                 Left
                     (ErrBalanceTxUnresolvedInputs (Convert.toLedger txin :| []))
@@ -875,8 +875,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
     describe "results when varying wallet balance (1 UTxO)" $ do
         test "pingPong_1" pingPong_1
         test "pingPong_2" pingPong_2
-        test "delegate" (mkPartialTxWithUTxO delegate)
-        test "1ada-payment" (mkPartialTxWithUTxO payment)
+        test "delegate" (mkPartialTxWithUTxO delegate mempty)
+        test "1ada-payment" (mkPartialTxWithUTxO payment mempty)
   where
     toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
@@ -943,7 +943,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         ]
 
     delegate :: PartialTx BabbageEra
-    delegate = PartialTx (mkBasicTx body) mempty [] mempty
+    delegate = PartialTx (mkBasicTx body) [] mempty
       where
         body :: TxBody BabbageEra
         body =
@@ -1366,11 +1366,11 @@ prop_balanceTransactionUnableToCreateInput
     (Success balanceTxArgs) =
         withMaxSuccess 10 $
         balanceTx
-            (eraseWalletUTxOSet wallet)
+            (eraseInternalUTxO wallet)
             protocolParams
             timeTranslation
             seed
-            (erasePartialTxInputList partialTxWithUTxO)
+            (eraseExternalUTxOAndInputs partialTxWithUTxO)
         ===
         Left ErrBalanceTxUnableToCreateInput
   where
@@ -1378,11 +1378,18 @@ prop_balanceTransactionUnableToCreateInput
         {protocolParams, timeTranslation, wallet, partialTxWithUTxO, seed} =
             balanceTxArgs
 
-    erasePartialTxInputList :: PartialTxWithUTxO era -> PartialTxWithUTxO era
-    erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
+    eraseExternalUTxOAndInputs :: PartialTxWithUTxO era -> PartialTxWithUTxO era
+    eraseExternalUTxOAndInputs
+        PartialTxWithUTxO {tx, redeemers, timelockKeyWitnessCounts} =
+        PartialTxWithUTxO
+            { tx = tx & set (bodyTxL . inputsTxBodyL) mempty
+            , inputUTxO = mempty
+            , redeemers
+            , timelockKeyWitnessCounts
+            }
 
-    eraseWalletUTxOSet :: Wallet -> Wallet
-    eraseWalletUTxOSet (Wallet utxoAssumptions _utxo changeAddressGen) =
+    eraseInternalUTxO :: Wallet -> Wallet
+    eraseInternalUTxO (Wallet utxoAssumptions _utxo changeAddressGen) =
         Wallet utxoAssumptions mempty changeAddressGen
 
 -- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
@@ -1399,9 +1406,7 @@ prop_balanceTransactionValid
 prop_balanceTransactionValid
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 1_000 $ do
-        let combinedUTxO =
-                view #inputUTxO partialTx
-                <> fromWalletUTxO walletUTxO
+        let combinedUTxO = externalUTxO <> internalUTxO
         let originalTx = view #tx partialTx
         let originalBalance = txBalance originalTx combinedUTxO
         let originalOuts = outputs originalTx
@@ -1525,7 +1530,8 @@ prop_balanceTransactionValid
   where
     BalanceTxArgs {protocolParams, wallet, partialTxWithUTxO} = balanceTxArgs
     Wallet _ walletUTxO _ = wallet
-    partialTx = unPartialTxWithUTxO partialTxWithUTxO
+    (partialTx, externalUTxO) = unPartialTxWithUTxO partialTxWithUTxO
+    internalUTxO = fromWalletUTxO walletUTxO
 
     prop_expectFeeExcessSmallerThan
         :: Coin
@@ -2193,15 +2199,15 @@ data PartialTxWithUTxO era = PartialTxWithUTxO
 deriving instance IsRecentEra era => Eq (PartialTxWithUTxO era)
 deriving instance IsRecentEra era => Show (PartialTxWithUTxO era)
 
-mkPartialTxWithUTxO :: PartialTx era -> PartialTxWithUTxO era
+mkPartialTxWithUTxO :: PartialTx era -> UTxO era -> PartialTxWithUTxO era
 mkPartialTxWithUTxO
-    PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
+    PartialTx {tx, redeemers, timelockKeyWitnessCounts} inputUTxO =
     PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
 
-unPartialTxWithUTxO :: PartialTxWithUTxO era -> PartialTx era
+unPartialTxWithUTxO :: PartialTxWithUTxO era -> (PartialTx era, UTxO era)
 unPartialTxWithUTxO
-    PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
-    PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}
+    (PartialTxWithUTxO {tx, inputUTxO, redeemers, timelockKeyWitnessCounts}) =
+    (PartialTx {tx, redeemers, timelockKeyWitnessCounts}, inputUTxO)
 
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
@@ -2254,8 +2260,10 @@ balanceTx
                 partialTx
         pure transactionInEra
   where
-    partialTx = unPartialTxWithUTxO partialTxWithUTxO
-    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
+    (partialTx, externalUTxO) = unPartialTxWithUTxO partialTxWithUTxO
+    internalUTxO = fromWalletUTxO utxo
+    combinedUTxO = externalUTxO <> internalUTxO
+    utxoIndex = constructUTxOIndex @era combinedUTxO
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -2323,7 +2331,7 @@ mockPParamsForBalancing =
 
 paymentPartialTx :: [W.TxOut] -> PartialTx Write.BabbageEra
 paymentPartialTx txouts =
-    PartialTx (mkBasicTx body) mempty [] mempty
+    PartialTx (mkBasicTx body) [] mempty
   where
     body = mkBasicTxBody
         & outputsTxBodyL .~
