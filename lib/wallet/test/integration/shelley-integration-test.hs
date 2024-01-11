@@ -345,6 +345,7 @@ clusterToApiEra = \case
     MaryHardFork -> ApiMary
     AlonzoHardFork -> ApiAlonzo
     BabbageHardFork -> ApiBabbage
+    ConwayHardFork -> ApiConway
 
 specWithServer
     :: Cluster.TestnetMagic

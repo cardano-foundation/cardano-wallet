@@ -42,7 +42,8 @@ data ClusterEra
     | MaryHardFork
     | AlonzoHardFork
     | BabbageHardFork
-    deriving stock (Eq, Ord, Show, Enum)
+    | ConwayHardFork
+    deriving stock (Show, Read, Eq, Ord, Enum)
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra
@@ -62,6 +63,7 @@ clusterEraFromEnv = do
         "mary" -> err "mary"
         "alonzo" -> err "alonzo"
         "babbage" -> pure BabbageHardFork
+        "conway" -> pure ConwayHardFork
         _ -> die $ var ++ ": unknown era"
 
 localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" FilePath)
@@ -79,3 +81,4 @@ clusterEraToString = \case
     MaryHardFork -> "mary"
     AlonzoHardFork -> "alonzo"
     BabbageHardFork -> "babbage"
+    ConwayHardFork -> "conway"
