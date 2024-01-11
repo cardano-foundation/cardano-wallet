@@ -391,6 +391,7 @@ import Test.QuickCheck
     , scale
     , shrinkBoundedEnum
     , shrinkList
+    , shrinkMap
     , shrinkMapBy
     , suchThat
     , tabulate
@@ -2339,15 +2340,16 @@ paymentPartialTx txouts =
 -- NOTE: Perhaps ideally 'PartialTx' would handle this automatically.
 restrictResolution
     :: forall era. IsRecentEra era
-    => PartialTx era
-    -> PartialTx era
-restrictResolution (PartialTx tx inputs redeemers timelockKeyWitnessCounts) =
+    => PartialTxWithUTxO era
+    -> PartialTxWithUTxO era
+restrictResolution
+    (PartialTxWithUTxO tx inputs redeemers timelockKeyWitnessCounts) =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO @era inputs
         u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx @era tx))
         inputs' = fromCardanoApiUTxO @era (CardanoApi.UTxO u')
     in
-        PartialTx tx inputs' redeemers timelockKeyWitnessCounts
+        PartialTxWithUTxO tx inputs' redeemers timelockKeyWitnessCounts
   where
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
@@ -2777,6 +2779,10 @@ instance Arbitrary (MixedSign Value) where
     shrink (MixedSign v) = MixedSign <$> shrink v
 
 instance Arbitrary (PartialTx Write.BabbageEra) where
+    arbitrary = unPartialTxWithUTxO <$> arbitrary
+    shrink = shrinkMap unPartialTxWithUTxO mkPartialTxWithUTxO
+
+instance Arbitrary (PartialTxWithUTxO Write.BabbageEra) where
     arbitrary = do
         let era = CardanoApi.BabbageEra
         tx <- CardanoApi.genTxForBalancing era
@@ -2791,19 +2797,20 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 o <- CardanoApi.genTxOut CardanoApi.BabbageEra
                 return (fst i, o)
         let redeemers = []
-        return PartialTx
+        return PartialTxWithUTxO
             { tx = fromCardanoApiTx tx
             , inputUTxO = fromCardanoApiUTxO inputUTxO
             , redeemers
             , timelockKeyWitnessCounts = mempty
             }
-    shrink PartialTx {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
-        [ PartialTx
+    shrink PartialTxWithUTxO
+        {tx, inputUTxO, redeemers, timelockKeyWitnessCounts} =
+        [ PartialTxWithUTxO
             {tx, inputUTxO = inputUTxO', redeemers, timelockKeyWitnessCounts}
         | inputUTxO' <- shrinkInputResolution @Write.BabbageEra inputUTxO
         ] <>
         [ restrictResolution $
-            PartialTx
+            PartialTxWithUTxO
                 { tx = fromCardanoApiTx tx'
                 , inputUTxO
                 , redeemers
