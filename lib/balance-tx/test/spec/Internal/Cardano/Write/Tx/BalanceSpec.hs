@@ -851,13 +851,13 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         let dir = $(getTestData) </> "balanceTx" </> "binary" </> "balanced"
         let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
-            let ptx = unPartialTxWithUTxO pingPong_2
+            let ptxWithUTxO = pingPong_2
             let tx = either (error . show) id $ balanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
                     testStdGenSeed
-                    (mkPartialTxWithUTxO ptx)
+                    ptxWithUTxO
 
             let name = "pingPong_2"
             Golden
