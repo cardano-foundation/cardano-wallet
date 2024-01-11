@@ -1729,7 +1729,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         Command failed: transaction build  Error: The UTxO is empty
 
     -}
-    xit "TRANS_NEW_DECODE_02a / ADP-2666 - \
+    it "TRANS_NEW_DECODE_02a / ADP-2666 - \
         \transaction with minting asset with reference script (Plutus script)" $
         \ctx -> runResourceT $ do
 
@@ -1757,7 +1757,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let cborHexSettingUpReferenceScript =
                 "84a30081825820735a7a22a71da3125e90dd1330df4a2e34fab4ab4eae96074f75f223a33fa8a000\
-                \0183a300581d619f0a5e78313c22c7f25e0d2a289761ac1765a3bb24a6270bf4d4f7e9011a009896\
+                \0183a300581d609f0a5e78313c22c7f25e0d2a289761ac1765a3bb24a6270bf4d4f7e9011a009896\
                 \8003d81859076a820259076559076201000032323232323232323232323232323322323232323222\
                 \32325335320193333573466e1cd55cea801240004664424660020060046464646464646464646464\
                 \64646666ae68cdc39aab9d500c480008cccccccccccc88888888888848cccccccccccc0040340300\
@@ -1805,8 +1805,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \0091999ab9a3370ea00490011190911180180218031aba135573ca00846666ae68cdc3a801a40004\
                 \2444004464c6401466ae7002c02802001c0184d55cea80089baa0012323333573466e1d400520022\
                 \00723333573466e1d40092000212200123263200633573800e00c00800626aae74dd5000a4c24002\
-                \92010350543100122002112323001001223300330020020011a200581d619f0a5e78313c22c7f25e\
-                \0d2a289761ac1765a3bb24a6270bf4d4f7e9011a002dc6c0a200581d619f0a5e78313c22c7f25e0d\
+                \92010350543100122002112323001001223300330020020011a200581d609f0a5e78313c22c7f25e\
+                \0d2a289761ac1765a3bb24a6270bf4d4f7e9011a002dc6c0a200581d609f0a5e78313c22c7f25e0d\
                 \2a289761ac1765a3bb24a6270bf4d4f7e9011a0065f658021a0004d968a10081825820b42b60d492\
                 \8f92ad698234ffa6048b96d595d500696dd01de541ae509c14f2015840720be9ed75c76935f4897c\
                 \2ebe98f9fa55c35a3067905ca4fd8436e9d2c97cdc2b86e3c0b207fbf72fa45fc21be41c49a91d52\
@@ -1822,7 +1822,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let Right plutusScriptHash =
                 fromHexText "9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d"
         let Right txId =
-                fromHexText "876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3"
+                fromHexText "fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef47"
 
         let refInp = ReferenceInput $ TxIn (Hash txId) 0
         let plutusScript =
@@ -1847,9 +1847,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --babbage-era \
         -- --mainnet \
         -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txbody \
-        -- --tx-in 876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3#2 \
-        -- --tx-in-collateral 876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3#1 \
-        -- --mint-tx-in-reference 876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3#0 \
+        -- --tx-in fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef47#2 \
+        -- --tx-in-collateral fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef47#1 \
+        -- --mint-tx-in-reference fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef47#0 \
         -- --tx-out "addr1qxyxz5vrj63k4lh2jz8avlajjyvlyzeghu8qpuy0amw7rgws6jezyatsuq759lwuwd2au7tlskf0qk53fvzdkajkfehq94r9ul+2000000+1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.5265666572656e6365506c757475735363726970744173736574" \
         -- --mint "1 9c8e9da7f81e3ca90485f32ebefc98137c8ac260a072a00c4aaf142d.5265666572656e6365506c757475735363726970744173736574" \
         -- --mint-plutus-script-v2 \
@@ -1866,14 +1866,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txsigned
 
         let cborHexWithMinting =
-                "84a90081825820876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe302\
-                \0d81825820876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3011281\
-                \825820876935d6491e7d758f11efec78cb0fb0c0138879d4e62861ef33310e46f0afe3000182a200\
-                \5839018861518396a36afeea908fd67fb29119f20b28bf0e00f08feedde1a1d0d4b2227570e03d42\
+                "84a90081825820fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef4702\
+                \0d81825820fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef47011281\
+                \825820fbabcbfe778900f969d173c7105141a1e54619fe7824cea0b4852179ed6fef47000182a200\
+                \5839008861518396a36afeea908fd67fb29119f20b28bf0e00f08feedde1a1d0d4b2227570e03d42\
                 \fddc7355de797f8592f05a914b04db76564e6e01821a001e8480a1581c9c8e9da7f81e3ca90485f3\
                 \2ebefc98137c8ac260a072a00c4aaf142da1581a5265666572656e6365506c757475735363726970\
-                \74417373657401a200581d619f0a5e78313c22c7f25e0d2a289761ac1765a3bb24a6270bf4d4f7e9\
-                \011a00441b6410a200581d619f0a5e78313c22c7f25e0d2a289761ac1765a3bb24a6270bf4d4f7e9\
+                \74417373657401a200581d609f0a5e78313c22c7f25e0d2a289761ac1765a3bb24a6270bf4d4f7e9\
+                \011a00441b6410a200581d609f0a5e78313c22c7f25e0d2a289761ac1765a3bb24a6270bf4d4f7e9\
                 \011a0028c512111a000501ae021a0003567409a1581c9c8e9da7f81e3ca90485f32ebefc98137c8a\
                 \c260a072a00c4aaf142da1581a5265666572656e6365506c75747573536372697074417373657401\
                 \0b5820e490f5f4e9e89d43ff0b342acfa613986c9048e6fbdad87fdb53945f54f5f492a200818258\
@@ -1925,7 +1925,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#witnessCount) (`shouldBe` witnessCount)
             ]
 
-    xit "TRANS_NEW_DECODE_02a / ADP-2666 - \
+    it "TRANS_NEW_DECODE_02a / ADP-2666 - \
         \transaction with minting asset with reference script (Simple script)" $
         \ctx -> runResourceT $ do
 
@@ -1953,10 +1953,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let cborHexSettingUpReferenceScript =
                 "84a300818258205abd6ed042c09b2da0f952c05c890893beb30449455a9472daa82791bd3ffa1300\
-                \0183a300581d618fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78011a009896\
+                \0183a300581d608fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78011a009896\
                 \8003d818582582008201818200581c83ffcc26a977eb2cb7238334b91ec94de72fba2e8b58dda4d2\
-                \afea6fa200581d618fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78011a002d\
-                \c6c0a200581d618fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78011a0068cd\
+                \afea6fa200581d608fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78011a002d\
+                \c6c0a200581d608fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78011a0068cd\
                 \b0021a00020210a10081825820cce165eb2cdf32554fc185ccf1c5e57ae1428ee67ba61d522cd0ad\
                 \dfee26b1d258406611c969b3b36e9925d2012b1298f356a0da8bf1e0e025ed93e0cea2f6ab248cfc\
                 \5842d3eb4043633377e3f5fabd375307464320c12386989cba3f011c66fd07f5f6" :: Text
@@ -1969,7 +1969,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                  "\131ÿÌ&©wë,·#\131\&4¹\RSÉMç/º.\139XÝ¤Ò¯êo"
                )
         let (Right txId) =
-                fromHexText "464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9"
+                fromHexText "91872b1e38e2cbffb794511f27a7a0b3c9ad8728f1d739ac66126198b391d5ff"
         let refInp = ReferenceInput $ TxIn (Hash txId) 0
         let nativeScript =
                 RequireAllOf [RequireSignatureOf externalPolicyKeyHash]
@@ -2010,14 +2010,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- --out-file /home/piotr/wb/cardano-wallet/test/e2e/state/node_db/preprod/txsigned
 
         let cborHexWithMinting =
-                "84a80081825820464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c902\
-                \0d81825820464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9011281\
-                \825820464917d2bac71df96269c2d7c34dcb83183b8a3a3253c06e9d6a8bd0681422c9000182a200\
-                \5839013f589f227e4e2273820dca3719150da1043523083eb19678f419b29e615bbe567678854722\
+                "84a8008182582091872b1e38e2cbffb794511f27a7a0b3c9ad8728f1d739ac66126198b391d5ff02\
+                \0d8182582091872b1e38e2cbffb794511f27a7a0b3c9ad8728f1d739ac66126198b391d5ff011281\
+                \82582091872b1e38e2cbffb794511f27a7a0b3c9ad8728f1d739ac66126198b391d5ff000182a200\
+                \5839003f589f227e4e2273820dca3719150da1043523083eb19678f419b29e615bbe567678854722\
                 \78cf632bc8b03f04e6fc2ad05cac13cf48021f01821a001e8480a1581cd4239034f4b97cd680877e\
                 \9e7590d5772276935be7c96e326fe3839ba1581a5265666572656e636553696d706c655363726970\
-                \74417373657401a200581d618fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78\
-                \011a0047d2b810a200581d618fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78\
+                \74417373657401a200581d608fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78\
+                \011a0047d2b810a200581d608fc9eee38055a47cb9d80b0322030c179fc0fa4d255386e84a89cc78\
                 \011a002a150c111a0003b1b4021a0002767809a1581cd4239034f4b97cd680877e9e7590d5772276\
                 \935be7c96e326fe3839ba1581a5265666572656e636553696d706c65536372697074417373657401\
                 \a10082825820705fd8b8e253e6b7e14a28e8a2ec456306fef7a221e6b88867b06f6887d38ee05840\
