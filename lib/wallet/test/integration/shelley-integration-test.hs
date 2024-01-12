@@ -68,14 +68,15 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir (tr, tracers) -> do
     nix <- inNixBuild
+    localClusterEra <- Cluster.clusterEraFromEnv
+    let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
+    let testingCtx = TestingCtx{..}
     hspecMain $ do
         describe "No backend required"
             $ parallelIf (not nix)
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
 
-        let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
-
-        aroundAll (withContext (TestingCtx{..})) $ do
+        aroundAll (withContext testingCtx) $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n

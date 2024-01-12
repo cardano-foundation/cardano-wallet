@@ -270,6 +270,7 @@ data TestingCtx = TestingCtx
     , testDir :: FilePath
     , tr :: Tracer IO TestsLog
     , tracers :: Tracers IO
+    , localClusterEra :: ClusterEra
     }
 
 -- A decorator for the pool database that records all calls to the
@@ -408,8 +409,6 @@ setupContext
     nodeConnection
     networkParameters
     baseUrl = bracketTracer' tr "setupContext" $ do
-        era <- clusterEraFromEnv
-        traceWith tr $ MsgCluster $ Cluster.MsgHardFork era
         clusterConfigs <- Cluster.localClusterConfigsFromEnv
         faucet <- Faucet.initFaucet faucetClientEnv
         let tr' = contramap MsgCluster tr
@@ -428,7 +427,7 @@ setupContext
         let config =
                 Cluster.Config
                     { cfgStakePools = error "cfgStakePools: unused"
-                    , cfgLastHardFork = era
+                    , cfgLastHardFork = localClusterEra
                     , cfgNodeLogging = error "cfgNodeLogging: unused"
                     , cfgClusterDir = Tagged @"cluster" testDir
                     , cfgClusterConfigs = clusterConfigs
@@ -446,7 +445,7 @@ setupContext
                 , _networkParameters = networkParameters
                 , _testnetMagic = testnetMagic
                 , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
-                , _mainEra = clusterToApiEra era
+                , _mainEra = clusterToApiEra localClusterEra
                 , _smashUrl = smashUrl
                 , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                     withMVar mintSeaHorseAssetsLock $ \() ->
@@ -465,7 +464,8 @@ setupContext
                 }
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()
-withContext testingCtx@TestingCtx{..} action =
+withContext testingCtx@TestingCtx{..} action = do
+    traceWith tr $ MsgCluster $ Cluster.MsgHardFork localClusterEra
     bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
         ctx <- newEmptyMVar
         clusterConfigs <- Cluster.localClusterConfigsFromEnv
