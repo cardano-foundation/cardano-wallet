@@ -772,6 +772,7 @@ test-suite integration
   main-is:            shelley-integration-test.hs
   other-modules:
     Cardano.Wallet.Test.Integration.Logging
+    Cardano.Wallet.Test.Integration.PendingInEra
     Cardano.Wallet.Test.Integration.Setup
 
   build-depends:
