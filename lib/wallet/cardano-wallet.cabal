@@ -770,6 +770,10 @@ test-suite integration
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/integration test/data
   main-is:            shelley-integration-test.hs
+  other-modules:
+    Cardano.Wallet.Test.Integration.Logging
+    Cardano.Wallet.Test.Integration.Setup
+
   build-depends:
     , base
     , cardano-addresses
@@ -795,6 +799,7 @@ test-suite integration
     , local-cluster
     , mock-token-metadata
     , network-uri
+    , servant-client
     , tagged                             ^>=0.8.7
     , temporary-extra
     , text
