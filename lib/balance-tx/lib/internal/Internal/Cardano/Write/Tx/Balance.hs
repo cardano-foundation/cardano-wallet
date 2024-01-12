@@ -55,6 +55,7 @@ module Internal.Cardano.Write.Tx.Balance
 
     -- * Utilities
     , fromWalletUTxO
+    , toLedgerTxOut
     , toWalletUTxO
     , splitSignedValue
     , mergeSignedValue
@@ -321,7 +322,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     )
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
-import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
@@ -649,7 +649,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
-    guardWalletUTxOConsistencyWith inputUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
@@ -870,19 +869,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let balance = txBalance tx'
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
-
-    -- | Ensure the wallet UTxO is consistent with the given UTxO.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    guardWalletUTxOConsistencyWith
-        :: UTxO era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u =
-        case F.toList (Map.conflicts (unUTxO u) (unUTxO walletLedgerUTxO)) of
-            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
-            [] -> return ()
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat

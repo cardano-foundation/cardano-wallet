@@ -922,6 +922,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
@@ -3499,11 +3500,12 @@ balanceTransaction
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-        let utxoIndex =
-                Write.constructUTxOIndex $
-                Write.fromWalletUTxO utxo
+        (walletUTxO, wallet, _txs) <- handler $ W.readWalletUTxO wrk
         partialTx <- parsePartialTx era
+        let externalUTxO = view #inputUTxO partialTx
+        let internalUTxO = Write.fromWalletUTxO walletUTxO
+        liftHandler (guardUTxOConsistency externalUTxO internalUTxO)
+        let utxoIndex = Write.constructUTxOIndex internalUTxO
         balancedTx <- liftHandler
             . fmap
                 ( Cardano.InAnyCardanoEra Write.cardanoEra
@@ -3526,6 +3528,17 @@ balanceTransaction
             _ -> pure $ ApiSerialisedTransaction
                 (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
   where
+    guardUTxOConsistency
+        :: (Monad m, Write.IsRecentEra era)
+        => Write.UTxO era
+        -> Write.UTxO era
+        -> ExceptT (Write.ErrBalanceTx era) m ()
+    guardUTxOConsistency (Write.UTxO external) (Write.UTxO internal) = do
+        case F.toList (Map.conflicts external internal) of
+            [] -> return ()
+            (c : cs) -> throwE $
+                Write.ErrBalanceTxInputResolutionConflicts (c :| cs)
+
     parseExternalUTxO
         :: Write.IsRecentEra era
         => Write.RecentEra era
