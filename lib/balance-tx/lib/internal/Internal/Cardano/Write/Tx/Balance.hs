@@ -149,8 +149,7 @@ import Data.Bits
     ( Bits
     )
 import Data.Either
-    ( lefts
-    , partitionEithers
+    ( partitionEithers
     )
 import Data.Function
     ( (&)
@@ -322,6 +321,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     )
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
+import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
@@ -883,12 +883,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardWalletUTxOConsistencyWith
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u = do
-        let conflicts = lefts $ flip map (Map.toList (unUTxO u)) $ \(i, o1) ->
-                case i `Map.lookup` unUTxO walletLedgerUTxO of
-                    Just o2 -> unless (o1 == o2) $ Left (o1, o2)
-                    Nothing -> pure ()
-        case conflicts of
+    guardWalletUTxOConsistencyWith u =
+        case F.toList (Map.conflicts (unUTxO u) (unUTxO walletLedgerUTxO)) of
             [] -> return ()
             (c : cs) -> throwE
                 $ ErrBalanceTxInputResolutionConflicts (c :| cs)
