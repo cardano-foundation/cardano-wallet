@@ -42,23 +42,27 @@ data ClusterEra
     | MaryHardFork
     | AlonzoHardFork
     | BabbageHardFork
-    deriving stock (Show, Read, Eq, Ord, Bounded, Enum)
+    deriving stock (Eq, Ord, Show, Enum)
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra
-clusterEraFromEnv =
-    fmap withDefault . traverse getEra =<< lookupEnvNonEmpty var
+clusterEraFromEnv = do
+    mera <- lookupEnvNonEmpty var
+    case mera of
+        Nothing -> pure BabbageHardFork
+        Just era -> getEra era
   where
     var = "LOCAL_CLUSTER_ERA"
+    err :: [Char] -> IO a
+    err era = die $ var ++ ": " ++ era ++ " era is not supported"
     getEra env = case map toLower env of
-        "byron" -> pure ByronNoHardFork
-        "shelley" -> pure ShelleyHardFork
-        "allegra" -> pure AllegraHardFork
-        "mary" -> pure MaryHardFork
-        "alonzo" -> pure AlonzoHardFork
+        "byron" -> err "byron"
+        "shelley" -> err "shelley"
+        "allegra" -> err "allegra"
+        "mary" -> err "mary"
+        "alonzo" -> err "alonzo"
         "babbage" -> pure BabbageHardFork
         _ -> die $ var ++ ": unknown era"
-    withDefault = fromMaybe maxBound
 
 localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" FilePath)
 localClusterConfigsFromEnv =

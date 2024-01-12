@@ -2,7 +2,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -22,12 +21,6 @@ import Cardano.BM.Data.Severity
     )
 import Cardano.Launcher
     ( ProcessHasExited (..)
-    )
-import Cardano.Ledger.Api
-    ( ppDL
-    )
-import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra (..)
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -49,15 +42,11 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Util
     ( HasCallStack
     )
-import Control.Lens
-    ( over
-    )
 import Control.Monad
     ( forM
     , forM_
     , replicateM
     , replicateM_
-    , when
     )
 import Control.Tracer
     ( Tracer (..)
@@ -124,21 +113,17 @@ import Cardano.Wallet.Launch.Cluster.InstantaneousRewards
     ( Credential (..)
     , moveInstantaneousRewardsTo
     )
-import Cardano.Wallet.Launch.Cluster.Node.NodeParams
-    ( NodeParams (..)
-    )
-import Cardano.Wallet.Launch.Cluster.Node.RunningNode
-    ( RunningNode (RunningNode)
-    )
-import Cardano.Wallet.Launch.Cluster.UnsafeInterval
-    ( unsafeUnitInterval
-    )
-
 import Cardano.Wallet.Launch.Cluster.KeyRegistration
     ( prepareKeyRegistration
     )
+import Cardano.Wallet.Launch.Cluster.Node.NodeParams
+    ( NodeParams (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Node.Relay
     ( withRelayNode
+    )
+import Cardano.Wallet.Launch.Cluster.Node.RunningNode
+    ( RunningNode (RunningNode)
     )
 import Cardano.Wallet.Launch.Cluster.Tx
     ( signTx
@@ -226,7 +211,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                         let relayNodeParams =
                                 NodeParams
                                     { nodeGenesisFiles = genesisFiles
-                                    , nodeHardForks = maxBound
+                                    , nodeHardForks = cfgLastHardFork
                                     , nodePeers = (extraPort, poolsTcpPorts)
                                     , nodeLogConfig =
                                         LogFileConfig

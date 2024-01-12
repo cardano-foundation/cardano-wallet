@@ -12,7 +12,7 @@ import Cardano.BM.Tracing
     ( Severity
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra
+    ( ClusterEra (BabbageHardFork)
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
     ( GenesisFiles
@@ -42,7 +42,7 @@ singleNodeParams
     -> Maybe (FilePath, Severity)
     -> NodeParams
 singleNodeParams genesisFiles severity extraLogFile =
-    NodeParams genesisFiles maxBound (0, []) LogFileConfig
+    NodeParams genesisFiles BabbageHardFork (0, []) LogFileConfig
         { minSeverityTerminal = severity
         , extraLogDir = fmap fst extraLogFile
         , minSeverityFile = maybe severity snd extraLogFile
