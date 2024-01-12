@@ -875,16 +875,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
-    -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
+    -- | Ensure the wallet UTxO is consistent with the given UTxO.
     --
     -- They are not consistent iff an input can be looked up in both UTxO sets
     -- with different @Address@, or @TokenBundle@ values.
     --
-    -- The @CardanoApi.UTxO era@ is allowed to contain additional information,
-    -- like datum hashes, which the wallet UTxO cannot represent.
-    --
-    -- NOTE: Representing the wallet utxo as a @CardanoApi.UTxO@ will not make
-    -- this check easier, even if it may be useful in other regards.
     guardWalletUTxOConsistencyWith
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
