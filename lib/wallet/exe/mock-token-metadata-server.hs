@@ -41,7 +41,7 @@ import "optparse-applicative" Options.Applicative
     , showHelpOnEmpty
     , str
     )
-import Prettyprinter
+import "optparse-applicative" Options.Applicative.Help.Pretty
     ( Doc
     , Pretty (..)
     , hang
@@ -123,5 +123,5 @@ parserInfo = info (helper <*> argsParser) $ mconcat
         metavar "PORT" <>
         help "Port to listen on (default: random unused port)"
 
-joinLines :: Doc ann -> Doc ann -> Doc ann
+joinLines :: Doc -> Doc -> Doc
 joinLines x y = x <> softline <> y

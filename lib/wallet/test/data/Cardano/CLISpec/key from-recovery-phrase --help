@@ -25,27 +25,27 @@ Available options:
 The recovery phrase without passphrase is read from stdin.
 
 Example:
-  [0;1m$ cardano-wallet recovery-phrase generate \[0m
-  [0;1m| cardano-wallet key from-recovery-phrase Icarus[0m
+  [1m$ cardano-wallet recovery-phrase generate \[0m
+  [1m| cardano-wallet key from-recovery-phrase Icarus[0m
 
 The recovery phrase with passphrase can be entered interactively or from file.
 In both cases passhrase can take form of mnemonic, base16, base64, utf8 or octet array.
 In interactive case one can select explicit, sensitive or silent mode.
 
 Example:
-  [0;1m$ cardano-wallet key from-recovery-phrase Shelley --passphrase from-mnemonic --sensitive[0m
-  [0;1mPlease enter a [9, 12, 15, 18, 21, 24] word mnemonic:[0m
-  [0;1m**********************************************************************************************************[0m
-  [0;1mPlease enter a 9–12 word second factor:[0m
-  [0;1m*************************************************************[0m
+  [1m$ cardano-wallet key from-recovery-phrase Shelley --passphrase from-mnemonic --sensitive[0m
+  [1mPlease enter a [9, 12, 15, 18, 21, 24] word mnemonic:[0m
+  [1m**********************************************************************************************************[0m
+  [1mPlease enter a 9–12 word second factor:[0m
+  [1m*************************************************************[0m
 
 In case of passphrase reading from file the recovery phrase is read from stdin.
 
 Example:
-  [0;1m$ echo "Secret Secondary Phrase" > sndfactor.prv[0m
-  [0;1m$ cardano-wallet recovery-phrase generate \[0m
-  [0;1m| cardano-wallet key from-recovery-phrase Shelley --from-file "./sndfactor.prv"[0m
+  [1m$ echo "Secret Secondary Phrase" > sndfactor.prv[0m
+  [1m$ cardano-wallet recovery-phrase generate \[0m
+  [1m| cardano-wallet key from-recovery-phrase Shelley --from-file "./sndfactor.prv"[0m
 
-  [0;1m$ cardano-wallet recovery-phrase generate --size 12 > sndfactor.prv[0m
-  [0;1m$ cardano-wallet recovery-phrase generate \[0m
-  [0;1m| cardano-wallet key from-recovery-phrase Shelley --passphrase from-mnemonic --from-file "./sndfactor.prv"[0m
+  [1m$ cardano-wallet recovery-phrase generate --size 12 > sndfactor.prv[0m
+  [1m$ cardano-wallet recovery-phrase generate \[0m
+  [1m| cardano-wallet key from-recovery-phrase Shelley --passphrase from-mnemonic --from-file "./sndfactor.prv"[0m

@@ -361,12 +361,12 @@ import "optparse-applicative" Options.Applicative
     , switch
     , value
     )
+import "optparse-applicative" Options.Applicative.Help.Pretty
+    ( vsep
+    )
 import "optparse-applicative" Options.Applicative.Types
     ( ReadM (..)
     , readerAsk
-    )
-import Prettyprinter
-    ( vsep
     )
 import Servant.Client
     ( BaseUrl (..)
@@ -444,7 +444,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
-import qualified Prettyprinter as Printer
+import qualified "optparse-applicative" Options.Applicative.Help.Pretty as Printer
 import qualified UnliftIO.Async as Async
 
 {-------------------------------------------------------------------------------

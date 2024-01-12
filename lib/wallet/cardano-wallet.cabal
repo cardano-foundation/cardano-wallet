@@ -552,7 +552,6 @@ executable mock-token-metadata-server
     , cardano-wallet
     , mock-token-metadata
     , optparse-applicative
-    , prettyprinter
     , wai-extra
 
 test-suite unit
