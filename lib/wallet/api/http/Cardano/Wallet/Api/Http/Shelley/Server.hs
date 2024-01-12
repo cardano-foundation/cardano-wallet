@@ -3526,16 +3526,20 @@ balanceTransaction
             _ -> pure $ ApiSerialisedTransaction
                 (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
   where
+    parseExternalUTxO
+        :: Write.IsRecentEra era
+        => Write.RecentEra era
+        -> Write.UTxO era
+    parseExternalUTxO era
+        = Write.utxoFromTxOutsInRecentEra era
+        $ map fromExternalInput
+        $ body ^. #inputs
+
     parsePartialTx
         :: Write.IsRecentEra era
         => Write.RecentEra era
         -> Handler (Write.PartialTx era)
     parsePartialTx era = do
-        let externalUTxO
-                = Write.utxoFromTxOutsInRecentEra era
-                $ map fromExternalInput
-                $ body ^. #inputs
-
         tx <- maybe
                 (liftHandler
                     . throwE
@@ -3548,7 +3552,7 @@ balanceTransaction
 
         pure Write.PartialTx
             { tx = Write.fromCardanoApiTx tx
-            , inputUTxO = externalUTxO
+            , inputUTxO = parseExternalUTxO era
             , redeemers = fromApiRedeemer <$> body ^. #redeemers
             , timelockKeyWitnessCounts
             }
