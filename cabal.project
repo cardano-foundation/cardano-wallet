@@ -195,6 +195,7 @@ constraints:
   , cardano-api ^>=8.2
   , cardano-slotting >= 0.1
   , ouroboros-network ^>= 0.8.1.0
+  , optparse-applicative-fork == 0.16.2.0
 
   -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
   , persistent == 2.13.3.3
