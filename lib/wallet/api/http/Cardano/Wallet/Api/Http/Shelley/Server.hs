@@ -3546,11 +3546,12 @@ balanceTransaction
             . getApiT
             $ body ^. #transaction
 
-        pure $ Write.PartialTx
-            (Write.fromCardanoApiTx tx)
-            externalUTxO
-            (fromApiRedeemer <$> body ^. #redeemers)
-            timelockKeyWitnessCounts
+        pure Write.PartialTx
+            { tx = Write.fromCardanoApiTx tx
+            , inputUTxO = externalUTxO
+            , redeemers = fromApiRedeemer <$> body ^. #redeemers
+            , timelockKeyWitnessCounts
+            }
 
 decodeTransaction
     :: forall s n
