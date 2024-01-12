@@ -502,6 +502,9 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer
     )
+import Cardano.Wallet.Delegation.Model
+    ( VoteAction (..)
+    )
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , Excluding
@@ -661,6 +664,7 @@ import Cardano.Wallet.Transaction
     , SelectionOf (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
@@ -2781,8 +2785,19 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     poolStatus withdrawal
 
         optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) -> liftIO$ Just <$> WD.voteAction trWorker db action
-            Nothing -> pure Nothing
+            Just (ApiT action) ->
+                liftIO $ Just <$> WD.voteAction trWorker db action
+            Nothing -> do
+                areWeInConway <- liftIO $ W.isAlreadyConwayEra nl
+                haveWeVoted <- liftIO $ W.haveWeVoted db
+                stakingKeyRegistered <- liftIO $ W.isStakeKeyInDb db
+                if (areWeInConway && not haveWeVoted && isJust (body ^. #delegations)) then
+                   if stakingKeyRegistered then
+                       pure $ Just $ Vote Abstain
+                   else
+                       pure $ Just $ VoteRegisteringKey Abstain
+                else
+                   pure Nothing
 
         let transactionCtx1 =
                 case optionalDelegationAction of

@@ -109,6 +109,7 @@ module Cardano.Wallet
     , ErrGetPolicyId (..)
     , readWalletMeta
     , isStakeKeyRegistered
+    , isStakeKeyInDb
     , putDelegationCertificate
     , readDelegation
     , getCurrentEpochSlotting
@@ -153,6 +154,8 @@ module Cardano.Wallet
     , constructTxMeta
     , votingEraValidation
     , checkingIfVoted
+    , isAlreadyConwayEra
+    , haveWeVoted
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -2620,6 +2623,21 @@ submitExternalTx tr nw tl sealedTx = do
         pure sealedTx
     pure txid
 
+isAlreadyConwayEra
+    :: NetworkLayer IO block
+    -> IO Bool
+isAlreadyConwayEra nw = do
+    era <- currentNodeEra nw
+    case era of
+        Cardano.AnyCardanoEra Cardano.ConwayEra -> pure True
+        _ -> pure False
+
+haveWeVoted
+    :: DBLayer IO s
+    -> IO Bool
+haveWeVoted DBLayer{..} = do
+    atomically (alreadyVoted walletState)
+
 votingEraValidation
     :: NetworkLayer IO block
     -> ExceptT ErrConstructTx IO ()
@@ -2974,6 +2992,12 @@ isStakeKeyRegistered
 isStakeKeyRegistered walletState =
     Dlgs.isStakeKeyRegistered . view #delegations
         <$> readDBVar walletState
+
+isStakeKeyInDb
+    :: DBLayer IO s
+    -> IO Bool
+isStakeKeyInDb DBLayer{..} = do
+    atomically (isStakeKeyRegistered walletState)
 
 delegationFee
     :: forall s
