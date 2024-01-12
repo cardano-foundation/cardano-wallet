@@ -885,9 +885,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u =
         case F.toList (Map.conflicts (unUTxO u) (unUTxO walletLedgerUTxO)) of
+            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
             [] -> return ()
-            (c : cs) -> throwE
-                $ ErrBalanceTxInputResolutionConflicts (c :| cs)
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat
