@@ -317,7 +317,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
@@ -645,7 +644,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
+    (UTxOIndex _walletUTxO internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
     selectionStrategy
@@ -889,14 +888,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardWalletUTxOConsistencyWith
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u' = do
-        let W.UTxO u = toWalletUTxO u'
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
-                case i `W.UTxO.lookup` walletUTxO of
-                    Just o2 -> unless (o1 == o2) $ Left
-                        ( toLedgerTxOut era o1
-                        , toLedgerTxOut era o2
-                        )
+    guardWalletUTxOConsistencyWith u = do
+        let conflicts = lefts $ flip map (Map.toList (unUTxO u)) $ \(i, o1) ->
+                case i `Map.lookup` unUTxO walletLedgerUTxO of
+                    Just o2 -> unless (o1 == o2) $ Left (o1, o2)
                     Nothing -> pure ()
         case conflicts of
             [] -> return ()
