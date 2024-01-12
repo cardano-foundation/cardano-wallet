@@ -922,6 +922,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
@@ -3499,10 +3500,15 @@ balanceTransaction
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-        let utxoIndex =
-                Write.constructUTxOIndex $
-                Write.fromWalletUTxO utxo
+        (walletUTxO, wallet, _txs) <- handler $ W.readWalletUTxO wrk
+        let externalUTxO = parseExternalUTxO era
+        let internalUTxO = Write.fromWalletUTxO walletUTxO
+        liftHandler (guardUTxOConsistency externalUTxO internalUTxO)
+        -- When combining the external and internal UTxO sets, we give
+        -- precedence to the external UTxO set. Here we rely on the
+        -- left-biased behaviour of the Semigroup instance for Map:
+        let combinedUTxO = externalUTxO <> internalUTxO
+        let utxoIndex = Write.constructUTxOIndex combinedUTxO
         partialTx <- parsePartialTx era
         balancedTx <- liftHandler
             . fmap
@@ -3526,16 +3532,31 @@ balanceTransaction
             _ -> pure $ ApiSerialisedTransaction
                 (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
   where
+    guardUTxOConsistency
+        :: (Monad m, Write.IsRecentEra era)
+        => Write.UTxO era
+        -> Write.UTxO era
+        -> ExceptT (Write.ErrBalanceTx era) m ()
+    guardUTxOConsistency (Write.UTxO external) (Write.UTxO internal) = do
+        case F.toList (Map.conflicts external internal) of
+            [] -> return ()
+            (c : cs) -> throwE $
+                Write.ErrBalanceTxInputResolutionConflicts (c :| cs)
+
+    parseExternalUTxO
+        :: Write.IsRecentEra era
+        => Write.RecentEra era
+        -> Write.UTxO era
+    parseExternalUTxO era
+        = Write.utxoFromTxOutsInRecentEra era
+        $ map fromExternalInput
+        $ body ^. #inputs
+
     parsePartialTx
         :: Write.IsRecentEra era
         => Write.RecentEra era
         -> Handler (Write.PartialTx era)
     parsePartialTx era = do
-        let externalUTxO
-                = Write.utxoFromTxOutsInRecentEra era
-                $ map fromExternalInput
-                $ body ^. #inputs
-
         tx <- maybe
                 (liftHandler
                     . throwE
@@ -3546,11 +3567,11 @@ balanceTransaction
             . getApiT
             $ body ^. #transaction
 
-        pure $ Write.PartialTx
-            (Write.fromCardanoApiTx tx)
-            externalUTxO
-            (fromApiRedeemer <$> body ^. #redeemers)
-            timelockKeyWitnessCounts
+        pure Write.PartialTx
+            { tx = Write.fromCardanoApiTx tx
+            , redeemers = fromApiRedeemer <$> body ^. #redeemers
+            , timelockKeyWitnessCounts
+            }
 
 decodeTransaction
     :: forall s n

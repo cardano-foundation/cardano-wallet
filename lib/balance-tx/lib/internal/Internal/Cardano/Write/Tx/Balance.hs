@@ -55,6 +55,7 @@ module Internal.Cardano.Write.Tx.Balance
 
     -- * Utilities
     , fromWalletUTxO
+    , toLedgerTxOut
     , toWalletUTxO
     , splitSignedValue
     , mergeSignedValue
@@ -321,7 +322,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     )
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
-import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
@@ -422,9 +422,6 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- | A 'PartialTx' is an an unbalanced transaction along with the necessary
 -- information to balance it.
 --
--- The 'TxIn's of the 'inputs' must exactly match the inputs contained in the
--- 'tx'. If not, the behaviour is undefined. This will be fixed by ADP-1662.
---
 -- The provided 'redeemers' will overwrite any redeemers inside the 'tx'. This
 -- is done as the internal redeemers in the 'tx' use an index referring to a
 -- 'TxIn', rather than an actual 'TxIn'. When we are adding extra inputs as part
@@ -435,8 +432,6 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Tx era
-    , inputs :: UTxO era
-      -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
       -- ^ Specifying the intended number of timelock script key witnesses may
@@ -453,10 +448,9 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers timelockKeyWitnessCounts)
+    build PartialTx {tx, redeemers, timelockKeyWitnessCounts}
         = nameF "PartialTx" $ mconcat
-            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
-            , nameF "redeemers" (pretty redeemers)
+            [ nameF "redeemers" (pretty redeemers)
             , nameF "tx" (txF tx)
             , nameF "intended timelock key witness counts"
                 $ blockListF' "-" (build . show)
@@ -464,8 +458,6 @@ instance IsRecentEra era => Buildable (PartialTx era)
                 $ getTimelockKeyWitnessCounts timelockKeyWitnessCounts
             ]
       where
-        inF = build . show
-
         txF :: Tx era -> Builder
         txF tx' = pretty $ pShow tx'
 
@@ -648,12 +640,11 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers timelockKeyWitnessCounts)
+    ptx@(PartialTx partialTx redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
-    guardWalletUTxOConsistencyWith inputUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
@@ -797,21 +788,21 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     --
     -- === Examples using pseudo-code
     --
-    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
+    -- >>> let inputUTxO = {inA -> outA, inB -> outB }
     -- >>> let tx = addInputs [inA] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> let ptx = PartialTx tx inputUTxO []
     -- >>> extractExternallySelectedUTxO ptx
     -- Right (UTxOIndex.fromMap {inA -> outA})
     --
-    -- >>> let extraUTxO = {inB -> outB }
+    -- >>> let inputUTxO = {inB -> outB }
     -- >>> let tx = addInputs [inA, inC] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> let ptx = PartialTx tx inputUTxO []
     -- >>> extractExternallySelectedUTxO ptx
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
         :: PartialTx era
         -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms _) = do
+    extractExternallySelectedUTxO PartialTx {tx} = do
         let res = flip map txIns $ \i-> do
                 case txinLookup i combinedUTxO of
                     Nothing ->
@@ -875,30 +866,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
-    -- | Ensure the wallet UTxO is consistent with the given UTxO.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    guardWalletUTxOConsistencyWith
-        :: UTxO era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u =
-        case F.toList (Map.conflicts (unUTxO u) (unUTxO walletLedgerUTxO)) of
-            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
-            [] -> return ()
-
     combinedUTxO :: UTxO era
-    combinedUTxO = mconcat
-         -- The @CardanoApi.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
-         [ inputUTxO
-         , walletLedgerUTxO
-         ]
+    combinedUTxO = walletLedgerUTxO
 
     assembleTransaction
         :: TxUpdate
