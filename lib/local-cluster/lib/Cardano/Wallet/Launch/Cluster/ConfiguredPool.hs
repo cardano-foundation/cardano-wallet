@@ -81,8 +81,7 @@ import Cardano.Wallet.Launch.Cluster.PoolRecipe
     ( PoolRecipe (PoolRecipe, operatorKeys)
     )
 import Cardano.Wallet.Launch.Cluster.Tx
-    ( signTx
-    , submitTx
+    ( signAndSubmitTx
     )
 import Cardano.Wallet.Launch.Cluster.UnsafeInterval
     ( unsafeUnitInterval
@@ -525,16 +524,16 @@ configurePool config@Config{..} metadataServer recipe = do
                                 cfgClusterConfigs
                                 cfgLastHardFork
                                 [retCert]
-                        tx <-
-                            signTx
-                                config
-                                (retag @"pool" @_ @"output" poolDir)
-                                (retag @"retirement-tx" @_ @"tx-body" rawTx)
-                                [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
-                                , retag @"stake-prv" @_ @"signing-key" ownerPrv
-                                , retag @"op-prv" @_ @"signing-key" opPrv
-                                ]
-                        submitTx config socket "retirement cert" tx
+                        signAndSubmitTx
+                            config
+                            socket
+                            (retag @"pool" @_ @"output" poolDir)
+                            (retag @"retirement-tx" @_ @"tx-body" rawTx)
+                            [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
+                            , retag @"stake-prv" @_ @"signing-key" ownerPrv
+                            , retag @"op-prv" @_ @"signing-key" opPrv
+                            ]
+                            "retirement cert"
 
                 traverse_ retire mretirementEpoch
             , metadataUrl = T.pack metadataURL

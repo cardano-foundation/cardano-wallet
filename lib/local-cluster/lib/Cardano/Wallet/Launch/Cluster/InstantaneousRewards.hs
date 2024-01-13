@@ -44,8 +44,7 @@ import Cardano.Wallet.Launch.Cluster.StakeCertificates
     , issueStakeVkCert
     )
 import Cardano.Wallet.Launch.Cluster.Tx
-    ( signTx
-    , submitTx
+    ( signAndSubmitTx
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -138,15 +137,16 @@ moveInstantaneousRewardsTo config@Config{..} conn targets = unless (null targets
     This problem is worked around by retrying the transaction submission until
     it succeeds.  (This is not ideal as it pollutes logs with error messages)
     -}
-    submitTx config conn "MIR certificates"
-        =<< signTx
-            config
-            outputDir
-            (Tagged @"tx-body" txFile)
-            [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
-            , Tagged @"signing-key" $ untag clusterConfigs
-                </> "delegate-keys/shelley.000.skey"
-            ]
+    signAndSubmitTx
+        config
+        conn
+        outputDir
+        (Tagged @"tx-body" txFile)
+        [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
+        , Tagged @"signing-key" $ untag clusterConfigs
+            </> "delegate-keys/shelley.000.skey"
+        ]
+        "MIR certificates"
   where
     mkCredentialCerts
         :: Tagged "output" FilePath

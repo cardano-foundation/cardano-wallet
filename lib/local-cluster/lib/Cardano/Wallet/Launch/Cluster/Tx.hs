@@ -3,8 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.Tx
-    ( signTx
-    , submitTx
+    ( signAndSubmitTx
     )
 where
 
@@ -84,3 +83,18 @@ submitTx Config{..} conn name signedTx =
             , show (testnetMagicToNatural cfgTestnetMagic)
             , "--cardano-mode"
             ]
+
+signAndSubmitTx
+    :: Config
+    -> CardanoNodeConn
+    -> Tagged "output" FilePath
+    -- ^ Output directory
+    -> Tagged "tx-body" FilePath
+    -- ^ Tx body file
+    -> [Tagged "signing-key" FilePath]
+    -- ^ Signing keys for witnesses
+    -> Tagged "name" String
+    -> IO ()
+signAndSubmitTx config conn outputDir rawTx keys name = do
+    signedTx <- signTx config outputDir rawTx keys
+    submitTx config conn name signedTx

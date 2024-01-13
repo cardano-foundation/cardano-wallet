@@ -37,8 +37,7 @@ import Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
     ( writeMonetaryPolicyScriptFile
     )
 import Cardano.Wallet.Launch.Cluster.Tx
-    ( signTx
-    , submitTx
+    ( signAndSubmitTx
     )
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
@@ -325,15 +324,13 @@ sendFaucet config conn what targets = do
         forM (nub $ concatMap (snd . snd) targets) $ \(skey, keyHash) ->
             writePolicySigningKey outputDir keyHash skey
 
-    signTx
+    signAndSubmitTx
         config
+        conn
         outputDir
         (Tagged @"tx-body" file)
         (retag @"faucet-prv" @_ @"signing-key" faucetPrv : map retag policyKeys)
-        >>= submitTx
-            config
-            conn
-            (Tagged @"name" $ what ++ " faucet tx")
+        (Tagged @"name" $ what ++ " faucet tx")
 
 writePolicySigningKey
     :: Tagged "output" FilePath

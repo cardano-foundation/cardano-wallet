@@ -125,8 +125,7 @@ import Cardano.Wallet.Launch.Cluster.Node.RunningNode
     ( RunningNode (RunningNode)
     )
 import Cardano.Wallet.Launch.Cluster.Tx
-    ( signTx
-    , submitTx
+    ( signAndSubmitTx
     )
 
 import qualified Data.List.NonEmpty as NE
@@ -258,13 +257,11 @@ withCluster config@Config{..} faucetFunds onClusterStart =
 
         -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration config
-        tx <-
-            signTx
-                config
-                (retag @"cluster" @_ @"output" cfgClusterDir)
-                (retag @"reg-tx" @_ @"tx-body" rawTx)
-                [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
-        submitTx config conn "pre-registered stake key" tx
+        signAndSubmitTx config conn
+            (retag @"cluster" @_ @"output" cfgClusterDir)
+            (retag @"reg-tx" @_ @"tx-body" rawTx)
+            [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
+            "pre-registered stake key"
 
     -- \| Actually spin up the pools.
     launchPools
