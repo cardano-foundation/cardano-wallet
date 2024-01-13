@@ -407,7 +407,7 @@ configurePool
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr Config{..} metadataServer recipe = do
+configurePool tr config@Config{..} metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
     -- Use pool-specific dir
@@ -529,15 +529,14 @@ configurePool tr Config{..} metadataServer recipe = do
                                 [retCert]
                         tx <-
                             signTx
-                                tr
-                                cfgTestnetMagic
+                                config
                                 (retag @"pool" @_ @"output" poolDir)
                                 (retag @"retirement-tx" @_ @"tx-body" rawTx)
                                 [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
                                 , retag @"stake-prv" @_ @"signing-key" ownerPrv
                                 , retag @"op-prv" @_ @"signing-key" opPrv
                                 ]
-                        submitTx tr cfgTestnetMagic socket "retirement cert" tx
+                        submitTx config socket "retirement cert" tx
 
                 traverse_ retire mretirementEpoch
             , metadataUrl = T.pack metadataURL

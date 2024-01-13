@@ -260,12 +260,11 @@ withCluster config@Config{..} faucetFunds onClusterStart =
         (rawTx, faucetPrv) <- prepareKeyRegistration cfgTracer config
         tx <-
             signTx
-                cfgTracer
-                cfgTestnetMagic
+                config
                 (retag @"cluster" @_ @"output" cfgClusterDir)
                 (retag @"reg-tx" @_ @"tx-body" rawTx)
                 [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
-        submitTx cfgTracer cfgTestnetMagic conn "pre-registered stake key" tx
+        submitTx config conn "pre-registered stake key" tx
 
     -- \| Actually spin up the pools.
     launchPools

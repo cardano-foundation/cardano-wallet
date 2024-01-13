@@ -143,10 +143,9 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
     This problem is worked around by retrying the transaction submission until
     it succeeds.  (This is not ideal as it pollutes logs with error messages)
     -}
-    submitTx tr (cfgTestnetMagic config) conn "MIR certificates"
+    submitTx config conn "MIR certificates"
         =<< signTx
-            tr
-            (cfgTestnetMagic config)
+            config
             outputDir
             (Tagged @"tx-body" txFile)
             [ retag @"faucet-prv" @_ @"signing-key" faucetPrv

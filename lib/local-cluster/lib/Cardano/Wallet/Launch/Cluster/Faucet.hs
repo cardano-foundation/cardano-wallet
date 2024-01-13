@@ -335,14 +335,12 @@ sendFaucet tr config conn what targets = do
             writePolicySigningKey outputDir keyHash skey
 
     signTx
-        tr
-        (cfgTestnetMagic config)
+        config
         outputDir
         (Tagged @"tx-body" file)
         (retag @"faucet-prv" @_ @"signing-key" faucetPrv : map retag policyKeys)
         >>= submitTx
-            tr
-            (cfgTestnetMagic config)
+            config
             conn
             (Tagged @"name" $ what ++ " faucet tx")
 

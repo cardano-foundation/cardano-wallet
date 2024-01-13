@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.Tx
@@ -18,13 +19,8 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
     , cliRetry
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( TestnetMagic (testnetMagicToNatural)
-    )
-import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog (..)
-    )
-import Control.Tracer
-    ( Tracer (..)
+    ( Config (..)
+    , TestnetMagic (testnetMagicToNatural)
     )
 import Data.Generics.Labels
     ()
@@ -40,8 +36,7 @@ import qualified Data.Text as T
 
 -- | Sign a transaction with all the necessary signatures.
 signTx
-    :: Tracer IO ClusterLog
-    -> TestnetMagic
+    :: Config
     -> Tagged "output" FilePath
     -- ^ Output directory
     -> Tagged "tx-body" FilePath
@@ -49,15 +44,15 @@ signTx
     -> [Tagged "signing-key" FilePath]
     -- ^ Signing keys for witnesses
     -> IO (Tagged "tx-signed" FilePath)
-signTx tr testnetMagic outputDir rawTx keys = do
+signTx Config{..} outputDir rawTx keys = do
     file <- emptyTempFile (untag outputDir) "tx-signed.json"
-    cli tr
+    cli cfgTracer
         $ [ "transaction"
           , "sign"
           , "--tx-body-file"
           , untag rawTx
           , "--testnet-magic"
-          , show (testnetMagicToNatural testnetMagic)
+          , show (testnetMagicToNatural cfgTestnetMagic)
           , "--out-file"
           , file
           ]
@@ -66,22 +61,21 @@ signTx tr testnetMagic outputDir rawTx keys = do
 
 -- | Submit a transaction through a running node.
 submitTx
-    :: Tracer IO ClusterLog
-    -> TestnetMagic
+    :: Config
     -> CardanoNodeConn
     -> Tagged "name" String
     -> Tagged "tx-signed" FilePath
     -> IO ()
-submitTx tr testnetMagic conn name signedTx =
-    cliRetry tr ("Submitting transaction for " <> T.pack (untag name))
+submitTx Config{..} conn name signedTx =
+    cliRetry cfgTracer ("Submitting transaction for " <> T.pack (untag name))
         =<< cliConfigNode
-            tr
+            cfgTracer
             conn
             [ "transaction"
             , "submit"
             , "--tx-file"
             , untag signedTx
             , "--testnet-magic"
-            , show (testnetMagicToNatural testnetMagic)
+            , show (testnetMagicToNatural cfgTestnetMagic)
             , "--cardano-mode"
             ]
