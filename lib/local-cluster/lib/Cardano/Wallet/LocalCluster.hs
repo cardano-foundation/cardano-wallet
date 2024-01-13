@@ -217,10 +217,11 @@ main = withUtf8 $ do
                 , cfgClusterConfigs = clusterConfigsDir
                 , cfgTestnetMagic = Cluster.TestnetMagic 42
                 , cfgShelleyGenesisMods = [ over #sgSlotLength \_ -> 0.2 ]
+                , cfgTracer = stdoutTextTracer
                 }
         maryAllegraFunds <- runFaucetM faucetClientEnv $
             Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
-        Cluster.withCluster stdoutTextTracer clusterCfg
+        Cluster.withCluster clusterCfg
             Cluster.FaucetFunds
             { pureAdaFunds = []
             , maryAllegraFunds

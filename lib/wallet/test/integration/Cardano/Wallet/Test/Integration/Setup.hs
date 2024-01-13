@@ -324,8 +324,9 @@ withServer ctx@TestingCtx{..} clusterConfigs faucetFunds dbDecorator onReady =
                         , cfgClusterConfigs = clusterConfigs
                         , cfgTestnetMagic = testnetMagic
                         , cfgShelleyGenesisMods = []
+                        , cfgTracer = tr'
                         }
-            withCluster tr' clusterConfig faucetFunds
+            withCluster clusterConfig faucetFunds
                 $ onClusterStart
                     ctx
                     (onReady (T.pack smashUrl))
@@ -433,6 +434,7 @@ setupContext
                     , cfgClusterConfigs = clusterConfigs
                     , cfgTestnetMagic = testnetMagic
                     , cfgShelleyGenesisMods = []
+                    , cfgTracer = tr'
                     }
 
         putMVar

@@ -3,8 +3,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.Launch.Cluster.CardanoCLI
-    ( cliConfig
-    , cliConfigNode
+    ( cliConfigNode
     , cliConfigBase
     , cli
     , cliLine

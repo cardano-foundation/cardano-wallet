@@ -10,6 +10,9 @@ where
 
 import Prelude
 
+import Cardano.BM.Tracer
+    ( Tracer
+    )
 import Cardano.Ledger.Api
     ( StandardCrypto
     )
@@ -20,7 +23,8 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.Logging
-    ( LogFileConfig
+    ( ClusterLog
+    , LogFileConfig
     )
 import Cardano.Wallet.Launch.Cluster.PoolRecipe
     ( PoolRecipe
@@ -56,4 +60,5 @@ data Config = Config
     -- ^ Testnet magic to use.
     , cfgShelleyGenesisMods :: [ShelleyGenesisModifier]
     -- ^ Shelley genesis modifications to apply.
+    , cfgTracer :: Tracer IO ClusterLog
     }

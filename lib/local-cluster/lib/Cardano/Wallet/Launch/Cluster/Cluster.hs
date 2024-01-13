@@ -49,8 +49,7 @@ import Control.Monad
     , replicateM_
     )
 import Control.Tracer
-    ( Tracer (..)
-    , traceWith
+    ( traceWith
     )
 import Data.Either
     ( isLeft
@@ -161,21 +160,20 @@ data FaucetFunds = FaucetFunds
 -- The onClusterStart actions are not guaranteed to use the same node.
 withCluster
     :: HasCallStack
-    => Tracer IO ClusterLog
-    -> Config
+    => Config
     -> FaucetFunds
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster tr config@Config{..} faucetFunds onClusterStart =
-    bracketTracer' tr "withCluster" $ do
+withCluster config@Config{..} faucetFunds onClusterStart =
+    bracketTracer' cfgTracer "withCluster" $ do
         let clusterDir = untag cfgClusterDir
-        withPoolMetadataServer tr clusterDir $ \metadataServer -> do
+        withPoolMetadataServer cfgTracer clusterDir $ \metadataServer -> do
             createDirectoryIfMissing True clusterDir
-            traceWith tr $ MsgStartingCluster clusterDir
+            traceWith cfgTracer $ MsgStartingCluster clusterDir
             resetGlobals
 
-            configuredPools <- configurePools tr config metadataServer cfgStakePools
+            configuredPools <- configurePools cfgTracer config metadataServer cfgStakePools
 
             addGenesisPools <- do
                 genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
@@ -227,7 +225,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                             runningPool0
                             $ \_poolNode ->
                                 withRelayNode
-                                    tr
+                                    cfgTracer
                                     cfgClusterDir
                                     cfgClusterConfigs
                                     relayNodeParams
@@ -242,7 +240,7 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
-        moveInstantaneousRewardsTo tr config conn mirCredentials
+        moveInstantaneousRewardsTo cfgTracer config conn mirCredentials
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -256,18 +254,18 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
-        sendFaucetAssetsTo tr config conn 20 maryAllegraFunds
+        sendFaucetAssetsTo cfgTracer config conn 20 maryAllegraFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
-        (rawTx, faucetPrv) <- prepareKeyRegistration tr config
+        (rawTx, faucetPrv) <- prepareKeyRegistration cfgTracer config
         tx <-
             signTx
-                tr
+                cfgTracer
                 cfgTestnetMagic
                 (retag @"cluster" @_ @"output" cfgClusterDir)
                 (retag @"reg-tx" @_ @"tx-body" rawTx)
                 [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
-        submitTx tr cfgTestnetMagic conn "pre-registered stake key" tx
+        submitTx cfgTracer cfgTestnetMagic conn "pre-registered stake key" tx
 
     -- \| Actually spin up the pools.
     launchPools
@@ -289,13 +287,13 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
         let poolCount = length configuredPools
 
         let waitAll = do
-                traceWith tr
+                traceWith cfgTracer
                     $ MsgDebug "waiting for stake pools to register"
                 replicateM poolCount (readChan waitGroup)
 
         let onException :: SomeException -> IO ()
             onException e = do
-                traceWith tr
+                traceWith cfgTracer
                     $ MsgDebug
                     $ "exception while starting pool: "
                         <> T.pack (show e)
@@ -316,11 +314,11 @@ withCluster tr config@Config{..} faucetFunds onClusterStart =
                         readChan doneGroup
         mapM_ link asyncs
         let cancelAll = do
-                traceWith tr $ MsgDebug "stopping all stake pools"
+                traceWith cfgTracer $ MsgDebug "stopping all stake pools"
                 replicateM_ poolCount (writeChan doneGroup ())
                 mapM_ wait asyncs
 
-        traceWith tr $ MsgRegisteringStakePools poolCount
+        traceWith cfgTracer $ MsgRegisteringStakePools poolCount
         group <- waitAll
         if length (filter isRight group) /= poolCount
             then do
