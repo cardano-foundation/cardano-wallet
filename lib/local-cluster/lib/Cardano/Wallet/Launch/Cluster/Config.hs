@@ -23,7 +23,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog
+    ( ClusterLog (..)
     , LogFileConfig
     )
 import Cardano.Wallet.Launch.Cluster.PoolRecipe

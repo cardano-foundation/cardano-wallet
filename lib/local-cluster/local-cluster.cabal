@@ -36,6 +36,7 @@ library
     Cardano.Wallet.Launch.Cluster.ClusterEra
     Cardano.Wallet.Launch.Cluster.Config
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
+    Cardano.Wallet.Launch.Cluster.ClusterM
     Cardano.Wallet.Launch.Cluster.Faucet
     Cardano.Wallet.Launch.Cluster.GenesisFiles
     Cardano.Wallet.Launch.Cluster.InstantaneousRewards
@@ -103,6 +104,7 @@ library
     , iohk-monitoring-extra
     , lens                               ^>=5.1.1
     , memory                             ^>=0.18
+    , mtl
     , OddWord                            ^>=1.0.1
     , optparse-applicative
     , ouroboros-network                  ^>=0.8.1
