@@ -18,6 +18,9 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
     , cliConfigNode
     , cliRetry
     )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( clusterEraToString
+    )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , TestnetMagic (testnetMagicToNatural)
@@ -47,7 +50,8 @@ signTx
 signTx Config{..} outputDir rawTx keys = do
     file <- emptyTempFile (untag outputDir) "tx-signed.json"
     cli cfgTracer
-        $ [ "transaction"
+        $ [ clusterEraToString cfgLastHardFork
+          , "transaction"
           , "sign"
           , "--tx-body-file"
           , untag rawTx
@@ -71,7 +75,8 @@ submitTx Config{..} conn name signedTx =
         =<< cliConfigNode
             cfgTracer
             conn
-            [ "transaction"
+            [ clusterEraToString cfgLastHardFork
+            , "transaction"
             , "submit"
             , "--tx-file"
             , untag signedTx
