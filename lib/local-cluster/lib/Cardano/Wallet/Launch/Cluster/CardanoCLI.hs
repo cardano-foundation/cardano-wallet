@@ -8,7 +8,6 @@ module Cardano.Wallet.Launch.Cluster.CardanoCLI
     , cli
     , cliLine
     , cliRetry
-    , cliEraFlag
     )
 where
 
@@ -24,10 +23,6 @@ import Cardano.Launcher
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     , nodeSocketFile
-    )
-import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra
-    , clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgCLI, MsgCLIRetry, MsgCLIRetryResult, MsgCLIStatus)
@@ -109,9 +104,6 @@ cliLine :: Tracer IO ClusterLog -> [String] -> IO String
 cliLine tr =
     cliConfig tr
         >=> fmap (BL8.unpack . getFirstLine) . readProcessStdoutOrFail
-
-cliEraFlag :: ClusterEra -> String
-cliEraFlag era = "--" ++ clusterEraToString era ++ "-era"
 
 readProcessStdoutOrFail :: ProcessConfig () () () -> IO BL.ByteString
 readProcessStdoutOrFail processConfig = do

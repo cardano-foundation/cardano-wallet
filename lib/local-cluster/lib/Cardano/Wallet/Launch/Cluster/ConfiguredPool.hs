@@ -43,10 +43,10 @@ import Cardano.Ledger.Shelley.API
     )
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
-    , cliEraFlag
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra
+    , clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -363,9 +363,9 @@ preparePoolRetirement tr poolDir setupDir era certs = do
     let file = untag poolDir </> "tx.raw"
     (faucetInput, faucetPrv) <- takeFaucet setupDir
     cli tr
-        $ [ "transaction"
+        $ [ clusterEraToString era
+          , "transaction"
           , "build-raw"
-          , cliEraFlag era
           , "--tx-in"
           , untag faucetInput
           , "--ttl"

@@ -12,7 +12,9 @@ import Prelude
 
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
-    , cliEraFlag
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -71,9 +73,9 @@ prepareKeyRegistration tr Config{..} = do
     sink <- genSinkAddress tr cfgTestnetMagic outputDir Nothing
     cli
         tr
-        [ "transaction"
+        [ clusterEraToString cfgLastHardFork
+        , "transaction"
         , "build-raw"
-        , cliEraFlag cfgLastHardFork
         , "--tx-in"
         , untag faucetInput
         , "--tx-out"

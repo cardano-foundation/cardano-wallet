@@ -28,10 +28,10 @@ import Cardano.Launcher.Node
     )
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
-    , cliEraFlag
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)
+    , clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -312,9 +312,9 @@ sendFaucet tr config conn what targets = do
             $ writeMonetaryPolicyScriptFile outputDir
 
     cli tr
-        $ [ "transaction"
+        $ [ clusterEraToString $ cfgLastHardFork config
+          , "transaction"
           , "build-raw"
-          , cliEraFlag (cfgLastHardFork config)
           , "--tx-in"
           , untag faucetInput
           , "--ttl"

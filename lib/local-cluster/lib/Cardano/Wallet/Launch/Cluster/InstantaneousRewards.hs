@@ -21,8 +21,10 @@ import Cardano.Launcher.Node
     )
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
-    , cliEraFlag
     , cliLine
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (cfgClusterConfigs, cfgClusterDir, cfgLastHardFork, cfgTestnetMagic)
@@ -120,9 +122,9 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
         Nothing -- stake pub
 
     cli tr
-        $ [ "transaction"
+        $ [ clusterEraToString (cfgLastHardFork config)
+          , "transaction"
           , "build-raw"
-          , cliEraFlag (cfgLastHardFork config)
           , "--tx-in"
           , untag faucetInput
           , "--ttl"
