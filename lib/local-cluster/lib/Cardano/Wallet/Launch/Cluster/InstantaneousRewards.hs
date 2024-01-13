@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.InstantaneousRewards
@@ -27,16 +28,13 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( Config (cfgClusterConfigs, cfgClusterDir, cfgLastHardFork, cfgTestnetMagic)
+    ( Config (..)
     , TestnetMagic (testnetMagicToNatural)
     )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( depositAmt
     , faucetAmt
     , takeFaucet
-    )
-import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog (..)
     )
 import Cardano.Wallet.Launch.Cluster.SinkAddress
     ( genSinkAddress
@@ -58,9 +56,6 @@ import Cardano.Wallet.Util
 import Control.Monad
     ( unless
     , when
-    )
-import Control.Tracer
-    ( Tracer (..)
     )
 import Data.Aeson
     ( (.=)
@@ -97,16 +92,15 @@ data Credential
 
 moveInstantaneousRewardsTo
     :: HasCallStack
-    => Tracer IO ClusterLog
-    -> Config
+    => Config
     -> CardanoNodeConn
     -> [(Credential, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
-    let clusterDir = cfgClusterDir config
-    let clusterConfigs = cfgClusterConfigs config
+moveInstantaneousRewardsTo config@Config{..} conn targets = unless (null targets) $ do
+    let clusterDir = cfgClusterDir
+    let clusterConfigs = cfgClusterConfigs
     let outputDir = retag @"cluster" @_ @"output" clusterDir
-    certs <- mapM (mkCredentialCerts outputDir (cfgTestnetMagic config)) targets
+    certs <- mapM (mkCredentialCerts outputDir cfgTestnetMagic ) targets
     (faucetInput, faucetPrv) <- takeFaucet clusterConfigs
     let txFile = untag clusterDir </> "mir-tx.raw"
 
@@ -116,13 +110,12 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
         error "moveInstantaneousRewardsTo: too much to pay"
 
     sink <- genSinkAddress
-        tr
-        (cfgTestnetMagic config)
+        config
         (retag @"cluster" @_ @"output" clusterDir)
         Nothing -- stake pub
 
-    cli tr
-        $ [ clusterEraToString (cfgLastHardFork config)
+    cli cfgTracer
+        $ [ clusterEraToString cfgLastHardFork
           , "transaction"
           , "build-raw"
           , "--tx-in"
@@ -165,7 +158,7 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
             (prefix, vkFile) <- mkVerificationKey xpub
             stakeAddr <-
                 cliLine
-                    tr
+                    cfgTracer
                     [ "stake-address"
                     , "build"
                     , "--testnet-magic"
@@ -174,14 +167,14 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
                     , vkFile
                     ]
             stakeCert <-
-                issueStakeVkCert tr outputDir prefix (Tagged @"stake-pub" vkFile)
+                issueStakeVkCert cfgTracer outputDir prefix (Tagged @"stake-pub" vkFile)
             mirCert <- mkMIRCertificate (stakeAddr, coin)
             pure [retag stakeCert, retag mirCert]
         (ScriptCredential script, coin) -> do
             (prefix, scriptFile) <- mkScript script
             stakeAddr <-
                cliLine
-                    tr
+                    cfgTracer
                     [ "stake-address"
                     , "build"
                     , "--testnet-magic"
@@ -189,7 +182,7 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
                     , "--stake-script-file"
                     , scriptFile
                     ]
-            stakeCert <- issueStakeScriptCert tr outputDir prefix scriptFile
+            stakeCert <- issueStakeScriptCert cfgTracer outputDir prefix scriptFile
             mirCert <- mkMIRCertificate (stakeAddr, coin)
             pure [retag stakeCert, retag mirCert]
 
@@ -204,7 +197,7 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
                     , "description" .= Aeson.String "Stake Verification Key"
                     , "cborHex" .= Aeson.String ("5820" <> T.pack base16)
                     ]
-        let file = untag (cfgClusterDir config) </> base16 <> ".vk"
+        let file = untag cfgClusterDir </> base16 <> ".vk"
         BL8.writeFile file (Aeson.encode json)
         pure (Tagged base16, file)
 
@@ -220,15 +213,15 @@ moveInstantaneousRewardsTo tr config conn targets = unless (null targets) $ do
                     , "cborHex" .= Aeson.String base16
                     ]
         let prefix = take 100 (T.unpack base16)
-        let file = untag (cfgClusterDir config) </> prefix <> ".plutus"
+        let file = untag cfgClusterDir </> prefix <> ".plutus"
         BL8.writeFile file (Aeson.encode json)
         pure (Tagged prefix, file)
 
     mkMIRCertificate :: (String, Coin) -> IO (Tagged "mir-cert" FilePath)
     mkMIRCertificate (stakeAddr, Coin reward) = do
-        let mirCert = untag (cfgClusterDir config) </> stakeAddr <> ".mir"
+        let mirCert = untag cfgClusterDir </> stakeAddr <> ".mir"
         cli
-            tr
+            cfgTracer
             [ "governance"
             , "create-mir-certificate"
             , "--reserves"

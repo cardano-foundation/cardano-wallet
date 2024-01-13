@@ -326,8 +326,9 @@ withTestNode tr action = do
                     , cfgClusterConfigs
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = []
+                    , cfgTracer = tr
                     }
-            withCluster tr clusterConfig (FaucetFunds [] [] []) $
+            withCluster clusterConfig (FaucetFunds [] [] []) $
                 \(RunningNode sock genesisData vData) -> do
                     let (np, _, _ ) = fromGenesisData genesisData
                     action np sock vData

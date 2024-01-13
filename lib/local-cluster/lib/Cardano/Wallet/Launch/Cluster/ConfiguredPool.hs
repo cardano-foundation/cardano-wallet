@@ -166,13 +166,12 @@ data ConfiguredPool = ConfiguredPool
     }
 
 configurePools
-    :: Tracer IO ClusterLog
-    -> Config
+    :: Config
     -> PoolMetadataServer
     -> NonEmpty PoolRecipe
     -> IO (NonEmpty ConfiguredPool)
-configurePools tr config metadataServer =
-    traverse (configurePool tr config metadataServer)
+configurePools config metadataServer =
+    traverse (configurePool config metadataServer)
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair
@@ -402,12 +401,11 @@ issuePoolRetirementCert tr poolDir opPub retirementEpoch = do
 
 configurePool
     :: HasCallStack
-    => Tracer IO ClusterLog
-    -> Config
+    => Config
     -> PoolMetadataServer
     -> PoolRecipe
     -> IO ConfiguredPool
-configurePool tr config@Config{..} metadataServer recipe = do
+configurePool config@Config{..} metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
     -- Use pool-specific dir
@@ -417,13 +415,13 @@ configurePool tr config@Config{..} metadataServer recipe = do
     createDirectoryIfMissing False (untag poolDir)
 
     -- Generate/assign keys
-    (vrfPrv, vrfPub) <- genVrfKeyPair tr poolDir
-    (kesPrv, kesPub) <- genKesKeyPair tr poolDir
-    (opPrv, opPub, opCount) <- writeOperatorKeyPair tr poolDir recipe
-    opCert <- issueOpCert tr poolDir kesPub opPrv opCount
+    (vrfPrv, vrfPub) <- genVrfKeyPair cfgTracer poolDir
+    (kesPrv, kesPub) <- genKesKeyPair cfgTracer poolDir
+    (opPrv, opPub, opCount) <- writeOperatorKeyPair cfgTracer poolDir recipe
+    opCert <- issueOpCert cfgTracer poolDir kesPub opPrv opCount
     let ownerPub = Tagged @"stake-pub" $ untag poolDir </> "stake.pub"
     let ownerPrv = Tagged @"stake-prv" $ untag poolDir </> "stake.prv"
-    genStakeAddrKeyPair tr (ownerPrv, ownerPub)
+    genStakeAddrKeyPair cfgTracer (ownerPrv, ownerPub)
 
     let metadataURL = urlFromPoolIndex metadataServer i
     registerMetadataForPoolIndex metadataServer i metadata
@@ -439,7 +437,7 @@ configurePool tr config@Config{..} metadataServer recipe = do
                 topology <-
                     genTopology (retag @"pool" @_ @"output" poolDir) peers
                 withStaticServer (untag poolDir) $ \url -> do
-                    traceWith tr $ MsgStartedStaticServer (untag poolDir) url
+                    traceWith cfgTracer $ MsgStartedStaticServer (untag poolDir) url
 
                     (nodeConfig, genesisData, vd) <-
                         genNodeConfig
@@ -466,7 +464,7 @@ configurePool tr config@Config{..} metadataServer recipe = do
                                 , nodeExecutable = Nothing
                                 }
 
-                    withCardanoNodeProcess tr name cfg $ \socket -> do
+                    withCardanoNodeProcess cfgTracer name cfg $ \socket -> do
                         action $ RunningNode socket genesisData vd
             , registerViaShelleyGenesis = do
                 poolId <- stakePoolIdFromOperatorVerKey opPub
@@ -519,10 +517,10 @@ configurePool tr config@Config{..} metadataServer recipe = do
                 -- @registerViaTx@, but this seems to work regardless. (We
                 -- do want to submit it here for the sake of babbage)
                 let retire e = do
-                        retCert <- issuePoolRetirementCert tr poolDir opPub e
+                        retCert <- issuePoolRetirementCert cfgTracer poolDir opPub e
                         (rawTx, faucetPrv) <-
                             preparePoolRetirement
-                                tr
+                                cfgTracer
                                 poolDir
                                 cfgClusterConfigs
                                 cfgLastHardFork

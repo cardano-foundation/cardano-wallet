@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Launch.Cluster.SinkAddress
     ( genSinkAddress
@@ -7,18 +8,13 @@ where
 
 import Prelude
 
-import Cardano.BM.Tracer
-    ( Tracer
-    )
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     , cliLine
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( TestnetMagic (testnetMagicToNatural)
-    )
-import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog
+    ( Config (..)
+    , TestnetMagic (testnetMagicToNatural)
     )
 import Data.Tagged
     ( Tagged
@@ -29,18 +25,17 @@ import System.FilePath
     )
 
 genSinkAddress
-    :: Tracer IO ClusterLog
-    -> TestnetMagic
+    :: Config
     -> Tagged "output" FilePath
     -- ^ Directory to put keys
     -> Maybe (Tagged "stake-pub" FilePath)
     -- ^ Stake pub
     -> IO String
-genSinkAddress tr testnetMagic outputDir stakePub = do
+genSinkAddress Config{..} outputDir stakePub = do
     let sinkPrv = untag outputDir </> "sink.prv"
     let sinkPub = untag outputDir </> "sink.pub"
     cli
-        tr
+        cfgTracer
         [ "address"
         , "key-gen"
         , "--signing-key-file"
@@ -48,11 +43,11 @@ genSinkAddress tr testnetMagic outputDir stakePub = do
         , "--verification-key-file"
         , sinkPub
         ]
-    cliLine tr
+    cliLine cfgTracer
         $ [ "address"
           , "build"
           , "--testnet-magic"
-          , show (testnetMagicToNatural testnetMagic)
+          , show (testnetMagicToNatural cfgTestnetMagic)
           , "--payment-verification-key-file"
           , sinkPub
           ]

@@ -20,9 +20,6 @@ import Prelude
 import Cardano.Address
     ( Address
     )
-import Cardano.BM.Tracer
-    ( Tracer
-    )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
@@ -35,9 +32,6 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
-    )
-import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog
     )
 import Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
     ( writeMonetaryPolicyScriptFile
@@ -235,13 +229,12 @@ batch s xs = forM_ (group s xs)
         | otherwise = error "Negative or zero n"
 
 sendFaucetFundsTo
-    :: Tracer IO ClusterLog
-    -> Config
+    :: Config
     -> CardanoNodeConn
     -> [(Address, Coin)]
     -> IO ()
-sendFaucetFundsTo tr config conn targets =
-    batch 80 targets $ sendFaucet tr config conn "ada" . map coinBundle
+sendFaucetFundsTo config conn targets =
+    batch 80 targets $ sendFaucet config conn "ada" . map coinBundle
   where
     coinBundle :: (any, Coin) -> (any, (TokenBundle, [a]))
     coinBundle = fmap (\c -> (TokenBundle.fromCoin c, []))
@@ -252,32 +245,30 @@ sendFaucetFundsTo tr config conn targets =
 -- @(signing key, verification key hash)@ pairs needed to sign the
 -- minting transaction.
 sendFaucetAssetsTo
-    :: Tracer IO ClusterLog
-    -> Config
+    :: Config
     -> CardanoNodeConn
     -> Int
     -- ^ batch size
     -> [(Address, (TokenBundle, [(String, String)]))]
     -- ^ (address, assets)
     -> IO ()
-sendFaucetAssetsTo tr config conn batchSize targets =
+sendFaucetAssetsTo config conn batchSize targets =
     when (cfgLastHardFork config >= MaryHardFork)
         $ batch batchSize targets
-        $ sendFaucet tr config conn "assets"
+        $ sendFaucet config conn "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
 -- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and
 -- 'sendFaucetAssetsTo'.
 sendFaucet
     :: HasCallStack
-    => Tracer IO ClusterLog
-    -> Config
+    => Config
     -> CardanoNodeConn
     -> String
     -- ^ label for logging
     -> [(Address, (TokenBundle, [(String, String)]))]
     -> IO ()
-sendFaucet tr config conn what targets = do
+sendFaucet config conn what targets = do
     let clusterDir = cfgClusterDir config
     (faucetInput, faucetPrv) <- takeFaucet (cfgClusterConfigs config)
     let file = untag clusterDir </> "faucet-tx.raw"
@@ -311,8 +302,8 @@ sendFaucet tr config conn what targets = do
         forM (nub $ concatMap (map snd . snd . snd) targets)
             $ writeMonetaryPolicyScriptFile outputDir
 
-    cli tr
-        $ [ clusterEraToString $ cfgLastHardFork config
+    cli (cfgTracer config)
+        $ [ clusterEraToString (cfgLastHardFork config)
           , "transaction"
           , "build-raw"
           , "--tx-in"

@@ -606,7 +606,6 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                 Cluster.logFileConfigFromEnv
                     (Just (Cluster.clusterEraToString clusterEra))
             withCluster
-                stdoutTextTracer
                 Cluster.Config
                     { cfgStakePools = pure (NE.head defaultPoolConfigs)
                     , cfgLastHardFork = clusterEra
@@ -621,6 +620,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                         , over #sgSecurityParam (const 100)
                         -- when it low then cluster is not making blocks;
                         ]
+                    , cfgTracer = stdoutTextTracer
                     }
                 faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)

@@ -173,7 +173,7 @@ withCluster config@Config{..} faucetFunds onClusterStart =
             traceWith cfgTracer $ MsgStartingCluster clusterDir
             resetGlobals
 
-            configuredPools <- configurePools cfgTracer config metadataServer cfgStakePools
+            configuredPools <- configurePools config metadataServer cfgStakePools
 
             addGenesisPools <- do
                 genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
@@ -240,7 +240,7 @@ withCluster config@Config{..} faucetFunds onClusterStart =
         let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
-        moveInstantaneousRewardsTo cfgTracer config conn mirCredentials
+        moveInstantaneousRewardsTo config conn mirCredentials
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -254,10 +254,10 @@ withCluster config@Config{..} faucetFunds onClusterStart =
         forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
-        sendFaucetAssetsTo cfgTracer config conn 20 maryAllegraFunds
+        sendFaucetAssetsTo config conn 20 maryAllegraFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
-        (rawTx, faucetPrv) <- prepareKeyRegistration cfgTracer config
+        (rawTx, faucetPrv) <- prepareKeyRegistration config
         tx <-
             signTx
                 config

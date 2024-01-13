@@ -452,14 +452,12 @@ setupContext
                 , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                     withMVar mintSeaHorseAssetsLock $ \() ->
                         sendFaucetAssetsTo
-                            tr'
                             config
                             nodeConnection
                             batchSize
                             (Faucet.seaHorseTestAssets nPerAddr c addrs)
                 , _moveRewardsToScript = \(script, coin) ->
                     moveInstantaneousRewardsTo
-                        tr'
                         config
                         nodeConnection
                         [(ScriptCredential script, coin)]
