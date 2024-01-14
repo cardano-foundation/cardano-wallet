@@ -1,12 +1,14 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM (..)
     , traceClusterLog
     , runClusterM
-    , askRunner
+    , UnliftClusterM (..)
+    , askUnliftClusterM
     , bracketTracer'
     )
 where
@@ -40,7 +42,7 @@ import Data.Text
     )
 
 newtype ClusterM a = ClusterM
-    { unClusterM :: ReaderT Config IO a}
+    {unClusterM :: ReaderT Config IO a}
     deriving newtype
         ( Functor
         , Applicative
@@ -59,13 +61,16 @@ traceClusterLog msg = do
 runClusterM :: Config -> ClusterM a -> IO a
 runClusterM cfg = flip runReaderT cfg . unClusterM
 
-askRunner :: ClusterM (Config, ClusterM a -> IO a)
-askRunner = do
+data UnliftClusterM = UnliftClusterM (forall a. ClusterM a -> IO a) Config
+
+askUnliftClusterM :: ClusterM UnliftClusterM
+askUnliftClusterM = do
     cfg <- ask
-    return (cfg, runClusterM cfg)
+    pure $ UnliftClusterM (runClusterM cfg) cfg
 
 bracketTracer' :: Text -> ClusterM a -> ClusterM a
 bracketTracer' name f = do
-    config@Config{..} <- ask
-    liftIO $ bracketTracer (contramap (MsgBracket name) cfgTracer) $ do
-        runClusterM config f
+    UnliftClusterM withConfig Config{..} <- askUnliftClusterM
+    liftIO
+        $ bracketTracer (contramap (MsgBracket name) cfgTracer)
+        $ withConfig f

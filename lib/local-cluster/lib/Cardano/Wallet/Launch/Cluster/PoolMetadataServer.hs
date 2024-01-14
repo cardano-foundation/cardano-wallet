@@ -12,7 +12,8 @@ import Cardano.BM.Tracing
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
-    , runClusterM
+    , UnliftClusterM (UnliftClusterM)
+    , askUnliftClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -22,7 +23,6 @@ import Cardano.Wallet.Launch.Cluster.Logging
     )
 import Control.Monad.Reader
     ( MonadIO (..)
-    , MonadReader (..)
     )
 import Crypto.Hash.Extra
     ( blake2b256
@@ -58,13 +58,13 @@ withPoolMetadataServer
     :: (PoolMetadataServer -> ClusterM a)
     -> ClusterM a
 withPoolMetadataServer action = do
-    config@Config{..} <- ask
+    UnliftClusterM withConfig Config{..} <- askUnliftClusterM
     let metadir = untag cfgClusterDir </> "pool-metadata"
     liftIO $ do
         createDirectoryIfMissing False metadir
         withStaticServer metadir $ \baseURL -> do
             let _urlFromPoolIndex i = baseURL </> metadataFileName i
-            runClusterM config $ action PoolMetadataServer
+            withConfig $ action PoolMetadataServer
                 { registerMetadataForPoolIndex = \i metadata -> do
                     let metadataBytes = Aeson.encode metadata
                     BL8.writeFile (metadir </> (metadataFileName i)) metadataBytes

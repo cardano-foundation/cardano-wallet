@@ -53,8 +53,8 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
-    , askRunner
-    , runClusterM
+    , UnliftClusterM (..)
+    , askUnliftClusterM
     , traceClusterLog
     )
 import Cardano.Wallet.Launch.Cluster.Config
@@ -406,10 +406,10 @@ configurePool
     => PoolMetadataServer
     -> PoolRecipe
     -> ClusterM ConfiguredPool
-configurePool  metadataServer recipe = do
+configurePool metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
-    (config@Config{..}, withConfig) <- askRunner
+    UnliftClusterM withConfig Config{..} <- askUnliftClusterM
     -- Use pool-specific dir
     let name = "pool-" <> show i
     let poolDir :: Tagged "pool" FilePath
@@ -440,8 +440,8 @@ configurePool  metadataServer recipe = do
                     traceWith cfgTracer $ MsgStartedStaticServer (untag poolDir) url
 
                     (nodeConfig, genesisData, vd) <-
-                        runClusterM config $
-                            genNodeConfig
+                        withConfig
+                            $ genNodeConfig
                                 (retag @"pool" @_ @"output" poolDir)
                                 (Tagged @"node-name" mempty)
                                 genesisFiles
@@ -464,9 +464,10 @@ configurePool  metadataServer recipe = do
                                 , nodeExecutable = Nothing
                                 }
 
-                    runClusterM config $ withCardanoNodeProcess name cfg
+                    withConfig
+                        $ withCardanoNodeProcess name cfg
                         $ \socket -> action $ RunningNode socket genesisData vd
-            , registerViaShelleyGenesis = runClusterM config $ do
+            , registerViaShelleyGenesis = withConfig $ do
                 poolId <- stakePoolIdFromOperatorVerKey opPub
                 vrf <- poolVrfFromFile vrfPub
                 stakePubHash <- stakingKeyHashFromFile ownerPub
@@ -532,7 +533,7 @@ configurePool  metadataServer recipe = do
                             ]
                             "retirement cert"
 
-                runClusterM config $ traverse_ retire mretirementEpoch
+                withConfig $ traverse_ retire mretirementEpoch
             , metadataUrl = T.pack metadataURL
             , recipe = recipe
             }
