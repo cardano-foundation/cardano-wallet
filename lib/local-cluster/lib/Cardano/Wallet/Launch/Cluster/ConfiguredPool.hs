@@ -54,11 +54,13 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     , UnliftClusterM (..)
+    , askNodeDir
     , askUnliftClusterM
     , traceClusterLog
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
+    , NodeSegment (..)
     )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( faucetAmt
@@ -190,11 +192,10 @@ configurePools metadataServer =
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair
-    :: String
+    :: NodeSegment
     -> ClusterM (Tagged "kes-prv" FilePath, Tagged "kes-pub" FilePath)
-genKesKeyPair name = do
-    Config{..} <- ask
-    let poolDir =  untag cfgClusterDir </> name
+genKesKeyPair nodeSegment = do
+    poolDir <- askNodeDir nodeSegment
     let kesPrv = Tagged @"kes-prv" $ poolDir </> "kes.prv"
     let kesPub = Tagged @"kes-pub" $ poolDir </> "kes.pub"
     cli
@@ -209,11 +210,10 @@ genKesKeyPair name = do
 
 -- | Create a key pair for a node VRF operational key
 genVrfKeyPair
-    :: String
+    :: NodeSegment
     -> ClusterM (Tagged "vrf-prv" FilePath, Tagged "vrf-pub" FilePath)
-genVrfKeyPair name = do
-    Config{..} <- ask
-    let poolDir =  untag cfgClusterDir </> name
+genVrfKeyPair nodeSegment = do
+    poolDir <- askNodeDir nodeSegment
     let vrfPrv = Tagged @"vrf-prv" $ poolDir </> "vrf.prv"
     let vrfPub = Tagged @"vrf-pub" $ poolDir </> "vrf.pub"
     cli
@@ -229,17 +229,16 @@ genVrfKeyPair name = do
 -- | Write a key pair for a node operator's offline key and a new certificate
 -- issue counter
 writeOperatorKeyPair
-    :: String
+    :: NodeSegment
     -> PoolRecipe
     -> ClusterM
         ( Tagged "op-prv" FilePath
         , Tagged "op-pub" FilePath
         , Tagged "op-cnt" FilePath
         )
-writeOperatorKeyPair name recipe = do
-    Config{..} <- ask
+writeOperatorKeyPair nodeSegment recipe = do
+    poolDir <- askNodeDir nodeSegment
     let (_pId, pub, prv, count) = operatorKeys recipe
-    let poolDir = untag cfgClusterDir </> name
     traceClusterLog $ MsgGenOperatorKeyPair poolDir
 
     let opPub = poolDir </> "op.pub"
@@ -259,14 +258,13 @@ writeOperatorKeyPair name recipe = do
 
 -- | Issue a node operational certificate
 issueOpCert
-    :: String
+    :: NodeSegment
     -> Tagged "kes-pub" FilePath
     -> Tagged "op-prv" FilePath
     -> Tagged "op-cnt" FilePath
     -> ClusterM FilePath
-issueOpCert name kesPub opPrv opCount = do
-    Config{..} <- ask
-    let nodeDir = untag cfgClusterDir </> name
+issueOpCert nodeSegment kesPub opPrv opCount = do
+    nodeDir <- askNodeDir nodeSegment
     let file = nodeDir </> "op.cert"
     cli
         [ "node"
@@ -366,12 +364,12 @@ stakingAddrFromVkFile stakePub = do
             (Ledger.StakeRefBase (Ledger.KeyHashObj delegKH))
 
 preparePoolRetirement
-    :: String
+    :: NodeSegment
     -> [Tagged "retirement-cert" FilePath]
     -> ClusterM (Tagged "retirement-tx" FilePath, Tagged "faucet-prv" FilePath)
-preparePoolRetirement name certs = do
+preparePoolRetirement nodeSegment certs = do
     Config{..} <- ask
-    let poolDir = untag cfgClusterDir </> name
+    poolDir <- askNodeDir nodeSegment
     let file = poolDir </> "tx.raw"
     (faucetInput, faucetPrv) <- takeFaucet
     cli
@@ -392,13 +390,12 @@ preparePoolRetirement name certs = do
     pure (Tagged file, faucetPrv)
 
 issuePoolRetirementCert
-    :: String
+    :: NodeSegment
     -> Tagged "op-pub" FilePath
     -> Word31
     -> ClusterM (Tagged "retirement-cert" FilePath)
-issuePoolRetirementCert name opPub retirementEpoch = do
-    Config{..} <- ask
-    let poolDir = untag cfgClusterDir </> name
+issuePoolRetirementCert nodeSegment opPub retirementEpoch = do
+    poolDir <- askNodeDir nodeSegment
     let file = poolDir </> "pool-retirement.cert"
     cli
         [ "stake-pool"
@@ -423,14 +420,15 @@ configurePool metadataServer recipe = do
     UnliftClusterM withConfig Config{..} <- askUnliftClusterM
     -- Use pool-specific dir
     let name = "pool-" <> show i
-    let poolDir = untag cfgClusterDir </> name
+    let nodeSegment = NodeSegment name
+    poolDir <- askNodeDir nodeSegment
     liftIO $ createDirectoryIfMissing False poolDir
 
     -- Generate/assign keys
-    (vrfPrv, vrfPub) <- genVrfKeyPair name
-    (kesPrv, kesPub) <- genKesKeyPair name
-    (opPrv, opPub, opCount) <- writeOperatorKeyPair name recipe
-    opCert <- issueOpCert name kesPub opPrv opCount
+    (vrfPrv, vrfPub) <- genVrfKeyPair nodeSegment
+    (kesPrv, kesPub) <- genKesKeyPair nodeSegment
+    (opPrv, opPub, opCount) <- writeOperatorKeyPair nodeSegment recipe
+    opCert <- issueOpCert nodeSegment kesPub opPrv opCount
     let ownerPub = Tagged @"stake-pub" $ poolDir </> "stake.pub"
     let ownerPrv = Tagged @"stake-prv" $ poolDir </> "stake.prv"
     genStakeAddrKeyPair (ownerPrv, ownerPub)
@@ -445,14 +443,14 @@ configurePool metadataServer recipe = do
                         nodeParams
                 let logCfg' = setLoggingName name logCfg
 
-                topology <- withConfig $ genTopology name peers
+                topology <- withConfig $ genTopology nodeSegment peers
                 withStaticServer poolDir $ \url -> do
                     traceWith cfgTracer $ MsgStartedStaticServer poolDir url
 
                     (nodeConfig, genesisData, vd) <-
                         withConfig
                             $ genNodeConfig
-                                name
+                                nodeSegment
                                 (Tagged @"node-name" mempty)
                                 genesisFiles
                                 hardForks
@@ -528,10 +526,10 @@ configurePool metadataServer recipe = do
                 -- @registerViaTx@, but this seems to work regardless. (We
                 -- do want to submit it here for the sake of babbage)
                 let retire e = do
-                        retCert <- issuePoolRetirementCert poolDir opPub e
+                        retCert <- issuePoolRetirementCert nodeSegment opPub e
                         (rawTx, faucetPrv) <-
                             preparePoolRetirement
-                                poolDir
+                                nodeSegment
                                 [retCert]
                         signAndSubmitTx
                             socket

@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
+    , NodeSegment (..)
     )
 where
 
@@ -62,3 +64,7 @@ data Config = Config
     -- ^ Shelley genesis modifications to apply.
     , cfgTracer :: Tracer IO ClusterLog
     }
+
+newtype NodeSegment = NodeSegment FilePath
+    deriving stock (Show)
+    deriving newtype (Eq, Ord)

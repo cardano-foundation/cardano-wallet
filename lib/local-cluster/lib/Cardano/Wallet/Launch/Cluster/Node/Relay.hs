@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -17,10 +16,11 @@ import Cardano.Launcher.Node
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
+    , askNodeDir
     , bracketTracer'
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( Config (..)
+    ( NodeSegment (..)
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( setLoggingName
@@ -42,7 +42,6 @@ import Cardano.Wallet.Launch.Cluster.Node.RunningNode
     )
 import Control.Monad.Reader
     ( MonadIO (..)
-    , MonadReader (..)
     )
 import Data.Tagged
     ( Tagged (Tagged)
@@ -50,9 +49,6 @@ import Data.Tagged
     )
 import System.Directory
     ( createDirectory
-    )
-import System.FilePath
-    ( (</>)
     )
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
@@ -72,9 +68,9 @@ withRelayNode
     -- ^ Callback function with socket path
     -> ClusterM a
 withRelayNode params onClusterStart = do
-    Config{..} <- ask
     let name = "node"
-    let nodeDir' = untag cfgClusterDir </> name
+    let nodeSegment = NodeSegment name
+    nodeDir' <- askNodeDir $ NodeSegment name
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
     bracketTracer' "withRelayNode" $ do
         liftIO $ createDirectory nodeDir'
@@ -82,10 +78,10 @@ withRelayNode params onClusterStart = do
         let logCfg' = setLoggingName name logCfg
         (config, genesisData, vd) <-
             genNodeConfig
-                name
+                nodeSegment
                 (Tagged @"node-name" "-relay")
                 genesisFiles hardForks logCfg'
-        topology <- genTopology name peers
+        topology <- genTopology nodeSegment peers
 
         let cfg =
                 CardanoNodeConfig

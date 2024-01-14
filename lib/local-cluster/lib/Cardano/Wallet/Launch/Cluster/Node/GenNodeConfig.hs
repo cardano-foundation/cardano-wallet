@@ -33,9 +33,11 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
+    , askNodeDir
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
+    , NodeSegment
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
     ( GenesisFiles (..)
@@ -79,7 +81,7 @@ import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
 genNodeConfig
-    :: String
+    :: NodeSegment
     -- ^ A top-level directory where to put the configuration.
     -> Tagged "node-name" String -- Node name
     -> GenesisFiles
@@ -93,9 +95,9 @@ genNodeConfig
         , ShelleyGenesis StandardCrypto
         , NodeToClientVersionData
         )
-genNodeConfig poolName name genesisFiles clusterEra logCfg = do
+genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
     Config{..} <- ask
-    let poolDir = untag cfgClusterDir </> poolName
+    poolDir <- askNodeDir nodeSegment
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let GenesisFiles
             { byronGenesis

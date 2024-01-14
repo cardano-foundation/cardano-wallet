@@ -10,6 +10,7 @@ module Cardano.Wallet.Launch.Cluster.ClusterM
     , UnliftClusterM (..)
     , askUnliftClusterM
     , bracketTracer'
+    , askNodeDir
     )
 where
 
@@ -20,6 +21,7 @@ import Cardano.BM.Extra
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
+    , NodeSegment (..)
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -37,8 +39,14 @@ import Control.Tracer
     ( contramap
     , traceWith
     )
+import Data.Tagged
+    ( untag
+    )
 import Data.Text
     ( Text
+    )
+import System.FilePath
+    ( (</>)
     )
 
 newtype ClusterM a = ClusterM
@@ -74,3 +82,8 @@ bracketTracer' name f = do
     liftIO
         $ bracketTracer (contramap (MsgBracket name) cfgTracer)
         $ withConfig f
+
+askNodeDir :: NodeSegment -> ClusterM FilePath
+askNodeDir (NodeSegment nodeSegment) = do
+    Config{..} <- ask
+    pure $ untag cfgClusterDir </> nodeSegment

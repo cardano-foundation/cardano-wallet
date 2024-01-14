@@ -11,20 +11,19 @@ import Prelude
 
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
+    , askNodeDir
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( Config (..)
+    ( NodeSegment
     )
 import Control.Monad.Reader
     ( MonadIO (..)
-    , MonadReader (..)
     )
 import Data.Aeson
     ( (.=)
     )
 import Data.Tagged
     ( Tagged (..)
-    , untag
     )
 import System.FilePath
     ( (</>)
@@ -34,12 +33,12 @@ import qualified Data.Aeson as Aeson
 
 -- | Generate a topology file from a list of peers.
 genTopology
-    :: String
+    :: NodeSegment
     -> [Int]
     -> ClusterM (Tagged "topology" FilePath)
-genTopology name peers = do
-    Config{..} <- ask
-    let file = untag cfgClusterDir </> name </> "node.topology"
+genTopology nodeSegment peers = do
+    nodeDir <- askNodeDir nodeSegment
+    let file = nodeDir </> "node.topology"
     liftIO
         $ Aeson.encodeFile file
         $ Aeson.object ["Producers" .= map encodePeer peers]
