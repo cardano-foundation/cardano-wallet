@@ -269,7 +269,6 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         (rawTx, faucetPrv) <- prepareKeyRegistration
         signAndSubmitTx
             conn
-            (changeFileOf @"cluster" @"output" cfgClusterDir)
             (changeFileOf @"reg-tx" @"tx-body" rawTx)
             [changeFileOf @"faucet-prv" @"signing-key" faucetPrv]
             "pre-registered stake key"

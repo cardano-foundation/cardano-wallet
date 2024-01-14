@@ -16,11 +16,17 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Control.Monad.Reader
+    ( asks
     )
 import Data.Aeson
     ( object
@@ -47,9 +53,9 @@ import qualified Data.Text as T
 -- | For creating test fixtures. Returns PolicyId, signing key, and verification
 -- key hash, all hex-encoded. Files are put in the given directory.
 genMonetaryPolicyScript
-    :: FileOf "output"
-    -> ClusterM (String, (String, String))
-genMonetaryPolicyScript outputDir = do
+    :: ClusterM (String, (String, String))
+genMonetaryPolicyScript = do
+    outputDir <- asks cfgClusterDir
     let policyPub = pathOf outputDir </> "policy.pub"
     let policyPrv = pathOf outputDir </> "policy.prv"
 
@@ -69,7 +75,7 @@ genMonetaryPolicyScript outputDir = do
             , "--payment-verification-key-file"
             , policyPub
             ]
-    script <- liftIO $ writeMonetaryPolicyScriptFile outputDir vkeyHash
+    script <- writeMonetaryPolicyScriptFile vkeyHash
     policyId <-
         cliLine
             [ "transaction"
@@ -81,15 +87,14 @@ genMonetaryPolicyScript outputDir = do
     pure (policyId, (skey, vkeyHash))
 
 writeMonetaryPolicyScriptFile
-    :: FileOf "output"
-    -- ^ Destination directory for script file
-    -> String
+    :: String
     -- ^ The script verification key hash
-    -> IO (FileOf "policy-script")
+    -> ClusterM (FileOf "policy-script")
     -- ^ Returns the filename written
-writeMonetaryPolicyScriptFile outputDir keyHash = do
+writeMonetaryPolicyScriptFile keyHash = do
+    outputDir <- asks cfgClusterDir
     let scriptFile = pathOf outputDir </> keyHash <.> "script"
-    Aeson.encodeFile scriptFile
+    liftIO $ Aeson.encodeFile scriptFile
         $ object
             [ "type" .= Aeson.String "sig"
             , "keyHash" .= keyHash

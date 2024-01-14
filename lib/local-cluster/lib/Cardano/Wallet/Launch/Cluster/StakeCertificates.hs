@@ -14,8 +14,14 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (cfgClusterDir)
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
+    )
+import Control.Monad.Reader
+    ( asks
     )
 import Data.Generics.Labels
     ()
@@ -29,11 +35,11 @@ import System.FilePath
 
 -- | Create a stake address registration certificate from a vk
 issueStakeVkCert
-    :: FileOf "output"
-    -> Tagged "prefix" String
+    :: Tagged "prefix" String
     -> FileOf "stake-pub"
     -> ClusterM (FileOf "stake-vk-cert")
-issueStakeVkCert outputDir prefix stakePub = do
+issueStakeVkCert prefix stakePub = do
+    outputDir <- asks cfgClusterDir
     let file = pathOf outputDir </> untag prefix <> "-stake.cert"
     cli
         [ "stake-address"
@@ -47,11 +53,11 @@ issueStakeVkCert outputDir prefix stakePub = do
 
 -- | Create a stake address registration certificate from a script
 issueStakeScriptCert
-    :: FileOf "output"
-    -> Tagged "prefix" String
+    :: Tagged "prefix" String
     -> FilePath
     -> ClusterM (FileOf "stake-script-cert")
-issueStakeScriptCert outputDir prefix stakeScript = do
+issueStakeScriptCert prefix stakeScript = do
+    outputDir <- asks cfgClusterDir
     let file = pathOf outputDir </> untag prefix <> "-stake.cert"
     cli
         [ "stake-address"

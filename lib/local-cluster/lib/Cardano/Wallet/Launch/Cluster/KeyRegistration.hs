@@ -30,7 +30,6 @@ import Cardano.Wallet.Launch.Cluster.Faucet
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
-    , changeFileOf
     )
 import Cardano.Wallet.Launch.Cluster.SinkAddress
     ( genSinkAddress
@@ -60,7 +59,6 @@ prepareKeyRegistration
     :: ClusterM (FileOf "reg-tx" , FileOf "faucet-prv")
 prepareKeyRegistration = do
     Config{..} <- ask
-    let outputDir = changeFileOf @"cluster" @"output" cfgClusterDir
     let file = pathOf cfgClusterDir </> "tx.raw"
     let stakePub =
             FileOf @"stake-pub"
@@ -69,10 +67,9 @@ prepareKeyRegistration = do
     (faucetInput, faucetPrv) <- takeFaucet
     cert <-
         issueStakeVkCert
-            outputDir
             (Tagged @"prefix" "pre-registered")
             stakePub
-    sink <- genSinkAddress outputDir Nothing
+    sink <- genSinkAddress Nothing
     cli
         [ clusterEraToString cfgLastHardFork
         , "transaction"

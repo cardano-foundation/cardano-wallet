@@ -536,7 +536,6 @@ configurePool metadataServer recipe = do
                                 [retCert]
                         signAndSubmitTx
                             socket
-                            (FileOf @"output" poolDir)
                             (changeFileOf @"retirement-tx"  @"tx-body" rawTx)
                             [ changeFileOf @"faucet-prv"  @"signing-key" faucetPrv
                             , changeFileOf @"stake-prv"  @"signing-key" ownerPrv

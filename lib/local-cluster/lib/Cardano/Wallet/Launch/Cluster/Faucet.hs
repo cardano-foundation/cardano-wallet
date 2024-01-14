@@ -76,6 +76,7 @@ import Control.Monad
 import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
+    , asks
     )
 import Crypto.Hash.Extra
     ( blake2b256
@@ -309,12 +310,10 @@ sendFaucet conn what targets = do
     when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
 
     let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
-    let outputDir = FileOf @"output" $ pathOf clusterDir
 
-    scripts <-
-        liftIO
-            $ forM (nub $ concatMap (map snd . snd . snd) targets)
-            $ writeMonetaryPolicyScriptFile outputDir
+    scripts <- forM
+        (nub $ concatMap (map snd . snd . snd) targets)
+        writeMonetaryPolicyScriptFile
 
     cli
         $ [ clusterEraToString cfgLastHardFork
@@ -335,31 +334,29 @@ sendFaucet conn what targets = do
             ++ mkMint targetAssets
             ++ (concatMap (\f -> ["--minting-script-file", pathOf f]) scripts)
 
-    policyKeys <- liftIO
-        $ forM (nub $ concatMap (snd . snd) targets)
-        $ \(skey, keyHash) -> do
-            f <- writePolicySigningKey outputDir keyHash skey
-            pure $ FileOf @"signing-key" $ pathOf f
+    policyKeys <-
+        forM (nub $ concatMap (snd . snd) targets)
+            $ \(skey, keyHash) -> do
+                f <- writePolicySigningKey keyHash skey
+                pure $ FileOf @"signing-key" $ pathOf f
 
     signAndSubmitTx
         conn
-        outputDir
         (FileOf @"tx-body" file)
         (changeFileOf faucetPrv : policyKeys)
         (Tagged @"name" $ what ++ " faucet tx")
 
 writePolicySigningKey
-    :: FileOf "output"
-    -- ^ destination directory for key file
-    -> String
+    :: String
     -- ^ Name of file, keyhash perhaps.
     -> String
     -- ^ The cbor-encoded key material, encoded in hex
-    -> IO (FileOf "policy-signing-key")
+    -> ClusterM (FileOf "policy-signing-key")
     -- ^ Returns the filename written
-writePolicySigningKey outputDir keyHash cborHex = do
+writePolicySigningKey keyHash cborHex = do
+    outputDir <- asks cfgClusterDir
     let keyFile = pathOf outputDir </> keyHash <.> "skey"
-    Aeson.encodeFile keyFile
+    liftIO $ Aeson.encodeFile keyFile
         $ object
             [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
             , "description" .= Aeson.String "Payment Signing Key"

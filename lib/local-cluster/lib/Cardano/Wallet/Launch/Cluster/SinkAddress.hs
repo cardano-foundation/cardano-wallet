@@ -30,13 +30,12 @@ import System.FilePath
     )
 
 genSinkAddress
-    :: FileOf "output"
-    -- ^ Directory to put keys
-    -> Maybe (FileOf "stake-pub")
+    :: Maybe (FileOf "stake-pub")
     -- ^ Stake pub
     -> ClusterM String
-genSinkAddress outputDir stakePub = do
+genSinkAddress stakePub = do
     Config{..} <- ask
+    let outputDir = cfgClusterDir
     let sinkPrv = pathOf outputDir </> "sink.prv"
     let sinkPub = pathOf outputDir </> "sink.pub"
     cli

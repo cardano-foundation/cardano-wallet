@@ -108,8 +108,7 @@ moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
     Config{..} <- ask
     let clusterDir = cfgClusterDir
     let clusterConfigs = cfgClusterConfigs
-    let outputDir = changeFileOf @"cluster" @"output" clusterDir
-    certs <- mapM (mkCredentialCerts outputDir cfgTestnetMagic) targets
+    certs <- mapM (mkCredentialCerts cfgTestnetMagic) targets
     (faucetInput, faucetPrv) <- takeFaucet
     let txFile = pathOf clusterDir </> "mir-tx.raw"
 
@@ -118,10 +117,7 @@ moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
     when (total > faucetAmt)
         $ error "moveInstantaneousRewardsTo: too much to pay"
 
-    sink <-
-        genSinkAddress
-            (changeFileOf @"cluster" @"output" clusterDir)
-            Nothing -- stake pub
+    sink <- genSinkAddress Nothing -- stake pub
     cli
         $ [ clusterEraToString cfgLastHardFork
           , "transaction"
@@ -148,7 +144,6 @@ moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
     -}
     signAndSubmitTx
         conn
-        outputDir
         (FileOf @"tx-body" txFile)
         [ changeFileOf @"faucet-prv" @"signing-key" faucetPrv
         , FileOf @"signing-key"
@@ -158,11 +153,10 @@ moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
         "MIR certificates"
   where
     mkCredentialCerts
-        :: FileOf "output"
-        -> TestnetMagic
+        :: TestnetMagic
         -> (Credential, Coin)
         -> ClusterM [FileOf "cert"]
-    mkCredentialCerts outputDir testnetMagic = \case
+    mkCredentialCerts testnetMagic = \case
         (KeyCredential xpub, coin) -> do
             (prefix, vkFile) <- mkVerificationKey xpub
             stakeAddr <-
@@ -175,7 +169,7 @@ moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
                     , vkFile
                     ]
             stakeCert <-
-                issueStakeVkCert outputDir prefix (FileOf @"stake-pub" vkFile)
+                issueStakeVkCert prefix (FileOf @"stake-pub" vkFile)
             mirCert <- mkMIRCertificate (stakeAddr, coin)
             pure [changeFileOf stakeCert, changeFileOf mirCert]
         (ScriptCredential script, coin) -> do
@@ -189,7 +183,7 @@ moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
                     , "--stake-script-file"
                     , scriptFile
                     ]
-            stakeCert <- issueStakeScriptCert outputDir prefix scriptFile
+            stakeCert <- issueStakeScriptCert prefix scriptFile
             mirCert <- mkMIRCertificate (stakeAddr, coin)
             pure [changeFileOf stakeCert, changeFileOf mirCert]
 

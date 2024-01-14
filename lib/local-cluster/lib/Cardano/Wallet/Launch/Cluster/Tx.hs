@@ -48,15 +48,14 @@ import qualified Data.Text as T
 
 -- | Sign a transaction with all the necessary signatures.
 signTx
-    :: FileOf "output"
-    -- ^ Output directory
-    -> FileOf "tx-body"
+    :: FileOf "tx-body"
     -- ^ Tx body file
     -> [FileOf "signing-key"]
     -- ^ Signing keys for witnesses
     -> ClusterM (FileOf "tx-signed")
-signTx outputDir rawTx keys = do
+signTx rawTx keys = do
     Config{..} <- ask
+    let outputDir = cfgClusterDir
     file <- liftIO $ emptyTempFile (pathOf outputDir) "tx-signed.json"
     cli
         $ [ clusterEraToString cfgLastHardFork
@@ -95,14 +94,12 @@ submitTx conn name signedTx = do
 
 signAndSubmitTx
     :: CardanoNodeConn
-    -> FileOf "output"
-    -- ^ Output directory
     -> FileOf "tx-body"
     -- ^ Tx body file
     -> [FileOf "signing-key"]
     -- ^ Signing keys for witnesses
     -> Tagged "name" String
     -> ClusterM ()
-signAndSubmitTx conn outputDir rawTx keys name = do
-    signedTx <- signTx outputDir rawTx keys
+signAndSubmitTx conn rawTx keys name = do
+    signedTx <- signTx rawTx keys
     submitTx conn name signedTx
