@@ -74,22 +74,22 @@ withRelayNode
 withRelayNode params onClusterStart = do
     Config{..} <- ask
     let name = "node"
-    let nodeDir' = Tagged @"output" $ untag cfgClusterDir </> name
+    let nodeDir' = untag cfgClusterDir </> name
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
     bracketTracer' "withRelayNode" $ do
-        liftIO $ createDirectory $ untag nodeDir'
+        liftIO $ createDirectory nodeDir'
 
         let logCfg' = setLoggingName name logCfg
         (config, genesisData, vd) <-
             genNodeConfig
-                nodeDir'
+                name
                 (Tagged @"node-name" "-relay")
                 genesisFiles hardForks logCfg'
         topology <- genTopology name peers
 
         let cfg =
                 CardanoNodeConfig
-                    { nodeDir = untag nodeDir'
+                    { nodeDir = nodeDir'
                     , nodeConfigFile = untag config
                     , nodeTopologyFile = untag topology
                     , nodeDatabaseDir = "db"

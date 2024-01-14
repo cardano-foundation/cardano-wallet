@@ -190,11 +190,13 @@ configurePools metadataServer =
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair
-    :: Tagged "pool" FilePath
+    :: String
     -> ClusterM (Tagged "kes-prv" FilePath, Tagged "kes-pub" FilePath)
-genKesKeyPair poolDir = do
-    let kesPrv = Tagged @"kes-prv" $ untag poolDir </> "kes.prv"
-    let kesPub = Tagged @"kes-pub" $ untag poolDir </> "kes.pub"
+genKesKeyPair name = do
+    Config{..} <- ask
+    let poolDir =  untag cfgClusterDir </> name
+    let kesPrv = Tagged @"kes-prv" $ poolDir </> "kes.prv"
+    let kesPub = Tagged @"kes-pub" $ poolDir </> "kes.pub"
     cli
         [ "node"
         , "key-gen-KES"
@@ -207,11 +209,13 @@ genKesKeyPair poolDir = do
 
 -- | Create a key pair for a node VRF operational key
 genVrfKeyPair
-    :: Tagged "pool" FilePath
+    :: String
     -> ClusterM (Tagged "vrf-prv" FilePath, Tagged "vrf-pub" FilePath)
-genVrfKeyPair poolDir = do
-    let vrfPrv = Tagged @"vrf-prv" $ untag poolDir </> "vrf.prv"
-    let vrfPub = Tagged @"vrf-pub" $ untag poolDir </> "vrf.pub"
+genVrfKeyPair name = do
+    Config{..} <- ask
+    let poolDir =  untag cfgClusterDir </> name
+    let vrfPrv = Tagged @"vrf-prv" $ poolDir </> "vrf.prv"
+    let vrfPub = Tagged @"vrf-pub" $ poolDir </> "vrf.pub"
     cli
         [ "node"
         , "key-gen-VRF"
@@ -225,20 +229,22 @@ genVrfKeyPair poolDir = do
 -- | Write a key pair for a node operator's offline key and a new certificate
 -- issue counter
 writeOperatorKeyPair
-    :: Tagged "pool" FilePath
+    :: String
     -> PoolRecipe
     -> ClusterM
         ( Tagged "op-prv" FilePath
         , Tagged "op-pub" FilePath
         , Tagged "op-cnt" FilePath
         )
-writeOperatorKeyPair poolDir recipe = do
+writeOperatorKeyPair name recipe = do
+    Config{..} <- ask
     let (_pId, pub, prv, count) = operatorKeys recipe
-    traceClusterLog $ MsgGenOperatorKeyPair $ untag poolDir
+    let poolDir = untag cfgClusterDir </> name
+    traceClusterLog $ MsgGenOperatorKeyPair poolDir
 
-    let opPub = untag poolDir </> "op.pub"
-    let opPrv = untag poolDir </> "op.prv"
-    let opCount = untag poolDir </> "op.count"
+    let opPub = poolDir </> "op.pub"
+    let opPrv = poolDir </> "op.prv"
+    let opCount = poolDir </> "op.count"
 
     liftIO $ do
         Aeson.encodeFile opPub pub
@@ -253,13 +259,15 @@ writeOperatorKeyPair poolDir recipe = do
 
 -- | Issue a node operational certificate
 issueOpCert
-    :: Tagged "pool" FilePath
+    :: String
     -> Tagged "kes-pub" FilePath
     -> Tagged "op-prv" FilePath
     -> Tagged "op-cnt" FilePath
     -> ClusterM FilePath
-issueOpCert nodeDir kesPub opPrv opCount = do
-    let file = untag nodeDir </> "op.cert"
+issueOpCert name kesPub opPrv opCount = do
+    Config{..} <- ask
+    let nodeDir = untag cfgClusterDir </> name
+    let file = nodeDir </> "op.cert"
     cli
         [ "node"
         , "issue-op-cert"
@@ -358,12 +366,13 @@ stakingAddrFromVkFile stakePub = do
             (Ledger.StakeRefBase (Ledger.KeyHashObj delegKH))
 
 preparePoolRetirement
-    :: Tagged "pool" FilePath
+    :: String
     -> [Tagged "retirement-cert" FilePath]
     -> ClusterM (Tagged "retirement-tx" FilePath, Tagged "faucet-prv" FilePath)
-preparePoolRetirement poolDir certs = do
+preparePoolRetirement name certs = do
     Config{..} <- ask
-    let file = untag poolDir </> "tx.raw"
+    let poolDir = untag cfgClusterDir </> name
+    let file = poolDir </> "tx.raw"
     (faucetInput, faucetPrv) <- takeFaucet
     cli
         $ [ clusterEraToString cfgLastHardFork
@@ -383,12 +392,14 @@ preparePoolRetirement poolDir certs = do
     pure (Tagged file, faucetPrv)
 
 issuePoolRetirementCert
-    :: Tagged "pool" FilePath
+    :: String
     -> Tagged "op-pub" FilePath
     -> Word31
     -> ClusterM (Tagged "retirement-cert" FilePath)
-issuePoolRetirementCert poolDir opPub retirementEpoch = do
-    let file = untag poolDir </> "pool-retirement.cert"
+issuePoolRetirementCert name opPub retirementEpoch = do
+    Config{..} <- ask
+    let poolDir = untag cfgClusterDir </> name
+    let file = poolDir </> "pool-retirement.cert"
     cli
         [ "stake-pool"
         , "deregistration-certificate"
@@ -412,17 +423,16 @@ configurePool metadataServer recipe = do
     UnliftClusterM withConfig Config{..} <- askUnliftClusterM
     -- Use pool-specific dir
     let name = "pool-" <> show i
-    let poolDir :: Tagged "pool" FilePath
-        poolDir = Tagged $ untag cfgClusterDir </> name
-    liftIO $ createDirectoryIfMissing False (untag poolDir)
+    let poolDir = untag cfgClusterDir </> name
+    liftIO $ createDirectoryIfMissing False poolDir
 
     -- Generate/assign keys
-    (vrfPrv, vrfPub) <- genVrfKeyPair poolDir
-    (kesPrv, kesPub) <- genKesKeyPair poolDir
-    (opPrv, opPub, opCount) <- writeOperatorKeyPair poolDir recipe
-    opCert <- issueOpCert poolDir kesPub opPrv opCount
-    let ownerPub = Tagged @"stake-pub" $ untag poolDir </> "stake.pub"
-    let ownerPrv = Tagged @"stake-prv" $ untag poolDir </> "stake.prv"
+    (vrfPrv, vrfPub) <- genVrfKeyPair name
+    (kesPrv, kesPub) <- genKesKeyPair name
+    (opPrv, opPub, opCount) <- writeOperatorKeyPair name recipe
+    opCert <- issueOpCert name kesPub opPrv opCount
+    let ownerPub = Tagged @"stake-pub" $ poolDir </> "stake.pub"
+    let ownerPrv = Tagged @"stake-prv" $ poolDir </> "stake.prv"
     genStakeAddrKeyPair (ownerPrv, ownerPub)
 
     let metadataURL = urlFromPoolIndex metadataServer i
@@ -436,13 +446,13 @@ configurePool metadataServer recipe = do
                 let logCfg' = setLoggingName name logCfg
 
                 topology <- withConfig $ genTopology name peers
-                withStaticServer (untag poolDir) $ \url -> do
-                    traceWith cfgTracer $ MsgStartedStaticServer (untag poolDir) url
+                withStaticServer poolDir $ \url -> do
+                    traceWith cfgTracer $ MsgStartedStaticServer poolDir url
 
                     (nodeConfig, genesisData, vd) <-
                         withConfig
                             $ genNodeConfig
-                                (retag @"pool" @_ @"output" poolDir)
+                                name
                                 (Tagged @"node-name" mempty)
                                 genesisFiles
                                 hardForks
@@ -450,7 +460,7 @@ configurePool metadataServer recipe = do
 
                     let cfg =
                             CardanoNodeConfig
-                                { nodeDir = untag @"pool" poolDir
+                                { nodeDir = poolDir
                                 , nodeConfigFile = untag @"node-config" nodeConfig
                                 , nodeTopologyFile = untag @"topology" topology
                                 , nodeDatabaseDir = "db"
@@ -525,7 +535,7 @@ configurePool metadataServer recipe = do
                                 [retCert]
                         signAndSubmitTx
                             socket
-                            (retag @"pool" @_ @"output" poolDir)
+                            (Tagged @"output" poolDir)
                             (retag @"retirement-tx" @_ @"tx-body" rawTx)
                             [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
                             , retag @"stake-prv" @_ @"signing-key" ownerPrv

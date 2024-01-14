@@ -79,7 +79,7 @@ import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
 genNodeConfig
-    :: Tagged "output" FilePath
+    :: String
     -- ^ A top-level directory where to put the configuration.
     -> Tagged "node-name" String -- Node name
     -> GenesisFiles
@@ -93,8 +93,9 @@ genNodeConfig
         , ShelleyGenesis StandardCrypto
         , NodeToClientVersionData
         )
-genNodeConfig poolDir name genesisFiles clusterEra logCfg = do
+genNodeConfig poolName name genesisFiles clusterEra logCfg = do
     Config{..} <- ask
+    let poolDir = untag cfgClusterDir </> poolName
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let GenesisFiles
             { byronGenesis
@@ -122,7 +123,7 @@ genNodeConfig poolDir name genesisFiles clusterEra logCfg = do
                     ]
 
     let poolNodeConfig =
-            untag poolDir </> ("node" <> untag name <> "-config.yaml")
+            poolDir </> ("node" <> untag name <> "-config.yaml")
 
     liftIO $ Yaml.decodeFileThrow (untag cfgClusterConfigs </> "node-config.json")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
