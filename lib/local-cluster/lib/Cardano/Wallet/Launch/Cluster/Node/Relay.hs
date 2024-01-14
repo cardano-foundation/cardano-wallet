@@ -85,7 +85,7 @@ withRelayNode params onClusterStart = do
                 nodeDir'
                 (Tagged @"node-name" "-relay")
                 genesisFiles hardForks logCfg'
-        topology <- liftIO $ genTopology nodeDir' peers
+        topology <- genTopology name peers
 
         let cfg =
                 CardanoNodeConfig

@@ -53,6 +53,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
+    , askRunner
     , runClusterM
     , traceClusterLog
     )
@@ -408,7 +409,7 @@ configurePool
 configurePool  metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
-    config@Config{..} <- ask
+    (config@Config{..}, withConfig) <- askRunner
     -- Use pool-specific dir
     let name = "pool-" <> show i
     let poolDir :: Tagged "pool" FilePath
@@ -434,8 +435,7 @@ configurePool  metadataServer recipe = do
                         nodeParams
                 let logCfg' = setLoggingName name logCfg
 
-                topology <-
-                    genTopology (retag @"pool" @_ @"output" poolDir) peers
+                topology <- withConfig $ genTopology name peers
                 withStaticServer (untag poolDir) $ \url -> do
                     traceWith cfgTracer $ MsgStartedStaticServer (untag poolDir) url
 
