@@ -19,27 +19,26 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , TestnetMagic (testnetMagicToNatural)
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Control.Monad.Reader
     ( MonadReader (..)
-    )
-import Data.Tagged
-    ( Tagged
-    , untag
     )
 import System.FilePath
     ( (</>)
     )
 
 genSinkAddress
-    :: Tagged "output" FilePath
+    :: FileOf "output"
     -- ^ Directory to put keys
-    -> Maybe (Tagged "stake-pub" FilePath)
+    -> Maybe (FileOf "stake-pub")
     -- ^ Stake pub
     -> ClusterM String
 genSinkAddress outputDir stakePub = do
     Config{..} <- ask
-    let sinkPrv = untag outputDir </> "sink.prv"
-    let sinkPub = untag outputDir </> "sink.pub"
+    let sinkPrv = pathOf outputDir </> "sink.prv"
+    let sinkPub = pathOf outputDir </> "sink.pub"
     cli
         [ "address"
         , "key-gen"
@@ -58,4 +57,4 @@ genSinkAddress outputDir stakePub = do
           ]
             ++ case stakePub of
                 Nothing -> []
-                Just key -> ["--stake-verification-key-file", untag key]
+                Just key -> ["--stake-verification-key-file", pathOf key]

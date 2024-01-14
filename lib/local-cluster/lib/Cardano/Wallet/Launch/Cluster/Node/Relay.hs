@@ -22,6 +22,9 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
 import Cardano.Wallet.Launch.Cluster.Config
     ( NodeSegment (..)
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( setLoggingName
     )
@@ -44,8 +47,7 @@ import Control.Monad.Reader
     ( MonadIO (..)
     )
 import Data.Tagged
-    ( Tagged (Tagged)
-    , untag
+    ( Tagged (..)
     )
 import System.Directory
     ( createDirectory
@@ -69,8 +71,8 @@ withRelayNode
     -> ClusterM a
 withRelayNode params onClusterStart = do
     let name = "node"
-    let nodeSegment = NodeSegment name
-    nodeDir' <- askNodeDir $ NodeSegment name
+        nodeSegment = NodeSegment name
+    nodeDir' <- askNodeDir nodeSegment
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
     bracketTracer' "withRelayNode" $ do
         liftIO $ createDirectory nodeDir'
@@ -80,14 +82,16 @@ withRelayNode params onClusterStart = do
             genNodeConfig
                 nodeSegment
                 (Tagged @"node-name" "-relay")
-                genesisFiles hardForks logCfg'
+                genesisFiles
+                hardForks
+                logCfg'
         topology <- genTopology nodeSegment peers
 
         let cfg =
                 CardanoNodeConfig
                     { nodeDir = nodeDir'
-                    , nodeConfigFile = untag config
-                    , nodeTopologyFile = untag topology
+                    , nodeConfigFile = pathOf config
+                    , nodeTopologyFile = pathOf topology
                     , nodeDatabaseDir = "db"
                     , nodeDlgCertFile = Nothing
                     , nodeSignKeyFile = Nothing

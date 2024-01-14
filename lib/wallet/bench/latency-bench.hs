@@ -75,6 +75,7 @@ import Cardano.Wallet.LatencyBenchShared
 import Cardano.Wallet.Launch.Cluster
     ( Config (..)
     , FaucetFunds (..)
+    , FileOf (..)
     , RunningNode (..)
     , defaultPoolConfigs
     , testnetMagicToNatural
@@ -141,9 +142,6 @@ import Data.Functor.Contravariant
 import Data.Generics.Internal.VL.Lens
     ( over
     , (^.)
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Data.Text.Class.Extended
     ( ToText
@@ -610,7 +608,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                         { cfgStakePools = pure (NE.head defaultPoolConfigs)
                         , cfgLastHardFork = clusterEra
                         , cfgNodeLogging
-                        , cfgClusterDir = Tagged @"cluster" dir
+                        , cfgClusterDir = FileOf @"cluster" dir
                         , cfgClusterConfigs = clusterConfigsDir
                         , cfgTestnetMagic
                         , cfgShelleyGenesisMods =
@@ -673,7 +671,7 @@ era = maxBound
 -- Command line options --------------------------------------------------------
 
 newtype CommandLineOptions = CommandLineOptions
-    { clusterConfigsDir :: Tagged "cluster-configs" FilePath }
+    { clusterConfigsDir :: FileOf "cluster-configs" }
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions

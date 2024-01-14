@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.Node.GenTopology
@@ -16,14 +15,14 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
 import Cardano.Wallet.Launch.Cluster.Config
     ( NodeSegment
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Control.Monad.Reader
     ( MonadIO (..)
     )
 import Data.Aeson
     ( (.=)
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import System.FilePath
     ( (</>)
@@ -35,14 +34,14 @@ import qualified Data.Aeson as Aeson
 genTopology
     :: NodeSegment
     -> [Int]
-    -> ClusterM (Tagged "topology" FilePath)
+    -> ClusterM (FileOf "topology")
 genTopology nodeSegment peers = do
     nodeDir <- askNodeDir nodeSegment
     let file = nodeDir </> "node.topology"
     liftIO
         $ Aeson.encodeFile file
         $ Aeson.object ["Producers" .= map encodePeer peers]
-    pure $ Tagged @"topology" file
+    pure $ FileOf @"topology" file
   where
     encodePeer :: Int -> Aeson.Value
     encodePeer port =

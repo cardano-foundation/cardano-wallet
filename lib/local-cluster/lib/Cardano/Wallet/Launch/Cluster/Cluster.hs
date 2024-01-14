@@ -22,6 +22,15 @@ import Cardano.BM.Data.Severity
 import Cardano.Launcher
     ( ProcessHasExited (..)
     )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    , bracketTracer'
+    , runClusterM
+    , traceClusterLog
+    )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , LogFileConfig (..)
@@ -64,10 +73,6 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty ((:|))
     )
-import Data.Tagged
-    ( retag
-    , untag
-    )
 import System.Directory
     ( createDirectoryIfMissing
     )
@@ -91,16 +96,6 @@ import UnliftIO.Exception
     , throwIO
     )
 
-import Cardano.Wallet.Launch.Cluster.ClusterM
-    ( ClusterM
-    , bracketTracer'
-    , runClusterM
-    , traceClusterLog
-    )
-import Cardano.Wallet.Launch.Cluster.Config
-    ( Config (..)
-    )
-
 import Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
     , configurePools
@@ -109,6 +104,10 @@ import Cardano.Wallet.Launch.Cluster.Faucet
     ( readFaucetAddresses
     , resetGlobals
     , sendFaucetAssetsTo
+    )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    , changeFileOf
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
     ( GenesisFiles (..)
@@ -173,9 +172,10 @@ withCluster
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config $
-    bracketTracer' "withCluster" $ do
-        let clusterDir = untag cfgClusterDir
+withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
+    $ bracketTracer' "withCluster"
+    $ do
+        let clusterDir = pathOf cfgClusterDir
         withPoolMetadataServer $ \metadataServer -> do
             liftIO $ createDirectoryIfMissing True clusterDir
             traceClusterLog $ MsgStartingCluster clusterDir
@@ -184,8 +184,9 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config $
             configuredPools <- configurePools metadataServer cfgStakePools
 
             addGenesisPools <- do
-                genesisDeltas <- liftIO
-                    $ mapM registerViaShelleyGenesis configuredPools
+                genesisDeltas <-
+                    liftIO
+                        $ mapM registerViaShelleyGenesis configuredPools
                 pure $ foldr (.) id genesisDeltas
             -- TODO (yura): Use Faucet API isntead of these fixed addresses
             faucetAddresses <-
@@ -197,8 +198,9 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config $
                     (pureAdaFunds <> faucetAddresses)
                     (addGenesisPools : cfgShelleyGenesisMods)
 
-            extraPort : poolsTcpPorts <- liftIO $
-                randomUnusedTCPPorts (length cfgStakePools + 1)
+            extraPort : poolsTcpPorts <-
+                liftIO
+                    $ randomUnusedTCPPorts (length cfgStakePools + 1)
 
             let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
             let pool0 :| otherPools = configuredPools
@@ -257,17 +259,19 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config $
         -- integration tests, the integration tests /will fail/ (c.f. #3440).
         -- Later setup is less sensitive. Using a wallet with retrying
         -- submission pool might also be an idea for the future.
-        liftIO $ forM_ configuredPools
+        liftIO
+            $ forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
         sendFaucetAssetsTo conn 20 maryAllegraFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
         (rawTx, faucetPrv) <- prepareKeyRegistration
-        signAndSubmitTx conn
-            (retag @"cluster" @_ @"output" cfgClusterDir)
-            (retag @"reg-tx" @_ @"tx-body" rawTx)
-            [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
+        signAndSubmitTx
+            conn
+            (changeFileOf @"cluster" @"output" cfgClusterDir)
+            (changeFileOf @"reg-tx" @"tx-body" rawTx)
+            [changeFileOf @"faucet-prv" @"signing-key" faucetPrv]
             "pre-registered stake key"
 
     -- \| Actually spin up the pools.

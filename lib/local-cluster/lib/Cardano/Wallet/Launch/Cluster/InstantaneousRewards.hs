@@ -9,7 +9,7 @@ module Cardano.Wallet.Launch.Cluster.InstantaneousRewards
     ( moveInstantaneousRewardsTo
     , Credential (..)
     )
- where
+where
 
 import Prelude
 
@@ -38,6 +38,10 @@ import Cardano.Wallet.Launch.Cluster.Faucet
     ( depositAmt
     , faucetAmt
     , takeFaucet
+    )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    , changeFileOf
     )
 import Cardano.Wallet.Launch.Cluster.SinkAddress
     ( genSinkAddress
@@ -77,7 +81,6 @@ import Data.Generics.Labels
     ()
 import Data.Tagged
     ( Tagged (..)
-    , retag
     , untag
     )
 import System.FilePath
@@ -101,24 +104,24 @@ moveInstantaneousRewardsTo
     => CardanoNodeConn
     -> [(Credential, Coin)]
     -> ClusterM ()
-moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
-    Config {..} <- ask
+moveInstantaneousRewardsTo conn targets = unless (null targets) $ do
+    Config{..} <- ask
     let clusterDir = cfgClusterDir
     let clusterConfigs = cfgClusterConfigs
-    let outputDir = retag @"cluster" @_ @"output" clusterDir
-    certs <- mapM (mkCredentialCerts outputDir cfgTestnetMagic ) targets
+    let outputDir = changeFileOf @"cluster" @"output" clusterDir
+    certs <- mapM (mkCredentialCerts outputDir cfgTestnetMagic) targets
     (faucetInput, faucetPrv) <- takeFaucet
-    let txFile = untag clusterDir </> "mir-tx.raw"
+    let txFile = pathOf clusterDir </> "mir-tx.raw"
 
     let total = sum $ map (Coin.toInteger . snd) targets
     let totalDeposit = fromIntegral (length targets) * depositAmt
-    when (total > faucetAmt) $
-        error "moveInstantaneousRewardsTo: too much to pay"
+    when (total > faucetAmt)
+        $ error "moveInstantaneousRewardsTo: too much to pay"
 
-    sink <- genSinkAddress
-        (retag @"cluster" @_ @"output" clusterDir)
-        Nothing -- stake pub
-
+    sink <-
+        genSinkAddress
+            (changeFileOf @"cluster" @"output" clusterDir)
+            Nothing -- stake pub
     cli
         $ [ clusterEraToString cfgLastHardFork
           , "transaction"
@@ -134,7 +137,7 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
           , "--out-file"
           , txFile
           ]
-            ++ concatMap (\x -> ["--certificate-file", untag x]) (mconcat certs)
+            ++ concatMap (\x -> ["--certificate-file", pathOf x]) (mconcat certs)
 
     {- There is a ledger rule that disallows submitting MIR certificates
     "too late in Epoch" e.g. less that stability window slots before beginning
@@ -146,18 +149,19 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
     signAndSubmitTx
         conn
         outputDir
-        (Tagged @"tx-body" txFile)
-        [ retag @"faucet-prv" @_ @"signing-key" faucetPrv
-        , Tagged @"signing-key" $ untag clusterConfigs
-            </> "delegate-keys/shelley.000.skey"
+        (FileOf @"tx-body" txFile)
+        [ changeFileOf @"faucet-prv" @"signing-key" faucetPrv
+        , FileOf @"signing-key"
+            $ pathOf clusterConfigs
+                </> "delegate-keys/shelley.000.skey"
         ]
         "MIR certificates"
   where
     mkCredentialCerts
-        :: Tagged "output" FilePath
+        :: FileOf "output"
         -> TestnetMagic
         -> (Credential, Coin)
-        -> ClusterM [Tagged "cert" FilePath]
+        -> ClusterM [FileOf "cert"]
     mkCredentialCerts outputDir testnetMagic = \case
         (KeyCredential xpub, coin) -> do
             (prefix, vkFile) <- mkVerificationKey xpub
@@ -171,13 +175,13 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
                     , vkFile
                     ]
             stakeCert <-
-                issueStakeVkCert outputDir prefix (Tagged @"stake-pub" vkFile)
+                issueStakeVkCert outputDir prefix (FileOf @"stake-pub" vkFile)
             mirCert <- mkMIRCertificate (stakeAddr, coin)
-            pure [retag stakeCert, retag mirCert]
+            pure [changeFileOf stakeCert, changeFileOf mirCert]
         (ScriptCredential script, coin) -> do
             (prefix, scriptFile) <- mkScript script
             stakeAddr <-
-               cliLine
+                cliLine
                     [ "stake-address"
                     , "build"
                     , "--testnet-magic"
@@ -187,7 +191,7 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
                     ]
             stakeCert <- issueStakeScriptCert outputDir prefix scriptFile
             mirCert <- mkMIRCertificate (stakeAddr, coin)
-            pure [retag stakeCert, retag mirCert]
+            pure [changeFileOf stakeCert, changeFileOf mirCert]
 
     mkVerificationKey :: XPub -> ClusterM (Tagged "prefix" String, FilePath)
     mkVerificationKey xpub = do
@@ -201,7 +205,7 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
                     , "description" .= Aeson.String "Stake Verification Key"
                     , "cborHex" .= Aeson.String ("5820" <> T.pack base16)
                     ]
-        let file = untag cfgClusterDir </> base16 <> ".vk"
+        let file = pathOf cfgClusterDir </> base16 <> ".vk"
         liftIO $ BL8.writeFile file (Aeson.encode json)
         pure (Tagged base16, file)
 
@@ -210,7 +214,8 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
         Config{..} <- ask
         let base16 =
                 T.decodeUtf8 . convertToBase Base16
-                    $ CBOR.toStrictByteString $ CBOR.encodeBytes bytes
+                    $ CBOR.toStrictByteString
+                    $ CBOR.encodeBytes bytes
         let json =
                 Aeson.object
                     [ "type" .= Aeson.String "PlutusScriptV1"
@@ -218,14 +223,14 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
                     , "cborHex" .= Aeson.String base16
                     ]
         let prefix = take 100 (T.unpack base16)
-        let file = untag cfgClusterDir </> prefix <> ".plutus"
+        let file = pathOf cfgClusterDir </> prefix <> ".plutus"
         liftIO $ BL8.writeFile file (Aeson.encode json)
         pure (Tagged prefix, file)
 
-    mkMIRCertificate :: (String, Coin) -> ClusterM (Tagged "mir-cert" FilePath)
+    mkMIRCertificate :: (String, Coin) -> ClusterM (FileOf "mir-cert")
     mkMIRCertificate (stakeAddr, Coin reward) = do
         Config{..} <- ask
-        let mirCert = untag cfgClusterDir </> stakeAddr <> ".mir"
+        let mirCert = pathOf cfgClusterDir </> stakeAddr <> ".mir"
         cli
             [ "governance"
             , "create-mir-certificate"
@@ -237,4 +242,4 @@ moveInstantaneousRewardsTo  conn targets = unless (null targets) $ do
             , "--out-file"
             , mirCert
             ]
-        pure $ Tagged @"mir-cert" mirCert
+        pure $ FileOf @"mir-cert" mirCert

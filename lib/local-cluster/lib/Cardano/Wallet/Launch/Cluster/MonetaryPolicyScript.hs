@@ -16,6 +16,9 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
@@ -26,10 +29,6 @@ import Data.Aeson
     )
 import Data.Generics.Labels
     ()
-import Data.Tagged
-    ( Tagged (..)
-    , untag
-    )
 import Data.Text
     ( Text
     )
@@ -48,11 +47,11 @@ import qualified Data.Text as T
 -- | For creating test fixtures. Returns PolicyId, signing key, and verification
 -- key hash, all hex-encoded. Files are put in the given directory.
 genMonetaryPolicyScript
-    :: Tagged "output" FilePath
+    :: FileOf "output"
     -> ClusterM (String, (String, String))
 genMonetaryPolicyScript outputDir = do
-    let policyPub = untag outputDir </> "policy.pub"
-    let policyPrv = untag outputDir </> "policy.prv"
+    let policyPub = pathOf outputDir </> "policy.pub"
+    let policyPrv = pathOf outputDir </> "policy.prv"
 
     cli
         [ "address"
@@ -76,26 +75,26 @@ genMonetaryPolicyScript outputDir = do
             [ "transaction"
             , "policyid"
             , "--script-file"
-            , untag script
+            , pathOf script
             ]
 
     pure (policyId, (skey, vkeyHash))
 
 writeMonetaryPolicyScriptFile
-    :: Tagged "output" FilePath
+    :: FileOf "output"
     -- ^ Destination directory for script file
     -> String
     -- ^ The script verification key hash
-    -> IO (Tagged "policy-script" FilePath)
+    -> IO (FileOf "policy-script")
     -- ^ Returns the filename written
 writeMonetaryPolicyScriptFile outputDir keyHash = do
-    let scriptFile = untag outputDir </> keyHash <.> "script"
+    let scriptFile = pathOf outputDir </> keyHash <.> "script"
     Aeson.encodeFile scriptFile
         $ object
             [ "type" .= Aeson.String "sig"
             , "keyHash" .= keyHash
             ]
-    pure $ Tagged scriptFile
+    pure $ FileOf scriptFile
 
 -- | Dig in to a @cardano-cli@ TextView key file to get the hex-encoded key.
 readKeyFromFile :: FilePath -> IO Text

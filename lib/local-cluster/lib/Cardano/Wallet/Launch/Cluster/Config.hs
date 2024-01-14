@@ -1,12 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
     , NodeSegment (..)
+
     )
 where
 
@@ -24,6 +26,9 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf
+    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , LogFileConfig
@@ -34,14 +39,11 @@ import Cardano.Wallet.Launch.Cluster.PoolRecipe
 import Data.List.NonEmpty
     ( NonEmpty
     )
-import Data.Tagged
-    ( Tagged
-    )
 import Numeric.Natural
     ( Natural
     )
 
-newtype TestnetMagic = TestnetMagic { testnetMagicToNatural :: Natural }
+newtype TestnetMagic = TestnetMagic {testnetMagicToNatural :: Natural}
     deriving stock (Show)
 
 type ShelleyGenesisModifier =
@@ -54,9 +56,9 @@ data Config = Config
     -- ^ Which era to use.
     , cfgNodeLogging :: LogFileConfig
     -- ^ Log severity for node.
-    , cfgClusterDir :: Tagged "cluster" FilePath
+    , cfgClusterDir :: FileOf "cluster"
     -- ^ Root directory for cluster data.
-    , cfgClusterConfigs :: Tagged "cluster-configs" FilePath
+    , cfgClusterConfigs :: FileOf "cluster-configs"
     -- ^ Directory containing data for cluster setup.
     , cfgTestnetMagic :: TestnetMagic
     -- ^ Testnet magic to use.

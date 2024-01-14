@@ -54,6 +54,9 @@ import Cardano.Wallet.Launch.Cluster.Config
     , ShelleyGenesisModifier
     , TestnetMagic (testnetMagicToNatural)
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Cardano.Wallet.Launch.Cluster.UnsafeInterval
     ( unsafeNonNegativeInterval
     , unsafePositiveUnitInterval
@@ -86,9 +89,6 @@ import Data.IntCast
     )
 import Data.Maybe
     ( fromMaybe
-    )
-import Data.Tagged
-    ( untag
     )
 import Data.Time.Clock
     ( addUTCTime
@@ -123,7 +123,7 @@ generateGenesis
     => [(Address, Coin)]
     -> [ShelleyGenesisModifier]
     -> ClusterM GenesisFiles
-generateGenesis  initialFunds genesisMods = do
+generateGenesis initialFunds genesisMods = do
     Config{..} <- ask
     {- The timestamp of the 0-th slot.
 
@@ -211,14 +211,14 @@ generateGenesis  initialFunds genesisMods = do
                                 [ ( fromMaybe (error "sgInitialFunds: invalid addr")
                                         $ Ledger.deserialiseAddr
                                         $ unAddress address
-                                , Ledger.Coin $ intCast c
-                                )
+                                  , Ledger.Coin $ intCast c
+                                  )
                                 | (address, Coin c) <- initialFunds
                                 ]
                         , sgStaking = Ledger.emptyGenesisStaking
                         , -- We need this to submit MIR certs
-                        -- (and probably for the BFT node pre-babbage):
-                        sgGenDelegs =
+                          -- (and probably for the BFT node pre-babbage):
+                          sgGenDelegs =
                             fromRight (error "invalid sgGenDelegs") . Aeson.eitherDecode
                                 $ Aeson.encode
                                     [aesonQQ|
@@ -229,25 +229,25 @@ generateGenesis  initialFunds genesisMods = do
                         }
                     genesisMods
 
-        let shelleyGenesis = untag cfgClusterDir </> "genesis-shelley.json"
+        let shelleyGenesis = pathOf cfgClusterDir </> "genesis-shelley.json"
         Aeson.encodeFile shelleyGenesis shelleyGenesisData
 
         let fileToAeson :: FilePath -> IO Aeson.Value
             fileToAeson f = Aeson.eitherDecodeFileStrict f >>= either fail pure
 
-        let byronGenesis = untag cfgClusterDir </> "genesis-byron.json"
-        fileToAeson (untag cfgClusterConfigs </> "genesis-byron.json")
+        let byronGenesis = pathOf cfgClusterDir </> "genesis-byron.json"
+        fileToAeson (pathOf cfgClusterConfigs </> "genesis-byron.json")
             >>= withAddedKey
                 "startTime"
                 (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
             >>= Aeson.encodeFile byronGenesis
 
-        let alonzoGenesis = untag cfgClusterDir </> "genesis-alonzo.json"
-        fileToAeson (untag cfgClusterConfigs </> "genesis-alonzo.json")
+        let alonzoGenesis = pathOf cfgClusterDir </> "genesis-alonzo.json"
+        fileToAeson (pathOf cfgClusterConfigs </> "genesis-alonzo.json")
             >>= Aeson.encodeFile alonzoGenesis
 
-        let conwayGenesis = untag cfgClusterDir </> "genesis-conway.json"
-        copyFile (untag cfgClusterConfigs </> "genesis-conway.json") conwayGenesis
+        let conwayGenesis = pathOf cfgClusterDir </> "genesis-conway.json"
+        copyFile (pathOf cfgClusterConfigs </> "genesis-conway.json") conwayGenesis
 
         pure
             GenesisFiles

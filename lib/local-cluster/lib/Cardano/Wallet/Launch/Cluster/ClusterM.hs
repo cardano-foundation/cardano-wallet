@@ -23,6 +23,9 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , NodeSegment (..)
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     )
@@ -38,9 +41,6 @@ import Control.Monad.Trans.Resource
 import Control.Tracer
     ( contramap
     , traceWith
-    )
-import Data.Tagged
-    ( untag
     )
 import Data.Text
     ( Text
@@ -86,4 +86,4 @@ bracketTracer' name f = do
 askNodeDir :: NodeSegment -> ClusterM FilePath
 askNodeDir (NodeSegment nodeSegment) = do
     Config{..} <- ask
-    pure $ untag cfgClusterDir </> nodeSegment
+    pure $ pathOf cfgClusterDir </> nodeSegment

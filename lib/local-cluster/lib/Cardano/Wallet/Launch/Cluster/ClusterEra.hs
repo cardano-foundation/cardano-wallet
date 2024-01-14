@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.ClusterEra
-   ( ClusterEra(..)
+    ( ClusterEra (..)
     , clusterEraFromEnv
     , localClusterConfigsFromEnv
     , clusterEraToString
@@ -13,6 +13,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Data.Char
     ( toLower
     )
@@ -21,9 +24,6 @@ import Data.Functor
     )
 import Data.Maybe
     ( fromMaybe
-    )
-import Data.Tagged
-    ( Tagged (Tagged)
     )
 import System.Environment.Extended
     ( lookupEnvNonEmpty
@@ -66,12 +66,12 @@ clusterEraFromEnv = do
         "conway" -> pure ConwayHardFork
         _ -> die $ var ++ ": unknown era"
 
-localClusterConfigsFromEnv :: IO (Tagged "cluster-configs" FilePath)
+localClusterConfigsFromEnv :: IO (FileOf "cluster-configs")
 localClusterConfigsFromEnv =
     lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
-        <&> Tagged @"cluster-configs"
-        . fromMaybe
-            (".." </> "local-cluster" </> "test" </> "data" </> "cluster-configs")
+        <&> FileOf @"cluster-configs"
+            . fromMaybe
+                (".." </> "local-cluster" </> "test" </> "data" </> "cluster-configs")
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case

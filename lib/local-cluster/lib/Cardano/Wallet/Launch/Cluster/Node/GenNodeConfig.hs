@@ -39,6 +39,9 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , NodeSegment
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
     ( GenesisFiles (..)
     )
@@ -60,10 +63,6 @@ import Data.Generics.Labels
 import Data.Maybe
     ( catMaybes
     )
-import Data.Tagged
-    ( Tagged (..)
-    , untag
-    )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
     )
@@ -77,6 +76,10 @@ import System.FilePath
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
+import Data.Tagged
+    ( Tagged
+    , untag
+    )
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
@@ -91,7 +94,7 @@ genNodeConfig
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
     -> ClusterM
-        ( Tagged "node-config" FilePath
+        ( FileOf "node-config"
         , ShelleyGenesis StandardCrypto
         , NodeToClientVersionData
         )
@@ -127,22 +130,23 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
     let poolNodeConfig =
             poolDir </> ("node" <> untag name <> "-config.yaml")
 
-    liftIO $ Yaml.decodeFileThrow (untag cfgClusterConfigs </> "node-config.json")
-        >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
-        >>= withAddedKey "ByronGenesisFile" byronGenesis
-        >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
-        >>= withAddedKey "ConwayGenesisFile" conwayGenesis
-        >>= withHardForks clusterEra
-        >>= withAddedKey "minSeverity" Debug
-        >>= withScribes scribes
-        >>= withObject (addMinSeverityStdout severity)
-        >>= Yaml.encodeFile poolNodeConfig
+    liftIO
+        $ Yaml.decodeFileThrow (pathOf cfgClusterConfigs </> "node-config.json")
+            >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
+            >>= withAddedKey "ByronGenesisFile" byronGenesis
+            >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
+            >>= withAddedKey "ConwayGenesisFile" conwayGenesis
+            >>= withHardForks clusterEra
+            >>= withAddedKey "minSeverity" Debug
+            >>= withScribes scribes
+            >>= withObject (addMinSeverityStdout severity)
+            >>= Yaml.encodeFile poolNodeConfig
 
     -- Parameters
     genesisData <- Yaml.decodeFileThrow shelleyGenesis
     let networkMagic = NetworkMagic $ sgNetworkMagic genesisData
     pure
-        ( Tagged @"node-config" poolNodeConfig
+        ( FileOf @"node-config" poolNodeConfig
         , genesisData
         , NodeToClientVersionData{networkMagic, query = False}
         )

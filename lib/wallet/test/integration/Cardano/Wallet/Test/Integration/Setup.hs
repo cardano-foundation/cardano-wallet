@@ -64,6 +64,7 @@ import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
     , Credential (..)
     , FaucetFunds (..)
+    , FileOf (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , clusterEraFromEnv
@@ -125,9 +126,6 @@ import Data.IORef
     ( IORef
     , atomicModifyIORef'
     , newIORef
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Data.Text
     ( Text
@@ -304,7 +302,7 @@ recordPoolGarbageCollectionEvents TestingCtx{..} eventsRef =
 
 withServer
     :: TestingCtx
-    -> Tagged "cluster-configs" FilePath
+    -> FileOf "cluster-configs"
     -> FaucetFunds
     -> Pool.DBDecorator IO
     -> ( T.Text
@@ -324,7 +322,7 @@ withServer ctx@TestingCtx{..} clusterConfigs faucetFunds dbDecorator onReady =
                         { cfgStakePools = Cluster.defaultPoolConfigs
                         , cfgLastHardFork = era
                         , cfgNodeLogging = LogFileConfig Info Nothing Info
-                        , cfgClusterDir = Tagged @"cluster" testDir
+                        , cfgClusterDir = FileOf @"cluster" testDir
                         , cfgClusterConfigs = clusterConfigs
                         , cfgTestnetMagic = testnetMagic
                         , cfgShelleyGenesisMods = []
@@ -434,7 +432,7 @@ setupContext
                     { cfgStakePools = error "cfgStakePools: unused"
                     , cfgLastHardFork = localClusterEra
                     , cfgNodeLogging = error "cfgNodeLogging: unused"
-                    , cfgClusterDir = Tagged @"cluster" testDir
+                    , cfgClusterDir = FileOf @"cluster" testDir
                     , cfgClusterConfigs = clusterConfigs
                     , cfgTestnetMagic = testnetMagic
                     , cfgShelleyGenesisMods = []

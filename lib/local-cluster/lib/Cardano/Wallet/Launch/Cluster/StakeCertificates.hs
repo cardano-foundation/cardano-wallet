@@ -14,6 +14,9 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Data.Generics.Labels
     ()
 import Data.Tagged
@@ -26,30 +29,30 @@ import System.FilePath
 
 -- | Create a stake address registration certificate from a vk
 issueStakeVkCert
-    :: Tagged "output" FilePath
+    :: FileOf "output"
     -> Tagged "prefix" String
-    -> Tagged "stake-pub" FilePath
-    -> ClusterM (Tagged "stake-vk-cert" FilePath)
+    -> FileOf "stake-pub"
+    -> ClusterM (FileOf "stake-vk-cert")
 issueStakeVkCert outputDir prefix stakePub = do
-    let file = untag outputDir </> untag prefix <> "-stake.cert"
+    let file = pathOf outputDir </> untag prefix <> "-stake.cert"
     cli
         [ "stake-address"
         , "registration-certificate"
         , "--staking-verification-key-file"
-        , untag stakePub
+        , pathOf stakePub
         , "--out-file"
         , file
         ]
-    pure $ Tagged file
+    pure $ FileOf file
 
 -- | Create a stake address registration certificate from a script
 issueStakeScriptCert
-    :: Tagged "output" FilePath
+    :: FileOf "output"
     -> Tagged "prefix" String
     -> FilePath
-    -> ClusterM (Tagged "stake-script-cert" FilePath)
+    -> ClusterM (FileOf "stake-script-cert")
 issueStakeScriptCert outputDir prefix stakeScript = do
-    let file = untag outputDir </> untag prefix <> "-stake.cert"
+    let file = pathOf outputDir </> untag prefix <> "-stake.cert"
     cli
         [ "stake-address"
         , "registration-certificate"
@@ -58,4 +61,4 @@ issueStakeScriptCert outputDir prefix stakeScript = do
         , "--out-file"
         , file
         ]
-    pure $ Tagged file
+    pure $ FileOf file
