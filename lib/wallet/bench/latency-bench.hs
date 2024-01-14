@@ -605,23 +605,24 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             cfgNodeLogging <-
                 Cluster.logFileConfigFromEnv
                     (Just (Cluster.clusterEraToString clusterEra))
-            withCluster
-                Cluster.Config
-                    { cfgStakePools = pure (NE.head defaultPoolConfigs)
-                    , cfgLastHardFork = clusterEra
-                    , cfgNodeLogging
-                    , cfgClusterDir = Tagged @"cluster" dir
-                    , cfgClusterConfigs = clusterConfigsDir
-                    , cfgTestnetMagic
-                    , cfgShelleyGenesisMods =
-                        [ over #sgSlotLength (const 0.2)
-                        -- to avoid "PastHorizonException" errors, as wallet
-                        -- doesn't keep up with retrieving fresh time interpreter.
-                        , over #sgSecurityParam (const 100)
-                        -- when it low then cluster is not making blocks;
-                        ]
-                    , cfgTracer = stdoutTextTracer
-                    }
+            let clusterConfig =
+                    Cluster.Config
+                        { cfgStakePools = pure (NE.head defaultPoolConfigs)
+                        , cfgLastHardFork = clusterEra
+                        , cfgNodeLogging
+                        , cfgClusterDir = Tagged @"cluster" dir
+                        , cfgClusterConfigs = clusterConfigsDir
+                        , cfgTestnetMagic
+                        , cfgShelleyGenesisMods =
+                            [ over #sgSlotLength (const 0.2)
+                            -- to avoid "PastHorizonException" errors, as wallet
+                            -- doesn't keep up with retrieving fresh time interpreter.
+                            , over #sgSecurityParam (const 100)
+                            -- when it low then cluster is not making blocks;
+                            ]
+                        , cfgTracer = stdoutTextTracer
+                        }
+            withCluster clusterConfig
                 faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)
 

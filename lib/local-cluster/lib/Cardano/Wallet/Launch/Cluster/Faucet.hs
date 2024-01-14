@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.Faucet
@@ -29,6 +30,9 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)
     , clusterEraToString
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -64,6 +68,10 @@ import Control.Monad
     ( forM_
     , void
     , when
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
+    , MonadReader (..)
     )
 import Crypto.Hash.Extra
     ( blake2b256
@@ -140,12 +148,13 @@ import qualified Network.Wai.Handler.Warp as Warp
 -- transaction.
 takeFaucet
     :: HasCallStack
-    => Tagged "cluster-configs" FilePath
-    -> IO (Tagged "tx-in" String, Tagged "faucet-prv" FilePath)
-takeFaucet setupDir = do
-    i <- modifyMVar faucetIndex (\i -> pure (i + 1, i))
-    let basename = untag setupDir </> "faucet-addrs" </> "faucet" <> show i
-    base58Addr <- BS.readFile $ basename <> ".addr"
+    => ClusterM (Tagged "tx-in" String, Tagged "faucet-prv" FilePath)
+takeFaucet = do
+    Config{..} <- ask
+    i <- liftIO $ modifyMVar faucetIndex (\i -> pure (i + 1, i))
+    let basename = untag cfgClusterConfigs
+            </> "faucet-addrs" </> "faucet" <> show i
+    base58Addr <- liftIO $ BS.readFile $ basename <> ".addr"
     let addr =
             fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
                 . decodeBase58 bitcoinAlphabet
@@ -159,13 +168,13 @@ takeFaucet setupDir = do
 
 readFaucetAddresses
     :: HasCallStack
-    => Tagged "cluster-configs" FilePath
-    -> IO [Address]
-readFaucetAddresses setupDir = do
-    let faucetDataPath = untag setupDir </> "faucet-addrs"
-    allFileNames <- listDirectory faucetDataPath
+    => ClusterM [Address]
+readFaucetAddresses = do
+    Config{..} <- ask
+    let faucetDataPath = untag cfgClusterConfigs </> "faucet-addrs"
+    allFileNames <- liftIO $ listDirectory faucetDataPath
     let addrFileNames = filter (".addr" `isSuffixOf`) allFileNames
-    forM addrFileNames $ readAddress . (faucetDataPath </>)
+    liftIO $ forM addrFileNames $ readAddress . (faucetDataPath </>)
   where
     readAddress :: HasCallStack => FilePath -> IO Address
     readAddress addrFile = do
@@ -216,7 +225,7 @@ faucetAmt = 1_000 * oneMillionAda
     -- | Just one million Ada, in Lovelace.
     oneMillionAda = 1_000_000_000_000
 
-batch :: HasCallStack => Int -> [a] -> ([a] -> IO b) -> IO ()
+batch :: (HasCallStack, Monad m) => Int -> [a] -> ([a] -> m b) -> m ()
 batch s xs = forM_ (group s xs)
   where
     -- TODO: Use split package?
@@ -228,12 +237,11 @@ batch s xs = forM_ (group s xs)
         | otherwise = error "Negative or zero n"
 
 sendFaucetFundsTo
-    :: Config
-    -> CardanoNodeConn
+    :: CardanoNodeConn
     -> [(Address, Coin)]
-    -> IO ()
-sendFaucetFundsTo config conn targets =
-    batch 80 targets $ sendFaucet config conn "ada" . map coinBundle
+    -> ClusterM ()
+sendFaucetFundsTo conn targets =
+    batch 80 targets $ sendFaucet conn "ada" . map coinBundle
   where
     coinBundle :: (any, Coin) -> (any, (TokenBundle, [a]))
     coinBundle = fmap (\c -> (TokenBundle.fromCoin c, []))
@@ -244,32 +252,32 @@ sendFaucetFundsTo config conn targets =
 -- @(signing key, verification key hash)@ pairs needed to sign the
 -- minting transaction.
 sendFaucetAssetsTo
-    :: Config
-    -> CardanoNodeConn
+    :: CardanoNodeConn
     -> Int
     -- ^ batch size
     -> [(Address, (TokenBundle, [(String, String)]))]
     -- ^ (address, assets)
-    -> IO ()
-sendFaucetAssetsTo config conn batchSize targets =
-    when (cfgLastHardFork config >= MaryHardFork)
+    -> ClusterM ()
+sendFaucetAssetsTo conn batchSize targets = do
+    Config{..} <- ask
+    when (cfgLastHardFork >= MaryHardFork)
         $ batch batchSize targets
-        $ sendFaucet config conn "assets"
+        $ sendFaucet conn "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
 -- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and
 -- 'sendFaucetAssetsTo'.
 sendFaucet
     :: HasCallStack
-    => Config
-    -> CardanoNodeConn
+    => CardanoNodeConn
     -> String
     -- ^ label for logging
     -> [(Address, (TokenBundle, [(String, String)]))]
-    -> IO ()
-sendFaucet config conn what targets = do
-    let clusterDir = cfgClusterDir config
-    (faucetInput, faucetPrv) <- takeFaucet (cfgClusterConfigs config)
+    -> ClusterM ()
+sendFaucet conn what targets = do
+    Config{..} <- ask
+    let clusterDir = cfgClusterDir
+    (faucetInput, faucetPrv) <- takeFaucet
     let file = untag clusterDir </> "faucet-tx.raw"
 
     let mkOutput addr (TokenBundle (Coin c) tokens) =
@@ -297,12 +305,12 @@ sendFaucet config conn what targets = do
     let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
     let outputDir = retag @"cluster" @_ @"output" clusterDir
 
-    scripts <-
+    scripts <- liftIO $
         forM (nub $ concatMap (map snd . snd . snd) targets)
             $ writeMonetaryPolicyScriptFile outputDir
 
-    cli (cfgTracer config)
-        $ [ clusterEraToString (cfgLastHardFork config)
+    cli
+        $ [ clusterEraToString cfgLastHardFork
           , "transaction"
           , "build-raw"
           , "--tx-in"
@@ -320,12 +328,11 @@ sendFaucet config conn what targets = do
             ++ mkMint targetAssets
             ++ (concatMap (\f -> ["--minting-script-file", untag f]) scripts)
 
-    policyKeys <-
+    policyKeys <- liftIO $
         forM (nub $ concatMap (snd . snd) targets) $ \(skey, keyHash) ->
             writePolicySigningKey outputDir keyHash skey
 
     signAndSubmitTx
-        config
         conn
         outputDir
         (Tagged @"tx-body" file)

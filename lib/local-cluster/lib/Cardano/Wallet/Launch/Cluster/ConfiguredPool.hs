@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -15,7 +17,9 @@ import Prelude
 import Cardano.Api
     ( AsType (..)
     , File (..)
+    , HasTextEnvelope
     , Key (..)
+    , SerialiseAsBech32
     , SerialiseAsCBOR (..)
     )
 import Cardano.Binary
@@ -45,8 +49,12 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra
-    , clusterEraToString
+    ( clusterEraToString
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    , runClusterM
+    , traceClusterLog
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -92,9 +100,14 @@ import Cardano.Wallet.Util
 import Control.Lens
     ( over
     )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
+import Control.Monad.Reader
+    ( MonadReader (..)
+    )
 import Control.Tracer
-    ( Tracer (..)
-    , traceWith
+    ( traceWith
     )
 import Crypto.Hash.Extra
     ( blake2b256
@@ -123,6 +136,9 @@ import Data.Text
     )
 import Data.Word.Odd
     ( Word31
+    )
+import GHC.TypeLits
+    ( Symbol
     )
 import System.Directory
     ( createDirectoryIfMissing
@@ -165,23 +181,20 @@ data ConfiguredPool = ConfiguredPool
     }
 
 configurePools
-    :: Config
-    -> PoolMetadataServer
+    :: PoolMetadataServer
     -> NonEmpty PoolRecipe
-    -> IO (NonEmpty ConfiguredPool)
-configurePools config metadataServer =
-    traverse (configurePool config metadataServer)
+    -> ClusterM (NonEmpty ConfiguredPool)
+configurePools metadataServer =
+    traverse (configurePool metadataServer)
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
-    -> IO (Tagged "kes-prv" FilePath, Tagged "kes-pub" FilePath)
-genKesKeyPair tr poolDir = do
+    :: Tagged "pool" FilePath
+    -> ClusterM (Tagged "kes-prv" FilePath, Tagged "kes-pub" FilePath)
+genKesKeyPair poolDir = do
     let kesPrv = Tagged @"kes-prv" $ untag poolDir </> "kes.prv"
     let kesPub = Tagged @"kes-pub" $ untag poolDir </> "kes.pub"
     cli
-        tr
         [ "node"
         , "key-gen-KES"
         , "--verification-key-file"
@@ -193,14 +206,12 @@ genKesKeyPair tr poolDir = do
 
 -- | Create a key pair for a node VRF operational key
 genVrfKeyPair
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
-    -> IO (Tagged "vrf-prv" FilePath, Tagged "vrf-pub" FilePath)
-genVrfKeyPair tr poolDir = do
+    :: Tagged "pool" FilePath
+    -> ClusterM (Tagged "vrf-prv" FilePath, Tagged "vrf-pub" FilePath)
+genVrfKeyPair poolDir = do
     let vrfPrv = Tagged @"vrf-prv" $ untag poolDir </> "vrf.prv"
     let vrfPub = Tagged @"vrf-pub" $ untag poolDir </> "vrf.pub"
     cli
-        tr
         [ "node"
         , "key-gen-VRF"
         , "--verification-key-file"
@@ -213,25 +224,25 @@ genVrfKeyPair tr poolDir = do
 -- | Write a key pair for a node operator's offline key and a new certificate
 -- issue counter
 writeOperatorKeyPair
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
+    :: Tagged "pool" FilePath
     -> PoolRecipe
-    -> IO
+    -> ClusterM
         ( Tagged "op-prv" FilePath
         , Tagged "op-pub" FilePath
         , Tagged "op-cnt" FilePath
         )
-writeOperatorKeyPair tr poolDir recipe = do
+writeOperatorKeyPair poolDir recipe = do
     let (_pId, pub, prv, count) = operatorKeys recipe
-    traceWith tr $ MsgGenOperatorKeyPair $ untag poolDir
+    traceClusterLog $ MsgGenOperatorKeyPair $ untag poolDir
 
     let opPub = untag poolDir </> "op.pub"
     let opPrv = untag poolDir </> "op.prv"
     let opCount = untag poolDir </> "op.count"
 
-    Aeson.encodeFile opPub pub
-    Aeson.encodeFile opPrv prv
-    Aeson.encodeFile opCount count
+    liftIO $ do
+        Aeson.encodeFile opPub pub
+        Aeson.encodeFile opPrv prv
+        Aeson.encodeFile opCount count
 
     pure
         ( Tagged @"op-prv" opPrv
@@ -241,16 +252,14 @@ writeOperatorKeyPair tr poolDir recipe = do
 
 -- | Issue a node operational certificate
 issueOpCert
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
+    :: Tagged "pool" FilePath
     -> Tagged "kes-pub" FilePath
     -> Tagged "op-prv" FilePath
     -> Tagged "op-cnt" FilePath
-    -> IO FilePath
-issueOpCert tr nodeDir kesPub opPrv opCount = do
+    -> ClusterM FilePath
+issueOpCert nodeDir kesPub opPrv opCount = do
     let file = untag nodeDir </> "op.cert"
     cli
-        tr
         [ "node"
         , "issue-op-cert"
         , "--kes-verification-key-file"
@@ -268,12 +277,10 @@ issueOpCert tr nodeDir kesPub opPrv opCount = do
 
 -- | Create a stake address key pair
 genStakeAddrKeyPair
-    :: Tracer IO ClusterLog
-    -> (Tagged "stake-prv" FilePath, Tagged "stake-pub" FilePath)
-    -> IO ()
-genStakeAddrKeyPair tr (stakePrv, stakePub) = do
+    :: (Tagged "stake-prv" FilePath, Tagged "stake-pub" FilePath)
+    -> ClusterM ()
+genStakeAddrKeyPair (stakePrv, stakePub) = do
     cli
-        tr
         [ "stake-address"
         , "key-gen"
         , "--verification-key-file"
@@ -282,16 +289,27 @@ genStakeAddrKeyPair tr (stakePrv, stakePub) = do
         , untag stakePrv
         ]
 
+readFailVerificationKeyOrFile
+    :: forall keyrole (s :: Symbol)
+     . ( HasTextEnvelope (VerificationKey keyrole)
+       , SerialiseAsBech32 (VerificationKey keyrole)
+       )
+    => AsType keyrole
+    -> Tagged s FilePath
+    -> ClusterM (VerificationKey keyrole)
+readFailVerificationKeyOrFile role op =
+    liftIO
+        $ either (error . show) id
+            <$> readVerificationKeyOrFile
+                role
+                (VerificationKeyFilePath $ File $ untag op)
+
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
     => Tagged "op-pub" FilePath
-    -> IO (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
+    -> ClusterM (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
 stakePoolIdFromOperatorVerKey opPub = do
-    stakePoolVerKey <-
-        either (error . show) id
-            <$> readVerificationKeyOrFile
-                AsStakePoolKey
-                (VerificationKeyFilePath $ File $ untag opPub)
+    stakePoolVerKey <- readFailVerificationKeyOrFile AsStakePoolKey opPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
         $ either (error . show) snd
@@ -300,13 +318,9 @@ stakePoolIdFromOperatorVerKey opPub = do
 poolVrfFromFile
     :: HasCallStack
     => Tagged "vrf-pub" FilePath
-    -> IO (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
+    -> ClusterM (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
 poolVrfFromFile vrfPub = do
-    stakePoolVerKey <-
-        either (error . show) id
-            <$> readVerificationKeyOrFile
-                AsVrfKey
-                (VerificationKeyFilePath $ File $ untag vrfPub)
+    stakePoolVerKey <- readFailVerificationKeyOrFile AsVrfKey vrfPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
         $ either (error . show) snd
@@ -315,13 +329,9 @@ poolVrfFromFile vrfPub = do
 stakingKeyHashFromFile
     :: HasCallStack
     => Tagged "stake-pub" FilePath
-    -> IO (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
+    -> ClusterM (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
 stakingKeyHashFromFile stakePub = do
-    stakePoolVerKey <-
-        either (error . show) id
-            <$> readVerificationKeyOrFile
-                AsStakeKey
-                (VerificationKeyFilePath $ File $ untag stakePub)
+    stakePoolVerKey <- readFailVerificationKeyOrFile AsStakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     pure
         $ either (error . show) snd
@@ -330,13 +340,9 @@ stakingKeyHashFromFile stakePub = do
 stakingAddrFromVkFile
     :: HasCallStack
     => Tagged "stake-pub" FilePath
-    -> IO (Ledger.Addr StandardCrypto)
+    -> ClusterM (Ledger.Addr StandardCrypto)
 stakingAddrFromVkFile stakePub = do
-    stakePoolVerKey <-
-        either (error . show) id
-            <$> readVerificationKeyOrFile
-                AsStakeKey
-                (VerificationKeyFilePath $ File $ untag stakePub)
+    stakePoolVerKey <- readFailVerificationKeyOrFile AsStakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
     let payKH =
             either (error . show) snd
@@ -351,17 +357,15 @@ stakingAddrFromVkFile stakePub = do
             (Ledger.StakeRefBase (Ledger.KeyHashObj delegKH))
 
 preparePoolRetirement
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
-    -> Tagged "cluster-configs" FilePath
-    -> ClusterEra
+    :: Tagged "pool" FilePath
     -> [Tagged "retirement-cert" FilePath]
-    -> IO (Tagged "retirement-tx" FilePath, Tagged "faucet-prv" FilePath)
-preparePoolRetirement tr poolDir setupDir era certs = do
+    -> ClusterM (Tagged "retirement-tx" FilePath, Tagged "faucet-prv" FilePath)
+preparePoolRetirement poolDir certs = do
+    Config{..} <- ask
     let file = untag poolDir </> "tx.raw"
-    (faucetInput, faucetPrv) <- takeFaucet setupDir
-    cli tr
-        $ [ clusterEraToString era
+    (faucetInput, faucetPrv) <- takeFaucet
+    cli
+        $ [ clusterEraToString cfgLastHardFork
           , "transaction"
           , "build-raw"
           , "--tx-in"
@@ -378,15 +382,13 @@ preparePoolRetirement tr poolDir setupDir era certs = do
     pure (Tagged file, faucetPrv)
 
 issuePoolRetirementCert
-    :: Tracer IO ClusterLog
-    -> Tagged "pool" FilePath
+    :: Tagged "pool" FilePath
     -> Tagged "op-pub" FilePath
     -> Word31
-    -> IO (Tagged "retirement-cert" FilePath)
-issuePoolRetirementCert tr poolDir opPub retirementEpoch = do
+    -> ClusterM (Tagged "retirement-cert" FilePath)
+issuePoolRetirementCert poolDir opPub retirementEpoch = do
     let file = untag poolDir </> "pool-retirement.cert"
     cli
-        tr
         [ "stake-pool"
         , "deregistration-certificate"
         , "--cold-verification-key-file"
@@ -400,32 +402,31 @@ issuePoolRetirementCert tr poolDir opPub retirementEpoch = do
 
 configurePool
     :: HasCallStack
-    => Config
-    -> PoolMetadataServer
+    => PoolMetadataServer
     -> PoolRecipe
-    -> IO ConfiguredPool
-configurePool config@Config{..} metadataServer recipe = do
+    -> ClusterM ConfiguredPool
+configurePool  metadataServer recipe = do
     let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
 
+    config@Config{..} <- ask
     -- Use pool-specific dir
     let name = "pool-" <> show i
     let poolDir :: Tagged "pool" FilePath
         poolDir = Tagged $ untag cfgClusterDir </> name
-    createDirectoryIfMissing False (untag poolDir)
+    liftIO $ createDirectoryIfMissing False (untag poolDir)
 
     -- Generate/assign keys
-    (vrfPrv, vrfPub) <- genVrfKeyPair cfgTracer poolDir
-    (kesPrv, kesPub) <- genKesKeyPair cfgTracer poolDir
-    (opPrv, opPub, opCount) <- writeOperatorKeyPair cfgTracer poolDir recipe
-    opCert <- issueOpCert cfgTracer poolDir kesPub opPrv opCount
+    (vrfPrv, vrfPub) <- genVrfKeyPair poolDir
+    (kesPrv, kesPub) <- genKesKeyPair poolDir
+    (opPrv, opPub, opCount) <- writeOperatorKeyPair poolDir recipe
+    opCert <- issueOpCert poolDir kesPub opPrv opCount
     let ownerPub = Tagged @"stake-pub" $ untag poolDir </> "stake.pub"
     let ownerPrv = Tagged @"stake-prv" $ untag poolDir </> "stake.prv"
-    genStakeAddrKeyPair cfgTracer (ownerPrv, ownerPub)
+    genStakeAddrKeyPair (ownerPrv, ownerPub)
 
     let metadataURL = urlFromPoolIndex metadataServer i
-    registerMetadataForPoolIndex metadataServer i metadata
+    liftIO $ registerMetadataForPoolIndex metadataServer i metadata
     let metadataBytes = Aeson.encode metadata
-
     pure
         ConfiguredPool
             { operatePool = \nodeParams action -> do
@@ -439,13 +440,13 @@ configurePool config@Config{..} metadataServer recipe = do
                     traceWith cfgTracer $ MsgStartedStaticServer (untag poolDir) url
 
                     (nodeConfig, genesisData, vd) <-
-                        genNodeConfig
-                            (retag @"pool" @_ @"output" poolDir)
-                            cfgClusterConfigs
-                            (Tagged @"node-name" mempty)
-                            genesisFiles
-                            hardForks
-                            logCfg'
+                        runClusterM config $
+                            genNodeConfig
+                                (retag @"pool" @_ @"output" poolDir)
+                                (Tagged @"node-name" mempty)
+                                genesisFiles
+                                hardForks
+                                logCfg'
 
                     let cfg =
                             CardanoNodeConfig
@@ -463,9 +464,9 @@ configurePool config@Config{..} metadataServer recipe = do
                                 , nodeExecutable = Nothing
                                 }
 
-                    withCardanoNodeProcess cfgTracer name cfg $ \socket -> do
-                        action $ RunningNode socket genesisData vd
-            , registerViaShelleyGenesis = do
+                    runClusterM config $ withCardanoNodeProcess name cfg
+                        $ \socket -> action $ RunningNode socket genesisData vd
+            , registerViaShelleyGenesis = runClusterM config $ do
                 poolId <- stakePoolIdFromOperatorVerKey opPub
                 vrf <- poolVrfFromFile vrfPub
                 stakePubHash <- stakingKeyHashFromFile ownerPub
@@ -516,16 +517,12 @@ configurePool config@Config{..} metadataServer recipe = do
                 -- @registerViaTx@, but this seems to work regardless. (We
                 -- do want to submit it here for the sake of babbage)
                 let retire e = do
-                        retCert <- issuePoolRetirementCert cfgTracer poolDir opPub e
+                        retCert <- issuePoolRetirementCert poolDir opPub e
                         (rawTx, faucetPrv) <-
                             preparePoolRetirement
-                                cfgTracer
                                 poolDir
-                                cfgClusterConfigs
-                                cfgLastHardFork
                                 [retCert]
                         signAndSubmitTx
-                            config
                             socket
                             (retag @"pool" @_ @"output" poolDir)
                             (retag @"retirement-tx" @_ @"tx-body" rawTx)
@@ -535,7 +532,7 @@ configurePool config@Config{..} metadataServer recipe = do
                             ]
                             "retirement cert"
 
-                traverse_ retire mretirementEpoch
+                runClusterM config $ traverse_ retire mretirementEpoch
             , metadataUrl = T.pack metadataURL
             , recipe = recipe
             }

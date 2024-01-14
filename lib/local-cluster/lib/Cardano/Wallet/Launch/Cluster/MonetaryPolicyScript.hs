@@ -13,11 +13,11 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     , cliLine
     )
-import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog (..)
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
     )
-import Control.Tracer
-    ( Tracer (..)
+import Control.Monad.IO.Class
+    ( MonadIO (..)
     )
 import Data.Aeson
     ( object
@@ -48,15 +48,13 @@ import qualified Data.Text as T
 -- | For creating test fixtures. Returns PolicyId, signing key, and verification
 -- key hash, all hex-encoded. Files are put in the given directory.
 genMonetaryPolicyScript
-    :: Tracer IO ClusterLog
-    -> Tagged "output" FilePath
-    -> IO (String, (String, String))
-genMonetaryPolicyScript tr outputDir = do
+    :: Tagged "output" FilePath
+    -> ClusterM (String, (String, String))
+genMonetaryPolicyScript outputDir = do
     let policyPub = untag outputDir </> "policy.pub"
     let policyPrv = untag outputDir </> "policy.prv"
 
     cli
-        tr
         [ "address"
         , "key-gen"
         , "--verification-key-file"
@@ -64,19 +62,17 @@ genMonetaryPolicyScript tr outputDir = do
         , "--signing-key-file"
         , policyPrv
         ]
-    skey <- T.unpack <$> readKeyFromFile policyPrv
+    skey <- liftIO $ T.unpack <$> readKeyFromFile policyPrv
     vkeyHash <-
         cliLine
-            tr
             [ "address"
             , "key-hash"
             , "--payment-verification-key-file"
             , policyPub
             ]
-    script <- writeMonetaryPolicyScriptFile outputDir vkeyHash
+    script <- liftIO $ writeMonetaryPolicyScriptFile outputDir vkeyHash
     policyId <-
         cliLine
-            tr
             [ "transaction"
             , "policyid"
             , "--script-file"

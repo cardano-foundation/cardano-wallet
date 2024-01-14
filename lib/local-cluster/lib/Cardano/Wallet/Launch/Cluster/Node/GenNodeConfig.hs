@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -23,8 +24,18 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
     )
+import Cardano.Wallet.Launch.Cluster.Aeson
+    ( withAddedKey
+    , withObject
+    )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
     ( GenesisFiles (..)
@@ -34,6 +45,10 @@ import Cardano.Wallet.Launch.Cluster.Logging
     )
 import Control.Monad
     ( (>=>)
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
+    , MonadReader (..)
     )
 import Data.Aeson
     ( toJSON
@@ -57,10 +72,6 @@ import System.FilePath
     ( (</>)
     )
 
-import Cardano.Wallet.Launch.Cluster.Aeson
-    ( withAddedKey
-    , withObject
-    )
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -70,7 +81,6 @@ import qualified Data.Yaml as Yaml
 genNodeConfig
     :: Tagged "output" FilePath
     -- ^ A top-level directory where to put the configuration.
-    -> Tagged "cluster-configs" FilePath
     -> Tagged "node-name" String -- Node name
     -> GenesisFiles
     -- ^ Genesis block start time
@@ -78,12 +88,13 @@ genNodeConfig
     -- ^ Last era to hard fork into.
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
-    -> IO
+    -> ClusterM
         ( Tagged "node-config" FilePath
         , ShelleyGenesis StandardCrypto
         , NodeToClientVersionData
         )
-genNodeConfig poolDir setupDir name genesisFiles clusterEra logCfg = do
+genNodeConfig poolDir name genesisFiles clusterEra logCfg = do
+    Config{..} <- ask
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let GenesisFiles
             { byronGenesis
@@ -113,7 +124,7 @@ genNodeConfig poolDir setupDir name genesisFiles clusterEra logCfg = do
     let poolNodeConfig =
             untag poolDir </> ("node" <> untag name <> "-config.yaml")
 
-    Yaml.decodeFileThrow (untag setupDir </> "node-config.json")
+    liftIO $ Yaml.decodeFileThrow (untag cfgClusterConfigs </> "node-config.json")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
         >>= withAddedKey "ByronGenesisFile" byronGenesis
         >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -10,17 +11,19 @@ where
 
 import Prelude
 
-import Cardano.BM.Tracing
-    ( Tracer
-    )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , NodePort (..)
     )
-import Cardano.Wallet.Launch.Cluster.Logging
-    ( ClusterLog
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
     , bracketTracer'
-    , setLoggingName
+    )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Logging
+    ( setLoggingName
     )
 import Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     ( genNodeConfig
@@ -36,6 +39,10 @@ import Cardano.Wallet.Launch.Cluster.Node.Process
     )
 import Cardano.Wallet.Launch.Cluster.Node.RunningNode
     ( RunningNode (..)
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
+    , MonadReader (..)
     )
 import Data.Tagged
     ( Tagged (Tagged)
@@ -59,32 +66,26 @@ import System.FilePath
 -- Connectiong wallet to a non-block producing (relay) node allows to avoid
 -- such problems.
 withRelayNode
-    :: Tracer IO ClusterLog
-    -- ^ Trace for subprocess control logging
-    -> Tagged "cluster" FilePath
-    -- ^ Parent state directory.
-    -- Node data will be created in a subdirectory of this.
-    -> Tagged "cluster-configs" FilePath
-    -> NodeParams
+    :: NodeParams
     -- ^ Parameters used to generate config files.
     -> (RunningNode -> IO a)
     -- ^ Callback function with socket path
-    -> IO a
-withRelayNode tr clusterDir setupDir params onClusterStart = do
+    -> ClusterM a
+withRelayNode params onClusterStart = do
+    Config{..} <- ask
     let name = "node"
-    let nodeDir' = Tagged @"output" $ untag clusterDir </> name
+    let nodeDir' = Tagged @"output" $ untag cfgClusterDir </> name
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
-    bracketTracer' tr "withRelayNode" $ do
-        createDirectory $ untag nodeDir'
+    bracketTracer' "withRelayNode" $ do
+        liftIO $ createDirectory $ untag nodeDir'
 
         let logCfg' = setLoggingName name logCfg
         (config, genesisData, vd) <-
             genNodeConfig
                 nodeDir'
-                setupDir
                 (Tagged @"node-name" "-relay")
                 genesisFiles hardForks logCfg'
-        topology <- genTopology nodeDir' peers
+        topology <- liftIO $ genTopology nodeDir' peers
 
         let cfg =
                 CardanoNodeConfig
@@ -103,4 +104,4 @@ withRelayNode tr clusterDir setupDir params onClusterStart = do
                     }
 
         let onClusterStart' socket = onClusterStart (RunningNode socket genesisData vd)
-        withCardanoNodeProcess tr name cfg onClusterStart'
+        withCardanoNodeProcess name cfg onClusterStart'

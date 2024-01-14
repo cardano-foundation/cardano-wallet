@@ -25,7 +25,6 @@ import Cardano.Launcher
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , LogFileConfig (..)
-    , bracketTracer'
     )
 import Cardano.Wallet.Launch.Cluster.PoolMetadataServer
     ( withPoolMetadataServer
@@ -92,9 +91,16 @@ import UnliftIO.Exception
     , throwIO
     )
 
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    , bracketTracer'
+    , runClusterM
+    , traceClusterLog
+    )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
+
 import Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
     , configurePools
@@ -126,6 +132,9 @@ import Cardano.Wallet.Launch.Cluster.Node.RunningNode
     )
 import Cardano.Wallet.Launch.Cluster.Tx
     ( signAndSubmitTx
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
     )
 
 import qualified Data.List.NonEmpty as NE
@@ -164,31 +173,31 @@ withCluster
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster config@Config{..} faucetFunds onClusterStart =
-    bracketTracer' cfgTracer "withCluster" $ do
+withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config $
+    bracketTracer' "withCluster" $ do
         let clusterDir = untag cfgClusterDir
-        withPoolMetadataServer cfgTracer clusterDir $ \metadataServer -> do
-            createDirectoryIfMissing True clusterDir
-            traceWith cfgTracer $ MsgStartingCluster clusterDir
-            resetGlobals
+        withPoolMetadataServer $ \metadataServer -> do
+            liftIO $ createDirectoryIfMissing True clusterDir
+            traceClusterLog $ MsgStartingCluster clusterDir
+            liftIO resetGlobals
 
-            configuredPools <- configurePools config metadataServer cfgStakePools
+            configuredPools <- configurePools metadataServer cfgStakePools
 
             addGenesisPools <- do
-                genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
+                genesisDeltas <- liftIO
+                    $ mapM registerViaShelleyGenesis configuredPools
                 pure $ foldr (.) id genesisDeltas
             -- TODO (yura): Use Faucet API isntead of these fixed addresses
             faucetAddresses <-
                 map (,Coin 1_000_000_000_000_000)
-                    <$> readFaucetAddresses cfgClusterConfigs
+                    <$> readFaucetAddresses
 
             genesisFiles <-
                 generateGenesis
-                    config
                     (pureAdaFunds <> faucetAddresses)
                     (addGenesisPools : cfgShelleyGenesisMods)
 
-            extraPort : poolsTcpPorts <-
+            extraPort : poolsTcpPorts <- liftIO $
                 randomUnusedTCPPorts (length cfgStakePools + 1)
 
             let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
@@ -200,46 +209,44 @@ withCluster config@Config{..} faucetFunds onClusterStart =
                         cfgLastHardFork
                         pool0port
                         cfgNodeLogging
-            operatePool pool0 pool0Cfg $ \runningPool0 -> do
-                extraClusterSetupUsingNode configuredPools runningPool0
-                case NE.nonEmpty otherPools of
-                    Nothing -> onClusterStart runningPool0
-                    Just others -> do
-                        let relayNodeParams =
-                                NodeParams
-                                    { nodeGenesisFiles = genesisFiles
-                                    , nodeHardForks = cfgLastHardFork
-                                    , nodePeers = (extraPort, poolsTcpPorts)
-                                    , nodeLogConfig =
-                                        LogFileConfig
-                                            { minSeverityTerminal = Info
-                                            , extraLogDir = Nothing
-                                            , minSeverityFile = Info
-                                            }
-                                    }
-                        launchPools
-                            others
-                            genesisFiles
-                            poolPorts
-                            runningPool0
-                            $ \_poolNode ->
-                                withRelayNode
-                                    cfgTracer
-                                    cfgClusterDir
-                                    cfgClusterConfigs
-                                    relayNodeParams
-                                    onClusterStart
+            liftIO $ operatePool pool0 pool0Cfg $ \runningPool0 ->
+                runClusterM config $ do
+                    extraClusterSetupUsingNode configuredPools runningPool0
+                    case NE.nonEmpty otherPools of
+                        Nothing -> liftIO $ onClusterStart runningPool0
+                        Just others -> do
+                            let relayNodeParams =
+                                    NodeParams
+                                        { nodeGenesisFiles = genesisFiles
+                                        , nodeHardForks = cfgLastHardFork
+                                        , nodePeers = (extraPort, poolsTcpPorts)
+                                        , nodeLogConfig =
+                                            LogFileConfig
+                                                { minSeverityTerminal = Info
+                                                , extraLogDir = Nothing
+                                                , minSeverityFile = Info
+                                                }
+                                        }
+                            launchPools
+                                others
+                                genesisFiles
+                                poolPorts
+                                runningPool0
+                                $ \_poolNode ->
+                                    withRelayNode
+                                        relayNodeParams
+                                        onClusterStart
   where
     FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials = faucetFunds
 
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
-        :: NonEmpty ConfiguredPool -> RunningNode -> IO ()
+        :: NonEmpty ConfiguredPool -> RunningNode -> ClusterM ()
     extraClusterSetupUsingNode configuredPools runningNode = do
         let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
-        moveInstantaneousRewardsTo config conn mirCredentials
+        moveInstantaneousRewardsTo conn mirCredentials
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
@@ -250,14 +257,14 @@ withCluster config@Config{..} faucetFunds onClusterStart =
         -- integration tests, the integration tests /will fail/ (c.f. #3440).
         -- Later setup is less sensitive. Using a wallet with retrying
         -- submission pool might also be an idea for the future.
-        forM_ configuredPools
+        liftIO $ forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
-        sendFaucetAssetsTo config conn 20 maryAllegraFunds
+        sendFaucetAssetsTo conn 20 maryAllegraFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
-        (rawTx, faucetPrv) <- prepareKeyRegistration config
-        signAndSubmitTx config conn
+        (rawTx, faucetPrv) <- prepareKeyRegistration
+        signAndSubmitTx conn
             (retag @"cluster" @_ @"output" cfgClusterDir)
             (retag @"reg-tx" @_ @"tx-body" rawTx)
             [retag @"faucet-prv" @_ @"signing-key" faucetPrv]
@@ -273,9 +280,9 @@ withCluster config@Config{..} faucetFunds onClusterStart =
         -- add a BFT node as extra peer for all pools.
         -> RunningNode
         -- \^ Backup node to run the action with in case passed no pools.
-        -> (RunningNode -> IO a)
+        -> (RunningNode -> ClusterM a)
         -- \^ Action to run once when the stake pools are setup.
-        -> IO a
+        -> ClusterM a
     launchPools configuredPools genesisFiles ports fallbackNode action = do
         waitGroup <- newChan
         doneGroup <- newChan
@@ -283,13 +290,13 @@ withCluster config@Config{..} faucetFunds onClusterStart =
         let poolCount = length configuredPools
 
         let waitAll = do
-                traceWith cfgTracer
+                traceClusterLog
                     $ MsgDebug "waiting for stake pools to register"
                 replicateM poolCount (readChan waitGroup)
 
-        let onException :: SomeException -> IO ()
+        let onException :: SomeException -> ClusterM ()
             onException e = do
-                traceWith cfgTracer
+                traceClusterLog
                     $ MsgDebug
                     $ "exception while starting pool: "
                         <> T.pack (show e)
@@ -305,7 +312,7 @@ withCluster config@Config{..} faucetFunds onClusterStart =
             $ \(configuredPool, (port, peers)) -> do
                 async $ handle onException $ do
                     let cfg = mkConfig (port, peers)
-                    operatePool configuredPool cfg $ \runningPool -> do
+                    liftIO $ operatePool configuredPool cfg $ \runningPool -> do
                         writeChan waitGroup $ Right runningPool
                         readChan doneGroup
         mapM_ link asyncs
@@ -314,11 +321,11 @@ withCluster config@Config{..} faucetFunds onClusterStart =
                 replicateM_ poolCount (writeChan doneGroup ())
                 mapM_ wait asyncs
 
-        traceWith cfgTracer $ MsgRegisteringStakePools poolCount
+        traceClusterLog $ MsgRegisteringStakePools poolCount
         group <- waitAll
         if length (filter isRight group) /= poolCount
             then do
-                cancelAll
+                liftIO cancelAll
                 let errors = show (filter isLeft group)
                 throwIO
                     $ ProcessHasExited
@@ -331,7 +338,7 @@ withCluster config@Config{..} faucetFunds onClusterStart =
                         [] -> fallbackNode
                         Right firstPool : _ -> firstPool
                         Left e : _ -> error $ show e
-                action node `finally` cancelAll
+                action node `finally` liftIO cancelAll
 
     -- \| Get permutations of the size (n-1) for a list of n elements, alongside
     -- with the element left aside. `[a]` is really expected to be `Set a`.

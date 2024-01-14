@@ -16,6 +16,9 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( clusterEraToString
     )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
@@ -30,6 +33,10 @@ import Cardano.Wallet.Launch.Cluster.SinkAddress
     )
 import Cardano.Wallet.Launch.Cluster.StakeCertificates
     ( issueStakeVkCert
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
+    , MonadReader (..)
     )
 import Data.Generics.Labels
     ()
@@ -47,25 +54,23 @@ import qualified Data.Aeson as Aeson
 -- | Generate a raw transaction. We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
 prepareKeyRegistration
-    :: Config
-    -> IO (Tagged "reg-tx" FilePath, Tagged "faucet-prv" FilePath)
-prepareKeyRegistration config@Config{..} = do
+    :: ClusterM (Tagged "reg-tx" FilePath, Tagged "faucet-prv" FilePath)
+prepareKeyRegistration = do
+    Config{..} <- ask
     let outputDir = retag @"cluster" @_ @"output" cfgClusterDir
     let file = untag cfgClusterDir </> "tx.raw"
     let stakePub =
             Tagged @"stake-pub"
                 $ untag cfgClusterDir </> "pre-registered-stake.pub"
-    Aeson.encodeFile (untag stakePub) preRegisteredStakeKey
-    (faucetInput, faucetPrv) <- takeFaucet cfgClusterConfigs
+    liftIO $ Aeson.encodeFile (untag stakePub) preRegisteredStakeKey
+    (faucetInput, faucetPrv) <- takeFaucet
     cert <-
         issueStakeVkCert
-            cfgTracer
             outputDir
             (Tagged @"prefix" "pre-registered")
             stakePub
-    sink <- genSinkAddress config outputDir Nothing
+    sink <- genSinkAddress outputDir Nothing
     cli
-        cfgTracer
         [ clusterEraToString cfgLastHardFork
         , "transaction"
         , "build-raw"

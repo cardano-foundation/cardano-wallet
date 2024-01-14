@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module Cardano.Wallet.Launch.Cluster.PoolMetadataServer
     ( PoolMetadataServer (..)
     , withPoolMetadataServer
@@ -7,11 +8,21 @@ where
 import Prelude
 
 import Cardano.BM.Tracing
-    ( Tracer
-    , traceWith
+    ( traceWith
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    , runClusterM
+    )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgRegisteringPoolMetadata)
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
+    , MonadReader (..)
     )
 import Crypto.Hash.Extra
     ( blake2b256
@@ -19,6 +30,9 @@ import Crypto.Hash.Extra
 import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
+    )
+import Data.Tagged
+    ( untag
     )
 import System.Directory
     ( createDirectoryIfMissing
@@ -41,26 +55,26 @@ data PoolMetadataServer = PoolMetadataServer
     }
 
 withPoolMetadataServer
-    :: Tracer IO ClusterLog
-    -> FilePath
-    -> (PoolMetadataServer -> IO a)
-    -> IO a
-withPoolMetadataServer tr dir action = do
-    let metadir = dir </> "pool-metadata"
-    createDirectoryIfMissing False metadir
-    withStaticServer metadir $ \baseURL -> do
-        let _urlFromPoolIndex i = baseURL </> metadataFileName i
-        action PoolMetadataServer
-            { registerMetadataForPoolIndex = \i metadata -> do
-                let metadataBytes = Aeson.encode metadata
-                BL8.writeFile (metadir </> (metadataFileName i)) metadataBytes
-                let hash = blake2b256 (BL.toStrict metadataBytes)
-                traceWith tr
-                    $ MsgRegisteringPoolMetadata
-                        (_urlFromPoolIndex i)
-                        (B8.unpack $ convertToBase Base16 hash)
-            , urlFromPoolIndex = _urlFromPoolIndex
-            }
+    :: (PoolMetadataServer -> ClusterM a)
+    -> ClusterM a
+withPoolMetadataServer action = do
+    config@Config{..} <- ask
+    let metadir = untag cfgClusterDir </> "pool-metadata"
+    liftIO $ do
+        createDirectoryIfMissing False metadir
+        withStaticServer metadir $ \baseURL -> do
+            let _urlFromPoolIndex i = baseURL </> metadataFileName i
+            runClusterM config $ action PoolMetadataServer
+                { registerMetadataForPoolIndex = \i metadata -> do
+                    let metadataBytes = Aeson.encode metadata
+                    BL8.writeFile (metadir </> (metadataFileName i)) metadataBytes
+                    let hash = blake2b256 (BL.toStrict metadataBytes)
+                    traceWith cfgTracer
+                        $ MsgRegisteringPoolMetadata
+                            (_urlFromPoolIndex i)
+                            (B8.unpack $ convertToBase Base16 hash)
+                , urlFromPoolIndex = _urlFromPoolIndex
+                }
   where
     metadataFileName :: Int -> FilePath
     metadataFileName i = show i <> ".json"

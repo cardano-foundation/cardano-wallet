@@ -26,7 +26,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..)
     )
 import Cardano.BM.Extra
-    ( stdoutTextTracer
+    ( bracketTracer
+    , stdoutTextTracer
     )
 import Cardano.CLI
     ( Port (..)
@@ -67,6 +68,7 @@ import Cardano.Wallet.Launch.Cluster
     , RunningNode (..)
     , clusterEraFromEnv
     , moveInstantaneousRewardsTo
+    , runClusterM
     , sendFaucetAssetsTo
     , withCluster
     , withFaucet
@@ -102,7 +104,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     )
 import Cardano.Wallet.Test.Integration.Logging
     ( TestsLog (..)
-    , bracketTracer'
     , withTracers
     )
 import Cardano.Wallet.TokenMetadata.MockServer
@@ -127,6 +128,9 @@ import Data.IORef
     )
 import Data.Tagged
     ( Tagged (..)
+    )
+import Data.Text
+    ( Text
     )
 import Data.Text.Class
     ( ToText (..)
@@ -425,7 +429,7 @@ setupContext
         manager <- httpManager
         mintSeaHorseAssetsLock <- newMVar ()
 
-        let config =
+        let withConfig = runClusterM $
                 Cluster.Config
                     { cfgStakePools = error "cfgStakePools: unused"
                     , cfgLastHardFork = localClusterEra
@@ -451,14 +455,12 @@ setupContext
                 , _smashUrl = smashUrl
                 , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                     withMVar mintSeaHorseAssetsLock $ \() ->
-                        sendFaucetAssetsTo
-                            config
+                        withConfig $ sendFaucetAssetsTo
                             nodeConnection
                             batchSize
                             (Faucet.seaHorseTestAssets nPerAddr c addrs)
                 , _moveRewardsToScript = \(script, coin) ->
-                    moveInstantaneousRewardsTo
-                        config
+                    withConfig $ moveInstantaneousRewardsTo
                         nodeConnection
                         [(ScriptCredential script, coin)]
                 }
@@ -480,3 +482,6 @@ withContext testingCtx@TestingCtx{..} action = do
                 (withServer testingCtx clusterConfigs faucetFunds dbEventRecorder cluster)
                 (takeMVar ctx >>= bracketTracer' tr "spec" . action)
         whenLeft res (throwIO . ProcessHasExited "integration")
+
+bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
+bracketTracer' tr name = bracketTracer $ contramap (MsgBracket name) tr

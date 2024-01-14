@@ -44,6 +44,10 @@ module Cardano.Wallet.Launch.Cluster
 
       -- * Logging
     , ClusterLog (..)
+
+    -- * Monad
+    , ClusterM
+    , runClusterM
     ) where
 
 import Cardano.Wallet.Launch.Cluster.Cluster
@@ -55,6 +59,10 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     , clusterEraFromEnv
     , clusterEraToString
     , localClusterConfigsFromEnv
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    , runClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)

@@ -20,9 +20,16 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( clusterEraToString
     )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , TestnetMagic (testnetMagicToNatural)
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
+    , MonadReader (..)
     )
 import Data.Generics.Labels
     ()
@@ -38,18 +45,17 @@ import qualified Data.Text as T
 
 -- | Sign a transaction with all the necessary signatures.
 signTx
-    :: Config
-    -> Tagged "output" FilePath
+    :: Tagged "output" FilePath
     -- ^ Output directory
     -> Tagged "tx-body" FilePath
     -- ^ Tx body file
     -> [Tagged "signing-key" FilePath]
     -- ^ Signing keys for witnesses
-    -> IO (Tagged "tx-signed" FilePath)
-signTx Config{..} outputDir rawTx keys = do
-    file <- emptyTempFile (untag outputDir) "tx-signed.json"
-    cli cfgTracer
-        $ [ clusterEraToString cfgLastHardFork
+    -> ClusterM (Tagged "tx-signed" FilePath)
+signTx outputDir rawTx keys = do
+    Config{..} <- ask
+    file <- liftIO $ emptyTempFile (untag outputDir) "tx-signed.json"
+    cli $ [ clusterEraToString cfgLastHardFork
           , "transaction"
           , "sign"
           , "--tx-body-file"
@@ -64,15 +70,14 @@ signTx Config{..} outputDir rawTx keys = do
 
 -- | Submit a transaction through a running node.
 submitTx
-    :: Config
-    -> CardanoNodeConn
+    :: CardanoNodeConn
     -> Tagged "name" String
     -> Tagged "tx-signed" FilePath
-    -> IO ()
-submitTx Config{..} conn name signedTx =
-    cliRetry cfgTracer ("Submitting transaction for " <> T.pack (untag name))
+    -> ClusterM ()
+submitTx conn name signedTx = do
+    Config{..} <- ask
+    cliRetry ("Submitting transaction for " <> T.pack (untag name))
         =<< cliConfigNode
-            cfgTracer
             conn
             [ clusterEraToString cfgLastHardFork
             , "transaction"
@@ -85,8 +90,7 @@ submitTx Config{..} conn name signedTx =
             ]
 
 signAndSubmitTx
-    :: Config
-    -> CardanoNodeConn
+    :: CardanoNodeConn
     -> Tagged "output" FilePath
     -- ^ Output directory
     -> Tagged "tx-body" FilePath
@@ -94,7 +98,7 @@ signAndSubmitTx
     -> [Tagged "signing-key" FilePath]
     -- ^ Signing keys for witnesses
     -> Tagged "name" String
-    -> IO ()
-signAndSubmitTx config conn outputDir rawTx keys name = do
-    signedTx <- signTx config outputDir rawTx keys
-    submitTx config conn name signedTx
+    -> ClusterM ()
+signAndSubmitTx conn outputDir rawTx keys name = do
+    signedTx <- signTx outputDir rawTx keys
+    submitTx conn name signedTx

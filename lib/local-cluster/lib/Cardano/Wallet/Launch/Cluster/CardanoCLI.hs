@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cliConfigNode
@@ -24,6 +25,13 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn
     , nodeSocketFile
     )
+import Cardano.Wallet.Launch.Cluster.ClusterM
+    ( ClusterM
+    , traceClusterLog
+    )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgCLI, MsgCLIRetry, MsgCLIRetryResult, MsgCLIStatus)
     )
@@ -33,6 +41,12 @@ import Control.Exception
 import Control.Monad
     ( void
     , (>=>)
+    )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
+import Control.Monad.Reader
+    ( MonadReader (..)
     )
 import Control.Retry
     ( constantDelay
@@ -61,49 +75,46 @@ import qualified Data.ByteString.Lazy.Char8 as BL8
 -- the @PATH@, as normal. Sets @CARDANO_NODE_SOCKET_PATH@ for the subprocess, if
 -- a 'CardanoNodeConn' is provided.
 cliConfigBase
-    :: Tracer IO ClusterLog
-    -- ^ for logging the command
-    -> Maybe CardanoNodeConn
+    :: Maybe CardanoNodeConn
     -- ^ optional cardano-node socket path
     -> [String]
     -- ^ command-line arguments
-    -> IO (ProcessConfig () () ())
-cliConfigBase tr conn args = do
-    traceWith tr (MsgCLI args)
-    env <- getEnvironment
+    -> ClusterM (ProcessConfig () () ())
+cliConfigBase conn args = do
+    traceClusterLog (MsgCLI args)
+    env <- liftIO getEnvironment
     let mkEnv c = ("CARDANO_NODE_SOCKET_PATH", nodeSocketFile c) : env
-    let cliEnv :: ProcessConfig stdin stdout stderr
-                -> ProcessConfig stdin stdout stderr
+    let cliEnv
+            :: ProcessConfig stdin stdout stderr
+            -> ProcessConfig stdin stdout stderr
         cliEnv = maybe setEnvInherit (setEnv . mkEnv) conn
-    pure $ cliEnv $ proc "cardano-cli" args
+    pure
+        $ cliEnv
+        $ proc "cardano-cli" args
 
 cliConfigNode
-    :: Tracer IO ClusterLog
-    -- ^ for logging the command
-    -> CardanoNodeConn
+    :: CardanoNodeConn
     -- ^ cardano-node socket path
     -> [String]
     -- ^ command-line arguments
-    -> IO (ProcessConfig () () ())
-cliConfigNode tr conn = cliConfigBase tr (Just conn)
+    -> ClusterM (ProcessConfig () () ())
+cliConfigNode conn = cliConfigBase (Just conn)
 
 cliConfig
-    :: Tracer IO ClusterLog
-    -- ^ for logging the command
-    -> [String]
+    :: [String]
     -- ^ command-line arguments
-    -> IO (ProcessConfig () () ())
-cliConfig tr = cliConfigBase tr Nothing
+    -> ClusterM (ProcessConfig () () ())
+cliConfig = cliConfigBase Nothing
 
 -- | A quick helper to interact with the 'cardano-cli'. Assumes the cardano-cli
 -- is available in PATH.
-cli :: Tracer IO ClusterLog -> [String] -> IO ()
-cli tr = cliConfig tr >=> void . readProcessStdoutOrFail
+cli :: [String] -> ClusterM ()
+cli = cliConfig >=> void . liftIO . readProcessStdoutOrFail
 
-cliLine :: Tracer IO ClusterLog -> [String] -> IO String
-cliLine tr =
-    cliConfig tr
-        >=> fmap (BL8.unpack . getFirstLine) . readProcessStdoutOrFail
+cliLine :: [String] -> ClusterM String
+cliLine =
+    cliConfig
+        >=> fmap (BL8.unpack . getFirstLine) . liftIO . readProcessStdoutOrFail
 
 readProcessStdoutOrFail :: ProcessConfig () () () -> IO BL.ByteString
 readProcessStdoutOrFail processConfig = do
@@ -126,23 +137,24 @@ getFirstLine = BL8.takeWhile (\c -> c /= '\r' && c /= '\n')
 --
 -- Assumes @cardano-cli@ is available in @PATH@.
 cliRetry
-    :: Tracer IO ClusterLog
-    -> Text
+    :: Text
     -- ^ message to print before running command
     -> ProcessConfig () a b
-    -> IO ()
-cliRetry tr msg processConfig = do
-    (st, out, err) <- retrying pol (const isFail) (const cmd)
-    traceWith tr $ MsgCLIStatus msg st out err
+    -> ClusterM ()
+cliRetry msg processConfig = do
+    Config{..} <- ask
+    (st, out, err) <- liftIO $ retrying pol (const isFail) (const $ cmd cfgTracer)
+    traceClusterLog $ MsgCLIStatus msg st out err
     case st of
         ExitSuccess -> pure ()
-        ExitFailure _ ->
+        ExitFailure _ -> liftIO $
             throwIO
                 $ ProcessHasExited
                     ("cardano-cli failed: " <> BL8.unpack err)
                     st
   where
-    cmd = do
+    cmd :: Tracer IO ClusterLog -> IO (ExitCode, BL8.ByteString, BL8.ByteString)
+    cmd tr = do
         traceWith tr $ MsgCLIRetry msg
         (st, out, err) <- readProcess processConfig
         case st of
