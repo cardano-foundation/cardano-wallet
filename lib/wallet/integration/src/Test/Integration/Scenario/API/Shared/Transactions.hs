@@ -154,7 +154,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -244,7 +244,7 @@ spec
     => SpecWith Context
 spec = describe "SHARED_TRANSACTIONS" $ do
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - \
+    rit "SHARED_TRANSACTIONS_CREATE_01 - \
         \Cannot create tx for a pending shared wallet" $
         \ctx -> runResourceT $ do
 
@@ -290,7 +290,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             ]
         decodeErrorInfo rTx `shouldBe` SharedWalletIncomplete
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - \
+    rit "SHARED_TRANSACTIONS_CREATE_01 - \
         \Can create tx for an active shared wallet, typed metadata" $
         \ctx -> runResourceT $ do
 
@@ -406,7 +406,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01 - \
+    rit "SHARED_TRANSACTIONS_CREATE_01 - \
         \Can create tx for an active shared wallet, untyped metadata" $
         \ctx -> runResourceT $ do
 
@@ -549,7 +549,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01a -\
+    rit "SHARED_TRANSACTIONS_CREATE_01a -\
         \Empty payload is not allowed" $
         \ctx -> runResourceT $ do
 
@@ -563,7 +563,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_01b - \
+    rit "SHARED_TRANSACTIONS_CREATE_01b - \
         \Validity interval only is not allowed" $
         \ctx -> runResourceT $ do
 
@@ -589,7 +589,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04a - \
+    rit "SHARED_TRANSACTIONS_CREATE_04a - \
         \Single Output Transaction with decode transaction - single party" $
         \ctx -> runResourceT $ do
 
@@ -720,7 +720,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04b - \
+    rit "SHARED_TRANSACTIONS_CREATE_04b - \
         \Single Output Transaction Shared -> Shared" $
         \ctx -> runResourceT $ do
 
@@ -809,7 +809,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#fee . #toNatural) (`shouldBe` expectedFee)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04c - \
+    rit "SHARED_TRANSACTIONS_CREATE_04c - \
         \Cannot spend less than minUTxOValue" $
         \ctx -> runResourceT $ do
 
@@ -826,7 +826,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MinUTxOValue
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04d - \
+    rit "SHARED_TRANSACTIONS_CREATE_04d - \
         \Can't cover fee" $
         \ctx -> runResourceT $ do
 
@@ -842,7 +842,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403Fee
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_04e - \
+    rit "SHARED_TRANSACTIONS_CREATE_04e - \
         \Multiple Output Tx to single wallet"
         $ \ctx -> runResourceT $ do
 
@@ -884,14 +884,14 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (`shouldSatisfy` (> 0))
             ]
 
-    it "SHARED_TRANSACTIONS_CREATE_05a - \
+    rit "SHARED_TRANSACTIONS_CREATE_05a - \
         \Single Output Transaction with decode transaction - multi party" $
         \ctx -> runResourceT $ do
 
         (sharedWal1, sharedWal2) <- fixtureTwoPartySharedWallet ctx
         singleOutputTxTwoParty ctx sharedWal1 sharedWal2
 
-    it "SHARED_TRANSACTIONS_CREATE_05b - \
+    rit "SHARED_TRANSACTIONS_CREATE_05b - \
         \Single Output Transaction with decode transaction - multi party" $
         \ctx -> runResourceT $ do
 
@@ -899,7 +899,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             fixtureTwoPartySharedWalletPatched ctx
         singleOutputTxTwoParty ctx sharedWal1 sharedWal2
 
-    it "SHARED_TRANSACTIONS_CREATE_05c - \
+    rit "SHARED_TRANSACTIONS_CREATE_05c - \
         \Single Output Transaction with decode transaction - multi party" $
         \ctx -> runResourceT $ do
 
@@ -1057,7 +1057,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-    it "SHARED_TRANSACTIONS_CREATE_06 - \
+    rit "SHARED_TRANSACTIONS_CREATE_06 - \
         \multi party wallet balance consistency before and after wallet \
         \delete" $
         \ctx -> runResourceT $ do
@@ -1123,7 +1123,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             verify (fmap (view #wallet) <$> wal1a) balanceExp
             verify (fmap (view #wallet) <$> wal2a) balanceExp
 
-    it "SHARED_TRANSACTIONS_LIST_01 -\
+    rit "SHARED_TRANSACTIONS_LIST_01 -\
         \Can list Incoming and Outgoing transactions" $
         \ctx -> runResourceT $ do
 
@@ -1192,7 +1192,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
     --  20 | empty    | empty    | ascending  |    1      |  1st one      |
     -- +---+----------+----------+------------+-----------+---------------+
 
-    it "SHARED_TRANSACTIONS_LIST_02,03x -\
+    rit "SHARED_TRANSACTIONS_LIST_02,03x -\
         \Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
 
@@ -1529,7 +1529,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
         let withQuery q (method, link) = (method, link <> q)
 
-        forM_ queries $ \tc -> it (T.unpack $ query tc) $
+        forM_ queries $ \tc -> rit (T.unpack $ query tc) $
             \ctx -> runResourceT $ do
                 (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
                 let link = withQuery (query tc) $
@@ -1537,7 +1537,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 r <- request @([ApiTransaction n]) ctx link Default Empty
                 liftIO $ verify r (assertions tc)
 
-    it "SHARED_TRANSACTIONS_LIST_02 - \
+    rit "SHARED_TRANSACTIONS_LIST_02 - \
         \Start time shouldn't be later than end time" $
         \ctx -> runResourceT $ do
 
@@ -1557,7 +1557,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
             pure ()
 
-    it "SHARED_TRANSACTIONS_LIST_03 - \
+    rit "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal shouldn't be 0" $
         \ctx -> runResourceT $ do
 
@@ -1574,7 +1574,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             expectErrorMessage errMsg400MinWithdrawalWrong r
             pure ()
 
-    it "SHARED_TRANSACTIONS_LIST_03 - \
+    rit "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal can be 1, shows empty when no withdrawals" $
         \ctx -> runResourceT $ do
 
@@ -1591,7 +1591,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             let txs = getResponse r
             txs `shouldBe` []
 
-    it "SHARED_TRANSACTIONS_LIST_04 - \
+    rit "SHARED_TRANSACTIONS_LIST_04 - \
         \Deleted wallet" $
         \ctx -> runResourceT $ do
 
@@ -1604,7 +1604,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
+    rit "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
         \Transaction at time t is SELECTED by small ranges that cover it" $
         \ctx -> runResourceT $ do
 
@@ -1621,7 +1621,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 Nothing
             length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
-    it "SHARED_TRANSACTIONS_LIST_RANGE_02 - \
+    rit "SHARED_TRANSACTIONS_LIST_RANGE_02 - \
         \Transaction at time t is NOT selected by range (t + 𝛿t, ...)" $
         \ctx -> runResourceT $ do
 
@@ -1634,7 +1634,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 Nothing
             length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    it "SHARED_TRANSACTIONS_LIST_RANGE_03 - \
+    rit "SHARED_TRANSACTIONS_LIST_RANGE_03 - \
         \Transaction at time t is NOT selected by range (..., t - 𝛿t)" $
         \ctx -> runResourceT $ do
 
@@ -1647,7 +1647,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 Nothing
             length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    it "SHARED_TRANSACTIONS_GET_01 - \
+    rit "SHARED_TRANSACTIONS_GET_01 - \
         \Can get Incoming and Outgoing transaction" $
         \ctx -> runResourceT $ do
 
@@ -1723,7 +1723,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "SHARED_TRANSACTIONS_GET_02 - \
+    rit "SHARED_TRANSACTIONS_GET_02 - \
         \Deleted wallet" $
         \ctx -> runResourceT $ do
 
@@ -1736,7 +1736,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "SHARED_TRANSACTIONS_GET_03 - \
+    rit "SHARED_TRANSACTIONS_GET_03 - \
         \Using wrong transaction id" $
         \ctx -> runResourceT $ do
 
@@ -1787,7 +1787,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid2) r
 
-    it "SHARED_TRANSACTIONS_DELEGATION_01 - \
+    rit "SHARED_TRANSACTIONS_DELEGATION_01 - \
         \Cannot delegate when wallet is missing a delegation script template" $
         \ctx -> runResourceT $ do
 
@@ -1810,7 +1810,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         expectResponseCode HTTP.status403 rTx
         decodeErrorInfo rTx `shouldBe` DelegationInvalid
 
-    it "SHARED_TRANSACTIONS_DELEGATION_01a - \
+    rit "SHARED_TRANSACTIONS_DELEGATION_01a - \
        \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
         noConway ctx "delegation"
         (party1,party2) <- fixtureSharedWalletDelegating @n ctx
@@ -2328,7 +2328,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                      (`shouldBe` [ delegatingCert3 stakeKeyDerPathParty2])
                 ]
 
-    it "SHARED_TRANSACTIONS_DELEGATION_02  \
+    rit "SHARED_TRANSACTIONS_DELEGATION_02  \
        \Emulating multi-delegation using shared wallets" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith "TODO: Fix multi-delegation with shared wallets flakiness, ADP-3084"
         -- creating empty parent Shelley wallet
@@ -2613,7 +2613,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     (.> (ApiAmount faucetUtxoAmt))
                 ]
 
-    it "SHARED_TRANSACTIONS_LIST_05 - filter address output side" $
+    rit "SHARED_TRANSACTIONS_LIST_05 - filter address output side" $
         \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let a1 = minUTxOValue'
@@ -2667,7 +2667,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let amts2 = fmap (view #amount) txs2
         Set.fromList amts2 `shouldBe` Set.fromList (ApiAmount <$> [a1, a4, a5])
 
-    it "SHARED_TRANSACTIONS_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
+    rit "SHARED_TRANSACTIONS_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let a1 = minUTxOValue'
         let a2 = fromIntegral $ oneAda * 5_000

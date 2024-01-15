@@ -173,7 +173,7 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
     -- and execution time-information.
     shouldMatchHSpecIt :: IO () -> IO () -> Expectation
     shouldMatchHSpecIt extraTest hspecTest = do
-        extraRes <- runIt Extra.it extraTest
+        extraRes <- runIt Extra.rit extraTest
         hspecRes <- runIt it hspecTest
         lines extraRes `shouldBe` lines hspecRes
 

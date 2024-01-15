@@ -83,7 +83,7 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -134,7 +134,7 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_COIN_SELECTION" $ do
-    it
+    rit
         "WALLETS_COIN_SELECTION_01 - \
         \A singleton payment is included in the coin selection output."
         $ \ctx -> runResourceT $ do
@@ -177,7 +177,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         (`shouldBe` Nothing)
                     ]
 
-    it
+    rit
         "WALLETS_COIN_SELECTION_02 - \
         \Multiple payments are all included in the coin selection output."
         $ \ctx -> runResourceT $ do
@@ -212,7 +212,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     , expectField #metadata (`shouldBe` Nothing)
                     ]
 
-    it
+    rit
         "WALLETS_COIN_SELECTION_03 - \
         \Deleted wallet is not available for selection"
         $ \ctx -> runResourceT $ do
@@ -228,7 +228,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
                     ]
 
-    it
+    rit
         "WALLETS_COIN_SELECTION_03 - \
         \Wrong selection method (not 'random')"
         $ \ctx -> runResourceT $ do
@@ -290,7 +290,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         ]
                     )
                 ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, headers, expectations) -> rit title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             (addr : _) <- fmap (view #id) <$> listAddresses @n ctx w
             let amt = ApiAmount . minUTxOValue . _mainEra $ ctx
@@ -304,7 +304,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     payload
             verify r expectations
 
-    it "WALLETS_COIN_SELECTION_05a - can include metadata" $ \ctx -> runResourceT $ do
+    rit "WALLETS_COIN_SELECTION_05a - can include metadata" $ \ctx -> runResourceT $ do
         source <- fixtureWallet ctx
         addr : _ <- fmap (view #id) <$> listAddresses @n ctx source
 
@@ -322,7 +322,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 , expectField #metadata (`shouldSatisfy` isJust)
                 ]
 
-    it "WALLETS_COIN_SELECTION_05b - choke on invalid metadata" $ \ctx -> runResourceT $ do
+    rit "WALLETS_COIN_SELECTION_05b - choke on invalid metadata" $ \ctx -> runResourceT $ do
         source <- fixtureWallet ctx
         addr : _ <- fmap (view #id) <$> listAddresses @n ctx source
 
@@ -340,7 +340,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 , expectErrorMessage errMsg400TxMetadataStringTooLong
                 ]
 
-    it "WALLETS_COIN_SELECTION_06a - can redeem rewards from self" $ \ctx -> runResourceT $ do
+    rit "WALLETS_COIN_SELECTION_06a - can redeem rewards from self" $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
         (source, _) <- rewardWallet ctx
         addr : _ <- fmap (view #id) <$> listAddresses @n ctx source
@@ -364,7 +364,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     )
                 ]
 
-    it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other"
+    rit "WALLETS_COIN_SELECTION_06b - can redeem rewards from other"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
             (_, SomeMnemonic (mnemonicToText -> mnemonicTxt)) <- rewardWallet ctx
@@ -396,7 +396,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     -- Attempt to create a coin selection with an output that has an
     -- excessively high token quantity. (This should fail.)
-    it
+    rit
         "WALLETS_COIN_SELECTION_07 - \
         \Single output with excessively high token quantity."
         $ \ctx -> runResourceT $ do
@@ -441,7 +441,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
     -- Attempt to create a coin selection with an output that has an excessive
     -- number of assets, such that the serialized representation of the output
     -- would exceed the limit required by the protocol. (This should fail.)
-    it
+    rit
         "WALLETS_COIN_SELECTION_08 - \
         \Single output with excessively high number of assets."
         $ \ctx -> runResourceT $ do

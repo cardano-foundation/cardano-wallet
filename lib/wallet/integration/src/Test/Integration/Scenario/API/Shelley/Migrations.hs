@@ -91,7 +91,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -149,7 +149,7 @@ import qualified Test.Hspec as Hspec
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
-    it
+    rit
         "SHELLEY_CREATE_MIGRATION_PLAN_01 - \
         \Can create a migration plan."
         $ \ctx -> runResourceT $ do
@@ -187,7 +187,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` 0)
                 ]
 
-    it
+    rit
         "SHELLEY_CREATE_MIGRATION_PLAN_02 - \
         \Cannot create plan for empty wallet."
         $ \ctx -> runResourceT $ do
@@ -225,7 +225,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             [ "Cannot calculate Shelley migration using wallet: "
                             , walletType
                             ]
-                it title $ \ctx -> runResourceT $ do
+                rit title $ \ctx -> runResourceT $ do
                     sourceWallet <- byronWallet ctx
                     targetWallet <- emptyWallet ctx
                     targetAddresses <- listAddresses @n ctx targetWallet
@@ -329,7 +329,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
-    it
+    rit
         "SHELLEY_CREATE_MIGRATION_PLAN_05 - \
         \Creating a plan is deterministic."
         $ \ctx -> runResourceT $ do
@@ -362,7 +362,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 _ ->
                     error "Unable to compare plans."
 
-    it
+    rit
         "SHELLEY_CREATE_MIGRATION_PLAN_06 - \
         \Can create a migration plan for a wallet that has rewards."
         $ \ctx -> runResourceT $ do
@@ -768,7 +768,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             testAddressCycling 3
             testAddressCycling 10
 
-    it
+    rit
         "SHELLEY_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
@@ -927,7 +927,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (`shouldBe` ApiAmount 0)
                 ]
 
-    it
+    rit
         "SHELLEY_MIGRATE_03 - \
         \Migrating an empty wallet should fail."
         $ \ctx -> runResourceT $ do
@@ -1008,7 +1008,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         . fmap apiTransactionFee
                 ]
 
-    it
+    rit
         "SHELLEY_MIGRATE_05 - \
         \Migration fails if the wrong passphrase is supplied."
         $ \ctx -> runResourceT $ do
@@ -1040,7 +1040,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , expectErrorMessage errMsg403WrongPass
                 ]
 
-    it
+    rit
         "SHELLEY_MIGRATE_06 - \
         \It's possible to migrate to any valid address."
         $ \ctx -> runResourceT $ do
@@ -1081,7 +1081,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate (sourceWallet ^. walletId))
                 ]
 
-    it
+    rit
         "SHELLEY_MIGRATE_07 - \
         \Including an invalidly-formatted passphrase results in a parser error."
         $ \ctx -> runResourceT $ do
@@ -1588,7 +1588,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     , show targetAddressCount
                     , "."
                     ]
-        it title $ \ctx -> runResourceT $ do
+        rit title $ \ctx -> runResourceT $ do
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let sourceBalance =

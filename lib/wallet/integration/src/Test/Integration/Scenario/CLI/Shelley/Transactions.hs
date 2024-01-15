@@ -108,7 +108,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -166,7 +166,7 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
-    it "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_01 - Can create transaction via CLI" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
 
@@ -205,7 +205,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                         (#balance . #total) (`shouldBe` ApiAmount amt)
                 ]
 
-    it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr <- listAddresses @n ctx wDest
@@ -257,7 +257,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     (#balance . #total) (`shouldBe` ApiAmount (2*amt))
                 ]
 
-    it "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses @n ctx wDest
@@ -274,7 +274,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_05 - Invalid addresses" $ do
-        forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> rit title $ \ctx -> runResourceT $ do
             wSrc <- emptyWallet ctx
             let args = T.unpack <$>
                     [ wSrc ^. walletId
@@ -288,7 +288,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_06 - Invalid amount" $ do
-        forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> rit title $ \ctx -> runResourceT $ do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
@@ -305,7 +305,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             c `shouldBe` ExitFailure 1
 
     describe "TRANS_CREATE_07 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
+        forM_ falseWalletIds $ \(title, walId) -> rit title $ \ctx -> runResourceT $ do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let port = show $ ctx ^. typed @(Port "wallet")
@@ -325,7 +325,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 err `shouldContain` "wallet id should be a \
                     \hex-encoded string of 40 characters"
 
-    it "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_07 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
         wSrc <- emptyWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses @n ctx wDest
@@ -343,7 +343,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
-    it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         wSrc <- emptyWallet ctx
         Exit ex <- deleteWalletViaCLI ctx (T.unpack ( wSrc ^. walletId ))
         ex `shouldBe` ExitSuccess
@@ -364,7 +364,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
-    it "TRANSMETA_CREATE_01a - \
+    rit "TRANSMETA_CREATE_01a - \
         \Transaction with metadata via CLI" $
         \ctx -> runResourceT $ do
 
@@ -407,7 +407,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     (`shouldBe` InLedger)
                 ]
 
-    it "TRANSMETA_CREATE_01b - \
+    rit "TRANSMETA_CREATE_01b - \
         \Transaction with metadata via CLI with simple metadata" $ \ctx ->
         runResourceT $ do
 
@@ -452,7 +452,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     (`shouldBe` InLedger)
                 ]
 
-    it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
+    rit "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
       (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
       let amt = 10_000_000
       let ttl = Just "30s"
@@ -481,7 +481,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               [ expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger) ]
 
     describe "TRANS_ESTIMATE_08 - Invalid addresses" $ do
-        forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> rit title $ \ctx -> runResourceT $ do
             wSrc <- emptyWallet ctx
             let amt = T.pack . show . minUTxOValue . _mainEra $ ctx
             let args = T.unpack <$>
@@ -495,7 +495,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             c `shouldBe` ExitFailure 1
 
     describe "TRANS_ESTIMATE_09 - Invalid amount" $ do
-        forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrixInvalidAmt $ \(title, amt, errMsg) -> rit title $ \ctx -> runResourceT $ do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
@@ -521,7 +521,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                       <> " in "
                       <> show mOrder
                       <> " order "
-                it title $ \ctx -> runResourceT $ do
+                rit title $ \ctx -> runResourceT $ do
                     wallet <- emptyWallet ctx
                     (Exit code, Stdout out, Stderr err) <-
                         listTransactionsViaCLI ctx TxMetadataDetailedSchema $
@@ -535,7 +535,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     out `shouldBe` "[]\n"
                     code `shouldBe` ExitSuccess
 
-    it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_01 - Can list Incoming and Outgoing transactions" $ \ctx -> runResourceT $ do
         -- Make tx from fixtureWallet
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
@@ -585,7 +585,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     <> " in "
                     <> show mOrder
                     <> " order "
-            it title $ \ctx -> runResourceT $ do
+            rit title $ \ctx -> runResourceT $ do
                 wid <- emptyWallet' ctx
                 (Exit code, Stdout out, Stderr err) <-
                     listTransactionsViaCLI ctx TxMetadataDetailedSchema $ join
@@ -604,7 +604,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 out `shouldBe` mempty
                 code `shouldBe` ExitFailure 1
 
-    it "TRANS_LIST_03 - Can order results" $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_03 - Can order results" $ \ctx -> runResourceT $ do
         let a1 = ApiAmount $ sum $
                 replicate 10 (minUTxOValue (_mainEra ctx))
         let a2 = ApiAmount $ sum $
@@ -671,7 +671,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                     , orderErr
                     )
                   ]
-        forM_ queries $ \(q, errorMess) -> it (unwords q) $ \ctx -> runResourceT $ do
+        forM_ queries $ \(q, errorMess) -> rit (unwords q) $ \ctx -> runResourceT $ do
             wid <- emptyWallet' ctx
             let args = wid : q
             (Exit code, Stdout out, Stderr err) <-
@@ -680,7 +680,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             code `shouldBe` ExitFailure 1
             err `shouldContain` errorMess
 
-    it "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_04 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
         let invalidWid = wid ++ "0"
         (Exit code, Stdout out, Stderr err) <-
@@ -691,7 +691,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         code `shouldBe` ExitFailure 1
         out `shouldBe` mempty
 
-    it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
         Exit d <- deleteWalletViaCLI ctx wid
         d `shouldBe` ExitSuccess
@@ -703,7 +703,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         c `shouldBe` ExitFailure 1
 
     describe "TRANS_LIST_04 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
+        forM_ falseWalletIds $ \(title, walId) -> rit title $ \ctx -> runResourceT $ do
             (Exit c, Stdout o, Stderr e) <-
                 listTransactionsViaCLI ctx TxMetadataDetailedSchema [walId]
             o `shouldBe` ""
@@ -715,7 +715,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 e `shouldContain`
                     "wallet id should be a hex-encoded string of 40 characters"
 
-    it "TRANS_LIST_RANGE_01 - \
+    rit "TRANS_LIST_RANGE_01 - \
        \Transaction at time t is SELECTED by small ranges that cover it" $
           \ctx -> runResourceT $ do
               w <- fixtureWalletWith @n ctx [(minUTxOValue (_mainEra ctx))]
@@ -740,7 +740,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               oJson4 <- expectValidJSON (Proxy @([ApiTransaction n])) o4
               length <$> [oJson1, oJson2, oJson3, oJson4] `shouldSatisfy` all (== 1)
 
-    it "TRANS_LIST_RANGE_02 - \
+    rit "TRANS_LIST_RANGE_02 - \
        \Transaction at time t is NOT selected by range [t + 𝛿t, ...)" $
           \ctx -> runResourceT $ do
               w <- fixtureWalletWith @n ctx [(minUTxOValue (_mainEra ctx))]
@@ -755,7 +755,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
-    it "TRANS_LIST_RANGE_03 - \
+    rit "TRANS_LIST_RANGE_03 - \
        \Transaction at time t is NOT selected by range (..., t - 𝛿t]" $
           \ctx -> runResourceT $ do
               w <- fixtureWalletWith @n ctx [(minUTxOValue (_mainEra ctx))]
@@ -770,7 +770,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
               oJson2 <- expectValidJSON (Proxy @([ApiTransaction n])) o2
               length <$> [oJson1, oJson2] `shouldSatisfy` all (== 0)
 
-    it "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> runResourceT $ do
+    rit "TRANS_GET_01 - Can get Incoming and Outgoing transaction" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
@@ -827,7 +827,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 , expectCliField (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "TRANS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
         Exit d <- deleteWalletViaCLI ctx wid
         d `shouldBe` ExitSuccess
@@ -839,7 +839,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         o `shouldBe` mempty
         c `shouldBe` ExitFailure 1
 
-    it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
+    rit "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
@@ -866,7 +866,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         o2 `shouldBe` mempty
         c2 `shouldBe` ExitFailure 1
 
-    it "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymore via CLI" $ \ctx -> runResourceT $ do
+    rit "TRANS_DELETE_01 - Cannot forget pending transaction when not pending anymore via CLI" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         let wSrcId = T.unpack (wSrc ^. walletId)
@@ -896,7 +896,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
 
-    it "TRANS_DELETE_03 - Cannot forget tx that is not found via CLI" $ \ctx -> runResourceT $ do
+    rit "TRANS_DELETE_03 - Cannot forget tx that is not found via CLI" $ \ctx -> runResourceT $ do
         wid <- fixtureWallet' ctx
         let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
         -- forget transaction
@@ -907,7 +907,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         c `shouldBe` ExitFailure 1
 
     describe "TRANS_DELETE_04 - False wallet ids via CLI" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
+        forM_ falseWalletIds $ \(title, walId) -> rit title $ \ctx -> runResourceT $ do
             let txId = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
             -- forget transaction once again
             (Exit c, Stdout out, Stderr err) <-
@@ -921,7 +921,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 err `shouldContain` "wallet id should be a \
                     \hex-encoded string of 40 characters"
 
-    it "TRANS_DELETE_06 -\
+    rit "TRANS_DELETE_06 -\
         \ Cannot forget tx that is performed from different wallet via CLI"
         $ \ctx -> runResourceT $ do
             -- post tx
@@ -944,7 +944,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 , replicate 65 '1'
                 , replicate 64 'ś'
                 ]
-        forM_ txIds $ \tid -> it (show tid) $ \ctx -> runResourceT $ do
+        forM_ txIds $ \tid -> rit (show tid) $ \ctx -> runResourceT $ do
             wid <- emptyWallet' ctx
             (Exit c, Stdout out, Stderr err) <-
                 deleteTransactionViaCLI ctx wid tid
@@ -953,7 +953,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
-    it "BYRON_TX_LIST_03 -\
+    rit "BYRON_TX_LIST_03 -\
         \ Shelley CLI does not list Byron wallet transactions" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
         (Exit c, Stdout o, Stderr e) <-
@@ -962,7 +962,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         o `shouldBe` mempty
         c `shouldBe` ExitFailure 1
 
-    it "BYRON_TRANS_DELETE -\
+    rit "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley CLI" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
         (Exit c, Stdout o, Stderr e)
@@ -973,7 +973,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
     describe "BYRON_TRANS_CREATE / BYRON_TRANS_ESTIMATE -\
         \ Cannot create/estimate tx on Byron wallet using shelley CLI" $ do
-        forM_ ["create", "fees"] $ \action -> it action $ \ctx -> runResourceT $ do
+        forM_ ["create", "fees"] $ \action -> rit action $ \ctx -> runResourceT $ do
             wSrc <- emptyRandomWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest

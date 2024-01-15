@@ -17,7 +17,7 @@ import Test.Hspec
     , describe
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -33,7 +33,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
 spec = describe "BLOCKS" $ do
-    it "LATEST_BLOCK Current tip is reported" $ \ctx -> do
+    rit "LATEST_BLOCK Current tip is reported" $ \ctx -> do
         r <- request
             @ApiBlockHeader ctx Link.getBlocksLatestHeader Default Empty
         expectSuccess r

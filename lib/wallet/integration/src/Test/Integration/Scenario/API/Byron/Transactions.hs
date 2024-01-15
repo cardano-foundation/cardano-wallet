@@ -80,7 +80,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldNotBe
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -152,7 +152,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_CREATE_01 - Multi-asset transaction with ADA" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wSrc <- srcFixture ctx
         wDest <- emptyWallet ctx
@@ -184,7 +184,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_CREATE_02 - Multi-asset transaction with too little ADA" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wSrc <- srcFixture ctx
         wDest <- emptyWallet ctx
@@ -207,7 +207,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_CREATE_02a - Multi-asset transaction with no ADA" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wSrc <- srcFixture ctx
         wDest <- emptyWallet ctx
@@ -238,7 +238,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_LIST_01 - Asset list present" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wal <- srcFixture ctx
 
@@ -263,7 +263,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
               , (fixtureIcarusWallet, "Icarus fixture wallet")
               , (emptyRandomWallet, "Byron empty wallet")
               , (emptyIcarusWallet, "Icarus empty wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wal <- srcFixture ctx
         r <- request @([ApiAsset]) ctx (Link.listByronAssets wal) Default Empty
@@ -275,7 +275,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_GET_01 - Asset list present" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wal <- srcFixture ctx
 
@@ -298,7 +298,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wal <- srcFixture ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
@@ -311,7 +311,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
               , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
-              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+              \(srcFixture, name) -> rit name $ \ctx -> runResourceT $ do
 
         wal <- srcFixture ctx
         let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
@@ -322,7 +322,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
     describe "BYRON_TRANS_CREATE_01 - Single Output Transaction Byron -> Shelley" $
         forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $
-        \(srcFixture,name) -> it name $ \ctx -> runResourceT $ do
+        \(srcFixture,name) -> rit name $ \ctx -> runResourceT $ do
 
         (wByron, wShelley) <- (,) <$> srcFixture ctx <*> emptyWallet ctx
         addrs <- listAddresses @n ctx wShelley
@@ -420,7 +420,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
     describe "BYRON_TRANS_CREATE_01a - Single Output Transaction Byron -> Byron" $
         forM_ [(emptyRandomWallet, "Byron wallet"), (emptyIcarusWallet, "Icarus wallet")] $
-        \(emptyByronWallet,name) -> it name $ \ctx -> runResourceT $ do
+        \(emptyByronWallet,name) -> rit name $ \ctx -> runResourceT $ do
 
         (wByron, wDestByron) <- (,) <$> fixtureRandomWallet ctx <*> emptyByronWallet ctx
         ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wDestByron) Default Empty
@@ -523,7 +523,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                         )
                 ]
 
-    it "BYRON_TRANS_CREATE_02 -\
+    rit "BYRON_TRANS_CREATE_02 -\
         \ Cannot create tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
             w <- emptyRandomWallet ctx
             let wid = w ^. walletId
@@ -545,7 +545,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             expectResponseCode HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_TRANS_DELETE -\
+    rit "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
             w <- emptyRandomWallet ctx
             let wid = w ^. walletId
@@ -555,7 +555,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             expectResponseCode HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_TRANS_ESTIMATE -\
+    rit "BYRON_TRANS_ESTIMATE -\
         \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
             w <- emptyRandomWallet ctx
             let wid = w ^. walletId
@@ -576,7 +576,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             expectResponseCode HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_TX_LIST_02 -\
+    rit "BYRON_TX_LIST_02 -\
         \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let wid = w ^. walletId
@@ -587,7 +587,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    it "BYRON_TX_LIST_03 -\
+    rit "BYRON_TX_LIST_03 -\
         \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         let wid = w ^. walletId
@@ -598,7 +598,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
+    rit "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
         -- NOTE
         -- Special legacy wallets where addresses have been generated from a
         -- seed derived using the auxiliary method used by Ledger.
@@ -621,7 +621,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 (`shouldBe` ApiAmount faucetAmt)
             ]
 
-    it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
+    rit "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
         $ \ctx -> runResourceT @IO $ forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx
             let link = Link.listTransactions @'Byron w
@@ -631,7 +631,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 , expectListSize 0
                 ]
 
-    it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet" $ \ctx -> runResourceT @IO $ do
+    rit "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet" $ \ctx -> runResourceT @IO $ do
         w <- fixtureRandomWallet ctx
         let link = Link.listTransactions @'Byron w
         r <- request @([ApiTransaction n]) ctx link Default Empty
@@ -640,7 +640,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectListSize 10
             ]
 
-    it "BYRON_TX_LIST_01 - Can list transactions on Icarus Wallet" $ \ctx -> runResourceT @IO $ do
+    rit "BYRON_TX_LIST_01 - Can list transactions on Icarus Wallet" $ \ctx -> runResourceT @IO $ do
         w <- fixtureIcarusWallet ctx
         let link = Link.listTransactions @'Byron w
         r <- request @([ApiTransaction n]) ctx link Default Empty
@@ -651,7 +651,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
     describe "BYRON_TX_LIST_LIMIT - Transactions can be limited" $
         forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $
-            \(srcFixture,name) -> it name $ \ctx -> runResourceT $ do
+            \(srcFixture,name) -> rit name $ \ctx -> runResourceT $ do
                 w <- srcFixture ctx
                 let link = Link.listTransactions' @'Byron w
                         Nothing
@@ -736,13 +736,13 @@ spec = describe "BYRON_TRANSACTIONS" $ do
 
         let withQuery q (method, link) = (method, link <> q)
 
-        forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> runResourceT @IO $ do
+        forM_ queries $ \tc -> rit (T.unpack $ query tc) $ \ctx -> runResourceT @IO $ do
             w <- emptyRandomWallet ctx
             let link = withQuery (query tc) $ Link.listTransactions @'Byron w
             r <- request @([ApiTransaction n]) ctx link Default Empty
             liftIO $ verify r (assertions tc)
 
-    it "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
+    rit "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
         \ctx -> runResourceT @IO $ do
             w <- emptyRandomWallet ctx
             let startTime = "2009-09-09T09:09:09Z"
@@ -759,7 +759,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             expectErrorMessage
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
 
-    it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> runResourceT @IO $ do
+    rit "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> runResourceT @IO $ do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx
             (Link.deleteWallet @'Byron w) Default Empty
@@ -771,7 +771,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     describe "BYRON_TX_LIST_ADDRESS - Transactions can be filtered by address" $
         forM_ [ (fixtureRandomWallet, emptyRandomWallet, "Byron wallet")
               , (fixtureIcarusWallet, emptyIcarusWallet, "Icarus wallet")] $
-            \(srcFixture, srcEmpty, name) -> it name $ \ctx -> runResourceT $ do
+            \(srcFixture, srcEmpty, name) -> rit name $ \ctx -> runResourceT $ do
                 wSrc <- srcFixture ctx
                 wDest <- srcEmpty ctx
                 let link w = listTransactionsFilteredByAddress w Nothing

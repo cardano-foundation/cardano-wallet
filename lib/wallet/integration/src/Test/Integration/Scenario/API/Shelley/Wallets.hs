@@ -118,7 +118,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldNotBe
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -197,7 +197,7 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
-    it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
+    rit "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
         m15 <- Mnemonics.generateSome Mnemonics.M15
         m12 <- Mnemonics.generateSome Mnemonics.M12
         let payload = Json [json| {
@@ -238,7 +238,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   , "new wallet','\346\949\8466\8455\8450\430\8217',\
                     \'\346\949\8466\8455\8450\430\8217'); DROP TABLE \"wallet\"; --"
                   ) ]
-        forM_ matrix $ \(nameIn, nameOut) -> it nameIn $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(nameIn, nameOut) -> rit nameIn $ \ctx -> runResourceT $ do
             mnemonics <- Mnemonics.generateSome Mnemonics.M24
             let payload = Json [json| {
                     "name": #{nameIn},
@@ -269,7 +269,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#state . #getApiT) (`shouldBe` Ready)
                     ]
 
-    it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> runResourceT $ do
+    rit "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         -- create wallet
@@ -333,7 +333,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                         (#balance . #available) (`shouldBe` ApiAmount minUTxOValue')
                 ]
 
-    it "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> runResourceT $ do
+    rit "WALLETS_CREATE_03,09 - Cannot create wallet that exists" $ \ctx -> runResourceT $ do
         m21 <- Mnemonics.generateSome Mnemonics.M21
         let payload = Json [json| {
                 "name": "Some Wallet",
@@ -402,7 +402,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     ]
                   )
                 ]
-        forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, walName, expectations) -> rit title $ \ctx -> runResourceT $ do
             m24 <- Mnemonics.generateSome Mnemonics.M24
             let payload = Json [json| {
                     "name": #{walName},
@@ -420,7 +420,7 @@ spec = describe "SHELLEY_WALLETS" $ do
              , ( "24 mnemonic words", Mnemonics.M24 )
              ]
 
-        forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, mnemonics) -> rit title $ \ctx -> runResourceT $ do
             m <- Mnemonics.generateSome mnemonics
             let payload = Json [json| {
                     "name": "Just a łallet",
@@ -435,7 +435,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                  [ ( "9 mnemonic words", Mnemonics.M9 )
                  , ( "12 mnemonic words", Mnemonics.M12 )
                  ]
-        forM_ matrix $ \(title, mnemonics) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, mnemonics) -> rit title $ \ctx -> runResourceT $ do
             m15 <- Mnemonics.generateSome Mnemonics.M15
             mSecondFactor <- Mnemonics.generateSome mnemonics
 
@@ -462,7 +462,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Arabic passphrase", arabicWalletName )
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
-        forM_ matrix $ \(title, passphrase) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, passphrase) -> rit title $ \ctx -> runResourceT $ do
             m24 <- Mnemonics.generateSome Mnemonics.M24
             let payload = Json [json| {
                     "name": "Secure Wallet",
@@ -496,7 +496,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                   ]
                   )
                 ]
-        forM_ matrix $ \(title, addrPoolGap, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, addrPoolGap, expectations) -> rit title $ \ctx -> runResourceT $ do
             m24 <- Mnemonics.generateSome Mnemonics.M24
             let payload = payloadWith' "Secure Wallet" m24 (fromIntegral addrPoolGap)
             rW <- postWallet ctx payload
@@ -511,7 +511,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 [ expectListSize addrPoolGap
                 ]
 
-    it "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> runResourceT $ do
+    rit "WALLETS_CREATE_08 - default address_pool_gap" $ \ctx -> runResourceT $ do
         m21 <- Mnemonics.generateSome Mnemonics.M21
         let payload = Json [json| {
                 "name": "Secure Wallet",
@@ -553,7 +553,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                      , expectErrorMessage errMsg415 ]
                    )
                  ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, headers, expectations) -> rit title $ \ctx -> runResourceT $ do
             m21 <- Mnemonics.generateSome Mnemonics.M21
             let payload = Json [json| {
                     "name": "Secure Wallet",
@@ -563,7 +563,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- postWallet' ctx headers payload
             verify r expectations
 
-    it "WALLETS_CREATE_10 - Create wallet with one change address mode on" $ \ctx -> runResourceT $ do
+    rit "WALLETS_CREATE_10 - Create wallet with one change address mode on" $ \ctx -> runResourceT $ do
         let verifyAddrs nTotal nUsed addrs = do
                 liftIO (length addrs `shouldBe` nTotal)
                 let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
@@ -669,7 +669,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         listAddresses @n ctx wOneChangeAddr
             >>= verifyAddrs (initialTotal1+4) (initialUsed1+4)
 
-    it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
+    rit "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
         eventually "I can get all wallet details" $ do
@@ -692,7 +692,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
 
-    it "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
+    rit "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx
             (Link.deleteWallet @'Shelley w) Default Empty
@@ -701,7 +701,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 rg
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
 
-    it "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
+    rit "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
         m18 <- Mnemonics.generateSome Mnemonics.M18
         m9 <- Mnemonics.generateSome Mnemonics.M9
         let payload = Json [json| {
@@ -732,7 +732,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectListField 0 #delegation (`shouldBe` notDelegating [])
             ]
 
-    it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do
+    rit "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do
         m15 <- Mnemonics.generateSome Mnemonics.M15
         m18 <- Mnemonics.generateSome Mnemonics.M18
         m21 <- Mnemonics.generateSome Mnemonics.M21
@@ -755,7 +755,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (#name . #getApiT . #getWalletName) (`shouldBe` "3")
             ]
 
-    it "WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> runResourceT $ do
+    rit "WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         rl <- listFilteredWallets (Set.singleton $ w ^. walletId) ctx
@@ -764,7 +764,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectListSize 0
             ]
 
-    it "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> runResourceT $ do
+    rit "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let passLastUpdateValue = w ^. #passphrase
         let newName = updateNamePayload "New great name"
@@ -843,14 +843,14 @@ spec = describe "SHELLEY_WALLETS" $ do
                     ]
                   )
                 ]
-        forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, walName, expectations) -> rit title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let newName = updateNamePayload walName
             let endpoint = "v2/wallets" </> (w ^. walletId)
             ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
             verify ru expectations
 
-    it "WALLETS_UPDATE_03 - Deleted wallet cannot be updated (404)" $ \ctx -> runResourceT $ do
+    rit "WALLETS_UPDATE_03 - Deleted wallet cannot be updated (404)" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let wid = w ^. walletId
         let endpoint = "v2/wallets" </> wid
@@ -889,14 +889,14 @@ spec = describe "SHELLEY_WALLETS" $ do
                       , expectErrorMessage errMsg415 ]
                     )
                   ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, headers, expectations) -> rit title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let newName = updateNamePayload "new name"
             let endpoint = "v2/wallets" </> (w ^. walletId)
             ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
             verify ru expectations
 
-    it "WALLETS_UPDATE_PASS_01a - passphraseLastUpdate gets updated"
+    rit "WALLETS_UPDATE_PASS_01a - passphraseLastUpdate gets updated"
       $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "New passphrase"
@@ -909,7 +909,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
-    it "WALLETS_UPDATE_PASS_01b - passphraseLastUpdate gets updated, mnemonic"
+    rit "WALLETS_UPDATE_PASS_01b - passphraseLastUpdate gets updated, mnemonic"
       $ \ctx -> runResourceT $ do
         (w, mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "New passphrase"
@@ -922,7 +922,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
-    it "WALLETS_UPDATE_PASS_01c - passphraseLastUpdate gets updated, mnemonic \
+    rit "WALLETS_UPDATE_PASS_01c - passphraseLastUpdate gets updated, mnemonic \
           \using second factor"
       $ \ctx -> runResourceT $ do
         (w, mnemonic, sndFactor) <- emptyWalletAndMnemonicAndSndFactor ctx
@@ -966,14 +966,14 @@ spec = describe "SHELLEY_WALLETS" $ do
                   , [ expectResponseCode HTTP.status204 ]
                   )
                 ]
-        forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, passphrase, expectations) -> rit title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = updatePassPayload fixturePassphrase passphrase
             let endpoint = "v2/wallets" </> (w ^. walletId)
                     </> ("passphrase" :: Text)
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
-        forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, passphrase, expectations) -> rit title $ \ctx -> runResourceT $ do
             (w, mnemonic) <- emptyWalletAndMnemonic ctx
             let payload = updatePassPayloadMnemonic mnemonic passphrase
             let endpoint = "v2/wallets" </> (w ^. walletId)
@@ -981,7 +981,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
 
-    it "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ \ctx -> runResourceT $ do
+    rit "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ \ctx -> runResourceT $ do
         w <- emptyWalletWith ctx
             ("Wallet to update pass", "cardano-passphrase", 20)
         let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
@@ -990,7 +990,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status403 rup
         expectErrorMessage errMsg403WrongPass rup
 
-    it "WALLETS_UPDATE_PASS_03 - Mnemonic incorrect" $ \ctx -> runResourceT $ do
+    rit "WALLETS_UPDATE_PASS_03 - Mnemonic incorrect" $ \ctx -> runResourceT $ do
         (w,_mnemonic) <- emptyWalletAndMnemonic ctx
         otherMnemonic <- Mnemonics.generateSome Mnemonics.M24
         let payload = updatePassPayloadMnemonic otherMnemonic "whatever-pass"
@@ -1014,7 +1014,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , ( "Arabic passphrase", arabicWalletName )
                 , ( "Wildcards passphrase", wildcardsWalletName )
                 ]
-        forM_ matrix $ \(title, oldPass) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, oldPass) -> rit title $ \ctx -> runResourceT $ do
             m24 <- Mnemonics.generateSome Mnemonics.M24
             let createPayload = Json [json| {
                      "name": "Name of the wallet",
@@ -1033,7 +1033,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 (Link.putWalletPassphrase @'Shelley w) Default payloadMnemonic
             expectResponseCode HTTP.status204 rupMnemonic
 
-    it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available"
+    rit "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available"
       $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
@@ -1045,7 +1045,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 rup
         expectErrorMessage (errMsg404NoWallet walId) rup
 
-    it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available, mnemonic"
+    rit "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available, mnemonic"
       $ \ctx -> runResourceT $ do
         (w, mnemonic) <- emptyWalletAndMnemonic ctx
         let payload = updatePassPayloadMnemonic mnemonic "Secure passphrase2"
@@ -1070,7 +1070,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                         , [ expectResponseCode HTTP.status202 ]
                         )
                       ]
-        forM_ matrix $ \(title, pass, expectations) -> it title
+        forM_ matrix $ \(title, pass, expectations) -> rit title
           $ \ctx -> runResourceT $ do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
@@ -1096,7 +1096,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @(ApiTransaction n) ctx
                 (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
             verify r expectations
-        forM_ matrix $ \(title, pass, expectations) -> it title
+        forM_ matrix $ \(title, pass, expectations) -> rit title
           $ \ctx -> runResourceT $ do
             (wSrc, mnemonic) <- fixtureShelleyWallet ctx
             wDest <- emptyWallet ctx
@@ -1150,7 +1150,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                       , expectErrorMessage errMsg415 ]
                     )
                   ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, headers, expectations) -> rit title $ \ctx -> runResourceT $ do
             mnemonic <- Mnemonics.generateSome Mnemonics.M24
             w <- unsafeResponse <$> postWallet ctx (simplePayload mnemonic)
             let payload = updatePassPayload fixturePassphrase "Passphrase"
@@ -1158,14 +1158,14 @@ spec = describe "SHELLEY_WALLETS" $ do
             rup <- request @ApiWallet ctx endpoint headers payload
             verify rup expectations
 
-    it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> runResourceT $ do
+    rit "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         rStat <- request @ApiUtxoStatistics ctx
                  (Link.getUTxOsStatistics @'Shelley w) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
 
-    it "WALLET_UTXO_SNAPSHOT_01 - \
+    rit "WALLET_UTXO_SNAPSHOT_01 - \
         \Can generate UTxO snapshot of empty wallet" $
         \ctx -> runResourceT $ do
             w <- emptyWallet ctx
@@ -1174,7 +1174,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             expectResponseCode HTTP.status200 rSnap
             expectField #entries (`shouldBe` []) rSnap
 
-    it "WALLET_UTXO_SNAPSHOT_02 - \
+    rit "WALLET_UTXO_SNAPSHOT_02 - \
         \Can generate UTxO snapshot of pure-ada wallet" $
         \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
@@ -1184,7 +1184,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             let entries = getFromResponse #entries rSnap
             length entries `shouldBe` 10
 
-    it "WALLET_UTXO_SNAPSHOT_03 - \
+    rit "WALLET_UTXO_SNAPSHOT_03 - \
         \Can generate UTxO snapshot of multi-asset wallet" $
         \ctx -> runResourceT $ do
             w <- fixtureMultiAssetWallet ctx
@@ -1194,7 +1194,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             let entries = getFromResponse #entries rSnap
             length entries `shouldBe` 3
 
-    it "WALLETS_UTXO_02 - Sending and receiving funds updates wallet's utxo." $ \ctx -> runResourceT $ do
+    rit "WALLETS_UTXO_02 - Sending and receiving funds updates wallet's utxo." $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
 
@@ -1237,7 +1237,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status200 rStat1
         expectWalletUTxO coins (snd rStat1)
 
-    it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> runResourceT $ do
+    rit "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w)
             Default Empty
@@ -1271,12 +1271,12 @@ spec = describe "SHELLEY_WALLETS" $ do
                   , [ expectResponseCode HTTP.status200 ]
                   )
                 ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, headers, expectations) -> rit title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
             verify r expectations
 
-    it "WALLETS_GET_KEY_01 - golden tests for verification key" $ \ctx -> runResourceT $ do
+    rit "WALLETS_GET_KEY_01 - golden tests for verification key" $ \ctx -> runResourceT $ do
     --- $ cat recovery-phrase.txt
     -- pulp ten light rhythm replace vessel slow drift kingdom amazing negative join auction ugly symptom
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
@@ -1322,7 +1322,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField Prelude.id (\k -> toJSON k `shouldBe` toJSON expected)
                     ]
 
-    it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> runResourceT $ do
+    rit "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
         let link = Link.getWalletKey @'Shelley w UtxoExternal (DerivationIndex 2_147_483_648) Nothing
@@ -1334,7 +1334,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "It looks like you've provided a derivation index that is out of bound."
             ]
 
-    it "WALLETS_GET_KEY_03 - unknown wallet" $ \ctx -> runResourceT $ do
+    rit "WALLETS_GET_KEY_03 - unknown wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
 
@@ -1346,7 +1346,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
             ]
 
-    it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
+    rit "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
         let mnemonic = unsafeMnemonic @15
                 [ "vintage", "poem", "topic", "machine", "hazard"
                 , "cement", "dune", "glimpse", "fix", "brief", "account"
@@ -1413,7 +1413,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 \96356ba65598ec159d0c" :: ByteString
         convertToBase Base16 sigBytes `shouldBe` goldenSig
 
-    it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $  do
+    rit "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $  do
         w <- emptyWallet ctx
 
         let payload = [json|
@@ -1431,7 +1431,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "It looks like you've provided a derivation index that is out of bound."
             ]
 
-    it "WALLETS_SIGNATURES_03 - unknown wallet" $ \ctx -> runResourceT $ do
+    rit "WALLETS_SIGNATURES_03 - unknown wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
 
@@ -1449,7 +1449,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
             ]
 
-    it "BYRON_WALLETS_UTXO -\
+    rit "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         let wid = w ^. walletId
@@ -1461,7 +1461,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet wid) r
 
-    it "BYRON_WALLETS_UPDATE_PASS -\
+    rit "BYRON_WALLETS_UPDATE_PASS -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
@@ -1474,7 +1474,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 rup
         expectErrorMessage (errMsg404NoWallet wid) rup
 
-    it "BYRON_WALLETS_UPDATE -\
+    rit "BYRON_WALLETS_UPDATE -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         let wid = w ^. walletId
@@ -1484,21 +1484,21 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
-    it "BYRON_WALLETS_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> runResourceT $ do
+    rit "BYRON_WALLETS_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         r <- request @ApiByronWallet ctx
             (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_WALLETS_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> runResourceT $ do
+    rit "BYRON_WALLETS_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         r <- request @ApiWallet ctx
             (Link.getWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_WALLETS_LIST_02,03 - \
+    rit "BYRON_WALLETS_LIST_02,03 - \
         \Byron wallets listed only via Byron endpoints + \
         \Shelley wallets listed only via new endpoints" $ \ctx -> runResourceT $ do
         m1 <- Mnemonics.generateSome Mnemonics.M12
@@ -1541,7 +1541,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "shelley3")
             ]
 
-    it "BYRON_WALLETS_LIST_04, DELETE_01 - \
+    rit "BYRON_WALLETS_LIST_04, DELETE_01 - \
         \Deleted wallets cannot be listed" $ \ctx -> runResourceT $ do
         m1 <- Mnemonics.generateSome Mnemonics.M12
         m2 <- Mnemonics.generateSome Mnemonics.M12
@@ -1583,19 +1583,19 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (#name . #getApiT . #getWalletName) (`shouldBe` "shelley2")
             ]
 
-    it "BYRON_WALLETS_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> runResourceT $ do
+    rit "BYRON_WALLETS_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "BYRON_WALLETS_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> runResourceT $ do
+    rit "BYRON_WALLETS_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "WALLETS_NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> runResourceT $ do
+    rit "WALLETS_NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> runResourceT $ do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
             w <- emptyWallet ctx

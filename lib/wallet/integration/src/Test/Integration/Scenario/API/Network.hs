@@ -53,7 +53,7 @@ import Test.Hspec
     , shouldNotBe
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -79,7 +79,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
 spec = describe "COMMON_NETWORK" $ do
-    it "NETWORK - Can query network information" $ \ctx -> do
+    rit "NETWORK - Can query network information" $ \ctx -> do
         eventually "wallet's syncProgress = Ready" $ do
             now <- liftIO getCurrentTime
             r <- request @ApiNetworkInformation ctx
@@ -107,7 +107,7 @@ spec = describe "COMMON_NETWORK" $ do
                         view #epochNumber <$> getFromResponse #nextEpoch r
                 nextEpochNum `shouldBe` currentEpochNum + 1
 
-    it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
+    rit "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> runResourceT @IO $ do
             let getNetworkInfo = request @ApiNetworkInformation ctx
                     Link.getNetworkInfo Default Empty
@@ -135,7 +135,7 @@ spec = describe "COMMON_NETWORK" $ do
                     , expectField (#tip . #absoluteSlotNumber) (`shouldBe` absSlot)
                     ]
 
-    it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
+    rit "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
         sandboxed <- inNixBuild
         when sandboxed $
             pendingWith "Internet NTP servers unavailable in build sandbox"
@@ -146,7 +146,7 @@ spec = describe "COMMON_NETWORK" $ do
             expectField (#ntpStatus . #status)
                 (`shouldBe` NtpSyncingStatusAvailable) r
 
-    it "NETWORK_CLOCK - Can query network clock and force NTP check" $ \ctx -> do
+    rit "NETWORK_CLOCK - Can query network clock and force NTP check" $ \ctx -> do
         sandboxed <- inNixBuild
         when sandboxed $
             pendingWith "Internet NTP servers unavailable in build sandbox"

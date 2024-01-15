@@ -12,9 +12,9 @@
 -- Helper functions for testing.
 module Test.Hspec.Extra
     ( aroundAll
-    , it
-    , itN
-    , itNT
+    , rit
+    , ritN
+    , ritNT
     , xit
     , itWithCustomTimeout
     , parallel
@@ -157,40 +157,40 @@ configWithExecutionTimes config =
 -- Works only if the environment variable @TESTS_RETRY_FAILED@ is set.
 --
 -- It also has a timeout of 10 minutes.
-it
+rit
     :: (HasCallStack, HasMetrics ctx)
     => String
     -> ActionWith ctx
     -> SpecWith ctx
-it = itN 5
+rit = ritN 5
 
 -- | A drop-in replacement for 'it' that'll automatically retry a
 -- scenario n times if it fails with a timeout of 10 minutes.
-itN
+ritN
     :: (HasCallStack, HasMetrics ctx)
     => Int -- ^ Number of retries
     -> String -- ^ Title of the test
     -> ActionWith ctx -- ^ Action to run
     -> SpecWith ctx
-itN n = itNT n 10
+ritN n = ritNT n 10
 
 -- | A drop-in replacement for 'it' that'll automatically retry a
 -- scenario n times with a timeout of t minutes if it fails.
-itNT
+ritNT
     :: (HasCallStack, HasMetrics ctx)
     => Int -- ^ Number of retries
     -> Int -- ^ Timeout in minutes
     -> String -- ^ Title of the test
     -> ActionWith ctx -- ^ Action to run
     -> SpecWith ctx
-itNT n t = itWithCustomTimeout n (t * 60)
+ritNT n t = itWithCustomTimeout n (t * 60)
 
 -- |
 -- Changing `it` to `xit` marks the corresponding spec item as pending.
 --
 -- This can be used to temporarily disable a spec item.
 xit :: (HasCallStack, HasMetrics ctx) => String -> ActionWith ctx -> SpecWith ctx
-xit label action = Hspec.before_ Hspec.pending $ it label action
+xit label action = Hspec.before_ Hspec.pending $ rit label action
 
 class HasMetrics ctx where
     putTimeout :: ctx -> String -> NominalDiffTime -> IO ()

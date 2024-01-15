@@ -55,7 +55,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldContain
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -73,57 +73,62 @@ import Test.Utils.Paths
 
 spec :: SpecWith Context
 spec = describe "COMMON_CLI_NETWORK" $ do
-    it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
+    rit "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
         info <- getNetworkInfoViaCLI ctx
         let nextEpochNum = fromJust (info ^. #nextEpoch) ^. #epochNumber
         nextEpochNum `shouldBe` (currentEpochNo info) + 1
 
-    it "NETWORK_PARAMS - network parameters" $ \ctx -> do
+    rit "NETWORK_PARAMS - network parameters" $ \ctx -> do
         _params <- getNetworkParamsViaCli ctx
         pure ()
 
-    it "CLI_NETWORK - network clock" $ \ctx -> do
+    rit "CLI_NETWORK - network clock" $ \ctx -> do
         sandboxed <- inNixBuild
-        when sandboxed $
-            pendingWith "Internet NTP servers unavailable in build sandbox"
+        when sandboxed
+            $ pendingWith "Internet NTP servers unavailable in build sandbox"
         eventually "ntp status = available" $ do
             clock <- getNetworkClockViaCLI ctx
-            expectCliField (#ntpStatus . #status)
-                (`shouldBe` NtpSyncingStatusAvailable) clock
+            expectCliField
+                (#ntpStatus . #status)
+                (`shouldBe` NtpSyncingStatusAvailable)
+                clock
   where
-      getNetworkParamsViaCli
-          :: Context
-          -> IO ApiNetworkParameters
-      getNetworkParamsViaCli ctx = do
-          let port = show (ctx ^. typed @(Port "wallet"))
-          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI
-              ["network", "parameters", "--port", port ]
-          c `shouldBe` ExitSuccess
-          e `shouldContain` cmdOk
-          expectValidJSON (Proxy @ApiNetworkParameters) o
+    getNetworkParamsViaCli
+        :: Context
+        -> IO ApiNetworkParameters
+    getNetworkParamsViaCli ctx = do
+        let port = show (ctx ^. typed @(Port "wallet"))
+        (Exit c, Stderr e, Stdout o) <-
+            cardanoWalletCLI
+                ["network", "parameters", "--port", port]
+        c `shouldBe` ExitSuccess
+        e `shouldContain` cmdOk
+        expectValidJSON (Proxy @ApiNetworkParameters) o
 
-      getNetworkInfoViaCLI
-          :: Context
-          -> IO ApiNetworkInformation
-      getNetworkInfoViaCLI ctx = do
-          let port = show (ctx ^. typed @(Port "wallet"))
-          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI
-              ["network", "information", "--port", port ]
-          c `shouldBe` ExitSuccess
-          e `shouldContain` cmdOk
-          expectValidJSON (Proxy @ApiNetworkInformation) o
+    getNetworkInfoViaCLI
+        :: Context
+        -> IO ApiNetworkInformation
+    getNetworkInfoViaCLI ctx = do
+        let port = show (ctx ^. typed @(Port "wallet"))
+        (Exit c, Stderr e, Stdout o) <-
+            cardanoWalletCLI
+                ["network", "information", "--port", port]
+        c `shouldBe` ExitSuccess
+        e `shouldContain` cmdOk
+        expectValidJSON (Proxy @ApiNetworkInformation) o
 
-      getNetworkClockViaCLI
-          :: Context
-          -> IO ApiNetworkClock
-      getNetworkClockViaCLI ctx = do
-          let port = show (ctx ^. typed @(Port "wallet"))
-          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI
-              ["network", "clock", "--port", port ]
-          c `shouldBe` ExitSuccess
-          e `shouldContain` cmdOk
-          expectValidJSON (Proxy @ApiNetworkClock) o
+    getNetworkClockViaCLI
+        :: Context
+        -> IO ApiNetworkClock
+    getNetworkClockViaCLI ctx = do
+        let port = show (ctx ^. typed @(Port "wallet"))
+        (Exit c, Stderr e, Stdout o) <-
+            cardanoWalletCLI
+                ["network", "clock", "--port", port]
+        c `shouldBe` ExitSuccess
+        e `shouldContain` cmdOk
+        expectValidJSON (Proxy @ApiNetworkClock) o
 
-      currentEpochNo :: ApiNetworkInformation -> EpochNo
-      currentEpochNo netInfo =
-          (fromJust (netInfo ^. #networkTip)) ^. #slotId . #epochNumber . #getApiT
+    currentEpochNo :: ApiNetworkInformation -> EpochNo
+    currentEpochNo netInfo =
+        (fromJust (netInfo ^. #networkTip)) ^. #slotId . #epochNumber . #getApiT
