@@ -808,12 +808,12 @@ common integration-common
 
 executable integration-exe
   import:  integration-common
-  main-is: shelley-integration-test.hs
+  main-is: integration-tests.hs
 
 test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0
-  main-is:            shelley-integration-test.hs
+  main-is:            integration-tests.hs
   build-tool-depends: cardano-wallet:cardano-wallet
 
 benchmark restore
