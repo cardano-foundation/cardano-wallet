@@ -27,10 +27,10 @@ library
   hs-source-dirs:     src
   exposed-modules:    System.IO.Temp.Extra
   build-depends:
-    , base                   ^>=4.14.3.0
+    , base
     , iohk-monitoring        ^>=0.1.11.3
     , iohk-monitoring-extra  ^>=0.1
     , temporary              ^>=1.3
-    , text                   ^>=1.2.4.1
+    , text                   >= 1.2.4.1 && <2.2
     , text-class             ^>=2023.12.18
     , unliftio               ^>=0.2.24
