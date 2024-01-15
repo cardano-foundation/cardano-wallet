@@ -382,9 +382,9 @@ x-stakePoolId: &stakePoolId
 x-drepKeyHash: &drepKeyHash
   type: string
   format: bech32
-  example: drep_vkh1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's key hash.
-  pattern: "^(drep_vkh)1[0-9a-z]*$"
+  pattern: "^(drep)1[0-9a-z]*$"
 
 x-drepScriptHash: &drepScriptHash
   type: string

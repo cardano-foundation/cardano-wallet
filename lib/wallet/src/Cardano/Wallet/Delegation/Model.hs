@@ -179,14 +179,14 @@ data DRep =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
--- | Encode 'DRepKeyHash' as Bech32 with "drep_vkh" hrp.
+-- | Encode 'DRepKeyHash' as Bech32 with "drep" hrp.
 encodeDRepKeyHashBech32 :: DRepKeyHash -> Text
 encodeDRepKeyHashBech32 =
     Bech32.encodeLenient hrp
         . Bech32.dataPartFromBytes
         . getDRepKeyHash
   where
-    hrp = [Bech32.humanReadablePart|drep_vkh|]
+    hrp = [Bech32.humanReadablePart|drep|]
 
 -- | Decode a Bech32 encoded 'DRepKeyHash'.
 decodeDRepKeyHashBech32 :: Text -> Either TextDecodingError DRepKeyHash
@@ -199,9 +199,9 @@ decodeDRepKeyHashBech32 t =
       where
         textDecodingError = TextDecodingError $ unwords
             [ "Invalid DRep key hash: expecting a Bech32 encoded value"
-            , "with human readable part of 'drep_vkh'."
+            , "with human readable part of 'drep'."
             ]
-        hrp = [Bech32.humanReadablePart|drep_vkh|]
+        hrp = [Bech32.humanReadablePart|drep|]
 
 -- | Encode 'DRepScriptHash' as Bech32 with "drep_script" hrp.
 encodeDRepScriptHashBech32 :: DRepScriptHash -> Text
