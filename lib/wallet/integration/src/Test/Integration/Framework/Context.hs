@@ -44,6 +44,9 @@ import Data.IORef
 import Data.Text
     ( Text
     )
+import Data.Time
+    ( NominalDiffTime
+    )
 import GHC.Generics
     ( Generic
     )
@@ -52,6 +55,12 @@ import Network.HTTP.Client
     )
 import Network.URI
     ( URI
+    )
+import Test.Hspec.Extra
+    ( HasMetrics (..)
+    )
+import Test.HUnit.Lang
+    ( HUnitFailure
     )
 
 -- | Context for integration tests.
@@ -93,8 +102,19 @@ data Context = Context
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
         -- Cannot be used by several tests at a time. (!)
+    , _addSuccess :: String -> NominalDiffTime -> IO ()
+        -- ^ Add a successful test to the metrics.
+    , _addFailure :: String -> NominalDiffTime -> HUnitFailure -> IO ()
+        -- ^ Add a failed test to the metrics.
+    , _addTimeOut :: String -> NominalDiffTime -> IO ()
+        -- ^ Add a timed out test to the metrics.
     }
     deriving Generic
+
+instance HasMetrics Context where
+    putFailure ctx label failure time = _addFailure ctx label time failure
+    putSuccess = _addSuccess
+    putTimeout = _addTimeOut
 
 -- | Records the parameters and return value of a single call to the
 --   'removeRetiredPools' operation of 'Pool.DB.DBLayer'.

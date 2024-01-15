@@ -48,7 +48,8 @@ import Test.Hspec.Expectations.Lifted
     , shouldContain
     )
 import Test.Hspec.Extra
-    ( it
+    ( HasMetrics
+    , it
     )
 import Test.Integration.Framework.DSL
     ( cardanoWalletCLI
@@ -73,7 +74,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec
-    :: forall s. (HasType (Port "wallet") s)
+    :: forall s. (HasType (Port "wallet") s, HasMetrics s)
     => SpecWith s
 spec = describe "COMMON_CLI_PORTS" $ do
     let overPort :: forall sym. HasType (Port sym) s => (Int -> Int) -> s -> s

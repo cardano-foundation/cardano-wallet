@@ -578,6 +578,9 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                 , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
                 , _moveRewardsToScript =
                     error "moveRewardsToScript not available"
+                , _addSuccess = \_ _ -> pure ()
+                , _addFailure = \_ _ _ -> pure ()
+                , _addTimeOut = \_ _ -> pure ()
                 }
     race_
         (takeMVar ctx >>= action)

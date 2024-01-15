@@ -452,6 +452,9 @@ setupContext
                     withConfig $ moveInstantaneousRewardsTo
                         nodeConnection
                         [(ScriptCredential script, coin)]
+                , _addSuccess = \_ _ -> pure ()
+                , _addFailure = \_ _ _ -> pure ()
+                , _addTimeOut = \_ _ -> pure ()
                 }
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()

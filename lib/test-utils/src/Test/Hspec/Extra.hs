@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
@@ -9,32 +10,36 @@
 -- License: Apache-2.0
 --
 -- Helper functions for testing.
---
-
 module Test.Hspec.Extra
     ( aroundAll
     , it
+    , itN
+    , itNT
     , xit
     , itWithCustomTimeout
     , parallel
     , counterexample
     , appendFailureReason
 
-    -- * Custom test suite runner
+      -- * Custom test suite runner
     , HspecWrapper
     , hspecMain
     , hspecMain'
     , getDefaultConfig
-    -- ** Internals
+
+      -- ** Internals
     , configWithExecutionTimes
     , setEnvParser
+
+      -- * Metrics
+    , HasMetrics (..)
+    , NoMetrics (..)
     ) where
 
 import Prelude
 
 import Control.Monad
-    ( void
-    , (<=<)
+    ( (<=<)
     )
 import Control.Monad.IO.Class
     ( MonadIO
@@ -45,7 +50,12 @@ import Control.Monad.IO.Unlift
 import Data.List
     ( elemIndex
     )
--- See ADP-1910
+import Data.Time
+    ( NominalDiffTime
+    , UTCTime
+    , diffUTCTime
+    , getCurrentTime
+    )
 import "optparse-applicative" Options.Applicative
     ( Parser
     , ParserInfo (..)
@@ -62,9 +72,6 @@ import "optparse-applicative" Options.Applicative
     , option
     , short
     , strArgument
-    )
-import Say
-    ( sayString
     )
 import System.Environment
     ( lookupEnv
@@ -91,7 +98,6 @@ import Test.HUnit.Lang
     ( FailureReason (..)
     , HUnitFailure (..)
     , assertFailure
-    , formatFailureReason
     )
 import Test.Utils.Env
     ( withAddedEnv
@@ -115,11 +121,6 @@ import UnliftIO.Exception
     ( catch
     , throwIO
     )
-import UnliftIO.MVar
-    ( newEmptyMVar
-    , tryPutMVar
-    , tryTakeMVar
-    )
 
 import qualified Test.Hspec as Hspec
 
@@ -129,7 +130,8 @@ import qualified Test.Hspec as Hspec
 --
 -- Each test is given the resource as a function parameter.
 aroundAll
-    :: forall a. HasCallStack
+    :: forall a
+     . HasCallStack
     => (ActionWith a -> IO ())
     -> SpecWith a
     -> Spec
@@ -137,74 +139,148 @@ aroundAll acquire =
     beforeAll (unBracket acquire) . afterAll snd . beforeWith fst
 
 -- | Add execution timing information to test output.
---
 configWithExecutionTimes :: Config -> Config
-configWithExecutionTimes config = config
-    { configPrintCpuTime = True
-      -- Prints the total elapsed CPU time for the entire test suite.
-    , configPrintSlowItems = Just 10
-      -- Prints a list of the slowest tests in descending order of
-      -- elapsed CPU time.
-    , configTimes = True
-      -- Appends the elapsed CPU time to the end of each individual test.
-    }
+configWithExecutionTimes config =
+    config
+        { configPrintCpuTime = True
+        , -- Prints the total elapsed CPU time for the entire test suite.
+          configPrintSlowItems = Just 10
+        , -- Prints a list of the slowest tests in descending order of
+          -- elapsed CPU time.
+          configTimes = True
+          -- Appends the elapsed CPU time to the end of each individual test.
+        }
 
--- | A drop-in replacement for 'it' that'll automatically retry a scenario once
--- if it fails, to cope with potentially flaky tests, if the environment
--- variable @TESTS_RETRY_FAILED@ is set.
+-- | A drop-in replacement for 'it' that'll automatically retry a
+-- scenario 5 times if it fails.
+-- To cope with potentially flaky tests!
+-- Works only if the environment variable @TESTS_RETRY_FAILED@ is set.
 --
 -- It also has a timeout of 10 minutes.
-it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
-it = itWithCustomTimeout (60*minutes)
-  where
-    minutes = 10
+it
+    :: (HasCallStack, HasMetrics ctx)
+    => String
+    -> ActionWith ctx
+    -> SpecWith ctx
+it = itN 5
+
+-- | A drop-in replacement for 'it' that'll automatically retry a
+-- scenario n times if it fails with a timeout of 10 minutes.
+itN
+    :: (HasCallStack, HasMetrics ctx)
+    => Int -- ^ Number of retries
+    -> String -- ^ Title of the test
+    -> ActionWith ctx -- ^ Action to run
+    -> SpecWith ctx
+itN n = itNT n 10
+
+-- | A drop-in replacement for 'it' that'll automatically retry a
+-- scenario n times with a timeout of t minutes if it fails.
+itNT
+    :: (HasCallStack, HasMetrics ctx)
+    => Int -- ^ Number of retries
+    -> Int -- ^ Timeout in minutes
+    -> String -- ^ Title of the test
+    -> ActionWith ctx -- ^ Action to run
+    -> SpecWith ctx
+itNT n t = itWithCustomTimeout n (t * 60)
 
 -- |
 -- Changing `it` to `xit` marks the corresponding spec item as pending.
 --
 -- This can be used to temporarily disable a spec item.
-xit :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
+xit :: (HasCallStack, HasMetrics ctx) => String -> ActionWith ctx -> SpecWith ctx
 xit label action = Hspec.before_ Hspec.pending $ it label action
 
--- | Like @it@ but with a custom timeout, testing of the function possible.
-itWithCustomTimeout
-    :: HasCallStack
-    => Int -- ^ Timeout in seconds.
+class HasMetrics ctx where
+    putTimeout :: ctx -> String -> NominalDiffTime -> IO ()
+    putFailure :: ctx -> String -> HUnitFailure -> NominalDiffTime -> IO ()
+    putSuccess :: ctx -> String -> NominalDiffTime -> IO ()
+
+data NoMetrics = NoMetrics
+
+instance HasMetrics NoMetrics where
+    putTimeout _ _ _ = pure ()
+    putFailure _ _ _ _ = pure ()
+    putSuccess _ _ _ = pure ()
+
+diffTime :: UTCTime -> IO NominalDiffTime
+diffTime start = do
+    end <- getCurrentTime
+    pure $ diffUTCTime end start
+
+data Result = Timeout Int | Success | Failure HUnitFailure
+
+addResult :: Result -> Result -> Result
+addResult Success _ = Success
+addResult _ Success = Success
+addResult (Failure f) _ = Failure f
+addResult _ (Failure f) = Failure f
+addResult (Timeout t) (Timeout t') = Timeout (t + t')
+
+timedAction
+    :: HasMetrics ctx
+    => [Int]
+    -- ^ Timeouts in seconds
     -> String
-    -> ActionWith ctx
-    -> SpecWith ctx
-itWithCustomTimeout sec title action = specify title $ \ctx -> do
-    e <- newEmptyMVar
-    shouldRetry <- maybe False (not . null) <$> lookupEnv "TESTS_RETRY_FAILED"
-    let action' = if shouldRetry
-        then actionWithRetry (void . tryPutMVar e)
-        else action
-    race (timer >> tryTakeMVar e) (action' ctx) >>= \case
-       Left Nothing ->
-           assertFailure $ "timed out in " <> show sec <> " seconds"
-       Left (Just firstException) ->
-           throwIO firstException
-       Right () ->
-           pure ()
+    -- ^ Title of the test
+    -> (ctx -> IO ())
+    -- ^ Action to run
+    -> ctx
+    -- ^ Context
+    -> IO Result
+timedAction = go
   where
-    timer = threadDelay (sec * 1000 * 1000)
+    go :: HasMetrics ctx => [Int] -> String -> (ctx -> IO ()) -> ctx -> IO Result
+    go [] _ _ _ = pure (Timeout 0)
+    go (timeout : timeouts) title action'' ctx' = do
+        start <- getCurrentTime
+        let
+            next = go timeouts title action'' ctx'
+            timer = do
+                threadDelay (timeout * 1000 * 1000)
+                putTimeout ctx' title (fromIntegral timeout)
+            run = do
+                r <- race timer $ do
+                    action'' ctx'
+                    diff <- diffTime start
+                    putSuccess ctx' title diff
+                case r of
+                    Left _ ->
+                        addResult (Timeout timeout) <$> next
+                    Right _ -> pure Success
+        run `catch` \e@(_ :: HUnitFailure) -> do
+            diff <- diffTime start
+            putFailure ctx' title e diff
+            addResult (Failure e) <$> go timeouts title action'' ctx'
 
-    -- Run the action, if it fails try again. If it fails again, report the
-    -- original exception.
-    actionWithRetry save ctx = action ctx
-        `catch` (\e -> save e >> reportFirst e >> action ctx
-        `catch` (\f -> reportSecond e f >> throwIO e))
-
-    reportFirst (HUnitFailure _ reason) = do
-        report (formatFailureReason reason)
-        report "Retrying failed test."
-    reportSecond (HUnitFailure _ reason1) (HUnitFailure _ reason2)
-        | reason1 == reason2 = report "Test failed again in the same way."
-        | otherwise = do
-              report (formatFailureReason reason2)
-              report "Test failed again; will report the first error."
-
-    report = mapM_ (sayString . ("retry: " ++)) . lines
+-- | Like @it@ but with a custom timeout, and more than once try
+-- testing of the function possible.
+itWithCustomTimeout
+    :: forall ctx
+     . HasMetrics ctx
+    => HasCallStack
+    => Int
+    -- ^ Times to retry.
+    -> Int
+    -- ^ Timeout in seconds.
+    -> String
+    -- ^ Title of the test
+    -> ActionWith ctx
+    -- ^ Action to run
+    -> SpecWith ctx
+    -- ^ Resulting spec
+itWithCustomTimeout times sec title action = specify title $ \ctx -> do
+    shouldRetry <- do
+        me <- lookupEnv "TESTS_RETRY_FAILED"
+        case me of
+            Nothing -> pure [sec]
+            Just "" -> pure [sec]
+            Just _ -> pure $ replicate times sec
+    timedAction shouldRetry title action ctx >>= \case
+        Success -> pure ()
+        Failure e -> throwIO e
+        Timeout t -> assertFailure $ "timed out in " <> show t <> " seconds"
 
 -- | Like Hspec's parallel, except on Windows.
 parallel :: SpecWith a -> SpecWith a
@@ -263,24 +339,30 @@ hspecMain' getConfig spec = withLineBuffering $ do
 getDefaultConfig :: IO (HspecWrapper (), Config)
 getDefaultConfig = do
     (env, args) <- execParser setEnvParser
-    pure ( evaluateSummary <=< withArgs args . withAddedEnv env
-         , configWithExecutionTimes defaultConfig)
+    pure
+        ( evaluateSummary <=< withArgs args . withAddedEnv env
+        , configWithExecutionTimes defaultConfig
+        )
 
 -- | A CLI arguments parser which handles setting environment variables.
 setEnvParser :: ParserInfo ([(String, String)], [String])
-setEnvParser = info ((,) <$> many setEnvOpt <*> restArgs) $
-    forwardOptions <> failureCode 89
+setEnvParser =
+    info ((,) <$> many setEnvOpt <*> restArgs)
+        $ forwardOptions <> failureCode 89
   where
     setEnvOpt :: Parser (String, String)
-    setEnvOpt = option readSetEnv
-            (  long "env"
-            <> short 'e'
-            <> metavar "NAME=VALUE"
-            <> help "Export the given environment variable to the test suite" )
+    setEnvOpt =
+        option
+            readSetEnv
+            ( long "env"
+                <> short 'e'
+                <> metavar "NAME=VALUE"
+                <> help "Export the given environment variable to the test suite"
+            )
 
     readSetEnv :: ReadM (String, String)
     readSetEnv = eitherReader $ \arg -> case elemIndex '=' arg of
-        Just i | i > 0 -> Right (take i arg, drop (i+1) arg)
+        Just i | i > 0 -> Right (take i arg, drop (i + 1) arg)
         _ -> Left "does not match syntax NAME=VALUE"
 
     restArgs :: Parser [String]

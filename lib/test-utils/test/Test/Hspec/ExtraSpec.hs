@@ -75,7 +75,8 @@ import Test.Hspec.Expectations.Lifted
     ( shouldReturn
     )
 import Test.Hspec.Extra
-    ( aroundAll
+    ( NoMetrics (..)
+    , aroundAll
     , hspecMain
     )
 import Test.Hspec.QuickCheck
@@ -156,14 +157,14 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
             it "fails with the first error" $ do
                 let failure = expectationFailure "failure"
                 let noRetry = expectationFailure "test can't be retried"
-                outcomes <- newIORef [failure, noRetry]
+                outcomes <- newIORef [failure, noRetry, noRetry, noRetry, noRetry]
                 (dynamically outcomes) `shouldMatchHSpecIt` failure
     it "can time out" $ do
         let micro = (1000*1000 *)
         let timeout = do
                 threadDelay (micro 10)
                 expectationFailure "should have timed out"
-        res <- runIt (Extra.itWithCustomTimeout 2) timeout
+        res <- runIt (Extra.itWithCustomTimeout 2 1) timeout
         res `shouldContain` "timed out in 2 seconds"
 
   where
@@ -177,13 +178,13 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
         lines extraRes `shouldBe` lines hspecRes
 
     runIt
-        :: (String -> ActionWith () -> SpecWith ()) -- ^ it version
+        :: (String -> ActionWith NoMetrics -> SpecWith NoMetrics) -- ^ it version
         -> IO () -- ^ test body
         -> IO String -- ^ hspec output
     runIt anyIt body = fmap stripTime
         $ capture_
         $ flip runSpec defaultConfig
-        $ beforeAll (return ())
+        $ beforeAll (return NoMetrics)
         $ anyIt "<test spec>" (const body)
       where
         -- | Remove time and seed such that we can compare the captured stdout
