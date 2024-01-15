@@ -55,6 +55,7 @@ import Control.Monad
     , forM_
     , replicateM
     , replicateM_
+    , when
     )
 import Control.Tracer
     ( traceWith
@@ -96,6 +97,9 @@ import UnliftIO.Exception
     , throwIO
     )
 
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( ClusterEra (BabbageHardFork)
+    )
 import Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
     , configurePools
@@ -248,7 +252,8 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         let RunningNode conn _ _ = runningNode
 
         -- Needs to happen in the first 20% of the epoch, so we run this first.
-        moveInstantaneousRewardsTo conn mirCredentials
+        when (cfgLastHardFork == BabbageHardFork)
+            $ moveInstantaneousRewardsTo conn mirCredentials
 
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
