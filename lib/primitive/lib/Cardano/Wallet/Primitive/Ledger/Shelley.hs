@@ -229,7 +229,7 @@ import Control.Lens
     , (&)
     , (^.)
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Extra
     ( blake2b224
     )
 import Data.Bifunctor

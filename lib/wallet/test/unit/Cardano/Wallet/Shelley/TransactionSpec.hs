@@ -209,7 +209,7 @@ import Control.Monad.Trans.Except
     ( except
     , runExceptT
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Extra
     ( blake2b224
     )
 import Data.ByteString

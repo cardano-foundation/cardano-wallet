@@ -50,7 +50,7 @@ data TxMetadataWithSchema = TxMetadataWithSchema
     { -- | How to codec the metadata into json
         txMetadataWithSchema_schema :: TxMetadataSchema
     , -- | The metadata
-        txMetadataWithSchema_metadata :: TxMetadata
+         txMetadataWithSchema_metadata :: TxMetadata
     }
     deriving (Show, Eq, Generic, NFData)
 

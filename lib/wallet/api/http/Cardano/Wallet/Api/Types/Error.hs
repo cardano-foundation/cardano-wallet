@@ -134,6 +134,8 @@ data ApiErrorInfo
     | InputsDepleted
     | InsufficientCollateral
     | InvalidCoinSelection
+    | InvalidMetadataDecryption
+    | InvalidMetadataEncryption
     | InvalidValidityBounds
     | InvalidWalletType
     | KeyNotFoundForAddress

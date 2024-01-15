@@ -126,6 +126,8 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
+    , toMetadataEncrypted
+    , fromMetadataEncrypted
 
     -- * Workers
     , manageRewardBalance
@@ -183,6 +185,7 @@ import Cardano.Wallet
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
+    , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
@@ -363,6 +366,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionData (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
+    , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -442,6 +446,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , EncryptMetadataMethod (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , KnownDiscovery (..)
@@ -711,8 +716,18 @@ import Control.Tracer
     ( Tracer
     , contramap
     )
+import Cryptography.KeyDerivationFunction.PBKDF2
+    ( generateKeyForMetadata
+    )
+import Cryptography.Primitives
+    ( CryptoFailable (..)
+    )
 import Data.Bifunctor
     ( first
+    )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -726,6 +741,8 @@ import Data.Either
     )
 import Data.Either.Extra
     ( eitherToMaybe
+    , mapLeft
+    , mapRight
     )
 import Data.Function
     ( (&)
@@ -917,18 +934,26 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
+import qualified Cryptography.Cipher.AES256CBC as AES256CBC
+import qualified Cryptography.Cipher.ChaChaPoly1305 as ChaChaPoly1305
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
 import qualified Internal.Cardano.Write.Tx.Balance as Write
 import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
+
 
 -- | Allow configuring which port the wallet server listen to in an integration
 -- setup. Crashes if the variable is not a number.
@@ -2709,8 +2734,15 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    when (isJust (body ^. #encryptMetadata)) $
-        liftHandler $ throwE ErrConstructTxNotImplemented
+    metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
+            (Just apiEncrypt, Just metadataWithSchema) ->
+                case toMetadataEncrypted apiEncrypt metadataWithSchema of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right meta ->
+                        pure $ Just meta
+            _ ->
+                pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
@@ -2723,9 +2755,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
-
-    let metadata =
-            body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
@@ -3100,6 +3129,142 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
+encryptionNonce :: ByteString
+encryptionNonce = "encrypt-data"
+
+-- When encryption is enabled we do the following:
+-- (a) find field(s) `msg` in the first level value pairs for each key
+-- (b) encrypt the 'msg' values if present, otherwise emit error
+-- (c) and update value of `msg` with the encrypted initial value(s) encoded in base64
+--     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
+-- (d) add `enc` field with encryption method value ("base" or "chachapoly1305")
+toMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> TxMetadataWithSchema
+    -> Either ErrConstructTx Cardano.TxMetadata
+toMetadataEncrypted apiEncrypt payload = do
+    msgValues <- findMsgValues
+    msgValues' <- mapM encryptingMsg msgValues
+    pure $ updateTxMetadata msgValues'
+  where
+    ((secretKey,iv), encMethod) = unwrapApiMetadata apiEncrypt
+
+    getMsgValue (Cardano.TxMetaText metaField, metaValue) =
+        if metaField == "msg" then
+            Just metaValue
+        else Nothing
+    getMsgValue _ = Nothing
+    merge Nothing (Just val) = Just val
+    merge (Just val) Nothing = Just val
+    merge Nothing Nothing = Nothing
+    merge (Just _) (Just _) = error "only one 'msg' field expected"
+    -- assumption: `msg` is not embedded beyond the first level
+    -- we could change that in the future
+    inspectMetaPair (Cardano.TxMetaMap pairs) =
+        foldl merge Nothing (getMsgValue <$> pairs)
+    inspectMetaPair _ = Nothing
+    findMsgValues =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+            filteredMap = Map.filter (isJust . inspectMetaPair) themap
+        in if Map.size filteredMap >= 1 then
+            Right $ Map.toList filteredMap
+           else
+            Left ErrConstructTxIncorrectRawMetadata
+    encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
+        if metaField == "msg" then
+            let encrypted =
+                    encrypt $
+                    BL.toStrict $
+                    Aeson.encode $
+                    Cardano.metadataValueToJsonNoSchema metaValue
+                encMethodEntry =
+                    ( Cardano.TxMetaText "enc"
+                    , case encMethod of
+                          ChaChaPoly1305 -> Cardano.TxMetaText  "chachapoly1305"
+                          AES256CBC -> Cardano.TxMetaText "base"
+                    )
+                toPair enc =
+                    [ ( Cardano.TxMetaText metaField
+                      , Cardano.TxMetaList
+                        ( map Cardano.TxMetaText $ flip toTextChunks [] $ toBase64Text enc )
+                      )
+                    , encMethodEntry
+                    ]
+            in mapRight toPair encrypted
+        else Right [pair]
+    encryptPairIfQualifies pair = Right [pair]
+    toBase64Text = T.decodeUtf8 . convertToBase Base64
+    toTextChunks txt res =
+        if txt == T.empty then
+            reverse res
+        else
+            let (front, back) = T.splitAt 64 txt
+            in toTextChunks back (front:res)
+    encryptingMsg (key, Cardano.TxMetaMap pairs) = do
+        pairs' <- mapM encryptPairIfQualifies pairs
+        pure (key, Cardano.TxMetaMap $ concat pairs')
+    encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
+
+    updateTxMetadata =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+        in Cardano.TxMetadata . foldr (\(k,v) -> Map.insert k v) themap
+
+    encrypt = case encMethod of
+        ChaChaPoly1305 -> Right . ChaChaPoly1305.encrypt secretKey encryptionNonce
+        AES256CBC -> mapLeft ErrConstructTxEncryptMetadata . AES256CBC.encrypt secretKey iv
+
+unwrapApiMetadata
+    :: ApiEncryptMetadata
+    -> ( (ByteString,ByteString), EncryptMetadataMethod )
+unwrapApiMetadata apiEncrypt =
+    ( generateKeyForMetadata (BA.convert $ unPassphrase passphrase) Nothing
+    , method )
+  where
+    (ApiEncryptMetadata (ApiT passphrase) methodM) = apiEncrypt
+    method = fromMaybe AES256CBC methodM
+
+-- When encryption is enabled we do the following:
+-- (a) recreate encrypted payload from chunks
+--     (0, TxMetaBytes chunk1)
+--     (1, TxMetaBytes chunk2)
+--     ....
+--     (N, TxMetaBytes chunkN)
+--     ie., payload=chunk1+chunk2+...+chunkN
+-- (b) decrypt payload
+-- (c) decode metadata
+fromMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> Cardano.TxMetadata
+    -> Either ErrDecodeTx TxMetadataWithSchema
+fromMetadataEncrypted apiEncrypt metadata =
+   composePayload metadata >>=
+   decrypt >>=
+   decodeFromJSON
+  where
+    ( (secretKey, _iv), _encMethod) = unwrapApiMetadata apiEncrypt
+
+    checkEncryptedMetadata =
+        let checkElem (Cardano.TxMetaBytes _) = False
+            checkElem _ = True
+        in any checkElem . Map.elems
+    extractBytes (Cardano.TxMetaBytes bs) = bs
+    extractBytes _ =
+        error "extractBytes - at this moment only TxMetaBytes possible"
+    composePayload (Cardano.TxMetadata themap) =
+        if checkEncryptedMetadata themap then
+            Left ErrDecodeTxIncorrectEncryptedMetadata
+        else
+            Right $ Map.foldl BS.append BS.empty $ Map.map extractBytes themap
+
+    decrypt payload =
+        case ChaChaPoly1305.decrypt secretKey encryptionNonce payload of
+            CryptoPassed res -> Right res
+            CryptoFailed err -> Left $ ErrDecodeTxDecryptMetadata err
+
+    decodeFromJSON =
+        mapLeft (ErrDecodeTxDecryptedPayload . T.pack) .
+        Aeson.eitherDecode . BL.fromStrict
+
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
 toUsignedTxWdrl p = \case
@@ -3250,7 +3415,15 @@ constructSharedTransaction
     when isNoPayload $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+    md <- case (body ^. #encryptMetadata, body ^. #metadata) of
+              (Just apiEncrypt, Just metadataWithSchema) ->
+                  case toMetadataEncrypted apiEncrypt metadataWithSchema of
+                      Left err ->
+                          liftHandler $ throwE err
+                      Right meta ->
+                          pure $ Just meta
+              _ ->
+                  pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     (before, hereafter) <- liftHandler $
         parseValidityInterval ti (body ^. #validityInterval)
@@ -3388,7 +3561,6 @@ decodeSharedTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeSharedTransaction ctx (ApiT wid) postData = do
     let ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata = postData
-    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra nl
     (txinsOutsPaths, collateralInsOutsPaths, outsPath, pp, certs, txId, fee
         , metadata, scriptValidity, interval, witsCount, withdrawals, rewardAcctM)
@@ -3406,6 +3578,14 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
                 , metadata
                 , scriptValidity
                 }) = decodedTx
+        metadata' <- case (decryptMetadata, metadata) of
+            (Just apiDecrypt, Just meta) ->
+                case fromMetadataEncrypted apiDecrypt meta of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right (TxMetadataWithSchema _ txmetadata) ->
+                        pure . Just . ApiT $ txmetadata
+            _ -> pure $ ApiT <$> metadata
         inputPaths <-
             handler $ W.lookupTxIns @_ wrk $ fst <$> resolvedInputs
         collateralInputPaths <-
@@ -3435,7 +3615,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
             , certs
             , txId
             , fee
-            , metadata
+            , metadata'
             , scriptValidity
             , interval
             , witsCount
@@ -3463,7 +3643,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
         , depositsReturned =
             (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                 <$ filter ourRewardAccountDeregistration certs
-        , metadata = ApiTxMetadata $ ApiT <$> metadata
+        , metadata = ApiTxMetadata metadata
         , scriptValidity = ApiT <$> scriptValidity
         , validityInterval = ApiValidityIntervalExplicit <$> interval
         , witnessCount = mkApiWitnessCount witsCount
@@ -3564,15 +3744,13 @@ decodeTransaction
     -> Handler (ApiDecodedTransaction n)
 decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) postData = do
-    let ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata = postData
-    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
-        let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
+            (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
                 decodeTx tl era (ShelleyWalletCtx keyhash) sealed
-        let Tx { txId
+            Tx { txId
                , fee
                , resolvedInputs
                , resolvedCollateralInputs
@@ -3581,7 +3759,17 @@ decodeTransaction
                , metadata
                , scriptValidity
                } = decodedTx
-        let db = wrk ^. dbLayer
+            (ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata ) =
+                postData
+            db = wrk ^. dbLayer
+        metadata' <- case (decryptMetadata, metadata) of
+            (Just apiDecrypt, Just meta) ->
+                case fromMetadataEncrypted apiDecrypt meta of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right (TxMetadataWithSchema _ txmetadata) ->
+                        pure . Just . ApiT $ txmetadata
+            _ -> pure $ ApiT <$> metadata
         (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s db
         inputPaths <-
@@ -3614,7 +3802,7 @@ decodeTransaction
             , depositsReturned =
                 (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                     <$ filter ourRewardAccountDeregistration certs
-            , metadata = ApiTxMetadata $ ApiT <$> metadata
+            , metadata = ApiTxMetadata metadata'
             , scriptValidity = ApiT <$> scriptValidity
             , validityInterval = ApiValidityIntervalExplicit <$> interval
             , witnessCount = mkApiWitnessCount witsCount

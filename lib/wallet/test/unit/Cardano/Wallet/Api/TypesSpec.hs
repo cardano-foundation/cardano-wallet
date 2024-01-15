@@ -249,6 +249,7 @@ import Cardano.Wallet.Api.Types
     , DRep (..)
     , DRepKeyHash (..)
     , DRepScriptHash (..)
+    , EncryptMetadataMethod (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -2021,8 +2022,13 @@ instance Arbitrary TxMetadataWithSchema where
     <$> elements [TxMetadataNoSchema, TxMetadataDetailedSchema]
     <*> arbitrary
 
+instance Arbitrary EncryptMetadataMethod where
+    arbitrary = elements [AES256CBC, ChaChaPoly1305]
+
 instance Arbitrary ApiEncryptMetadata where
-    arbitrary = ApiEncryptMetadata <$> arbitrary
+    arbitrary = ApiEncryptMetadata
+        <$> arbitrary
+        <*> arbitrary
 
 instance Arbitrary DRep where
     arbitrary = do

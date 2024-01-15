@@ -73,7 +73,7 @@ library
     , commutative-semigroups
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , cryptonite
     , deepseq
     , delta-types

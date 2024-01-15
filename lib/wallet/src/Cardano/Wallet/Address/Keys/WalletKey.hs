@@ -76,7 +76,7 @@ import Crypto.Hash
     , HashAlgorithm
     , hash
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Extra
     ( blake2b224
     )
 

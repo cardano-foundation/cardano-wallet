@@ -107,6 +107,7 @@ module Cardano.Wallet
     , ErrReadPolicyPublicKey (..)
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
+    , ErrDecodeTx (..)
     , readWalletMeta
     , isStakeKeyRegistered
     , putDelegationCertificate
@@ -659,6 +660,9 @@ import Control.Tracer
 import Crypto.Hash
     ( Blake2b_256
     , hash
+    )
+import Cryptography.Primitives
+    ( CryptoError
     )
 import Data.Bifunctor
     ( first
@@ -3554,6 +3558,8 @@ data ErrConstructTx
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
+    | ErrConstructTxEncryptMetadata CryptoError
+    | ErrConstructTxIncorrectRawMetadata
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 
@@ -3574,6 +3580,13 @@ data ErrWitnessTx
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxImpossible ErrNoSuchTransaction
+    deriving (Show, Eq)
+
+-- | Errors that can occur when decoding a transaction.
+data ErrDecodeTx
+    = ErrDecodeTxIncorrectEncryptedMetadata
+    | ErrDecodeTxDecryptMetadata CryptoError
+    | ErrDecodeTxDecryptedPayload Text
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to change a wallet's passphrase.
@@ -3684,6 +3697,7 @@ data WalletException
     | ExceptionWriteTxEra ErrWriteTxEra
     | ExceptionSubmitTransaction ErrSubmitTransaction
     | ExceptionConstructTx ErrConstructTx
+    | ExceptionDecodeTx ErrDecodeTx
     | ExceptionGetPolicyId ErrGetPolicyId
     | ExceptionWitnessTx ErrWitnessTx
     | ExceptionSubmitTx ErrSubmitTx
