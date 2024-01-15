@@ -8,6 +8,9 @@ module Main where
 
 import Prelude
 
+import Cardano.Wallet.Launch.Cluster
+    ( FileOf (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     )
@@ -16,11 +19,17 @@ import Cardano.Wallet.Test.Integration.Setup
     , withContext
     , withTestsSetup
     )
+import Data.Maybe
+    ( fromMaybe
+    )
 import Data.Typeable
     ( Proxy (..)
     )
 import GHC.TypeNats
     ( natVal
+    )
+import System.Environment
+    ( lookupEnv
     )
 import Test.Hspec.Core.Spec
     ( describe
@@ -30,9 +39,6 @@ import Test.Hspec.Core.Spec
 import Test.Hspec.Extra
     ( aroundAll
     , hspecMain
-    )
-import Test.Utils.Paths
-    ( inNixBuild
     )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -67,13 +73,13 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir (tr, tracers) -> do
-    nix <- inNixBuild
     localClusterEra <- Cluster.clusterEraFromEnv
     let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
+    testDataDir <- FileOf . fromMaybe "." <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
     let testingCtx = TestingCtx{..}
     hspecMain $ do
         describe "No backend required"
-            $ parallelIf (not nix)
+            $ parallelIf True
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
 
         aroundAll (withContext testingCtx) $ do
@@ -108,7 +114,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
             -- same .tix file simultaneously, causing errors.
             --
             -- Because of this, don't run the CLI tests in parallel in CI.
-            parallelIf (not nix) $ describe "CLI Specifications" $ do
+            parallelIf True $ describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
                 WalletsCLI.spec @n

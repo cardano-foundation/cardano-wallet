@@ -765,11 +765,9 @@ test-suite unit
     Spec
     SpecHook
 
-test-suite integration
-  import:             language, opts-exe
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/integration test/data
-  main-is:            shelley-integration-test.hs
+common integration-common
+  import:         language, opts-exe
+  hs-source-dirs: test/integration test/data
   other-modules:
     Cardano.Wallet.Test.Integration.Logging
     Cardano.Wallet.Test.Integration.PendingInEra
@@ -808,6 +806,14 @@ test-suite integration
     , unliftio
     , with-utf8
 
+executable integration-exe
+  import:  integration-common
+  main-is: shelley-integration-test.hs
+
+test-suite integration
+  import:             integration-common
+  type:               exitcode-stdio-1.0
+  main-is:            shelley-integration-test.hs
   build-tool-depends: cardano-wallet:cardano-wallet
 
 benchmark restore

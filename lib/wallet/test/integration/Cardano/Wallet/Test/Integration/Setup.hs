@@ -5,11 +5,9 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Wallet.Test.Integration.Setup where
@@ -173,9 +171,6 @@ import Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
     )
-import Test.Utils.Paths
-    ( getTestData
-    )
 import UnliftIO.Async
     ( race
     )
@@ -273,6 +268,7 @@ data TestingCtx = TestingCtx
     , tr :: Tracer IO TestsLog
     , tracers :: Tracers IO
     , localClusterEra :: ClusterEra
+    , testDataDir :: FileOf "test-data"
     }
 
 -- A decorator for the pool database that records all calls to the
@@ -350,7 +346,7 @@ onClusterStart
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv envFromText
-        let testMetadata = $(getTestData) </> "token-metadata.json"
+        let testMetadata = pathOf testDataDir </> "token-metadata.json"
         withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl -> do
             serveWallet
                 (NodeSource nodeConnection vData (SyncTolerance 10))

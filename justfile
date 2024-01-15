@@ -53,3 +53,21 @@ e2e-local:
 # run wallet-e2e suite against the manually started node/wallet
 e2e-manual:
   nix run '.#cardano-wallet-e2e' -- manual
+
+#run integration tests locally via integration-exe
+babbage-integration-tests:
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=./lib/wallet/test/data \
+  LOCAL_CLUSTER_ERA=babbage \
+  nix shell \
+    '.#local-cluster' '.#cardano-node' '.#cardano-wallet' '.#cardano-cli' '.#integration-exe' \
+    -c integration-exe
+
+# run integration tests locally via integration-exe (conway)
+conway-integration-tests:
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=./lib/wallet/test/data \
+  LOCAL_CLUSTER_ERA=conway \
+  nix shell \
+    '.#local-cluster' '.#cardano-node' '.#cardano-wallet' '.#cardano-cli' '.#integration-exe' \
+    -c integration-exe
