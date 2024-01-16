@@ -9,11 +9,11 @@ module Main where
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster
-    ( ClusterEra (..)
-    , FileOf (..)
+    ( FileOf (..)
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ignoreInConway
+    ( ignoreInBabbage
+    , ignoreInConway
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
@@ -43,6 +43,7 @@ import Test.Hspec.Core.Spec
 import Test.Hspec.Extra
     ( aroundAll
     , hspecMain
+    , it
     )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -79,13 +80,22 @@ main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir (tr, tracers) -> do
     localClusterEra <- Cluster.clusterEraFromEnv
     let noConway = ignoreInConway localClusterEra
-    let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
-    testDataDir <- FileOf . fromMaybe "." <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
+        noBabbage = ignoreInBabbage localClusterEra
+        testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
+    testDataDir <-
+        FileOf . fromMaybe "."
+            <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
     let testingCtx = TestingCtx{..}
     hspecMain $ do
         describe "No backend required"
             $ parallelIf True
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
+
+        noBabbage
+            $ aroundAll (withContext testingCtx)
+            $ describe "We can start the conway cluster"
+            $ it "doing nothing"
+            $ \_ctx -> pure ()
 
         noConway $ aroundAll (withContext testingCtx) $ do
             describe "API Specifications" $ do
