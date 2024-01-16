@@ -59,7 +59,8 @@ import Data.Aeson
     ( toJSON
     )
 import Data.Generics.Labels
-    ()
+    (
+    )
 import Data.Maybe
     ( catMaybes
     )
@@ -163,10 +164,16 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
         withObject (pure . Aeson.union (Aeson.fromList hardForks))
       where
         hardForks =
-            [ ( Aeson.fromText $ "Test" <> T.pack (show hardFork) <> "AtEpoch"
+            [ ( Aeson.fromText $ "Test" <> hardFork <> "AtEpoch"
               , Yaml.Number 0
               )
-            | hardFork <- [ShelleyHardFork .. era]
+            | hardFork <-
+                [ "ShelleyHardFork"
+                , "AllegraHardFork"
+                , "MaryHardFork"
+                , "AlonzoHardFork"
+                ]
+                    <> (T.pack . show <$> [minBound .. era])
             ]
 
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.

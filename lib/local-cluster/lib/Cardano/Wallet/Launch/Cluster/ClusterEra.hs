@@ -38,14 +38,9 @@ import System.FilePath
     )
 
 data ClusterEra
-    = ByronNoHardFork
-    | ShelleyHardFork
-    | AllegraHardFork
-    | MaryHardFork
-    | AlonzoHardFork
-    | BabbageHardFork
+    = BabbageHardFork
     | ConwayHardFork
-    deriving stock (Show, Read, Eq, Ord, Enum)
+    deriving stock (Show, Read, Eq, Ord, Enum, Bounded)
 
 -- | Defaults to the latest era.
 clusterEraFromEnv :: IO ClusterEra
@@ -57,7 +52,12 @@ clusterEraFromEnv = do
   where
     var = "LOCAL_CLUSTER_ERA"
     err :: [Char] -> IO a
-    err era = die $ var ++ ": " ++ era ++ " era is not supported"
+    err era =
+        die
+            $ var
+                ++ ": "
+                ++ era
+                ++ " era is not supported in the local cluster"
     getEra env = case map toLower env of
         "byron" -> err "byron"
         "shelley" -> err "shelley"
@@ -77,11 +77,6 @@ localClusterConfigsFromEnv =
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case
-    ByronNoHardFork -> "byron"
-    ShelleyHardFork -> "shelley"
-    AllegraHardFork -> "allegra"
-    MaryHardFork -> "mary"
-    AlonzoHardFork -> "alonzo"
     BabbageHardFork -> "babbage"
     ConwayHardFork -> "conway"
 

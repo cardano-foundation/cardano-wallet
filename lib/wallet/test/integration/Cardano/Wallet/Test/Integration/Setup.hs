@@ -372,11 +372,6 @@ onClusterStart
 -- | Convert @ClusterEra@ to a @ApiEra@.
 clusterToApiEra :: ClusterEra -> ApiEra
 clusterToApiEra = \case
-    ByronNoHardFork -> ApiByron
-    ShelleyHardFork -> ApiShelley
-    AllegraHardFork -> ApiAllegra
-    MaryHardFork -> ApiMary
-    AlonzoHardFork -> ApiAlonzo
     BabbageHardFork -> ApiBabbage
     ConwayHardFork -> ApiConway
 

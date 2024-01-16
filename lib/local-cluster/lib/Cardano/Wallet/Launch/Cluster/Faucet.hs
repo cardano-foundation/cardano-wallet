@@ -28,8 +28,7 @@ import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra (..)
-    , clusterEraToString
+    ( clusterEraToString
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
@@ -265,10 +264,7 @@ sendFaucetAssetsTo
     -> [(Address, (TokenBundle, [(String, String)]))]
     -- ^ (address, assets)
     -> ClusterM ()
-sendFaucetAssetsTo conn batchSize targets = do
-    Config{..} <- ask
-    when (cfgLastHardFork >= MaryHardFork)
-        $ batch batchSize targets
+sendFaucetAssetsTo conn batchSize targets = batch batchSize targets
         $ sendFaucet conn "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
