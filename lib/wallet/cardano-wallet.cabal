@@ -318,7 +318,6 @@ library cardano-wallet-api-http
     , ntp-client
     , OddWord
     , optparse-applicative
-    , prettyprinter
     , quiet
     , random
     , safe
@@ -658,7 +657,6 @@ test-suite unit
     , sop-core
     , splitmix
     , string-interpolate
-    , tagged                                             ^>=0.8.7
     , temporary
     , temporary-extra
     , text
@@ -799,7 +797,6 @@ common integration-common
     , mock-token-metadata
     , network-uri
     , servant-client
-    , tagged                             ^>=0.8.7
     , temporary-extra
     , text
     , text-class
@@ -875,7 +872,6 @@ benchmark latency
     , iohk-monitoring-extra
     , local-cluster
     , optparse-applicative
-    , tagged                             ^>=0.8.7
     , temporary-extra
     , text
     , time
