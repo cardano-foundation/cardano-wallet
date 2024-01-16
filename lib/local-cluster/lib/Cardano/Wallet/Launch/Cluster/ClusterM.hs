@@ -21,7 +21,7 @@ import Cardano.BM.Extra
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
-    , NodeSegment (..)
+    , NodePathSegment (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
@@ -83,7 +83,7 @@ bracketTracer' name f = do
         $ bracketTracer (contramap (MsgBracket name) cfgTracer)
         $ withConfig f
 
-askNodeDir :: NodeSegment -> ClusterM FilePath
-askNodeDir (NodeSegment nodeSegment) = do
+askNodeDir :: NodePathSegment -> ClusterM FilePath
+askNodeDir (NodePathSegment nodeSegment) = do
     Config{..} <- ask
     pure $ pathOf cfgClusterDir </> nodeSegment

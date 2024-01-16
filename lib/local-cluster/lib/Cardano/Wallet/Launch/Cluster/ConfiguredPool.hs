@@ -60,7 +60,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
-    , NodeSegment (..)
+    , NodePathSegment (..)
     )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( faucetAmt
@@ -195,7 +195,7 @@ configurePools metadataServer =
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair
-    :: NodeSegment
+    :: NodePathSegment
     -> ClusterM (FileOf "kes-prv" , FileOf "kes-pub")
 genKesKeyPair nodeSegment = do
     poolDir <- askNodeDir nodeSegment
@@ -213,7 +213,7 @@ genKesKeyPair nodeSegment = do
 
 -- | Create a key pair for a node VRF operational key
 genVrfKeyPair
-    :: NodeSegment
+    :: NodePathSegment
     -> ClusterM (FileOf "vrf-prv" , FileOf "vrf-pub")
 genVrfKeyPair nodeSegment = do
     poolDir <- askNodeDir nodeSegment
@@ -232,7 +232,7 @@ genVrfKeyPair nodeSegment = do
 -- | Write a key pair for a node operator's offline key and a new certificate
 -- issue counter
 writeOperatorKeyPair
-    :: NodeSegment
+    :: NodePathSegment
     -> PoolRecipe
     -> ClusterM
         ( FileOf "op-prv"
@@ -261,7 +261,7 @@ writeOperatorKeyPair nodeSegment recipe = do
 
 -- | Issue a node operational certificate
 issueOpCert
-    :: NodeSegment
+    :: NodePathSegment
     -> FileOf "kes-pub"
     -> FileOf "op-prv"
     -> FileOf "op-cnt"
@@ -367,7 +367,7 @@ stakingAddrFromVkFile stakePub = do
             (Ledger.StakeRefBase (Ledger.KeyHashObj delegKH))
 
 preparePoolRetirement
-    :: NodeSegment
+    :: NodePathSegment
     -> [FileOf "retirement-cert"]
     -> ClusterM (FileOf "retirement-tx", FileOf "faucet-prv")
 preparePoolRetirement nodeSegment certs = do
@@ -393,7 +393,7 @@ preparePoolRetirement nodeSegment certs = do
     pure (FileOf file, faucetPrv)
 
 issuePoolRetirementCert
-    :: NodeSegment
+    :: NodePathSegment
     -> FileOf "op-pub"
     -> Word31
     -> ClusterM (FileOf "retirement-cert")
@@ -423,7 +423,7 @@ configurePool metadataServer recipe = do
     UnliftClusterM withConfig Config{..} <- askUnliftClusterM
     -- Use pool-specific dir
     let name = "pool-" <> show i
-        nodeSegment = NodeSegment name
+        nodeSegment = NodePathSegment name
     poolDir <- askNodeDir nodeSegment
     liftIO $ createDirectoryIfMissing False poolDir
 

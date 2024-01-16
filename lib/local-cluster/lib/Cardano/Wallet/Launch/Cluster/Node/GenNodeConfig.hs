@@ -37,7 +37,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
-    , NodeSegment
+    , NodePathSegment
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
@@ -84,7 +84,7 @@ import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
 genNodeConfig
-    :: NodeSegment
+    :: NodePathSegment
     -- ^ A top-level directory where to put the configuration.
     -> Tagged "node-name" String -- Node name
     -> GenesisFiles

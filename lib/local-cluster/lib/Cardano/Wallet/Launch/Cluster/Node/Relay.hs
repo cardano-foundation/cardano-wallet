@@ -20,7 +20,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     , bracketTracer'
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( NodeSegment (..)
+    ( NodePathSegment (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
@@ -71,7 +71,7 @@ withRelayNode
     -> ClusterM a
 withRelayNode params onClusterStart = do
     let name = "node"
-        nodeSegment = NodeSegment name
+        nodeSegment = NodePathSegment name
     nodeDir' <- askNodeDir nodeSegment
     let NodeParams genesisFiles hardForks (port, peers) logCfg = params
     bracketTracer' "withRelayNode" $ do

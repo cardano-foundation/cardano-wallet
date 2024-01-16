@@ -13,7 +13,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     , askNodeDir
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( NodeSegment
+    ( NodePathSegment
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
@@ -32,7 +32,7 @@ import qualified Data.Aeson as Aeson
 
 -- | Generate a topology file from a list of peers.
 genTopology
-    :: NodeSegment
+    :: NodePathSegment
     -> [Int]
     -> ClusterM (FileOf "topology")
 genTopology nodeSegment peers = do

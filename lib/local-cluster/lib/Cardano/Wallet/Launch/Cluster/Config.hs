@@ -7,7 +7,7 @@ module Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
-    , NodeSegment (..)
+    , NodePathSegment (..)
 
     )
 where
@@ -67,6 +67,6 @@ data Config = Config
     , cfgTracer :: Tracer IO ClusterLog
     }
 
-newtype NodeSegment = NodeSegment FilePath
+newtype NodePathSegment = NodePathSegment FilePath
     deriving stock (Show)
     deriving newtype (Eq, Ord)
