@@ -180,6 +180,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
     $ bracketTracer' "withCluster"
     $ do
         let clusterDir = pathOf cfgClusterDir
+        traceClusterLog $ MsgHardFork cfgLastHardFork
         withPoolMetadataServer $ \metadataServer -> do
             liftIO $ createDirectoryIfMissing True clusterDir
             traceClusterLog $ MsgStartingCluster clusterDir

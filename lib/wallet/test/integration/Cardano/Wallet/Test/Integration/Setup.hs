@@ -456,7 +456,6 @@ setupContext
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()
 withContext testingCtx@TestingCtx{..} action = do
-    traceWith tr $ MsgCluster $ Cluster.MsgHardFork localClusterEra
     bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
         ctx <- newEmptyMVar
         clusterConfigs <- Cluster.localClusterConfigsFromEnv
