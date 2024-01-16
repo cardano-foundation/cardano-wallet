@@ -88,7 +88,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
     let testingCtx = TestingCtx{..}
     hspecMain $ do
         describe "No backend required"
-            $ parallelIf True
+            $ parallel
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
 
         noBabbage
@@ -124,17 +124,10 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
             -- Possible conflict with StakePools - mark as not parallizable
             sequential Settings.spec
 
-            -- CI runs tests with code coverage enabled. CLI tests run
-            -- multiple processes. These processes can try to write to the
-            -- same .tix file simultaneously, causing errors.
-            --
-            -- Because of this, don't run the CLI tests in parallel in CI.
-            parallelIf True $ describe "CLI Specifications" $ do
+            parallel $ describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
                 WalletsCLI.spec @n
                 HWWalletsCLI.spec @n
                 PortCLI.spec
                 NetworkCLI.spec
-  where
-    parallelIf flag = if flag then parallel else sequential

@@ -59,8 +59,7 @@ import Data.Aeson
     ( toJSON
     )
 import Data.Generics.Labels
-    (
-    )
+    ()
 import Data.Maybe
     ( catMaybes
     )
