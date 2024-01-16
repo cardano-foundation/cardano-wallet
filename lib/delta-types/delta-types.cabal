@@ -21,6 +21,16 @@ library
   default-extensions:
       NoImplicitPrelude
       OverloadedStrings
+  other-extensions:
+      BangPatterns
+      FlexibleContexts
+      GADTs
+      NamedFieldPuns
+      StandaloneDeriving
+      TupleSections
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
   ghc-options:
       -Wall
       -Wcompat
