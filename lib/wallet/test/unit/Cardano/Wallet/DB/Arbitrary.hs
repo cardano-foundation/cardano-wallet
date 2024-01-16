@@ -99,12 +99,6 @@ import Cardano.Wallet.DB.Pure.Implementation
     ( TxHistory
     , filterTxHistory
     )
-import Cardano.Wallet.Delegation.Model
-    ( DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
-    , VoteAction (..)
-    )
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0
     , mkTx
@@ -162,6 +156,12 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)

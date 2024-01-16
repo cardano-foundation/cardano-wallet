@@ -502,9 +502,6 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer
     )
-import Cardano.Wallet.Delegation.Model
-    ( VoteAction (..)
-    )
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , Excluding
@@ -600,6 +597,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)

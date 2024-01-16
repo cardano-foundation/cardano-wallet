@@ -298,12 +298,6 @@ import Cardano.Wallet.Api.Types.WalletAsset
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
     )
-import Cardano.Wallet.Delegation.Model
-    ( DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
-    , VoteAction (..)
-    )
 import Cardano.Wallet.Flavor
     ( KeyFlavorS (ShelleyKeyS)
     )
@@ -376,6 +370,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)

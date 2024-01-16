@@ -133,9 +133,6 @@ import Cardano.Slotting.Slot
     ( SlotNo (..)
     , WithOrigin (..)
     )
-import Cardano.Wallet.Delegation.Model
-    ( VoteAction
-    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -176,6 +173,9 @@ import Cardano.Wallet.Primitive.Types.DecentralizationLevel
     , fromDecentralizationLevel
     , fromFederationPercentage
     , getFederationPercentage
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo (..)

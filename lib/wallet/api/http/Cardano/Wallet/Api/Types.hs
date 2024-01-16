@@ -395,14 +395,6 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
     )
-import Cardano.Wallet.Delegation.Model
-    ( DRep (..)
-    , VoteAction (..)
-    , decodeDRepKeyHashBech32
-    , decodeDRepScriptHashBech32
-    , encodeDRepKeyHashBech32
-    , encodeDRepScriptHashBech32
-    )
 import Cardano.Wallet.Pools
     ( EpochInfo
     , StakePool (..)
@@ -444,6 +436,14 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , VoteAction (..)
+    , decodeDRepKeyHashBech32
+    , decodeDRepScriptHashBech32
+    , encodeDRepKeyHashBech32
+    , encodeDRepScriptHashBech32
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)

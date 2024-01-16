@@ -53,9 +53,6 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
     )
-import Cardano.Wallet.Delegation.Model
-    ( VoteAction
-    )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
@@ -70,6 +67,9 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)

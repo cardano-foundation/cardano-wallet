@@ -22,12 +22,6 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
     )
-import Cardano.Wallet.Delegation.Model
-    ( DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
-    , VoteAction (..)
-    )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , WalletDelegation (..)
@@ -39,6 +33,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)

@@ -76,9 +76,6 @@ import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex
     )
-import Cardano.Wallet.Delegation.Model
-    ( VoteAction
-    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase
     )
@@ -101,6 +98,9 @@ import Cardano.Wallet.Primitive.Types.AssetId
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId

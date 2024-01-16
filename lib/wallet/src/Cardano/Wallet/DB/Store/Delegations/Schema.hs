@@ -44,7 +44,7 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( DelegationStatusEnum (..)
     , sqlSettings'
     )
-import Cardano.Wallet.Delegation.Model
+import Cardano.Wallet.Primitive.Types.DRep
     ( VoteAction
     )
 import Control.Monad

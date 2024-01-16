@@ -59,9 +59,6 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( Pruned (..)
     , Spent (..)
     )
-import Cardano.Wallet.Delegation.Model
-    ( VoteAction
-    )
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseScheme (..)
@@ -86,6 +83,9 @@ import Cardano.Wallet.Primitive.Types.AssetName
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)

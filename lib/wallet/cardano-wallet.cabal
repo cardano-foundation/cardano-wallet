@@ -46,8 +46,6 @@ library
     , aeson
     , async
     , base
-    , bech32
-    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -66,8 +64,8 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet-read
     , cardano-wallet-test-utils
+    , cardano-wallet-read
     , cborg
     , containers
     , contra-tracer
