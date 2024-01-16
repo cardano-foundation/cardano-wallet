@@ -8,6 +8,8 @@ module Cardano.Wallet.Launch.Cluster.ClusterEra
     , clusterEraFromEnv
     , localClusterConfigsFromEnv
     , clusterEraToString
+    , ignoreInConway
+    , ignoreInBabbage
     )
 where
 
@@ -82,3 +84,13 @@ clusterEraToString = \case
     AlonzoHardFork -> "alonzo"
     BabbageHardFork -> "babbage"
     ConwayHardFork -> "conway"
+
+ignoreInConway :: Applicative f => ClusterEra -> f () -> f ()
+ignoreInConway era f = case era of
+    ConwayHardFork -> pure ()
+    _ -> f
+
+ignoreInBabbage :: Applicative f => ClusterEra -> f () -> f ()
+ignoreInBabbage era f = case era of
+    BabbageHardFork -> pure ()
+    _ -> f

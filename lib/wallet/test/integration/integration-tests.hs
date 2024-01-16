@@ -9,7 +9,11 @@ module Main where
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster
-    ( FileOf (..)
+    ( ClusterEra (..)
+    , FileOf (..)
+    )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( ignoreInConway
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
@@ -74,6 +78,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir (tr, tracers) -> do
     localClusterEra <- Cluster.clusterEraFromEnv
+    let noConway = ignoreInConway localClusterEra
     let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
     testDataDir <- FileOf . fromMaybe "." <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
     let testingCtx = TestingCtx{..}
@@ -82,7 +87,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
             $ parallelIf True
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
 
-        aroundAll (withContext testingCtx) $ do
+        noConway $ aroundAll (withContext testingCtx) $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n
