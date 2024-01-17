@@ -321,6 +321,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
@@ -885,9 +886,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
     guardWalletUTxOConsistencyWith u =
-        case F.toList (conflicts u walletLedgerUTxO) of
-            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
-            [] -> return ()
+        case NE.nonEmpty (F.toList (conflicts u walletLedgerUTxO)) of
+            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
+            Nothing -> return ()
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
         conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
