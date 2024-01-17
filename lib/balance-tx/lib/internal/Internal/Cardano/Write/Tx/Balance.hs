@@ -18,6 +18,8 @@
 
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use max" #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
 #endif
@@ -1178,7 +1180,7 @@ splitSignedValue v = (bNegative, bPositive)
     filterPositive (MaryValue a (MultiAsset m)) =
         MaryValue aPositive (MultiAsset mPositive)
       where
-        aPositive = if a > 0 then a else 0
+        aPositive = if a > Coin 0 then a else Coin 0
         mPositive = Map.map (Map.filter (> 0)) m
 
 --------------------------------------------------------------------------------

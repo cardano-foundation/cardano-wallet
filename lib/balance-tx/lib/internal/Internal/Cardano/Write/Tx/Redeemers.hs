@@ -7,6 +7,11 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {- HLINT ignore "Use <$>" -}
 
 -- |
@@ -158,24 +163,26 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
             fmap unzip $ forM redeemers parseRedeemer
         pure
             ( Map.fromList indexedRedeemers
-            , ledgerTx
-                & witsTxL . rdmrsTxWitsL
-                    .~ (Alonzo.Redeemers (Map.fromList nullRedeemers))
+            , error "TODO conway: assignNullRedeemers"
+            -- , ledgerTx
+            --     & witsTxL . rdmrsTxWitsL
+            --         .~ (Alonzo.Redeemers (Map.fromList nullRedeemers))
             )
       where
-        parseRedeemer rd = do
-            let mPtr = Alonzo.rdptr
-                    (view bodyTxL ledgerTx)
-                    (toScriptPurpose rd)
-            ptr <- case mPtr of
-                SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
-                SJust ptr -> pure ptr
-            let mDeserialisedData =
-                    deserialiseOrFail $ BL.fromStrict $ redeemerData rd
-            rData <- case mDeserialisedData of
-                Left e -> Left $ ErrAssignRedeemersInvalidData rd (show e)
-                Right d -> pure (Alonzo.Data d)
-            pure ((ptr, rd), (ptr, (rData, mempty)))
+        parseRedeemer = error "TODO conway: parseRedeemer"
+        -- parseRedeemer rd = do
+        --     let mPtr = Alonzo.rdptr
+        --             (view bodyTxL ledgerTx)
+        --             (toScriptPurpose rd)
+        --     ptr <- case mPtr of
+        --         SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
+        --         SJust ptr -> pure ptr
+        --     let mDeserialisedData =
+        --             deserialiseOrFail $ BL.fromStrict $ redeemerData rd
+        --     rData <- case mDeserialisedData of
+        --         Left e -> Left $ ErrAssignRedeemersInvalidData rd (show e)
+        --         Right d -> pure (Alonzo.Data d)
+        --     pure ((ptr, rd), (ptr, (rData, mempty)))
 
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
@@ -185,11 +192,13 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
         -> Either ErrAssignRedeemers
             (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers ledgerTx =
-        Ledger.evalTxExUnits
-            pparams ledgerTx utxo epochInformation systemStart
+        error "TODO conway: evaluateExecutionUnits"
+        -- Ledger.evalTxExUnits
+        --     pparams ledgerTx utxo epochInformation systemStart
         & bimap
             ErrAssignRedeemersTranslationError
-            (hoistScriptFailure indexedRedeemers)
+            (error "TODO conway: evaluateExecutionUnits")
+            -- (hoistScriptFailure indexedRedeemers)
 
     hoistScriptFailure
         :: Show scriptFailure
@@ -273,11 +282,14 @@ redeemerData = \case
 toScriptPurpose :: Redeemer -> Alonzo.ScriptPurpose StandardCrypto
 toScriptPurpose = \case
     RedeemerSpending _ txin ->
-        Alonzo.Spending txin
+        error "TODO conway: toScriptPurpose"
+        -- Alonzo.Spending txin
     RedeemerMinting _ pid ->
-        Alonzo.Minting pid
+        error "TODO conway: toScriptPurpose"
+        -- Alonzo.Minting pid
     RedeemerRewarding _ acc ->
-        Alonzo.Rewarding acc
+        error "TODO conway: toScriptPurpose"
+        -- Alonzo.Rewarding acc
 
 --------------------------------------------------------------------------------
 -- Utils

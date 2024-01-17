@@ -150,6 +150,7 @@ test-suite test
     , ouroboros-network-api
     , QuickCheck
     , quickcheck-classes
+    , sop-extras
     , std-gen-seed
     , text
     , time

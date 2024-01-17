@@ -26,6 +26,12 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 #endif
 
 module Internal.Cardano.Write.Tx.BalanceSpec
@@ -80,8 +86,6 @@ import Cardano.Ledger.Language
 import Cardano.Ledger.Shelley.API
     ( Credential (KeyHashObj)
     , Credential (..)
-    , DCert (DCertDeleg)
-    , DelegCert (..)
     , Delegation (..)
     , KeyHash (..)
     , StrictMaybe (SJust, SNothing)
@@ -943,14 +947,15 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
             mkBasicTxBody
                 & certsTxBodyL .~ StrictSeq.fromList certs
 
-        dummyStakeKey = KeyHashObj $ KeyHash
-            "00000000000000000000000000000000000000000000000000000000"
-        dummyPool = KeyHash
-            "00000000000000000000000000000000000000000000000000000001"
+        -- dummyStakeKey = KeyHashObj $ KeyHash
+        --     "00000000000000000000000000000000000000000000000000000000"
+        -- dummyPool = KeyHash
+        --     "00000000000000000000000000000000000000000000000000000001"
         certs =
-            [ DCertDeleg $ RegKey dummyStakeKey
-            , DCertDeleg $ Delegate $ Delegation dummyStakeKey dummyPool
-            ]
+            error "TODO conway: balanceTransactionGoldenSpec"
+            -- [ DCertDeleg $ RegKey dummyStakeKey
+            -- , DCertDeleg $ Delegate $ Delegation dummyStakeKey dummyPool
+            -- ]
 
     minFee
         :: IsRecentEra era
@@ -2547,9 +2552,9 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     , CardanoApi.protocolParamPoolPledgeInfluence = 0
     , CardanoApi.protocolParamMonetaryExpansion = 0
     , CardanoApi.protocolParamTreasuryCut  = 0
-    , CardanoApi.protocolParamUTxOCostPerWord =
-        Just $ CardanoApi.fromShelleyLovelace $
-            Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
+    -- , CardanoApi.protocolParamUTxOCostPerWord =
+    --     Just $ CardanoApi.fromShelleyLovelace $
+    --         Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
     , CardanoApi.protocolParamUTxOCostPerByte =
         Just $ CardanoApi.fromShelleyLovelace $
             Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
@@ -2685,32 +2690,33 @@ instance
     CardanoApi.IsCardanoEra era =>
     Arbitrary (CardanoApi.TxOutValue era)
   where
-    arbitrary = case CardanoApi.cardanoEra @era of
-       CardanoApi.AlonzoEra ->
-           CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
-               <$> CardanoApi.genValueForTxOut
-       CardanoApi.BabbageEra ->
-           CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra
-               <$>  CardanoApi.genValueForTxOut
-       e -> error $ mconcat
-           [ "Arbitrary (TxOutValue "
-           , show e
-           , ") not implemented)"
-           ]
+    arbitrary = error "TODO conway: Arbitrary (TxOutValue era)"
+    -- arbitrary = case CardanoApi.cardanoEra @era of
+    --    CardanoApi.AlonzoEra ->
+    --        CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
+    --            <$> CardanoApi.genValueForTxOut
+    --    CardanoApi.BabbageEra ->
+    --        CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra
+    --            <$>  CardanoApi.genValueForTxOut
+    --    e -> error $ mconcat
+    --        [ "Arbitrary (TxOutValue "
+    --        , show e
+    --        , ") not implemented)"
+    --        ]
 
-    shrink (CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra val) =
-        map
-            (CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
-                . walletToCardanoValue)
-            (shrink $ cardanoToWalletValue val)
+    -- shrink (CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra val) =
+    --     map
+    --         (CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
+    --             . walletToCardanoValue)
+    --         (shrink $ cardanoToWalletValue val)
 
-    shrink (CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra val) =
-        map
-            (CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra
-                . walletToCardanoValue)
-            (shrink $ cardanoToWalletValue val)
-    shrink _ =
-        error "Arbitrary (TxOutValue era) is not implemented for old eras"
+    -- shrink (CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra val) =
+    --     map
+    --         (CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra
+    --             . walletToCardanoValue)
+    --         (shrink $ cardanoToWalletValue val)
+    -- shrink _ =
+    --     error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
 -- Coins (quantities of lovelace) must be strictly positive when included in
 -- transactions.
@@ -2847,11 +2853,12 @@ instance Arbitrary Wallet where
         ]
       where
         genShelleyVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
-        genShelleyVkAddr = CardanoApi.shelleyAddressInEra
-            <$> (CardanoApi.makeShelleyAddress
-                <$> CardanoApi.genNetworkId
-                <*> CardanoApi.genPaymentCredential -- only vk credentials
-                <*> CardanoApi.genStakeAddressReference)
+        genShelleyVkAddr = error "TODO conway: Arbitrary Wallet"
+        -- genShelleyVkAddr = CardanoApi.shelleyAddressInEra
+        --     <$> (CardanoApi.makeShelleyAddress
+        --         <$> CardanoApi.genNetworkId
+        --         <*> CardanoApi.genPaymentCredential -- only vk credentials
+        --         <*> CardanoApi.genStakeAddressReference)
 
         genByronVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
         genByronVkAddr = CardanoApi.byronAddressInEra
@@ -2969,13 +2976,14 @@ shrinkTxBodyBabbage
         , scriptData' <- prependOriginal shrinkScriptData scriptData
         , scripts' <- prependOriginal (shrinkList (const [])) scripts
         , val' <-
-            case CardanoApi.txScriptValiditySupportedInShelleyBasedEra e of
-                Nothing -> [val]
-                Just txsvsie -> val : filter (/= val)
-                    [ CardanoApi.TxScriptValidity
-                        txsvsie
-                        CardanoApi.ScriptValid
-                    ]
+            error "TODO conway: shrinkTxBodyBabbage"
+            -- case CardanoApi.txScriptValiditySupportedInShelleyBasedEra e of
+            --     Nothing -> [val]
+            --     Just txsvsie -> val : filter (/= val)
+            --         [ CardanoApi.TxScriptValidity
+            --             txsvsie
+            --             CardanoApi.ScriptValid
+            --         ]
         ]
   where
     shrinkLedgerTxBody

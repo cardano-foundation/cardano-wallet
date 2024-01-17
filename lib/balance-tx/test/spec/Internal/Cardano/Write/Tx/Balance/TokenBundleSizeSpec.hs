@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 module Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
 
 import Prelude
@@ -273,34 +274,35 @@ data PParamsInRecentEra
     deriving (Show, Eq)
 
 instance Arbitrary PParamsInRecentEra where
-    arbitrary = oneof
-        [ PParamsInBabbage <$> genPParams RecentEraBabbage
-        , PParamsInConway <$> genPParams RecentEraConway
-        ]
+    arbitrary = error "TODO conway: Arbitrary PParamsInRecentEra"
+    -- arbitrary = oneof
+    --     [ PParamsInBabbage <$> genPParams RecentEraBabbage
+    --     , PParamsInConway <$> genPParams RecentEraConway
+    --     ]
 
-      where
-        genPParams
-            :: IsRecentEra era
-            => RecentEra era
-            -> Gen (PParams era)
-        genPParams _era = do
-            ver <- arbitrary
-            maxSize <- genMaxSizeBytes
-            return $ def
-                & ppProtocolVersionL .~ (ProtVer ver 0)
-                    -- minor version doesn't matter
-                & ppMaxValSizeL .~ maxSize
-          where
-            genMaxSizeBytes :: Gen Natural
-            genMaxSizeBytes =
-                oneof
-                -- Generate values close to the mainnet value of 4000 bytes
-                -- (and guard against underflow)
-                [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
+    --   where
+    --     genPParams
+    --         :: IsRecentEra era
+    --         => RecentEra era
+    --         -> Gen (PParams era)
+    --     genPParams _era = do
+    --         ver <- arbitrary
+    --         maxSize <- genMaxSizeBytes
+    --         return $ def
+    --             & ppProtocolVersionL .~ (ProtVer ver 0)
+    --                 -- minor version doesn't matter
+    --             & ppMaxValSizeL .~ maxSize
+    --       where
+    --         genMaxSizeBytes :: Gen Natural
+    --         genMaxSizeBytes =
+    --             oneof
+    --             -- Generate values close to the mainnet value of 4000 bytes
+    --             -- (and guard against underflow)
+    --             [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
 
-                -- Generate more extreme values (both small and large)
-                , fromIntegral <$> arbitrary @Word64
-                ]
+    --             -- Generate more extreme values (both small and large)
+    --             , fromIntegral <$> arbitrary @Word64
+    --             ]
 
 babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor
 babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor
