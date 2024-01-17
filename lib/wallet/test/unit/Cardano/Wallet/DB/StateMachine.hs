@@ -153,6 +153,12 @@ import Cardano.Wallet.Primitive.Types.AssetName
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    , DRepKeyHash
+    , DRepScriptHash
+    , VoteAction
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -770,6 +776,18 @@ instance ToExpr EpochNo where
     toExpr = defaultExprViaShow
 
 instance ToExpr TxStatus where
+    toExpr = genericToExpr
+
+instance ToExpr DRepKeyHash where
+    toExpr = genericToExpr
+
+instance ToExpr DRepScriptHash where
+    toExpr = genericToExpr
+
+instance ToExpr DRep where
+    toExpr = genericToExpr
+
+instance ToExpr VoteAction where
     toExpr = genericToExpr
 
 instance ToExpr PoolId where
