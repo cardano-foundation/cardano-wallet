@@ -189,7 +189,7 @@ toLedgerTokenBundle :: TokenBundle -> Ledger.MaryValue StandardCrypto
 toLedgerTokenBundle bundle =
     Ledger.MaryValue ledgerAda ledgerTokens
   where
-    (Ledger.Coin ledgerAda) = toLedgerCoin $ TokenBundle.getCoin bundle
+    ledgerAda = toLedgerCoin $ TokenBundle.getCoin bundle
     ledgerTokens :: Ledger.MultiAsset StandardCrypto
     ledgerTokens = bundle
         & view #tokens
@@ -206,7 +206,7 @@ toWalletTokenBundle
     (Ledger.MaryValue ledgerAda (Ledger.MultiAsset ledgerTokens)) =
         TokenBundle.fromNestedMap (walletAda, walletTokens)
   where
-    walletAda = toWalletCoin $ Ledger.Coin ledgerAda
+    walletAda = toWalletCoin ledgerAda
     walletTokens = ledgerTokens
         & Map.mapKeys toWalletTokenPolicyId
         & Map.map mapInner
