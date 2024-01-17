@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -24,7 +25,7 @@
 --     - In particular sections 4.1, 4.2, 4.6 and 4.8
 module Cardano.Wallet.Network.Implementation
     ( withNetworkLayer
-    , NetworkParams(..)
+    , NetworkParams (..)
     , Observer (query, startObserving, stopObserving)
     , newObserver
     , ObserverLog (..)
@@ -358,10 +359,11 @@ import Ouroboros.Network.Driver.Simple
     , runPipelinedPeer
     )
 import Ouroboros.Network.Mux
-    ( MuxMode (..)
-    , MuxPeer (..)
-    , OuroborosApplication (..)
+    ( MiniProtocolCb (..)
+    , MuxMode (..)
+    , OuroborosApplicationWithMinimalCtx
     , RunMiniProtocol (..)
+    , RunMiniProtocolWithMinimalCtx
     )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
@@ -601,14 +603,14 @@ withNodeNetworkLayerBase
                     txSubmissionQ
             let trNodeTip = MsgConnectionStatus ClientNodeTip >$< tr
                 ouroborosApp :: NodeToClientVersion -> WalletOuroborosApplication IO
-                ouroborosApp = nodeToClientProtocols =<< const . const . mkProtocols
+                ouroborosApp = nodeToClientProtocols =<< mkProtocols
             link
                 =<< async
                     (connectClient trNodeTip handlers ouroborosApp versionData conn)
             pure (readTip, networkParamsVar, interpreterVar, eraVar, txSubmissionQ)
 
         connectDelegationRewardsClient
-            :: HasCallStack
+            :: (HasCallStack)
             => RetryHandlers
             -> IO (TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
         connectDelegationRewardsClient handlers = do
@@ -758,12 +760,19 @@ withNodeNetworkLayerBase
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
-    :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
+    :: MonadTimer m
+    => RunMiniProtocolWithMinimalCtx
+        'InitiatorMode
+        LocalAddress
+        ByteString
+        m
+        Void
+        Void
 doNothingProtocol =
-    InitiatorProtocolOnly $ MuxPeerRaw $ const $ forever $ threadDelay 1_000_000
+    InitiatorProtocolOnly $ MiniProtocolCb $ const $ const $ forever $ threadDelay 1_000_000
 
 type WalletOuroborosApplication m =
-    OuroborosApplication
+    OuroborosApplicationWithMinimalCtx
         'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)
         LocalAddress -- Address type
         ByteString -- Concrete representation for bytes string
@@ -774,6 +783,7 @@ type WalletOuroborosApplication m =
 type WalletNodeToClientProtocols m =
     NodeToClientProtocols
         'InitiatorMode -- Initiator ~ Client (as opposed to Responder / Server)
+        LocalAddress
         ByteString -- Concrete representation for bytes string
         m -- Underlying monad the wallet runs in
         Void -- Return type of a network client. Void means the client never exits.
@@ -796,7 +806,7 @@ mkWalletClient
     -> NodeToClientVersion
     -> WalletOuroborosApplication m
 mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
-    nodeToClientProtocols (\_connectionId _stm -> protocols) nodeToClientVer
+    nodeToClientProtocols protocols nodeToClientVer
   where
     protocols =
         NodeToClientProtocols
@@ -804,11 +814,13 @@ mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
             , localStateQueryProtocol = doNothingProtocol
             , localTxMonitorProtocol = doNothingProtocol
             , localChainSyncProtocol =
-                InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
-                    let codec = cChainSyncCodec $ codecs nodeToClientVer cfg
-                    runPipelinedPeer nullTracer codec channel
-                        $ chainSyncClientPeerPipelined
-                        $ chainSyncWithBlocks tr pipeliningStrategy follower
+                InitiatorProtocolOnly
+                    $ MiniProtocolCb
+                    $ \_ channel -> do
+                        let codec = cChainSyncCodec $ codecs nodeToClientVer cfg
+                        runPipelinedPeer nullTracer codec channel
+                            $ chainSyncClientPeerPipelined
+                            $ chainSyncWithBlocks tr pipeliningStrategy follower
             }
 
 -- | Construct a network client with the given communication channel, for the
@@ -824,7 +836,7 @@ mkDelegationRewardsClient
     -> NodeToClientVersion
     -> WalletOuroborosApplication m
 mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
-    nodeToClientProtocols (\_connectionId _stm -> protocols) nodeToClientVer
+    nodeToClientProtocols protocols nodeToClientVer
   where
     protocols =
         NodeToClientProtocols
@@ -832,7 +844,7 @@ mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
             , localTxSubmissionProtocol = doNothingProtocol
             , localTxMonitorProtocol = doNothingProtocol
             , localStateQueryProtocol =
-                InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                InitiatorProtocolOnly $ MiniProtocolCb $ \_ channel -> do
                     let tr' = MsgLocalStateQuery DelegationRewardsClient >$< tr
                         codecs' = serialisedCodecs nodeToClientVer cfg
                         codec = cStateQueryCodec codecs'
@@ -857,7 +869,7 @@ mkWalletToNodeProtocols
     -- ^ Base trace for underlying protocols
     -> NetworkParameters
     -- ^ Initial blockchain parameters
-    -> ( NetworkParams -> m ())
+    -> (NetworkParams -> m ())
     -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
     -- ^ Notifier callback for when time interpreter is updated.
@@ -888,8 +900,10 @@ mkWalletToNodeProtocols
 
         onPParamsUpdate' <-
             debounce $ \networkParams@NetworkParams{..} -> do
-                traceWith tr $ MsgProtocolParameters
-                    protocolParamsLegacy slottingParamsLegacy
+                traceWith tr
+                    $ MsgProtocolParameters
+                        protocolParamsLegacy
+                        slottingParamsLegacy
                 onPParamsUpdate networkParams
 
         let queryParams = do
@@ -932,16 +946,15 @@ mkWalletToNodeProtocols
                         ( fromConwayPParams eraBounds
                             <$> LSQry Shelley.GetCurrentPParams
                         )
-                ppEra <- onAnyEra
-                    (pure InNonRecentEraByron)
-                    (pure InNonRecentEraShelley)
-                    (pure InNonRecentEraAllegra)
-                    (pure InNonRecentEraMary)
-                    (pure InNonRecentEraAlonzo)
-                    (InRecentEraBabbage
-                        <$> LSQry Shelley.GetCurrentPParams)
-                    (InRecentEraConway
-                        <$> LSQry Shelley.GetCurrentPParams)
+                ppEra <-
+                    onAnyEra
+                        (pure InNonRecentEraByron)
+                        (pure InNonRecentEraShelley)
+                        (pure InNonRecentEraAllegra)
+                        (pure InNonRecentEraMary)
+                        (pure InNonRecentEraAlonzo)
+                        (InRecentEraBabbage <$> LSQry Shelley.GetCurrentPParams)
+                        (InRecentEraConway <$> LSQry Shelley.GetCurrentPParams)
 
                 return $ NetworkParams ppEra pp sp
 
@@ -965,21 +978,24 @@ mkWalletToNodeProtocols
         let ntcProtocols v =
                 NodeToClientProtocols
                     { localChainSyncProtocol =
-                        InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                        InitiatorProtocolOnly $ MiniProtocolCb
+                            $ \_ channel -> do
                             let codec = cChainSyncCodec $ codecs v cfg
                             runPeer nullTracer codec channel
                                 $ chainSyncClientPeer
                                 $ chainSyncFollowTip toCardanoEra
                                 $ curry (atomically . writeTVar tipVar)
                     , localStateQueryProtocol =
-                        InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                        InitiatorProtocolOnly $ MiniProtocolCb
+                            $ \_ channel -> do
                             let codec = cStateQueryCodec $ serialisedCodecs v cfg
                                 client = localStateQuery localStateQueryQ
                                 peer = localStateQueryClientPeer client
                                 tr' = MsgLocalStateQuery TipSyncClient >$< tr
                             runPeer tr' codec channel peer
                     , localTxSubmissionProtocol =
-                        InitiatorProtocolOnly $ MuxPeerRaw $ \channel -> do
+                        InitiatorProtocolOnly $ MiniProtocolCb
+                            $ \_ channel -> do
                             let bn2cVer = codecVersion v
                                 codec = cTxSubmissionCodec (clientCodecs cfg bn2cVer v)
                                 trTxSubmission = MsgTxSubmission >$< tr
@@ -1449,7 +1465,8 @@ data Log where
     MsgDestroyCursor :: ThreadId -> Log
     MsgWillQueryRewardsForStake :: W.Coin -> Log
     MsgFetchStakePoolsData :: Maybe StakePoolsSummary -> Log
-    MsgFetchStakePoolsDataSummary :: Int
+    MsgFetchStakePoolsDataSummary
+        :: Int
         -> Int
         -> Log
         -- ^ Number of pools in stake distribution, and rewards map,
