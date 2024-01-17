@@ -438,12 +438,7 @@ import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
     )
 import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep (..)
-    , VoteAction (..)
-    , decodeDRepKeyHashBech32
-    , decodeDRepScriptHashBech32
-    , encodeDRepKeyHashBech32
-    , encodeDRepScriptHashBech32
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -2198,39 +2193,6 @@ instance ToJSON ApiStakeKeyIndex where
     toJSON (ApiStakeKeyIndex ix) = toJSON ix
 instance FromJSON ApiStakeKeyIndex where
     parseJSON val = ApiStakeKeyIndex <$> parseJSON val
-
-instance ToJSON (ApiT VoteAction) where
-    toJSON (ApiT Abstain) = "abstain"
-    toJSON (ApiT NoConfidence) = "no_confidence"
-    toJSON (ApiT (VoteTo drep)) = case drep of
-        DRepFromKeyHash keyhash ->
-            String $ encodeDRepKeyHashBech32 keyhash
-        DRepFromScriptHash scripthash ->
-            String $ encodeDRepScriptHashBech32 scripthash
-instance FromJSON (ApiT VoteAction) where
-    parseJSON t =
-        parseAbstain t <|> parseNoConfidence t <|> parseKeyHash t <|> parseScriptHash t
-      where
-        parseKeyHash = withText "DRepKeyHash" $ \txt ->
-            case decodeDRepKeyHashBech32 txt of
-                Left (TextDecodingError err) -> fail err
-                Right keyhash ->
-                    pure $ ApiT $ VoteTo $ DRepFromKeyHash keyhash
-        parseScriptHash = withText "DRepScriptHash" $ \txt ->
-            case decodeDRepScriptHashBech32 txt of
-                Left (TextDecodingError err) -> fail err
-                Right scripthash ->
-                    pure $ ApiT $ VoteTo $ DRepFromScriptHash scripthash
-        parseAbstain = withText "Abstain" $ \txt ->
-            if txt == "abstain" then
-                pure $ ApiT Abstain
-            else
-                fail "'abstain' is expected."
-        parseNoConfidence = withText "NoConfidence" $ \txt ->
-            if txt == "no_confidence" then
-                pure $ ApiT NoConfidence
-            else
-                fail "'no_confidence' is expected."
 
 instance ToJSON ApiMultiDelegationAction where
     toJSON (Joining poolId stakeKey) =

@@ -88,6 +88,8 @@ putDelegationCertificate cert sl = case cert of
     CertDelegateNone _ -> [Deregister sl]
     CertDelegateFull _ pool -> [Delegate pool sl, Register sl]
     CertRegisterKey _ -> [Register sl]
+    CertVoteFull _ vote -> [Vote vote sl, Register sl]
+    CertDelegateAndVoteFull _ pool vote -> [DelegateAndVote pool vote sl, Register sl]
 
 -- | Arguments to 'readDelegation'.
 data CurrentEpochSlotting = CurrentEpochSlotting

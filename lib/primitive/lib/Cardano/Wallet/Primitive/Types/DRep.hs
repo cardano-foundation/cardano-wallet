@@ -54,7 +54,7 @@ instance NFData DRepScriptHash
 
 data DRep =
     DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Ord)
     deriving anyclass NFData
 
 -- | Encode 'DRepKeyHash' as Bech32 with "drep" hrp.
@@ -115,7 +115,7 @@ data VoteAction
     = Abstain
     | NoConfidence
     | VoteTo !DRep
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Ord)
     deriving anyclass NFData
 
 instance ToText VoteAction where

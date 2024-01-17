@@ -8,6 +8,7 @@ module Cardano.Wallet.Primitive.Types.Certificates
     ( DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , dlgCertVote
     , StakeKeyCertificate (..)
     , PoolCertificate (..)
     , getPoolCertificatePoolId
@@ -30,6 +31,9 @@ import Cardano.Slotting.Slot
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo
@@ -76,6 +80,8 @@ data DelegationCertificate
     = CertDelegateNone RewardAccount
     | CertDelegateFull RewardAccount PoolId
     | CertRegisterKey RewardAccount
+    | CertVoteFull RewardAccount VoteAction
+    | CertDelegateAndVoteFull RewardAccount PoolId VoteAction
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
@@ -85,12 +91,24 @@ dlgCertAccount = \case
     CertDelegateNone acc -> acc
     CertDelegateFull acc _ -> acc
     CertRegisterKey acc -> acc
+    CertVoteFull acc _ -> acc
+    CertDelegateAndVoteFull acc _ _ -> acc
 
 dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
     CertDelegateFull _ poolId -> Just poolId
     CertRegisterKey _ -> Nothing
+    CertVoteFull _ _ -> Nothing
+    CertDelegateAndVoteFull _ poolId _ -> Just poolId
+
+dlgCertVote :: DelegationCertificate -> Maybe VoteAction
+dlgCertVote = \case
+    CertDelegateNone{} -> Nothing
+    CertDelegateFull _ _ -> Nothing
+    CertRegisterKey _ -> Nothing
+    CertVoteFull _ vote -> Just vote
+    CertDelegateAndVoteFull _ _ vote -> Just vote
 
 data StakeKeyCertificate
     = StakeKeyRegistration
