@@ -16,15 +16,12 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
 
 import Prelude
 
-import Cardano.Api
-    ( MaryEra
-    )
 import Cardano.Ledger.Api
-    ( addrTxWitsL
+    ( Mary
+    , addrTxWitsL
     , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
-    , certsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , mintTxBodyL
@@ -94,17 +91,17 @@ import Control.Lens
     , (^..)
     )
 
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
 
 fromMaryTx
-    :: SL.ShelleyTx (Cardano.ShelleyLedgerEra MaryEra)
+    :: SL.ShelleyTx Mary
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -115,7 +112,7 @@ fromMaryTx
        )
 fromMaryTx tx witCtx =
     ( fromMaryTx' tx
-    , anyEraCerts $ tx ^. bodyTxL.certsTxBodyL
+    , Read.unK . Read.maryFun anyEraCerts $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -131,7 +128,7 @@ fromMaryTx tx witCtx =
         maryMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
 
 fromMaryTx' ::
-    SL.ShelleyTx (Cardano.ShelleyLedgerEra MaryEra) ->
+    SL.ShelleyTx Mary ->
     W.Tx
 fromMaryTx' tx =
     W.Tx

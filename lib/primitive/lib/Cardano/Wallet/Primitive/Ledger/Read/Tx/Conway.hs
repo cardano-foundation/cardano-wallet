@@ -18,22 +18,20 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
 
 import Prelude
 
-import Cardano.Api
-    ( ConwayEra
-    )
 import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript
     )
 import Cardano.Ledger.Api
-    ( StandardCrypto
+    ( Conway
+    , StandardCrypto
     , addrTxWitsL
     , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
     , collateralInputsTxBodyL
     , collateralReturnTxBodyL
-    , conwayCertsTxBodyL
     , feeTxBodyL
+    , hashScript
     , inputsTxBodyL
     , isValidTxL
     , mintTxBodyL
@@ -46,12 +44,8 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Babbage
     ( BabbageTxOut
     )
-import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toWalletScript
-    , toWalletTokenPolicyId
-    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( fromConwayCerts
+    ( anyEraCerts
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( fromShelleyTxIn
@@ -61,10 +55,12 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( conwayMint
-    , fromLedgerScriptHash
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromConwayTxOut
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
+    ( conwayAnyExplicitScript
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( afterShelleyValidityInterval
@@ -76,9 +72,7 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
-    ( PlutusScriptInfo (PlutusScriptInfo)
-    , PlutusVersion (PlutusVersionV1, PlutusVersionV2, PlutusVersionV3)
-    , ReferenceInput (ReferenceInput)
+    ( ReferenceInput (ReferenceInput)
     , ScriptReference (..)
     , TokenMapWithScripts
     )
@@ -97,14 +91,6 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     , WitnessCountCtx
-    , toKeyRole
-    )
-import Cardano.Wallet.Read.Eras
-    ( conway
-    , inject
-    )
-import Cardano.Wallet.Read.Tx
-    ( Tx (..)
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
@@ -121,9 +107,6 @@ import Control.Lens
     , (^.)
     , (^..)
     )
-import Data.Foldable
-    ( toList
-    )
 import Data.Map
     ( Map
     )
@@ -133,28 +116,21 @@ import Data.Maybe.Strict
 import Data.Word
     ( Word32
     )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardConway
-    )
 
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as Core
-import qualified Cardano.Ledger.Language as Language
-import qualified Cardano.Ledger.Mary.Value as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 fromConwayTx
-    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra ConwayEra)
+    :: Alonzo.AlonzoTx Conway
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -165,7 +141,7 @@ fromConwayTx
        )
 fromConwayTx tx witCtx =
     ( tx'
-    , fmap fromConwayCerts . toList $ tx ^. bodyTxL . conwayCertsTxBodyL
+    , Read.unK . Read.conwayFun anyEraCerts $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -181,30 +157,30 @@ fromConwayTx tx witCtx =
     anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
     anyScriptsFromTxOuts =
         Map.fromList
-            [ fromLedgerToAnyScript ledgerScript
+            [ conwayAnyExplicitScript witCtx ledgerScript
             | Just ledgerScript <- L.zipWith scriptWithHashIx
                 [0..] (tx ^.. bodyTxL.outputsTxBodyL.folded)
             ]
       where
         scriptWithHashIx
             :: Word32
-            -> BabbageTxOut StandardConway
+            -> BabbageTxOut Conway
             -> Maybe
                 ( ScriptReference
                 , Ledger.ScriptHash StandardCrypto
-                , AlonzoScript StandardConway
+                , AlonzoScript Conway
                 )
         scriptWithHashIx ix txout =
             snd (fromConwayTxOut txout) <&> \script ->
                 ( ViaReferenceInput (ReferenceInput (TxIn txId' ix))
-                , hashConwayScript script
+                , hashScript @Conway script
                 , script
                 )
 
     anyScriptsFromWits :: Map TokenPolicyId AnyExplicitScript
     anyScriptsFromWits =
         Map.fromList
-            [ fromLedgerToAnyScript (ViaSpending, scriptH, script)
+            [ conwayAnyExplicitScript witCtx (ViaSpending, scriptH, script)
             | (scriptH, script) <- Map.toList (tx ^. witsTxL.scriptTxWitsL)
             ]
 
@@ -214,39 +190,12 @@ fromConwayTx tx witCtx =
             (tx ^. bodyTxL.mintTxBodyL)
             (tx ^. witsTxL)
 
-    fromLedgerToAnyScript
-        :: ( ScriptReference
-           , Ledger.ScriptHash StandardCrypto
-           , AlonzoScript StandardConway
-           )
-        -> (TokenPolicyId, AnyExplicitScript)
-    fromLedgerToAnyScript (scriptRef, scriptH, script) =
-        (toWalletTokenPolicyId (SL.PolicyID scriptH), toAnyScript script)
-      where
-        toAnyScript = \case
-            Alonzo.TimelockScript timelockScript ->
-                NativeExplicitScript
-                    (toWalletScript (toKeyRole witCtx) timelockScript)
-                    scriptRef
-            Alonzo.PlutusScript ver _ ->
-                PlutusExplicitScript
-                    (PlutusScriptInfo
-                        (toPlutusVer ver)
-                        (fromLedgerScriptHash $ hashConwayScript script))
-                    scriptRef
-
-        toPlutusVer Language.PlutusV1 = PlutusVersionV1
-        toPlutusVer Language.PlutusV2 = PlutusVersionV2
-        toPlutusVer Language.PlutusV3 = PlutusVersionV3
-
-    hashConwayScript = Core.hashScript @(Cardano.ShelleyLedgerEra ConwayEra)
-
-fromConwayTx' :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra ConwayEra) -> W.Tx
+fromConwayTx' :: Alonzo.AlonzoTx Conway -> W.Tx
 fromConwayTx' tx =
     W.Tx
         { txId = W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject conway $ Tx tx
+            Just $ renderTxToCBOR $ Read.inject Read.conway $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
