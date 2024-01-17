@@ -126,7 +126,7 @@ fromAlonzoTx
        )
 fromAlonzoTx tx witCtx =
     ( fromAlonzoTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , unK $ alonzoFun anyEraCerts tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

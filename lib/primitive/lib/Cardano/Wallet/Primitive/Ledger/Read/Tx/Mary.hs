@@ -115,7 +115,7 @@ fromMaryTx
        )
 fromMaryTx tx witCtx =
     ( fromMaryTx' tx
-    , anyEraCerts $ tx ^. bodyTxL.certsTxBodyL
+    , unK $ maryFun anyEraCerts tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

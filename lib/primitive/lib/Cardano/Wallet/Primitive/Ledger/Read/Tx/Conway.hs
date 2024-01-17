@@ -32,7 +32,6 @@ import Cardano.Ledger.Api
     , bootAddrTxWitsL
     , collateralInputsTxBodyL
     , collateralReturnTxBodyL
-    , conwayCertsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , isValidTxL
@@ -51,7 +50,7 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     , toWalletTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( fromConwayCerts
+    ( anyEraCerts
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( fromShelleyTxIn
@@ -165,7 +164,7 @@ fromConwayTx
        )
 fromConwayTx tx witCtx =
     ( tx'
-    , fmap fromConwayCerts . toList $ tx ^. bodyTxL . conwayCertsTxBodyL
+    , unK $ conwayFun anyEraCerts tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

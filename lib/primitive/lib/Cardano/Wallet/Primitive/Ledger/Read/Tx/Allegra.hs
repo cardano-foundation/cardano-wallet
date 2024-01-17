@@ -129,7 +129,7 @@ fromAllegraTx
        )
 fromAllegraTx tx =
     ( fromAllegraTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , unK $ allegraFun anyEraCerts tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

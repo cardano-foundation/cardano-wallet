@@ -38,8 +38,7 @@ import Cardano.Ledger.Shelley
     ( ShelleyTx
     )
 import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL
-    , ttlTxBodyL
+    ( ttlTxBodyL
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScriptFromShelley
@@ -141,7 +140,7 @@ fromShelleyTx
        )
 fromShelleyTx tx =
     ( fromShelleyTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , unK $ shelleyFun anyEraCerts tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL

@@ -43,8 +43,12 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     , InAnyCardanoEra (..)
+    , InAnyShelleyBasedEra (..)
     , anyCardanoEra
     , deserialiseFromCBOR
+    )
+import Cardano.Api.Shelley
+    ( Tx (ShelleyTx)
     )
 import Cardano.Binary
     ( DecoderError
@@ -208,7 +212,7 @@ cardanoTxIdeallyNoLaterThan era = unsafeCardanoTx . ideallyNoLaterThan era
 -- | Re-deserialises the bytes of the 'SealedTx' as a transaction in the
 -- provided era, and that era only.
 cardanoTxInExactEra
-    :: forall era. Cardano.IsCardanoEra era
+    :: forall era. Cardano.IsShelleyBasedEra era
     => CardanoEra era
     -> SealedTx
     -> Maybe (Cardano.Tx era)
@@ -225,12 +229,21 @@ getSealedTxWitnesses :: SealedTx -> [InAnyCardanoEra Cardano.KeyWitness]
 getSealedTxWitnesses (SealedTx _ (InAnyCardanoEra era tx) _) =
     [InAnyCardanoEra era w | w <- Cardano.getTxWitnesses tx]
 
+-- Every 'Cardano.Tx' is now in a Shelley-based era,
+-- as the 'ByronTx' constructor has been removed in cardano-api-8.36.0.0
+castInAnyCardanoEraTx
+    :: InAnyCardanoEra Cardano.Tx -> InAnyShelleyBasedEra Cardano.Tx
+castInAnyCardanoEraTx (InAnyCardanoEra _era tx@(ShelleyTx era' _))
+    = InAnyShelleyBasedEra era' tx
+
 -- | Construct a 'SealedTx' from a "Cardano.Api" transaction.
 sealedTxFromCardano :: InAnyCardanoEra Cardano.Tx -> SealedTx
-sealedTxFromCardano tx = SealedTx True tx (cardanoTxToBytes tx)
+sealedTxFromCardano tx =
+    SealedTx True tx (cardanoTxToBytes $ castInAnyCardanoEraTx tx)
   where
-    cardanoTxToBytes :: InAnyCardanoEra Cardano.Tx -> ByteString
-    cardanoTxToBytes (InAnyCardanoEra _era tx') = Cardano.serialiseToCBOR tx'
+    cardanoTxToBytes :: InAnyShelleyBasedEra Cardano.Tx -> ByteString
+    cardanoTxToBytes (InAnyShelleyBasedEra era tx') =
+        Cardano.shelleyBasedEraConstraints era (Cardano.serialiseToCBOR tx')
 
 -- | Construct a 'SealedTx' from a "Cardano.Api" transaction.
 sealedTxFromCardano' :: Cardano.IsCardanoEra era => Cardano.Tx era -> SealedTx
@@ -256,11 +269,10 @@ cardanoTxFromBytes maxEra bs = asum $ map snd $ filter (withinEra maxEra . fst)
     , deserialise MaryEra    Cardano.AsMaryEra
     , deserialise AllegraEra Cardano.AsAllegraEra
     , deserialise ShelleyEra Cardano.AsShelleyEra
-    , deserialise ByronEra   Cardano.AsByronEra
     ]
   where
     deserialise
-        :: forall era. Cardano.IsCardanoEra era
+        :: forall era. Cardano.IsShelleyBasedEra era
         => CardanoEra era
         -> Cardano.AsType era
         -> (AnyCardanoEra, Either DecoderError (InAnyCardanoEra Cardano.Tx))

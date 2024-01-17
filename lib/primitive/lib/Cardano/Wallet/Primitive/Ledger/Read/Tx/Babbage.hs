@@ -161,7 +161,7 @@ fromBabbageTx
        )
 fromBabbageTx tx witCtx =
     ( tx'
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , unK $ babbageFun anyEraCerts tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
