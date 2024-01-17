@@ -150,7 +150,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           haskellPackages.weeder
           (haskell-nix.tool "ghc963" "haskell-language-server" ({pkgs, ...}: rec {
             # Use the github source of HLS that is tested with haskell.nix CI
-            src = pkgs.haskell-nix.sources."hls-2.6";
+            src = pkgs.haskell-nix.sources."hls-2.5";
             }))
         ]);
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
