@@ -34,6 +34,9 @@ import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (..)
     , withFaucet
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -43,12 +46,12 @@ import Control.Applicative
 import Control.Lens
     ( over
     )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
 import Control.Monad.Trans.Resource
     ( allocate
     , runResourceT
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Main.Utf8
     ( withUtf8
@@ -202,77 +205,88 @@ main = withUtf8 $ do
 
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
     let tr = stdoutTextTracer
-    withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath ->
+    clusterEra <- Cluster.clusterEraFromEnv
+    cfgNodeLogging <-
+        Cluster.logFileConfigFromEnv
+            (Just (Cluster.clusterEraToString clusterEra))
+    CommandLineOptions{clusterConfigsDir} <- parseCommandLineOptions
+    withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath -> do
+        let clusterCfg =
+                Cluster.Config
+                    { cfgStakePools = Cluster.defaultPoolConfigs
+                    , cfgLastHardFork = clusterEra
+                    , cfgNodeLogging
+                    , cfgClusterDir = FileOf clusterPath
+                    , cfgClusterConfigs = clusterConfigsDir
+                    , cfgTestnetMagic = Cluster.TestnetMagic 42
+                    , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
+                    , cfgTracer = stdoutTextTracer
+                    }
         withFaucet $ \faucetClientEnv -> do
-        clusterEra <- Cluster.clusterEraFromEnv
-        cfgNodeLogging <-
-            Cluster.logFileConfigFromEnv
-                (Just (Cluster.clusterEraToString clusterEra))
-        CommandLineOptions { clusterConfigsDir } <- parseCommandLineOptions
-        let clusterCfg = Cluster.Config
-                { cfgStakePools = Cluster.defaultPoolConfigs
-                , cfgLastHardFork = clusterEra
-                , cfgNodeLogging
-                , cfgClusterDir = Tagged clusterPath
-                , cfgClusterConfigs = clusterConfigsDir
-                , cfgTestnetMagic = Cluster.TestnetMagic 42
-                , cfgShelleyGenesisMods = [ over #sgSlotLength \_ -> 0.2 ]
-                }
-        maryAllegraFunds <- runFaucetM faucetClientEnv $
-            Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
-        Cluster.withCluster stdoutTextTracer clusterCfg
-            Cluster.FaucetFunds
-            { pureAdaFunds = []
-            , maryAllegraFunds
-            , mirCredentials =
-                [ ( Cluster.KeyCredential (Shelley.getKey xPub)
-                  , Coin 1_000_000__000_000
-                  )
-                | m <- Mnemonics.mir
-                , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
-                ]
-            } $ \node -> do
-            clusterDir <- Path.parseAbsDir clusterPath
-            let walletDir = clusterDir Path.</> [Path.reldir|wallet|]
-            PathIO.createDirIfMissing False walletDir
-            nodeSocket <-
-                Path.parseAbsFile . nodeSocketFile
-                    $ Cluster.runningNodeSocketPath node
+            maryAllegraFunds <-
+                liftIO
+                    $ runFaucetM faucetClientEnv
+                    $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
+            Cluster.withCluster
+                clusterCfg
+                Cluster.FaucetFunds
+                    { pureAdaFunds = []
+                    , maryAllegraFunds
+                    , mirCredentials =
+                        [ ( Cluster.KeyCredential (Shelley.getKey xPub)
+                          , Coin 1_000_000__000_000
+                          )
+                        | m <- Mnemonics.mir
+                        , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
+                        ]
+                    }
+                $ \node -> do
+                    clusterDir <- Path.parseAbsDir clusterPath
+                    let walletDir = clusterDir Path.</> [Path.reldir|wallet|]
+                    PathIO.createDirIfMissing False walletDir
+                    nodeSocket <-
+                        Path.parseAbsFile . nodeSocketFile
+                            $ Cluster.runningNodeSocketPath node
 
-            runResourceT do
-                (_releaseKey, (_walletInstance, _walletApi)) <- allocate
-                    ( WC.start WC.WalletProcessConfig
-                        { WC.walletDir =
-                            walletDir
-                        , WC.walletNodeApi =
-                            NC.NodeApi nodeSocket
-                        , WC.walletDatabase =
-                            clusterDir Path.</> [Path.reldir|db|]
-                        , WC.walletListenHost =
-                            Nothing
-                        , WC.walletListenPort =
-                            Nothing
-                        , WC.walletByronGenesisForTestnet = Just $
-                            clusterDir Path.</> [Path.relfile|genesis-byron.json|]
-                        }
-                    )
-                    (WC.stop . fst)
-                threadDelay maxBound -- wait for Ctrl+C
+                    runResourceT do
+                        (_releaseKey, (_walletInstance, _walletApi)) <-
+                            allocate
+                                ( WC.start
+                                    WC.WalletProcessConfig
+                                        { WC.walletDir =
+                                            walletDir
+                                        , WC.walletNodeApi =
+                                            NC.NodeApi nodeSocket
+                                        , WC.walletDatabase =
+                                            clusterDir Path.</> [Path.reldir|db|]
+                                        , WC.walletListenHost =
+                                            Nothing
+                                        , WC.walletListenPort =
+                                            Nothing
+                                        , WC.walletByronGenesisForTestnet =
+                                            Just
+                                                $ clusterDir Path.</> [Path.relfile|genesis-byron.json|]
+                                        }
+                                )
+                                (WC.stop . fst)
+                        threadDelay maxBound -- wait for Ctrl+C
 
 newtype CommandLineOptions = CommandLineOptions
-    { clusterConfigsDir :: Tagged "cluster-configs" FilePath }
+    {clusterConfigsDir :: FileOf "cluster-configs"}
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
-parseCommandLineOptions = O.execParser $
-    O.info
-        (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
-        (O.progDesc "Local Cluster for testing")
+parseCommandLineOptions =
+    O.execParser
+        $ O.info
+            (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
+            (O.progDesc "Local Cluster for testing")
 
-clusterConfigsDirParser :: O.Parser (Tagged "cluster-configs" FilePath)
+clusterConfigsDirParser :: O.Parser (FileOf "cluster-configs")
 clusterConfigsDirParser =
-    Tagged <$> O.strOption
-        ( O.long "cluster-configs"
-        <> O.metavar "LOCAL_CLUSTER_CONFIGS"
-        <> O.help "Path to the local cluster configuration directory"
-        )
+    FileOf
+        <$> O.strOption
+            ( O.long "cluster-configs"
+                <> O.metavar "LOCAL_CLUSTER_CONFIGS"
+                <> O.help "Path to the local cluster configuration directory"
+            )

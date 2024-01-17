@@ -225,6 +225,7 @@
                 # Local test cluster and mock metadata server
                 inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
+                inherit (project.hsPkgs.cardano-wallet.components.exes) integration-exe;
 
                 # Adrestia tool belt
                 inherit (project.hsPkgs.bech32.components.exes) bech32;
@@ -248,31 +249,7 @@
                 tests =
                   lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
                 # `checks` are the result of executing the tests.
-                checks = lib.removeRecurse (
-                  lib.recursiveUpdate
-                    (collectChecks isProjectPackage coveredProject.hsPkgs)
-                    # Run the integration tests in the previous era too:
-                    (
-                      let
-                        integrationCheck = check coveredProject.hsPkgs.cardano-wallet.components.tests.integration;
-                        integrationPrevEraCheck = integrationCheck.overrideAttrs (prev: {
-                          preCheck = prev.preCheck + ''
-                            export LOCAL_CLUSTER_ERA=alonzo
-                          '';
-                        });
-                      in
-                        if integrationCheck.doCheck == true
-                        then
-                          {
-                            # Uncomment and update the LOCAL_CLUSTER_ERA when we're close to a
-                            # hard-fork and would like to run integration tests on two eras in CI
-                            # again.
-                            # cardano-wallet.integration-prev-era = integrationPrevEraCheck;
-                          }
-                        else
-                          {}
-                    )
-                );
+                checks = lib.removeRecurse (collectChecks isProjectPackage coveredProject.hsPkgs);
                 # `benchmarks` are only built, not run.
                 benchmarks =
                   lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);

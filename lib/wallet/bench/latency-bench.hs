@@ -75,6 +75,7 @@ import Cardano.Wallet.LatencyBenchShared
 import Cardano.Wallet.Launch.Cluster
     ( Config (..)
     , FaucetFunds (..)
+    , FileOf (..)
     , RunningNode (..)
     , defaultPoolConfigs
     , testnetMagicToNatural
@@ -141,9 +142,6 @@ import Data.Functor.Contravariant
 import Data.Generics.Internal.VL.Lens
     ( over
     , (^.)
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Data.Text.Class.Extended
     ( ToText
@@ -605,23 +603,24 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             cfgNodeLogging <-
                 Cluster.logFileConfigFromEnv
                     (Just (Cluster.clusterEraToString clusterEra))
-            withCluster
-                stdoutTextTracer
-                Cluster.Config
-                    { cfgStakePools = pure (NE.head defaultPoolConfigs)
-                    , cfgLastHardFork = clusterEra
-                    , cfgNodeLogging
-                    , cfgClusterDir = Tagged @"cluster" dir
-                    , cfgClusterConfigs = clusterConfigsDir
-                    , cfgTestnetMagic
-                    , cfgShelleyGenesisMods =
-                        [ over #sgSlotLength (const 0.2)
-                        -- to avoid "PastHorizonException" errors, as wallet
-                        -- doesn't keep up with retrieving fresh time interpreter.
-                        , over #sgSecurityParam (const 100)
-                        -- when it low then cluster is not making blocks;
-                        ]
-                    }
+            let clusterConfig =
+                    Cluster.Config
+                        { cfgStakePools = pure (NE.head defaultPoolConfigs)
+                        , cfgLastHardFork = clusterEra
+                        , cfgNodeLogging
+                        , cfgClusterDir = FileOf @"cluster" dir
+                        , cfgClusterConfigs = clusterConfigsDir
+                        , cfgTestnetMagic
+                        , cfgShelleyGenesisMods =
+                            [ over #sgSlotLength (const 0.2)
+                            -- to avoid "PastHorizonException" errors, as wallet
+                            -- doesn't keep up with retrieving fresh time interpreter.
+                            , over #sgSecurityParam (const 100)
+                            -- when it low then cluster is not making blocks;
+                            ]
+                        , cfgTracer = stdoutTextTracer
+                        }
+            withCluster clusterConfig
                 faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)
 
@@ -672,7 +671,7 @@ era = maxBound
 -- Command line options --------------------------------------------------------
 
 newtype CommandLineOptions = CommandLineOptions
-    { clusterConfigsDir :: Tagged "cluster-configs" FilePath }
+    { clusterConfigsDir :: FileOf "cluster-configs" }
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions

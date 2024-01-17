@@ -318,7 +318,6 @@ library cardano-wallet-api-http
     , ntp-client
     , OddWord
     , optparse-applicative
-    , prettyprinter
     , quiet
     , random
     , safe
@@ -658,7 +657,6 @@ test-suite unit
     , sop-core
     , splitmix
     , string-interpolate
-    , tagged                                             ^>=0.8.7
     , temporary
     , temporary-extra
     , text
@@ -765,11 +763,14 @@ test-suite unit
     Spec
     SpecHook
 
-test-suite integration
-  import:             language, opts-exe
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/integration test/data
-  main-is:            shelley-integration-test.hs
+common integration-common
+  import:         language, opts-exe
+  hs-source-dirs: test/integration test/data
+  other-modules:
+    Cardano.Wallet.Test.Integration.Logging
+    Cardano.Wallet.Test.Integration.PendingInEra
+    Cardano.Wallet.Test.Integration.Setup
+
   build-depends:
     , base
     , cardano-addresses
@@ -795,13 +796,21 @@ test-suite integration
     , local-cluster
     , mock-token-metadata
     , network-uri
-    , tagged                             ^>=0.8.7
+    , servant-client
     , temporary-extra
     , text
     , text-class
     , unliftio
     , with-utf8
 
+executable integration-exe
+  import:  integration-common
+  main-is: integration-tests.hs
+
+test-suite integration
+  import:             integration-common
+  type:               exitcode-stdio-1.0
+  main-is:            integration-tests.hs
   build-tool-depends: cardano-wallet:cardano-wallet
 
 benchmark restore
@@ -863,7 +872,6 @@ benchmark latency
     , iohk-monitoring-extra
     , local-cluster
     , optparse-applicative
-    , tagged                             ^>=0.8.7
     , temporary-extra
     , text
     , time

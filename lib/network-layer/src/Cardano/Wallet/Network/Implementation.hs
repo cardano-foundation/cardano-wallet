@@ -1731,4 +1731,5 @@ eraIndexToAnyCardanoEra index =
         3 -> AnyCardanoEra MaryEra
         4 -> AnyCardanoEra AlonzoEra
         5 -> AnyCardanoEra BabbageEra
+        6 -> AnyCardanoEra ConwayEra
         _ -> error "eraIndexToAnyCardanoEra: unknown era"

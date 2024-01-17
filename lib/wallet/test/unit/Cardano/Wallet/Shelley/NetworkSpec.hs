@@ -22,6 +22,7 @@ import Cardano.Wallet.Launch.Cluster
     , ClusterLog (..)
     , Config (..)
     , FaucetFunds (..)
+    , FileOf (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
@@ -63,9 +64,6 @@ import Data.Map
     )
 import Data.Set
     ( Set
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Fmt
     ( build
@@ -322,12 +320,13 @@ withTestNode tr action = do
                     { cfgStakePools = defaultPoolConfigs
                     , cfgLastHardFork = BabbageHardFork
                     , cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , cfgClusterDir = Tagged @"cluster" dir
+                    , cfgClusterDir = FileOf @"cluster" dir
                     , cfgClusterConfigs
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = []
+                    , cfgTracer = tr
                     }
-            withCluster tr clusterConfig (FaucetFunds [] [] []) $
+            withCluster clusterConfig (FaucetFunds [] [] []) $
                 \(RunningNode sock genesisData vData) -> do
                     let (np, _, _ ) = fromGenesisData genesisData
                     action np sock vData

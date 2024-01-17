@@ -55,10 +55,19 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - label: 'Run integration tests (linux)'
-    key: linux-tests-integration
+  - label: "Babbage integration tests (linux)"
+    key: linux-tests-integration-babbage
     depends_on: linux-nix
-    command: 'nix build -L .#ci.${linux}.tests.run.integration'
+    command: nix shell 'nixpkgs#just' -c just babbage-integration-tests
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
+
+  - label: "Conway integration tests (linux)"
+    key: linux-tests-integration-conway
+    depends_on: linux-nix
+    command: nix shell 'nixpkgs#just' -c just conway-integration-tests
     agents:
       system: ${linux}
     env:
@@ -259,7 +268,8 @@ steps:
     depends_on:
       - cabal-release
       - linux-tests-unit
-      - linux-tests-integration
+      - linux-tests-integration-babbage
+      - linux-tests-integration-conway
       - cabal-configure
       - code-format
       - hlint

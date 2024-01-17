@@ -30,6 +30,33 @@ library
     Cardano.Wallet.Cli.Launcher
     Cardano.Wallet.Faucet
     Cardano.Wallet.Launch.Cluster
+    Cardano.Wallet.Launch.Cluster.Aeson
+    Cardano.Wallet.Launch.Cluster.CardanoCLI
+    Cardano.Wallet.Launch.Cluster.Cluster
+    Cardano.Wallet.Launch.Cluster.ClusterEra
+    Cardano.Wallet.Launch.Cluster.Config
+    Cardano.Wallet.Launch.Cluster.ConfiguredPool
+    Cardano.Wallet.Launch.Cluster.ClusterM
+    Cardano.Wallet.Launch.Cluster.Faucet
+    Cardano.Wallet.Launch.Cluster.FileOf
+    Cardano.Wallet.Launch.Cluster.GenesisFiles
+    Cardano.Wallet.Launch.Cluster.InstantaneousRewards
+    Cardano.Wallet.Launch.Cluster.KeyRegistration
+    Cardano.Wallet.Launch.Cluster.Logging
+    Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
+    Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
+    Cardano.Wallet.Launch.Cluster.Node.GenTopology
+    Cardano.Wallet.Launch.Cluster.Node.NodeParams
+    Cardano.Wallet.Launch.Cluster.Node.Process
+    Cardano.Wallet.Launch.Cluster.Node.Relay
+    Cardano.Wallet.Launch.Cluster.Node.RunningNode
+    Cardano.Wallet.Launch.Cluster.PoolMetadataServer
+    Cardano.Wallet.Launch.Cluster.PoolRecipe
+    Cardano.Wallet.Launch.Cluster.SinkAddress
+    Cardano.Wallet.Launch.Cluster.SMASH
+    Cardano.Wallet.Launch.Cluster.StakeCertificates
+    Cardano.Wallet.Launch.Cluster.Tx
+    Cardano.Wallet.Launch.Cluster.UnsafeInterval
     Cardano.Wallet.LocalCluster
 
   ghc-options:
@@ -78,6 +105,7 @@ library
     , iohk-monitoring-extra
     , lens                               ^>=5.1.1
     , memory                             ^>=0.18
+    , mtl
     , OddWord                            ^>=1.0.1
     , optparse-applicative
     , ouroboros-network                  ^>=0.8.1
