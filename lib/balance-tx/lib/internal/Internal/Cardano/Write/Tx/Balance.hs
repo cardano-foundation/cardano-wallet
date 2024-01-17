@@ -149,11 +149,11 @@ import Data.Bits
     ( Bits
     )
 import Data.Either
-    ( lefts
-    , partitionEithers
+    ( partitionEithers
     )
 import Data.Function
-    ( (&)
+    ( on
+    , (&)
     )
 import Data.Functor
     ( (<&>)
@@ -317,12 +317,12 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
 import qualified Data.Foldable as F
 import qualified Data.Map as Map
+import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
@@ -645,7 +645,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
+    (UTxOIndex _walletUTxO internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
     selectionStrategy
@@ -889,19 +889,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardWalletUTxOConsistencyWith
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u' = do
-        let W.UTxO u = toWalletUTxO u'
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
-                case i `W.UTxO.lookup` walletUTxO of
-                    Just o2 -> unless (o1 == o2) $ Left
-                        ( toLedgerTxOut era o1
-                        , toLedgerTxOut era o2
-                        )
-                    Nothing -> pure ()
-        case conflicts of
+    guardWalletUTxOConsistencyWith u =
+        case F.toList (conflicts u walletLedgerUTxO) of
+            (c : cs) -> throwE $ ErrBalanceTxInputResolutionConflicts (c :| cs)
             [] -> return ()
-            (c : cs) -> throwE
-                $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+      where
+        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat
