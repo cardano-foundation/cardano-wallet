@@ -137,6 +137,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
@@ -256,6 +257,7 @@ test-suite test
     , quickcheck-classes
     , quickcheck-instances
     , quickcheck-monoid-subclasses
+    , sop-extras
     , string-qq
     , text
     , text-class

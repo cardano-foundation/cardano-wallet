@@ -19,15 +19,12 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
 
 import Prelude
 
-import Cardano.Api
-    ( AlonzoEra
-    )
 import Cardano.Ledger.Api
-    ( addrTxWitsL
+    ( Alonzo
+    , addrTxWitsL
     , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
-    , certsTxBodyL
     , collateralInputsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
@@ -37,9 +34,6 @@ import Cardano.Ledger.Api
     , scriptTxWitsL
     , vldtTxBodyL
     , witsTxL
-    )
-import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toWalletScript
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( anyEraCerts
@@ -52,10 +46,12 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( alonzoMint
-    , fromLedgerScriptHash
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromAlonzoTxOut
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
+    ( alonzoAnyExplicitScript
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( afterShelleyValidityInterval
@@ -63,14 +59,8 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
     ( fromLedgerWithdrawals
     )
-import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
-    ( AnyExplicitScript (NativeExplicitScript, PlutusExplicitScript)
-    )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
-    ( PlutusScriptInfo (PlutusScriptInfo)
-    , PlutusVersion (PlutusVersionV1, PlutusVersionV2, PlutusVersionV3)
-    , ScriptReference (ViaSpending)
-    , TokenMapWithScripts
+    ( TokenMapWithScripts
     )
 import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     ( ValidityIntervalExplicit
@@ -78,14 +68,6 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     , WitnessCountCtx
-    , toKeyRole
-    )
-import Cardano.Wallet.Read.Eras
-    ( alonzo
-    , inject
-    )
-import Cardano.Wallet.Read.Tx
-    ( Tx (..)
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
@@ -102,20 +84,17 @@ import Control.Lens
     , (^..)
     )
 
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Ledger.Core as Core
-import qualified Cardano.Ledger.Language as Language
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
 
 fromAlonzoTx
-    :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra AlonzoEra)
+    :: Alonzo.AlonzoTx Alonzo
     -> WitnessCountCtx
     -> ( W.Tx
        , [W.Certificate]
@@ -126,44 +105,26 @@ fromAlonzoTx
        )
 fromAlonzoTx tx witCtx =
     ( fromAlonzoTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , Read.unK . Read.alonzoFun anyEraCerts $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
     , WitnessCount
         (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        (fromAlonzoScriptMap <$> tx ^.. witsTxL.scriptTxWitsL.folded)
+        (alonzoAnyExplicitScript witCtx <$> tx ^.. witsTxL.scriptTxWitsL.folded)
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
   where
     (assetsToMint, assetsToBurn) =
         alonzoMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
 
-    fromAlonzoScriptMap = \case
-        Alonzo.TimelockScript script ->
-            NativeExplicitScript
-                (toWalletScript (toKeyRole witCtx) script)
-                ViaSpending
-        script@(Alonzo.PlutusScript ver _) ->
-            PlutusExplicitScript
-                (PlutusScriptInfo (toPlutusVer ver) (hashAlonzoScript script))
-                ViaSpending
-          where
-            toPlutusVer Language.PlutusV1 = PlutusVersionV1
-            toPlutusVer Language.PlutusV2 = PlutusVersionV2
-            toPlutusVer Language.PlutusV3 = PlutusVersionV3
-
-            hashAlonzoScript =
-                fromLedgerScriptHash
-                    . Core.hashScript @(Cardano.ShelleyLedgerEra AlonzoEra)
-
-fromAlonzoTx' :: Alonzo.AlonzoTx (Cardano.ShelleyLedgerEra AlonzoEra) -> W.Tx
+fromAlonzoTx' :: Alonzo.AlonzoTx Alonzo -> W.Tx
 fromAlonzoTx' tx =
     W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject alonzo $ Tx tx
+            Just $ renderTxToCBOR $ Read.inject Read.alonzo $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

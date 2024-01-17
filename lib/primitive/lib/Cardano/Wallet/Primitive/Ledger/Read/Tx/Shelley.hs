@@ -20,11 +20,9 @@ import Prelude
 import Cardano.Address.Script
     ( KeyRole (..)
     )
-import Cardano.Api
-    ( ShelleyEra
-    )
-import Cardano.Ledger.Core
-    ( addrTxWitsL
+import Cardano.Ledger.Api
+    ( Shelley
+    , addrTxWitsL
     , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
@@ -38,8 +36,7 @@ import Cardano.Ledger.Shelley
     ( ShelleyTx
     )
 import Cardano.Ledger.Shelley.TxBody
-    ( certsTxBodyL
-    , ttlTxBodyL
+    ( ttlTxBodyL
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScriptFromShelley
@@ -73,13 +70,6 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
     )
-import Cardano.Wallet.Read.Eras
-    ( inject
-    , shelley
-    )
-import Cardano.Wallet.Read.Tx
-    ( Tx (..)
-    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
     )
@@ -101,7 +91,6 @@ import Data.Word
     , Word64
     )
 
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
@@ -109,6 +98,7 @@ import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
 
 fromShelleyTxIn
@@ -131,7 +121,7 @@ fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra)
+    :: ShelleyTx Shelley
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -141,7 +131,7 @@ fromShelleyTx
        )
 fromShelleyTx tx =
     ( fromShelleyTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , Read.unK . Read.shelleyFun anyEraCerts $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL
@@ -153,13 +143,13 @@ fromShelleyTx tx =
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
 
-fromShelleyTx' :: SL.ShelleyTx (Cardano.ShelleyLedgerEra ShelleyEra) -> W.Tx
+fromShelleyTx' :: SL.ShelleyTx Shelley -> W.Tx
 fromShelleyTx' tx =
     W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject shelley $ Tx tx
+            Just $ renderTxToCBOR $ Read.inject Read.shelley $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
