@@ -7,6 +7,14 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Move guards forward" #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Cardano.Api.Gen
     ( genAddressAny
@@ -133,7 +141,6 @@ import Cardano.Api.Shelley
     , StakePoolMetadataReference (..)
     , StakePoolParameters (..)
     , StakePoolRelay (..)
-    , refInsScriptsAndInlineDatsSupportedInEra
     )
 import Cardano.Ledger.Alonzo.Language
     ( Language (..)
@@ -318,14 +325,14 @@ genTxIndex = oneof
     ]
 
 genTxInsCollateral :: CardanoEra era -> Gen (TxInsCollateral era)
-genTxInsCollateral era =
-    case collateralSupportedInEra era of
-      Nothing        -> pure TxInsCollateralNone
-      Just supported -> oneof
-                          [ pure TxInsCollateralNone
-                          , TxInsCollateral supported
-                            <$> scale (`div` 3) (listOf genTxIn)
-                          ]
+genTxInsCollateral era = error "TODO conway: genTxInsCollateral"
+    -- case collateralSupportedInEra era of
+    --   Nothing        -> pure TxInsCollateralNone
+    --   Just supported -> oneof
+    --                       [ pure TxInsCollateralNone
+    --                       , TxInsCollateral supported
+    --                         <$> scale (`div` 3) (listOf genTxIn)
+    --                       ]
 
 genSlotNo :: Gen SlotNo
 genSlotNo = do
@@ -387,32 +394,35 @@ genEncodingBoundaryLovelace = do
     pure $ Lovelace <$> max 0 $ boundary + offset
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)
-genTxFee era =
-  case txFeesExplicitInEra era of
-    Left  implicit -> pure (TxFeeImplicit implicit)
-    Right explicit -> TxFeeExplicit explicit <$> genLovelace
+genTxFee = error "TODO conway: genTxFee"
+-- genTxFee era =
+--   case txFeesExplicitInEra era of
+--     Left  implicit -> pure (TxFeeImplicit implicit)
+--     Right explicit -> TxFeeExplicit explicit <$> genLovelace
 
 genTtl :: Gen SlotNo
 genTtl = genSlotNo
 
 genTxValidityLowerBound :: CardanoEra era -> Gen (TxValidityLowerBound era)
-genTxValidityLowerBound era =
-  case validityLowerBoundSupportedInEra era of
-    Nothing        -> pure TxValidityNoLowerBound
-    Just supported -> TxValidityLowerBound supported <$> genTtl
+genTxValidityLowerBound = error "TODO conway: genTxValidityLowerBound"
+-- genTxValidityLowerBound era =
+--   case validityLowerBoundSupportedInEra era of
+--     Nothing        -> pure TxValidityNoLowerBound
+--     Just supported -> TxValidityLowerBound supported <$> genTtl
 
 genTxValidityUpperBound :: CardanoEra era -> Gen (TxValidityUpperBound era)
-genTxValidityUpperBound era =
-  case (validityUpperBoundSupportedInEra era,
-       validityNoUpperBoundSupportedInEra era) of
-    (Just supported, _) ->
-      TxValidityUpperBound supported <$> genTtl
+genTxValidityUpperBound = error "TODO conway: genTxValidityUpperBound"
+-- genTxValidityUpperBound era =
+--   case (validityUpperBoundSupportedInEra era,
+--        validityNoUpperBoundSupportedInEra era) of
+--     (Just supported, _) ->
+--       TxValidityUpperBound supported <$> genTtl
 
-    (Nothing, Just supported) ->
-      pure (TxValidityNoUpperBound supported)
+--     (Nothing, Just supported) ->
+--       pure (TxValidityNoUpperBound supported)
 
-    (Nothing, Nothing) ->
-      error "genTxValidityUpperBound: unexpected era support combination"
+--     (Nothing, Nothing) ->
+--       error "genTxValidityUpperBound: unexpected era support combination"
 
 genTxValidityRange
   :: CardanoEra era
@@ -423,9 +433,10 @@ genTxValidityRange era =
     <*> genTxValidityUpperBound era
 
 genTxScriptValidity :: CardanoEra era -> Gen (TxScriptValidity era)
-genTxScriptValidity era = case txScriptValiditySupportedInCardanoEra era of
-  Nothing -> pure TxScriptValidityNone
-  Just witness -> TxScriptValidity witness <$> genScriptValidity
+genTxScriptValidity = error "TODO conway: genTxScriptValidity"
+-- genTxScriptValidity era = case txScriptValiditySupportedInCardanoEra era of
+--   Nothing -> pure TxScriptValidityNone
+--   Just witness -> TxScriptValidity witness <$> genScriptValidity
 
 genScriptValidity :: Gen ScriptValidity
 genScriptValidity = elements [ScriptInvalid, ScriptValid]
@@ -444,42 +455,45 @@ genSigningKey roletoken = do
         seedSize = deterministicSigningKeySeedSize roletoken
 
 genVerificationKey
-    :: Key keyrole
+    :: (Key keyrole, HasTypeProxy keyrole)
     => AsType keyrole
     -> Gen (VerificationKey keyrole)
 genVerificationKey roletoken = getVerificationKey <$> genSigningKey roletoken
 
-genVerificationKeyHash :: Key keyrole => AsType keyrole -> Gen (Hash keyrole)
+genVerificationKeyHash :: (Key keyrole, HasTypeProxy keyrole) => AsType keyrole -> Gen (Hash keyrole)
 genVerificationKeyHash roletoken =
   verificationKeyHash <$> genVerificationKey roletoken
 
 genExtraKeyWitnesses :: CardanoEra era -> Gen (TxExtraKeyWitnesses era)
-genExtraKeyWitnesses era =
-    case extraKeyWitnessesSupportedInEra era of
-        Nothing -> pure TxExtraKeyWitnessesNone
-        Just supported -> oneof
-            [ pure TxExtraKeyWitnessesNone
-            , TxExtraKeyWitnesses supported
-              <$> scale (`div` 3) (listOf (genVerificationKeyHash AsPaymentKey))
-            ]
+genExtraKeyWitnesses = error "TODO conway: genExtraKeyWitnesses"
+-- genExtraKeyWitnesses era =
+--     case extraKeyWitnessesSupportedInEra era of
+--         Nothing -> pure TxExtraKeyWitnessesNone
+--         Just supported -> oneof
+--             [ pure TxExtraKeyWitnessesNone
+--             , TxExtraKeyWitnesses supported
+--               <$> scale (`div` 3) (listOf (genVerificationKeyHash AsPaymentKey))
+--             ]
 
 genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
-genTxTotalCollateral era =
-    case totalAndReturnCollateralSupportedInEra era of
-        Nothing -> pure TxTotalCollateralNone
-        Just supported -> oneof
-            [ pure TxTotalCollateralNone
-            , TxTotalCollateral supported <$> genLovelace
-            ]
+genTxTotalCollateral era = error "TODO conway: genTxTotalCollateral"
+-- genTxTotalCollateral era =
+--     case totalAndReturnCollateralSupportedInEra era of
+--         Nothing -> pure TxTotalCollateralNone
+--         Just supported -> oneof
+--             [ pure TxTotalCollateralNone
+--             , TxTotalCollateral supported <$> genLovelace
+--             ]
 
 genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
-genTxReturnCollateral era =
-    case totalAndReturnCollateralSupportedInEra era of
-        Nothing -> pure TxReturnCollateralNone
-        Just supported -> oneof
-            [ pure TxReturnCollateralNone
-            , TxReturnCollateral supported <$> genTxOut era
-            ]
+genTxReturnCollateral era = error "TODO conway: genTxReturnCollateral"
+-- genTxReturnCollateral era =
+--     case totalAndReturnCollateralSupportedInEra era of
+--         Nothing -> pure TxReturnCollateralNone
+--         Just supported -> oneof
+--             [ pure TxReturnCollateralNone
+--             , TxReturnCollateral supported <$> genTxOut era
+--             ]
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
 genPlutusScript _ =
@@ -550,7 +564,9 @@ genScriptInAnyLang optionalEra =
       | AnyScriptLanguage lang <- [minBound..maxBound]
       , case optionalEra of
           Nothing -> True
-          Just era -> isJust (scriptLanguageSupportedInEra era lang)
+          Just era ->
+            error "TODO conway: genScriptInAnyLang"
+            -- isJust (scriptLanguageSupportedInEra era lang)
       ]
 
 genScriptInEra :: CardanoEra era -> Gen (ScriptInEra era)
@@ -558,7 +574,9 @@ genScriptInEra era =
     oneof
       [ ScriptInEra langInEra <$> genScript lang
       | AnyScriptLanguage lang <- [minBound..maxBound]
-      , Just langInEra <- [scriptLanguageSupportedInEra era lang] ]
+      , Just langInEra <- error "TODO conway: genScriptInEra"
+        -- [scriptLanguageSupportedInEra era lang]
+      ]
 
 genScriptHash :: Gen ScriptHash
 genScriptHash = do
@@ -639,28 +657,29 @@ genValueForMinting =
   valueFromList <$> listOf ((,) <$> genAssetIdNoAda <*> genSignedQuantity)
 
 genTxMintValue :: forall era. CardanoEra era -> Gen (TxMintValue BuildTx era)
-genTxMintValue era =
-  case multiAssetSupportedInEra era of
-    Left _ -> pure TxMintNone
-    Right supported -> do
-      let
-          scriptWitnessGenerators :: [Gen (ScriptWitness WitCtxMint era)]
-          scriptWitnessGenerators =
-              [ genScriptWitnessMint langInEra
-              | AnyScriptLanguage lang <- [minBound..maxBound]
-              , Just langInEra <- [scriptLanguageSupportedInEra era lang]
-              ]
-      oneof
-        [ pure TxMintNone
-        , TxMintValue supported
-          <$> genValueForMinting
-          <*> ( (BuildTxWith . Map.fromList)
-                <$> scale (`div` 3) (listOf ( (,)
-                             <$> genPolicyId
-                             <*> oneof scriptWitnessGenerators
-                           ))
-              )
-        ]
+genTxMintValue era = error "TODO conway: genTxMintValue"
+-- genTxMintValue era =
+--   case multiAssetSupportedInEra era of
+--     Left _ -> pure TxMintNone
+--     Right supported -> do
+--       let
+--           scriptWitnessGenerators :: [Gen (ScriptWitness WitCtxMint era)]
+--           scriptWitnessGenerators =
+--               [ genScriptWitnessMint langInEra
+--               | AnyScriptLanguage lang <- [minBound..maxBound]
+--               , Just langInEra <- [scriptLanguageSupportedInEra era lang]
+--               ]
+--       oneof
+--         [ pure TxMintNone
+--         , TxMintValue supported
+--           <$> genValueForMinting
+--           <*> ( (BuildTxWith . Map.fromList)
+--                 <$> scale (`div` 3) (listOf ( (,)
+--                              <$> genPolicyId
+--                              <*> oneof scriptWitnessGenerators
+--                            ))
+--               )
+--         ]
 
 genNetworkMagic :: Gen NetworkMagic
 genNetworkMagic = do
@@ -770,18 +789,19 @@ genExecutionUnits = do
     pure $ ExecutionUnits (fromWord64 steps) (fromWord64 mem)
 
 genTxWithdrawals :: CardanoEra era -> Gen (TxWithdrawals BuildTx era)
-genTxWithdrawals era =
-  case withdrawalsSupportedInEra era of
-    Nothing ->
-        pure TxWithdrawalsNone
-    Just supported -> do
-        frequency
-          [ ( 1 , pure TxWithdrawalsNone )
-          , ( 1 , pure $ TxWithdrawals supported [] )
-          , ( 3 , TxWithdrawals supported
-                  <$> scale (`div` 3) (listOf (genWithdrawalInfo era))
-            )
-          ]
+genTxWithdrawals era = error "TODO conway: genTxWithdrawals"
+-- genTxWithdrawals era =
+--   case withdrawalsSupportedInEra era of
+--     Nothing ->
+--         pure TxWithdrawalsNone
+--     Just supported -> do
+--         frequency
+--           [ ( 1 , pure TxWithdrawalsNone )
+--           , ( 1 , pure $ TxWithdrawals supported [] )
+--           , ( 3 , TxWithdrawals supported
+--                   <$> scale (`div` 3) (listOf (genWithdrawalInfo era))
+--             )
+--           ]
 
 genWithdrawalInfo
     :: CardanoEra era
@@ -801,7 +821,9 @@ genWitnessStake era = oneof $
     <> [ ScriptWitness ScriptWitnessForStakeAddr
          <$> genScriptWitnessStake langInEra
        | AnyScriptLanguage lang <- [minBound..maxBound]
-       , Just langInEra <- [scriptLanguageSupportedInEra era lang]
+       , Just langInEra <-
+       error "TODO conway: genWitnessStake"
+            -- [scriptLanguageSupportedInEra era lang]
        ]
 
 genWitnessSpend :: CardanoEra era -> Gen (Witness WitCtxTxIn era)
@@ -810,7 +832,9 @@ genWitnessSpend era = oneof $
     <> [ ScriptWitness ScriptWitnessForSpending
          <$> genScriptWitnessSpend langInEra
        | AnyScriptLanguage lang <- [minBound..maxBound]
-       , Just langInEra <- [scriptLanguageSupportedInEra era lang]
+       , Just langInEra <-
+            error "TODO conway: genWitnessSpend"
+            -- [scriptLanguageSupportedInEra era lang]
        ]
 
 genScriptWitnessMint
@@ -856,25 +880,27 @@ genScriptWitnessSpend langEra =
             <*> genExecutionUnits
 
 genTxAuxScripts :: CardanoEra era -> Gen (TxAuxScripts era)
-genTxAuxScripts era =
-  case auxScriptsSupportedInEra era of
-    Nothing -> pure TxAuxScriptsNone
-    Just supported ->
-        frequency
-        [ (1, pure TxAuxScriptsNone)
-        , (3, TxAuxScripts supported
-              <$> scale (`div` 3) (listOf (genScriptInEra era)))
-        ]
+genTxAuxScripts era = error "TODO conway: genTxAuxScripts"
+-- genTxAuxScripts era =
+--   case auxScriptsSupportedInEra era of
+--     Nothing -> pure TxAuxScriptsNone
+--     Just supported ->
+--         frequency
+--         [ (1, pure TxAuxScriptsNone)
+--         , (3, TxAuxScripts supported
+--               <$> scale (`div` 3) (listOf (genScriptInEra era)))
+--         ]
 
 genTxMetadataInEra :: CardanoEra era -> Gen (TxMetadataInEra era)
-genTxMetadataInEra era =
-  case txMetadataSupportedInEra era of
-    Nothing -> pure TxMetadataNone
-    Just supported ->
-        oneof
-            [ pure TxMetadataNone
-            , TxMetadataInEra supported <$> genTxMetadata
-            ]
+genTxMetadataInEra era = error "TODO conway: genTxMetadataInEra"
+-- genTxMetadataInEra era =
+--   case txMetadataSupportedInEra era of
+--     Nothing -> pure TxMetadataNone
+--     Just supported ->
+--         oneof
+--             [ pure TxMetadataNone
+--             , TxMetadataInEra supported <$> genTxMetadata
+--             ]
 
 genTxMetadata :: Gen TxMetadata
 genTxMetadata =
@@ -985,16 +1011,18 @@ genAddressShelley :: Gen (Address ShelleyAddr)
 genAddressShelley = genAddressShelleyWithNetworkId genNetworkId
 
 genAddressInEra :: CardanoEra era -> Gen (AddressInEra era)
-genAddressInEra era =
-  case cardanoEraStyle era of
-    LegacyByronEra ->
-      byronAddressInEra <$> genAddressByron
+genAddressInEra era = error "TODO conway: genAddressInEra"
 
-    ShelleyBasedEra _ ->
-      oneof
-        [ byronAddressInEra   <$> genAddressByron
-        , shelleyAddressInEra <$> genAddressShelley
-        ]
+-- genAddressInEra era =
+--   case cardanoEraStyle era of
+--     LegacyByronEra ->
+--       byronAddressInEra <$> genAddressByron
+
+--     ShelleyBasedEra _ ->
+--       oneof
+--         [ byronAddressInEra   <$> genAddressByron
+--         , shelleyAddressInEra <$> genAddressShelley
+--         ]
 
 genUnsignedQuantity :: Gen Quantity
 genUnsignedQuantity = do
@@ -1006,10 +1034,13 @@ genUnsignedQuantity = do
         ]
 
 genTxOutValue :: CardanoEra era -> Gen (TxOutValue era)
-genTxOutValue era =
-  case multiAssetSupportedInEra era of
-    Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
-    Right multiAssetInEra -> TxOutValue multiAssetInEra <$> genValueForTxOut
+genTxOutValue era = error "TODO conway: genTxOutValue"
+-- genTxOutValue era =
+--   case multiAssetSupportedInEra era of
+--     Left adaOnlyInEra     -> TxOutAdaOnly adaOnlyInEra <$> genLovelace
+--     Right multiAssetInEra ->
+--         error "TODO conway: genTxOutValue"
+--         -- TxOutValue multiAssetInEra <$> genValueForTxOut
 
 genTxOut :: CardanoEra era -> Gen (TxOut ctx era)
 genTxOut era =
@@ -1019,20 +1050,23 @@ genTxOut era =
         <*> genReferenceScript era
 
 genTxOutDatum :: CardanoEra era -> Gen (TxOutDatum ctx era)
-genTxOutDatum era = case scriptDataSupportedInEra era of
-    Nothing -> pure TxOutDatumNone
-    Just supported -> oneof
-        [ pure TxOutDatumNone
-        , TxOutDatumHash supported <$> genHashScriptData
-        ]
+genTxOutDatum era = error "TODO conway: genTxOutDatum"
+-- genTxOutDatum era =
+--     case scriptDataSupportedInEra era of
+--     Nothing -> pure TxOutDatumNone
+--     Just supported -> oneof
+--         [ pure TxOutDatumNone
+--         , TxOutDatumHash supported <$> genHashScriptData
+--         ]
 
 genReferenceScript :: CardanoEra era -> Gen (ReferenceScript era)
-genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
-    Nothing -> pure ReferenceScriptNone
-    Just supported -> oneof
-        [ pure ReferenceScriptNone
-        , ReferenceScript supported <$> genScriptInAnyLang (Just era)
-        ]
+genReferenceScript era = error "TODO conway: genReferenceScript"
+-- genReferenceScript era = case refInsScriptsAndInlineDatsSupportedInEra era of
+--     Nothing -> pure ReferenceScriptNone
+--     Just supported -> oneof
+--         [ pure ReferenceScriptNone
+--         , ReferenceScript supported <$> genScriptInAnyLang (Just era)
+--         ]
 
 mkDummyHash :: forall h a. Crypto.HashAlgorithm h => Int -> Crypto.Hash h a
 mkDummyHash = coerce . Crypto.hashWithSerialiser @h CBOR.toCBOR
@@ -1123,33 +1157,34 @@ genValidProtocolVersion = do
 -- Uses 'Just' as necessary to be convertible to @Ledger.PParams era@
 -- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
 genRecentEraProtocolParameters :: Gen ProtocolParameters
-genRecentEraProtocolParameters = ProtocolParameters
-    <$> genValidProtocolVersion
-    <*> (Just <$> genRational)
-    <*> liftArbitrary genPraosNonce
-    <*> genNat
-    <*> genNat
-    <*> genNat
-    <*> genLovelace
-    <*> genLovelace
-    <*> liftArbitrary genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genLovelace
-    <*> genEpochNo
-    <*> genNat
-    <*> genRationalInt64
-    <*> genRational
-    <*> genRational
-    <*> (Just <$> genLovelace)
-    <*> genCostModels
-    <*> (Just <$> genExecutionUnitPrices)
-    <*> (Just <$> genExecutionUnits)
-    <*> (Just <$> genExecutionUnits)
-    <*> (Just <$> genNat)
-    <*> (Just <$> genNat)
-    <*> (Just <$> genNat)
-    <*> (Just <$> genLovelace)
+genRecentEraProtocolParameters = error "TODO conway: genRecentEraProtocolParameters"
+-- genRecentEraProtocolParameters = ProtocolParameters
+--     <$> genValidProtocolVersion
+--     <*> (Just <$> genRational)
+--     <*> liftArbitrary genPraosNonce
+--     <*> genNat
+--     <*> genNat
+--     <*> genNat
+--     <*> genLovelace
+--     <*> genLovelace
+--     <*> liftArbitrary genLovelace
+--     <*> genLovelace
+--     <*> genLovelace
+--     <*> genLovelace
+--     <*> genEpochNo
+--     <*> genNat
+--     <*> genRationalInt64
+--     <*> genRational
+--     <*> genRational
+--     <*> (Just <$> genLovelace)
+--     <*> genCostModels
+--     <*> (Just <$> genExecutionUnitPrices)
+--     <*> (Just <$> genExecutionUnits)
+--     <*> (Just <$> genExecutionUnits)
+--     <*> (Just <$> genNat)
+--     <*> (Just <$> genNat)
+--     <*> (Just <$> genNat)
+--     <*> (Just <$> genLovelace)
 
 genWitnessNetworkIdOrByronAddress :: Gen WitnessNetworkIdOrByronAddress
 genWitnessNetworkIdOrByronAddress =
@@ -1195,14 +1230,16 @@ genPoolId = genVerificationKeyHash AsStakePoolKey
 genMIRPot :: Gen MIRPot
 genMIRPot = elements [ ReservesMIR, TreasuryMIR ]
 
-genMIRTarget :: Gen MIRTarget
-genMIRTarget =
-    oneof
-        [ StakeAddressesMIR
-          <$> scale (`div` 3) (listOf ((,) <$> genStakeCredential <*> genLovelace))
-        , SendToReservesMIR <$> genLovelace
-        , SendToTreasuryMIR <$> genLovelace
-        ]
+genMIRTarget :: a
+genMIRTarget = error "TODO conway: genMIRTarget"
+-- genMIRTarget :: Gen MIRTarget
+-- genMIRTarget =
+--     oneof
+--         [ StakeAddressesMIR
+--           <$> scale (`div` 3) (listOf ((,) <$> genStakeCredential <*> genLovelace))
+--         , SendToReservesMIR <$> genLovelace
+--         , SendToTreasuryMIR <$> genLovelace
+--         ]
 
 genStakePoolMetadata :: Gen StakePoolMetadata
 genStakePoolMetadata =
@@ -1343,44 +1380,48 @@ genStakePoolParameters =
     <*> scale (`div` 3) (listOf genStakePoolRelay)
     <*> liftArbitrary genStakePoolMetadataReference
 
-genTxCertificate :: Gen Certificate
-genTxCertificate =
-    oneof
-        [ StakeAddressRegistrationCertificate <$> genStakeCredential
-        , StakeAddressDeregistrationCertificate <$> genStakeCredential
-        , StakeAddressPoolDelegationCertificate <$> genStakeCredential <*> genPoolId
-        , StakePoolRegistrationCertificate <$> genStakePoolParameters
-        , StakePoolRetirementCertificate <$> genPoolId <*> genEpochNo
-        , GenesisKeyDelegationCertificate
-          <$> genVerificationKeyHash AsGenesisKey
-          <*> genVerificationKeyHash AsGenesisDelegateKey
-          <*> genVerificationKeyHash AsVrfKey
-        , do
-              target <- genMIRTarget
-              pot <- case target of
-                  SendToTreasuryMIR _ -> pure ReservesMIR
-                  SendToReservesMIR _ -> pure TreasuryMIR
-                  _ -> genMIRPot
-              pure $ MIRCertificate pot target
-        ]
+-- genTxCertificate :: Gen Certificate
+genTxCertificate = error "TODO conway: genTxCertificate"
+genTxCertificate :: Gen a
+-- genTxCertificate =
+--     oneof
+--         [ StakeAddressRegistrationCertificate <$> genStakeCredential
+--         , StakeAddressDeregistrationCertificate <$> genStakeCredential
+--         , StakeAddressPoolDelegationCertificate <$> genStakeCredential <*> genPoolId
+--         , StakePoolRegistrationCertificate <$> genStakePoolParameters
+--         , StakePoolRetirementCertificate <$> genPoolId <*> genEpochNo
+--         , GenesisKeyDelegationCertificate
+--           <$> genVerificationKeyHash AsGenesisKey
+--           <*> genVerificationKeyHash AsGenesisDelegateKey
+--           <*> genVerificationKeyHash AsVrfKey
+--         , error "TODO conway: genTxCertificate: MIRCertificate"
+--         -- , do
+--         --       target <- genMIRTarget
+--         --       pot <- case target of
+--         --           SendToTreasuryMIR _ -> pure ReservesMIR
+--         --           SendToReservesMIR _ -> pure TreasuryMIR
+--         --           _ -> genMIRPot
+--         --       pure $ MIRCertificate pot target
+--         ]
 
 genTxCertificates :: CardanoEra era -> Gen (TxCertificates BuildTx era)
-genTxCertificates era =
-    case certificatesSupportedInEra era of
-        Nothing ->
-            pure TxCertificatesNone
-        Just supported ->
-            oneof
-                [ pure TxCertificatesNone
-                , TxCertificates supported
-                  <$> scale (`div` 3) (listOf genTxCertificate)
-                  <*> ( (BuildTxWith . Map.fromList)
-                        <$> scale (`div` 3) (listOf ( (,)
-                                     <$> genStakeCredential
-                                     <*> genWitnessStake era
-                                   ))
-                      )
-                ]
+genTxCertificates era = error "TODO conway: genTxCertificates"
+-- genTxCertificates era =
+--     case certificatesSupportedInEra era of
+--         Nothing ->
+--             pure TxCertificatesNone
+--         Just supported ->
+--             oneof
+--                 [ pure TxCertificatesNone
+--                 , TxCertificates supported
+--                   <$> scale (`div` 3) (listOf genTxCertificate)
+--                   <*> ( (BuildTxWith . Map.fromList)
+--                         <$> scale (`div` 3) (listOf ( (,)
+--                                      <$> genStakeCredential
+--                                      <*> genWitnessStake era
+--                                    ))
+--                       )
+--                 ]
 
 genProtocolParametersUpdate :: Gen ProtocolParametersUpdate
 genProtocolParametersUpdate = do
@@ -1418,8 +1459,7 @@ genProtocolParametersUpdate = do
         liftArbitrary genRational
     protocolUpdateTreasuryCut <-
         liftArbitrary genRational
-    protocolUpdateUTxOCostPerWord <-
-        liftArbitrary genLovelace
+    -- protocolUpdateUTxOCostPerWord <- liftArbitrary genLovelace
     protocolUpdateUTxOCostPerByte <-
         liftArbitrary genLovelace
     protocolUpdateCostModels <-
@@ -1455,7 +1495,7 @@ genProtocolParametersUpdate = do
         , Api.protocolUpdatePoolPledgeInfluence
         , Api.protocolUpdateMonetaryExpansion
         , Api.protocolUpdateTreasuryCut
-        , Api.protocolUpdateUTxOCostPerWord
+        -- , Api.protocolUpdateUTxOCostPerWord
         , Api.protocolUpdateUTxOCostPerByte
         , Api.protocolUpdateCostModels
         , Api.protocolUpdatePrices
@@ -1467,25 +1507,26 @@ genProtocolParametersUpdate = do
         }
 
 genUpdateProposal :: CardanoEra era -> Gen (TxUpdateProposal era)
-genUpdateProposal era =
-    case updateProposalSupportedInEra era of
-        Nothing ->
-            pure TxUpdateProposalNone
-        Just supported ->
-            frequency
-                [ (95, pure TxUpdateProposalNone)
-                , (5, TxUpdateProposal supported
-                  <$> ( UpdateProposal
-                        <$> ( Map.fromList
-                              <$> scale (`div` 3) (listOf ( (,)
-                                    <$> genVerificationKeyHash AsGenesisKey
-                                    <*> genProtocolParametersUpdate
-                                  ))
-                            )
-                        <*> genEpochNo
-                      )
-                    )
-                ]
+genUpdateProposal era = error "TODO conway: genUpdateProposal"
+-- genUpdateProposal era =
+--     case updateProposalSupportedInEra era of
+--         Nothing ->
+--             pure TxUpdateProposalNone
+--         Just supported ->
+--             frequency
+--                 [ (95, pure TxUpdateProposalNone)
+--                 , (5, TxUpdateProposal supported
+--                   <$> ( UpdateProposal
+--                         <$> ( Map.fromList
+--                               <$> scale (`div` 3) (listOf ( (,)
+--                                     <$> genVerificationKeyHash AsGenesisKey
+--                                     <*> genProtocolParametersUpdate
+--                                   ))
+--                             )
+--                         <*> genEpochNo
+--                       )
+--                     )
+--                 ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = do
@@ -1508,53 +1549,60 @@ genTxBodyContent era = do
     txReturnCollateral <- genTxReturnCollateral era
 
     let
-        txBody = TxBodyContent
-            { Api.txIns
-            , Api.txOuts
-            -- NOTE: We are adding collateral at a later step, despite only
-            -- generating @TxInsCollateralNone@ here. This seems to be because
-            -- the generation currently is dependent on
-            -- @collectTxBodyScriptWitnesses txBody@.
-            , Api.txInsCollateral = TxInsCollateralNone
+        txBody = error "TODO conway: genTxBodyContent"
+        -- txBody = TxBodyContent
+        --     { Api.txIns
+        --     , Api.txOuts
+        --     -- NOTE: We are adding collateral at a later step, despite only
+        --     -- generating @TxInsCollateralNone@ here. This seems to be because
+        --     -- the generation currently is dependent on
+        --     -- @collectTxBodyScriptWitnesses txBody@.
+        --     , Api.txInsCollateral = TxInsCollateralNone
 
-            -- TODO add proper generator, perhaps as part of ADP-1655
-            , Api.txInsReference = TxInsReferenceNone
+        --     -- TODO add proper generator, perhaps as part of ADP-1655
+        --     , Api.txInsReference = TxInsReferenceNone
 
-            , Api.txTotalCollateral
-            , Api.txReturnCollateral
-            , Api.txFee
-            , Api.txValidityRange
-            , Api.txMetadata
-            , Api.txAuxScripts
-            , Api.txExtraKeyWits
-            , Api.txProtocolParams = BuildTxWith Nothing
-            , Api.txWithdrawals
-            , Api.txCertificates
-            , Api.txUpdateProposal
-            , Api.txMintValue
-            , Api.txScriptValidity
-            }
+        --     , Api.txTotalCollateral
+        --     , Api.txReturnCollateral
+        --     , Api.txFee
+        --     -- , Api.txValidityRange
+        --     , Api.txMetadata
+        --     , Api.txAuxScripts
+        --     , Api.txExtraKeyWits
+        --     , Api.txProtocolParams = BuildTxWith Nothing
+        --     , Api.txWithdrawals
+        --     , Api.txCertificates
+        --     , Api.txUpdateProposal
+        --     , Api.txMintValue
+        --     , Api.txScriptValidity
+        --     }
 
     let witnesses = collectTxBodyScriptWitnesses txBody
         pparams = BuildTxWith $ Just protocolParametersForHashing
     -- No use of a script language means no need for collateral
-    if Set.null (languages witnesses)
+    if Set.null (error "TODO conway: languages")
+        -- (languages witnesses)
         then do
             collateral <- genTxInsCollateral era
             pure txBody
-                { Api.txProtocolParams = pparams
+                { Api.txProtocolParams =
+                    error "TODO conway: genTxBodyContent"
+                    -- pparams
                 , Api.txInsCollateral = collateral
                 }
         else do
             collateral <-
-                case collateralSupportedInEra era of
-                    Nothing -> pure TxInsCollateralNone
-                    Just supported -> TxInsCollateral supported <$> frequency
-                        [ (95, return [])
-                        , (5, listOf genTxIn)
-                        ]
+                error "TODO conway: genTxBodyContent"
+                -- case collateralSupportedInEra era of
+                --     Nothing -> pure TxInsCollateralNone
+                --     Just supported -> TxInsCollateral supported <$> frequency
+                --         [ (95, return [])
+                --         , (5, listOf genTxIn)
+                --         ]
             pure txBody
-                { Api.txProtocolParams = pparams
+                { Api.txProtocolParams =
+                    error "TODO conway: genTxBodyContent"
+                    -- pparams
                 , Api.txInsCollateral = collateral
                 }
 
@@ -1567,19 +1615,23 @@ genTxBodyContent era = do
             ]
 
 genTxBody :: IsCardanoEra era => CardanoEra era -> Gen (TxBody era)
-genTxBody era = do
-  res <- createAndValidateTransactionBody <$> genTxBodyContent era
-  case res of
-    Left err -> error (displayError err)
-    Right txBody -> pure txBody
+genTxBody era = error "TODO conway: genTxBody"
+-- genTxBody era = do
+--   res <- createAndValidateTransactionBody <$> genTxBodyContent era
+--   case res of
+--     Left err -> error (displayError err)
+--     Right txBody -> pure txBody
 
 -- | Similar to 'genTxBody', but with a distribution better suitable for testing
 -- balancing.
 genTxBodyForBalancing :: IsCardanoEra era => CardanoEra era -> Gen (TxBody era)
 genTxBodyForBalancing era = do
-    res <- createAndValidateTransactionBody <$> genStrippedContent
+    res <- error "TODO conway: genTxBodyForBalancing"
+    -- res <- createAndValidateTransactionBody <$> genStrippedContent
     case res of
-      Left err -> error (displayError err)
+      Left err ->
+        error "TODO conway: genTxBodyForBalancing"
+        -- error (displayError err)
       Right txBody -> pure txBody
   where
     genStrippedContent = do
@@ -1594,48 +1646,50 @@ genTxBodyForBalancing era = do
     genShouldStrip = frequency [ (90, pure True), (10, pure False) ]
 
 genWitnesses :: CardanoEra era -> TxBody era -> Gen [KeyWitness era]
-genWitnesses era body =
-    case cardanoEraStyle era of
-        LegacyByronEra    -> do
-            scale (`div` 3) $ listOf1 $ makeByronKeyWitness
-                <$> genNetworkId
-                <*> pure body
-                <*> genSigningKey AsByronKey
-        ShelleyBasedEra _ -> do
-            let
-                genShelley =
-                    makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
-                genBootstrap =
-                    makeShelleyBootstrapWitness
-                    <$> genWitnessNetworkIdOrByronAddress
-                    <*> pure body
-                    <*> genSigningKey AsByronKey
+genWitnesses = error "TODO conway: genWitnesses"
+-- genWitnesses era body =
+--     case cardanoEraStyle era of
+--         LegacyByronEra    -> do
+--             scale (`div` 3) $ listOf1 $ makeByronKeyWitness
+--                 <$> genNetworkId
+--                 <*> pure body
+--                 <*> genSigningKey AsByronKey
+--         ShelleyBasedEra _ -> do
+--             let
+--                 genShelley =
+--                     makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
+--                 genBootstrap =
+--                     makeShelleyBootstrapWitness
+--                     <$> genWitnessNetworkIdOrByronAddress
+--                     <*> pure body
+--                     <*> genSigningKey AsByronKey
 
-            bsWits  <- frequency
-                [ (3, scale (`div` 3) $ listOf1 genBootstrap)
-                , (1, pure [])
-                ]
-            keyWits <- frequency
-                [ (3, scale (`div` 3) $ listOf1 genShelley)
-                , (1, pure [])
-                ]
-            return $ bsWits ++ keyWits
+--             bsWits  <- frequency
+--                 [ (3, scale (`div` 3) $ listOf1 genBootstrap)
+--                 , (1, pure [])
+--                 ]
+--             keyWits <- frequency
+--                 [ (3, scale (`div` 3) $ listOf1 genShelley)
+--                 , (1, pure [])
+--                 ]
+--             return $ bsWits ++ keyWits
 
 genWitness :: CardanoEra era -> TxBody era -> Gen (KeyWitness era)
-genWitness era body =
-  case cardanoEraStyle era of
-    LegacyByronEra    ->
-        makeByronKeyWitness
-            <$> genNetworkId
-            <*> pure body
-            <*> genSigningKey AsByronKey
-    ShelleyBasedEra _ ->
-      oneof [ makeShelleyBootstrapWitness
-                  <$> genWitnessNetworkIdOrByronAddress
-                  <*> pure body
-                  <*> genSigningKey AsByronKey
-            , makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
-            ]
+genWitness = error "TODO conway: genWitness"
+-- genWitness era body =
+--   case cardanoEraStyle era of
+--     LegacyByronEra    ->
+--         makeByronKeyWitness
+--             <$> genNetworkId
+--             <*> pure body
+--             <*> genSigningKey AsByronKey
+--     ShelleyBasedEra _ ->
+--       oneof [ makeShelleyBootstrapWitness
+--                   <$> genWitnessNetworkIdOrByronAddress
+--                   <*> pure body
+--                   <*> genSigningKey AsByronKey
+--             , makeShelleyKeyWitness body <$> genShelleyWitnessSigningKey
+--             ]
 
 genTxInEra :: forall era. IsCardanoEra era => CardanoEra era -> Gen (Tx era)
 genTxInEra era = do
