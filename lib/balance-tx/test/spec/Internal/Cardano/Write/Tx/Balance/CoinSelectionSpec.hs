@@ -83,6 +83,7 @@ spec = describe "Cardano.Wallet.CoinSelectionSpec" $ do
 
         it "prop_toInternalSelection_toExternalSelection" $
             prop_toInternalSelection_toExternalSelection & property
+                -- error "TODO conway: fix this test"
 
 --------------------------------------------------------------------------------
 -- Conversion between external (wallet) and internal UTxOs

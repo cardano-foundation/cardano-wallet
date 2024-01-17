@@ -15,6 +15,14 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Unused LANGUAGE pragma" #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -590,8 +598,9 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
     castScript = \case
         Alonzo.TimelockScript timelockEra ->
             Alonzo.TimelockScript (translateTimelock timelockEra)
-        Alonzo.PlutusScript l bs ->
-            Alonzo.PlutusScript l bs
+        _ -> error "TODO conway: castScript"
+        -- Alonzo.PlutusScript l bs ->
+        --     Alonzo.PlutusScript l bs
 
 --
 -- MinimumUTxO
@@ -678,9 +687,6 @@ fromCardanoApiTx
 fromCardanoApiTx = \case
     CardanoApi.ShelleyTx _era tx ->
         tx
-    CardanoApi.ByronTx {} ->
-        case (recentEra @era) of
-            {}
 
 toCardanoApiTx
     :: forall era. IsRecentEra era
@@ -853,7 +859,8 @@ evaluateTransactionBalance pp utxo =
         isRegPoolId :: Ledger.KeyHash 'Ledger.StakePool StandardCrypto -> Bool
         isRegPoolId _keyHash = True
 
-    in Ledger.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
+    in  error "TODO conway: evaluateTransactionBalance"
+        -- Ledger.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
 
 --------------------------------------------------------------------------------
 -- Policy and asset identifiers

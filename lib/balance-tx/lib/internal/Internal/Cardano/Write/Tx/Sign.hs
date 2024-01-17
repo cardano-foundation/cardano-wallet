@@ -274,20 +274,22 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         scriptsAvailableInBody :: Map (ScriptHash StandardCrypto) (Script era)
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
-    estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
-    estimateDelegSigningKeys = \case
-        CardanoApi.StakeAddressRegistrationCertificate _ -> 0
-        CardanoApi.StakeAddressDeregistrationCertificate cred ->
-            estimateWitNumForCred cred
-        CardanoApi.StakeAddressPoolDelegationCertificate cred _ ->
-            estimateWitNumForCred cred
-        _ -> 1
-      where
-        -- Does not include the key witness needed for script credentials.
-        -- They are accounted for separately in @scriptVkWitsUpperBound@.
-        estimateWitNumForCred = \case
-            CardanoApi.StakeCredentialByKey _ -> 1
-            CardanoApi.StakeCredentialByScript _ -> 0
+    estimateDelegSigningKeys :: cert -> Integer
+    estimateDelegSigningKeys = error "TODO conway: estimateDelegSigningKeys"
+    -- estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
+    -- estimateDelegSigningKeys = \case
+    --     CardanoApi.StakeAddressRegistrationCertificate _ -> 0
+    --     CardanoApi.StakeAddressDeregistrationCertificate cred ->
+    --         estimateWitNumForCred cred
+    --     CardanoApi.StakeAddressPoolDelegationCertificate cred _ ->
+    --         estimateWitNumForCred cred
+    --     _ -> 1
+    --   where
+    --     -- Does not include the key witness needed for script credentials.
+    --     -- They are accounted for separately in @scriptVkWitsUpperBound@.
+    --     estimateWitNumForCred = \case
+    --         CardanoApi.StakeCredentialByKey _ -> 1
+    --         CardanoApi.StakeCredentialByScript _ -> 0
 
     toCAScript = Convert.toWalletScript (const dummyKeyRole)
       where
@@ -297,7 +299,8 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         :: Ledger.Script era
         -> Maybe (Timelock era)
     toTimelockScript (Alonzo.TimelockScript timelock) = Just timelock
-    toTimelockScript (Alonzo.PlutusScript _ _)        = Nothing
+    toTimelockScript _ = error "TODO conway: toTimelockScript"
+    -- toTimelockScript (Alonzo.PlutusScript _ _)        = Nothing
 
     hasScriptCred
         :: UTxO era
