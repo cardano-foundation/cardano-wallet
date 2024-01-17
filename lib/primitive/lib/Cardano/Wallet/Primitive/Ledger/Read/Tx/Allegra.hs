@@ -27,15 +27,12 @@ import Prelude
 import Cardano.Address.Script
     ( KeyRole (..)
     )
-import Cardano.Api
-    ( AllegraEra
-    )
 import Cardano.Ledger.Api
-    ( addrTxWitsL
+    ( Allegra
+    , addrTxWitsL
     , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
-    , certsTxBodyL
     , feeTxBodyL
     , inputsTxBodyL
     , outputsTxBodyL
@@ -83,13 +80,6 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     )
-import Cardano.Wallet.Read.Eras
-    ( allegra
-    , inject
-    )
-import Cardano.Wallet.Read.Tx
-    ( Tx (..)
-    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
     )
@@ -108,18 +98,18 @@ import Data.Foldable
     ( toList
     )
 
-import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 
 fromAllegraTx
-    :: ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra)
+    :: ShelleyTx Allegra
     -> ( W.Tx
        , [W.Certificate]
        , TokenMapWithScripts
@@ -129,7 +119,7 @@ fromAllegraTx
        )
 fromAllegraTx tx =
     ( fromAllegraTx' tx
-    , anyEraCerts $ tx ^. bodyTxL . certsTxBodyL
+    , Read.unK . Read.allegraFun anyEraCerts $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -141,13 +131,13 @@ fromAllegraTx tx =
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
 
-fromAllegraTx' :: ShelleyTx (Cardano.ShelleyLedgerEra AllegraEra) -> W.Tx
+fromAllegraTx' :: ShelleyTx Allegra -> W.Tx
 fromAllegraTx' tx =
     W.Tx
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject allegra $ Tx tx
+            Just $ renderTxToCBOR $ Read.inject Read.allegra $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

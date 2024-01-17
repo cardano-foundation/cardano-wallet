@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader

@@ -111,8 +111,8 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Core as Core
-import qualified Cardano.Ledger.Language as Ledger
 import qualified Cardano.Ledger.Mary.Value as SL
+import qualified Cardano.Ledger.Plutus.Language as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
@@ -248,7 +248,7 @@ fromAlonzoScriptMap =
     where
     toAnyScript (Alonzo.TimelockScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
-    toAnyScript s@(Alonzo.PlutusScript ver _) =
+    toAnyScript s@(Alonzo.PlutusScript (Ledger.Plutus ver _)) =
         PlutusScript (PlutusScriptInfo (toPlutusVer ver)
                       (hashAlonzoScript s)) ViaSpending
     hashAlonzoScript = fromLedgerScriptHash .
@@ -259,7 +259,7 @@ fromLedgerScriptToAnyScriptBabbage = toAnyScript
   where
     toAnyScript (Alonzo.TimelockScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
-    toAnyScript s@(Alonzo.PlutusScript ver _) =
+    toAnyScript s@(Alonzo.PlutusScript (Ledger.Plutus ver _)) =
         PlutusScript
             (PlutusScriptInfo (toPlutusVer ver) (hashBabbageScript s))
             ViaSpending
@@ -271,7 +271,7 @@ fromLedgerScriptToAnyScriptConway = toAnyScript
   where
     toAnyScript (Alonzo.TimelockScript script) =
         NativeScript (toWalletScript (const Policy) script) ViaSpending
-    toAnyScript s@(Alonzo.PlutusScript ver _) =
+    toAnyScript s@(Alonzo.PlutusScript (Ledger.Plutus ver _)) =
         PlutusScript
             (PlutusScriptInfo (toPlutusVer ver) (hashConwayScript s))
             ViaSpending
