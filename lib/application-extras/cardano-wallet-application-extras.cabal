@@ -40,4 +40,3 @@ library
     , text                   ^>=2.0.2
     , text-class             ^>=2023.12.18
     , unliftio               ^>=0.2.24
-    , unliftio-core          ^>=0.2.1
