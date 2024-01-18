@@ -54,9 +54,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , cardanoCertKeysForWitnesses
     , toCardanoTxOut
     , toCardanoLovelace
-    , toStakeKeyRegCert
-    , toStakeKeyDeregCert
-    , toStakePoolDlgCert
     , toLedgerStakeCredential
     , fromStakeCredential
     , toShelleyCoin
@@ -1239,59 +1236,6 @@ unsafeHashFromBytes :: Crypto.HashAlgorithm h => ByteString -> Hash h a
 unsafeHashFromBytes =
     fromMaybe (error "unsafeHashFromBytes: wrong length")
     . Crypto.hashFromBytes
-
-toStakeKeyDeregCert :: Either XPub (Script KeyHash) -> Cardano.Certificate
-toStakeKeyDeregCert = \case
-    Left xpub ->
-        Cardano.makeStakeAddressDeregistrationCertificate
-        . Cardano.StakeCredentialByKey
-        . Cardano.StakeKeyHash
-        . SL.KeyHash
-        . UnsafeHash
-        . toShort
-        . blake2b224
-        $ xpubPublicKey xpub
-    Right script ->
-        Cardano.makeStakeAddressDeregistrationCertificate
-        . Cardano.StakeCredentialByScript
-        . Cardano.hashScript
-        . Cardano.SimpleScript
-        $ toCardanoSimpleScript script
-
-toStakeKeyRegCert :: Either XPub (Script KeyHash) -> Cardano.Certificate
-toStakeKeyRegCert cred = case cred of
-    Left xpub ->
-        Cardano.makeStakeAddressRegistrationCertificate
-        . Cardano.StakeCredentialByKey
-        . Cardano.StakeKeyHash
-        . SL.KeyHash
-        . UnsafeHash
-        . toShort
-        . blake2b224
-        $ xpubPublicKey xpub
-    Right script ->
-        Cardano.makeStakeAddressRegistrationCertificate
-        . Cardano.StakeCredentialByScript
-        . Cardano.hashScript
-        . Cardano.SimpleScript
-        $ toCardanoSimpleScript script
-
-toStakePoolDlgCert :: Either XPub (Script KeyHash) -> PoolId -> Cardano.Certificate
-toStakePoolDlgCert cred (PoolId pid) = case cred of
-    Left xpub ->
-        Cardano.makeStakeAddressPoolDelegationCertificate
-        (Cardano.StakeCredentialByKey $ Cardano.StakeKeyHash (toKeyHash xpub))
-        (Cardano.StakePoolKeyHash pool)
-    Right script ->
-        Cardano.makeStakeAddressPoolDelegationCertificate
-        (Cardano.StakeCredentialByScript
-        . Cardano.hashScript
-        . Cardano.SimpleScript
-        $ toCardanoSimpleScript script)
-        (Cardano.StakePoolKeyHash pool)
-  where
-    toKeyHash = SL.KeyHash . UnsafeHash . toShort . blake2b224 . xpubPublicKey
-    pool = SL.KeyHash $ UnsafeHash $ toShort pid
 
 -- | Extract a stake reference / `RewardAccount` from an address, if it exists.
 --

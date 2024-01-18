@@ -115,9 +115,6 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     , toCardanoTxIn
     , toCardanoTxOut
     , toCardanoValue
-    , toStakeKeyDeregCert
-    , toStakeKeyRegCert
-    , toStakePoolDlgCert
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -183,6 +180,11 @@ import Cardano.Wallet.Transaction
     , WitnessCount (..)
     , WitnessCountCtx (..)
     , selectionDelta
+    )
+import Cardano.Wallet.Transaction.Delegation
+    ( toStakeKeyDeregCert
+    , toStakeKeyRegCert
+    , toStakePoolDlgCert
     )
 import Cardano.Wallet.Util
     ( HasCallStack
