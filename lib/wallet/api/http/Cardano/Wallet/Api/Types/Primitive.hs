@@ -20,7 +20,6 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
-    , displayError
     , metadataFromJson
     , metadataToJson
     )
@@ -378,6 +377,7 @@ instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
         . either (fail . displayError) pure
         . metadataFromJson TxMetadataJsonDetailedSchema
+        where displayError = error "TODO conway: displayError"
 
 instance ToJSON (ApiT TxMetadata) where
     toJSON = metadataToJson TxMetadataJsonDetailedSchema . getApiT

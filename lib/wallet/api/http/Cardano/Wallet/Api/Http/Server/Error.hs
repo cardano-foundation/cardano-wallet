@@ -29,7 +29,7 @@ import Prelude
 import Cardano.Address.Script
     ( Cosigner (..)
     )
-import Cardano.Ledger.Alonzo.TxInfo
+import Cardano.Ledger.Alonzo.Plutus.TxInfo
     ( TranslationError (..)
     )
 import Cardano.Wallet
@@ -130,7 +130,6 @@ import Cardano.Write.Tx
     )
 import Control.Monad.Except
     ( ExceptT
-    , lift
     , withExceptT
     )
 import Control.Monad.Trans.Except
@@ -199,6 +198,7 @@ import Servant.Server
     , err501
     , err503
     )
+import Control.Monad.Trans (lift)
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
