@@ -246,6 +246,7 @@ library
     Cardano.Wallet.TokenMetadata
     Cardano.Wallet.Transaction
     Cardano.Wallet.Transaction.Built
+    Cardano.Wallet.Transaction.Delegation
     Cardano.Wallet.TypeLevel
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
