@@ -120,7 +120,6 @@ library
     , text
     , text-class
     , time
-    , transformers
     , typed-process
     , unliftio
     , warp
