@@ -93,10 +93,10 @@ import Database.Persist.TH
     , sqlSettings
     )
 import Database.Schema
-    ( (:.) (..)
-    , Col (..)
+    ( Col (..)
     , Primary
     , Table (..)
+    , (:.) (..)
     )
 import GHC.Generics
     ( Generic

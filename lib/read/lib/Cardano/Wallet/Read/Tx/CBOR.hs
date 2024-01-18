@@ -41,13 +41,13 @@ import Cardano.Ledger.Binary.Decoding
     , shelleyProtVer
     )
 import Cardano.Wallet.Read.Eras
-    ( (:.:) (..)
-    , EraFun (..)
+    ( EraFun (..)
     , EraValue
     , K (..)
     , applyEraFun
     , extractEraValue
     , sequenceEraValue
+    , (:.:) (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

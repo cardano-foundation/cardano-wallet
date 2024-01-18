@@ -130,10 +130,10 @@ import qualified Cardano.Wallet.Primitive.Types.AssetId as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin
     )
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W
     ( TokenMap
     )

@@ -147,7 +147,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           haskellPackages.lentil
           haskellPackages.pretty-simple
           haskellPackages.weeder
-          (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
+          (haskell-nix.tool "ghc963" "stylish-haskell" "0.14.5.0")
           (haskell-nix.tool "ghc963" "haskell-language-server" ({pkgs, ...}: rec {
             # Use the github source of HLS that is tested with haskell.nix CI
             src = pkgs.haskell-nix.sources."hls-2.5";

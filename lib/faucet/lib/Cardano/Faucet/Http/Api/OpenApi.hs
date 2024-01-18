@@ -58,7 +58,6 @@ import Data.OpenApi
     , HasDescription (description)
     , HasGet (get)
     , HasIn (in_)
-    , HasIn (in_)
     , HasInfo (info)
     , HasLicense (license)
     , HasName (name)
@@ -75,9 +74,9 @@ import Data.OpenApi
     , ParamLocation (ParamPath)
     , Referenced (Inline, Ref)
     , URL (URL)
+    , _Inline
     , toParamSchema
     , toSchema
-    , _Inline
     )
 import Network.HTTP.Media
     ( MediaType

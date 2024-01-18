@@ -29,20 +29,20 @@ import Cardano.Wallet.Submissions.Submissions
     )
 import Cardano.Wallet.Submissions.TxStatus
     ( HasTxId (..)
-    , getTx
     , _Expired
     , _InLedger
     , _InSubmission
+    , getTx
     )
 import Control.Arrow
     ( (&&&)
     )
 import Control.Lens
-    ( lastOf
+    ( _2
+    , lastOf
     , to
     , view
     , (&)
-    , _2
     )
 import Control.Lens.Extras
     ( is

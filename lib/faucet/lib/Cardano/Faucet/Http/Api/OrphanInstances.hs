@@ -49,26 +49,17 @@ import Data.Aeson
     )
 import Data.OpenApi
     ( HasDescription (description)
-    , HasDescription (description)
     , HasExample (example)
-    , HasExample (example)
-    , HasFormat (format)
     , HasFormat (format)
     , HasMinimum (minimum_)
     , HasProperties (properties)
     , HasTitle (title)
-    , HasTitle (title)
-    , HasType (type_)
     , HasType (type_)
     , NamedSchema (..)
-    , NamedSchema (..)
-    , OpenApiType (..)
     , OpenApiType (..)
     , Referenced (Ref)
     , Schema
-    , ToParamSchema
     , ToParamSchema (..)
-    , ToSchema
     , ToSchema
     , declareNamedSchema
     , enum_

@@ -582,9 +582,7 @@ import Numeric.Natural
     ( Natural
     )
 import Servant
-    ( (:<|>)
-    , (:>)
-    , Capture
+    ( Capture
     , Header'
     , JSON
     , PostNoContent
@@ -593,6 +591,8 @@ import Servant
     , ReqBody
     , StdMethod (..)
     , Verb
+    , (:<|>)
+    , (:>)
     )
 import Servant.API.Verbs
     ( NoContentVerb

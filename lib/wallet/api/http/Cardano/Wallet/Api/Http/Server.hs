@@ -265,11 +265,11 @@ import Network.Ntp
     ( NtpClient
     )
 import Servant
-    ( (:<|>) (..)
-    , Handler (..)
+    ( Handler (..)
     , NoContent (..)
     , Server
     , err400
+    , (:<|>) (..)
     )
 import Servant.Server
     ( ServerError (..)

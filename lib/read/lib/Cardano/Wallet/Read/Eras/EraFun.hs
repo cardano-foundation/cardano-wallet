@@ -90,11 +90,11 @@ import Control.Category
     ( Category (..)
     )
 import Generics.SOP
-    ( (:.:) (..)
-    , K (..)
+    ( K (..)
     , NP
     , unComp
     , unK
+    , (:.:) (..)
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP

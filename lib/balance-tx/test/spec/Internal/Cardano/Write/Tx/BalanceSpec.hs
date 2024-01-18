@@ -78,8 +78,7 @@ import Cardano.Ledger.Language
     ( Language (..)
     )
 import Cardano.Ledger.Shelley.API
-    ( Credential (KeyHashObj)
-    , Credential (..)
+    ( Credential (..)
     , DCert (DCertDeleg)
     , DelegCert (..)
     , Delegation (..)
@@ -269,7 +268,6 @@ import Internal.Cardano.Write.Tx
     , TxIn
     , TxOut
     , TxOutInRecentEra (..)
-    , TxOutInRecentEra (..)
     , UTxO
     , Value
     , fromCardanoApiTx
@@ -450,28 +448,28 @@ import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Address as W
     ( Address (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
     ( TxSize (..)
     )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
-import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Codec.CBOR.Encoding as CBOR

@@ -37,14 +37,14 @@ import Cardano.Wallet.Read
     ( Tx (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( (:.:)
-    , EraFun (..)
+    ( EraFun (..)
     , K (..)
     , applyEraFun
     , extractEraValue
     , sequenceEraValue
     , (*&&&*)
     , (*.**)
+    , (:.:)
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFunK (..)

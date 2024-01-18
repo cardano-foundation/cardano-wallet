@@ -134,7 +134,7 @@ import Data.List.NonEmpty
     ( NonEmpty (..)
     )
 import Data.Sequence
-    ( Seq ((:<|), (:|>), Empty)
+    ( Seq (Empty, (:<|), (:|>))
     )
 
 import qualified Data.Foldable as F

@@ -266,8 +266,8 @@ import Data.Quantity
     ( Quantity (..)
     )
 import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
+    ( testEquality
+    , (:~:) (..)
     )
 import Data.Word
     ( Word16
