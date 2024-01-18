@@ -244,18 +244,6 @@ package cardano-node
 program-options
   ghc-options: -fwrite-ide-info
 
--- By default, we fail to build if there are any unused package dependencies.
-program-options
-  ghc-options: -Wunused-packages
-
--- NOTE: We make an exception for `cardano-wallet-primitive`, as for some
--- reason GHC panics when building this package if the above flag is enabled.
---
--- TODO: Investigate this problem further and/or file a GHC bug report.
---
-package cardano-wallet-primitive
-  ghc-options: -Wno-unused-packages
-
 --------------------------------------------------------------------------------
 -- Enable specific tests in this repo
 
