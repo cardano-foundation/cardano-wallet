@@ -83,12 +83,11 @@ import Cardano.Wallet.Primitive.Slotting
     , slotToUTCTime
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (blockHeight, slotNo)
-    , ChainPoint
+    ( ChainPoint
     , DelegationCertificate (..)
     , GenesisParameters (..)
     , Slot
-    , SlotNo (..)
+    , SlotNo
     , SortOrder (..)
     , StakeKeyCertificate (..)
     , WalletMetadata (..)
@@ -165,6 +164,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types.Range as Range
 import qualified Data.Map.Strict as Map
+import qualified Cardano.Wallet.Primitive.Types.Block as W
 
 {-------------------------------------------------------------------------------
                             Model Database wid Types
@@ -431,7 +431,7 @@ mReadTxHistory ti minWithdrawal order range mstatus maddress db@(Database _ wall
              $ (blockHeight :: TxMeta -> Quantity "block" Word32)
              meta
         tipH = getQuantity
-             $ (blockHeight :: BlockHeader -> Quantity "block" Word32)
+             $ W.blockHeight
              $ currentTip cp
 
 mPutPrivateKey :: xprv -> ModelOp wid s xprv ()
@@ -574,4 +574,4 @@ filterTxHistory minWithdrawal order range address =
             checkCollInp addr txhistory || checkCollOut addr txhistory
 
 tip :: Wallet s -> SlotNo
-tip = (slotNo :: BlockHeader -> SlotNo) . currentTip
+tip = W.slotNo . currentTip

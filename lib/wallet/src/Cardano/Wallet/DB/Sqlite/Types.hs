@@ -31,7 +31,6 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
-    , displayError
     , metadataFromJson
     , metadataToJson
     )
@@ -483,7 +482,8 @@ instance PersistFieldSql TxStatus where
 
 ----------------------------------------------------------------------------
 -- TxMetadata
-
+displayError :: a
+displayError = error "TODO conway: displayError"
 instance PersistField TxMetadata where
     toPersistValue =
         toPersistValue .
