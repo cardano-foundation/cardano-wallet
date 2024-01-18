@@ -62,6 +62,7 @@ import Data.Map
     )
 
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Core as Ledger
 
 type family WithdrawalsType era where
   WithdrawalsType ByronEra = ()
