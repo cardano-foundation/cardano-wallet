@@ -8,6 +8,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeOperators #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
