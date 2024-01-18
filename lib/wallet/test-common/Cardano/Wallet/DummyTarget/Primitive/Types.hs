@@ -188,7 +188,6 @@ dummyNodeProtocolParameters = C.ProtocolParameters
     , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
     , C.protocolParamMonetaryExpansion = 0.003 -- rho
     , C.protocolParamTreasuryCut = 0.20 -- tau
-    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34_482
     , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 43_10
     , C.protocolParamCostModels = mempty
     , C.protocolParamPrices =
@@ -294,7 +293,6 @@ babbageMainnetProtocolParameters = C.ProtocolParameters
     , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
     , C.protocolParamMonetaryExpansion = 0.003 -- rho
     , C.protocolParamTreasuryCut = 0.20 -- tau
-    , C.protocolParamUTxOCostPerWord = Just $ C.Lovelace 34_482
     , C.protocolParamUTxOCostPerByte = Just $ C.Lovelace 4_310
     , C.protocolParamCostModels =
         mempty

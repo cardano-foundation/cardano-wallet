@@ -17,17 +17,18 @@
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api
-    ( Error (displayError)
-    , TxMetadataJsonSchema (..)
+    ( TxMetadataJsonSchema (..)
     , metadataFromJson
     , metadataToJson
+    )
+import Cardano.Api.Error
+    ( displayError
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata
     )
 import Control.Applicative
-    ( liftA2
-    , (<|>)
+    ( (<|>)
     )
 import Control.DeepSeq
     ( NFData

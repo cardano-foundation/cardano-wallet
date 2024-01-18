@@ -32,9 +32,6 @@ import Cardano.Wallet.DB.Store.Transactions.Model
 import Cardano.Wallet.DB.Store.Wallets.Model
     ( DeltaTxWalletsHistory (..)
     )
-import Control.Applicative
-    ( liftA2
-    )
 import Data.Store
     ( Store (..)
     , UpdateStore
