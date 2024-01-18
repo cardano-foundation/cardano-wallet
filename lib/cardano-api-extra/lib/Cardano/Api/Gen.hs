@@ -126,12 +126,14 @@ import Cardano.Api
     , AsType (..)
     , AssetId (..)
     , AssetName (..)
+    , BabbageEra
     , BuildTx
     , BuildTxWith (BuildTxWith)
     , ByronAddr
     , ByronEra
     , CardanoEra (..)
     , Certificate
+    , ConwayEra
     , ConwayEraOnwards (..)
     , CostModel (..)
     , Eon (..)
@@ -148,6 +150,7 @@ import Cardano.Api
     , KeyWitnessInCtx (KeyWitnessForSpending, KeyWitnessForStakeAddr)
     , Lovelace (..)
     , MIRPot (..)
+    , MaryEraOnwards (..)
     , NetworkId (..)
     , NetworkMagic (NetworkMagic)
     , PaymentCredential (..)
@@ -1172,13 +1175,14 @@ genUnsignedQuantity = do
         ]
 
 genTxOutValue :: CardanoEra era -> Gen (TxOutValue era)
-genTxOutValue era = case forEraMaybeEon era of
-    Nothing -> TxOutValueByron <$> genLovelace
-    Just (_supported :: ShelleyBasedEra era) ->
-        oneof
-            [ TxOutValueByron <$> genLovelace
-            , genTxOutValue era
-            ]
+genTxOutValue era = case era of
+    ConwayEra -> TxOutValueShelleyBased ShelleyApi.ShelleyBasedEraConway
+        . Api.toLedgerValue @ConwayEra MaryEraOnwardsConway
+        <$> genValueForTxOut
+    BabbageEra -> TxOutValueShelleyBased ShelleyApi.ShelleyBasedEraBabbage
+        . Api.toLedgerValue @BabbageEra MaryEraOnwardsBabbage
+        <$> genValueForTxOut
+    _ -> error "genTxOutValue: unsupported era"
 
 genTxOut :: CardanoEra era -> Gen (TxOut ctx era)
 genTxOut era =

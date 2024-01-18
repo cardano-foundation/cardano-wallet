@@ -22,7 +22,7 @@ module Internal.Cardano.Write.Tx.Redeemers
 
 import Prelude
 
-import Cardano.Ledger.Alonzo.TxInfo
+import Cardano.Ledger.Alonzo.Plutus.TxInfo
     ( TranslationError
     )
 import Cardano.Ledger.Api
@@ -102,10 +102,10 @@ import Internal.Cardano.Write.Tx.TimeTranslation
 
 import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Plutus.Data as Alonzo
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
@@ -270,7 +270,10 @@ redeemerData = \case
     RedeemerMinting   bytes _ -> bytes
     RedeemerRewarding bytes _ -> bytes
 
-toScriptPurpose :: Redeemer -> Alonzo.ScriptPurpose StandardCrypto
+toScriptPurpose
+    :: IsRecentEra era
+    => Redeemer
+    -> Alonzo.ScriptPurpose era
 toScriptPurpose = \case
     RedeemerSpending _ txin ->
         Alonzo.Spending txin

@@ -1,81 +1,81 @@
- 0.000000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 0 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 2000000 (MultiAsset (fromList []))})
- 0.050000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 50000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1950000 (MultiAsset (fromList []))})
- 0.100000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 100000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1900000 (MultiAsset (fromList []))})
- 0.150000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 150000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1850000 (MultiAsset (fromList []))})
- 0.200000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 200000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1800000 (MultiAsset (fromList []))})
- 0.250000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 250000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1750000 (MultiAsset (fromList []))})
- 0.300000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 300000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1700000 (MultiAsset (fromList []))})
- 0.350000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 350000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1650000 (MultiAsset (fromList []))})
- 0.400000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 400000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1600000 (MultiAsset (fromList []))})
- 0.450000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 450000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1550000 (MultiAsset (fromList []))})
- 0.500000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 500000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1500000 (MultiAsset (fromList []))})
- 0.550000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 550000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1450000 (MultiAsset (fromList []))})
- 0.600000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 600000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1400000 (MultiAsset (fromList []))})
- 0.650000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 650000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1350000 (MultiAsset (fromList []))})
- 0.700000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 700000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1300000 (MultiAsset (fromList []))})
- 0.750000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 750000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1250000 (MultiAsset (fromList []))})
- 0.800000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 800000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1200000 (MultiAsset (fromList []))})
- 0.850000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 850000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1150000 (MultiAsset (fromList []))})
- 0.900000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 900000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1100000 (MultiAsset (fromList []))})
- 0.950000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 950000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1050000 (MultiAsset (fromList []))})
- 1.000000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1000000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 1000000 (MultiAsset (fromList []))})
- 1.050000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1050000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 950000 (MultiAsset (fromList []))})
- 1.100000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1100000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 900000 (MultiAsset (fromList []))})
- 1.150000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1150000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 850000 (MultiAsset (fromList []))})
- 1.200000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1200000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 800000 (MultiAsset (fromList []))})
- 1.250000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1250000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 750000 (MultiAsset (fromList []))})
- 1.300000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1300000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 700000 (MultiAsset (fromList []))})
- 1.350000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1350000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 650000 (MultiAsset (fromList []))})
- 1.400000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1400000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 600000 (MultiAsset (fromList []))})
- 1.450000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1450000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 550000 (MultiAsset (fromList []))})
- 1.500000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1500000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 500000 (MultiAsset (fromList []))})
- 1.550000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1550000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 450000 (MultiAsset (fromList []))})
- 1.600000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1600000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 400000 (MultiAsset (fromList []))})
- 1.650000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1650000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 350000 (MultiAsset (fromList []))})
- 1.700000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1700000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 300000 (MultiAsset (fromList []))})
- 1.750000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1750000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 250000 (MultiAsset (fromList []))})
- 1.800000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1800000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 200000 (MultiAsset (fromList []))})
- 1.850000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1850000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 150000 (MultiAsset (fromList []))})
- 1.900000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1900000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 100000 (MultiAsset (fromList []))})
- 1.950000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue 1950000 (MultiAsset (fromList [])), required = MaryValue 2000000 (MultiAsset (fromList [])), shortfall = MaryValue 50000 (MultiAsset (fromList []))})
- 2.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 170781})
- 2.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 120781})
- 2.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 70781})
- 2.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170781, shortfall = Coin 20781})
- 2.200000,0.200000,0.167217
- 2.250000,0.250000,0.167217
- 2.300000,0.300000,0.167217
- 2.350000,0.350000,0.167217
- 2.400000,0.400000,0.167217
- 2.450000,0.450000,0.167217
- 2.500000,0.500000,0.167217
- 2.550000,0.550000,0.167217
- 2.600000,0.600000,0.167217
- 2.650000,0.650000,0.167217
- 2.700000,0.700000,0.167217
- 2.750000,0.750000,0.167217
- 2.800000,0.800000,0.167217
- 2.850000,0.850000,0.167217
- 2.900000,0.900000,0.167217
- 2.950000,0.950000,0.167217
- 3.000000,1.000000,0.167217
- 3.050000,1.050000,0.167217
- 3.100000,1.100000,0.167217
- 3.150000,1.150000,0.167217
- 3.200000,0.170165,0.170165
- 3.250000,0.170165,0.170165
- 3.300000,0.170165,0.170165
- 3.350000,0.170165,0.170165
- 3.400000,0.170165,0.170165
- 3.450000,0.170165,0.170165
- 3.500000,0.170165,0.170165
- 3.550000,0.170165,0.170165
- 3.600000,0.170165,0.170165
- 3.650000,0.170165,0.170165
- 3.700000,0.170165,0.170165
- 3.750000,0.170165,0.170165
- 3.800000,0.170165,0.170165
- 3.850000,0.170165,0.170165
- 3.900000,0.170165,0.170165
- 3.950000,0.170165,0.170165
- 4.000000,0.170165,0.170165
+ 0.000000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 0) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 2000000) (MultiAsset (fromList []))})
+ 0.050000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 50000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1950000) (MultiAsset (fromList []))})
+ 0.100000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 100000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1900000) (MultiAsset (fromList []))})
+ 0.150000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 150000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1850000) (MultiAsset (fromList []))})
+ 0.200000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 200000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1800000) (MultiAsset (fromList []))})
+ 0.250000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 250000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1750000) (MultiAsset (fromList []))})
+ 0.300000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 300000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1700000) (MultiAsset (fromList []))})
+ 0.350000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 350000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1650000) (MultiAsset (fromList []))})
+ 0.400000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 400000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1600000) (MultiAsset (fromList []))})
+ 0.450000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 450000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1550000) (MultiAsset (fromList []))})
+ 0.500000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 500000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1500000) (MultiAsset (fromList []))})
+ 0.550000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 550000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1450000) (MultiAsset (fromList []))})
+ 0.600000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 600000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1400000) (MultiAsset (fromList []))})
+ 0.650000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 650000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1350000) (MultiAsset (fromList []))})
+ 0.700000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 700000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1300000) (MultiAsset (fromList []))})
+ 0.750000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 750000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1250000) (MultiAsset (fromList []))})
+ 0.800000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 800000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1200000) (MultiAsset (fromList []))})
+ 0.850000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 850000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1150000) (MultiAsset (fromList []))})
+ 0.900000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 900000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1100000) (MultiAsset (fromList []))})
+ 0.950000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 950000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1050000) (MultiAsset (fromList []))})
+ 1.000000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1000000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 1000000) (MultiAsset (fromList []))})
+ 1.050000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1050000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 950000) (MultiAsset (fromList []))})
+ 1.100000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1100000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 900000) (MultiAsset (fromList []))})
+ 1.150000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1150000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 850000) (MultiAsset (fromList []))})
+ 1.200000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1200000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 800000) (MultiAsset (fromList []))})
+ 1.250000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1250000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 750000) (MultiAsset (fromList []))})
+ 1.300000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1300000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 700000) (MultiAsset (fromList []))})
+ 1.350000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1350000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 650000) (MultiAsset (fromList []))})
+ 1.400000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1400000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 600000) (MultiAsset (fromList []))})
+ 1.450000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1450000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 550000) (MultiAsset (fromList []))})
+ 1.500000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1500000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 500000) (MultiAsset (fromList []))})
+ 1.550000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1550000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 450000) (MultiAsset (fromList []))})
+ 1.600000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1600000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 400000) (MultiAsset (fromList []))})
+ 1.650000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1650000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 350000) (MultiAsset (fromList []))})
+ 1.700000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1700000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 300000) (MultiAsset (fromList []))})
+ 1.750000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1750000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 250000) (MultiAsset (fromList []))})
+ 1.800000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1800000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 200000) (MultiAsset (fromList []))})
+ 1.850000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1850000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 150000) (MultiAsset (fromList []))})
+ 1.900000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1900000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 100000) (MultiAsset (fromList []))})
+ 1.950000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 1950000) (MultiAsset (fromList [])), required = MaryValue (Coin 2000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 50000) (MultiAsset (fromList []))})
+ 2.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170561, shortfall = Coin 170561})
+ 2.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170561, shortfall = Coin 120561})
+ 2.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170561, shortfall = Coin 70561})
+ 2.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 170561, shortfall = Coin 20561})
+ 2.200000,0.200000,0.166997
+ 2.250000,0.250000,0.166997
+ 2.300000,0.300000,0.166997
+ 2.350000,0.350000,0.166997
+ 2.400000,0.400000,0.166997
+ 2.450000,0.450000,0.166997
+ 2.500000,0.500000,0.166997
+ 2.550000,0.550000,0.166997
+ 2.600000,0.600000,0.166997
+ 2.650000,0.650000,0.166997
+ 2.700000,0.700000,0.166997
+ 2.750000,0.750000,0.166997
+ 2.800000,0.800000,0.166997
+ 2.850000,0.850000,0.166997
+ 2.900000,0.900000,0.166997
+ 2.950000,0.950000,0.166997
+ 3.000000,1.000000,0.166997
+ 3.050000,1.050000,0.166997
+ 3.100000,1.100000,0.166997
+ 3.150000,1.150000,0.166997
+ 3.200000,0.169857,0.169857
+ 3.250000,0.169857,0.169857
+ 3.300000,0.169857,0.169857
+ 3.350000,0.169857,0.169857
+ 3.400000,0.169857,0.169857
+ 3.450000,0.169857,0.169857
+ 3.500000,0.169857,0.169857
+ 3.550000,0.169857,0.169857
+ 3.600000,0.169857,0.169857
+ 3.650000,0.169857,0.169857
+ 3.700000,0.169857,0.169857
+ 3.750000,0.169857,0.169857
+ 3.800000,0.169857,0.169857
+ 3.850000,0.169857,0.169857
+ 3.900000,0.169857,0.169857
+ 3.950000,0.169857,0.169857
+ 4.000000,0.169857,0.169857
