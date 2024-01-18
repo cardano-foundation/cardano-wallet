@@ -40,18 +40,18 @@ import Cardano.Ledger.Binary
     , mkSized
     , natVersion
     )
-import Cardano.Ledger.Conway.Delegation.Certificates
-    ( ConwayDCert
-    )
 import Cardano.Ledger.Conway.Governance
     ( ProposalProcedure
-    , VotingProcedure
+    , VotingProcedures (..)
     )
 import Cardano.Ledger.Conway.Tx
     ( AlonzoTx (AlonzoTx)
     )
 import Cardano.Ledger.Conway.TxBody
     ( ConwayTxBody (..)
+    )
+import Cardano.Ledger.Conway.TxCert
+    ( ConwayTxCert
     )
 import Cardano.Ledger.Conway.TxWits
     ( AlonzoTxWits
@@ -100,6 +100,9 @@ import Data.List.NonEmpty
 import Data.Maybe.Strict
     ( StrictMaybe (SNothing)
     )
+import Data.OSet.Strict
+    ( OSet
+    )
 import Data.Sequence.Strict
     ( StrictSeq
     , fromList
@@ -146,21 +149,23 @@ body ins outs =
         network
         votingProcedures
         proposalProcedures
+        mempty
+        mempty
 
 collateralReturn
     :: StrictMaybe (Sized (BabbageTxOut (ConwayEra StandardCrypto)))
 collateralReturn = SNothing
 
-proposalProcedures :: StrictSeq (ProposalProcedure (ConwayEra StandardCrypto))
+proposalProcedures :: OSet (ProposalProcedure (ConwayEra StandardCrypto))
 proposalProcedures = mempty
 
-votingProcedures :: StrictSeq (VotingProcedure (ConwayEra StandardCrypto))
-votingProcedures = mempty
+votingProcedures :: VotingProcedures (ConwayEra StandardCrypto)
+votingProcedures = VotingProcedures mempty
 
 witnesses :: Set (KeyHash 'Witness StandardCrypto)
 witnesses = mempty
 
-certs :: StrictSeq (ConwayDCert StandardCrypto)
+certs :: StrictSeq (ConwayTxCert (era StandardCrypto))
 certs = mempty
 
 referenceIns :: Set (TxIn StandardCrypto)
