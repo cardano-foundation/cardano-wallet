@@ -31,13 +31,13 @@ library
 
   hs-source-dirs:     lib
   build-depends:
-    , base                   ^>=4.14.3.0
+    , base
     , network                ^>=3.1.4.0
     , network-uri            ^>=2.6.4.2
     , random-shuffle         ^>=0.0.4
     , safe                   ^>=0.3.19
     , streaming-commons      ^>=0.2.2.6
-    , text                   ^>=1.2.4.1
+    , text                   ^>=2.0.2
     , text-class             ^>=2023.12.18
     , unliftio               ^>=0.2.24
     , unliftio-core          ^>=0.2.1

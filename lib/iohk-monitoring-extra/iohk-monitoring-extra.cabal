@@ -27,18 +27,18 @@ library
   hs-source-dirs:     src
   exposed-modules:    Cardano.BM.Extra
   build-depends:
-    , aeson                ^>=2.1.2.1
-    , base                 ^>=4.14.3
-    , bytestring           ^>=0.10.12
-    , contra-tracer        ^>=0.1.0.2
-    , deepseq              ^>=1.4.4
-    , exceptions           ^>=0.10.4
-    , fmt                  ^>=0.6.3
+    , aeson
+    , base
+    , bytestring
+    , contra-tracer
+    , deepseq
+    , exceptions
+    , fmt
     , iohk-monitoring      ^>=0.1.11.3
-    , text                 ^>=1.2.4.1
+    , text
     , text-class           ^>=2023.12.18
-    , time                 ^>=1.9.3
-    , tracer-transformers  ^>=0.1.0.4
-    , transformers         ^>=0.5.6.2
-    , unliftio             ^>=0.2.24
-    , unliftio-core        ^>=0.2.1
+    , time
+    , tracer-transformers
+    , transformers
+    , unliftio
+    , unliftio-core

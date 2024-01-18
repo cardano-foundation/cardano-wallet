@@ -26,7 +26,7 @@ library
   hs-source-dirs:     src
   exposed-modules:    Crypto.Hash.Extra
   build-depends:
-    , base                    ^>=4.14.3
-    , bytestring              ^>=0.10.12
+    , base                    >= 4.14.3 && < 4.19
+    , bytestring              >= 0.10.12 && < 0.13
     , cryptonite              ^>=0.30
     , memory                  ^>=0.18

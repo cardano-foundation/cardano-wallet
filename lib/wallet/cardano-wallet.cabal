@@ -111,8 +111,8 @@ library
     , ouroboros-network
     , ouroboros-network-api
     , path-pieces
-    , persistent                                         ^>=2.13
-    , persistent-sqlite                                  ^>=2.13
+    , persistent                                         >= 2.13 && < 2.15
+    , persistent-sqlite                                  >= 2.13 && < 2.15
     , profunctors
     , QuickCheck                                         ^>=2.14.3
     , quiet
@@ -639,8 +639,8 @@ test-suite unit
     , ouroboros-consensus
     , ouroboros-network
     , ouroboros-network-api
-    , persistent                                         ^>=2.13
-    , persistent-sqlite                                  ^>=2.13
+    , persistent
+    , persistent-sqlite
     , pretty-simple
     , QuickCheck
     , quickcheck-classes
