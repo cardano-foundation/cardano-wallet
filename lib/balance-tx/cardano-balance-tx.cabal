@@ -142,7 +142,6 @@ test-suite test
     , hspec-golden
     , int-cast
     , lens
-    , memory
     , MonadRandom
     , monoid-subclasses
     , ouroboros-consensus
@@ -150,6 +149,7 @@ test-suite test
     , ouroboros-network-api
     , QuickCheck
     , quickcheck-classes
+    , sop-extras
     , std-gen-seed
     , text
     , time

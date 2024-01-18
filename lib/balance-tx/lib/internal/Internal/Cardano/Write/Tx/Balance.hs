@@ -1175,10 +1175,10 @@ splitSignedValue v = (bNegative, bPositive)
     bPositive = Convert.toWallet . filterPositive $        v
 
     filterPositive :: Value -> Value
-    filterPositive (MaryValue a (MultiAsset m)) =
-        MaryValue aPositive (MultiAsset mPositive)
+    filterPositive (MaryValue (Coin a) (MultiAsset m)) =
+        MaryValue (Coin aPositive) (MultiAsset mPositive)
       where
-        aPositive = if a > 0 then a else 0
+        aPositive = max a 0
         mPositive = Map.map (Map.filter (> 0)) m
 
 --------------------------------------------------------------------------------
