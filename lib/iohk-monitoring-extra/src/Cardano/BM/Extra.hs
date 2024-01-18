@@ -7,7 +7,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
