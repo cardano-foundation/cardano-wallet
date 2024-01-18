@@ -8,6 +8,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Shelley.CompatibilitySpec
     ( spec
