@@ -29,7 +29,7 @@ import Prelude
 import Cardano.Address.Script
     ( Cosigner (..)
     )
-import Cardano.Ledger.Alonzo.TxInfo
+import Cardano.Ledger.Alonzo.Plutus.TxInfo
     ( TranslationError (..)
     )
 import Cardano.Wallet
@@ -130,8 +130,10 @@ import Cardano.Write.Tx
     )
 import Control.Monad.Except
     ( ExceptT
-    , lift
     , withExceptT
+    )
+import Control.Monad.IO.Class
+    ( liftIO
     )
 import Control.Monad.Trans.Except
     ( throwE
@@ -231,7 +233,7 @@ liftE = liftHandler . throwE
 
 -- | Lift an IO action into servant 'Handler'
 handler :: IO a -> Handler a
-handler = Handler . lift
+handler = Handler . liftIO
 
 apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
 apiError err info messageUnformatted = err

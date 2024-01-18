@@ -1503,9 +1503,6 @@ mockTxConstraints =
         , Cardano.protocolParamPoolPledgeInfluence = 0
         , Cardano.protocolParamMonetaryExpansion = 0
         , Cardano.protocolParamTreasuryCut = 0
-        , Cardano.protocolParamUTxOCostPerWord =
-            Just $ Cardano.fromShelleyLovelace $
-                Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
         , Cardano.protocolParamUTxOCostPerByte =
             Just $ Cardano.fromShelleyLovelace $
                 Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
