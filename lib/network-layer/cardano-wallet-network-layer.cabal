@@ -33,7 +33,7 @@ library
   -- other-modules:
   -- other-extensions:
   build-depends:
-    , base                           ^>=4.14.3.0
+    , base
     , bytestring
     , cardano-api
     , cardano-balance-tx:internal

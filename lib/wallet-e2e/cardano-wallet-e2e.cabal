@@ -59,7 +59,7 @@ library
   hs-source-dirs:  src
   build-depends:
     , aeson                  ^>=2.1.2.1
-    , base                   ^>=4.14.3.0
+    , base                   >= 4.14.3.0 && < 4.19
     , base58-bytestring      ^>=0.1
     , cardano-addresses      ^>=3.12
     , cardano-crypto         ^>=1.1.2
@@ -79,8 +79,8 @@ library
     , retry                  ^>=0.9.3.1
     , sydtest                ^>=0.15
     , tagged                 ^>=0.8.7
-    , text                   ^>=1.2.4.1
-    , time                   ^>=1.9.3
+    , text                   ^>=2.0.2
+    , time                   >= 1.9.3 && < 1.13
     , timespan               ^>=0.4
     , typed-process          ^>=0.2.11
 
@@ -122,11 +122,11 @@ executable wallet-e2e
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N
   other-modules: Options
   build-depends:
-    , base                  ^>=4.14.3.0
+    , base
     , cardano-wallet-e2e
     , optparse-applicative  ^>=0.17.1
-    , path                  ^>=0.9.2
-    , relude                ^>=1.2.0.0
-    , sydtest               ^>=0.15
-    , tagged                ^>=0.8.7
+    , path
+    , relude
+    , sydtest
+    , tagged
     , with-utf8             ^>=1.0.2.4

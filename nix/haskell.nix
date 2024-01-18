@@ -95,12 +95,12 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         filter = lib.cleanSourceFilter;
       };
 
-      indexState = "2023-06-04T22:30:25Z";
+      indexState = "2024-01-12T11:04:55Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc8107";
+      compiler-nix-name = "ghc963";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -118,24 +118,19 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           #   index-state = indexState;
           #   version = "latest";
           # };
-          hoogle = { index-state = indexState; };
-          lentil = { index-state = indexState; };
-          weeder = {
+          hoogle = {
             index-state = indexState;
-            version = "2.2.0";
-           };
+            version = "5.0.18.3";
+          };
         };
-        nativeBuildInputs = with buildProject.hsPkgs; [
+        nativeBuildInputs = (with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
           nodePkgs.cardano-node
           cardano-addresses-cli.components.exes.cardano-address
           bech32.components.exes.bech32
-          pretty-simple.components.exes.pretty-simple
-        ] ++ (with pkgs.buildPackages.buildPackages; [
+        ]) ++ (with pkgs.buildPackages.buildPackages; [
           just
-          adrgen
-          haskellPackages.ghcid
-          pkgconfig
+          pkg-config
           nixpkgs-recent.python3Packages.openapi-spec-validator
           (ruby_3_1.withPackages (ps: [ ps.rake ps.thor ]))
           rubyPackages_3_1.rubocop
@@ -145,11 +140,15 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           yq
           nixWrapped
           mdbook
-          (haskell-nix.tool "ghc8107" "hp2pretty" "latest")
+          haskellPackages.fourmolu
+          haskellPackages.ghcid
+          haskellPackages.hlint
+          haskellPackages.hp2pretty
+          haskellPackages.lentil
+          haskellPackages.pretty-simple
+          haskellPackages.weeder
           (haskell-nix.tool "ghc8107" "stylish-haskell" "0.11.0.3")
-          (haskell-nix.tool "ghc8107" "hlint" "3.3")
-          (haskell-nix.tool "ghc928" "fourmolu" "0.13.1.0")
-          (haskell-nix.tool "ghc8107" "haskell-language-server" ({pkgs, ...}: rec {
+          (haskell-nix.tool "ghc963" "haskell-language-server" ({pkgs, ...}: rec {
             # Use the github source of HLS that is tested with haskell.nix CI
             src = pkgs.haskell-nix.sources."hls-2.0";
             # `tool` normally ignores the `cabal.project` (if there is one in the hackage source).
@@ -324,7 +323,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
             packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
             packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
-            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
+            packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 pkgs.libblst ] ];
           })
 
           # Build fixes for library dependencies
