@@ -100,6 +100,7 @@ library
     , cardano-crypto-praos
     , cardano-crypto-test
     , cardano-crypto-wrapper
+    , cardano-data
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-alonzo-test
