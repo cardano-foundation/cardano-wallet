@@ -81,7 +81,6 @@ test-suite unit
     , hspec-core
     , hspec-expectations
     , iohk-monitoring
-    , process
     , retry
     , text
     , text-class
