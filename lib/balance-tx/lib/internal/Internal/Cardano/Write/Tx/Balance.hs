@@ -472,8 +472,7 @@ instance IsRecentEra era => Buildable (PartialTx era)
         txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
-    { walletUTxO :: !W.UTxO
-    , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    { walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
     , ledgerUTxO :: !(UTxO era)
     }
 
@@ -482,7 +481,7 @@ constructUTxOIndex
     => UTxO era
     -> UTxOIndex era
 constructUTxOIndex ledgerUTxO =
-    UTxOIndex {walletUTxO, walletUTxOIndex, ledgerUTxO}
+    UTxOIndex {walletUTxOIndex, ledgerUTxO}
   where
     walletUTxO = toWalletUTxO ledgerUTxO
     walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
@@ -646,7 +645,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex _walletUTxO internalUtxoAvailable walletLedgerUTxO)
+    (UTxOIndex internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
     selectionStrategy
