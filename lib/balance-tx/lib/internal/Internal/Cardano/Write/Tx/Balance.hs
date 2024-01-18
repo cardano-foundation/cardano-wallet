@@ -149,11 +149,11 @@ import Data.Bits
     ( Bits
     )
 import Data.Either
-    ( lefts
-    , partitionEithers
+    ( partitionEithers
     )
 import Data.Function
-    ( (&)
+    ( on
+    , (&)
     )
 import Data.Functor
     ( (<&>)
@@ -317,12 +317,13 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W.TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W.UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
@@ -471,8 +472,7 @@ instance IsRecentEra era => Buildable (PartialTx era)
         txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
-    { walletUTxO :: !W.UTxO
-    , walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    { walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
     , ledgerUTxO :: !(UTxO era)
     }
 
@@ -481,10 +481,10 @@ constructUTxOIndex
     => UTxO era
     -> UTxOIndex era
 constructUTxOIndex ledgerUTxO =
-    UTxOIndex {walletUTxO, walletUTxOIndex, ledgerUTxO}
+    UTxOIndex {walletUTxOIndex, ledgerUTxO}
   where
-    walletUTxO = toWalletUTxO ledgerUTxO
-    walletUTxOIndex = UTxOIndex.fromMap $ toInternalUTxOMap walletUTxO
+    walletUTxOIndex =
+        UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO ledgerUTxO
 
 fromWalletUTxO
     :: forall era. IsRecentEra era
@@ -645,7 +645,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex walletUTxO internalUtxoAvailable walletLedgerUTxO)
+    (UTxOIndex internalUtxoAvailable walletLedgerUTxO)
     genChange
     s
     selectionStrategy
@@ -876,32 +876,21 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
-    -- | Ensure the wallet UTxO is consistent with a provided @CardanoApi.UTxO@.
+    -- | Ensures the wallet UTxO set is consistent with the given UTxO set.
     --
     -- They are not consistent iff an input can be looked up in both UTxO sets
     -- with different @Address@, or @TokenBundle@ values.
     --
-    -- The @CardanoApi.UTxO era@ is allowed to contain additional information,
-    -- like datum hashes, which the wallet UTxO cannot represent.
-    --
-    -- NOTE: Representing the wallet utxo as a @CardanoApi.UTxO@ will not make
-    -- this check easier, even if it may be useful in other regards.
     guardWalletUTxOConsistencyWith
         :: UTxO era
         -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u' = do
-        let W.UTxO u = toWalletUTxO u'
-        let conflicts = lefts $ flip map (Map.toList u) $ \(i, o1) ->
-                case i `W.UTxO.lookup` walletUTxO of
-                    Just o2 -> unless (o1 == o2) $ Left
-                        ( toLedgerTxOut era o1
-                        , toLedgerTxOut era o2
-                        )
-                    Nothing -> pure ()
-        case conflicts of
-            [] -> return ()
-            (c : cs) -> throwE
-                $ ErrBalanceTxInputResolutionConflicts (c :| cs)
+    guardWalletUTxOConsistencyWith u =
+        case NE.nonEmpty (F.toList (conflicts u walletLedgerUTxO)) of
+            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
+            Nothing -> return ()
+      where
+        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat
