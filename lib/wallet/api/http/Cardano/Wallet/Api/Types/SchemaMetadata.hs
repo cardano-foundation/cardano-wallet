@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StrictData #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
@@ -17,8 +18,7 @@
 module Cardano.Wallet.Api.Types.SchemaMetadata where
 
 import Cardano.Api
-    ( Error (displayError)
-    , TxMetadataJsonSchema (..)
+    ( TxMetadataJsonSchema (..)
     , metadataFromJson
     , metadataToJson
     )
@@ -98,3 +98,4 @@ instance FromJSON TxMetadataWithSchema where
             . either (fail . displayError) pure
             . metadataFromJson TxMetadataJsonNoSchema
         )
+      where displayError = error "TODO conway: displayError"
