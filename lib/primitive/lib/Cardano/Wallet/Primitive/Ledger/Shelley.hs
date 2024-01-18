@@ -103,29 +103,19 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPub
-    , xpubPublicKey
-    )
 import Cardano.Address.Script
     ( KeyHash (..)
     , Script (..)
     )
 import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , AnyCardanoEra (..)
+    ( AnyCardanoEra (..)
     , AsType (..)
     , BabbageEra
     , CardanoEra (..)
-    , CardanoMode
     , ConwayEra
-    , EraInMode (..)
     , InAnyCardanoEra (..)
     , IsCardanoEra (..)
-    , MaryEra
     , NetworkId
-    , ShelleyEra
     , TxInMode (..)
     )
 import Cardano.Api.Shelley
@@ -225,9 +215,6 @@ import Control.Lens
     ( view
     , (&)
     , (^.)
-    )
-import Crypto.Hash.Extra
-    ( blake2b224
     )
 import Data.Bifunctor
     ( bimap
@@ -915,11 +902,7 @@ fromCardanoTxOut :: IsCardanoEra era => Cardano.TxOut ctx era -> W.TxOut
 fromCardanoTxOut (Cardano.TxOut addr out _datumHash _) =
     W.TxOut
         (W.Address $ Cardano.serialiseToRawBytes addr)
-        (fromCardanoTxOutValue out)
-  where
-    fromCardanoTxOutValue (Cardano.TxOutValue _ val) = fromCardanoValue val
-    fromCardanoTxOutValue (Cardano.TxOutAdaOnly _ lovelace) =
-        TokenBundle.fromCoin $ fromCardanoLovelace lovelace
+        (fromCardanoValue $ Cardano.txOutValueToValue out)
 
 fromCardanoWdrls
     :: Cardano.TxWithdrawals build era
@@ -938,16 +921,10 @@ cardanoCertKeysForWitnesses
 cardanoCertKeysForWitnesses = \case
     Cardano.TxCertificatesNone -> []
     Cardano.TxCertificates _era certs _witsMap ->
-        mapMaybe f certs
+        map toRewardAccount
+        $ mapMaybe Cardano.selectStakeCredentialWitness certs
  where
-    toRewardAccount = Just . fromStakeCredential . Cardano.toShelleyStakeCredential
-    f = \case
-        Cardano.StakeAddressDeregistrationCertificate cred ->
-            toRewardAccount cred
-        Cardano.StakeAddressPoolDelegationCertificate cred _ ->
-            toRewardAccount cred
-        _ ->
-            Nothing
+    toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
 
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
@@ -1014,6 +991,10 @@ toCardanoStakeCredential = \case
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
 
+-- FIXME: This function belongs to the 'Write' modules.
+-- This function only needs to work in recent eras,
+-- but unfortunately, we cannot express this constraint on
+-- the type level here.
 toCardanoTxOut
     :: HasCallStack
     => ShelleyBasedEra era
@@ -1021,101 +1002,20 @@ toCardanoTxOut
     -> W.TxOut
     -> Cardano.TxOut ctx era
 toCardanoTxOut era refScriptM = case era of
-    ShelleyBasedEraShelley -> toShelleyTxOut
-    ShelleyBasedEraAllegra -> toAllegraTxOut
-    ShelleyBasedEraMary    -> toMaryTxOut
-    ShelleyBasedEraAlonzo  -> toAlonzoTxOut
     ShelleyBasedEraBabbage -> toBabbageTxOut
     ShelleyBasedEraConway  -> toConwayTxOut
+    _ -> error $
+        "toCardanoTxOut: Creating transactions in era " <> show era
+        <> " is not supported anymore."
   where
-    toShelleyTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ShelleyEra
-    toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
-        Cardano.TxOut
-            addrInEra
-            (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-            Cardano.TxOutDatumNone
-            Cardano.ReferenceScriptNone
-      where
-        adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
-        addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra
-                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
-                <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-            ]
-
-    toAllegraTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AllegraEra
-    toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
-        Cardano.TxOut
-            addrInEra
-            (adaOnly $ toCardanoLovelace $ TokenBundle.getCoin tokens)
-            Cardano.TxOutDatumNone
-            Cardano.ReferenceScriptNone
-      where
-        adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
-        addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra
-                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
-                <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-            ]
-
-    toMaryTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx MaryEra
-    toMaryTxOut (W.TxOut (W.Address addr) tokens) =
-        Cardano.TxOut
-            addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInMaryEra
-                $ toCardanoValue tokens)
-            Cardano.TxOutDatumNone
-            Cardano.ReferenceScriptNone
-      where
-        addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra
-                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
-                    <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-            ]
-
-    toAlonzoTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx AlonzoEra
-    toAlonzoTxOut (W.TxOut (W.Address addr) tokens) =
-        Cardano.TxOut
-            addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInAlonzoEra
-                $ toCardanoValue tokens)
-            datumHash
-            refScript
-      where
-        refScript = Cardano.ReferenceScriptNone
-        datumHash = Cardano.TxOutDatumNone
-        addrInEra = tina "toCardanoTxOut: malformed address"
-            [ Cardano.AddressInEra
-                (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAlonzo)
-                    <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
-
-            , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
-                <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
-            ]
-
     toBabbageTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx BabbageEra
     toBabbageTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInBabbageEra
-                $ toCardanoValue tokens)
+            (Cardano.TxOutValueShelleyBased Cardano.ShelleyBasedEraBabbage
+                $ Cardano.toLedgerValue Cardano.MaryEraOnwardsBabbage
+                $ toCardanoValue tokens
+            )
             datumHash
             refScript
       where
@@ -1123,7 +1023,7 @@ toCardanoTxOut era refScriptM = case era of
             Nothing ->
                 Cardano.ReferenceScriptNone
             Just script ->
-                let aux = Cardano.ReferenceTxInsScriptsInlineDatumsInBabbageEra
+                let aux = Cardano.BabbageEraOnwardsBabbage
                     scriptApi = Cardano.toScriptInAnyLang $ Cardano.SimpleScript $
                         toCardanoSimpleScript script
                 in Cardano.ReferenceScript aux scriptApi
@@ -1142,8 +1042,10 @@ toCardanoTxOut era refScriptM = case era of
     toConwayTxOut (W.TxOut (W.Address addr) tokens) =
         Cardano.TxOut
             addrInEra
-            (Cardano.TxOutValue Cardano.MultiAssetInConwayEra
-                $ toCardanoValue tokens)
+            (Cardano.TxOutValueShelleyBased Cardano.ShelleyBasedEraConway
+                $ Cardano.toLedgerValue Cardano.MaryEraOnwardsBabbage
+                $ toCardanoValue tokens
+            )
             datumHash
             refScript
       where
@@ -1151,7 +1053,7 @@ toCardanoTxOut era refScriptM = case era of
             Nothing ->
                 Cardano.ReferenceScriptNone
             Just script ->
-                let aux = Cardano.ReferenceTxInsScriptsInlineDatumsInConwayEra
+                let aux = Cardano.BabbageEraOnwardsConway
                     scriptApi = Cardano.toScriptInAnyLang $ Cardano.SimpleScript $
                         toCardanoSimpleScript script
                 in Cardano.ReferenceScript aux scriptApi
@@ -1261,33 +1163,29 @@ unsealShelleyTx
     :: AnyCardanoEra
     -- ^ Preferred latest era (see 'ideallyNoLaterThan')
     -> W.SealedTx
-    -> TxInMode CardanoMode
+    -> TxInMode
 unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
-    Cardano.InAnyCardanoEra ByronEra tx ->
-        TxInMode tx ByronEraInCardanoMode
-    Cardano.InAnyCardanoEra ShelleyEra tx ->
-        TxInMode tx ShelleyEraInCardanoMode
-    Cardano.InAnyCardanoEra AllegraEra tx ->
-        TxInMode tx AllegraEraInCardanoMode
-    Cardano.InAnyCardanoEra MaryEra tx ->
-        TxInMode tx MaryEraInCardanoMode
-    Cardano.InAnyCardanoEra AlonzoEra tx ->
-        TxInMode tx AlonzoEraInCardanoMode
     Cardano.InAnyCardanoEra BabbageEra tx ->
-        TxInMode tx BabbageEraInCardanoMode
+        TxInMode ShelleyBasedEraBabbage tx
     Cardano.InAnyCardanoEra ConwayEra tx ->
-        TxInMode tx ConwayEraInCardanoMode
+        TxInMode ShelleyBasedEraConway tx
+    _ -> error $
+        "unsealShelleyTx: Creating transactions in era " <> show era
+        <> " is not supported anymore."
 
 instance (forall era. IsCardanoEra era => Show (thing era)) =>
     Show (InAnyCardanoEra thing) where
     show (InAnyCardanoEra era thing) =
-        "InAnyCardanoEra " ++ show era ++ " (" ++ show thing ++ ")"
+        Cardano.cardanoEraConstraints era $
+            "InAnyCardanoEra " ++ show era ++ " (" ++ show thing ++ ")"
 
 instance (forall era. IsCardanoEra era => Eq (thing era)) =>
     Eq (InAnyCardanoEra thing) where
-    InAnyCardanoEra e1 a == InAnyCardanoEra e2 b = case testEquality e1 e2 of
-        Just Refl -> a == b
-        Nothing -> False
+    InAnyCardanoEra e1 a == InAnyCardanoEra e2 b =
+        Cardano.cardanoEraConstraints e1 $
+            case testEquality e1 e2 of
+                Just Refl -> a == b
+                Nothing -> False
 
 {-------------------------------------------------------------------------------
                                     Logging
