@@ -895,8 +895,6 @@ mkUnsignedTx
             in
             Cardano.TxCertificates certSupported certs ctx
 
-    , Cardano.txFee = explicitFees shelleyEra fees
-
     , Cardano.txValidityRange =
         let toLowerBound from = case txValidityLowerBoundSupported of
                 Just lowerBoundSupported ->
@@ -908,6 +906,7 @@ mkUnsignedTx
             (maybe Cardano.TxValidityNoLowerBound toLowerBound)
             (Cardano.TxValidityUpperBound txValidityUpperBoundSupported)
             ttl
+    , Cardano.txFee = Cardano.TxFeeExplicit shelleyEra fees
 
     , Cardano.txMetadata =
         maybe
@@ -1187,21 +1186,6 @@ mkByronWitness
     addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
         (toHDPayloadAddress addr)
         (Byron.toByronNetworkMagic nw)
-
-explicitFees :: ShelleyBasedEra era -> Cardano.Lovelace -> Cardano.TxFee era
-explicitFees era = case era of
-    ShelleyBasedEraShelley ->
-        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra
-    ShelleyBasedEraAllegra ->
-        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra
-    ShelleyBasedEraMary ->
-        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra
-    ShelleyBasedEraAlonzo ->
-        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAlonzoEra
-    ShelleyBasedEraBabbage ->
-        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInBabbageEra
-    ShelleyBasedEraConway ->
-        Cardano.TxFeeExplicit Cardano.TxFeesExplicitInConwayEra
 
 txConstraints
     :: forall era. IsRecentEra era
