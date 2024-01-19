@@ -41,7 +41,6 @@ module Cardano.Wallet.Shelley.Transaction
     , TxPayload (..)
     , TxWitnessTag (..)
     , _decodeSealedTx
-    , mkDelegationCertificates
     , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
@@ -182,9 +181,7 @@ import Cardano.Wallet.Transaction
     , selectionDelta
     )
 import Cardano.Wallet.Transaction.Delegation
-    ( toStakeKeyDeregCert
-    , toStakeKeyRegCert
-    , toStakePoolDlgCert
+    ( certificateFromDelegationAction 
     )
 import Cardano.Wallet.Util
     ( HasCallStack
@@ -278,7 +275,7 @@ data TxPayload era = TxPayload
       -- ^ User or application-defined metadata to be included in the
       -- transaction.
 
-    , _certificates :: [Cardano.Certificate]
+    , _certificates :: [Cardano.Certificate (CardanoApiEra era)]
       -- ^ Certificates to be included in the transactions.
 
     , _extraWitnesses :: Cardano.TxBody era -> [Cardano.KeyWitness era]
@@ -293,7 +290,7 @@ constructUnsignedTx
      . IsRecentEra era
     => RecentEra era
     -> Cardano.NetworkId
-    -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
+    -> (Maybe Cardano.TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
     -> Withdrawal
@@ -350,7 +347,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                     mempty
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
-                    in mkDelegationCertificates action (Left stakeXPub)
+                    in certificateFromDelegationAction era (Left stakeXPub) action
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
@@ -720,9 +717,9 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
         Just action -> do
             let certs = case stakeCred of
                     Left xpub ->
-                        mkDelegationCertificates action (Left xpub)
+                        certificateFromDelegationAction era (Left xpub) action
                     Right (Just script) ->
-                        mkDelegationCertificates action (Right script)
+                        certificateFromDelegationAction era (Right script) action
                     Right Nothing ->
                         error $ unwords
                             [ "stakeCred in mkUnsignedTransaction must be"
@@ -750,22 +747,6 @@ _decodeSealedTx preferredLatestEra witCtx sealedTx =
         Cardano.InAnyCardanoEra _ tx ->
             fromCardanoTx witCtx tx
 
-mkDelegationCertificates
-    :: DelegationAction
-        -- Pool Id to which we're planning to delegate
-    -> Either XPub (Script KeyHash)
-        --Staking credential
-    -> [Cardano.Certificate]
-mkDelegationCertificates da cred =
-    case da of
-       Join poolId ->
-               [ toStakePoolDlgCert cred poolId ]
-       JoinRegisteringKey poolId ->
-            [ toStakeKeyRegCert cred
-            , toStakePoolDlgCert cred poolId
-            ]
-       Quit -> [toStakeKeyDeregCert cred]
-
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:
 --
@@ -782,7 +763,7 @@ mkUnsignedTx
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
-    -> [Cardano.Certificate]
+    -> [Cardano.Certificate (CardanoApiEra era)]
     -> Cardano.Lovelace
     -> TokenMap
     -> TokenMap
@@ -804,7 +785,8 @@ mkUnsignedTx
     mintingSource
     inpsScripts
     stakingScriptM
-    refScriptM = extractValidatedOutputs cs >>= \outs ->
+    refScriptM
+  = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx
     $ fmap removeDummyInput
     $ Cardano.createAndValidateTransactionBody
