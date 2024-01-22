@@ -68,29 +68,3 @@ library
     Cardano.Api.Gen
     Cardano.Ledger.Credential.Safe
 
-test-suite test
-  import:             language, opts-exe
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/spec
-  main-is:            run-test-suite.hs
-  build-depends:
-    , base
-    , bytestring
-    , cardano-api
-    , cardano-api-extra
-    , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-ledger-shelley
-    , cardano-wallet-test-utils
-    , containers
-    , hspec
-    , QuickCheck
-    , quickcheck-instances
-    , with-utf8
-  build-tool-depends: hspec-discover:hspec-discover
-  other-modules:
-    Cardano.Api.GenSpec
-    Spec
