@@ -174,7 +174,7 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
     shouldMatchHSpecIt extraTest hspecTest = do
         extraRes <- runIt Extra.it extraTest
         hspecRes <- runIt it hspecTest
-        extraRes `shouldBe` hspecRes
+        lines extraRes `shouldBe` lines hspecRes
 
     runIt
         :: (String -> ActionWith () -> SpecWith ()) -- ^ it version
@@ -193,6 +193,7 @@ itSpec = describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
                 . filter (not . ("Finished in" `isPrefixOf`))
                 . filter (not . ("Randomized" `isPrefixOf`))
                 . filter (not . ("retry:" `isPrefixOf`))
+                . filter (not . ("  To rerun use:" `isPrefixOf`))
                 . lines
 
     -- | Returns an IO action that is different every time you run it!,
