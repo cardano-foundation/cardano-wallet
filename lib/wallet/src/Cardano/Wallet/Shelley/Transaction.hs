@@ -229,7 +229,6 @@ import Internal.Cardano.Write.Tx
     ( CardanoApiEra
     , IsRecentEra
     , RecentEra (..)
-    , ShelleyLedgerEra
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -1149,15 +1148,15 @@ mkShelleyWitness era body key =
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
-    :: forall era. IsRecentEra era
+    :: forall era. ()
     => RecentEra era
     -> Cardano.TxBody (CardanoApiEra era)
     -> Cardano.NetworkId
     -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkByronWitness _ (Byron.ByronTxBody _ :: Cardano.TxBody byronEra) _ _ _ =
-    case Write.recentEra @(ShelleyLedgerEra byronEra) of {}
+mkByronWitness era (Byron.ByronTxBody _ :: Cardano.TxBody byronEra) _ _ _ =
+    case era of {}
 mkByronWitness
     era
     (Cardano.ShelleyTxBody
