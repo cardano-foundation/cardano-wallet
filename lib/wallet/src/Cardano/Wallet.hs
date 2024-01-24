@@ -2482,10 +2482,7 @@ constructTransaction era db txCtx preSel = do
     netId = networkIdVal $ sNetworkId @n
 
 constructUnbalancedSharedTransaction
-    :: forall n era.
-        ( Write.IsRecentEra era
-        , HasSNetworkId n
-        )
+    :: forall n era. HasSNetworkId n
     => Write.RecentEra era
     -> DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
