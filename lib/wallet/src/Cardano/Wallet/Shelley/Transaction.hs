@@ -366,7 +366,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
     let signed :: Cardano.Tx (CardanoApiEra era)
         signed = Write.toCardanoApiTx $
             signTransaction
-                @era
+                era
                 keyF
                 networkId
                 AnyWitnessCountCtx
@@ -405,7 +405,8 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
 signTransaction
     :: forall era k ktype
      . Write.IsRecentEra era
-    => KeyFlavorS k
+    => RecentEra era
+    -> KeyFlavorS k
     -> Cardano.NetworkId
     -- ^ Network identifier (e.g. mainnet, testnet)
     -> WitnessCountCtx
@@ -425,6 +426,7 @@ signTransaction
     -- ^ The transaction to sign, possibly with already some existing witnesses
     -> Write.Tx era
 signTransaction
+    era
     keyF
     networkId
     witCountCtx
@@ -438,8 +440,6 @@ signTransaction
     =
     Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
  where
-    era = Write.recentEra @era
-
     Cardano.Tx body wits = Write.toCardanoApiTx txToSign
 
     wits' = mconcat
@@ -615,6 +615,7 @@ newTransactionLayer keyF networkId = TransactionLayer
                     (cardanoTxIdeallyNoLaterThan era sealedTx)
                     $ \ledgerTx ->
                         signTransaction
+                            Write.recentEra
                             keyF networkId witCountCtx acctResolver
                             policyResolver policyKeyM stakingScriptResolver
                             addressResolver inputResolver
