@@ -324,8 +324,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Extra
     ( chooseNatural
-    , genNonEmpty
-    , shrinkNonEmpty
     )
 import Test.QuickCheck.Gen
     ( Gen (..)
@@ -607,10 +605,6 @@ prop_signTransaction_addsExtraKeyWitnesses
                     . mkShelleyWitness recentEra txBody <$> extraKeys
 
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
-
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genNonEmpty arbitrary
-    shrink = shrinkNonEmpty shrink
 
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
@@ -1414,9 +1408,6 @@ instance Arbitrary (ForByron DecodeSetup) where
     arbitrary = do
         test <- arbitrary
         pure $ ForByron (test { metadata = Nothing })
-
-instance Arbitrary SlotNo where
-    arbitrary = SlotNo <$> choose (1, 1_000)
 
 instance Arbitrary TxMetadata where
     arbitrary = TxMetadata <$> arbitrary

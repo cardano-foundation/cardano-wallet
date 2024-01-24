@@ -344,7 +344,6 @@ import Cardano.Wallet.Primitive.Types
     , Settings
     , SlotId (..)
     , SlotInEpoch (..)
-    , SlotNo (..)
     , SmashServer
     , SortOrder (..)
     , StartTime (..)
@@ -1843,10 +1842,6 @@ instance Arbitrary (Quantity "slot" Word32) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word32)
-
-instance Arbitrary SlotNo where
-    shrink = fmap SlotNo . shrink . unSlotNo
-    arbitrary = SlotNo <$> arbitrary
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary
