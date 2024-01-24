@@ -472,7 +472,7 @@ data UTxOIndex era = UTxOIndex
     }
 
 constructUTxOIndex
-    :: forall era. IsRecentEra era
+    :: IsRecentEra era
     => UTxO era
     -> UTxOIndex era
 constructUTxOIndex ledgerUTxO =
@@ -539,7 +539,6 @@ balanceTransaction
             assignMinimalAdaQuantitiesToOutputsWithoutAda pp
         balanceWith strategy =
             balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-                @era @m @changeState
                 pp
                 timeTranslation
                 utxoAssumptions
