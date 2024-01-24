@@ -1137,13 +1137,12 @@ mkWithdrawals networkId wdrl = case wdrl of
     stakeAddress = Cardano.makeStakeAddress networkId . toCardanoStakeCredential
 
 mkShelleyWitness
-    :: Write.IsRecentEra era
-    => RecentEra era
+    :: RecentEra era
     -> Cardano.TxBody (CardanoApiEra era)
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkShelleyWitness _era body key =
-    Cardano.makeShelleyKeyWitness body (unencrypt key)
+mkShelleyWitness era body key =
+    Write.withRecentEra era $ Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
     unencrypt (xprv, pwd) = Cardano.WitnessPaymentExtendedKey
         $ Cardano.PaymentExtendedSigningKey

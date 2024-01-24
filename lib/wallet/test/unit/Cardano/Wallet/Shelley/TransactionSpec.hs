@@ -1316,8 +1316,7 @@ prop_sealedTxRecentEraRoundtrip
     sealedTxB = sealedTxFromBytes' currentEra txBytes
 
 makeShelleyTx
-    :: IsRecentEra era
-    => RecentEra era
+    :: RecentEra era
     -> DecodeSetup
     -> Cardano.Tx (CardanoApiEra era)
 makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
