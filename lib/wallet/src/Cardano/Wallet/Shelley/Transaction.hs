@@ -403,8 +403,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
 --
 -- If a key for a given input isn't found, the input is skipped.
 signTransaction
-    :: forall era k ktype
-     . Write.IsRecentEra era
+    :: forall era k ktype. ()
     => RecentEra era
     -> KeyFlavorS k
     -> Cardano.NetworkId
@@ -438,9 +437,11 @@ signTransaction
     resolveInput
     txToSign
     =
+    Write.withRecentEra era $
     Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
  where
-    Cardano.Tx body wits = Write.toCardanoApiTx txToSign
+    Cardano.Tx body wits = Write.withRecentEra era $
+        Write.toCardanoApiTx txToSign
 
     wits' = mconcat
         [ wits
