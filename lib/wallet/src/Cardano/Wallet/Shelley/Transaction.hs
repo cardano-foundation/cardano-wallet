@@ -320,7 +320,7 @@ constructUnsignedTx
     mintingScripts = Map.union (snd toMint) (snd toBurn)
 
 mkTransaction
-    :: forall era k. IsRecentEra era
+    :: forall era k. ()
     => RecentEra era
     -- ^ Era for which the transaction should be created.
     -> Cardano.NetworkId
@@ -364,7 +364,9 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
             Nothing
             Nothing
     let signed :: Cardano.Tx (CardanoApiEra era)
-        signed = Write.toCardanoApiTx $
+        signed =
+            Write.withRecentEra era $
+            Write.toCardanoApiTx $
             signTransaction
                 era
                 keyF
@@ -381,7 +383,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
             tx {resolvedInputs = second Just <$> F.toList (view #inputs cs)}
     Right
         ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
-        , sealedTxFromCardano' signed
+        , Write.withRecentEra era $ sealedTxFromCardano' signed
         )
   where
     inputResolver :: TxIn -> Maybe Address
