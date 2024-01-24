@@ -39,6 +39,7 @@ module Internal.Cardano.Write.Tx
     , CardanoApiEra
     , toRecentEra
     , fromRecentEra
+    , withRecentEra
     , MaybeInRecentEra (..)
     , toRecentEraGADT
     , LatestLedgerEra
@@ -372,6 +373,11 @@ fromRecentEra :: RecentEra era -> CardanoApi.CardanoEra (CardanoApiEra era)
 fromRecentEra = \case
     RecentEraConway -> CardanoApi.ConwayEra
     RecentEraBabbage -> CardanoApi.BabbageEra
+
+withRecentEra :: RecentEra era -> (IsRecentEra era => a) -> a
+withRecentEra era a = case era of
+    RecentEraBabbage -> a
+    RecentEraConway -> a
 
 instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
