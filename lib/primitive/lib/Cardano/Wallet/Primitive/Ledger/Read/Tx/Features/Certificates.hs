@@ -136,10 +136,10 @@ fromConwayCert = \case
                 (fromStakeCredential delegator)
                 (fromPoolKeyHash pool)
     -}
-    Ledger.RegDepositDelegTxCert _ _ _ -> error "TODO: Conway, ADP-3065"
+    Ledger.RegDepositDelegTxCert {} -> error "TODO: Conway, ADP-3065"
     Ledger.AuthCommitteeHotKeyTxCert _ _ -> error "TODO: Conway other, ADP-3065"
     Ledger.ResignCommitteeColdTxCert _ _ -> error "TODO: Conway other, ADP-3065"
-    Ledger.RegDRepTxCert _ _ _ -> error "TODO: Conway other, ADP-3065"
+    Ledger.RegDRepTxCert {} -> error "TODO: Conway other, ADP-3065"
     Ledger.UnRegDRepTxCert _ _ -> error "TODO: Conway other, ADP-3065"
     _ -> error "impossible pattern"
 
@@ -205,7 +205,7 @@ fromShelleyCert = \case
     Ledger.UnRegTxCert cred -> mkDelegationNone cred
     Ledger.RegPoolTxCert pp -> mkPoolRegistrationCertificate pp
     Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
-    Ledger.GenesisDelegTxCert _ _ _ -> W.CertificateOther W.GenesisCertificate
+    Ledger.GenesisDelegTxCert {} -> W.CertificateOther W.GenesisCertificate
     Ledger.MirTxCert _ -> W.CertificateOther W.MIRCertificate
 
 fromPoolMetadata :: SL.PoolMetadata
