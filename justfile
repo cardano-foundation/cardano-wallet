@@ -2,7 +2,7 @@ default:
   @just --list
 
 # check that the code is formatted with stylish-haskell
-check:
+syntax:
   ./.buildkite/check-code-format.sh
 
 # build wallet-e2e suite with cabal
@@ -10,7 +10,7 @@ build:
   cabal build all
 
 # run a nix shell with `cardano-wallet` in scope
-shell:
+wallet:
   nix shell '.#cardano-wallet'
 
 # run a benchmark: api | latency | memory | db | restore
@@ -80,3 +80,6 @@ conway-integration-tests:
     '.#cardano-wallet' \
     '.#integration-exe' \
     -c integration-exe -j 3
+
+hlint:
+  nix develop --command bash -c 'hlint lib'

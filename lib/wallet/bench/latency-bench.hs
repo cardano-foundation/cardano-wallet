@@ -637,7 +637,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             (Just db)
             Nothing -- db decorator
             "127.0.0.1"
-            (ListenOnPort 8090)
+            (ListenOnPort 8_090)
             Nothing -- tls configuration
             Nothing -- settings
             Nothing -- token metadata server

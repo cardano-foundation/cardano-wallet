@@ -949,7 +949,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         dummyPool = KeyHash
             "00000000000000000000000000000000000000000000000000000001"
         certs =
-            [ ShelleyTxCertDelegCert $ ShelleyRegCert $ dummyStakeKey
+            [ ShelleyTxCertDelegCert $ ShelleyRegCert dummyStakeKey
             , ShelleyTxCertDelegCert $ ShelleyDelegCert dummyStakeKey dummyPool
             ]
 
