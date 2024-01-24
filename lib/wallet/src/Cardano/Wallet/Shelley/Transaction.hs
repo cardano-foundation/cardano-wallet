@@ -287,8 +287,7 @@ data TxPayload era = TxPayload
     }
 
 constructUnsignedTx
-    :: forall era
-     . IsRecentEra era
+    :: forall era. ()
     => RecentEra era
     -> Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate])
@@ -664,8 +663,7 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
 -- in separate step.
 --
 mkUnsignedTransaction
-    :: forall era
-     . Write.IsRecentEra era
+    :: forall era. ()
     => Write.RecentEra era
     -> NetworkId
     -> Either XPub (Maybe (Script KeyHash))
@@ -774,7 +772,7 @@ mkDelegationCertificates da cred =
 --
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
-    :: forall era. Write.IsRecentEra era
+    :: forall era. ()
     => Write.RecentEra era
     -> (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
@@ -805,6 +803,7 @@ mkUnsignedTx
     refScriptM = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx
     $ fmap removeDummyInput
+    $ Write.withRecentEra era
     $ Cardano.createAndValidateTransactionBody
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
