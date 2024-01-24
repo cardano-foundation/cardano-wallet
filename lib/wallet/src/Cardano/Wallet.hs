@@ -2468,8 +2468,7 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall n era
-     . (Write.IsRecentEra era, HasSNetworkId n)
+    :: forall n era. HasSNetworkId n
     => Write.RecentEra era
     -> DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
