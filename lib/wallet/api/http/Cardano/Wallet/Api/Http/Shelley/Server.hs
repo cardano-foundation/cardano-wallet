@@ -3528,10 +3528,9 @@ balanceTransaction
                 (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
   where
     parsePartialTx
-        :: Write.IsRecentEra era
-        => Write.RecentEra era
+        :: Write.RecentEra era
         -> Handler (Write.PartialTx era)
-    parsePartialTx era = do
+    parsePartialTx era = Write.withRecentEra era $ do
         let externalUTxO
                 = Write.utxoFromTxOutsInRecentEra era
                 $ map fromExternalInput
