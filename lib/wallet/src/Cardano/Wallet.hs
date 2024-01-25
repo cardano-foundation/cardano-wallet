@@ -2338,8 +2338,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
 buildTransactionPure
     :: forall s era.
-        ( Write.IsRecentEra era
-        , WalletFlavor s
+        ( WalletFlavor s
         , Excluding '[SharedKey] (KeyOf s)
         , HasSNetworkId (NetworkOf s)
         )
@@ -2357,10 +2356,10 @@ buildTransactionPure
         (Write.Tx era, s)
 buildTransactionPure
     era wallet timeTranslation utxo changeAddrGen pparams preSelection txCtx
-    = do
+    = Write.withRecentEra era $ do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
-            mkUnsignedTransaction (recentEra @era)
+            mkUnsignedTransaction era
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
