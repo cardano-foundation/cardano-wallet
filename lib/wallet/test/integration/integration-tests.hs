@@ -37,14 +37,14 @@ import System.Environment
     ( lookupEnv
     )
 import Test.Hspec.Core.Spec
-    ( describe
+    ( SpecM
+    , describe
     , parallel
     , sequential
     )
 import Test.Hspec.Extra
     ( aroundAll
     , hspecMain
-    , it
     )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -80,8 +80,9 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir (tr, tracers) -> do
     localClusterEra <- Cluster.clusterEraFromEnv
-    let noConway = ignoreInConway localClusterEra
-        noBabbage = ignoreInBabbage localClusterEra
+    let _noConway, _noBabbage :: SpecM a () -> SpecM a ()
+        _noConway = ignoreInConway localClusterEra
+        _noBabbage = ignoreInBabbage localClusterEra
         testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
     testDataDir <-
         FileOf . fromMaybe "."
@@ -92,13 +93,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
             $ parallel
             $ describe "Miscellaneous CLI tests" MiscellaneousCLI.spec
 
-        noBabbage
-            $ aroundAll (withContext testingCtx)
-            $ describe "We can start the conway cluster"
-            $ it "doing nothing"
-            $ \_ctx -> pure ()
-
-        noConway $ aroundAll (withContext testingCtx) $ do
+        aroundAll (withContext testingCtx) $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n
