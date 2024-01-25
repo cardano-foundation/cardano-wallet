@@ -3501,7 +3501,7 @@ balanceTransaction
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
         let utxoIndex =
-                Write.constructUTxOIndex $
+                Write.constructUTxOIndex era $
                 Write.fromWalletUTxO utxo
         partialTx <- parsePartialTx era
         balancedTx <- liftHandler

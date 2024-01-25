@@ -2236,7 +2236,7 @@ balanceTx
                 partialTx
         pure transactionInEra
   where
-    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
+    utxoIndex = constructUTxOIndex recentEra $ fromWalletUTxO utxo
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -2260,7 +2260,7 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
             (DummyChangeState 0)
             partialTx
   where
-    utxoIndex = constructUTxOIndex @era $ fromWalletUTxO utxo
+    utxoIndex = constructUTxOIndex recentEra $ fromWalletUTxO utxo
 
 deserializeBabbageTx :: ByteString -> Tx Write.BabbageEra
 deserializeBabbageTx = fromCardanoApiTx @BabbageEra . either (error . show) id

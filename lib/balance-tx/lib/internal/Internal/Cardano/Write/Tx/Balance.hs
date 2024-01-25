@@ -479,9 +479,10 @@ data UTxOIndex era = UTxOIndex
 
 constructUTxOIndex
     :: forall era. IsRecentEra era
-    => UTxO era
+    => RecentEra era
+    -> UTxO era
     -> UTxOIndex era
-constructUTxOIndex ledgerUTxO =
+constructUTxOIndex _era ledgerUTxO =
     UTxOIndex {walletUTxOIndex, ledgerUTxO}
   where
     walletUTxOIndex =

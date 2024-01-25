@@ -2365,7 +2365,7 @@ buildTransactionPure
                 txCtx
                 (Left preSelection)
     let utxoIndex =
-            Write.constructUTxOIndex @era $
+            Write.constructUTxOIndex era $
             Write.fromWalletUTxO utxo
     withExceptT Left $
         balanceTransaction @_ @_ @s
@@ -3000,7 +3000,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
             evaluate
-                $ Write.constructUTxOIndex @era
+                $ Write.constructUTxOIndex recentEra
                 $ Write.fromWalletUTxO
                 $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
