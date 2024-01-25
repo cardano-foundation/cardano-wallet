@@ -2188,7 +2188,6 @@ buildAndSignTransactionPure
        , IsOurs s RewardAccount
        , IsOurs s Address
        , WalletFlavor s
-       , Write.IsRecentEra era
        , k ~ KeyOf s
        , CredFromOf s ~ 'CredFromKeyK
        , Excluding '[SharedKey] k
@@ -2243,7 +2242,10 @@ buildAndSignTransactionPure
             (RootCredentials rootKey passphrase)
             (wallet ^. #utxo)
             Nothing
-            (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
+            (Write.withRecentEra era
+                $ sealedTxFromCardano
+                $ inAnyCardanoEra unsignedBalancedTx
+            )
 
         ( tx
             , _tokenMapWithScripts1
@@ -2288,7 +2290,10 @@ buildAndSignTransactionPure
         }
   where
     wF = walletFlavor @s
-    anyCardanoEra = Cardano.AnyCardanoEra $ Write.cardanoEra @era
+    anyCardanoEra
+        = Write.withRecentEra era
+        $ Cardano.AnyCardanoEra
+        $ Write.cardanoEraFromRecentEra era
 
 buildTransaction
     :: forall s era.
