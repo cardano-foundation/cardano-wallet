@@ -224,6 +224,7 @@ import Internal.Cardano.Write.Tx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
     , maxScriptExecutionCost
+    , withRecentEra
     )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
     ( Selection
@@ -503,10 +504,7 @@ toWalletUTxO (UTxO m) = W.UTxO
     $ Map.map (toWalletTxOut (recentEra @era)) m
 
 balanceTransaction
-    :: forall era m changeState.
-        ( MonadRandom m
-        , IsRecentEra era
-        )
+    :: forall era m changeState. MonadRandom m
     => RecentEra era
     -> PParams era
     -- Protocol parameters. Can be retrieved via Local State Query to a
@@ -533,7 +531,7 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTransaction
-    _era
+    era
     pp
     timeTranslation
     utxoAssumptions
@@ -541,7 +539,7 @@ balanceTransaction
     genChange
     s
     partialTx
-    = do
+    = withRecentEra era $ do
     let adjustedPartialTx = flip (over #tx) partialTx $
             assignMinimalAdaQuantitiesToOutputsWithoutAda pp
         balanceWith strategy =
