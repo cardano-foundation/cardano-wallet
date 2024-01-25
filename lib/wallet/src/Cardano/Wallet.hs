@@ -2291,7 +2291,6 @@ buildAndSignTransactionPure
 buildTransaction
     :: forall s era.
         ( WalletFlavor s
-        , Write.IsRecentEra era
         , AddressBookIso s
         , HasSNetworkId (NetworkOf s)
         , Excluding '[SharedKey] (KeyOf s)
@@ -2306,7 +2305,7 @@ buildTransaction
     -- ^ payment outputs
     -> IO (Write.Tx era, Wallet s)
 buildTransaction era DBLayer{..} timeTranslation changeAddrGen
-    protocolParameters txCtx paymentOuts = do
+    protocolParameters txCtx paymentOuts = Write.withRecentEra era $ do
     stdGen <- initStdGen
     atomically $ do
         wallet <- readDBVar walletState <&> WalletState.getLatest
