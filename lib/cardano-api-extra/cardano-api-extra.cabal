@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version:      3.4
 name:               cardano-api-extra
 version:            2023.12.18
 synopsis:           Useful extensions to the Cardano API.
@@ -46,10 +46,12 @@ library
     , cardano-crypto-class
     , cardano-crypto-test
     , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test
+    , cardano-ledger-api
     , cardano-ledger-byron-test
     , cardano-ledger-core
+    , cardano-ledger-core:testlib
     , cardano-ledger-shelley
+    , cardano-ledger-conway:testlib
     , cardano-strict-containers
     , cardano-wallet-test-utils
     , containers
@@ -57,6 +59,7 @@ library
     , int-cast
     , iproute
     , network
+    , plutus-ledger-api:plutus-ledger-api-testlib
     , QuickCheck
     , quickcheck-instances
     , random
