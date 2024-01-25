@@ -2214,6 +2214,7 @@ buildAndSignTransactionPure
     (unsignedBalancedTx, updatedWalletState) <- lift $
         first Write.toCardanoApiTx <$>
         buildTransactionPure @s @era
+            recentEra
             wallet
             timeTranslation
             utxoIndex
@@ -2322,6 +2323,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @era
+                recentEra
                 wallet
                 timeTranslation
                 utxo
@@ -2341,7 +2343,8 @@ buildTransactionPure
         , Excluding '[SharedKey] (KeyOf s)
         , HasSNetworkId (NetworkOf s)
         )
-    => Wallet s
+    => Write.RecentEra era
+    -> Wallet s
     -> TimeTranslation
     -> UTxO
     -> ChangeAddressGen s
@@ -2353,7 +2356,7 @@ buildTransactionPure
         (Rand StdGen)
         (Write.Tx era, s)
 buildTransactionPure
-    wallet timeTranslation utxo changeAddrGen pparams preSelection txCtx
+    era wallet timeTranslation utxo changeAddrGen pparams preSelection txCtx
     = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
@@ -2367,7 +2370,7 @@ buildTransactionPure
             Write.fromWalletUTxO utxo
     withExceptT Left $
         balanceTransaction @_ @_ @s
-            recentEra
+            era
             pparams
             timeTranslation
             (utxoAssumptionsForWallet (walletFlavor @s))
