@@ -33,6 +33,14 @@ integration:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   nix shell '.#cardano-wallet' -c cabal test integration
 
+babbage-integration-tests-cabal-no-wallet-match match:
+  echo "Running integration tests without cardano-wallet exe compiled"
+  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=test/data \
+  LOCAL_CLUSTER_ERA=babbage \
+  TESTS_RETRY_FAILED=1 \
+  cabal test integration -O0 -v0 --test-options '--match="{{match}}"'
+
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
   nix run '.#cardano-wallet-e2e' -- preprod \
