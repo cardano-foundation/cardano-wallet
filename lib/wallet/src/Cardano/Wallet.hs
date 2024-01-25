@@ -2296,7 +2296,8 @@ buildTransaction
         , HasSNetworkId (NetworkOf s)
         , Excluding '[SharedKey] (KeyOf s)
         )
-    => DBLayer IO s
+    => Write.RecentEra era
+    -> DBLayer IO s
     -> TimeTranslation
     -> ChangeAddressGen s
     -> Write.PParams era
@@ -2304,7 +2305,7 @@ buildTransaction
     -> [TxOut]
     -- ^ payment outputs
     -> IO (Write.Tx era, Wallet s)
-buildTransaction DBLayer{..} timeTranslation changeAddrGen
+buildTransaction era DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
@@ -2323,7 +2324,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
 
         fmap (\s' -> wallet { getState = s' }) <$>
             buildTransactionPure @s @era
-                recentEra
+                era
                 wallet
                 timeTranslation
                 utxo
