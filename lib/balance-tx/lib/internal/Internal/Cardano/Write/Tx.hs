@@ -656,11 +656,10 @@ isBelowMinimumCoinForTxOut pp out =
 -- Used to have a possibility for failure when we supported Alonzo and Babbage,
 -- and could possibly become failable again with future eras.
 utxoFromTxOutsInRecentEra
-    :: forall era. IsRecentEra era
-    => RecentEra era
+    :: RecentEra era
     -> [(TxIn, TxOutInRecentEra)]
     -> Shelley.UTxO era
-utxoFromTxOutsInRecentEra era =
+utxoFromTxOutsInRecentEra era = withRecentEra era $
     Shelley.UTxO . Map.fromList . map (second (unwrapTxOutInRecentEra era))
 
 --------------------------------------------------------------------------------
