@@ -2109,7 +2109,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
     pwd walletId changeAddrGen preSelection txCtx = do
     --
     stdGen <- initStdGen
-    (Write.PParamsInAnyRecentEra _era protocolParams, timeTranslation)
+    (Write.PParamsInAnyRecentEra era protocolParams, timeTranslation)
         <- readNodeTipStateForTxWrite netLayer
     let ti = timeInterpreter netLayer
     throwOnErr <=< runExceptT $ withRootKey db walletId pwd wrapRootKeyError $
@@ -2129,6 +2129,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
                     let wallet = WalletState.getLatest s
                         utxo = availableUTxO (Set.fromList pendingTxs) wallet
                     buildAndSignTransactionPure @k @s
+                        era
                         timeTranslation
                         utxo
                         rootKey
@@ -2193,7 +2194,8 @@ buildAndSignTransactionPure
        , Excluding '[SharedKey] k
        , HasSNetworkId (NetworkOf s)
        )
-    => TimeTranslation
+    => Write.RecentEra era
+    -> TimeTranslation
     -> UTxO
     -> k 'RootK XPrv
     -> PassphraseScheme
@@ -2208,13 +2210,13 @@ buildAndSignTransactionPure
         (ExceptT (Either (ErrBalanceTx era) ErrConstructTx) (Rand StdGen))
         BuiltTx
 buildAndSignTransactionPure
-    timeTranslation utxoIndex rootKey passphraseScheme userPassphrase
+    era timeTranslation utxoIndex rootKey passphraseScheme userPassphrase
     pp txLayer changeAddrGen preSelection txCtx = do
     wallet <- get
     (unsignedBalancedTx, updatedWalletState) <- lift $
         first Write.toCardanoApiTx <$>
         buildTransactionPure @s @era
-            recentEra
+            era
             wallet
             timeTranslation
             utxoIndex
