@@ -2367,6 +2367,7 @@ buildTransactionPure
             Write.fromWalletUTxO utxo
     withExceptT Left $
         balanceTransaction @_ @_ @s
+            recentEra
             pparams
             timeTranslation
             (utxoAssumptionsForWallet (walletFlavor @s))
@@ -3017,6 +3018,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
         wrapErrBalanceTx $ calculateFeePercentiles $ do
             res <- runExceptT $
                 balanceTransaction @_ @_ @s
+                    recentEra
                     protocolParams
                     timeTranslation
                     (utxoAssumptionsForWallet (walletFlavor @s))

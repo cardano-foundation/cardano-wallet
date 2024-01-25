@@ -3511,6 +3511,7 @@ balanceTransaction
                 . fst
                 )
             $ Write.balanceTransaction
+                era
                 pp
                 timeTranslation
                 utxoAssumptions

@@ -2226,6 +2226,7 @@ balanceTx
     (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
         (transactionInEra, _nextChangeState) <-
             balanceTransaction
+                recentEra
                 protocolParameters
                 timeTranslation
                 utxoAssumptions
@@ -2250,6 +2251,7 @@ balanceTransactionWithDummyChangeState
 balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
         balanceTransaction
+            recentEra
             mockPParamsForBalancing
             dummyTimeTranslation
             utxoAssumptions

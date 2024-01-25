@@ -507,7 +507,8 @@ balanceTransaction
         ( MonadRandom m
         , IsRecentEra era
         )
-    => PParams era
+    => RecentEra era
+    -> PParams era
     -- Protocol parameters. Can be retrieved via Local State Query to a
     -- local node.
     --
@@ -532,6 +533,7 @@ balanceTransaction
     -> PartialTx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTransaction
+    _era
     pp
     timeTranslation
     utxoAssumptions
