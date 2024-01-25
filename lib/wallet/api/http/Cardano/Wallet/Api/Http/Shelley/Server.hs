@@ -3507,7 +3507,7 @@ balanceTransaction
         balancedTx <- liftHandler
             . fmap
                 ( Cardano.InAnyCardanoEra Write.cardanoEra
-                . Write.toCardanoApiTx
+                . Write.toCardanoApiTx era
                 . fst
                 )
             $ Write.balanceTransaction

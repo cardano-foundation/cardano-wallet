@@ -235,7 +235,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
             nonInputWits <> inputWits
   where
     CardanoApi.Tx (CardanoApi.TxBody txbodycontent) _keyWits
-        = toCardanoApiTx tx
+        = toCardanoApiTx recentEra tx
 
     timelockTotalWitCount :: Natural
     timelockTotalWitCount = sum $ Map.elems $ Map.unionWith

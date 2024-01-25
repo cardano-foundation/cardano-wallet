@@ -2323,7 +2323,7 @@ restrictResolution
 restrictResolution (PartialTx tx inputs redeemers timelockKeyWitnessCounts) =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO @era inputs
-        u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx @era tx))
+        u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx recentEra tx))
         inputs' = fromCardanoApiUTxO @era (CardanoApi.UTxO u')
     in
         PartialTx tx inputs' redeemers timelockKeyWitnessCounts
@@ -2781,7 +2781,7 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 inputUTxO
                 redeemers
                 timelockKeyWitnessCounts
-        | tx' <- shrinkTxBabbage (toCardanoApiTx tx)
+        | tx' <- shrinkTxBabbage (toCardanoApiTx recentEra tx)
         ]
 
 instance Arbitrary StdGenSeed  where

@@ -1936,7 +1936,7 @@ buildCoinSelectionForTransaction
   where
     Cardano.TxBody Cardano.TxBodyContent
         { txIns, txOuts, txInsCollateral, txWithdrawals } =
-            Cardano.getTxBody $ Write.toCardanoApiTx tx
+            Cardano.getTxBody $ Write.toCardanoApiTx recentEra tx
 
     resolveInput txIn = do
         (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)
@@ -2214,7 +2214,7 @@ buildAndSignTransactionPure
     pp txLayer changeAddrGen preSelection txCtx = do
     wallet <- get
     (unsignedBalancedTx, updatedWalletState) <- lift $
-        first Write.toCardanoApiTx <$>
+        first (Write.toCardanoApiTx era) <$>
         buildTransactionPure @s @era
             era
             wallet

@@ -671,7 +671,7 @@ serializeTx
     :: forall era. IsRecentEra era
     => Core.Tx era
     -> ByteString
-serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
+serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx recentEra tx
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -690,10 +690,11 @@ fromCardanoApiTx = \case
 
 toCardanoApiTx
     :: forall era. IsRecentEra era
-    => Core.Tx era
+    => RecentEra era
+    -> Core.Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
-toCardanoApiTx =
-    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
+toCardanoApiTx era =
+    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era

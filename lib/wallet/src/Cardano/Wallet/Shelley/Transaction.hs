@@ -366,7 +366,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
     let signed :: Cardano.Tx (CardanoApiEra era)
         signed =
             Write.withRecentEra era $
-            Write.toCardanoApiTx $
+            Write.toCardanoApiTx era $
             signTransaction
                 era
                 keyF
@@ -442,8 +442,9 @@ signTransaction
     Write.withRecentEra era $
     Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
  where
-    Cardano.Tx body wits = Write.withRecentEra era $
-        Write.toCardanoApiTx txToSign
+    Cardano.Tx body wits
+        = Write.withRecentEra era
+        $ Write.toCardanoApiTx era txToSign
 
     wits' = mconcat
         [ wits
@@ -636,13 +637,13 @@ withRecentEraLedgerTx
 withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
     Cardano.ConwayEra -> Just
         . InAnyCardanoEra era
-        . Write.toCardanoApiTx
+        . Write.toCardanoApiTx Write.RecentEraConway
         . f
         . Write.fromCardanoApiTx
         $ tx
     Cardano.BabbageEra -> Just
         . InAnyCardanoEra era
-        . Write.toCardanoApiTx
+        . Write.toCardanoApiTx Write.RecentEraBabbage
         . f
         . Write.fromCardanoApiTx
         $ tx
