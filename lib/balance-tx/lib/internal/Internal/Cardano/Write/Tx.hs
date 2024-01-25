@@ -679,13 +679,14 @@ serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx recentEra tx
 
 fromCardanoApiTx
     :: forall era. IsRecentEra era
-    => CardanoApi.Tx (CardanoApiEra era)
+    => RecentEra era
+    -> CardanoApi.Tx (CardanoApiEra era)
     -> Core.Tx era
-fromCardanoApiTx = \case
+fromCardanoApiTx era = \case
     CardanoApi.ShelleyTx _era tx ->
         tx
     CardanoApi.ByronTx {} ->
-        case (recentEra @era) of
+        case era of
             {}
 
 toCardanoApiTx

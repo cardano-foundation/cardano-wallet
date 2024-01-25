@@ -2263,7 +2263,9 @@ balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
     utxoIndex = constructUTxOIndex recentEra $ fromWalletUTxO utxo
 
 deserializeBabbageTx :: ByteString -> Tx Write.BabbageEra
-deserializeBabbageTx = fromCardanoApiTx @BabbageEra . either (error . show) id
+deserializeBabbageTx
+    = fromCardanoApiTx RecentEraBabbage
+    . either (error . show) id
     . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
 
 hasInsCollateral
@@ -2767,7 +2769,7 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 return (fst i, o)
         let redeemers = []
         return $ PartialTx
-            (fromCardanoApiTx tx)
+            (fromCardanoApiTx recentEra tx)
             (fromCardanoApiUTxO inputUTxO)
             (redeemers)
             mempty
@@ -2777,7 +2779,7 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
         ] <>
         [ restrictResolution $
             PartialTx
-                (fromCardanoApiTx tx')
+                (fromCardanoApiTx recentEra tx')
                 inputUTxO
                 redeemers
                 timelockKeyWitnessCounts

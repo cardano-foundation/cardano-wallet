@@ -3548,7 +3548,7 @@ balanceTransaction
             $ body ^. #transaction
 
         pure $ Write.PartialTx
-            (Write.fromCardanoApiTx tx)
+            (Write.fromCardanoApiTx era tx)
             externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
             timelockKeyWitnessCounts

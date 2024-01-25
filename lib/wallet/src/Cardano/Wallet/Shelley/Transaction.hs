@@ -378,7 +378,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                 (const Nothing)
                 addrResolver
                 inputResolver
-                (Write.fromCardanoApiTx $ Cardano.Tx unsigned [])
+                (Write.fromCardanoApiTx era $ Cardano.Tx unsigned [])
     let withResolvedInputs (tx, _, _, _, _, _) =
             tx {resolvedInputs = second Just <$> F.toList (view #inputs cs)}
     Right
@@ -440,7 +440,7 @@ signTransaction
     txToSign
     =
     Write.withRecentEra era $
-    Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
+    Write.fromCardanoApiTx era $ Cardano.makeSignedTransaction wits' body
  where
     Cardano.Tx body wits
         = Write.withRecentEra era
@@ -639,13 +639,13 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
         . InAnyCardanoEra era
         . Write.toCardanoApiTx Write.RecentEraConway
         . f
-        . Write.fromCardanoApiTx
+        . Write.fromCardanoApiTx Write.RecentEraConway
         $ tx
     Cardano.BabbageEra -> Just
         . InAnyCardanoEra era
         . Write.toCardanoApiTx Write.RecentEraBabbage
         . f
-        . Write.fromCardanoApiTx
+        . Write.fromCardanoApiTx Write.RecentEraBabbage
         $ tx
     Cardano.AlonzoEra
         -> Nothing
