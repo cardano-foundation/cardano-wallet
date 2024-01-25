@@ -689,12 +689,11 @@ fromCardanoApiTx = \case
             {}
 
 toCardanoApiTx
-    :: forall era. IsRecentEra era
-    => RecentEra era
+    :: RecentEra era
     -> Core.Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
 toCardanoApiTx era =
-    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra era)
+    withRecentEra era $ CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era
