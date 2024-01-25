@@ -58,7 +58,17 @@ pkgs.stdenv.mkDerivation {
   exeName = lib.getName exe.name;
   buildPhase = ''
     mkdir -p $out/nix-support $name
-    cp --no-preserve=timestamps --no-clobber --recursive \
+
+    # Note: On Windows, each output directory of a derivation in `exes`
+    # may contain a copy of the same DLLs — for example,
+    # the `cardano-wallet` and `bech32` derivations both contain `libffi-8.dll`.
+    # When copying all DLLs to the output directory,
+    # we silently discard duplicates, hoping that were equal anyway.
+    # If the duplicates are not equal, we may get subtle conflicts
+    # where two executables depend on slightly different DLLs with the same name.
+    # This should not happen, but this Note exists to remind us of the possibility.
+    #
+    cp --no-preserve=timestamps --update=none --recursive \
       ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} \
       $name
     chmod -R +w $name
