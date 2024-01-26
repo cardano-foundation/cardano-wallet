@@ -112,8 +112,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/IntersectMBO/cardano-addresses
-    tag: f9c97a4926f4b9c613dd074fbbe630113cda4987
-    --sha256: 1hc21ygi6bpwkq1wwy0rfaga8svj4siiny6klns82l85dyj98myl
+    tag: 126964483d188c2362393d2a6eea8c65dfc43097
+    --sha256: 1w152imj28ap5dfdc8x9ly0cy7dn500v7k63vw11f70gvgg6x7my
     subdir: command-line
             core
 
@@ -129,8 +129,12 @@ source-repository-package
 -- We don't want to promote this warning to an error level as it break the
 -- release build and cardano-addresses codebase is not under our control.
 package cardano-addresses-cli
-    ghc-options: -Wwarn=deprecations
+    ghc-options:
+        -Wwarn=deprecations
 
+package cardano-addresses
+    ghc-options:
+        -Wwarn=incomplete-uni-patterns
 -- END Cardano Addresses Dependency
 --------------------------------------------------------------------------------
 
