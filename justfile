@@ -64,8 +64,16 @@ integration-tests-cabal-match match:
   echo "Running integration tests with cardano-wallet exe compiled"
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   CARDANO_WALLET_TEST_DATA=test/data \
-  TESTS_RETRY_FAILED=1 \
-  cabal test integration -O0 -v0 --test-options '--match="{{match}}"'
+  cabal test integration -O0 -v0 \
+    --test-options '--match="{{match}}"'
+
+# run any integration test matching the given pattern via cabal
+integration-tests-cabal-options options:
+  echo "Running integration tests with cardano-wallet exe compiled"
+  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=test/data \
+  cabal test integration -O0 -v0 \
+    --test-options 'options'
 
 # run babbage integration tests matching the given pattern via cabal
 babbage-integration-tests-cabal-match match:

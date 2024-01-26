@@ -298,6 +298,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , noConway
     , notDelegating
     , notRetiringPools
     , pickAnAsset
@@ -577,6 +578,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
+        noConway ctx "MIR"
         (wa, _) <- rewardWallet ctx
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
         let withdrawalAmt = 1_000_000_000_000
@@ -647,7 +649,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
-
+        noConway ctx "MIR"
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -2371,6 +2373,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_02a - Cannot balance on empty wallet" $
         \ctx -> runResourceT $ do
+        noConway ctx "wrong era"
         wa <- emptyWallet ctx
         let balancePayload = Json PlutusScenario.pingPong_1
         request @ApiSerialisedTransaction
@@ -2382,6 +2385,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
         \ctx -> runResourceT $ do
+        noConway ctx "wrong era"
         wa <- fixtureWalletWith @n ctx [2 * 1_000_000]
         let balancePayload = Json PlutusScenario.pingPong_1
         rTx <- request @ApiSerialisedTransaction ctx
@@ -2579,6 +2583,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_BALANCE_05/ADP-1286 - \
         \I can balance correctly in case I need to spend my remaining ADA for fee" $
         \ctx -> runResourceT $ do
+        noConway ctx "wrong era"
         wa <- fixtureWalletWith @n ctx [3_000_000]
         -- PlutusScenario.pingPong_1 is sending out 2₳ therefore tx fee
         -- needs to be 1₳ to comply with minUTxOValue constraint
@@ -2652,8 +2657,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
+        noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
-
+        noConway ctx "wrong era"
         -- Construct tx
         let payload = Json [json|{"withdrawal": "self"}|]
         let constructEndpoint = Link.createUnsignedTransaction @'Shelley w
@@ -2956,7 +2962,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             foldM_ runStep txid steps
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
-
+        noConway ctx "certificate"
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
@@ -3303,6 +3309,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
+        noConway ctx "MIR"
         (src, _) <- rewardWallet ctx
         pool1:_ <- map (view #id . getApiT) . snd <$> unsafeRequest
             @[ApiT StakePool]
@@ -3366,6 +3373,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
+        noConway ctx "certificate"
         let amt = minUTxOValue (_mainEra ctx)
         src <- emptyWallet ctx
         wa <- fixtureWallet ctx
@@ -3490,6 +3498,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
         $ \ctx -> runResourceT $ do
+        noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
 
         pool1:_:_ <- map (view #id . getApiT) . snd
@@ -3531,6 +3540,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
         $ \ctx -> runResourceT $ do
+        noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
 
         pool1:_:_ <- map (view #id . getApiT) . snd
@@ -3586,6 +3596,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including \
         \payments, delegation, metadata, withdrawals, validity_interval" $
         \ctx -> runResourceT $ do
+        noConway ctx "certificate"
 
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
