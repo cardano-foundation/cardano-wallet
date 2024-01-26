@@ -309,7 +309,7 @@ instance Malformed (PathParam (ApiT AssetName)) where
 instance Malformed (BodyParam ApiPostPolicyKeyData) where
     malformed = first BodyParam <$>
         [ ( ""
-          , "not enough input"
+          , "Unexpected end-of-input, expecting JSON value"
           )
         , ( Aeson.encode [aesonQQ|
             { "passphrase": 100
@@ -326,7 +326,7 @@ instance Malformed (BodyParam ApiPostPolicyKeyData) where
 instance Malformed (BodyParam ApiWalletSignData) where
     malformed = first BodyParam <$>
         [ ( ""
-          , "not enough input"
+          , "Unexpected end-of-input, expecting JSON value"
           )
         , ( Aeson.encode [aesonQQ|
             { "metadata": null
@@ -431,8 +431,8 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing SomeByronWallet failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing SomeByronWallet failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{style = \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing SomeByronWallet failed, expected Object, but encountered String")
+            , ("{style = \"random\"}", "Unexpected 'style = \\'random\\'}', expecting record key literal or }")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ -- style
@@ -598,8 +598,8 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing postData failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing postData failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{style = \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing postData failed, expected Object, but encountered String")
+            , ("{style = \"random\"}", "Unexpected 'style = \\'random\\'}', expecting record key literal or }")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ|
@@ -932,8 +932,8 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing PutPassphrase data failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing PutPassphrase data failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{old_passphrase = \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing PutPassphrase data failed, expected Object, but encountered String")
+            , ("{old_passphrase = \"random\"}", "Unexpected 'old_passphrase = \\'random\\'}', expecting record key literal or }")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ|
@@ -1104,8 +1104,8 @@ instance Malformed (BodyParam ByronWalletPutPassphraseData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{old_passphrase = \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered String")
+            , ("{old_passphrase = \"random\"}", "Unexpected 'old_passphrase = \\'random\\'}', expecting record key literal or }")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ|
@@ -1151,8 +1151,8 @@ instance Malformed (BodyParam ApiWalletPutData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutData(ApiWalletPutData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutData(ApiWalletPutData) failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutData(ApiWalletPutData) failed, expected Object, but encountered String")
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid =
             first (BodyParam . Aeson.encode) <$>
@@ -1179,8 +1179,8 @@ instance Malformed (BodyParam ApiWalletPutDataExtended) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutDataExtended(ApiWalletPutDataExtended) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutDataExtended(ApiWalletPutDataExtended) failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPutDataExtended(ApiWalletPutDataExtended) failed, expected Object, but encountered String")
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid =
             first (BodyParam . Aeson.encode) <$>
@@ -1216,8 +1216,8 @@ instance Malformed (BodyParam ApiSharedWalletPostData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing postData failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing postData failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing postData failed, expected Object, but encountered String")
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid =
             first (BodyParam . Aeson.encode) <$>
@@ -1244,9 +1244,9 @@ instance Malformed (BodyParam ApiSharedWalletPatchData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing ApiSharedWalletPatchData failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing ApiSharedWalletPatchData failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("\"slot_number : \"random\"}", "Error in $: parsing ApiSharedWalletPatchData failed, expected Object, but encountered String")
             , ("{\"script_template_update\": \"\"}", "Error in $: Cosigner should be of form: cosigner#num")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          exampleCosignerXPub =
              "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esh\
@@ -1273,8 +1273,8 @@ instance Malformed (BodyParam ApiWalletPassphrase) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPassphrase(ApiWalletPassphrase) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPassphrase(ApiWalletPassphrase) failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPassphrase(ApiWalletPassphrase) failed, expected Object, but encountered String")
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ| { "passphrase": #{nameTooLong} }|]
@@ -1297,8 +1297,8 @@ instance Malformed (BodyParam ApiPostAccountKeyData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, expected Object, but encountered String")
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ| { "passphrase": #{nameTooLong}, "format": "extended" }|]
@@ -1339,8 +1339,8 @@ instance Malformed (BodyParam ApiPostAccountKeyDataWithPurpose) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyDataWithPurpose(ApiPostAccountKeyDataWithPurpose) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyDataWithPurpose(ApiPostAccountKeyDataWithPurpose) failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"name : \"random\"}", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyDataWithPurpose(ApiPostAccountKeyDataWithPurpose) failed, expected Object, but encountered String")
+            , ("{\"name : \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ| { "passphrase": #{nameTooLong}, "format": "extended" }|]
@@ -1381,10 +1381,10 @@ instance Malformed (BodyParam (ApiSelectCoinsData ('Testnet pm))) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing DelegationAction failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing DelegationAction failed, expected Object, but encountered String")
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
-            , ("join", "I couldn't understand the content of your message. If your message is intended to be in JSON format, please check that the JSON is valid.")
-            , ("quit", msgJsonInvalid)
+            , ("\"slot_number : \"random\"}", "Error in $: parsing DelegationAction failed, expected Object, but encountered String")
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
+            , ("join", "Unexpected 'join', expecting JSON value")
+            , ("quit", "Unexpected 'quit', expecting JSON value")
             ]
          jsonValid = (first (BodyParam . Aeson.encode) <$> paymentCases) <> jsonValidAction
          jsonValidAction = first (BodyParam . Aeson.encode) <$>
@@ -1431,7 +1431,7 @@ instance Malformed (BodyParam ApiSignTransactionPostData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, expected Object, but encountered Number")
             , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSignTransactionPostData(ApiSignTransactionPostData) failed, expected Object, but encountered String")
-            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": \"\", \"random\"}", "Unexpected '}', expecting :")
             , ("{\"transaction\": \"lah\", \"passphrase\": \"Secure Passphrase\"}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
             , ("{\"transaction\": 1020344, \"passphrase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
             , ("{\"transaction\": { \"body\": 1020344 }, \"passphrase\": \"Secure Passphrase\"}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
@@ -1480,7 +1480,7 @@ instance Malformed (BodyParam ApiDecodeTransactionPostData) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiDecodeTransactionPostData(ApiDecodeTransactionPostData) failed, expected Object, but encountered Number")
             , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiDecodeTransactionPostData(ApiDecodeTransactionPostData) failed, expected Object, but encountered String")
-            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": \"\", \"random\"}", "Unexpected '}', expecting :")
             , ("{\"transaction\": \"lah\", \"decrypt_metadata\":{\"passphrase\": \"Secure Passphrase\"}}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
             , ("{\"transaction\": 1020344, \"decrypt_metadata\":{\"passphrase\": \"Secure Passphrase\"}}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
             , ("{\"transaction\": { \"body\": 1020344 }, \"decrypt_metadata\":{\"passphrase\": \"Secure Passphrase\"}}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Object")
@@ -1525,7 +1525,7 @@ instance Malformed (BodyParam ApiSerialisedTransaction) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing ApiSerialisedTransaction object failed, expected Object, but encountered Number")
             , ("\"hello\"", "Error in $: parsing ApiSerialisedTransaction object failed, expected Object, but encountered String")
-            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": \"\", \"random\"}", "Unexpected '}', expecting :")
             , ("{\"transaction\": 1020344}", "Error in $: parsing 'Base64 ByteString failed, expected String, but encountered Number")
             , ("{\"transaction\": { \"body\": 1020344 }}", "Error in $: parsing 'Base64 ByteString failed, expected String, but encountered Object")
             ]
@@ -1549,7 +1549,7 @@ instance Malformed (BodyParam (PostTransactionOldData ('Testnet pm))) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionOldData(PostTransactionOldData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionOldData(PostTransactionOldData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases ++
             [ -- passphrase
@@ -1588,8 +1588,8 @@ instance Malformed (BodyParam (PostTransactionFeeOldData ('Testnet pm))) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionFeeOldData(PostTransactionFeeOldData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionFeeOldData(PostTransactionFeeOldData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.PostTransactionFeeOldData(PostTransactionFeeOldData) failed, expected Object, but encountered String")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
@@ -1599,7 +1599,7 @@ instance Malformed (BodyParam (ApiConstructTransactionData ('Testnet pm))) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiConstructTransactionData(ApiConstructTransactionData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiConstructTransactionData(ApiConstructTransactionData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases ++
             [
@@ -1673,7 +1673,7 @@ instance Malformed (BodyParam (ApiBalanceTransactionPostData ('Testnet pm))) whe
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiBalanceTransactionPostData(ApiBalanceTransactionPostData) failed, expected Object, but encountered Number")
             , ("\"hello\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiBalanceTransactionPostData(ApiBalanceTransactionPostData) failed, expected Object, but encountered String")
-            , ("{\"transaction\": \"\", \"random\"}", msgJsonInvalid)
+            , ("{\"transaction\": \"\", \"random\"}", "Unexpected '}', expecting :")
             , ("{\"transaction\": \"lah\"}", "Error in $.transaction: Parse error. Expecting Base64-encoded format.")
             , ("{\"transaction\": 1020344,\"inputs\":[]}", "Error in $.transaction: parsing 'Base64 ByteString failed, expected String, but encountered Number")
             ]
@@ -1693,8 +1693,8 @@ instance Malformed (BodyParam (ApiWalletMigrationPlanPostData ('Testnet pm))) wh
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPlanPostData(ApiWalletMigrationPlanPostData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPlanPostData(ApiWalletMigrationPlanPostData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPlanPostData(ApiWalletMigrationPlanPostData) failed, expected Object, but encountered String")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> createMigrationPlanDataCases
 
@@ -1704,8 +1704,8 @@ instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
 
@@ -1715,8 +1715,8 @@ instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "user"))
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
 
@@ -1726,8 +1726,8 @@ instance Malformed (BodyParam (ApiPutAddressesData ('Testnet pm))) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, expected Object, but encountered String")
-            , ("{\"payments : [], \"random\"}", msgJsonInvalid)
-            , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
+            , ("{\"payments : [], \"random\"}", "Unexpected 'random\\'}', expecting :")
+            , ("\"slot_number : \"random\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiPutAddressesData(ApiPutAddressesData) failed, expected Object, but encountered String")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> putAddressesDataCases
 
@@ -1737,7 +1737,7 @@ instance Malformed (BodyParam ApiSlotReference) where
          jsonInvalid = first BodyParam <$>
             [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSlotReference(ApiSlotReference) failed, expected Object, but encountered Number")
             , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSlotReference(ApiSlotReference) failed, expected Object, but encountered String")
-            , ("{\"slot_number : \"random\"}", msgJsonInvalid)
+            , ("{\"slot_number : \"random\"}", "Unexpected 'random\\'}', expecting :")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$>
@@ -1892,9 +1892,7 @@ instance Malformed (Header "Accept" OctetStream) where
 -- Test Data
 --
 msgJsonInvalid :: ExpectedError
-msgJsonInvalid = "I couldn't understand the content of your message. \
-    \If your message is intended to be in JSON format, please check that \
-    \the JSON is valid."
+msgJsonInvalid = "Unexpected '}'"
 
 addrPlaceholder :: Text
 addrPlaceholder = "addr_test1vquxc75xmzzy7sy955pyz4tqg0ycgttjcv2u39ay929q2yqul2q5p"
