@@ -899,7 +899,7 @@ walletId =
 --
 minUTxOValue :: ApiEra -> Natural
 minUTxOValue e
-    | e >= ApiBabbage =   978_370
+    | e >= ApiBabbage =   969_750
     | e >= ApiAlonzo  =   999_978
     | otherwise       = 1_000_000
 

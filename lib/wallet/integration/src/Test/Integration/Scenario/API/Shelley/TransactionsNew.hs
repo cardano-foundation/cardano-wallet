@@ -4100,10 +4100,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         -- having 80-byte (10-word) asset's additional burden
         --
         let minUtxoWithAsset = minutxo +
-                -- The extra amount is dependent on the era:
-                if _mainEra ctx >= ApiBabbage
-                then 193_950
-                else 344_820 -- = 34_482 lovelace per word * 10 words
+                193_950
 
         eventually
             "Wallet balance is decreased by fee and adjusted minimum UTxO and \
