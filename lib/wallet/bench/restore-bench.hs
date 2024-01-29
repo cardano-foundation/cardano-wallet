@@ -11,10 +11,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NoMonoLocalBinds #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
@@ -420,7 +420,12 @@ cardanoRestoreBench tr c socketFile = do
                     True -- Write progress to .timelog file
                     (unsafeMkPercentage 1)
                     benchmarksRnd
-        let benchRestoreSeqWithOwnership p pipelinings = do
+        let benchRestoreSeqWithOwnership
+                :: forall (p :: Nat) . KnownNat p
+                => Proxy p
+                -> PipeliningStrategy (CardanoBlock StandardCrypto)
+                -> IO SomeBenchmarkResults
+            benchRestoreSeqWithOwnership p pipelinings = do
                 let benchname = showPercentFromPermyriad p <> "-percent-seq"
                 bench_restoration
                     pipelinings

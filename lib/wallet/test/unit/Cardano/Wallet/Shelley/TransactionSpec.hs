@@ -13,6 +13,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
@@ -46,7 +47,6 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     , InAnyCardanoEra (..)
-    , IsCardanoEra (..)
     )
 import Cardano.Api.Gen
     ( genTx
@@ -253,6 +253,10 @@ import Data.Ratio
 import Data.Semigroup
     ( mtimesDefault
     )
+import Data.Type.Equality
+    ( (:~:) (..)
+    , testEquality
+    )
 import Data.Word
     ( Word16
     , Word64
@@ -308,7 +312,6 @@ import Test.QuickCheck
     , forAll
     , forAllShow
     , frequency
-    , label
     , oneof
     , property
     , scale
@@ -321,8 +324,6 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Extra
     ( chooseNatural
-    , genNonEmpty
-    , shrinkNonEmpty
     )
 import Test.QuickCheck.Gen
     ( Gen (..)
@@ -337,10 +338,10 @@ import Test.Utils.Pretty
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Error as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Babbage.Core as Babbage
 import qualified Cardano.Ledger.Babbage.Core as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
@@ -393,38 +394,37 @@ spec = describe "TransactionSpec" $ do
             prop_signTransaction_preservesScriptIntegrity
 
 spec_forAllRecentErasPendingConway
-    :: Testable prop => String -> (AnyCardanoEra -> prop) -> Spec
+    :: Testable prop => String -> (AnyRecentEra -> prop) -> Spec
 spec_forAllRecentErasPendingConway description p =
-    describe description $
-    forAllRecentEras'
-        $ \(AnyCardanoEra era) ->
-            if AnyCardanoEra era == AnyCardanoEra ConwayEra
-            then it (show era) $ pendingWith "TODO: Conway"
-            else it (show era) $ property $ p (AnyCardanoEra era)
-  where
-    forAllRecentEras' :: (AnyCardanoEra -> Spec) -> Spec
-    forAllRecentEras' f = forAllRecentEras $ \(AnyRecentEra era) ->
-        f $ AnyCardanoEra $ Write.cardanoEraFromRecentEra era
+    describe description
+    $ forAllRecentEras
+    $ \(AnyRecentEra recentEra) ->
+        case recentEra of
+            Write.RecentEraBabbage ->
+                it (show recentEra) $ property $ p (AnyRecentEra recentEra)
+            Write.RecentEraConway ->
+                it (show recentEra) $ pendingWith "TODO: Conway"
 
 instance Arbitrary SealedTx where
     arbitrary = sealedTxFromCardano <$> genTx
 
 showTransactionBody
-    :: forall era
-     . IsCardanoEra era
-    => Cardano.TxBodyContent Cardano.BuildTx era
+    :: RecentEra era
+    -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
     -> String
-showTransactionBody =
-    either Cardano.displayError show . Cardano.createAndValidateTransactionBody
+showTransactionBody recentEra =
+    either Cardano.displayError show
+        . Cardano.createAndValidateTransactionBody
+            (Write.shelleyBasedEraFromRecentEra recentEra)
 
 unsafeMakeTransactionBody
-    :: forall era
-     . IsCardanoEra era
-    => Cardano.TxBodyContent Cardano.BuildTx era
-    -> Cardano.TxBody era
-unsafeMakeTransactionBody =
+    :: RecentEra era
+    -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
+    -> Cardano.TxBody (Write.CardanoApiEra era)
+unsafeMakeTransactionBody recentEra =
     either (error . Cardano.displayError) id
         . Cardano.createAndValidateTransactionBody
+            (Write.shelleyBasedEraFromRecentEra recentEra)
 
 stakeAddressForKey
     :: SL.Network
@@ -453,26 +453,13 @@ withdrawalForKey net pubkey wdrlAmt =
     , Cardano.BuildTxWith $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
     )
 
-whenSupportedInEra
-    :: forall era a. (CardanoEra era -> Maybe a)
-    -> CardanoEra era
-    -> (a -> Property)
-    -> Property
-whenSupportedInEra test era f =
-    case test era of
-        Nothing ->
-            True
-            & label ("feature not supported in " <> show era)
-        Just supported ->
-            f supported
-
 mkCredentials
     :: (XPrv, Passphrase "encryption")
     -> ClearCredentials ShelleyKey
 mkCredentials (pk, hpwd) = RootCredentials (liftRawKey ShelleyKeyS pk) hpwd
 
 prop_signTransaction_addsRewardAccountKey
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
@@ -482,11 +469,14 @@ prop_signTransaction_addsRewardAccountKey
     -- ^ Amount to withdraw
     -> Property
 prop_signTransaction_addsRewardAccountKey
-    (AnyCardanoEra era) rootXPrv utxo wdrlAmt =
-    withMaxSuccess 10 $
-    whenSupportedInEra Cardano.withdrawalsSupportedInEra era $
-    \(supported :: Cardano.WithdrawalsSupportedInEra era) -> do
+        (AnyRecentEra (recentEra :: RecentEra era)) rootXPrv utxo wdrlAmt =
+    withMaxSuccess 10 $ do
         let
+            shelleyEra :: Cardano.ShelleyBasedEra (Write.CardanoApiEra era)
+            shelleyEra = Write.shelleyBasedEraFromRecentEra recentEra
+
+            era = Write.cardanoEraFromRecentEra recentEra
+
             creds@(RootCredentials pk hpwd) = mkCredentials rootXPrv
 
             rawRewardK :: (XPrv, Passphrase "encryption")
@@ -505,19 +495,19 @@ prop_signTransaction_addsRewardAccountKey
                 ]
 
             addWithdrawals
-                :: Cardano.TxBodyContent Cardano.BuildTx era
-                -> Cardano.TxBodyContent Cardano.BuildTx era
+                :: Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
+                -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
             addWithdrawals txBodyContent = txBodyContent
                 { Cardano.txWithdrawals =
                     case Cardano.txWithdrawals txBodyContent of
                         Cardano.TxWithdrawalsNone ->
-                            Cardano.TxWithdrawals supported extraWdrls
+                            Cardano.TxWithdrawals shelleyEra extraWdrls
                         Cardano.TxWithdrawals _ wdrls ->
-                            Cardano.TxWithdrawals supported $
+                            Cardano.TxWithdrawals shelleyEra $
                             wdrls <> extraWdrls
                 }
 
-        withBodyContent era addWithdrawals $ \(txBody, wits) -> do
+        withBodyContent recentEra addWithdrawals $ \(txBody, wits) -> do
             let
                 tl = testTxLayer
 
@@ -525,8 +515,6 @@ prop_signTransaction_addsRewardAccountKey
                 sealedTx' = signTransaction ShelleyKeyS
                     tl (AnyCardanoEra era) AnyWitnessCountCtx
                     (const Nothing) Nothing creds utxo Nothing sealedTx
-
-                recentEra = fromJust $ Write.toRecentEra era
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
@@ -555,7 +543,7 @@ genPassphrase range = do
     return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
 prop_signTransaction_addsExtraKeyWitnesses
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
@@ -565,11 +553,16 @@ prop_signTransaction_addsExtraKeyWitnesses
     -- ^ Keys
     -> Property
 prop_signTransaction_addsExtraKeyWitnesses
-    (AnyCardanoEra era) rootK utxo extraKeys =
-    withMaxSuccess 10 $
-    whenSupportedInEra Cardano.extraKeyWitnessesSupportedInEra era $
-    \(supported :: Cardano.TxExtraKeyWitnessesSupportedInEra era) -> do
+        (AnyRecentEra (recentEra :: RecentEra era)) rootK utxo extraKeys =
+    withMaxSuccess 10 $ do
     let
+        alonzoOnwards :: Cardano.AlonzoEraOnwards (Write.CardanoApiEra era)
+        alonzoOnwards = case recentEra of
+            Write.RecentEraBabbage -> Cardano.AlonzoEraOnwardsBabbage
+            Write.RecentEraConway -> Cardano.AlonzoEraOnwardsConway
+
+        era = Write.cardanoEraFromRecentEra recentEra
+
         keys
             :: (XPrv, Passphrase "encryption")
             -> Cardano.SigningKey Cardano.PaymentExtendedKey
@@ -584,14 +577,14 @@ prop_signTransaction_addsExtraKeyWitnesses
             ) <$> extraKeys
 
         addExtraWits
-            :: Cardano.TxBodyContent Cardano.BuildTx era
-            -> Cardano.TxBodyContent Cardano.BuildTx era
+            :: Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
+            -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
         addExtraWits txBodyContent = txBodyContent
             { Cardano.txExtraKeyWits =
-                Cardano.TxExtraKeyWitnesses supported hashes
+                Cardano.TxExtraKeyWitnesses alonzoOnwards hashes
             }
 
-    withBodyContent era addExtraWits $ \(txBody, wits) -> do
+    withBodyContent recentEra addExtraWits $ \(txBody, wits) -> do
         let
             tl = testTxLayer
 
@@ -606,18 +599,12 @@ prop_signTransaction_addsExtraKeyWitnesses
                 Nothing
                 sealedTx
 
-            recentEra = fromJust $ Write.toRecentEra era
-
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
             expectedWits = withCardanoApiConstraints era $
                 InAnyCardanoEra era
                     . mkShelleyWitness recentEra txBody <$> extraKeys
 
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
-
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genNonEmpty arbitrary
-    shrink = shrinkNonEmpty shrink
 
 keyToAddress :: (XPrv, Passphrase "encryption") -> Address
 keyToAddress (xprv, _pwd) =
@@ -665,21 +652,23 @@ lookupFnFromKeys keys addr =
         Map.lookup addr addrMap
 
 withBodyContent
-    :: IsCardanoEra era
-    => CardanoEra era
+    :: era ~ Write.CardanoApiEra era'
+    => RecentEra era'
     ->  ( Cardano.TxBodyContent Cardano.BuildTx era ->
           Cardano.TxBodyContent Cardano.BuildTx era
         )
     -> ((Cardano.TxBody era, [Cardano.KeyWitness era]) -> Property)
     -> Property
-withBodyContent era modTxBody cont =
-    forAllShow (genTxBodyContent era) showTransactionBody $
+withBodyContent recentEra modTxBody cont =
+    forAllShow (genTxBodyContent era) (showTransactionBody recentEra) $
         \txBodyContent -> do
             let
                 txBodyContent' = modTxBody txBodyContent
-                txBody = unsafeMakeTransactionBody txBodyContent'
+                txBody = unsafeMakeTransactionBody recentEra txBodyContent'
 
             forAll (genWitnesses era txBody) $ \wits -> cont (txBody, wits)
+  where
+    era = Write.cardanoEraFromRecentEra recentEra
 
 checkSubsetOf :: (Eq a, Show a) => [a] -> [a] -> Property
 checkSubsetOf as bs = property
@@ -701,7 +690,7 @@ checkSubsetOf as bs = property
         showSet = pretty . fmap (show . unShowOrd) . F.toList
 
 prop_signTransaction_addsTxInWitnesses
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
@@ -709,13 +698,15 @@ prop_signTransaction_addsTxInWitnesses
     -- ^ Keys
     -> Property
 prop_signTransaction_addsTxInWitnesses
-    (AnyCardanoEra era) rootK extraKeysNE =
+    (AnyRecentEra recentEra) rootK extraKeysNE =
     withMaxSuccess 10 $ do
 
     let extraKeys = NE.toList extraKeysNE
 
     utxoFromKeys extraKeys $ \utxo -> do
         let
+            era = Write.cardanoEraFromRecentEra recentEra
+
             txIns :: [TxIn]
             txIns = Map.keys $ unUTxO utxo
 
@@ -731,13 +722,13 @@ prop_signTransaction_addsTxInWitnesses
                     . toCardanoTxIn <$> txIns
                 }
 
-        withBodyContent era addTxIns $ \(txBody, wits) -> do
+        withBodyContent recentEra addTxIns $ \(txBody, wits) -> do
             let
                 tl = testTxLayer
 
                 sealedTx = sealedTxFromCardano' $ Cardano.Tx txBody wits
                 sealedTx' = signTransaction ShelleyKeyS tl
-                    (AnyCardanoEra era)
+                    (AnyCardanoEra $ Write.cardanoEraFromRecentEra recentEra)
                     AnyWitnessCountCtx
                     (lookupFnFromKeys extraKeys)
                     Nothing
@@ -745,8 +736,6 @@ prop_signTransaction_addsTxInWitnesses
                     utxo
                     Nothing
                     sealedTx
-
-                recentEra = fromJust $ Write.toRecentEra era
 
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
@@ -756,7 +745,7 @@ prop_signTransaction_addsTxInWitnesses
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 prop_signTransaction_addsTxInCollateralWitnesses
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
@@ -764,12 +753,17 @@ prop_signTransaction_addsTxInCollateralWitnesses
     -- ^ Keys
     -> Property
 prop_signTransaction_addsTxInCollateralWitnesses
-    (AnyCardanoEra era) rootK extraKeysNE =
-    withMaxSuccess 10 $
-    whenSupportedInEra Cardano.collateralSupportedInEra era $
-    \(supported :: Cardano.CollateralSupportedInEra era) -> do
+        (AnyRecentEra (recentEra :: RecentEra era)) rootK extraKeysNE =
+    withMaxSuccess 10 $ do
+        let
+            alonzoOnwards :: Cardano.AlonzoEraOnwards (Write.CardanoApiEra era)
+            alonzoOnwards = case recentEra of
+                Write.RecentEraBabbage -> Cardano.AlonzoEraOnwardsBabbage
+                Write.RecentEraConway -> Cardano.AlonzoEraOnwardsConway
 
-        let extraKeys = NE.toList extraKeysNE
+            era = Write.cardanoEraFromRecentEra recentEra
+
+            extraKeys = NE.toList extraKeysNE
 
         utxoFromKeys extraKeys $ \utxo -> do
             let
@@ -777,15 +771,15 @@ prop_signTransaction_addsTxInCollateralWitnesses
                 txIns = Map.keys $ unUTxO utxo
 
                 addTxCollateralIns
-                    :: Cardano.TxBodyContent Cardano.BuildTx era
-                    -> Cardano.TxBodyContent Cardano.BuildTx era
+                    :: Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
+                    -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
                 addTxCollateralIns txBodyContent = txBodyContent
                     { Cardano.txInsCollateral =
-                        Cardano.TxInsCollateral supported
+                        Cardano.TxInsCollateral alonzoOnwards
                             (toCardanoTxIn <$> txIns)
                     }
 
-            withBodyContent era addTxCollateralIns $ \(txBody, wits) -> do
+            withBodyContent recentEra addTxCollateralIns $ \(txBody, wits) -> do
                 let
                     tl = testTxLayer
 
@@ -800,8 +794,6 @@ prop_signTransaction_addsTxInCollateralWitnesses
                         Nothing
                         sealedTx
 
-                    recentEra = fromJust $ Write.toRecentEra era
-
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                     expectedWits = withCardanoApiConstraints era $
                         InAnyCardanoEra era
@@ -810,7 +802,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
 prop_signTransaction_neverRemovesWitnesses
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
@@ -820,15 +812,15 @@ prop_signTransaction_neverRemovesWitnesses
     -- ^ Extra keys to form basis of address -> key lookup function
     -> Property
 prop_signTransaction_neverRemovesWitnesses
-    (AnyCardanoEra era) rootK utxo extraKeys =
+    (AnyRecentEra recentEra) rootK utxo extraKeys =
     withMaxSuccess 10 $
-    forAll (genTxInEra era) $ \tx -> do
+    forAll (genTxInEra $ Write.cardanoEraFromRecentEra recentEra) $ \tx -> do
         let
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction ShelleyKeyS tl
-                (AnyCardanoEra era)
+                (AnyCardanoEra $ Write.cardanoEraFromRecentEra recentEra)
                 AnyWitnessCountCtx
                 (lookupFnFromKeys extraKeys)
                 Nothing
@@ -845,7 +837,7 @@ prop_signTransaction_neverRemovesWitnesses
             $ witnessesBefore `checkSubsetOf` witnessesAfter
 
 prop_signTransaction_neverChangesTxBody
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
@@ -855,10 +847,12 @@ prop_signTransaction_neverChangesTxBody
     -- ^ Extra keys to form basis of address -> key lookup function
     -> Property
 prop_signTransaction_neverChangesTxBody
-    (AnyCardanoEra era) rootK utxo extraKeys =
-    withMaxSuccess 10 $
-    forAll (genTxInEra era) $ \tx -> do
+    (AnyRecentEra recentEra) rootK utxo extraKeys =
+    withMaxSuccess 10
+    $ forAll (genTxInEra $ Write.cardanoEraFromRecentEra recentEra)
+    $ \tx -> do
         let
+            era = Write.cardanoEraFromRecentEra recentEra
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' tx
@@ -884,26 +878,38 @@ prop_signTransaction_neverChangesTxBody
             bodyContentBefore = txBodyContent $ cardanoTx sealedTx
             bodyContentAfter = txBodyContent $ cardanoTx sealedTx'
 
-        bodyContentBefore == bodyContentAfter
+            equal
+                :: InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
+                -> InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
+                -> Bool
+            equal (InAnyCardanoEra era1 x1) (InAnyCardanoEra era2 x2) =
+                case era1 `testEquality` era2 of
+                    Nothing -> False
+                    Just Refl ->
+                        unsafeWithShelleyBasedEra era1
+                        $ x1 == x2
+
+        bodyContentBefore `equal` bodyContentAfter
 
 prop_signTransaction_preservesScriptIntegrity
-    :: AnyCardanoEra
+    :: AnyRecentEra
     -- ^ Era
     -> (XPrv, Passphrase "encryption")
     -- ^ Root key of wallet
     -> UTxO
     -- ^ UTxO of wallet
     -> Property
-prop_signTransaction_preservesScriptIntegrity (AnyCardanoEra era) rootK utxo =
-    withMaxSuccess 10 $
-    whenSupportedInEra Cardano.scriptDataSupportedInEra era $ \_supported ->
-    forAll (genTxInEra era) $ \tx -> do
+prop_signTransaction_preservesScriptIntegrity
+    (AnyRecentEra recentEra) rootK utxo =
+    withMaxSuccess 10
+    $ forAll (genTxInEra $ Write.cardanoEraFromRecentEra recentEra)
+    $ \tx -> do
         let
             tl = testTxLayer
 
             sealedTx = sealedTxFromCardano' tx
             sealedTx' = signTransaction ShelleyKeyS tl
-                (AnyCardanoEra era)
+                (AnyCardanoEra $ Write.cardanoEraFromRecentEra recentEra)
                 AnyWitnessCountCtx
                 (const Nothing)
                 Nothing
@@ -1055,36 +1061,8 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraConway -> mconcat
-                      [ "84a400818258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000000182a20058390101010101010101"
-                      , "010101010101010101010101010101010101010101010101010101"
-                      , "01010101010101010101010101010101010101010101011a001e84"
-                      , "80a200583901020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
-                      , "845820010000000000000000000000000000000000000000000000"
-                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
-                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
-                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "41a0f5f6"
-                      ]
-                    RecentEraBabbage -> mconcat
-                      [ "84a400818258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000000182a20058390101010101010101"
-                      , "010101010101010101010101010101010101010101010101010101"
-                      , "01010101010101010101010101010101010101010101011a001e84"
-                      , "80a200583901020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
-                      , "845820010000000000000000000000000000000000000000000000"
-                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
-                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
-                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "41a0f5f6"
-                      ]
+                    RecentEraConway -> "84a4008182582000000000000000000000000000000000000000000000000000000000000000000001828258390101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011a001e84808258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a0078175c021a0001faa403191e46a1028184582001000000000000000000000000000000000000000000000000000000000000005840d7af60ae33d2af351411c1445c79590526990bfa73cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb36bf38dfe034a9f04658e9f56197ab80f5820000000000000000000000000000000000000000000000000000000000000000041a0f5f6"
+                    RecentEraBabbage -> "84a4008182582000000000000000000000000000000000000000000000000000000000000000000001828258390101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011a001e84808258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a0078175c021a0001faa403191e46a1028184582001000000000000000000000000000000000000000000000000000000000000005840d7af60ae33d2af351411c1445c79590526990bfa73cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb36bf38dfe034a9f04658e9f56197ab80f5820000000000000000000000000000000000000000000000000000000000000000041a0f5f6"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
         it "2 inputs, 3 outputs" $ do
@@ -1109,54 +1087,8 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraConway -> mconcat
-                      [ "84a400828258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000008258200000000000000000000000"
-                      , "000000000000000000000000000000000000000000010183a20058"
-                      , "390102020202020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "02020202011a005b8d80a200583901030303030303030303030303"
-                      , "030303030303030303030303030303030303030303030303030303"
-                      , "0303030303030303030303030303030303011a005b8d80a2005839"
-                      , "010404040404040404040404040404040404040404040404040404"
-                      , "040404040404040404040404040404040404040404040404040404"
-                      , "040404011a007801e0021a0002102003191e46a102828458200100"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "00000058401a8667d2d0af4e24d4d385443002f1e9036063bdb7c6"
-                      , "2d45447a2e176ded81a11683bd944c6d7db6e5fd886840025f6319"
-                      , "2a382e526f4150e2b336ee9ed80808582000000000000000000000"
-                      , "0000000000000000000000000000000000000000000041a0845820"
-                      , "130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7c"
-                      , "e38d477f515840320ed7d1513b0f1b61381f7942a07b627b246c85"
-                      , "a13b2623e4868ea82488c778a7760124f3a17f924c08d425c0717d"
-                      , "f6cd898eb4ab8439a16e08befdc415120e58200101010101010101"
-                      , "01010101010101010101010101010101010101010101010141a0f5"
-                      , "f6"
-                      ]
-                    RecentEraBabbage -> mconcat
-                      [ "84a400828258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000008258200000000000000000000000"
-                      , "000000000000000000000000000000000000000000010183a20058"
-                      , "390102020202020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "02020202011a005b8d80a200583901030303030303030303030303"
-                      , "030303030303030303030303030303030303030303030303030303"
-                      , "0303030303030303030303030303030303011a005b8d80a2005839"
-                      , "010404040404040404040404040404040404040404040404040404"
-                      , "040404040404040404040404040404040404040404040404040404"
-                      , "040404011a007801e0021a0002102003191e46a102828458200100"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "00000058401a8667d2d0af4e24d4d385443002f1e9036063bdb7c6"
-                      , "2d45447a2e176ded81a11683bd944c6d7db6e5fd886840025f6319"
-                      , "2a382e526f4150e2b336ee9ed80808582000000000000000000000"
-                      , "0000000000000000000000000000000000000000000041a0845820"
-                      , "130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7c"
-                      , "e38d477f515840320ed7d1513b0f1b61381f7942a07b627b246c85"
-                      , "a13b2623e4868ea82488c778a7760124f3a17f924c08d425c0717d"
-                      , "f6cd898eb4ab8439a16e08befdc415120e58200101010101010101"
-                      , "01010101010101010101010101010101010101010101010141a0f5"
-                      , "f6"
-                      ]
+                    RecentEraConway -> "84a4008282582000000000000000000000000000000000000000000000000000000000000000000082582000000000000000000000000000000000000000000000000000000000000000000101838258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a005b8d808258390103030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303031a005b8d808258390104040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404041a007801e0021a0002102003191e46a1028284582001000000000000000000000000000000000000000000000000000000000000005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80e5820000000000000000000000000000000000000000000000000000000000000000041a0845820130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b4826608fdc5307025506c3075820010101010101010101010101010101010101010101010101010101010101010141a0f5f6"
+                    RecentEraBabbage -> "84a4008282582000000000000000000000000000000000000000000000000000000000000000000082582000000000000000000000000000000000000000000000000000000000000000000101838258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a005b8d808258390103030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303031a005b8d808258390104040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404041a007801e0021a0002102003191e46a1028284582001000000000000000000000000000000000000000000000000000000000000005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80e5820000000000000000000000000000000000000000000000000000000000000000041a0845820130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b4826608fdc5307025506c3075820010101010101010101010101010101010101010101010101010101010101010141a0f5f6"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
     describe "Byron witnesses - testnet" $ do
@@ -1179,36 +1111,8 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
                     [ TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             let binary = case era of
-                    RecentEraConway -> mconcat
-                      [ "84a400818258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000000182a20058390101010101010101"
-                      , "010101010101010101010101010101010101010101010101010101"
-                      , "01010101010101010101010101010101010101010101011a001e84"
-                      , "80a200583901020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
-                      , "845820010000000000000000000000000000000000000000000000"
-                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
-                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
-                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "44a1024100f5f6"
-                      ]
-                    RecentEraBabbage -> mconcat
-                      [ "84a400818258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000000182a20058390101010101010101"
-                      , "010101010101010101010101010101010101010101010101010101"
-                      , "01010101010101010101010101010101010101010101011a001e84"
-                      , "80a200583901020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "0202020202020202011a0078175c021a0001faa403191e46a10281"
-                      , "845820010000000000000000000000000000000000000000000000"
-                      , "000000000000000058407154db81463825f150bb3b9b0824caf151"
-                      , "3716f73498afe61d917a5621912a2b3df252bea14683a9ee56710d"
-                      , "483a53a5aa35247e0d2b80e6300f7bdec763a20458200000000000"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "44a1024100f5f6"
-                      ]
+                    RecentEraConway -> "84a4008182582000000000000000000000000000000000000000000000000000000000000000000001828258390101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011a001e84808258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a0078175c021a0001faa403191e46a1028184582001000000000000000000000000000000000000000000000000000000000000005840d7af60ae33d2af351411c1445c79590526990bfa73cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb36bf38dfe034a9f04658e9f56197ab80f5820000000000000000000000000000000000000000000000000000000000000000044a1024100f5f6"
+                    RecentEraBabbage -> "84a4008182582000000000000000000000000000000000000000000000000000000000000000000001828258390101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101011a001e84808258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a0078175c021a0001faa403191e46a1028184582001000000000000000000000000000000000000000000000000000000000000005840d7af60ae33d2af351411c1445c79590526990bfa73cbb3732b54ef322daa142e6884023410f8be3c16e9bd52076f2bb36bf38dfe034a9f04658e9f56197ab80f5820000000000000000000000000000000000000000000000000000000000000000044a1024100f5f6"
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
         it "2 inputs, 3 outputs" $ do
@@ -1232,30 +1136,8 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
             let chgs =
                     [ TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
-            let binary = mconcat
-                      [ "84a400828258200000000000000000000000000000000000000000"
-                      , "000000000000000000000000008258200000000000000000000000"
-                      , "000000000000000000000000000000000000000000010183a20058"
-                      , "390102020202020202020202020202020202020202020202020202"
-                      , "020202020202020202020202020202020202020202020202020202"
-                      , "02020202011a005b8d80a200583901030303030303030303030303"
-                      , "030303030303030303030303030303030303030303030303030303"
-                      , "0303030303030303030303030303030303011a005b8d80a2005839"
-                      , "010404040404040404040404040404040404040404040404040404"
-                      , "040404040404040404040404040404040404040404040404040404"
-                      , "040404011a007801e0021a0002102003191e46a10282845820130a"
-                      , "e82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d"
-                      , "477f515840320ed7d1513b0f1b61381f7942a07b627b246c85a13b"
-                      , "2623e4868ea82488c778a7760124f3a17f924c08d425c0717df6cd"
-                      , "898eb4ab8439a16e08befdc415120e582001010101010101010101"
-                      , "0101010101010101010101010101010101010101010144a1024100"
-                      , "845820010000000000000000000000000000000000000000000000"
-                      , "000000000000000058401a8667d2d0af4e24d4d385443002f1e903"
-                      , "6063bdb7c62d45447a2e176ded81a11683bd944c6d7db6e5fd8868"
-                      , "40025f63192a382e526f4150e2b336ee9ed8080858200000000000"
-                      , "000000000000000000000000000000000000000000000000000000"
-                      , "44a1024100f5f6"
-                      ]
+            let binary = "84a4008282582000000000000000000000000000000000000000000000000000000000000000000082582000000000000000000000000000000000000000000000000000000000000000000101838258390102020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202021a005b8d808258390103030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303031a005b8d808258390104040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404041a007801e0021a0002102003191e46a10282845820130ae82201d7072e6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b52ade49b19a7208fd63a6e67a19c406b4826608fdc5307025506c3075820010101010101010101010101010101010101010101010101010101010101010144a102410084582001000000000000000000000000000000000000000000000000000000000000005840e8e769ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80e5820000000000000000000000000000000000000000000000000000000000000000044a1024100f5f6"
+
             calculateBinary net utxo outs chgs pairs `shouldBe` binary
 
   where
@@ -1344,10 +1226,32 @@ makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
 encodingFromTheFuture :: AnyRecentEra -> AnyCardanoEra -> Bool
 encodingFromTheFuture tx current = shelleyEraNum tx > eraNum current
 
-compareOnCBOR :: IsCardanoEra era => Cardano.Tx era -> SealedTx -> Property
+compareOnCBOR
+    :: Cardano.IsShelleyBasedEra era => Cardano.Tx era -> SealedTx -> Property
 compareOnCBOR b sealed = case cardanoTx sealed of
-    InAnyCardanoEra _ a ->
-        Cardano.serialiseToCBOR a ==== Cardano.serialiseToCBOR b
+    InAnyCardanoEra era a ->
+        unsafeWithShelleyBasedEra era
+        $ Cardano.serialiseToCBOR a ==== Cardano.serialiseToCBOR b
+
+unsafeWithShelleyBasedEra
+    :: Cardano.CardanoEra era
+    -> (Cardano.IsShelleyBasedEra era => a)
+    -> a
+unsafeWithShelleyBasedEra era a = case era of
+    ByronEra ->
+        error "TestSpec: Byron not supported anymore"
+    ShelleyEra ->
+        Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraShelley a
+    AllegraEra ->
+        Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraAllegra a
+    MaryEra ->
+        Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraMary a
+    AlonzoEra ->
+        Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraAlonzo a
+    BabbageEra ->
+        Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraBabbage a
+    ConwayEra ->
+        Cardano.shelleyBasedEraConstraints Cardano.ShelleyBasedEraConway a
 
 --------------------------------------------------------------------------------
 
@@ -1380,9 +1284,6 @@ instance Arbitrary (ForByron DecodeSetup) where
     arbitrary = do
         test <- arbitrary
         pure $ ForByron (test { metadata = Nothing })
-
-instance Arbitrary SlotNo where
-    arbitrary = SlotNo <$> choose (1, 1_000)
 
 instance Arbitrary TxMetadata where
     arbitrary = TxMetadata <$> arbitrary
@@ -1503,9 +1404,6 @@ mockTxConstraints =
         , Cardano.protocolParamPoolPledgeInfluence = 0
         , Cardano.protocolParamMonetaryExpansion = 0
         , Cardano.protocolParamTreasuryCut = 0
-        , Cardano.protocolParamUTxOCostPerWord =
-            Just $ Cardano.fromShelleyLovelace $
-                Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
         , Cardano.protocolParamUTxOCostPerByte =
             Just $ Cardano.fromShelleyLovelace $
                 Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
@@ -1519,10 +1417,6 @@ mockTxConstraints =
         , Cardano.protocolParamCollateralPercent = Just 150
         , Cardano.protocolParamMaxCollateralInputs = Just 3
         }
-
-    testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
-    testParameter_coinsPerUTxOWord_Alonzo
-        = Ledger.CoinPerWord $ Ledger.Coin 34_482
 
     testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
     testParameter_coinsPerUTxOByte_Babbage

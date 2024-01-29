@@ -31,21 +31,18 @@ import Cardano.Api
     , MaryEra
     , ShelleyEra
     )
-import Cardano.Ledger.Conway.Core
-    ( conwayCertsTxBodyL
-    )
-import Cardano.Ledger.Conway.Delegation.Certificates
-    ( ConwayDCert
-    )
-import Cardano.Ledger.Core
+import Cardano.Ledger.Api
     ( bodyTxL
+    , certsTxBodyL
+    )
+import Cardano.Ledger.Conway.TxCert
+    ( ConwayTxCert
     )
 import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
-import Cardano.Ledger.Shelley.TxBody
-    ( DCert
-    , certsTxBodyL
+import Cardano.Ledger.Shelley.TxCert
+    ( ShelleyTxCert
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -63,14 +60,23 @@ import Data.Sequence.Strict
     ( StrictSeq
     )
 
+import qualified Cardano.Ledger.Api as Ledger
+
 type family CertificatesType era where
-    CertificatesType ByronEra = ()
-    CertificatesType ShelleyEra = StrictSeq (DCert StandardCrypto)
-    CertificatesType AllegraEra = StrictSeq (DCert StandardCrypto)
-    CertificatesType MaryEra = StrictSeq (DCert StandardCrypto)
-    CertificatesType AlonzoEra = StrictSeq (DCert StandardCrypto)
-    CertificatesType BabbageEra = StrictSeq (DCert StandardCrypto)
-    CertificatesType ConwayEra = StrictSeq (ConwayDCert StandardCrypto)
+    CertificatesType ByronEra =
+        ()
+    CertificatesType ShelleyEra =
+        StrictSeq (ShelleyTxCert (Ledger.ShelleyEra StandardCrypto))
+    CertificatesType AllegraEra =
+        StrictSeq (ShelleyTxCert (Ledger.AllegraEra StandardCrypto))
+    CertificatesType MaryEra =
+        StrictSeq (ShelleyTxCert (Ledger.MaryEra StandardCrypto))
+    CertificatesType AlonzoEra =
+        StrictSeq (ShelleyTxCert (Ledger.AlonzoEra StandardCrypto))
+    CertificatesType BabbageEra =
+        StrictSeq (ShelleyTxCert (Ledger.BabbageEra StandardCrypto))
+    CertificatesType ConwayEra =
+        StrictSeq (ConwayTxCert (Ledger.ConwayEra StandardCrypto))
 
 newtype Certificates era = Certificates (CertificatesType era)
 
@@ -87,7 +93,7 @@ getEraCertificates =
         , maryFun = certificates
         , alonzoFun = certificates
         , babbageFun = certificates
-        , conwayFun = onTx $ Certificates . view (bodyTxL . conwayCertsTxBodyL)
+        , conwayFun = onTx $ Certificates . view (bodyTxL . certsTxBodyL)
         }
   where
     certificates = onTx $ Certificates . view (bodyTxL . certsTxBodyL)

@@ -2566,7 +2566,7 @@ instance ToJSON ApiAddressData where
     toJSON (ApiAddressData (AddrBase payment' stake') validation') =
         object $ [ "payment" .= payment', "stake" .= stake'] ++ addOptionally validation'
 
-addOptionally :: (Aeson.KeyValue a, ToJSON v) => Maybe v -> [a]
+addOptionally :: (Aeson.KeyValue Aeson.Value a, ToJSON v) => Maybe v -> [a]
 addOptionally v = case v of
     Just v' -> ["validation" .= v']
     Nothing -> []

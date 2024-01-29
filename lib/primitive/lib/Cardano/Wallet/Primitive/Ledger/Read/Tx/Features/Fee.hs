@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
     ( getFee)

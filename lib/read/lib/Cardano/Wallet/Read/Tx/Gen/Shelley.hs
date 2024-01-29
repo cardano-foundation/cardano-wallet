@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Read.Tx.Gen.Shelley
     ( mkShelleyTx
@@ -65,8 +66,10 @@ import Cardano.Ledger.Shelley.TxAuxData
     ( ShelleyTxAuxData
     )
 import Cardano.Ledger.Shelley.TxBody
-    ( DCert
-    , Withdrawals (Withdrawals)
+    ( Withdrawals (Withdrawals)
+    )
+import Cardano.Ledger.Shelley.TxCert
+    ( ShelleyTxCert
     )
 import Cardano.Ledger.Shelley.TxWits
     ( ShelleyTxWits
@@ -157,7 +160,7 @@ txfee = Coin 0
 wdrls :: Withdrawals StandardCrypto
 wdrls = Withdrawals mempty
 
-certs :: StrictSeq (DCert StandardCrypto)
+certs :: StrictSeq (ShelleyTxCert (era StandardCrypto))
 certs = mempty
 
 txouts

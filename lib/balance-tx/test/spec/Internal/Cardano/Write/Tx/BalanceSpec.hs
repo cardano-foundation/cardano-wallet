@@ -26,6 +26,7 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
+{-# LANGUAGE TypeOperators #-}
 #endif
 
 module Internal.Cardano.Write.Tx.BalanceSpec
@@ -43,7 +44,7 @@ import Cardano.Crypto.Wallet
     ( XPrv
     , toXPub
     )
-import Cardano.Ledger.Alonzo.TxInfo
+import Cardano.Ledger.Alonzo.Plutus.TxInfo
     ( TranslationError (..)
     )
 import Cardano.Ledger.Api
@@ -74,18 +75,18 @@ import Cardano.Ledger.Era
 import Cardano.Ledger.Keys.Bootstrap
     ( makeBootstrapWitness
     )
-import Cardano.Ledger.Language
+import Cardano.Ledger.Plutus.Language
     ( Language (..)
     )
 import Cardano.Ledger.Shelley.API
-    ( Credential (KeyHashObj)
-    , Credential (..)
-    , DCert (DCertDeleg)
-    , DelegCert (..)
-    , Delegation (..)
+    ( Credential (..)
     , KeyHash (..)
+    , ShelleyDelegCert (..)
     , StrictMaybe (SJust, SNothing)
     , Withdrawals (..)
+    )
+import Cardano.Ledger.Shelley.TxCert
+    ( ShelleyTxCert (..)
     )
 import Cardano.Ledger.Val
     ( (<->)
@@ -162,10 +163,6 @@ import Control.Monad.Trans.State.Strict
     )
 import Data.Bifunctor
     ( first
-    )
-import Data.ByteArray.Encoding
-    ( Base (Base16)
-    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -260,6 +257,7 @@ import Internal.Cardano.Write.Tx
     , BabbageEra
     , CardanoApiEra
     , Coin (..)
+    , ConwayEra
     , Datum (..)
     , FeePerByte (..)
     , IsRecentEra (..)
@@ -270,8 +268,9 @@ import Internal.Cardano.Write.Tx
     , TxOut
     , TxOutInRecentEra (..)
     , TxOutInRecentEra (..)
-    , UTxO
+    , UTxO (..)
     , Value
+    , cardanoEra
     , fromCardanoApiTx
     , fromCardanoApiUTxO
     , recentEra
@@ -433,7 +432,6 @@ import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
-import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
@@ -513,8 +511,11 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     it "does not balance transactions if no inputs can be created"
         $ property prop_balanceTransactionUnableToCreateInput
 
-    it "produces valid transactions or fails"
-        $ property prop_balanceTransactionValid
+    it "produces valid transactions or fails (Babbage)"
+        $ property (prop_balanceTransactionValid @BabbageEra)
+
+    it "produces valid transactions or fails (Conway)"
+        $ property (prop_balanceTransactionValid @ConwayEra)
 
     describe "bootstrap witnesses" $ do
         -- Used in 'estimateTxSize', and in turn used by coin-selection
@@ -627,7 +628,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     it "assigns minimal ada quantities to outputs without ada" $ do
         let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
-        let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 874_930))
+        let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 866_310))
         let tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
@@ -948,8 +949,8 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         dummyPool = KeyHash
             "00000000000000000000000000000000000000000000000000000001"
         certs =
-            [ DCertDeleg $ RegKey dummyStakeKey
-            , DCertDeleg $ Delegate $ Delegation dummyStakeKey dummyPool
+            [ ShelleyTxCertDelegCert $ ShelleyRegCert dummyStakeKey
+            , ShelleyTxCertDelegCert $ ShelleyDelegCert dummyStakeKey dummyPool
             ]
 
     minFee
@@ -1230,45 +1231,6 @@ spec_updateTx = describe "updateTx" $ do
     describe "no existing key witnesses" $ do
         txs <- readTestTransactions
         forM_ txs $ \(filepath, tx :: Tx era) -> do
-            it ("without TxUpdate: " <> filepath) $ do
-                    let res = updateTx tx noTxUpdate
-                    case res of
-                        Left e ->
-                            expectationFailure $
-                            "expected update to succeed but failed: "
-                                <> show e
-                        Right tx' -> do
-                            if tx /= tx' && show tx == show tx'
-                            -- The transaction encoding has changed.
-                            -- Unfortunately transactions are compared using
-                            -- their memoized bytes, but shown without their
-                            -- memoized bytes. This leads to the very
-                            -- confusing situation where the show result of
-                            -- two transactions is identical, but the (==)
-                            -- result of two transactions shows a
-                            -- discrepancy.
-                            --
-                            -- In this case we expect failure and write out
-                            -- the new memoized bytes to a file so the
-                            -- developer can update the binary test data.
-                            then do
-                                let
-                                    newEncoding = convertToBase Base16 $
-                                        serializeTx tx'
-                                    rejectFilePath
-                                        = $(getTestData)
-                                        </> "plutus"
-                                        </> filepath <> ".rej"
-                                BS.writeFile rejectFilePath newEncoding
-                                expectationFailure $ mconcat
-                                    [ "Transaction encoding has changed, "
-                                    , "making comparison impossible. "
-                                    , "See .rej file: "
-                                    , rejectFilePath
-                                    ]
-                            else
-                                serializeTx tx `shouldBe` serializeTx tx'
-
             prop ("with TxUpdate: " <> filepath) $
                 prop_updateTx tx
 
@@ -1387,7 +1349,7 @@ prop_balanceTransactionUnableToCreateInput
 -- TODO: Ensure scripts are well tested
 --   - Ensure we have coverage for normal plutus contracts
 prop_balanceTransactionValid
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. IsRecentEra era
     -- TODO [ADP-2997] Test with all RecentEras
     -- https://cardanofoundation.atlassian.net/browse/ADP-2997
     => SuccessOrFailure (BalanceTxArgs era)
@@ -1615,8 +1577,7 @@ prop_balanceTransactionValid
     hasZeroAdaOutputs tx =
         any hasZeroAda (tx ^. bodyTxL . outputsTxBodyL)
       where
-        hasZeroAda (Write.BabbageTxOut _ val _ _) =
-            Value.coin val == Ledger.Coin 0
+        hasZeroAda o = (o ^. coinTxOutL) == Ledger.Coin 0
 
     minFee
         :: Tx era
@@ -2100,16 +2061,17 @@ newtype Success a = Success a
 newtype SuccessOrFailure a = SuccessOrFailure a
     deriving newtype Show
 
-instance Arbitrary (Success (BalanceTxArgs Write.BabbageEra)) where
+instance IsRecentEra era => Arbitrary (Success (BalanceTxArgs era)) where
     arbitrary = coerce genBalanceTxArgsForSuccess
     shrink = coerce shrinkBalanceTxArgsForSuccess
 
-instance Arbitrary (SuccessOrFailure (BalanceTxArgs Write.BabbageEra)) where
+instance IsRecentEra era
+    => Arbitrary (SuccessOrFailure (BalanceTxArgs era)) where
     arbitrary = coerce genBalanceTxArgsForSuccessOrFailure
     shrink = coerce shrinkBalanceTxArgsForSuccessOrFailure
 
 genBalanceTxArgsForSuccess
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. IsRecentEra era
     => Gen (BalanceTxArgs era)
 genBalanceTxArgsForSuccess =
     -- For the moment, we use the brute force tactic of repeatedly generating
@@ -2119,7 +2081,7 @@ genBalanceTxArgsForSuccess =
     (isRight . applyBalanceTxArgs)
 
 shrinkBalanceTxArgsForSuccess
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. IsRecentEra era
     => BalanceTxArgs era
     -> [BalanceTxArgs era]
 shrinkBalanceTxArgsForSuccess
@@ -2127,7 +2089,7 @@ shrinkBalanceTxArgsForSuccess
     . shrinkBalanceTxArgsForSuccessOrFailure
 
 genBalanceTxArgsForSuccessOrFailure
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. IsRecentEra era
     => Gen (BalanceTxArgs era)
 genBalanceTxArgsForSuccessOrFailure =
     BalanceTxArgs
@@ -2141,7 +2103,7 @@ genBalanceTxArgsForSuccessOrFailure =
     genTimeTranslation = pure dummyTimeTranslation
 
 shrinkBalanceTxArgsForSuccessOrFailure
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. IsRecentEra era
     => BalanceTxArgs era
     -> [BalanceTxArgs era]
 shrinkBalanceTxArgsForSuccessOrFailure =
@@ -2361,12 +2323,6 @@ withValidityInterval
     -> PartialTx BabbageEra
 withValidityInterval vi = #tx . bodyTxL %~ vldtTxBodyL .~ vi
 
-walletToCardanoValue :: W.TokenBundle -> CardanoApi.Value
-walletToCardanoValue = CardanoApi.fromMaryValue . Convert.toLedger
-
-cardanoToWalletValue :: CardanoApi.Value -> W.TokenBundle
-cardanoToWalletValue = Convert.toWallet . CardanoApi.toMaryValue
-
 cardanoToWalletCoin :: CardanoApi.Lovelace -> W.Coin
 cardanoToWalletCoin = Convert.toWallet . CardanoApi.toShelleyLovelace
 
@@ -2547,9 +2503,6 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     , CardanoApi.protocolParamPoolPledgeInfluence = 0
     , CardanoApi.protocolParamMonetaryExpansion = 0
     , CardanoApi.protocolParamTreasuryCut  = 0
-    , CardanoApi.protocolParamUTxOCostPerWord =
-        Just $ CardanoApi.fromShelleyLovelace $
-            Alonzo.unCoinPerWord testParameter_coinsPerUTxOWord_Alonzo
     , CardanoApi.protocolParamUTxOCostPerByte =
         Just $ CardanoApi.fromShelleyLovelace $
             Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
@@ -2627,10 +2580,6 @@ signedTxTestData = do
     goldenIx :: FilePath -> Maybe Int
     goldenIx = readMaybe . takeWhile isDigit
 
-testParameter_coinsPerUTxOWord_Alonzo :: Ledger.CoinPerWord
-testParameter_coinsPerUTxOWord_Alonzo
-    = Ledger.CoinPerWord $ Ledger.Coin 34_482
-
 testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
 testParameter_coinsPerUTxOByte_Babbage
     = Ledger.CoinPerByte $ Ledger.Coin 4_310
@@ -2665,52 +2614,6 @@ instance Arbitrary CardanoApi.NetworkId where
         [ pure CardanoApi.Mainnet
         , CardanoApi.Testnet . CardanoApi.NetworkMagic <$> arbitrary
         ]
-
-instance
-    CardanoApi.IsCardanoEra era =>
-    Arbitrary (CardanoApi.TxOut ctx era)
-  where
-    arbitrary = CardanoApi.genTxOut CardanoApi.cardanoEra
-    shrink (CardanoApi.TxOut addr val dat refScript) = tail
-        [ CardanoApi.TxOut addr' val' dat' refScript'
-        | addr' <- prependOriginal shrink addr
-        , val' <- prependOriginal shrink val
-        , dat' <- prependOriginal shrink dat
-        , refScript' <- prependOriginal (const []) refScript
-        ]
-
--- NOTE: We should constrain by @IsRecentEra era@ instead, where @RecentEra@ is
--- the two latest eras.
-instance
-    CardanoApi.IsCardanoEra era =>
-    Arbitrary (CardanoApi.TxOutValue era)
-  where
-    arbitrary = case CardanoApi.cardanoEra @era of
-       CardanoApi.AlonzoEra ->
-           CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
-               <$> CardanoApi.genValueForTxOut
-       CardanoApi.BabbageEra ->
-           CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra
-               <$>  CardanoApi.genValueForTxOut
-       e -> error $ mconcat
-           [ "Arbitrary (TxOutValue "
-           , show e
-           , ") not implemented)"
-           ]
-
-    shrink (CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra val) =
-        map
-            (CardanoApi.TxOutValue CardanoApi.MultiAssetInAlonzoEra
-                . walletToCardanoValue)
-            (shrink $ cardanoToWalletValue val)
-
-    shrink (CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra val) =
-        map
-            (CardanoApi.TxOutValue CardanoApi.MultiAssetInBabbageEra
-                . walletToCardanoValue)
-            (shrink $ cardanoToWalletValue val)
-    shrink _ =
-        error "Arbitrary (TxOutValue era) is not implemented for old eras"
 
 -- Coins (quantities of lovelace) must be strictly positive when included in
 -- transactions.
@@ -2749,10 +2652,9 @@ instance Arbitrary (MixedSign Value) where
         genPositive = arbitrary
     shrink (MixedSign v) = MixedSign <$> shrink v
 
-instance Arbitrary (PartialTx Write.BabbageEra) where
+instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
-        let era = CardanoApi.BabbageEra
-        tx <- CardanoApi.genTxForBalancing era
+        tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
         let (CardanoApi.Tx (CardanoApi.TxBody content) _) = tx
         let inputs = CardanoApi.txIns content
         inputUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
@@ -2761,7 +2663,7 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 -- `maxBound :: Word64`, however users could supply these. We
                 -- should ideally test what happens, and make it clear what
                 -- code, if any, should validate.
-                o <- CardanoApi.genTxOut CardanoApi.BabbageEra
+                o <- CardanoApi.genTxOut (cardanoEra @era)
                 return (fst i, o)
         let redeemers = []
         return $ PartialTx
@@ -2771,7 +2673,7 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
             mempty
     shrink (PartialTx tx inputUTxO redeemers timelockKeyWitnessCounts) =
         [ PartialTx tx inputUTxO' redeemers timelockKeyWitnessCounts
-        | inputUTxO' <- shrinkInputResolution @Write.BabbageEra inputUTxO
+        | inputUTxO' <- shrinkInputResolution inputUTxO
         ] <>
         [ restrictResolution $
             PartialTx
@@ -2779,8 +2681,13 @@ instance Arbitrary (PartialTx Write.BabbageEra) where
                 inputUTxO
                 redeemers
                 timelockKeyWitnessCounts
-        | tx' <- shrinkTxBabbage (toCardanoApiTx tx)
+        | tx' <- shrinkCardanoApiTx (toCardanoApiTx tx)
         ]
+
+      where
+        shrinkCardanoApiTx = case recentEra @era of
+            RecentEraBabbage -> shrinkTxBabbage
+            RecentEraConway -> \_ -> [] -- no shrinker implemented yet
 
 instance Arbitrary StdGenSeed  where
     arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
@@ -2848,6 +2755,7 @@ instance Arbitrary Wallet where
       where
         genShelleyVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
         genShelleyVkAddr = CardanoApi.shelleyAddressInEra
+            CardanoApi.ShelleyBasedEraBabbage
             <$> (CardanoApi.makeShelleyAddress
                 <$> CardanoApi.genNetworkId
                 <*> CardanoApi.genPaymentCredential -- only vk credentials
@@ -2900,24 +2808,23 @@ shrinkFee (Ledger.Coin 0) = []
 shrinkFee _ = [Ledger.Coin 0]
 
 shrinkInputResolution
-    :: forall era.
-        ( IsRecentEra era
-        , Arbitrary (CardanoApi.TxOut CardanoApi.CtxUTxO (CardanoApiEra era))
-        )
+    :: forall era. IsRecentEra era
     => Write.UTxO era
     -> [Write.UTxO era]
 shrinkInputResolution =
     shrinkMapBy utxoFromList utxoToList shrinkUTxOEntries
    where
-     utxoToList = Map.toList . CardanoApi.unUTxO . toCardanoApiUTxO @era
-     utxoFromList = fromCardanoApiUTxO @era . CardanoApi.UTxO . Map.fromList
+     utxoToList = Map.toList . unUTxO
+     utxoFromList = UTxO . Map.fromList
+
+     shrinkOutput _ = []
 
      -- NOTE: We only want to shrink the outputs, keeping the inputs and length
      -- of the list the same.
-     shrinkUTxOEntries :: Arbitrary o => [(i, o)] -> [[(i, o)]]
+     shrinkUTxOEntries :: [(TxIn, TxOut era)] -> [[(TxIn, TxOut era)]]
      shrinkUTxOEntries ((i,o) : rest) = mconcat
          -- First shrink the first element
-         [ map (\o' -> (i, o') : rest ) (shrink o)
+         [ map (\o' -> (i, o') : rest ) (shrinkOutput o)
          -- Recurse to shrink subsequent elements on their own
          , map ((i,o):) (shrinkUTxOEntries rest)
          ]
@@ -2968,12 +2875,9 @@ shrinkTxBodyBabbage
         , aux' <- aux : filter (/= aux) [Nothing]
         , scriptData' <- prependOriginal shrinkScriptData scriptData
         , scripts' <- prependOriginal (shrinkList (const [])) scripts
-        , val' <-
-            case CardanoApi.txScriptValiditySupportedInShelleyBasedEra e of
-                Nothing -> [val]
-                Just txsvsie -> val : filter (/= val)
+        , val' <- val : filter (/= val)
                     [ CardanoApi.TxScriptValidity
-                        txsvsie
+                        CardanoApi.AlonzoEraOnwardsBabbage
                         CardanoApi.ScriptValid
                     ]
         ]

@@ -230,9 +230,6 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Control.Applicative
-    ( liftA2
-    )
 import Control.Monad
     ( when
     )

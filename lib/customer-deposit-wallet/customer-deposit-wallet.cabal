@@ -56,7 +56,7 @@ library
     , delta-store
     , delta-types
     , iohk-monitoring-extra              ^>=0.1
-    , persistent                         ^>=2.13
+    , persistent                         >= 2.13 && < 2.15
     , text
     , time
   exposed-modules:

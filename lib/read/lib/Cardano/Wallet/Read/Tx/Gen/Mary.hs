@@ -16,6 +16,9 @@ import Cardano.Ledger.Api.Era
     ( MaryEra
     , StandardCrypto
     )
+import Cardano.Ledger.Coin
+    ( Coin (..)
+    )
 import Cardano.Ledger.Mary.TxBody
     ( MaryTxBody (..)
     , StrictMaybe (..)
@@ -99,7 +102,7 @@ txouts xs = fromList $ do
     pure $ ShelleyTxOut (decodeShelleyAddress addr) $ mkMaryValue val
 
 mkMaryValue :: Integer -> MaryValue StandardCrypto
-mkMaryValue lovelace = MaryValue (fromIntegral lovelace) mempty
+mkMaryValue lovelace = MaryValue (Coin lovelace) mempty
 
 validity :: ValidityInterval
 validity = ValidityInterval SNothing SNothing

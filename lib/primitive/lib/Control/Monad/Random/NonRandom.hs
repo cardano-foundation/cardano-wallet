@@ -18,9 +18,6 @@ module Control.Monad.Random.NonRandom
 
 import Prelude
 
-import Control.Applicative
-    ( Applicative (..)
-    )
 import Control.Monad.Random.Class
     ( MonadRandom (..)
     )

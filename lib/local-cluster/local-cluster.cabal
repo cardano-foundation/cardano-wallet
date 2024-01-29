@@ -34,9 +34,9 @@ library
     Cardano.Wallet.Launch.Cluster.CardanoCLI
     Cardano.Wallet.Launch.Cluster.Cluster
     Cardano.Wallet.Launch.Cluster.ClusterEra
+    Cardano.Wallet.Launch.Cluster.ClusterM
     Cardano.Wallet.Launch.Cluster.Config
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
-    Cardano.Wallet.Launch.Cluster.ClusterM
     Cardano.Wallet.Launch.Cluster.Faucet
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
@@ -62,10 +62,9 @@ library
   ghc-options:
     -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
     -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls
-    -Wcompat -Widentities
-    -Werror=incomplete-patterns -Wredundant-constraints
-    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
+    -Wunused-foralls -Wcompat -Widentities -Werror=incomplete-patterns
+    -Wredundant-constraints -Wpartial-fields -Wtabs
+    -Wmissing-local-signatures -fhelpful-errors
     -fprint-expanded-synonyms -fwarn-unused-do-bind
     -fwarn-incomplete-uni-patterns -freverse-errors
 
@@ -73,14 +72,14 @@ library
     ghc-options: -O2 -Werror
 
   build-depends:
-    , aeson                              ^>=2.1.2.1
-    , aeson-qq                           ^>=0.8.4
+    , aeson
+    , aeson-qq
     , base
-    , base58-bytestring                  ^>=0.1
-    , bytestring                         ^>=0.10.12
+    , base58-bytestring
+    , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-binary                     ^>=1.7.0.1
+    , cardano-binary
     , cardano-cli
     , cardano-data
     , cardano-ledger-api
@@ -90,43 +89,42 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , cborg                              ^>=0.2.9
-    , containers                         ^>=0.6.5
+    , cborg
+    , containers
     , contra-tracer
-    , crypto-hash-extra                  ^>=0.1
+    , crypto-hash-extra
     , directory
-    , extra                              ^>=1.7
+    , extra
     , faucet
     , filepath
-    , generic-lens                       ^>=2.2.2
-    , http-client                        ^>=0.7.13.1
-    , int-cast                           ^>=0.2
+    , generic-lens
+    , http-client
+    , int-cast
     , iohk-monitoring
     , iohk-monitoring-extra
-    , lens                               ^>=5.1.1
-    , memory                             ^>=0.18
+    , lens
+    , memory
     , mtl
-    , OddWord                            ^>=1.0.1
+    , OddWord
     , optparse-applicative
-    , ouroboros-network                  ^>=0.8.1
-    , ouroboros-network-api              ^>=0.5
-    , path                               ^>=0.9.2
-    , path-io                            ^>=1.7.0
-    , resourcet                          ^>=1.3
-    , retry                              ^>=0.9.3.1
-    , servant-client                     ^>=0.19
-    , tagged                             ^>=0.8.7
-    , temporary                          ^>=1.3
+    , ouroboros-network
+    , ouroboros-network-api
+    , path
+    , path-io
+    , resourcet
+    , retry
+    , servant-client
+    , tagged
+    , temporary
     , temporary-extra
     , text
     , text-class
-    , time                               ^>=1.9.3
-    , transformers
-    , typed-process                      ^>=0.2.11
-    , unliftio                           ^>=0.2
-    , warp                               ^>=3.3.25
-    , with-utf8                          ^>=1.0.2.4
-    , yaml                               ^>=0.11.11
+    , time
+    , typed-process
+    , unliftio
+    , warp
+    , with-utf8
+    , yaml
 
 executable local-cluster
   import:         language

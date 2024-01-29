@@ -31,7 +31,6 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
-    , displayError
     , metadataFromJson
     , metadataToJson
     )
@@ -492,7 +491,7 @@ instance PersistField TxMetadata where
         Aeson.encode .
         metadataToJson TxMetadataJsonDetailedSchema
     fromPersistValue =
-        (left (T.pack . displayError) . metadataFromJsonWithFallback) <=<
+        metadataFromJsonWithFallback <=<
         (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
         fromPersistValue
       where
@@ -512,7 +511,10 @@ instance PersistField TxMetadata where
                 Right meta -> Right meta
                 Left e -> case metadataFromJson TxMetadataJsonNoSchema json of
                     Right meta -> Right meta
-                    Left{} -> Left e
+                    Left{} -> Left $
+                        "fromPersistValue TxMetadata: "
+                        <> "Ill-formed JSON in database "
+                        <> T.pack (show e)
 
 instance PersistFieldSql TxMetadata where
     sqlType _ = sqlType (Proxy @Text)

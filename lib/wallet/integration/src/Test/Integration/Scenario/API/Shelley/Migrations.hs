@@ -124,8 +124,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400ParseError
-    , errMsg403NothingToMigrate
+    ( errMsg403NothingToMigrate
     , errMsg403WrongPass
     , errMsg404NoWallet
     )
@@ -847,7 +846,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (NonJson "{passphrase:,}")
             verify response
                 [ expectResponseCode HTTP.status400
-                , expectErrorMessage errMsg400ParseError
+                , expectErrorMessage
+                    "Unexpected 'passphrase:,}', \
+                    \expecting record key literal or }"
                 ]
 
     Hspec.it "SHELLEY_MIGRATE_08 - \

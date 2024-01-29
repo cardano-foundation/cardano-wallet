@@ -20,9 +20,11 @@ import Cardano.Address.Script
     )
 import Cardano.Api
     ( TxMetadataJsonSchema (..)
-    , displayError
     , metadataFromJson
     , metadataToJson
+    )
+import Cardano.Api.Error
+    ( displayError
     )
 import Cardano.Pool.Metadata.Types
     ( StakePoolMetadataHash

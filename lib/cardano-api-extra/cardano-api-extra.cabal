@@ -1,4 +1,4 @@
-cabal-version:      2.2
+cabal-version:      3.4
 name:               cardano-api-extra
 version:            2023.12.18
 synopsis:           Useful extensions to the Cardano API.
@@ -46,10 +46,12 @@ library
     , cardano-crypto-class
     , cardano-crypto-test
     , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test
+    , cardano-ledger-api
     , cardano-ledger-byron-test
     , cardano-ledger-core
+    , cardano-ledger-core:testlib
     , cardano-ledger-shelley
+    , cardano-ledger-conway:testlib
     , cardano-strict-containers
     , cardano-wallet-test-utils
     , containers
@@ -57,6 +59,7 @@ library
     , int-cast
     , iproute
     , network
+    , plutus-ledger-api:plutus-ledger-api-testlib
     , QuickCheck
     , quickcheck-instances
     , random
@@ -65,29 +68,3 @@ library
     Cardano.Api.Gen
     Cardano.Ledger.Credential.Safe
 
-test-suite test
-  import:             language, opts-exe
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/spec
-  main-is:            run-test-suite.hs
-  build-depends:
-    , base
-    , bytestring
-    , cardano-api
-    , cardano-api-extra
-    , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-ledger-shelley
-    , cardano-wallet-test-utils
-    , containers
-    , hspec
-    , QuickCheck
-    , quickcheck-instances
-    , with-utf8
-  build-tool-depends: hspec-discover:hspec-discover
-  other-modules:
-    Cardano.Api.GenSpec
-    Spec

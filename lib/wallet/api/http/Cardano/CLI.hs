@@ -386,7 +386,7 @@ import System.Console.ANSI
     , SGR (..)
     , hCursorBackward
     , hSetSGR
-    , hSupportsANSIWithoutEmulation
+    , hSupportsANSI
     )
 import System.Directory
     ( XdgDirectory (..)
@@ -1971,14 +1971,12 @@ putErrLn = hPutErrLn stderr
 
 -- | The IOHK logging framework prints out ANSI colour codes with its messages.
 -- On Windows 10 and above it's possible to enable processing of these colour
--- codes. The 'hSupportsANSIWithoutEmulation' function does this as a side
--- effect. On older versions of Windows, special treatment is required (see:
--- 'System.Console.ANSI'). In this case, this function will achieve nothing, and
--- the ANSI control characters will be printed in grey (too bad).
+-- codes. The 'hSupportsANSIWithoutEmulation' used to do this as a side
+-- effect, but is now deprecated. Perhaps 'hSupportsANSI' does this as well.
 enableWindowsANSI :: IO ()
 enableWindowsANSI = do
-    void $ hSupportsANSIWithoutEmulation stdout
-    void $ hSupportsANSIWithoutEmulation stderr
+    void $ hSupportsANSI stdout
+    void $ hSupportsANSI stderr
 
 {-------------------------------------------------------------------------------
                          Processing of Sensitive Data

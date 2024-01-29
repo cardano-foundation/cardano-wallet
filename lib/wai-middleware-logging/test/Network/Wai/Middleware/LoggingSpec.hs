@@ -225,7 +225,7 @@ spec = describe "Logging Middleware" $ do
                 , (Info, "[POST] /post")
                 , (Debug, "Invalid payload: not JSON")
                 , (Info, "400 Bad Request")
-                , (Debug, "Failed reading: not a valid json value")
+                , (Debug, "Unexpected \"\\NUL\\NUL\\NUL\", expecting JSON value")
                 , (Debug, "LogRequestFinish")
                 ]
 

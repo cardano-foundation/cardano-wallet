@@ -2,7 +2,7 @@ default:
   @just --list
 
 # check that the code is formatted with stylish-haskell
-check:
+syntax:
   ./.buildkite/check-code-format.sh
 
 # build wallet-e2e suite with cabal
@@ -10,7 +10,7 @@ build:
   cabal build all
 
 # run a nix shell with `cardano-wallet` in scope
-shell:
+wallet:
   nix shell '.#cardano-wallet'
 
 # run a benchmark: api | latency | memory | db | restore
@@ -32,6 +32,14 @@ unit:
 integration:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   nix shell '.#cardano-wallet' -c cabal test integration
+
+babbage-integration-tests-cabal-no-wallet-match match:
+  echo "Running integration tests without cardano-wallet exe compiled"
+  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=test/data \
+  LOCAL_CLUSTER_ERA=babbage \
+  TESTS_RETRY_FAILED=1 \
+  cabal test integration -O0 -v0 --test-options '--match="{{match}}"'
 
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
@@ -80,3 +88,6 @@ conway-integration-tests:
     '.#cardano-wallet' \
     '.#integration-exe' \
     -c integration-exe -j 3
+
+hlint:
+  nix develop --command bash -c 'hlint lib'

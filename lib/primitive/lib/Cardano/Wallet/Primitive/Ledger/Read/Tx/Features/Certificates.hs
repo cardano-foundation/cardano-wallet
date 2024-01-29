@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -10,11 +11,13 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( primitiveCertificates
     , anyEraCerts
     , fromStakeCredential
-    , fromConwayCerts
+    , fromConwayCert
     )
 where
 
-import Prelude
+import Prelude hiding
+    ( (.)
+    )
 
 import Cardano.Api
     ( ConwayEra
@@ -22,24 +25,16 @@ import Cardano.Api
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe
     , urlToText
     )
-import Cardano.Ledger.Conway.Delegation.Certificates
-    ( ConwayDCert (..)
-    , ConwayDelegCert (..)
-    )
 import Cardano.Ledger.Shelley.API
-    ( PoolCert (..)
-    , PoolMetadata (..)
+    ( PoolMetadata (..)
     , PoolParams (..)
     )
-import Cardano.Ledger.Shelley.TxBody
-    ( DCert
+import Cardano.Ledger.Shelley.TxCert
+    ( ShelleyTxCert
     )
 import Cardano.Slotting.Slot
     ( EpochNo (..)
@@ -61,12 +56,19 @@ import Cardano.Wallet.Read.Eras
     ( EraFun (..)
     , K (..)
     )
+import Cardano.Wallet.Read.Tx
+    ( Tx
+    )
 import Cardano.Wallet.Read.Tx.Certificates
     ( Certificates (..)
     , CertificatesType
+    , getEraCertificates
     )
 import Cardano.Wallet.Util
     ( internalError
+    )
+import Control.Category
+    ( (.)
     )
 import Data.Foldable
     ( toList
@@ -82,6 +84,7 @@ import GHC.Stack
     ( HasCallStack
     )
 
+import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -92,6 +95,9 @@ import qualified Cardano.Wallet.Primitive.Types.EpochNo as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
+
+anyEraCerts :: EraFun Tx (K [W.Certificate])
+anyEraCerts = primitiveCertificates . getEraCertificates
 
 -- | Compute wallet primitive certificates from ledger certificates
 primitiveCertificates :: EraFun Certificates (K [W.Certificate])
@@ -109,29 +115,44 @@ primitiveCertificates =
 mkConwayCertsK
     :: Certificates ConwayEra
     -> K [W.Certificate] ConwayEra
-mkConwayCertsK (Certificates cs) = K $ fromConwayCerts <$> toList cs
+mkConwayCertsK (Certificates cs) = K $ fromConwayCert <$> toList cs
 
-fromConwayCerts :: ConwayDCert StandardCrypto -> W.Certificate
-fromConwayCerts = \case
-    ConwayDCertDeleg cdc -> case cdc of
-        ConwayDeleg _cre _del _co -> error "TODO: ConwayDeleg, ADP-3065"
-        ConwayReDeleg _cre _del -> error "TODO: ConwayReDeleg, ADP-3065"
-        ConwayUnDeleg cre _co -> mkDelegationNone cre
-    -- "TODO: ConwayUnDeleg, ADP-3065"
-    ConwayDCertPool pc -> case pc of
-        RegPool pp -> mkPoolRegistrationCertificate pp
-        RetirePool kh en -> mkPoolRetirementCertificate kh en
-    ConwayDCertConstitutional _cdc ->
-        error "TODO: ConwayDCertConstitutional, ADP-3065"
+fromConwayCert
+    :: Ledger.ConwayEraTxCert era
+    => Ledger.TxCert era
+    -> W.Certificate
+fromConwayCert = \case
+    Ledger.RegPoolTxCert pp -> mkPoolRegistrationCertificate pp
+    Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
+    Ledger.RegTxCert cred -> mkRegisterKeyCertificate cred
+    Ledger.UnRegTxCert cred -> mkDelegationNone cred
+    Ledger.RegDepositTxCert _ _ -> error "TODO: Conway, ADP-3065"
+    Ledger.UnRegDepositTxCert _ _ -> error "TODO: Conway, ADP-3065"
+    Ledger.DelegTxCert _ _ -> error "TODO: Conway delegation, ADP-3065"
+    {-
+        Ledger.DelegStakeTxCert delegator pool ->
+        W.CertificateOfDelegation
+            $ W.CertDelegateFull
+                (fromStakeCredential delegator)
+                (fromPoolKeyHash pool)
+    -}
+    Ledger.RegDepositDelegTxCert {} -> error "TODO: Conway, ADP-3065"
+    Ledger.AuthCommitteeHotKeyTxCert _ _ -> error "TODO: Conway other, ADP-3065"
+    Ledger.ResignCommitteeColdTxCert _ _ -> error "TODO: Conway other, ADP-3065"
+    Ledger.RegDRepTxCert {} -> error "TODO: Conway other, ADP-3065"
+    Ledger.UnRegDRepTxCert _ _ -> error "TODO: Conway other, ADP-3065"
+    _ -> error "impossible pattern"
 
 mkShelleyCertsK
-    :: (Foldable t, CertificatesType era ~ t (DCert crypto))
+    :: ( Foldable t
+       , CertificatesType era ~ t (ShelleyTxCert era')
+       , Ledger.ShelleyEraTxCert era'
+       , Ledger.ProtVerAtMost era' 8
+       , Ledger.TxCert era' ~ ShelleyTxCert era'
+       )
     => Certificates era
     -> K [W.Certificate] b
-mkShelleyCertsK (Certificates cs) = K . anyEraCerts $ cs
-
-anyEraCerts :: Foldable t => t (DCert crypto) -> [W.Certificate]
-anyEraCerts cs = fromShelleyCert <$> toList cs
+mkShelleyCertsK (Certificates cs) = K . map fromShelleyCert $ toList cs
 
 mkPoolRegistrationCertificate :: PoolParams c -> W.Certificate
 mkPoolRegistrationCertificate pp =
@@ -169,21 +190,23 @@ mkDelegationNone credentials =
         $ W.CertDelegateNone (fromStakeCredential credentials)
 
 fromShelleyCert
-    :: SL.DCert crypto
-    -> W.Certificate
+    :: ( Ledger.ShelleyEraTxCert era
+       , Ledger.ProtVerAtMost era 8
+       , Ledger.TxCert era ~ ShelleyTxCert era
+    )
+    => Ledger.TxCert era -> W.Certificate
 fromShelleyCert = \case
-    SL.DCertDeleg (SL.Delegate delegation) ->
+    Ledger.DelegStakeTxCert delegator pool ->
         W.CertificateOfDelegation
             $ W.CertDelegateFull
-                (fromStakeCredential (SL.dDelegator delegation))
-                (fromPoolKeyHash (SL.dDelegatee delegation))
-    SL.DCertDeleg (SL.DeRegKey credentials) -> mkDelegationNone credentials
-    SL.DCertDeleg (SL.RegKey cred) -> mkRegisterKeyCertificate cred
-    SL.DCertPool (SL.RegPool pp) -> mkPoolRegistrationCertificate pp
-    SL.DCertPool (SL.RetirePool pid en) ->
-        mkPoolRetirementCertificate pid en
-    SL.DCertGenesis{} -> W.CertificateOther W.GenesisCertificate
-    SL.DCertMir{} -> W.CertificateOther W.MIRCertificate
+                (fromStakeCredential delegator)
+                (fromPoolKeyHash pool)
+    Ledger.RegTxCert cred -> mkRegisterKeyCertificate cred
+    Ledger.UnRegTxCert cred -> mkDelegationNone cred
+    Ledger.RegPoolTxCert pp -> mkPoolRegistrationCertificate pp
+    Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
+    Ledger.GenesisDelegTxCert {} -> W.CertificateOther W.GenesisCertificate
+    Ledger.MirTxCert _ -> W.CertificateOther W.MIRCertificate
 
 fromPoolMetadata :: SL.PoolMetadata
     -> (StakePoolMetadataUrl, StakePoolMetadataHash)

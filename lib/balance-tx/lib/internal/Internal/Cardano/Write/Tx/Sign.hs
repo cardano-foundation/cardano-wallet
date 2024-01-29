@@ -48,6 +48,7 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Credential
     ( Credential (..)
+    , StakeCredential
     )
 import Cardano.Ledger.UTxO
     ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
@@ -90,6 +91,8 @@ import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Api.Tx.Cert as Conway
+import qualified Cardano.Ledger.Shelley.TxCert as Shelley
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
@@ -274,20 +277,29 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         scriptsAvailableInBody :: Map (ScriptHash StandardCrypto) (Script era)
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
-    estimateDelegSigningKeys :: CardanoApi.Certificate -> Integer
+    estimateDelegSigningKeys :: CardanoApi.Certificate (Write.CardanoApiEra era) -> Integer
     estimateDelegSigningKeys = \case
-        CardanoApi.StakeAddressRegistrationCertificate _ -> 0
-        CardanoApi.StakeAddressDeregistrationCertificate cred ->
-            estimateWitNumForCred cred
-        CardanoApi.StakeAddressPoolDelegationCertificate cred _ ->
-            estimateWitNumForCred cred
-        _ -> 1
+        CardanoApi.ShelleyRelatedCertificate s2b shelleyCert ->
+            CardanoApi.shelleyToBabbageEraConstraints s2b $
+                case shelleyCert of
+                    Shelley.RegTxCert _ -> 0
+                    Shelley.DelegStakeTxCert c _ -> estimateWitNumForCred c
+                    Shelley.UnRegTxCert c -> estimateWitNumForCred c
+                    _ -> 1
+        CardanoApi.ConwayCertificate conway conwayCert ->
+            CardanoApi.conwayEraOnwardsConstraints conway $
+                case conwayCert of
+                    Conway.RegTxCert _ -> 0
+                    Conway.DelegStakeTxCert c _ -> estimateWitNumForCred c
+                    Conway.UnRegTxCert c -> estimateWitNumForCred c
+                    _ -> 1
       where
         -- Does not include the key witness needed for script credentials.
         -- They are accounted for separately in @scriptVkWitsUpperBound@.
+        estimateWitNumForCred :: StakeCredential c -> Integer
         estimateWitNumForCred = \case
-            CardanoApi.StakeCredentialByKey _ -> 1
-            CardanoApi.StakeCredentialByScript _ -> 0
+            KeyHashObj _ -> 1
+            ScriptHashObj _ -> 0
 
     toCAScript = Convert.toWalletScript (const dummyKeyRole)
       where
@@ -297,7 +309,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         :: Ledger.Script era
         -> Maybe (Timelock era)
     toTimelockScript (Alonzo.TimelockScript timelock) = Just timelock
-    toTimelockScript (Alonzo.PlutusScript _ _)        = Nothing
+    toTimelockScript (Alonzo.PlutusScript _)          = Nothing
 
     hasScriptCred
         :: UTxO era

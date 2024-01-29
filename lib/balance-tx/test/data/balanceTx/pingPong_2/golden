@@ -1,81 +1,81 @@
- 0.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2022893, shortfall = Coin 2022893})
- 0.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1979097})
- 0.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1929097})
- 0.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1879097})
- 0.200000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1829097})
- 0.250000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1779097})
- 0.300000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1729097})
- 0.350000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1679097})
- 0.400000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1629097})
- 0.450000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1579097})
- 0.500000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1529097})
- 0.550000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1479097})
- 0.600000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1429097})
- 0.650000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1379097})
- 0.700000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1329097})
- 0.750000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1279097})
- 0.800000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1229097})
- 0.850000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1179097})
- 0.900000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1129097})
- 0.950000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1079097})
- 1.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 1029097})
- 1.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 979097})
- 1.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 929097})
- 1.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 879097})
- 1.200000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 829097})
- 1.250000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 779097})
- 1.300000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 729097})
- 1.350000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 679097})
- 1.400000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 629097})
- 1.450000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 579097})
- 1.500000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 529097})
- 1.550000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 479097})
- 1.600000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 429097})
- 1.650000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 379097})
- 1.700000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 329097})
- 1.750000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 279097})
- 1.800000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 229097})
- 1.850000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 179097})
- 1.900000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 129097})
- 1.950000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 79097})
- 2.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2029097, shortfall = Coin 29097})
- 2.050000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2050000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3075000})
- 2.100000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2100000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3150000})
- 2.150000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2150000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3225000})
- 2.200000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2200000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3300000})
- 2.250000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2250000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3375000})
- 2.300000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2300000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3450000})
- 2.350000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2350000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3525000})
- 2.400000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2400000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3600000})
- 2.450000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2450000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3675000})
- 2.500000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2500000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3750000})
- 2.550000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2550000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3825000})
- 2.600000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2600000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3900000})
- 2.650000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2650000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3975000})
- 2.700000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2700000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4050000})
- 2.750000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2750000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4125000})
- 2.800000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2800000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4200000})
- 2.850000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2850000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4275000})
- 2.900000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2900000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4350000})
- 2.950000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 2950000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4425000})
- 3.000000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue 3000000 (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4500000})
- 3.050000,0.607826,0.607826
- 3.100000,0.607826,0.607826
- 3.150000,0.607826,0.607826
- 3.200000,0.607826,0.607826
- 3.250000,0.607826,0.607826
- 3.300000,0.607826,0.607826
- 3.350000,0.607826,0.607826
- 3.400000,0.607826,0.607826
- 3.450000,0.607826,0.607826
- 3.500000,0.607826,0.607826
- 3.550000,0.607826,0.607826
- 3.600000,0.607826,0.607826
- 3.650000,0.607826,0.607826
- 3.700000,0.607826,0.607826
- 3.750000,0.607826,0.607826
- 3.800000,0.607826,0.607826
- 3.850000,0.607826,0.607826
- 3.900000,0.607826,0.607826
- 3.950000,0.607826,0.607826
- 4.000000,0.607826,0.607826
+ 0.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2022673, shortfall = Coin 2022673})
+ 0.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1978877})
+ 0.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1928877})
+ 0.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1878877})
+ 0.200000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1828877})
+ 0.250000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1778877})
+ 0.300000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1728877})
+ 0.350000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1678877})
+ 0.400000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1628877})
+ 0.450000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1578877})
+ 0.500000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1528877})
+ 0.550000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1478877})
+ 0.600000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1428877})
+ 0.650000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1378877})
+ 0.700000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1328877})
+ 0.750000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1278877})
+ 0.800000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1228877})
+ 0.850000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1178877})
+ 0.900000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1128877})
+ 0.950000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1078877})
+ 1.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 1028877})
+ 1.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 978877})
+ 1.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 928877})
+ 1.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 878877})
+ 1.200000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 828877})
+ 1.250000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 778877})
+ 1.300000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 728877})
+ 1.350000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 678877})
+ 1.400000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 628877})
+ 1.450000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 578877})
+ 1.500000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 528877})
+ 1.550000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 478877})
+ 1.600000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 428877})
+ 1.650000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 378877})
+ 1.700000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 328877})
+ 1.750000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 278877})
+ 1.800000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 228877})
+ 1.850000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 178877})
+ 1.900000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 128877})
+ 1.950000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 78877})
+ 2.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 2028877, shortfall = Coin 28877})
+ 2.050000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2050000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3075000})
+ 2.100000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2100000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3150000})
+ 2.150000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2150000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3225000})
+ 2.200000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2200000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3300000})
+ 2.250000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2250000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3375000})
+ 2.300000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2300000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3450000})
+ 2.350000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2350000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3525000})
+ 2.400000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2400000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3600000})
+ 2.450000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2450000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3675000})
+ 2.500000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2500000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3750000})
+ 2.550000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2550000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3825000})
+ 2.600000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2600000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3900000})
+ 2.650000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2650000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 3975000})
+ 2.700000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2700000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4050000})
+ 2.750000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2750000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4125000})
+ 2.800000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2800000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4200000})
+ 2.850000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2850000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4275000})
+ 2.900000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2900000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4350000})
+ 2.950000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 2950000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4425000})
+ 3.000000,ErrBalanceTxInsufficientCollateral (ErrBalanceTxInsufficientCollateralError {largestCombinationAvailable = UTxO (fromList [(TxIn (TxId {unTxId = SafeHash "3030303030303030303030303030303030303030303030303030303030303030"}) (TxIx 0),(Addr Testnet (KeyHashObj (KeyHash "b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77")) StakeRefNull,MaryValue (Coin 3000000) (MultiAsset (fromList [])),NoDatum,SNothing))]), minimumCollateralAmount = Coin 4500000})
+ 3.050000,0.607518,0.607518
+ 3.100000,0.607518,0.607518
+ 3.150000,0.607518,0.607518
+ 3.200000,0.607518,0.607518
+ 3.250000,0.607518,0.607518
+ 3.300000,0.607518,0.607518
+ 3.350000,0.607518,0.607518
+ 3.400000,0.607518,0.607518
+ 3.450000,0.607518,0.607518
+ 3.500000,0.607518,0.607518
+ 3.550000,0.607518,0.607518
+ 3.600000,0.607518,0.607518
+ 3.650000,0.607518,0.607518
+ 3.700000,0.607518,0.607518
+ 3.750000,0.607518,0.607518
+ 3.800000,0.607518,0.607518
+ 3.850000,0.607518,0.607518
+ 3.900000,0.607518,0.607518
+ 3.950000,0.607518,0.607518
+ 4.000000,0.607518,0.607518

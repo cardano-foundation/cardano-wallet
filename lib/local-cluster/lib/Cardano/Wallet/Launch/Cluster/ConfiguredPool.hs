@@ -25,7 +25,7 @@ import Cardano.Api
 import Cardano.Binary
     ( FromCBOR (..)
     )
-import Cardano.CLI.Shelley.Key
+import Cardano.CLI.Types.Key
     ( VerificationKeyOrFile (..)
     , readVerificationKeyOrFile
     )

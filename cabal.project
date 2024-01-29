@@ -112,8 +112,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/IntersectMBO/cardano-addresses
-    tag: 44d5a9eb3505b6bfbf281d40fa88531c3253b771
-    --sha256: 16rja48ryfjw3531kf15w0h3cdmscqgs8l1z1i2mvahq1vlhr2y6
+    tag: 126964483d188c2362393d2a6eea8c65dfc43097
+    --sha256: 1w152imj28ap5dfdc8x9ly0cy7dn500v7k63vw11f70gvgg6x7my
     subdir: command-line
             core
 
@@ -129,8 +129,12 @@ source-repository-package
 -- We don't want to promote this warning to an error level as it break the
 -- release build and cardano-addresses codebase is not under our control.
 package cardano-addresses-cli
-    ghc-options: -Wwarn=deprecations
+    ghc-options:
+        -Wwarn=deprecations
 
+package cardano-addresses
+    ghc-options:
+        -Wwarn=incomplete-uni-patterns
 -- END Cardano Addresses Dependency
 --------------------------------------------------------------------------------
 
@@ -170,9 +174,12 @@ allow-newer:
   , ekg:*
   , ntp-client:*
   , libsystemd-journal:base
+  , cardano-addresses-cli:mtl
+  , servant-openapi3:*
 
 constraints:
-    bimap >= 0.4.0
+    base == 4.18.1.0
+  , bimap >= 0.4.0
   , openapi3 >= 3.2.0
   , libsystemd-journal >= 1.4.4
   , systemd >= 2.3.0
@@ -192,19 +199,22 @@ constraints:
   , katip >= 0.8.7.4
 
   -- Cardano Node dependencies:
-  , cardano-api ^>=8.2
-  , cardano-slotting >= 0.1
-  , ouroboros-network ^>= 0.8.1.0
-  , optparse-applicative-fork == 0.16.2.0
+  , cardano-api ^>= 8.36.1.1
+  , cardano-crypto-class ==2.1.4.0
+  , cardano-crypto-class +secp256k1-support
+  , cardano-slotting ^>= 0.1.2
+  , optparse-applicative-fork == 0.18.1.0
+  , ouroboros-network ^>= 0.10.2.1
+  , plutus-core == 1.15.0.1
+  , plutus-core -with-cert -with-inline-r
+  , plutus-ledger-api ==1.15.0.1
 
   -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
-  , persistent == 2.13.3.3
+  , persistent ^>= 2.14.6.0
 
   -- warp-tls specifies incorrect upper bound on tls
   , any.warp-tls ==3.3.6
   , any.tls ==1.6.0
-
-  -- Haddock is broken in this release. Waiting for the next release
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)
@@ -238,17 +248,9 @@ package cardano-node
 program-options
   ghc-options: -fwrite-ide-info
 
--- By default, we fail to build if there are any unused package dependencies.
 program-options
-  ghc-options: -Wunused-packages
+  ghc-options: -Wwarn=unused-packages
 
--- NOTE: We make an exception for `cardano-wallet-primitive`, as for some
--- reason GHC panics when building this package if the above flag is enabled.
---
--- TODO: Investigate this problem further and/or file a GHC bug report.
---
-package cardano-wallet-primitive
-  ghc-options: -Wno-unused-packages
 
 --------------------------------------------------------------------------------
 -- Enable specific tests in this repo

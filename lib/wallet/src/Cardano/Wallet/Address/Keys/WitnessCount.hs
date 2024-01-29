@@ -7,6 +7,7 @@
 -- GHC 8.10.7 cannot figure out the constraint is necessary in
 -- toWitnessCount, so we disable the warning.
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Address.Keys.WitnessCount
     ( toWitnessCountCtx)

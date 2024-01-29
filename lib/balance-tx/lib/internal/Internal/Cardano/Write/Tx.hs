@@ -1,7 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -14,7 +12,9 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableSuperClasses #-}
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -153,15 +153,12 @@ import Cardano.Crypto.Hash
 import Cardano.Ledger.Allegra.Scripts
     ( translateTimelock
     )
+import Cardano.Ledger.Alonzo.Plutus.TxInfo
+    ( EraPlutusContext
+    , ExtendedUTxO
+    )
 import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..)
-    )
-import Cardano.Ledger.Alonzo.Scripts.Data
-    ( BinaryData
-    , Datum (..)
-    )
-import Cardano.Ledger.Alonzo.TxInfo
-    ( ExtendedUTxO
     )
 import Cardano.Ledger.Alonzo.TxWits
     ( AlonzoTxWits
@@ -171,6 +168,7 @@ import Cardano.Ledger.Alonzo.UTxO
     )
 import Cardano.Ledger.Api
     ( coinTxOutL
+    , ppKeyDepositL
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
@@ -186,6 +184,9 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Coin
     ( Coin (..)
     )
+import Cardano.Ledger.Conway.PParams
+    ( ppDRepDepositL
+    )
 import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
@@ -194,6 +195,13 @@ import Cardano.Ledger.Mary
     )
 import Cardano.Ledger.Mary.Value
     ( AssetName
+    )
+import Cardano.Ledger.Plutus.Data
+    ( BinaryData
+    , Datum (..)
+    )
+import Cardano.Ledger.Plutus.Language
+    ( Language (PlutusV1)
     )
 import Cardano.Ledger.SafeHash
     ( SafeHash
@@ -253,13 +261,11 @@ import Ouroboros.Consensus.Shelley.Eras
     )
 
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Byron as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Alonzo.Core as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.Scripts.Data as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.Tx as Babbage
@@ -268,6 +274,7 @@ import qualified Cardano.Ledger.Core as Core
 import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Value
+import qualified Cardano.Ledger.Plutus.Data as Alonzo
 import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
@@ -341,6 +348,7 @@ type RecentEraConstraints era =
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
+    , EraPlutusContext 'PlutusV1 era
     , Eq (TxOut era)
     , Ledger.Crypto (Core.EraCrypto era)
     , Show (TxOut era)
@@ -351,6 +359,7 @@ type RecentEraConstraints era =
     , Show (TxOut era)
     , Eq (TxOut era)
     , Show (PParams era)
+    , Show (Script era)
     )
 
 -- | Returns a proof that the given era is a recent era.
@@ -590,8 +599,8 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
     castScript = \case
         Alonzo.TimelockScript timelockEra ->
             Alonzo.TimelockScript (translateTimelock timelockEra)
-        Alonzo.PlutusScript l bs ->
-            Alonzo.PlutusScript l bs
+        Alonzo.PlutusScript bs ->
+            Alonzo.PlutusScript bs
 
 --
 -- MinimumUTxO
@@ -678,9 +687,6 @@ fromCardanoApiTx
 fromCardanoApiTx = \case
     CardanoApi.ShelleyTx _era tx ->
         tx
-    CardanoApi.ByronTx {} ->
-        case (recentEra @era) of
-            {}
 
 toCardanoApiTx
     :: forall era. IsRecentEra era
@@ -832,28 +838,47 @@ evaluateTransactionBalance
     -> Shelley.UTxO era
     -> Core.TxBody era
     -> Core.Value era
-evaluateTransactionBalance pp utxo =
-    let -- Looks up the current deposit amount for a registered stake credential
-        -- delegation.
-        --
-        -- This function must produce a valid answer for all stake credentials
-        -- present in any of the 'DeRegKey' delegation certificates in the
-        -- supplied 'TxBody'. In other words, there is no requirement to know
-        -- about all of the delegation certificates in the ledger state,
-        -- just those this transaction cares about.
-        lookupRefund :: Core.StakeCredential StandardCrypto -> Maybe Coin
-        lookupRefund _stakeCred = Just $ pp ^. Core.ppKeyDepositL
+evaluateTransactionBalance pp =
+    Ledger.evalBalanceTxBody
+        pp
+        keyDepositAssumeCurrent
+        dRepDepositAssumeCurrent
+        assumePoolIsReg
+  where
+    -- Deposit lookup for 'DeRegKey' delegation certificates in the TxBody
+    --
+    -- TODO [ADP-3270] Query actual value of deposit
+    --
+    -- https://cardanofoundation.atlassian.net/browse/ADP-3270
+    keyDepositAssumeCurrent
+        :: Core.StakeCredential StandardCrypto -> Maybe Coin
+    keyDepositAssumeCurrent _stakeCred = Just $ pp ^. ppKeyDepositL
 
-        -- Checks whether a pool with a supplied 'PoolStakeId' is already
-        -- registered.
-        --
-        -- There is no requirement to answer this question for all stake pool
-        -- credentials, just those that have their registration certificates
-        -- included in the supplied 'TxBody'.
-        isRegPoolId :: Ledger.KeyHash 'Ledger.StakePool StandardCrypto -> Bool
-        isRegPoolId _keyHash = True
+    -- Deposit lookup for `UnRegDRep` certificates in the TxBody
+    --
+    -- TODO [ADP-3270] Query actual value of deposit
+    --
+    -- https://cardanofoundation.atlassian.net/browse/ADP-3270
+    dRepDepositAssumeCurrent
+        :: Core.Credential 'Ledger.DRepRole StandardCrypto
+        -> Maybe Coin
+    dRepDepositAssumeCurrent _drepCred = case recentEra @era of
+        RecentEraConway -> Just $ pp ^. ppDRepDepositL
+        RecentEraBabbage -> error "impossible: lookupDRep called in Babbage"
 
-    in Ledger.evalBalanceTxBody pp lookupRefund isRegPoolId utxo
+    -- Checks whether a pool with a supplied 'PoolStakeId' is already
+    -- registered.
+    --
+    -- There is no requirement to answer this question for all stake pool
+    -- credentials, just those that have their registration certificates
+    -- included in the supplied 'TxBody'.
+    -- TODO [ADP-3274] Query actual registration status
+    --
+    -- https://cardanofoundation.atlassian.net/browse/ADP-3274
+    assumePoolIsReg
+        :: Ledger.KeyHash 'Ledger.StakePool StandardCrypto
+        -> Bool
+    assumePoolIsReg _keyHash = True
 
 --------------------------------------------------------------------------------
 -- Policy and asset identifiers
