@@ -98,9 +98,7 @@ import Network.Wai.Middleware.Logging
     , withApiLogger
     )
 import Servant
-    ( (:<|>) (..)
-    , (:>)
-    , Application
+    ( Application
     , DeleteNoContent
     , Get
     , JSON
@@ -114,6 +112,8 @@ import Servant
     , err503
     , serve
     , throwError
+    , (:<|>) (..)
+    , (:>)
     )
 import Servant.Server
     ( Handler

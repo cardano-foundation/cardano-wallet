@@ -76,8 +76,7 @@ import Data.Generics.Internal.VL
     , prism
     )
 import Generics.SOP
-    ( (:.:)
-    , All
+    ( All
     , Compose
     , K (..)
     , NP (..)
@@ -87,6 +86,7 @@ import Generics.SOP
     , injections
     , unComp
     , unK
+    , (:.:)
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP

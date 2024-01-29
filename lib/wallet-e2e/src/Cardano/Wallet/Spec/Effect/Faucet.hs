@@ -13,9 +13,9 @@ import Cardano.Wallet.Spec.Effect.Trace
     , trace
     )
 import Effectful
-    ( (:>)
-    , Eff
+    ( Eff
     , Effect
+    , (:>)
     )
 import Effectful.Dispatch.Dynamic
     ( reinterpret

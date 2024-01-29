@@ -148,10 +148,10 @@ import GHC.Generics
 import qualified Cardano.Wallet.Primitive.Types.AssetId as W
     ( AssetId
     )
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
     ( TokenBundle
     )
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W.TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as W.TokenMap
 import qualified Data.Foldable as F
 import qualified Data.List as L

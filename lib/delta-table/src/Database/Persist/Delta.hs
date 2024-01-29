@@ -60,10 +60,10 @@ import Database.Persist.Sql
     , toSqlKey
     )
 import Database.Schema
-    ( (:.) (..)
-    , Col (..)
+    ( Col (..)
     , IsRow
     , Primary (..)
+    , (:.) (..)
     )
 import Say
     ( say

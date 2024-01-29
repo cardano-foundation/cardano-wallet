@@ -127,10 +127,10 @@ import Fmt
     )
 import Generics.SOP
 import GHC.TypeNats
-    ( type (<=)
-    , KnownNat
+    ( KnownNat
     , Nat
     , natVal
+    , type (<=)
     )
 import Numeric.Natural
     ( Natural

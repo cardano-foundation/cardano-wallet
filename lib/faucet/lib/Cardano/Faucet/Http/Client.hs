@@ -29,8 +29,8 @@ import Cardano.Faucet.Types
     ( AddressStyle
     )
 import Servant
-    ( (:<|>) (..)
-    , Proxy (..)
+    ( Proxy (..)
+    , (:<|>) (..)
     )
 
 --------------------------------------------------------------------------------

@@ -21,10 +21,10 @@ import Data.Time.TimeSpan
     , timeoutTS
     )
 import Effectful
-    ( (:>)
-    , Eff
+    ( Eff
     , Effect
     , IOE
+    , (:>)
     )
 import Effectful.Dispatch.Dynamic
     ( interpret
