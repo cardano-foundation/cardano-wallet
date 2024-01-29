@@ -2606,15 +2606,17 @@ submitExternalTx
     -> NetworkLayer IO block
     -> TransactionLayer k ktype SealedTx
     -> SealedTx
-    -> ExceptT ErrPostTx IO Tx
+    -> ExceptT ErrPostTx IO TxId
 submitExternalTx tr nw tl sealedTx = do
     -- FIXME: We read the current era to constrain the @sealedTx@ **twice**:
     -- once here for decodeTx, and once in postTx before submitting.
     era <- liftIO $ currentNodeEra nw
     let (tx, _, _, _, _, _) = decodeTx tl era AnyWitnessCountCtx sealedTx
-    traceResult (MsgSubmitExternalTx (tx ^. #txId) >$< tr) $ do
+        txid = tx ^. #txId
+    _ <- traceResult (MsgSubmitExternalTx txid >$< tr) $ do
         postTx nw sealedTx
-        pure tx
+        pure sealedTx
+    pure txid
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -3846,7 +3848,7 @@ instance HasSeverityAnnotation WalletLog where
 
 data TxSubmitLog
     = MsgSubmitTx BuiltTx (BracketLog' (Either ErrSubmitTx ()))
-    | MsgSubmitExternalTx TxId (BracketLog' (Either ErrPostTx Tx))
+    | MsgSubmitExternalTx TxId (BracketLog' (Either ErrPostTx SealedTx))
     | MsgRetryPostTx TxId (BracketLog' (Either ErrPostTx ()))
     | MsgProcessPendingPool BracketLog
     deriving (Show, Eq)
