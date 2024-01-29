@@ -55,14 +55,12 @@ import Cardano.Wallet.Primitive.Types.AssetId
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
-    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..)
+    ( TxId
+    , TxIn (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
@@ -113,12 +111,9 @@ import qualified Data.Set as Set
 -- node.
 data Tx = Tx
     { txId
-        :: Hash "Tx"
-        -- ^ Jörmungandr computes transaction id by hashing the full content of
-        -- the transaction, which includes witnesses. Therefore, we need either
-        -- to keep track of the witnesses to be able to re-compute the tx id
+        :: TxId
+        -- ^ Hash of the transaction body (i.e. without witnesses).
 
-        -- every time, or, simply keep track of the id itself.
     , txCBOR
         :: Maybe TxCBOR
         -- ^ Serialized version of the transaction as received from the Node.
@@ -260,7 +255,7 @@ txMapAssetIds f tx = tx
     & over #collateralOutput
         (fmap (TxOut.mapAssetIds f))
 
-txMapTxIds :: (Hash "Tx" -> Hash "Tx") -> Tx -> Tx
+txMapTxIds :: (TxId -> TxId) -> Tx -> Tx
 txMapTxIds f tx = tx
     & over #txId
         f

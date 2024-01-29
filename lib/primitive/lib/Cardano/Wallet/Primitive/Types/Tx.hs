@@ -18,6 +18,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     (
     -- * Types
       Tx (..)
+    , TxId
     , TxChange (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
@@ -77,9 +78,6 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash
-    )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap
     )
@@ -120,6 +118,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     , txMetadataIsNull
     , txRemoveAssetId
     , txScriptInvalid
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxId
     )
 import Data.Word
     ( Word64
@@ -173,7 +174,7 @@ data UnsignedTx input output change withdrawal = UnsignedTx
 -- | Information about when a transaction was submitted to the local node.
 -- This is used for scheduling resubmissions.
 data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
-    { txId :: Hash "Tx"
+    { txId :: TxId
     , submittedTx :: tx
     , latestSubmission :: SlotNo
     -- ^ Time of most recent resubmission attempt.

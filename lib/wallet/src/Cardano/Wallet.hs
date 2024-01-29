@@ -543,6 +543,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx
     , Tx (..)
     , TxChange (..)
+    , TxId
     , TxMetadata (..)
     , UnsignedTx (..)
     , sealedTxFromCardano
@@ -2623,7 +2624,7 @@ submitExternalTx tr nw tl sealedTx = do
 -- be added back to the transaction history.
 forgetTx
     :: WalletLayer m s
-    -> Hash "Tx"
+    -> TxId
     -> ExceptT ErrRemoveTx m ()
 forgetTx ctx txid =
     ExceptT
@@ -2803,7 +2804,7 @@ listAssets ctx = db & \DBLayer{..} -> do
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
     :: WalletLayer IO s
-    -> Hash "Tx"
+    -> TxId
     -> ExceptT ErrGetTransaction IO TransactionInfo
 getTransaction ctx tid =
     db & \DBLayer {..} -> do
@@ -3845,8 +3846,8 @@ instance HasSeverityAnnotation WalletLog where
 
 data TxSubmitLog
     = MsgSubmitTx BuiltTx (BracketLog' (Either ErrSubmitTx ()))
-    | MsgSubmitExternalTx (Hash "Tx") (BracketLog' (Either ErrPostTx Tx))
-    | MsgRetryPostTx (Hash "Tx") (BracketLog' (Either ErrPostTx ()))
+    | MsgSubmitExternalTx TxId (BracketLog' (Either ErrPostTx Tx))
+    | MsgRetryPostTx TxId (BracketLog' (Either ErrPostTx ()))
     | MsgProcessPendingPool BracketLog
     deriving (Show, Eq)
 
