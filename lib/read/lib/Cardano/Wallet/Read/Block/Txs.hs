@@ -18,8 +18,8 @@ import Cardano.Wallet.Read.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( (:.:) (..)
-    , EraFun (..)
+    ( EraFun (..)
+    , (:.:) (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

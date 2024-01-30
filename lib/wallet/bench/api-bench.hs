@@ -177,8 +177,8 @@ import Say
     ( sayErr
     )
 
-import qualified Cardano.Api as Cardano
 import qualified Cardano.Api as C
+import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB as DB
 import qualified Cardano.Wallet.DB.Layer as DB

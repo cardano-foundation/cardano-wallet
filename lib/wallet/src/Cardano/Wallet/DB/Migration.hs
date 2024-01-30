@@ -59,10 +59,10 @@ import GHC.Natural
     ( Natural
     )
 import GHC.TypeNats
-    ( type (+)
-    , KnownNat
+    ( KnownNat
     , Nat
     , natVal
+    , type (+)
     )
 
 --------------------------------------------------------------------------------

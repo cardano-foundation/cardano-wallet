@@ -243,8 +243,8 @@ import Data.Maybe
     , isJust
     )
 import Data.Type.Equality
-    ( (:~:) (Refl)
-    , TestEquality (testEquality)
+    ( TestEquality (testEquality)
+    , (:~:) (Refl)
     )
 import Data.Typeable
     ( Typeable

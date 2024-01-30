@@ -93,8 +93,8 @@ import Data.Tuple
     ( swap
     )
 import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
+    ( testEquality
+    , (:~:) (..)
     )
 import Data.Typeable
     ( Typeable
@@ -151,10 +151,10 @@ import Servant
     , serve
     )
 import Servant.API
-    ( (:<|>) (..)
-    , (:>)
-    , Capture
+    ( Capture
     , OctetStream
+    , (:<|>) (..)
+    , (:>)
     )
 import Servant.API.Verbs
     ( NoContentVerb

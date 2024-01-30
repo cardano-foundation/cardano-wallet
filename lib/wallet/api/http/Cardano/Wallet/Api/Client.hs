@@ -137,9 +137,9 @@ import Data.Text
     ( Text
     )
 import Servant
-    ( (:<|>) (..)
+    ( NoContent
+    , (:<|>) (..)
     , (:>)
-    , NoContent
     )
 import Servant.Client
     ( ClientM

@@ -31,11 +31,11 @@ import Cardano.Faucet.Types
     , MnemonicIndex
     )
 import Servant.API
-    ( (:<|>)
-    , (:>)
-    , Capture
+    ( Capture
     , Get
     , JSON
+    , (:<|>)
+    , (:>)
     )
 
 --------------------------------------------------------------------------------

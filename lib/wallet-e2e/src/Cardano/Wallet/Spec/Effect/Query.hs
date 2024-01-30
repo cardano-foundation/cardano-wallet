@@ -58,9 +58,9 @@ import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork (..)
     )
 import Effectful
-    ( (:>)
-    , Eff
+    ( Eff
     , Effect
+    , (:>)
     )
 import Effectful.Dispatch.Dynamic
     ( interpret

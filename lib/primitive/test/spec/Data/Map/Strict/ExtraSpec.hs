@@ -49,10 +49,10 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary
     , CoArbitrary
-    , pattern Fn2
     , Fun
     , Function (..)
     , Property
+    , pattern Fn2
     , property
     , (===)
     )

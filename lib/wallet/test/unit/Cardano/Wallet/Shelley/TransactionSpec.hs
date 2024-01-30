@@ -254,8 +254,8 @@ import Data.Semigroup
     ( mtimesDefault
     )
 import Data.Type.Equality
-    ( (:~:) (..)
-    , testEquality
+    ( testEquality
+    , (:~:) (..)
     )
 import Data.Word
     ( Word16
