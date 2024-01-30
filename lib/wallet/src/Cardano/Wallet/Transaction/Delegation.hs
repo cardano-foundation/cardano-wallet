@@ -31,6 +31,12 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepID (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
     )
@@ -48,10 +54,12 @@ import Data.ByteString.Short
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.ReexposeLedger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
+import qualified Cardano.Ledger.Hashes as SL
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
     , RecentEra (RecentEraBabbage, RecentEraConway)
     )
+
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate
@@ -134,11 +142,6 @@ certificateFromDelegationAction Write.RecentEraConway cred daM vaM depoM =
            error "certificateFromDelegationAction: deposit value required in Conway era when deregistration is carried out"
 
   {--
-       (Just (JoinRegisteringKey poolId), Nothing) ->
-            [ toStakeKeyRegCert cred
-            , toStakePoolDlgCert cred poolId
-            ]
-       (Just Quit, Nothing) -> [toStakeKeyDeregCert cred]
        -- waiting until cardano-api is updated
        -- we will need here also deposit value sneaked in
        (Nothing, Just (VoteRegisteringKey _action)) -> undefined
@@ -203,3 +206,15 @@ toLedgerDelegatee
 toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Nothing) ->
         Ledger.DelegStake (Cardano.unStakePoolKeyHash poolId)
+
+toLedgerDRep
+    :: DRep -> Ledger.DRep Write.StandardCrypto
+toLedgerDRep = \case
+    Abstain -> Ledger.DRepAlwaysAbstain
+    NoConfidence -> Ledger.DRepAlwaysNoConfidence
+    FromDRepID (DRepFromKeyHash (DRepKeyHash keyhash)) ->
+        Ledger.DRepCredential . Ledger.KeyHashObj . Ledger.KeyHash . UnsafeHash $
+        toShort keyhash
+    FromDRepID (DRepFromScriptHash (DRepScriptHash scripthash)) ->
+        Ledger.DRepCredential . Ledger.ScriptHashObj . SL.ScriptHash . UnsafeHash $
+        toShort scripthash
