@@ -110,6 +110,7 @@ certificateFromDelegationAction Write.RecentEraBabbage cred daM vaM _ =
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
 certificateFromDelegationAction Write.RecentEraConway cred daM vaM depoM =
     case (daM, vaM, depoM) of
+       -- just delegation
        (Just (Join poolId), Nothing, _) ->
            [ Cardano.makeStakeAddressDelegationCertificate
                $ Cardano.StakeDelegationRequirementsConwayOnwards
@@ -130,7 +131,8 @@ certificateFromDelegationAction Write.RecentEraConway cred daM vaM depoM =
                    (toLedgerDelegatee (Just $ toCardanoPoolId poolId) Nothing)
            ]
        (Just (JoinRegisteringKey _), Nothing, Nothing) ->
-           error "certificateFromDelegationAction: deposit value required in Conway era when registration is carried out"
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (joining)"
        (Just Quit, Nothing, Just deposit) ->
            [ Cardano.makeStakeAddressUnregistrationCertificate
                $ Cardano.StakeAddrRegistrationConway
@@ -139,35 +141,81 @@ certificateFromDelegationAction Write.RecentEraConway cred daM vaM depoM =
                    (toCardanoStakeCredential cred)
            ]
        (Just Quit, Nothing, Nothing) ->
-           error "certificateFromDelegationAction: deposit value required in Conway era when deregistration is carried out"
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (quitting)"
 
-  {--
-       -- waiting until cardano-api is updated
-       -- we will need here also deposit value sneaked in
-       (Nothing, Just (VoteRegisteringKey _action)) -> undefined
-            --[ toStakeKeyRegCert cred deposit
-            --, toStakePoolDlgCert cred Nothing (Just action)
-            --]
-       (Nothing, Just (Vote _action)) -> undefined
-            --[ toStakePoolDlgCert cred Nothing (Just action) ]
-       (Just (Join _poolId), Just (Vote _action)) -> undefined
-            --[ toStakePoolDlgCert cred (Just poolId) (Just action) ]
-       (Just (JoinRegisteringKey _poolId), Just (VoteRegisteringKey _action)) -> undefined
-           --[ toStakeKeyRegCert cred deposit
-           --, toStakePoolDlgCert cred (Just poolId) (Just action)
-           --]
-       (Just Quit, Just (Vote _action)) -> undefined
-            --[ toStakePoolDlgCert cred Nothing (Just action) ]
+       -- just voting
+       (Nothing, Just (Vote action), _) ->
+           [ Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee Nothing (Just action))
+           ]
+       (Nothing, Just (VoteRegisteringKey action), Just deposit) ->
+           [ Cardano.makeStakeAddressRegistrationCertificate
+               $ Cardano.StakeAddrRegistrationConway
+                   conwayWitness
+                   (toCardanoLovelace deposit)
+                   (toCardanoStakeCredential cred)
+           , Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee Nothing (Just action))
+           ]
+       (Nothing, Just (VoteRegisteringKey _), Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (voting)"
 
-       (Just (Join _poolId), Just (VoteRegisteringKey _action)) -> undefined
-            -- this should not happen
-       (Just (JoinRegisteringKey _poolId), Just (Vote _action)) -> undefined
-            -- this should not happen
---}
+       -- both delegation and voting
+       (Just (Join poolId), Just (Vote action), _) ->
+           [ Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee (Just $ toCardanoPoolId poolId) (Just action))
+           ]
+       (Just (JoinRegisteringKey poolId), Just (VoteRegisteringKey action), Just deposit) ->
+           registerDelegateAndVote poolId action deposit
+       (Just (Join poolId), Just (VoteRegisteringKey action), Just deposit) ->
+           registerDelegateAndVote poolId action deposit
+       (Just (JoinRegisteringKey poolId), Just (Vote action), Just deposit) ->
+           registerDelegateAndVote poolId action deposit
+       (Just (JoinRegisteringKey _), Just (VoteRegisteringKey _), Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (joining reg and voting reg)"
+       (Just (Join _), Just (VoteRegisteringKey _), Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (joining and voting reg)"
+       (Just (JoinRegisteringKey _), Just (Vote _), Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (joining reg and voting)"
+       (Just Quit, Just (Vote _), _) ->
+           error "certificateFromDelegationAction: quitting and voting in the same  \
+                 \transaction in Conway era is forbidden"
+       (Just Quit, Just (VoteRegisteringKey action), _) ->
+           [ Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee Nothing (Just action))
+           ]
        _ -> []
-
   where
     conwayWitness = Cardano.ConwayEraOnwardsConway
+    registerDelegateAndVote poolId action deposit =
+        [ Cardano.makeStakeAddressRegistrationCertificate
+            $ Cardano.StakeAddrRegistrationConway
+                conwayWitness
+                (toCardanoLovelace deposit)
+                (toCardanoStakeCredential cred)
+        , Cardano.makeStakeAddressDelegationCertificate
+            $ Cardano.StakeDelegationRequirementsConwayOnwards
+                conwayWitness
+                (toCardanoStakeCredential cred)
+                (toLedgerDelegatee (Just $ toCardanoPoolId poolId) (Just action))
+        ]
 
 {-----------------------------------------------------------------------------
     Cardano.StakeCredential
@@ -201,11 +249,17 @@ toHashStakeKey =
 
 toLedgerDelegatee
     :: Maybe Cardano.PoolId
-    -> Maybe VotingAction
+    -> Maybe DRep
     -> Ledger.Delegatee Write.StandardCrypto
 toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Nothing) ->
         Ledger.DelegStake (Cardano.unStakePoolKeyHash poolId)
+    (Nothing, Just vote) ->
+        Ledger.DelegVote (toLedgerDRep vote)
+    (Just poolId, Just vote) ->
+        Ledger.DelegStakeVote (Cardano.unStakePoolKeyHash poolId) (toLedgerDRep vote)
+    _ ->
+        error "toLedgerDelegatee: wrong use, at least pool or vote action must be present"
 
 toLedgerDRep
     :: DRep -> Ledger.DRep Write.StandardCrypto
