@@ -28,7 +28,6 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrAssignRedeemers (..)
@@ -1579,15 +1578,10 @@ data ErrBalanceTxOutputErrorInfo
         , output :: (Address, Value)
         }
     | ErrBalanceTxOutputSizeExceedsLimit
-        ErrBalanceTxOutputSizeExceedsLimitError
+        { outputThatExceedsLimit :: (Address, Value)
+        }
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
         ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    deriving (Eq, Generic, Show)
-
-newtype ErrBalanceTxOutputSizeExceedsLimitError =
-    ErrBalanceTxOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: (Address, Value)
-    }
     deriving (Eq, Generic, Show)
 
 data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
@@ -1619,7 +1613,7 @@ validateTxOutputs constraints outs =
   where
     errors :: [ErrBalanceTxOutputError]
     errors = uncurry ErrBalanceTxOutputErrorOf <$> foldMap withOutputsIndexed
-        [ (fmap . fmap) ErrBalanceTxOutputSizeExceedsLimit
+        [ (fmap . fmap) id
             . mapMaybe (traverse (validateTxOutputSize constraints))
         , (fmap . fmap) ErrBalanceTxOutputTokenQuantityExceedsLimit
             . foldMap (traverse validateTxOutputTokenQuantities)
@@ -1637,13 +1631,13 @@ validateTxOutputs constraints outs =
 validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
-    -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
+    -> Maybe ErrBalanceTxOutputErrorInfo
 validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
         Just $
-        ErrBalanceTxOutputSizeExceedsLimitError
+        ErrBalanceTxOutputSizeExceedsLimit
             (Convert.toLedger address, Convert.toLedger bundle)
   where
     sizeAssessment :: TokenBundleSizeAssessment

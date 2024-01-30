@@ -125,7 +125,6 @@ import Cardano.Write.Tx
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     )
 import Control.Monad.Except
@@ -986,8 +985,21 @@ instance IsServerError ErrBalanceTxOutputError where
                     ApiAmount.fromCoin $
                     toWalletCoin minimumExpectedCoin
                 }
-        ErrBalanceTxOutputSizeExceedsLimit e ->
-            toServerError e
+        ErrBalanceTxOutputSizeExceedsLimit {outputThatExceedsLimit} ->
+            apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
+                [ "One of the outputs you've specified contains too many "
+                , "assets. Try splitting these assets across two or more "
+                , "outputs. Destination address: "
+                , pretty address
+                , ". Asset count: "
+                , pretty assetCount
+                , "."
+                ]
+              where
+                address = toWalletAddress (fst output)
+                assetCount = TokenMap.size $
+                    toWalletTokenBundle (snd output) ^. #tokens
+                output = outputThatExceedsLimit
         ErrBalanceTxOutputTokenQuantityExceedsLimit e ->
             toServerError e
       where
@@ -998,21 +1010,6 @@ instance IsServerError ErrBalanceTxOutputError where
             , "which case the wallet will automatically assign the correct"
             , "minimum ada quantity to the output."
             ]
-
-instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
-  where
-    toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
-        mconcat
-        [ "One of the outputs you've specified contains too many assets. "
-        , "Try splitting these assets across two or more outputs. "
-        , "Destination address: "
-        , pretty (toWalletAddress (fst output))
-        , ". Asset count: "
-        , pretty (TokenMap.size $ toWalletTokenBundle (snd output) ^. #tokens)
-        , "."
-        ]
-      where
-        output = view #outputThatExceedsLimit e
 
 instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
   where
