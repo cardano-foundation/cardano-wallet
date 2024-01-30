@@ -228,6 +228,7 @@ module Test.Integration.Framework.DSL
     , runResourceT
     , ResourceT
     , listLimitedTransactions
+    , noConway
     ) where
 
 import Prelude
@@ -428,6 +429,7 @@ import Control.Monad
     , replicateM
     , unless
     , void
+    , when
     , (>=>)
     )
 import Control.Monad.IO.Unlift
@@ -585,6 +587,7 @@ import System.IO
 import Test.Hspec
     ( Expectation
     , HasCallStack
+    , pendingWith
     )
 import Test.Hspec.Expectations.Lifted
     ( expectationFailure
@@ -3554,3 +3557,8 @@ replaceStakeKey addr1 addr2 =
             addr = either (error . show) id $
                 decodeAddress (sNetworkId @n) $ Bech32.encodeLenient hrp dp
         in ApiAddress addr
+
+noConway :: MonadIO m => Context -> String -> m ()
+noConway ctx reason = liftIO $ do
+    when (_mainEra ctx == ApiConway) $
+        pendingWith $ "CONWAY is not supported: " <> reason

@@ -1,3 +1,5 @@
+LC_ALL := 'C.UTF-8'
+
 default:
   @just --list
 
@@ -5,9 +7,17 @@ default:
 syntax:
   ./.buildkite/check-code-format.sh
 
-# build wallet-e2e suite with cabal
+hlint:
+  nix develop --command bash -c 'hlint lib'
+
+# build wallet
 build:
-  cabal build all
+  cabal build all -Werror -O0 -v0
+
+# build after clean
+clean-build:
+  cabal clean
+  cabal build all -Werror -O0 -v0
 
 # run a nix shell with `cardano-wallet` in scope
 wallet:
@@ -27,19 +37,6 @@ local-cluster:
 unit:
   cabal run cardano-wallet:test:unit \
     --test-options '--cluster-configs lib/local-cluster/test/data/cluster-configs'
-
-# run integration tests
-integration:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
-  nix shell '.#cardano-wallet' -c cabal test integration
-
-babbage-integration-tests-cabal-no-wallet-match match:
-  echo "Running integration tests without cardano-wallet exe compiled"
-  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
-  CARDANO_WALLET_TEST_DATA=test/data \
-  LOCAL_CLUSTER_ERA=babbage \
-  TESTS_RETRY_FAILED=1 \
-  cabal test integration -O0 -v0 --test-options '--match="{{match}}"'
 
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
@@ -62,32 +59,67 @@ e2e-local:
 e2e-manual:
   nix run '.#cardano-wallet-e2e' -- manual
 
-#run integration tests locally via babbage-integration-exe
-babbage-integration-tests:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
-  CARDANO_WALLET_TEST_DATA=./lib/wallet/test/data \
+# run any integration test matching the given pattern via cabal
+integration-tests-cabal-match match:
+  echo "Running integration tests with cardano-wallet exe compiled"
+  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=test/data \
+  cabal test integration -O0 -v0 \
+    --test-options '--match="{{match}}"'
+
+# run any integration test matching the given pattern via cabal
+integration-tests-cabal-options options:
+  echo "Running integration tests with cardano-wallet exe compiled"
+  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
+  CARDANO_WALLET_TEST_DATA=test/data \
+  cabal test integration -O0 -v0 \
+    --test-options 'options'
+
+# run babbage integration tests matching the given pattern via cabal
+babbage-integration-tests-cabal-match match:
   LOCAL_CLUSTER_ERA=babbage \
-  TESTS_RETRY_FAILED=1 \
-  nix shell \
-    '.#cardano-node' \
-    '.#cardano-cli' \
-    '.#cardano-wallet' \
-    '.#integration-exe' \
-    -c integration-exe -j 3
+  just integration-tests-cabal-match "{{match}}"
 
-# run integration tests locally via conway-integration-exe
-conway-integration-tests:
+# run conway integration tests matching the given pattern via cabal
+conway-integration-tests-cabal-match match:
+  LOCAL_CLUSTER_ERA=conway \
+  just integration-tests-cabal-match "{{match}}"
+
+# run babbage integration tests via cabal
+babbage-integration-tests-cabal:
+  just babbage-integration-tests-cabal-match ""
+
+# run conway integration tests via cabal
+conway-integration-tests-cabal:
+  just conway-integration-tests-cabal-match ""
+
+
+# run any integration test matching the given pattern via nix
+integration-tests match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   CARDANO_WALLET_TEST_DATA=./lib/wallet/test/data \
-  LOCAL_CLUSTER_ERA=conway \
   TESTS_RETRY_FAILED=1 \
   nix shell \
-    '.#local-cluster' \
     '.#cardano-node' \
     '.#cardano-cli' \
     '.#cardano-wallet' \
     '.#integration-exe' \
-    -c integration-exe -j 3
+    -c integration-exe -j 3 --match="{{match}}"
 
-hlint:
-  nix develop --command bash -c 'hlint lib'
+# run babbage integration tests matching the given pattern via nix
+babbage-integration-tests-match match:
+  LOCAL_CLUSTER_ERA=babbage \
+  just integration-tests "{{match}}"
+
+# run conway integration tests matching the given pattern via nix
+conway-integration-tests-match match:
+  LOCAL_CLUSTER_ERA=conway \
+  just integration-tests "{{match}}"
+
+# run babbage integration tests via nix
+babbage-integration-tests:
+  just babbage-integration-tests-match ""
+
+# run conway integration tests via nix
+conway-integration-tests:
+  just conway-integration-tests-match ""

@@ -71,7 +71,7 @@ import Test.Integration.Framework.Context
     ( PoolGarbageCollectionEvent (..)
     )
 import UnliftIO.Exception
-    ( SomeException
+    ( SomeException (..)
     , isAsyncException
     )
 
@@ -113,7 +113,8 @@ instance ToText TestsLog where
                             ]
                 ]
         MsgServerError e
-            | isAsyncException e -> "Server thread cancelled"
+            | isAsyncException (SomeException e)
+                -> "Server thread cancelled: " <> T.pack (show e)
             | otherwise -> T.pack (show e)
 
 instance HasPrivacyAnnotation TestsLog
@@ -125,7 +126,7 @@ instance HasSeverityAnnotation TestsLog where
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
         MsgServerError e
-            | isAsyncException e -> Info
+            | isAsyncException e -> Critical
             | otherwise -> Critical
 
 withTracers

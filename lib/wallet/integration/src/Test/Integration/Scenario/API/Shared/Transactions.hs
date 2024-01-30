@@ -185,6 +185,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , noConway
     , notDelegating
     , notRetiringPools
     , patchSharedWallet
@@ -1811,7 +1812,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
 
     it "SHARED_TRANSACTIONS_DELEGATION_01a - \
        \Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
-
+        noConway ctx "delegation"
         (party1,party2) <- fixtureSharedWalletDelegating @n ctx
         let depositAmt = ApiAmount 1_000_000
 
