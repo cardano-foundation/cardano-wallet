@@ -8,7 +8,6 @@ module Cardano.Write.Tx
       balanceTransaction
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -27,7 +26,6 @@ import Internal.Cardano.Write.Tx
 import Internal.Cardano.Write.Tx.Balance
     ( ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)

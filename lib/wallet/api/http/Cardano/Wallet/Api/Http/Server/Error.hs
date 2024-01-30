@@ -121,7 +121,6 @@ import Cardano.Wallet.Transaction
 import Cardano.Write.Tx
     ( ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -574,9 +573,24 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
                 [ "Balancing transactions with pre-defined"
                 , "collateral return outputs is not yet supported."
                 ]
-        ErrBalanceTxInsufficientCollateral e ->
+        ErrBalanceTxInsufficientCollateral
+            {minimumCollateralAmount, largestCombinationAvailable} ->
+            apiError err403 InsufficientCollateral $ T.unwords
+                [ "I'm unable to create this transaction because the balance"
+                , "of pure ada UTxOs in your wallet is insufficient to cover"
+                , "the minimum amount of collateral required."
+                , "I need an ada amount of at least:"
+                , pretty (toWalletCoin minimumCollateralAmount)
+                , "The largest combination of pure ada UTxOs I could find is:"
+                , pretty $ listF $ L.sort
+                    $ fmap (view #coin . view #tokens . snd)
+                    $ UTxO.toList
+                    $ Write.toWalletUTxO largestCombinationAvailable
+                , "To fix this, you'll need to add one or more pure ada UTxOs"
+                , "to your wallet that can cover the minimum amount required."
+                ]
+        ErrBalanceTxInternalError e ->
             toServerError e
-        ErrBalanceTxInternalError e -> toServerError e
         ErrBalanceTxMaxSizeLimitExceeded ->
             apiError err403 TransactionIsTooBig $ T.unwords
                 [ "I was not able to balance the transaction without exceeding"
@@ -1036,27 +1050,6 @@ instance IsServerError ErrCreateMigrationPlan where
                 , "any of the funds to be migrated. Try adding some ada to "
                 , "your wallet before trying again."
                 ]
-
-instance
-    Write.IsRecentEra era =>
-    IsServerError (ErrBalanceTxInsufficientCollateralError era)
-  where
-    toServerError e =
-        apiError err403 InsufficientCollateral $ T.unwords
-            [ "I'm unable to create this transaction because the balance"
-            , "of pure ada UTxOs in your wallet is insufficient to cover"
-            , "the minimum amount of collateral required."
-            , "I need an ada amount of at least:"
-            , pretty (toWalletCoin (view #minimumCollateralAmount e))
-            , "The largest combination of pure ada UTxOs I could find is:"
-            , pretty $ listF $ L.sort
-                $ fmap (view #coin . view #tokens . snd)
-                $ UTxO.toList
-                $ Write.toWalletUTxO
-                $ view #largestCombinationAvailable e
-            , "To fix this, you'll need to add one or more pure ada UTxOs"
-            , "to your wallet that can cover the minimum amount required."
-            ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     toServerError = \case

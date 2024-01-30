@@ -23,7 +23,6 @@ module Internal.Cardano.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -320,23 +319,6 @@ import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
--- | Indicates a failure to select a sufficient amount of collateral.
---
-data ErrBalanceTxInsufficientCollateralError era =
-    ErrBalanceTxInsufficientCollateralError
-    { largestCombinationAvailable :: UTxO era
-        -- ^ The largest available combination of pure ada UTxOs.
-    , minimumCollateralAmount :: Coin
-        -- ^ The minimum quantity of ada necessary for collateral.
-    }
-    deriving Generic
-
-deriving instance IsRecentEra era =>
-    Eq (ErrBalanceTxInsufficientCollateralError era)
-
-deriving instance IsRecentEra era =>
-    Show (ErrBalanceTxInsufficientCollateralError era)
-
 -- | Indicates that there was not enough ada available to create change outputs.
 --
 -- When creating a change output, ada is required in order to pay for:
@@ -393,7 +375,13 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
     | ErrBalanceTxInsufficientCollateral
-        (ErrBalanceTxInsufficientCollateralError era)
+        { largestCombinationAvailable :: UTxO era
+            -- ^ The largest available combination of pure ada UTxOs.
+        , minimumCollateralAmount :: Coin
+            -- ^ The minimum quantity of ada necessary for collateral.
+        }
+        -- ^ Indicates a failure to select a sufficient amount of collateral.
+        --
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
@@ -1540,7 +1528,6 @@ coinSelectionErrorToBalanceTxError = \case
         , minimumSelectionAmount
         } ->
         ErrBalanceTxInsufficientCollateral
-        ErrBalanceTxInsufficientCollateralError
             { largestCombinationAvailable
                 = largestCombinationAvailable
                 & fmap W.TokenBundle.fromCoin
