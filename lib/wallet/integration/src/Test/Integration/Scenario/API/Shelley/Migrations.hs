@@ -101,6 +101,7 @@ import Test.Integration.Framework.DSL
     , emptyRandomWallet
     , emptyWallet
     , eventually
+    , eventuallyReport
     , expectErrorMessage
     , expectField
     , expectResponseCode
@@ -129,6 +130,9 @@ import Test.Integration.Framework.TestData
     , errMsg403WrongPass
     , errMsg404NoWallet
     )
+import Text.Pretty.Simple
+    ( pShowNoColor
+    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
@@ -139,6 +143,7 @@ import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Text.Lazy as TL
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
@@ -781,7 +786,19 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 "passphrase": #{fixturePassphrase}
             }|]
                         )
-            sourceBalance <- eventually "Source wallet balance is correct." $ do
+
+            let transactions :: IO String
+                transactions = do
+                    (_ , txs) <- unsafeRequest @[ApiTransaction n] ctx
+                        (Link.listTransactions @'Shelley sourceWallet) Empty
+
+                    pure $
+                        "Source wallet balance is not correct. "
+                        <> "Transactions in the wallet are: "
+                        <> show (length txs) <> "\n"
+                        <> TL.unpack (pShowNoColor txs)
+
+            sourceBalance <- eventuallyReport transactions $ do
                 response <-
                     request @ApiWallet
                         ctx
