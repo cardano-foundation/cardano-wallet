@@ -25,7 +25,8 @@ import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoSimpleScript
+    ( toCardanoLovelace
+    , toCardanoSimpleScript
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
@@ -45,8 +46,8 @@ import Data.ByteString.Short
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.ReexposeLedger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Keys as Ledger
 import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
@@ -96,12 +97,40 @@ certificateFromDelegationAction Write.RecentEraBabbage cred daM vaM _ =
     (Nothing, Nothing) -> []
   where
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
-certificateFromDelegationAction Write.RecentEraConway _cred _ _ _ =
-    error "certificateFromDelegationAction: not supported in Conway yet"
-{--
-    case (da, va) of
-       (Just (Join poolId), Nothing) ->
-               [ toStakePoolDlgCert cred poolId ]
+certificateFromDelegationAction Write.RecentEraConway cred daM vaM depoM =
+    case (daM, vaM, depoM) of
+       (Just (Join poolId), Nothing, _) ->
+           [ Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee (Just $ toCardanoPoolId poolId) Nothing)
+           ]
+       (Just (JoinRegisteringKey poolId), Nothing, Just deposit) ->
+           [ Cardano.makeStakeAddressRegistrationCertificate
+               $ Cardano.StakeAddrRegistrationConway
+                   conwayWitness
+                   (toCardanoLovelace deposit)
+                   (toCardanoStakeCredential cred)
+           , Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee (Just $ toCardanoPoolId poolId) Nothing)
+           ]
+       (Just (JoinRegisteringKey _), Nothing, Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in Conway era when registration is carried out"
+       (Just Quit, Nothing, Just deposit) ->
+           [ Cardano.makeStakeAddressUnregistrationCertificate
+               $ Cardano.StakeAddrRegistrationConway
+                   conwayWitness
+                   (toCardanoLovelace deposit)
+                   (toCardanoStakeCredential cred)
+           ]
+       (Just Quit, Nothing, Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in Conway era when deregistration is carried out"
+
+  {--
        (Just (JoinRegisteringKey poolId), Nothing) ->
             [ toStakeKeyRegCert cred
             , toStakePoolDlgCert cred poolId
@@ -128,10 +157,11 @@ certificateFromDelegationAction Write.RecentEraConway _cred _ _ _ =
             -- this should not happen
        (Just (JoinRegisteringKey _poolId), Just (Vote _action)) -> undefined
             -- this should not happen
-       _ -> []
 --}
+       _ -> []
+
   where
-    _conwayWitness = Cardano.ConwayEraOnwardsConway
+    conwayWitness = Cardano.ConwayEraOnwardsConway
 
 {-----------------------------------------------------------------------------
     Cardano.StakeCredential
@@ -162,3 +192,11 @@ toHashStakeKey =
     . toShort
     . blake2b224
     . xpubPublicKey
+
+toLedgerDelegatee
+    :: Maybe Cardano.PoolId
+    -> Maybe VotingAction
+    -> Ledger.Delegatee Write.StandardCrypto
+toLedgerDelegatee poolM vaM = case (poolM, vaM) of
+    (Just poolId, Nothing) ->
+        Ledger.DelegStake (Cardano.unStakePoolKeyHash poolId)
