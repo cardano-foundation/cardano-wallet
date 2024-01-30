@@ -205,6 +205,14 @@ steps:
     agents:
       system: ${macos}
 
+  - label: 'Build package (macOS, arm64)'
+    key: macos-package-arm64
+    depends_on: macos-nix
+    command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
+    artifact_paths: [ "./result/macos-silicon/**" ]
+    agents:
+      system: ${macos}
+
   - block: "Build package (linux)"
     if: |
       build.branch !~ /^gh-readonly-queue\/master/
