@@ -1581,7 +1581,7 @@ data ErrBalanceTxOutputErrorInfo
         ErrBalanceTxOutputSizeExceedsLimitError
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
         ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    deriving (Eq, Show)
+    deriving (Eq, Generic, Show)
 
 data ErrBalanceTxOutputAdaQuantityInsufficientError =
     ErrBalanceTxOutputAdaQuantityInsufficientError
