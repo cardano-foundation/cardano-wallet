@@ -16,6 +16,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
@@ -26,7 +27,6 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
-{-# LANGUAGE TypeOperators #-}
 #endif
 
 module Internal.Cardano.Write.Tx.BalanceSpec
