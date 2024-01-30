@@ -6,8 +6,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -1017,7 +1019,7 @@ selectAssets pp utxoAssumptions outs' redeemers
     , minimumCollateralPercentage =
         pp ^. ppCollateralPercentageL
     , maximumLengthChangeAddress =
-        Convert.toWalletAddress $ maxLengthChangeAddress changeGen
+        Convert.toWalletAddress changeGen.maxLengthChangeAddress
     }
 
     selectionParams = SelectionParams
