@@ -186,14 +186,14 @@ steps:
   - label: 'Run unit tests (macOS, x86_64)'
     key: macos-tests-unit
     depends_on: macos-nix
-    command: 'GC_DONT_GC=1 nix build --max-silent-time 0 --max-jobs 1 -L .#ci.x86_64-darwin.tests.run.unit'
+    command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
     agents:
       system: ${macos}
 
   - label: 'Build package (macOS, x86_64)'
     key: macos-package
     depends_on: macos-nix
-    command: nix build --max-silent-time 0 --max-jobs 1 -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+    command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
     artifact_paths: [ "./result/macos-intel/**" ]
     agents:
       system: ${macos}
