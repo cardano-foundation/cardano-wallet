@@ -262,7 +262,8 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         upperBoundEstimatedTimelockKeyWitnessCounts = Map.mapMaybe
             (fmap (estimateMaxWitnessRequiredPerInput . toCAScript)
                 . toTimelockScript)
-            -- TODO [ADP-2675] https://cardanofoundation.atlassian.net/browse/ADP-2675
+            -- TODO [ADP-2675]
+            -- https://cardanofoundation.atlassian.net/browse/ADP-2675
             -- Use `txscripts` restricted by `scriptsNeeded` instead. This would
             -- 1. take referenced scripts into account
             -- 2. ignore all non-needed scripts
@@ -277,7 +278,9 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         scriptsAvailableInBody :: Map (ScriptHash StandardCrypto) (Script era)
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
-    estimateDelegSigningKeys :: CardanoApi.Certificate (Write.CardanoApiEra era) -> Integer
+    estimateDelegSigningKeys
+        :: CardanoApi.Certificate (Write.CardanoApiEra era)
+        -> Integer
     estimateDelegSigningKeys = \case
         CardanoApi.ShelleyRelatedCertificate s2b shelleyCert ->
             CardanoApi.shelleyToBabbageEraConstraints s2b $
