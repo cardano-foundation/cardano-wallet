@@ -2796,7 +2796,7 @@ runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
         forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
                 postTx nw (st ^. #submittedTx )
-            atomically $ resubmitTx (st ^. #txId) (st ^. #submittedTx) sl
+            atomically $ resubmitTx (st ^. #txId) sl
     watchNodeTip nw submitPending
   where
     nw = networkLayer_ ctx
