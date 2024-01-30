@@ -324,6 +324,9 @@ import Test.Utils.Pretty
     ( Pretty (..)
     )
 
+import qualified Cardano.CoinSelection.Balance as SelectionParams
+    ( SelectionParamsOf (..)
+    )
 import qualified Cardano.CoinSelection.Context as SC
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
@@ -919,7 +922,9 @@ prop_performSelection_huge_inner utxoAvailable mockConstraints (Large params) =
   where
     params' :: SelectionParams TestSelectionContext
     params' = params
-        { utxoAvailable = UTxOSelection.fromIndex utxoAvailable }
+        { SelectionParams.utxoAvailable =
+            UTxOSelection.fromIndex utxoAvailable
+        }
 
 prop_performSelection
     :: MockSelectionConstraints
