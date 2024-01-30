@@ -207,7 +207,6 @@ import Cardano.Wallet.Util
     )
 import Cardano.Write.Tx
     ( ErrBalanceTx (..)
-    , ErrBalanceTxAssetsInsufficientError (..)
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -774,7 +773,6 @@ prop_calculateFeePercentiles
     genericError :: ErrBalanceTx era
     genericError
         = ErrBalanceTxAssetsInsufficient
-        $ ErrBalanceTxAssetsInsufficientError
             mempty
             mempty
             mempty

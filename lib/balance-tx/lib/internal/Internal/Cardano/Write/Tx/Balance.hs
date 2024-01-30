@@ -23,7 +23,6 @@ module Internal.Cardano.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
-    , ErrBalanceTxAssetsInsufficientError (..)
     , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
@@ -361,24 +360,6 @@ data ErrBalanceTxUnableToCreateChangeError =
     }
     deriving (Eq, Generic, Show)
 
--- | Indicates the insufficient availability of one or more assets.
---
--- This error is returned when the available quantity of one or more assets
--- is insufficient to balance the transaction.
---
--- The 'shortfall' field indicates the minimum extra quantity of each asset
--- that would be necessary to balance the transaction.
---
-data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
-    { available :: Value
-        -- ^ The total sum of all assets available.
-    , required :: Value
-        -- ^ The total sum of all assets required.
-    , shortfall :: Value
-        -- ^ The total shortfall between available and required assets.
-    }
-    deriving (Eq, Generic, Show)
-
 data ErrBalanceTxInternalError era
     = ErrUnderestimatedFee Coin (Tx era) KeyWitnessCounts
     | ErrFailedBalancing Value
@@ -388,7 +369,22 @@ deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
-    = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
+    = ErrBalanceTxAssetsInsufficient
+        { available :: Value
+            -- ^ The total sum of all assets available.
+        , required :: Value
+            -- ^ The total sum of all assets required.
+        , shortfall :: Value
+            -- ^ The total shortfall between available and required assets.
+        }
+        -- ^ Indicates the insufficient availability of one or more assets.
+        --
+        -- This error is returned when the available quantity of one or more
+        -- assets is insufficient to balance the transaction.
+        --
+        -- The 'shortfall' field indicates the minimum extra quantity of each
+        -- asset that would be necessary to balance the transaction.
+        --
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingKeyWitnesses Int
     -- ^ Indicates that a transaction could not be balanced because a given
@@ -1522,8 +1518,7 @@ coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
-                ErrBalanceTxAssetsInsufficient $
-                ErrBalanceTxAssetsInsufficientError
+                ErrBalanceTxAssetsInsufficient
                     { available =
                         Convert.toLedger (view #utxoBalanceAvailable e)
                     , required =
