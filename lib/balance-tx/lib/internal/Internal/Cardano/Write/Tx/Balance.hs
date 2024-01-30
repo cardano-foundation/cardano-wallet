@@ -28,7 +28,6 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrAssignRedeemers (..)
 
@@ -1581,22 +1580,17 @@ data ErrBalanceTxOutputErrorInfo
         { outputThatExceedsLimit :: (Address, Value)
         }
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
-        ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    deriving (Eq, Generic, Show)
-
-data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
-    ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    { address :: Address
-      -- ^ The address to which this token quantity was to be sent.
-    , policyId :: PolicyId
-      -- ^ The policy identifier to which this token quantity corresponds.
-    , assetName :: AssetName
-      -- ^ The asset name to which this token quantity corresponds.
-    , quantity :: Natural
-      -- ^ The token quantity that exceeded the bound.
-    , quantityMaxBound :: Natural
-      -- ^ The maximum allowable token quantity.
-    }
+        { address :: Address
+          -- ^ The address to which this token quantity was to be sent.
+        , policyId :: PolicyId
+          -- ^ The policy identifier to which this token quantity corresponds.
+        , assetName :: AssetName
+          -- ^ The asset name to which this token quantity corresponds.
+        , quantity :: Natural
+          -- ^ The token quantity that exceeded the bound.
+        , quantityMaxBound :: Natural
+          -- ^ The maximum allowable token quantity.
+        }
     deriving (Eq, Generic, Show)
 
 -- | Validates the given transaction outputs.
@@ -1615,7 +1609,7 @@ validateTxOutputs constraints outs =
     errors = uncurry ErrBalanceTxOutputErrorOf <$> foldMap withOutputsIndexed
         [ (fmap . fmap) id
             . mapMaybe (traverse (validateTxOutputSize constraints))
-        , (fmap . fmap) ErrBalanceTxOutputTokenQuantityExceedsLimit
+        , (fmap . fmap) id
             . foldMap (traverse validateTxOutputTokenQuantities)
         , (fmap . fmap) id
             . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
@@ -1651,9 +1645,9 @@ validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
 --
 validateTxOutputTokenQuantities
     :: (W.Address, W.TokenBundle)
-    -> [ErrBalanceTxOutputTokenQuantityExceedsLimitError]
+    -> [ErrBalanceTxOutputErrorInfo]
 validateTxOutputTokenQuantities out =
-    [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
+    [ ErrBalanceTxOutputTokenQuantityExceedsLimit
         {address, policyId, assetName, quantity, quantityMaxBound}
     | let address = Convert.toLedgerAddress $ fst out
     , (W.AssetId p a, W.TokenQuantity quantity) <-

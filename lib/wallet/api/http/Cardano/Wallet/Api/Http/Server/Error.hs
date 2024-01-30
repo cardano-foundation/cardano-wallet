@@ -125,7 +125,6 @@ import Cardano.Write.Tx
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     )
 import Control.Monad.Except
     ( ExceptT
@@ -1000,8 +999,25 @@ instance IsServerError ErrBalanceTxOutputError where
                 assetCount = TokenMap.size $
                     toWalletTokenBundle (snd output) ^. #tokens
                 output = outputThatExceedsLimit
-        ErrBalanceTxOutputTokenQuantityExceedsLimit e ->
-            toServerError e
+        ErrBalanceTxOutputTokenQuantityExceedsLimit
+            {address, policyId, assetName, quantity, quantityMaxBound} ->
+            apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
+                [ "One of the token quantities you've specified is greater "
+                , "than the maximum quantity allowed in a single transaction "
+                , "output. Try splitting this quantity across two or more "
+                , "outputs. "
+                , "Destination address: "
+                , pretty (toWalletAddress address)
+                , ". Token policy identifier: "
+                , pretty (show policyId)
+                , ". Asset name: "
+                , pretty (show assetName)
+                , ". Token quantity specified: "
+                , pretty (show quantity)
+                , ". Maximum allowable token quantity: "
+                , pretty (show quantityMaxBound)
+                , "."
+                ]
       where
         selectionOutputCoinInsufficientMessage = T.unwords
             [ "One of the outputs you've specified has an ada quantity that is"
@@ -1010,25 +1026,6 @@ instance IsServerError ErrBalanceTxOutputError where
             , "which case the wallet will automatically assign the correct"
             , "minimum ada quantity to the output."
             ]
-
-instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
-  where
-    toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
-        [ "One of the token quantities you've specified is greater than the "
-        , "maximum quantity allowed in a single transaction output. Try "
-        , "splitting this quantity across two or more outputs. "
-        , "Destination address: "
-        , pretty (toWalletAddress (view #address e))
-        , ". Token policy identifier: "
-        , pretty (show (view #policyId e))
-        , ". Asset name: "
-        , pretty (show (view #assetName e))
-        , ". Token quantity specified: "
-        , pretty (show (view #quantity e))
-        , ". Maximum allowable token quantity: "
-        , pretty (show (view #quantityMaxBound e))
-        , "."
-        ]
 
 instance IsServerError ErrCreateMigrationPlan where
     toServerError = \case
