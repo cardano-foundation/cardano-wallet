@@ -153,7 +153,9 @@ module Test.Integration.Framework.DSL
     , for
     , utcIso8601ToText
     , eventually
+    , eventuallyReport
     , eventuallyUsingDelay
+    , eventuallyUsingDelayReport
     , fixturePassphrase
     , fixturePassphraseEncrypted
     , waitForEpoch
@@ -1468,28 +1470,32 @@ expectationFailure' msg = do
 -- much longer than that isn't really useful (in particular, this doesn't
 -- depend on the host machine running the test, because the protocol moves
 -- forward at the same speed regardless...)
-eventually :: MonadIO m => String -> IO a -> m a
-eventually = eventuallyUsingDelay (500 * ms) 90
+eventuallyReport  :: MonadIO m => IO String -> IO a -> m a
+eventuallyReport = eventuallyUsingDelayReport (500 * ms) 90
   where
     ms = 1_000
+
+eventually :: MonadIO m => String -> IO a -> m a
+eventually = eventuallyReport . pure
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
 --
 -- It sleeps for a specified delay between retries and fails after timeout.
-eventuallyUsingDelay
+eventuallyUsingDelayReport
     :: MonadIO m
     => Int -- ^ Delay in microseconds
     -> Int -- ^ Timeout in seconds
-    -> String -- ^ Brief description of the IO action
+    -> IO String -- ^ Brief description of the IO action
     -> IO a
     -> m a
-eventuallyUsingDelay delay timeout desc io = liftIO $ do
+eventuallyUsingDelayReport delay timeout ioDesc io = liftIO $ do
     lastErrorRef <- newIORef Nothing
     winner <- race (threadDelay $ timeout * oneSecond) (trial lastErrorRef)
     case winner of
         Left () -> do
             lastError <- readIORef lastErrorRef
+            desc <- ioDesc
             let msg = "Waited longer than " ++ show timeout ++
                       "s to resolve action: " ++ show desc ++ "."
             case fromException @HUnitFailure =<< lastError of
@@ -1509,6 +1515,16 @@ eventuallyUsingDelay delay timeout desc io = liftIO $ do
             writeIORef lastErrorRef (Just e)
             threadDelay delay
             loop
+
+eventuallyUsingDelay
+    :: MonadIO m
+    => Int -- ^ Delay in microseconds
+    -> Int -- ^ Timeout in seconds
+    -> String -- ^ Brief description of the IO action
+    -> IO a
+    -> m a
+eventuallyUsingDelay delay timeout desc =
+    eventuallyUsingDelayReport delay timeout (pure desc)
 
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
