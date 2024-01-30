@@ -32,6 +32,7 @@ import Cardano.Wallet.Primitive.Types.Pool
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , VotingAction (..)
     )
 import Crypto.Hash.Extra
     ( blake2b224
@@ -53,19 +54,22 @@ certificateFromDelegationAction
         -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
         -- ^ Our staking credential
-    -> DelegationAction
+    -> Maybe DelegationAction
         -- ^ Delegation action that we plan to take
+    -> Maybe VotingAction
+        -- ^ Optional vote action in Conway era onwards
     -> [Cardano.Certificate (Write.CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction Write.RecentEraBabbage cred = \case
-    Join poolId ->
+certificateFromDelegationAction Write.RecentEraBabbage cred daM vaM =
+    case (daM, vaM) of
+    (Just (Join poolId), Nothing) ->
         [ Cardano.makeStakeAddressDelegationCertificate
             $ Cardano.StakeDelegationRequirementsPreConway
                 babbageWitness
                 (toCardanoStakeCredential cred)
                 (toCardanoPoolId poolId)
         ]
-    JoinRegisteringKey poolId ->
+    (Just (JoinRegisteringKey poolId), Nothing) ->
         [ Cardano.makeStakeAddressRegistrationCertificate
             $ Cardano.StakeAddrRegistrationPreConway
                 babbageWitness
@@ -76,16 +80,51 @@ certificateFromDelegationAction Write.RecentEraBabbage cred = \case
                 (toCardanoStakeCredential cred)
                 (toCardanoPoolId poolId)
         ]
-    Quit ->
+    (Just (Quit), Nothing) ->
         [ Cardano.makeStakeAddressUnregistrationCertificate
             $ Cardano.StakeAddrRegistrationPreConway
                 babbageWitness
                 (toCardanoStakeCredential cred)
         ]
+    (_, Just _) ->
+        error "certificateFromDelegationAction: voting not allowed in Babbage era"
+    (Nothing, Nothing) -> []
   where
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
-certificateFromDelegationAction Write.RecentEraConway _cred =
+certificateFromDelegationAction Write.RecentEraConway _cred _ _ =
     error "certificateFromDelegationAction: not supported in Conway yet"
+{--
+    case (da, va) of
+       (Just (Join poolId), Nothing) ->
+               [ toStakePoolDlgCert cred poolId ]
+       (Just (JoinRegisteringKey poolId), Nothing) ->
+            [ toStakeKeyRegCert cred
+            , toStakePoolDlgCert cred poolId
+            ]
+       (Just Quit, Nothing) -> [toStakeKeyDeregCert cred]
+       -- waiting until cardano-api is updated
+       -- we will need here also deposit value sneaked in
+       (Nothing, Just (VoteRegisteringKey _action)) -> undefined
+            --[ toStakeKeyRegCert cred deposit
+            --, toStakePoolDlgCert cred Nothing (Just action)
+            --]
+       (Nothing, Just (Vote _action)) -> undefined
+            --[ toStakePoolDlgCert cred Nothing (Just action) ]
+       (Just (Join _poolId), Just (Vote _action)) -> undefined
+            --[ toStakePoolDlgCert cred (Just poolId) (Just action) ]
+       (Just (JoinRegisteringKey _poolId), Just (VoteRegisteringKey _action)) -> undefined
+           --[ toStakeKeyRegCert cred deposit
+           --, toStakePoolDlgCert cred (Just poolId) (Just action)
+           --]
+       (Just Quit, Just (Vote _action)) -> undefined
+            --[ toStakePoolDlgCert cred Nothing (Just action) ]
+
+       (Just (Join _poolId), Just (VoteRegisteringKey _action)) -> undefined
+            -- this should not happen
+       (Just (JoinRegisteringKey _poolId), Just (Vote _action)) -> undefined
+            -- this should not happen
+       _ -> []
+--}
   where
     _conwayWitness = Cardano.ConwayEraOnwardsConway
 

@@ -185,6 +185,9 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , selectionDelta
     )
+import Cardano.Wallet.Transaction.Delegation
+    ( certificateFromDelegationAction
+    )
 import Cardano.Wallet.Util
     ( HasCallStack
     )
@@ -350,7 +353,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                     mempty
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
-                    in mkVotingDelegationCertificates (Just action) Nothing (Left stakeXPub)
+                    in certificateFromDelegationAction era (Left stakeXPub) (Just action) Nothing
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
@@ -721,9 +724,9 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
         Just action -> do
             let certs = case stakeCred of
                     Left xpub ->
-                        mkVotingDelegationCertificates (Just action) va (Left xpub)
+                        certificateFromDelegationAction era (Left xpub) (Just action) va
                     Right (Just script) ->
-                        mkVotingDelegationCertificates (Just action) va (Right script)
+                        certificateFromDelegationAction era (Right script) (Just action) va
                     Right Nothing ->
                         error $ unwords
                             [ "stakeCred in mkUnsignedTransaction must be"
@@ -750,46 +753,6 @@ _decodeSealedTx preferredLatestEra witCtx sealedTx =
     case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
         Cardano.InAnyCardanoEra _ tx ->
             fromCardanoTx witCtx tx
-
-mkVotingDelegationCertificates
-    :: Maybe DelegationAction
-        -- Pool Id to which we're planning to delegate
-    -> Maybe VotingAction
-        -- optional vote action in Conway era onwards
-    -> Either XPub (Script KeyHash)
-        --Staking credential
-    -> [Cardano.Certificate]
-mkVotingDelegationCertificates da va cred =
-    case (da, va) of
-       (Just (Join poolId), Nothing) ->
-               [ toStakePoolDlgCert cred poolId ]
-       (Just (JoinRegisteringKey poolId), Nothing) ->
-            [ toStakeKeyRegCert cred
-            , toStakePoolDlgCert cred poolId
-            ]
-       (Just Quit, Nothing) -> [toStakeKeyDeregCert cred]
-       -- waiting until cardano-api is updated
-       -- we will need here also deposit value sneaked in
-       (Nothing, Just (VoteRegisteringKey _action)) -> undefined
-            --[ toStakeKeyRegCert cred deposit
-            --, toStakePoolDlgCert cred Nothing (Just action)
-            --]
-       (Nothing, Just (Vote _action)) -> undefined
-            --[ toStakePoolDlgCert cred Nothing (Just action) ]
-       (Just (Join _poolId), Just (Vote _action)) -> undefined
-            --[ toStakePoolDlgCert cred (Just poolId) (Just action) ]
-       (Just (JoinRegisteringKey _poolId), Just (VoteRegisteringKey _action)) -> undefined
-           --[ toStakeKeyRegCert cred deposit
-           --, toStakePoolDlgCert cred (Just poolId) (Just action)
-           --]
-       (Just Quit, Just (Vote _action)) -> undefined
-            --[ toStakePoolDlgCert cred Nothing (Just action) ]
-
-       (Just (Join _poolId), Just (VoteRegisteringKey _action)) -> undefined
-            -- this should not happen
-       (Just (JoinRegisteringKey _poolId), Just (Vote _action)) -> undefined
-            -- this should not happen
-       _ -> []
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:
