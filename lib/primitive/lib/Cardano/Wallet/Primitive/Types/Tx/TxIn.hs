@@ -9,6 +9,7 @@
 --
 module Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
+    , TxId
     ) where
 
 import Prelude
@@ -30,9 +31,13 @@ import GHC.Generics
     ( Generic
     )
 
+-- | Unique reference to a transaction.
+-- In practice, this is the hash of the transaction body.
+type TxId = Hash "Tx"
+
 data TxIn = TxIn
     { inputId
-        :: !(Hash "Tx")
+        :: !TxId
     , inputIx
         :: !Word32
     }

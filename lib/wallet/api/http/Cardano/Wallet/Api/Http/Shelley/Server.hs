@@ -4440,9 +4440,9 @@ postExternalTransaction
     -> ApiT W.SealedTx
     -> Handler ApiTxId
 postExternalTransaction ctx (ApiT sealed) = do
-    tx <- liftHandler $ W.submitExternalTx
+    txid <- liftHandler $ W.submitExternalTx
             (tracerTxSubmit ctx) (ctx ^. #netLayer) (ctx ^. #txLayer) sealed
-    return $ ApiTxId (ApiT (tx ^. #txId))
+    return $ ApiTxId (ApiT txid)
 
 signMetadata
     :: forall ctx s k n.

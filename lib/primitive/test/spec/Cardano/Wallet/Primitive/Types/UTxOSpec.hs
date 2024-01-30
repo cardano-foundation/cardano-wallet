@@ -40,7 +40,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn (..)
+    ( TxId
+    , TxIn (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
@@ -352,8 +353,8 @@ prop_mapTxIds_identity m =
 
 prop_mapTxIds_composition
     :: UTxO
-    -> Fun (Hash "Tx") (Hash "Tx")
-    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Fun TxId TxId
+    -> Fun TxId TxId
     -> Property
 prop_mapTxIds_composition m (applyFun -> f) (applyFun -> g) =
     UTxO.mapTxIds f (UTxO.mapTxIds g m) ===
@@ -389,9 +390,9 @@ deriving anyclass instance Function AssetId
 deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
 deriving anyclass instance Function (Hash "TokenPolicy")
 
-deriving newtype instance Arbitrary (Hash "Tx")
-deriving anyclass instance CoArbitrary (Hash "Tx")
-deriving anyclass instance Function (Hash "Tx")
+deriving newtype instance Arbitrary TxId
+deriving anyclass instance CoArbitrary TxId
+deriving anyclass instance Function TxId
 
 deriving anyclass instance CoArbitrary AssetName
 deriving anyclass instance Function AssetName

@@ -47,6 +47,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTx
     , shrinkTx
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxIn
+    ( TxId
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
     )
@@ -166,8 +169,8 @@ prop_txMapTxIds_identity m =
 
 prop_txMapTxIds_composition
     :: Tx
-    -> Fun (Hash "Tx") (Hash "Tx")
-    -> Fun (Hash "Tx") (Hash "Tx")
+    -> Fun TxId TxId
+    -> Fun TxId TxId
     -> Property
 prop_txMapTxIds_composition m (applyFun -> f) (applyFun -> g) =
     txMapTxIds f (txMapTxIds g m) ===
@@ -220,12 +223,12 @@ instance Arbitrary AssetId where
 deriving anyclass instance CoArbitrary AssetId
 deriving anyclass instance Function AssetId
 
-deriving newtype instance Arbitrary (Hash "Tx")
+deriving newtype instance Arbitrary TxId
 deriving anyclass instance CoArbitrary (Hash "TokenPolicy")
 deriving anyclass instance Function (Hash "TokenPolicy")
 
-deriving anyclass instance CoArbitrary (Hash "Tx")
-deriving anyclass instance Function (Hash "Tx")
+deriving anyclass instance CoArbitrary TxId
+deriving anyclass instance Function TxId
 
 instance Arbitrary Tx where
     arbitrary = genTx

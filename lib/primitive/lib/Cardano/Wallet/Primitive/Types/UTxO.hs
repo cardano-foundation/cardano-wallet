@@ -69,14 +69,12 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash
-    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
-    ( TxIn
+    ( TxId
+    , TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
@@ -296,7 +294,7 @@ receiveD a b = (da, a <> new)
 assetIds :: UTxO -> Set AssetId
 assetIds (UTxO u) = foldMap TxOut.assetIds u
 
-txIds :: UTxO -> Set (Hash "Tx")
+txIds :: UTxO -> Set TxId
 txIds (UTxO u) = Set.map (view #inputId) (Map.keysSet u)
 
 --------------------------------------------------------------------------------
@@ -312,7 +310,7 @@ mapAssetIds f (UTxO u) = UTxO $ Map.map (TxOut.mapAssetIds f) u
 -- then only the smallest 'TxOut' is retained, according to the 'Ord' instance
 -- for 'TxOut'.
 --
-mapTxIds :: (Hash "Tx" -> Hash "Tx") -> UTxO -> UTxO
+mapTxIds :: (TxId -> TxId) -> UTxO -> UTxO
 mapTxIds f (UTxO u) = UTxO $ Map.mapKeysWith min (over #inputId f) u
 
 removeAssetId :: UTxO -> AssetId -> UTxO
