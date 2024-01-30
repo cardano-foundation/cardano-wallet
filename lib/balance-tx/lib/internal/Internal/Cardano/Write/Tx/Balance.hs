@@ -414,6 +414,7 @@ data ErrBalanceTx era
     --   - the given partial transaction has no existing inputs; and
     --   - the given UTxO index is empty.
     -- A transaction must have at least one input in order to be valid.
+    deriving Generic
 
 deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
 deriving instance IsRecentEra era => Show (ErrBalanceTx era)
