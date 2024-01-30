@@ -28,7 +28,6 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
     , ErrBalanceTxOutputSizeExceedsLimitError (..)
     , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
@@ -1576,18 +1575,13 @@ data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
 
 data ErrBalanceTxOutputErrorInfo
     = ErrBalanceTxOutputAdaQuantityInsufficient
-        ErrBalanceTxOutputAdaQuantityInsufficientError
+        { minimumExpectedCoin :: Coin
+        , output :: (Address, Value)
+        }
     | ErrBalanceTxOutputSizeExceedsLimit
         ErrBalanceTxOutputSizeExceedsLimitError
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
         ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    deriving (Eq, Generic, Show)
-
-data ErrBalanceTxOutputAdaQuantityInsufficientError =
-    ErrBalanceTxOutputAdaQuantityInsufficientError
-    { minimumExpectedCoin :: Coin
-    , output :: (Address, Value)
-    }
     deriving (Eq, Generic, Show)
 
 newtype ErrBalanceTxOutputSizeExceedsLimitError =
@@ -1629,7 +1623,7 @@ validateTxOutputs constraints outs =
             . mapMaybe (traverse (validateTxOutputSize constraints))
         , (fmap . fmap) ErrBalanceTxOutputTokenQuantityExceedsLimit
             . foldMap (traverse validateTxOutputTokenQuantities)
-        , (fmap . fmap) ErrBalanceTxOutputAdaQuantityInsufficient
+        , (fmap . fmap) id
             . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
         ]
       where
@@ -1684,10 +1678,10 @@ validateTxOutputTokenQuantities out =
 validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
-    -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
+    -> Maybe ErrBalanceTxOutputErrorInfo
 validateTxOutputAdaQuantity constraints output@(address, bundle)
     | isBelowMinimum =
-        Just ErrBalanceTxOutputAdaQuantityInsufficientError
+        Just ErrBalanceTxOutputAdaQuantityInsufficient
             { minimumExpectedCoin
             , output = (Convert.toLedger address, Convert.toLedger bundle)
             }

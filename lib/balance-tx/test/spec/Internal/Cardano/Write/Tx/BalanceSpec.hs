@@ -1439,7 +1439,7 @@ prop_balanceTransactionValid
             Left
                 (ErrBalanceTxOutputError
                 (ErrBalanceTxOutputErrorOf _index
-                (ErrBalanceTxOutputAdaQuantityInsufficient _e))) ->
+                (ErrBalanceTxOutputAdaQuantityInsufficient {}))) ->
                 label "output below minCoinValue" $ property True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True

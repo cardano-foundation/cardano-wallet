@@ -967,7 +967,8 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
 
 instance IsServerError ErrBalanceTxOutputError where
     toServerError (ErrBalanceTxOutputErrorOf index info) = case info of
-        ErrBalanceTxOutputAdaQuantityInsufficient e ->
+        ErrBalanceTxOutputAdaQuantityInsufficient
+            {output, minimumExpectedCoin} ->
             flip (apiError err403) selectionOutputCoinInsufficientMessage $
             UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
                 { txOutputIndex =
@@ -980,11 +981,10 @@ instance IsServerError ErrBalanceTxOutputError where
                     ApiAmount.fromCoin
                         $ TokenBundle.getCoin
                         $ toWallet
-                        $ snd
-                        $ view #output e
+                        $ snd output
                 , txOutputLovelaceRequiredMinimum =
                     ApiAmount.fromCoin $
-                    toWalletCoin $ view #minimumExpectedCoin e
+                    toWalletCoin minimumExpectedCoin
                 }
         ErrBalanceTxOutputSizeExceedsLimit e ->
             toServerError e
