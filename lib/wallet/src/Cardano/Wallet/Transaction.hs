@@ -225,6 +225,8 @@ type ScriptSource = Either (Script KeyHash) ReferenceInput
 data TransactionCtx = TransactionCtx
     { txWithdrawal :: Withdrawal
     -- ^ Withdrawal amount from a reward account, can be zero.
+    , txDeposit :: Maybe Coin
+    -- ^ Deposit amount from a protocol parameters.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
     , txValidityInterval :: TxValidityInterval
@@ -315,6 +317,7 @@ withdrawalToCoin = \case
 defaultTransactionCtx :: TransactionCtx
 defaultTransactionCtx = TransactionCtx
     { txWithdrawal = NoWithdrawal
+    , txDeposit = Nothing
     , txMetadata = Nothing
     , txValidityInterval = (Nothing, maxBound)
     , txDelegationAction = Nothing
