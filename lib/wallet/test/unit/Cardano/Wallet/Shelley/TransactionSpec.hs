@@ -519,7 +519,7 @@ prop_signTransaction_addsRewardAccountKey
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
                     InAnyCardanoEra era <$>
-                        [ mkShelleyWitness recentEra txBody rawRewardK
+                        [ mkShelleyWitness txBody rawRewardK
                         ]
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
@@ -602,7 +602,7 @@ prop_signTransaction_addsExtraKeyWitnesses
             expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
             expectedWits = withCardanoApiConstraints era $
                 InAnyCardanoEra era
-                    . mkShelleyWitness recentEra txBody <$> extraKeys
+                    . mkShelleyWitness txBody <$> extraKeys
 
         expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -740,7 +740,7 @@ prop_signTransaction_addsTxInWitnesses
                 expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                 expectedWits = withCardanoApiConstraints era $
                     InAnyCardanoEra era
-                        . mkShelleyWitness recentEra txBody <$> extraKeys
+                        . mkShelleyWitness txBody <$> extraKeys
 
             expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -797,7 +797,7 @@ prop_signTransaction_addsTxInCollateralWitnesses
                     expectedWits :: [InAnyCardanoEra Cardano.KeyWitness]
                     expectedWits = withCardanoApiConstraints era $
                         InAnyCardanoEra era
-                            . mkShelleyWitness recentEra txBody <$> extraKeys
+                            . mkShelleyWitness txBody <$> extraKeys
 
                 expectedWits `checkSubsetOf` (getSealedTxWitnesses sealedTx')
 
@@ -1146,13 +1146,14 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
     calculateBinary net utxo outs chgs pairs =
         hex (Cardano.serialiseToCBOR ledgerTx)
       where
+          ledgerTx :: Cardano.Tx (CardanoApiEra era)
           ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
-              mkByronWitness era unsignedTx net addr
+              mkByronWitness unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
           fee = toCardanoLovelace $ selectionDelta cs
           unsigned = either (error . show) id $
-              mkUnsignedTx era
+              mkUnsignedTx
                 (Nothing, slotNo) (Right cs) md mempty [] fee
               TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
           cs = Selection
@@ -1198,19 +1199,21 @@ prop_sealedTxRecentEraRoundtrip
     sealedTxB = sealedTxFromBytes' currentEra txBytes
 
 makeShelleyTx
-    :: IsRecentEra era
+    :: Write.IsRecentEra era
     => RecentEra era
     -> DecodeSetup
     -> Cardano.Tx (CardanoApiEra era)
-makeShelleyTx era testCase = Cardano.makeSignedTransaction addrWits unsigned
+makeShelleyTx _era testCase =
+    Cardano.makeSignedTransaction addrWits unsigned
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
     fee = toCardanoLovelace $ selectionDelta cs
     unsigned = either (error . show) id $
-        mkUnsignedTx era (Nothing, slotNo) (Right cs) md mempty [] fee
-        TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
-    addrWits = map (mkShelleyWitness era unsigned) pairs
+        mkUnsignedTx (Nothing, slotNo) (Right cs) md mempty [] fee
+            TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
+    addrWits =
+        map (mkShelleyWitness unsigned) pairs
     cs = Selection
         { inputs = NE.fromList inps
         , collateral = []

@@ -230,9 +230,7 @@ import Data.Word
     )
 import Internal.Cardano.Write.Tx
     ( CardanoApiEra
-    , IsRecentEra
     , RecentEra (..)
-    , ShelleyLedgerEra
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -291,10 +289,8 @@ data TxPayload era = TxPayload
     }
 
 constructUnsignedTx
-    :: forall era
-     . IsRecentEra era
-    => RecentEra era
-    -> Cardano.NetworkId
+    :: forall era. Write.IsRecentEra era
+    => Cardano.NetworkId
     -> (Maybe Cardano.TxMetadata, [Cardano.Certificate (CardanoApiEra era)])
     -> (Maybe SlotNo, SlotNo)
     -- ^ Slot at which the transaction will optionally start and expire.
@@ -315,10 +311,10 @@ constructUnsignedTx
     -- ^ Reference script
     -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
 constructUnsignedTx
-    era networkId (md, certs) ttl wdrl
+    networkId (md, certs) ttl wdrl
     cs fee toMint toBurn =
-        mkUnsignedTx @era
-            era ttl cs md wdrls certs (toCardanoLovelace fee)
+        mkUnsignedTx
+            ttl cs md wdrls certs (toCardanoLovelace fee)
             (fst toMint) (fst toBurn) mintingScripts
 
   where
@@ -326,7 +322,7 @@ constructUnsignedTx
     mintingScripts = Map.union (snd toMint) (snd toBurn)
 
 mkTransaction
-    :: forall era k. IsRecentEra era
+    :: forall era k. Write.IsRecentEra era
     => RecentEra era
     -- ^ Era for which the transaction should be created.
     -> Cardano.NetworkId
@@ -356,7 +352,6 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
-            era
             ttl
             (Right cs)
             md
@@ -372,7 +367,6 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
     let signed :: Cardano.Tx (CardanoApiEra era)
         signed = Write.toCardanoApiTx $
             signTransaction
-                @era
                 keyF
                 networkId
                 AnyWitnessCountCtx
@@ -444,8 +438,6 @@ signTransaction
     =
     Write.fromCardanoApiTx $ Cardano.makeSignedTransaction wits' body
  where
-    era = Write.recentEra @era
-
     Cardano.Tx body wits = Write.toCardanoApiTx txToSign
 
     wits' = mconcat
@@ -538,26 +530,26 @@ signTransaction
         (k, pwd) <- resolveAddress addr
         let  pk = (getRawKey keyF k, pwd)
         pure $ case txWitnessTagForKey keyF of
-            TxWitnessShelleyUTxO -> mkShelleyWitness era body pk
-            TxWitnessByronUTxO -> mkByronWitness era body networkId addr pk
+            TxWitnessShelleyUTxO -> mkShelleyWitness body pk
+            TxWitnessByronUTxO -> mkByronWitness body networkId addr pk
 
     mkWdrlCertWitness
         :: RewardAccount
         -> Maybe (Cardano.KeyWitness (CardanoApiEra era))
     mkWdrlCertWitness a =
-        mkShelleyWitness era body <$> resolveRewardAcct a
+        mkShelleyWitness body <$> resolveRewardAcct a
 
     mkPolicyWitness
         :: KeyHash
         -> Maybe (Cardano.KeyWitness (CardanoApiEra era))
     mkPolicyWitness a =
-        mkShelleyWitness era body <$> resolvePolicyKey a
+        mkShelleyWitness body <$> resolvePolicyKey a
 
     mkStakingScriptWitness
         :: KeyHash
         -> Maybe (Cardano.KeyWitness (CardanoApiEra era))
     mkStakingScriptWitness a =
-        mkShelleyWitness era body <$> resolveStakingKeyInScript a
+        mkShelleyWitness body <$> resolveStakingKeyInScript a
 
     mkExtraWitness
         :: Cardano.Hash Cardano.PaymentKey
@@ -572,7 +564,7 @@ signTransaction
                 (Cardano.PaymentCredentialByKey vkh)
                 Cardano.NoStakeAddress
         (k, pwd) <- resolveAddress (fromCardanoAddress addr)
-        pure $ mkShelleyWitness era body (getRawKey keyF k, pwd)
+        pure $ mkShelleyWitness body (getRawKey keyF k, pwd)
 
 newTransactionLayer
     :: KeyFlavorS k
@@ -633,7 +625,7 @@ newTransactionLayer keyF networkId = TransactionLayer
 
 withRecentEraLedgerTx
     :: InAnyCardanoEra Cardano.Tx
-    -> (forall era. IsRecentEra era => Write.Tx era -> Write.Tx era)
+    -> (forall era. Write.IsRecentEra era => Write.Tx era -> Write.Tx era)
     -> Maybe (InAnyCardanoEra Cardano.Tx)
 withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
     Cardano.ConwayEra -> Just
@@ -668,10 +660,8 @@ withRecentEraLedgerTx (InAnyCardanoEra era tx) f = case era of
 -- in separate step.
 --
 mkUnsignedTransaction
-    :: forall era
-     . Write.IsRecentEra era
-    => Write.RecentEra era
-    -> NetworkId
+    :: forall era. Write.IsRecentEra era
+    => NetworkId
     -> Either XPub (Maybe (Script KeyHash))
     -- ^ Reward account public key or optional script hash.
     -> TransactionCtx
@@ -680,7 +670,8 @@ mkUnsignedTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Cardano.TxBody (CardanoApiEra era))
-mkUnsignedTransaction era networkId stakeCred ctx selection = do
+mkUnsignedTransaction networkId stakeCred ctx selection = do
+    let era = Write.recentEra @era
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = case selection of
@@ -704,17 +695,17 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
                 WithdrawalSelf rewardAcct _ _ ->
                     if ourRewardAcctM == Just rewardAcct
                     then
-                        constructUnsignedTx era
+                        constructUnsignedTx
                             networkId (md, []) ttl wdrl selection delta
                             assetsToBeMinted assetsToBeBurned
                             inpsScripts stakingScriptM refScriptM
                     else
-                        constructUnsignedTx era
+                        constructUnsignedTx
                             networkId (md, []) ttl wdrl selection delta
                             assetsToBeMinted assetsToBeBurned
                             inpsScripts Nothing refScriptM
                 _ ->
-                    constructUnsignedTx era
+                    constructUnsignedTx
                         networkId (md, []) ttl wdrl
                         selection delta assetsToBeMinted assetsToBeBurned
                         inpsScripts
@@ -732,7 +723,7 @@ mkUnsignedTransaction era networkId stakeCred ctx selection = do
                             , "action"
                             ]
             let payload = (view #txMetadata ctx, certs)
-            constructUnsignedTx era networkId payload ttl wdrl
+            constructUnsignedTx networkId payload ttl wdrl
                 selection delta assetsToBeMinted assetsToBeBurned inpsScripts
                 stakingScriptM refScriptM
 
@@ -763,8 +754,7 @@ _decodeSealedTx preferredLatestEra witCtx sealedTx =
 -- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
     :: forall era. Write.IsRecentEra era
-    => Write.RecentEra era
-    -> (Maybe SlotNo, SlotNo)
+    => (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
@@ -778,7 +768,6 @@ mkUnsignedTx
     -> Maybe (Script KeyHash)
     -> Either ErrMkTransaction (Cardano.TxBody (Write.CardanoApiEra era))
 mkUnsignedTx
-    era
     ttl
     cs
     md
@@ -793,7 +782,7 @@ mkUnsignedTx
     refScriptM
   = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx
-    $ fmap (removeDummyInput era)
+    $ fmap removeDummyInput
     $ Cardano.createAndValidateTransactionBody shelleyEra
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
@@ -930,6 +919,8 @@ mkUnsignedTx
         Nothing
     }
   where
+    era = Write.recentEra @era
+
     toErrMkTx :: Cardano.TxBodyError -> ErrMkTransaction
     toErrMkTx =
         ErrMkTransactionTxBodyError . T.pack . Cardano.displayError
@@ -1043,19 +1034,10 @@ dummyInput :: TxIn
 dummyInput = TxIn (Hash $ BS.replicate 32 0) 999
 
 removeDummyInput
-    :: Write.RecentEra era
+    :: Write.IsRecentEra era
+    => Cardano.TxBody (CardanoApiEra era)
     -> Cardano.TxBody (CardanoApiEra era)
-    -> Cardano.TxBody (CardanoApiEra era)
-removeDummyInput RecentEraBabbage = \case
-    Cardano.ShelleyTxBody era body scripts scriptData aux val ->
-        Cardano.ShelleyTxBody
-            era
-            (over inputsTxBodyL (Set.delete (toLedger dummyInput)) body)
-            scripts
-            scriptData
-            aux
-            val
-removeDummyInput RecentEraConway = \case
+removeDummyInput = \case
     Cardano.ShelleyTxBody era body scripts scriptData aux val ->
         Cardano.ShelleyTxBody
             era
@@ -1079,29 +1061,27 @@ mkWithdrawals networkId wdrl = case wdrl of
     stakeAddress = Cardano.makeStakeAddress networkId . toCardanoStakeCredential
 
 mkShelleyWitness
-    :: RecentEra era
-    -> Cardano.TxBody (CardanoApiEra era)
+    :: forall era. Write.IsRecentEra era
+    => Cardano.TxBody (CardanoApiEra era)
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
-mkShelleyWitness era body key =
+mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness shelleyEra body (unencrypt key)
   where
-    shelleyEra = Write.shelleyBasedEraFromRecentEra era
+    shelleyEra = Write.shelleyBasedEraFromRecentEra $ Write.recentEra @era
     unencrypt (xprv, pwd) =
         Cardano.WitnessPaymentExtendedKey
         $ Cardano.PaymentExtendedSigningKey
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
-    :: forall era. IsRecentEra era
-    => RecentEra era
-    -> Cardano.TxBody (CardanoApiEra era)
+    :: forall era. Write.IsRecentEra era
+    => Cardano.TxBody (CardanoApiEra era)
     -> Cardano.NetworkId
     -> Address
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
 mkByronWitness
-    era
     (Cardano.ShelleyTxBody
         cardanoEra
         body
@@ -1115,6 +1095,7 @@ mkByronWitness
     Cardano.ShelleyBootstrapWitness cardanoEra $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
+    era = Write.recentEra @era
     txHash = case era of
         RecentEraBabbage -> Crypto.castHash $ Crypto.hashWith serialize' body
         RecentEraConway  -> Crypto.castHash $ Crypto.hashWith serialize' body
@@ -1127,7 +1108,7 @@ mkByronWitness
         (Byron.toByronNetworkMagic nw)
 
 txConstraints
-    :: forall era. IsRecentEra era
+    :: forall era. Write.IsRecentEra era
     => Write.PParams era
     -> TxWitnessTag
     -> TxConstraints
