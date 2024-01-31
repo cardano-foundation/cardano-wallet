@@ -16,12 +16,6 @@
 
 {- HLINT ignore "Use ||" -}
 
--- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
-{-# LANGUAGE CPP #-}
-#if __GLASGOW_HASKELL__ >= 902
-{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
-#endif
-
 module Internal.Cardano.Write.Tx.Balance
     (
     -- * Balancing transactions
@@ -160,6 +154,7 @@ import Data.Functor
     )
 import Data.Generics.Internal.VL.Lens
     ( over
+    , set
     , view
     , (^.)
     )
@@ -232,7 +227,7 @@ import Internal.Cardano.Write.Tx.Balance.CoinSelection
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionOf (change)
+    , SelectionOf (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
@@ -1141,7 +1136,7 @@ assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
         pure $ W.TxOut (Convert.toWalletAddress addr) bundle
-    pure $ (sel :: SelectionOf W.TokenBundle) { change = changeOuts }
+    pure $ set #change changeOuts sel
 
 unsafeIntCast
     :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)

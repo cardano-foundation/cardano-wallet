@@ -16,18 +16,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
--- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
-{-# LANGUAGE CPP #-}
-#if __GLASGOW_HASKELL__ >= 902
-{-# OPTIONS_GHC -fno-warn-ambiguous-fields #-}
-{-# LANGUAGE TypeOperators #-}
-#endif
 
 module Internal.Cardano.Write.Tx.BalanceSpec
     ( spec
