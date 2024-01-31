@@ -984,7 +984,7 @@ instance IsServerError ErrBalanceTxOutputError where
                     ApiAmount.fromCoin $
                     toWalletCoin minimumExpectedCoin
                 }
-        ErrBalanceTxOutputSizeExceedsLimit {outputThatExceedsLimit} ->
+        ErrBalanceTxOutputSizeExceedsLimit {output} ->
             apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
                 [ "One of the outputs you've specified contains too many "
                 , "assets. Try splitting these assets across two or more "
@@ -998,7 +998,6 @@ instance IsServerError ErrBalanceTxOutputError where
                 address = toWalletAddress (fst output)
                 assetCount = TokenMap.size $
                     toWalletTokenBundle (snd output) ^. #tokens
-                output = outputThatExceedsLimit
         ErrBalanceTxOutputTokenQuantityExceedsLimit
             {address, policyId, assetName, quantity, quantityMaxBound} ->
             apiError err403 OutputTokenQuantityExceedsLimit $ mconcat

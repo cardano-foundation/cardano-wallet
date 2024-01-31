@@ -1577,7 +1577,7 @@ data ErrBalanceTxOutputErrorInfo
         , output :: (Address, Value)
         }
     | ErrBalanceTxOutputSizeExceedsLimit
-        { outputThatExceedsLimit :: (Address, Value)
+        { output :: (Address, Value)
         }
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
         { address :: Address
