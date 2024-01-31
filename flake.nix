@@ -204,7 +204,6 @@
             collectChecks
             check;
 
-          nodePkgs = cardano-node-runtime.legacyPackages.${system};
           nodePackages = cardano-node-runtime.packages.${system};
           nodeProject = cardano-node-runtime.project.${system};
 
@@ -212,7 +211,7 @@
               CHaP
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
-              nodePkgs
+              nodePackages
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -305,8 +304,8 @@
                 linuxPackages.cardano-wallet
                 linuxPackages.bech32
                 linuxPackages.cardano-address
-                nodePkgs.hydraJobs.musl.cardano-cli
-                nodePkgs.hydraJobs.musl.cardano-node
+                cardano-node-runtime.hydraJobs.x86_64-linux.musl.cardano-cli
+                cardano-node-runtime.hydraJobs.x86_64-linux.musl.cardano-node
               ];
               # Which exes should be put in the release archives.
               checkReleaseContents = jobs: map (exe: jobs.${exe}) [
@@ -328,7 +327,13 @@
               win64 =
                 let
                   # windows is cross-compiled from linux
-                  windowsPackages = mkPackages project.projectCross.mingwW64;
+                  windowsPackages =
+                    mkPackages project.projectCross.mingwW64 // {
+                      cardano-cli =
+                        cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
+                      cardano-node =
+                        cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-node;
+                    };
                 in {
                   release = import ./nix/release-package.nix {
                     inherit pkgs;
@@ -337,8 +342,8 @@
                       windowsPackages.cardano-wallet
                       windowsPackages.bech32
                       windowsPackages.cardano-address
-                      nodePkgs.hydraJobs.windows.cardano-cli
-                      nodePkgs.hydraJobs.windows.cardano-node
+                      windowsPackages.cardano-cli
+                      windowsPackages.cardano-node
                     ];
                     platform = "win64";
                     format = "zip";
@@ -347,8 +352,8 @@
                   tests = import ./nix/windows-testing-bundle.nix {
                     inherit pkgs;
                     cardano-wallet = windowsPackages.cardano-wallet;
-                    cardano-node = nodePkgs.hydraJobs.windows.cardano-node;
-                    cardano-cli = nodePkgs.hydraJobs.windows.cardano-cli;
+                    cardano-cli = windowsPackages.cardano-cli;
+                    cardano-node = windowsPackages.cardano-node;
                     tests = lib.collect lib.isDerivation windowsPackages.tests;
                     benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
                   };
@@ -364,8 +369,8 @@
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
                     macOsPkgs.cardano-address
-                    nodePkgs.hydraJobs.native.cardano-cli
-                    nodePkgs.hydraJobs.native.cardano-node
+                    nodePackages.cardano-cli
+                    nodePackages.cardano-node
                   ];
                   platform = "macos-intel";
                   format = "tar.gz";
