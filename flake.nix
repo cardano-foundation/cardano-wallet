@@ -205,6 +205,7 @@
             check;
 
           nodePkgs = cardano-node-runtime.legacyPackages.${system};
+          nodePackages = cardano-node-runtime.packages.${system};
           nodeProject = cardano-node-runtime.project.${system};
 
           walletProject = (import ./nix/haskell.nix
@@ -378,8 +379,8 @@
                     macOsPkgs.cardano-wallet
                     macOsPkgs.bech32
                     macOsPkgs.cardano-address
-                    nodePkgs.hydraJobs.native.cardano-cli
-                    nodePkgs.hydraJobs.native.cardano-node
+                    nodePackages.cardano-cli
+                    nodePackages.cardano-node
                   ];
                   platform = "macos-silicon";
                   format = "tar.gz";
