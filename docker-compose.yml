@@ -47,7 +47,10 @@ services:
         compress: "true"
         max-file: "10"
         max-size: "50m"
-
+  icarus:
+    image: piotrstachyra/icarus:v2023-04-14
+    network_mode: "host"
+    restart: on-failure
 
 volumes:
   node-ipc:

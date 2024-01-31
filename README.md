@@ -99,7 +99,11 @@ export WALLET_DB=`pwd`/wallet-db
 export WALLET_PORT=8090
 
 # start the services
-docker-compose up
+docker-compose up -d
+
+# work with the wallet with icarus frontend
+#    (not a production tool, DO NOT USE IT WITH mainnet)
+# connect to http://localhost:4444
 
 # clear the services
 docker-compose down
