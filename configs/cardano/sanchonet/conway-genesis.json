@@ -1,0 +1,37 @@
+{
+  "poolVotingThresholds": {
+    "pvtCommitteeNormal": 0.51,
+    "pvtCommitteeNoConfidence": 0.51,
+    "pvtHardForkInitiation": 0.51,
+    "pvtMotionNoConfidence": 0.51
+  },
+  "dRepVotingThresholds": {
+    "dvtMotionNoConfidence": 0.51,
+    "dvtCommitteeNormal": 0.51,
+    "dvtCommitteeNoConfidence": 0.51,
+    "dvtUpdateToConstitution": 0.51,
+    "dvtHardForkInitiation": 0.51,
+    "dvtPPNetworkGroup": 0.51,
+    "dvtPPEconomicGroup": 0.51,
+    "dvtPPTechnicalGroup": 0.51,
+    "dvtPPGovGroup": 0.51,
+    "dvtTreasuryWithdrawal": 0.51
+  },
+  "committeeMinSize": 0,
+  "committeeMaxTermLength": 200,
+  "govActionLifetime": 10,
+  "govActionDeposit": 1000000000,
+  "dRepDeposit": 2000000,
+  "dRepActivity": 20,
+  "constitution": {
+    "anchor": {
+      "url": "",
+      "dataHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  },
+  "committee": {
+    "members": {
+    },
+    "quorum": 0
+  }
+}
