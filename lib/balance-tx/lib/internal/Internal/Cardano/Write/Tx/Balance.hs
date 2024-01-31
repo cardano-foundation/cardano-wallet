@@ -1615,7 +1615,8 @@ validateTxOutputs constraints outs =
             mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
         ]
       where
-        withOutputsIndexed f = f $ zip [0 ..] outs
+        withOutputsIndexed f = f outputsIndexed
+        outputsIndexed = zip [0 ..] outs
 
 -- | Validates the size of a transaction output.
 --
