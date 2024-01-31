@@ -29,6 +29,7 @@ services:
     volumes:
       - ${WALLET_DB}:/wallet-db
       - node-ipc:/ipc
+      - ./configs/cardano:/configs
     ports:
       - ${WALLET_PORT}:8090
     entrypoint: []
@@ -46,6 +47,7 @@ services:
         compress: "true"
         max-file: "10"
         max-size: "50m"
+
 
 volumes:
   node-ipc:
