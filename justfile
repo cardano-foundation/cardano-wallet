@@ -12,12 +12,12 @@ hlint:
 
 # build wallet
 build:
-  cabal build all -Werror -O0 -v0
+  cabal build all  --enable-benchmarks --enable-tests -O0 -v0 --ghc-options="-Werror"
 
 # build after clean
 clean-build:
   cabal clean
-  cabal build all -Werror -O0 -v0
+  just build
 
 # run a nix shell with `cardano-wallet` in scope
 wallet:
