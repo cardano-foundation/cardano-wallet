@@ -2214,7 +2214,7 @@ buildAndSignTransactionPure
     wallet <- get
     (unsignedBalancedTx, updatedWalletState) <- lift $
         first Write.toCardanoApiTx <$>
-        buildTransactionPure @s @era
+        buildTransactionPure @s
             wallet
             timeTranslation
             utxoIndex
@@ -2285,8 +2285,9 @@ buildAndSignTransactionPure
         , builtSealedTx = signedTx
         }
   where
+    era = recentEra @era
     wF = walletFlavor @s
-    anyCardanoEra = Cardano.AnyCardanoEra $ Write.cardanoEra @era
+    anyCardanoEra = Cardano.AnyCardanoEra $ Write.cardanoEraFromRecentEra era
 
 buildTransaction
     :: forall s era.
@@ -2296,7 +2297,8 @@ buildTransaction
         , HasSNetworkId (NetworkOf s)
         , Excluding '[SharedKey] (KeyOf s)
         )
-    => DBLayer IO s
+    => Write.RecentEra era
+    -> DBLayer IO s
     -> TimeTranslation
     -> ChangeAddressGen s
     -> Write.PParams era
@@ -2304,7 +2306,7 @@ buildTransaction
     -> [TxOut]
     -- ^ payment outputs
     -> IO (Write.Tx era, Wallet s)
-buildTransaction DBLayer{..} timeTranslation changeAddrGen
+buildTransaction _era DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
@@ -2322,7 +2324,7 @@ buildTransaction DBLayer{..} timeTranslation changeAddrGen
         let utxo = availableUTxO @s pendingTxs wallet
 
         fmap (\s' -> wallet { getState = s' }) <$>
-            buildTransactionPure @s @era
+            buildTransactionPure @s
                 wallet
                 timeTranslation
                 utxo
@@ -2358,13 +2360,14 @@ buildTransactionPure
     = do
     unsignedTxBody <-
         withExceptT (Right . ErrConstructTxBody) . except $
-            mkUnsignedTransaction (recentEra @era)
+            mkUnsignedTransaction
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
-    let utxoIndex =
-            Write.constructUTxOIndex @era $
+    let utxoIndex :: Write.UTxOIndex era
+        utxoIndex =
+            Write.constructUTxOIndex $
             Write.fromWalletUTxO utxo
     withExceptT Left $
         balanceTransaction @_ @_ @s
@@ -2469,24 +2472,26 @@ buildAndSignTransaction ctx wid mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
 
 -- | Construct an unsigned transaction from a given selection.
 constructTransaction
-    :: forall n era
-     . (Write.IsRecentEra era, HasSNetworkId n)
+    :: forall n era.
+        ( HasSNetworkId n
+        , Write.IsRecentEra era
+        )
     => Write.RecentEra era
     -> DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction era db txCtx preSel = do
+constructTransaction _era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    mkUnsignedTransaction era netId (Left $ fromJust xpub) txCtx (Left preSel)
+    mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
     netId = networkIdVal $ sNetworkId @n
 
 constructUnbalancedSharedTransaction
     :: forall n era.
-        ( Write.IsRecentEra era
-        , HasSNetworkId n
+        ( HasSNetworkId n
+        , Write.IsRecentEra era
         )
     => Write.RecentEra era
     -> DBLayer IO (SharedState n SharedKey)
@@ -2496,7 +2501,7 @@ constructUnbalancedSharedTransaction
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
@@ -2516,7 +2521,7 @@ constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
                 in replaceCosignersWithVerKeys role' template ix
     sealedTx <- mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
-            mkUnsignedTransaction era netId (Right scriptM) txCtx (Left sel)
+            mkUnsignedTransaction netId (Right scriptM) txCtx (Left sel)
     pure (sealedTx, getScript)
   where
     netId = networkIdVal $ sNetworkId @n
@@ -3004,17 +3009,18 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
             evaluate
-                $ Write.constructUTxOIndex @era
+                $ Write.constructUTxOIndex
                 $ Write.fromWalletUTxO
                 $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
-            mkUnsignedTransaction era
+            mkUnsignedTransaction
                 (networkIdVal $ sNetworkId @(NetworkOf s))
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
 
-        let ptx = PartialTx
+        let ptx :: Write.PartialTx era
+            ptx = PartialTx
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , inputs = Write.UTxO mempty
                 , redeemers = []
@@ -3039,8 +3045,6 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 Left otherErr ->
                     throwIO $ ExceptionBalanceTx otherErr
   where
-    era = recentEra @era
-
     wrapErrBalanceTx
         = throwWrappedErr ExceptionBalanceTx
 
