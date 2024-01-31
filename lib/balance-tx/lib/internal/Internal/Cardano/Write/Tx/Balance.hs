@@ -1606,10 +1606,13 @@ validateTxOutputs constraints outs =
         []    -> pure ()
   where
     errors :: [ErrBalanceTxOutputError]
-    errors = uncurry ErrBalanceTxOutputErrorOf <$> foldMap withOutputsIndexed
-        [ mapMaybe (traverse (validateTxOutputSize constraints))
-        , foldMap (traverse validateTxOutputTokenQuantities)
-        , mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
+    errors = uncurry ErrBalanceTxOutputErrorOf <$> F.fold
+        [ withOutputsIndexed $
+            mapMaybe (traverse (validateTxOutputSize constraints))
+        , withOutputsIndexed $
+            foldMap (traverse validateTxOutputTokenQuantities)
+        , withOutputsIndexed $
+            mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
         ]
       where
         withOutputsIndexed f = f $ zip [0 ..] outs
