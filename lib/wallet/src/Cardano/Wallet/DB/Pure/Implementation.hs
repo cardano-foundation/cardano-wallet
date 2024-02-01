@@ -93,6 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , chainPointFromBlockHeader
     , dlgCertPoolId
+    , dlgCertVote
     , toSlot
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -100,6 +101,9 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -192,6 +196,7 @@ deriving instance (Eq wid, Eq xprv, Eq s) => Eq (Database wid s xprv)
 data WalletDatabase s xprv = WalletDatabase
     { checkpoints :: !(Map SlotNo (Wallet s))
     , certificates :: !(Map SlotNo (Maybe PoolId))
+    , votes :: !(Map SlotNo (Maybe VoteAction))
     , stakeKeys :: !(Map SlotNo StakeKeyCertificate)
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
@@ -246,6 +251,7 @@ mInitializeWallet wid (DBLayerParams cp meta txs0 gp) =
         { checkpoints = Map.singleton (tip cp) cp
         , stakeKeys = mempty
         , certificates = mempty
+        , votes = mempty
         , metadata = meta
         , txHistory = Map.fromList $ first (view #txId) <$> txs0
         , xprv = Nothing
@@ -305,6 +311,10 @@ mRollbackTo requested (Database wid wal txs) =
                     Map.filterWithKey
                         (\k _ -> k <= point)
                         (certificates wal)
+                , votes =
+                    Map.filterWithKey
+                        (\k _ -> k <= point)
+                        (votes wal)
                 , txHistory =
                     Map.mapMaybe (keepOrForget point) (txHistory wal)
                 }
@@ -340,18 +350,18 @@ mPutDelegationCertificate
     -> SlotNo
     -> ModelOp wid s xprv ()
 mPutDelegationCertificate cert slot = alterModelNoTxs'
-    $ \wal@WalletDatabase {certificates, stakeKeys} ->
+    $ \wal@WalletDatabase {certificates, stakeKeys, votes} ->
         wal
             { certificates = Map.insert slot (dlgCertPoolId cert) certificates
+            , votes = Map.insert slot (dlgCertVote cert) votes
             , stakeKeys = case cert of
                 CertDelegateNone {} ->
                     Map.insert slot StakeKeyDeregistration stakeKeys
                 CertDelegateFull {} -> stakeKeys
                 CertRegisterKey {} ->
                     Map.insert slot StakeKeyRegistration stakeKeys
-                CertVoteFull {} -> error "Vote certificates not supported in DB"
-                CertDelegateAndVoteFull {} ->
-                    error "Vote certificates not supported in DB"
+                CertVoteFull {} -> stakeKeys
+                CertDelegateAndVoteFull {} -> stakeKeys
             }
 
 mIsStakeKeyRegistered
