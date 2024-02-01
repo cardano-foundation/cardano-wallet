@@ -423,6 +423,7 @@ library cardano-wallet-integration
     , microstache
     , monad-loops
     , network-uri
+    , pretty-simple
     , process
     , resourcet
     , retry
