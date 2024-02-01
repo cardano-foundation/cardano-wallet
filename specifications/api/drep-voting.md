@@ -72,6 +72,6 @@ Specifically:
                   }
                 }
            ],
-      "vote": "drep_vkh1jklcrnsdzqp65wjgrg55sy9723kw09mlgvlcp65wjgrg55sy9723mm"
+      "vote": "drep1jklcrnsdzqp65wjgrg55sy9723kw09mlgvlcp65wjgrg55sy9723mm"
     }
     ```

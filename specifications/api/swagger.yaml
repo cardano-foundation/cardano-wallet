@@ -382,20 +382,32 @@ x-stakePoolId: &stakePoolId
 x-drepKeyHash: &drepKeyHash
   type: string
   format: bech32
-  example: drep_vkh1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's key hash.
+  pattern: "^(drep)1[0-9a-z]*$"
 
 x-drepScriptHash: &drepScriptHash
   type: string
   format: bech32
   example: drep_script1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's script hash.
+  pattern: "^(drep_script)1[0-9a-z]*$"
 
-x-drep: &drep
+x-noVote: &noVote
+  type: string
+  enum:
+    - abstain
+    - no_confidence
+
+x-anyVoting: &anyVoting
   nullable: false
   oneOf:
     - <<: *drepKeyHash
+      title: vote to a drep represented by key hash
     - <<: *drepScriptHash
+      title: vote to a drep represented by script hash
+    - <<: *noVote
+      title: casting no vote
 
 x-walletAccountXPubkey: &walletAccountXPubkey
   description: An extended account public key (public key + chain code)
@@ -1995,6 +2007,8 @@ x-delegationStatus: &delegationStatus
   enum:
     - not_delegating
     - delegating
+    - voting
+    - delegating_and_voting
 
 x-addressIndex: &addressIndex
   type: number
@@ -2912,6 +2926,14 @@ components:
       description: |
         The result of signing a transaction (serialized and encoded).
 
+    ApiVoteAction: &ApiVoteAction
+      <<: *anyVoting
+      description: |
+        Voting action. One can abstain, give no confidence vote
+        or vote for a representative by specifying its key hash or script hash.
+        Voting can be done together with delegation action or as a standalone action.
+      type: string
+
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
       description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
@@ -2921,6 +2943,7 @@ components:
       properties:
         status: *delegationStatus
         target: *delegationTarget
+        voted: *ApiVoteAction
         changes_at: *epochInfo
       example:
         status: not_delegating
@@ -2943,6 +2966,7 @@ components:
           properties:
             status: *delegationStatus
             target: *delegationTarget
+            voted: *ApiVoteAction
           example:
             status: delegating
             target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
@@ -3716,19 +3740,6 @@ components:
             policy_id: *assetPolicyId
             asset_name: *assetName
             operation: *ApiMintBurnOperation
-
-    ApiVoteAction: &ApiVoteAction
-      description: |
-        Voting action. One can abstain, give no confidence vote
-        or vote for a representative by specifying its key hash or script hash.
-        Voting can be done together with delegation action.
-      oneOf:
-        - type: string
-          enum:
-            - abstain
-            - no_confidence
-        - type: string
-          <<: *drep
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen

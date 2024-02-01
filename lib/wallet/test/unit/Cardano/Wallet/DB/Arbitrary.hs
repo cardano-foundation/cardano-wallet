@@ -157,6 +157,12 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     , mockHash
@@ -933,6 +939,17 @@ instance Arbitrary TxScriptValidity where
 instance Arbitrary ChangeAddressMode where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary DRep where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+              ]
+
+instance Arbitrary VoteAction where
+    arbitrary =
+        oneof [pure Abstain, pure NoConfidence, VoteTo <$> arbitrary]
 
 {-------------------------------------------------------------------------------
                                    Buildable
