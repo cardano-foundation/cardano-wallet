@@ -58,9 +58,15 @@ property' genSlot Step{old_ = xs, new_ = xs', delta_ = diff} change =
                 LT -> new === status y xs
                 _ -> change old new
 
-precond :: (Eq a, Show a) => (a -> Bool) -> a -> a -> a -> Property
+precond
+    :: (Eq a, Show a)
+    => (a -> (Bool, Maybe (Status pool)))
+    -> (Maybe (Status pool) -> a)
+    -> a
+    -> a
+    -> Property
 precond check target old new
-    | check old = counterexample "new target" $ new === target
+    | (fst $ check old) = counterexample "new target" $ new === (target (snd $ check old))
     | otherwise = counterexample "no changes" $ new === old
 
 -- | Properties replicated verbatim from specifications. See
@@ -80,26 +86,67 @@ properties c s =
         Register _ ->
             that "register invariant is respected"
                 $ prop
-                    (== Inactive)
-                    Registered
+                    (\case
+                        Inactive -> (True, Nothing)
+                        _ -> (False, Nothing)
+                    )
+                    (const Registered)
         Deregister _ ->
             that "deregister invariant is respected"
                 $ prop
                     ( \case
-                        Registered -> True
-                        Active _ -> True
-                        _ -> False
+                        Registered -> (True, Nothing)
+                        Active _ -> (True, Nothing)
+                        Voted _ -> (True, Nothing)
+                        ActiveAndVoted _ _ -> (True, Nothing)
+                        _ -> (False, Nothing)
                     )
-                    Inactive
-        Delegate p _ ->
+                    (const Inactive)
+        Delegate p _ -> do
             that "delegate invariant is respected"
                 $ prop
                     ( \case
-                        Registered -> True
-                        Active _ -> True
-                        _ -> False
+                        Registered -> (True, Just Registered)
+                        Active p' -> (True, Just (Active p'))
+                        Voted v -> (True, Just (Voted v))
+                        ActiveAndVoted p' v -> (True, Just (ActiveAndVoted p' v))
+                        _ -> (False, Nothing)
                     )
-                    (Active p)
+                    ( \case
+                         Just Registered -> Active p
+                         Just (Active _) -> Active p
+                         Just (Voted v) -> ActiveAndVoted p v
+                         Just (ActiveAndVoted _ v) -> ActiveAndVoted p v
+                         _ -> error "Delegate branch broke"
+                    )
+        Vote v _ -> do
+            that "vote invariant 1 is respected"
+                $ prop
+                    ( \case
+                        Registered -> (True, Just Registered)
+                        Voted v' -> (True, Just (Voted v'))
+                        Active p -> (True, Just (Active p))
+                        ActiveAndVoted p v' -> (True, Just (ActiveAndVoted p v'))
+                        _ -> (False, Nothing)
+                    )
+                    ( \case
+                         Just Registered -> Voted v
+                         Just (Voted _) -> Voted v
+                         Just (Active p) -> ActiveAndVoted p v
+                         Just (ActiveAndVoted p _) -> ActiveAndVoted p v
+                         _ -> error "Vote branch broke"
+                    )
+        DelegateAndVote p v _ -> do
+            that "delegate and vote invariant is respected"
+                $ prop
+                    ( \case
+                        Registered -> (True, Nothing)
+                        Active _ -> (True, Nothing)
+                        Voted _ -> (True, Nothing)
+                        ActiveAndVoted _ _ -> (True, Nothing)
+                        _ -> (False, Nothing)
+                    )
+                    (const (ActiveAndVoted p v))
         Rollback _ ->
             that "rollback invariant is respected"
                 $ property' c s (===)
