@@ -87,7 +87,7 @@ pickWalletCertificates
 pickWalletCertificates xs = partitionEithers $ do
     x <- xs
     case x of
-        W.CertificateOfDelegation cert -> pure $ Left cert
+        W.CertificateOfDelegation _ cert -> pure $ Left cert
         W.CertificateOfPool cert -> pure $ Right cert
         _otherCerts -> []
 
