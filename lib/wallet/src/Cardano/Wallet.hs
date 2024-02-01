@@ -3792,6 +3792,7 @@ instance ToText WalletFollowLog where
                 , " within slot "
                 , pretty slotNo
                 ]
+            _ -> "Conway certificate not supported in the logs"
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip
         MsgDiscoveredTxs txs ->

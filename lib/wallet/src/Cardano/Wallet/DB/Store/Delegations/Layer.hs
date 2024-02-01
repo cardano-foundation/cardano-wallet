@@ -77,6 +77,8 @@ putDelegationCertificate cert sl = case cert of
     CertDelegateNone _ -> [Deregister sl]
     CertDelegateFull _ pool -> [Delegate pool sl, Register sl]
     CertRegisterKey _ -> [Register sl]
+    CertVoteFull{} -> error "Conway certificates are not supported in the DB"
+    CertDelegateAndVoteFull{} -> error "Conway certificates are not supported in the DB"
 
 -- | Arguments to 'readDelegation'.
 data CurrentEpochSlotting = CurrentEpochSlotting
