@@ -40,9 +40,17 @@ import Cardano.Slotting.Slot
     ( EpochNo (..)
     )
 import Cardano.Wallet.Primitive.Types.Certificates
-    ( PoolCertificate (..)
+    ( Certificate (..)
+    , NonWalletCertificate (..)
+    , PoolCertificate (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (PoolId)
@@ -87,6 +95,7 @@ import GHC.Stack
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL
+import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -124,24 +133,28 @@ fromConwayCert
 fromConwayCert = \case
     Ledger.RegPoolTxCert pp -> mkPoolRegistrationCertificate pp
     Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
-    Ledger.RegTxCert cred -> mkRegisterKeyCertificate cred
-    Ledger.UnRegTxCert cred -> mkDelegationNone cred
-    Ledger.RegDepositTxCert _ _ -> error "TODO: Conway, ADP-3065"
-    Ledger.UnRegDepositTxCert _ _ -> error "TODO: Conway, ADP-3065"
-    Ledger.DelegTxCert _ _ -> error "TODO: Conway delegation, ADP-3065"
-    {-
-        Ledger.DelegStakeTxCert delegator pool ->
-        W.CertificateOfDelegation
-            $ W.CertDelegateFull
-                (fromStakeCredential delegator)
-                (fromPoolKeyHash pool)
-    -}
-    Ledger.RegDepositDelegTxCert {} -> error "TODO: Conway, ADP-3065"
-    Ledger.AuthCommitteeHotKeyTxCert _ _ -> error "TODO: Conway other, ADP-3065"
-    Ledger.ResignCommitteeColdTxCert _ _ -> error "TODO: Conway other, ADP-3065"
-    Ledger.RegDRepTxCert {} -> error "TODO: Conway other, ADP-3065"
-    Ledger.UnRegDRepTxCert _ _ -> error "TODO: Conway other, ADP-3065"
+    Ledger.RegTxCert cred -> mkRegisterKeyCertificate Nothing cred
+    Ledger.UnRegTxCert cred -> mkDelegationNone Nothing cred
+    Ledger.RegDepositTxCert cred coin ->
+        mkRegisterKeyCertificate (Just $ fromLedgerCoin coin) cred
+    Ledger.UnRegDepositTxCert cred coin ->
+        mkDelegationNone (Just $ fromLedgerCoin coin) cred
+    Ledger.DelegTxCert cred delegatee ->
+        mkDelegationVoting Nothing cred delegatee
+    Ledger.RegDepositDelegTxCert cred delegatee coin ->
+        mkDelegationVoting (Just $ fromLedgerCoin coin) cred delegatee
+    Ledger.AuthCommitteeHotKeyTxCert _ _ ->
+        CertificateOther CommitteeHotKeyAuthorization
+    Ledger.ResignCommitteeColdTxCert _ _ ->
+        CertificateOther CommitteeColdResignation
+    Ledger.RegDRepTxCert {} ->
+        CertificateOther DRepRegistration
+    Ledger.UnRegDRepTxCert _ _ ->
+        CertificateOther DRepDeregistration
     _ -> error "impossible pattern"
+
+fromLedgerCoin :: HasCallStack => SL.Coin -> W.Coin
+fromLedgerCoin (SL.Coin c) = Coin.unsafeFromIntegral c
 
 mkShelleyCertsK
     :: ( Foldable t
@@ -178,16 +191,48 @@ mkPoolRetirementCertificate pid (EpochNo e) =
             , retirementEpoch = W.EpochNo $ fromIntegral e
             }
 
-mkRegisterKeyCertificate :: SL.Credential 'SL.Staking crypto -> W.Certificate
-mkRegisterKeyCertificate =
-    W.CertificateOfDelegation
+mkRegisterKeyCertificate
+    :: Maybe W.Coin
+    -> SL.Credential 'SL.Staking crypto
+    -> W.Certificate
+mkRegisterKeyCertificate deposit =
+    W.CertificateOfDelegation deposit
         . W.CertRegisterKey
         . fromStakeCredential
 
-mkDelegationNone :: SL.Credential 'SL.Staking crypto -> W.Certificate
-mkDelegationNone credentials =
-    W.CertificateOfDelegation
+mkDelegationNone
+    :: Maybe W.Coin
+    -> SL.Credential 'SL.Staking crypto
+    -> W.Certificate
+mkDelegationNone deposit credentials =
+    W.CertificateOfDelegation deposit
         $ W.CertDelegateNone (fromStakeCredential credentials)
+
+mkDelegationVoting
+    :: Maybe W.Coin
+    -> SL.Credential 'SL.Staking crypto
+    -> Ledger.Delegatee crypto
+    -> W.Certificate
+mkDelegationVoting deposit cred = \case
+    Ledger.DelegStake pool ->
+        W.CertificateOfDelegation deposit
+            $ W.CertDelegateFull (fromStakeCredential cred) (fromPoolKeyHash pool)
+    Ledger.DelegVote vote ->
+        W.CertificateOfDelegation deposit
+            $ W.CertVoteFull (fromStakeCredential cred) (fromLedgerDRep vote)
+    Ledger.DelegStakeVote pool vote ->
+        W.CertificateOfDelegation deposit
+            $ W.CertDelegateAndVoteFull (fromStakeCredential cred)
+            (fromPoolKeyHash pool) (fromLedgerDRep vote)
+
+fromLedgerDRep :: Ledger.DRep crypto -> VoteAction
+fromLedgerDRep = \case
+    Ledger.DRepAlwaysAbstain -> Abstain
+    Ledger.DRepAlwaysNoConfidence -> NoConfidence
+    Ledger.DRepCredential (SL.ScriptHashObj (SL.ScriptHash scripthash)) ->
+        VoteTo (DRepFromScriptHash (DRepScriptHash $ hashToBytes scripthash))
+    Ledger.DRepCredential (SL.KeyHashObj (SL.KeyHash keyhash)) ->
+        VoteTo (DRepFromKeyHash (DRepKeyHash $ hashToBytes keyhash))
 
 fromShelleyCert
     :: ( Ledger.ShelleyEraTxCert era
@@ -197,12 +242,12 @@ fromShelleyCert
     => Ledger.TxCert era -> W.Certificate
 fromShelleyCert = \case
     Ledger.DelegStakeTxCert delegator pool ->
-        W.CertificateOfDelegation
+        W.CertificateOfDelegation Nothing
             $ W.CertDelegateFull
                 (fromStakeCredential delegator)
                 (fromPoolKeyHash pool)
-    Ledger.RegTxCert cred -> mkRegisterKeyCertificate cred
-    Ledger.UnRegTxCert cred -> mkDelegationNone cred
+    Ledger.RegTxCert cred -> mkRegisterKeyCertificate Nothing cred
+    Ledger.UnRegTxCert cred -> mkDelegationNone Nothing cred
     Ledger.RegPoolTxCert pp -> mkPoolRegistrationCertificate pp
     Ledger.RetirePoolTxCert pid en -> mkPoolRetirementCertificate pid en
     Ledger.GenesisDelegTxCert {} -> W.CertificateOther W.GenesisCertificate
