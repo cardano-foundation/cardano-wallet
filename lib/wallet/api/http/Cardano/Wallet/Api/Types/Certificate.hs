@@ -10,6 +10,8 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
@@ -65,8 +67,19 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( NonWalletCertificate
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , VoteAction (..)
+    , decodeDRepKeyHashBech32
+    , decodeDRepScriptHashBech32
+    , encodeDRepKeyHashBech32
+    , encodeDRepScriptHashBech32
+    )
 import Cardano.Wallet.Util
     ( ShowFmt (..)
+    )
+import Control.Applicative
+    ( (<|>)
     )
 import Control.DeepSeq
     ( NFData
@@ -83,6 +96,7 @@ import Data.Aeson.Types
     , genericParseJSON
     , genericToJSON
     , withObject
+    , withText
     , (.:)
     )
 import Data.Bifunctor
@@ -96,6 +110,9 @@ import Data.Percentage
     )
 import Data.Quantity
     ( Quantity (..)
+    )
+import Data.Text.Class
+    ( TextDecodingError (..)
     )
 import GHC.Generics
     ( Generic
@@ -133,6 +150,15 @@ data ApiExternalCertificate (n :: NetworkDiscriminant)
         }
     | QuitPoolExternal
         { rewardAccount :: ApiRewardAccount n
+        }
+    | CastVoteExternal
+        { rewardAccount :: ApiRewardAccount n
+        , vote :: ApiT VoteAction
+        }
+    | JoinPoolCastVoteExternal
+        { rewardAccount :: ApiRewardAccount n
+        , pool :: ApiT PoolId
+        , vote :: ApiT VoteAction
         }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
@@ -172,6 +198,15 @@ data ApiCertificate
     | QuitPool
         { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
         }
+    | CastVote
+        { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
+        , vote :: ApiT VoteAction
+        }
+    | JoinPoolCastVote
+        { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
+        , pool :: ApiT PoolId
+        , vote :: ApiT VoteAction
+        }
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
@@ -202,9 +237,13 @@ instance HasSNetworkId n => FromJSON (ApiAnyCertificate n) where
             "deregister_pool" -> StakePoolDeregister <$> parseJSON (Object o)
             "join_pool" -> WalletDelegationCertificate <$> parseJSON (Object o)
             "quit_pool" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "cast_vote" -> WalletDelegationCertificate <$> parseJSON (Object o)
+            "join_pool_cast_vote" -> WalletDelegationCertificate <$> parseJSON (Object o)
             "register_reward_account" -> WalletDelegationCertificate <$> parseJSON (Object o)
             "join_pool_external" -> DelegationCertificate <$> parseJSON (Object o)
             "quit_pool_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "cast_vote_external" -> DelegationCertificate <$> parseJSON (Object o)
+            "join_pool_cast_vote_external" -> DelegationCertificate <$> parseJSON (Object o)
             "register_reward_account_external" -> DelegationCertificate <$> parseJSON (Object o)
             "mir" -> OtherCertificate <$> parseJSON (Object o)
             "genesis" -> OtherCertificate <$> parseJSON (Object o)
@@ -286,4 +325,50 @@ mkApiAnyCertificate acct' acctPath' = \case
         else
             DelegationCertificate $
             JoinPoolExternal (ApiRewardAccount rewardKey) (ApiT poolId')
-    toApiDelCert _ _ _ = error "mkApiAnyCertificate: conway certificates not supported"
+    toApiDelCert acctM acctPath (W.CertVoteFull rewardKey vote') =
+        if Just rewardKey == acctM then
+            WalletDelegationCertificate $
+            CastVote (NE.map ApiT acctPath) (ApiT vote')
+        else
+            DelegationCertificate $
+            CastVoteExternal (ApiRewardAccount rewardKey) (ApiT vote')
+    toApiDelCert acctM acctPath (W.CertDelegateAndVoteFull rewardKey poolId' vote') =
+        if Just rewardKey == acctM then
+            WalletDelegationCertificate $
+            JoinPoolCastVote (NE.map ApiT acctPath) (ApiT poolId') (ApiT vote')
+        else
+            DelegationCertificate $
+            JoinPoolCastVoteExternal (ApiRewardAccount rewardKey) (ApiT poolId') (ApiT vote')
+
+instance ToJSON (ApiT VoteAction) where
+    toJSON (ApiT Abstain) = "abstain"
+    toJSON (ApiT NoConfidence) = "no_confidence"
+    toJSON (ApiT (VoteTo drep)) = case drep of
+        DRepFromKeyHash keyhash ->
+            String $ encodeDRepKeyHashBech32 keyhash
+        DRepFromScriptHash scripthash ->
+            String $ encodeDRepScriptHashBech32 scripthash
+instance FromJSON (ApiT VoteAction) where
+    parseJSON t =
+        parseAbstain t <|> parseNoConfidence t <|> parseKeyHash t <|> parseScriptHash t
+      where
+        parseKeyHash = withText "DRepKeyHash" $ \txt ->
+            case decodeDRepKeyHashBech32 txt of
+                Left (TextDecodingError err) -> fail err
+                Right keyhash ->
+                    pure $ ApiT $ VoteTo $ DRepFromKeyHash keyhash
+        parseScriptHash = withText "DRepScriptHash" $ \txt ->
+            case decodeDRepScriptHashBech32 txt of
+                Left (TextDecodingError err) -> fail err
+                Right scripthash ->
+                    pure $ ApiT $ VoteTo $ DRepFromScriptHash scripthash
+        parseAbstain = withText "Abstain" $ \txt ->
+            if txt == "abstain" then
+                pure $ ApiT Abstain
+            else
+                fail "'abstain' is expected."
+        parseNoConfidence = withText "NoConfidence" $ \txt ->
+            if txt == "no_confidence" then
+                pure $ ApiT NoConfidence
+            else
+                fail "'no_confidence' is expected."

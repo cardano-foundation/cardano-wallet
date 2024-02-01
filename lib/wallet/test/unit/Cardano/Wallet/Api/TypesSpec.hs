@@ -217,7 +217,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
-    , ApiVoteAction (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -246,9 +245,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
-    , DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -374,6 +370,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -844,7 +846,7 @@ spec = do
         jsonTest @WalletPutPassphraseData
         jsonTest @(ApiRewardAccount T0)
         jsonTest @(ApiExternalCertificate T0)
-        jsonTest @ApiVoteAction
+        jsonTest @(ApiT VoteAction)
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do
@@ -1614,9 +1616,10 @@ instance Arbitrary ApiWalletDelegationNext where
     arbitrary = oneof
         [ ApiWalletDelegationNext Api.Delegating
             <$> fmap Just arbitrary
+            <*> pure Nothing
             <*> fmap Just arbitrary
         , ApiWalletDelegationNext Api.NotDelegating
-            Nothing . Just <$> arbitrary
+            Nothing Nothing . Just <$> arbitrary
         ]
 
 instance Arbitrary (Passphrase "lenient") where
@@ -2026,9 +2029,9 @@ instance Arbitrary DRep where
               , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
               ]
 
-instance Arbitrary ApiVoteAction where
+instance Arbitrary VoteAction where
   arbitrary =
-    oneof [pure Abstain, pure NoConfidence, arbitrary]
+    oneof [pure Abstain, pure NoConfidence, VoteTo <$> arbitrary]
 
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
@@ -2860,7 +2863,7 @@ instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
-instance ToSchema ApiVoteAction where
+instance ToSchema VoteAction where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiVoteAction"
 

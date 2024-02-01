@@ -34,6 +34,12 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    , VoteAction (..)
+    )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
@@ -67,6 +73,7 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , NonEmptyList (..)
     , Property
     , applyArbitrary4
@@ -288,3 +295,14 @@ instance Arbitrary Word31 where
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary DRep where
+    arbitrary = do
+        InfiniteList bytes _ <- arbitrary
+        oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
+              , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
+              ]
+
+instance Arbitrary VoteAction where
+    arbitrary =
+        oneof [pure Abstain, pure NoConfidence, VoteTo <$> arbitrary]

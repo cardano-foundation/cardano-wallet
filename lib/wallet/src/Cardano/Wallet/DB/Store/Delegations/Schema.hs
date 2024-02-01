@@ -44,6 +44,9 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( DelegationStatusEnum (..)
     , sqlSettings'
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( VoteAction
+    )
 import Control.Monad
     ( void
     )
@@ -79,6 +82,7 @@ mkPersist sqlSettings'
             delegationSlot      SlotNo                  sql=slot
             delegationStatus    DelegationStatusEnum    sql=status
             delegationPool      PoolId Maybe            sql=pool
+            delegationVote      VoteAction Maybe        sql=vote
 
             Primary delegationSlot
             deriving Show Generic Eq

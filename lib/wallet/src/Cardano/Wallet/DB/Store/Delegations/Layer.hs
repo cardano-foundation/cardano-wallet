@@ -9,6 +9,7 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     , readDelegation
     , CurrentEpochSlotting (..)
     , mkCurrentEpochSlotting
+    , hasAlreadyVoted
     )
 where
 
@@ -60,6 +61,16 @@ isStakeKeyRegistered m = fromMaybe False $ do
     (_, v) <- lookupMax m
     pure $ v /= Inactive
 
+-- | Check whether the voting has been casted in the delegation state.
+hasAlreadyVoted :: Delegations -> Bool
+hasAlreadyVoted m = fromMaybe False $ do
+    (_, v) <- lookupMax m
+    let votedAlready = \case
+            ActiveAndVoted _ _ -> True
+            Voted _ -> True
+            _ -> False
+    pure $ votedAlready v
+
 -- | Binds a stake pool id to a wallet. This will have an influence on
 -- the wallet metadata: the last known certificate will indicate to
 -- which pool a wallet is currently delegating.
@@ -77,8 +88,8 @@ putDelegationCertificate cert sl = case cert of
     CertDelegateNone _ -> [Deregister sl]
     CertDelegateFull _ pool -> [Delegate pool sl, Register sl]
     CertRegisterKey _ -> [Register sl]
-    CertVoteFull{} -> error "Conway certificates are not supported in the DB"
-    CertDelegateAndVoteFull{} -> error "Conway certificates are not supported in the DB"
+    CertVoteFull _ vote -> [Vote vote sl, Register sl]
+    CertDelegateAndVoteFull _ pool vote -> [DelegateAndVote pool vote sl, Register sl]
 
 -- | Arguments to 'readDelegation'.
 data CurrentEpochSlotting = CurrentEpochSlotting
@@ -131,6 +142,8 @@ readDelegation CurrentEpochSlotting{..} history =
         Inactive -> NotDelegating
         Registered -> NotDelegating
         Active pid -> Delegating pid
+        ActiveAndVoted pid vote -> DelegatingVoting pid vote
+        Voted vote -> Voting vote
 
 -- | Construct 'CurrentEpochSlotting' from an 'EpochNo' using a 'TimeInterpreter'
 -- .

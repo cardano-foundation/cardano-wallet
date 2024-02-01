@@ -1233,12 +1233,28 @@ toApiWalletDelegation W.WalletDelegation{active,next} ti = do
         W.Delegating pid -> ApiWalletDelegationNext
             { status = Delegating
             , target = Just (ApiT pid)
+            , voted = Nothing
             , changesAt = mepochInfo
             }
 
         W.NotDelegating -> ApiWalletDelegationNext
             { status = NotDelegating
             , target = Nothing
+            , voted = Nothing
+            , changesAt = mepochInfo
+            }
+
+        W.Voting voting -> ApiWalletDelegationNext
+            { status = Voting
+            , target = Nothing
+            , voted =  Just (ApiT voting)
+            , changesAt = mepochInfo
+            }
+
+        W.DelegatingVoting pid voting -> ApiWalletDelegationNext
+            { status = DelegatingAndVoting
+            , target = Just (ApiT pid)
+            , voted =  Just (ApiT voting)
             , changesAt = mepochInfo
             }
 
