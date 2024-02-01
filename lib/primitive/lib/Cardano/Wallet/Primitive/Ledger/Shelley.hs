@@ -416,7 +416,7 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_16]
+nodeToClientVersions = [NodeToClientV_15, NodeToClientV_16]
 
 --------------------------------------------------------------------------------
 --
