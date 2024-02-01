@@ -505,6 +505,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WithOrigin (..)
     , dlgCertPoolId
+    , dlgCertVote
     , stabilityWindowShelley
     , toSlot
     )
@@ -3780,18 +3781,31 @@ instance ToText WalletFollowLog where
                 [ "Discovered end of delegation within slot "
                 , pretty slotNo
                 ]
-            CertVoteAndDelegate _ (Just _) Nothing -> mconcat
-                [ "Discovered delegation to pool "
-                , pretty (dlgCertPoolId cert)
-                , " within slot "
-                , pretty slotNo
-                ]
             CertRegisterKey {} -> mconcat
                 [ "Discovered stake key registration "
                 , " within slot "
                 , pretty slotNo
                 ]
-            _ -> "Conway certificate not supported in the logs"
+            CertVoteAndDelegate _ mp mr -> mconcat
+                [ "Discovered the following voting and/or delegation: "
+                , " within slot "
+                , pretty slotNo
+                ]
+                <> case mp of
+                    Just p -> mconcat
+                        [ " delegating to pool "
+                        , pretty p
+                        , pretty (dlgCertPoolId cert)
+                        ]
+                    Nothing -> mempty
+                <> case mr of
+                    Just r -> mconcat
+                        [ " voting to representative "
+                        , pretty r
+                        , pretty (dlgCertVote cert)
+                        ]
+                    Nothing -> mempty
+
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip
         MsgDiscoveredTxs txs ->

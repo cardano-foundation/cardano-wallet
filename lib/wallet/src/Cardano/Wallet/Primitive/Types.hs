@@ -48,6 +48,7 @@ module Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , dlgCertVote
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
@@ -163,6 +164,7 @@ import Cardano.Wallet.Primitive.Types.Certificates
     , StakeKeyCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , dlgCertVote
     , getPoolCertificatePoolId
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
