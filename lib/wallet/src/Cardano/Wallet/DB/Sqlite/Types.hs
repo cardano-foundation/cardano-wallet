@@ -84,6 +84,9 @@ import Cardano.Wallet.Primitive.Types.AssetName
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -679,6 +682,35 @@ instance FromHttpApiData PoolId where
     parseUrlPiece = error "parseUrlPiece stub needed for persistent"
 
 ----------------------------------------------------------------------------
+-- DRep
+
+instance PersistField DRep where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql DRep where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance Read DRep where
+    readsPrec _ = error "readsPrec stub needed for persistent"
+
+instance PathPiece DRep where
+    fromPathPiece = fromTextMaybe
+    toPathPiece = toText
+
+instance ToJSON DRep where
+    toJSON = String . toText
+
+instance FromJSON DRep where
+    parseJSON = aesonFromText "PoolId"
+
+instance ToHttpApiData DRep where
+    toUrlPiece = error "toUrlPiece stub needed for persistent"
+
+instance FromHttpApiData DRep where
+    parseUrlPiece = error "parseUrlPiece stub needed for persistent"
+
+----------------------------------------------------------------------------
 -- HDPassphrase
 
 newtype HDPassphrase = HDPassphrase (Passphrase "addr-derivation-payload")
@@ -829,7 +861,8 @@ iso8601DateFormatHMS :: String
 -- The function `iso8601DateFormatHMS` has been deprecated from the `time` library.
 iso8601DateFormatHMS = "%Y-%m-%dT%H:%M:%S"
 
-data DelegationStatusEnum = InactiveE | RegisteredE | ActiveE
+data DelegationStatusEnum =
+    InactiveE | RegisteredE | ActiveE | ActiveAndVotedE | VotedE
     deriving (Eq, Show, Enum, Generic)
 
 instance PersistField DelegationStatusEnum where
@@ -837,12 +870,16 @@ instance PersistField DelegationStatusEnum where
         InactiveE -> "inactive" :: Text
         RegisteredE -> "registered"
         ActiveE -> "active"
+        ActiveAndVotedE -> "active_and_voted"
+        VotedE -> "voted"
     fromPersistValue = fromPersistValue >=> readDelegationStatus
 
 readDelegationStatus :: Text -> Either Text DelegationStatusEnum
 readDelegationStatus "inactive" = Right InactiveE
 readDelegationStatus "registered" = Right RegisteredE
 readDelegationStatus "active" = Right ActiveE
+readDelegationStatus "active_and_voted" = Right ActiveAndVotedE
+readDelegationStatus "voted" = Right VotedE
 readDelegationStatus other = Left $ "Invalid delegation status: " <> other
 
 instance PersistFieldSql DelegationStatusEnum where

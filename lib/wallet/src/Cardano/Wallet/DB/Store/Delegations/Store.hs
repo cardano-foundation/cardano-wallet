@@ -86,12 +86,14 @@ data DecodeDelegationError
     deriving (Show, Eq, Exception)
 
 decodeStatus :: Delegations -> (Either SomeException (SlotNo, Status PoolId))
-decodeStatus (Delegations sn n m_pi) = case n of
+decodeStatus (Delegations sn n m_pi _) = case n of
     InactiveE -> Right (sn, Inactive)
     RegisteredE -> Right (sn, Registered)
     ActiveE -> case m_pi of
         Nothing -> Left $ SomeException ActiveDelegationWithoutAPool
         Just pi' -> Right (sn, Active pi')
+    VotedE -> Left $ SomeException $ UnknownDelegationStatus 3
+    ActiveAndVotedE -> Left $ SomeException $ UnknownDelegationStatus 4
 
 updateS'
     :: Maybe (History SlotNo PoolId)
@@ -114,9 +116,9 @@ updateS' = updateLoad loadS' throwIO $ \h op -> do
 
 encodeStatus :: SlotNo -> Status PoolId -> Delegations
 encodeStatus slot = \case
-    Inactive -> Delegations slot InactiveE Nothing
-    Registered -> Delegations slot RegisteredE Nothing
-    Active pi' -> Delegations slot ActiveE (Just pi')
+    Inactive -> Delegations slot InactiveE Nothing Nothing
+    Registered -> Delegations slot RegisteredE Nothing Nothing
+    Active pi' -> Delegations slot ActiveE (Just pi') Nothing
 
 writeS' :: History SlotNo PoolId -> SqlPersistT IO ()
 writeS' h = do

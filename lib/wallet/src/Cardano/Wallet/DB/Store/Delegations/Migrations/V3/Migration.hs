@@ -38,6 +38,11 @@ import Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Model
     , Operation (Delegate, Deregister, Register)
     , Status (..)
     )
+import Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Schema
+    ( DelegationStatusEnum (..)
+    , Delegations (..)
+    , resetDelegationTable
+    )
 import Cardano.Wallet.Primitive.Types
     ( SlotNo (..)
     )
@@ -62,12 +67,7 @@ import Database.Persist.Sql
     , rawExecute
     , selectList
     )
-import Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Schema
-    ( DelegationStatusEnum (..)
-    , Delegations (..)
-    , resetDelegationTable
-    )
-    
+
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
 
