@@ -774,6 +774,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         $ \ctx -> runResourceT @IO $ do
             bigDustWallet <- liftIO $ bigDustWalletMnemonic (_faucet ctx)
 
+            let bigDustUTxOSize = 200 :: Int
             -- Create a large source wallet from which funds will be migrated:
             sourceWallet <-
                 unsafeResponse
@@ -783,7 +784,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             [json|{
                 "name": "Big Shelley Wallet",
                 "mnemonic_sentence": #{someMnemonicToWords bigDustWallet},
-                "passphrase": #{fixturePassphrase}
+                "passphrase": #{fixturePassphrase},
+                "address_pool_gap": #{bigDustUTxOSize}
             }|]
                         )
 
