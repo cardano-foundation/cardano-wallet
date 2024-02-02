@@ -26,7 +26,7 @@
 
 module Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
-    , EntityField (DelegationSlot)
+    , EntityField (..)
     , Key (DelegationsKey)
     , resetDelegationTable
     )

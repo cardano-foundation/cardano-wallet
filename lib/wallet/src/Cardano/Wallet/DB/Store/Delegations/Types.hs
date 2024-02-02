@@ -9,11 +9,22 @@ where
 
 import Prelude
 
-import Control.Monad ((>=>))
-import Data.Proxy (Proxy (..))
-import Data.Text (Text)
-import Database.Persist.Sql (PersistField (..), PersistFieldSql (..))
-import GHC.Generics (Generic)
+import Control.Monad
+    ( (>=>)
+    )
+import Data.Proxy
+    ( Proxy (..)
+    )
+import Data.Text
+    ( Text
+    )
+import Database.Persist.Sql
+    ( PersistField (..)
+    , PersistFieldSql (..)
+    )
+import GHC.Generics
+    ( Generic
+    )
 
 data DelegationStatusEnum
     = InactiveE
