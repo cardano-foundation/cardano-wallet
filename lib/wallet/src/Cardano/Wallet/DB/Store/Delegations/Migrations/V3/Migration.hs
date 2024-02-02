@@ -17,7 +17,7 @@ import Cardano.DB.Sqlite.Migration.Old
     ( DBField (..)
     )
 import Cardano.Pool.Types
-    ( PoolId
+    ( PoolId (..)
     )
 import Cardano.Wallet.DB.Migration
     ( Migration
@@ -33,15 +33,13 @@ import Cardano.Wallet.DB.Store.Delegations.Migrations.V2.Schema
     , StakeKeyCertificate (..)
     , WStakeKeyCertificate (..)
     )
-import Cardano.Wallet.DB.Store.Delegations.Store
-    ( mkStoreDelegations
-    )
-import Cardano.Wallet.Delegation.Model
+import Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Model
     ( History
     , Operation (Delegate, Deregister, Register)
+    , Status (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( SlotNo
+    ( SlotNo (..)
     )
 import Control.Monad.Reader
     ( asks
@@ -54,20 +52,22 @@ import Data.Delta
 import Data.Map.Strict
     ( Map
     )
-import Data.Store
-    ( Store (..)
-    , UpdateStore
-    )
 import Data.These
     ( These (..)
     )
 import Database.Persist.Sql
     ( Entity (Entity)
     , SqlPersistT
+    , insertMany_
     , rawExecute
     , selectList
     )
-
+import Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Schema
+    ( DelegationStatusEnum (..)
+    , Delegations (..)
+    , resetDelegationTable
+    )
+    
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
 
@@ -119,9 +119,8 @@ readOldEncoding = do
             (Map.zipWithMaybeMatched $ \_ x y -> Just $ These x y)
 
 migration
-    :: UpdateStore (SqlPersistT IO) (Operation SlotNo PoolId)
-    -> ReadDBHandle IO ()
-migration store = do
+    :: ReadDBHandle IO ()
+migration = do
     conn <- asks dbConn
     r <- liftIO $ isFieldPresent conn $ DBField StakeKeyCertSlot
     case r of
@@ -141,9 +140,20 @@ migration store = do
                     ]
         ColumnPresent -> withReaderT dbBackend $ do
             old <- readOldEncoding
-            writeS store old
-            rawExecute "DROP TABLE stake_key_certificate" []
-            rawExecute "DROP TABLE delegation_certificate" []
+            write old
+            rawExecute "DROP TABLE stake_key_certificate"  []
+            rawExecute "DROP TABLE delegation_certificate"  []
 
 migrateDelegations :: Migration (ReadDBHandle IO) 2 3
-migrateDelegations = mkMigration $ migration mkStoreDelegations
+migrateDelegations = mkMigration migration
+
+write :: History SlotNo PoolId -> SqlPersistT IO ()
+write h = do
+    resetDelegationTable
+    insertMany_ [encodeStatus slot x | (slot, x) <- Map.assocs h]
+
+encodeStatus :: SlotNo -> Status PoolId -> Delegations
+encodeStatus slot = \case
+    Inactive -> Delegations slot InactiveE Nothing
+    Registered -> Delegations slot RegisteredE Nothing
+    Active pi' -> Delegations slot ActiveE (Just pi')
