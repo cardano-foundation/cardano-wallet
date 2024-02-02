@@ -183,8 +183,8 @@ library
     Cardano.Wallet.DB.Store.Checkpoints.Migration
     Cardano.Wallet.DB.Store.Checkpoints.Store
     Cardano.Wallet.DB.Store.Delegations.Layer
-    Cardano.Wallet.DB.Store.Delegations.Migration
-    Cardano.Wallet.DB.Store.Delegations.Migration.Schema
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V2.Schema
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Migration
     Cardano.Wallet.DB.Store.Delegations.Model
     Cardano.Wallet.DB.Store.Delegations.Schema
     Cardano.Wallet.DB.Store.Delegations.Store

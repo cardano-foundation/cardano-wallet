@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.DB.Store.Delegations.Migration
+module Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Migration
     ( migrateDelegations
     ) where
 
@@ -27,7 +27,7 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( SqlColumnStatus (..)
     , isFieldPresent
     )
-import Cardano.Wallet.DB.Store.Delegations.Migration.Schema
+import Cardano.Wallet.DB.Store.Delegations.Migrations.V2.Schema
     ( DelegationCertificate (..)
     , EntityField (..)
     , StakeKeyCertificate (..)
@@ -125,21 +125,25 @@ migration store = do
     conn <- asks dbConn
     r <- liftIO $ isFieldPresent conn $ DBField StakeKeyCertSlot
     case r of
-        TableMissing -> fail $ unwords
-            [ "Database migration from version 2 to version 3 failed:"
-            , "Expected TABLE stake_key_certificate"
-            , "to exist in database_schema_version 2"
-            ]
-        ColumnMissing -> fail $ unwords
-            [ "Database migration from version 2 to version 3 failed:"
-            , "Expected COLUMN slot of TABLE stake_key_certificate"
-            , "to exist in database_schema_version 2"
-            ]
+        TableMissing ->
+            fail
+                $ unwords
+                    [ "Database migration from version 2 to version 3 failed:"
+                    , "Expected TABLE stake_key_certificate"
+                    , "to exist in database_schema_version 2"
+                    ]
+        ColumnMissing ->
+            fail
+                $ unwords
+                    [ "Database migration from version 2 to version 3 failed:"
+                    , "Expected COLUMN slot of TABLE stake_key_certificate"
+                    , "to exist in database_schema_version 2"
+                    ]
         ColumnPresent -> withReaderT dbBackend $ do
             old <- readOldEncoding
             writeS store old
-            rawExecute "DROP TABLE stake_key_certificate"  []
-            rawExecute "DROP TABLE delegation_certificate"  []
+            rawExecute "DROP TABLE stake_key_certificate" []
+            rawExecute "DROP TABLE delegation_certificate" []
 
 migrateDelegations :: Migration (ReadDBHandle IO) 2 3
 migrateDelegations = mkMigration $ migration mkStoreDelegations

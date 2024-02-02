@@ -6,7 +6,7 @@ module Cardano.Wallet.DB.Sqlite.Migration.New
     , latestVersion
     , runNewStyleMigrations
 
-    -- * Operating on database
+      -- * Operating on database
     , newMigrationInterface
     ) where
 
@@ -36,9 +36,6 @@ import Cardano.Wallet.DB.Sqlite.Migration.Old
 import Cardano.Wallet.DB.Store.Checkpoints.Migration
     ( migratePrologue
     )
-import Cardano.Wallet.DB.Store.Delegations.Migration
-    ( migrateDelegations
-    )
 import Control.Category
     ( (.)
     )
@@ -59,6 +56,7 @@ import System.Directory
     )
 
 import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
+import qualified Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Migration as DelegationsV3
 
 {-----------------------------------------------------------------------------
     Specific migrations
@@ -66,7 +64,7 @@ import qualified Cardano.Wallet.DB.Sqlite.Migration.Old as Old
 
 newStyleMigrations :: Migration (ReadDBHandle IO) 2 4
 newStyleMigrations =
-    migratePrologue . migrateDelegations
+    migratePrologue . DelegationsV3.migrateDelegations
 
 latestVersion :: Version
 latestVersion = getTargetVersion newStyleMigrations

@@ -14,7 +14,7 @@ import Cardano.Wallet.DB.Migration
 import Cardano.Wallet.DB.Sqlite.Migration.New
     ( newMigrationInterface
     )
-import Cardano.Wallet.DB.Store.Delegations.Migration
+import Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Migration
     ( migrateDelegations
     )
 import Control.Tracer

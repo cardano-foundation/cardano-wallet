@@ -25,8 +25,7 @@
 -- More than 6K lines end-up being generated from the instructions below! As a
 -- result, we're going to ignore code-coverage on the following module and, no
 -- hand-written functions should be written in this module!
-
-module Cardano.Wallet.DB.Store.Delegations.Migration.Schema where
+module Cardano.Wallet.DB.Store.Delegations.Migrations.V2.Schema where
 
 import Prelude
 
@@ -92,14 +91,15 @@ import GHC.Generics
 
 import qualified Data.Text.Encoding as T
 
-newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
+newtype WalletId = WalletId {getWalletId :: Digest Blake2b_160}
     deriving (Generic, Eq, Ord, Show)
 
 instance FromText WalletId where
-    fromText txt = maybe
-        (Left $ TextDecodingError msg)
-        (Right . WalletId)
-        (decodeHex txt >>= digestFromByteString @_ @ByteString)
+    fromText txt =
+        maybe
+            (Left $ TextDecodingError msg)
+            (Right . WalletId)
+            (decodeHex txt >>= digestFromByteString @_ @ByteString)
       where
         msg = "wallet id should be a hex-encoded string of 40 characters"
         decodeHex =
