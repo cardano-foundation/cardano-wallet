@@ -341,7 +341,7 @@ historyProp prop = forAll (genUTxO $ empty mempty) $ \utxo ->
 genDelta :: UTxOHistory -> Gen DeltaUTxO
 genDelta h = do
     utxo <- genUTxO h
-    pure $  fst (receiveD (getUTxO h) utxo)
+    pure $ fst (receiveD (getUTxO h) utxo)
             <> fst (excludingD (getUTxO h) $ dom utxo)
 
 -- Generate a property that holds for any DeltaUTxO that is valid for
