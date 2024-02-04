@@ -62,7 +62,8 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity (TokenQuantity)
     )
 
-newtype ApiWalletAssets = ApiWalletAssets [ApiWalletAsset]
+newtype ApiWalletAssets
+        = ApiWalletAssets {getApiWalletAssets :: [ApiWalletAsset]}
     deriving (Data, Eq, Generic, Ord, Show, Typeable)
     deriving newtype (Hashable, IsList, Semigroup, Monoid, FromJSON, ToJSON)
     deriving anyclass NFData

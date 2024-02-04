@@ -56,8 +56,8 @@ import Cardano.Wallet.Address.MaybeLight
     ( MaybeLight
     )
 import Cardano.Wallet.Api
-    ( ApiLayer
-    , ApiV2
+    ( Api
+    , ApiLayer (..)
     )
 import Cardano.Wallet.Api.Http.Logging
     ( ApplicationLog (..)
@@ -160,6 +160,16 @@ import Cardano.Wallet.Tracers as Tracers
 import Cardano.Wallet.Transaction
     ( TransactionLayer
     )
+import Cardano.Wallet.UI.API
+    ( UI
+    )
+import Cardano.Wallet.UI.Layer
+    ( UILayer (..)
+    , withUILayer
+    )
+import Cardano.Wallet.UI.Server
+    ( serveUI
+    )
 import Control.Exception.Extra
     ( handle
     )
@@ -174,7 +184,7 @@ import Control.Monad.Trans.Except
     ( ExceptT (ExceptT)
     )
 import Control.Tracer
-    ( Tracer
+    ( Tracer (..)
     , traceWith
     )
 import Data.Function
@@ -211,6 +221,10 @@ import Network.URI
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop
     )
+import Servant
+    ( (:<|>) (..)
+    , (:>)
+    )
 import System.Exit
     ( ExitCode (..)
     )
@@ -221,8 +235,13 @@ import System.IOManager
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
+import Cardano.Wallet.UI.Signal
+    ( filterSignals
+    )
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
+
+type ApiV2 n = "v2" :> Api n :<|>  UI
 
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
@@ -278,8 +297,9 @@ serveWallet
   settings
   tokenMetaUri
   block0
-  beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $  do
+  beforeMainLoop = withSNetworkId network $ \sNetwork -> withUILayer $ \uiLayer ->evalContT $   do
     let netId = networkIdVal sNetwork
+    let uiSignals = filterSignals $ signals uiLayer
     lift $ case blockchainSource of
         NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
     lift . trace
@@ -305,10 +325,10 @@ serveWallet
                 netParams
                 shelleyGenesisPools
                 netLayer
-    randomApi <- withRandomApi netId netLayer
-    icarusApi  <- withIcarusApi netId netLayer
-    shelleyApi <- withShelleyApi netId netLayer
-    multisigApi <- withMultisigApi netId netLayer
+    randomApi <- withRandomApi uiSignals netId netLayer
+    icarusApi  <- withIcarusApi uiSignals netId netLayer
+    shelleyApi <- withShelleyApi uiSignals netId netLayer
+    multisigApi <- withMultisigApi uiSignals netId netLayer
     ntpClient <- withNtpClient ntpClientTracer
     bindSocket >>= lift . \case
         Left err -> do
@@ -317,6 +337,7 @@ serveWallet
         Right (_port, socket) -> do
             startServer
                 sNetwork
+                uiLayer
                 socket
                 randomApi
                 icarusApi
@@ -333,24 +354,24 @@ serveWallet
     bindSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
     bindSocket = ContT $ Server.withListeningSocket hostPref listen
 
-    withRandomApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer ByronKeyS netId)
+    withRandomApi uiSignals netId netLayer =
+        lift $ apiLayer uiSignals (newTransactionLayer ByronKeyS netId)
             netLayer Server.idleWorker
 
-    withIcarusApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer IcarusKeyS netId)
+    withIcarusApi uiSignals netId netLayer =
+        lift $ apiLayer uiSignals (newTransactionLayer IcarusKeyS netId)
             netLayer Server.idleWorker
 
-    withShelleyApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer ShelleyKeyS netId) netLayer
+    withShelleyApi uiSignals netId netLayer =
+        lift $ apiLayer uiSignals (newTransactionLayer ShelleyKeyS netId) netLayer
             $ \wrk _ -> Server.manageRewardBalance
                 <$> view typed
                 <*> pure netLayer
                 <*> view typed
                 $ wrk
 
-    withMultisigApi netId netLayer =
-        lift $ apiLayer (newTransactionLayer SharedKeyS netId) netLayer Server.idleWorker
+    withMultisigApi uiSignals netId netLayer =
+        lift $ apiLayer uiSignals (newTransactionLayer SharedKeyS netId) netLayer Server.idleWorker
 
     startServer
         :: forall n.
@@ -358,6 +379,7 @@ serveWallet
             , Typeable n
             )
         => SNetworkId n
+        -> UILayer
         -> Socket
         -> ApiLayer (RndState n)
         -> ApiLayer (SeqState n IcarusKey)
@@ -366,15 +388,16 @@ serveWallet
         -> StakePoolLayer
         -> NtpClient
         -> IO ()
-    startServer _proxy socket byron icarus shelley multisig spl ntp = do
-        serverUrl <- getServerUrl tlsConfig socket
-        let serverSettings = Warp.defaultSettings
-                & setBeforeMainLoop (beforeMainLoop serverUrl)
-            api = Proxy @(ApiV2 n)
-        let application = Server.serve api
-                $ Servant.hoistServer api handleWalletExceptions
-                $ server byron icarus shelley multisig spl ntp blockchainSource
-        Server.start serverSettings apiServerTracer tlsConfig socket application
+    startServer _proxy uiLayer socket byron icarus shelley multisig spl ntp = do
+            serverUrl <- getServerUrl tlsConfig socket
+            let serverSettings = Warp.defaultSettings
+                    & setBeforeMainLoop (beforeMainLoop serverUrl)
+                api = Proxy @(ApiV2 n)
+            let application = Server.serve api
+                    $ Servant.hoistServer api handleWalletExceptions
+                    $ server byron icarus shelley multisig spl ntp blockchainSource
+                        :<|> serveUI uiLayer byron icarus shelley multisig spl ntp blockchainSource
+            Server.start serverSettings apiServerTracer tlsConfig socket application
 
     apiLayer
         :: forall s k .
@@ -385,11 +408,12 @@ serveWallet
             , WalletFlavor s
             , KeyOf s ~ k
             )
-        => TransactionLayer k (CredFromOf s) SealedTx
+        => Tracer IO Server.WalletEngineLog
+        -> TransactionLayer k (CredFromOf s) SealedTx
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
         -> (WorkerCtx (ApiLayer s) -> WalletId -> IO ())
         -> IO (ApiLayer s)
-    apiLayer txLayer netLayer coworker = do
+    apiLayer uiSignals txLayer netLayer coworker = do
         tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         dbFactory <- Sqlite.newDBFactory
             (walletFlavor @s)
@@ -434,7 +458,8 @@ serveWallet
                 $ timeInterpreter netLayer)
             databaseDir
         Server.newApiLayer
-            walletEngineTracer
+            (Tracer $ \x ->
+                traceWith walletEngineTracer x >> traceWith uiSignals x)
             (block0, netParams)
             netLayer
             txLayer

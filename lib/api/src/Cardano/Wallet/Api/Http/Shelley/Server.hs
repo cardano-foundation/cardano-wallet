@@ -127,7 +127,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
-
+    , MkApiWallet
     -- * Workers
     , manageRewardBalance
     , idleWorker
@@ -157,10 +157,7 @@ import Cardano.Address.Script
     , validateScriptOfTemplate
     )
 import Cardano.Api
-    ( NetworkId
-    , SerialiseAsCBOR (..)
-    , toNetworkMagic
-    , unNetworkMagic
+    ( SerialiseAsCBOR (..)
     )
 import Cardano.Api.Shelley
     ( StakeAddress (..)
@@ -328,6 +325,12 @@ import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     ( convertApiAssetMintBurn
     , getTxApiAssetMintBurn
     )
+import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
+    ( getNetworkInformation
+    , makeApiBlockReference
+    , makeApiBlockReferenceFromHeader
+    , makeApiSlotReference
+    )
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..)
     , parseTxCBOR
@@ -349,7 +352,6 @@ import Cardano.Wallet.Api.Types
     , ApiAsset (..)
     , ApiAssetMintBurn (..)
     , ApiBalanceTransactionPostData (..)
-    , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiBurnData (..)
     , ApiByronWallet (..)
@@ -377,7 +379,6 @@ import Cardano.Wallet.Api.Types
     , ApiMnemonicT (..)
     , ApiMultiDelegationAction (..)
     , ApiNetworkClock (..)
-    , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiNullStakeKey (..)
     , ApiOurStakeKey (..)
@@ -403,8 +404,6 @@ import Cardano.Wallet.Api.Types
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSignTransactionPostData (..)
-    , ApiSlotId (..)
-    , ApiSlotReference (..)
     , ApiStakeKeyIndex (..)
     , ApiStakeKeys (..)
     , ApiT (..)
@@ -429,7 +428,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPlan (..)
     , ApiWalletMigrationPlanPostData (..)
     , ApiWalletMigrationPostData (..)
-    , ApiWalletMode (..)
     , ApiWalletOutput (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -459,7 +457,6 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     , toApiAsset
     , toApiDecodeTransactionPostData
-    , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
@@ -528,8 +525,7 @@ import Cardano.Wallet.Network.RestorationMode
     , getRestorationPoint
     )
 import Cardano.Wallet.Pools
-    ( EpochInfo (..)
-    , toEpochInfo
+    ( toEpochInfo
     )
 import Cardano.Wallet.Primitive.Delegation.UTxO
     ( stakeKeyCoinDistr
@@ -559,18 +555,11 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
-    , RelativeTime
     , TimeInterpreter
     , currentEpoch
-    , currentRelativeTime
     , expectAndThrowFailures
-    , hoistTimeInterpreter
     , interpretQuery
     , neverFails
-    , ongoingSlotAt
-    , slotToUTCTime
-    , timeOfEpoch
-    , toSlotId
     , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -578,12 +567,10 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types
     ( Block
-    , BlockHeader (..)
     , ChainPoint (..)
     , NetworkParameters (..)
     , PoolLifeCycleStatus
     , Signature (..)
-    , SlotId
     , SlotNo (..)
     , SortOrder (..)
     , WalletDelegation
@@ -713,10 +700,6 @@ import Control.Monad.Trans.Except
     , throwE
     , withExceptT
     )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (..)
-    , exceptToMaybeT
-    )
 import Control.Tracer
     ( Tracer
     , contramap
@@ -816,9 +799,6 @@ import Fmt
     )
 import GHC.Generics
     ( Generic
-    )
-import GHC.Stack
-    ( HasCallStack
     )
 import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
@@ -4368,58 +4348,6 @@ getCurrentEpoch ctx = liftIO (runExceptT (currentEpoch ti)) >>= \case
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-getNetworkInformation
-    :: HasCallStack
-    => NetworkId
-    -> NetworkLayer IO block
-    -> ApiWalletMode
-    -> Handler ApiNetworkInformation
-getNetworkInformation nid
-    NetworkLayer
-        { syncProgress
-        , currentNodeTip
-        , currentNodeEra
-        , timeInterpreter
-        }
-    mode = liftIO $ do
-        now <- currentRelativeTime ti
-        nodeTip <- currentNodeTip
-        nodeEra <- currentNodeEra
-        apiNodeTip <- makeApiBlockReferenceFromHeader
-            (neverFails "node tip is within safe-zone" timeInterpreter)
-            nodeTip
-        nowInfo <- runMaybeT $ networkTipInfo now
-        progress <- syncProgress $ view #slotNo nodeTip
-        pure Api.ApiNetworkInformation
-            { Api.syncProgress = ApiT progress
-            , Api.nextEpoch = snd <$> nowInfo
-            , Api.nodeTip = apiNodeTip
-            , Api.networkTip = fst <$> nowInfo
-            , Api.nodeEra = toApiEra nodeEra
-            , Api.networkInfo =
-                Api.ApiNetworkInfo
-                    ( case nid of
-                        Cardano.Mainnet -> "mainnet"
-                        Cardano.Testnet _ -> "testnet"
-                    )
-                    (fromIntegral $ unNetworkMagic $ toNetworkMagic nid)
-            , Api.walletMode = mode
-            }
-  where
-    ti :: TimeInterpreter (MaybeT IO)
-    ti = hoistTimeInterpreter exceptToMaybeT timeInterpreter
-
-    -- (network tip, next epoch)
-    -- May be unavailable if the node is still syncing.
-    networkTipInfo :: RelativeTime -> MaybeT IO (ApiSlotReference, EpochInfo)
-    networkTipInfo now = do
-        networkTipSlot <- interpretQuery ti $ ongoingSlotAt now
-        tip <- makeApiSlotReference ti networkTipSlot
-        let curEpoch = tip ^. #slotId . #epochNumber . #getApiT
-        (_, nextEpochStart) <- interpretQuery ti $ timeOfEpoch curEpoch
-        let nextEpoch = EpochInfo (succ curEpoch) nextEpochStart
-        return (tip, nextEpoch)
-
 getNetworkParameters
     :: (Block, NetworkParameters)
     -> NetworkLayer IO block
@@ -5010,45 +4938,6 @@ addressAmountToTxOut (AddressAmount (ApiAddress addr) c assets) =
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
-
-apiSlotId :: SlotId -> ApiSlotId
-apiSlotId slotId = ApiSlotId
-   (ApiT $ slotId ^. #epochNumber)
-   (ApiT $ slotId ^. #slotNumber)
-
-makeApiBlockReference
-    :: Monad m
-    => TimeInterpreter m
-    -> SlotNo
-    -> Quantity "block" Natural
-    -> m ApiBlockReference
-makeApiBlockReference ti sl height = do
-    slotId <- interpretQuery ti (toSlotId sl)
-    slotTime <- interpretQuery ti (slotToUTCTime sl)
-    pure ApiBlockReference
-        { absoluteSlotNumber = ApiT sl
-        , slotId = apiSlotId slotId
-        , time = slotTime
-        , block = ApiBlockInfo { height }
-        }
-
-makeApiBlockReferenceFromHeader
-    :: Monad m
-    => TimeInterpreter m
-    -> BlockHeader
-    -> m ApiBlockReference
-makeApiBlockReferenceFromHeader ti tip =
-    makeApiBlockReference ti (tip ^. #slotNo) (natural $ tip ^. #blockHeight)
-
-makeApiSlotReference
-    :: Monad m
-    => TimeInterpreter m
-    -> SlotNo
-    -> m ApiSlotReference
-makeApiSlotReference ti sl =
-    ApiSlotReference (ApiT sl)
-        <$> fmap apiSlotId (interpretQuery ti $ toSlotId sl)
-        <*> interpretQuery ti (slotToUTCTime sl)
 
 getWalletTip
     :: Monad m

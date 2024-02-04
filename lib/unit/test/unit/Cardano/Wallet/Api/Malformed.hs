@@ -111,6 +111,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
     , SerialisedTx
     )
+import Cardano.Wallet.UI.Html.Html
+    ( HTML
+    )
 import Control.Arrow
     ( first
     )
@@ -1885,6 +1888,13 @@ instance Malformed (Header "Accept" OctetStream) where
     malformed = first Header <$>
         [ ( "application/json"
           , "It seems as though you don't accept 'application/octet-stream', but unfortunately I only speak 'application/octet-stream'! Please double-check your 'Accept' request header and make sure it's set to 'application/octet-stream'."
+          )
+        ]
+
+instance Malformed (Header "Accept" HTML) where
+    malformed = first Header <$>
+        [ ( "text/plain"
+          , "It seems as though you don't accept 'text/html', but unfortunately I only speak 'text/html'! Please double-check your 'Accept' request header and make sure it's set to 'text/html'."
           )
         ]
 
