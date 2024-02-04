@@ -18,6 +18,6 @@ cabal run -O0 cardano-wallet-api:exe:cardano-wallet -- serve \
     --database ${WALLET_DB} \
     --node-socket ${CARDANO_NODE_SOCKET_PATH} \
     --testnet ${CONFIGS}/byron-genesis.json \
-    --listen-address 0.0.0.0 \
-    --trace-wallet-engine DEBUG \
-    --trace-ntp-client DEBUG
+    --listen-address 0.0.0.0 
+    # --trace-wallet-engine DEBUG \
+    # --trace-ntp-client DEBUG
