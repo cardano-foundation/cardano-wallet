@@ -184,21 +184,21 @@ steps:
       system: ${macos}
 
   - label: 'Run unit tests (macOS, x86_64)'
-    key: macos-tests-unit
+    key: macos-intel-tests-run-unit
     depends_on: macos-nix
     command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
     agents:
       system: ${macos}
 
   - label: 'Run unit tests (macOS, arm64)'
+    key: macos-arm64-tests-run-unit
     depends_on: macos-nix
-    key: macos-build-tests-arm64
     command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
     agents:
       system: ${macos}
 
   - label: 'Build integration tests (macOS, arm64)'
-    key: macos-tests-build-integration-arm64
+    key: macos-arm64-tests-build-integration
     depends_on: macos-nix
     command: nix build -L .#packages.aarch64-darwin.integration-exe
     agents:
@@ -206,7 +206,7 @@ steps:
       queue: "cardano-wallet"
 
   - label: 'Build package (macOS, x86_64)'
-    key: macos-package
+    key: macos-intel-package
     depends_on: macos-nix
     command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
     artifact_paths: [ "./result/macos-intel/**" ]
@@ -214,7 +214,7 @@ steps:
       system: ${macos}
 
   - label: 'Build package (macOS, arm64)'
-    key: macos-package-arm64
+    key: macos-arm64-package
     depends_on: macos-nix
     command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
     artifact_paths: [ "./result/macos-silicon/**" ]
@@ -293,6 +293,9 @@ steps:
       - linux-tests-unit
       - linux-tests-integration-babbage
       - linux-tests-integration-conway
+      - macos-arm64-tests-run-unit
+      - macos-arm64-tests-build-integration
+      - macos-intel-tests-run-unit
       - cabal-configure
       - code-format
       - hlint
@@ -300,8 +303,8 @@ steps:
       - lint-bash
       - hls
       - build-benchmarks
-      - macos-tests-unit
-      - macos-package
+      - macos-arm64-package
+      - macos-intel-package
       - linux-package
       - windows-package
       - windows-testing-bundle
