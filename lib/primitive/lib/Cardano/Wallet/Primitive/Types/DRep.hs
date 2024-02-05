@@ -139,12 +139,12 @@ instance FromText DRep where
                         Right $ FromDRepID $ DRepFromScriptHash scripthash
                     Left _ -> Left $ TextDecodingError $ unwords
                         [ "I couldn't parse the given decentralized representative (DRep)."
-                        , "I am expecting either 'abstain', 'no confidence'"
+                        , "I am expecting either 'abstain', 'no_confidence'"
                         , "or bech32 encoded drep having prefixes: 'drep'"
                         , "or 'drep_script'."]
 
 instance Buildable DRep where
     build = \case
         Abstain -> "abstain"
-        NoConfidence -> "casting no confidence"
+        NoConfidence -> "no_confidence"
         FromDRepID drep -> "delegating voting to " <> build drep
