@@ -31,8 +31,7 @@
 -- License: Apache-2.0
 --
 -- Provides wallet layer functions that are used by API layer. Uses both
--- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as
--- being intermediary between the three.
+-- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as-- being intermediary between the three.
 --
 -- Functions of the wallet layer are often parameterized with variables
 -- following the convention below:
@@ -573,11 +572,11 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( mkTransaction
+    ( _txRewardWithdrawalCost
+    , mkTransaction
     , mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
-    , _txRewardWithdrawalCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
