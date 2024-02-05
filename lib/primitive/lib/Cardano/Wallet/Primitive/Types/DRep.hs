@@ -121,7 +121,7 @@ data DRep
 
 instance ToText DRep where
     toText Abstain = "abstain"
-    toText NoConfidence = "no confidence"
+    toText NoConfidence = "no_confidence"
     toText (FromDRepID (DRepFromKeyHash keyhash)) =
         encodeDRepKeyHashBech32 keyhash
     toText (FromDRepID (DRepFromScriptHash scripthash)) =
@@ -130,7 +130,7 @@ instance ToText DRep where
 instance FromText DRep where
     fromText txt = case txt of
         "abstain" -> Right Abstain
-        "no confidence" -> Right NoConfidence
+        "no_confidence" -> Right NoConfidence
         _ -> case decodeDRepKeyHashBech32 txt of
                 Right keyhash ->
                      Right $ FromDRepID $ DRepFromKeyHash keyhash
@@ -140,7 +140,7 @@ instance FromText DRep where
                     Left _ -> Left $ TextDecodingError $ unwords
                         [ "I couldn't parse the given decentralized representative (DRep)."
                         , "I am expecting either 'abstain', 'no confidence'"
-                        , "or bech32 encoded drep having prefixes: 'drep_script'"
+                        , "or bech32 encoded drep having prefixes: 'drep'"
                         , "or 'drep_script'."]
 
 instance Buildable DRep where

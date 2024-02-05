@@ -2030,7 +2030,7 @@ instance Arbitrary DRepID where
 
 instance Arbitrary DRep where
   arbitrary =
-    oneof [pure Abstain, pure NoConfidence, arbitrary]
+    oneof [pure Abstain, pure NoConfidence, FromDRepID <$> arbitrary]
 
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
