@@ -279,7 +279,7 @@ mkApiAnyCertificate acct' acctPath' = \case
         else
             DelegationCertificate $
                 RegisterRewardAccountExternal (ApiRewardAccount rewardKey)
-    toApiDelCert acctM acctPath (W.CertDelegateFull rewardKey poolId') =
+    toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey (Just poolId') Nothing) =
         if Just rewardKey == acctM then
             WalletDelegationCertificate $
             JoinPool (NE.map ApiT acctPath) (ApiT poolId')

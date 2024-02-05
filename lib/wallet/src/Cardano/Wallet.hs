@@ -573,11 +573,11 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( _txRewardWithdrawalCost
-    , mkTransaction
+    ( mkTransaction
     , mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
+    , _txRewardWithdrawalCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -3781,7 +3781,7 @@ instance ToText WalletFollowLog where
                 [ "Discovered end of delegation within slot "
                 , pretty slotNo
                 ]
-            CertDelegateFull{} -> mconcat
+            CertVoteAndDelegate _ (Just _) Nothing -> mconcat
                 [ "Discovered delegation to pool "
                 , pretty (dlgCertPoolId cert)
                 , " within slot "

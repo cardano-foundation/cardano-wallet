@@ -346,12 +346,15 @@ mPutDelegationCertificate cert slot = alterModelNoTxs'
             , stakeKeys = case cert of
                 CertDelegateNone {} ->
                     Map.insert slot StakeKeyDeregistration stakeKeys
-                CertDelegateFull {} -> stakeKeys
+                CertVoteAndDelegate _ (Just _) Nothing -> stakeKeys
                 CertRegisterKey {} ->
                     Map.insert slot StakeKeyRegistration stakeKeys
-                CertVoteFull {} -> error "Vote certificates not supported in DB"
-                CertDelegateAndVoteFull {} ->
+                CertVoteAndDelegate _ Nothing (Just _) ->
                     error "Vote certificates not supported in DB"
+                CertVoteAndDelegate _ (Just _) (Just _) ->
+                    error "Vote certificates not supported in DB"
+                CertVoteAndDelegate _ Nothing Nothing ->
+                    error "Something wrong here"
             }
 
 mIsStakeKeyRegistered

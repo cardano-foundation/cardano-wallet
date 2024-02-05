@@ -33,7 +33,7 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
 import Cardano.Wallet.Primitive.Types.DRep
-    ( VoteAction
+    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo
@@ -78,10 +78,8 @@ import GHC.Generics
 
 data DelegationCertificate
     = CertDelegateNone RewardAccount
-    | CertDelegateFull RewardAccount PoolId
     | CertRegisterKey RewardAccount
-    | CertVoteFull RewardAccount VoteAction
-    | CertDelegateAndVoteFull RewardAccount PoolId VoteAction
+    | CertVoteAndDelegate RewardAccount (Maybe PoolId) (Maybe DRep)
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
@@ -89,26 +87,20 @@ instance NFData DelegationCertificate
 dlgCertAccount :: DelegationCertificate -> RewardAccount
 dlgCertAccount = \case
     CertDelegateNone acc -> acc
-    CertDelegateFull acc _ -> acc
     CertRegisterKey acc -> acc
-    CertVoteFull acc _ -> acc
-    CertDelegateAndVoteFull acc _ _ -> acc
+    CertVoteAndDelegate acc _ _ -> acc
 
 dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
-    CertDelegateFull _ poolId -> Just poolId
     CertRegisterKey _ -> Nothing
-    CertVoteFull _ _ -> Nothing
-    CertDelegateAndVoteFull _ poolId _ -> Just poolId
+    CertVoteAndDelegate _ poolIdM _ -> poolIdM
 
-dlgCertVote :: DelegationCertificate -> Maybe VoteAction
+dlgCertVote :: DelegationCertificate -> Maybe DRep
 dlgCertVote = \case
     CertDelegateNone{} -> Nothing
-    CertDelegateFull _ _ -> Nothing
     CertRegisterKey _ -> Nothing
-    CertVoteFull _ vote -> Just vote
-    CertDelegateAndVoteFull _ _ vote -> Just vote
+    CertVoteAndDelegate _ _ voteM -> voteM
 
 data StakeKeyCertificate
     = StakeKeyRegistration
@@ -183,34 +175,33 @@ instance Buildable PoolRetirementCertificate where
 data NonWalletCertificate
     = GenesisCertificate
     | MIRCertificate
-    | CommitteeHotKeyAuthorization
-    | CommitteeColdResignation
-    | DRepRegistration
-    | DRepDeregistration
+    | AuthCommitteeHotKey
+    | ResignCommitteeColdKey
+    | RegDRep
+    | UnRegDRep
     deriving (Generic, Show, Read, Eq)
 
 instance ToText NonWalletCertificate where
     toText GenesisCertificate = "genesis"
     toText MIRCertificate = "mir"
-    toText CommitteeHotKeyAuthorization = "committee hot key registration"
-    toText CommitteeColdResignation = "committee resignation"
-    toText DRepRegistration = "DRep registration"
-    toText DRepDeregistration = "DRep deregistration"
+    toText AuthCommitteeHotKey = "auth_committee_hot_key"
+    toText ResignCommitteeColdKey = "resign_committee_cold_key"
+    toText RegDRep = "reg_DRep"
+    toText UnRegDRep = "unreg_DRep"
 
 instance FromText NonWalletCertificate where
     fromText "genesis" = Right GenesisCertificate
     fromText "mir" = Right MIRCertificate
-    fromText "committee hot key registration" =
-        Right CommitteeHotKeyAuthorization
-    fromText "committee resignation" = Right CommitteeColdResignation
-    fromText "DRep registration" = Right DRepRegistration
-    fromText "DRep deregistration" = Right DRepDeregistration
+    fromText "auth_committee_hot_key" = Right AuthCommitteeHotKey
+    fromText "resign_committee_cold_key" = Right ResignCommitteeColdKey
+    fromText "reg_DRep" = Right RegDRep
+    fromText "unreg_DRep" = Right UnRegDRep
     fromText _ =
         Left
             $ TextDecodingError
-                "expecting one of 'genesis', 'mir', 'committee hot key registration'\
-                \, 'committee resignation', 'DRep registration' or \
-                \'DRep deregistration' for NonWalletCertificate text value"
+                "expecting one of 'genesis', 'mir', 'auth_committee_hot_key'\
+                \, 'resign_committee_cold_key', 'reg_DRep' or \
+                \'unreg_DRep' for NonWalletCertificate text value"
 
 instance NFData NonWalletCertificate
 

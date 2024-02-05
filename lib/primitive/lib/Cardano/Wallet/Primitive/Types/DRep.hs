@@ -5,10 +5,10 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Cardano.Wallet.Primitive.Types.DRep
-    ( DRep (..)
+    ( DRepID (..)
     , DRepKeyHash (..)
     , DRepScriptHash (..)
-    , VoteAction (..)
+    , DRep (..)
     , encodeDRepKeyHashBech32
     , decodeDRepKeyHashBech32
     , encodeDRepScriptHashBech32
@@ -52,7 +52,7 @@ newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
 
 instance NFData DRepScriptHash
 
-data DRep =
+data DRepID =
     DRepFromKeyHash DRepKeyHash | DRepFromScriptHash DRepScriptHash
     deriving (Eq, Generic, Show, Ord)
     deriving anyclass NFData
@@ -105,45 +105,46 @@ decodeDRepScriptHashBech32 t =
             ]
         hrp = [Bech32.humanReadablePart|drep_script|]
 
-instance Buildable DRep where
+instance Buildable DRepID where
     build = \case
         DRepFromKeyHash keyhash -> build $ encodeDRepKeyHashBech32 keyhash
         DRepFromScriptHash scripthash -> build $ encodeDRepScriptHashBech32 scripthash
 
--- | Vote action.
-data VoteAction
+-- | A decentralized representation ('DRep') will
+-- vote on behalf of the stake delegated to it.
+data DRep
     = Abstain
     | NoConfidence
-    | VoteTo !DRep
+    | FromDRepID DRepID
     deriving (Eq, Generic, Show, Ord)
     deriving anyclass NFData
 
-instance ToText VoteAction where
+instance ToText DRep where
     toText Abstain = "abstain"
     toText NoConfidence = "no confidence"
-    toText (VoteTo (DRepFromKeyHash keyhash)) =
+    toText (FromDRepID (DRepFromKeyHash keyhash)) =
         encodeDRepKeyHashBech32 keyhash
-    toText (VoteTo (DRepFromScriptHash scripthash)) =
+    toText (FromDRepID (DRepFromScriptHash scripthash)) =
         encodeDRepScriptHashBech32 scripthash
 
-instance FromText VoteAction where
+instance FromText DRep where
     fromText txt = case txt of
         "abstain" -> Right Abstain
         "no confidence" -> Right NoConfidence
         _ -> case decodeDRepKeyHashBech32 txt of
                 Right keyhash ->
-                     Right $ VoteTo $ DRepFromKeyHash keyhash
+                     Right $ FromDRepID $ DRepFromKeyHash keyhash
                 Left _ -> case decodeDRepScriptHashBech32 txt of
                     Right scripthash ->
-                        Right $ VoteTo $ DRepFromScriptHash scripthash
+                        Right $ FromDRepID $ DRepFromScriptHash scripthash
                     Left _ -> Left $ TextDecodingError $ unwords
-                        [ "I couldn't parse the given vote action."
+                        [ "I couldn't parse the given decentralized representative (DRep)."
                         , "I am expecting either 'abstain', 'no confidence'"
                         , "or bech32 encoded drep having prefixes: 'drep_script'"
                         , "or 'drep_script'."]
 
-instance Buildable VoteAction where
+instance Buildable DRep where
     build = \case
-        Abstain -> "abstaining"
+        Abstain -> "abstain"
         NoConfidence -> "casting no confidence"
-        VoteTo drep -> "voting to " <> build drep
+        FromDRepID drep -> "delegating voting to " <> build drep
