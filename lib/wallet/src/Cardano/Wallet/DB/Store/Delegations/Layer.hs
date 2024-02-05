@@ -75,7 +75,8 @@ putDelegationCertificate
     -> DeltaDelegations
 putDelegationCertificate cert sl = case cert of
     CertDelegateNone _ -> [Deregister sl]
-    CertDelegateFull _ pool -> [Delegate pool sl, Register sl]
+    CertVoteAndDelegate _ (Just pool) _ -> [Delegate pool sl, Register sl]
+    CertVoteAndDelegate _ Nothing _ -> []
     CertRegisterKey _ -> [Register sl]
 
 -- | Arguments to 'readDelegation'.

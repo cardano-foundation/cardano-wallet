@@ -8,6 +8,7 @@ module Cardano.Wallet.Primitive.Types.Certificates
     ( DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
+    , dlgCertVote
     , StakeKeyCertificate (..)
     , PoolCertificate (..)
     , getPoolCertificatePoolId
@@ -30,6 +31,9 @@ import Cardano.Slotting.Slot
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo
@@ -74,8 +78,8 @@ import GHC.Generics
 
 data DelegationCertificate
     = CertDelegateNone RewardAccount
-    | CertDelegateFull RewardAccount PoolId
     | CertRegisterKey RewardAccount
+    | CertVoteAndDelegate RewardAccount (Maybe PoolId) (Maybe DRep)
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
@@ -83,14 +87,20 @@ instance NFData DelegationCertificate
 dlgCertAccount :: DelegationCertificate -> RewardAccount
 dlgCertAccount = \case
     CertDelegateNone acc -> acc
-    CertDelegateFull acc _ -> acc
     CertRegisterKey acc -> acc
+    CertVoteAndDelegate acc _ _ -> acc
 
 dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
-    CertDelegateFull _ poolId -> Just poolId
     CertRegisterKey _ -> Nothing
+    CertVoteAndDelegate _ poolIdM _ -> poolIdM
+
+dlgCertVote :: DelegationCertificate -> Maybe DRep
+dlgCertVote = \case
+    CertDelegateNone{} -> Nothing
+    CertRegisterKey _ -> Nothing
+    CertVoteAndDelegate _ _ voteM -> voteM
 
 data StakeKeyCertificate
     = StakeKeyRegistration
@@ -165,24 +175,41 @@ instance Buildable PoolRetirementCertificate where
 data NonWalletCertificate
     = GenesisCertificate
     | MIRCertificate
+    | AuthCommitteeHotKey
+    | ResignCommitteeColdKey
+    | RegDRep
+    | UnRegDRep
+    | UpdateDRep
     deriving (Generic, Show, Read, Eq)
 
 instance ToText NonWalletCertificate where
     toText GenesisCertificate = "genesis"
     toText MIRCertificate = "mir"
+    toText AuthCommitteeHotKey = "auth_committee_hot_key"
+    toText ResignCommitteeColdKey = "resign_committee_cold_key"
+    toText RegDRep = "reg_DRep"
+    toText UnRegDRep = "unreg_DRep"
+    toText UpdateDRep = "update_DRep"
 
 instance FromText NonWalletCertificate where
     fromText "genesis" = Right GenesisCertificate
     fromText "mir" = Right MIRCertificate
+    fromText "auth_committee_hot_key" = Right AuthCommitteeHotKey
+    fromText "resign_committee_cold_key" = Right ResignCommitteeColdKey
+    fromText "reg_DRep" = Right RegDRep
+    fromText "unreg_DRep" = Right UnRegDRep
+    fromText "update_DRep" =  Right UpdateDRep
     fromText _ =
         Left
             $ TextDecodingError
-                "expecting either 'genesis' or 'mir' for NonWalletCertificate text value"
+                "expecting one of 'genesis', 'mir', 'auth_committee_hot_key'\
+                \, 'resign_committee_cold_key', 'reg_DRep', 'update_DRep' or \
+                \'unreg_DRep' for NonWalletCertificate text value"
 
 instance NFData NonWalletCertificate
 
 data Certificate
-    = CertificateOfDelegation DelegationCertificate
+    = CertificateOfDelegation (Maybe Coin) DelegationCertificate
     | CertificateOfPool PoolCertificate
     | CertificateOther NonWalletCertificate
     deriving (Generic, Show, Eq)

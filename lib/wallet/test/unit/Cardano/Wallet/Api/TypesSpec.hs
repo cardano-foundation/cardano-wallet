@@ -217,7 +217,6 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKeyShared (..)
     , ApiVerificationKeyShelley (..)
-    , ApiVoteAction (..)
     , ApiWallet (..)
     , ApiWalletAssetsBalance (..)
     , ApiWalletBalance (..)
@@ -246,9 +245,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
-    , DRep (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -374,6 +370,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinPositive
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepID (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -844,7 +846,7 @@ spec = do
         jsonTest @WalletPutPassphraseData
         jsonTest @(ApiRewardAccount T0)
         jsonTest @(ApiExternalCertificate T0)
-        jsonTest @ApiVoteAction
+        jsonTest @(ApiT DRep)
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do
@@ -2019,16 +2021,16 @@ instance Arbitrary TxMetadataWithSchema where
 instance Arbitrary ApiEncryptMetadata where
     arbitrary = ApiEncryptMetadata <$> arbitrary
 
-instance Arbitrary DRep where
+instance Arbitrary DRepID where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
         oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $ BS.pack $ take 28 bytes
               , pure $ DRepFromScriptHash $ DRepScriptHash $ BS.pack $ take 28 bytes
               ]
 
-instance Arbitrary ApiVoteAction where
+instance Arbitrary DRep where
   arbitrary =
-    oneof [pure Abstain, pure NoConfidence, arbitrary]
+    oneof [pure Abstain, pure NoConfidence, FromDRepID <$> arbitrary]
 
 instance HasSNetworkId n => Arbitrary (ApiConstructTransactionData n) where
     arbitrary = ApiConstructTransactionData
@@ -2860,9 +2862,9 @@ instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiWalletPutPassphraseData"
 
-instance ToSchema ApiVoteAction where
+instance ToSchema DRep where
     declareNamedSchema _ =
-        declareSchemaForDefinition "ApiVoteAction"
+        declareSchemaForDefinition "ApiDRep"
 
 instance ToSchema ByronWalletPutPassphraseData where
     declareNamedSchema _ =

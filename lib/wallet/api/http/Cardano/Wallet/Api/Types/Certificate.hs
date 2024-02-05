@@ -241,7 +241,7 @@ mkApiAnyCertificate
     -> W.Certificate
     -> ApiAnyCertificate n
 mkApiAnyCertificate acct' acctPath' = \case
-    W.CertificateOfDelegation delCert -> toApiDelCert acct' acctPath' delCert
+    W.CertificateOfDelegation _ delCert -> toApiDelCert acct' acctPath' delCert
     W.CertificateOfPool poolCert -> toApiPoolCert poolCert
     W.CertificateOther otherCert -> toApiOtherCert otherCert
     where
@@ -279,10 +279,11 @@ mkApiAnyCertificate acct' acctPath' = \case
         else
             DelegationCertificate $
                 RegisterRewardAccountExternal (ApiRewardAccount rewardKey)
-    toApiDelCert acctM acctPath (W.CertDelegateFull rewardKey poolId') =
+    toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey (Just poolId') Nothing) =
         if Just rewardKey == acctM then
             WalletDelegationCertificate $
             JoinPool (NE.map ApiT acctPath) (ApiT poolId')
         else
             DelegationCertificate $
             JoinPoolExternal (ApiRewardAccount rewardKey) (ApiT poolId')
+    toApiDelCert _ _ _ = error "mkApiAnyCertificate: conway certificates not supported"

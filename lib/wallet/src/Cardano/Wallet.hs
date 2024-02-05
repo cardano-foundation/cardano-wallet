@@ -31,8 +31,7 @@
 -- License: Apache-2.0
 --
 -- Provides wallet layer functions that are used by API layer. Uses both
--- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as
--- being intermediary between the three.
+-- "Cardano.Wallet.DB" and "Cardano.Wallet.Network" to realize its role as-- being intermediary between the three.
 --
 -- Functions of the wallet layer are often parameterized with variables
 -- following the convention below:
@@ -3781,7 +3780,7 @@ instance ToText WalletFollowLog where
                 [ "Discovered end of delegation within slot "
                 , pretty slotNo
                 ]
-            CertDelegateFull{} -> mconcat
+            CertVoteAndDelegate _ (Just _) Nothing -> mconcat
                 [ "Discovered delegation to pool "
                 , pretty (dlgCertPoolId cert)
                 , " within slot "
@@ -3792,6 +3791,7 @@ instance ToText WalletFollowLog where
                 , " within slot "
                 , pretty slotNo
                 ]
+            _ -> "Conway certificate not supported in the logs"
         MsgCheckpoint checkpointTip ->
             "Creating checkpoint at " <> pretty checkpointTip
         MsgDiscoveredTxs txs ->

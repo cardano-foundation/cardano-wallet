@@ -911,7 +911,8 @@ instance Arbitrary PoolId where
 instance Arbitrary DelegationCertificate where
     arbitrary = oneof
         [ CertDelegateNone <$> genArbitraryRewardAccount
-        , CertDelegateFull <$> genArbitraryRewardAccount <*> arbitrary
+        , CertVoteAndDelegate <$> genArbitraryRewardAccount <*>
+          (Just <$> arbitrary) <*> pure Nothing
         ]
       where
         genArbitraryRewardAccount = pure $ FromKeyHash $ BS.replicate 32 0
