@@ -382,20 +382,16 @@ x-stakePoolId: &stakePoolId
 x-drepKeyHash: &drepKeyHash
   type: string
   format: bech32
-  example: drep_vkh1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's key hash.
+  pattern: "^(drep)1[0-9a-z]*$"
 
 x-drepScriptHash: &drepScriptHash
   type: string
   format: bech32
   example: drep_script1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: DRep's script hash.
-
-x-drep: &drep
-  nullable: false
-  oneOf:
-    - <<: *drepKeyHash
-    - <<: *drepScriptHash
+  pattern: "^(drep_script)1[0-9a-z]*$"
 
 x-walletAccountXPubkey: &walletAccountXPubkey
   description: An extended account public key (public key + chain code)
@@ -3717,18 +3713,24 @@ components:
             asset_name: *assetName
             operation: *ApiMintBurnOperation
 
-    ApiVoteAction: &ApiVoteAction
+    ApiDRep: &ApiDRep
       description: |
-        Voting action. One can abstain, give no confidence vote
-        or vote for a representative by specifying its key hash or script hash.
-        Voting can be done together with delegation action.
+        Decentralized representative (DRep)
+        that the wallet is delegating its vote to.
+        One can abstain, give no confidence vote,
+        or vote for a representative specified by a key hash or script hash.
+        Vote delegation can be done together with stake delegation action.
+      nullable: false
+      type: string
       oneOf:
-        - type: string
-          enum:
+        - enum:
             - abstain
             - no_confidence
-        - type: string
-          <<: *drep
+          title: casting a default vote
+        - <<: *drepKeyHash
+          title: vote to a drep represented by key hash
+        - <<: *drepScriptHash
+          title: vote to a drep represented by script hash
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
@@ -3745,7 +3747,7 @@ components:
           description: |
              An entry for each unique asset to be minted and/or burned,
              containing helpful information.
-        vote: *ApiVoteAction
+        vote: *ApiDRep
         delegations: *transactionDelegations
         validity_interval: *ApiValidityInterval
         reference_policy_script_template:
