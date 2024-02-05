@@ -94,6 +94,7 @@ import GHC.Stack
 
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
+import qualified Cardano.Ledger.Conway.TxCert as Ledger
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -151,7 +152,8 @@ fromConwayCert = \case
         CertificateOther RegDRep
     Ledger.UnRegDRepTxCert _ _ ->
         CertificateOther UnRegDRep
-    _ -> error "impossible pattern"
+    Ledger.UpdateDRepTxCert {} ->
+        CertificateOther UpdateDRep
 
 fromLedgerCoin :: HasCallStack => SL.Coin -> W.Coin
 fromLedgerCoin (SL.Coin c) = Coin.unsafeFromIntegral c

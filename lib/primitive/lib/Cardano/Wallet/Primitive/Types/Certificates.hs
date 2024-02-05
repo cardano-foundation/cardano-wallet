@@ -179,6 +179,7 @@ data NonWalletCertificate
     | ResignCommitteeColdKey
     | RegDRep
     | UnRegDRep
+    | UpdateDRep
     deriving (Generic, Show, Read, Eq)
 
 instance ToText NonWalletCertificate where
@@ -188,6 +189,7 @@ instance ToText NonWalletCertificate where
     toText ResignCommitteeColdKey = "resign_committee_cold_key"
     toText RegDRep = "reg_DRep"
     toText UnRegDRep = "unreg_DRep"
+    toText UpdateDRep = "update_DRep"
 
 instance FromText NonWalletCertificate where
     fromText "genesis" = Right GenesisCertificate
@@ -196,11 +198,12 @@ instance FromText NonWalletCertificate where
     fromText "resign_committee_cold_key" = Right ResignCommitteeColdKey
     fromText "reg_DRep" = Right RegDRep
     fromText "unreg_DRep" = Right UnRegDRep
+    fromText "update_DRep" =  Right UpdateDRep
     fromText _ =
         Left
             $ TextDecodingError
                 "expecting one of 'genesis', 'mir', 'auth_committee_hot_key'\
-                \, 'resign_committee_cold_key', 'reg_DRep' or \
+                \, 'resign_committee_cold_key', 'reg_DRep', 'update_DRep' or \
                 \'unreg_DRep' for NonWalletCertificate text value"
 
 instance NFData NonWalletCertificate
