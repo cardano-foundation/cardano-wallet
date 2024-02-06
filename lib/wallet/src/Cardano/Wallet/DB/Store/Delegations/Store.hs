@@ -23,14 +23,14 @@ import Cardano.Pool.Types
 import Cardano.Slotting.Slot
     ( SlotNo
     )
-import Cardano.Wallet.DB.Sqlite.Types
-    ( DelegationStatusEnum (..)
-    )
 import Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
     , EntityField (DelegationSlot)
     , Key (DelegationsKey)
     , resetDelegationTable
+    )
+import Cardano.Wallet.DB.Store.Delegations.Types
+    ( DelegationStatusEnum (..)
     )
 import Cardano.Wallet.Delegation.Model
     ( History

@@ -861,30 +861,6 @@ iso8601DateFormatHMS :: String
 -- The function `iso8601DateFormatHMS` has been deprecated from the `time` library.
 iso8601DateFormatHMS = "%Y-%m-%dT%H:%M:%S"
 
-data DelegationStatusEnum =
-    InactiveE | RegisteredE | ActiveE | ActiveAndVotedE | VotedE
-    deriving (Eq, Show, Enum, Generic)
-
-instance PersistField DelegationStatusEnum where
-    toPersistValue = toPersistValue . \case
-        InactiveE -> "inactive" :: Text
-        RegisteredE -> "registered"
-        ActiveE -> "active"
-        ActiveAndVotedE -> "active_and_voted"
-        VotedE -> "voted"
-    fromPersistValue = fromPersistValue >=> readDelegationStatus
-
-readDelegationStatus :: Text -> Either Text DelegationStatusEnum
-readDelegationStatus "inactive" = Right InactiveE
-readDelegationStatus "registered" = Right RegisteredE
-readDelegationStatus "active" = Right ActiveE
-readDelegationStatus "active_and_voted" = Right ActiveAndVotedE
-readDelegationStatus "voted" = Right VotedE
-readDelegationStatus other = Left $ "Invalid delegation status: " <> other
-
-instance PersistFieldSql DelegationStatusEnum where
-    sqlType _ = sqlType (Proxy @Text)
-
 instance PersistField Slot where
     toPersistValue Origin = toPersistValue ((-1) :: Int64)
     toPersistValue (At s) = toPersistValue (fromIntegral $ unSlotNo s :: Int64)

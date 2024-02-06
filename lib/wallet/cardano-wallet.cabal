@@ -190,6 +190,7 @@ library
     Cardano.Wallet.DB.Store.Delegations.Model
     Cardano.Wallet.DB.Store.Delegations.Schema
     Cardano.Wallet.DB.Store.Delegations.Store
+    Cardano.Wallet.DB.Store.Delegations.Types
     Cardano.Wallet.DB.Store.Info.Store
     Cardano.Wallet.DB.Store.Meta.Layer
     Cardano.Wallet.DB.Store.Meta.Model

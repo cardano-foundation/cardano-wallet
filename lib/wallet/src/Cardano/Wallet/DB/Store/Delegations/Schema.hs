@@ -41,8 +41,10 @@ import Cardano.Slotting.Slot
     ( SlotNo
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( DelegationStatusEnum (..)
-    , sqlSettings'
+    ( sqlSettings'
+    )
+import Cardano.Wallet.DB.Store.Delegations.Types
+    ( DelegationStatusEnum
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep
