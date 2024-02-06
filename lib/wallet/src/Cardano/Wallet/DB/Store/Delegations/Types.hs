@@ -32,7 +32,7 @@ data DelegationStatusEnum
     | ActiveE
     | ActiveAndVotedE
     | VotedE
-    deriving (Eq, Show, Enum, Generic)
+    deriving (Eq, Show, Enum, Generic, Ord)
 
 instance PersistField DelegationStatusEnum where
     toPersistValue =

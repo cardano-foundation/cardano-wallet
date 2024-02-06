@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.DB.Store.Delegations.MigrationSpec where
+module Cardano.Wallet.DB.Store.Delegations.Migrations.V3Spec where
 
 import Prelude
 
