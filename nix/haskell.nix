@@ -151,7 +151,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
 
           (haskell-nix.tool "ghc964" "haskell-language-server" ({pkgs, ...}: rec {
             # Use the github source of HLS that is tested with haskell.nix CI
-            src = pkgs.haskell-nix.sources."hls-2.5";
+            src = pkgs.haskell-nix.sources."hls-2.6";
             }))
         ]);
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
