@@ -174,6 +174,9 @@ import Cardano.Wallet.Primitive.Types.DecentralizationLevel
     , fromFederationPercentage
     , getFederationPercentage
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo (..)
     , isValidEpochNo
@@ -405,6 +408,8 @@ instance Buildable WalletId where
 data WalletDelegationStatus
     = NotDelegating
     | Delegating !PoolId
+    | Voting !DRep
+    | DelegatingVoting !PoolId !DRep
     deriving (Generic, Eq, Show)
 instance NFData WalletDelegationStatus
 
@@ -412,6 +417,8 @@ instance Buildable WalletDelegationStatus where
     build = \case
         NotDelegating -> "∅"
         Delegating poolId -> build poolId
+        Voting action -> build action
+        DelegatingVoting poolId action -> build poolId <> ", " <> build action
 
 data WalletDelegationNext = WalletDelegationNext
     { changesAt :: !EpochNo
@@ -443,6 +450,8 @@ instance IsDelegatingTo WalletDelegationStatus where
     isDelegatingTo predicate = \case
         Delegating pid -> predicate pid
         NotDelegating  -> False
+        Voting _ -> False
+        DelegatingVoting pid _ -> predicate pid
 
 instance IsDelegatingTo WalletDelegationNext where
     isDelegatingTo predicate WalletDelegationNext{status} =
