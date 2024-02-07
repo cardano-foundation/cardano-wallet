@@ -1000,6 +1000,7 @@ data ApiWalletDelegation = ApiWalletDelegation
 data ApiWalletDelegationNext = ApiWalletDelegationNext
     { status :: !ApiWalletDelegationStatus
     , target :: !(Maybe (ApiT PoolId))
+    , voting :: !(Maybe (ApiT DRep))
     , changesAt :: !(Maybe EpochInfo)
     }
     deriving (Eq, Generic, Show)
@@ -1009,6 +1010,8 @@ data ApiWalletDelegationNext = ApiWalletDelegationNext
 data ApiWalletDelegationStatus
     = NotDelegating
     | Delegating
+    | Voting
+    | VotingAndDelegating
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultSum ApiWalletDelegationStatus
     deriving anyclass NFData
@@ -2319,11 +2322,6 @@ instance ToJSON (ApiT (Hash "VerificationKey")) where
 instance FromJSON (ApiT (Hash "TokenPolicy")) where
     parseJSON = fromTextApiT "TokenPolicy Hash"
 instance ToJSON (ApiT (Hash "TokenPolicy")) where
-    toJSON = toTextApiT
-
-instance FromJSON (ApiT DRep) where
-    parseJSON = fromTextApiT "DRep"
-instance ToJSON (ApiT DRep) where
     toJSON = toTextApiT
 
 instance FromJSON WalletPutPassphraseData where

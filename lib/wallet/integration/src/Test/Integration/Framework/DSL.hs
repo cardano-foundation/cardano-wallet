@@ -3496,12 +3496,12 @@ notDelegating
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
 notDelegating nexts = ApiWalletDelegation
-    { active = ApiWalletDelegationNext NotDelegating Nothing Nothing
+    { active = ApiWalletDelegationNext NotDelegating Nothing Nothing Nothing
     , next = flip map nexts $ \(mpid, epochInfo) -> case mpid of
         Nothing ->
-            ApiWalletDelegationNext NotDelegating Nothing (Just epochInfo)
+            ApiWalletDelegationNext NotDelegating Nothing Nothing (Just epochInfo)
         Just pid ->
-            ApiWalletDelegationNext Delegating (Just pid) (Just epochInfo)
+            ApiWalletDelegationNext Delegating (Just pid) Nothing (Just epochInfo)
     }
 
 delegating
@@ -3511,7 +3511,7 @@ delegating
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
 delegating pidActive nexts = (notDelegating nexts)
-    { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing
+    { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing Nothing
     }
 
 getRetirementEpoch :: StakePool -> Maybe EpochNo

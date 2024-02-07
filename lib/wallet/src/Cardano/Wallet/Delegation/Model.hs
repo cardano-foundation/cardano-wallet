@@ -15,6 +15,9 @@ module Cardano.Wallet.Delegation.Model
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Data.Delta
     ( Delta (..)
     )
@@ -32,6 +35,8 @@ data Operation slot pool
     = Register slot
     | Deregister slot
     | Delegate pool slot
+    | DelegateAndVote pool DRep slot
+    | Vote DRep slot
     | Rollback slot
     deriving (Show)
 
@@ -40,10 +45,17 @@ slotOf :: Operation slot pool -> slot
 slotOf (Register x) = x
 slotOf (Deregister x) = x
 slotOf (Delegate _ x) = x
+slotOf (DelegateAndVote _ _ x) = x
+slotOf (Vote _ x) = x
 slotOf (Rollback x) = x
 
 -- | Valid state for the delegations, independent of time.
-data Status pool = Inactive | Registered | Active pool
+data Status pool
+    = Inactive
+    | Registered
+    | Active pool
+    | ActiveAndVoted pool DRep
+    | Voted DRep
     deriving (Show, Eq)
 
 -- | Delegation history implementation.
@@ -62,6 +74,16 @@ transition :: Operation slot pool -> Status pool -> Status pool
 transition (Register _) Inactive = Registered
 transition (Delegate p _) Registered = Active p
 transition (Delegate p _) (Active _) = Active p
+transition (Vote v _) Registered = Voted v
+transition (DelegateAndVote p v _) Registered = ActiveAndVoted p v
+transition (Vote v _) (Voted _) = Voted v
+transition (Delegate p _) (Voted v) = ActiveAndVoted p v
+transition (DelegateAndVote p v _) (Voted _) = ActiveAndVoted p v
+transition (Vote v _) (Active p) = ActiveAndVoted p v
+transition (DelegateAndVote p v _) (Active _) = ActiveAndVoted p v
+transition (DelegateAndVote p v _) (ActiveAndVoted _ _) = ActiveAndVoted p v
+transition (Delegate p _) (ActiveAndVoted _ v) = ActiveAndVoted p v
+transition (Vote v _) (ActiveAndVoted p _) = ActiveAndVoted p v
 transition (Deregister _) _ = Inactive
 transition _ s = s
 

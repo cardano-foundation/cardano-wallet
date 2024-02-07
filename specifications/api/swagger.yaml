@@ -1991,6 +1991,8 @@ x-delegationStatus: &delegationStatus
   enum:
     - not_delegating
     - delegating
+    - voting
+    - delegating_and_voting
 
 x-addressIndex: &addressIndex
   type: number
@@ -2908,6 +2910,25 @@ components:
       description: |
         The result of signing a transaction (serialized and encoded).
 
+    ApiDRep: &ApiDRep
+      description: |
+        Decentralized representative (DRep)
+        that the wallet is delegating its vote to.
+        One can abstain, give no confidence vote,
+        or vote for a representative specified by a key hash or script hash.
+        Vote delegation can be done together with stake delegation action.
+      nullable: false
+      type: string
+      oneOf:
+        - enum:
+            - abstain
+            - no_confidence
+          title: casting a default vote
+        - <<: *drepKeyHash
+          title: vote to a drep represented by key hash
+        - <<: *drepScriptHash
+          title: vote to a drep represented by script hash
+
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
       description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
@@ -2917,6 +2938,7 @@ components:
       properties:
         status: *delegationStatus
         target: *delegationTarget
+        voting: *ApiDRep
         changes_at: *epochInfo
       example:
         status: not_delegating
@@ -2939,6 +2961,7 @@ components:
           properties:
             status: *delegationStatus
             target: *delegationTarget
+            voting: *ApiDRep
           example:
             status: delegating
             target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
@@ -3712,25 +3735,6 @@ components:
             policy_id: *assetPolicyId
             asset_name: *assetName
             operation: *ApiMintBurnOperation
-
-    ApiDRep: &ApiDRep
-      description: |
-        Decentralized representative (DRep)
-        that the wallet is delegating its vote to.
-        One can abstain, give no confidence vote,
-        or vote for a representative specified by a key hash or script hash.
-        Vote delegation can be done together with stake delegation action.
-      nullable: false
-      type: string
-      oneOf:
-        - enum:
-            - abstain
-            - no_confidence
-          title: casting a default vote
-        - <<: *drepKeyHash
-          title: vote to a drep represented by key hash
-        - <<: *drepScriptHash
-          title: vote to a drep represented by script hash
 
     ApiConstructTransactionData: &ApiConstructTransactionData
       description: At least one field needs to be chosen
