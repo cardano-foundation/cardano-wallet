@@ -117,6 +117,10 @@ units = withInitializedWalletProp $ \_ runQ -> do
         liftIO
             $ generate
             $ vectorOf 3 arbitrary `suchThat` (\xs -> xs == nub xs)
+    [v0, v1, _v2] <-
+        liftIO
+            $ generate
+            $ vectorOf 3 arbitrary `suchThat` (\xs -> xs == nub xs)
     let
         unit x f = context (counterexample x) $ reset >> f >> checkLaw
         observeStatus s x = observe $ \h -> status s h === x
@@ -158,6 +162,84 @@ units = withInitializedWalletProp $ \_ runQ -> do
             applyS $ Delegate p0 0
             applyS $ Deregister 1
             observeStatus 2 Inactive
+        unit "reg-vote" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 0
+            observeStatus 0 $ Voted v0
+        unit "reg-vote 2" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 0
+            applyS $ Vote v1 0
+            observeStatus 0 $ Voted v1
+        unit "reg-vote different time" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 1
+            applyS $ Vote v1 2
+            observeStatus 2 $ Voted v1
+        unit "reg-vote-dereg" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 0
+            applyS $ Deregister 1
+            observeStatus 2 Inactive
+        unit "reg-deleg-and-vote" $ do
+            applyS $ Register 0
+            applyS $ DelegateAndVote p0 v0 0
+            observeStatus 0 $ ActiveAndVoted p0 v0
+        unit "reg-deleg-and-vote 2" $ do
+            applyS $ Register 0
+            applyS $ DelegateAndVote p0 v0 0
+            applyS $ DelegateAndVote p1 v1 0
+            observeStatus 0 $ ActiveAndVoted p1 v1
+        unit "reg-deleg-and-vote different time" $ do
+            applyS $ Register 0
+            applyS $ DelegateAndVote p0 v0 1
+            applyS $ DelegateAndVote p1 v1 2
+            observeStatus 2 $ ActiveAndVoted p1 v1
+        unit "reg-deleg-and-vote-dereg" $ do
+            applyS $ Register 0
+            applyS $ DelegateAndVote p0 v0 0
+            applyS $ Deregister 1
+            observeStatus 2 Inactive
+        unit "reg-deleg-then-vote" $ do
+            applyS $ Register 0
+            applyS $ Delegate p0 0
+            applyS $ Vote v0 0
+            observeStatus 0 $ ActiveAndVoted p0 v0
+        unit "reg-deleg-then-vote different time" $ do
+            applyS $ Register 0
+            applyS $ Delegate p0 1
+            applyS $ Vote v1 2
+            observeStatus 2 $ ActiveAndVoted p0 v1
+        unit "reg-vote-then-deleg" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 0
+            applyS $ Delegate p0 0
+            observeStatus 0 $ ActiveAndVoted p0 v0
+        unit "reg-vote-then-deleg different time" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 1
+            applyS $ Delegate p0 2
+            observeStatus 2 $ ActiveAndVoted p0 v0
+        unit "reg-deleg-then-deleg-and-vote" $ do
+            applyS $ Register 0
+            applyS $ Delegate p0 0
+            applyS $ DelegateAndVote p1 v0 0
+            observeStatus 0 $ ActiveAndVoted p1 v0
+        unit "reg-deleg-then-deleg-and-vote different time" $ do
+            applyS $ Register 0
+            applyS $ Delegate p0 1
+            applyS $ DelegateAndVote p1 v1 2
+            observeStatus 2 $ ActiveAndVoted p1 v1
+        unit "reg-vote-then-deleg-and-vote" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 0
+            applyS $ DelegateAndVote p0 v1 0
+            observeStatus 0 $ ActiveAndVoted p0 v1
+        unit "reg-vote-then-deleg-and-vote different time" $ do
+            applyS $ Register 0
+            applyS $ Vote v0 1
+            applyS $ DelegateAndVote p0 v1 2
+            observeStatus 2 $ ActiveAndVoted p0 v1
         ignore
             $ unit "xxxx"
             $ observeStatus 2 Registered
