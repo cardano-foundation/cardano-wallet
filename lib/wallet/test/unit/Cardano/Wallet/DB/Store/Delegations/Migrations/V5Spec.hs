@@ -22,11 +22,21 @@ import Cardano.Wallet.DB.Store.Delegations.Schema
 import Cardano.Wallet.DB.Store.Delegations.Types
     ( DelegationStatusEnum (..)
     )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
+    )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
     , DRepID (..)
     , DRepKeyHash (..)
     , DRepScriptHash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId
+    )
+import Control.Monad
+    ( forM
+    , replicateM
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -39,6 +49,14 @@ import Control.Monad.Reader
     )
 import Control.Tracer
     ( nullTracer
+    )
+import Data.List
+    ( maximumBy
+    , sortOn
+    )
+import Data.Ord
+    ( Down (..)
+    , comparing
     )
 import Database.Persist.Sql
     ( Entity (..)
@@ -67,21 +85,6 @@ import Test.QuickCheck
     )
 import UnliftIO.Resource
     ( runResourceT
-    )
-
-import Cardano.Api
-    ( SlotNo
-    )
-import Cardano.Wallet.Primitive.Types.Pool
-    ( PoolId
-    )
-import Data.List
-    ( maximumBy
-    , sortOn
-    )
-import Data.Ord
-    ( Down (..)
-    , comparing
     )
 
 import qualified Data.ByteString as BS
@@ -125,6 +128,7 @@ testMigrationDelegationsTable dbName = do
                 delegations <-
                     sortOn delegationOrd
                         <$> liftIO (someDelegations 10 $ delegationSlot latest)
+                liftIO $ length delegations `shouldBe` 10
                 insertMany_ delegations
                 -- last 10 delegations
                 delegations' <-
@@ -138,16 +142,16 @@ testMigrationDelegationsTable dbName = do
 -- generate n delegations with a slot number greater than the given slot and
 -- all different slots
 generateDelegations :: Int -> SlotNo -> Gen [Delegations]
-generateDelegations 0 _ = pure []
 generateDelegations n lslot = do
-    status <-
-        elements
-            [InactiveE, RegisteredE, ActiveE, ActiveAndVotedE, VotedE]
-    drep <- oneof [pure Nothing, Just <$> arbitrary]
-    pool <- oneof [pure Nothing, Just <$> arbitraryDRep]
-    Positive dslot <- arbitrary
-    let slot = lslot + dslot
-    (Delegations slot status drep pool :) <$> generateDelegations (n - 1) lslot
+    indices <- tail . scanl (+) 0 . fmap getPositive <$> replicateM n arbitrary
+    forM indices $ \i -> do
+        let slot = lslot + i
+        status <-
+            elements
+                [InactiveE, RegisteredE, ActiveE, ActiveAndVotedE, VotedE]
+        drep <- oneof [pure Nothing, Just <$> arbitrary]
+        pool <- oneof [pure Nothing, Just <$> arbitraryDRep]
+        pure $ Delegations slot status drep pool
 
 someDelegations :: Int -> SlotNo -> IO [Delegations]
 someDelegations n lslot = generate $ generateDelegations n lslot
