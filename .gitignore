@@ -28,7 +28,6 @@ cabal*.project.local*
 
 ### Local configs ###
 .ghci
-hie.yaml
 
 ### Nix ###
 /result*
