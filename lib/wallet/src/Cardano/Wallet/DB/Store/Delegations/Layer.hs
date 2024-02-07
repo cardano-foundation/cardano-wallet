@@ -9,6 +9,7 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     , readDelegation
     , CurrentEpochSlotting (..)
     , mkCurrentEpochSlotting
+    , isVoting
     )
 where
 
@@ -59,6 +60,16 @@ isStakeKeyRegistered :: Delegations -> Bool
 isStakeKeyRegistered m = fromMaybe False $ do
     (_, v) <- lookupMax m
     pure $ v /= Inactive
+
+-- | Check whether the voting has been casted in the delegation state.
+isVoting :: Delegations -> Bool
+isVoting m = fromMaybe False $ do
+    (_, v) <- lookupMax m
+    let votedAlready = \case
+            ActiveAndVoted _ _ -> True
+            Voted _ -> True
+            _ -> False
+    pure $ votedAlready v
 
 -- | Binds a stake pool id to a wallet. This will have an influence on
 -- the wallet metadata: the last known certificate will indicate to
@@ -130,6 +141,8 @@ readDelegation CurrentEpochSlotting{..} history =
         Inactive -> NotDelegating
         Registered -> NotDelegating
         Active pid -> Delegating pid
+        ActiveAndVoted pid vote -> DelegatingVoting pid vote
+        Voted vote -> Voting vote
 
 -- | Construct 'CurrentEpochSlotting' from an 'EpochNo' using a 'TimeInterpreter'
 -- .
