@@ -143,10 +143,14 @@
     };
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=8.7.3";
+    hls = {
+      url = "github:cardano-scaling/haskell-language-server?ref=2.6-patched";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
-              haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
+              haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime, hls,
               ... }:
     let
       # Import libraries
@@ -208,6 +212,7 @@
           nodeProject = cardano-node-runtime.project.${system};
 
           walletProject = (import ./nix/haskell.nix
+              hls
               CHaP
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}

@@ -1064,6 +1064,23 @@
         "type": "github"
       }
     },
+    "hls": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1707224159,
+        "narHash": "sha256-1quJwNdQGL/pSk0tYZ/p8ye50HN4ClWlrFf2FWnt0wA=",
+        "owner": "cardano-scaling",
+        "repo": "haskell-language-server",
+        "rev": "1170a7c3134fe7591c3e890e23521fe838ac2abe",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cardano-scaling",
+        "ref": "2.6-patched",
+        "repo": "haskell-language-server",
+        "type": "github"
+      }
+    },
     "hls-1.10": {
       "flake": false,
       "locked": {
@@ -2454,6 +2471,7 @@
         "flake-utils": "flake-utils_7",
         "hackage": "hackage",
         "haskellNix": "haskellNix_2",
+        "hls": "hls",
         "hostNixpkgs": [
           "nixpkgs"
         ],
