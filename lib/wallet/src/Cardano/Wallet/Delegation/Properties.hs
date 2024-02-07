@@ -23,6 +23,9 @@ import Cardano.Wallet.Delegation.Model
     , slotOf
     , status
     )
+import Control.Applicative
+    ( (<|>)
+    )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -33,21 +36,21 @@ import Test.QuickCheck
 
 -- | A step of the history, with both states and the change to compute
 -- new from old.
-data Step slot pool = Step
-    { old_ :: History slot pool
-    , new_ :: History slot pool
-    , delta_ :: Operation slot pool
+data Step slot drep pool = Step
+    { old_ :: History slot drep pool
+    , new_ :: History slot drep pool
+    , delta_ :: Operation slot drep pool
     }
     deriving (Show)
 
 -- | Compute a not so random slot from a 'History' of delegations.
-type GenSlot slot pool = History slot pool -> Gen slot
+type GenSlot slot drep pool = History slot drep pool -> Gen slot
 
 property'
-    :: (Ord slot, Show slot, Eq (Status pool), Show (Status pool))
-    => GenSlot slot pool
-    -> Step slot pool
-    -> (Status pool -> Status pool -> Property)
+    :: (Ord a, Show a, Show drep, Show pool, Eq drep, Eq pool)
+    => (History a drep pool -> Gen a)
+    -> Step a drep pool
+    -> (Status drep pool -> Status drep pool -> Property)
     -> Property
 property' genSlot Step{old_ = xs, new_ = xs', delta_ = diff} change =
     let x = slotOf diff
@@ -55,98 +58,55 @@ property' genSlot Step{old_ = xs, new_ = xs', delta_ = diff} change =
     in  forAll (genSlot xs') $ \y ->
             let new = status y xs'
             in  case compare y x of
-                LT -> new === status y xs
-                _ -> change old new
+                    LT -> new === status y xs
+                    _ -> change old new
 
 precond
-    :: (Eq a, Show a)
-    => (a -> (Bool, Maybe (Status pool)))
-    -> (Maybe (Status pool) -> a)
-    -> a
-    -> a
+    :: (Eq drep, Eq pool, Show drep, Show pool)
+    => (Status drep pool -> (Bool, Maybe x))
+    -> (Maybe x -> Status drep pool)
+    -> Status drep pool
+    -> Status drep pool
     -> Property
 precond check target old new
-    | (fst $ check old) = counterexample "new target" $ new === (target (snd $ check old))
-    | otherwise = counterexample "no changes" $ new === old
+    | (fst $ check old) = counterexample "new target"
+        $ new === (target (snd $ check old))
+    | otherwise = counterexample "no changes"
+        $ new === old
 
 -- | Properties replicated verbatim from specifications. See
 -- 'specifications/Cardano/Wallet/delegation.lean'
 properties
-    :: (Ord slot, Eq (Status pool), Show slot, Show (Status pool), Show pool)
-    => GenSlot slot pool
-    -> Step slot pool
+    :: (Show slot, Show drep, Show pool, Ord slot, Eq drep, Eq pool)
+    => (History slot drep pool -> Gen slot)
+    -> Step slot drep pool
     -> Property
-properties c s =
+properties genSlot step =
     let that msg = counterexample ("falsified: " <> msg)
         prop cond target =
-            counterexample (show s)
-                $ property' c s
+            counterexample (show step)
+                $ property' genSlot step
                 $ precond cond target
-    in  case delta_ s of
-        Register _ ->
-            that "register invariant is respected"
-                $ prop
-                    (\case
-                        Inactive -> (True, Nothing)
-                        _ -> (False, Nothing)
-                    )
-                    (const Registered)
-        Deregister _ ->
-            that "deregister invariant is respected"
-                $ prop
-                    ( \case
-                        Registered -> (True, Nothing)
-                        Active _ -> (True, Nothing)
-                        Voted _ -> (True, Nothing)
-                        ActiveAndVoted _ _ -> (True, Nothing)
-                        _ -> (False, Nothing)
-                    )
-                    (const Inactive)
-        Delegate p _ -> do
-            that "delegate invariant is respected"
-                $ prop
-                    ( \case
-                        Registered -> (True, Just Registered)
-                        Active p' -> (True, Just (Active p'))
-                        Voted v -> (True, Just (Voted v))
-                        ActiveAndVoted p' v -> (True, Just (ActiveAndVoted p' v))
-                        _ -> (False, Nothing)
-                    )
-                    ( \case
-                         Just Registered -> Active p
-                         Just (Active _) -> Active p
-                         Just (Voted v) -> ActiveAndVoted p v
-                         Just (ActiveAndVoted _ v) -> ActiveAndVoted p v
-                         _ -> error "Delegate branch broke"
-                    )
-        Vote v _ -> do
-            that "vote invariant 1 is respected"
-                $ prop
-                    ( \case
-                        Registered -> (True, Just Registered)
-                        Voted v' -> (True, Just (Voted v'))
-                        Active p -> (True, Just (Active p))
-                        ActiveAndVoted p v' -> (True, Just (ActiveAndVoted p v'))
-                        _ -> (False, Nothing)
-                    )
-                    ( \case
-                         Just Registered -> Voted v
-                         Just (Voted _) -> Voted v
-                         Just (Active p) -> ActiveAndVoted p v
-                         Just (ActiveAndVoted p _) -> ActiveAndVoted p v
-                         _ -> error "Vote branch broke"
-                    )
-        DelegateAndVote p v _ -> do
-            that "delegate and vote invariant is respected"
-                $ prop
-                    ( \case
-                        Registered -> (True, Nothing)
-                        Active _ -> (True, Nothing)
-                        Voted _ -> (True, Nothing)
-                        ActiveAndVoted _ _ -> (True, Nothing)
-                        _ -> (False, Nothing)
-                    )
-                    (const (ActiveAndVoted p v))
-        Rollback _ ->
-            that "rollback invariant is respected"
-                $ property' c s (===)
+    in  case delta_ step of
+            Deregister _ ->
+                that "deregister invariant is respected"
+                    $ prop
+                        ( \case
+                            Active _ _ -> (True, Nothing)
+                            _ -> (False, Nothing)
+                        )
+                        (const Inactive)
+            VoteAndDelegate v p _ -> do
+                that "delegate and/or vote invariant is respected"
+                    $ prop
+                        ( \case
+                            Inactive -> (True, Just Inactive)
+                            Active v' p'-> (True, Just (Active v' p'))
+                        )
+                        $ \case
+                            Just (Active v' p') -> Active (v <|> v') (p <|> p')
+                            Just Inactive -> Active v p
+                            _ -> error "VoteAndDelegate branch broke"
+            Rollback _ ->
+                that "rollback invariant is respected"
+                    $ property' genSlot step (===)

@@ -38,6 +38,9 @@ import Cardano.Wallet.Delegation.Model
     , Status (..)
     , slotOf
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Control.Exception
     ( Exception
     , SomeException (SomeException)
@@ -71,11 +74,11 @@ import Database.Persist.Sql
 
 import qualified Data.Map.Strict as Map
 
-mkStoreDelegations :: UpdateStore (SqlPersistT IO) (Operation SlotNo PoolId)
+mkStoreDelegations :: UpdateStore (SqlPersistT IO) (Operation SlotNo DRep PoolId)
 mkStoreDelegations = mkUpdateStore loadS' writeS' updateS'
 
 loadS'
-    :: SqlPersistT IO (Either SomeException (History SlotNo PoolId))
+    :: SqlPersistT IO (Either SomeException (History SlotNo DRep PoolId))
 loadS' = do
     xs <- selectList [] []
     pure $ Map.fromList <$> sequence [decodeStatus x | Entity _ x <- xs]
@@ -89,25 +92,25 @@ data DecodeDelegationError
     | ActiveVotingWithoutPoolAndDRep
     deriving (Show, Eq, Exception)
 
-decodeStatus :: Delegations -> (Either SomeException (SlotNo, Status PoolId))
+decodeStatus :: Delegations -> (Either SomeException (SlotNo, Status DRep PoolId))
 decodeStatus (Delegations sn n m_pi m_v) = case n of
     InactiveE -> Right (sn, Inactive)
-    RegisteredE -> Right (sn, Registered)
+    RegisteredE -> Right (sn, Active Nothing Nothing)
     ActiveE -> case m_pi of
         Nothing -> Left $ SomeException ActiveDelegationWithoutAPool
-        Just pi' -> Right (sn, Active pi')
+        Just pi' -> Right (sn, Active Nothing (Just pi'))
     VotedE -> case m_v of
         Nothing -> Left $ SomeException VotingWithoutADRep
-        Just v' -> Right (sn, Voted v')
+        Just v' -> Right (sn, Active (Just v') Nothing)
     ActiveAndVotedE -> case (m_pi, m_v) of
         (Just _, Nothing) -> Left $ SomeException ActiveVotingWithoutADRep
         (Nothing, Just _) -> Left $ SomeException ActiveVotingWithoutAPool
         (Nothing, Nothing) -> Left $ SomeException ActiveVotingWithoutPoolAndDRep
-        (Just pi', Just v') -> Right (sn, ActiveAndVoted pi' v')
+        (Just pi', Just v') -> Right (sn, Active (Just v') (Just pi'))
 
 updateS'
-    :: Maybe (History SlotNo PoolId)
-    -> Operation SlotNo PoolId
+    :: Maybe (History SlotNo DRep PoolId)
+    -> Operation SlotNo DRep PoolId
     -> SqlPersistT IO ()
 updateS' = updateLoad loadS' throwIO $ \h op -> do
     let slot = slotOf op
@@ -124,15 +127,15 @@ updateS' = updateLoad loadS' throwIO $ \h op -> do
                 repsert (DelegationsKey slot)
                     $ encodeStatus slot w
 
-encodeStatus :: SlotNo -> Status PoolId -> Delegations
+encodeStatus :: SlotNo -> Status DRep PoolId -> Delegations
 encodeStatus slot = \case
     Inactive -> Delegations slot InactiveE Nothing Nothing
-    Registered -> Delegations slot RegisteredE Nothing Nothing
-    Active pi' -> Delegations slot ActiveE (Just pi') Nothing
-    Voted v' -> Delegations slot VotedE Nothing (Just v')
-    ActiveAndVoted pi' v' -> Delegations slot ActiveAndVotedE (Just pi') (Just v')
+    Active Nothing Nothing -> Delegations slot RegisteredE Nothing Nothing
+    Active Nothing (Just pi') -> Delegations slot ActiveE (Just pi') Nothing
+    Active (Just v') Nothing -> Delegations slot VotedE Nothing (Just v')
+    Active v' pi' -> Delegations slot ActiveAndVotedE pi' v'
 
-writeS' :: History SlotNo PoolId -> SqlPersistT IO ()
+writeS' :: History SlotNo DRep PoolId -> SqlPersistT IO ()
 writeS' h = do
     resetDelegationTable
     insertMany_ [encodeStatus slot x | (slot, x) <- Map.assocs h]

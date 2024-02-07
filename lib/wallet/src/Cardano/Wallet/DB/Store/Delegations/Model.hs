@@ -19,25 +19,24 @@ import Cardano.Wallet.Delegation.Model
 import Cardano.Wallet.Primitive.Types
     ( SlotNo
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Fmt
     ( Buildable (..)
-    , listF'
     )
 
 -- | Wallet delegation history
-type Delegations = History SlotNo PoolId
+type Delegations = History SlotNo DRep PoolId
 
 -- | Delta of wallet delegation history. As always with deltas, the
 -- order of the operations matters and it's reversed! (ask the architects)
-type DeltaDelegations = [Operation SlotNo PoolId]
+type DeltaDelegations = Operation SlotNo DRep PoolId
 
 instance Buildable DeltaDelegations where
-    build = listF' build1
-      where
-        build1 = \case
-            Register slot -> "Register " <> build slot
+    build = \case
             Deregister slot -> "Deregister " <> build slot
-            Delegate pool slot -> "Delegate " <> build pool <> " " <> build slot
-            DelegateAndVote pool vote slot -> "Delegate " <> build pool <> " and vote "<> build vote <> " " <> build slot
-            Vote vote slot -> "Vote " <> build vote <> " " <> build slot
+            VoteAndDelegate vote pool slot ->
+                    "Delegate " <> build pool
+                        <> " and vote "<> build vote <> " " <> build slot
             Rollback slot -> "Rollback " <> build slot
