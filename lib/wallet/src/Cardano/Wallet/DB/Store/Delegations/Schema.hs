@@ -26,7 +26,7 @@
 
 module Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
-    , EntityField (DelegationSlot)
+    , EntityField (..)
     , Key (DelegationsKey)
     , resetDelegationTable
     )
@@ -41,8 +41,13 @@ import Cardano.Slotting.Slot
     ( SlotNo
     )
 import Cardano.Wallet.DB.Sqlite.Types
-    ( DelegationStatusEnum (..)
-    , sqlSettings'
+    ( sqlSettings'
+    )
+import Cardano.Wallet.DB.Store.Delegations.Types
+    ( DelegationStatusEnum
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Control.Monad
     ( void
@@ -79,6 +84,7 @@ mkPersist sqlSettings'
             delegationSlot      SlotNo                  sql=slot
             delegationStatus    DelegationStatusEnum    sql=status
             delegationPool      PoolId Maybe            sql=pool
+            delegationVote      DRep Maybe              sql=vote
 
             Primary delegationSlot
             deriving Show Generic Eq

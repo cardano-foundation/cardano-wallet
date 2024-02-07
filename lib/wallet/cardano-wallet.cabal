@@ -183,11 +183,15 @@ library
     Cardano.Wallet.DB.Store.Checkpoints.Migration
     Cardano.Wallet.DB.Store.Checkpoints.Store
     Cardano.Wallet.DB.Store.Delegations.Layer
-    Cardano.Wallet.DB.Store.Delegations.Migration
-    Cardano.Wallet.DB.Store.Delegations.Migration.Schema
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V2.Schema
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Migration
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Schema
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V3.Model
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V5.Migration
     Cardano.Wallet.DB.Store.Delegations.Model
     Cardano.Wallet.DB.Store.Delegations.Schema
     Cardano.Wallet.DB.Store.Delegations.Store
+    Cardano.Wallet.DB.Store.Delegations.Types
     Cardano.Wallet.DB.Store.Info.Store
     Cardano.Wallet.DB.Store.Meta.Layer
     Cardano.Wallet.DB.Store.Meta.Model
@@ -557,7 +561,7 @@ executable mock-token-metadata-server
 
 test-suite unit
   import:             language, opts-exe
-  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4 -fprint-potential-instances
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test-common test/unit test/data
   main-is:            core-unit-test.hs
@@ -631,6 +635,7 @@ test-suite unit
     , memory
     , mock-token-metadata
     , MonadRandom
+    , monad-logger
     , monoid-subclasses
     , mtl
     , network
@@ -651,6 +656,7 @@ test-suite unit
     , quickcheck-state-machine                           >=0.6.0
     , random
     , regex-pcre-builtin
+    , resourcet
     , retry
     , safe
     , servant
@@ -719,7 +725,8 @@ test-suite unit
     Cardano.Wallet.DB.StateMachine
     Cardano.Wallet.DB.Store.Checkpoints.MigrationSpec
     Cardano.Wallet.DB.Store.Checkpoints.StoreSpec
-    Cardano.Wallet.DB.Store.Delegations.MigrationSpec
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V3Spec
+    Cardano.Wallet.DB.Store.Delegations.Migrations.V5Spec
     Cardano.Wallet.DB.Store.Delegations.StoreSpec
     Cardano.Wallet.DB.Store.Info.StoreSpec
     Cardano.Wallet.DB.Store.Meta.ModelSpec
