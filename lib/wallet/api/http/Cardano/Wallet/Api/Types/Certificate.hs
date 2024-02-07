@@ -311,7 +311,7 @@ mkApiAnyCertificate acct' acctPath' = \case
         else
             DelegationCertificate
                 $ QuitPoolExternal (ApiRewardAccount rewardKey)
-    toApiDelCert acctM acctPath (W.CertRegisterKey rewardKey) =
+    toApiDelCert acctM acctPath (W.CertVoteAndDelegate rewardKey Nothing Nothing) =
         if Just rewardKey == acctM then
             WalletDelegationCertificate $
                 RegisterRewardAccount $ NE.map ApiT acctPath
@@ -339,8 +339,6 @@ mkApiAnyCertificate acct' acctPath' = \case
         else
             DelegationCertificate $
             JoinPoolCastVoteExternal (ApiRewardAccount rewardKey) (ApiT poolId') (ApiT vote')
-    toApiDelCert _ _ (W.CertVoteAndDelegate _ Nothing Nothing) =
-        error "toApiDelCert: CertVoteAndDelegate should have at least pool or vote"
 
 instance ToJSON (ApiT DRep) where
     toJSON (ApiT Abstain) = "abstain"

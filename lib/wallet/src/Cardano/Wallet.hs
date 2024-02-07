@@ -3781,13 +3781,8 @@ instance ToText WalletFollowLog where
                 [ "Discovered end of delegation within slot "
                 , pretty slotNo
                 ]
-            CertRegisterKey {} -> mconcat
-                [ "Discovered stake key registration "
-                , " within slot "
-                , pretty slotNo
-                ]
             CertVoteAndDelegate _ mp mr -> mconcat
-                [ "Discovered the following voting and/or delegation: "
+                [ "Discovered the following registration + voting and/or delegation: "
                 , " within slot "
                 , pretty slotNo
                 ]

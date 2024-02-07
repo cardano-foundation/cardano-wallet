@@ -199,7 +199,7 @@ mkRegisterKeyCertificate
     -> W.Certificate
 mkRegisterKeyCertificate deposit =
     W.CertificateOfDelegation deposit
-        . W.CertRegisterKey
+        . (\k -> W.CertVoteAndDelegate k Nothing Nothing)
         . fromStakeCredential
 
 mkDelegationNone

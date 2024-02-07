@@ -78,7 +78,6 @@ import GHC.Generics
 
 data DelegationCertificate
     = CertDelegateNone RewardAccount
-    | CertRegisterKey RewardAccount
     | CertVoteAndDelegate RewardAccount (Maybe PoolId) (Maybe DRep)
     deriving (Generic, Show, Eq, Ord)
 
@@ -87,19 +86,16 @@ instance NFData DelegationCertificate
 dlgCertAccount :: DelegationCertificate -> RewardAccount
 dlgCertAccount = \case
     CertDelegateNone acc -> acc
-    CertRegisterKey acc -> acc
     CertVoteAndDelegate acc _ _ -> acc
 
 dlgCertPoolId :: DelegationCertificate -> Maybe PoolId
 dlgCertPoolId = \case
     CertDelegateNone{} -> Nothing
-    CertRegisterKey _ -> Nothing
     CertVoteAndDelegate _ poolIdM _ -> poolIdM
 
 dlgCertVote :: DelegationCertificate -> Maybe DRep
 dlgCertVote = \case
     CertDelegateNone{} -> Nothing
-    CertRegisterKey _ -> Nothing
     CertVoteAndDelegate _ _ voteM -> voteM
 
 data StakeKeyCertificate
