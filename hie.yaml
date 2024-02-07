@@ -1,0 +1,235 @@
+cradle:
+  cabal:
+    - path: "lib/address-derivation-discovery/lib"
+      component: "lib:address-derivation-discovery"
+
+    - path: "lib/application-extras/lib"
+      component: "lib:cardano-wallet-application-extras"
+
+    - path: "lib/balance-tx/lib/main"
+      component: "lib:cardano-balance-tx"
+
+    - path: "lib/balance-tx/lib/internal"
+      component: "cardano-balance-tx:lib:internal"
+
+    - path: "lib/balance-tx/test/spec"
+      component: "cardano-balance-tx:test:test"
+
+    - path: "lib/balance-tx/test/data"
+      component: "cardano-balance-tx:test:test"
+
+    - path: "lib/cardano-api-extra/lib"
+      component: "lib:cardano-api-extra"
+
+    - path: "lib/coin-selection/lib"
+      component: "lib:cardano-coin-selection"
+
+    - path: "lib/coin-selection/test/spec"
+      component: "cardano-coin-selection:test:test"
+
+    - path: "lib/coin-selection/bench"
+      component: "cardano-coin-selection:bench:utxo-index"
+
+    - path: "lib/crypto-hash-extra/src"
+      component: "lib:crypto-hash-extra"
+
+    - path: "lib/customer-deposit-wallet/src"
+      component: "lib:customer-deposit-wallet"
+
+    - path: "lib/customer-deposit-wallet/test/unit"
+      component: "customer-deposit-wallet:test:unit"
+
+    - path: "lib/customer-deposit-wallet/api/http"
+      component: "customer-deposit-wallet:lib:customer-deposit-wallet-http"
+
+    - path: "lib/customer-deposit-wallet/exe"
+      component: "customer-deposit-wallet:exe:customer-deposit-wallet"
+
+    - path: "lib/delta-store/src"
+      component: "lib:delta-store"
+
+    - path: "lib/delta-store/test/unit"
+      component: "delta-store:test:unit"
+
+    - path: "lib/delta-table/src"
+      component: "lib:delta-table"
+
+    - path: "lib/delta-table/test/unit"
+      component: "delta-table:test:unit"
+
+    - path: "lib/delta-types/src"
+      component: "lib:delta-types"
+
+    - path: "lib/delta-types/test/unit"
+      component: "delta-types:test:unit"
+
+    - path: "lib/faucet/lib"
+      component: "lib:faucet"
+
+    - path: "lib/faucet/exe/Faucet.hs"
+      component: "faucet:exe:faucet"
+
+    - path: "lib/iohk-monitoring-extra/src"
+      component: "lib:iohk-monitoring-extra"
+
+    - path: "lib/launcher/src"
+      component: "lib:cardano-wallet-launcher"
+
+    - path: "lib/launcher/test/unit"
+      component: "cardano-wallet-launcher:test:unit"
+
+    - path: "lib/local-cluster/lib"
+      component: "lib:local-cluster"
+
+    - path: "lib/local-cluster/exe/Cluster.hs"
+      component: "local-cluster:exe:local-cluster"
+
+    - path: "lib/network-layer/src"
+      component: "lib:cardano-wallet-network-layer"
+
+    - path: "lib/numeric/src"
+      component: "lib:cardano-numeric"
+
+    - path: "lib/numeric/test/unit"
+      component: "cardano-numeric:test:unit"
+
+    - path: "lib/primitive/lib"
+      component: "lib:cardano-wallet-primitive"
+
+    - path: "lib/primitive/test/data"
+      component: "cardano-wallet-primitive:test:test"
+
+    - path: "lib/primitive/test/spec"
+      component: "cardano-wallet-primitive:test:test"
+
+    - path: "lib/read/lib"
+      component: "lib:cardano-wallet-read"
+
+    - path: "lib/read/test"
+      component: "cardano-wallet-read:test:test"
+
+    - path: "lib/std-gen-seed/src"
+      component: "lib:std-gen-seed"
+
+    - path: "lib/std-gen-seed/test/unit"
+      component: "std-gen-seed:test:unit"
+
+    - path: "lib/temporary-extra/src"
+      component: "lib:temporary-extra"
+
+    - path: "lib/test-utils/src"
+      component: "lib:cardano-wallet-test-utils"
+
+    - path: "lib/test-utils/test"
+      component: "cardano-wallet-test-utils:test:unit"
+
+    - path: "lib/text-class/src"
+      component: "lib:text-class"
+
+    - path: "lib/text-class/test/unit"
+      component: "text-class:test:unit"
+
+    - path: "lib/wai-middleware-logging/src"
+      component: "lib:wai-middleware-logging"
+
+    - path: "lib/wai-middleware-logging/test"
+      component: "wai-middleware-logging:test:unit"
+
+    - path: "lib/wallet/src"
+      component: "lib:cardano-wallet"
+
+    - path: "lib/wallet/api/http"
+      component: "cardano-wallet:lib:cardano-wallet-api-http"
+
+    - path: "lib/wallet/integration/src"
+      component: "cardano-wallet:lib:cardano-wallet-integration"
+
+    - path: "lib/wallet/bench/src"
+      component: "cardano-wallet:lib:cardano-wallet-bench"
+
+    - path: "lib/wallet/mock-token-metadata/src"
+      component: "cardano-wallet:lib:mock-token-metadata"
+
+    - path: "lib/wallet/exe/cardano-wallet.hs"
+      component: "cardano-wallet:exe:cardano-wallet"
+
+    - path: "lib/wallet/./exe/mock-token-metadata-server.hs"
+      component: "cardano-wallet:exe:mock-token-metadata-server"
+
+    - path: "lib/wallet/test-common"
+      component: "cardano-wallet:test:unit"
+
+    - path: "lib/wallet/test/unit"
+      component: "cardano-wallet:test:unit"
+
+    - path: "lib/wallet/test/data"
+      component: "cardano-wallet:test:unit"
+
+    - path: "lib/wallet/./integration-tests.hs"
+      component: "cardano-wallet:exe:integration-exe"
+
+    - path: "lib/wallet/./"
+      component: "cardano-wallet:test:integration"
+
+    - path: "lib/wallet/bench/restore-bench.hs"
+      component: "cardano-wallet:bench:restore"
+
+    - path: "lib/wallet/bench/latency-bench.hs"
+      component: "cardano-wallet:bench:latency"
+
+    - path: "lib/wallet/bench/src/latency-bench.hs"
+      component: "cardano-wallet:bench:latency"
+
+    - path: "lib/wallet/test/integration/latency-bench.hs"
+      component: "cardano-wallet:bench:latency"
+
+    - path: "lib/wallet/bench/Cardano/Wallet/LatencyBenchShared.hs"
+      component: "cardano-wallet:bench:latency"
+
+    - path: "lib/wallet/bench/src/Cardano/Wallet/LatencyBenchShared.hs"
+      component: "cardano-wallet:bench:latency"
+
+    - path: "lib/wallet/test/integration/Cardano/Wallet/LatencyBenchShared.hs"
+      component: "cardano-wallet:bench:latency"
+
+    - path: "lib/wallet/bench/db-bench.hs"
+      component: "cardano-wallet:bench:db"
+
+    - path: "lib/wallet/test-common/db-bench.hs"
+      component: "cardano-wallet:bench:db"
+
+    - path: "lib/wallet/bench/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
+      component: "cardano-wallet:bench:db"
+
+    - path: "lib/wallet/test-common/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
+      component: "cardano-wallet:bench:db"
+
+    - path: "lib/wallet/bench/api-bench.hs"
+      component: "cardano-wallet:bench:api"
+
+    - path: "lib/wallet/test-common/api-bench.hs"
+      component: "cardano-wallet:bench:api"
+
+    - path: "lib/wallet/bench/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
+      component: "cardano-wallet:bench:api"
+
+    - path: "lib/wallet/test-common/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
+      component: "cardano-wallet:bench:api"
+
+    - path: "lib/wallet/bench/EraFun.hs"
+      component: "cardano-wallet:bench:erafun-benchmark"
+
+    - path: "lib/wallet-benchmarks/bench/memory-benchmark.hs"
+      component: "cardano-wallet-benchmarks:bench:memory"
+
+    - path: "lib/wallet-benchmarks/bench/Paths_cardano_wallet_benchmarks.hs"
+      component: "cardano-wallet-benchmarks:bench:memory"
+
+    - path: "lib/wallet-e2e/src"
+      component: "lib:cardano-wallet-e2e"
+
+    - path: "lib/wallet-e2e/exe/Main.hs"
+      component: "cardano-wallet-e2e:exe:wallet-e2e"
+
+    - path: "lib/wallet-e2e/exe/Options.hs"
+      component: "cardano-wallet-e2e:exe:wallet-e2e"
