@@ -70,6 +70,7 @@ module Cardano.Wallet.Primitive.Slotting
 
     -- ** Re-exports
     , SlotNo (..)
+    , WithOrigin(..)
     ) where
 
 import Prelude
@@ -85,6 +86,7 @@ import Cardano.Slotting.EpochInfo.API
     )
 import Cardano.Slotting.Slot
     ( SlotNo
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Orphans
     ()
