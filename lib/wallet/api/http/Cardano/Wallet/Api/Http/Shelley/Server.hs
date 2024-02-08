@@ -2054,7 +2054,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> do
         let db = workerCtx ^. dbLayer
 
-        (Write.PParamsInAnyRecentEra _era pp, timeTranslation)
+        (Write.PParamsInAnyRecentEra era pp, timeTranslation)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
         withdrawal <-
@@ -2073,7 +2073,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
 
         (tx, walletState) <-
             liftIO $
-            W.buildTransaction @s
+            W.buildTransaction @s era
             db timeTranslation genChange pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -2120,7 +2120,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
     --
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
-    (Write.PParamsInAnyRecentEra _era pp, timeTranslation)
+    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO @Handler $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s)
@@ -2139,7 +2139,7 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let paymentOuts = []
 
         (tx, walletState) <-
-            W.buildTransaction @s
+            W.buildTransaction @s era
             db timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -2176,7 +2176,7 @@ selectCoinsForQuit
     -> ApiT WalletId
     -> Handler (ApiCoinSelection n)
 selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
-    (Write.PParamsInAnyRecentEra _era pp, timeTranslation)
+    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         let db = workerCtx ^. typed @(DBLayer IO s)
@@ -2196,7 +2196,7 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         let paymentOuts = []
 
         (tx, walletState) <-
-            W.buildTransaction @s
+            W.buildTransaction @s era
             db timeTranslation changeAddrGen pp txCtx paymentOuts
 
         let W.CoinSelection{..} =
@@ -2912,7 +2912,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 mintBurnTimelockKeyWitCounts
                 apiWalletId
                 ApiBalanceTransactionPostData
-                    { transaction = ApiT (sealedTxFromCardanoBody unbalancedTx)
+                    { transaction = ApiT
+                        $ sealedTxFromCardanoBody unbalancedTx
                     , inputs = []
                     , redeemers = []
                     , encoding = body ^. #encoding
@@ -3522,7 +3523,8 @@ balanceTransaction
         partialTx <- parsePartialTx era
         balancedTx <- liftHandler
             . fmap
-                ( Cardano.InAnyCardanoEra Write.cardanoEra
+                ( Cardano.InAnyCardanoEra
+                    (Write.cardanoEraFromRecentEra era)
                 . Write.toCardanoApiTx
                 . fst
                 )
@@ -3548,7 +3550,7 @@ balanceTransaction
         -> Handler (Write.PartialTx era)
     parsePartialTx era = do
         let externalUTxO
-                = Write.utxoFromTxOutsInRecentEra era
+                = Write.utxoFromTxOutsInRecentEra
                 $ map fromExternalInput
                 $ body ^. #inputs
 

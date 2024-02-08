@@ -567,10 +567,10 @@ data TxOutInRecentEra =
         -- Same contents as 'TxOut LatestLedgerEra'.
 
 unwrapTxOutInRecentEra
-    :: RecentEra era
-    -> TxOutInRecentEra
+    :: forall era. IsRecentEra era
+    => TxOutInRecentEra
     -> TxOut era
-unwrapTxOutInRecentEra era recentEraTxOut = case era of
+unwrapTxOutInRecentEra recentEraTxOut = case recentEra @era of
     RecentEraConway -> recentEraToConwayTxOut recentEraTxOut
     RecentEraBabbage -> recentEraToBabbageTxOut recentEraTxOut
 
@@ -659,12 +659,11 @@ isBelowMinimumCoinForTxOut pp out =
 -- Used to have a possibility for failure when we supported Alonzo and Babbage,
 -- and could possibly become failable again with future eras.
 utxoFromTxOutsInRecentEra
-    :: forall era. IsRecentEra era
-    => RecentEra era
-    -> [(TxIn, TxOutInRecentEra)]
+    :: IsRecentEra era
+    => [(TxIn, TxOutInRecentEra)]
     -> Shelley.UTxO era
-utxoFromTxOutsInRecentEra era =
-    Shelley.UTxO . Map.fromList . map (second (unwrapTxOutInRecentEra era))
+utxoFromTxOutsInRecentEra =
+    Shelley.UTxO . Map.fromList . map (second unwrapTxOutInRecentEra)
 
 --------------------------------------------------------------------------------
 -- Tx
@@ -674,14 +673,15 @@ serializeTx
     :: forall era. IsRecentEra era
     => Core.Tx era
     -> ByteString
-serializeTx tx = CardanoApi.serialiseToCBOR $ toCardanoApiTx @era tx
+serializeTx tx =
+    CardanoApi.serialiseToCBOR $ toCardanoApiTx tx
 
 --------------------------------------------------------------------------------
 -- Compatibility
 --------------------------------------------------------------------------------
 
 fromCardanoApiTx
-    :: forall era. IsRecentEra era
+    :: IsRecentEra era
     => CardanoApi.Tx (CardanoApiEra era)
     -> Core.Tx era
 fromCardanoApiTx = \case
@@ -693,7 +693,7 @@ toCardanoApiTx
     => Core.Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
 toCardanoApiTx =
-    CardanoApi.ShelleyTx (shelleyBasedEraFromRecentEra $ recentEra @era)
+    CardanoApi.ShelleyTx (shelleyBasedEra @era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era
