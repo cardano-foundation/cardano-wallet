@@ -4641,6 +4641,19 @@ x-errVotingInInvalidEra: &errVotingInInvalidEra
       type: string
       enum: ['voting_in_invalid_era']
 
+x-errWithdrawalNotPossibleWithoutVote: &errWithdrawalNotPossibleWithoutVote
+  <<: *responsesErr
+  title: withdrawal_not_possible_without_vote
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when attempting to create a transaction that contains withdrawals
+        but previous voting was not performed (in Conway era onwards).
+    code:
+      type: string
+      enum: ['withdrawal_not_possible_without_vote']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -5924,6 +5937,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errSharedWalletIncomplete
             - <<: *errDelegationInvalid
             - <<: *errVotingInInvalidEra
+            - <<: *errWithdrawalNotPossibleWithoutVote
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

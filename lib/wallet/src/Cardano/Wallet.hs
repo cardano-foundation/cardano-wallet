@@ -151,6 +151,7 @@ module Cardano.Wallet
     , constructTransaction
     , constructTxMeta
     , votingEraValidation
+    , checkingIfVoted
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -574,11 +575,11 @@ import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
-    ( _txRewardWithdrawalCost
-    , mkTransaction
+    ( mkTransaction
     , mkUnsignedTransaction
     , txConstraints
     , txWitnessTagForKey
+    , _txRewardWithdrawalCost
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -2656,6 +2657,29 @@ votingEraValidation nw = do
         Cardano.AnyCardanoEra Cardano.ConwayEra -> pure ()
         _ -> throwE ErrConstructTxVotingInWrongEra
 
+checkingIfVoted
+    :: DBLayer IO s
+    -> NetworkLayer IO block
+    -> ExceptT ErrConstructTx IO ()
+checkingIfVoted DBLayer{..} nw = do
+    era <- liftIO $ currentNodeEra nw
+    case era of
+        Cardano.AnyCardanoEra Cardano.ConwayEra -> do
+            voted <- liftIO $ atomically (alreadyVoted walletState)
+            if voted then
+                pure ()
+            else
+                throwE ErrConstructTxWithdrawalWithoutVoting
+        _ -> pure ()
+
+alreadyVoted
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm Bool
+alreadyVoted walletState =
+    Dlgs.isVoting . view #delegations
+        <$> readDBVar walletState
+
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
 -- or is missing from the transaction history, an error will be returned.
@@ -3575,6 +3599,7 @@ data ErrConstructTx
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
     | ErrConstructTxVotingInWrongEra
+    | ErrConstructTxWithdrawalWithoutVoting
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 

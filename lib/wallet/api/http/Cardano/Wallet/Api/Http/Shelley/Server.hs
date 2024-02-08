@@ -2775,6 +2775,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
+        when (isJust (body ^. #withdrawal)) $
+            liftHandler $ W.checkingIfVoted db netLayer
+
         (Write.PParamsInAnyRecentEra era pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
@@ -3316,6 +3319,9 @@ constructSharedTransaction
 
             trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
+
+        when (isJust (body ^. #withdrawal)) $
+            liftHandler $ W.checkingIfVoted db netLayer
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         (Write.PParamsInAnyRecentEra era pp, _)
