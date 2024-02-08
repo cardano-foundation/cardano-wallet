@@ -125,8 +125,6 @@ import Cardano.Write.Tx
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputSizeExceedsLimitError (..)
-    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     )
 import Control.Monad.Except
     ( ExceptT
@@ -967,7 +965,8 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
 
 instance IsServerError ErrBalanceTxOutputError where
     toServerError (ErrBalanceTxOutputErrorOf index info) = case info of
-        ErrBalanceTxOutputAdaQuantityInsufficient e ->
+        ErrBalanceTxOutputAdaQuantityInsufficient
+            {output, minimumExpectedCoin} ->
             flip (apiError err403) selectionOutputCoinInsufficientMessage $
             UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient
                 { txOutputIndex =
@@ -980,16 +979,44 @@ instance IsServerError ErrBalanceTxOutputError where
                     ApiAmount.fromCoin
                         $ TokenBundle.getCoin
                         $ toWallet
-                        $ snd
-                        $ view #output e
+                        $ snd output
                 , txOutputLovelaceRequiredMinimum =
                     ApiAmount.fromCoin $
-                    toWalletCoin $ view #minimumExpectedCoin e
+                    toWalletCoin minimumExpectedCoin
                 }
-        ErrBalanceTxOutputSizeExceedsLimit e ->
-            toServerError e
-        ErrBalanceTxOutputTokenQuantityExceedsLimit e ->
-            toServerError e
+        ErrBalanceTxOutputSizeExceedsLimit {output} ->
+            apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
+                [ "One of the outputs you've specified contains too many "
+                , "assets. Try splitting these assets across two or more "
+                , "outputs. Destination address: "
+                , pretty address
+                , ". Asset count: "
+                , pretty assetCount
+                , "."
+                ]
+              where
+                address = toWalletAddress (fst output)
+                assetCount = TokenMap.size $
+                    toWalletTokenBundle (snd output) ^. #tokens
+        ErrBalanceTxOutputTokenQuantityExceedsLimit
+            {address, policyId, assetName, quantity, quantityMaxBound} ->
+            apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
+                [ "One of the token quantities you've specified is greater "
+                , "than the maximum quantity allowed in a single transaction "
+                , "output. Try splitting this quantity across two or more "
+                , "outputs. "
+                , "Destination address: "
+                , pretty (toWalletAddress address)
+                , ". Token policy identifier: "
+                , pretty (show policyId)
+                , ". Asset name: "
+                , pretty (show assetName)
+                , ". Token quantity specified: "
+                , pretty (show quantity)
+                , ". Maximum allowable token quantity: "
+                , pretty (show quantityMaxBound)
+                , "."
+                ]
       where
         selectionOutputCoinInsufficientMessage = T.unwords
             [ "One of the outputs you've specified has an ada quantity that is"
@@ -998,40 +1025,6 @@ instance IsServerError ErrBalanceTxOutputError where
             , "which case the wallet will automatically assign the correct"
             , "minimum ada quantity to the output."
             ]
-
-instance IsServerError ErrBalanceTxOutputSizeExceedsLimitError
-  where
-    toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $
-        mconcat
-        [ "One of the outputs you've specified contains too many assets. "
-        , "Try splitting these assets across two or more outputs. "
-        , "Destination address: "
-        , pretty (toWalletAddress (fst output))
-        , ". Asset count: "
-        , pretty (TokenMap.size $ toWalletTokenBundle (snd output) ^. #tokens)
-        , "."
-        ]
-      where
-        output = view #outputThatExceedsLimit e
-
-instance IsServerError ErrBalanceTxOutputTokenQuantityExceedsLimitError
-  where
-    toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
-        [ "One of the token quantities you've specified is greater than the "
-        , "maximum quantity allowed in a single transaction output. Try "
-        , "splitting this quantity across two or more outputs. "
-        , "Destination address: "
-        , pretty (toWalletAddress (view #address e))
-        , ". Token policy identifier: "
-        , pretty (show (view #policyId e))
-        , ". Asset name: "
-        , pretty (show (view #assetName e))
-        , ". Token quantity specified: "
-        , pretty (show (view #quantity e))
-        , ". Maximum allowable token quantity: "
-        , pretty (show (view #quantityMaxBound e))
-        , "."
-        ]
 
 instance IsServerError ErrCreateMigrationPlan where
     toServerError = \case

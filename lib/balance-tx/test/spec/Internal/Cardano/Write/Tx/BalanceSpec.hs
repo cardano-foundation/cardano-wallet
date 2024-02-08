@@ -11,6 +11,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -603,7 +604,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         let expectedChange = fmap Convert.toWalletAddress <$>
                 flip evalState s0
                 $ replicateM nChange
-                $ state @Identity (genChangeAddress dummyChangeAddrGen)
+                $ state @Identity dummyChangeAddrGen.genChangeAddress
 
         let address :: Babbage.BabbageTxOut StandardBabbage -> W.Address
             address (Babbage.BabbageTxOut addr _ _ _) = Convert.toWallet addr
@@ -1438,7 +1439,7 @@ prop_balanceTransactionValid
             Left
                 (ErrBalanceTxOutputError
                 (ErrBalanceTxOutputErrorOf _index
-                (ErrBalanceTxOutputAdaQuantityInsufficient _e))) ->
+                (ErrBalanceTxOutputAdaQuantityInsufficient {}))) ->
                 label "output below minCoinValue" $ property True
             Left (ErrBalanceTxExistingCollateral) ->
                 label "existing collateral" True
@@ -1531,7 +1532,7 @@ prop_balanceTransactionValid
                     (estimateKeyWitnessCounts
                         utxo
                         tx
-                        (timelockKeyWitnessCounts partialTx))
+                        partialTx.timelockKeyWitnessCounts)
                     tx
         let limit = protocolParams ^. ppMaxTxSizeL
         let msg = unwords
@@ -1580,7 +1581,7 @@ prop_balanceTransactionValid
         Write.evaluateMinimumFee protocolParams
             tx
             (estimateKeyWitnessCounts utxo tx
-                (timelockKeyWitnessCounts partialTx))
+                partialTx.timelockKeyWitnessCounts)
 
     txBalance
         :: Tx era

@@ -6,8 +6,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NoFieldSelectors #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -26,9 +28,6 @@ module Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
-    , ErrBalanceTxOutputAdaQuantityInsufficientError (..)
-    , ErrBalanceTxOutputSizeExceedsLimitError (..)
-    , ErrBalanceTxOutputTokenQuantityExceedsLimitError (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     , ErrAssignRedeemers (..)
 
@@ -412,6 +411,7 @@ data ErrBalanceTx era
     --   - the given partial transaction has no existing inputs; and
     --   - the given UTxO index is empty.
     -- A transaction must have at least one input in order to be valid.
+    deriving Generic
 
 deriving instance IsRecentEra era => Eq (ErrBalanceTx era)
 deriving instance IsRecentEra era => Show (ErrBalanceTx era)
@@ -1017,7 +1017,7 @@ selectAssets pp utxoAssumptions outs' redeemers
     , minimumCollateralPercentage =
         pp ^. ppCollateralPercentageL
     , maximumLengthChangeAddress =
-        Convert.toWalletAddress $ maxLengthChangeAddress changeGen
+        Convert.toWalletAddress changeGen.maxLengthChangeAddress
     }
 
     selectionParams = SelectionParams
@@ -1573,39 +1573,24 @@ data ErrBalanceTxOutputError = ErrBalanceTxOutputErrorOf
 
 data ErrBalanceTxOutputErrorInfo
     = ErrBalanceTxOutputAdaQuantityInsufficient
-        ErrBalanceTxOutputAdaQuantityInsufficientError
+        { minimumExpectedCoin :: Coin
+        , output :: (Address, Value)
+        }
     | ErrBalanceTxOutputSizeExceedsLimit
-        ErrBalanceTxOutputSizeExceedsLimitError
+        { output :: (Address, Value)
+        }
     | ErrBalanceTxOutputTokenQuantityExceedsLimit
-        ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    deriving (Eq, Show)
-
-data ErrBalanceTxOutputAdaQuantityInsufficientError =
-    ErrBalanceTxOutputAdaQuantityInsufficientError
-    { minimumExpectedCoin :: Coin
-    , output :: (Address, Value)
-    }
-    deriving (Eq, Generic, Show)
-
-newtype ErrBalanceTxOutputSizeExceedsLimitError =
-    ErrBalanceTxOutputSizeExceedsLimitError
-    { outputThatExceedsLimit :: (Address, Value)
-    }
-    deriving (Eq, Generic, Show)
-
-data ErrBalanceTxOutputTokenQuantityExceedsLimitError =
-    ErrBalanceTxOutputTokenQuantityExceedsLimitError
-    { address :: Address
-      -- ^ The address to which this token quantity was to be sent.
-    , policyId :: PolicyId
-      -- ^ The policy identifier to which this token quantity corresponds.
-    , assetName :: AssetName
-      -- ^ The asset name to which this token quantity corresponds.
-    , quantity :: Natural
-      -- ^ The token quantity that exceeded the bound.
-    , quantityMaxBound :: Natural
-      -- ^ The maximum allowable token quantity.
-    }
+        { address :: Address
+          -- ^ The address to which this token quantity was to be sent.
+        , policyId :: PolicyId
+          -- ^ The policy identifier to which this token quantity corresponds.
+        , assetName :: AssetName
+          -- ^ The asset name to which this token quantity corresponds.
+        , quantity :: Natural
+          -- ^ The token quantity that exceeded the bound.
+        , quantityMaxBound :: Natural
+          -- ^ The maximum allowable token quantity.
+        }
     deriving (Eq, Generic, Show)
 
 -- | Validates the given transaction outputs.
@@ -1621,16 +1606,16 @@ validateTxOutputs constraints outs =
         []    -> pure ()
   where
     errors :: [ErrBalanceTxOutputError]
-    errors = uncurry ErrBalanceTxOutputErrorOf <$> foldMap withOutputsIndexed
-        [ (fmap . fmap) ErrBalanceTxOutputSizeExceedsLimit
-            . mapMaybe (traverse (validateTxOutputSize constraints))
-        , (fmap . fmap) ErrBalanceTxOutputTokenQuantityExceedsLimit
-            . foldMap (traverse validateTxOutputTokenQuantities)
-        , (fmap . fmap) ErrBalanceTxOutputAdaQuantityInsufficient
-            . mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
+    errors = uncurry ErrBalanceTxOutputErrorOf <$> F.fold
+        [ mapMaybe (traverse (validateTxOutputSize constraints))
+            outputsIndexed
+        , foldMap (traverse validateTxOutputTokenQuantities)
+            outputsIndexed
+        , mapMaybe (traverse (validateTxOutputAdaQuantity constraints))
+            outputsIndexed
         ]
       where
-        withOutputsIndexed f = f $ zip [0 ..] outs
+        outputsIndexed = zip [0 ..] outs
 
 -- | Validates the size of a transaction output.
 --
@@ -1640,13 +1625,13 @@ validateTxOutputs constraints outs =
 validateTxOutputSize
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
-    -> Maybe ErrBalanceTxOutputSizeExceedsLimitError
+    -> Maybe ErrBalanceTxOutputErrorInfo
 validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
     TokenBundleSizeWithinLimit ->
         Nothing
     TokenBundleSizeExceedsLimit ->
         Just $
-        ErrBalanceTxOutputSizeExceedsLimitError
+        ErrBalanceTxOutputSizeExceedsLimit
             (Convert.toLedger address, Convert.toLedger bundle)
   where
     sizeAssessment :: TokenBundleSizeAssessment
@@ -1660,9 +1645,9 @@ validateTxOutputSize cs out@(address, bundle) = case sizeAssessment of
 --
 validateTxOutputTokenQuantities
     :: (W.Address, W.TokenBundle)
-    -> [ErrBalanceTxOutputTokenQuantityExceedsLimitError]
+    -> [ErrBalanceTxOutputErrorInfo]
 validateTxOutputTokenQuantities out =
-    [ ErrBalanceTxOutputTokenQuantityExceedsLimitError
+    [ ErrBalanceTxOutputTokenQuantityExceedsLimit
         {address, policyId, assetName, quantity, quantityMaxBound}
     | let address = Convert.toLedgerAddress $ fst out
     , (W.AssetId p a, W.TokenQuantity quantity) <-
@@ -1681,10 +1666,10 @@ validateTxOutputTokenQuantities out =
 validateTxOutputAdaQuantity
     :: SelectionConstraints
     -> (W.Address, W.TokenBundle)
-    -> Maybe ErrBalanceTxOutputAdaQuantityInsufficientError
+    -> Maybe ErrBalanceTxOutputErrorInfo
 validateTxOutputAdaQuantity constraints output@(address, bundle)
     | isBelowMinimum =
-        Just ErrBalanceTxOutputAdaQuantityInsufficientError
+        Just ErrBalanceTxOutputAdaQuantityInsufficient
             { minimumExpectedCoin
             , output = (Convert.toLedger address, Convert.toLedger bundle)
             }
