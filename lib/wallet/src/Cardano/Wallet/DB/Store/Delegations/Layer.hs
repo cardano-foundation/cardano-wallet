@@ -39,6 +39,9 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Data.Foldable
     ( find
     )
@@ -66,8 +69,7 @@ isVoting :: Delegations -> Bool
 isVoting m = fromMaybe False $ do
     (_, v) <- lookupMax m
     let votedAlready = \case
-            ActiveAndVoted _ _ -> True
-            Voted _ -> True
+            Active (Just _) _ -> True
             _ -> False
     pure $ votedAlready v
 
@@ -85,9 +87,8 @@ putDelegationCertificate
     -> SlotNo
     -> DeltaDelegations
 putDelegationCertificate cert sl = case cert of
-    CertDelegateNone _ -> [Deregister sl]
-    CertVoteAndDelegate _ (Just pool) _ -> [Delegate pool sl, Register sl]
-    CertVoteAndDelegate _ Nothing _ -> [Register sl]
+    CertDelegateNone _ -> Deregister sl
+    CertVoteAndDelegate _ pool drep -> VoteAndDelegate drep pool sl
 
 -- | Arguments to 'readDelegation'.
 data CurrentEpochSlotting = CurrentEpochSlotting
@@ -135,13 +136,13 @@ readDelegation CurrentEpochSlotting{..} history =
     readDelegationStatus cond =
         (walletDelegationStatus . snd <$>) . find (cond . fst) . Map.toDescList
 
-    walletDelegationStatus :: Status PoolId -> WalletDelegationStatus
+    walletDelegationStatus :: Status DRep PoolId -> WalletDelegationStatus
     walletDelegationStatus = \case
         Inactive -> NotDelegating
-        Registered -> NotDelegating
-        Active pid -> Delegating pid
-        ActiveAndVoted pid vote -> DelegatingVoting pid vote
-        Voted vote -> Voting vote
+        Active Nothing Nothing  -> NotDelegating
+        Active Nothing (Just pid) -> Delegating pid
+        Active (Just vote) Nothing -> Voting vote
+        Active (Just vote) (Just pid) -> DelegatingVoting pid vote
 
 -- | Construct 'CurrentEpochSlotting' from an 'EpochNo' using a 'TimeInterpreter'
 -- .

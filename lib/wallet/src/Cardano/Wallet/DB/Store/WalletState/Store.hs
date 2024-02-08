@@ -124,9 +124,6 @@ mkStoreWallet wF wid = mkUpdateStore load write update
         update1 _ (UpdateInfo delta) = updateS infoStore Nothing delta
         update1 _ (UpdateCredentials delta) = do
             updateS pkStore Nothing delta
-        update1 s (UpdateDelegations deltas) = do
-            updateSequence
-                (updateS delegationsStore . Just)
-                (delegations s)
-                deltas
+        update1 s (UpdateDelegations delta) = do
+            updateS delegationsStore (Just $ delegations s) delta
         update1 _ (UpdateRewards delta) = updateS rewardsStore Nothing delta

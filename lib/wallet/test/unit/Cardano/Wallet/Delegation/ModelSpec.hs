@@ -71,29 +71,31 @@ spec =
         $ property prop_delegation_history
 
 -- | Support for polymorphic generation of slot and pool
-data Config slot pool = Config
+data Config slot drep pool = Config
     { genSlotBefore :: slot -> Gen slot
     , genSlotAfter :: slot -> Gen slot
     , genSlotNew :: Gen slot
     , genNewPool :: [pool] -> Gen pool
+    , genNewDRep :: [drep] -> Gen drep
     }
 
 -- | Crafted 'Operation' generation based on 'History'
 genDelta
-    :: Config slot pool
-    -> History slot pool
-    -> Gen (Operation slot pool)
+    :: Config slot drep pool
+    -> History slot drep pool
+    -> Gen (Operation slot drep pool)
 genDelta c h = do
     slot <- genSlot c h
     pool <- genPool c h
+    drep <- genRep c h
     elements
-        [ Register slot
-        , Deregister slot
-        , Delegate pool slot
+        [ VoteAndDelegate (Just drep) (Just pool) slot
+        , VoteAndDelegate Nothing (Just pool) slot
+        , VoteAndDelegate (Just drep) Nothing slot
         , Rollback slot
         ]
 
-genPool :: Config slot pool -> History slot pool -> Gen pool
+genPool :: Config slot drep pool -> History slot drep pool -> Gen pool
 genPool c h =
     let
         ps = toList h >>= poolOf
@@ -106,11 +108,28 @@ genPool c h =
                     , (4, genNewPool c pss)
                     ]
 
-poolOf :: Status pool -> [pool]
-poolOf (Active p) = [p]
+genRep :: Config slot drep pool -> History slot drep pool -> Gen drep
+genRep c h =
+    let
+        ds = toList h >>= repOf
+    in
+        case ds of
+            [] -> genNewDRep c []
+            dss ->
+                frequency
+                    [ (1, elements dss)
+                    , (4, genNewDRep c dss)
+                    ]
+
+poolOf :: Status drep pool -> [pool]
+poolOf (Active _ (Just p)) = [p]
 poolOf _ = []
 
-genSlot :: Config slot pool -> History slot pool -> Gen slot
+repOf :: Status drep pool -> [drep]
+repOf (Active (Just d) _) = [d]
+repOf _ = []
+
+genSlot :: Config slot drep pool -> History slot drep pool -> Gen slot
 genSlot c h =
     let
         mm = Map.lookupMax h
@@ -124,9 +143,9 @@ genSlot c h =
             Nothing -> genSlotNew c
 
 genStatus
-    :: (Ord slot, Eq pool)
-    => Config slot pool
-    -> Gen [Step slot pool]
+    :: (Ord slot, Eq pool, Eq drep)
+    => Config slot drep pool
+    -> Gen [Step slot drep pool]
 genStatus c = getSize >>= go mempty
   where
     go _ 0 = pure []
@@ -137,14 +156,14 @@ genStatus c = getSize >>= go mempty
 
 validatedHistory
     :: ( Show pool
-       , Eq (Status pool)
        , Show slot
-       , Show (Status pool)
        , Ord slot
        , Eq pool
+       , Show drep
+       , Eq drep
        )
-    => Config slot pool
-    -> Gen [(Property, Step slot pool)]
+    => Config slot drep pool
+    -> Gen [(Property, Step slot drep pool)]
 validatedHistory c =
     fmap (properties (genSlot c) &&& id)
         <$> genStatus c
@@ -153,13 +172,14 @@ shrinkByInit :: [a] -> [[a]]
 shrinkByInit [] = []
 shrinkByInit xs = [init xs]
 
-naive :: Config Int Int
+naive :: Config Int Int Int
 naive =
     Config
         { genSlotBefore = \x -> choose (0, x)
         , genSlotAfter = \x -> choose (x + 1, x + 10)
         , genSlotNew = choose (0, 9)
         , genNewPool = \xs -> arbitrary `suchThat` (`notElem` xs)
+        , genNewDRep = \xs -> arbitrary `suchThat` (`notElem` xs)
         }
 
 prop_delegation_history :: Property

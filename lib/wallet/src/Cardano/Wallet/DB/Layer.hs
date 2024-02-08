@@ -797,7 +797,7 @@ mkDBLayerCollection ti wid atomically_ walletState =
                         , UpdateSubmissions
                             $ rollBackSubmissions nearestSlotNo
                         , UpdateDelegations
-                            [Dlgs.Rollback nearestSlotNo]
+                            $ Dlgs.Rollback nearestSlotNo
                         ]
                     ,   case Map.lookup nearestPoint
                                 (wal ^. #checkpoints . #checkpoints) of
