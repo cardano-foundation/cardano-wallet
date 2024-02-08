@@ -76,9 +76,6 @@ import Cardano.DB.Sqlite.Migration.Old
     ( ManualMigration (..)
     , MigrationError
     )
-import Cardano.Slotting.Slot
-    ( WithOrigin (..)
-    )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( keyTypeDescriptor
     )
@@ -179,6 +176,7 @@ import Cardano.Wallet.Flavor
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
+    , WithOrigin (..)
     , hoistTimeInterpreter
     )
 import Cardano.Wallet.Primitive.Types.Coin

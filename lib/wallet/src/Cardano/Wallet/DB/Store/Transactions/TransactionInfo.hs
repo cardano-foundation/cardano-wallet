@@ -12,9 +12,6 @@ import Prelude hiding
     ( (.)
     )
 
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..)
     , TxIn (..)
@@ -71,7 +68,8 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
     ( getWithdrawals
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
+    ( SlotNo (..)
+    , TimeInterpreter
     , interpretQuery
     , slotToUTCTime
     )

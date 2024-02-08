@@ -37,14 +37,14 @@ import Prelude
 import Cardano.Pool.Types
     ( PoolId
     )
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings'
     )
 import Cardano.Wallet.DB.Store.Delegations.Types
     ( DelegationStatusEnum
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep

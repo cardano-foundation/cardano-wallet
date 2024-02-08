@@ -11,10 +11,6 @@ module Cardano.Wallet.DB.Store.UTxOHistory.ModelSpec
 
 import Prelude
 
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    , WithOrigin (..)
-    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( DeltaUTxOHistory (..)
     , Pruned (..)
@@ -24,6 +20,10 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
     , getSpent
     , getTip
     , getUTxO
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo (..)
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( Slot

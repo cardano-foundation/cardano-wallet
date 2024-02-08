@@ -33,9 +33,6 @@ import Cardano.Address.Script
     ( Cosigner
     , Script
     )
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.Address.Discovery.Shared
     ( CredentialType
     )
@@ -50,6 +47,9 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.DB.Store.UTxOHistory.Model
     ( Pruned
     , Spent
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Cardano.Wallet.Primitive.Types
     ( Slot

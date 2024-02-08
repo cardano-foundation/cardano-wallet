@@ -32,11 +32,11 @@ import Prelude
 import Cardano.Pool.Types
     ( PoolId
     )
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings'
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Crypto.Hash
     ( Blake2b_160

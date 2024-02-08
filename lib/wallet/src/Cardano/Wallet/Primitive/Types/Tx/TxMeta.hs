@@ -24,11 +24,11 @@ module Cardano.Wallet.Primitive.Types.Tx.TxMeta
 
 import Prelude
 
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    )
 import Cardano.Wallet.Orphans
     ()
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )

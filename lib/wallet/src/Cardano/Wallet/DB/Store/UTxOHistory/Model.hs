@@ -37,13 +37,13 @@ where
 
 import Prelude
 
-import Cardano.Slotting.Slot
-    ( SlotNo
-    , WithOrigin (..)
-    )
 import Cardano.Wallet.DB.Store.UTxOHistory.Model.Internal
     ( Pruned (..)
     , UTxOHistory (..)
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( Slot

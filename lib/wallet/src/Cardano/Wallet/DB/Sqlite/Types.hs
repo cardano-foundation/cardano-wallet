@@ -37,9 +37,6 @@ import Cardano.Api
 import Cardano.Pool.Types
     ( PoolId
     )
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    )
 import Cardano.Wallet.Address.Derivation
     ( Role (..)
     )
@@ -62,6 +59,9 @@ import Cardano.Wallet.DB.Store.UTxOHistory.Model
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseScheme (..)
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)

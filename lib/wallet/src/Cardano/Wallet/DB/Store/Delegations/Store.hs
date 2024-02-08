@@ -20,9 +20,6 @@ import Prelude
 import Cardano.Pool.Types
     ( PoolId
     )
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Store.Delegations.Schema
     ( Delegations (..)
     , EntityField (DelegationSlot)
@@ -37,6 +34,9 @@ import Cardano.Wallet.Delegation.Model
     , Operation (..)
     , Status (..)
     , slotOf
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Control.Exception
     ( Exception

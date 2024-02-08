@@ -13,9 +13,6 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -47,6 +44,9 @@ import Cardano.Wallet.DB.Store.Meta.ModelSpec
     )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (Ascending, Descending)

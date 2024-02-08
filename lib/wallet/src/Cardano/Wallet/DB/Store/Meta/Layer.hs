@@ -13,9 +13,6 @@ module Cardano.Wallet.DB.Store.Meta.Layer
 
 import Prelude
 
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( EntityField (..)
     , TxMeta (..)
@@ -29,6 +26,9 @@ import Cardano.Wallet.DB.Store.Meta.Model
     )
 import Cardano.Wallet.DB.Store.Meta.Store
     ( mkStoreMetaTransactions
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..)

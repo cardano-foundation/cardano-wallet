@@ -274,9 +274,6 @@ import Cardano.Ledger.Api
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso
     , Prologue (..)
@@ -471,6 +468,7 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
+    , SlotNo (..)
     , TimeInterpreter
     , addRelTime
     , ceilingSlotAt

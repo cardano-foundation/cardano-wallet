@@ -33,11 +33,11 @@ import Cardano.Pool.Types
     ( PoolId (..)
     , StakePoolTicker
     )
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Sqlite.Types
     ( sqlSettings'
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Cardano.Wallet.Primitive.Types
     ()

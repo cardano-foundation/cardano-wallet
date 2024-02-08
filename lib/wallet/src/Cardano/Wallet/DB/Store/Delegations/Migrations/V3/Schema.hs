@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Pool.Types
     ( PoolId
     )
-import Cardano.Slotting.Slot
+import Cardano.Wallet.Primitive.Slotting
     ( SlotNo (..)
     )
 import Control.Monad

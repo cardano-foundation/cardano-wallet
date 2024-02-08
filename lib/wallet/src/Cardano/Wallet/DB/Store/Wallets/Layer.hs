@@ -18,9 +18,6 @@ module Cardano.Wallet.DB.Store.Wallets.Layer
 
 import Prelude
 
-import Cardano.Slotting.Slot
-    ( SlotNo
-    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR
     , TxMeta (..)
@@ -44,6 +41,9 @@ import Cardano.Wallet.DB.Store.Wallets.Model
     )
 import Cardano.Wallet.DB.Store.Wallets.Store
     ( mkStoreTxWalletsHistory
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo
     )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder

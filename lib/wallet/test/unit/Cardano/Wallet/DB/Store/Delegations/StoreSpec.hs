@@ -23,9 +23,6 @@ import Cardano.DB.Sqlite
 import Cardano.Pool.Types
     ( PoolId (..)
     )
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -45,6 +42,9 @@ import Cardano.Wallet.Delegation.Model
 import Cardano.Wallet.Delegation.ModelSpec
     ( Config (..)
     , genDelta
+    )
+import Cardano.Wallet.Primitive.Slotting
+    ( SlotNo (..)
     )
 import Control.Monad.IO.Class
     ( liftIO

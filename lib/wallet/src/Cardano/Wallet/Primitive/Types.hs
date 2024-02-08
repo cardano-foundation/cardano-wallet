@@ -130,17 +130,15 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
-import Cardano.Slotting.Slot
-    ( SlotNo (..)
-    , WithOrigin (..)
-    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( WalletPassphraseInfo (..)
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( StartTime (..)
+    ( SlotNo (..)
+    , StartTime (..)
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( Block (..)
