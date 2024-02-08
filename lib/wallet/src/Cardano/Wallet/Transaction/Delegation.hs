@@ -27,6 +27,9 @@ import Cardano.Crypto.Hash.Class
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( toCardanoSimpleScript
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin
+    )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
     )
@@ -61,9 +64,11 @@ certificateFromDelegationAction
         -- ^ Delegation action that we plan to take
     -> Maybe VotingAction
         -- ^ Optional vote action in Conway era onwards
+    -> Maybe Coin
+       -- ^ Optional deposit
     -> [Cardano.Certificate (Write.CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction Write.RecentEraBabbage cred daM vaM =
+certificateFromDelegationAction Write.RecentEraBabbage cred daM vaM _ =
     case (daM, vaM) of
     (Just (Join poolId), Nothing) ->
         [ Cardano.makeStakeAddressDelegationCertificate
@@ -94,7 +99,7 @@ certificateFromDelegationAction Write.RecentEraBabbage cred daM vaM =
     (Nothing, Nothing) -> []
   where
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
-certificateFromDelegationAction Write.RecentEraConway _cred _ _ =
+certificateFromDelegationAction Write.RecentEraConway _cred _ _ _ =
     error "certificateFromDelegationAction: not supported in Conway yet"
 {--
     case (da, va) of

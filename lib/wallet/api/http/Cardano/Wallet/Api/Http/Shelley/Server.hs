@@ -2791,6 +2791,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 , txMetadata = metadata
                 , txValidityInterval = first Just validityInterval
                 }
@@ -3356,6 +3357,7 @@ constructSharedTransaction
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
                 , txDelegationAction = optionalDelegationAction
