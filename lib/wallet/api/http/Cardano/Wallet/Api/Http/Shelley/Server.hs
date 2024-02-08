@@ -2803,8 +2803,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     poolStatus withdrawal
 
         optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) -> liftIO$ Just <$> WD.voteAction trWorker db action
-            Nothing -> pure Nothing
+            Just (ApiT action) ->
+                liftIO $ Just <$> WD.voteAction trWorker db action
+            Nothing ->
+                liftIO $ W.handleVotingWhenMissingInConway nl db
+                              (isJust (body ^. #delegations))
 
         let transactionCtx1 =
                 case optionalDelegationAction of

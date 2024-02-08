@@ -152,6 +152,7 @@ module Cardano.Wallet
     , constructTxMeta
     , votingEraValidation
     , checkingIfVoted
+    , handleVotingWhenMissingInConway
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -528,6 +529,9 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -592,6 +596,7 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxValidityInterval
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
     , defaultTransactionCtx
@@ -2679,6 +2684,44 @@ alreadyVoted
 alreadyVoted walletState =
     Dlgs.isVoting . view #delegations
         <$> readDBVar walletState
+
+handleVotingWhenMissingInConway
+    :: NetworkLayer IO block
+    -> DBLayer IO s
+    -> Bool
+    -> IO (Maybe VotingAction)
+handleVotingWhenMissingInConway nl db delegationsPresent = do
+    areWeInConway <- isAlreadyConwayEra nl
+    voting <- haveWeVoted db
+    stakingKeyRegistered <- isStakeKeyInDb db
+    if (areWeInConway && not voting && delegationsPresent) then
+       if stakingKeyRegistered then
+           pure $ Just $ Vote Abstain
+       else
+           pure $ Just $ VoteRegisteringKey Abstain
+    else
+       pure Nothing
+  where
+    isAlreadyConwayEra
+        :: NetworkLayer IO block
+        -> IO Bool
+    isAlreadyConwayEra nw = do
+        era <- currentNodeEra nw
+        case era of
+            Cardano.AnyCardanoEra Cardano.ConwayEra -> pure True
+            _ -> pure False
+
+    haveWeVoted
+        :: DBLayer IO s
+        -> IO Bool
+    haveWeVoted DBLayer{..} = do
+        atomically (alreadyVoted walletState)
+
+    isStakeKeyInDb
+        :: DBLayer IO s
+        -> IO Bool
+    isStakeKeyInDb DBLayer{..} = do
+        atomically (isStakeKeyRegistered walletState)
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
