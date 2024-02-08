@@ -67,6 +67,9 @@ module Cardano.Wallet.Primitive.Slotting
     , snapshot
     , hoistTimeInterpreter
     , expectAndThrowFailures
+
+    -- ** Re-exports
+    , SlotNo (..)
     ) where
 
 import Prelude
