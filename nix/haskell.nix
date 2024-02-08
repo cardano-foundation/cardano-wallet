@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
+hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -23,6 +23,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         description = ''If false, prevent check results from being cached on `nix build`'';
         default = true;
       };
+
     };
   })
   ({ pkgs
@@ -98,9 +99,10 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
       indexState = "2024-01-12T11:04:55Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
+
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc963";
+      compiler-nix-name = "ghc964";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";
@@ -149,9 +151,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           haskellPackages.weeder
           haskellPackages.stylish-haskell
 
-          (haskell-nix.tool "ghc963" "haskell-language-server" ({pkgs, ...}: rec {
+          (haskell-nix.tool "ghc964" "haskell-language-server" ({pkgs, ...}: rec {
             # Use the github source of HLS that is tested with haskell.nix CI
-            src = pkgs.haskell-nix.sources."hls-2.5";
+            src = hls;
             }))
         ]);
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
