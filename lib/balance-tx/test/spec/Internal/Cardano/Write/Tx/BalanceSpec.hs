@@ -1183,7 +1183,7 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -> Tx era
         -> UTxO era
     utxoPromisingInputsHaveAddress addr tx =
-        utxoFromTxOutsInRecentEra $
+        utxoFromTxOutsInRecentEra
             [ (i
               , TxOutInRecentEra
                     (Convert.toLedger addr)

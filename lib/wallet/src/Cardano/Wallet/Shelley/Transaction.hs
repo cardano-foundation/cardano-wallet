@@ -1068,7 +1068,7 @@ mkShelleyWitness
 mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness shelleyEra body (unencrypt key)
   where
-    shelleyEra = Write.shelleyBasedEraFromRecentEra $ Write.recentEra @era
+    shelleyEra = Write.shelleyBasedEra @era
     unencrypt (xprv, pwd) =
         Cardano.WitnessPaymentExtendedKey
         $ Cardano.PaymentExtendedSigningKey
