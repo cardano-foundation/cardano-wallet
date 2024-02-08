@@ -370,7 +370,8 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                     mempty
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
-                    in certificateFromDelegationAction era (Left stakeXPub) action
+                    in certificateFromDelegationAction era (Left stakeXPub)
+                       (Just action) Nothing
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
@@ -706,6 +707,7 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
     let stakingScriptM =
             flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
             view #txStakingCredentialScriptTemplate ctx
+    let va = view #txVotingAction ctx
     case view #txDelegationAction ctx of
         Nothing -> do
             let md = view #txMetadata ctx
@@ -735,9 +737,11 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
         Just action -> do
             let certs = case stakeCred of
                     Left xpub ->
-                        certificateFromDelegationAction era (Left xpub) action
+                        certificateFromDelegationAction era (Left xpub)
+                        (Just action) va
                     Right (Just script) ->
-                        certificateFromDelegationAction era (Right script) action
+                        certificateFromDelegationAction era (Right script)
+                        (Just action) va
                     Right Nothing ->
                         error $ unwords
                             [ "stakeCred in mkUnsignedTransaction must be"
