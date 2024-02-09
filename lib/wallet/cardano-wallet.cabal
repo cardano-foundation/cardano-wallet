@@ -1,4 +1,4 @@
-cabal-version:      3.0
+cabal-version:      3.6
 name:               cardano-wallet
 version:            2023.12.18
 synopsis:           The Wallet Backend for a Cardano node.
@@ -398,8 +398,8 @@ library cardano-wallet-integration
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
-    , cardano-wallet
-    , cardano-wallet-api-http
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-api-http
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
@@ -510,7 +510,7 @@ library mock-token-metadata
     , aeson
     , base
     , bytestring
-    , cardano-wallet
+    , cardano-wallet:cardano-wallet
     , cardano-wallet-primitive
     , generic-lens
     , memory
@@ -531,8 +531,8 @@ executable cardano-wallet
   main-is:        cardano-wallet.hs
   build-depends:
     , base
-    , cardano-wallet
-    , cardano-wallet-api-http
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-api-http
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
@@ -554,8 +554,8 @@ executable mock-token-metadata-server
   main-is:       exe/mock-token-metadata-server.hs
   build-depends:
     , base
-    , cardano-wallet
-    , mock-token-metadata
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:mock-token-metadata
     , optparse-applicative
     , wai-extra
 
@@ -576,8 +576,8 @@ test-suite unit
     , bytestring
     , cardano-addresses
     , cardano-api
-    , cardano-api:internal
     , cardano-api-extra
+    , cardano-api:internal
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-crypto
     , cardano-crypto-class
@@ -587,14 +587,15 @@ test-suite unit
     , cardano-ledger-shelley
     , cardano-sl-x509
     , cardano-slotting
-    , cardano-wallet
-    , cardano-wallet-api-http
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-test-utils
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-api-http
+    , cardano-wallet:mock-token-metadata
     , cborg
     , connection
     , containers
@@ -633,9 +634,8 @@ test-suite unit
     , lens
     , local-cluster
     , memory
-    , mock-token-metadata
-    , MonadRandom
     , monad-logger
+    , MonadRandom
     , monoid-subclasses
     , mtl
     , network
@@ -684,7 +684,6 @@ test-suite unit
     , x509
     , x509-store
     , yaml
-
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Byron.Codec.CborSpec
@@ -785,10 +784,10 @@ common integration-common
     , base
     , cardano-addresses
     , cardano-ledger-shelley
-    , cardano-wallet
-    , cardano-wallet-api-http
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-api-http
     , cardano-wallet-application-extras
-    , cardano-wallet-integration
+    , cardano-wallet:cardano-wallet-integration
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -804,7 +803,7 @@ common integration-common
     , iohk-monitoring-extra
     , lobemo-backend-ekg
     , local-cluster
-    , mock-token-metadata
+    , cardano-wallet:mock-token-metadata
     , network-uri
     , servant-client
     , temporary-extra
@@ -835,9 +834,9 @@ benchmark restore
     , bytestring
     , cardano-addresses
     , cardano-balance-tx:internal
-    , cardano-wallet
-    , cardano-wallet-api-http
-    , cardano-wallet-bench
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-api-http
+    , cardano-wallet:cardano-wallet-bench
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -864,10 +863,10 @@ benchmark latency
     , aeson
     , base
     , cardano-addresses
-    , cardano-wallet
-    , cardano-wallet-api-http
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-api-http
     , cardano-wallet-application-extras
-    , cardano-wallet-integration
+    , cardano-wallet:cardano-wallet-integration
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , directory
@@ -903,8 +902,8 @@ benchmark db
     , cardano-addresses
     , cardano-api
     , cardano-crypto
-    , cardano-wallet
-    , cardano-wallet-bench
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-bench
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -941,8 +940,8 @@ benchmark api
     , bytestring
     , cardano-api
     , cardano-balance-tx:internal
-    , cardano-wallet
-    , cardano-wallet-bench
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet:cardano-wallet-bench
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
@@ -965,7 +964,7 @@ benchmark erafun-benchmark
   build-depends:
     , base
     , bytestring
-    , cardano-wallet
+    , cardano-wallet:cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-read
     , criterion
