@@ -214,7 +214,13 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
+    ( IsRecentEra
+    , serializeTx
+    , toAnyCardanoEra
+    )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
+    ( toWalletUTxO
+    )
 
 -- | Maps types to servant error responses.
 class IsServerError e where

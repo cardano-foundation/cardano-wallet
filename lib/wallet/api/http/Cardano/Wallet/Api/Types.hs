@@ -672,6 +672,10 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
 import qualified Internal.Cardano.Write.Tx as Write
+    ( DatumHash
+    , datumHashFromBytes
+    , datumHashToBytes
+    )
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets

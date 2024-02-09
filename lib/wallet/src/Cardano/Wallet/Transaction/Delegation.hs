@@ -44,6 +44,9 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Internal.Cardano.Write.Tx as Write
+    ( CardanoApiEra
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate

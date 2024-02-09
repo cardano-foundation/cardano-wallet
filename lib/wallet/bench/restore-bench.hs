@@ -374,6 +374,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
+    ( PParamsInAnyRecentEra (PParamsInAnyRecentEra)
+    )
 
 main :: IO ()
 main = execBenchWithNode argsNetworkConfig cardanoRestoreBench >>= exitWith

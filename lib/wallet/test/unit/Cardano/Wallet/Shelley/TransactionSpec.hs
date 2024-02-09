@@ -361,6 +361,15 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
+    ( BabbageEra
+    , CardanoApiEra
+    , IsRecentEra
+    , PParams
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEra
+    , shelleyBasedEraFromRecentEra
+    )
 
 spec :: Spec
 spec = describe "TransactionSpec" $ do

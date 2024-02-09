@@ -431,6 +431,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
+    ( PParams
+    )
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 

@@ -107,6 +107,8 @@ import Internal.Cardano.Write.Tx
     )
 
 import qualified Internal.Cardano.Write.Tx as Write
+    ( PParams
+    )
 
 -- | Interface for network capabilities.
 data NetworkLayer m block = NetworkLayer
