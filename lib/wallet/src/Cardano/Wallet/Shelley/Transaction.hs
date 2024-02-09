@@ -285,6 +285,10 @@ import qualified Internal.Cardano.Write.Tx.Sign as Write
     ( estimateMaxWitnessRequiredPerInput
     )
 import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
+    ( sizeOf_BootstrapWitnesses
+    , sizeOf_VKeyWitnesses
+    , sizeOf_Withdrawals
+    )
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
