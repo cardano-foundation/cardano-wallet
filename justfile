@@ -104,7 +104,7 @@ integration-tests match:
     '.#cardano-cli' \
     '.#cardano-wallet' \
     '.#integration-exe' \
-    -c integration-exe -j 3 --match="{{match}}"
+    -c integration-exe -j 6 --match="{{match}}"
 
 # run babbage integration tests matching the given pattern via nix
 babbage-integration-tests-match match:
