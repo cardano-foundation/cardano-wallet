@@ -75,6 +75,7 @@ packages:
   lib/numeric/
   lib/primitive/
   lib/read
+  lib/secrets
   lib/std-gen-seed/
   lib/temporary-extra/
   lib/test-utils/
