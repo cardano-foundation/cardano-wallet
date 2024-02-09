@@ -57,15 +57,14 @@ import qualified Internal.Cardano.Write.Tx as Write
 
 certificateFromDelegationAction
     :: forall era. Write.IsRecentEra era
-    => Write.RecentEra era
         -- ^ Era in which we create the certificate
-    -> Either XPub (Script KeyHash)
+    => Either XPub (Script KeyHash)
         -- ^ Our staking credential
     -> DelegationAction
         -- ^ Delegation action that we plan to take
     -> [Cardano.Certificate (Write.CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction _era = case Write.recentEra @era of
+certificateFromDelegationAction = case Write.recentEra @era of
     Write.RecentEraBabbage -> \cred -> \case
         Join poolId ->
             [ Cardano.makeStakeAddressDelegationCertificate
