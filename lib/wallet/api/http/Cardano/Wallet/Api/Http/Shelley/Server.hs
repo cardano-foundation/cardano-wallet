@@ -945,6 +945,9 @@ import qualified Internal.Cardano.Write.Tx.Balance as Write
     , fromWalletUTxO
     )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
+    ( TimelockKeyWitnessCounts (TimelockKeyWitnessCounts)
+    , estimateMinWitnessRequiredPerInput
+    )
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
