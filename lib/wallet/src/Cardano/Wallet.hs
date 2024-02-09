@@ -2496,12 +2496,11 @@ constructTransaction
         ( HasSNetworkId n
         , Write.IsRecentEra era
         )
-    => Write.RecentEra era
-    -> DBLayer IO (SeqState n ShelleyKey)
+    => DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction _era db txCtx preSel = do
+constructTransaction db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
     mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except

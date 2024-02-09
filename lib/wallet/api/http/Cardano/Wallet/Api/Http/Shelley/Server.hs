@@ -2772,7 +2772,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
-        (Write.PParamsInAnyRecentEra era pp, _)
+        (Write.PParamsInAnyRecentEra (_era :: Write.RecentEra era) pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
         withdrawal <- case body ^. #withdrawal of
@@ -2904,7 +2904,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 Nothing -> []
 
         unbalancedTx <- liftHandler $
-            W.constructTransaction @n era
+            W.constructTransaction @n @era
                 db transactionCtx3
                     PreSelection { outputs = outs <> mintingOuts }
 
