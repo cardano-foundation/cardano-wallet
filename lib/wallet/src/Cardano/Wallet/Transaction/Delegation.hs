@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -45,6 +47,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
+    , IsRecentEra (recentEra)
     , RecentEra (RecentEraBabbage, RecentEraConway)
     )
 
@@ -53,7 +56,8 @@ import qualified Internal.Cardano.Write.Tx as Write
 ------------------------------------------------------------------------------}
 
 certificateFromDelegationAction
-    :: Write.RecentEra era
+    :: forall era. Write.IsRecentEra era
+    => Write.RecentEra era
         -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
         -- ^ Our staking credential
@@ -61,7 +65,7 @@ certificateFromDelegationAction
         -- ^ Delegation action that we plan to take
     -> [Cardano.Certificate (Write.CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction era = case era of
+certificateFromDelegationAction _era = case Write.recentEra @era of
     Write.RecentEraBabbage -> \cred -> \case
         Join poolId ->
             [ Cardano.makeStakeAddressDelegationCertificate
