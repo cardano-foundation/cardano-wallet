@@ -2318,8 +2318,7 @@ buildTransaction
         , HasSNetworkId (NetworkOf s)
         , Excluding '[SharedKey] (KeyOf s)
         )
-    => Write.RecentEra era
-    -> DBLayer IO s
+    => DBLayer IO s
     -> TimeTranslation
     -> ChangeAddressGen s
     -> Write.PParams era
@@ -2327,7 +2326,7 @@ buildTransaction
     -> [TxOut]
     -- ^ payment outputs
     -> IO (Write.Tx era, Wallet s)
-buildTransaction _era DBLayer{..} timeTranslation changeAddrGen
+buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
