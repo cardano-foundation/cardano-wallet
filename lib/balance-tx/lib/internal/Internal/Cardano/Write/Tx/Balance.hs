@@ -495,7 +495,7 @@ toWalletUTxO
     -> W.UTxO
 toWalletUTxO (UTxO m) = W.UTxO
     $ Map.mapKeys Convert.toWallet
-    $ Map.map (toWalletTxOut (recentEra @era)) m
+    $ Map.map toWalletTxOut m
 
 balanceTransaction
     :: forall era m changeState.
@@ -785,8 +785,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
-    era = recentEra @era
-
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
     --
@@ -813,7 +811,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                        Left i
                     Just o -> do
                         let i' = Convert.toWallet i
-                        let W.TxOut addr bundle = toWalletTxOut era o
+                        let W.TxOut addr bundle = toWalletTxOut o
                         pure (WalletUTxO i' addr, bundle)
 
         case partitionEithers res of
@@ -884,7 +882,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Nothing -> return ()
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut) `on` unUTxO
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat
@@ -1498,11 +1496,12 @@ toLedgerTxOut txOut =
         RecentEraConway -> Convert.toConwayTxOut txOut
 
 toWalletTxOut
-    :: RecentEra era
-    -> TxOut era
+    :: forall era. IsRecentEra era
+    => TxOut era
     -> W.TxOut
-toWalletTxOut RecentEraBabbage = Convert.fromBabbageTxOut
-toWalletTxOut RecentEraConway = Convert.fromConwayTxOut
+toWalletTxOut = case recentEra @era of
+    RecentEraBabbage -> Convert.fromBabbageTxOut
+    RecentEraConway -> Convert.fromConwayTxOut
 
 -- | Maps an error from the coin selection API to a balanceTx error.
 --
