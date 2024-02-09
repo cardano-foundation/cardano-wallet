@@ -840,6 +840,22 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Internal.Cardano.Write.Tx as Write
+    ( AnyRecentEra
+    , CardanoApiEra
+    , FeePerByte
+    , IsRecentEra
+    , PParams
+    , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
+    , RecentEra
+    , Tx
+    , UTxO (UTxO)
+    , cardanoEraFromRecentEra
+    , feeOfBytes
+    , fromCardanoApiTx
+    , getFeePerByte
+    , stakeKeyDeposit
+    , toCardanoApiTx
+    )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
 
 -- $Development

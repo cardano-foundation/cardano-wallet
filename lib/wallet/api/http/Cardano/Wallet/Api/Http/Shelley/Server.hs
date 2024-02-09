@@ -9,6 +9,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -924,6 +925,19 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
+    ( Datum (DatumHash, NoDatum)
+    , IsRecentEra
+    , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
+    , RecentEra
+    , TxIn
+    , TxOutInRecentEra (TxOutInRecentEra)
+    , cardanoEraFromRecentEra
+    , fromCardanoApiTx
+    , getFeePerByte
+    , pattern PolicyId
+    , toCardanoApiTx
+    , utxoFromTxOutsInRecentEra
+    )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
 import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Network.Ntp as Ntp

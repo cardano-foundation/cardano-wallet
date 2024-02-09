@@ -265,6 +265,22 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
+    ( CardanoApiEra
+    , FeePerByte
+    , IsRecentEra (recentEra)
+    , PParams
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    , Tx
+    , TxOut
+    , computeMinimumCoinForTxOut
+    , feeOfBytes
+    , fromCardanoApiTx
+    , getFeePerByte
+    , isBelowMinimumCoinForTxOut
+    , shelleyBasedEra
+    , shelleyBasedEraFromRecentEra
+    , toCardanoApiTx
+    )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
 
