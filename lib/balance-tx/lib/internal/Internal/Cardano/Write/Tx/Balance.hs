@@ -1242,13 +1242,10 @@ updateTx tx extraContent = do
         Map.fromList $ map (pairWithHash . convert) extraInputScripts
       where
         pairWithHash s = (hashScript s, s)
-        convert = flip toLedgerScript (recentEra @era)
+        convert = toLedgerScript
 
-    toLedgerScript
-        :: CA.Script CA.KeyHash
-        -> RecentEra era
-        -> Core.Script era
-    toLedgerScript s = \case
+    toLedgerScript :: CA.Script CA.KeyHash -> Core.Script era
+    toLedgerScript s = case recentEra @era of
         RecentEraBabbage -> TimelockScript $ Convert.toLedgerTimelockScript s
         RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
 
