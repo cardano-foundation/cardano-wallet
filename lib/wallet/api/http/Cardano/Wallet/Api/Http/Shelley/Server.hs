@@ -926,7 +926,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
-    , IsRecentEra
+    , IsRecentEra (recentEra)
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     , RecentEra
     , TxIn
@@ -3542,7 +3542,7 @@ balanceTransaction
         let utxoIndex =
                 Write.constructUTxOIndex $
                 Write.fromWalletUTxO utxo
-        partialTx <- parsePartialTx era
+        partialTx :: Write.PartialTx era <- parsePartialTx
         balancedTx <- liftHandler
             . fmap
                 ( Cardano.InAnyCardanoEra
@@ -3567,10 +3567,9 @@ balanceTransaction
                 (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
   where
     parsePartialTx
-        :: Write.IsRecentEra era
-        => Write.RecentEra era
-        -> Handler (Write.PartialTx era)
-    parsePartialTx era = do
+        :: forall era. Write.IsRecentEra era
+        => Handler (Write.PartialTx era)
+    parsePartialTx = do
         let externalUTxO
                 = Write.utxoFromTxOutsInRecentEra
                 $ map fromExternalInput
@@ -3580,9 +3579,11 @@ balanceTransaction
                 (liftHandler
                     . throwE
                     . W.ErrPartialTxNotInNodeEra
-                    $ AnyRecentEra era)
+                    . AnyRecentEra
+                    $ Write.recentEra @era)
                 pure
-            . cardanoTxInExactEra (Write.cardanoEraFromRecentEra era)
+            . cardanoTxInExactEra
+                (Write.cardanoEraFromRecentEra $ Write.recentEra @era)
             . getApiT
             $ body ^. #transaction
 
