@@ -1116,12 +1116,7 @@ mkByronWitness
     Cardano.ShelleyBootstrapWitness cardanoEra $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
-    era = Write.recentEra @era
-    txHash = case era of
-        Write.RecentEraBabbage ->
-            Crypto.castHash $ Crypto.hashWith serialize' body
-        Write.RecentEraConway ->
-            Crypto.castHash $ Crypto.hashWith serialize' body
+    txHash = Crypto.castHash $ Crypto.hashWith serialize' body
 
     unencrypt (xprv, pwd) = CC.SigningKey
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
