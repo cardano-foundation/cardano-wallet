@@ -230,7 +230,6 @@ import Data.Word
     )
 import Internal.Cardano.Write.Tx
     ( CardanoApiEra
-    , RecentEra (..)
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -345,7 +344,7 @@ constructUnsignedTx
 
 mkTransaction
     :: forall era k. Write.IsRecentEra era
-    => RecentEra era
+    => Write.RecentEra era
     -- ^ Era for which the transaction should be created.
     -> Cardano.NetworkId
     -> KeyFlavorS k
@@ -993,8 +992,8 @@ mkUnsignedTx
             Cardano.SimpleScript'
             (Write.CardanoApiEra era)
     scriptWitsSupported = case era of
-        RecentEraBabbage -> Cardano.SimpleScriptInBabbage
-        RecentEraConway -> Cardano.SimpleScriptInConway
+        Write.RecentEraBabbage -> Cardano.SimpleScriptInBabbage
+        Write.RecentEraConway -> Cardano.SimpleScriptInConway
 
     toScriptWitness
         :: Script KeyHash
@@ -1036,18 +1035,18 @@ mkUnsignedTx
 
     allegraOnwards :: Cardano.AllegraEraOnwards (CardanoApiEra era)
     allegraOnwards = case era of
-        RecentEraBabbage -> Cardano.AllegraEraOnwardsBabbage
-        RecentEraConway  -> Cardano.AllegraEraOnwardsConway
+        Write.RecentEraBabbage -> Cardano.AllegraEraOnwardsBabbage
+        Write.RecentEraConway -> Cardano.AllegraEraOnwardsConway
 
     maryOnwards :: Cardano.MaryEraOnwards (CardanoApiEra era)
     maryOnwards = case era of
-        RecentEraBabbage -> Cardano.MaryEraOnwardsBabbage
-        RecentEraConway  -> Cardano.MaryEraOnwardsConway
+        Write.RecentEraBabbage -> Cardano.MaryEraOnwardsBabbage
+        Write.RecentEraConway -> Cardano.MaryEraOnwardsConway
 
     babbageOnwards :: Cardano.BabbageEraOnwards (CardanoApiEra era)
     babbageOnwards = case era of
-        RecentEraBabbage -> Cardano.BabbageEraOnwardsBabbage
-        RecentEraConway  -> Cardano.BabbageEraOnwardsConway
+        Write.RecentEraBabbage -> Cardano.BabbageEraOnwardsBabbage
+        Write.RecentEraConway -> Cardano.BabbageEraOnwardsConway
 
 -- TODO: ADP-2257
 -- cardano-node does not allow to construct tx without inputs at this moment.
@@ -1119,8 +1118,10 @@ mkByronWitness
   where
     era = Write.recentEra @era
     txHash = case era of
-        RecentEraBabbage -> Crypto.castHash $ Crypto.hashWith serialize' body
-        RecentEraConway  -> Crypto.castHash $ Crypto.hashWith serialize' body
+        Write.RecentEraBabbage ->
+            Crypto.castHash $ Crypto.hashWith serialize' body
+        Write.RecentEraConway ->
+            Crypto.castHash $ Crypto.hashWith serialize' body
 
     unencrypt (xprv, pwd) = CC.SigningKey
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
