@@ -1239,10 +1239,9 @@ updateTx tx extraContent = do
     extraInputScripts'
         :: Map (ScriptHash StandardCrypto) (Script era)
     extraInputScripts' =
-        Map.fromList $ map (pairWithHash . convert) extraInputScripts
+        Map.fromList $ map (pairWithHash . toLedgerScript) extraInputScripts
       where
         pairWithHash s = (hashScript s, s)
-        convert = toLedgerScript
 
     toLedgerScript :: CA.Script CA.KeyHash -> Core.Script era
     toLedgerScript s = case recentEra @era of
