@@ -1,4 +1,4 @@
-cabal-version:      3.0
+cabal-version:      3.6
 build-type:         Simple
 name:               customer-deposit-wallet
 version:            0.1.0.0
@@ -47,7 +47,7 @@ library
     , async
     , base
     , bytestring
-    , cardano-wallet
+    , cardano-wallet:cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-ledger-byron
@@ -78,10 +78,10 @@ test-suite unit
   main-is:            test-suite-unit.hs
   build-depends:
     , base
-    , cardano-wallet
+    , cardano-wallet:cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , customer-deposit-wallet
+    , customer-deposit-wallet:customer-deposit-wallet
     , hspec >=2.8.2
     , QuickCheck
     , with-utf8
@@ -94,7 +94,7 @@ library customer-deposit-wallet-http
   import:          language, opts-lib
   hs-source-dirs:  api/http
   build-depends:
-    , customer-deposit-wallet
+    , customer-deposit-wallet:customer-deposit-wallet
   exposed-modules:
     Cardano.Wallet.Deposit.HTTP
 
