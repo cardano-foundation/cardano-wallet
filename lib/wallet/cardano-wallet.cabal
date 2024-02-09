@@ -793,6 +793,7 @@ common integration-common
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , containers
     , contra-tracer
     , directory
     , either
@@ -800,14 +801,17 @@ common integration-common
     , filepath
     , hspec-core
     , http-client
+    , HUnit
     , iohk-monitoring
     , iohk-monitoring-extra
     , lobemo-backend-ekg
     , local-cluster
     , mock-token-metadata
     , network-uri
+    , pretty-simple
     , servant-client
     , temporary-extra
+    , time
     , text
     , text-class
     , unliftio

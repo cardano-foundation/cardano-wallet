@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.Wallet.Test.Integration.Setup where
 
@@ -125,11 +126,17 @@ import Data.IORef
     , atomicModifyIORef'
     , newIORef
     )
+import Data.Map
+    ( Map
+    )
 import Data.Text
     ( Text
     )
 import Data.Text.Class
     ( ToText (..)
+    )
+import Data.Time
+    ( NominalDiffTime
     )
 import Main.Utf8
     ( withUtf8
@@ -167,9 +174,15 @@ import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
     )
+import Test.HUnit.Lang
+    ( HUnitFailure (..)
+    )
 import Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
+    )
+import Text.Pretty.Simple
+    ( pShowNoColor
     )
 import UnliftIO.Async
     ( race
@@ -180,9 +193,11 @@ import UnliftIO.Exception
     )
 import UnliftIO.MVar
     ( MVar
+    , modifyMVar_
     , newEmptyMVar
     , newMVar
     , putMVar
+    , readMVar
     , takeMVar
     , withMVar
     )
@@ -194,7 +209,9 @@ import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Data.Map as M
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.IO as TL
 
 -- | Do all the program setup required for integration tests, create a temporary
 -- directory, and pass this info to the main hspec action.
@@ -269,6 +286,7 @@ data TestingCtx = TestingCtx
     , tracers :: Tracers IO
     , localClusterEra :: ClusterEra
     , testDataDir :: FileOf "test-data"
+    , metrics :: MMetrics
     }
 
 -- A decorator for the pool database that records all calls to the
@@ -429,7 +447,6 @@ setupContext
                     , cfgShelleyGenesisMods = []
                     , cfgTracer = tr'
                     }
-
         putMVar
             ctx
             Context
@@ -452,8 +469,8 @@ setupContext
                     withConfig $ moveInstantaneousRewardsTo
                         nodeConnection
                         [(ScriptCredential script, coin)]
-                , _addSuccess = \_ _ -> pure ()
-                , _addFailure = \_ _ _ -> pure ()
+                , _addSuccess = addSuccess metrics
+                , _addFailure = addFailure metrics
                 , _addTimeOut = \_ _ -> pure ()
                 }
 
@@ -476,3 +493,76 @@ withContext testingCtx@TestingCtx{..} action = do
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer $ contramap (MsgBracket name) tr
+
+data Result
+    = Result
+        { resultSuccess :: Maybe NominalDiffTime
+        , resultFailures :: [(NominalDiffTime, HUnitFailure)]
+        , resultTimeouts :: [NominalDiffTime]
+        }
+    deriving (Show)
+
+addSuccessToResult :: NominalDiffTime -> Result -> Result
+addSuccessToResult time (Result _ fs ts) = Result (Just time) fs ts
+
+addFailureToResult :: NominalDiffTime -> HUnitFailure -> Result -> Result
+addFailureToResult time failure (Result s fs ts)
+    = Result s (fs <> [(time, failure)]) ts
+
+addTimeoutToResult :: NominalDiffTime -> Result -> Result
+addTimeoutToResult time (Result s fs ts) = Result s fs (ts <> [time])
+
+type Metrics = Map String Result
+
+type MMetrics = MVar Metrics
+
+alterMMetrics :: MMetrics -> String -> (Result -> Result) -> Result -> IO ()
+alterMMetrics metrics name f g = modifyMVar_ metrics $
+    fmap pure  . flip M.alter name $ Just . \case
+            Just r -> f r
+            Nothing -> g
+
+addSuccess :: MMetrics -> String -> NominalDiffTime -> IO ()
+addSuccess metrics name time = alterMMetrics metrics name
+    (addSuccessToResult time)
+    (Result (Just time) [] [])
+
+addFailure :: MMetrics -> String -> NominalDiffTime -> HUnitFailure -> IO ()
+addFailure metrics name time failure = alterMMetrics metrics name
+    (addFailureToResult time failure)
+    (Result Nothing [(time, failure)] [])
+
+addTimeout :: MMetrics -> String -> NominalDiffTime -> IO ()
+addTimeout metrics name time = alterMMetrics metrics name
+    (addTimeoutToResult time)
+    (Result Nothing [] [time])
+
+report :: Result -> Maybe String
+report (Result (Just _) [] []) = Nothing
+report (Result Nothing [] []) = Just "Didn't run?"
+report (Result (Just _) fs []) = Just $
+    "Failures: " <> show (length fs) <> " " <> show (fst <$> fs) <> "but success"
+report (Result Nothing fs []) = Just $
+    "Failures: " <> show (length fs) <> " " <> show (fst <$> fs) <> "and failed"
+report (Result (Just _) [] ts) = Just $
+    "Timeouts: " <> show (length ts) <> " " <> show ts <> "but success"
+report (Result Nothing [] ts) = Just $
+    "Timeouts: " <> show (length ts) <> " " <> show ts <> "and failed"
+report (Result (Just _) fs ts) = Just $
+    "Failures: " <> show (length fs) <> " " <> show (fst <$> fs) <>
+    "Timeouts: " <> show (length ts) <> " " <> show ts <> "but success"
+report (Result Nothing fs ts) = Just $
+    "Failures: " <> show (length fs) <> " " <> show (fst <$> fs) <>
+    "Timeouts: " <> show (length ts) <> " " <> show ts <> "and failed"
+
+reportMMetrics :: MMetrics -> IO ()
+reportMMetrics metrics = do
+    m <- readMVar metrics
+    let total = M.size m
+    putStrLn $ "Total: " <> show total
+    let reports = do
+            (name, result) <- M.assocs m
+            case report result of
+                Nothing -> []
+                Just r -> pure (name, r)
+    TL.putStrLn $ "Report:\n" <> pShowNoColor reports
