@@ -33,7 +33,6 @@ import Data.Word
 import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
     , ProtVer (..)
-    , RecentEra (..)
     , StandardBabbage
     , StandardConway
     , Version
@@ -274,16 +273,12 @@ data PParamsInRecentEra
 
 instance Arbitrary PParamsInRecentEra where
     arbitrary = oneof
-        [ PParamsInBabbage <$> genPParams RecentEraBabbage
-        , PParamsInConway <$> genPParams RecentEraConway
+        [ PParamsInBabbage <$> genPParams
+        , PParamsInConway <$> genPParams
         ]
-
       where
-        genPParams
-            :: IsRecentEra era
-            => RecentEra era
-            -> Gen (PParams era)
-        genPParams _era = do
+        genPParams :: IsRecentEra era => Gen (PParams era)
+        genPParams = do
             ver <- arbitrary
             maxSize <- genMaxSizeBytes
             return $ def
