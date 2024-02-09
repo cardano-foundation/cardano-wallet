@@ -846,7 +846,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , IsRecentEra
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra
     , Tx
     , UTxO (UTxO)
     , cardanoEraFromRecentEra
@@ -2512,15 +2511,14 @@ constructUnbalancedSharedTransaction
         ( HasSNetworkId n
         , Write.IsRecentEra era
         )
-    => Write.RecentEra era
-    -> DBLayer IO (SharedState n SharedKey)
+    => DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
