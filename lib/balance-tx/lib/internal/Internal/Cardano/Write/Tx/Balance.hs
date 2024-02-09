@@ -995,9 +995,9 @@ selectAssets pp utxoAssumptions outs' redeemers
         , computeMinimumAdaQuantity = \addr tokens -> Convert.toWallet $
             computeMinimumCoinForTxOut
                 pp
-                (mkLedgerTxOut era addr (W.TokenBundle W.txOutMaxCoin tokens))
+                (mkLedgerTxOut addr (W.TokenBundle W.txOutMaxCoin tokens))
         , isBelowMinimumAdaQuantity = \addr bundle ->
-            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut era addr bundle)
+            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut addr bundle)
         , computeMinimumCost = \skeleton -> mconcat
             [ feePadding
             , fee0
@@ -1044,12 +1044,11 @@ selectAssets pp utxoAssumptions outs' redeemers
 
     mkLedgerTxOut
         :: HasCallStack
-        => RecentEra era
-        -> W.Address
+        => W.Address
         -> W.TokenBundle
         -> TxOut era
-    mkLedgerTxOut txOutEra address bundle =
-        case txOutEra of
+    mkLedgerTxOut address bundle =
+        case era of
             RecentEraBabbage -> Convert.toBabbageTxOut txOut
             RecentEraConway -> Convert.toConwayTxOut txOut
           where
