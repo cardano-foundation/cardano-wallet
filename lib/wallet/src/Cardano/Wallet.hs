@@ -857,6 +857,11 @@ import qualified Internal.Cardano.Write.Tx as Write
     , toCardanoApiTx
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
+    ( PartialTx
+    , UTxOIndex
+    , constructUTxOIndex
+    , fromWalletUTxO
+    )
 
 -- $Development
 -- __Naming Conventions__

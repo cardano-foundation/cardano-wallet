@@ -939,6 +939,11 @@ import qualified Internal.Cardano.Write.Tx as Write
     , utxoFromTxOutsInRecentEra
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
+    ( PartialTx (PartialTx)
+    , balanceTransaction
+    , constructUTxOIndex
+    , fromWalletUTxO
+    )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
 import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
