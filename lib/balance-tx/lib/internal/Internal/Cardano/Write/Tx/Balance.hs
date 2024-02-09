@@ -487,7 +487,7 @@ fromWalletUTxO
     -> UTxO era
 fromWalletUTxO (W.UTxO m) = UTxO
     $ Map.mapKeys Convert.toLedger
-    $ Map.map (toLedgerTxOut (recentEra @era)) m
+    $ Map.map toLedgerTxOut m
 
 toWalletUTxO
     :: forall era. IsRecentEra era
@@ -1262,9 +1262,8 @@ modifyShelleyTxBody txUpdate =
     . over collateralInputsTxBodyL
         (<> extraCollateral')
   where
-    era = recentEra @era
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
-    extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
+    extraOutputs' = StrictSeq.fromList $ map toLedgerTxOut extraOutputs
     extraInputs' = Set.fromList (Convert.toLedger . fst <$> extraInputs)
     extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
 
@@ -1490,12 +1489,11 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
     shortfall = costOfBurningSurplus <\> surplus
 
 toLedgerTxOut
-    :: HasCallStack
-    => RecentEra era
-    -> W.TxOut
+    :: forall era. (HasCallStack, IsRecentEra era)
+    => W.TxOut
     -> TxOut era
-toLedgerTxOut txOutEra txOut =
-    case txOutEra of
+toLedgerTxOut txOut =
+    case recentEra @era of
         RecentEraBabbage -> Convert.toBabbageTxOut txOut
         RecentEraConway -> Convert.toConwayTxOut txOut
 
