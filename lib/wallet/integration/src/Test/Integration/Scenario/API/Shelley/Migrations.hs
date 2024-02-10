@@ -85,6 +85,7 @@ import Numeric.Natural
 import Test.Hspec
     ( SpecWith
     , describe
+    , sequential
     )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe
@@ -768,7 +769,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             testAddressCycling 3
             testAddressCycling 10
 
-    rit
+    sequential $ rit
         "SHELLEY_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do

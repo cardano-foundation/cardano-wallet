@@ -135,6 +135,7 @@ import Test.Hspec
     ( SpecWith
     , describe
     , pendingWith
+    , sequential
     )
 import Test.Hspec.Expectations.Lifted
     ( expectationFailure
@@ -1078,7 +1079,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                         ]
 
-        rit
+        sequential $ rit
             "STAKE_POOLS_JOIN_01x - \
             \I cannot join if I have not enough fee to cover"
             $ \ctx -> runResourceT $ do
@@ -1363,7 +1364,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             `shouldSatisfy` (not . Set.null)
                     ]
 
-        rit "contains and is sorted by non-myopic-rewards" $ \ctx -> runResourceT $ do
+        sequential $ rit "contains and is sorted by non-myopic-rewards" $ \ctx -> runResourceT $ do
             eventually "eventually shows non-zero rewards" $ do
                 Right pools'@[pool1, _pool2, pool3] <-
                     snd <$> listPools ctx arbitraryStake
