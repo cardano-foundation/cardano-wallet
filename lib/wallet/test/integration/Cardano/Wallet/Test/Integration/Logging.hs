@@ -121,8 +121,8 @@ instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
         MsgBracket _ _ -> Debug
-        MsgSettingUpFaucet -> Notice
-        MsgBaseUrl{} -> Notice
+        MsgSettingUpFaucet -> Debug
+        MsgBaseUrl{} -> Debug
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
         MsgServerError e
