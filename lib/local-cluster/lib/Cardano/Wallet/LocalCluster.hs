@@ -222,7 +222,7 @@ main = withUtf8 $ do
                     , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
                     , cfgTracer = stdoutTextTracer
                     }
-        withFaucet $ \faucetClientEnv -> do
+        withFaucet stdoutTextTracer $ \faucetClientEnv -> do
             maryAllegraFunds <-
                 liftIO
                     $ runFaucetM faucetClientEnv

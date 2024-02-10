@@ -481,7 +481,7 @@ setupContext
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()
 withContext testingCtx@TestingCtx{..} action = do
     bracketTracer' tr "withContext"
-        $ withFaucet
+        $ withFaucet (MsgDebug >$< tr)
         $ \faucetClientEnv -> do
             ctx <- newEmptyMVar
             clusterConfigs <- Cluster.localClusterConfigsFromEnv

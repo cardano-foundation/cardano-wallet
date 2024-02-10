@@ -555,7 +555,7 @@ walletApiBench capture ctx = do
         fmtResult "getNetworkInfo     " t
 
 withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
-withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
+withShelleyServer tracers action = withFaucet stdoutTextTracer $ \faucetClientEnv -> do
     faucetFunds <- Faucet.runFaucetM faucetClientEnv mkFaucetFunds
     ctx <- newEmptyMVar
     let testnetMagic = Cluster.TestnetMagic 42
