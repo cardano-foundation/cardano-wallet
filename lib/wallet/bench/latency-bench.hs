@@ -581,6 +581,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                 , _addSuccess = \_ _ -> pure ()
                 , _addFailure = \_ _ _ -> pure ()
                 , _addTimeOut = \_ _ -> pure ()
+                , _testNotice = \_ -> pure ()
                 }
     race_
         (takeMVar ctx >>= action)

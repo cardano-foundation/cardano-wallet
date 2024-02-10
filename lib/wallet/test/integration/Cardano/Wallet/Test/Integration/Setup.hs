@@ -121,6 +121,9 @@ import Control.Tracer
 import Data.Either.Combinators
     ( whenLeft
     )
+import Data.Functor.Contravariant
+    ( (>$<)
+    )
 import Data.IORef
     ( IORef
     , atomicModifyIORef'
@@ -472,24 +475,27 @@ setupContext
                 , _addSuccess = addSuccess metrics
                 , _addFailure = addFailure metrics
                 , _addTimeOut = \_ _ -> pure ()
+                , _testNotice = traceWith (MsgNotice >$< tr)
                 }
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()
 withContext testingCtx@TestingCtx{..} action = do
-    bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
-        ctx <- newEmptyMVar
-        clusterConfigs <- Cluster.localClusterConfigsFromEnv
-        poolGarbageCollectionEvents <- newIORef []
-        faucetFunds <- runFaucetM faucetClientEnv $ mkFaucetFunds testnetMagic
+    bracketTracer' tr "withContext"
+        $ withFaucet
+        $ \faucetClientEnv -> do
+            ctx <- newEmptyMVar
+            clusterConfigs <- Cluster.localClusterConfigsFromEnv
+            poolGarbageCollectionEvents <- newIORef []
+            faucetFunds <- runFaucetM faucetClientEnv $ mkFaucetFunds testnetMagic
 
-        let dbEventRecorder =
-                recordPoolGarbageCollectionEvents testingCtx poolGarbageCollectionEvents
-            cluster = setupContext testingCtx ctx faucetClientEnv poolGarbageCollectionEvents
-        res <-
-            race
-                (withServer testingCtx clusterConfigs faucetFunds dbEventRecorder cluster)
-                (takeMVar ctx >>= bracketTracer' tr "spec" . action)
-        whenLeft res (throwIO . ProcessHasExited "integration")
+            let dbEventRecorder =
+                    recordPoolGarbageCollectionEvents testingCtx poolGarbageCollectionEvents
+                cluster = setupContext testingCtx ctx faucetClientEnv poolGarbageCollectionEvents
+            res <-
+                race
+                    (withServer testingCtx clusterConfigs faucetFunds dbEventRecorder cluster)
+                    (takeMVar ctx >>= bracketTracer' tr "spec" . action)
+            whenLeft res (throwIO . ProcessHasExited "integration")
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer $ contramap (MsgBracket name) tr

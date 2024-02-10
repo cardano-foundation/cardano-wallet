@@ -5,6 +5,8 @@ module Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
     , TxDescription (..)
+    , rawNotice
+    , notice
     ) where
 
 import Prelude
@@ -35,6 +37,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Transaction
     ( DelegationAction
     )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -62,6 +67,11 @@ import Test.Hspec.Extra
 import Test.HUnit.Lang
     ( HUnitFailure
     )
+import Text.Pretty.Simple
+    ( pShowNoColor
+    )
+
+import qualified Data.Text.Lazy as TL
 
 -- | Context for integration tests.
 --
@@ -108,8 +118,32 @@ data Context = Context
         -- ^ Add a failed test to the metrics.
     , _addTimeOut :: String -> NominalDiffTime -> IO ()
         -- ^ Add a timed out test to the metrics.
+    , _testNotice :: String -> IO ()
+        -- ^ A function to trace test debugging information.
     }
     deriving Generic
+
+rawNotice
+    :: (MonadIO m, Show a)
+    => Context -- ^ context
+    -> String -- ^ A prefix for the message
+    -> a -- ^ The message
+    -> m ()
+rawNotice ctx pre x =
+    liftIO
+        $ _testNotice ctx
+        $ pre <> ": " <> TL.unpack (pShowNoColor x)
+
+notice
+    :: (MonadIO m, Show a)
+    => Context -- ^ context
+    -> t  -- ^ Usually the wallet
+    -> String -- ^ A prefix for the message
+    -> (Context -> t -> m a) -- ^ A function to get the message
+    -> m ()
+notice ctx w pre f = do
+    x <- f ctx w
+    rawNotice ctx pre x
 
 instance HasMetrics Context where
     putFailure ctx label failure time = _addFailure ctx label time failure

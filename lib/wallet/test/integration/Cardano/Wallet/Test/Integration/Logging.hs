@@ -85,6 +85,8 @@ data TestsLog
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
     | MsgServerError SomeException
+    | MsgDebug Text
+    | MsgNotice String
     deriving (Show)
 
 instance ToText TestsLog where
@@ -116,6 +118,8 @@ instance ToText TestsLog where
             | isAsyncException (SomeException e)
                 -> "Server thread cancelled: " <> T.pack (show e)
             | otherwise -> T.pack (show e)
+        MsgDebug msg -> "Debug: " <> msg
+        MsgNotice msg -> "Notice: " <> T.pack msg
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
@@ -128,6 +132,8 @@ instance HasSeverityAnnotation TestsLog where
         MsgServerError e
             | isAsyncException e -> Critical
             | otherwise -> Critical
+        MsgDebug _ -> Debug
+        MsgNotice _ -> Notice
 
 withTracers
     :: FilePath
