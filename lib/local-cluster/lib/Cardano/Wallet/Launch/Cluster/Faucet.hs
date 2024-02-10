@@ -77,6 +77,9 @@ import Control.Monad.Reader
     , MonadReader (..)
     , asks
     )
+import Control.Tracer
+    ( Tracer (runTracer)
+    )
 import Crypto.Hash.Extra
     ( blake2b256
     )
@@ -103,6 +106,9 @@ import Data.Maybe
 import Data.Tagged
     ( Tagged (Tagged)
     , untag
+    )
+import Data.Text
+    ( Text
     )
 import Data.Text.Class
     ( ToText (..)
@@ -360,10 +366,10 @@ writePolicySigningKey keyHash cborHex = do
             ]
     pure $ FileOf keyFile
 
-withFaucet :: (ClientEnv -> IO a) -> IO a
-withFaucet useBaseUrl = Warp.withApplication Faucet.initApp $ \port -> do
+withFaucet :: Tracer IO Text -> (ClientEnv -> IO a) -> IO a
+withFaucet tr useBaseUrl = Warp.withApplication Faucet.initApp $ \port -> do
     let baseUrl = BaseUrl Http "localhost" port ""
-    putStrLn $ "Faucet started at " <> showBaseUrl baseUrl
+    runTracer tr $ "Faucet started at " <> T.pack (showBaseUrl baseUrl)
     let tenSeconds = 10 * 1_000_000 -- 10s in microseconds
     manager <-
         Http.newManager

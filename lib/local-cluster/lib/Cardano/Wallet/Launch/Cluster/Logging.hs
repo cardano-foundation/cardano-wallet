@@ -179,8 +179,8 @@ instance ToText ClusterLog where
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
-        MsgStartingCluster _ -> Notice
-        MsgRegisteringStakePools _ -> Notice
+        MsgStartingCluster _ -> Info
+        MsgRegisteringStakePools _ -> Info
         MsgLauncher _ _ -> Info
         MsgStartedStaticServer _ _ -> Info
         MsgTempDir msg -> getSeverityAnnotation msg

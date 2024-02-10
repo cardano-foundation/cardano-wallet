@@ -44,7 +44,7 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -82,7 +82,7 @@ spec
     => SpecWith Context
 spec = describe "BYRON_COIN_SELECTION" $ do
 
-    it "BYRON_COIN_SELECTION_00 - \
+    rit "BYRON_COIN_SELECTION_00 - \
         \No coin selection on Byron random" $ \ctx -> runResourceT $ do
         rnW <- emptyRandomWallet ctx
         shW <- emptyWallet ctx
@@ -94,7 +94,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             , expectErrorMessage errMsg403NotAnIcarusWallet
             ]
 
-    it "BYRON_COIN_SELECTION_01 - \
+    rit "BYRON_COIN_SELECTION_01 - \
         \A singleton payment is included in the coin selection output." $
         \ctx -> runResourceT $ do
             source <- fixtureIcarusWallet ctx
@@ -119,7 +119,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
                     (`shouldBe` [output])
                 ]
 
-    it "BYRON_COIN_SELECTION_02 - \
+    rit "BYRON_COIN_SELECTION_02 - \
         \Multiple payments are all included in the coin selection output." $
         \ctx -> runResourceT $ do
             let paymentCount = 10
@@ -142,7 +142,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
                     (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
                 ]
 
-    it "BYRON_COIN_SELECTION_03 - \
+    rit "BYRON_COIN_SELECTION_03 - \
         \Deleted wallet is not available for selection" $ \ctx -> runResourceT $ do
         icW <- emptyIcarusWallet ctx
         shW <- emptyWallet ctx

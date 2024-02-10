@@ -265,7 +265,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     , xit
     )
 import Test.Integration.Framework.DSL
@@ -360,7 +360,7 @@ import qualified Test.Integration.Plutus as PlutusScenario
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
-    it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let emptyPayload = Json [json|{}|]
 
@@ -371,7 +371,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "TRANS_NEW_CREATE_01b - Validity interval only is not allowed" $
+    rit "TRANS_NEW_CREATE_01b - Validity interval only is not allowed" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -395,7 +395,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidConstructTx
             ]
 
-    it "TRANS_NEW_CREATE_01c - No payload is bad request" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_01c - No payload is bad request" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
 
         rTx <- request @(ApiConstructTransaction n) ctx
@@ -404,7 +404,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status400
             ]
 
-    it "TRANS_NEW_CREATE_02a - Only metadata" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_02a - Only metadata" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let metadata = Json [json|{ "metadata": { "1": { "string": "hello" } } }|]
 
@@ -467,7 +467,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
-    it "TRANS_NEW_CREATE_02b - Only metadata, untyped" $
+    rit "TRANS_NEW_CREATE_02b - Only metadata, untyped" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -530,7 +530,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
 
-    it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let initialBalance = wa ^. #balance . #available . #toNatural
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
@@ -577,7 +577,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` 0)
                 ]
 
-    it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
         (wa, _) <- rewardWallet ctx
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
@@ -648,8 +648,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #withdrawals (`shouldSatisfy` (withdrawalWith External))
             ]
 
-    it "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
+
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -862,7 +863,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #outputs (`shouldNotContain` [expectedTxOutSource])
             ]
 
-    it "TRANS_NEW_CREATE_04ab - Constructed inputs = Decoded inputs" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04ab - Constructed inputs = Decoded inputs" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         let amt = (minUTxOValue (_mainEra ctx) :: Natural)
@@ -882,7 +883,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         WalletInput <$> expectedInputs `shouldBe` decodedInputs
 
-    it "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04b - Cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         let amt = minUTxOValue (_mainEra ctx) - 1
@@ -896,7 +897,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MinUTxOValue
             ]
 
-    it "TRANS_NEW_CREATE_04c - Can't cover fee" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04c - Can't cover fee" $ \ctx -> runResourceT $ do
         wa <- fixtureWalletWith @n ctx [minUTxOValue (_mainEra ctx) + 1]
         wb <- emptyWallet ctx
 
@@ -909,7 +910,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403Fee
             ]
 
-    it "TRANS_NEW_CREATE_04d - Not enough money" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04d - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
         wa <- fixtureWalletWith @n ctx [srcAmt]
@@ -924,7 +925,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             NotEnoughMoney {} -> True
             _someOtherError -> False
 
-    it "TRANS_NEW_CREATE_04d - No UTxOs available" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04d - No UTxOs available" $ \ctx -> runResourceT $ do
         wa <- emptyWallet ctx
         wb <- emptyWallet ctx
 
@@ -937,7 +938,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorInfo (`shouldBe` NoUtxosAvailable)
             ]
 
-    it "TRANS_NEW_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04e- Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb
@@ -1006,7 +1007,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (initialAmt - 2*amt - expectedFee))
                 ]
 
-    it "TRANS_NEW_CREATE_04a - Single Output Transaction with submitWithWid" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_CREATE_04a - Single Output Transaction with submitWithWid" $ \ctx -> runResourceT $ do
 
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
@@ -1072,7 +1073,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` amt)
                 ]
 
-    it "TRANS_NEW_ASSETS_CREATE_01a - Multi-asset tx with Ada" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_ASSETS_CREATE_01a - Multi-asset tx with Ada" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
         initialAmt <- getFromResponse (#balance . #available . #toNatural) <$>
@@ -1136,7 +1137,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (initialAmt - amt - expectedFee))
                 ]
 
-    it "TRANS_NEW_ASSETS_CREATE_01b - Multi-asset tx with not enough Ada" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_ASSETS_CREATE_01b - Multi-asset tx with not enough Ada" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
@@ -1161,7 +1162,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MinUTxOValue
             ]
 
-    it "TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
         initialAmt <- getFromResponse (#balance . #available . #toNatural) <$>
@@ -1237,7 +1238,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` (initialAmt - outTxAmt))
                 ]
 
-    it "TRANS_NEW_ASSETS_CREATE_01d - Multi-asset tx with not enough assets" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_ASSETS_CREATE_01d - Multi-asset tx with not enough assets" $ \ctx -> runResourceT $ do
         wa <- fixtureMultiAssetWallet ctx
         wb <- emptyWallet ctx
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
@@ -1264,7 +1265,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             NotEnoughMoney {} -> True
             _someOtherError -> False
 
-    it "TRANS_NEW_ASSETS_CREATE_02 - using reference script" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_ASSETS_CREATE_02 - using reference script" $ \ctx -> runResourceT $ do
 
         let initialAmt = 1_000_000_000
         wa <- fixtureWalletWith @n ctx [initialAmt]
@@ -1438,7 +1439,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` mempty)
                 ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_01a - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_01a - \
         \Validity interval with second" $
         \ctx -> runResourceT $ do
 
@@ -1478,7 +1479,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_01b - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_01b - \
         \Validity interval with slot" $
         \ctx -> runResourceT $ do
 
@@ -1731,7 +1732,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         Command failed: transaction build  Error: The UTxO is empty
 
     -}
-    it "TRANS_NEW_DECODE_02a / ADP-2666 - \
+    rit "TRANS_NEW_DECODE_02a / ADP-2666 - \
         \transaction with minting asset with reference script (Plutus script)" $
         \ctx -> runResourceT $ do
 
@@ -1927,7 +1928,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField (#witnessCount) (`shouldBe` witnessCount)
             ]
 
-    it "TRANS_NEW_DECODE_02a / ADP-2666 - \
+    rit "TRANS_NEW_DECODE_02a / ADP-2666 - \
         \transaction with minting asset with reference script (Simple script)" $
         \ctx -> runResourceT $ do
 
@@ -2371,7 +2372,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_BALANCE_02a - Cannot balance on empty wallet" $
+    rit "TRANS_NEW_BALANCE_02a - Cannot balance on empty wallet" $
         \ctx -> runResourceT $ do
         noConway ctx "wrong era"
         wa <- emptyWallet ctx
@@ -2383,7 +2384,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorInfo (`shouldBe` NoUtxosAvailable)
             ]
 
-    it "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
+    rit "TRANS_NEW_BALANCE_02b - Cannot balance when I cannot afford fee" $
         \ctx -> runResourceT $ do
         noConway ctx "wrong era"
         wa <- fixtureWalletWith @n ctx [2 * 1_000_000]
@@ -2500,7 +2501,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_BALANCE_04a - \
+    rit "TRANS_NEW_BALANCE_04a - \
         \I get proper error message when payload is not hex or base64 encoded" $
         \ctx -> runResourceT $ do
         liftIO $ pendingWith
@@ -2520,7 +2521,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- returns: Parse error. Expecting Base64-encoded format.
             ]
 
-    it "TRANS_NEW_BALANCE_04b - \
+    rit "TRANS_NEW_BALANCE_04b - \
         \I get proper error message when payload cannot be decoded" $
         \ctx -> runResourceT $ do
         liftIO $ pendingWith
@@ -2540,7 +2541,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- returns: Parse error. Expecting Base64-encoded format.
             ]
 
-    it "TRANS_NEW_BALANCE_04c - \
+    rit "TRANS_NEW_BALANCE_04c - \
         \I get proper error message when payload cannot be decoded" $
         \ctx -> runResourceT $ do
         liftIO $ pendingWith
@@ -2560,7 +2561,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- returns: Parse error. Expecting Base64-encoded format.
             ]
 
-    it "TRANS_NEW_BALANCE_04d - \
+    rit "TRANS_NEW_BALANCE_04d - \
         \I get proper error message when payload cannot be decoded" $
         \ctx -> runResourceT $ do
         liftIO $ pendingWith
@@ -2580,7 +2581,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             -- returns: Deserialisation failure while decoding Shelley Tx. CBOR failed with error: DeserialiseFailure 0 'expected list len or indef'
             ]
 
-    it "TRANS_NEW_BALANCE_05/ADP-1286 - \
+    rit "TRANS_NEW_BALANCE_05/ADP-1286 - \
         \I can balance correctly in case I need to spend my remaining ADA for fee" $
         \ctx -> runResourceT $ do
         noConway ctx "wrong era"
@@ -2615,7 +2616,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` 0)
                 ]
 
-    it "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_SIGN_01 - Sign single-output transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
 
         -- Construct tx
@@ -2640,7 +2641,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_SIGN_02 - Rejects unsigned transaction" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
 
         -- Construct tx
@@ -2656,7 +2657,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg403MissingWitsInTransaction 1 0)
             ]
 
-    it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
         noConway ctx "wrong era"
@@ -2683,7 +2684,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_SIGN_04 - Sign extra required signatures" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith "ADP-3077"
         (w, mw) <- fixtureShelleyWallet ctx
 
@@ -2736,7 +2737,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   [ ( "empty", emptyWallet )
                   , ( "fixture", fixtureWallet )
                   ]
-        forM_ scenarios $ \(title, foreignWallet) -> it title $ \ctx -> runResourceT $ do
+        forM_ scenarios $ \(title, foreignWallet) -> rit title $ \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
             wb <- foreignWallet ctx
 
@@ -2767,7 +2768,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   [ ( "Byron random", emptyRandomWallet )
                   , ( "Byron icarus", emptyIcarusWallet )
                   ]
-        forM_ scenarios $ \(title, foreignByronWallet) -> it title $ \ctx -> runResourceT $ do
+        forM_ scenarios $ \(title, foreignByronWallet) -> rit title $ \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
             wb <- foreignByronWallet ctx
             let wid = wb ^. walletId
@@ -2797,7 +2798,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 , expectErrorMessage (errMsg404NoWallet wid)
                 ]
 
-    it "TRANS_NEW_SUBMIT_03 - Can submit transaction encoded in base16" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_SUBMIT_03 - Can submit transaction encoded in base16" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
 
         -- Construct tx
@@ -2900,7 +2901,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
         forM_ scenarios $ \(title, setupContract, decodeExp) ->
-          it title $ \ctx -> runResourceT $ do
+          rit title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let balanceEndpoint = Link.balanceTransaction @'Shelley w
             let signEndpoint = Link.signTransaction @'Shelley w
@@ -2961,8 +2962,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             foldM_ runStep txid steps
 
-    it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
         noConway ctx "certificate"
+
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
@@ -3231,7 +3233,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #depositReturned (`shouldBe` depositAmt)
             ]
 
-    it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let invalidPoolId = T.replicate 32 "1"
         let delegation = Json [json|{
@@ -3249,7 +3251,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage "Invalid stake pool id"
             ]
 
-    it "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_JOIN_01b - Absent pool id" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let absentPoolIdBech32 = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k"
         (Right absentPoolId) <- pure $ decodePoolIdBech32 absentPoolIdBech32
@@ -3268,7 +3270,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg404NoSuchPool (toText absentPoolId))
             ]
 
-    it "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
         let delegations = Json [json|{
@@ -3290,7 +3292,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MultidelegationTransaction
             ]
 
-    it "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let pool' = "pool1mgjlw24rg8sp4vrzctqxtf2nn29rjhtkq2kdzvf4tcjd5pl547k" :: Text
         let delegations = Json [json|{
@@ -3308,7 +3310,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MultiaccountTransaction
             ]
 
-    it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
         (src, _) <- rewardWallet ctx
         pool1:_ <- map (view #id . getApiT) . snd <$> unsafeRequest
@@ -3371,7 +3373,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
                 ]
 
-    it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
+    rit "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
         noConway ctx "certificate"
         let amt = minUTxOValue (_mainEra ctx)
@@ -3479,7 +3481,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 -- , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 ]
 
-    it "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_QUIT_01 - Cannot quit if not joined" $ \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
         let delegation = Json [json|{
@@ -3496,7 +3498,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NotDelegating
             ]
 
-    it "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
+    rit "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
         $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
@@ -3538,7 +3540,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403NonNullReward
             ]
 
-    it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
+    rit "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
         $ \ctx -> runResourceT $ do
         noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
@@ -3593,7 +3595,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_CREATE_MULTI_TX - Tx including \
+    rit "TRANS_NEW_CREATE_MULTI_TX - Tx including \
         \payments, delegation, metadata, withdrawals, validity_interval" $
         \ctx -> runResourceT $ do
         noConway ctx "certificate"
@@ -3720,7 +3722,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` balance)
                 ]
 
-    it "TRANS_NEW_CREATE_10c - Minting/burning assets - \
+    rit "TRANS_NEW_CREATE_10c - Minting/burning assets - \
         \one cosigner in template other than cosigner#0" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -3752,7 +3754,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
             ]
 
-    it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
+    rit "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -3779,7 +3781,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403AssetNameTooLong
             ]
 
-    it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
+    rit "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3805,7 +3807,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
 
-    it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
+    rit "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3830,7 +3832,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
 
-    it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
+    rit "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         addrs <- listAddresses @n ctx wa
@@ -3861,7 +3863,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         mintAssetsCheck ctx wa assetName' payload scriptUsed
 
-    it "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
+    rit "TRANS_NEW_CREATE_10e - Minting assets with timelocks \
        \successful as validity interval is inside time interval \
        \of a script" $
         \ctx -> runResourceT $ do
@@ -3915,7 +3917,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         mintAssetsCheck ctx wa assetName' payload scriptUsed
 
-    it "TRANS_NEW_CREATE_10e - \
+    rit "TRANS_NEW_CREATE_10e - \
         \Minting assets with timelocks not successful as validity interval \
         \is not inside time interval of a script" $
         \ctx -> runResourceT $ do
@@ -3972,7 +3974,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 errMsg403ValidityIntervalNotInsideScriptTimelock
             ]
 
-    it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
+    rit "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -4021,7 +4023,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         burnAssetsCheck ctx wa assetName' payloadBurn scriptUsed
 
-    it "TRANS_NEW_CREATE_10g - Burning assets without timelock and asset name" $
+    rit "TRANS_NEW_CREATE_10g - Burning assets without timelock and asset name" $
         \ctx -> runResourceT $ do
 
         wa <- fixtureWallet ctx
@@ -4069,7 +4071,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         burnAssetsCheck ctx wa assetName' payloadBurn scriptUsed
 
-    it "TRANS_NEW_CREATE_10h - \
+    rit "TRANS_NEW_CREATE_10h - \
         \Minting assets without timelock to foreign address" $
         \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -4159,7 +4161,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   , ( "any, many cosigners", [json|{ "any": [ "cosigner#0", "cosigner#1" ] }|] )
                   , ( "all, cosigner#1", [json|{ "all": [ "cosigner#1" ] }|] )
                   ]
-        forM_ scenarios $ \(title, policyScriptTemplate) -> it title $ \ctx -> runResourceT $ do
+        forM_ scenarios $ \(title, policyScriptTemplate) -> rit title $ \ctx -> runResourceT $ do
             wa <- emptyWallet ctx
             addrs <- listAddresses @n ctx wa
             let destination = (addrs !! 1) ^. #id
@@ -4199,7 +4201,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   , ( "any, active_until 57297561, active_from 58297561", [json|{ "any": [ "cosigner#0",  { "active_until": 57297561 }, { "active_from": 58297561 } ] }|] , False)
                   , ( "some, active_from 10, active_until 57297561", [json|{ "some": {"at_least": 1, "from": [ "cosigner#0", { "active_from": 10 }, { "active_until": 57297561 } ]} }|], False )
                   ]
-        forM_ scenarios $ \(title, policyScriptTemplate, addInvalidBefore ) -> it title $ \ctx -> runResourceT $ do
+        forM_ scenarios $ \(title, policyScriptTemplate, addInvalidBefore ) -> rit title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
 
             -- Mint it!
@@ -4304,7 +4306,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` mempty)
                     ]
 
-    it "TRANS_NEW_CREATE_11 - Get policy id - incorrect template \
+    rit "TRANS_NEW_CREATE_11 - Get policy id - incorrect template \
         \" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let payload = Json [json|{
@@ -4322,7 +4324,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplatePolicyId
             ]
 
-    it "TRANS_NEW_CREATE_11 - Get policy id \
+    rit "TRANS_NEW_CREATE_11 - Get policy id \
         \" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let payload = Json [json|{
@@ -4351,7 +4353,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #policyId (`shouldBe` (ApiT tokenPolicyId'))
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Validity bounds should be ordered correctly" $
         \ctx -> runResourceT $ do
 
@@ -4378,7 +4380,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403InvalidValidityBounds
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Missing lower validity bound is acceptable" $
         \ctx -> runResourceT $ do
 
@@ -4400,7 +4402,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Missing upper validity bound is acceptable" $
         \ctx -> runResourceT $ do
 
@@ -4422,7 +4424,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status202
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Validity interval slot should be >= 0" $
         \ctx -> runResourceT $ do
 
@@ -4451,7 +4453,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \value is either floating or will cause over or underflow"
             ]
 
-    it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
+    rit "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Validity interval 'unspecified'" $
         \ctx -> runResourceT $ do
 
@@ -4474,7 +4476,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \expected Object, but encountered String"
             ]
 
-    it "TRANS_NEW_LIST_05 - filter address output side" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_LIST_05 - filter address output side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let a1 = minUTxOValue'
         let a2 = 2 * minUTxOValue'
@@ -4523,7 +4525,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let amts2 = fmap (view #amount) txs2
         Set.fromList amts2 `shouldBe` Set.fromList (ApiAmount <$> [a1, a4, a5])
 
-    it "TRANS_NEW_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
+    rit "TRANS_NEW_LIST_06 - filter address input side" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let a1 = minUTxOValue'
         let a2 = fromIntegral $ oneAda * 5_000

@@ -74,7 +74,7 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -143,11 +143,11 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (`shouldBe` ApiAmount 0)
                 ]
 
-    it "BYRON_CREATE_MIGRATION_PLAN_01r \
+    rit "BYRON_CREATE_MIGRATION_PLAN_01r \
         \- Can create a migration plan for a random wallet." $
             byronCreateMigrationPlan01 fixtureRandomWallet
 
-    it "BYRON_CREATE_MIGRATION_PLAN_01i \
+    rit "BYRON_CREATE_MIGRATION_PLAN_01i \
         \- Can create a migration plan for an Icarus wallet." $
             byronCreateMigrationPlan01 fixtureRandomWallet
 
@@ -166,15 +166,15 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
-    it "BYRON_CREATE_MIGRATION_PLAN_02r \
+    rit "BYRON_CREATE_MIGRATION_PLAN_02r \
         \- Cannot create plan for empty wallet." $
             byronCreateMigrationPlan02 emptyRandomWallet
 
-    it "BYRON_CREATE_MIGRATION_PLAN_02i \
+    rit "BYRON_CREATE_MIGRATION_PLAN_02i \
         \- Cannot create plan for empty wallet." $
             byronCreateMigrationPlan02 emptyIcarusWallet
 
-    it "BYRON_CREATE_MIGRATION_PLAN_03 - \
+    rit "BYRON_CREATE_MIGRATION_PLAN_03 - \
         \Cannot create plan for Shelley wallet using Byron endpoint."
         $ \ctx -> runResourceT $ do
             sourceWallet <- emptyWallet ctx
@@ -191,7 +191,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (errMsg404NoWallet $ sourceWallet ^. walletId)
                 ]
 
-    it "BYRON_CREATE_MIGRATION_PLAN_04 - \
+    rit "BYRON_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains dust."
         $ \ctx -> runResourceT $ do
             -- NOTE:
@@ -250,11 +250,11 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     liftIO $ plan1 `shouldBe` plan2
                 _ -> error "Unable to compare plans."
 
-    it "BYRON_CREATE_MIGRATION_PLAN_05r \
+    rit "BYRON_CREATE_MIGRATION_PLAN_05r \
         \- Creating a plan is deterministic." $
             byronCreateMigrationPlan05 fixtureRandomWallet
 
-    it "BYRON_CREATE_MIGRATION_PLAN_05i \
+    rit "BYRON_CREATE_MIGRATION_PLAN_05i \
         \- Creating a plan is deterministic." $
             byronCreateMigrationPlan05 fixtureIcarusWallet
 
@@ -271,7 +271,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             testAddressCycling "Icarus" fixtureIcarusWallet  3
             testAddressCycling "Icarus" fixtureIcarusWallet 10
 
-    it "BYRON_MIGRATE_02 - \
+    rit "BYRON_MIGRATE_02 - \
         \Can migrate a large wallet requiring more than one transaction."
         $ \ctx -> runResourceT @IO $ do
 
@@ -390,7 +390,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 (`shouldBe` ApiAmount 100)
             ]
 
-    it "BYRON_MIGRATE_03 - \
+    rit "BYRON_MIGRATE_03 - \
         \Migrating an empty wallet should fail."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
         $ \emptyByronWallet -> runResourceT $ do
@@ -411,7 +411,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , expectErrorMessage (errMsg403NothingToMigrate sourceWalletId)
                 ]
 
-    it "BYRON_MIGRATE_04 - \
+    rit "BYRON_MIGRATE_04 - \
         \Actual fee for migration is identical to predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT @IO $ do
@@ -460,7 +460,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     . fmap apiTransactionFee
                 ]
 
-    it "BYRON_MIGRATE_05 - \
+    rit "BYRON_MIGRATE_05 - \
         \Migration fails if the wrong passphrase is supplied."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
@@ -494,7 +494,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
               , ("Icarus", emptyIcarusWallet)
               ] $ \(walType, destWallet) ->
 
-            it ("From wallet type: " ++ walType) $ \ctx -> runResourceT $ do
+            rit ("From wallet type: " ++ walType) $ \ctx -> runResourceT $ do
 
                 -- Create a Shelley address:
                 wShelley <- emptyWallet ctx
@@ -531,7 +531,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                         (errMsg403NothingToMigrate (sourceWallet ^. walletId))
                     ]
 
-    it "BYRON_MIGRATE_07 - \
+    rit "BYRON_MIGRATE_07 - \
         \Including an invalidly-formatted passphrase results in a parser error."
         $ \ctx -> runResourceT $ do
             sourceWallet <- emptyRandomWallet ctx
@@ -545,7 +545,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     \expecting record key literal or }"
                 ]
 
-    it "BYRON_MIGRATE_08 - \
+    rit "BYRON_MIGRATE_08 - \
         \It's not possible to migrate a wallet whose total balance is less \
         \than the minimum ada quantity for an output."
         $ \ctx -> runResourceT @IO $ do
@@ -674,7 +674,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 , show targetAddressCount
                 , "."
                 ]
-        it title $ \ctx -> runResourceT $ do
+        rit title $ \ctx -> runResourceT $ do
 
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- mkSourceWallet ctx

@@ -46,7 +46,7 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -68,41 +68,54 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
 spec = describe "SHELLEY_SETTINGS" $ do
-    it "SETTINGS_01 - Can put and read settings" $ \ctx -> do
+    rit "SETTINGS_01 - Can put and read settings" $ \ctx -> do
         let uri = "http://smash.it"
         updateMetadataSource ctx uri
         eventually "The settings are applied" $ do
             r2 <- request @(ApiT Settings) ctx Link.getSettings Default Empty
-            verify r2
+            verify
+                r2
                 [ expectResponseCode HTTP.status200
-                , expectField (#getApiT . #poolMetadataSource)
-                    (`shouldBe` (fromRight (error "no") $ fromText
-                        @PoolMetadataSource uri))
+                , expectField
+                    (#getApiT . #poolMetadataSource)
+                    ( `shouldBe`
+                        ( fromRight (error "no")
+                            $ fromText
+                                @PoolMetadataSource
+                                uri
+                        )
+                    )
                 ]
 
-    it "SETTINGS_02 - Changing pool_metadata_source re-syncs metadata" $ \ctx -> do
+    rit "SETTINGS_02 - Changing pool_metadata_source re-syncs metadata" $ \ctx -> do
         let toNone = "none"
             toDirect = "direct"
-            getMetadata = fmap (view #metadata . getApiT) . snd <$> unsafeRequest
-                @[ApiT StakePool] ctx (Link.listStakePools arbitraryStake) Empty
+            getMetadata =
+                fmap (view #metadata . getApiT) . snd
+                    <$> unsafeRequest
+                        @[ApiT StakePool]
+                        ctx
+                        (Link.listStakePools arbitraryStake)
+                        Empty
             delay = 500 * 1_000
             timeout = 120
 
         updateMetadataSource ctx toNone
         verifyMetadataSource ctx FetchNone
-        eventuallyUsingDelay delay timeout "1. There is no metadata" $
-            getMetadata >>= (`shouldSatisfy` all isNothing)
+        eventuallyUsingDelay delay timeout "1. There is no metadata"
+            $ getMetadata >>= (`shouldSatisfy` all isNothing)
 
         updateMetadataSource ctx toDirect
         verifyMetadataSource ctx FetchDirect
-        eventuallyUsingDelay delay timeout "2. There is metadata" $
-            getMetadata >>= (`shouldSatisfy` all isJust)
+        eventuallyUsingDelay delay timeout "2. There is metadata"
+            $ getMetadata >>= (`shouldSatisfy` all isJust)
 
         updateMetadataSource ctx toNone
         verifyMetadataSource ctx FetchNone
-        eventuallyUsingDelay delay timeout "3. There is no metadata" $
-            getMetadata >>= (`shouldSatisfy` all isNothing)
+        eventuallyUsingDelay delay timeout "3. There is no metadata"
+            $ getMetadata >>= (`shouldSatisfy` all isNothing)
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000
-  where ada = Coin . (1_000_000 *)
+  where
+    ada = Coin . (1_000_000 *)

@@ -425,6 +425,9 @@ import "cardano-addresses" Codec.Binary.Encoding
 import Control.Arrow
     ( second
     )
+import Control.Concurrent
+    ( forkIO
+    )
 import Control.Monad
     ( forM_
     , join
@@ -1636,7 +1639,7 @@ postWallet' ctx headers payload = snd <$> allocate create (free . snd)
     create =
         request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
 
-    free (Right w) = void $ request @Aeson.Value ctx
+    free (Right w) = void $ forkIO $ void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Shelley w) Default Empty
     free (Left _) = return ()
 
@@ -1657,7 +1660,7 @@ postByronWallet ctx payload = snd <$> allocate create (free . snd)
     create =
         request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
 
-    free (Right w) = void $ request @Aeson.Value ctx
+    free (Right w) = void $ forkIO $ void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Byron w) Default Empty
     free (Left _) = return ()
 

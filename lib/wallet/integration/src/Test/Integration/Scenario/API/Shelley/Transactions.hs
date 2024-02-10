@@ -155,7 +155,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (_mainEra, _mintSeaHorseAssets)
@@ -257,8 +257,9 @@ spec
      . HasSNetworkId n
     => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
-    it
-        "TRANS_MIN_UTXO_01: \
+
+    rit "TRANS_MIN_UTXO_01: \
+
         \Specifying a non-zero quantity of lovelace that is below the minimum \
         \required by the ledger results in an error, but specifying a quantity \
         \that is equal to the required minimum results in success."
@@ -320,7 +321,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 response <- mkRequest (mkPayload lovelaceRequested)
                 expectResponseCode HTTP.status202 response
 
-    it "Regression ADP-626 - Filtering transactions between eras" $ do
+    rit "Regression ADP-626 - Filtering transactions between eras" $ do
         \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let startTimeBeforeShelley = T.pack "2009-09-09T09:09:09Z"
@@ -343,8 +344,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status200 r
             expectListSize 10 r
 
-    it
-        "Regression #1004 -\
+    rit "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
         \ while both, pending and in_ledger"
         $ \ctx -> runResourceT $ do
@@ -403,7 +403,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` InLedger)
                     ]
 
-    it
+    rit
         "Regression #935 -\
         \ Pending tx should have pendingSince in the list tx response"
         $ \ctx -> runResourceT $ do
@@ -444,7 +444,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         insertedAt tx' `shouldBe` Nothing
                         pendingSince tx' `shouldBe` pendingSince tx
 
-    it "TRANS_CREATE_01x - Single Output Transaction"
+    rit "TRANS_CREATE_01x - Single Output Transaction"
         $ \ctx -> runResourceT $ do
             let initialAmt = 3 * minUTxOValue (_mainEra ctx)
             wa <- fixtureWalletWith @n ctx [initialAmt]
@@ -572,7 +572,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` ApiAmount (initialAmt - fee - amt))
                     ra2
 
-    it "TRANS_CREATE_02x - Multiple Output Tx to single wallet"
+    rit "TRANS_CREATE_02x - Multiple Output Tx to single wallet"
         $ \ctx -> runResourceT $ do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
@@ -660,7 +660,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` ApiAmount (2 * amt))
                     ]
 
-    it "TRANS_CREATE_03 - 0 balance after transaction"
+    rit "TRANS_CREATE_03 - 0 balance after transaction"
         $ \ctx -> runResourceT $ do
             liftIO
                 $ pendingWith
@@ -745,7 +745,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#balance . #available) (`shouldBe` ApiAmount 0)
                 ]
 
-    it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> runResourceT $ do
         wDest <- fixtureWallet ctx
 
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -773,7 +773,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403Fee
             ]
 
-    it "TRANS_CREATE_04 - Not enough money" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_04 - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
         wSrc <- fixtureWalletWith @n ctx [srcAmt]
@@ -790,7 +790,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             NotEnoughMoney{} -> True
             _someOtherError -> False
 
-    it "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr : _ <- listAddresses @n ctx wDest
@@ -820,7 +820,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectErrorMessage errMsg403WrongPass
             ]
 
-    it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <-
             request @ApiWallet
@@ -868,7 +868,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     )
                 ]
 
-        forM_ matrix $ \(title, nonJson) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, nonJson) -> rit title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = nonJson
             r <-
@@ -879,7 +879,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     payload
             expectResponseCode HTTP.status400 r
 
-    it "TRANS_ASSETS_CREATE_01 - Multi-asset balance"
+    rit "TRANS_ASSETS_CREATE_01 - Multi-asset balance"
         $ \ctx -> runResourceT $ do
             w <- fixtureMultiAssetWallet ctx
             r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
@@ -900,7 +900,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectListField 0 #metadataError (`shouldBe` Nothing)
                 ]
 
-    it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada"
+    rit "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada"
         $ \ctx -> runResourceT $ do
             wSrc <- fixtureMultiAssetWallet ctx
             wDest <- emptyWallet ctx
@@ -961,7 +961,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     -- todo: asset balance values more exactly
     -- todo: assert payer wallet balance
 
-    it
+    rit
         "TRANS_ASSETS_CREATE_02 - \
         \Multi-asset transaction with small Ada amount"
         $ \ctx -> runResourceT $ do
@@ -998,7 +998,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status403 rtx
             expectErrorMessage errMsg403MinUTxOValue rtx
 
-    it "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada"
+    rit "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada"
         $ \ctx -> runResourceT $ do
             wSrc <- fixtureMultiAssetWallet ctx
             wDest <- emptyWallet ctx
@@ -1044,8 +1044,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldNotBe` mempty)
                     ]
 
-    it "TRANS_ASSETS_CREATE_02c - Send SeaHorses"
-        $ \ctx -> runResourceT $ do
+    rit "TRANS_ASSETS_CREATE_02c - Send SeaHorses" $
+        \ctx -> runResourceT $ do
             -- Notes on the style of this test:
             -- - By doing the minting here it is easier to control, and tweak
             -- the values.
@@ -1117,7 +1117,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     let hasAssetOutputs :: [AddressAmount (ApiAddress n)] -> Bool
         hasAssetOutputs = any ((/= mempty) . view #assets)
 
-    it "TRANS_ASSETS_CREATE_02b - Multi-asset tx history"
+    rit "TRANS_ASSETS_CREATE_02b - Multi-asset tx history"
         $ \ctx -> runResourceT $ do
             wSrc <- fixtureMultiAssetWallet ctx
             wDest <- emptyWallet ctx
@@ -1196,7 +1196,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldNotBe` mempty)
                     ]
 
-    it "TRANS_ASSETS_LIST_01 - Asset list present"
+    rit "TRANS_ASSETS_LIST_01 - Asset list present"
         $ \ctx -> runResourceT $ do
             wal <- fixtureMultiAssetWallet ctx
 
@@ -1223,7 +1223,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectListField 0 #metadataError (`shouldBe` Nothing)
                 ]
 
-    it "TRANS_ASSETS_LIST_02 - Asset list present when not used"
+    rit "TRANS_ASSETS_LIST_02 - Asset list present when not used"
         $ \ctx -> runResourceT $ do
             wal <- fixtureWallet ctx
             r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
@@ -1233,7 +1233,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectListSize 0
                 ]
 
-    it "TRANS_ASSETS_LIST_02a - Asset list present when not used"
+    rit "TRANS_ASSETS_LIST_02a - Asset list present when not used"
         $ \ctx -> runResourceT $ do
             wal <- emptyWallet ctx
             r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
@@ -1243,7 +1243,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectListSize 0
                 ]
 
-    it "TRANS_ASSETS_GET_01 - Asset list present"
+    rit "TRANS_ASSETS_GET_01 - Asset list present"
         $ \ctx -> runResourceT $ do
             wal <- fixtureMultiAssetWallet ctx
 
@@ -1269,7 +1269,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField #metadataError (`shouldBe` Nothing)
                 ]
 
-    it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated"
+    rit "TRANS_ASSETS_GET_02 - Asset not present when isn't associated"
         $ \ctx -> runResourceT $ do
             wal <- fixtureMultiAssetWallet ctx
             let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
@@ -1279,7 +1279,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status404 r
             expectErrorMessage errMsg404NoAsset r
 
-    it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated"
+    rit "TRANS_ASSETS_GET_02a - Asset not present when isn't associated"
         $ \ctx -> runResourceT $ do
             wal <- fixtureMultiAssetWallet ctx
             let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
@@ -1288,7 +1288,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status404 r
             expectErrorMessage errMsg404NoAsset r
 
-    it "TRANS_TTL_04 - Large TTL"
+    rit "TRANS_TTL_04 - Large TTL"
         $ \ctx -> runResourceT $ do
             (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
             let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -1363,7 +1363,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }
             ]
 
-    it
+    rit
         "TRANSMETA_CREATE_02a - \
         \Transaction with invalid metadata"
         $ \ctx -> runResourceT $ do
@@ -1385,7 +1385,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400TxMetadataStringTooLong r
 
-    it
+    rit
         "TRANSMETA_CREATE_02b - \
         \Transaction with invalid no-schema metadata"
         $ \ctx -> runResourceT $ do
@@ -1407,7 +1407,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400TxMetadataStringTooLong r
 
-    it "TRANSMETA_CREATE_03 - Transaction with too much metadata"
+    rit "TRANSMETA_CREATE_03 - Transaction with too much metadata"
         $ \ctx -> runResourceT $ do
             (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
             let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -1434,7 +1434,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status403 r
             expectErrorInfo (`shouldBe` TransactionIsTooBig) r
 
-    it
+    rit
         "TRANSMETA_ESTIMATE_01a - \
         \fee estimation includes metadata"
         $ \ctx -> runResourceT $ do
@@ -1475,7 +1475,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#estimatedMax . #toNatural) (.< feeEstMax)
                 ]
 
-    it
+    rit
         "TRANSMETA_ESTIMATE_01b - \
         \fee estimation includes no-schema metadata"
         $ \ctx -> runResourceT $ do
@@ -1516,7 +1516,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#estimatedMax . #toNatural) (.< feeEstMax)
                 ]
 
-    it
+    rit
         "TRANSMETA_ESTIMATE_02a - \
         \fee estimation with invalid metadata"
         $ \ctx -> runResourceT $ do
@@ -1538,7 +1538,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400TxMetadataStringTooLong r
 
-    it
+    rit
         "TRANSMETA_ESTIMATE_02b - \
         \fee estimation with invalid no-schema metadata"
         $ \ctx -> runResourceT $ do
@@ -1560,7 +1560,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectResponseCode HTTP.status400 r
             expectErrorMessage errMsg400TxMetadataStringTooLong r
 
-    it "TRANSMETA_ESTIMATE_03 - fee estimation with too much metadata"
+    rit "TRANSMETA_ESTIMATE_03 - fee estimation with too much metadata"
         $ \ctx -> runResourceT $ do
             (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
             let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -1605,7 +1605,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     )
                 ]
 
-        forM_ matrix $ \(title, nonJson) -> it title $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, nonJson) -> rit title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = nonJson
             r <-
@@ -1616,7 +1616,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     payload
             expectResponseCode HTTP.status400 r
 
-    it "TRANS_ESTIMATE_03a - we see result when we can't cover fee"
+    rit "TRANS_ESTIMATE_03a - we see result when we can't cover fee"
         $ \ctx -> runResourceT $ do
             wSrc <- fixtureWallet ctx
             payload <- mkTxPayload ctx wSrc faucetAmt fixturePassphrase
@@ -1633,7 +1633,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#estimatedMax . #toNatural) (.<= oneAda)
                 ]
 
-    it
+    rit
         "TRANS_ESTIMATE_03b - \
         \we see result when we can't cover fee (with withdrawal)"
         $ \ctx -> runResourceT $ do
@@ -1674,7 +1674,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#estimatedMax . #toNatural) (.<= oneAda)
                 ]
 
-    it "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> runResourceT $ do
+    rit "TRANS_ESTIMATE_04 - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
         let (srcAmt, reqAmt) = (minUTxOValue', 2 * minUTxOValue')
         wSrc <- fixtureWalletWith @n ctx [srcAmt]
@@ -1691,7 +1691,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             NotEnoughMoney{} -> True
             _someOtherError -> False
 
-    it "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_ESTIMATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <-
             request @ApiWallet
@@ -1711,7 +1711,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions"
+    rit "TRANS_LIST_01 - Can list Incoming and Outgoing transactions"
         $ \ctx -> runResourceT $ do
             -- Make tx from fixtureWallet
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -1793,7 +1793,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     --  19 | empty    | empty    | empty      |    1      |  2nd one      |
     --  20 | empty    | empty    | ascending  |    1      |  1st one      |
     -- +---+----------+----------+------------+-----------+---------------+
-    it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
+    rit "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
             let minUTxOValue' = minUTxOValue (_mainEra ctx)
             let a1 = ApiAmount minUTxOValue'
@@ -2121,7 +2121,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let withQuery q (method, link) = (method, link <> q)
 
-        forM_ queries $ \tc -> it (T.unpack $ query tc)
+        forM_ queries $ \tc -> rit (T.unpack $ query tc)
             $ \ctx -> runResourceT $ do
                 w <- emptyWallet ctx
                 let link =
@@ -2130,8 +2130,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 r <- request @([ApiTransaction n]) ctx link Default Empty
                 liftIO $ verify r (assertions tc)
 
-    it "TRANS_LIST_02 - Start time shouldn't be later than end time"
-        $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_02 - Start time shouldn't be later than end time" $
+        \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let startTime = "2009-09-09T09:09:09Z"
             let endTime = "2001-01-01T01:01:01Z"
@@ -2151,8 +2151,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 r
             pure ()
 
-    it "TRANS_LIST_03 - Minimum withdrawal shouldn't be 0"
-        $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_03 - Minimum withdrawal shouldn't be 0" $
+        \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let link =
                     Link.listTransactions' @'Shelley
@@ -2168,10 +2168,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectErrorMessage errMsg400MinWithdrawalWrong r
             pure ()
 
-    it
-        "TRANS_LIST_03 - \
-        \Minimum withdrawal can be 1, shows empty when no withdrawals"
-        $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_03 - \
+        \Minimum withdrawal can be 1, shows empty when no withdrawals" $
+        \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let link =
                     Link.listTransactions' @'Shelley
@@ -2187,7 +2186,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let txs = getFromResponse Prelude.id r
             txs `shouldBe` []
 
-    it "TRANS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <-
             request @ApiWallet
@@ -2204,7 +2203,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it
+    rit
         "TRANS_LIST_RANGE_01 - \
         \Transaction at time t is SELECTED by small ranges that cover it"
         $ \ctx -> runResourceT $ do
@@ -2245,7 +2244,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
             length <$> [txs1, txs2, txs3, txs4] `shouldSatisfy` all (== 1)
 
-    it
+    rit
         "TRANS_LIST_RANGE_02 - \
         \Transaction at time t is NOT selected by range (t + 𝛿t, ...)"
         $ \ctx -> runResourceT $ do
@@ -2270,7 +2269,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
             length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    it
+    rit
         "TRANS_LIST_RANGE_03 - \
         \Transaction at time t is NOT selected by range (..., t - 𝛿t)"
         $ \ctx -> runResourceT $ do
@@ -2295,7 +2294,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     Nothing
             length <$> [txs1, txs2] `shouldSatisfy` all (== 0)
 
-    it
+    rit
         "TRANS_LIST_LIMIT_01 - \
         \Transactions can be limited"
         $ \ctx -> runResourceT $ do
@@ -2303,7 +2302,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             txs <- listLimitedTransactions @n ctx w 9
             length txs `shouldBe` 9
 
-    it "TRANS_GET_01 - Can get Incoming and Outgoing transaction"
+    rit "TRANS_GET_01 - Can get Incoming and Outgoing transaction"
         $ \ctx -> runResourceT $ do
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
             -- post tx
@@ -2368,7 +2367,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     , expectField (#status . #getApiT) (`shouldBe` InLedger)
                     ]
 
-    it "TRANS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
+    rit "TRANS_GET_02 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <-
             request @ApiWallet
@@ -2382,7 +2381,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
-    it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
+    rit "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         -- post tx
         let amt = minUTxOValue (_mainEra ctx) :: Natural
@@ -2409,7 +2408,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
 
-    it "TRANS_GET_04 - Sumbitted transactions result in pending state"
+    rit "TRANS_GET_04 - Sumbitted transactions result in pending state"
         $ \ctx -> runResourceT $ do
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
             -- post tx
@@ -2428,7 +2427,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 ]
 
-    it
+    rit
         "TRANS_DELETE_01 -\
         \ Shelley: Can forget pending transaction"
         $ \ctx -> runResourceT $ do
@@ -2517,7 +2516,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                             (`shouldBe` InLedger)
                         ]
 
-    it
+    rit
         "TRANS_DELETE_02 -\
         \ Shelley: Cannot forget tx that is already in ledger"
         $ \ctx -> runResourceT $ do
@@ -2565,7 +2564,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             txDeleteFromDifferentWalletTest emptyWallet "wallets"
             txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
 
-    it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self"
+    rit "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
 
@@ -2616,7 +2615,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` ApiAmount 0)
                     ]
 
-    it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other"
+    rit "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
             (wOther, SomeMnemonic mw) <- rewardWallet ctx
@@ -2743,7 +2742,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` InLedger)
                     ]
 
-    it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left"
+    rit "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
 
@@ -2799,7 +2798,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectErrorMessage errMsg403WithdrawalNotBeneficial
                 ]
 
-    it "SHELLEY_TX_REDEEM_04 - Can always ask for self redemption"
+    rit "SHELLEY_TX_REDEEM_04 - Can always ask for self redemption"
         $ \ctx -> runResourceT $ do
             wSelf <- fixtureWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
@@ -2830,7 +2829,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField #withdrawals (`shouldSatisfy` null)
                 ]
 
-    it "SHELLEY_TX_REDEEM_05 - Can't redeem rewards from unknown key"
+    rit "SHELLEY_TX_REDEEM_05 - Can't redeem rewards from unknown key"
         $ \ctx -> runResourceT $ do
             wSelf <- fixtureWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
@@ -2862,7 +2861,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectErrorMessage errMsg403WithdrawalNotBeneficial
                 ]
 
-    it "SHELLEY_TX_REDEEM_06 - Can't redeem rewards using byron wallet"
+    rit "SHELLEY_TX_REDEEM_06 - Can't redeem rewards using byron wallet"
         $ \ctx -> runResourceT $ do
             (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
             let addr = encodeAddress (sNetworkId @n) (head addrs)
@@ -2893,7 +2892,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidWalletType
 
-    it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other"
+    rit "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
 
@@ -2925,7 +2924,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rTx [expectResponseCode HTTP.status403]
             decodeErrorInfo rTx `shouldBe` NoUtxosAvailable
 
-    it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self"
+    rit "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
 
@@ -2982,7 +2981,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 NotEnoughMoney{} -> True
                 _someOtherError -> False
 
-    it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee"
+    rit "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee"
         $ \ctx -> runResourceT $ do
             noConway ctx "MIR"
 
@@ -3015,7 +3014,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectErrorMessage errMsg403Fee
                 ]
 
-    it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money"
+    rit "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money"
         $ \ctx -> runResourceT $ do
             noConway ctx "redeem rewards"
             (_, SomeMnemonic mw) <- rewardWallet ctx
@@ -3056,7 +3055,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , txMetadata
                 , expectedFee
                 } = testData
-        in  it testName $ \ctx -> runResourceT $ do
+        in  rit testName $ \ctx -> runResourceT $ do
                 when (_mainEra ctx < ApiBabbage)
                     $ liftIO
                     $ pendingWith
@@ -3246,7 +3245,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         ]
 
     txDeleteNotExistsingTxIdTest eWallet resource =
-        it resource $ \ctx -> runResourceT $ do
+        rit resource $ \ctx -> runResourceT $ do
             w <- eWallet ctx
             let walId = w ^. walletId
             let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
@@ -3267,7 +3266,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -> String
         -> SpecWith Context
     txDeleteFromDifferentWalletTest eWallet resource =
-        it resource $ \ctx -> runResourceT $ do
+        rit resource $ \ctx -> runResourceT $ do
             -- post tx
             (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
             rMkTx <-

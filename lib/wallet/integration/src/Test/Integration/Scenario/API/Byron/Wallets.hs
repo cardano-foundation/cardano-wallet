@@ -69,7 +69,7 @@ import Test.Hspec.Expectations.Lifted
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -124,14 +124,14 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "BYRON_WALLETS" $ do
-    it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
+    rit "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
         rg <- request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 rg
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
 
-    it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
+    rit "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> runResourceT $ do
             m1 <- Mnemonics.generateSome Mnemonics.M12
             m2 <- Mnemonics.generateSome Mnemonics.M12
@@ -153,7 +153,7 @@ spec = describe "BYRON_WALLETS" $ do
                         (#name . #getApiT . #getWalletName) (`shouldBe` "b3")
                 ]
 
-    it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> runResourceT $ do
+    rit "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> runResourceT $ do
         let pwd = fixturePassphrase
         r1 <- Mnemonics.generateSome Mnemonics.M15 >>= \m ->
             emptyByronWalletWith ctx "icarus" ("ica1", m, pwd)
@@ -239,43 +239,43 @@ spec = describe "BYRON_WALLETS" $ do
                     , expectErrorMessage errMsg400NumberOfWords
                     ]
 
-        let it' style genMnemonicIO test = do
+        let rit' style genMnemonicIO test = do
                 mnemonic <- runIO genMnemonicIO
-                flip it (test style mnemonic) $ unwords
+                flip rit (test style mnemonic) $ unwords
                     [ style
                     , show (length (someMnemonicToWords mnemonic))
                     , "words"
                     ]
 
-        it' "random" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
-        it' "random" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
-        it' "random" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
-        it' "random" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
-        it' "random" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
-        it' "random" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
+        rit' "random" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        rit' "random" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        rit' "random" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        rit' "random" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        rit' "random" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        rit' "random" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "icarus" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
-        it' "icarus" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
-        it' "icarus" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
-        it' "icarus" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
-        it' "icarus" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
-        it' "icarus" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
+        rit' "icarus" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        rit' "icarus" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        rit' "icarus" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        rit' "icarus" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        rit' "icarus" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        rit' "icarus" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "trezor" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
-        it' "trezor" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
-        it' "trezor" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
-        it' "trezor" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
-        it' "trezor" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
-        it' "trezor" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
+        rit' "trezor" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        rit' "trezor" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        rit' "trezor" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        rit' "trezor" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        rit' "trezor" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        rit' "trezor" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-        it' "ledger" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
-        it' "ledger" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
-        it' "ledger" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
-        it' "ledger" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
-        it' "ledger" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
-        it' "ledger" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
+        rit' "ledger" (Mnemonics.generateSome Mnemonics.M9)  scenarioFailure -- ❌
+        rit' "ledger" (Mnemonics.generateSome Mnemonics.M12) scenarioSuccess -- ✔️
+        rit' "ledger" (Mnemonics.generateSome Mnemonics.M15) scenarioSuccess -- ✔️
+        rit' "ledger" (Mnemonics.generateSome Mnemonics.M18) scenarioSuccess -- ✔️
+        rit' "ledger" (Mnemonics.generateSome Mnemonics.M21) scenarioSuccess -- ✔️
+        rit' "ledger" (Mnemonics.generateSome Mnemonics.M24) scenarioSuccess -- ✔️
 
-    it "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
+    rit "BYRON_RESTORE_02 - One can restore previously deleted wallet" $
         \ctx -> runResourceT $ do
             m <- Mnemonics.generateSome Mnemonics.M12
             w <- emptyByronWalletWith ctx "random"
@@ -287,7 +287,7 @@ spec = describe "BYRON_WALLETS" $ do
                 ("Byron Wallet2", m, "Secure Pa33phrase")
             w ^. walletId `shouldBe` wr ^. walletId
 
-    it "BYRON_RESTORE_03 - Cannot restore wallet that exists" $ \ctx -> runResourceT $ do
+    rit "BYRON_RESTORE_03 - Cannot restore wallet that exists" $ \ctx -> runResourceT $ do
         mnemonic <- Mnemonics.generateSome Mnemonics.M12
         let mnemonicWords = someMnemonicToWords mnemonic
         let payload = Json [json| {
@@ -335,7 +335,7 @@ spec = describe "BYRON_WALLETS" $ do
                   , [ expectResponseCode HTTP.status201 ]
                   )
                 ]
-        forM_ matrix $ \(title, passphrase, expectations) -> it title $
+        forM_ matrix $ \(title, passphrase, expectations) -> rit title $
             \ctx -> runResourceT $ do
                 mnemonic <- Mnemonics.generateSome Mnemonics.M12
                 let payload = Json [json| {
@@ -347,7 +347,7 @@ spec = describe "BYRON_WALLETS" $ do
                 r <- postByronWallet ctx payload
                 verify r expectations
 
-    it "BYRON_UPDATE_NAME_01 - Update names of wallets" $ \ctx ->
+    rit "BYRON_UPDATE_NAME_01 - Update names of wallets" $ \ctx ->
         forM_ [ (emptyRandomWallet ctx, "Random Wallet")
               , (emptyIcarusWallet ctx, "Icarus Wallet")
               ] $
@@ -368,7 +368,7 @@ spec = describe "BYRON_WALLETS" $ do
                 , expectField (#name . #getApiT . #getWalletName) (`shouldBe` updatedName)
                 ]
 
-    it "BYRON_UPDATE_NAME_02 - Update names of wallets from Xprv" $ \ctx -> runResourceT $ do
+    rit "BYRON_UPDATE_NAME_02 - Update names of wallets from Xprv" $ \ctx -> runResourceT $ do
         -- Wallet from XPRV
         let wName = "Byron Wallet from XPRV"
         mnemonic <- Mnemonics.generateSome Mnemonics.M12
@@ -395,7 +395,7 @@ spec = describe "BYRON_WALLETS" $ do
             , expectField (#name . #getApiT . #getWalletName) (`shouldBe` updatedName)
             ]
 
-    it "BYRON_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx ->
+    rit "BYRON_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> runResourceT $ do
         w <- emptyByronWallet ctx
         rStat <- request @ApiUtxoStatistics ctx
@@ -403,7 +403,7 @@ spec = describe "BYRON_WALLETS" $ do
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO [] (snd rStat)
 
-    it "BYRON_WALLET_UTXO_SNAPSHOT_01 - \
+    rit "BYRON_WALLET_UTXO_SNAPSHOT_01 - \
         \Can generate UTxO snapshot of empty wallet" $
         \ctx -> do
             let emptyByronWallets =
@@ -417,7 +417,7 @@ spec = describe "BYRON_WALLETS" $ do
                 expectResponseCode HTTP.status200 rSnap
                 expectField #entries (`shouldBe` []) rSnap
 
-    it "BYRON_WALLET_UTXO_SNAPSHOT_02 - \
+    rit "BYRON_WALLET_UTXO_SNAPSHOT_02 - \
         \Can generate UTxO snapshot of pure-ada wallet" $
         \ctx -> do
             let fixtureWallets =
@@ -432,7 +432,7 @@ spec = describe "BYRON_WALLETS" $ do
                 let entries = getFromResponse #entries rSnap
                 length entries `shouldBe` 10
 
-    it "BYRON_WALLET_UTXO_SNAPSHOT_03 - \
+    rit "BYRON_WALLET_UTXO_SNAPSHOT_03 - \
         \Can generate UTxO snapshot of multi-asset wallet" $
         \ctx -> do
             let fixtureWallets =
@@ -447,7 +447,7 @@ spec = describe "BYRON_WALLETS" $ do
                 let entries = getFromResponse #entries rSnap
                 length entries `shouldBe` 11
 
-    it "BYRON_UPDATE_PASS_01 - change passphrase" $ \ctx ->
+    rit "BYRON_UPDATE_PASS_01 - change passphrase" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> runResourceT $ do
         w <- emptyByronWallet ctx
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
@@ -460,7 +460,7 @@ spec = describe "BYRON_WALLETS" $ do
             [ expectResponseCode HTTP.status204
             ]
 
-    it "BYRON_UPDATE_PASS_02 - Old passphrase incorrect" $ \ctx ->
+    rit "BYRON_UPDATE_PASS_02 - Old passphrase incorrect" $ \ctx ->
         forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> runResourceT $ do
         w <- emptyByronWallet ctx
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
@@ -473,7 +473,7 @@ spec = describe "BYRON_WALLETS" $ do
             , expectErrorMessage errMsg403WrongPass
             ]
 
-    it "BYRON_UPDATE_PASS_03 - Updating passphrase with no password wallets" $ \ctx -> runResourceT $ do
+    rit "BYRON_UPDATE_PASS_03 - Updating passphrase with no password wallets" $ \ctx -> runResourceT $ do
         w <- emptyRandomWalletWithPasswd ctx ""
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
             >>= flip verify [ expectField #passphrase (`shouldSatisfy` isNothing) ]
@@ -484,7 +484,7 @@ spec = describe "BYRON_WALLETS" $ do
             [ expectResponseCode HTTP.status204
             ]
 
-    it "BYRON_UPDATE_PASS_04a - Updating passphrase with no password wallets" $ \ctx -> runResourceT $ do
+    rit "BYRON_UPDATE_PASS_04a - Updating passphrase with no password wallets" $ \ctx -> runResourceT $ do
         w <- emptyRandomWalletWithPasswd ctx ""
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
             >>= flip verify [ expectField #passphrase (`shouldSatisfy` isNothing) ]
@@ -495,7 +495,7 @@ spec = describe "BYRON_WALLETS" $ do
             [ expectResponseCode HTTP.status204
             ]
 
-    it "BYRON_UPDATE_PASS_04b - Regression test" $ \ctx -> runResourceT $ do
+    rit "BYRON_UPDATE_PASS_04b - Regression test" $ \ctx -> runResourceT $ do
         let key = "38e8de9c583441213fe34eecc4e28265267466877ba4048e3ab1fa99563\
                   \66947aefaf5ba9779db67eead7fc9cd1354b994a5d8d9cd40ab874bfeb1\
                   \b33649280cd33651377731e0e59e0233425a55257782c5adaa768da0567\
@@ -513,7 +513,7 @@ spec = describe "BYRON_WALLETS" $ do
             [ expectResponseCode HTTP.status204
             ]
 
-    it "BYRON_UPDATE_PASS_07 - Updating passphrase with short password wallets" $ \ctx -> runResourceT $ do
+    rit "BYRON_UPDATE_PASS_07 - Updating passphrase with short password wallets" $ \ctx -> runResourceT $ do
         w <- emptyRandomWalletWithPasswd ctx "cos"
         request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
             >>= flip verify [ expectField #passphrase (`shouldSatisfy` isJust) ]

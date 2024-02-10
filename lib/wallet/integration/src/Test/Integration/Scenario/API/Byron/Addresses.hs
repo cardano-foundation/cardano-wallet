@@ -57,7 +57,7 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Hspec.Extra
-    ( it
+    ( rit
     )
 import Test.Integration.Framework.DSL
     ( Context
@@ -134,7 +134,7 @@ scenario_ADDRESS_LIST_01
     => (Context -> ResourceT IO ApiByronWallet)
     -> Int
     -> SpecWith Context
-scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_LIST_01 fixture derPathSize = rit title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r [ expectResponseCode HTTP.status200 ]
@@ -155,7 +155,7 @@ scenario_ADDRESS_LIST_02
     => String
     -> (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
-scenario_ADDRESS_LIST_02 label fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_LIST_02 label fixture = rit title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- filtering ?state=used
@@ -184,7 +184,7 @@ scenario_ADDRESS_LIST_04
      . HasSNetworkId n
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
-scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_LIST_04 fixture = rit title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     _ <- request @() ctx (Link.deleteWallet @'Byron w) Default Empty
     r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
@@ -197,7 +197,7 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_CREATE_01
     :: forall n. HasSNetworkId n => SpecWith Context
-scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_CREATE_01 = rit title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
@@ -210,7 +210,7 @@ scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_CREATE_02
     :: forall n. HasSNetworkId n => SpecWith Context
-scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_CREATE_02 = rit title $ \ctx -> runResourceT $ do
     w <- emptyIcarusWallet ctx
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
@@ -223,7 +223,7 @@ scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_CREATE_03
     :: forall n. HasSNetworkId n => SpecWith Context
-scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_CREATE_03 = rit title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json| { "passphrase": "Give me all your money." }|]
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
@@ -236,7 +236,7 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_CREATE_04
     :: forall n. HasSNetworkId n => SpecWith Context
-scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_CREATE_04 = rit title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
 
     let payload = Json [json| { "passphrase": #{fixturePassphrase} }|]
@@ -250,11 +250,11 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
         , expectListField 0 id (`shouldBe` addr)
         ]
   where
-    title = "ADDRESS_CREATE_04 - Can list address after creating it"
+    title = "ADDRESS_CREATE_04 - Can list address after creating rit"
 
 scenario_ADDRESS_CREATE_05
     :: forall n. HasSNetworkId n => SpecWith Context
-scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_CREATE_05 = rit title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
             { "passphrase": #{fixturePassphrase}
@@ -270,7 +270,7 @@ scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT $ do
 
 scenario_ADDRESS_CREATE_06
     :: forall n. HasSNetworkId n => SpecWith Context
-scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_CREATE_06 = rit title $ \ctx -> runResourceT $ do
     w <- emptyRandomWallet ctx
     let payload = Json [json|
             { "passphrase": #{fixturePassphrase}
@@ -291,7 +291,7 @@ scenario_ADDRESS_IMPORT_01
      . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
-scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_IMPORT_01 fixture = rit title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
 
     -- Get an unused address
@@ -317,7 +317,7 @@ scenario_ADDRESS_IMPORT_02
      . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
-scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_IMPORT_02 fixture = rit title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
 
     let addr = icarusAddresses @n mw !! 42
@@ -336,7 +336,7 @@ scenario_ADDRESS_IMPORT_03
      . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
-scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_IMPORT_03 fixture = rit title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
 
     -- Get an unused address
@@ -344,7 +344,7 @@ scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
     let (_, base) = Link.postRandomAddress w
     let link = base <> "/" <> encodeAddress (sNetworkId @n) addr
 
-    -- Insert it twice
+    -- Insert rit twice
     r0 <- request @() ctx ("PUT", link) Default Empty
     verify r0 [ expectResponseCode HTTP.status204 ]
     r1 <- request @() ctx ("PUT", link) Default Empty
@@ -357,7 +357,7 @@ scenario_ADDRESS_IMPORT_04
      . HasSNetworkId n
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
-scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_IMPORT_04 fixture = rit title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- Get a used address
@@ -384,7 +384,7 @@ scenario_ADDRESS_IMPORT_05
     => Int
     -> (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
-scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_IMPORT_05 addrNum fixture = rit title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
 
     -- Get unused addrNum addresses
@@ -414,7 +414,7 @@ scenario_ADDRESS_IMPORT_06
      . HasSNetworkId n
     => (Context -> ResourceT IO (ApiByronWallet, SomeMnemonic))
     -> SpecWith Context
-scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_IMPORT_06 fixture = rit title $ \ctx -> runResourceT $ do
     (w, _)   <- fixture ctx
     (_, mw2) <- fixture ctx
 

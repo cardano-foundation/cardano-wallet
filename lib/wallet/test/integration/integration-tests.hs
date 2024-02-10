@@ -23,6 +23,7 @@ import Cardano.Wallet.Primitive.NetworkId
     )
 import Cardano.Wallet.Test.Integration.Setup
     ( TestingCtx (..)
+    , reportMMetrics
     , withContext
     , withTestsSetup
     )
@@ -41,12 +42,16 @@ import System.Environment
 import Test.Hspec.Core.Spec
     ( SpecM
     , describe
+    , it
     , parallel
     , sequential
     )
 import Test.Hspec.Extra
     ( aroundAll
     , hspecMain
+    )
+import UnliftIO.MVar
+    ( newMVar
     )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -89,6 +94,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
     testDataDir <-
         FileOf . fromMaybe "."
             <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
+    metrics <- newMVar mempty
     let testingCtx = TestingCtx{..}
     hspecMain $ do
         describe "No backend required"
@@ -129,3 +135,5 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
                 HWWalletsCLI.spec @n
                 PortCLI.spec
                 NetworkCLI.spec
+        describe "report metrics" $ do
+            it "TTT" $ reportMMetrics metrics

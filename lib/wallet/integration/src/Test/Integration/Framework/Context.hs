@@ -5,6 +5,8 @@ module Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
     , TxDescription (..)
+    , rawNotice
+    , notice
     ) where
 
 import Prelude
@@ -35,6 +37,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Transaction
     ( DelegationAction
     )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -43,6 +48,9 @@ import Data.IORef
     )
 import Data.Text
     ( Text
+    )
+import Data.Time
+    ( NominalDiffTime
     )
 import GHC.Generics
     ( Generic
@@ -53,6 +61,17 @@ import Network.HTTP.Client
 import Network.URI
     ( URI
     )
+import Test.Hspec.Extra
+    ( HasMetrics (..)
+    )
+import Test.HUnit.Lang
+    ( HUnitFailure
+    )
+import Text.Pretty.Simple
+    ( pShowNoColor
+    )
+
+import qualified Data.Text.Lazy as TL
 
 -- | Context for integration tests.
 --
@@ -93,8 +112,43 @@ data Context = Context
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
         -- Cannot be used by several tests at a time. (!)
+    , _addSuccess :: String -> NominalDiffTime -> IO ()
+        -- ^ Add a successful test to the metrics.
+    , _addFailure :: String -> NominalDiffTime -> HUnitFailure -> IO ()
+        -- ^ Add a failed test to the metrics.
+    , _addTimeOut :: String -> NominalDiffTime -> IO ()
+        -- ^ Add a timed out test to the metrics.
+    , _testNotice :: String -> IO ()
+        -- ^ A function to trace test debugging information.
     }
     deriving Generic
+
+rawNotice
+    :: (MonadIO m, Show a)
+    => Context -- ^ context
+    -> String -- ^ A prefix for the message
+    -> a -- ^ The message
+    -> m ()
+rawNotice ctx pre x =
+    liftIO
+        $ _testNotice ctx
+        $ pre <> ": " <> TL.unpack (pShowNoColor x)
+
+notice
+    :: (MonadIO m, Show a)
+    => Context -- ^ context
+    -> t  -- ^ Usually the wallet
+    -> String -- ^ A prefix for the message
+    -> (Context -> t -> m a) -- ^ A function to get the message
+    -> m ()
+notice ctx w pre f = do
+    x <- f ctx w
+    rawNotice ctx pre x
+
+instance HasMetrics Context where
+    putFailure ctx label failure time = _addFailure ctx label time failure
+    putSuccess = _addSuccess
+    putTimeout = _addTimeOut
 
 -- | Records the parameters and return value of a single call to the
 --   'removeRetiredPools' operation of 'Pool.DB.DBLayer'.

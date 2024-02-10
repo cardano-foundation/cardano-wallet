@@ -555,7 +555,7 @@ walletApiBench capture ctx = do
         fmtResult "getNetworkInfo     " t
 
 withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
-withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
+withShelleyServer tracers action = withFaucet stdoutTextTracer $ \faucetClientEnv -> do
     faucetFunds <- Faucet.runFaucetM faucetClientEnv mkFaucetFunds
     ctx <- newEmptyMVar
     let testnetMagic = Cluster.TestnetMagic 42
@@ -578,6 +578,10 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                 , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
                 , _moveRewardsToScript =
                     error "moveRewardsToScript not available"
+                , _addSuccess = \_ _ -> pure ()
+                , _addFailure = \_ _ _ -> pure ()
+                , _addTimeOut = \_ _ -> pure ()
+                , _testNotice = \_ -> pure ()
                 }
     race_
         (takeMVar ctx >>= action)

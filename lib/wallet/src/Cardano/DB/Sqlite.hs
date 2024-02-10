@@ -510,8 +510,8 @@ instance HasSeverityAnnotation DBLog where
         MsgStatementAlreadyFinalized _ -> Warning
         MsgUpdatingForeignKeysSetting{} -> Debug
         MsgRetryOnBusy n _
-            | n <= 1 -> Debug
-            | n <= 3 -> Notice
+            | n <= 5 -> Debug
+            | n <= 20 -> Info
             | otherwise -> Warning
         MsgOpenSingleConnection _ -> Debug
 
