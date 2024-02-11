@@ -98,8 +98,7 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId
-    , NetworkDiscriminant (..)
+    ( NetworkDiscriminant (..)
     , NetworkId (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -228,12 +227,14 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Options.Applicative as O
 
-main :: forall n. (n ~ 'Testnet 42) => IO ()
+type A = 'Testnet 42
+
+main :: IO ()
 main = withUtf8
     $ withLatencyLogging setupTracers
     $ \tracers capture ->
         withShelleyServer tracers $ \ctx ->
-            walletApiBench @n capture ctx
+            walletApiBench capture ctx
   where
     onlyErrors :: (HasSeverityAnnotation a, ToText a) => Tracer IO a
     onlyErrors = filterSeverity (const $ pure Error) stdoutTextTracer
@@ -253,9 +254,7 @@ main = withUtf8
             }
 
 walletApiBench
-    :: forall n
-     . HasSNetworkId n
-    => LogCaptureFunc ApiLog ()
+    :: LogCaptureFunc ApiLog ()
     -> Context
     -> IO ()
 walletApiBench capture ctx = do
@@ -342,7 +341,7 @@ walletApiBench capture ctx = do
 
     nFixtureWalletWithUTxOs n utxoNumber = do
         let utxoExp = replicate utxoNumber (minUTxOValue era)
-        wal1 <- fixtureWalletWith @n ctx utxoExp
+        wal1 <- fixtureWalletWith @A ctx utxoExp
         (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
         eventually "Wallet balance is as expected" $ do
@@ -419,7 +418,7 @@ walletApiBench capture ctx = do
 
     postTx (wSrc, postTxEndp, pass) wDest amt = do
         (_, addrs) <-
-            unsafeRequest @[ApiAddressWithPath n]
+            unsafeRequest @[ApiAddressWithPath A]
                 ctx
                 (Link.listAddresses @'Shelley wDest)
                 Empty
@@ -436,7 +435,7 @@ walletApiBench capture ctx = do
                 }],
                 "passphrase": #{pass}
             }|]
-        r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+        r <- request @(ApiTransaction A) ctx (postTxEndp wSrc) Default payload
         expectResponseCode HTTP.status202 r
         return r
 
@@ -464,27 +463,27 @@ walletApiBench capture ctx = do
                 t4 <-
                     measureApiLogs
                         capture
-                        (request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
+                        (request @[ApiAddressWithPath A] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
                 fmtResult "listAddresses      " t4
 
                 t5 <-
                     measureApiLogs
                         capture
-                        (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
+                        (request @[ApiTransaction A] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
                 fmtResult "listTransactions   " t5
 
-                (_, txs) <- unsafeRequest @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Empty
+                (_, txs) <- unsafeRequest @[ApiTransaction A] ctx (Link.listTransactions @'Shelley wal1) Empty
                 let txid = (head txs) ^. #id
                 t5a <-
                     measureApiLogs capture
-                        $ request @[ApiTransaction n]
+                        $ request @[ApiTransaction A]
                             ctx
                             (Link.getTransaction @'Shelley wal1 (ApiTxId txid))
                             Default
                             Empty
                 fmtResult "getTransaction     " t5a
 
-                (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal2) Empty
+                (_, addrs) <- unsafeRequest @[ApiAddressWithPath A] ctx (Link.listAddresses @'Shelley wal2) Empty
                 let amt = minUTxOValue era
                 let destination = (addrs !! 1) ^. #id
                 let payload =
@@ -521,7 +520,7 @@ walletApiBench capture ctx = do
             }|]
                 t7 <-
                     measureApiLogs capture
-                        $ request @(ApiTransaction n)
+                        $ request @(ApiTransaction A)
                             ctx
                             (Link.createTransactionOld @'Shelley wal1)
                             Default
@@ -547,7 +546,7 @@ walletApiBench capture ctx = do
 
                 t7a <-
                     measureApiLogs capture
-                        $ request @(ApiTransaction n)
+                        $ request @(ApiTransaction A)
                             ctx
                             (Link.createTransactionOld @'Shelley wal2)
                             Default
@@ -556,10 +555,10 @@ walletApiBench capture ctx = do
 
                 let assetsToSend = walMA ^. #assets . #total
                 let val = minUTxOValue era <$ pickAnAsset assetsToSend
-                payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
+                payloadMA <- mkTxPayloadMA @A destination (2 * minUTxOValue era) [val] fixturePassphrase
                 t7b <-
                     measureApiLogs capture
-                        $ request @(ApiTransaction n)
+                        $ request @(ApiTransaction A)
                             ctx
                             (Link.createTransactionOld @'Shelley walMA)
                             Default
@@ -611,7 +610,7 @@ walletApiBench capture ctx = do
                 let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
                 t12a <-
                     measureApiLogs capture
-                        $ request @(ApiWalletMigrationPlan n)
+                        $ request @(ApiWalletMigrationPlan A)
                             ctx
                             endpointPlan
                             Default
@@ -622,7 +621,7 @@ walletApiBench capture ctx = do
                 let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
                 t12b <-
                     measureApiLogs capture
-                        $ request @[ApiTransaction n]
+                        $ request @[ApiTransaction A]
                             ctx
                             endpointMigrate
                             Default
