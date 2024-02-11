@@ -380,122 +380,6 @@ library cardano-wallet-api-http
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
 
-library cardano-wallet-integration
-  import:          language, opts-lib
-  hs-source-dirs:  integration/src
-  build-depends:
-    , address-derivation-discovery
-    , aeson
-    , aeson-qq
-    , base
-    , base16-bytestring
-    , bech32
-    , bech32-th
-    , bytestring
-    , cardano-addresses
-    , cardano-api
-    , cardano-crypto
-    , cardano-crypto-class
-    , cardano-ledger-alonzo
-    , cardano-ledger-core
-    , cardano-ledger-shelley
-    , cardano-wallet-application-extras
-    , cardano-wallet-launcher
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
-    , cardano-wallet-secrets
-    , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, mock-token-metadata}
-    , cborg
-    , command
-    , containers
-    , contra-tracer
-    , crypto-hash-extra
-    , cryptonite
-    , directory
-    , either
-    , extra
-    , faucet
-    , filepath
-    , flat
-    , fmt
-    , generic-lens
-    , generic-lens-core
-    , hspec
-    , hspec-core
-    , hspec-expectations-lifted
-    , http-api-data
-    , http-client
-    , http-types
-    , HUnit
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , lens-aeson
-    , lobemo-backend-ekg
-    , local-cluster
-    , memory
-    , microstache
-    , monad-loops
-    , network-uri
-    , pretty-simple
-    , process
-    , resourcet
-    , retry
-    , serialise
-    , servant-client
-    , string-interpolate
-    , template-haskell
-    , temporary-extra
-    , text
-    , text-class
-    , time
-    , unliftio
-    , unliftio-core
-    , unordered-containers
-    , with-utf8
-
-  exposed-modules:
-    Test.Integration.Framework.Context
-    Test.Integration.Framework.DSL
-    Test.Integration.Framework.Logging
-    Test.Integration.Framework.PendingInEra
-    Test.Integration.Framework.Request
-    Test.Integration.Framework.Setup
-    Test.Integration.Framework.TestData
-    Test.Integration.Plutus
-    Test.Integration.Run
-    Test.Integration.Scenario.API.Blocks
-    Test.Integration.Scenario.API.Byron.Addresses
-    Test.Integration.Scenario.API.Byron.CoinSelections
-    Test.Integration.Scenario.API.Byron.HWWallets
-    Test.Integration.Scenario.API.Byron.Migrations
-    Test.Integration.Scenario.API.Byron.Network
-    Test.Integration.Scenario.API.Byron.Transactions
-    Test.Integration.Scenario.API.Byron.Wallets
-    Test.Integration.Scenario.API.Network
-    Test.Integration.Scenario.API.Shared.Addresses
-    Test.Integration.Scenario.API.Shared.Transactions
-    Test.Integration.Scenario.API.Shared.Wallets
-    Test.Integration.Scenario.API.Shelley.Addresses
-    Test.Integration.Scenario.API.Shelley.CoinSelections
-    Test.Integration.Scenario.API.Shelley.HWWallets
-    Test.Integration.Scenario.API.Shelley.Migrations
-    Test.Integration.Scenario.API.Shelley.Network
-    Test.Integration.Scenario.API.Shelley.Settings
-    Test.Integration.Scenario.API.Shelley.StakePools
-    Test.Integration.Scenario.API.Shelley.Transactions
-    Test.Integration.Scenario.API.Shelley.TransactionsNew
-    Test.Integration.Scenario.API.Shelley.Wallets
-    Test.Integration.Scenario.CLI.Byron.Addresses
-    Test.Integration.Scenario.CLI.Byron.Wallets
-    Test.Integration.Scenario.CLI.Miscellaneous
-    Test.Integration.Scenario.CLI.Network
-    Test.Integration.Scenario.CLI.Port
-    Test.Integration.Scenario.CLI.Shelley.Addresses
-    Test.Integration.Scenario.CLI.Shelley.HWWallets
-    Test.Integration.Scenario.CLI.Shelley.Transactions
-    Test.Integration.Scenario.CLI.Shelley.Wallets
-
 library cardano-wallet-bench
   import:          language, opts-lib
   hs-source-dirs:  bench/src
@@ -786,12 +670,165 @@ test-suite unit
     Spec
     SpecHook
 
+library integration-framework
+  import:          language, opts-lib
+  hs-source-dirs:  integration/framework
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , aeson-qq
+    , base
+    , base16-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-ledger-shelley
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , cardano-wallet-secrets
+    , cardano-wallet-test-utils
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, mock-token-metadata}
+    , cborg
+    , command
+    , containers
+    , contra-tracer
+    , crypto-hash-extra
+    , cryptonite
+    , directory
+    , either
+    , extra
+    , faucet
+    , filepath
+    , flat
+    , fmt
+    , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , HUnit
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , lobemo-backend-ekg
+    , local-cluster
+    , memory
+    , microstache
+    , monad-loops
+    , network-uri
+    , resourcet
+    , retry
+    , serialise
+    , servant-client
+    , string-interpolate
+    , template-haskell
+    , temporary-extra
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unliftio-core
+    , with-utf8
+
+  exposed-modules:
+    Test.Integration.Framework.Context
+    Test.Integration.Framework.DSL
+    Test.Integration.Framework.Logging
+    Test.Integration.Framework.PendingInEra
+    Test.Integration.Framework.Request
+    Test.Integration.Framework.Setup
+    Test.Integration.Framework.TestData
+    Test.Integration.Plutus
+
+library integration-scenarios
+  import:          language, opts-lib
+  hs-source-dirs:  integration/scenarios
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , aeson-qq
+    , base
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
+    , cardano-wallet-primitive
+    , cardano-wallet-secrets
+    , cardano-wallet-test-utils
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, integration-framework}
+    , command
+    , containers
+    , either
+    , extra
+    , faucet
+    , generic-lens
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-types
+    , lens-aeson
+    , local-cluster
+    , memory
+    , pretty-simple
+    , resourcet
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+
+
+  exposed-modules:
+    Test.Integration.Run
+    Test.Integration.Scenario.API.Blocks
+    Test.Integration.Scenario.API.Byron.Addresses
+    Test.Integration.Scenario.API.Byron.CoinSelections
+    Test.Integration.Scenario.API.Byron.HWWallets
+    Test.Integration.Scenario.API.Byron.Migrations
+    Test.Integration.Scenario.API.Byron.Network
+    Test.Integration.Scenario.API.Byron.Transactions
+    Test.Integration.Scenario.API.Byron.Wallets
+    Test.Integration.Scenario.API.Network
+    Test.Integration.Scenario.API.Shared.Addresses
+    Test.Integration.Scenario.API.Shared.Transactions
+    Test.Integration.Scenario.API.Shared.Wallets
+    Test.Integration.Scenario.API.Shelley.Addresses
+    Test.Integration.Scenario.API.Shelley.CoinSelections
+    Test.Integration.Scenario.API.Shelley.HWWallets
+    Test.Integration.Scenario.API.Shelley.Migrations
+    Test.Integration.Scenario.API.Shelley.Network
+    Test.Integration.Scenario.API.Shelley.Settings
+    Test.Integration.Scenario.API.Shelley.StakePools
+    Test.Integration.Scenario.API.Shelley.Transactions
+    Test.Integration.Scenario.API.Shelley.TransactionsNew
+    Test.Integration.Scenario.API.Shelley.Wallets
+    Test.Integration.Scenario.CLI.Byron.Addresses
+    Test.Integration.Scenario.CLI.Byron.Wallets
+    Test.Integration.Scenario.CLI.Miscellaneous
+    Test.Integration.Scenario.CLI.Network
+    Test.Integration.Scenario.CLI.Port
+    Test.Integration.Scenario.CLI.Shelley.Addresses
+    Test.Integration.Scenario.CLI.Shelley.HWWallets
+    Test.Integration.Scenario.CLI.Shelley.Transactions
+    Test.Integration.Scenario.CLI.Shelley.Wallets
+
 common integration-common
   import:         language, opts-exe
   hs-source-dirs: test/integration test/data
   build-depends:
     , base
-    , cardano-wallet:cardano-wallet-integration
+    , cardano-wallet:integration-scenarios
 
 executable integration-exe
   import:             integration-common
@@ -846,7 +883,7 @@ benchmark latency
     , cardano-wallet-application-extras
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, cardano-wallet-integration}
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, integration-framework}
     , directory
     , faucet
     , filepath
