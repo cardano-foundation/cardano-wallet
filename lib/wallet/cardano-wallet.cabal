@@ -380,30 +380,6 @@ library cardano-wallet-api-http
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
 
-library cardano-wallet-bench
-  import:          language, opts-lib
-  hs-source-dirs:  bench/src
-  build-depends:
-    , aeson
-    , base
-    , cardano-wallet-application-extras
-    , cardano-wallet-launcher
-    , cardano-wallet-test-utils
-    , criterion-measurement
-    , deepseq
-    , directory
-    , filepath
-    , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , optparse-applicative
-    , say
-    , text
-    , text-class
-    , unliftio
-
-  exposed-modules: Cardano.Wallet.BenchShared
-
 library mock-token-metadata
   import:          language, opts-lib
   hs-source-dirs:  mock-token-metadata/src
@@ -840,6 +816,30 @@ test-suite integration
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
   build-tool-depends: cardano-wallet:cardano-wallet
+
+library cardano-wallet-bench
+  import:          language, opts-lib
+  hs-source-dirs:  bench/src
+  build-depends:
+    , aeson
+    , base
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , criterion-measurement
+    , deepseq
+    , directory
+    , filepath
+    , fmt
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , optparse-applicative
+    , say
+    , text
+    , text-class
+    , unliftio
+
+  exposed-modules: Cardano.Wallet.BenchShared
 
 benchmark restore
   import:         language, opts-exe
