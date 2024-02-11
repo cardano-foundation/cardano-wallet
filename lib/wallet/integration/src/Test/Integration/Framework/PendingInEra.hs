@@ -1,4 +1,4 @@
-module Cardano.Wallet.Test.Integration.PendingInEra
+module Test.Integration.Framework.PendingInEra
     ( pendingInConway
     , pendingInBabbage
     )
