@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -52,18 +53,26 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (ListenOnPort)
     )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressWithPath
+    ( AddressAmount (..)
+    , ApiAddressWithPath
     , ApiAsset (..)
     , ApiEra
     , ApiFee
     , ApiNetworkInformation
-    , ApiT
+    , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationPlan (..)
+    , PostTransactionOldData (..)
     , WalletStyle (..)
+    )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (..)
+    )
+import Cardano.Wallet.Api.Types.WalletAssets
+    ( ApiWalletAssets (..)
     )
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc
@@ -127,7 +136,8 @@ import Control.Monad
     , replicateM_
     )
 import Control.Monad.IO.Class
-    ( liftIO
+    ( MonadIO
+    , liftIO
     )
 import Data.Aeson
     ( Value
@@ -140,6 +150,7 @@ import Data.Functor.Contravariant
     )
 import Data.Generics.Internal.VL.Lens
     ( over
+    , view
     , (^.)
     )
 import Data.Text.Class.Extended
@@ -162,6 +173,13 @@ import Network.Wai.Middleware.Logging
     )
 import Numeric.Natural
     ( Natural
+    )
+import Servant.Client
+    ( ClientError
+    , ClientM
+    , mkClientEnv
+    , parseBaseUrl
+    , runClientM
     )
 import System.Directory
     ( createDirectory
@@ -193,6 +211,7 @@ import Test.Integration.Framework.DSL
     , faucetAmt
     , fixtureMultiAssetWallet
     , fixturePassphrase
+    , fixturePassphraseLenient
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -219,6 +238,7 @@ import UnliftIO.STM
     )
 
 import qualified Cardano.Faucet.Addresses as Addresses
+import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -227,6 +247,7 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Options.Applicative as O
 
+-- will go away once we have all implemented in terms of servant-client code
 type A = 'Testnet 42
 
 main :: IO ()
@@ -306,6 +327,17 @@ walletApiBench capture ctx = do
             <> " utxos scenario"
     runScenario massiveFixtureWallet
   where
+    -- one day we will export the manager from the context
+    cenv = case parseBaseUrl $ show (fst $ ctx ^. #_manager) of
+        Left _ -> error "Invalid base URL"
+        Right bu -> mkClientEnv (snd $ ctx ^. #_manager) bu
+    req :: MonadIO m => ClientM a -> m (Either ClientError a)
+    req x = liftIO $ runClientM x cenv
+    rightReq :: MonadIO m => ClientM a -> m a
+    rightReq x =
+        req x >>= \case
+            Right a -> pure a
+            Left e -> error $ show e
     -- Creates n fixture wallets and return 3 of them
     nFixtureWallet
         :: HasCallStack
@@ -400,44 +432,33 @@ walletApiBench capture ctx = do
         pure (wal1, wal2, walMA, maWalletToMigrate)
 
     repeatPostTx wDest amtToSend batchSize amtExp = do
-        wSrc <- fixtureWallet ctx
-        replicateM_
-            batchSize
-            (postTx (wSrc, Link.createTransactionOld @'Shelley, fixturePassphrase) wDest amtToSend)
-        eventually "repeatPostTx: wallet balance is as expected" $ do
-            rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
-            verify
-                rWal1
-                [ expectSuccess
-                , expectField
-                    (#balance . #available . #toNatural)
-                    (`shouldBe` amtExp)
-                ]
-        rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
-        expectResponseCode HTTP.status204 rDel
+        wSrcId <- view #id <$> fixtureWallet ctx
+        replicateM_ batchSize
+            $ do
+                addrs <- rightReq $ C.listAddresses (wDest ^. #id) Nothing
+                let destination = addrs !! 1 ^. #id
+                    amount =
+                        AddressAmount
+                            { address = destination
+                            , amount = ApiAmount amtToSend
+                            , assets = ApiWalletAssets []
+                            }
+                    payload =
+                        PostTransactionOldData
+                            { payments = pure amount
+                            , passphrase = ApiT fixturePassphraseLenient
+                            , withdrawal = Nothing
+                            , metadata = Nothing
+                            , timeToLive = Nothing
+                            }
+                rightReq $ C.postTransaction wSrcId payload
 
-    postTx (wSrc, postTxEndp, pass) wDest amt = do
-        (_, addrs) <-
-            unsafeRequest @[ApiAddressWithPath A]
-                ctx
-                (Link.listAddresses @'Shelley wDest)
-                Empty
-        let destination = (addrs !! 1) ^. #id
-        let payload =
-                Json
-                    [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": #{pass}
-            }|]
-        r <- request @(ApiTransaction A) ctx (postTxEndp wSrc) Default payload
-        expectResponseCode HTTP.status202 r
-        return r
+        eventually "repeatPostTx: wallet balance is as expected" $ do
+            rWal1 <- rightReq $ C.getWallet $ wDest ^. #id
+            -- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
+            rWal1 ^. #balance . #available . #toNatural `shouldBe` amtExp
+
+        rightReq $ C.deleteWallet wSrcId
 
     runScenario scenario =
         runResourceT
@@ -489,14 +510,14 @@ walletApiBench capture ctx = do
                 let payload =
                         Json
                             [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }]
-            }|]
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{amt},
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
                 t6 <-
                     measureApiLogs capture
                         $ request @ApiFee
@@ -509,15 +530,15 @@ walletApiBench capture ctx = do
                 let payloadTx =
                         Json
                             [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{amt},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{fixturePassphrase}
+                }|]
                 t7 <-
                     measureApiLogs capture
                         $ request @(ApiTransaction A)
@@ -531,18 +552,18 @@ walletApiBench capture ctx = do
                 let coins = replicate 5 amt
                 let payments = flip map (zip coins addresses) $ \(amount, address) ->
                         [json|{
-                "address": #{address},
-                "amount": {
-                    "quantity": #{amount},
-                    "unit": "lovelace"
-                }
-            }|]
+                    "address": #{address},
+                    "amount": {
+                        "quantity": #{amount},
+                        "unit": "lovelace"
+                    }
+                }|]
                 let payloadTxTo5Addr =
                         Json
                             [json|{
-                "payments": #{payments :: [Value]},
-                "passphrase": #{fixturePassphrase}
-            }|]
+                    "payments": #{payments :: [Value]},
+                    "passphrase": #{fixturePassphrase}
+                }|]
 
                 t7a <-
                     measureApiLogs capture
@@ -627,9 +648,9 @@ walletApiBench capture ctx = do
                             Default
                         $ Json
                             [json|
-                { passphrase: #{fixturePassphrase}
-                , addresses: #{addresses}
-                }|]
+                    { passphrase: #{fixturePassphrase}
+                    , addresses: #{addresses}
+                    }|]
                 fmtResult "postMigration      " t12b
       where
         arbitraryStake :: Maybe Coin
