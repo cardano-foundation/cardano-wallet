@@ -156,6 +156,9 @@ import Data.Generics.Internal.VL.Lens
 import Data.Text.Class.Extended
     ( ToText
     )
+import Data.Time
+    ( NominalDiffTime
+    )
 import Fmt
     ( build
     )
@@ -460,49 +463,48 @@ walletApiBench capture ctx = do
 
         rightReq $ C.deleteWallet wSrcId
 
-    runScenario scenario =
-        runResourceT
-            $ scenario >>= \(wal1, wal2, walMA, maWalletToMigrate) -> liftIO $ do
-                t1 <-
-                    measureApiLogs
-                        capture
-                        (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
-                fmtResult "listWallets        " t1
+    measure :: IO (Either ClientError a) -> IO [NominalDiffTime]
+    measure = measureApiLogs capture
 
-                t2 <-
-                    measureApiLogs
-                        capture
-                        (request @ApiWallet ctx (Link.getWallet @'Shelley wal1) Default Empty)
-                fmtResult "getWallet          " t2
+    scene :: String -> IO (Either ClientError a) -> IO ()
+    scene title scenario = measure scenario >>= fmtResult title
 
-                t3 <-
-                    measureApiLogs
-                        capture
-                        (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wal1) Default Empty)
-                fmtResult "getUTxOsStatistics " t3
-
-                t4 <-
-                    measureApiLogs
-                        capture
-                        (request @[ApiAddressWithPath A] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
-                fmtResult "listAddresses      " t4
-
-                t5 <-
-                    measureApiLogs
-                        capture
-                        (request @[ApiTransaction A] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
-                fmtResult "listTransactions   " t5
-
-                (_, txs) <- unsafeRequest @[ApiTransaction A] ctx (Link.listTransactions @'Shelley wal1) Empty
-                let txid = (head txs) ^. #id
-                t5a <-
-                    measureApiLogs capture
-                        $ request @[ApiTransaction A]
-                            ctx
-                            (Link.getTransaction @'Shelley wal1 (ApiTxId txid))
-                            Default
-                            Empty
-                fmtResult "getTransaction     " t5a
+    runScenario scenario = runResourceT $ do
+            (wal1, wal2, walMA, maWalletToMigrate) <- scenario
+            let wal1Id = wal1 ^. #id
+            liftIO $ do
+                scene "listWallets" $ req C.listWallets
+                scene "getWallet" $ req $ C.getWallet wal1Id
+                scene "getUTxOsStatistics" $ req $ C.getWalletUtxoStatistics wal1Id
+                scene "listAddresses"
+                    $ req
+                    $ C.listAddresses wal1Id Nothing
+                scene "listTransactions"
+                    $ req
+                    $ C.listTransactions
+                        wal1Id
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        Nothing
+                        False
+                Right (tx : _) <-
+                    req
+                        $ C.listTransactions
+                            wal1Id
+                            Nothing
+                            Nothing
+                            Nothing
+                            Nothing
+                            Nothing
+                            Nothing
+                            False
+                let txid = tx ^. #id
+                scene "getTransaction"
+                    $ req
+                    $ C.getTransaction wal1Id (ApiTxId txid) False
 
                 (_, addrs) <- unsafeRequest @[ApiAddressWithPath A] ctx (Link.listAddresses @'Shelley wal2) Empty
                 let amt = minUTxOValue era
