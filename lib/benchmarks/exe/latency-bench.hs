@@ -229,8 +229,9 @@ import qualified Network.HTTP.Types.Status as HTTP
 import qualified Options.Applicative as O
 
 main :: forall n. (n ~ 'Testnet 42) => IO ()
-main = withUtf8 $
-    withLatencyLogging setupTracers $ \tracers capture ->
+main = withUtf8
+    $ withLatencyLogging setupTracers
+    $ \tracers capture ->
         withShelleyServer tracers $ \ctx ->
             walletApiBench @n capture ctx
   where
@@ -300,12 +301,12 @@ walletApiBench capture ctx = do
     fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 1_000)
 
-    fmtTitle $ "Latencies for 2 fixture wallets with "
-        <> build massiveWalletUTxOSize
-        <> " utxos scenario"
+    fmtTitle
+        $ "Latencies for 2 fixture wallets with "
+            <> build massiveWalletUTxOSize
+            <> " utxos scenario"
     runScenario massiveFixtureWallet
   where
-
     -- Creates n fixture wallets and return 3 of them
     nFixtureWallet
         :: HasCallStack
@@ -331,11 +332,10 @@ walletApiBench capture ctx = do
         let lastBit = mod m batchSize
         let amtExp val = ((amt * fromIntegral val) + faucetAmt) :: Natural
         let expInflows =
-                if whole10Rounds > 0 then
-                    [x * batchSize | x <- [1..whole10Rounds]] ++ [lastBit]
-                else
-                    [lastBit]
-        let expInflows' = filter (/=0) expInflows
+                if whole10Rounds > 0
+                    then [x * batchSize | x <- [1 .. whole10Rounds]] ++ [lastBit]
+                    else [lastBit]
+        let expInflows' = filter (/= 0) expInflows
 
         mapM_ (repeatPostTx wal1 amt batchSize . amtExp) expInflows'
         pure (wal1, wal2, walMA, maWalletToMigrate)
@@ -346,26 +346,37 @@ walletApiBench capture ctx = do
         (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
         eventually "Wallet balance is as expected" $ do
-            rWal1 <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wal1) Default Empty
-            verify rWal1
+            rWal1 <-
+                request @ApiWallet
+                    ctx
+                    (Link.getWallet @'Shelley wal1)
+                    Default
+                    Empty
+            verify
+                rWal1
                 [ expectSuccess
                 , expectField
                     (#balance . #available . #toNatural)
-                    (`shouldBe`
+                    ( `shouldBe`
                         ((minUTxOValue era) * (fromIntegral utxoNumber))
                     )
                 ]
 
-        rStat <- request @ApiUtxoStatistics ctx
-                (Link.getUTxOsStatistics @'Shelley wal1) Default Empty
+        rStat <-
+            request @ApiUtxoStatistics
+                ctx
+                (Link.getUTxOsStatistics @'Shelley wal1)
+                Default
+                Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO (fromIntegral <$> utxoExp) (snd rStat)
         pure (wal1, wal2, walMA, maWalletToMigrate)
 
     massiveFixtureWallet = do
         (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet 2
-        let payload = Json [json| {
+        let payload =
+                Json
+                    [json| {
                 "name": "Massive wallet",
                 "mnemonic_sentence": #{mnemonicToText massiveWallet},
                 "passphrase": #{fixturePassphrase},
@@ -375,13 +386,14 @@ walletApiBench capture ctx = do
         -- will be discovered as part of the postWallet call, and we don't need
         -- to wait with 'eventually'.
         rWal <- postWallet ctx payload
-        verify rWal
+        verify
+            rWal
             [ expectSuccess
             , expectField
                 (#balance . #available . #toNatural)
-                (`shouldBe`
+                ( `shouldBe`
                     ( fromIntegral massiveWalletUTxOSize
-                    * unCoin massiveWalletAmt
+                        * unCoin massiveWalletAmt
                     )
                 )
             ]
@@ -390,24 +402,31 @@ walletApiBench capture ctx = do
 
     repeatPostTx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
-        replicateM_ batchSize
+        replicateM_
+            batchSize
             (postTx (wSrc, Link.createTransactionOld @'Shelley, fixturePassphrase) wDest amtToSend)
         eventually "repeatPostTx: wallet balance is as expected" $ do
-            rWal1 <- request @ApiWallet  ctx (Link.getWallet @'Shelley wDest) Default Empty
-            verify rWal1
+            rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
+            verify
+                rWal1
                 [ expectSuccess
                 , expectField
                     (#balance . #available . #toNatural)
                     (`shouldBe` amtExp)
                 ]
-        rDel <- request @ApiWallet  ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
+        rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
         expectResponseCode HTTP.status204 rDel
 
     postTx (wSrc, postTxEndp, pass) wDest amt = do
-        (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx
-            (Link.listAddresses @'Shelley wDest) Empty
+        (_, addrs) <-
+            unsafeRequest @[ApiAddressWithPath n]
+                ctx
+                (Link.listAddresses @'Shelley wDest)
+                Empty
         let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
+        let payload =
+                Json
+                    [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
@@ -421,40 +440,56 @@ walletApiBench capture ctx = do
         expectResponseCode HTTP.status202 r
         return r
 
-    runScenario scenario = runResourceT $ scenario >>= \(wal1, wal2, walMA, maWalletToMigrate) -> liftIO $ do
-        t1 <- measureApiLogs capture
-            (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
-        fmtResult "listWallets        " t1
+    runScenario scenario =
+        runResourceT
+            $ scenario >>= \(wal1, wal2, walMA, maWalletToMigrate) -> liftIO $ do
+                t1 <-
+                    measureApiLogs
+                        capture
+                        (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
+                fmtResult "listWallets        " t1
 
-        t2 <- measureApiLogs capture
-            (request @ApiWallet  ctx (Link.getWallet @'Shelley wal1) Default Empty)
-        fmtResult "getWallet          " t2
+                t2 <-
+                    measureApiLogs
+                        capture
+                        (request @ApiWallet ctx (Link.getWallet @'Shelley wal1) Default Empty)
+                fmtResult "getWallet          " t2
 
-        t3 <- measureApiLogs capture
-            (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wal1) Default Empty)
-        fmtResult "getUTxOsStatistics " t3
+                t3 <-
+                    measureApiLogs
+                        capture
+                        (request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wal1) Default Empty)
+                fmtResult "getUTxOsStatistics " t3
 
-        t4 <- measureApiLogs capture
-            (request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
-        fmtResult "listAddresses      " t4
+                t4 <-
+                    measureApiLogs
+                        capture
+                        (request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal1) Default Empty)
+                fmtResult "listAddresses      " t4
 
-        t5 <- measureApiLogs capture
-            (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
-        fmtResult "listTransactions   " t5
+                t5 <-
+                    measureApiLogs
+                        capture
+                        (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
+                fmtResult "listTransactions   " t5
 
-        (_, txs) <- unsafeRequest @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Empty
-        let txid = (head txs) ^. #id
-        t5a <- measureApiLogs capture $
-            request @[ApiTransaction n]
-                ctx (Link.getTransaction @'Shelley wal1 (ApiTxId txid))
-                Default
-                Empty
-        fmtResult "getTransaction     " t5a
+                (_, txs) <- unsafeRequest @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Empty
+                let txid = (head txs) ^. #id
+                t5a <-
+                    measureApiLogs capture
+                        $ request @[ApiTransaction n]
+                            ctx
+                            (Link.getTransaction @'Shelley wal1 (ApiTxId txid))
+                            Default
+                            Empty
+                fmtResult "getTransaction     " t5a
 
-        (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal2) Empty
-        let amt = minUTxOValue era
-        let destination = (addrs !! 1) ^. #id
-        let payload = Json [json|{
+                (_, addrs) <- unsafeRequest @[ApiAddressWithPath n] ctx (Link.listAddresses @'Shelley wal2) Empty
+                let amt = minUTxOValue era
+                let destination = (addrs !! 1) ^. #id
+                let payload =
+                        Json
+                            [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
@@ -463,11 +498,18 @@ walletApiBench capture ctx = do
                     }
                 }]
             }|]
-        t6 <- measureApiLogs capture $ request @ApiFee ctx
-            (Link.getTransactionFeeOld @'Shelley wal1) Default payload
-        fmtResult "postTransactionFee " t6
+                t6 <-
+                    measureApiLogs capture
+                        $ request @ApiFee
+                            ctx
+                            (Link.getTransactionFeeOld @'Shelley wal1)
+                            Default
+                            payload
+                fmtResult "postTransactionFee " t6
 
-        let payloadTx = Json [json|{
+                let payloadTx =
+                        Json
+                            [json|{
                 "payments": [{
                     "address": #{destination},
                     "amount": {
@@ -477,81 +519,135 @@ walletApiBench capture ctx = do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        t7 <- measureApiLogs capture $ request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley wal1) Default payloadTx
-        fmtResult "postTransaction    " t7
+                t7 <-
+                    measureApiLogs capture
+                        $ request @(ApiTransaction n)
+                            ctx
+                            (Link.createTransactionOld @'Shelley wal1)
+                            Default
+                            payloadTx
+                fmtResult "postTransaction    " t7
 
-        let addresses = replicate 5 destination
-        let coins = replicate 5 amt
-        let payments = flip map (zip coins addresses) $ \(amount, address) -> [json|{
+                let addresses = replicate 5 destination
+                let coins = replicate 5 amt
+                let payments = flip map (zip coins addresses) $ \(amount, address) ->
+                        [json|{
                 "address": #{address},
                 "amount": {
                     "quantity": #{amount},
                     "unit": "lovelace"
                 }
             }|]
-        let payloadTxTo5Addr = Json [json|{
+                let payloadTxTo5Addr =
+                        Json
+                            [json|{
                 "payments": #{payments :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
 
-        t7a <- measureApiLogs capture $ request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley wal2) Default payloadTxTo5Addr
-        fmtResult "postTransTo5Addrs  " t7a
+                t7a <-
+                    measureApiLogs capture
+                        $ request @(ApiTransaction n)
+                            ctx
+                            (Link.createTransactionOld @'Shelley wal2)
+                            Default
+                            payloadTxTo5Addr
+                fmtResult "postTransTo5Addrs  " t7a
 
-        let assetsToSend = walMA ^. #assets . #total
-        let val = minUTxOValue era <$ pickAnAsset assetsToSend
-        payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
-        t7b <- measureApiLogs capture $ request @(ApiTransaction n) ctx
-            (Link.createTransactionOld @'Shelley walMA) Default payloadMA
-        fmtResult "postTransactionMA  " t7b
+                let assetsToSend = walMA ^. #assets . #total
+                let val = minUTxOValue era <$ pickAnAsset assetsToSend
+                payloadMA <- mkTxPayloadMA @n destination (2 * minUTxOValue era) [val] fixturePassphrase
+                t7b <-
+                    measureApiLogs capture
+                        $ request @(ApiTransaction n)
+                            ctx
+                            (Link.createTransactionOld @'Shelley walMA)
+                            Default
+                            payloadMA
+                fmtResult "postTransactionMA  " t7b
 
-        t8 <- measureApiLogs capture $ request @[ApiT StakePool] ctx
-            (Link.listStakePools arbitraryStake) Default Empty
-        fmtResult "listStakePools     " t8
+                t8 <-
+                    measureApiLogs capture
+                        $ request @[ApiT StakePool]
+                            ctx
+                            (Link.listStakePools arbitraryStake)
+                            Default
+                            Empty
+                fmtResult "listStakePools     " t8
 
-        t9 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
-        fmtResult "getNetworkInfo     " t9
+                t9 <-
+                    measureApiLogs capture
+                        $ request @ApiNetworkInformation
+                            ctx
+                            Link.getNetworkInfo
+                            Default
+                            Empty
+                fmtResult "getNetworkInfo     " t9
 
-        t10 <- measureApiLogs capture $ request @([ApiAsset]) ctx
-            (Link.listAssets walMA) Default Empty
-        fmtResult "listMultiAssets    " t10
+                t10 <-
+                    measureApiLogs capture
+                        $ request @([ApiAsset])
+                            ctx
+                            (Link.listAssets walMA)
+                            Default
+                            Empty
+                fmtResult "listMultiAssets    " t10
 
-        let assetsSrc = walMA ^. #assets . #total
-        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
-                pickAnAsset assetsSrc
-        t11 <- measureApiLogs capture $ request @([ApiAsset]) ctx
-            (Link.getAsset walMA polId assName) Default Empty
-        fmtResult "getMultiAsset      " t11
+                let assetsSrc = walMA ^. #assets . #total
+                let (polId, assName) =
+                        bimap unsafeFromText unsafeFromText
+                            $ fst
+                            $ pickAnAsset assetsSrc
+                t11 <-
+                    measureApiLogs capture
+                        $ request @([ApiAsset])
+                            ctx
+                            (Link.getAsset walMA polId assName)
+                            Default
+                            Empty
+                fmtResult "getMultiAsset      " t11
 
-        -- Create a migration plan:
-        let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
-        t12a <- measureApiLogs capture $ request @(ApiWalletMigrationPlan n)
-            ctx endpointPlan Default $
-            Json [json|{addresses: #{addresses}}|]
-        fmtResult "postMigrationPlan  " t12a
+                -- Create a migration plan:
+                let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
+                t12a <-
+                    measureApiLogs capture
+                        $ request @(ApiWalletMigrationPlan n)
+                            ctx
+                            endpointPlan
+                            Default
+                        $ Json [json|{addresses: #{addresses}}|]
+                fmtResult "postMigrationPlan  " t12a
 
-        -- Perform a migration:
-        let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
-        t12b <- measureApiLogs capture $ request @[ApiTransaction n]
-            ctx endpointMigrate Default $
-            Json [json|
+                -- Perform a migration:
+                let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
+                t12b <-
+                    measureApiLogs capture
+                        $ request @[ApiTransaction n]
+                            ctx
+                            endpointMigrate
+                            Default
+                        $ Json
+                            [json|
                 { passphrase: #{fixturePassphrase}
                 , addresses: #{addresses}
                 }|]
-        fmtResult "postMigration      " t12b
-
-     where
+                fmtResult "postMigration      " t12b
+      where
         arbitraryStake :: Maybe Coin
         arbitraryStake = Just $ ada 10_000
-            where ada = Coin . (1_000_000 *)
+          where
+            ada = Coin . (1_000_000 *)
 
     runWarmUpScenario = do
         -- this one is to have comparable results from first to last measurement
         -- in runScenario
-        t <- measureApiLogs capture $ request @ApiNetworkInformation ctx
-            Link.getNetworkInfo Default Empty
+        t <-
+            measureApiLogs capture
+                $ request @ApiNetworkInformation
+                    ctx
+                    Link.getNetworkInfo
+                    Default
+                    Empty
         fmtResult "getNetworkInfo     " t
 
 withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
@@ -561,24 +657,29 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
     let testnetMagic = Cluster.TestnetMagic 42
     let setupContext np baseUrl = do
             let sixtySeconds = 60 * 1_000_000 -- 60s in microseconds
-            manager <- newManager defaultManagerSettings
-                { managerResponseTimeout = responseTimeoutMicro sixtySeconds }
+            manager <-
+                newManager
+                    defaultManagerSettings
+                        { managerResponseTimeout = responseTimeoutMicro sixtySeconds
+                        }
             faucet <- Faucet.initFaucet faucetClientEnv
-            putMVar ctx Context
-                { _cleanup = pure ()
-                , _manager = (baseUrl, manager)
-                , _walletPort = Port . fromIntegral $ portFromURL baseUrl
-                , _faucet = faucet
-                , _networkParameters = np
-                , _testnetMagic = testnetMagic
-                , _poolGarbageCollectionEvents =
-                    error "poolGarbageCollectionEvents not available"
-                , _smashUrl = ""
-                , _mainEra = maxBound
-                , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
-                , _moveRewardsToScript =
-                    error "moveRewardsToScript not available"
-                }
+            putMVar
+                ctx
+                Context
+                    { _cleanup = pure ()
+                    , _manager = (baseUrl, manager)
+                    , _walletPort = Port . fromIntegral $ portFromURL baseUrl
+                    , _faucet = faucet
+                    , _networkParameters = np
+                    , _testnetMagic = testnetMagic
+                    , _poolGarbageCollectionEvents =
+                        error "poolGarbageCollectionEvents not available"
+                    , _smashUrl = ""
+                    , _mainEra = maxBound
+                    , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
+                    , _moveRewardsToScript =
+                        error "moveRewardsToScript not available"
+                    }
     race_
         (takeMVar ctx >>= action)
         (withServer testnetMagic faucetFunds setupContext)
@@ -587,11 +688,12 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
         shelleyFunds <- Faucet.shelleyFunds shelleyTestnet
         maryAllegraFunds <-
             Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
-        pure FaucetFunds
-            { pureAdaFunds = shelleyFunds
-            , maryAllegraFunds
-            , mirCredentials = []
-            }
+        pure
+            FaucetFunds
+                { pureAdaFunds = shelleyFunds
+                , maryAllegraFunds
+                , mirCredentials = []
+                }
 
     withServer cfgTestnetMagic faucetFunds setupAction = do
         skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
@@ -613,14 +715,15 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                         , cfgTestnetMagic
                         , cfgShelleyGenesisMods =
                             [ over #sgSlotLength (const 0.2)
-                            -- to avoid "PastHorizonException" errors, as wallet
-                            -- doesn't keep up with retrieving fresh time interpreter.
-                            , over #sgSecurityParam (const 100)
-                            -- when it low then cluster is not making blocks;
+                            , -- to avoid "PastHorizonException" errors, as wallet
+                              -- doesn't keep up with retrieving fresh time interpreter.
+                              over #sgSecurityParam (const 100)
+                              -- when it low then cluster is not making blocks;
                             ]
                         , cfgTracer = stdoutTextTracer
                         }
-            withCluster clusterConfig
+            withCluster
+                clusterConfig
                 faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)
 
@@ -646,9 +749,11 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
 
 -- | A special Shelley Wallet with a massive UTxO set
 massiveWallet :: Mnemonic 15
-massiveWallet = unsafeMkMnemonic $ T.words
-    "interest ready music wet trophy ten boss topple fitness fold \
-    \saddle finish update someone pause"
+massiveWallet =
+    unsafeMkMnemonic
+        $ T.words
+            "interest ready music wet trophy ten boss topple fitness fold \
+            \saddle finish update someone pause"
 
 massiveWalletUTxOSize :: Int
 massiveWalletUTxOSize = 10_000
@@ -656,8 +761,8 @@ massiveWalletUTxOSize = 10_000
 massiveWalletFunds :: [(Address, Coin)]
 massiveWalletFunds =
     take massiveWalletUTxOSize
-      $ map (, massiveWalletAmt)
-      $ Addresses.shelley shelleyTestnet massiveWallet
+        $ map (,massiveWalletAmt)
+        $ Addresses.shelley shelleyTestnet massiveWallet
 
 massiveWalletAmt :: Coin
 massiveWalletAmt = ada 1_000
@@ -671,11 +776,12 @@ era = maxBound
 -- Command line options --------------------------------------------------------
 
 newtype CommandLineOptions = CommandLineOptions
-    { clusterConfigsDir :: FileOf "cluster-configs" }
+    {clusterConfigsDir :: FileOf "cluster-configs"}
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
-parseCommandLineOptions = O.execParser $
-    O.info
-        (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
-        (O.progDesc "Cardano Wallet's Latency Benchmark")
+parseCommandLineOptions =
+    O.execParser
+        $ O.info
+            (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
+            (O.progDesc "Cardano Wallet's Latency Benchmark")
