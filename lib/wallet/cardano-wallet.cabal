@@ -764,7 +764,6 @@ library integration-scenarios
     , unliftio-core
     , unordered-containers
 
-
   exposed-modules:
     Test.Integration.Run
     Test.Integration.Scenario.API.Blocks
@@ -837,14 +836,18 @@ library cardano-wallet-bench
     , say
     , text
     , text-class
+    , time
     , unliftio
+    , wai-middleware-logging
 
-  exposed-modules: Cardano.Wallet.BenchShared
+  exposed-modules:
+    Cardano.Wallet.BenchShared
+    Cardano.Wallet.LatencyBenchShared
 
 benchmark restore
   import:         language, opts-exe
   type:           exitcode-stdio-1.0
-  hs-source-dirs: bench
+  hs-source-dirs: bench/exe
   main-is:        restore-bench.hs
   build-depends:
     , address-derivation-discovery
@@ -874,7 +877,7 @@ benchmark restore
 benchmark latency
   import:         language, opts-exe
   type:           exitcode-stdio-1.0
-  hs-source-dirs: bench bench/src test/integration
+  hs-source-dirs: bench/exe
   main-is:        latency-bench.hs
   build-depends:
     , aeson
@@ -883,7 +886,7 @@ benchmark latency
     , cardano-wallet-application-extras
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, integration-framework}
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, cardano-wallet-bench, integration-framework}
     , directory
     , faucet
     , filepath
@@ -903,12 +906,10 @@ benchmark latency
     , wai-middleware-logging
     , with-utf8
 
-  other-modules:  Cardano.Wallet.LatencyBenchShared
-
 benchmark db
   import:         language, opts-exe
   type:           exitcode-stdio-1.0
-  hs-source-dirs: bench test-common
+  hs-source-dirs: bench/exe test-common
   main-is:        db-bench.hs
   build-depends:
     , address-derivation-discovery
@@ -946,7 +947,7 @@ benchmark db
 benchmark api
   import:         language, opts-exe
   type:           exitcode-stdio-1.0
-  hs-source-dirs: bench test-common
+  hs-source-dirs: bench/exe test-common
   main-is:        api-bench.hs
   build-depends:
     , address-derivation-discovery
@@ -973,7 +974,7 @@ benchmark api
 benchmark erafun-benchmark
   import:           language, opts-exe
   type:             exitcode-stdio-1.0
-  hs-source-dirs:   bench
+  hs-source-dirs:   bench/exe
   main-is:          EraFun.hs
   build-depends:
     , base
