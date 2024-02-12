@@ -65,6 +65,7 @@ library
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cborg
     , containers
@@ -296,6 +297,7 @@ library cardano-wallet-api-http
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-secrets
     , containers
     , contra-tracer
     , crypto-hash-extra
@@ -401,6 +403,7 @@ library cardano-wallet-integration
     , cardano-wallet:cardano-wallet
     , cardano-wallet:cardano-wallet-api-http
     , cardano-wallet-primitive
+    , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cborg
     , command
@@ -592,6 +595,7 @@ test-suite unit
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cardano-wallet:cardano-wallet
     , cardano-wallet:cardano-wallet-api-http
@@ -748,8 +752,6 @@ test-suite unit
     Cardano.Wallet.NetworkSpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
     Cardano.Wallet.Primitive.ModelSpec
-    Cardano.Wallet.Primitive.Passphrase.LegacySpec
-    Cardano.Wallet.Primitive.PassphraseSpec
     Cardano.Wallet.Primitive.Types.StateDeltaSeqSpec
     Cardano.Wallet.Primitive.Types.Tx.TxSeqSpec
     Cardano.Wallet.Primitive.TypesSpec
@@ -907,6 +909,7 @@ benchmark db
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , containers
     , contra-tracer

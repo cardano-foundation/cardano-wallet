@@ -127,6 +127,7 @@ test-suite test
     , cardano-slotting
     , cardano-strict-containers
     , cardano-wallet-primitive
+    , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cborg
     , containers
