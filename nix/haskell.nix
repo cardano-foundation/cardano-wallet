@@ -249,7 +249,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
 
               # Add node backend to the PATH of the latency benchmarks, and
               # set the source tree as its working directory.
-              packages.cardano-wallet.components.benchmarks.latency =
+              packages.cardano-wallet-benchmarks.components.benchmarks.latency =
                 lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -263,7 +263,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               # Add cardano-node to the PATH of the byroon restore benchmark.
               # cardano-node will want to write logs to a subdirectory of the working directory.
               # We don't `cd $src` because of that.
-              packages.cardano-wallet.components.benchmarks.restore =
+              packages.cardano-wallet-benchmarks.components.benchmarks.restore =
                 lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
                   build-tools = [ pkgs.buildPackages.makeWrapper ];
                   postInstall = ''
@@ -346,7 +346,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           (lib.optionalAttrs profiling {
             enableLibraryProfiling = true;
             packages.cardano-wallet.components.exes.cardano-wallet.enableProfiling = true;
-            packages.cardano-wallet.components.benchmarks.restore.enableProfiling = true;
+            packages.cardano-wallet-benchmarks.components.benchmarks.restore.enableProfiling = true;
             packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
 
@@ -364,11 +364,11 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             in
             {
               # Apply fully static options to our Haskell executables
-              packages.cardano-wallet.components.benchmarks.restore = fullyStaticOptions;
+              packages.cardano-wallet-benchmarks.components.benchmarks.restore = fullyStaticOptions;
               packages.cardano-wallet.components.exes.cardano-wallet = fullyStaticOptions;
               packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
               packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
-              packages.cardano-wallet.components.benchmarks.db = fullyStaticOptions;
+              packages.cardano-wallet-benchmarks.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 
               # systemd can't be statically linked - disable lobemo-scribe-journal

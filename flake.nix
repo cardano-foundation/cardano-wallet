@@ -436,7 +436,7 @@
 
             ci.benchmarks =
             packages.benchmarks.cardano-wallet-benchmarks //
-            packages.benchmarks.cardano-wallet // {
+            packages.benchmarks.cardano-wallet-blackbox-benchmarks // {
               all = pkgs.releaseTools.aggregate {
                 name = "cardano-wallet-benchmarks";
                 meta.description = "Build all benchmarks";

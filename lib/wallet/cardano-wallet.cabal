@@ -380,30 +380,6 @@ library cardano-wallet-api-http
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
 
-library cardano-wallet-bench
-  import:          language, opts-lib
-  hs-source-dirs:  bench/src
-  build-depends:
-    , aeson
-    , base
-    , cardano-wallet-application-extras
-    , cardano-wallet-launcher
-    , cardano-wallet-test-utils
-    , criterion-measurement
-    , deepseq
-    , directory
-    , filepath
-    , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , optparse-applicative
-    , say
-    , text
-    , text-class
-    , unliftio
-
-  exposed-modules: Cardano.Wallet.BenchShared
-
 library mock-token-metadata
   import:          language, opts-lib
   hs-source-dirs:  mock-token-metadata/src
@@ -458,13 +434,30 @@ executable mock-token-metadata-server
     , optparse-applicative
     , wai-extra
 
+library test-common
+    import: language, opts-lib
+    hs-source-dirs:     test-common
+    visibility: public
+    build-depends:
+        , base
+        , cardano-wallet-primitive
+        , time
+        , bytestring
+        , cardano-wallet-network-layer
+        , containers
+        , cardano-wallet-read
+        , cardano-wallet:cardano-wallet
+        , cardano-api
+    exposed-modules:
+        Cardano.Wallet.DummyTarget.Primitive.Types
+
 test-suite unit
   import:             language, opts-exe
   ghc-options:
     -with-rtsopts=-M2G -with-rtsopts=-N4 -fprint-potential-instances
 
   type:               exitcode-stdio-1.0
-  hs-source-dirs:     test-common test/unit test/data
+  hs-source-dirs:     test/unit test/data
   main-is:            core-unit-test.hs
   build-depends:
     , address-derivation-discovery
@@ -494,7 +487,7 @@ test-suite unit
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, mock-token-metadata}
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, test-common, mock-token-metadata}
     , cborg
     , connection
     , containers
@@ -642,7 +635,6 @@ test-suite unit
     Cardano.Wallet.DB.Store.WalletState.StoreSpec
     Cardano.Wallet.Delegation.ModelSpec
     Cardano.Wallet.DelegationSpec
-    Cardano.Wallet.DummyTarget.Primitive.Types
     Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
@@ -672,6 +664,7 @@ test-suite unit
 
 library integration-framework
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  integration/framework
   build-depends:
     , address-derivation-discovery
@@ -788,7 +781,6 @@ library integration-scenarios
     , unliftio-core
     , unordered-containers
 
-
   exposed-modules:
     Test.Integration.Run
     Test.Integration.Scenario.API.Blocks
@@ -840,148 +832,3 @@ test-suite integration
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
   build-tool-depends: cardano-wallet:cardano-wallet
-
-benchmark restore
-  import:         language, opts-exe
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: bench
-  main-is:        restore-bench.hs
-  build-depends:
-    , address-derivation-discovery
-    , aeson
-    , base
-    , bytestring
-    , cardano-addresses
-    , cardano-balance-tx:internal
-    , cardano-wallet-launcher
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, cardano-wallet-bench}
-    , containers
-    , contra-tracer
-    , crypto-hash-extra
-    , filepath
-    , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , say
-    , text
-    , text-class
-    , time
-    , transformers
-    , unliftio
-
-benchmark latency
-  import:         language, opts-exe
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: bench bench/src test/integration
-  main-is:        latency-bench.hs
-  build-depends:
-    , aeson
-    , base
-    , cardano-addresses
-    , cardano-wallet-application-extras
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, integration-framework}
-    , directory
-    , faucet
-    , filepath
-    , fmt
-    , generic-lens
-    , hspec
-    , http-client
-    , http-types
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , local-cluster
-    , optparse-applicative
-    , temporary-extra
-    , text
-    , time
-    , unliftio
-    , wai-middleware-logging
-    , with-utf8
-
-  other-modules:  Cardano.Wallet.LatencyBenchShared
-
-benchmark db
-  import:         language, opts-exe
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: bench test-common
-  main-is:        db-bench.hs
-  build-depends:
-    , address-derivation-discovery
-    , base
-    , bytestring
-    , cardano-addresses
-    , cardano-api
-    , cardano-crypto
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
-    , cardano-wallet-read
-    , cardano-wallet-secrets
-    , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-bench}
-    , containers
-    , contra-tracer
-    , criterion
-    , cryptonite
-    , deepseq
-    , directory
-    , filepath
-    , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , memory
-    , random
-    , text
-    , text-class
-    , time
-    , unliftio
-    , with-utf8
-
-  other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
-
-benchmark api
-  import:         language, opts-exe
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: bench test-common
-  main-is:        api-bench.hs
-  build-depends:
-    , address-derivation-discovery
-    , aeson
-    , base
-    , bytestring
-    , cardano-api
-    , cardano-balance-tx:internal
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
-    , cardano-wallet-read
-    , cardano-wallet:{cardano-wallet, cardano-wallet-bench}
-    , containers
-    , fmt
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , say
-    , text
-    , time
-    , with-utf8
-
-  other-modules:  Cardano.Wallet.DummyTarget.Primitive.Types
-
-benchmark erafun-benchmark
-  import:           language, opts-exe
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   bench
-  main-is:          EraFun.hs
-  build-depends:
-    , base
-    , bytestring
-    , cardano-wallet
-    , cardano-wallet-primitive
-    , cardano-wallet-read
-    , criterion
-    , time
-
-  default-language: Haskell2010
