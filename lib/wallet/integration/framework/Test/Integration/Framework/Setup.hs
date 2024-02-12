@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Test.Integration.Setup where
+module Test.Integration.Framework.Setup where
 
 import Prelude
 
@@ -101,10 +101,6 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.Wallet.Test.Integration.Logging
-    ( TestsLog (..)
-    , withTracers
-    )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic
     , withMetadataServer
@@ -170,6 +166,10 @@ import System.IO.Temp.Extra
 import Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
+    )
+import Test.Integration.Framework.Logging
+    ( TestsLog (..)
+    , withTracers
     )
 import UnliftIO.Async
     ( race

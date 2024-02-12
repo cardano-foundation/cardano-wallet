@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.Wallet.Test.Integration.Logging
+module Test.Integration.Framework.Logging
     ( TestsLog (..)
     , withTracers
     , bracketTracer'
