@@ -18,6 +18,24 @@ cradle:
     - path: "lib/balance-tx/test/data"
       component: "cardano-balance-tx:test:test"
 
+    - path: "lib/benchmarks/src"
+      component: "lib:cardano-wallet-benchmarks"
+
+    - path: "lib/benchmarks/exe/restore-bench.hs"
+      component: "cardano-wallet-benchmarks:bench:restore"
+
+    - path: "lib/benchmarks/exe/latency-bench.hs"
+      component: "cardano-wallet-benchmarks:bench:latency"
+
+    - path: "lib/benchmarks/exe/db-bench.hs"
+      component: "cardano-wallet-benchmarks:bench:db"
+
+    - path: "lib/benchmarks/exe/api-bench.hs"
+      component: "cardano-wallet-benchmarks:bench:api"
+
+    - path: "lib/benchmarks/exe/EraFun.hs"
+      component: "cardano-wallet-benchmarks:bench:erafun-benchmark"
+
     - path: "lib/cardano-api-extra/lib"
       component: "lib:cardano-api-extra"
 
@@ -141,12 +159,6 @@ cradle:
     - path: "lib/wallet/api/http"
       component: "cardano-wallet:lib:cardano-wallet-api-http"
 
-    - path: "lib/wallet/integration/src"
-      component: "cardano-wallet:lib:cardano-wallet-integration"
-
-    - path: "lib/wallet/bench/src"
-      component: "cardano-wallet:lib:cardano-wallet-bench"
-
     - path: "lib/wallet/mock-token-metadata/src"
       component: "cardano-wallet:lib:mock-token-metadata"
 
@@ -157,7 +169,7 @@ cradle:
       component: "cardano-wallet:exe:mock-token-metadata-server"
 
     - path: "lib/wallet/test-common"
-      component: "cardano-wallet:test:unit"
+      component: "cardano-wallet:lib:test-common"
 
     - path: "lib/wallet/test/unit"
       component: "cardano-wallet:test:unit"
@@ -165,65 +177,23 @@ cradle:
     - path: "lib/wallet/test/data"
       component: "cardano-wallet:test:unit"
 
-    - path: "lib/wallet/./integration-tests.hs"
+    - path: "lib/wallet/integration/framework"
+      component: "cardano-wallet:lib:integration-framework"
+
+    - path: "lib/wallet/integration/scenarios"
+      component: "cardano-wallet:lib:integration-scenarios"
+
+    - path: "lib/wallet/./integration-tests-exe.hs"
       component: "cardano-wallet:exe:integration-exe"
 
     - path: "lib/wallet/./"
       component: "cardano-wallet:test:integration"
 
-    - path: "lib/wallet/bench/restore-bench.hs"
-      component: "cardano-wallet:bench:restore"
-
-    - path: "lib/wallet/bench/latency-bench.hs"
-      component: "cardano-wallet:bench:latency"
-
-    - path: "lib/wallet/bench/src/latency-bench.hs"
-      component: "cardano-wallet:bench:latency"
-
-    - path: "lib/wallet/test/integration/latency-bench.hs"
-      component: "cardano-wallet:bench:latency"
-
-    - path: "lib/wallet/bench/Cardano/Wallet/LatencyBenchShared.hs"
-      component: "cardano-wallet:bench:latency"
-
-    - path: "lib/wallet/bench/src/Cardano/Wallet/LatencyBenchShared.hs"
-      component: "cardano-wallet:bench:latency"
-
-    - path: "lib/wallet/test/integration/Cardano/Wallet/LatencyBenchShared.hs"
-      component: "cardano-wallet:bench:latency"
-
-    - path: "lib/wallet/bench/db-bench.hs"
-      component: "cardano-wallet:bench:db"
-
-    - path: "lib/wallet/test-common/db-bench.hs"
-      component: "cardano-wallet:bench:db"
-
-    - path: "lib/wallet/bench/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
-      component: "cardano-wallet:bench:db"
-
-    - path: "lib/wallet/test-common/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
-      component: "cardano-wallet:bench:db"
-
-    - path: "lib/wallet/bench/api-bench.hs"
-      component: "cardano-wallet:bench:api"
-
-    - path: "lib/wallet/test-common/api-bench.hs"
-      component: "cardano-wallet:bench:api"
-
-    - path: "lib/wallet/bench/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
-      component: "cardano-wallet:bench:api"
-
-    - path: "lib/wallet/test-common/Cardano/Wallet/DummyTarget/Primitive/Types.hs"
-      component: "cardano-wallet:bench:api"
-
-    - path: "lib/wallet/bench/EraFun.hs"
-      component: "cardano-wallet:bench:erafun-benchmark"
-
     - path: "lib/wallet-benchmarks/bench/memory-benchmark.hs"
-      component: "cardano-wallet-benchmarks:bench:memory"
+      component: "cardano-wallet-blackbox-benchmarks:bench:memory"
 
     - path: "lib/wallet-benchmarks/bench/Paths_cardano_wallet_benchmarks.hs"
-      component: "cardano-wallet-benchmarks:bench:memory"
+      component: "cardano-wallet-blackbox-benchmarks:bench:memory"
 
     - path: "lib/wallet-e2e/src"
       component: "lib:cardano-wallet-e2e"

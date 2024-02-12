@@ -60,6 +60,7 @@ packages:
   lib/address-derivation-discovery
   lib/application-extras
   lib/balance-tx/
+  lib/benchmarks/
   lib/cardano-api-extra/
   lib/crypto-hash-extra/
   lib/coin-selection/
