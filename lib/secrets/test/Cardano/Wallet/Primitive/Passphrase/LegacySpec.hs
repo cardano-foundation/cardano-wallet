@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -34,9 +35,6 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (..)
     )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex
-    )
 import Control.Monad.IO.Class
     ( liftIO
     )
@@ -45,6 +43,7 @@ import Data.ByteArray
     )
 import Data.ByteArray.Encoding
     ( Base (..)
+    , convertFromBase
     , convertToBase
     )
 import Data.ByteString
@@ -239,3 +238,10 @@ instance Arbitrary PassphraseScheme where
 
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = genEncryptionPassphrase
+
+-- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
+unsafeFromHex :: forall b. ByteArray b => ByteString -> b
+unsafeFromHex = unsafeRight . convertFromBase @ByteString @b Base16
+  where
+    unsafeRight :: Either a b -> b
+    unsafeRight = either (error "unsafeFromHex failed") id

@@ -34,18 +34,10 @@ flag release
   default:     False
   manual:      True
 
-flag scrypt
-  description: Enable compatibility support for legacy wallet passwords.
-  default:     True
-
 library
   import:          language, opts-lib
   hs-source-dirs:  lib
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-
-  if flag(scrypt)
-    cpp-options:   -DHAVE_SCRYPT
-    build-depends: scrypt
 
   build-depends:
     , aeson
@@ -63,6 +55,7 @@ library
     , cardano-ledger-shelley
     , cardano-slotting
     , cardano-wallet-primitive
+    , cardano-wallet-secrets
     , cborg
     , containers
     , crypto-hash-extra
@@ -109,8 +102,3 @@ library
     Cardano.Wallet.Address.States.Families
     Cardano.Wallet.Address.States.Features
     Cardano.Wallet.Address.States.Test.State
-    Cardano.Wallet.Primitive.Passphrase
-    Cardano.Wallet.Primitive.Passphrase.Current
-    Cardano.Wallet.Primitive.Passphrase.Gen
-    Cardano.Wallet.Primitive.Passphrase.Legacy
-    Cardano.Wallet.Primitive.Passphrase.Types
