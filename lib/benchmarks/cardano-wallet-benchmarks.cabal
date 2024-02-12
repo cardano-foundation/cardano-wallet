@@ -133,6 +133,7 @@ benchmark latency
     , iohk-monitoring-extra
     , local-cluster
     , optparse-applicative
+    , resourcet
     , servant-client
     , temporary-extra
     , text
