@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
@@ -56,10 +55,8 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddressWithPath
     , ApiAsset (..)
     , ApiEra
-    , ApiFee
     , ApiMnemonicT (..)
     , ApiNetworkInformation
     , ApiT (..)
@@ -67,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ApiWalletMigrationPlan (..)
+    , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
@@ -85,7 +83,6 @@ import Cardano.Wallet.Benchmarks.Latency.BenchM
     , fixtureMultiAssetWallet
     , fixtureWallet
     , fixtureWalletWith
-    , partialFromRight
     , request
     , requestC
     , requestWithError
@@ -187,7 +184,6 @@ import Fmt
     ( Builder
     , build
     )
-import Fmt.Internal.Core
 import Main.Utf8
     ( withUtf8
     )
@@ -205,6 +201,7 @@ import Numeric.Natural
     )
 import Servant.Client
     ( ClientError
+    , ClientM
     )
 import System.Directory
     ( createDirectory
@@ -252,6 +249,9 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Benchmarks.Latency.Measure as Measure
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
+    )
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Options.Applicative as O
@@ -448,93 +448,52 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
 scene :: String -> BenchM (Either ClientError a) -> BenchM ()
 scene title scenario = measureApiLogs scenario >>= fmtResult title
 
-sceneWithSetup
-    :: String
-    -> BenchM (Either ClientError a)
-    -> (a -> BenchM (Either ClientError b))
-    -> BenchM ()
-sceneWithSetup title setup scenario = do
-    ea <- setup
-    case ea of
-        Left e -> do
-            liftIO $ fmtLn $ do
-                "Error setting up " +|| title ||+ " :" +|| e ||+ ""
-        Right a -> do
-            scene title (scenario a)
+sceneOfClientM :: String -> ClientM a -> BenchM ()
+sceneOfClientM title action = scene title $ requestWithError action
+
+listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction C.A]
+listAllTransactions walId =
+    C.listTransactions
+        walId
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        Nothing
+        False
 
 runScenario :: BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet) -> BenchM ()
 runScenario scenario = lift . runResourceT $ do
     (wal1, wal2, walMA, maWalletToMigrate) <- scenario
     let wal1Id = wal1 ^. #id
-    scene "listWallets"
-        $ requestWithError C.listWallets
-    scene "getWallet"
-        $ requestWithError
-        $ C.getWallet wal1Id
-    scene "getUTxOsStatistics"
-        $ requestWithError
-        $ C.getWalletUtxoStatistics wal1Id
-    scene "listAddresses"
-        $ requestWithError
-        $ C.listAddresses wal1Id Nothing
-    scene "listTransactions"
-        $ requestWithError
-        $ C.listTransactions
-            wal1Id
-            Nothing
-            Nothing
-            Nothing
-            Nothing
-            Nothing
-            Nothing
-            False
-    sceneWithSetup
-        "getTransaction"
-        do
-            requestWithError
-                $ C.listTransactions
-                    wal1Id
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    Nothing
-                    False
-        do
-            \case
-                [] -> throwM $ userError "No transactions found"
-                (tx : _) -> do
-                    let txid = tx ^. #id
-                    requestWithError
-                        $ C.getTransaction wal1Id (ApiTxId txid) False
+        wal2Id = wal2 ^. #id
+        amt = minUTxOValue era
+    sceneOfClientM "listWallets" C.listWallets
+    sceneOfClientM "getWallet" $ C.getWallet wal1Id
+    sceneOfClientM "getUTxOsStatistics" $ C.getWalletUtxoStatistics wal1Id
+    sceneOfClientM "listAddresses" $ C.listAddresses wal1Id Nothing
+    sceneOfClientM "listTransactions" $ listAllTransactions wal1Id
+    txs <- requestC $ listAllTransactions wal1Id
+    sceneOfClientM "getTransaction"
+        $ C.getTransaction wal1Id (ApiTxId $ txs !! 1 ^. #id) False
 
-    addrs <-
-        partialFromRight
-            <$> request @[ApiAddressWithPath A]
-                (Link.listAddresses @'Shelley wal2)
-                Default
-                Empty
-    let amt = minUTxOValue era
-    let destination = (addrs !! 1) ^. #id
-    let payload =
-            Json
-                [json|{
-            "payments": [{
-                "address": #{destination},
-                "amount": {
-                    "quantity": #{amt},
-                    "unit": "lovelace"
+    addrs <- requestC $ C.listAddresses wal2Id Nothing
+    let destination = addrs !! 1 ^. #id
+        amount =
+            AddressAmount
+                { address = destination
+                , amount = ApiAmount amt
+                , assets = ApiWalletAssets []
                 }
-            }]
-        }|]
-    t6 <-
-        measureApiLogs
-            $ request @ApiFee
-                (Link.getTransactionFeeOld @'Shelley wal1)
-                Default
-                payload
-    fmtResult "postTransactionFee " t6
+        payload =
+            PostTransactionFeeOldData
+                { payments = pure amount
+                , withdrawal = Nothing
+                , metadata = Nothing
+                , timeToLive = Nothing
+                }
+    sceneOfClientM "postTransactionFee" $ C.postTransactionFee wal1Id payload
 
     let payloadTx =
             Json
@@ -558,11 +517,11 @@ runScenario scenario = lift . runResourceT $ do
 
     let addresses = replicate 5 destination
     let coins = replicate 5 amt
-    let payments = flip map (zip coins addresses) $ \(amount, address) ->
+    let payments = flip map (zip coins addresses) $ \(amount', address) ->
             [json|{
             "address": #{address},
             "amount": {
-                "quantity": #{amount},
+                "quantity": #{amount'},
                 "unit": "lovelace"
             }
         }|]
