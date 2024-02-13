@@ -32,6 +32,9 @@ module Cardano.Wallet.Api.Clients.Testnet.Shelley
     , networkInformation
     , networkParameters
     , networkClock
+    , getAssets
+    , getAsset
+    , getAsset'
     )
 where
 
@@ -43,7 +46,7 @@ import Cardano.Wallet.Api
     , Proxy_
     , ShelleyTransactions
     , StakePools
-    , Wallets
+    , Wallets, Assets
     )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
@@ -75,7 +78,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeOldData
     , PostTransactionOldData
     , WalletOrAccountPostData
-    , WalletPutPassphraseData
+    , WalletPutPassphraseData, ApiAsset
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress
@@ -115,6 +118,8 @@ import Servant.Client
     ( ClientM
     , client
     )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId (TokenPolicyId)
+import Cardano.Wallet.Primitive.Types.AssetName (AssetName)
 
 type A = Testnet 42
 
@@ -249,3 +254,9 @@ networkClock
     :: Bool -> ClientM ApiNetworkClock
 networkInformation :<|> networkParameters :<|> networkClock =
     client (Proxy @("v2" :> Network))
+
+getAssets :: ApiT WalletId -> ClientM [ApiAsset]
+getAsset :: ApiT WalletId -> ApiT TokenPolicyId -> ApiT AssetName -> ClientM ApiAsset
+getAsset' :: ApiT WalletId -> ApiT TokenPolicyId -> ClientM ApiAsset
+getAssets  :<|> getAsset :<|> getAsset'
+    = client (Proxy @("v2" :> Assets))
