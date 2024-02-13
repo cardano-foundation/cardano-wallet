@@ -466,7 +466,7 @@ import Cardano.Wallet.Primitive.Passphrase
     , WalletPassphraseInfo (..)
     , checkPassphrase
     , currentPassphraseScheme
-    , encryptPassphrase'
+    , encryptPassphrase
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -1177,10 +1177,13 @@ updateWalletPassphraseWithOldPassphrase wF ctx wid (old, new) =
             -- This use 'EncryptWithPBKDF2', regardless of the passphrase
             -- current scheme, we'll re-encrypt it using the current scheme,
             -- always.
-            let new' = (currentPassphraseScheme, new)
-                xprv' = changePassphraseNew (keyOfWallet wF)
-                    (scheme, old) new' xprv
-            lift $ attachPrivateKeyFromPwdScheme ctx (xprv', new')
+            let xprv' =
+                    changePassphraseNew
+                        (keyOfWallet wF)
+                        (scheme, old)
+                        (currentPassphraseScheme, new)
+                        xprv
+            lift $ attachPrivateKeyFromPwd ctx (xprv', new)
   where
     db = ctx ^. typed
 
@@ -1189,8 +1192,7 @@ updateWalletPassphraseWithMnemonic
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
 updateWalletPassphraseWithMnemonic ctx (xprv, new) =
-    attachPrivateKeyFromPwdScheme ctx
-        (xprv, (currentPassphraseScheme , new))
+    attachPrivateKeyFromPwd ctx (xprv, new)
 
 getWalletUtxoSnapshot
     :: WalletLayer IO s
@@ -3161,40 +3163,20 @@ padFeePercentiles
 {-------------------------------------------------------------------------------
                                   Key Store
 -------------------------------------------------------------------------------}
--- | The password here undergoes PBKDF2 encryption using HMAC
--- with the hash algorithm SHA512 which is realized in encryptPassphrase
-attachPrivateKeyFromPwdScheme
-    :: WalletLayer IO s
-    -> (KeyOf s 'RootK XPrv, (PassphraseScheme, Passphrase "user"))
-    -> IO ()
-attachPrivateKeyFromPwdScheme ctx (xprv, (scheme, pwd)) = db & \_ -> do
-    hpwd <- liftIO $ encryptPassphrase' scheme pwd
-    -- NOTE Only new wallets are constructed through this function, so the
-    -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
-    --
-    -- We do an extra sanity check after having encrypted the passphrase: we
-    -- tried to avoid some programmer mistakes with the phantom types on
-    -- Passphrase, but it's still possible that someone would inadvertently call
-    -- this function with a 'Passphrase' that wasn't prepared for
-    -- 'EncryptWithPBKDF2', if this happens, this is a programmer error and we
-    -- must fail hard for this would have dramatic effects later on.
-    case checkPassphrase scheme pwd hpwd of
-        Right () -> attachPrivateKey db (xprv, hpwd) scheme
-        Left{} -> fail
-            "Awe crap! The passphrase given to 'attachPrivateKeyFromPwd' wasn't \
-            \rightfully constructed. This is a programmer error. Look for calls \
-            \to this function and make sure that the given Passphrase wasn't not \
-            \prepared using 'EncryptWithScrypt'!"
-  where
-    db = ctx ^. dbLayer
-
+-- | Store an 'XPrv' which was encrypted with the given passphrase,
+-- and also store the 'PassphraseHash' of the passphrase.
+--
+-- Uses 'Cardano.Wallet.Primitive.Passphrase.encryptPassphrase' to
+-- hash/encrypt the passphrase using the 'currentPassphraseScheme'.
 attachPrivateKeyFromPwd
     :: WalletLayer IO s
     -> (KeyOf s 'RootK XPrv, Passphrase "user")
     -> IO ()
-attachPrivateKeyFromPwd ctx (xprv, pwd) =
-    attachPrivateKeyFromPwdScheme ctx
-       (xprv, (currentPassphraseScheme, pwd))
+attachPrivateKeyFromPwd ctx (xprv, pwd) = do
+    (scheme, hpwd) <- encryptPassphrase pwd
+    attachPrivateKey db (xprv, hpwd) scheme
+  where
+    db = ctx ^. dbLayer
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
