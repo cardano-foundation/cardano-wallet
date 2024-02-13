@@ -24,7 +24,6 @@ module Cardano.Wallet.Primitive.Passphrase
 
       -- * Operations
     , encryptPassphrase
-    , encryptPassphrase'
     , checkPassphrase
     , preparePassphrase
     , changePassphraseXPrv
@@ -56,18 +55,7 @@ encryptPassphrase
     => Passphrase "user"
     -> m (PassphraseScheme, PassphraseHash)
 encryptPassphrase = fmap (currentPassphraseScheme,)
-    . encryptPassphrase' currentPassphraseScheme
-
-encryptPassphrase'
-    :: MonadRandom m
-    => PassphraseScheme
-    -> Passphrase "user"
-    -> m PassphraseHash
-encryptPassphrase' scheme = encrypt . preparePassphrase scheme
-  where
-    encrypt = case scheme of
-        EncryptWithPBKDF2 -> PBKDF2.encryptPassphrase
-        EncryptWithScrypt -> Scrypt.encryptPassphraseTestingOnly
+    . PBKDF2.encryptPassphrase . preparePassphrase currentPassphraseScheme
 
 -- | Manipulation done on legacy passphrases before used for encryption.
 preparePassphrase

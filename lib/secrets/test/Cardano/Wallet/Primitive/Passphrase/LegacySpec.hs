@@ -16,7 +16,6 @@ import Cardano.Wallet.Primitive.Passphrase
     ( ErrWrongPassphrase (ErrWrongPassphrase)
     , PassphraseScheme (EncryptWithScrypt)
     , checkPassphrase
-    , encryptPassphrase'
     )
 import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genEncryptionPassphrase
@@ -227,7 +226,8 @@ prop_passphraseFromScryptRoundtripFail p p' =
 encryptPasswordWithScrypt
     :: Passphrase "user"
     -> IO PassphraseHash
-encryptPasswordWithScrypt = encryptPassphrase' EncryptWithScrypt
+encryptPasswordWithScrypt =
+    encryptPassphraseTestingOnly . preparePassphrase
 
 instance Arbitrary (Passphrase "user") where
     arbitrary = genUserPassphrase
