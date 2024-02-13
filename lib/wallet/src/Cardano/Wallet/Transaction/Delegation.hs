@@ -250,7 +250,7 @@ toHashStakeKey =
 toLedgerDelegatee
     :: Maybe Cardano.PoolId
     -> Maybe DRep
-    -> Ledger.Delegatee Write.StandardCrypto
+    -> Ledger.Delegatee Ledger.StandardCrypto
 toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Nothing) ->
         Ledger.DelegStake (Cardano.unStakePoolKeyHash poolId)
@@ -262,7 +262,7 @@ toLedgerDelegatee poolM vaM = case (poolM, vaM) of
         error "toLedgerDelegatee: wrong use, at least pool or vote action must be present"
 
 toLedgerDRep
-    :: DRep -> Ledger.DRep Write.StandardCrypto
+    :: DRep -> Ledger.DRep Ledger.StandardCrypto
 toLedgerDRep = \case
     Abstain -> Ledger.DRepAlwaysAbstain
     NoConfidence -> Ledger.DRepAlwaysNoConfidence
