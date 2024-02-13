@@ -918,7 +918,8 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Write.Era as Write
-    ( RecentEra
+    ( IsRecentEra
+    , RecentEra
     )
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
@@ -929,7 +930,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
-    , IsRecentEra
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     , TxIn
     , TxOutInRecentEra (TxOutInRecentEra)

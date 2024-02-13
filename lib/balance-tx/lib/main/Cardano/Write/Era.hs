@@ -3,10 +3,12 @@
 -- License: Apache-2.0
 --
 module Cardano.Write.Era
-    ( RecentEra (RecentEraBabbage, RecentEraConway)
+    ( IsRecentEra (recentEra)
+    , RecentEra (RecentEraBabbage, RecentEraConway)
     )
     where
 
 import Internal.Cardano.Write.Tx
-    ( RecentEra (RecentEraBabbage, RecentEraConway)
+    ( IsRecentEra (recentEra)
+    , RecentEra (RecentEraBabbage, RecentEraConway)
     )
