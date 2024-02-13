@@ -334,9 +334,9 @@ walletApiBench capture ctx = do
     requestWithError :: MonadIO m => ClientM a -> m (Either ClientError a)
     requestWithError x = liftIO $ runClientM x cenv
     requestC :: MonadIO m => ClientM a -> m a
-    requestC x = bombLeft <$> requestWithError x
-    bombLeft :: Show l => Either l r -> r
-    bombLeft = either (error . show) Prelude.id
+    requestC x = partialFromRight <$> requestWithError x
+    partialFromRight :: Show l => Either l r -> r
+    partialFromRight = either (error . show) Prelude.id
     freeWallet w =
         void
             $ allocate (pure ())

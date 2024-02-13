@@ -61,19 +61,24 @@ library
     , iohk-monitoring
     , iohk-monitoring-extra
     , local-cluster
+    , mtl
     , optparse-applicative
+    , resourcet
     , say
+    , servant-client
     , temporary-extra
     , text
     , text-class
     , time
     , unliftio
+    , unliftio-core
     , wai-middleware-logging
     , with-utf8
 
   exposed-modules:
     Cardano.Wallet.BenchShared
     Cardano.Wallet.Benchmarks.Latency.Measure
+    Cardano.Wallet.Benchmarks.Latency.BenchM
 
 benchmark restore
   import:         language, opts-exe
