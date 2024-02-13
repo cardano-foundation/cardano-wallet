@@ -94,13 +94,13 @@ In order to ensure that the new package produces the same result as the
 old one, we proceed as follows:
 
     * in production:
-        * use `scrypt` package if available
-        * use `cryptonite` on `aarch64-darwin`
+        * use `cryptonite`
     * in testing:
         * generate random passphrases,
-            encrypted with `scrypt` package if available.
+            encrypted with `scrypt` package if available
         * check that these encrypted passphrases
-            are verified correctly with the `cryptonite` package
+            * are verified correctly with the `cryptonite` package
+            * are verified correctly with the `scrypt` package
 
 These tests ensure that the code using `cryptonite` can verify
 hashed passphrases that were created with `scrypt`.
@@ -112,13 +112,8 @@ hashed passphrases that were created with `scrypt`.
 ------------------------------------------------------------------------------}
 -- | Verify a wallet spending password using the legacy Byron scrypt encryption
 -- scheme.
-checkPassphrase :: Passphrase "encryption" -> PassphraseHash -> Maybe Bool
-#if HAVE_SCRYPT
-checkPassphrase pwd stored = Just $ checkPassphraseScrypt pwd stored
-#else
--- Stub function for when compiled without @scrypt@.
-checkPassphrase _ _ = Nothing
-#endif
+checkPassphrase :: Passphrase "encryption" -> PassphraseHash -> Bool
+checkPassphrase = checkPassphraseCryptonite
 
 -- | Encrypt a wallet spending password using
 -- the legacy Byron scrypt encryption scheme.
