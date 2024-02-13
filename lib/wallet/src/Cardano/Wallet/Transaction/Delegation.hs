@@ -33,6 +33,9 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     )
+import qualified Cardano.Write.Era as Write
+    ( RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 import Crypto.Hash.Extra
     ( blake2b224
     )
@@ -45,7 +48,6 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
-    , RecentEra (RecentEraBabbage, RecentEraConway)
     )
 
 {-----------------------------------------------------------------------------

@@ -404,6 +404,9 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
+import qualified Cardano.Write.Era as Write
+    ( RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -414,7 +417,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( AnyRecentEra (AnyRecentEra)
-    , RecentEra (RecentEraBabbage, RecentEraConway)
     )
 
 spec :: Spec
