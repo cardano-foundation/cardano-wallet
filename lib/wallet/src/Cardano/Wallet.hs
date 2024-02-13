@@ -150,8 +150,8 @@ module Cardano.Wallet
     , signTransaction
     , constructTransaction
     , constructTxMeta
-    , votingEraValidation
-    , checkingIfVoted
+    , votingEnabledInEra
+    , assertIsVoting
     , handleVotingWhenMissingInConway
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
@@ -853,7 +853,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     , IsRecentEra
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra
+    , RecentEra (..)
     , Tx
     , UTxO (UTxO)
     , cardanoEraFromRecentEra
@@ -2653,29 +2653,25 @@ submitExternalTx tr nw tl sealedTx = do
         pure sealedTx
     pure txid
 
-votingEraValidation
-    :: NetworkLayer IO block
-    -> ExceptT ErrConstructTx IO ()
-votingEraValidation nw = do
-    era <- liftIO $ currentNodeEra nw
-    case era of
-        Cardano.AnyCardanoEra Cardano.ConwayEra -> pure ()
-        _ -> throwE ErrConstructTxVotingInWrongEra
+votingEnabledInEra
+    :: Write.RecentEra era
+    -> Either ErrConstructTx ()
+votingEnabledInEra = \case
+    Write.RecentEraConway -> Right ()
+    _ -> Left ErrConstructTxVotingInWrongEra
 
-checkingIfVoted
+assertIsVoting
     :: DBLayer IO s
-    -> NetworkLayer IO block
+    -> Write.RecentEra era
     -> ExceptT ErrConstructTx IO ()
-checkingIfVoted DBLayer{..} nw = do
-    era <- liftIO $ currentNodeEra nw
-    case era of
-        Cardano.AnyCardanoEra Cardano.ConwayEra -> do
-            voted <- liftIO $ atomically (alreadyVoted walletState)
-            if voted then
-                pure ()
-            else
-                throwE ErrConstructTxWithdrawalWithoutVoting
-        _ -> pure ()
+assertIsVoting DBLayer{..} = \case
+    Write.RecentEraConway -> do
+        voted <- liftIO $ atomically (alreadyVoted walletState)
+        if voted then
+            pure ()
+        else
+            throwE ErrConstructTxWithdrawalWithoutVoting
+    _ -> pure ()
 
 alreadyVoted
     :: Functor stm

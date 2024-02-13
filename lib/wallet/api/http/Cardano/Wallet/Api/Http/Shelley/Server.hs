@@ -725,6 +725,9 @@ import Data.Either
     ( isLeft
     , isRight
     )
+import Data.Either.Combinators
+    ( whenLeft
+    )
 import Data.Either.Extra
     ( eitherToMaybe
     )
@@ -2744,9 +2747,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 } -> liftHandler $ throwE ErrConstructTxWrongPayload
             _ -> pure ()
 
-    when (isJust (body ^. #vote)) $
-        liftHandler $ W.votingEraValidation nl
-
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
@@ -2775,11 +2775,14 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
-        when (isJust (body ^. #withdrawal)) $
-            liftHandler $ W.checkingIfVoted db netLayer
-
         (Write.PParamsInAnyRecentEra era pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+
+        when (isJust (body ^. #vote)) $
+            whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
+
+        when (isJust (body ^. #withdrawal)) $
+            liftHandler $ W.assertIsVoting db era
 
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
@@ -3314,9 +3317,6 @@ constructSharedTransaction
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
 
-    when (isJust (body ^. #vote)) $
-        liftHandler $ W.votingEraValidation nl
-
     withWorkerCtx @_ @_ @Handler api wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
@@ -3324,13 +3324,16 @@ constructSharedTransaction
             trWorker :: Tracer IO W.WalletLog
             trWorker = MsgWallet >$< wrk ^. logger
 
-        when (isJust (body ^. #withdrawal)) $
-            liftHandler $ W.checkingIfVoted db netLayer
-
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         (Write.PParamsInAnyRecentEra era pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
+
+        when (isJust (body ^. #vote)) $
+            whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
+
+        when (isJust (body ^. #withdrawal)) $
+            liftHandler $ W.assertIsVoting db era
 
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         withdrawal <- case body ^. #withdrawal of
@@ -3352,7 +3355,7 @@ constructSharedTransaction
                     getPoolStatus NoWithdrawal
 
         optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) -> liftIO$ Just <$> WD.voteAction trWorker db action
+            Just (ApiT action) -> liftIO $ Just <$> WD.voteAction trWorker db action
             Nothing -> pure Nothing
 
         let txCtx = defaultTransactionCtx

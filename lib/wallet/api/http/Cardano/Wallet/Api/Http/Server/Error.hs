@@ -500,9 +500,9 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxWithdrawalWithoutVoting ->
             apiError err403 WithdrawalNotPossibleWithoutVote $ mconcat
             [ "I cannot construct a transaction that contains withdrawals "
-            , "if voting was not cast in the Conway era onwards. Please re-delegate "
-            , "(in that case abstain vote will be cast) or make a vote transaction "
-            , "before the withdrawal transaction."
+            , "if the wallet is not voting in the Conway era onwards. "
+            , "Please delegate again (in that case, the wallet will automatically vote to abstain), "
+            , "or make a vote transaction before the withdrawal transaction."
             ]
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
