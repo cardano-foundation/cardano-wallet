@@ -42,11 +42,12 @@ import Prelude
 
 import Cardano.Wallet.Api
     ( Addresses
+    , Assets
     , Network
     , Proxy_
     , ShelleyTransactions
     , StakePools
-    , Wallets, Assets
+    , Wallets
     )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
@@ -54,6 +55,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressWithPath
+    , ApiAsset
     , ApiBalanceTransactionPostData
     , ApiConstructTransaction
     , ApiConstructTransactionData
@@ -78,7 +80,7 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeOldData
     , PostTransactionOldData
     , WalletOrAccountPostData
-    , WalletPutPassphraseData, ApiAsset
+    , WalletPutPassphraseData
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress
@@ -98,8 +100,14 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx
@@ -118,8 +126,6 @@ import Servant.Client
     ( ClientM
     , client
     )
-import Cardano.Wallet.Primitive.Types.TokenPolicyId (TokenPolicyId)
-import Cardano.Wallet.Primitive.Types.AssetName (AssetName)
 
 type A = Testnet 42
 

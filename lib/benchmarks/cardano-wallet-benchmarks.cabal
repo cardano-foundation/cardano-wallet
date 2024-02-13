@@ -127,6 +127,7 @@ benchmark latency
     , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
     , cardano-wallet-integration:framework
     , directory
+    , exceptions
     , faucet
     , filepath
     , fmt
@@ -137,6 +138,7 @@ benchmark latency
     , iohk-monitoring
     , iohk-monitoring-extra
     , local-cluster
+    , mtl
     , optparse-applicative
     , resourcet
     , servant-client
@@ -144,6 +146,7 @@ benchmark latency
     , text
     , time
     , unliftio
+    , unliftio-core
     , wai-middleware-logging
     , with-utf8
 
