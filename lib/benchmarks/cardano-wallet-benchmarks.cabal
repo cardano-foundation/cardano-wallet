@@ -73,7 +73,7 @@ library
 
   exposed-modules:
     Cardano.Wallet.BenchShared
-    Cardano.Wallet.LatencyBenchShared
+    Cardano.Wallet.Benchmarks.Latency.Measure
 
 benchmark restore
   import:         language, opts-exe

@@ -77,7 +77,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
     )
-import Cardano.Wallet.LatencyBenchShared
+import Cardano.Wallet.Benchmarks.Latency.Measure
     ( LogCaptureFunc
     , fmtResult
     , fmtTitle
