@@ -228,7 +228,6 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , json
     , minUTxOValue
-    , mkTxPayloadMA
     , pickAnAsset
     , runResourceT
     , shouldBe
@@ -582,16 +581,16 @@ runScenario scenario = lift . runResourceT $ do
                 payloadTxTo5Addr
     fmtResult "postTransTo5Addrs  " t7a
 
-    let assetsToSend = walMA ^. #assets . #total
-    let val = minUTxOValue era <$ pickAnAsset assetsToSend
-    payloadMA <- mkTxPayloadMA @A destination (2 * minUTxOValue era) [val] fixturePassphrase
-    t7b <-
-        measureApiLogs
-            $ request @(ApiTransaction A)
-                (Link.createTransactionOld @'Shelley walMA)
-                Default
-                payloadMA
-    fmtResult "postTransactionMA  " t7b
+    -- let assetsToSend = walMA ^. #assets . #total
+    -- let val = minUTxOValue era <$ pickAnAsset assetsToSend
+    -- payloadMA <- mkTxPayloadMA @A destination (2 * minUTxOValue era) [val] fixturePassphrase
+    -- t7b <-
+    --     measureApiLogs
+    --         $ request @(ApiTransaction A)
+    --             (Link.createTransactionOld @'Shelley walMA)
+    --             Default
+    --             payloadMA
+    -- fmtResult "postTransactionMA  " t7b
 
     t8 <-
         measureApiLogs
@@ -638,19 +637,19 @@ runScenario scenario = lift . runResourceT $ do
             $ Json [json|{addresses: #{addresses}}|]
     fmtResult "postMigrationPlan  " t12a
 
-    -- Perform a migration:
-    let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
-    t12b <-
-        measureApiLogs
-            $ request @[ApiTransaction A]
-                endpointMigrate
-                Default
-            $ Json
-                [json|
-            { passphrase: #{fixturePassphrase}
-            , addresses: #{addresses}
-            }|]
-    fmtResult "postMigration      " t12b
+-- -- Perform a migration:
+-- let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
+-- t12b <-
+--     measureApiLogs
+--         $ request @[ApiTransaction A]
+--             endpointMigrate
+--             Default
+--         $ Json
+--             [json|
+--         { passphrase: #{fixturePassphrase}
+--         , addresses: #{addresses}
+--         }|]
+-- fmtResult "postMigration      " t12b
 
 fmtResult :: String -> [NominalDiffTime] -> BenchM ()
 fmtResult title ts = liftIO $ Measure.fmtResult title ts
