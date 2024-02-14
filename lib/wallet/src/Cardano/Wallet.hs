@@ -2386,10 +2386,10 @@ buildTransactionPure
                 (Left $ unsafeShelleyOnlyGetRewardXPub @s (getState wallet))
                 txCtx
                 (Left preSelection)
+    let utxoAll = Write.fromWalletUTxO utxo
+    let utxoSpendable = Map.keysSet (unUTxO utxoAll)
     let utxoIndex :: Write.UTxOIndex era
-        utxoIndex =
-            Write.constructUTxOIndex $
-            Write.fromWalletUTxO utxo
+        utxoIndex = Write.constructUTxOIndex utxoAll utxoSpendable
     withExceptT Left $
         balanceTransaction @_ @_ @s
             pparams

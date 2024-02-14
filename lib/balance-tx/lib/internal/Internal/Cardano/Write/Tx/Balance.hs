@@ -145,8 +145,7 @@ import Data.Either
     ( partitionEithers
     )
 import Data.Function
-    ( on
-    , (&)
+    ( (&)
     )
 import Data.Functor
     ( (<&>)
@@ -272,6 +271,7 @@ import System.Random.StdGenSeed
 import Text.Pretty.Simple
     ( pShow
     )
+import Data.Set (Set)
 
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
@@ -315,9 +315,7 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
     ( UTxO (..)
     )
 import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
-import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
@@ -433,6 +431,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 data PartialTx era = PartialTx
     { tx :: Tx era
     , inputs :: UTxO era
+      -- ^ TODO: Delete this
       -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
     , redeemers :: [Redeemer]
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
@@ -467,19 +466,29 @@ instance IsRecentEra era => Buildable (PartialTx era)
         txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
-    { walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
-    , ledgerUTxO :: !(UTxO era)
+    { utxoAll :: !(UTxO era)
+    , utxoSpendable :: !(UTxOIndex.UTxOIndex WalletUTxO)
     }
 
 constructUTxOIndex
     :: IsRecentEra era
     => UTxO era
+    -- ^ Defines the complete set of UTxOs that may be referenced by a
+    -- transaction.
+    -> Set TxIn
+    -- ^ Defines the subset of UTxOs that may be spent in addition to any
+    -- UTxOs that are already spent by a transcation.
     -> UTxOIndex era
-constructUTxOIndex ledgerUTxO =
-    UTxOIndex {walletUTxOIndex, ledgerUTxO}
-  where
-    walletUTxOIndex =
-        UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO ledgerUTxO
+constructUTxOIndex utxoAll utxoSpendable =
+    UTxOIndex
+        { utxoAll
+        , utxoSpendable
+            = UTxOIndex.fromMap
+            $ toInternalUTxOMap
+            $ toWalletUTxO
+            $ UTxO
+            $ unUTxO utxoAll `Map.restrictKeys` utxoSpendable
+        }
 
 fromWalletUTxO
     :: forall era. IsRecentEra era
@@ -639,16 +648,15 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex internalUtxoAvailable walletLedgerUTxO)
+    UTxOIndex {utxoAll, utxoSpendable}
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers timelockKeyWitnessCounts)
+    ptx@(PartialTx partialTx _ redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
-    guardWalletUTxOConsistencyWith inputUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
@@ -684,7 +692,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         externalSelectedUtxo <- extractExternallySelectedUTxO ptx
         let utxoSelection =
                 UTxOSelection.fromIndexPair
-                    (internalUtxoAvailable, externalSelectedUtxo)
+                    (utxoSpendable, externalSelectedUtxo)
 
         when (UTxOSelection.availableSize utxoSelection == 0) $
             throwE ErrBalanceTxUnableToCreateInput
@@ -808,7 +816,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
     extractExternallySelectedUTxO (PartialTx tx _ _rdms _) = do
         let res = flip map txIns $ \i-> do
-                case txinLookup i combinedUTxO of
+                case txinLookup i utxoAll of
                     Nothing ->
                        Left i
                     Just o -> do
@@ -851,7 +859,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Tx era -> Value
     txBalance
-        = evaluateTransactionBalance pp combinedUTxO
+        = evaluateTransactionBalance pp utxoAll
         . view bodyTxL
 
     balanceAfterSettingMinFee
@@ -860,7 +868,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount =
                 estimateKeyWitnessCounts
-                    combinedUTxO
+                    utxoAll
                     tx
                     timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
@@ -870,41 +878,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
-    -- | Ensures the wallet UTxO set is consistent with the given UTxO set.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    guardWalletUTxOConsistencyWith
-        :: UTxO era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u =
-        case NE.nonEmpty (F.toList (conflicts u walletLedgerUTxO)) of
-            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
-            Nothing -> return ()
-      where
-        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
-
-    combinedUTxO :: UTxO era
-    combinedUTxO = mconcat
-         -- The @CardanoApi.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
-         [ inputUTxO
-         , walletLedgerUTxO
-         ]
-
     assembleTransaction
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left updateTxErrorToBalanceTxError $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
-            assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
+            assignScriptRedeemers pp timeTranslation utxoAll redeemers tx'
 
     guardExistingCollateral
         :: Tx era
