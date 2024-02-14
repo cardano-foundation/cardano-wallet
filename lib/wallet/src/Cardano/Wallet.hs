@@ -2682,12 +2682,14 @@ alreadyVoted walletState =
         <$> readDBVar walletState
 
 handleVotingWhenMissingInConway
-    :: NetworkLayer IO block
+    :: Write.RecentEra era
     -> DBLayer IO s
     -> Bool
     -> IO (Maybe VotingAction)
-handleVotingWhenMissingInConway nl db delegationsPresent = do
-    areWeInConway <- isAlreadyConwayEra nl
+handleVotingWhenMissingInConway era db delegationsPresent = do
+    areWeInConway <- case votingEnabledInEra era of
+        Left _ -> pure False
+        Right _ -> pure True
     voting <- haveWeVoted db
     stakingKeyRegistered <- isStakeKeyInDb db
     if (areWeInConway && not voting && delegationsPresent) then
@@ -2698,15 +2700,6 @@ handleVotingWhenMissingInConway nl db delegationsPresent = do
     else
        pure Nothing
   where
-    isAlreadyConwayEra
-        :: NetworkLayer IO block
-        -> IO Bool
-    isAlreadyConwayEra nw = do
-        era <- currentNodeEra nw
-        case era of
-            Cardano.AnyCardanoEra Cardano.ConwayEra -> pure True
-            _ -> pure False
-
     haveWeVoted
         :: DBLayer IO s
         -> IO Bool
