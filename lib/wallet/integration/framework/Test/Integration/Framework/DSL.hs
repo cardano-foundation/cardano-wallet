@@ -1622,7 +1622,7 @@ emptyRandomWalletWithPasswd ctx rawPwd = do
             $ hex
             $ Byron.getKey
             $ Byron.generateKeyFromSeed seed pwd
-    pwdH <- liftIO $ toText <$> encryptPassphraseTestingOnly pwd
+    pwdH <- liftIO $ toText <$> encryptPassphraseTestingOnly 64 pwd
     emptyByronWalletFromXPrvWith ctx "random" ("Random Wallet", key, pwdH)
 
 postWallet'

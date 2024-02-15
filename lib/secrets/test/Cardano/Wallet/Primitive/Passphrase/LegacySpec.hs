@@ -13,18 +13,15 @@ module Cardano.Wallet.Primitive.Passphrase.LegacySpec
 import Prelude
 
 import Cardano.Wallet.Primitive.Passphrase
-    ( ErrWrongPassphrase (ErrWrongPassphrase)
-    , PassphraseScheme (EncryptWithScrypt)
+    ( PassphraseScheme (EncryptWithScrypt)
     , checkPassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Gen
-    ( genEncryptionPassphrase
-    , genPassphraseScheme
-    , genUserPassphrase
+    ( genUserPassphrase
     , shrinkUserPassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( checkPassphraseTestingOnly
+    ( PassphraseHashLength
     , encryptPassphraseTestingOnly
     , getSalt
     , haveScrypt
@@ -33,6 +30,9 @@ import Cardano.Wallet.Primitive.Passphrase.Legacy
 import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (..)
+    )
+import Control.Monad
+    ( when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -48,20 +48,18 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString
     )
-import GHC.Stack
-    ( HasCallStack
-    )
 import Test.Hspec
     ( Spec
-    , before_
     , describe
     , it
-    , pendingWith
     , shouldBe
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Property
+    , elements
+    , forAll
     , property
     , (==>)
     )
@@ -69,45 +67,46 @@ import Test.QuickCheck.Monadic
     ( monadicIO
     )
 
-spec :: Spec
-spec = do
-    scryptoniteSpec
-    onlyWithScrypt $ do
-        scryptPropsSpec
-        scryptGoldenSpec
+import qualified Cardano.Wallet.Primitive.Passphrase.Legacy as Legacy
 
-onlyWithScrypt :: HasCallStack => Spec -> Spec
-onlyWithScrypt =
-    if haveScrypt
-    then id
-    else before_ (pendingWith "needs to be compiled with scrypt to run")
+spec :: Spec
+spec = describe "Legacy scrypt password encryption scheme" $ do
+    scryptoniteGoldenSpec
+    legacyGoldenSpec
+    scryptonitePropsSpec
+    when haveScrypt
+        scryptPropsSpec
 
 {-------------------------------------------------------------------------------
                         Cryptonite-based implementation
 -------------------------------------------------------------------------------}
 
-scryptoniteSpec :: Spec
-scryptoniteSpec = describe "Scrypt tests-only cryptonite version" $ do
+scryptoniteGoldenSpec :: Spec
+scryptoniteGoldenSpec = describe "Golden tests on checkPassphraseCryptonite" $ do
     it "Verify passphrase" $ do
         let Just salt = getSalt fixturePassphraseEncrypted
         let x = encryptPassphraseTestingOnly
-                (preparePassphrase fixturePassphrase)
-                salt
+                    64
+                    (preparePassphrase fixturePassphrase)
+                    salt
         unwrap x `shouldBe` unwrap fixturePassphraseEncrypted
         -- The above results in a better error message on failure, but this is
         -- the main thing we want to test:
-        checkPassphraseTestingOnly
+        Legacy.checkPassphraseCryptonite
             (preparePassphrase fixturePassphrase)
             fixturePassphraseEncrypted
             `shouldBe` True
     it "Verify wrong passphrase" $ do
-        checkPassphraseTestingOnly (preparePassphrase fixturePassphraseWrong)
+        Legacy.checkPassphraseCryptonite
+            (preparePassphrase fixturePassphraseWrong)
             fixturePassphraseEncrypted `shouldBe` False
     it "Verify wrong salt" $ do
-        checkPassphraseTestingOnly (preparePassphrase fixturePassphrase)
+        Legacy.checkPassphraseCryptonite
+            (preparePassphrase fixturePassphrase)
             fixturePassphraseEncryptedWrongSalt `shouldBe` False
     it "Verify wrong hash" $ do
-        checkPassphraseTestingOnly (preparePassphrase fixturePassphrase)
+        Legacy.checkPassphraseCryptonite
+            (preparePassphrase fixturePassphrase)
             fixturePassphraseEncryptedWrongHash `shouldBe` False
     it "getSalt" $ do
         let hex :: Passphrase "salt" -> ByteString
@@ -154,9 +153,9 @@ fixturePassphraseEncryptedWrongHash = unsafeFromHex
                                   Golden Tests
 -------------------------------------------------------------------------------}
 
-scryptGoldenSpec :: Spec
-scryptGoldenSpec =
-    describe "golden tests comparing this implementation with cardano-sl" $ do
+legacyGoldenSpec :: Spec
+legacyGoldenSpec =
+    describe "Golden tests comparing against cardano-sl" $ do
         it "short password" $ do
             let pwd  = Passphrase "patate"
             let hash = unsafeFromHex
@@ -198,46 +197,64 @@ scryptGoldenSpec =
 {-------------------------------------------------------------------------------
                                Properties
 -------------------------------------------------------------------------------}
+scryptonitePropsSpec :: Spec
+scryptonitePropsSpec =
+    describe "verification cryptonite VS encryption scrypt (if available)" $ do
+        it "checkPassphrase p h(p) == True" $
+            property $
+                prop_passphraseFromScryptRoundtrip
+                    $ Legacy.checkPassphraseCryptonite . preparePassphrase
+        it "p /= p' => checkPassphrase p' h(p) == False" $
+            property $
+                prop_passphraseFromScryptRoundtripFail
+                    $ Legacy.checkPassphraseCryptonite . preparePassphrase
 
 scryptPropsSpec :: Spec
-scryptPropsSpec = describe "Legacy scrypt password encryption" $ do
-    it "checkPassphrase p h(p) == Right ()" $
-        property prop_passphraseFromScryptRoundtrip
-    it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
-        property prop_passphraseFromScryptRoundtripFail
+scryptPropsSpec =
+    describe "verification scrypt VS encryption scrypt (if available)" $ do
+        it "checkPassphrase p h(p) == True" $
+            property $
+                prop_passphraseFromScryptRoundtrip
+                    $ Legacy.checkPassphraseScrypt . preparePassphrase
+        it "p /= p' => checkPassphrase p' h(p) == False" $
+            property $
+                prop_passphraseFromScryptRoundtripFail
+                    $ Legacy.checkPassphraseScrypt . preparePassphrase
 
 prop_passphraseFromScryptRoundtrip
-    :: Passphrase "user"
-    -> Property
-prop_passphraseFromScryptRoundtrip p = monadicIO $ liftIO $ do
-    hp <- encryptPasswordWithScrypt p
-    checkPassphrase EncryptWithScrypt p hp `shouldBe` Right ()
-
-prop_passphraseFromScryptRoundtripFail
-    :: Passphrase "user"
+    :: (Passphrase "user" -> PassphraseHash -> Bool)
     -> Passphrase "user"
     -> Property
-prop_passphraseFromScryptRoundtripFail p p' =
-    p /= p' ==> monadicIO $ liftIO $ do
-        hp <- encryptPasswordWithScrypt p
-        checkPassphrase EncryptWithScrypt p' hp
-            `shouldBe` Left ErrWrongPassphrase
+prop_passphraseFromScryptRoundtrip checkPassphrase' p =
+    forAll genPassphraseHashLength $ \len ->
+        monadicIO $ liftIO $ do
+            hp <- encryptPasswordWithScrypt len p
+            checkPassphrase' p hp `shouldBe` True
+
+prop_passphraseFromScryptRoundtripFail
+    :: (Passphrase "user" -> PassphraseHash -> Bool)
+    -> Passphrase "user"
+    -> Passphrase "user"
+    -> Property
+prop_passphraseFromScryptRoundtripFail checkPassphrase' p p' =
+    forAll genPassphraseHashLength $ \len ->
+        p /= p' ==> monadicIO $ liftIO $ do
+            hp <- encryptPasswordWithScrypt len p
+            checkPassphrase' p' hp `shouldBe` False
 
 encryptPasswordWithScrypt
-    :: Passphrase "user"
+    :: PassphraseHashLength
+    -> Passphrase "user"
     -> IO PassphraseHash
-encryptPasswordWithScrypt =
-    encryptPassphraseTestingOnly . preparePassphrase
+encryptPasswordWithScrypt len =
+    encryptPassphraseTestingOnly len . preparePassphrase
+
+genPassphraseHashLength :: Gen PassphraseHashLength
+genPassphraseHashLength = elements [32, 64, 128]
 
 instance Arbitrary (Passphrase "user") where
     arbitrary = genUserPassphrase
     shrink = shrinkUserPassphrase
-
-instance Arbitrary PassphraseScheme where
-    arbitrary = genPassphraseScheme
-
-instance Arbitrary (Passphrase "encryption") where
-    arbitrary = genEncryptionPassphrase
 
 -- | Decode an hex-encoded 'ByteString' into raw bytes, or fail.
 unsafeFromHex :: forall b. ByteArray b => ByteString -> b

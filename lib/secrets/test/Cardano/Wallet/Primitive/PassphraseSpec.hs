@@ -25,12 +25,8 @@ import Cardano.Wallet.Primitive.Passphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Gen
     ( genEncryptionPassphrase
-    , genPassphraseScheme
     , genUserPassphrase
     , shrinkUserPassphrase
-    )
-import Cardano.Wallet.Primitive.Passphrase.Legacy
-    ( haveScrypt
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -57,7 +53,6 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
-    , counterexample
     , property
     , (===)
     , (==>)
@@ -102,48 +97,27 @@ prop_passphraseRoundtrip pwd = monadicIO $ liftIO $ do
     checkPassphrase EncryptWithPBKDF2 pwd hpwd `shouldBe` Right ()
 
 prop_passphraseRoundtripFail
-    :: PassphraseScheme
-    -> Passphrase "user"
+    :: Passphrase "user"
     -> Passphrase "user"
     -> Property
-prop_passphraseRoundtripFail scheme p p' =
+prop_passphraseRoundtripFail p p' =
     p /= p' ==> monadicIO $ do
-        (_scheme, hp) <- run $ encryptPassphrase p
-        assert $ checkPassphrase scheme p' hp ==
-            whenSupported scheme (Left ErrWrongPassphrase)
+        (scheme, hp) <- run $ encryptPassphrase p
+        assert $ checkPassphrase scheme p' hp == Left ErrWrongPassphrase
 
 prop_passphraseHashMalformed
-    :: PassphraseScheme
-    -> Passphrase "user"
+    :: Passphrase "user"
     -> Property
-prop_passphraseHashMalformed scheme pwd =
-    counterexample ("haveScrypt = " <> show haveScrypt) $
-    checkPassphrase scheme pwd (PassphraseHash mempty)
-        === whenSupported scheme (Left ErrWrongPassphrase)
+prop_passphraseHashMalformed pwd =
+    checkPassphrase EncryptWithPBKDF2 pwd (PassphraseHash mempty)
+        === Left ErrWrongPassphrase
 
 instance Arbitrary (Passphrase "user") where
     arbitrary = genUserPassphrase
     shrink = shrinkUserPassphrase
 
-instance Arbitrary PassphraseScheme where
-    arbitrary = genPassphraseScheme
-
 instance Arbitrary (Passphrase "encryption") where
     arbitrary = genEncryptionPassphrase
-
--- | Helper that returns 'ErrPassphraseSchemeUnsupported' when the provided
--- scheme is 'EncryptWithScrypt' and 'haveScrypt' is false, and otherwise
--- returns the second argument.
-whenSupported
-    :: PassphraseScheme
-    -> Either ErrWrongPassphrase ()
-    -> Either ErrWrongPassphrase ()
-whenSupported EncryptWithPBKDF2 = id
-whenSupported EncryptWithScrypt
-    | not haveScrypt
-        = const . Left $ ErrPassphraseSchemeUnsupported EncryptWithScrypt
-    | otherwise
-        = id
 
 pbkdf2Golden :: Golden -> Spec
 pbkdf2Golden g = describe ("passphrase = " <> show (unwrap (passphrase g))) $ do

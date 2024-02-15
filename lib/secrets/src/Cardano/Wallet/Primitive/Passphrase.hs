@@ -74,10 +74,10 @@ checkPassphrase
     -> Either ErrWrongPassphrase ()
 checkPassphrase scheme received stored = case scheme of
     EncryptWithPBKDF2 -> PBKDF2.checkPassphrase prepared stored
-    EncryptWithScrypt -> case Scrypt.checkPassphrase prepared stored of
-        Just True -> Right ()
-        Just False -> Left ErrWrongPassphrase
-        Nothing -> Left (ErrPassphraseSchemeUnsupported scheme)
+    EncryptWithScrypt ->
+        if Scrypt.checkPassphrase prepared stored
+        then Right ()
+        else Left ErrWrongPassphrase
   where
     prepared = preparePassphrase scheme received
 
