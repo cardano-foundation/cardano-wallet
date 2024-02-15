@@ -187,6 +187,9 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Delegation
     ( certificateFromDelegationAction
     )
+import Cardano.Wallet.Transaction.Voting
+    ( certificateFromVotingAction
+    )
 import Cardano.Wallet.Util
     ( HasCallStack
     )
@@ -371,7 +374,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
                     in certificateFromDelegationAction era (Left stakeXPub)
-                       (Just action) Nothing Nothing
+                       Nothing action
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
@@ -707,7 +710,23 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
     let stakingScriptM =
             flip (replaceCosignersWithVerKeys CA.Stake) minBound <$>
             view #txStakingCredentialScriptTemplate ctx
-    let va = view #txVotingAction ctx
+    let depositM = view #txDeposit ctx
+    let votingCerts = case view #txVotingAction ctx of
+            Nothing ->
+                []
+            Just action -> case stakeCred of
+                Left xpub ->
+                    certificateFromVotingAction era (Left xpub)
+                    depositM action
+                Right (Just script) ->
+                    certificateFromVotingAction era (Right script)
+                    depositM action
+                Right Nothing ->
+                    error $ unwords
+                        [ "stakeCred in mkUnsignedTransaction must be"
+                        , "either xpub or script when there is voting"
+                        , "action"
+                        ]
     case view #txDelegationAction ctx of
         Nothing -> do
             let md = view #txMetadata ctx
@@ -730,25 +749,25 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
                             inpsScripts Nothing refScriptM
                 _ ->
                     constructUnsignedTx
-                        networkId (md, []) ttl wdrl
+                        networkId (md, votingCerts) ttl wdrl
                         selection delta assetsToBeMinted assetsToBeBurned
                         inpsScripts
                     Nothing refScriptM
         Just action -> do
-            let deposit = view #txDeposit ctx
-            let certs = case stakeCred of
+            let delegCerts = case stakeCred of
                     Left xpub ->
                         certificateFromDelegationAction era (Left xpub)
-                        (Just action) va deposit
+                        depositM action
                     Right (Just script) ->
                         certificateFromDelegationAction era (Right script)
-                        (Just action) va deposit
+                        depositM action
                     Right Nothing ->
                         error $ unwords
                             [ "stakeCred in mkUnsignedTransaction must be"
                             , "either xpub or script when there is delegation"
                             , "action"
                             ]
+            let certs = L.nub $ votingCerts <> delegCerts
             let payload = (view #txMetadata ctx, certs)
             constructUnsignedTx networkId payload ttl wdrl
                 selection delta assetsToBeMinted assetsToBeBurned inpsScripts

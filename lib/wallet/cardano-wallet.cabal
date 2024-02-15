@@ -250,6 +250,7 @@ library
     Cardano.Wallet.Transaction
     Cardano.Wallet.Transaction.Built
     Cardano.Wallet.Transaction.Delegation
+    Cardano.Wallet.Transaction.Voting
     Cardano.Wallet.TypeLevel
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
