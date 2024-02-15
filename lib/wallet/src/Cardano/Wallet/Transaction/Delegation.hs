@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -45,52 +47,55 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
+    , IsRecentEra (recentEra)
     , RecentEra (RecentEraBabbage, RecentEraConway)
     )
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate
 ------------------------------------------------------------------------------}
+
 certificateFromDelegationAction
-    :: Write.RecentEra era
+    :: forall era. Write.IsRecentEra era
         -- ^ Era in which we create the certificate
-    -> Either XPub (Script KeyHash)
+    => Either XPub (Script KeyHash)
         -- ^ Our staking credential
     -> DelegationAction
         -- ^ Delegation action that we plan to take
     -> [Cardano.Certificate (Write.CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction Write.RecentEraBabbage cred = \case
-    Join poolId ->
-        [ Cardano.makeStakeAddressDelegationCertificate
-            $ Cardano.StakeDelegationRequirementsPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-                (toCardanoPoolId poolId)
-        ]
-    JoinRegisteringKey poolId ->
-        [ Cardano.makeStakeAddressRegistrationCertificate
-            $ Cardano.StakeAddrRegistrationPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-        , Cardano.makeStakeAddressDelegationCertificate
-            $ Cardano.StakeDelegationRequirementsPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-                (toCardanoPoolId poolId)
-        ]
-    Quit ->
-        [ Cardano.makeStakeAddressUnregistrationCertificate
-            $ Cardano.StakeAddrRegistrationPreConway
-                babbageWitness
-                (toCardanoStakeCredential cred)
-        ]
-  where
-    babbageWitness = Cardano.ShelleyToBabbageEraBabbage
-certificateFromDelegationAction Write.RecentEraConway _cred =
-    error "certificateFromDelegationAction: not supported in Conway yet"
-  where
-    _conwayWitness = Cardano.ConwayEraOnwardsConway
+certificateFromDelegationAction = case Write.recentEra @era of
+    Write.RecentEraBabbage -> \cred -> \case
+        Join poolId ->
+            [ Cardano.makeStakeAddressDelegationCertificate
+                $ Cardano.StakeDelegationRequirementsPreConway
+                    babbageWitness
+                    (toCardanoStakeCredential cred)
+                    (toCardanoPoolId poolId)
+            ]
+        JoinRegisteringKey poolId ->
+            [ Cardano.makeStakeAddressRegistrationCertificate
+                $ Cardano.StakeAddrRegistrationPreConway
+                    babbageWitness
+                    (toCardanoStakeCredential cred)
+            , Cardano.makeStakeAddressDelegationCertificate
+                $ Cardano.StakeDelegationRequirementsPreConway
+                    babbageWitness
+                    (toCardanoStakeCredential cred)
+                    (toCardanoPoolId poolId)
+            ]
+        Quit ->
+            [ Cardano.makeStakeAddressUnregistrationCertificate
+                $ Cardano.StakeAddrRegistrationPreConway
+                    babbageWitness
+                    (toCardanoStakeCredential cred)
+            ]
+      where
+        babbageWitness = Cardano.ShelleyToBabbageEraBabbage
+    Write.RecentEraConway -> \_cred ->
+        error "certificateFromDelegationAction: not supported in Conway yet"
+      where
+        _conwayWitness = Cardano.ConwayEraOnwardsConway
 
 {-----------------------------------------------------------------------------
     Cardano.StakeCredential

@@ -230,7 +230,6 @@ import Data.Word
     )
 import Internal.Cardano.Write.Tx
     ( CardanoApiEra
-    , RecentEra (..)
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -345,7 +344,7 @@ constructUnsignedTx
 
 mkTransaction
     :: forall era k. Write.IsRecentEra era
-    => RecentEra era
+    => Write.RecentEra era
     -- ^ Era for which the transaction should be created.
     -> Cardano.NetworkId
     -> KeyFlavorS k
@@ -359,7 +358,7 @@ mkTransaction
     -- ^ A balanced coin selection where all change addresses have been
     -- assigned.
     -> Either ErrMkTransaction (Tx, SealedTx)
-mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
+mkTransaction _era networkId keyF stakeCreds addrResolver ctx cs = do
     let ttl = txValidityInterval ctx
     let wdrl = view #txWithdrawal ctx
     let delta = selectionDelta cs
@@ -370,7 +369,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                     mempty
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
-                    in certificateFromDelegationAction era (Left stakeXPub) action
+                    in certificateFromDelegationAction (Left stakeXPub) action
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx
@@ -735,9 +734,9 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
         Just action -> do
             let certs = case stakeCred of
                     Left xpub ->
-                        certificateFromDelegationAction era (Left xpub) action
+                        certificateFromDelegationAction (Left xpub) action
                     Right (Just script) ->
-                        certificateFromDelegationAction era (Right script) action
+                        certificateFromDelegationAction (Right script) action
                     Right Nothing ->
                         error $ unwords
                             [ "stakeCred in mkUnsignedTransaction must be"
@@ -993,8 +992,8 @@ mkUnsignedTx
             Cardano.SimpleScript'
             (Write.CardanoApiEra era)
     scriptWitsSupported = case era of
-        RecentEraBabbage -> Cardano.SimpleScriptInBabbage
-        RecentEraConway -> Cardano.SimpleScriptInConway
+        Write.RecentEraBabbage -> Cardano.SimpleScriptInBabbage
+        Write.RecentEraConway -> Cardano.SimpleScriptInConway
 
     toScriptWitness
         :: Script KeyHash
@@ -1036,18 +1035,18 @@ mkUnsignedTx
 
     allegraOnwards :: Cardano.AllegraEraOnwards (CardanoApiEra era)
     allegraOnwards = case era of
-        RecentEraBabbage -> Cardano.AllegraEraOnwardsBabbage
-        RecentEraConway  -> Cardano.AllegraEraOnwardsConway
+        Write.RecentEraBabbage -> Cardano.AllegraEraOnwardsBabbage
+        Write.RecentEraConway -> Cardano.AllegraEraOnwardsConway
 
     maryOnwards :: Cardano.MaryEraOnwards (CardanoApiEra era)
     maryOnwards = case era of
-        RecentEraBabbage -> Cardano.MaryEraOnwardsBabbage
-        RecentEraConway  -> Cardano.MaryEraOnwardsConway
+        Write.RecentEraBabbage -> Cardano.MaryEraOnwardsBabbage
+        Write.RecentEraConway -> Cardano.MaryEraOnwardsConway
 
     babbageOnwards :: Cardano.BabbageEraOnwards (CardanoApiEra era)
     babbageOnwards = case era of
-        RecentEraBabbage -> Cardano.BabbageEraOnwardsBabbage
-        RecentEraConway  -> Cardano.BabbageEraOnwardsConway
+        Write.RecentEraBabbage -> Cardano.BabbageEraOnwardsBabbage
+        Write.RecentEraConway -> Cardano.BabbageEraOnwardsConway
 
 -- TODO: ADP-2257
 -- cardano-node does not allow to construct tx without inputs at this moment.
@@ -1117,10 +1116,7 @@ mkByronWitness
     Cardano.ShelleyBootstrapWitness cardanoEra $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
-    era = Write.recentEra @era
-    txHash = case era of
-        RecentEraBabbage -> Crypto.castHash $ Crypto.hashWith serialize' body
-        RecentEraConway  -> Crypto.castHash $ Crypto.hashWith serialize' body
+    txHash = Crypto.castHash $ Crypto.hashWith serialize' body
 
     unencrypt (xprv, pwd) = CC.SigningKey
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv

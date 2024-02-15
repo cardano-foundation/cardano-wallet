@@ -846,7 +846,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , IsRecentEra
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra
     , Tx
     , UTxO (UTxO)
     , cardanoEraFromRecentEra
@@ -2320,8 +2319,7 @@ buildTransaction
         , HasSNetworkId (NetworkOf s)
         , Excluding '[SharedKey] (KeyOf s)
         )
-    => Write.RecentEra era
-    -> DBLayer IO s
+    => DBLayer IO s
     -> TimeTranslation
     -> ChangeAddressGen s
     -> Write.PParams era
@@ -2329,7 +2327,7 @@ buildTransaction
     -> [TxOut]
     -- ^ payment outputs
     -> IO (Write.Tx era, Wallet s)
-buildTransaction _era DBLayer{..} timeTranslation changeAddrGen
+buildTransaction DBLayer{..} timeTranslation changeAddrGen
     protocolParameters txCtx paymentOuts = do
     stdGen <- initStdGen
     atomically $ do
@@ -2499,12 +2497,11 @@ constructTransaction
         ( HasSNetworkId n
         , Write.IsRecentEra era
         )
-    => Write.RecentEra era
-    -> DBLayer IO (SeqState n ShelleyKey)
+    => DBLayer IO (SeqState n ShelleyKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction _era db txCtx preSel = do
+constructTransaction db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
     mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
@@ -2516,15 +2513,14 @@ constructUnbalancedSharedTransaction
         ( HasSNetworkId n
         , Write.IsRecentEra era
         )
-    => Write.RecentEra era
-    -> DBLayer IO (SharedState n SharedKey)
+    => DBLayer IO (SharedState n SharedKey)
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =

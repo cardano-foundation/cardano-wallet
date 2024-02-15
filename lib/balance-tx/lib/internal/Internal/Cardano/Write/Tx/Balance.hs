@@ -487,7 +487,7 @@ fromWalletUTxO
     -> UTxO era
 fromWalletUTxO (W.UTxO m) = UTxO
     $ Map.mapKeys Convert.toLedger
-    $ Map.map (toLedgerTxOut (recentEra @era)) m
+    $ Map.map toLedgerTxOut m
 
 toWalletUTxO
     :: forall era. IsRecentEra era
@@ -495,7 +495,7 @@ toWalletUTxO
     -> W.UTxO
 toWalletUTxO (UTxO m) = W.UTxO
     $ Map.mapKeys Convert.toWallet
-    $ Map.map (toWalletTxOut (recentEra @era)) m
+    $ Map.map toWalletTxOut m
 
 balanceTransaction
     :: forall era m changeState.
@@ -785,8 +785,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
-    era = recentEra @era
-
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
     -- corresponding 'TxOut' according to @combinedUTxO@.
     --
@@ -813,7 +811,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                        Left i
                     Just o -> do
                         let i' = Convert.toWallet i
-                        let W.TxOut addr bundle = toWalletTxOut era o
+                        let W.TxOut addr bundle = toWalletTxOut o
                         pure (WalletUTxO i' addr, bundle)
 
         case partitionEithers res of
@@ -884,7 +882,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             Nothing -> return ()
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut) `on` unUTxO
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat
@@ -995,9 +993,9 @@ selectAssets pp utxoAssumptions outs' redeemers
         , computeMinimumAdaQuantity = \addr tokens -> Convert.toWallet $
             computeMinimumCoinForTxOut
                 pp
-                (mkLedgerTxOut era addr (W.TokenBundle W.txOutMaxCoin tokens))
+                (mkLedgerTxOut addr (W.TokenBundle W.txOutMaxCoin tokens))
         , isBelowMinimumAdaQuantity = \addr bundle ->
-            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut era addr bundle)
+            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut addr bundle)
         , computeMinimumCost = \skeleton -> mconcat
             [ feePadding
             , fee0
@@ -1044,12 +1042,11 @@ selectAssets pp utxoAssumptions outs' redeemers
 
     mkLedgerTxOut
         :: HasCallStack
-        => RecentEra era
-        -> W.Address
+        => W.Address
         -> W.TokenBundle
         -> TxOut era
-    mkLedgerTxOut txOutEra address bundle =
-        case txOutEra of
+    mkLedgerTxOut address bundle =
+        case era of
             RecentEraBabbage -> Convert.toBabbageTxOut txOut
             RecentEraConway -> Convert.toConwayTxOut txOut
           where
@@ -1240,16 +1237,12 @@ updateTx tx extraContent = do
     extraInputScripts'
         :: Map (ScriptHash StandardCrypto) (Script era)
     extraInputScripts' =
-        Map.fromList $ map (pairWithHash . convert) extraInputScripts
+        Map.fromList $ map (pairWithHash . toLedgerScript) extraInputScripts
       where
         pairWithHash s = (hashScript s, s)
-        convert = flip toLedgerScript (recentEra @era)
 
-    toLedgerScript
-        :: CA.Script CA.KeyHash
-        -> RecentEra era
-        -> Core.Script era
-    toLedgerScript s = \case
+    toLedgerScript :: CA.Script CA.KeyHash -> Core.Script era
+    toLedgerScript s = case recentEra @era of
         RecentEraBabbage -> TimelockScript $ Convert.toLedgerTimelockScript s
         RecentEraConway -> TimelockScript $ Convert.toLedgerTimelockScript s
 
@@ -1267,9 +1260,8 @@ modifyShelleyTxBody txUpdate =
     . over collateralInputsTxBodyL
         (<> extraCollateral')
   where
-    era = recentEra @era
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
-    extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
+    extraOutputs' = StrictSeq.fromList $ map toLedgerTxOut extraOutputs
     extraInputs' = Set.fromList (Convert.toLedger . fst <$> extraInputs)
     extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
 
@@ -1495,21 +1487,21 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
     shortfall = costOfBurningSurplus <\> surplus
 
 toLedgerTxOut
-    :: HasCallStack
-    => RecentEra era
-    -> W.TxOut
+    :: forall era. (HasCallStack, IsRecentEra era)
+    => W.TxOut
     -> TxOut era
-toLedgerTxOut txOutEra txOut =
-    case txOutEra of
+toLedgerTxOut txOut =
+    case recentEra @era of
         RecentEraBabbage -> Convert.toBabbageTxOut txOut
         RecentEraConway -> Convert.toConwayTxOut txOut
 
 toWalletTxOut
-    :: RecentEra era
-    -> TxOut era
+    :: forall era. IsRecentEra era
+    => TxOut era
     -> W.TxOut
-toWalletTxOut RecentEraBabbage = Convert.fromBabbageTxOut
-toWalletTxOut RecentEraConway = Convert.fromConwayTxOut
+toWalletTxOut = case recentEra @era of
+    RecentEraBabbage -> Convert.fromBabbageTxOut
+    RecentEraConway -> Convert.fromConwayTxOut
 
 -- | Maps an error from the coin selection API to a balanceTx error.
 --
