@@ -24,18 +24,15 @@ import Cardano.Address.Script
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
     )
+import Cardano.Wallet.Primitive.Ledger.Convert
+    ( toLedgerDelegatee
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( toCardanoLovelace
     , toCardanoSimpleScript
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
-    )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep (..)
-    , DRepID (..)
-    , DRepKeyHash (..)
-    , DRepScriptHash (..)
     )
 import Cardano.Wallet.Transaction
     ( VotingAction (..)
@@ -50,7 +47,6 @@ import Data.ByteString.Short
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.ReexposeLedger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Hashes as SL
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
     , RecentEra (RecentEraBabbage, RecentEraConway)
@@ -125,29 +121,3 @@ toHashStakeKey =
     . toShort
     . blake2b224
     . xpubPublicKey
-
-toLedgerDelegatee
-    :: Maybe Cardano.PoolId
-    -> Maybe DRep
-    -> Ledger.Delegatee Ledger.StandardCrypto
-toLedgerDelegatee poolM vaM = case (poolM, vaM) of
-    (Just poolId, Nothing) ->
-        Ledger.DelegStake (Cardano.unStakePoolKeyHash poolId)
-    (Nothing, Just vote) ->
-        Ledger.DelegVote (toLedgerDRep vote)
-    (Just poolId, Just vote) ->
-        Ledger.DelegStakeVote (Cardano.unStakePoolKeyHash poolId) (toLedgerDRep vote)
-    _ ->
-        error "toLedgerDelegatee: wrong use, at least pool or vote action must be present"
-
-toLedgerDRep
-    :: DRep -> Ledger.DRep Ledger.StandardCrypto
-toLedgerDRep = \case
-    Abstain -> Ledger.DRepAlwaysAbstain
-    NoConfidence -> Ledger.DRepAlwaysNoConfidence
-    FromDRepID (DRepFromKeyHash (DRepKeyHash keyhash)) ->
-        Ledger.DRepCredential . Ledger.KeyHashObj . Ledger.KeyHash . UnsafeHash $
-        toShort keyhash
-    FromDRepID (DRepFromScriptHash (DRepScriptHash scripthash)) ->
-        Ledger.DRepCredential . Ledger.ScriptHashObj . SL.ScriptHash . UnsafeHash $
-        toShort scripthash
