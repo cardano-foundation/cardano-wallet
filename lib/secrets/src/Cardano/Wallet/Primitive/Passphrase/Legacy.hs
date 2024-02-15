@@ -14,22 +14,16 @@
 --  - p = 1
 --  - outputLength = 64
 --
--- It is possible to disable support for legacy password hashing by compiling
--- with the @-scrypt@ Cabal flag.
 
 module Cardano.Wallet.Primitive.Passphrase.Legacy
     ( -- * Legacy passphrases
       checkPassphrase
     , preparePassphrase
 
-      -- * Testing-only helper
-    , haveScrypt
-
       -- * Internal functions, exposed for testing
     , PassphraseHashLength
     , encryptPassphraseTestingOnly
     , checkPassphraseCryptonite
-    , checkPassphraseScrypt
     , getSalt
     , genSalt
     ) where
@@ -64,49 +58,6 @@ import qualified Crypto.KDF.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 
-#if HAVE_SCRYPT
-import Crypto.Scrypt
-    ( EncryptedPass (..)
-    , Pass (..)
-    , Salt (Salt)
-    , encryptPass
-    , scryptParamsLen
-    , verifyPass'
-    )
-
-haveScrypt :: Bool
-haveScrypt = True
-
-#else
-
-haveScrypt :: Bool
-haveScrypt = False
-
-#endif
-
-{- NOTE [LegacyScrypt]
-
-We need to transition away from the unmaintained `scrypt` package.
-Specifically, the `scrypt` package is not supported on `aarch64-darwin`.
-
-We can use the `cryptonite` package instead.
-In order to ensure that the new package produces the same result as the
-old one, we proceed as follows:
-
-    * in production:
-        * use `cryptonite`
-    * in testing:
-        * generate random passphrases,
-            encrypted with `scrypt` package if available
-        * check that these encrypted passphrases
-            * are verified correctly with the `cryptonite` package
-            * are verified correctly with the `scrypt` package
-
-These tests ensure that the code using `cryptonite` can verify
-hashed passphrases that were created with `scrypt`.
-
--}
-
 {-----------------------------------------------------------------------------
     Passphrase hashing and verification using the Scrypt algorithm
 ------------------------------------------------------------------------------}
@@ -124,32 +75,8 @@ encryptPassphraseTestingOnly
     => PassphraseHashLength
     -> Passphrase "encryption"
     -> m PassphraseHash
-#if HAVE_SCRYPT
-encryptPassphraseTestingOnly len pwd = mkPassphraseHash <$> genSalt
-  where
-    mkPassphraseHash :: Passphrase "salt" -> PassphraseHash
-    mkPassphraseHash (Passphrase salt) =
-        PassphraseHash
-        . BA.convert
-        . getEncryptedPass
-        $ encryptPass
-            params
-            (Salt $ BA.convert salt)
-            (Pass . BA.convert . unPassphrase $ cborify pwd)
-
-    params =
-        case scryptParamsLen
-                (fromIntegral logN)
-                (fromIntegral r)
-                (fromIntegral p)
-                (fromIntegral len)
-          of
-            Just x -> x
-            Nothing -> error "scryptParamsLen: unreachable code path"
-#else
 encryptPassphraseTestingOnly len pwd =
     encryptPassphraseCryptoniteWithLength len <$> genSalt <*> pure pwd
-#endif
 
 preparePassphrase :: Passphrase "user" -> Passphrase "encryption"
 preparePassphrase = Passphrase . hashMaybe . unPassphrase
@@ -161,16 +88,6 @@ preparePassphrase = Passphrase . hashMaybe . unPassphrase
 {-----------------------------------------------------------------------------
     Passphrase verification
 ------------------------------------------------------------------------------}
-
-checkPassphraseScrypt :: Passphrase "encryption" -> PassphraseHash -> Bool
-#if HAVE_SCRYPT
-checkPassphraseScrypt pwd stored =
-    verifyPass' (Pass (BA.convert (cborify pwd))) encryptedPass
-  where
-    encryptedPass = EncryptedPass (BA.convert stored)
-#else
-checkPassphraseScrypt _ _ = error "checkPassphraseScrypt not available"
-#endif
 
 checkPassphraseCryptonite
     :: Passphrase "encryption" -> PassphraseHash -> Bool

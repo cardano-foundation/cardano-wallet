@@ -78,13 +78,6 @@
    > cabal install --install-method=copy --installdir=/usr/local/bin
    ```
 
-7. Build without `scrypt` (for compatibility with Apple M1 chip)
-
-   ```console
-   > cabal configure --disable-tests --disable-benchmarks -f-scrypt -O2
-   > cabal build cardano-wallet:exe:cardano-wallet
-   ```
-
 ## Nix
 
 Use the [Nix][] build if:

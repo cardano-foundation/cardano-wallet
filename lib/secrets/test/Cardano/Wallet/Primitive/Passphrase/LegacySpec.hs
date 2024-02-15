@@ -24,15 +24,12 @@ import Cardano.Wallet.Primitive.Passphrase.Legacy
     ( PassphraseHashLength
     , encryptPassphraseTestingOnly
     , getSalt
-    , haveScrypt
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
-    ( Passphrase (..)
+    ( ErrWrongPassphrase (..)
+    , Passphrase (..)
     , PassphraseHash (..)
-    )
-import Control.Monad
-    ( when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -74,8 +71,6 @@ spec = describe "Legacy scrypt password encryption scheme" $ do
     scryptoniteGoldenSpec
     legacyGoldenSpec
     scryptonitePropsSpec
-    when haveScrypt
-        scryptPropsSpec
 
 {-------------------------------------------------------------------------------
                         Cryptonite-based implementation
@@ -199,48 +194,31 @@ legacyGoldenSpec =
 -------------------------------------------------------------------------------}
 scryptonitePropsSpec :: Spec
 scryptonitePropsSpec =
-    describe "verification cryptonite VS encryption scrypt (if available)" $ do
-        it "checkPassphrase p h(p) == True" $
-            property $
-                prop_passphraseFromScryptRoundtrip
-                    $ Legacy.checkPassphraseCryptonite . preparePassphrase
-        it "p /= p' => checkPassphrase p' h(p) == False" $
-            property $
-                prop_passphraseFromScryptRoundtripFail
-                    $ Legacy.checkPassphraseCryptonite . preparePassphrase
-
-scryptPropsSpec :: Spec
-scryptPropsSpec =
-    describe "verification scrypt VS encryption scrypt (if available)" $ do
-        it "checkPassphrase p h(p) == True" $
-            property $
-                prop_passphraseFromScryptRoundtrip
-                    $ Legacy.checkPassphraseScrypt . preparePassphrase
-        it "p /= p' => checkPassphrase p' h(p) == False" $
-            property $
-                prop_passphraseFromScryptRoundtripFail
-                    $ Legacy.checkPassphraseScrypt . preparePassphrase
+    describe "verification cryptonite VS encryption cryptonite" $ do
+        it "checkPassphrase p h(p) == Right ()" $
+            property prop_passphraseFromScryptRoundtrip
+        it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
+            property prop_passphraseFromScryptRoundtripFail
 
 prop_passphraseFromScryptRoundtrip
-    :: (Passphrase "user" -> PassphraseHash -> Bool)
-    -> Passphrase "user"
+    :: Passphrase "user"
     -> Property
-prop_passphraseFromScryptRoundtrip checkPassphrase' p =
+prop_passphraseFromScryptRoundtrip p =
     forAll genPassphraseHashLength $ \len ->
         monadicIO $ liftIO $ do
             hp <- encryptPasswordWithScrypt len p
-            checkPassphrase' p hp `shouldBe` True
+            checkPassphrase EncryptWithScrypt p hp `shouldBe` Right ()
 
 prop_passphraseFromScryptRoundtripFail
-    :: (Passphrase "user" -> PassphraseHash -> Bool)
-    -> Passphrase "user"
+    :: Passphrase "user"
     -> Passphrase "user"
     -> Property
-prop_passphraseFromScryptRoundtripFail checkPassphrase' p p' =
+prop_passphraseFromScryptRoundtripFail p p' =
     forAll genPassphraseHashLength $ \len ->
         p /= p' ==> monadicIO $ liftIO $ do
             hp <- encryptPasswordWithScrypt len p
-            checkPassphrase' p' hp `shouldBe` False
+            checkPassphrase EncryptWithScrypt p' hp
+                `shouldBe` Left ErrWrongPassphrase
 
 encryptPasswordWithScrypt
     :: PassphraseHashLength
