@@ -204,7 +204,6 @@ instance NFData WalletPassphraseInfo
 -- | Indicate a failure when checking for a given 'Passphrase' match
 data ErrWrongPassphrase
     = ErrWrongPassphrase
-    | ErrPassphraseSchemeUnsupported PassphraseScheme
     deriving stock (Generic, Show, Eq)
 
 instance NFData ErrWrongPassphrase

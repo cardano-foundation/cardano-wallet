@@ -349,12 +349,6 @@ instance IsServerError ErrWithRootKey where
                 , ": "
                 , toText wid
                 ]
-        ErrWithRootKeyWrongPassphrase wid (ErrPassphraseSchemeUnsupported s) ->
-            apiError err501 WrongEncryptionPassphrase $ mconcat
-                [ "This build is not compiled with support for the "
-                , toText s <> " scheme used by the given wallet: "
-                , toText wid
-                ]
 
 instance IsServerError ErrSignPayment where
     toServerError = \case
