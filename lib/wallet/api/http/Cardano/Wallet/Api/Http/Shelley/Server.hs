@@ -917,6 +917,10 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Registry as Registry
+import qualified Cardano.Write.Era as Write
+    ( IsRecentEra
+    , RecentEra
+    )
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
@@ -926,9 +930,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
-    , IsRecentEra
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra
     , TxIn
     , TxOutInRecentEra (TxOutInRecentEra)
     , cardanoEraFromRecentEra

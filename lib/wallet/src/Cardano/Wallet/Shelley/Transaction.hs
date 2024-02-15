@@ -258,6 +258,10 @@ import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
 import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Write.Era as Write
+    ( IsRecentEra (recentEra)
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -267,9 +271,7 @@ import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
     , FeePerByte
-    , IsRecentEra (recentEra)
     , PParams
-    , RecentEra (RecentEraBabbage, RecentEraConway)
     , Tx
     , TxOut
     , computeMinimumCoinForTxOut

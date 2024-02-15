@@ -351,6 +351,10 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Write.Era as Write
+    ( IsRecentEra
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -363,9 +367,7 @@ import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( BabbageEra
     , CardanoApiEra
-    , IsRecentEra
     , PParams
-    , RecentEra (RecentEraBabbage, RecentEraConway)
     , cardanoEraFromRecentEra
     , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
