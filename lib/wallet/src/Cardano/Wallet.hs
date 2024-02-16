@@ -2688,15 +2688,14 @@ alreadyVoted walletState =
 handleVotingWhenMissingInConway
     :: Write.RecentEra era
     -> DBLayer IO s
-    -> Bool
     -> IO (Maybe VotingAction)
-handleVotingWhenMissingInConway era db delegationsPresent = do
+handleVotingWhenMissingInConway era db = do
     areWeInConway <- case votingEnabledInEra era of
         Left _ -> pure False
         Right _ -> pure True
     voting <- haveWeVoted db
     stakingKeyRegistered <- isStakeKeyInDb db
-    if (areWeInConway && not voting && delegationsPresent) then
+    if (areWeInConway && not voting) then
        if stakingKeyRegistered then
            pure $ Just $ Vote Abstain
        else

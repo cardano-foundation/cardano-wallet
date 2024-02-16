@@ -46,20 +46,20 @@ import Crypto.Hash.Extra
 import Data.ByteString.Short
     ( toShort
     )
+import Internal.Cardano.Write.Tx
+    ( CardanoApiEra
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.ReexposeLedger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Internal.Cardano.Write.Tx as Write
-    ( CardanoApiEra
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    )
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate
 ------------------------------------------------------------------------------}
 certificateFromDelegationAction
-    :: Write.RecentEra era
+    :: RecentEra era
         -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
         -- ^ Our staking credential
@@ -67,9 +67,9 @@ certificateFromDelegationAction
         -- ^ Optional deposit value
     -> DelegationAction
         -- ^ Delegation action that we plan to take
-    -> [Cardano.Certificate (Write.CardanoApiEra era)]
+    -> [Cardano.Certificate (CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction Write.RecentEraBabbage cred _ da = case da of
+certificateFromDelegationAction RecentEraBabbage cred _ da = case da of
     Join poolId ->
         [ Cardano.makeStakeAddressDelegationCertificate
             $ Cardano.StakeDelegationRequirementsPreConway
@@ -96,7 +96,7 @@ certificateFromDelegationAction Write.RecentEraBabbage cred _ da = case da of
         ]
   where
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
-certificateFromDelegationAction Write.RecentEraConway cred depositM da =
+certificateFromDelegationAction RecentEraConway cred depositM da =
     case (da, depositM) of
        (Join poolId, _) ->
            [ Cardano.makeStakeAddressDelegationCertificate

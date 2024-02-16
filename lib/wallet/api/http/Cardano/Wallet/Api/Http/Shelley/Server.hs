@@ -2160,11 +2160,12 @@ selectCoinsForJoin ctx@ApiLayer{..}
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
         optionalVoteAction <-
-            liftIO $ W.handleVotingWhenMissingInConway era db True
+            liftIO $ W.handleVotingWhenMissingInConway era db
 
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txVotingAction = optionalVoteAction
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 }
 
         let paymentOuts = []
@@ -2220,13 +2221,10 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
             db currentEpochSlotting withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
-        optionalVoteAction <-
-            liftIO $ W.handleVotingWhenMissingInConway era db True
-
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txWithdrawal = withdrawal
-                , txVotingAction = optionalVoteAction
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 }
 
         let paymentOuts = []

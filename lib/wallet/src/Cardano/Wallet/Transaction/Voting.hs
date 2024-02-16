@@ -43,20 +43,20 @@ import Crypto.Hash.Extra
 import Data.ByteString.Short
     ( toShort
     )
+import Internal.Cardano.Write.Tx
+    ( CardanoApiEra
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.ReexposeLedger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Internal.Cardano.Write.Tx as Write
-    ( CardanoApiEra
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    )
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate
 ------------------------------------------------------------------------------}
 certificateFromVotingAction
-    :: Write.RecentEra era
+    :: RecentEra era
         -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
         -- ^ Our staking credential
@@ -64,11 +64,11 @@ certificateFromVotingAction
        -- ^ Deposit
     -> VotingAction
         -- ^ Voting action in Conway era onwards
-    -> [Cardano.Certificate (Write.CardanoApiEra era)]
+    -> [Cardano.Certificate (CardanoApiEra era)]
         -- ^ Certificates representing the voting action
-certificateFromVotingAction Write.RecentEraBabbage _cred _depositM _va  =
+certificateFromVotingAction RecentEraBabbage _cred _depositM _va  =
     []
-certificateFromVotingAction Write.RecentEraConway cred depositM va=
+certificateFromVotingAction RecentEraConway cred depositM va=
     case (va, depositM) of
         (Vote action,_) ->
             [ Cardano.makeStakeAddressDelegationCertificate
