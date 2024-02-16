@@ -33,6 +33,7 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
+    , containsWithdrawal
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     , AnyExplicitScript (..)
@@ -305,6 +306,11 @@ data Withdrawal
         XPrv
         -- ^ The 'XPrv' to be used for signing. Must be unencrypted.
     | NoWithdrawal
+
+containsWithdrawal :: Withdrawal -> Bool
+containsWithdrawal = \case
+    NoWithdrawal -> False
+    _            -> True
 
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case

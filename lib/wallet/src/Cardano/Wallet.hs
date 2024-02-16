@@ -151,7 +151,6 @@ module Cardano.Wallet
     , constructTransaction
     , constructTxMeta
     , votingEnabledInEra
-    , assertIsVoting
     , handleVotingWhenMissingInConway
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
@@ -601,6 +600,7 @@ import Cardano.Wallet.Transaction
     , WitnessCountCtx (..)
     , defaultTransactionCtx
     , withdrawalToCoin
+    , containsWithdrawal
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
@@ -2511,8 +2511,10 @@ constructTransaction
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction _era db txCtx preSel = do
+constructTransaction era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
+    when (containsWithdrawal (txCtx ^. #txWithdrawal)) $
+        assertIsVoting db era
     mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
@@ -2531,7 +2533,7 @@ constructUnbalancedSharedTransaction
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
@@ -2549,6 +2551,8 @@ constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
                         MutableAccount ->
                             error "role is specified only for payment credential"
                 in replaceCosignersWithVerKeys role' template ix
+    when (containsWithdrawal (txCtx ^. #txWithdrawal)) $
+        assertIsVoting db era
     sealedTx <- mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
             mkUnsignedTransaction netId (Right scriptM) txCtx (Left sel)

@@ -2792,9 +2792,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         when (isJust (body ^. #vote)) $
             whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
 
-        when (isJust (body ^. #withdrawal)) $
-            liftHandler $ W.assertIsVoting db era
-
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
@@ -3341,9 +3338,6 @@ constructSharedTransaction
 
         when (isJust (body ^. #vote)) $
             whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
-
-        when (isJust (body ^. #withdrawal)) $
-            liftHandler $ W.assertIsVoting db era
 
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         withdrawal <- case body ^. #withdrawal of
