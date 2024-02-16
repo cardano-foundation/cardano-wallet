@@ -16,6 +16,7 @@ module Cardano.Wallet.Delegation
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
     , handleDelegationRequest
+    , voteAction
     ) where
 
 import Prelude
@@ -66,6 +67,9 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
@@ -141,6 +145,24 @@ handleDelegationRequest
             tr db currentEpochSlotting pools poolId poolStatus
     Quit -> liftIO
         $ quitStakePoolDelegationAction db currentEpochSlotting withdrawal
+
+voteAction
+    :: Tracer IO WalletLog
+    -> DBLayer IO s
+    -> DRep
+    -> IO Tx.VotingAction
+voteAction tr DBLayer{..} action = do
+    (_, stakeKeyIsRegistered) <-
+        atomically $
+            (,) <$> readDelegation walletState
+                <*> isStakeKeyRegistered walletState
+
+    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
+
+    pure $
+        if stakeKeyIsRegistered
+        then Tx.Vote action
+        else Tx.VoteRegisteringKey action
 
 joinStakePoolDelegationAction
     :: Tracer IO WalletLog

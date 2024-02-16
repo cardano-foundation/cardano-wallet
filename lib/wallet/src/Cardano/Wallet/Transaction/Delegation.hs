@@ -24,8 +24,15 @@ import Cardano.Address.Script
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
     )
+import Cardano.Wallet.Primitive.Ledger.Convert
+    ( toLedgerDelegatee
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoSimpleScript
+    ( toCardanoLovelace
+    , toCardanoSimpleScript
+    )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId (..)
@@ -39,28 +46,30 @@ import Crypto.Hash.Extra
 import Data.ByteString.Short
     ( toShort
     )
-
-import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Ledger.Keys as Ledger
-import qualified Internal.Cardano.Write.Tx as Write
+import Internal.Cardano.Write.Tx
     ( CardanoApiEra
     , RecentEra (RecentEraBabbage, RecentEraConway)
     )
+
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.ReexposeLedger as Ledger
+import qualified Cardano.Api.Shelley as Cardano
 
 {-----------------------------------------------------------------------------
     Cardano.Certificate
 ------------------------------------------------------------------------------}
 certificateFromDelegationAction
-    :: Write.RecentEra era
+    :: RecentEra era
         -- ^ Era in which we create the certificate
     -> Either XPub (Script KeyHash)
         -- ^ Our staking credential
+    -> Maybe Coin
+        -- ^ Optional deposit value
     -> DelegationAction
         -- ^ Delegation action that we plan to take
-    -> [Cardano.Certificate (Write.CardanoApiEra era)]
+    -> [Cardano.Certificate (CardanoApiEra era)]
         -- ^ Certificates representing the action
-certificateFromDelegationAction Write.RecentEraBabbage cred = \case
+certificateFromDelegationAction RecentEraBabbage cred _ da = case da of
     Join poolId ->
         [ Cardano.makeStakeAddressDelegationCertificate
             $ Cardano.StakeDelegationRequirementsPreConway
@@ -87,10 +96,42 @@ certificateFromDelegationAction Write.RecentEraBabbage cred = \case
         ]
   where
     babbageWitness = Cardano.ShelleyToBabbageEraBabbage
-certificateFromDelegationAction Write.RecentEraConway _cred =
-    error "certificateFromDelegationAction: not supported in Conway yet"
+certificateFromDelegationAction RecentEraConway cred depositM da =
+    case (da, depositM) of
+       (Join poolId, _) ->
+           [ Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee (Just poolId) Nothing)
+           ]
+       (JoinRegisteringKey poolId, Just deposit) ->
+           [ Cardano.makeStakeAddressRegistrationCertificate
+               $ Cardano.StakeAddrRegistrationConway
+                   conwayWitness
+                   (toCardanoLovelace deposit)
+                   (toCardanoStakeCredential cred)
+           , Cardano.makeStakeAddressDelegationCertificate
+               $ Cardano.StakeDelegationRequirementsConwayOnwards
+                   conwayWitness
+                   (toCardanoStakeCredential cred)
+                   (toLedgerDelegatee (Just poolId) Nothing)
+           ]
+       (JoinRegisteringKey _, Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (joining)"
+       (Quit, Just deposit) ->
+           [ Cardano.makeStakeAddressUnregistrationCertificate
+               $ Cardano.StakeAddrRegistrationConway
+                   conwayWitness
+                   (toCardanoLovelace deposit)
+                   (toCardanoStakeCredential cred)
+           ]
+       (Quit, Nothing) ->
+           error "certificateFromDelegationAction: deposit value required in \
+                 \Conway era when registration is carried out (quitting)"
   where
-    _conwayWitness = Cardano.ConwayEraOnwardsConway
+    conwayWitness = Cardano.ConwayEraOnwardsConway
 
 {-----------------------------------------------------------------------------
     Cardano.StakeCredential

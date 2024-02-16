@@ -197,11 +197,13 @@ data ApiErrorInfo
     | UtxoTooSmall
         !ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
+    | VotingInInvalidEra
     | WalletAlreadyExists
     | WalletMetadataNotFound
     | WalletNotResponding
     | WithdrawalNotBeneficial
     | WrongEncryptionPassphrase
+    | WithdrawalNotPossibleWithoutVote
     | WrongMnemonic
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData

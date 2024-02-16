@@ -24,6 +24,7 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , VotingAction (..)
     , TxValidityInterval
     , TransactionCtx (..)
     , PreSelection (..)
@@ -32,6 +33,7 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
+    , containsWithdrawal
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     , AnyExplicitScript (..)
@@ -97,6 +99,9 @@ import Cardano.Wallet.Primitive.Types.AssetId
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
@@ -221,12 +226,16 @@ type ScriptSource = Either (Script KeyHash) ReferenceInput
 data TransactionCtx = TransactionCtx
     { txWithdrawal :: Withdrawal
     -- ^ Withdrawal amount from a reward account, can be zero.
+    , txDeposit :: Maybe Coin
+    -- ^ Deposit amount from a protocol parameters.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
     , txValidityInterval :: TxValidityInterval
     -- ^ Transaction optional starting slot and expiry (TTL) slot for which the
     -- transaction is valid.
     , txDelegationAction :: Maybe DelegationAction
+    -- ^ An additional delegation to take.
+    , txVotingAction :: Maybe VotingAction
     -- ^ An additional delegation to take.
     , txAssetsToMint :: (TokenMap, Map AssetId ScriptSource)
     -- ^ The assets to mint.
@@ -298,6 +307,11 @@ data Withdrawal
         -- ^ The 'XPrv' to be used for signing. Must be unencrypted.
     | NoWithdrawal
 
+containsWithdrawal :: Withdrawal -> Bool
+containsWithdrawal = \case
+    NoWithdrawal -> False
+    _            -> True
+
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case
     WithdrawalSelf _ _ c -> c
@@ -309,9 +323,11 @@ withdrawalToCoin = \case
 defaultTransactionCtx :: TransactionCtx
 defaultTransactionCtx = TransactionCtx
     { txWithdrawal = NoWithdrawal
+    , txDeposit = Nothing
     , txMetadata = Nothing
     , txValidityInterval = (Nothing, maxBound)
     , txDelegationAction = Nothing
+    , txVotingAction = Nothing
     , txAssetsToMint = (TokenMap.empty, Map.empty)
     , txAssetsToBurn = (TokenMap.empty, Map.empty)
     , txPaymentCredentialScriptTemplate = Nothing
@@ -332,6 +348,16 @@ data DelegationAction
     deriving (Show, Eq, Generic)
 
 instance Buildable DelegationAction where
+    build = genericF
+
+data VotingAction
+    = VoteRegisteringKey DRep
+    -- ^ Vote and registering stake key.
+    | Vote DRep
+    -- ^ Vote
+    deriving (Show, Eq, Generic)
+
+instance Buildable VotingAction where
     build = genericF
 
 data ErrMkTransaction

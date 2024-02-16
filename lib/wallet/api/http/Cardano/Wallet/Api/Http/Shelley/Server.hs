@@ -725,6 +725,9 @@ import Data.Either
     ( isLeft
     , isRight
     )
+import Data.Either.Combinators
+    ( whenLeft
+    )
 import Data.Either.Extra
     ( eitherToMaybe
     )
@@ -2156,7 +2159,14 @@ selectCoinsForJoin ctx@ApiLayer{..}
             poolStatus
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
-        let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
+        optionalVoteAction <-
+            liftIO $ W.handleVotingWhenMissingInConway era db
+
+        let txCtx = defaultTransactionCtx
+                { txDelegationAction = Just action
+                , txVotingAction = optionalVoteAction
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
+                }
 
         let paymentOuts = []
 
@@ -2210,9 +2220,11 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         action <- WD.quitStakePoolDelegationAction
             db currentEpochSlotting withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
+
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txWithdrawal = withdrawal
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 }
 
         let paymentOuts = []
@@ -2775,6 +2787,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         (Write.PParamsInAnyRecentEra era pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
+        when (isJust (body ^. #vote)) $
+            whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
+
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
@@ -2783,11 +2798,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     db
             _ -> pure NoWithdrawal
 
-        let transactionCtx0 = defaultTransactionCtx
-                { txWithdrawal = withdrawal
-                , txMetadata = metadata
-                , txValidityInterval = first Just validityInterval
-                }
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
@@ -2795,6 +2805,20 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     trWorker
                     db currentEpochSlotting knownPools
                     poolStatus withdrawal
+
+        optionalVoteAction <- case (body ^. #vote) of
+            Just (ApiT action) ->
+                liftIO $ Just <$> WD.voteAction trWorker db action
+            Nothing ->
+                pure Nothing
+
+        let transactionCtx0 = defaultTransactionCtx
+                { txWithdrawal = withdrawal
+                , txVotingAction = optionalVoteAction
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
+                , txMetadata = metadata
+                , txValidityInterval = first Just validityInterval
+                }
 
         let transactionCtx1 =
                 case optionalDelegationAction of
@@ -2965,8 +2989,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             , fee = apiDecoded ^. #fee
             }
   where
+    nl = api ^. networkLayer @IO
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (api ^. networkLayer)
+    ti = timeInterpreter nl
 
     walletId = getApiT apiWalletId
 
@@ -3309,6 +3334,9 @@ constructSharedTransaction
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
 
+        when (isJust (body ^. #vote)) $
+            whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
+
         let delegationTemplateM = Shared.delegationTemplate $ getState cp
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
@@ -3328,11 +3356,17 @@ constructSharedTransaction
                     trWorker db currentEpochSlotting knownPools
                     getPoolStatus NoWithdrawal
 
+        optionalVoteAction <- case (body ^. #vote) of
+            Just (ApiT action) -> liftIO $ Just <$> WD.voteAction trWorker db action
+            Nothing -> pure Nothing
+
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 , txMetadata = md
                 , txValidityInterval = (Just before, hereafter)
                 , txDelegationAction = optionalDelegationAction
+                , txVotingAction = optionalVoteAction
                 , txPaymentCredentialScriptTemplate =
                         Just (Shared.paymentTemplate $ getState cp)
                 , txStakingCredentialScriptTemplate = delegationTemplateM
@@ -3399,8 +3433,9 @@ constructSharedTransaction
                     , fee = apiDecoded ^. #fee
                     }
   where
+    nl = api ^. networkLayer @IO
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (api ^. networkLayer)
+    ti = timeInterpreter nl
 
     unsignedTx initialOuts decodedTx pathM = UnsignedTx
         { unsignedCollateral =

@@ -150,6 +150,8 @@ module Cardano.Wallet
     , signTransaction
     , constructTransaction
     , constructTxMeta
+    , votingEnabledInEra
+    , handleVotingWhenMissingInConway
     , ErrSignPayment (..)
     , ErrNotASequentialWallet (..)
     , ErrWithdrawalNotBeneficial (..)
@@ -526,6 +528,9 @@ import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -590,8 +595,10 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , TxValidityInterval
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
+    , containsWithdrawal
     , defaultTransactionCtx
     , withdrawalToCoin
     )
@@ -846,7 +853,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     , IsRecentEra
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra
+    , RecentEra (..)
     , Tx
     , UTxO (UTxO)
     , cardanoEraFromRecentEra
@@ -2504,8 +2511,10 @@ constructTransaction
     -> TransactionCtx
     -> PreSelection
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
-constructTransaction _era db txCtx preSel = do
+constructTransaction era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
+    when (containsWithdrawal (txCtx ^. #txWithdrawal)) $
+        assertIsVoting db era
     mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
   where
@@ -2524,7 +2533,7 @@ constructUnbalancedSharedTransaction
         ( Cardano.TxBody (Write.CardanoApiEra era)
         , (Address -> CA.Script KeyHash)
         )
-constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
+constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
     cp <- lift $ atomically readCheckpoint
     let s = getState cp
         scriptM =
@@ -2542,6 +2551,8 @@ constructUnbalancedSharedTransaction _era db txCtx sel = db & \DBLayer{..} -> do
                         MutableAccount ->
                             error "role is specified only for payment credential"
                 in replaceCosignersWithVerKeys role' template ix
+    when (containsWithdrawal (txCtx ^. #txWithdrawal)) $
+        assertIsVoting db era
     sealedTx <- mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
             mkUnsignedTransaction netId (Right scriptM) txCtx (Left sel)
@@ -2645,6 +2656,64 @@ submitExternalTx tr nw tl sealedTx = do
         postTx nw sealedTx
         pure sealedTx
     pure txid
+
+votingEnabledInEra
+    :: Write.RecentEra era
+    -> Either ErrConstructTx ()
+votingEnabledInEra = \case
+    Write.RecentEraConway -> Right ()
+    _ -> Left ErrConstructTxVotingInWrongEra
+
+assertIsVoting
+    :: DBLayer IO s
+    -> Write.RecentEra era
+    -> ExceptT ErrConstructTx IO ()
+assertIsVoting DBLayer{..} = \case
+    Write.RecentEraConway -> do
+        voted <- liftIO $ atomically (alreadyVoted walletState)
+        if voted then
+            pure ()
+        else
+            throwE ErrConstructTxWithdrawalWithoutVoting
+    _ -> pure ()
+
+alreadyVoted
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm Bool
+alreadyVoted walletState =
+    Dlgs.isVoting . view #delegations
+        <$> readDBVar walletState
+
+handleVotingWhenMissingInConway
+    :: Write.RecentEra era
+    -> DBLayer IO s
+    -> IO (Maybe VotingAction)
+handleVotingWhenMissingInConway era db = do
+    areWeInConway <- case votingEnabledInEra era of
+        Left _ -> pure False
+        Right _ -> pure True
+    voting <- haveWeVoted db
+    stakingKeyRegistered <- isStakeKeyInDb db
+    if (areWeInConway && not voting) then
+       if stakingKeyRegistered then
+           pure $ Just $ Vote Abstain
+       else
+           pure $ Just $ VoteRegisteringKey Abstain
+    else
+       pure Nothing
+  where
+    haveWeVoted
+        :: DBLayer IO s
+        -> IO Bool
+    haveWeVoted DBLayer{..} = do
+        atomically (alreadyVoted walletState)
+
+    isStakeKeyInDb
+        :: DBLayer IO s
+        -> IO Bool
+    isStakeKeyInDb DBLayer{..} = do
+        atomically (isStakeKeyRegistered walletState)
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -3564,6 +3633,8 @@ data ErrConstructTx
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
+    | ErrConstructTxVotingInWrongEra
+    | ErrConstructTxWithdrawalWithoutVoting
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 

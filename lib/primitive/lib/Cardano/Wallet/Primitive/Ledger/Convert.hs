@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -22,6 +23,8 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toLedgerAssetName
     , toLedgerTokenQuantity
     , toLedgerTimelockScript
+    , toLedgerDelegatee
+    , toLedgerDRep
 
       -- * Conversions from ledger specification types to wallet types
     , toWalletAddress
@@ -67,8 +70,17 @@ import Cardano.Wallet.Primitive.Types.AssetName
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    , DRepID (..)
+    , DRepKeyHash (..)
+    , DRepScriptHash (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId (..)
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
@@ -127,7 +139,9 @@ import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Allegra.Scripts as Scripts
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
+import qualified Cardano.Ledger.Conway.TxCert as Conway
 import qualified Cardano.Ledger.Core as LCore
+import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.SafeHash as SafeHash
@@ -434,3 +448,31 @@ toLedgerTimelockScript s = case s of
             , "Unexpected out of bounds SlotNo"
             , show x
             ]
+
+toLedgerDelegatee
+    :: Maybe PoolId
+    -> Maybe DRep
+    -> Conway.Delegatee StandardCrypto
+toLedgerDelegatee poolM vaM = case (poolM, vaM) of
+    (Just poolId, Nothing) ->
+        Conway.DelegStake (toKeyHash poolId)
+    (Nothing, Just vote) ->
+        Conway.DelegVote (toLedgerDRep vote)
+    (Just poolId, Just vote) ->
+        Conway.DelegStakeVote (toKeyHash poolId) (toLedgerDRep vote)
+    _ ->
+        error "toLedgerDelegatee: wrong use, at least pool or vote action must be present"
+  where
+    toKeyHash (PoolId pid) = Ledger.KeyHash . Crypto.UnsafeHash $ toShort pid
+
+toLedgerDRep
+    :: DRep -> Ledger.DRep StandardCrypto
+toLedgerDRep = \case
+    Abstain -> Ledger.DRepAlwaysAbstain
+    NoConfidence -> Ledger.DRepAlwaysNoConfidence
+    FromDRepID (DRepFromKeyHash (DRepKeyHash keyhash)) ->
+        Ledger.DRepCredential . Ledger.KeyHashObj . Ledger.KeyHash . Crypto.UnsafeHash $
+        toShort keyhash
+    FromDRepID (DRepFromScriptHash (DRepScriptHash scripthash)) ->
+        Ledger.DRepCredential . Ledger.ScriptHashObj . Ledger.ScriptHash . Crypto.UnsafeHash $
+        toShort scripthash
