@@ -2803,12 +2803,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     db
             _ -> pure NoWithdrawal
 
-        let transactionCtx0 = defaultTransactionCtx
-                { txWithdrawal = withdrawal
-                , txDeposit = Just $ W.getStakeKeyDeposit pp
-                , txMetadata = metadata
-                , txValidityInterval = first Just validityInterval
-                }
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         optionalDelegationAction <- liftHandler $
             forM delegationRequest $
@@ -2823,13 +2817,19 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             Nothing ->
                 pure Nothing
 
+        let transactionCtx0 = defaultTransactionCtx
+                { txWithdrawal = withdrawal
+                , txVotingAction = optionalVoteAction
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
+                , txMetadata = metadata
+                , txValidityInterval = first Just validityInterval
+                }
+
         let transactionCtx1 =
                 case optionalDelegationAction of
                     Nothing -> transactionCtx0
                     Just action ->
-                        transactionCtx0
-                        { txDelegationAction = Just action
-                        , txVotingAction = optionalVoteAction }
+                        transactionCtx0 { txDelegationAction = Just action }
 
         (policyXPub, _) <-
             liftHandler $ W.readPolicyPublicKey wrk
