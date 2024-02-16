@@ -2159,7 +2159,13 @@ selectCoinsForJoin ctx@ApiLayer{..}
             poolStatus
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
-        let txCtx = defaultTransactionCtx { txDelegationAction = Just action }
+        optionalVoteAction <-
+            liftIO $ W.handleVotingWhenMissingInConway era db True
+
+        let txCtx = defaultTransactionCtx
+                { txDelegationAction = Just action
+                , txVotingAction = optionalVoteAction
+                }
 
         let paymentOuts = []
 
@@ -2213,9 +2219,14 @@ selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
         action <- WD.quitStakePoolDelegationAction
             db currentEpochSlotting withdrawal
         let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
+
+        optionalVoteAction <-
+            liftIO $ W.handleVotingWhenMissingInConway era db True
+
         let txCtx = defaultTransactionCtx
                 { txDelegationAction = Just action
                 , txWithdrawal = withdrawal
+                , txVotingAction = optionalVoteAction
                 }
 
         let paymentOuts = []
@@ -2810,8 +2821,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             Just (ApiT action) ->
                 liftIO $ Just <$> WD.voteAction trWorker db action
             Nothing ->
-                liftIO $ W.handleVotingWhenMissingInConway era db
-                              (isJust (body ^. #delegations))
+                pure Nothing
 
         let transactionCtx1 =
                 case optionalDelegationAction of
