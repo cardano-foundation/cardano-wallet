@@ -52,7 +52,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , RecentEra (RecentEraBabbage, RecentEraConway)
     )
 
-
 {-----------------------------------------------------------------------------
     Cardano.Certificate
 ------------------------------------------------------------------------------}
