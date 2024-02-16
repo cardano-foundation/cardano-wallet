@@ -598,9 +598,9 @@ import Cardano.Wallet.Transaction
     , VotingAction (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
+    , containsWithdrawal
     , defaultTransactionCtx
     , withdrawalToCoin
-    , containsWithdrawal
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
