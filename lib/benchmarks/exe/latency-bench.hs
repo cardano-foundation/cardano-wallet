@@ -7,7 +7,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -15,9 +14,6 @@ module Main where
 
 import Prelude
 
-import Cardano.Address
-    ( Address
-    )
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
@@ -43,9 +39,7 @@ import Cardano.CLI
     ( Port (..)
     )
 import Cardano.Mnemonic
-    ( MkSomeMnemonic (..)
-    , Mnemonic
-    , mnemonicToText
+    ( SomeMnemonic
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( Listen (ListenOnPort)
@@ -83,6 +77,9 @@ import Cardano.Wallet.Benchmarks.Latency.BenchM
 import Cardano.Wallet.Benchmarks.Latency.Measure
     ( withLatencyLogging
     )
+import Cardano.Wallet.Faucet
+    ( Faucet (massiveWalletMnemonic)
+    )
 import Cardano.Wallet.Launch.Cluster
     ( Config (..)
     , FaucetFunds (..)
@@ -112,6 +109,9 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..)
     )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -125,7 +125,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
-    , unsafeMkMnemonic
     )
 import Control.Applicative
     ( (<**>)
@@ -226,17 +225,12 @@ import UnliftIO.STM
     ( TVar
     )
 
-import qualified Cardano.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Api.Clients.Testnet.Network as CN
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Cardano.Wallet.Benchmarks.Latency.Measure as Measure
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
-import Cardano.Wallet.Primitive.Types
-    ( WalletId
-    )
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
 import qualified Options.Applicative as O
 
 -- will go away once we have all implemented in terms of servant-client code
@@ -246,8 +240,9 @@ main :: IO ()
 main = withUtf8
     $ withLatencyLogging setupTracers
     $ \tracers capture ->
-        withShelleyServer tracers $ \ctx ->
-            runReaderT (runResourceT walletApiBench) $ BenchCtx ctx capture
+        withShelleyServer tracers $ \massiveWalletMnemonic' ctx ->
+            runReaderT (runResourceT $ walletApiBench massiveWalletMnemonic')
+                $ BenchCtx ctx capture
   where
     onlyErrors :: (HasSeverityAnnotation a, ToText a) => Tracer IO a
     onlyErrors = filterSeverity (const $ pure Error) stdoutTextTracer
@@ -268,8 +263,8 @@ main = withUtf8
 
 -- Creates n fixture wallets and return 3 of them
 
-walletApiBench :: BenchM ()
-walletApiBench = do
+walletApiBench :: SomeMnemonic -> BenchM ()
+walletApiBench massiveMnemonic = do
     fmtTitle "Non-cached run"
     runWarmUpScenario
 
@@ -316,7 +311,7 @@ walletApiBench = do
         $ "Latencies for 2 fixture wallets with "
             <> build massiveWalletUTxOSize
             <> " utxos scenario"
-    runScenario massiveFixtureWallet
+    runScenario $ massiveFixtureWallet massiveMnemonic
 
 nFixtureWallet
     :: Int
@@ -370,20 +365,17 @@ nFixtureWalletWithUTxOs n utxoNumber = do
     utxoStatisticsFromCoins (fromIntegral <$> utxoExp) `shouldBe` rStat
     pure (wal1, wal2, walMA, maWalletToMigrate)
 
-massiveFixtureWallet :: BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet)
-massiveFixtureWallet = do
+massiveFixtureWallet :: SomeMnemonic -> BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet)
+massiveFixtureWallet massiveMnemonic = do
     (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet 2
-    Right massiveMnemonic <-
-        pure
-            $ mkSomeMnemonic @'[15]
-            $ mnemonicToText massiveWallet
+
     wal1 <-
         request
             $ C.postWallet
             $ WalletOrAccountPostData
             $ Left
             $ WalletPostData
-                { addressPoolGap = Nothing
+                { addressPoolGap = Just $ ApiT $ toEnum 10_001
                 , mnemonicSentence = ApiMnemonicT massiveMnemonic
                 , mnemonicSecondFactor = Nothing
                 , name = ApiT $ unsafeFromText "Massive wallet"
@@ -581,10 +573,13 @@ runWarmUpScenario = do
     t <- measureApiLogs $ requestWithError CN.networkInformation
     fmtResult "getNetworkInfo     " t
 
-withShelleyServer :: Tracers IO -> (Context -> IO ()) -> IO ()
+withShelleyServer :: Tracers IO -> (SomeMnemonic -> Context -> IO ()) -> IO ()
 withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
     faucetFunds <- Faucet.runFaucetM faucetClientEnv mkFaucetFunds
+
     ctx <- newEmptyMVar
+    faucet <- Faucet.initFaucet faucetClientEnv
+    massiveWalletMnemonic' <- massiveWalletMnemonic faucet
     let testnetMagic = Cluster.TestnetMagic 42
     let setupContext np baseUrl = do
             let sixtySeconds = 60 * 1_000_000 -- 60s in microseconds
@@ -593,7 +588,6 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                     defaultManagerSettings
                         { managerResponseTimeout = responseTimeoutMicro sixtySeconds
                         }
-            faucet <- Faucet.initFaucet faucetClientEnv
             putMVar
                 ctx
                 Context
@@ -612,11 +606,13 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                         error "moveRewardsToScript not available"
                     }
     race_
-        (takeMVar ctx >>= action)
+        (takeMVar ctx >>= action massiveWalletMnemonic')
         (withServer testnetMagic faucetFunds setupContext)
   where
     mkFaucetFunds = do
         shelleyFunds <- Faucet.shelleyFunds shelleyTestnet
+        massiveFunds <-
+            Faucet.massiveWalletFunds massiveWalletAmt 10_000 shelleyTestnet
         maryAllegraFunds <-
             Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
         pure
@@ -624,6 +620,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                 { pureAdaFunds = shelleyFunds
                 , maryAllegraFunds
                 , mirCredentials = []
+                , massiveWalletFunds = massiveFunds
                 }
 
     withServer cfgTestnetMagic faucetFunds setupAction = do
@@ -678,22 +675,8 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             block0
             (setupAction networkParameters)
 
--- | A special Shelley Wallet with a massive UTxO set
-massiveWallet :: Mnemonic 15
-massiveWallet =
-    unsafeMkMnemonic
-        $ T.words
-            "interest ready music wet trophy ten boss topple fitness fold \
-            \saddle finish update someone pause"
-
 massiveWalletUTxOSize :: Int
 massiveWalletUTxOSize = 10_000
-
-massiveWalletFunds :: [(Address, Coin)]
-massiveWalletFunds =
-    take massiveWalletUTxOSize
-        $ map (,massiveWalletAmt)
-        $ Addresses.shelley shelleyTestnet massiveWallet
 
 massiveWalletAmt :: Coin
 massiveWalletAmt = ada 1_000

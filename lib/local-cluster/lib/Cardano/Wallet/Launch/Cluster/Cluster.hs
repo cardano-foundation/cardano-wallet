@@ -153,6 +153,7 @@ data FaucetFunds = FaucetFunds
     -- the faucet.
     , mirCredentials :: [(Credential, Coin)]
     -- ^ "Move instantaneous rewards" - for easily funding reward accounts.
+    , massiveWalletFunds :: [(Address, Coin)]
     }
     deriving stock (Eq, Show)
 
@@ -200,7 +201,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
 
             genesisFiles <-
                 generateGenesis
-                    (pureAdaFunds <> faucetAddresses)
+                    (pureAdaFunds <> faucetAddresses <> massiveWalletFunds)
                     (addGenesisPools : cfgShelleyGenesisMods)
 
             extraPort : poolsTcpPorts <-
@@ -244,7 +245,8 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                         relayNodeParams
                                         onClusterStart
   where
-    FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials = faucetFunds
+    FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials massiveWalletFunds
+        = faucetFunds
 
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode

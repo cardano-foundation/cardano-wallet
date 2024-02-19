@@ -231,6 +231,7 @@ mkFaucetFunds testnetMagic = do
     bigDustWallet <- Faucet.bigDustWallet shelleyTestnet
     preregKeyWallet <- Faucet.preregKeyWallet shelleyTestnet
     instantaneousRewardFunds <- Faucet.mirFunds shelleyTestnet
+    massiveWallet <- Faucet.massiveWalletFunds (Coin 0) 0 shelleyTestnet
     maryAllegraFunds <-
         Faucet.maryAllegraFunds
             (Coin 10__000_000)
@@ -260,6 +261,7 @@ mkFaucetFunds testnetMagic = do
                     ]
             , maryAllegraFunds
             , mirCredentials
+            , massiveWalletFunds = massiveWallet
             }
 
 data TestingCtx = TestingCtx

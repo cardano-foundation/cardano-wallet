@@ -2,6 +2,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RankNTypes #-}
@@ -10,8 +11,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -36,6 +37,7 @@ module Cardano.Wallet.Faucet
     , hwLedgerFunds
     , seaHorseTestAssets
     , runFaucetM
+    , massiveWalletFunds
 
     ) where
 
@@ -78,7 +80,8 @@ import Cardano.Faucet.Mnemonics
     ( MnemonicLength (..)
     )
 import Cardano.Faucet.Types
-    ( AddressStyle (..)
+    ( AddressIndex
+    , AddressStyle (..)
     , MnemonicIndex
     , unFaucetAddress
     , unIndexedAddress
@@ -176,6 +179,7 @@ data Faucet = Faucet
     , bigDustWalletMnemonic :: IO SomeMnemonic
     , onlyDustWalletMnemonic :: IO SomeMnemonic
     , preregKeyWalletMnemonic :: IO SomeMnemonic
+    , massiveWalletMnemonic :: IO SomeMnemonic
     }
 
 newtype FaucetM a = FaucetM
@@ -229,6 +233,7 @@ initFaucet clientEnv = do
             , bigDustWalletMnemonic = fixedMnemonic bigDustWalletRange M15
             , onlyDustWalletMnemonic = fixedMnemonic onlyDustWalletRange M15
             , preregKeyWalletMnemonic = fixedMnemonic preregKeyWalletRange M15
+            , massiveWalletMnemonic = fixedMnemonic massiveWalletRange M15
             }
 
 anyFunds
@@ -560,3 +565,15 @@ hwLedgerFunds networkTag = do
         paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
             let firstIx = minBound
             in  firstIx : unfoldr (fmap dupe . nextIndex) firstIx
+
+massiveWalletRange :: MnemonicRange
+massiveWalletRange = nextRange 1 preregKeyWalletRange
+
+massiveWalletFunds
+    :: Coin
+    -> AddressIndex
+    -> CA.NetworkTag
+    -> FaucetM [(Address, Coin)]
+massiveWalletFunds coins topAddress tag = do
+    as <- anyFunds massiveWalletRange M15 AddressStyleShelley 1 topAddress tag
+    pure $ zip as (replicate 10_000 coins)
