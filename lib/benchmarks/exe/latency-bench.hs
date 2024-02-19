@@ -160,9 +160,6 @@ import Control.Monad.Reader
     , ReaderT (..)
     , lift
     )
-import Data.Aeson
-    ( Value
-    )
 import Data.Bifunctor
     ( bimap
     )
@@ -506,30 +503,23 @@ runScenario scenario = lift . runResourceT $ do
                 }
     sceneOfClientM "postTransaction" $ C.postTransaction wal1Id payloadTx
 
-    let addresses = replicate 5 destination
-    let coins = replicate 5 amt
-    let payments = flip map (zip coins addresses) $ \(amount', address) ->
-            [json|{
-            "address": #{address},
-            "amount": {
-                "quantity": #{amount'},
-                "unit": "lovelace"
-            }
-        }|]
-    let payloadTxTo5Addr =
-            Json
-                [json|{
-            "payments": #{payments :: [Value]},
-            "passphrase": #{fixturePassphrase}
-        }|]
-
-    t7a <-
-        measureApiLogs
-            $ request @(ApiTransaction A)
-                (Link.createTransactionOld @'Shelley wal2)
-                Default
-                payloadTxTo5Addr
-    fmtResult "postTransTo5Addrs  " t7a
+    let payments =
+            replicate 5
+                $ AddressAmount
+                    { address = destination
+                    , amount = ApiAmount amt
+                    , assets = ApiWalletAssets []
+                    }
+        payloadTxTo5Addr =
+            PostTransactionOldData
+                { payments = NE.fromList payments
+                , passphrase = ApiT $ unsafeFromText fixturePassphrase
+                , withdrawal = Nothing
+                , metadata = Nothing
+                , timeToLive = Nothing
+                }
+    sceneOfClientM "postTransactionTo5Addrs"
+        $ C.postTransaction wal1Id payloadTxTo5Addr
 
     -- let assetsToSend = walMA ^. #assets . #total
     -- let val = minUTxOValue era <$ pickAnAsset assetsToSend
@@ -579,6 +569,7 @@ runScenario scenario = lift . runResourceT $ do
 
     -- Create a migration plan:
     let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
+        addresses = replicate 5 destination
     t12a <-
         measureApiLogs
             $ request @(ApiWalletMigrationPlan A)
