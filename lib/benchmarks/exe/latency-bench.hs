@@ -535,15 +535,11 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "listAssets" $ C.getAssets walMAId
 
     let assetsSrc = walMA ^. #assets . #total
-    let (polId, assName) =
+        (polId, assName) =
             bimap unsafeFromText unsafeFromText
                 $ fst
                 $ pickAnAsset assetsSrc
-    t11 <-
-        measureApiLogs
-            $ requestWithError
-            $ C.getAsset (walMA ^. #id) (ApiT polId) (ApiT assName)
-    fmtResult "getMultiAsset      " t11
+    sceneOfClientM "getAsset" $ C.getAsset walMAId (ApiT polId) (ApiT assName)
 
     -- Create a migration plan:
     let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
