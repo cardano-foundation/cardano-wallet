@@ -58,7 +58,6 @@ import Cardano.Wallet.Api.Types
     , ApiAsset (..)
     , ApiEra
     , ApiMnemonicT (..)
-    , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
@@ -531,13 +530,7 @@ runScenario scenario = lift . runResourceT $ do
 
     sceneOfClientM "listStakePools" $ C.listPools $ ApiT <$> arbitraryStake
 
-    t9 <-
-        measureApiLogs
-            $ request @ApiNetworkInformation
-                Link.getNetworkInfo
-                Default
-                Empty
-    fmtResult "getNetworkInfo     " t9
+    sceneOfClientM "getNetworkInfo" CN.networkInformation
 
     t10 <-
         measureApiLogs
