@@ -4133,12 +4133,6 @@ fail to build.</p>
 <pre><code class="language-console">&gt; cabal install --install-method=copy --installdir=/usr/local/bin
 </code></pre>
 </li>
-<li>
-<p>Build without <code>scrypt</code> (for compatibility with Apple M1 chip)</p>
-<pre><code class="language-console">&gt; cabal configure --disable-tests --disable-benchmarks -f-scrypt -O2
-&gt; cabal build cardano-wallet:exe:cardano-wallet
-</code></pre>
-</li>
 </ol>
 <h2 id="nix"><a class="header" href="#nix">Nix</a></h2>
 <p>Use the <a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a> build if:</p>
