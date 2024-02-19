@@ -197,6 +197,14 @@ steps:
     agents:
       system: ${macos}
 
+  - label: 'Build integration tests (macOS, arm64)'
+    key: macos-tests-build-integration-arm64
+    depends_on: macos-nix
+    command: nix build -L .#packages.aarch64-darwin.integration-exe
+    agents:
+      system: ${macos}
+      queue: "cardano-wallet"
+
   - label: 'Build package (macOS, x86_64)'
     key: macos-package
     depends_on: macos-nix
