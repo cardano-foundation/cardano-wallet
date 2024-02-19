@@ -3047,6 +3047,8 @@ delegationFee db@DBLayer{..} netLayer changeAddressGen = do
     feePercentiles <- transactionFee
         db protocolParams timeTranslation changeAddressGen
         defaultTransactionCtx
+            { txDeposit = Just $ toWallet $ Write.stakeKeyDeposit protocolParams
+            }
         -- It would seem that we should add a delegation action
         -- to the partial tx we construct, this was not done
         -- previously, and the difference should be negligible.

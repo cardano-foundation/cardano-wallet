@@ -2962,7 +2962,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             foldM_ runStep txid steps
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
-        noConway ctx "certificate"
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
@@ -3373,7 +3372,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
-        noConway ctx "certificate"
         let amt = minUTxOValue (_mainEra ctx)
         src <- emptyWallet ctx
         wa <- fixtureWallet ctx

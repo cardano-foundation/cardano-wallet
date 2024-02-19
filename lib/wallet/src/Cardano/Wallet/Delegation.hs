@@ -77,6 +77,7 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , defaultTransactionCtx
     , txDelegationAction
+    , txDeposit
     , txValidityInterval
     , txWithdrawal
     )
@@ -210,11 +211,12 @@ joinStakePool
     -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> DBLayer IO s
     -> CurrentEpochSlotting
+    -> Coin
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
     -> IO TransactionCtx
-joinStakePool tr ti db currentEpochSlotting pools poolId poolStatus = do
+joinStakePool tr ti db currentEpochSlotting deposit pools poolId poolStatus = do
     action <- joinStakePoolDelegationAction
         tr
         db
@@ -227,6 +229,7 @@ joinStakePool tr ti db currentEpochSlotting pools poolId poolStatus = do
         { txWithdrawal = NoWithdrawal
         , txValidityInterval = (Nothing, ttl)
         , txDelegationAction = Just action
+        , txDeposit = Just deposit
         }
 
 guardJoin
@@ -276,12 +279,14 @@ quitStakePool netLayer db timeInterpreter = do
     withdrawal <- WithdrawalSelf rewardAccount derivationPath
         <$> getCachedRewardAccountBalance netLayer rewardAccount
     currentEpochSlotting <- getCurrentEpochSlotting netLayer
+    pp <- currentProtocolParameters netLayer
     action <- quitStakePoolDelegationAction db currentEpochSlotting withdrawal
     ttl <- transactionExpirySlot timeInterpreter  Nothing
     pure defaultTransactionCtx
         { txWithdrawal = withdrawal
         , txValidityInterval = (Nothing, ttl)
         , txDelegationAction = Just action
+        , txDeposit = Just $ W.stakeKeyDeposit pp
         }
 
 guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
