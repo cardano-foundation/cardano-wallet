@@ -387,10 +387,6 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
           }
 
-          # Disable scrypt support on ARM64
-          ({ pkgs, ... }: {
-            packages.cardano-wallet-secrets.flags.scrypt = !pkgs.stdenv.hostPlatform.isAarch64;
-          })
         ];
     })
 ]
