@@ -109,9 +109,6 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
 import Cardano.Wallet.Network.Ports
     ( portFromURL
     )
-import Cardano.Wallet.Pools
-    ( StakePool
-    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
@@ -532,13 +529,7 @@ runScenario scenario = lift . runResourceT $ do
     --             payloadMA
     -- fmtResult "postTransactionMA  " t7b
 
-    t8 <-
-        measureApiLogs
-            $ request @[ApiT StakePool]
-                (Link.listStakePools arbitraryStake)
-                Default
-                Empty
-    fmtResult "listStakePools     " t8
+    sceneOfClientM "listStakePools" $ C.listPools $ ApiT <$> arbitraryStake
 
     t9 <-
         measureApiLogs
