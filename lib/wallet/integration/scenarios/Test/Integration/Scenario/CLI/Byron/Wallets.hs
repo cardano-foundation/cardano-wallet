@@ -174,7 +174,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                 T.unpack err `shouldContain` cmdOk
                 c `shouldBe` ExitSuccess
                 j <- expectValidJSON (Proxy @ApiByronWallet) out
-                liftIO $ verify j expectations
+                verify j expectations
                 let wid = T.unpack $ j ^. walletId
 
                 eventually "wallet is available and ready" $ do

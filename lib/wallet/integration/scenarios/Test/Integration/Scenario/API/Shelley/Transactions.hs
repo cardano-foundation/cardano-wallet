@@ -2491,8 +2491,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                             "transaction eventually is in source wallet"
                             assertSourceTx
                     | s == HTTP.status204 && balance < ApiAmount faucetAmt ->
-                        liftIO assertSourceTx
-                    | s == HTTP.status403 -> liftIO $ do
+                        assertSourceTx
+                    | s == HTTP.status403 -> do
                         assertSourceTx
                         balance .< ApiAmount faucetAmt
                 _ ->

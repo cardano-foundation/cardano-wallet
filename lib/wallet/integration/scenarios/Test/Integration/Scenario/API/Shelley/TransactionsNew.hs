@@ -3138,7 +3138,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         waitForNextEpoch ctx
 
         --TODO: ADP-1192 (take care of withdrawals in new tx workflow)
-        walletBeforeWithdrawal <- getResponse <$> liftIO getSrcWallet
+        walletBeforeWithdrawal <- getResponse <$> getSrcWallet
 
         addrs <- listAddresses @n ctx dest
         let addr = (addrs !! 1) ^. #id
