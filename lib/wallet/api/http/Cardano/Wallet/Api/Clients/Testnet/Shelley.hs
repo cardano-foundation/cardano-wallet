@@ -35,6 +35,8 @@ module Cardano.Wallet.Api.Clients.Testnet.Shelley
     , getAssets
     , getAsset
     , getAsset'
+    , planMigration
+    , migrate
     )
 where
 
@@ -45,6 +47,7 @@ import Cardano.Wallet.Api
     , Assets
     , Network
     , Proxy_
+    , ShelleyMigrations
     , ShelleyTransactions
     , StakePools
     , Wallets
@@ -72,6 +75,9 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiUtxoStatistics
     , ApiWallet
+    , ApiWalletMigrationPlan
+    , ApiWalletMigrationPlanPostData
+    , ApiWalletMigrationPostData
     , ApiWalletPassphrase
     , ApiWalletPutDataExtended
     , ApiWalletUtxoSnapshot
@@ -114,6 +120,9 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Data.Generics.Labels
     ()
+import Data.List.NonEmpty
+    ( NonEmpty
+    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -261,8 +270,21 @@ networkClock
 networkInformation :<|> networkParameters :<|> networkClock =
     client (Proxy @("v2" :> Network))
 
-getAssets :: ApiT WalletId -> ClientM [ApiAsset]
-getAsset :: ApiT WalletId -> ApiT TokenPolicyId -> ApiT AssetName -> ClientM ApiAsset
-getAsset' :: ApiT WalletId -> ApiT TokenPolicyId -> ClientM ApiAsset
-getAssets  :<|> getAsset :<|> getAsset'
-    = client (Proxy @("v2" :> Assets))
+getAssets
+    :: ApiT WalletId -> ClientM [ApiAsset]
+getAsset
+    :: ApiT WalletId -> ApiT TokenPolicyId -> ApiT AssetName -> ClientM ApiAsset
+getAsset'
+    :: ApiT WalletId -> ApiT TokenPolicyId -> ClientM ApiAsset
+getAssets :<|> getAsset :<|> getAsset' =
+    client (Proxy @("v2" :> Assets))
+
+planMigration
+    :: ApiT WalletId
+    -> ApiWalletMigrationPlanPostData (Testnet 42)
+    -> ClientM (ApiWalletMigrationPlan A)
+migrate
+    :: ApiT WalletId
+    -> ApiWalletMigrationPostData (Testnet 42) "user"
+    -> ClientM (NonEmpty (ApiTransaction (Testnet 42)))
+planMigration :<|> migrate = client (Proxy @("v2" :> ShelleyMigrations A))

@@ -3,16 +3,13 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 module Main where
 
@@ -61,12 +58,11 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
-    , ApiWalletMigrationPlan (..)
+    , ApiWalletMigrationPlanPostData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
-    , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (..)
@@ -81,7 +77,6 @@ import Cardano.Wallet.Benchmarks.Latency.BenchM
     , fixtureMultiAssetWallet
     , fixtureWallet
     , fixtureWalletWith
-    , request
     , requestC
     , requestWithError
     )
@@ -210,12 +205,9 @@ import System.IO.Temp.Extra
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , Headers (..)
-    , Payload (..)
     , eventually
     , faucetAmt
     , fixturePassphrase
-    , json
     , minUTxOValue
     , pickAnAsset
     , runResourceT
@@ -237,7 +229,6 @@ import UnliftIO.STM
 import qualified Cardano.Faucet.Addresses as Addresses
 import qualified Cardano.Wallet.Api.Clients.Testnet.Network as CN
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
-import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Benchmarks.Latency.Measure as Measure
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -461,6 +452,7 @@ runScenario scenario = lift . runResourceT $ do
     let wal1Id = wal1 ^. #id
         wal2Id = wal2 ^. #id
         walMAId = walMA ^. #id
+        maWalletToMigrateId = maWalletToMigrate ^. #id
         amt = minUTxOValue era
     sceneOfClientM "listWallets" C.listWallets
     sceneOfClientM "getWallet" $ C.getWallet wal1Id
@@ -541,16 +533,11 @@ runScenario scenario = lift . runResourceT $ do
                 $ pickAnAsset assetsSrc
     sceneOfClientM "getAsset" $ C.getAsset walMAId (ApiT polId) (ApiT assName)
 
-    -- Create a migration plan:
-    let endpointPlan = (Link.createMigrationPlan @'Shelley maWalletToMigrate)
-        addresses = replicate 5 destination
-    t12a <-
-        measureApiLogs
-            $ request @(ApiWalletMigrationPlan A)
-                endpointPlan
-                Default
-            $ Json [json|{addresses: #{addresses}}|]
-    fmtResult "postMigrationPlan  " t12a
+    let addresses = replicate 5 destination
+        migrationPayload = ApiWalletMigrationPlanPostData $ NE.fromList addresses
+
+    sceneOfClientM "postMigrationPlan"
+        $ C.planMigration maWalletToMigrateId migrationPayload
 
 -- -- Perform a migration:
 -- let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
