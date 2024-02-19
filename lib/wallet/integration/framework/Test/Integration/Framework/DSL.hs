@@ -54,6 +54,7 @@ module Test.Integration.Framework.DSL
     , Headers(..)
     , Payload(..)
     , RequestException(..)
+    , shouldBe
 
     -- * Lens
     , walletId
@@ -823,8 +824,8 @@ expectWalletUTxO coins = \case
 -- | Expects a given string to be a valid JSON output corresponding to some
 -- given data-type 'a'. Returns this type if successful.
 expectValidJSON
-    :: forall m a. (HasCallStack, FromJSON a, MonadIO m)
-    => Proxy a
+    :: forall m a. (FromJSON a, MonadIO m)
+    =>Proxy a
     -> String
     -> m a
 expectValidJSON _ str = liftIO $
@@ -1403,7 +1404,7 @@ between (min', max') x
             , show max'
             ]
 
-(.>) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
+(.>) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 x .> bound
     | x > bound
         = return ()
@@ -1415,7 +1416,7 @@ x .> bound
             , ")"
             ]
 
-(.<) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
+(.<) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 x .< bound
     | x < bound
         = return ()
@@ -1427,7 +1428,7 @@ x .< bound
             , ")"
             ]
 
-(.>=) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
+(.>=) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 a .>= b
     | a >= b
         = return ()
@@ -1439,7 +1440,7 @@ a .>= b
             , ")"
             ]
 
-(.<=) :: (Ord a, Show a, HasCallStack) => a -> a -> Expectation
+(.<=) :: (Ord a, MonadIO m, Show a) => a -> a -> m ()
 a .<= b
     | a <= b
         = return ()
@@ -1453,7 +1454,7 @@ a .<= b
 
 -- | Like @expectationFailure@, but with a @IO a@ return type instead of @IO
 -- ()@.
-expectationFailure' :: HasCallStack => String -> IO a
+expectationFailure' :: (MonadIO m, MonadFail m) => String -> m b
 expectationFailure' msg = do
     expectationFailure msg
     fail "expectationFailure': impossible"
@@ -1470,12 +1471,12 @@ expectationFailure' msg = do
 -- much longer than that isn't really useful (in particular, this doesn't
 -- depend on the host machine running the test, because the protocol moves
 -- forward at the same speed regardless...)
-eventuallyReport  :: MonadIO m => IO String -> IO a -> m a
+eventuallyReport  :: MonadUnliftIO m => IO String -> m a -> m a
 eventuallyReport = eventuallyUsingDelayReport (500 * ms) 90
   where
     ms = 1_000
 
-eventually :: MonadIO m => String -> IO a -> m a
+eventually :: MonadUnliftIO m => String -> m a -> m a
 eventually = eventuallyReport . pure
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
@@ -1483,25 +1484,25 @@ eventually = eventuallyReport . pure
 --
 -- It sleeps for a specified delay between retries and fails after timeout.
 eventuallyUsingDelayReport
-    :: MonadIO m
+    :: (MonadUnliftIO m)
     => Int -- ^ Delay in microseconds
     -> Int -- ^ Timeout in seconds
     -> IO String -- ^ Brief description of the IO action
-    -> IO a
     -> m a
-eventuallyUsingDelayReport delay timeout ioDesc io = liftIO $ do
-    lastErrorRef <- newIORef Nothing
+    -> m a
+eventuallyUsingDelayReport delay timeout ioDesc io = do
+    lastErrorRef <- liftIO $ newIORef Nothing
     winner <- race (threadDelay $ timeout * oneSecond) (trial lastErrorRef)
     case winner of
         Left () -> do
-            lastError <- readIORef lastErrorRef
-            desc <- ioDesc
+            lastError <- liftIO $ readIORef lastErrorRef
+            desc <- liftIO ioDesc
             let msg = "Waited longer than " ++ show timeout ++
                       "s to resolve action: " ++ show desc ++ "."
             case fromException @HUnitFailure =<< lastError of
                 Just lastError' -> throwIO $ appendFailureReason msg lastError'
                 Nothing ->
-                    expectationFailure' $ mconcat
+                    liftIO $ expectationFailure' $ mconcat
                         [ msg
                         , " Error condition: "
                         , show lastError
@@ -1512,16 +1513,16 @@ eventuallyUsingDelayReport delay timeout ioDesc io = liftIO $ do
     trial lastErrorRef = loop
       where
         loop = io `catch` \(e :: SomeException) -> do
-            writeIORef lastErrorRef (Just e)
+            liftIO $ writeIORef lastErrorRef (Just e)
             threadDelay delay
             loop
 
 eventuallyUsingDelay
-    :: MonadIO m
+    :: MonadUnliftIO m
     => Int -- ^ Delay in microseconds
     -> Int -- ^ Timeout in seconds
     -> String -- ^ Brief description of the IO action
-    -> IO a
+    -> m a
     -> m a
 eventuallyUsingDelay delay timeout desc =
     eventuallyUsingDelayReport delay timeout (pure desc)
@@ -1807,7 +1808,7 @@ rewardWallet ctx = do
         fetchWallet w >>=
             flip verify [expectField (#balance . #reward) (.> ApiAmount 0)]
 
-    (,mnemonic) . getResponse <$> liftIO (fetchWallet w)
+    (,mnemonic) . getResponse <$> fetchWallet w
 
 fixtureMultiAssetWallet
     :: MonadUnliftIO m
