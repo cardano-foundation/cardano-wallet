@@ -12,7 +12,6 @@ module Cardano.Wallet.Benchmarks.Latency.BenchM
     , fixtureWalletWith
     , finallyDeleteWallet
     , request
-    , requestC
     , requestWithError
     , runDSL
     )
@@ -44,14 +43,8 @@ import Control.Monad.Trans.Resource
     , allocate
     , runResourceT
     )
-import Data.Aeson
-    ( FromJSON
-    )
 import Data.Generics.Internal.VL
     ( (^.)
-    )
-import Network.HTTP.Types
-    ( Method
     )
 import Network.Wai.Middleware.Logging
     ( ApiLog
@@ -72,7 +65,6 @@ import Test.Integration.Framework.DSL
     )
 
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
-import qualified Data.Text as T
 import qualified Test.Integration.Framework.DSL as DSL
 
 data BenchCtx = BenchCtx
@@ -96,8 +88,8 @@ requestWithError x = do
     BenchCtx ctx _ <- ask
     liftIO $ runClientM x $ clientEnv ctx
 
-requestC :: ClientM a -> BenchM a
-requestC x = partialFromRight <$> requestWithError x
+request :: ClientM a -> BenchM a
+request x = partialFromRight <$> requestWithError x
 
 finallyDeleteWallet :: ApiWallet -> BenchM ()
 finallyDeleteWallet w = do
@@ -106,7 +98,7 @@ finallyDeleteWallet w = do
         $ allocate (pure ())
         $ const
         $ void
-        $ runReaderT (runResourceT (requestC $ C.deleteWallet (w ^. #id))) env
+        $ runReaderT (runResourceT (request $ C.deleteWallet (w ^. #id))) env
 
 -- compatibility with DSL functions
 runDSL :: (Context -> ResourceT IO a) -> BenchM a
@@ -122,13 +114,3 @@ fixtureWallet = runDSL DSL.fixtureWallet
 
 fixtureWalletWith :: [Natural] -> BenchM ApiWallet
 fixtureWalletWith w = runDSL $ \ctx -> DSL.fixtureWalletWith @A ctx w
-
--- to be removed  in this PR
-request
-    :: (FromJSON a)
-    => (Method, T.Text)
-    -> DSL.Headers
-    -> DSL.Payload
-    -> BenchM (Either DSL.RequestException a)
-request link headers payload = runDSL
-    $ \ctx -> snd <$> DSL.request ctx link headers payload

@@ -77,7 +77,7 @@ import Cardano.Wallet.Benchmarks.Latency.BenchM
     , fixtureMultiAssetWallet
     , fixtureWallet
     , fixtureWalletWith
-    , requestC
+    , request
     , requestWithError
     )
 import Cardano.Wallet.Benchmarks.Latency.Measure
@@ -363,10 +363,10 @@ nFixtureWalletWithUTxOs n utxoNumber = do
     (_, wal2, walMA, maWalletToMigrate) <- nFixtureWallet n
 
     eventually "Wallet balance is as expected" $ do
-        rWal1 <- requestC $ C.getWallet (wal1 ^. #id)
+        rWal1 <- request $ C.getWallet (wal1 ^. #id)
         rWal1 ^. #balance . #available . #toNatural `shouldBe` sum utxoExp
 
-    rStat <- requestC $ C.getWalletUtxoStatistics (wal1 ^. #id)
+    rStat <- request $ C.getWalletUtxoStatistics (wal1 ^. #id)
     utxoStatisticsFromCoins (fromIntegral <$> utxoExp) `shouldBe` rStat
     pure (wal1, wal2, walMA, maWalletToMigrate)
 
@@ -378,7 +378,7 @@ massiveFixtureWallet = do
             $ mkSomeMnemonic @'[15]
             $ mnemonicToText massiveWallet
     wal1 <-
-        requestC
+        request
             $ C.postWallet
             $ WalletOrAccountPostData
             $ Left
@@ -404,7 +404,7 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
     wSrcId <- view #id <$> fixtureWallet
     replicateM_ batchSize
         $ do
-            addrs <- requestC $ C.listAddresses (wDest ^. #id) Nothing
+            addrs <- request $ C.listAddresses (wDest ^. #id) Nothing
             let destination = addrs !! 1 ^. #id
                 amount =
                     AddressAmount
@@ -420,13 +420,13 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
                         , metadata = Nothing
                         , timeToLive = Nothing
                         }
-            requestC $ C.postTransaction wSrcId payload
+            request $ C.postTransaction wSrcId payload
 
     eventually "repeatPostTx: wallet balance is as expected" $ do
-        rWal1 <- requestC $ C.getWallet $ wDest ^. #id
+        rWal1 <- request $ C.getWallet $ wDest ^. #id
         rWal1 ^. #balance . #available . #toNatural `shouldBe` amtExp
 
-    void $ requestC $ C.deleteWallet wSrcId
+    void $ request $ C.deleteWallet wSrcId
 
 scene :: String -> BenchM (Either ClientError a) -> BenchM ()
 scene title scenario = measureApiLogs scenario >>= fmtResult title
@@ -460,11 +460,11 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "listAddresses" $ C.listAddresses wal1Id Nothing
     sceneOfClientM "listTransactions" $ listAllTransactions wal1Id
 
-    txs <- requestC $ listAllTransactions wal1Id
+    txs <- request $ listAllTransactions wal1Id
     sceneOfClientM "getTransaction"
         $ C.getTransaction wal1Id (ApiTxId $ txs !! 1 ^. #id) False
 
-    addrs <- requestC $ C.listAddresses wal2Id Nothing
+    addrs <- request $ C.listAddresses wal2Id Nothing
     let destination = addrs !! 1 ^. #id
         amount =
             AddressAmount
