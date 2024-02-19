@@ -474,6 +474,7 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "getUTxOsStatistics" $ C.getWalletUtxoStatistics wal1Id
     sceneOfClientM "listAddresses" $ C.listAddresses wal1Id Nothing
     sceneOfClientM "listTransactions" $ listAllTransactions wal1Id
+
     txs <- requestC $ listAllTransactions wal1Id
     sceneOfClientM "getTransaction"
         $ C.getTransaction wal1Id (ApiTxId $ txs !! 1 ^. #id) False
@@ -496,24 +497,14 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "postTransactionFee" $ C.postTransactionFee wal1Id payload
 
     let payloadTx =
-            Json
-                [json|{
-            "payments": [{
-                "address": #{destination},
-                "amount": {
-                    "quantity": #{amt},
-                    "unit": "lovelace"
+            PostTransactionOldData
+                { payments = pure amount
+                , passphrase = ApiT $ unsafeFromText fixturePassphrase
+                , withdrawal = Nothing
+                , metadata = Nothing
+                , timeToLive = Nothing
                 }
-            }],
-            "passphrase": #{fixturePassphrase}
-        }|]
-    t7 <-
-        measureApiLogs
-            $ request @(ApiTransaction A)
-                (Link.createTransactionOld @'Shelley wal1)
-                Default
-                payloadTx
-    fmtResult "postTransaction    " t7
+    sceneOfClientM "postTransaction" $ C.postTransaction wal1Id payloadTx
 
     let addresses = replicate 5 destination
     let coins = replicate 5 amt
