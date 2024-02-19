@@ -55,7 +55,6 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAsset (..)
     , ApiEra
     , ApiMnemonicT (..)
     , ApiT (..)
@@ -461,6 +460,7 @@ runScenario scenario = lift . runResourceT $ do
     (wal1, wal2, walMA, maWalletToMigrate) <- scenario
     let wal1Id = wal1 ^. #id
         wal2Id = wal2 ^. #id
+        walMAId = walMA ^. #id
         amt = minUTxOValue era
     sceneOfClientM "listWallets" C.listWallets
     sceneOfClientM "getWallet" $ C.getWallet wal1Id
@@ -532,13 +532,7 @@ runScenario scenario = lift . runResourceT $ do
 
     sceneOfClientM "getNetworkInfo" CN.networkInformation
 
-    t10 <-
-        measureApiLogs
-            $ request @([ApiAsset])
-                (Link.listAssets walMA)
-                Default
-                Empty
-    fmtResult "listMultiAssets    " t10
+    sceneOfClientM "listAssets" $ C.getAssets walMAId
 
     let assetsSrc = walMA ^. #assets . #total
     let (polId, assName) =
