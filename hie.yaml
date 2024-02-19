@@ -177,17 +177,14 @@ cradle:
     - path: "lib/wallet/test/data"
       component: "cardano-wallet:test:unit"
 
-    - path: "lib/wallet/integration/framework"
-      component: "cardano-wallet:lib:integration-framework"
+    - path: "lib/integration/framework"
+      component: "cardano-wallet-integration:lib:framework"
 
-    - path: "lib/wallet/integration/scenarios"
-      component: "cardano-wallet:lib:integration-scenarios"
+    - path: "lib/integration/scenarios"
+      component: "cardano-wallet-integration:lib:scenarios"
 
-    - path: "lib/wallet/./integration-tests-exe.hs"
-      component: "cardano-wallet:exe:integration-exe"
-
-    - path: "lib/wallet/./"
-      component: "cardano-wallet:test:integration"
+    - path: "lib/integration/exe/integration-tests-exe.hs"
+      component: "cardano-wallet-integration:exe:integration-exe"
 
     - path: "lib/wallet-benchmarks/bench/memory-benchmark.hs"
       component: "cardano-wallet-blackbox-benchmarks:bench:memory"

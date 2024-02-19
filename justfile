@@ -63,7 +63,7 @@ e2e-manual:
 integration-tests-cabal-match match:
   echo "Running integration tests with cardano-wallet exe compiled"
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
-  CARDANO_WALLET_TEST_DATA=test/data \
+  CARDANO_WALLET_TEST_DATA=../../lib/integration/test/data \
   cabal test integration -O0 -v0 \
     --test-options '--match="{{match}}"'
 
@@ -71,7 +71,7 @@ integration-tests-cabal-match match:
 integration-tests-cabal-options options:
   echo "Running integration tests with cardano-wallet exe compiled"
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
-  CARDANO_WALLET_TEST_DATA=test/data \
+  CARDANO_WALLET_TEST_DATA=../../lib/integration/test/data \
   cabal test integration -O0 -v0 \
     --test-options 'options'
 
@@ -97,7 +97,7 @@ conway-integration-tests-cabal:
 # run any integration test matching the given pattern via nix
 integration-tests match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
-  CARDANO_WALLET_TEST_DATA=./lib/wallet/test/data \
+  CARDANO_WALLET_TEST_DATA=lib/integration/test/data \
   TESTS_RETRY_FAILED=1 \
   nix shell \
     '.#cardano-node' \

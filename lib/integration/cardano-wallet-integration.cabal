@@ -1,0 +1,206 @@
+cabal-version: 3.6
+name:          cardano-wallet-integration
+version:       2023.12.18
+synopsis:      Cardano wallet integration tests and DSL
+description:   Please see README.md
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2023-2024 Cardano Foundation
+license:       Apache-2.0
+category:      Web
+build-type:    Simple
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library framework
+  import:          language, opts-lib
+  visibility:      public
+  hs-source-dirs:  framework
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , aeson-qq
+    , base
+    , base16-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-ledger-shelley
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , cardano-wallet-secrets
+    , cardano-wallet-test-utils
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, mock-token-metadata}
+    , cborg
+    , command
+    , containers
+    , contra-tracer
+    , crypto-hash-extra
+    , cryptonite
+    , directory
+    , either
+    , extra
+    , faucet
+    , filepath
+    , flat
+    , fmt
+    , generic-lens
+    , generic-lens-core
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , HUnit
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , lobemo-backend-ekg
+    , local-cluster
+    , memory
+    , microstache
+    , monad-loops
+    , network-uri
+    , resourcet
+    , retry
+    , serialise
+    , servant-client
+    , string-interpolate
+    , template-haskell
+    , temporary-extra
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unliftio-core
+    , with-utf8
+
+  exposed-modules:
+    Test.Integration.Framework.Context
+    Test.Integration.Framework.DSL
+    Test.Integration.Framework.Logging
+    Test.Integration.Framework.PendingInEra
+    Test.Integration.Framework.Request
+    Test.Integration.Framework.Setup
+    Test.Integration.Framework.TestData
+    Test.Integration.Plutus
+
+library scenarios
+  import:          language, opts-lib
+  hs-source-dirs:  scenarios
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , aeson-qq
+    , base
+    , bech32-th
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
+    , cardano-wallet-primitive
+    , cardano-wallet-secrets
+    , cardano-wallet-test-utils
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
+    , cardano-wallet-integration:framework
+    , command
+    , containers
+    , either
+    , extra
+    , faucet
+    , generic-lens
+    , hspec
+    , hspec-core
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-types
+    , lens-aeson
+    , local-cluster
+    , memory
+    , pretty-simple
+    , resourcet
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+
+  exposed-modules:
+    Test.Integration.Run
+    Test.Integration.Scenario.API.Blocks
+    Test.Integration.Scenario.API.Byron.Addresses
+    Test.Integration.Scenario.API.Byron.CoinSelections
+    Test.Integration.Scenario.API.Byron.HWWallets
+    Test.Integration.Scenario.API.Byron.Migrations
+    Test.Integration.Scenario.API.Byron.Network
+    Test.Integration.Scenario.API.Byron.Transactions
+    Test.Integration.Scenario.API.Byron.Wallets
+    Test.Integration.Scenario.API.Network
+    Test.Integration.Scenario.API.Shared.Addresses
+    Test.Integration.Scenario.API.Shared.Transactions
+    Test.Integration.Scenario.API.Shared.Wallets
+    Test.Integration.Scenario.API.Shelley.Addresses
+    Test.Integration.Scenario.API.Shelley.CoinSelections
+    Test.Integration.Scenario.API.Shelley.HWWallets
+    Test.Integration.Scenario.API.Shelley.Migrations
+    Test.Integration.Scenario.API.Shelley.Network
+    Test.Integration.Scenario.API.Shelley.Settings
+    Test.Integration.Scenario.API.Shelley.StakePools
+    Test.Integration.Scenario.API.Shelley.Transactions
+    Test.Integration.Scenario.API.Shelley.TransactionsNew
+    Test.Integration.Scenario.API.Shelley.Wallets
+    Test.Integration.Scenario.CLI.Byron.Addresses
+    Test.Integration.Scenario.CLI.Byron.Wallets
+    Test.Integration.Scenario.CLI.Miscellaneous
+    Test.Integration.Scenario.CLI.Network
+    Test.Integration.Scenario.CLI.Port
+    Test.Integration.Scenario.CLI.Shelley.Addresses
+    Test.Integration.Scenario.CLI.Shelley.HWWallets
+    Test.Integration.Scenario.CLI.Shelley.Transactions
+    Test.Integration.Scenario.CLI.Shelley.Wallets
+
+common integration-common
+  import:         language, opts-exe
+  hs-source-dirs: exe test/data
+  build-depends:
+    , base
+    , cardano-wallet-integration:scenarios
+
+executable integration-exe
+  import:             integration-common
+  main-is:            integration-tests-exe.hs
+
+test-suite integration
+  import:             integration-common
+  type:               exitcode-stdio-1.0
+  main-is:            integration-tests.hs
+  build-tool-depends: cardano-wallet:cardano-wallet

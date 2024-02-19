@@ -70,6 +70,7 @@ packages:
   lib/delta-types/
   lib/faucet/
   lib/iohk-monitoring-extra/
+  lib/integration/
   lib/launcher/
   lib/local-cluster/
   lib/network-layer/

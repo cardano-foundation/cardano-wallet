@@ -46,7 +46,8 @@ library
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, integration-framework}
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
+    , cardano-wallet-integration:framework
     , criterion-measurement
     , deepseq
     , directory
@@ -118,7 +119,8 @@ benchmark latency
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, integration-framework}
+    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
+    , cardano-wallet-integration:framework
     , directory
     , faucet
     , filepath
