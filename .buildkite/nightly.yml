@@ -3,30 +3,31 @@ env:
   NIX_PATH: "channel:nixos-21.11"
 
   # Per-host variables - shared across containers on host
-  macos: "x86_64-darwin"
+  macos: "aarch64-darwin"
+  linux: "x86_64-linux"
 
 steps:
-  - label: 'Check auto-generated Nix on macos'
+  - label: 'Check auto-generated Nix on macOS'
     key: macos-nix
     commands:
       - './nix/regenerate.sh'
     agents:
       system: ${macos}
-    if: 0 == 1 # Suspended until we have a macos build agent
+      queue: "cardano-wallet"
 
-  # ADP-2522 - Fix integration tests on MacOS
-  - label: 'Run integration tests on macos'
+  - label: 'Run integration tests on macOS'
+    key: macos-tests-integration
     depends_on: macos-nix
-    command: 'GC_DONT_GC=1 nix build -L .#ci.${macos}.tests.run.integration'
+    command: nix shell 'nixpkgs#just' -c just babbage-integration-tests
     agents:
       system: ${macos}
-    if: 0 == 1 # Suspended until we have a macos build agent
+      queue: "cardano-wallet"
 
   - label: 'Restore benchmark - cardano mainnet'
     command: "./.buildkite/bench-restore.sh mainnet"
     timeout_in_minutes: 1200
     agents:
-      system: x86_64-linux
+      system: ${linux}
       queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /restore-mainnet/'
 
@@ -34,7 +35,7 @@ steps:
     command: "./.buildkite/bench-api.sh"
     timeout_in_minutes: 210
     agents:
-      system: x86_64-linux
+      system: ${linux}
       queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-api/'
 
@@ -42,7 +43,7 @@ steps:
     command: "./.buildkite/bench-db.sh"
     timeout_in_minutes: 240
     agents:
-      system: x86_64-linux
+      system: ${linux}
       queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-db/'
 
@@ -50,7 +51,7 @@ steps:
     command: "./.buildkite/bench-latency.sh"
     timeout_in_minutes: 120
     agents:
-      system: x86_64-linux
+      system: ${linux}
       queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
 
@@ -58,7 +59,7 @@ steps:
     command: "./.buildkite/bench-memory.sh"
     timeout_in_minutes: 30
     agents:
-      system: x86_64-linux
+      system: ${linux}
       queue: adrestia-bench
     if: 'build.env("step") == null || build.env("step") =~ /bench-memory/'
 
