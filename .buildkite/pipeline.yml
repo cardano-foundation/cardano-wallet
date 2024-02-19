@@ -57,6 +57,7 @@ steps:
 
   - label: "Babbage integration tests (linux)"
     key: linux-tests-integration-babbage
+    if: 'build.branch !~ /^release-candidate/ && build.branch != "rc-latest" && build.branch != "master"'
     depends_on: linux-nix
     command: nix shell 'nixpkgs#just' -c just babbage-integration-tests
     agents:
@@ -66,6 +67,7 @@ steps:
 
   - label: "Conway integration tests (linux)"
     key: linux-tests-integration-conway
+    if: 'build.branch !~ /^release-candidate/ && build.branch != "rc-latest" && build.branch != "master"'
     depends_on: linux-nix
     command: nix shell 'nixpkgs#just' -c just conway-integration-tests
     agents:
@@ -139,6 +141,7 @@ steps:
 
   - label: 'Check HLS works'
     key: hls
+    if: 'build.branch !~ /^release-candidate/ && build.branch != "rc-latest" && build.branch != "master"'
     depends_on: linux-nix
     command: |
         nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
@@ -281,23 +284,14 @@ steps:
 
   - label: Manage rc-latest tags
     depends_on:
-      - cabal-release
       - linux-tests-unit
-      - linux-tests-integration-babbage
-      - linux-tests-integration-conway
       - cabal-configure
-      - code-format
-      - hlint
       - openapi
-      - lint-bash
-      - hls
-      - build-benchmarks
       - macos-tests-unit
       - macos-package
       - linux-package
       - windows-package
       - windows-testing-bundle
-      - e2e
     if: build.branch =~ /^release-candidate/
     command: .buildkite/retag-rc-latest.sh
     agents:
