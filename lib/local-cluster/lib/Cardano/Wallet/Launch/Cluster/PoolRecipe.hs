@@ -55,7 +55,7 @@ defaultPoolConfigs =
         $
         -- This pool should never retire:
         PoolRecipe
-            { pledgeAmt = 100 * millionAda
+            { pledgeAmt = 150 * millionAda
             , retirementEpoch = Nothing
             , poolMetadata =
                 Aeson.object

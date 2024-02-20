@@ -1315,7 +1315,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
                 setOf pools' (view #pledge)
                     `shouldBe` Set.fromList
-                        [ Quantity $ 100 * oneMillionAda
+                        [ Quantity $ 150 * oneMillionAda
                         , Quantity $ 100 * oneMillionAda
                         ]
 
