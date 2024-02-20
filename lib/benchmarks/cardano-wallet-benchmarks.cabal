@@ -158,7 +158,8 @@ benchmark db
     , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, test-common}
+    , cardano-wallet-unit:test-common
+    , cardano-wallet:cardano-wallet
     , containers
     , contra-tracer
     , criterion
@@ -193,7 +194,8 @@ benchmark api
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , cardano-wallet:{cardano-wallet, test-common}
+    , cardano-wallet-unit:test-common
+    , cardano-wallet:cardano-wallet
     , containers
     , fmt
     , iohk-monitoring

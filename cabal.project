@@ -82,6 +82,7 @@ packages:
   lib/temporary-extra/
   lib/test-utils/
   lib/text-class/
+  lib/unit/
   lib/wai-middleware-logging/
   lib/wallet-benchmarks/
   lib/wallet/
