@@ -6073,24 +6073,31 @@ You type <code>nix build .#cardano-wallet</code> instead of <code>nix-build -A c
 </ol>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="how--processes"><a class="header" href="#how--processes">How – Processes</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="testing-3"><a class="header" href="#testing-3">Testing</a></h1>
-<h2 id="unit-tests"><a class="header" href="#unit-tests">Unit Tests</a></h2>
-<pre><code>$ cabal test cardano-wallet:unit
+<h2 id="pre-requisites-for-a-fast-development-cycle"><a class="header" href="#pre-requisites-for-a-fast-development-cycle">Pre-requisites for a fast development cycle</a></h2>
+<p>Enter a valid shell with:</p>
+<pre><code>nix develop
 </code></pre>
-<p>Alternatively, one can run tests of a particular module by running:</p>
-<pre><code>$ cabal test cardano-wallet:unit --test-options &quot;--match MyModule&quot;
+<p>before running the tests. This will bring into scope all the necessary tools and dependencies.</p>
+<h2 id="unit-tests"><a class="header" href="#unit-tests">Unit Tests</a></h2>
+<pre><code>just unit-tests-cabal
+</code></pre>
+<h3 id="matching-the-test-title"><a class="header" href="#matching-the-test-title">matching the test title</a></h3>
+<pre><code>just unit-test-cabal-match &quot;something matching the title&quot;
 </code></pre>
 <h2 id="integration-tests"><a class="header" href="#integration-tests">Integration Tests</a></h2>
-<h4 id="pre-requisites-11"><a class="header" href="#pre-requisites-11">Pre-requisites</a></h4>
-<p>Install <a href="https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html"><code>cardano-node</code></a> and <a href="https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html"><code>cardano-cli</code></a>; make sure to use one of the <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/README.md#latest-releases">compatible versions</a>.</p>
-<p>Alternatively, use <code>cabal test all -j8</code>.</p>
-<h4 id="test"><a class="header" href="#test">Test</a></h4>
-<pre><code>$ cabal test cardano-wallet:integration
+<h2 id="babbage-era"><a class="header" href="#babbage-era">babbage era</a></h2>
+<pre><code>just babbage-integration-tests-cabal
 </code></pre>
-<p>Many tests require a cardano network with stake pools. To support
-this, the integration tests run a local <code>cardano-node</code> cluster with
-one Ouroboros BFT node and three Ouroboros Praos nodes for the three
-stake pools.</p>
-<h4 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h4>
+<h3 id="matching-the-test-title-1"><a class="header" href="#matching-the-test-title-1">matching the test title</a></h3>
+<pre><code>just babbage-integration-tests-cabal-match &quot;something matching the title&quot;
+</code></pre>
+<h2 id="conway-era"><a class="header" href="#conway-era">conway era</a></h2>
+<pre><code>just conway-integration-tests-cabal
+</code></pre>
+<h3 id="matching-the-test-title-2"><a class="header" href="#matching-the-test-title-2">matching the test title</a></h3>
+<pre><code>just conway-integration-tests-cabal-match &quot;something matching the title&quot;
+</code></pre>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
 <p>Several environment variables control debugging features of the
 integration tests and test cluster.</p>
 <div class="table-wrapper"><table><thead><tr><th><strong>Variable</strong></th><th><strong>Type</strong></th><th><strong>Meaning</strong></th><th><strong>Default</strong></th></tr></thead><tbody>
@@ -6238,7 +6245,7 @@ instructions.</p>
 <pre><code>$ cabal bench cardano-wallet:db
 </code></pre>
 <h3 id="restoration"><a class="header" href="#restoration">Restoration</a></h3>
-<h4 id="pre-requisites-12"><a class="header" href="#pre-requisites-12">Pre-requisites</a></h4>
+<h4 id="pre-requisites-11"><a class="header" href="#pre-requisites-11">Pre-requisites</a></h4>
 <ol>
 <li>
 <p>Follow the pre-requisites from <code>integration</code> above</p>
@@ -6249,7 +6256,7 @@ instructions.</p>
 </code></pre>
 </li>
 </ol>
-<h4 id="test-1"><a class="header" href="#test-1">Test</a></h4>
+<h4 id="test"><a class="header" href="#test">Test</a></h4>
 <div id="admonition-warning" class="admonition warning">
 <div class="admonition-title">
 <p>Warning</p>
@@ -6272,11 +6279,11 @@ $ hp2pretty restore.hp
 $ eog restore.svg
 </code></pre>
 <h2 id="code-coverage"><a class="header" href="#code-coverage">Code Coverage</a></h2>
-<h4 id="pre-requisites-13"><a class="header" href="#pre-requisites-13">Pre-requisites</a></h4>
+<h4 id="pre-requisites-12"><a class="header" href="#pre-requisites-12">Pre-requisites</a></h4>
 <ol>
 <li>Follow the pre-requisites from <code>integration</code> above</li>
 </ol>
-<h4 id="test-2"><a class="header" href="#test-2">Test</a></h4>
+<h4 id="test-1"><a class="header" href="#test-1">Test</a></h4>
 <p>Running combined code coverage on all components is pretty easy. This generates code coverage reports in an HTML format as well as a short summary in the console. Note that, because code has to be compiled in a particular way to be &quot;instrumentable&quot; by the code coverage engine, it is recommended to run this command using another working directory (<code>--builddir</code> option) so that one can easily switch between coverage testing and standard testing (faster to run):</p>
 <pre><code>$ cabal test all --enable-coverage --builddir .dist-coverage
 </code></pre>
