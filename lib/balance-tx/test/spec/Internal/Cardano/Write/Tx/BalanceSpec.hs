@@ -1415,9 +1415,8 @@ prop_balanceTransactionValid
                         --
                         -- , prop_outputsSatisfyMinAdaRequirement tx
                         ]
-            Left (ErrBalanceTxAssetsInsufficient err) -> do
-                let shortfall = view #shortfall err
-                    shortfallOfAda = Value.coin shortfall /= mempty
+            Left (err@ErrBalanceTxAssetsInsufficient {shortfall}) -> do
+                let shortfallOfAda = Value.coin shortfall /= mempty
                     shortfallOfNonAdaAssets = not (Value.isAdaOnly shortfall)
                 counterexample (show err) $
                     case (shortfallOfAda, shortfallOfNonAdaAssets) of

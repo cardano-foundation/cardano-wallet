@@ -23,8 +23,6 @@ module Internal.Cardano.Write.Tx.Balance
     -- * Balancing transactions
       balanceTransaction
     , ErrBalanceTx (..)
-    , ErrBalanceTxAssetsInsufficientError (..)
-    , ErrBalanceTxInsufficientCollateralError (..)
     , ErrBalanceTxInternalError (..)
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
@@ -321,23 +319,6 @@ import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
 
--- | Indicates a failure to select a sufficient amount of collateral.
---
-data ErrBalanceTxInsufficientCollateralError era =
-    ErrBalanceTxInsufficientCollateralError
-    { largestCombinationAvailable :: UTxO era
-        -- ^ The largest available combination of pure ada UTxOs.
-    , minimumCollateralAmount :: Coin
-        -- ^ The minimum quantity of ada necessary for collateral.
-    }
-    deriving Generic
-
-deriving instance IsRecentEra era =>
-    Eq (ErrBalanceTxInsufficientCollateralError era)
-
-deriving instance IsRecentEra era =>
-    Show (ErrBalanceTxInsufficientCollateralError era)
-
 -- | Indicates that there was not enough ada available to create change outputs.
 --
 -- When creating a change output, ada is required in order to pay for:
@@ -361,24 +342,6 @@ data ErrBalanceTxUnableToCreateChangeError =
     }
     deriving (Eq, Generic, Show)
 
--- | Indicates the insufficient availability of one or more assets.
---
--- This error is returned when the available quantity of one or more assets
--- is insufficient to balance the transaction.
---
--- The 'shortfall' field indicates the minimum extra quantity of each asset
--- that would be necessary to balance the transaction.
---
-data ErrBalanceTxAssetsInsufficientError = ErrBalanceTxAssetsInsufficientError
-    { available :: Value
-        -- ^ The total sum of all assets available.
-    , required :: Value
-        -- ^ The total sum of all assets required.
-    , shortfall :: Value
-        -- ^ The total shortfall between available and required assets.
-    }
-    deriving (Eq, Generic, Show)
-
 data ErrBalanceTxInternalError era
     = ErrUnderestimatedFee Coin (Tx era) KeyWitnessCounts
     | ErrFailedBalancing Value
@@ -388,7 +351,22 @@ deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
-    = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
+    = ErrBalanceTxAssetsInsufficient
+        { available :: Value
+            -- ^ The total sum of all assets available.
+        , required :: Value
+            -- ^ The total sum of all assets required.
+        , shortfall :: Value
+            -- ^ The total shortfall between available and required assets.
+        }
+        -- ^ Indicates the insufficient availability of one or more assets.
+        --
+        -- This error is returned when the available quantity of one or more
+        -- assets is insufficient to balance the transaction.
+        --
+        -- The 'shortfall' field indicates the minimum extra quantity of each
+        -- asset that would be necessary to balance the transaction.
+        --
     | ErrBalanceTxMaxSizeLimitExceeded
     | ErrBalanceTxExistingKeyWitnesses Int
     -- ^ Indicates that a transaction could not be balanced because a given
@@ -397,7 +375,13 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingTotalCollateral
     | ErrBalanceTxExistingReturnCollateral
     | ErrBalanceTxInsufficientCollateral
-        (ErrBalanceTxInsufficientCollateralError era)
+        { largestCombinationAvailable :: UTxO era
+            -- ^ The largest available combination of pure ada UTxOs.
+        , minimumCollateralAmount :: Coin
+            -- ^ The minimum quantity of ada necessary for collateral.
+        }
+        -- ^ Indicates a failure to select a sufficient amount of collateral.
+        --
     | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
     | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
@@ -1521,8 +1505,7 @@ coinSelectionErrorToBalanceTxError = \case
     SelectionBalanceErrorOf balanceErr ->
         case balanceErr of
             BalanceInsufficient e ->
-                ErrBalanceTxAssetsInsufficient $
-                ErrBalanceTxAssetsInsufficientError
+                ErrBalanceTxAssetsInsufficient
                     { available =
                         Convert.toLedger (view #utxoBalanceAvailable e)
                     , required =
@@ -1544,7 +1527,6 @@ coinSelectionErrorToBalanceTxError = \case
         , minimumSelectionAmount
         } ->
         ErrBalanceTxInsufficientCollateral
-        ErrBalanceTxInsufficientCollateralError
             { largestCombinationAvailable
                 = largestCombinationAvailable
                 & fmap W.TokenBundle.fromCoin
