@@ -1,8 +1,0 @@
-Usage:  recovery-phrase generate [--size INT]
-
-  Generate an English recovery phrase
-
-Available options:
-  -h,--help                Show this help text
-  --size INT               Number of mnemonic words to generate.
-                           Must be a multiple of 3. (default: 24)

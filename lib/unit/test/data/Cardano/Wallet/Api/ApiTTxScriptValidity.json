@@ -1,0 +1,15 @@
+{
+    "samples": [
+        "invalid",
+        "valid",
+        "valid",
+        "valid",
+        "invalid",
+        "valid",
+        "invalid",
+        "invalid",
+        "invalid",
+        "valid"
+    ],
+    "seed": 505893662
+}

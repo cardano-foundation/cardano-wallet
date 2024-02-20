@@ -198,17 +198,20 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               packages.servant-openapi3.components.setup.doExactConfig = true;
               packages.system-filepath.components.setup.doExactConfig = true;
 
-              packages.cardano-wallet.components.tests = {
-                # Running Windows integration tests under Wine is disabled
-                # because ouroboros-network doesn't fully work under Wine.
-                integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
-
+              packages.cardano-wallet-unit.components.tests = {
+                unit.build-tools = cardanoNodeExes;
                 unit.preCheck = noCacheTestFailuresCookie + ''
                     export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
                   '' + lib.optionalString stdenv.isDarwin ''
                     # cardano-node socket path becomes too long otherwise
                     export TMPDIR=/tmp
                   '';
+                  };
+
+              packages.cardano-wallet-integration.components.tests = {
+                # Running Windows integration tests under Wine is disabled
+                # because ouroboros-network doesn't fully work under Wine.
+                integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
 
                 # Force more integration tests to run in parallel than the
                 # default number of build cores.
@@ -243,7 +246,6 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                 '';
 
                 # provide cardano-node & cardano-cli to tests
-                unit.build-tools = cardanoNodeExes;
                 integration.build-tools = cardanoNodeExes;
               };
 
@@ -310,7 +312,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           # tests because it is located outside of the Cabal package
           # source tree.
           {
-            packages.cardano-wallet.components.tests.unit.preBuild = ''
+            packages.cardano-wallet-unit.components.tests.unit.preBuild = ''
               export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
             '';
           }
@@ -367,7 +369,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               packages.cardano-wallet-benchmarks.components.benchmarks.restore = fullyStaticOptions;
               packages.cardano-wallet.components.exes.cardano-wallet = fullyStaticOptions;
               packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
-              packages.cardano-wallet.components.tests.unit = fullyStaticOptions;
+              packages.cardano-wallet-unit.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-benchmarks.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 

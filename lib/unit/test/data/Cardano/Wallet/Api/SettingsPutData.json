@@ -1,0 +1,55 @@
+{
+    "samples": [
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "none"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "https://my.little.friend"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "none"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "https://my.little.friend"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "direct"
+            }
+        }
+    ],
+    "seed": 1407475605
+}

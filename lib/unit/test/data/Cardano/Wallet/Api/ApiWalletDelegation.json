@@ -1,0 +1,150 @@
+{
+    "samples": [
+        {
+            "active": {
+                "status": "delegating",
+                "target": "pool10m64pve76t8krexq49dlfnl4pm5gyqhk7vxzdzw6htjqc3u8mc2"
+            },
+            "next": []
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 13306,
+                        "epoch_start_time": "1885-02-01T01:00:00Z"
+                    },
+                    "status": "not_delegating"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "delegating",
+                "target": "pool1v6qsxqt59e7wtmrvsz7w642ehf8f328kjx5vydf99y2tqqzl3zj"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 32738,
+                        "epoch_start_time": "1872-08-22T11:00:00Z"
+                    },
+                    "status": "not_delegating"
+                },
+                {
+                    "changes_at": {
+                        "epoch_number": 31866,
+                        "epoch_start_time": "1863-03-11T12:00:00Z"
+                    },
+                    "status": "not_delegating"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 7185,
+                        "epoch_start_time": "1906-04-15T02:20:27Z"
+                    },
+                    "status": "not_delegating"
+                },
+                {
+                    "changes_at": {
+                        "epoch_number": 23196,
+                        "epoch_start_time": "1893-12-15T18:01:13.679787173214Z"
+                    },
+                    "status": "not_delegating"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 8234,
+                        "epoch_start_time": "1892-04-19T16:00:00Z"
+                    },
+                    "status": "delegating",
+                    "target": "pool1eqhzc6sdj5d05y6fxlc5qzt4sd9u8temhynx9ldxlskgu9cwnz4"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 10599,
+                        "epoch_start_time": "1892-06-07T13:35:34.220303671515Z"
+                    },
+                    "status": "not_delegating"
+                },
+                {
+                    "changes_at": {
+                        "epoch_number": 29711,
+                        "epoch_start_time": "1894-05-23T12:48:01Z"
+                    },
+                    "status": "delegating",
+                    "target": "pool16cl277dmtg54ty4q2l8fnfr2z9436z7qqfn8nn5ru4t6zsudylw"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "delegating",
+                "target": "pool1gdgxgsfgc064vtftzawdrq060rryecaa3evvn5l6pq25cmgn2ed"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 2988,
+                        "epoch_start_time": "1859-07-03T12:06:28Z"
+                    },
+                    "status": "delegating",
+                    "target": "pool1s5crj2lh74e60tpdjzgayfccsstv5mlysha2509hdv29w3hnm0m"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            },
+            "next": []
+        },
+        {
+            "active": {
+                "status": "delegating",
+                "target": "pool1kn2qtqh022zk3erprd6nzqgftzu0zhfgcnr7j72z6w67v3qc3ms"
+            },
+            "next": [
+                {
+                    "changes_at": {
+                        "epoch_number": 26691,
+                        "epoch_start_time": "1903-07-07T01:00:00Z"
+                    },
+                    "status": "delegating",
+                    "target": "pool1pjw2lfnn5ltqvtmjzuy7vned62dsetwyvhql48luyq3sxmqns5a"
+                }
+            ]
+        },
+        {
+            "active": {
+                "status": "not_delegating"
+            },
+            "next": []
+        }
+    ],
+    "seed": -778648790
+}

@@ -33,11 +33,15 @@ local-cluster:
     -c "local-cluster" \
     --cluster-configs lib/local-cluster/test/data/cluster-configs
 
-# run unit tests
-unit:
-  cabal run cardano-wallet:test:unit \
-    --test-options '--cluster-configs lib/local-cluster/test/data/cluster-configs'
+# run unit tests on a match
+unit-tests-cabal-match match:
+  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
+  cabal test cardano-wallet-unit:unit -O0 -v0 \
+    --test-options '--match="{{match}}"'
 
+# run unit tests
+unit-tests-cabal:
+    just unit-tests-cabal-match ""
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
   nix run '.#cardano-wallet-e2e' -- preprod \

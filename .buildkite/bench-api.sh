@@ -20,7 +20,8 @@ echo "--- Build"
 nix --version
 
 nix build .#ci.benchmarks.api -o bench-api
-bench="./bench-api/bin/api lib/wallet/test/data/api-bench"
+bench="./bench-api/bin/api lib/benchmarks/data/api-bench"
+
 
 echo "--- Run benchmark"
 

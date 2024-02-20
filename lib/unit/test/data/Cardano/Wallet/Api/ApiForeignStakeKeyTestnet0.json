@@ -1,0 +1,115 @@
+{
+    "samples": [
+        {
+            "key": "stake_test1uq9swrs8z5rs7pcyqcz3uzsnpcqs58cxrszsgzsszg23wysvqn4xt",
+            "reward_balance": {
+                "quantity": 15,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 20,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uqyqqzqcrugp7qchpgxszpqer50swrqtzvrpgpqnp5rpkpsqnj7kd",
+            "reward_balance": {
+                "quantity": 26,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 22,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uqysjpsdqq9s7xqwqq8qkyq0p59syqgrp5zqwxs9zqgs5ysfzn298",
+            "reward_balance": {
+                "quantity": 15,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 15,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uqpsk8s5pgysszcqqydq7xg9qqgsyqgqqq83cgq3zg9qkrcmztyhe",
+            "reward_balance": {
+                "quantity": 32,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 15,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uqpssysarsg3jrslpu0pyxc2rqxzqzspp5fs78shzczqkrqep9yhj",
+            "reward_balance": {
+                "quantity": 29,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 1,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uq23wzs3pyqpvrq8ry2puyqlqszpzgquzvdpv8c5quxqc8qtzjmdk",
+            "reward_balance": {
+                "quantity": 12,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 30,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uq9s68q8qgdszxgyr5ds2zqyqvfqz9c3zqf32qgmr5rqgrc53a00n",
+            "reward_balance": {
+                "quantity": 2,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 20,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uqd3kxqezuzquzggpsqs7xqazcy3vxq9zgqqkzc4pvdjq8gs3lamt",
+            "reward_balance": {
+                "quantity": 1,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 19,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uqtpjxsjpcdqyrcpq58pvyglzcsq7qqwzyrqw9chzvd3jpsgwfymd",
+            "reward_balance": {
+                "quantity": 31,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 18,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "key": "stake_test1uq83yxgury0pk9g0qcgpwxgdyqdq2ygcpuyzqqqqqgtsxqszlsd89",
+            "reward_balance": {
+                "quantity": 11,
+                "unit": "lovelace"
+            },
+            "stake": {
+                "quantity": 26,
+                "unit": "lovelace"
+            }
+        }
+    ],
+    "seed": 203345829
+}

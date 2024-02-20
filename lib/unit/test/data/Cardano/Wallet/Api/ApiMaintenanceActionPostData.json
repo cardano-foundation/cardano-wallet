@@ -1,0 +1,35 @@
+{
+    "samples": [
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        },
+        {
+            "maintenance_action": "gc_stake_pools"
+        }
+    ],
+    "seed": 1506001570
+}

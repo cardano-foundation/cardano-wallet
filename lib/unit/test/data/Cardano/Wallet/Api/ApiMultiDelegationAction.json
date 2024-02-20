@@ -1,0 +1,59 @@
+{
+    "samples": [
+        {
+            "quit": {
+                "stake_key_index": "1324"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "4683"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "5600"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1af80akr7rk4ly743u3mehvnpmkn9n62a2a7csa0vrwmvy973ug6",
+                "stake_key_index": "9484"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool1xh6m6uz0grxv8h6d84pw2w0ytdcepwaqnvw72sk3tfgk5ekj82p",
+                "stake_key_index": "8411"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "12252"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "10906"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool18rg80km6r429xc9sc0y4tk4fudk5nlwuegkadqkej87vj7f38mn",
+                "stake_key_index": "10547"
+            }
+        },
+        {
+            "join": {
+                "pool": "pool14rwq5j4qgjfd882q2wl2w0vugq7xu5uuy9w6t5wksw4zvfz74z3",
+                "stake_key_index": "16095"
+            }
+        },
+        {
+            "quit": {
+                "stake_key_index": "15017"
+            }
+        }
+    ],
+    "seed": 1128628755
+}

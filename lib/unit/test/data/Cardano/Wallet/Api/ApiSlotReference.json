@@ -1,0 +1,65 @@
+{
+    "samples": [
+        {
+            "absolute_slot_number": 13899997,
+            "epoch_number": 4872,
+            "slot_number": 4567,
+            "time": "1880-09-07T12:00:00Z"
+        },
+        {
+            "absolute_slot_number": 7311772,
+            "epoch_number": 4703,
+            "slot_number": 14499,
+            "time": "1903-06-03T10:00:00Z"
+        },
+        {
+            "absolute_slot_number": 15268617,
+            "epoch_number": 5206,
+            "slot_number": 11656,
+            "time": "1876-09-25T00:35:35Z"
+        },
+        {
+            "absolute_slot_number": 10842148,
+            "epoch_number": 14753,
+            "slot_number": 5432,
+            "time": "1883-10-19T09:06:20.341776186126Z"
+        },
+        {
+            "absolute_slot_number": 9617585,
+            "epoch_number": 8378,
+            "slot_number": 16362,
+            "time": "1888-07-20T22:00:00Z"
+        },
+        {
+            "absolute_slot_number": 3257295,
+            "epoch_number": 15267,
+            "slot_number": 9091,
+            "time": "1867-01-26T16:00:00Z"
+        },
+        {
+            "absolute_slot_number": 4791082,
+            "epoch_number": 3830,
+            "slot_number": 1268,
+            "time": "1903-12-29T06:25:49Z"
+        },
+        {
+            "absolute_slot_number": 4348592,
+            "epoch_number": 2469,
+            "slot_number": 12165,
+            "time": "1885-05-30T23:00:00Z"
+        },
+        {
+            "absolute_slot_number": 10977009,
+            "epoch_number": 4577,
+            "slot_number": 2597,
+            "time": "1891-01-11T18:00:00Z"
+        },
+        {
+            "absolute_slot_number": 9640536,
+            "epoch_number": 11759,
+            "slot_number": 14140,
+            "time": "1878-04-11T00:00:00Z"
+        }
+    ],
+    "seed": 689527684
+}

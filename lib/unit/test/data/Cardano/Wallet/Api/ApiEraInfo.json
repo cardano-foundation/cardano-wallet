@@ -1,0 +1,223 @@
+{
+    "samples": [
+        {
+            "allegra": {
+                "epoch_number": 5880,
+                "epoch_start_time": "1906-07-02T04:02:01Z"
+            },
+            "alonzo": null,
+            "babbage": {
+                "epoch_number": 10660,
+                "epoch_start_time": "1878-03-23T14:00:00Z"
+            },
+            "byron": {
+                "epoch_number": 9665,
+                "epoch_start_time": "1883-02-22T15:00:33Z"
+            },
+            "mary": {
+                "epoch_number": 164,
+                "epoch_start_time": "1889-05-20T20:00:00Z"
+            },
+            "shelley": {
+                "epoch_number": 4384,
+                "epoch_start_time": "1862-07-15T22:13:11Z"
+            }
+        },
+        {
+            "allegra": {
+                "epoch_number": 15812,
+                "epoch_start_time": "1890-08-01T21:21:37.101835546121Z"
+            },
+            "alonzo": {
+                "epoch_number": 9966,
+                "epoch_start_time": "1866-01-02T05:37:35Z"
+            },
+            "babbage": {
+                "epoch_number": 4219,
+                "epoch_start_time": "1900-08-15T05:00:00Z"
+            },
+            "byron": {
+                "epoch_number": 146,
+                "epoch_start_time": "1881-06-28T22:00:00Z"
+            },
+            "mary": null,
+            "shelley": null
+        },
+        {
+            "allegra": null,
+            "alonzo": {
+                "epoch_number": 15391,
+                "epoch_start_time": "1869-08-13T06:53:53.630911533568Z"
+            },
+            "babbage": {
+                "epoch_number": 2470,
+                "epoch_start_time": "1882-07-30T20:38:07.046716235633Z"
+            },
+            "byron": {
+                "epoch_number": 12429,
+                "epoch_start_time": "1883-03-01T07:43:27.108986128873Z"
+            },
+            "mary": {
+                "epoch_number": 8306,
+                "epoch_start_time": "1885-12-25T01:16:02.970163527808Z"
+            },
+            "shelley": {
+                "epoch_number": 2051,
+                "epoch_start_time": "1892-07-11T00:52:48Z"
+            }
+        },
+        {
+            "allegra": {
+                "epoch_number": 4504,
+                "epoch_start_time": "1895-03-17T08:39:27.683486895557Z"
+            },
+            "alonzo": {
+                "epoch_number": 4972,
+                "epoch_start_time": "1866-07-27T18:00:00Z"
+            },
+            "babbage": {
+                "epoch_number": 1673,
+                "epoch_start_time": "1904-09-28T04:36:25.2125124034Z"
+            },
+            "byron": {
+                "epoch_number": 4942,
+                "epoch_start_time": "1896-01-26T13:38:52Z"
+            },
+            "mary": {
+                "epoch_number": 4094,
+                "epoch_start_time": "1897-04-23T03:31:42Z"
+            },
+            "shelley": {
+                "epoch_number": 13352,
+                "epoch_start_time": "1879-04-10T10:53:01Z"
+            }
+        },
+        {
+            "allegra": {
+                "epoch_number": 14133,
+                "epoch_start_time": "1865-04-29T10:10:59Z"
+            },
+            "alonzo": {
+                "epoch_number": 10876,
+                "epoch_start_time": "1879-01-05T13:37:06.258045902151Z"
+            },
+            "babbage": {
+                "epoch_number": 4939,
+                "epoch_start_time": "1867-11-14T23:02:26Z"
+            },
+            "byron": {
+                "epoch_number": 10642,
+                "epoch_start_time": "1896-07-22T09:00:00Z"
+            },
+            "mary": {
+                "epoch_number": 1724,
+                "epoch_start_time": "1902-01-06T04:52:10Z"
+            },
+            "shelley": null
+        },
+        {
+            "allegra": {
+                "epoch_number": 14793,
+                "epoch_start_time": "1875-01-24T20:37:18.205157345671Z"
+            },
+            "alonzo": {
+                "epoch_number": 5081,
+                "epoch_start_time": "1877-06-16T16:32:36Z"
+            },
+            "babbage": {
+                "epoch_number": 7398,
+                "epoch_start_time": "1901-11-17T18:10:46.482359056364Z"
+            },
+            "byron": null,
+            "mary": {
+                "epoch_number": 12065,
+                "epoch_start_time": "1859-04-20T22:00:00Z"
+            },
+            "shelley": {
+                "epoch_number": 8794,
+                "epoch_start_time": "1889-10-12T20:00:00Z"
+            }
+        },
+        {
+            "allegra": null,
+            "alonzo": {
+                "epoch_number": 10832,
+                "epoch_start_time": "1860-07-29T05:00:00Z"
+            },
+            "babbage": {
+                "epoch_number": 15728,
+                "epoch_start_time": "1885-06-26T19:54:37Z"
+            },
+            "byron": {
+                "epoch_number": 4266,
+                "epoch_start_time": "1879-03-06T18:00:00Z"
+            },
+            "mary": {
+                "epoch_number": 8852,
+                "epoch_start_time": "1877-10-12T14:09:31Z"
+            },
+            "shelley": null
+        },
+        {
+            "allegra": null,
+            "alonzo": {
+                "epoch_number": 14608,
+                "epoch_start_time": "1894-09-25T23:40:55Z"
+            },
+            "babbage": {
+                "epoch_number": 4243,
+                "epoch_start_time": "1905-05-05T07:00:00Z"
+            },
+            "byron": {
+                "epoch_number": 13279,
+                "epoch_start_time": "1869-11-03T06:11:52Z"
+            },
+            "mary": {
+                "epoch_number": 12395,
+                "epoch_start_time": "1906-04-09T19:00:00Z"
+            },
+            "shelley": {
+                "epoch_number": 12503,
+                "epoch_start_time": "1875-10-24T00:25:44Z"
+            }
+        },
+        {
+            "allegra": {
+                "epoch_number": 5374,
+                "epoch_start_time": "1902-08-22T22:49:24.607575294598Z"
+            },
+            "alonzo": {
+                "epoch_number": 13353,
+                "epoch_start_time": "1868-02-12T15:00:00Z"
+            },
+            "babbage": {
+                "epoch_number": 6149,
+                "epoch_start_time": "1892-12-20T19:00:00Z"
+            },
+            "byron": {
+                "epoch_number": 7628,
+                "epoch_start_time": "1866-07-24T07:27:40Z"
+            },
+            "mary": null,
+            "shelley": null
+        },
+        {
+            "allegra": null,
+            "alonzo": {
+                "epoch_number": 13673,
+                "epoch_start_time": "1889-06-16T01:12:33.68140733223Z"
+            },
+            "babbage": {
+                "epoch_number": 906,
+                "epoch_start_time": "1868-07-01T15:00:00Z"
+            },
+            "byron": null,
+            "mary": {
+                "epoch_number": 13255,
+                "epoch_start_time": "1894-11-20T23:00:00Z"
+            },
+            "shelley": null
+        }
+    ],
+    "seed": 920675353
+}

@@ -1,0 +1,105 @@
+{
+    "samples": [
+        {
+            "node_era": "babbage",
+            "supported_recent_eras": [
+                "babbage"
+            ]
+        },
+        {
+            "node_era": "babbage",
+            "supported_recent_eras": []
+        },
+        {
+            "node_era": "byron",
+            "supported_recent_eras": [
+                "conway",
+                "allegra",
+                "alonzo",
+                "alonzo",
+                "babbage",
+                "conway",
+                "alonzo"
+            ]
+        },
+        {
+            "node_era": "allegra",
+            "supported_recent_eras": [
+                "alonzo",
+                "babbage"
+            ]
+        },
+        {
+            "node_era": "allegra",
+            "supported_recent_eras": [
+                "babbage",
+                "alonzo"
+            ]
+        },
+        {
+            "node_era": "shelley",
+            "supported_recent_eras": [
+                "conway",
+                "shelley",
+                "shelley",
+                "byron",
+                "alonzo"
+            ]
+        },
+        {
+            "node_era": "alonzo",
+            "supported_recent_eras": [
+                "alonzo",
+                "alonzo",
+                "shelley",
+                "byron",
+                "alonzo",
+                "byron",
+                "mary",
+                "babbage",
+                "conway"
+            ]
+        },
+        {
+            "node_era": "alonzo",
+            "supported_recent_eras": [
+                "allegra",
+                "byron",
+                "alonzo",
+                "alonzo",
+                "mary",
+                "mary",
+                "mary",
+                "shelley",
+                "allegra",
+                "babbage"
+            ]
+        },
+        {
+            "node_era": "alonzo",
+            "supported_recent_eras": [
+                "conway",
+                "byron",
+                "babbage",
+                "allegra"
+            ]
+        },
+        {
+            "node_era": "byron",
+            "supported_recent_eras": [
+                "allegra",
+                "babbage",
+                "byron",
+                "shelley",
+                "allegra",
+                "mary",
+                "allegra",
+                "babbage",
+                "byron",
+                "alonzo",
+                "allegra"
+            ]
+        }
+    ],
+    "seed": -445804426
+}

@@ -1,0 +1,61 @@
+{
+    "samples": [
+        {
+            "gc_stake_pools": {
+                "last_run": "1969-12-31T23:59:40.132119511464Z",
+                "status": "restarting"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1970-01-01T00:00:21.728201225563Z",
+                "status": "has_run"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1970-01-01T00:00:07.436541207939Z",
+                "status": "restarting"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "status": "not_started"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1970-01-01T00:00:20.866150873471Z",
+                "status": "restarting"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "status": "not_started"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1969-12-31T23:59:43.885249842191Z",
+                "status": "restarting"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "last_run": "1969-12-31T23:59:39.11860679892Z",
+                "status": "has_run"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "status": "not_applicable"
+            }
+        },
+        {
+            "gc_stake_pools": {
+                "status": "not_applicable"
+            }
+        }
+    ],
+    "seed": -295654182
+}

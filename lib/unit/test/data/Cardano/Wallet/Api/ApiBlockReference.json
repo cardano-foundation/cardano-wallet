@@ -1,0 +1,105 @@
+{
+    "samples": [
+        {
+            "absolute_slot_number": 11449774,
+            "epoch_number": 3441,
+            "height": {
+                "quantity": 1828,
+                "unit": "block"
+            },
+            "slot_number": 438,
+            "time": "1898-12-14T18:58:39Z"
+        },
+        {
+            "absolute_slot_number": 11437078,
+            "epoch_number": 555,
+            "height": {
+                "quantity": 4312,
+                "unit": "block"
+            },
+            "slot_number": 15239,
+            "time": "1887-08-12T17:44:38Z"
+        },
+        {
+            "absolute_slot_number": 2807101,
+            "epoch_number": 4321,
+            "height": {
+                "quantity": 7646,
+                "unit": "block"
+            },
+            "slot_number": 2211,
+            "time": "1889-01-24T06:25:55.709686339996Z"
+        },
+        {
+            "absolute_slot_number": 4981525,
+            "epoch_number": 13920,
+            "height": {
+                "quantity": 11306,
+                "unit": "block"
+            },
+            "slot_number": 5630,
+            "time": "1894-04-26T11:20:28.975762529643Z"
+        },
+        {
+            "absolute_slot_number": 16002045,
+            "epoch_number": 14311,
+            "height": {
+                "quantity": 15064,
+                "unit": "block"
+            },
+            "slot_number": 8600,
+            "time": "1894-11-17T12:26:29Z"
+        },
+        {
+            "absolute_slot_number": 14446101,
+            "epoch_number": 3398,
+            "height": {
+                "quantity": 3777,
+                "unit": "block"
+            },
+            "slot_number": 11857,
+            "time": "1859-01-01T14:24:40Z"
+        },
+        {
+            "absolute_slot_number": 6381308,
+            "epoch_number": 7098,
+            "height": {
+                "quantity": 15619,
+                "unit": "block"
+            },
+            "slot_number": 8910,
+            "time": "1892-04-09T05:49:58.290345482428Z"
+        },
+        {
+            "absolute_slot_number": 6190694,
+            "epoch_number": 9096,
+            "height": {
+                "quantity": 5695,
+                "unit": "block"
+            },
+            "slot_number": 2721,
+            "time": "1901-08-14T03:49:21.60908147543Z"
+        },
+        {
+            "absolute_slot_number": 5242561,
+            "epoch_number": 15554,
+            "height": {
+                "quantity": 5857,
+                "unit": "block"
+            },
+            "slot_number": 6409,
+            "time": "1875-02-22T12:03:44Z"
+        },
+        {
+            "absolute_slot_number": 9702763,
+            "epoch_number": 4917,
+            "height": {
+                "quantity": 851,
+                "unit": "block"
+            },
+            "slot_number": 10908,
+            "time": "1878-12-11T14:00:00Z"
+        }
+    ],
+    "seed": 1247157944
+}

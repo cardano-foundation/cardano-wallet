@@ -17,7 +17,7 @@ cabal.project.freeze linguist-generated=true
 # - they clog up the GitHub PR review page.
 # Also set the "binary" merge mode for Git,
 # because textual merging of auto-generated JSON rarely works well.
-lib/wallet/test/data/Cardano/Wallet/**/*.json linguist-generated=true merge=binary
+lib/unit/test/data/Cardano/Wallet/**/*.json linguist-generated=true merge=binary
 
 # Include documentation in code stats
 *.md linguist-detectable

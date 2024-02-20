@@ -1,0 +1,35 @@
+{
+    "samples": [
+        {
+            "cosigner#3": "acct_shared_xvk1n66s3wgspgmfr0z6s7626zxr2akwuq3nmsqfqqq5gxp49kg388rp26qt7w4gfsgwf06cjaqvghwvq7rm6welu7xwpna2nf288f7vl5sykhhkx"
+        },
+        {
+            "cosigner#5": "acct_shared_xvk1034zewgqp7g8c323uzw6eg2ms4844kus7rjum7xd59k6fefplw9wt4hfaa6ujyn204alx70m9vg5mrqa6vh0jpq70hedqs4s26ffa6qml6e2f"
+        },
+        {
+            "cosigner#8": "acct_shared_xvk1npp9mxmlamgfagf9zgzlqj3cktf274c7z202cgvqf6lw5vmexll8g6hg40zjhh26wlc2dsgkxeenmfrzdgskq5pf9tpygcspal6thrsz5xtjc"
+        },
+        {
+            "cosigner#9": "acct_shared_xvk1z8kc04yh544ksc9h2yhp7p6qwpf6syv5qnm8sgnhdne5z2esht5cwssxsec2wzw3nhxm2d9ph4s6ldmqdvxa0zuxzmukpajhyc7flug3te037"
+        },
+        {
+            "cosigner#7": "acct_shared_xvk1ldypt6xp3z6zg68z9ujl0ufp0euw9t6t8wnzdp0ywwe62q24yu32k699zgag6fxma7008nf0ksepmdq8luwyjj5sphu2hlcehx9hh8qs3mkmk"
+        },
+        {
+            "cosigner#10": "acct_shared_xvk16anqhuph3g892ttqln3pr6f6ca78q2ash4mwdkqn9k8k98wdrsg794tkf25klk6ug3aeuxyzj3jvsf5dfmklt75jqqd0zar6mmuf84shpjcem"
+        },
+        {
+            "cosigner#10": "acct_shared_xvk17820r3xuaamjfz7sgcvltt5se5cf95t2d7u5klspd4zchrxhr4l5uqa7rlgzun7agf4d085txsrh8a2l7473mrlsvguprrnhuqhz3uq50tv7k"
+        },
+        {
+            "cosigner#9": "acct_shared_xvk1860rfkvw2uuz0fq7wt9pcgkspl8ylj6zs0vkchznr4y58n8w956kpr6m8gqnmgqhv5dw4s355q0du02vqk2fr76nu0y4328zuuqzjug765p29"
+        },
+        {
+            "cosigner#9": "acct_shared_xvk1uk2dly3udex3jnrx557cx0f4g473ejrldd7mgr5aptv4nxgtnfkfj4g6wtf5d7rnq4xjt7mkzxah8ufa9psr37909dm7s5mqhqrmjqg096lkk"
+        },
+        {
+            "cosigner#4": "acct_shared_xvk1apedv7cfvtea0cq5htdn7reedc78eh2d3dujsv89axxa544thsd47g0u3fdx3mgcrqnv50xjz3g8pcwk2cx8alt96emredmxaa9mqeqdwgk2t"
+        }
+    ],
+    "seed": -2085371360
+}

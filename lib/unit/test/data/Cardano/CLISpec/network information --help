@@ -1,0 +1,8 @@
+Usage:  network information [--port INT]
+
+  View network information.
+
+Available options:
+  -h,--help                Show this help text
+  --port INT               port used for serving the wallet API.
+                           (default: 8090)

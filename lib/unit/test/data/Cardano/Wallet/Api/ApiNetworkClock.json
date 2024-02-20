@@ -1,0 +1,43 @@
+{
+    "samples": [
+        {
+            "status": "pending"
+        },
+        {
+            "status": "unavailable"
+        },
+        {
+            "status": "pending"
+        },
+        {
+            "status": "unavailable"
+        },
+        {
+            "status": "pending"
+        },
+        {
+            "offset": {
+                "quantity": -28,
+                "unit": "microsecond"
+            },
+            "status": "available"
+        },
+        {
+            "offset": {
+                "quantity": 27,
+                "unit": "microsecond"
+            },
+            "status": "available"
+        },
+        {
+            "status": "unavailable"
+        },
+        {
+            "status": "pending"
+        },
+        {
+            "status": "unavailable"
+        }
+    ],
+    "seed": -1851190509
+}

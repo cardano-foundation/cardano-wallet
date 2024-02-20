@@ -1,0 +1,42 @@
+{
+    "samples": [
+        {
+            "action": "join",
+            "pool": "pool1y0gzzwju5sahss0fx9zvlncungm2y4uxgv4fzf64f99c6mavexe"
+        },
+        {
+            "action": "join",
+            "pool": "pool1w49dyjrfyaulk9efe0ngpu95e24zqcqmd58th6afa2l25nal0gx"
+        },
+        {
+            "action": "join",
+            "pool": "pool1up8uztzlvteq6u8xa8f2pzswhwsven3av6w689wnt6tdjl99tyw"
+        },
+        {
+            "action": "join",
+            "pool": "pool1y5cqgmjhdmk9twv8q2lsuw7re8fjr0h29xn7lzac3awtzqvserj"
+        },
+        {
+            "action": "join",
+            "pool": "pool1657xuld2dklt8e0zjdlrt9jsyyavryq9jucay8d5tplg2yctmx3"
+        },
+        {
+            "action": "join",
+            "pool": "pool1mgtghtumhth6mjx85naquqxrp68ndw5nrg9tnmr8apwscg7ycgp"
+        },
+        {
+            "action": "join",
+            "pool": "pool13xrudplknh3mkm4q82xt2sa0rhpws2pxwqjd44jq7c34k8yp5mu"
+        },
+        {
+            "action": "quit"
+        },
+        {
+            "action": "quit"
+        },
+        {
+            "action": "quit"
+        }
+    ],
+    "seed": -537607975
+}

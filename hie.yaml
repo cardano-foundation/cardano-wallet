@@ -87,6 +87,18 @@ cradle:
     - path: "lib/faucet/exe/Faucet.hs"
       component: "faucet:exe:faucet"
 
+    - path: "lib/integration/framework"
+      component: "cardano-wallet-integration:lib:framework"
+
+    - path: "lib/integration/scenarios"
+      component: "cardano-wallet-integration:lib:scenarios"
+
+    - path: "lib/integration/./integration-tests-exe.hs"
+      component: "cardano-wallet-integration:exe:integration-exe"
+
+    - path: "lib/integration/./"
+      component: "cardano-wallet-integration:test:integration"
+
     - path: "lib/iohk-monitoring-extra/src"
       component: "lib:iohk-monitoring-extra"
 
@@ -126,6 +138,12 @@ cradle:
     - path: "lib/read/test"
       component: "cardano-wallet-read:test:test"
 
+    - path: "lib/secrets/src"
+      component: "lib:cardano-wallet-secrets"
+
+    - path: "lib/secrets/test"
+      component: "cardano-wallet-secrets:test:test"
+
     - path: "lib/std-gen-seed/src"
       component: "lib:std-gen-seed"
 
@@ -146,6 +164,15 @@ cradle:
 
     - path: "lib/text-class/test/unit"
       component: "text-class:test:unit"
+
+    - path: "lib/unit/test-common"
+      component: "cardano-wallet-unit:lib:test-common"
+
+    - path: "lib/unit/test/unit"
+      component: "cardano-wallet-unit:test:unit"
+
+    - path: "lib/unit/test/data"
+      component: "cardano-wallet-unit:test:unit"
 
     - path: "lib/wai-middleware-logging/src"
       component: "lib:wai-middleware-logging"
@@ -168,28 +195,10 @@ cradle:
     - path: "lib/wallet/./exe/mock-token-metadata-server.hs"
       component: "cardano-wallet:exe:mock-token-metadata-server"
 
-    - path: "lib/wallet/test-common"
-      component: "cardano-wallet:lib:test-common"
-
-    - path: "lib/wallet/test/unit"
-      component: "cardano-wallet:test:unit"
-
-    - path: "lib/wallet/test/data"
-      component: "cardano-wallet:test:unit"
-
-    - path: "lib/integration/framework"
-      component: "cardano-wallet-integration:lib:framework"
-
-    - path: "lib/integration/scenarios"
-      component: "cardano-wallet-integration:lib:scenarios"
-
-    - path: "lib/integration/exe/integration-tests-exe.hs"
-      component: "cardano-wallet-integration:exe:integration-exe"
-
     - path: "lib/wallet-benchmarks/bench/memory-benchmark.hs"
       component: "cardano-wallet-blackbox-benchmarks:bench:memory"
 
-    - path: "lib/wallet-benchmarks/bench/Paths_cardano_wallet_benchmarks.hs"
+    - path: "lib/wallet-benchmarks/bench/Paths_cardano_wallet_blackbox_benchmarks.hs"
       component: "cardano-wallet-blackbox-benchmarks:bench:memory"
 
     - path: "lib/wallet-e2e/src"

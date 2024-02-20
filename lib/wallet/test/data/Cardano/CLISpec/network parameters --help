@@ -1,8 +1,0 @@
-Usage:  network parameters [--port INT]
-
-  View network parameters for the current epoch.
-
-Available options:
-  -h,--help                Show this help text
-  --port INT               port used for serving the wallet API.
-                           (default: 8090)
