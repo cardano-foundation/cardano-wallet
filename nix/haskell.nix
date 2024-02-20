@@ -208,7 +208,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                   '';
                   };
 
-              packages.cardano-wallet.components.tests = {
+              packages.cardano-wallet-integration.components.tests = {
                 # Running Windows integration tests under Wine is disabled
                 # because ouroboros-network doesn't fully work under Wine.
                 integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
