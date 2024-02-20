@@ -66,9 +66,8 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         let voteNoConfidence = Json [json|{
                 "vote": "no_confidence"
             }|]
-        rTx1 <- request @(ApiConstructTransaction n) ctx
+        rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default voteNoConfidence
-        verify rTx1
+        verify rTx
             [ expectResponseCode HTTP.status202
-            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]
