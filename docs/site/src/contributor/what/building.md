@@ -41,12 +41,12 @@
    As an example, this will show the help page:
 
    ```console
-   > cabal run cardano-wallet:exe:cardano-wallet -- --help
+   > cabal run cardano-wallet-api:exe:cardano-wallet -- --help
    ```
 
 4. Make a build with `-O2` level compiler optimizations:
    ```console
-   > cabal build cardano-wallet:exe:cardano-wallet -frelease
+   > cabal build cardano-wallet-api:exe:cardano-wallet -frelease
    ```
 
 5. Build and run the test suites or benchmarks.
@@ -59,17 +59,17 @@
 
    To run one of the unit test suites:
    ```console
-   > cabal run cardano-wallet:test:unit
+   > cabal run cardano-wallet-unit:test:unit
    ```
 
    To run the DB benchmark:
    ```console
-   > cabal run cardano-wallet:bench:db
+   > cabal run cardano-wallet-benchmarks:bench:db
    ```
 
    To run the integration test suite:
    ```console
-   > cabal run cardano-wallet:test:integration
+   > cabal run cardano-wallet-integration:test:integration
    ```
 
 6. Install binaries from `./dist-newstyle/` into a system location:
