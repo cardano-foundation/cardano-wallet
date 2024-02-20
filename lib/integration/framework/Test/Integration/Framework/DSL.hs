@@ -232,6 +232,7 @@ module Test.Integration.Framework.DSL
     , ResourceT
     , listLimitedTransactions
     , noConway
+    , noBabbage
     ) where
 
 import Prelude
@@ -3579,3 +3580,8 @@ noConway :: MonadIO m => Context -> String -> m ()
 noConway ctx reason = liftIO $ do
     when (_mainEra ctx == ApiConway) $
         pendingWith $ "CONWAY is not supported: " <> reason
+
+noBabbage :: MonadIO m => Context -> String -> m ()
+noBabbage ctx reason = liftIO $ do
+    when (_mainEra ctx == ApiBabbage) $
+        pendingWith $ "BABBAGE is not supported: " <> reason
