@@ -1,0 +1,176 @@
+cabal-version:      3.6
+name:               cardano-wallet-api
+version:            2024.3.1
+synopsis:           Cardano wallet http api.
+description:        Please see README.md
+homepage:           https://github.com/cardano-foundation/cardano-wallet
+author:             Cardano Foundation (High Assurance Lab)
+maintainer:         hal@cardanofoundation.org
+copyright:          2018-2022 IOHK, 2024 Cardano Foundation
+license:            Apache-2.0
+category:           Web
+build-type:         Simple
+
+extra-source-files:
+  extra/Plutus/*.hs
+  specifications/api/swagger.yaml
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
+  visibility:      public
+  hs-source-dirs:  src
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , aeson-pretty
+    , ansi-terminal
+    , base
+    , bech32
+    , bech32-th
+    , binary
+    , bytestring
+    , cardano-addresses
+    , cardano-addresses-cli
+    , cardano-api:{cardano-api, internal}
+    , cardano-balance-tx:{cardano-balance-tx, internal}
+    , cardano-binary
+    , cardano-crypto
+    , cardano-ledger-alonzo
+    , cardano-ledger-core
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , cardano-wallet-read
+    , cardano-wallet-secrets
+    , containers
+    , contra-tracer
+    , crypto-primitives
+    , data-default
+    , deepseq
+    , directory
+    , either
+    , errors
+    , extra
+    , filepath
+    , fmt
+    , generic-lens
+    , hashable
+    , http-api-data
+    , http-client
+    , http-media
+    , http-types
+    , int-cast
+    , iohk-monitoring
+    , iohk-monitoring-extra                              ^>=0.1
+    , memory
+    , mtl
+    , network
+    , network-uri
+    , ntp-client
+    , OddWord
+    , optparse-applicative
+    , quiet
+    , random
+    , safe
+    , servant
+    , servant-client
+    , servant-client-core
+    , servant-server
+    , streaming-commons
+    , text
+    , text-class
+    , time
+    , tls
+    , transformers
+    , unliftio
+    , wai
+    , wai-middleware-logging
+    , warp
+    , warp-tls
+    , Win32-network
+    , x509
+    , x509-store
+    , x509-validation
+
+  exposed-modules:
+    Cardano.CLI
+    Cardano.Wallet.Api
+    Cardano.Wallet.Api.Aeson
+    Cardano.Wallet.Api.Aeson.Variant
+    Cardano.Wallet.Api.Client
+    Cardano.Wallet.Api.Clients.Testnet.Byron
+    Cardano.Wallet.Api.Clients.Testnet.Network
+    Cardano.Wallet.Api.Clients.Testnet.Shelley
+    Cardano.Wallet.Api.Hex
+    Cardano.Wallet.Api.Http.Logging
+    Cardano.Wallet.Api.Http.Server
+    Cardano.Wallet.Api.Http.Server.Error
+    Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
+    Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
+    Cardano.Wallet.Api.Http.Server.Tls
+    Cardano.Wallet.Api.Http.Shelley.Server
+    Cardano.Wallet.Api.Lib.ApiAsArray
+    Cardano.Wallet.Api.Lib.ApiT
+    Cardano.Wallet.Api.Lib.ExtendedObject
+    Cardano.Wallet.Api.Lib.Options
+    Cardano.Wallet.Api.Link
+    Cardano.Wallet.Api.Types
+    Cardano.Wallet.Api.Types.Amount
+    Cardano.Wallet.Api.Types.BlockHeader
+    Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.Error
+    Cardano.Wallet.Api.Types.Key
+    Cardano.Wallet.Api.Types.MintBurn
+    Cardano.Wallet.Api.Types.Primitive
+    Cardano.Wallet.Api.Types.SchemaMetadata
+    Cardano.Wallet.Api.Types.Transaction
+    Cardano.Wallet.Api.Types.WalletAsset
+    Cardano.Wallet.Api.Types.WalletAssets
+    Cardano.Wallet.Shelley
+    Cardano.Wallet.Tracers
+
+executable cardano-wallet
+  import:         language, opts-exe
+  hs-source-dirs: exe
+  main-is:        cardano-wallet.hs
+  build-depends:
+    , base
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-launcher
+    , cardano-wallet-network-layer
+    , contra-tracer
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , lobemo-backend-ekg
+    , network-uri
+    , optparse-applicative
+    , text
+    , text-class
+    , transformers
+    , unliftio
+    , with-utf8

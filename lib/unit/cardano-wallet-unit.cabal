@@ -37,7 +37,6 @@ flag release
   default:     False
   manual:      True
 
-
 library test-common
   import:          language, opts-lib
   hs-source-dirs:  test-common
@@ -84,6 +83,7 @@ test-suite unit
     , cardano-ledger-shelley
     , cardano-sl-x509
     , cardano-slotting
+    , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
@@ -92,7 +92,7 @@ test-suite unit
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cardano-wallet-unit:test-common
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, mock-token-metadata}
+    , cardano-wallet:{cardano-wallet, mock-token-metadata}
     , cborg
     , connection
     , containers
@@ -105,7 +105,7 @@ test-suite unit
     , delta-types
     , directory
     , either
-    , extra                                                                                       >=1.6.17
+    , extra                                                 >=1.6.17
     , file-embed
     , filepath
     , fmt
@@ -114,8 +114,8 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog-corpus
-    , hspec                                                                                       >=2.8.2
-    , hspec-core                                                                                  >=2.8.2
+    , hspec                                                 >=2.8.2
+    , hspec-core                                            >=2.8.2
     , http-api-data
     , http-client
     , http-client-tls
@@ -138,7 +138,7 @@ test-suite unit
     , network-uri
     , nothunks
     , OddWord
-    , openapi3                                                                                    ==3.2.3
+    , openapi3                                              ==3.2.3
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network
@@ -149,7 +149,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine                                                                    >=0.6.0
+    , quickcheck-state-machine                              >=0.6.0
     , random
     , regex-pcre-builtin
     , resourcet
