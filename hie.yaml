@@ -3,6 +3,12 @@ cradle:
     - path: "lib/address-derivation-discovery/lib"
       component: "lib:address-derivation-discovery"
 
+    - path: "lib/api/src"
+      component: "lib:cardano-wallet-api"
+
+    - path: "lib/api/exe/cardano-wallet.hs"
+      component: "cardano-wallet-api:exe:cardano-wallet"
+
     - path: "lib/application-extras/lib"
       component: "lib:cardano-wallet-application-extras"
 
@@ -183,17 +189,11 @@ cradle:
     - path: "lib/wallet/src"
       component: "lib:cardano-wallet"
 
-    - path: "lib/wallet/api/http"
-      component: "cardano-wallet:lib:cardano-wallet-api-http"
-
     - path: "lib/wallet/mock-token-metadata/src"
       component: "cardano-wallet:lib:mock-token-metadata"
 
-    - path: "lib/wallet/exe/cardano-wallet.hs"
-      component: "cardano-wallet:exe:cardano-wallet"
-
     - path: "lib/wallet/./exe/mock-token-metadata-server.hs"
-      component: "cardano-wallet:exe:mock-token-metadata-server"
+      component: "cardano-wallet-api:exe:mock-token-metadata-server"
 
     - path: "lib/wallet-benchmarks/bench/memory-benchmark.hs"
       component: "cardano-wallet-blackbox-benchmarks:bench:memory"
