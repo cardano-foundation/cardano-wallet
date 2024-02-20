@@ -1,37 +1,50 @@
 # Testing
 
+## Pre-requisites for a fast development cycle
+
+Enter a valid shell with:
+```
+nix develop
+```
+before running the tests. This will bring into scope all the necessary tools and dependencies.
+
+
 ## Unit Tests
 
 ```
-$ cabal test cardano-wallet:unit
+just unit-tests-cabal
 ```
 
-Alternatively, one can run tests of a particular module by running:
+### matching the test title
 
 ```
-$ cabal test cardano-wallet:unit --test-options "--match MyModule"
+just unit-test-cabal-match "something matching the title"
 ```
 
 ## Integration Tests
 
-#### Pre-requisites
 
-Install [`cardano-node`](https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html) and [`cardano-cli`](https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html); make sure to use one of the [compatible versions](https://github.com/cardano-foundation/cardano-wallet/blob/master/README.md#latest-releases).
-
-Alternatively, use `cabal test all -j8`.
-
-#### Test
-
+## babbage era
 ```
-$ cabal test cardano-wallet:integration
+just babbage-integration-tests-cabal
 ```
 
-Many tests require a cardano network with stake pools. To support
-this, the integration tests run a local `cardano-node` cluster with
-one Ouroboros BFT node and three Ouroboros Praos nodes for the three
-stake pools.
+### matching the test title
+```
+just babbage-integration-tests-cabal-match "something matching the title"
+```
 
-#### Environment Variables
+## conway era
+```
+just conway-integration-tests-cabal
+```
+
+### matching the test title
+```
+just conway-integration-tests-cabal-match "something matching the title"
+```
+
+## Environment Variables
 
 Several environment variables control debugging features of the
 integration tests and test cluster.
