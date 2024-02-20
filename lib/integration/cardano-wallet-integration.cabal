@@ -164,6 +164,7 @@ library scenarios
     Test.Integration.Scenario.API.Byron.Network
     Test.Integration.Scenario.API.Byron.Transactions
     Test.Integration.Scenario.API.Byron.Wallets
+    Test.Integration.Scenario.API.Conway
     Test.Integration.Scenario.API.Network
     Test.Integration.Scenario.API.Shared.Addresses
     Test.Integration.Scenario.API.Shared.Transactions

@@ -955,6 +955,8 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
+import qualified Debug.Trace as TR
+
 -- | Allow configuring which port the wallet server listen to in an integration
 -- setup. Crashes if the variable is not a number.
 walletListenFromEnv :: Show e
@@ -2753,6 +2755,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 , encryptMetadata = Nothing
                 , mintBurn = Nothing
                 , delegations = Nothing
+                , vote = Nothing
                 } -> liftHandler $ throwE ErrConstructTxWrongPayload
             _ -> pure ()
 
@@ -2950,7 +2953,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 foldMap timelockKeyWitCountsForMintBurn
                 $ maybe [] NE.toList mintBurnDatum
 
-        balancedTx <-
+        balancedTx <- TR.trace ("before balancedTx") $
             balanceTransaction
                 api
                 argGenChange
@@ -2965,7 +2968,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     , encoding = body ^. #encoding
                     }
 
-        apiDecoded <- decodeTransaction @_ @n api apiWalletId
+        apiDecoded <- TR.trace ("after balancedTx: "<> show balancedTx) $ decodeTransaction @_ @n api apiWalletId
                       (toApiDecodeTransactionPostData balancedTx)
 
         (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
@@ -2978,7 +2981,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 Just Quit -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
-        pure ApiConstructTransaction
+        TR.trace ("apiDecoded:"<> show apiDecoded) $ pure ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection
                 deposits
