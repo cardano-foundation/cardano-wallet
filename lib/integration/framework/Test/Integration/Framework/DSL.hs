@@ -195,6 +195,7 @@ module Test.Integration.Framework.DSL
     -- * Delegation helpers
     , notDelegating
     , delegating
+    , onlyVoting
     , getSlotParams
     , arbitraryStake
 
@@ -393,6 +394,9 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -3514,6 +3518,17 @@ delegating
     -> ApiWalletDelegation
 delegating pidActive nexts = (notDelegating nexts)
     { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing Nothing
+    }
+
+-- this one will be revisited when I add voting and delegation together. Now only voting
+onlyVoting
+    :: ApiT DRep
+    -- ^ Pool joined
+    -> [(Maybe (ApiT PoolId), EpochInfo)]
+    -- ^ Pools to be joined & epoch at which the new delegation will become active
+    -> ApiWalletDelegation
+onlyVoting drep nexts = (notDelegating nexts)
+    { active = ApiWalletDelegationNext Voting Nothing (Just drep) Nothing
     }
 
 getRetirementEpoch :: StakePool -> Maybe EpochNo

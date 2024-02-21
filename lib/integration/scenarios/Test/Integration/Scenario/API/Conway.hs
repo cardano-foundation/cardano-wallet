@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
+    , ApiWallet (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
@@ -66,6 +67,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , notDelegating
     , eventually
     , expectField
     , expectResponseCode
@@ -75,11 +77,14 @@ import Test.Integration.Framework.DSL
     , getResponse
     , json
     , minUTxOValue
+    , notDelegating
     , noBabbage
     , request
     , signTx
     , submitTxWithWid
     , verify
+    , onlyVoting
+    , waitNumberOfEpochBoundaries
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -92,6 +97,15 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         noBabbage ctx "voting supported in Conway onwards"
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
+
+        let getSrcWallet =
+                let endpoint = Link.getWallet @'Shelley src
+                 in request @ApiWallet ctx endpoint Default Empty
+        eventually "Wallet is neither voting nor delegating" $ do
+            getSrcWallet >>= flip verify
+                [ expectField #delegation (`shouldBe` notDelegating [])
+                ]
+
         let depositAmt = ApiAmount 1_000_000
         let voteNoConfidence = Json [json|{
                 "vote": "no_confidence"
@@ -117,8 +131,9 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 ]
         let registerStakeKeyCert =
                 WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
+        let voting1 = ApiT NoConfidence
         let votingCert =
-                WalletDelegationCertificate $ CastVote stakeKeyDerPath (ApiT NoConfidence)
+                WalletDelegationCertificate $ CastVote stakeKeyDerPath voting1
 
         let decodePayload = Json (toJSON signedTx)
         rDecodedTx <- request @(ApiDecodedTransaction n) ctx
@@ -159,4 +174,11 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField #metadata (`shouldBe` Nothing)
+                ]
+
+        waitNumberOfEpochBoundaries 2 ctx
+
+        eventually "Wallet is voting" $ do
+            getSrcWallet >>= flip verify
+                [ expectField #delegation (`shouldBe` onlyVoting voting1 [])
                 ]
