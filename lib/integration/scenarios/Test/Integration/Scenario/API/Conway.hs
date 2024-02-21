@@ -119,7 +119,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             ]
 
         let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
-        signedTx <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
+        signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
 
         -- as we are joining for the first time we expect two certificates
         let stakeKeyDerPath = NE.fromList
@@ -132,22 +132,22 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         let registerStakeKeyCert =
                 WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
         let voting1 = ApiT NoConfidence
-        let votingCert =
+        let votingCert1 =
                 WalletDelegationCertificate $ CastVote stakeKeyDerPath voting1
 
-        let decodePayload = Json (toJSON signedTx)
-        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
-            (Link.decodeTransaction @'Shelley src) Default decodePayload
-        verify rDecodedTx
+        let decodePayload1 = Json (toJSON signedTx1)
+        rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload1
+        verify rDecodedTx1
             [ expectResponseCode HTTP.status202
-            , expectField #certificates (`shouldBe` [registerStakeKeyCert, votingCert])
+            , expectField #certificates (`shouldBe` [registerStakeKeyCert, votingCert1])
             , expectField #depositsTaken (`shouldBe` [depositAmt])
             , expectField #depositsReturned (`shouldBe` [])
             ]
 
         -- Submit tx
-        submittedTx <- submitTxWithWid ctx src signedTx
-        verify submittedTx
+        submittedTx1 <- submitTxWithWid ctx src signedTx1
+        verify submittedTx1
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
@@ -155,7 +155,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         eventually "Wallet has voted and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
                 (Link.getTransaction @'Shelley src
-                    (getResponse submittedTx))
+                    (getResponse submittedTx1))
                 Default Empty
             verify rJoin'
                 [ expectResponseCode HTTP.status200
@@ -165,10 +165,10 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 , expectField #depositReturned (`shouldBe` ApiAmount 0)
                 ]
 
-        let txId = getFromResponse #id submittedTx
-        let link = Link.getTransaction @'Shelley src (ApiTxId txId)
+        let txId1 = getFromResponse #id submittedTx1
+        let link1 = Link.getTransaction @'Shelley src (ApiTxId txId1)
         eventually "Voting transaction is in ledger" $ do
-            request @(ApiTransaction n) ctx link Default Empty
+            request @(ApiTransaction n) ctx link1 Default Empty
                 >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -182,3 +182,31 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             getSrcWallet >>= flip verify
                 [ expectField #delegation (`shouldBe` onlyVoting voting1 [])
                 ]
+
+        let voteAbstain = Json [json|{
+                "vote": "abstain"
+            }|]
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default voteAbstain
+        verify rTx2
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            ]
+
+        let ApiSerialisedTransaction apiTx2 _ = getFromResponse #transaction rTx2
+        signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
+
+        let voting2 = ApiT Abstain
+        let votingCert2 =
+                WalletDelegationCertificate $ CastVote stakeKeyDerPath voting2
+
+        let decodePayload2 = Json (toJSON signedTx2)
+        rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload2
+        verify rDecodedTx2
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [votingCert2])
+            , expectField #depositsTaken (`shouldBe` [])
+            , expectField #depositsReturned (`shouldBe` [])
+            ]
