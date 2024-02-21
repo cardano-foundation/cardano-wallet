@@ -314,6 +314,7 @@ import Test.Integration.Framework.DSL
     , waitForTxImmutability
     , waitNumberOfEpochBoundaries
     , walletId
+    , (.<)
     , (.>)
     )
 import Test.Integration.Framework.TestData
@@ -3167,8 +3168,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         eventually "Rewards have been consumed" $ do
             getSrcWallet >>= flip verify
-                [ expectField (#balance . #reward) (`shouldBe` ApiAmount 0)
-                  -- this assumes that we have received no new rewards
+                [ expectField (#balance . #reward . #toNatural)
+                    (.< withdrawalAmount)
+                    -- should be 0, but in case new rewards acrue, let's just
+                    -- require the reward balance to have decreased.
                 , expectField (#balance . #available)
                     (.>  (walletBeforeWithdrawal ^. #balance . #available))
                 ] & counterexample ("Wdrl: " <> show withdrawalAmount)
