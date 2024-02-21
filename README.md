@@ -58,19 +58,21 @@ start with Daedalus.
 
 The `cardano-wallet` executable is an HTTP server that manages your wallet(s). Here is one way to start both node and wallet using Docker:
 
+THE FOLLOWING EXPOSES THE WALLET PORT. DO NOT USE IT WITH mainnet !
+
 Prerequisties:
     - 100GB of disk space
-    - 10GB of RAM
+    - 13GB of RAM
 
 ```bash
-# set the network, mainnet or preprod
+# set the network, mainnet or preprod or sanchonet
 export NETWORK=preprod
 
 # set a directory for the node-db
 export NODE_DB=`pwd`/node-db
 
 # clean up the node-db directory
-rm -rf $NODE_DB/db
+rm -rf $NODE_DB/*
 
 if [ $NETWORK == "mainnet" ]
 then
@@ -79,25 +81,22 @@ then
 elif [ $NETWORK == "preprod" ]
 then
     curl -o - https://downloads.csnapshots.io/snapshots/testnet/$(curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
+elif [ $NETWORK == "sanchonet" ]
 else
-    echo "NETWORK must be mainnet or preprod"
+    echo "NETWORK must be mainnet or preprod or sanchonet"
     exit 1
 fi
 
 # set the node tag and wallet tag to compatible versions
 export NODE_TAG=8.7.3
-export WALLET_TAG=2023.12.18
-export WALLET_VERSION=v2023-12-18
+export WALLET_TAG=rc-latest # 2023.12.18
+export WALLET_VERSION=rc-latest # v2023-12-18
 
 # set a directory for the wallet-db
 export WALLET_DB=`pwd`/wallet-db
 
 # set a port for the wallet server
 export WALLET_PORT=8090
-
-# get the docker-compose.yml file
-rm -rf docker-compose.yml
-wget https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/$WALLET_VERSION/docker-compose.yml
 
 # start the services
 docker-compose up
@@ -116,6 +115,12 @@ or to be accessed via CLI, e.g.:
 
 ```
 docker run --network host --rm cardanofoundation/cardano-wallet network information
+```
+
+Icarus UI will be available at
+
+```
+http://localhost:4444
 ```
 
 See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide/Docker) for more information about using docker.
