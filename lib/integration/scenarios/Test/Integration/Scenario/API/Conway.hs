@@ -23,6 +23,9 @@ import Cardano.Wallet.Api.Types
     ( ApiConstructTransaction (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Amount
+    ( ApiAmount (ApiAmount)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -62,7 +65,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         noBabbage ctx "voting supported in Conway onwards"
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
-
+        let depositAmt = ApiAmount 1_000_000
         let voteNoConfidence = Json [json|{
                 "vote": "no_confidence"
             }|]
@@ -70,4 +73,6 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley src) Default voteNoConfidence
         verify rTx
             [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             ]

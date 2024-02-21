@@ -662,6 +662,7 @@ import Cardano.Wallet.Transaction
     , SelectionOf (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
@@ -955,7 +956,6 @@ import qualified Network.Ntp as Ntp
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-import qualified Debug.Trace as TR
 
 -- | Allow configuring which port the wallet server listen to in an integration
 -- setup. Crashes if the variable is not a number.
@@ -2953,7 +2953,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 foldMap timelockKeyWitCountsForMintBurn
                 $ maybe [] NE.toList mintBurnDatum
 
-        balancedTx <- TR.trace ("before balancedTx") $
+        balancedTx <-
             balanceTransaction
                 api
                 argGenChange
@@ -2968,20 +2968,21 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     , encoding = body ^. #encoding
                     }
 
-        apiDecoded <- TR.trace ("after balancedTx: "<> show balancedTx) $ decodeTransaction @_ @n api apiWalletId
+        apiDecoded <- decodeTransaction @_ @n api apiWalletId
                       (toApiDecodeTransactionPostData balancedTx)
 
         (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
-        let deposits = case txDelegationAction transactionCtx3 of
-                Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
+        let deposits = case (txDelegationAction transactionCtx3, txVotingAction transactionCtx3) of
+                (Just (JoinRegisteringKey _poolId), _) -> [W.getStakeKeyDeposit pp]
+                (_, Just (VoteRegisteringKey _vote)) -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
         let refunds = case txDelegationAction transactionCtx3 of
                 Just Quit -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
-        TR.trace ("apiDecoded:"<> show apiDecoded) $ pure ApiConstructTransaction
+        pure ApiConstructTransaction
             { transaction = balancedTx
             , coinSelection = mkApiCoinSelection
                 deposits
