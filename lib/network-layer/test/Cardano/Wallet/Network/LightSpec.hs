@@ -22,7 +22,7 @@ import Cardano.Wallet.Network.Light
     , hoistLightSyncSource
     , lightSync
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
     , ChainPoint (..)
     , chainPointFromBlockHeader

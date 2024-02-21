@@ -4,6 +4,8 @@ module Cardano.Wallet.Network.Implementation.UnliftIO
     )
 where
 
+import Prelude
+
 import qualified Control.Monad.Catch as Exceptions
 import qualified UnliftIO
 
