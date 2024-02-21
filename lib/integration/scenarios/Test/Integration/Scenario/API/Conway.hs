@@ -19,8 +19,16 @@ module Test.Integration.Scenario.API.Conway (spec) where
 
 import Prelude
 
+import Cardano.Wallet.Address.Derivation
+    ( DerivationIndex (..)
+    )
 import Cardano.Wallet.Api.Types
-    ( ApiConstructTransaction (..)
+    ( ApiAnyCertificate (..)
+    , ApiCertificate (..)
+    , ApiConstructTransaction (..)
+    , ApiDecodedTransaction
+    , ApiSerialisedTransaction (..)
+    , ApiT (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
@@ -29,8 +37,14 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Control.Monad.Trans.Resource
     ( runResourceT
+    )
+import Data.Aeson
+    ( toJSON
     )
 import Test.Hspec
     ( SpecWith
@@ -49,15 +63,18 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , fixtureWalletWith
+    , getFromResponse
     , json
     , minUTxOValue
     , noBabbage
     , request
+    , signTx
     , verify
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Data.List.NonEmpty as NE
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "VOTING_TRANSACTIONS" $ do
@@ -69,10 +86,36 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         let voteNoConfidence = Json [json|{
                 "vote": "no_confidence"
             }|]
-        rTx <- request @(ApiConstructTransaction n) ctx
+        rTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default voteNoConfidence
-        verify rTx
+        verify rTx1
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            ]
+
+        let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
+        signedTx <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
+
+        -- as we are joining for the first time we expect two certificates
+        let stakeKeyDerPath = NE.fromList
+                [ ApiT (DerivationIndex 2_147_485_500)
+                , ApiT (DerivationIndex 2_147_485_463)
+                , ApiT (DerivationIndex 2_147_483_648)
+                , ApiT (DerivationIndex 2)
+                , ApiT (DerivationIndex 0)
+                ]
+        let registerStakeKeyCert =
+                WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
+        let votingCert =
+                WalletDelegationCertificate $ CastVote stakeKeyDerPath (ApiT NoConfidence)
+
+        let decodePayload = Json (toJSON signedTx)
+        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley src) Default decodePayload
+        verify rDecodedTx
+            [ expectResponseCode HTTP.status202
+            , expectField #certificates (`shouldBe` [registerStakeKeyCert, votingCert])
+            , expectField #depositsTaken (`shouldBe` [depositAmt])
+            , expectField #depositsReturned (`shouldBe` [])
             ]
