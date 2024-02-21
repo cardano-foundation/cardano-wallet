@@ -53,6 +53,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ApiWalletMigrationPlanPostData (..)
+    , ApiWalletMigrationPostData (..)
     , PostTransactionFeeOldData (..)
     , PostTransactionOldData (..)
     , WalletOrAccountPostData (..)
@@ -157,11 +158,15 @@ import Data.Functor.Contravariant
     )
 import Data.Generics.Internal.VL.Lens
     ( over
+    , set
     , view
     , (^.)
     )
 import Data.Generics.Labels
     ()
+import Data.Generics.Wrapped
+    ( _Unwrapped
+    )
 import Data.Text.Class.Extended
 import Data.Time
     ( NominalDiffTime
@@ -438,6 +443,9 @@ listAllTransactions walId =
         Nothing
         False
 
+pend :: Applicative m => m () -> m ()
+pend = const $ pure ()
+
 runScenario :: BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet) -> BenchM ()
 runScenario scenario = lift . runResourceT $ do
     (wal1, wal2, walMA, maWalletToMigrate) <- scenario
@@ -501,16 +509,28 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "postTransactionTo5Addrs"
         $ C.postTransaction wal1Id payloadTxTo5Addr
 
-    -- let assetsToSend = walMA ^. #assets . #total
-    -- let val = minUTxOValue era <$ pickAnAsset assetsToSend
-    -- payloadMA <- mkTxPayloadMA @A destination (2 * minUTxOValue era) [val] fixturePassphrase
-    -- t7b <-
-    --     measureApiLogs
-    --         $ request @(ApiTransaction A)
-    --             (Link.createTransactionOld @'Shelley walMA)
-    --             Default
-    --             payloadMA
-    -- fmtResult "postTransactionMA  " t7b
+    let
+        assetToSend = over _Unwrapped pick $ walMA ^. #assets . #total
+        pick (x : _xs) = pure $ set #quantity (minUTxOValue era) x
+        pick [] = error "No assets to pick from"
+        paymentsMA =
+            AddressAmount
+                { address = destination
+                , amount = ApiAmount amt
+                , assets = assetToSend
+                }
+        payloadMA =
+            PostTransactionOldData
+                { payments = pure paymentsMA
+                , passphrase = ApiT $ unsafeFromText fixturePassphrase
+                , withdrawal = Nothing
+                , metadata = Nothing
+                , timeToLive = Nothing
+                }
+    -- Todo ADP-3293
+    pend
+        $ sceneOfClientM "postTransactionMA"
+        $ C.postTransaction walMAId payloadMA
 
     sceneOfClientM "listStakePools" $ C.listPools $ ApiT <$> arbitraryStake
 
@@ -526,24 +546,21 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "getAsset" $ C.getAsset walMAId (ApiT polId) (ApiT assName)
 
     let addresses = replicate 5 destination
-        migrationPayload = ApiWalletMigrationPlanPostData $ NE.fromList addresses
+        migrationPlanPayload =
+            ApiWalletMigrationPlanPostData $ NE.fromList addresses
 
     sceneOfClientM "postMigrationPlan"
-        $ C.planMigration maWalletToMigrateId migrationPayload
+        $ C.planMigration maWalletToMigrateId migrationPlanPayload
 
--- -- Perform a migration:
--- let endpointMigrate = Link.migrateWallet @'Shelley maWalletToMigrate
--- t12b <-
---     measureApiLogs
---         $ request @[ApiTransaction A]
---             endpointMigrate
---             Default
---         $ Json
---             [json|
---         { passphrase: #{fixturePassphrase}
---         , addresses: #{addresses}
---         }|]
--- fmtResult "postMigration      " t12b
+    let migrationPayload =
+            ApiWalletMigrationPostData
+                { addresses = NE.fromList addresses
+                , passphrase = ApiT $ unsafeFromText fixturePassphrase
+                }
+    -- Todo ADP-3293
+    pend
+        $ sceneOfClientM "postMigration"
+        $ C.migrate maWalletToMigrateId migrationPayload
 
 fmtResult :: String -> [NominalDiffTime] -> BenchM ()
 fmtResult title ts = liftIO $ Measure.fmtResult title ts
