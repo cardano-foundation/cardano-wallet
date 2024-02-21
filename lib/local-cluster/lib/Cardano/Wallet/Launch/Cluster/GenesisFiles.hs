@@ -176,7 +176,7 @@ generateGenesis initialFunds genesisMods = do
                     & ppNOptL
                         .~ 3
                     & ppRhoL
-                        .~ unsafeUnitInterval 0.178_650_067
+                        .~ unsafeUnitInterval 0.02
                     & ppTauL
                         .~ unsafeUnitInterval 0.1
                     & ppA0L

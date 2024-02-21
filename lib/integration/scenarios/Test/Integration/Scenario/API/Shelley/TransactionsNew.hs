@@ -273,6 +273,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , arbitraryStake
+    , counterexample
     , decodeErrorInfo
     , delegating
     , emptyIcarusWallet
@@ -3170,7 +3171,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                   -- this assumes that we have received no new rewards
                 , expectField (#balance . #available)
                     (.>  (walletBeforeWithdrawal ^. #balance . #available))
-                ]
+                ] & counterexample ("Wdrl: " <> show withdrawalAmount)
 
         -- now we can quit
         let delegationQuit = Json [json|{
