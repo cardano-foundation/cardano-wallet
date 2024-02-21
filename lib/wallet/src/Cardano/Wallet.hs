@@ -364,7 +364,7 @@ import Cardano.Wallet.Address.Keys.WalletKey
     , liftRawKey
     )
 import Cardano.Wallet.Address.MaybeLight
-    ( MaybeLight (maybeDiscover)
+    ( MaybeLight
     )
 import Cardano.Wallet.Address.States.IsOwned
     ( isOwned
@@ -1241,15 +1241,7 @@ restoreWallet ctx = db & \DBLayer{..} ->
         rollBackward = rollbackBlocks ctx . toSlot
         rollForward' = restoreBlocks ctx (contramap MsgWalletFollow tr)
     in
-      catchFromIO $ case (maybeDiscover, lightSync nw) of
-        (Just discover, Just sync) ->
-            sync $ ChainFollower
-                { checkpointPolicy
-                , readChainPoints
-                , rollForward = rollForward' . either List (Summary discover)
-                , rollBackward
-                }
-        (_,_) -> -- light-mode not available
+      catchFromIO $
             chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
                 { checkpointPolicy
                 , readChainPoints
