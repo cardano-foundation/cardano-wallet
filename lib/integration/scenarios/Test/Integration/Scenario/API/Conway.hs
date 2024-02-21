@@ -178,7 +178,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
 
         waitNumberOfEpochBoundaries 2 ctx
 
-        eventually "Wallet is voting" $ do
+        eventually "Wallet is voting no confidence" $ do
             getSrcWallet >>= flip verify
                 [ expectField #delegation (`shouldBe` onlyVoting voting1 [])
                 ]
@@ -240,4 +240,11 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField #metadata (`shouldBe` Nothing)
+                ]
+
+        waitNumberOfEpochBoundaries 2 ctx
+
+        eventually "Wallet is voting abstain" $ do
+            getSrcWallet >>= flip verify
+                [ expectField #delegation (`shouldBe` onlyVoting voting2 [])
                 ]
