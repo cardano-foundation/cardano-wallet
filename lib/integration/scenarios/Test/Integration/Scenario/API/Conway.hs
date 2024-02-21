@@ -67,7 +67,6 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
-    , notDelegating
     , eventually
     , expectField
     , expectResponseCode
@@ -77,19 +76,19 @@ import Test.Integration.Framework.DSL
     , getResponse
     , json
     , minUTxOValue
-    , notDelegating
     , noBabbage
+    , notDelegating
+    , onlyVoting
     , request
     , signTx
     , submitTxWithWid
     , verify
-    , onlyVoting
     , waitNumberOfEpochBoundaries
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Network.HTTP.Types.Status as HTTP
 import qualified Data.List.NonEmpty as NE
+import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "VOTING_TRANSACTIONS" $ do
