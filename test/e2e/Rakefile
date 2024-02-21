@@ -302,7 +302,7 @@ task :get_latest_bins, [:branch, :state] do |_task, args|
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   elsif mac?
-    job_key = 'macos-package'
+    job_key = 'macos-intel-package'
     log "Getting '#{job_key}' artifact 👇"
     bk.get_artifacts(last_build, jobs[job_key], BINS)
   end
