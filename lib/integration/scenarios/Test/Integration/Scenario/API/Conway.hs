@@ -210,3 +210,34 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             , expectField #depositsTaken (`shouldBe` [])
             , expectField #depositsReturned (`shouldBe` [])
             ]
+
+        -- Submit tx
+        submittedTx2 <- submitTxWithWid ctx src signedTx2
+        verify submittedTx2
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet has voted again" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getResponse submittedTx2))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` ApiAmount 0)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
+                ]
+
+        let txId2 = getFromResponse #id submittedTx2
+        let link2 = Link.getTransaction @'Shelley src (ApiTxId txId2)
+        eventually "Re-voting transaction is in ledger" $ do
+            request @(ApiTransaction n) ctx link2 Default Empty
+                >>= flip verify
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #metadata (`shouldBe` Nothing)
+                ]
