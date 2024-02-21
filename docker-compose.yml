@@ -9,6 +9,7 @@ services:
     volumes:
       - ${NODE_DB}:/data
       - node-ipc:/ipc
+      - ./configs/cardano:/configs
     restart: on-failure
     logging:
       driver: "json-file"
@@ -16,6 +17,12 @@ services:
         compress: "true"
         max-file: "10"
         max-size: "50m"
+    entrypoint: []
+    command: >
+      cardano-node run --topology /configs/${NETWORK}/topology.json
+        --database-path /data
+        --socket-path /ipc/node.socket
+        --config /configs/${NETWORK}/config.json
 
   cardano-wallet:
     image: cardanofoundation/cardano-wallet:${WALLET_TAG}
@@ -27,7 +34,7 @@ services:
     entrypoint: []
     command: bash -c "
         ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ($$CMD --testnet /config/${NETWORK}/genesis-byron.json)
+        ($$CMD --testnet /configs/${NETWORK}/byron-genesis.json)
       "
     environment:
       CMD: "cardano-wallet serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
