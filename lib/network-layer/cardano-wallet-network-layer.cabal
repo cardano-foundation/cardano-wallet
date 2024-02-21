@@ -48,6 +48,7 @@ library
     Cardano.Wallet.Network.Implementation.UnliftIO
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.LocalStateQuery.Extra
+    Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation
 

@@ -88,7 +88,6 @@ import Cardano.Wallet.Network.Implementation.UnliftIO
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( byronOrShelleyBased
     , onAnyEra
-    , shelleyBased
     )
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
@@ -103,20 +102,16 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     , fromBabbagePParams
     , fromConwayPParams
     , fromMaryPParams
-    , fromNonMyopicMemberRewards
     , fromPoint
-    , fromPoolDistr
     , fromShelleyPParams
     , fromStakeCredential
     , fromTip
     , fromTip'
     , nodeToClientVersions
-    , optimumNumberOfPools
     , slottingParametersFromGenesis
     , toCardanoEra
     , toLedgerStakeCredential
     , toPoint
-    , toShelleyCoin
     , unsealShelleyTx
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -141,9 +136,6 @@ import Cardano.Wallet.Primitive.Types.GenesisParameters
 import Cardano.Wallet.Primitive.Types.NetworkParameters
     ( NetworkParameters (..)
     )
-import Cardano.Wallet.Primitive.Types.Pool
-    ( PoolId
-    )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters
     )
@@ -155,9 +147,6 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
-    )
-import Control.Applicative
-    ( liftA3
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
@@ -254,9 +243,6 @@ import Data.Map
     )
 import Data.Maybe
     ( fromMaybe
-    )
-import Data.Percentage
-    ( Percentage
     )
 import Data.Proxy
     ( Proxy (..)
@@ -412,6 +398,7 @@ import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.LedgerState as SL
 import qualified Cardano.Wallet.Network.LocalStateQuery.Extra as LSQ
+import qualified Cardano.Wallet.Network.LocalStateQuery.StakeDistribution as LSQ
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -636,15 +623,8 @@ withNodeNetworkLayerBase
         _stakeDistribution queue coin = do
             liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
 
-            let qry :: LSQ (CardanoBlock StandardCrypto) IO (Maybe StakePoolsSummary)
-                qry =
-                    liftA3
-                        (liftA3 StakePoolsSummary)
-                        getNOpt
-                        queryNonMyopicMemberRewards
-                        stakeDistr
-
-            mres <- bracketQuery "stakePoolsSummary" tr $ queue `send` (SomeLSQ qry)
+            mres <- bracketQuery "stakePoolsSummary" tr
+                $ queue `send` SomeLSQ (LSQ.stakeDistribution coin)
 
             -- The result will be Nothing if query occurs during the byron era
             traceWith tr $ MsgFetchStakePoolsData mres
@@ -657,52 +637,6 @@ withNodeNetworkLayerBase
                             (Map.size rewards)
                     return res
                 Nothing -> pure $ StakePoolsSummary 0 mempty mempty
-          where
-            stakeDistr
-                :: LSQ
-                    (CardanoBlock StandardCrypto)
-                    IO
-                    (Maybe (Map PoolId Percentage))
-            stakeDistr =
-                shelleyBased
-                    (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
-
-            getNOpt :: LSQ (CardanoBlock StandardCrypto) IO (Maybe Int)
-            getNOpt =
-                onAnyEra
-                    (pure Nothing)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-
-            queryNonMyopicMemberRewards
-                :: LSQ
-                    (CardanoBlock StandardCrypto)
-                    IO
-                    (Maybe (Map PoolId W.Coin))
-            queryNonMyopicMemberRewards =
-                shelleyBased
-                    $ (getRewardMap . fromNonMyopicMemberRewards)
-                        <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
-              where
-                stake :: Set (Either SL.Coin a)
-                stake = Set.singleton $ Left $ toShelleyCoin coin
-
-                fromJustRewards =
-                    fromMaybe
-                        ( error
-                            "stakeDistribution: requested rewards\
-                            \ not included in response"
-                        )
-
-                getRewardMap
-                    :: Map (Either W.Coin W.RewardAccount) (Map PoolId W.Coin)
-                    -> Map PoolId W.Coin
-                getRewardMap =
-                    fromJustRewards . Map.lookup (Left coin)
 
         _watchNodeTip readTip cb = do
             observeForever readTip $ \tip -> do
