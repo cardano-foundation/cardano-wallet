@@ -1,4 +1,4 @@
-cabal-version:   3.4
+cabal-version:   3.6
 name:            cardano-wallet-network-layer
 version:         0.1.0.0
 synopsis:        Node communication layer functionality.
@@ -14,19 +14,39 @@ maintainer:      hal@cardanofoundation.org
 category:        Network
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
-
 -- extra-source-files:
 
-common warnings
-  ghc-options: -Wall
+common language
+  default-language:
+    Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  import:      opts-lib
+  ghc-options: -threaded -rtsopts
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 library
-  import:           warnings
+  import:          language, opts-lib
+  hs-source-dirs:  src
   exposed-modules:
     Cardano.Wallet.Network
     Cardano.Wallet.Network.Implementation
     Cardano.Wallet.Network.Implementation.Ouroboros
     Cardano.Wallet.Network.Implementation.UnliftIO
+    Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation
 
@@ -73,5 +93,24 @@ library
     , unliftio
     , unliftio-core
 
-  hs-source-dirs:   src
-  default-language: Haskell2010
+test-suite unit
+  import:          language, opts-exe
+  type:            exitcode-stdio-1.0
+  hs-source-dirs:  test
+  build-depends:
+      base
+    , bytestring
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , contra-tracer
+    , io-classes
+    , text
+    , transformers
+    , hspec
+    , QuickCheck
+  build-tool-depends:
+      hspec-discover:hspec-discover
+  main-is:
+      Main.hs
+  other-modules:
+      Cardano.Wallet.Network.LightSpec

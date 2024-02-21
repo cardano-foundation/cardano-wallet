@@ -538,7 +538,6 @@ withNodeNetworkLayerBase
                         let trChainSync = MsgConnectionStatus ClientChainSync >$< tr
                             retryHandlers = handlers ClientChainSync
                         connectClient trChainSync retryHandlers client versionData conn
-                , lightSync = Nothing
                 , currentNodeTip =
                     fromTip getGenesisBlockHash <$> atomically readNodeTip
                 , currentNodeEra =

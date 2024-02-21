@@ -17,6 +17,10 @@ module Cardano.Wallet.Network
     , mapChainSyncLog
     , withFollowStatsMonitoring
 
+      -- * Light-mode
+    , LightLayer (..)
+    , LightBlocks
+
       -- * Logging (for testing)
     , FollowStats (..)
     , Rearview (..)
@@ -110,6 +114,9 @@ import qualified Internal.Cardano.Write.Tx as Write
     ( PParams
     )
 
+{-----------------------------------------------------------------------------
+    NetworkLayer
+------------------------------------------------------------------------------}
 -- | Interface for network capabilities.
 data NetworkLayer m block = NetworkLayer
     { chainSync
@@ -120,13 +127,6 @@ data NetworkLayer m block = NetworkLayer
     -- The callbacks provided in the 'ChainFollower' argument
     -- are used to handle intersection finding,
     -- the arrival of new blocks, and rollbacks.
-    , lightSync
-        :: Maybe
-            ( ChainFollower m ChainPoint BlockHeader (LightBlocks m Block)
-              -> m ()
-            )
-    -- ^ Connect to a data source that offers an efficient
-    -- query @Address -> Transactions@.
     , currentNodeTip
         :: m BlockHeader
     -- ^ Get the current tip from the chain producer
@@ -186,10 +186,6 @@ data NetworkLayer m block = NetworkLayer
     -- history has not yet been fetched from the node on startup.
     }
 
--- | In light-mode, we receive either a list of blocks as usual,
--- or a 'LightSummary' of blocks.
-type LightBlocks m block = Either (NonEmpty block) (LightSummary m)
-
 instance Functor m => Functor (NetworkLayer m) where
     fmap f nl =
         nl
@@ -197,6 +193,9 @@ instance Functor m => Functor (NetworkLayer m) where
                 chainSync nl tr $ mapChainFollower id id id (fmap f) follower
             }
 
+{-----------------------------------------------------------------------------
+    ChainFollower
+------------------------------------------------------------------------------}
 -- | A collection of callbacks to use with the 'chainSync' function.
 data ChainFollower m point tip blocks = ChainFollower
     { checkpointPolicy :: Integer -> CheckpointPolicy
@@ -273,6 +272,24 @@ mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
         , rollForward = \bs tip -> rollForward cf (fblocks bs) (ftip tip)
         , rollBackward = fmap fpoint12 . rollBackward cf . fpoint21
         }
+
+{-----------------------------------------------------------------------------
+    LightSync
+------------------------------------------------------------------------------}
+-- | Interface for light-mode synchronization.
+newtype LightLayer m block = LightLayer
+    { lightSync
+        :: Maybe
+            ( ChainFollower m ChainPoint BlockHeader (LightBlocks m Block)
+              -> m ()
+            )
+    -- ^ Connect to a data source that offers an efficient
+    -- query @Address -> Transactions@.
+    }
+
+-- | In light-mode, we receive either a list of blocks as usual,
+-- or a 'LightSummary' of blocks.
+type LightBlocks m block = Either (NonEmpty block) (LightSummary m)
 
 {-------------------------------------------------------------------------------
     Errors

@@ -213,7 +213,6 @@ dummyNodeProtocolParameters = C.ProtocolParameters
 dummyNetworkLayer :: HasCallStack => NetworkLayer m a
 dummyNetworkLayer = NetworkLayer
     { chainSync = err "chainSync"
-    , lightSync = Nothing
     , currentNodeEra = err "currentNodeEra"
     , currentNodeTip = err "currentNodeTip"
     , watchNodeTip = err "watchNodeTip"

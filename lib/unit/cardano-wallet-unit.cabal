@@ -240,7 +240,6 @@ test-suite unit
     Cardano.Wallet.DB.Store.WalletState.StoreSpec
     Cardano.Wallet.Delegation.ModelSpec
     Cardano.Wallet.DelegationSpec
-    Cardano.Wallet.Network.LightSpec
     Cardano.Wallet.Network.PortsSpec
     Cardano.Wallet.NetworkSpec
     Cardano.Wallet.Primitive.Delegation.StateSpec
