@@ -29,6 +29,8 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiSerialisedTransaction (..)
     , ApiT (..)
+    , ApiTransaction
+    , ApiTxId (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
@@ -39,6 +41,10 @@ import Cardano.Wallet.Primitive.NetworkId
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxMeta
+    ( Direction (..)
+    , TxStatus (..)
     )
 import Control.Monad.Trans.Resource
     ( runResourceT
@@ -60,15 +66,19 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , eventually
     , expectField
     , expectResponseCode
+    , expectSuccess
     , fixtureWalletWith
     , getFromResponse
+    , getResponse
     , json
     , minUTxOValue
     , noBabbage
     , request
     , signTx
+    , submitTxWithWid
     , verify
     )
 
@@ -119,3 +129,34 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             , expectField #depositsTaken (`shouldBe` [depositAmt])
             , expectField #depositsReturned (`shouldBe` [])
             ]
+
+        -- Submit tx
+        submittedTx <- submitTxWithWid ctx src signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet has voted and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getResponse submittedTx))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` depositAmt)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
+                ]
+
+        let txId = getFromResponse #id submittedTx
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId)
+        eventually "Voting transaction is in ledger" $ do
+            request @(ApiTransaction n) ctx link Default Empty
+                >>= flip verify
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField #metadata (`shouldBe` Nothing)
+                ]
