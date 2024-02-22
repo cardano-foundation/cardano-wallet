@@ -3593,7 +3593,7 @@ replaceStakeKey addr1 addr2 =
 
 noConway :: MonadIO m => Context -> String -> m ()
 noConway ctx reason = liftIO $ do
-    when (_mainEra ctx == ApiConway) $
+    when (_mainEra ctx >= ApiConway) $
         pendingWith $ "CONWAY is not supported: " <> reason
 
 noBabbage :: MonadIO m => Context -> String -> m ()

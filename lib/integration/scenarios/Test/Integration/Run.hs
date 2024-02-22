@@ -60,7 +60,6 @@ import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
 import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
-import qualified Test.Integration.Scenario.API.Conway as Conway
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shared.Addresses as SharedAddresses
 import qualified Test.Integration.Scenario.API.Shared.Transactions as SharedTransactions
@@ -75,6 +74,7 @@ import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.TransactionsNew as TransactionsNew
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
+import qualified Test.Integration.Scenario.API.Voting as Voting
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
@@ -122,7 +122,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
                     StakePools.spec @n
                     ByronTransactions.spec @n
                     ByronHWWallets.spec @n
-                    Conway.spec @n
+                    Voting.spec @n
 
             -- Possible conflict with StakePools - mark as not parallizable
             sequential Settings.spec

@@ -4353,8 +4353,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_12 - Cannot vote in Babbage" $ \ctx -> runResourceT $ do
         noConway ctx "voting supported in Conway onwards and tested in API.Conway module"
-        let initialAmt = 10 * minUTxOValue (_mainEra ctx)
-        src <- fixtureWalletWith @n ctx [initialAmt]
+        src <- fixtureWallet @n ctx
 
         let voteNoConfidence = Json [json|{
                 "vote": "abstain"

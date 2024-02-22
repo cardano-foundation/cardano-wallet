@@ -12,10 +12,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -Wno-unused-imports #-} -- temportary, until addRequiredSigners is fixed
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-
-module Test.Integration.Scenario.API.Conway (spec) where
+module Test.Integration.Scenario.API.Voting (spec) where
 
 import Prelude
 
@@ -71,7 +68,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , expectSuccess
-    , fixtureWalletWith
+    , fixtureWallet
     , getFromResponse
     , getResponse
     , json
@@ -94,16 +91,14 @@ spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "VOTING_TRANSACTIONS" $ do
     it "VOTING_01a - Can vote and revote" $ \ctx -> runResourceT $ do
         noBabbage ctx "voting supported in Conway onwards"
-        let initialAmt = 10 * minUTxOValue (_mainEra ctx)
-        src <- fixtureWalletWith @n ctx [initialAmt]
+        src <- fixtureWallet @n ctx
 
         let getSrcWallet =
                 let endpoint = Link.getWallet @'Shelley src
                  in request @ApiWallet ctx endpoint Default Empty
-        eventually "Wallet is neither voting nor delegating" $ do
-            getSrcWallet >>= flip verify
-                [ expectField #delegation (`shouldBe` notDelegating [])
-                ]
+        getSrcWallet >>= flip verify
+            [ expectField #delegation (`shouldBe` notDelegating [])
+            ]
 
         let depositAmt = ApiAmount 1_000_000
         let voteNoConfidence = Json [json|{
