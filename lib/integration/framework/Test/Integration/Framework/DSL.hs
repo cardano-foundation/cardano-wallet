@@ -58,6 +58,7 @@ module Test.Integration.Framework.DSL
 
     -- * Lens
     , walletId
+    , utxoStatisticsFromCoins
 
     -- * Constants
     , minUTxOValue
@@ -810,18 +811,19 @@ expectWalletUTxO
     -> m ()
 expectWalletUTxO coins = \case
     Left e  -> wantedSuccessButError e
-    Right stats -> do
-        let addr = Address "ARBITRARY"
-        let constructUtxoEntry idx c =
-                ( TxIn (Hash "ARBITRARY") idx
-                , TxOut addr (TokenBundle.fromCoin $ Coin c)
-                )
-        let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
-        let (UTxOStatistics hist stakes bType) = UTxOStatistics.compute utxo
-        let distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
-        (ApiUtxoStatistics (ApiAmount.fromWord64 stakes) (ApiT bType) distr)
-            `shouldBe` stats
+    Right stats -> utxoStatisticsFromCoins coins `shouldBe` stats
 
+utxoStatisticsFromCoins :: [Natural] -> ApiUtxoStatistics
+utxoStatisticsFromCoins coins =
+    let addr = Address "ARBITRARY"
+        constructUtxoEntry idx c =
+            ( TxIn (Hash "ARBITRARY") idx
+            , TxOut addr (TokenBundle.fromCoin $ Coin c)
+            )
+        utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
+        (UTxOStatistics hist stakes bType) = UTxOStatistics.compute utxo
+        distr = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) hist
+    in ApiUtxoStatistics (ApiAmount.fromWord64 stakes) (ApiT bType) distr
 --
 -- CLI output expectations
 --

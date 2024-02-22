@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.LatencyBenchShared
+module Cardano.Wallet.Benchmarks.Latency.Measure
   ( -- * Measuring traces
     withLatencyLogging
   , measureApiLogs

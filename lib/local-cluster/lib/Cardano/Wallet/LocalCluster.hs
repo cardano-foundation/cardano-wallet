@@ -239,6 +239,7 @@ main = withUtf8 $ do
                         | m <- Mnemonics.mir
                         , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
                         ]
+                    , massiveWalletFunds = []
                     }
                 $ \node -> do
                     clusterDir <- Path.parseAbsDir clusterPath

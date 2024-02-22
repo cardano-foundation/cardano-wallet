@@ -352,6 +352,9 @@ library cardano-wallet-api-http
     Cardano.Wallet.Api.Aeson
     Cardano.Wallet.Api.Aeson.Variant
     Cardano.Wallet.Api.Client
+    Cardano.Wallet.Api.Clients.Testnet.Byron
+    Cardano.Wallet.Api.Clients.Testnet.Network
+    Cardano.Wallet.Api.Clients.Testnet.Shelley
     Cardano.Wallet.Api.Hex
     Cardano.Wallet.Api.Http.Logging
     Cardano.Wallet.Api.Http.Server
