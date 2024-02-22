@@ -72,7 +72,6 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , getResponse
     , json
-    , minUTxOValue
     , noBabbage
     , notDelegating
     , onlyVoting
@@ -91,7 +90,7 @@ spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "VOTING_TRANSACTIONS" $ do
     it "VOTING_01a - Can vote and revote" $ \ctx -> runResourceT $ do
         noBabbage ctx "voting supported in Conway onwards"
-        src <- fixtureWallet @n ctx
+        src <- fixtureWallet ctx
 
         let getSrcWallet =
                 let endpoint = Link.getWallet @'Shelley src

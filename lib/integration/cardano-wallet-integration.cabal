@@ -164,7 +164,6 @@ library scenarios
     Test.Integration.Scenario.API.Byron.Network
     Test.Integration.Scenario.API.Byron.Transactions
     Test.Integration.Scenario.API.Byron.Wallets
-    Test.Integration.Scenario.API.Conway
     Test.Integration.Scenario.API.Network
     Test.Integration.Scenario.API.Shared.Addresses
     Test.Integration.Scenario.API.Shared.Transactions
@@ -179,6 +178,7 @@ library scenarios
     Test.Integration.Scenario.API.Shelley.Transactions
     Test.Integration.Scenario.API.Shelley.TransactionsNew
     Test.Integration.Scenario.API.Shelley.Wallets
+    Test.Integration.Scenario.API.Voting
     Test.Integration.Scenario.CLI.Byron.Addresses
     Test.Integration.Scenario.CLI.Byron.Wallets
     Test.Integration.Scenario.CLI.Miscellaneous
