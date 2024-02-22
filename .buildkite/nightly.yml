@@ -7,6 +7,18 @@ env:
   linux: "x86_64-linux"
 
 steps:
+
+  - label: Placeholder
+    command: echo "This is a placeholder step"
+    key: placeholder
+    agents:
+      system: ${linux}
+      queue: "cardano-wallet"
+
+  - block: "MacOS integration tests"
+    if: 'build.branch != "rc-latest"'
+    key: macos-block
+
   - label: 'Check auto-generated Nix on macOS'
     key: macos-nix
     commands:
@@ -14,6 +26,7 @@ steps:
     agents:
       system: ${macos}
       queue: "cardano-wallet"
+    depends_on: macos-block
 
   - label: 'Run integration tests on macOS'
     key: macos-tests-integration
@@ -23,13 +36,23 @@ steps:
       system: ${macos}
       queue: "cardano-wallet"
 
+  - block: "Restoration benchmark"
+    if: 'build.branch != "rc-latest"'
+    depends_on: placeholder
+    key: restore-block
+
   - label: 'Restore benchmark - cardano mainnet'
     command: "./.buildkite/bench-restore.sh mainnet"
     timeout_in_minutes: 1200
     agents:
       system: ${linux}
       queue: adrestia-bench
-    if: 'build.env("step") == null || build.env("step") =~ /restore-mainnet/'
+    depends_on: restore-block
+
+  - block: "API benchmark"
+    if: 'build.branch != "rc-latest"'
+    depends_on: placeholder
+    key: api-block
 
   - label: 'API benchmark'
     command: "./.buildkite/bench-api.sh"
@@ -37,7 +60,12 @@ steps:
     agents:
       system: ${linux}
       queue: adrestia-bench
-    if: 'build.env("step") == null || build.env("step") =~ /bench-api/'
+    depends_on: api-block
+
+  - block: "Database benchmark"
+    if: 'build.branch != "rc-latest"'
+    depends_on: placeholder
+    key: db-block
 
   - label: 'Database benchmark'
     command: "./.buildkite/bench-db.sh"
@@ -45,7 +73,12 @@ steps:
     agents:
       system: ${linux}
       queue: adrestia-bench
-    if: 'build.env("step") == null || build.env("step") =~ /bench-db/'
+    depends_on: db-block
+
+  - block: "Latency benchmark"
+    if: 'build.branch != "rc-latest"'
+    depends_on: placeholder
+    key: latency-block
 
   - label: 'Latency benchmark'
     command: "./.buildkite/bench-latency.sh"
@@ -53,7 +86,12 @@ steps:
     agents:
       system: ${linux}
       queue: adrestia-bench
-    if: 'build.env("step") == null || build.env("step") =~ /bench-latency/'
+    depends_on: latency-block
+
+  - block: "Memory benchmark"
+    if: 'build.branch != "rc-latest"'
+    depends_on: placeholder
+    key: memory-block
 
   - label: 'Memory benchmark'
     command: "./.buildkite/bench-memory.sh"
@@ -61,7 +99,7 @@ steps:
     agents:
       system: ${linux}
       queue: adrestia-bench
-    if: 'build.env("step") == null || build.env("step") =~ /bench-memory/'
+    depends_on: memory-block
 
   # TODO: ADP-549 Port migrations test to shelley
   # - label: 'Database Migrations Test'
