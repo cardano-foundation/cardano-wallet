@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -104,13 +103,11 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     , fromMaryPParams
     , fromPoint
     , fromShelleyPParams
-    , fromStakeCredential
     , fromTip
     , fromTip'
     , nodeToClientVersions
     , slottingParametersFromGenesis
     , toCardanoEra
-    , toLedgerStakeCredential
     , toPoint
     , unsealShelleyTx
     )
@@ -287,7 +284,6 @@ import Ouroboros.Consensus.Cardano.Block
     ( BlockQuery (..)
     , CardanoEras
     , CodecConfig (..)
-    , EraCrypto
     , GenTx
     )
 import Ouroboros.Consensus.HardFork.Combinator
@@ -392,14 +388,9 @@ import UnliftIO.Exception
     , IOException
     )
 
-import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.LedgerState as SL
 import qualified Cardano.Wallet.Network.LocalStateQuery.Extra as LSQ
+import qualified Cardano.Wallet.Network.LocalStateQuery.RewardAccount as LSQ
 import qualified Cardano.Wallet.Network.LocalStateQuery.StakeDistribution as LSQ
-import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -973,47 +964,8 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         $ traceWith tr
         $ MsgFetchRewardAccountBalance accounts
 
-    let qry =
-            onAnyEra
-                (pure (byronValue, []))
-                shelleyQry
-                shelleyQry
-                shelleyQry
-                shelleyQry
-                shelleyQry
-                shelleyQry
-
-    (res, logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
-    liftIO $ mapM_ (traceWith tr) logs
-    return res
-  where
-    byronValue :: Map W.RewardAccount W.Coin
-    byronValue = Map.fromList . map (,W.Coin 0) $ Set.toList accounts
-
-    shelleyQry
-        :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
-        => LSQ
-            (Shelley.ShelleyBlock protocol shelleyEra)
-            IO
-            (Map W.RewardAccount W.Coin, [Log])
-    shelleyQry =
-        fmap fromBalanceResult
-            . LSQry
-            . Shelley.GetFilteredDelegationsAndRewardAccounts
-            $ Set.map toLedgerStakeCredential accounts
-
-    fromBalanceResult
-        :: ( Map
-                (SL.Credential 'SL.Staking crypto)
-                (SL.KeyHash 'SL.StakePool crypto)
-           , SL.RewardAccounts crypto
-           )
-        -> (Map W.RewardAccount W.Coin, [Log])
-    fromBalanceResult (deleg, rewardAccounts) =
-        ( Map.mapKeys fromStakeCredential
-            $ Map.map Ledger.toWalletCoin rewardAccounts
-        , [MsgAccountDelegationAndRewards deleg rewardAccounts]
-        )
+    bracketQuery "queryRewards" tr
+        $ queryRewardQ `send` SomeLSQ (LSQ.fetchRewardAccounts accounts)
 
 -- | Monitors values for keys, and allows clients to @query@ them.
 --
@@ -1383,14 +1335,6 @@ data Log where
     MsgLocalStateQueryEraMismatch
         :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
     MsgFetchRewardAccountBalance :: Set W.RewardAccount -> Log
-    MsgAccountDelegationAndRewards
-        :: forall era crypto
-         . ( Map
-                (SL.Credential 'SL.Staking era)
-                (SL.KeyHash 'SL.StakePool crypto)
-           )
-        -> SL.RewardAccounts era
-        -> Log
     MsgDestroyCursor :: ThreadId -> Log
     MsgWillQueryRewardsForStake :: W.Coin -> Log
     MsgFetchStakePoolsData :: Maybe StakePoolsSummary -> Log
@@ -1453,11 +1397,6 @@ instance ToText Log where
                 [ "Querying the reward account balance for"
                 , fmt $ listF accts
                 ]
-        MsgAccountDelegationAndRewards delegations rewards ->
-            T.unlines
-                [ "  delegations = " <> T.pack (show delegations)
-                , "  rewards = " <> T.pack (show rewards)
-                ]
         MsgDestroyCursor threadId ->
             T.unwords
                 [ "Destroying cursor connection at"
@@ -1505,7 +1444,6 @@ instance HasSeverityAnnotation Log where
         MsgProtocolParameters{} -> Info
         MsgLocalStateQueryError{} -> Error
         MsgLocalStateQueryEraMismatch{} -> Debug
-        MsgAccountDelegationAndRewards{} -> Debug
         MsgDestroyCursor{} -> Debug
         MsgWillQueryRewardsForStake{} -> Info
         MsgFetchStakePoolsData{} -> Debug
