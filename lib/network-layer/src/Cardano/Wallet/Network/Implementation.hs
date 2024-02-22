@@ -84,29 +84,17 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
 import Cardano.Wallet.Network.Implementation.UnliftIO
     ( coerceHandlers
     )
-import Cardano.Wallet.Network.LocalStateQuery.Extra
-    ( byronOrShelleyBased
-    , onAnyEra
-    )
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
-    , protocolParametersFromUpdateState
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromAllegraPParams
-    , fromAlonzoPParams
-    , fromBabbagePParams
-    , fromConwayPParams
-    , fromMaryPParams
-    , fromPoint
-    , fromShelleyPParams
+    ( fromPoint
     , fromTip
     , fromTip'
     , nodeToClientVersions
-    , slottingParametersFromGenesis
     , toCardanoEra
     , toPoint
     , unsealShelleyTx
@@ -123,9 +111,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader
-    )
-import Cardano.Wallet.Primitive.Types.EraInfo
-    ( EraInfo (..)
     )
 import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters (..)
@@ -287,8 +272,7 @@ import Ouroboros.Consensus.Cardano.Block
     , GenTx
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( QueryAnytime (..)
-    , QueryHardFork (..)
+    ( QueryHardFork (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo
@@ -319,7 +303,6 @@ import Ouroboros.Consensus.Shelley.Eras
     )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..)
-    , getCompactGenesis
     )
 import Ouroboros.Network.Block
     ( Point
@@ -389,6 +372,7 @@ import UnliftIO.Exception
     )
 
 import qualified Cardano.Wallet.Network.LocalStateQuery.Extra as LSQ
+import qualified Cardano.Wallet.Network.LocalStateQuery.PParams as LSQ
 import qualified Cardano.Wallet.Network.LocalStateQuery.RewardAccount as LSQ
 import qualified Cardano.Wallet.Network.LocalStateQuery.StakeDistribution as LSQ
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
@@ -400,10 +384,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
-    ( PParams
-    )
-import qualified Ouroboros.Consensus.Byron.Ledger as Byron
-import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -823,57 +803,11 @@ mkWalletToNodeProtocols
                         slottingParamsLegacy
                 onPParamsUpdate networkParams
 
-        let queryParams = do
-                eraBounds <-
-                    EraInfo
-                        <$> LSQry (QueryAnytimeByron GetEraStart)
-                        <*> LSQry (QueryAnytimeShelley GetEraStart)
-                        <*> LSQry (QueryAnytimeAllegra GetEraStart)
-                        <*> LSQry (QueryAnytimeMary GetEraStart)
-                        <*> LSQry (QueryAnytimeAlonzo GetEraStart)
-                        <*> LSQry (QueryAnytimeBabbage GetEraStart)
-
-                sp <-
-                    byronOrShelleyBased
-                        (pure $ slottingParameters np)
-                        ( (slottingParametersFromGenesis . getCompactGenesis)
-                            <$> LSQry Shelley.GetGenesisConfig
-                        )
-
-                pp <-
-                    onAnyEra
-                        ( protocolParametersFromUpdateState eraBounds
-                            <$> LSQry Byron.GetUpdateInterfaceState
-                        )
-                        ( fromShelleyPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromAllegraPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromMaryPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromAlonzoPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromBabbagePParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromConwayPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                ppEra <-
-                    onAnyEra
-                        (pure InNonRecentEraByron)
-                        (pure InNonRecentEraShelley)
-                        (pure InNonRecentEraAllegra)
-                        (pure InNonRecentEraMary)
-                        (pure InNonRecentEraAlonzo)
-                        (InRecentEraBabbage <$> LSQry Shelley.GetCurrentPParams)
-                        (InRecentEraConway <$> LSQry Shelley.GetCurrentPParams)
-
-                return $ NetworkParams ppEra pp sp
+        let queryParams =
+                NetworkParams
+                    <$> LSQ.protocolParams
+                    <*> LSQ.protocolParamsLegacy
+                    <*> (LSQ.slottingParamsLegacy np)
 
         let queryInterpreter = LSQry (QueryHardFork GetInterpreter)
 
