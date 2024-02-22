@@ -306,7 +306,7 @@ withinEra = (>=) `on` numberEra
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes :: ByteString -> Either DecoderError SealedTx
-sealedTxFromBytes = sealedTxFromBytes' (anyCardanoEra BabbageEra)
+sealedTxFromBytes = sealedTxFromBytes' maxBound
 
 -- | Deserialise a transaction to construct a 'SealedTx'.
 sealedTxFromBytes'

@@ -178,6 +178,7 @@ library scenarios
     Test.Integration.Scenario.API.Shelley.Transactions
     Test.Integration.Scenario.API.Shelley.TransactionsNew
     Test.Integration.Scenario.API.Shelley.Wallets
+    Test.Integration.Scenario.API.Voting
     Test.Integration.Scenario.CLI.Byron.Addresses
     Test.Integration.Scenario.CLI.Byron.Wallets
     Test.Integration.Scenario.CLI.Miscellaneous

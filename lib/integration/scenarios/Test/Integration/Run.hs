@@ -74,6 +74,7 @@ import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.TransactionsNew as TransactionsNew
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
+import qualified Test.Integration.Scenario.API.Voting as Voting
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
@@ -121,6 +122,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
                     StakePools.spec @n
                     ByronTransactions.spec @n
                     ByronHWWallets.spec @n
+                    Voting.spec @n
 
             -- Possible conflict with StakePools - mark as not parallizable
             sequential Settings.spec

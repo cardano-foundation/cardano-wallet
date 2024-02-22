@@ -662,6 +662,7 @@ import Cardano.Wallet.Transaction
     , SelectionOf (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , VotingAction (..)
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
@@ -2753,6 +2754,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 , encryptMetadata = Nothing
                 , mintBurn = Nothing
                 , delegations = Nothing
+                , vote = Nothing
                 } -> liftHandler $ throwE ErrConstructTxWrongPayload
             _ -> pure ()
 
@@ -2970,8 +2972,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         (_, _, rewardPath) <- handler $ W.readRewardAccount @s db
 
-        let deposits = case txDelegationAction transactionCtx3 of
-                Just (JoinRegisteringKey _poolId) -> [W.getStakeKeyDeposit pp]
+        let deposits = case (txDelegationAction transactionCtx3, txVotingAction transactionCtx3) of
+                (Just (JoinRegisteringKey _poolId), _) -> [W.getStakeKeyDeposit pp]
+                (_, Just (VoteRegisteringKey _vote)) -> [W.getStakeKeyDeposit pp]
                 _ -> []
 
         let refunds = case txDelegationAction transactionCtx3 of

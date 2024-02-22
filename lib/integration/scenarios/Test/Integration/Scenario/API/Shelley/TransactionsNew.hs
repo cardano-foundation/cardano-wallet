@@ -4351,6 +4351,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #policyId (`shouldBe` (ApiT tokenPolicyId'))
             ]
 
+    it "TRANS_NEW_CREATE_12 - Cannot vote in Babbage" $ \ctx -> runResourceT $ do
+        noConway ctx "voting supported in Conway onwards and tested in API.Voting module"
+        src <- fixtureWallet ctx
+
+        let voteNoConfidence = Json [json|{
+                "vote": "abstain"
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default voteNoConfidence
+        verify rTx
+            [ expectResponseCode HTTP.status403
+            ]
+        decodeErrorInfo rTx `shouldBe` VotingInInvalidEra
+
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Validity bounds should be ordered correctly" $
         \ctx -> runResourceT $ do
