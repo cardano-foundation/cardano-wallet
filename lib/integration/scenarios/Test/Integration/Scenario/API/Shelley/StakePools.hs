@@ -1049,9 +1049,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it
             "STAKE_POOLS_JOIN_01x - \
-            \I can join if I have just the right amount"
+            \I can join if I have barely enough fees"
             $ \ctx -> runResourceT $ do
-                w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx]
+                let fuzz = costOf 50 ctx -- exact CBOR size can change
+                let enoughFees = costOfJoining ctx + depositAmt ctx + fuzz
+                w <- fixtureWalletWith @n ctx [enoughFees]
                 pool : _ <-
                     map (view #id . getApiT) . snd
                         <$> unsafeRequest @[ApiT StakePool]
@@ -1070,7 +1072,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             "STAKE_POOLS_JOIN_01x - \
             \I cannot join if I have not enough fee to cover"
             $ \ctx -> runResourceT $ do
-                w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx - 1]
+                let fuzz = costOf 50 ctx -- exact CBOR size can change
+                let notEnoughFees = costOfJoining ctx + depositAmt ctx - fuzz
+                w <- fixtureWalletWith @n ctx [notEnoughFees]
                 pool : _ <-
                     map (view #id . getApiT) . snd
                         <$> unsafeRequest @[ApiT StakePool]
