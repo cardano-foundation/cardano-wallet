@@ -371,10 +371,7 @@ import UnliftIO.Exception
     , IOException
     )
 
-import qualified Cardano.Wallet.Network.LocalStateQuery.Extra as LSQ
-import qualified Cardano.Wallet.Network.LocalStateQuery.PParams as LSQ
-import qualified Cardano.Wallet.Network.LocalStateQuery.RewardAccount as LSQ
-import qualified Cardano.Wallet.Network.LocalStateQuery.StakeDistribution as LSQ
+import qualified Cardano.Wallet.Network.LocalStateQuery as LSQ
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
