@@ -292,7 +292,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         "STAKE_POOLS_JOIN_01rewards - \
         \Can join a pool, earn rewards and collect them"
         $ \ctx -> runResourceT $ do
-            noConway ctx "certificate"
             src <- fixtureWallet ctx
             dest <- emptyWallet ctx
             let deposit = depositAmt ctx
@@ -597,7 +596,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         "STAKE_POOLS_JOIN_02 - \
         \Cannot join already joined stake pool"
         $ \ctx -> runResourceT $ do
-            noConway ctx "certificate"
             w <- fixtureWallet ctx
             pool : _ <- map (view #id) <$> notRetiringPools ctx
 
@@ -636,7 +634,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_EMPTY - Empty wallet cannot join a pool" $ \ctx ->
         runResourceT $ do
-            noConway ctx "certificate"
             w <- emptyWallet ctx
             pool : _ <- map (view #id) <$> notRetiringPools ctx
             r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
@@ -647,7 +644,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
     it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \ctx -> runResourceT $ do
-        noConway ctx "certificate"
         w <- fixtureWallet ctx
         pool : _ <- map (view #id) <$> notRetiringPools ctx
 
@@ -702,7 +698,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     ]
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
-        noConway ctx "certificate"
         w <- fixtureWallet ctx
 
         -- make sure we are at the beginning of new epoch
@@ -759,7 +754,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [expectField #delegation (`shouldBe` delegating (ApiT pool2) [])]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> runResourceT $ do
-        noConway ctx "certificate"
         w <- fixtureWallet ctx
         pool : _ <- map (view #id) <$> notRetiringPools ctx
 
@@ -794,7 +788,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists"
         $ \ctx -> runResourceT $ do
-            noConway ctx "certificate"
             preregKeyWallet <- liftIO $ preregKeyWalletMnemonic (_faucet ctx)
 
             let payload =
@@ -824,7 +817,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_01" $ do
         it "Can join a pool that's not retiring" $ \ctx -> runResourceT $ do
-            noConway ctx "certificate"
             nonRetiredPools <- eventually "One of the pools should retire." $ do
                 response <- listPools ctx arbitraryStake
 
@@ -881,7 +873,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     describe "STAKE_POOLS_JOIN_UNSIGNED_02"
         $ it "Can join a pool that's retiring"
         $ \ctx -> runResourceT $ do
-            noConway ctx "certificate"
             nonRetiredPools <- eventually "One of the pools should retire." $ do
                 response <- listPools ctx arbitraryStake
 
@@ -981,7 +972,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         "STAKE_POOLS_QUIT_UNSIGNED_01 - \
         \Join/quit when already joined a pool"
         $ \ctx -> runResourceT $ do
-            noConway ctx "certificate"
             w <- fixtureWallet ctx
 
             pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
@@ -1059,10 +1049,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it
             "STAKE_POOLS_JOIN_01x - \
-            \I can join if I have just the right amount"
+            \I can join if I have barely enough fees"
             $ \ctx -> runResourceT $ do
-                noConway ctx "certificate"
-                w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx]
+                let fuzz = costOf 50 ctx -- exact CBOR size can change
+                let enoughFees = costOfJoining ctx + depositAmt ctx + fuzz
+                w <- fixtureWalletWith @n ctx [enoughFees]
                 pool : _ <-
                     map (view #id . getApiT) . snd
                         <$> unsafeRequest @[ApiT StakePool]
@@ -1081,8 +1072,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             "STAKE_POOLS_JOIN_01x - \
             \I cannot join if I have not enough fee to cover"
             $ \ctx -> runResourceT $ do
-                noConway ctx "certificate"
-                w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx - 1]
+                let fuzz = costOf 50 ctx -- exact CBOR size can change
+                let notEnoughFees = costOfJoining ctx + depositAmt ctx - fuzz
+                w <- fixtureWalletWith @n ctx [notEnoughFees]
                 pool : _ <-
                     map (view #id . getApiT) . snd
                         <$> unsafeRequest @[ApiT StakePool]
@@ -1101,7 +1093,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             "STAKE_POOLS_QUIT_01xx - \
             \I can quit if I have enough to cover fee"
             $ \ctx -> runResourceT $ do
-                noConway ctx "certificate"
                 -- change needed to satisfy minUTxOValue
                 let initBalance =
                         [ costOfJoining ctx
@@ -1211,7 +1202,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough to cover fees"
             $ \ctx -> runResourceT $ do
-                noConway ctx "certificate"
                 let initBalance = [costOfJoining ctx + depositAmt ctx]
                 w <- fixtureWalletWith @n ctx initBalance
 
@@ -1329,7 +1319,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
                 setOf pools' (view #pledge)
                     `shouldBe` Set.fromList
-                        [ Quantity $ 100 * oneMillionAda
+                        [ Quantity $ 150 * oneMillionAda
                         , Quantity $ 100 * oneMillionAda
                         ]
 
@@ -1759,16 +1749,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             fromIntegral (unCoin c)
 
     costOfJoining :: Context -> Natural
-    costOfJoining ctx =
-        if _mainEra ctx >= ApiBabbage
-            then costOf (TxSize 485) ctx
-            else costOf (TxSize 479) ctx
+    costOfJoining ctx = if _mainEra ctx >= ApiConway
+            then costOf (TxSize 491) ctx
+            else costOf (TxSize 485) ctx
 
     costOfQuitting :: Context -> Natural
-    costOfQuitting ctx =
-        if _mainEra ctx >= ApiBabbage
-            then costOf (TxSize 334) ctx
-            else costOf (TxSize 332) ctx
+    costOfQuitting = costOf (TxSize 334)
 
     costOf :: TxSize -> Context -> Natural
     costOf (TxSize txSizeInBytes) ctx =

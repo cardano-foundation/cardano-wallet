@@ -2095,6 +2095,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal
                 , txMetadata = getApiT <$> body ^. #metadata
+                , txDeposit = Just $ W.getStakeKeyDeposit pp
                 }
 
         (tx, walletState) <-
@@ -4020,6 +4021,7 @@ joinStakePool
         SpecificPool pool -> pure pool
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
+    pp <- liftIO $ NW.currentProtocolParameters netLayer
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         let tr = wrk ^. logger
             db = wrk ^. typed @(DBLayer IO s)
@@ -4039,11 +4041,11 @@ joinStakePool
                     ti
                     db
                     currentEpochSlotting
+                    (W.stakeKeyDeposit pp)
                     pools
                     poolId
                     poolStatus
 
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
                 { txId = builtTx ^. #txId

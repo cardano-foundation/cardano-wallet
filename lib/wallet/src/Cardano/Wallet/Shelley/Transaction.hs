@@ -374,7 +374,7 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                 Just action ->
                     let stakeXPub = toXPub $ fst stakeCreds
                     in certificateFromDelegationAction era (Left stakeXPub)
-                       Nothing action
+                       (view #txDeposit ctx) action
     let wdrls = mkWithdrawals networkId wdrl
     unsigned <-
         mkUnsignedTx

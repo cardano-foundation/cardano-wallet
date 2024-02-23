@@ -176,7 +176,7 @@ generateGenesis initialFunds genesisMods = do
                     & ppNOptL
                         .~ 3
                     & ppRhoL
-                        .~ unsafeUnitInterval 0.178_650_067
+                        .~ unsafeUnitInterval 0.02
                     & ppTauL
                         .~ unsafeUnitInterval 0.1
                     & ppA0L
@@ -197,7 +197,7 @@ generateGenesis initialFunds genesisMods = do
                         , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
                         , sgSecurityParam = 10
                         , sgEpochLength = 120
-                        , sgSlotLength = 0.12
+                        , sgSlotLength = 0.25
                         , sgUpdateQuorum = 1
                         , sgNetworkMagic =
                             fromIntegral (testnetMagicToNatural cfgTestnetMagic)
