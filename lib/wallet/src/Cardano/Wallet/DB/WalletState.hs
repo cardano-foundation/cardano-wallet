@@ -23,6 +23,7 @@ module Cardano.Wallet.DB.WalletState
     ( -- * Wallet state
       WalletState (..)
     , fromGenesis
+    , fromRestorationPoint
     , getLatest
     , findNearestPoint
 
@@ -79,8 +80,12 @@ import Cardano.Wallet.DB.Store.Submissions.Operations
 import Cardano.Wallet.Flavor
     ( KeyOf
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
+    )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
+    ( BlockHeader (..)
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
@@ -180,18 +185,37 @@ deriving instance
     (AddressBookIso s, Eq (KeyOf s 'RootK XPrv))
     => Eq (WalletState s)
 
--- | Create a wallet from the genesis block.
-fromGenesis
+restorationPoint
     :: AddressBookIso s
     => W.Wallet s
+    -> BlockHeader
+    -> (W.Slot, WalletCheckpoint s)
+restorationPoint stateAtGenesis blockheader@BlockHeader{slotNo} =
+    let
+        (_, checkpoint0) = fromWallet stateAtGenesis
+    in
+        ( At slotNo
+        , checkpoint0{currentTip = blockheader}
+        )
+
+-- | Create a wallet state
+fromRestorationPoint
+    :: AddressBookIso s
+    => W.Wallet s
+    -> RestorationPoint
     -> WalletInfo
     -> Maybe (WalletState s)
-fromGenesis cp winfo
+fromRestorationPoint cp rp winfo
     | W.isGenesisBlockHeader header =
         Just
             $ WalletState
                 { prologue
-                , checkpoints = CPS.fromGenesis checkpoint
+                , checkpoints =
+                    CPS.loadCheckpoints
+                        $ [(W.Origin, checkpoint)]
+                            <> case rp of
+                                RestorationPointAtGenesis -> []
+                                RestorationPoint bh -> [restorationPoint cp bh]
                 , submissions = emptyTxSubmissions
                 , info = winfo
                 , credentials = Nothing
@@ -202,6 +226,14 @@ fromGenesis cp winfo
   where
     header = cp ^. #currentTip
     (prologue, checkpoint) = fromWallet cp
+
+-- | Create a wallet from the genesis block.
+fromGenesis
+    :: AddressBookIso s
+    => W.Wallet s
+    -> WalletInfo
+    -> Maybe (WalletState s)
+fromGenesis cp = fromRestorationPoint cp RestorationPointAtGenesis
 
 -- | Get the wallet checkpoint with the largest slot number
 getLatest :: AddressBookIso s => WalletState s -> W.Wallet s

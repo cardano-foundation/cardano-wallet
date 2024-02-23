@@ -205,6 +205,7 @@ data ApiErrorInfo
     | WrongEncryptionPassphrase
     | WithdrawalNotPossibleWithoutVote
     | WrongMnemonic
+    | BlockHeaderNotFound
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

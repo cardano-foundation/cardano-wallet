@@ -196,6 +196,7 @@ import Cardano.Wallet
     , ErrWitnessTx (..)
     , Fee (..)
     , HasNetworkLayer
+    , InitialState (..)
     , Percentile (..)
     , TxSubmitLog
     , WalletWorkerLog (..)
@@ -516,9 +517,15 @@ import Cardano.Wallet.Flavor
     , shelleyOrShared
     )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..)
+    ( ErrFetchBlock (..)
+    , NetworkLayer (..)
     , fetchRewardAccountBalances
     , timeInterpreter
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationMode (RestoreFromGenesis)
+    , RestorationPoint (..)
+    , getRestorationPoint
     )
 import Cardano.Wallet.Pools
     ( EpochInfo (..)
@@ -572,6 +579,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
+    , ChainPoint (..)
     , NetworkParameters (..)
     , PoolLifeCycleStatus
     , Signature (..)
@@ -926,6 +934,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
     , IsRecentEra
@@ -1127,8 +1136,15 @@ postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv
             (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP)
             purposeCIP1852 g changeAddrMode
+    restorationPoint <- liftHandler
+        $ withExceptT ErrCreateWalletRestorationFromABlockFailed
+        $ ExceptT $ getRestorationPoint
+            (genesisParameters networkParams)
+            (maybe RestoreFromGenesis getApiT $ restorationMode body)
+            (ctx ^. networkLayer)
+    let initialState = InitialState state genesisBlock restorationPoint
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        (W.createWallet @s networkParams wid wName initialState)
         (\workerCtx _ -> W.manageRewardBalance
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
@@ -1146,7 +1162,7 @@ postShelleyWallet ctx generateKey body = do
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
     wid = WalletId $ digest ShelleyKeyS $ publicKey ShelleyKeyS rootXPrv
     wName = getApiT (body ^. #name)
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = ctx ^. #netParams
     changeAddrMode = case body ^. #oneChangeAddressMode of
         Just True -> SingleChangeAddress
         _         -> IncreasingChangeAddresses
@@ -1172,8 +1188,9 @@ postAccountWallet
 postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub
             (liftKey accXPub) Nothing purposeCIP1852 g IncreasingChangeAddresses
+        initialState = InitialState state genesisBlock RestorationPointAtGenesis
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        (W.createWallet @s networkParams wid wName initialState)
         coworker
     fst <$> getWallet ctx mkWallet (ApiT wid)
   where
@@ -1182,7 +1199,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
     wid = WalletId $ digest (keyFlavorFromState @s) (liftKey accXPub)
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = netParams ctx
 
 mkShelleyWallet
     :: forall ctx s k n.
@@ -1338,15 +1355,17 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
             (RootCredentials rootXPrv pwdP) ix' changeAddrMode
             g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
+        initialState = InitialState state genesisBlock RestorationPointAtGenesis
+        create = W.createWallet @s networkParams wid wName initialState
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        create
     else if isNothing dTemplateM then
         void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        create
         idleWorker
     else void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        create
         (\workerCtx _ -> W.manageSharedRewardBalance
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
@@ -1374,7 +1393,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
         $ deriveAccountPrivateKey pwdP rootXPrv (Index $ getDerivationIndex ix)
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = ctx ^. #netParams
     changeAddrMode = case body ^. #oneChangeAddressMode of
         Just True -> SingleChangeAddress
         _         -> IncreasingChangeAddresses
@@ -1411,15 +1430,17 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     let state = mkSharedStateFromAccountXPub kF
             (liftKey accXPub) acctIx IncreasingChangeAddresses g pTemplate dTemplateM
     let stateReadiness = state ^. #ready
+        initialState = InitialState state genesisBlock RestorationPointAtGenesis
+        create = W.createWallet @s networkParams wid wName initialState
     if stateReadiness == Shared.Pending
     then void $ liftHandler $ createNonRestoringWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        create
     else if isNothing dTemplateM then
         void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        create
         idleWorker
     else void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName state)
+        create
         (\workerCtx _ -> W.manageSharedRewardBalance
             (workerCtx ^. typed)
             (workerCtx ^. networkLayer)
@@ -1438,7 +1459,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
     accXPub = getApiT accXPubApiT
     scriptValidation =
         maybe RecommendedValidation getApiT (body ^. #scriptValidation)
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = ctx ^. #netParams
 
 scriptTemplateFromSelf :: XPub -> ApiScriptTemplateEntry -> ScriptTemplate
 scriptTemplateFromSelf xpub (ApiScriptTemplateEntry cosigners' template') =
@@ -1551,8 +1572,10 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
 
         void $ deleteWallet ctx (ApiT wid)
         let wName = meta ^. #name
+            initialState
+                = InitialState state genesisBlock RestorationPointAtGenesis
         void $ liftHandler $ createWalletWorker @_ @s ctx wid
-            (W.createWallet @s genesisParams wid wName state)
+            (W.createWallet @s networkParams wid wName initialState)
             idleWorker
         withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk ->
             handler $ W.updateWallet wrk (const meta)
@@ -1565,7 +1588,7 @@ patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     cosigner = getApiT (body ^. #cosigner)
     (ApiAccountSharedPublicKey accXPubApiT) = (body ^. #accountPublicKey)
     accXPub = getApiT accXPubApiT
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = ctx ^. #netParams
 
 --------------------- Legacy
 
@@ -1679,15 +1702,16 @@ postRandomWallet
     -> Handler ApiByronWallet
 postRandomWallet ctx body = do
     s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
+    let initialState = InitialState s genesisBlock RestorationPointAtGenesis
     postLegacyWallet ctx (rootXPrv, pwd) $ \wid ->
-        W.createWallet @s genesisParams wid wName s
+        W.createWallet @s networkParams wid wName initialState
   where
     wName    = body ^. #name . #getApiT
     seed     = body ^. #mnemonicSentence . #getApiMnemonicT
     pwd      = body ^. #passphrase . #getApiT
     pwdP     = preparePassphrase currentPassphraseScheme pwd
     rootXPrv = Byron.generateKeyFromSeed seed pwdP
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = ctx ^. #netParams
 
 postRandomWalletFromXPrv
     :: forall ctx s n.
@@ -1700,8 +1724,9 @@ postRandomWalletFromXPrv
     -> Handler ApiByronWallet
 postRandomWalletFromXPrv ctx body = do
     s <- liftIO $ mkRndState byronKey <$> getStdRandom random
+    let initialState = InitialState s genesisBlock RestorationPointAtGenesis
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
-        (W.createWallet @s genesisParams wid wName s)
+        (W.createWallet @s networkParams wid wName initialState)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> handler $
         W.attachPrivateKeyFromPwdHashByron wrk (byronKey, pwd)
@@ -1712,7 +1737,7 @@ postRandomWalletFromXPrv ctx body = do
     masterKey = getApiT (body ^. #encryptedRootPrivateKey)
     byronKey = mkByronKeyFromMasterKey masterKey
     wid = WalletId $ digest ByronKeyS $ publicKey ByronKeyS byronKey
-    genesisParams = ctx ^. #netParams
+    (genesisBlock, networkParams) = ctx ^. #netParams
 
 postIcarusWallet
     :: forall ctx s k n.
@@ -1836,7 +1861,7 @@ deleteWallet
 deleteWallet ctx (ApiT wid) = do
     -- Start a context so that an error is throw if the wallet doesn't exist.
     withWorkerCtx @_ @s ctx wid liftE
-        (const $ pure()) (const $ pure ())
+        (const $ pure ()) (const $ pure ())
 
     liftIO $ Registry.unregister re wid
     liftIO $ removeDatabase df wid
@@ -4407,9 +4432,8 @@ getNetworkParameters (_block0, genesisNp) nl = do
   where
     ti :: TimeInterpreter IO
     ti = neverFails
-        "PastHorizonException should never happen in getNetworkParameters \
-        \because the ledger is being queried for slotting info about its own \
-        \tip."
+        "PastHorizonException should never happen in getNetworkParameters         \because the ledger is being queried for slotting info about its own         \tip."
+
         (timeInterpreter nl)
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
@@ -4824,8 +4848,8 @@ mkApiTransaction timeInterpreter wrk timeRefLens tx = do
     let db = wrk ^. typed @(DBLayer IO s)
     timeRef <- liftIO $ (#time .~ tx ^. #txTime) <$> makeApiBlockReference
         (neverFails
-            "makeApiBlockReference shouldn't fail getting the time of \
-            \transactions with slots in the past" timeInterpreter)
+            "makeApiBlockReference shouldn't fail getting the time of             \transactions with slots in the past" timeInterpreter)
+
         (tx ^. #txMeta . #slotNo)
         (natural (tx ^. #txMeta . #blockHeight))
     expRef <- liftIO $ traverse makeApiSlotReference' (tx ^. #txMeta . #expiry)
@@ -5279,6 +5303,8 @@ data ErrCreateWallet
         -- ^ Wallet already exists
     | ErrCreateWalletFailedToCreateWorker
         -- ^ Somehow, we couldn't create a worker or open a db connection
+    | ErrCreateWalletRestorationFromABlockFailed ErrFetchBlock
+        -- ^ Restoration from a given block failed
     deriving (Eq, Show)
 
 data ErrTemporarilyDisabled = ErrTemporarilyDisabled
@@ -5311,6 +5337,24 @@ instance IsServerError ErrCreateWallet where
                 , "and likely not your fault. Perhaps, check your filesystem's "
                 , "permissions or available space?"
                 ]
+        ErrCreateWalletRestorationFromABlockFailed
+            (ErrNoBlockAt (ChainPoint slot block ))
+            -> apiError err404 UnexpectedError $ mconcat
+            [
+            "Restoration from a given block failed."
+            , "The block at slot "
+                <> T.pack (show slot)
+                <> " and hash "
+                <> toText block
+                <> " does not exist."
+            ]
+        ErrCreateWalletRestorationFromABlockFailed
+            (ErrNoBlockAt (ChainPointAtGenesis))
+            -> apiError err404 UnexpectedError $ mconcat
+            [
+            "Restoration from a given block failed."
+            , "The block at genesis does not exist."
+            ]
 
 instance IsServerError ErrGetAsset where
     toServerError = \case

@@ -5479,6 +5479,19 @@ x-errInputResolutionConflicts: &errInputResolutionConflicts
       type: string
       enum: ['input_resolution_conflicts']
 
+x-errBlockHeaderNotFound: &errBlockHeaderNotFound
+  <<: *responsesErr
+  title: block_header_not_found
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when trying to retrieve a block header
+        that is not in the local node's chain.
+    code:
+      type: string
+      enum: ['block_header_not_found']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
