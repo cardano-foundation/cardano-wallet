@@ -8,6 +8,7 @@ module Cardano.Wallet.Network
 
       -- * Errors
     , ErrPostTx (..)
+    , ErrFetchBlock (..)
 
       -- * Chain following
     , ChainFollower (..)
@@ -103,6 +104,9 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..)
     )
+import Fmt
+    ( pretty
+    )
 import GHC.Generics
     ( Generic
     )
@@ -111,8 +115,6 @@ import Internal.Cardano.Write.Tx
     )
 
 import qualified Internal.Cardano.Write.Tx as Write
-    ( PParams
-    )
 
 {-----------------------------------------------------------------------------
     NetworkLayer
@@ -127,6 +129,11 @@ data NetworkLayer m block = NetworkLayer
     -- The callbacks provided in the 'ChainFollower' argument
     -- are used to handle intersection finding,
     -- the arrival of new blocks, and rollbacks.
+    , fetchBlock
+        :: ChainPoint
+        -> m (Either ErrFetchBlock block)
+    -- ^ Connect to the node and try to retrieve
+    -- the block at a given 'ChainPoint'.
     , currentNodeTip
         :: m BlockHeader
     -- ^ Get the current tip from the chain producer
@@ -191,6 +198,8 @@ instance Functor m => Functor (NetworkLayer m) where
         nl
             { chainSync = \tr follower ->
                 chainSync nl tr $ mapChainFollower id id id (fmap f) follower
+            , fetchBlock =
+                fmap (fmap f) . fetchBlock nl
             }
 
 {-----------------------------------------------------------------------------
@@ -304,3 +313,12 @@ instance ToText ErrPostTx where
         ErrPostTxValidationError msg -> msg
         ErrPostTxMempoolFull ->
             "mempool was full and refused posted transaction"
+
+-- | Error while trying to retrieve a block
+newtype ErrFetchBlock = ErrNoBlockAt ChainPoint
+    deriving (Generic, Show, Eq)
+
+instance ToText ErrFetchBlock where
+    toText = \case
+        ErrNoBlockAt pt ->
+            "no block found at ChainPoint " <> pretty pt

@@ -64,6 +64,7 @@ import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
     , ChainSyncLog (..)
+    , ErrFetchBlock (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
     , mapChainFollower
@@ -484,6 +485,8 @@ withNodeNetworkLayerBase
                         let trChainSync = MsgConnectionStatus ClientChainSync >$< tr
                             retryHandlers = handlers ClientChainSync
                         connectClient trChainSync retryHandlers client versionData conn
+                , fetchBlock =
+                    pure . Left . ErrNoBlockAt
                 , currentNodeTip =
                     fromTip getGenesisBlockHash <$> atomically readNodeTip
                 , currentNodeEra =
