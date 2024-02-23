@@ -47,6 +47,11 @@ library
     Cardano.Wallet.Network.Implementation.Ouroboros
     Cardano.Wallet.Network.Implementation.UnliftIO
     Cardano.Wallet.Network.Light
+    Cardano.Wallet.Network.LocalStateQuery
+    Cardano.Wallet.Network.LocalStateQuery.Extra
+    Cardano.Wallet.Network.LocalStateQuery.PParams
+    Cardano.Wallet.Network.LocalStateQuery.RewardAccount
+    Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation
 

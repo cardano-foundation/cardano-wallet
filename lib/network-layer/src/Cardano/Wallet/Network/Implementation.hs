@@ -8,7 +8,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -61,7 +60,6 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn
     , nodeSocketFile
     )
-
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
@@ -88,31 +86,17 @@ import Cardano.Wallet.Network.Implementation.UnliftIO
     )
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
-    , protocolParametersFromUpdateState
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromAllegraPParams
-    , fromAlonzoPParams
-    , fromBabbagePParams
-    , fromConwayPParams
-    , fromMaryPParams
-    , fromNonMyopicMemberRewards
-    , fromPoint
-    , fromPoolDistr
-    , fromShelleyPParams
-    , fromStakeCredential
+    ( fromPoint
     , fromTip
     , fromTip'
     , nodeToClientVersions
-    , optimumNumberOfPools
-    , slottingParametersFromGenesis
     , toCardanoEra
-    , toLedgerStakeCredential
     , toPoint
-    , toShelleyCoin
     , unsealShelleyTx
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -128,17 +112,11 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader
     )
-import Cardano.Wallet.Primitive.Types.EraInfo
-    ( EraInfo (..)
-    )
 import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters (..)
     )
 import Cardano.Wallet.Primitive.Types.NetworkParameters
     ( NetworkParameters (..)
-    )
-import Cardano.Wallet.Primitive.Types.Pool
-    ( PoolId
     )
 import Cardano.Wallet.Primitive.Types.ProtocolParameters
     ( ProtocolParameters
@@ -151,9 +129,6 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
-    )
-import Control.Applicative
-    ( liftA3
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
@@ -251,9 +226,6 @@ import Data.Map
 import Data.Maybe
     ( fromMaybe
     )
-import Data.Percentage
-    ( Percentage
-    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -297,19 +269,10 @@ import Ouroboros.Consensus.Cardano.Block
     ( BlockQuery (..)
     , CardanoEras
     , CodecConfig (..)
-    , EraCrypto
     , GenTx
-    , StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardMary
-    , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( EraIndex (..)
-    , QueryAnytime (..)
-    , QueryHardFork (..)
-    , eraIndexToInt
+    ( QueryHardFork (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo
@@ -335,19 +298,11 @@ import Ouroboros.Consensus.Node.NetworkProtocolVersion
     ( HasNetworkProtocolVersion (..)
     , SupportedNetworkProtocolVersion (..)
     )
-import Ouroboros.Consensus.Protocol.Praos
-    ( Praos
-    )
-import Ouroboros.Consensus.Protocol.TPraos
-    ( TPraos
-    )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardConway
-    , StandardCrypto
+    ( StandardCrypto
     )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..)
-    , getCompactGenesis
     )
 import Ouroboros.Network.Block
     ( Point
@@ -416,12 +371,7 @@ import UnliftIO.Exception
     , IOException
     )
 
-import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.LedgerState as SL
-import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
+import qualified Cardano.Wallet.Network.LocalStateQuery as LSQ
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -431,10 +381,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
-    ( PParams
-    )
-import qualified Ouroboros.Consensus.Byron.Ledger as Byron
-import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -645,15 +591,8 @@ withNodeNetworkLayerBase
         _stakeDistribution queue coin = do
             liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
 
-            let qry :: LSQ (CardanoBlock StandardCrypto) IO (Maybe StakePoolsSummary)
-                qry =
-                    liftA3
-                        (liftA3 StakePoolsSummary)
-                        getNOpt
-                        queryNonMyopicMemberRewards
-                        stakeDistr
-
-            mres <- bracketQuery "stakePoolsSummary" tr $ queue `send` (SomeLSQ qry)
+            mres <- bracketQuery "stakePoolsSummary" tr
+                $ queue `send` SomeLSQ (LSQ.stakeDistribution coin)
 
             -- The result will be Nothing if query occurs during the byron era
             traceWith tr $ MsgFetchStakePoolsData mres
@@ -666,52 +605,6 @@ withNodeNetworkLayerBase
                             (Map.size rewards)
                     return res
                 Nothing -> pure $ StakePoolsSummary 0 mempty mempty
-          where
-            stakeDistr
-                :: LSQ
-                    (CardanoBlock StandardCrypto)
-                    IO
-                    (Maybe (Map PoolId Percentage))
-            stakeDistr =
-                shelleyBased
-                    (fromPoolDistr <$> LSQry Shelley.GetStakeDistribution)
-
-            getNOpt :: LSQ (CardanoBlock StandardCrypto) IO (Maybe Int)
-            getNOpt =
-                onAnyEra
-                    (pure Nothing)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-                    (Just . optimumNumberOfPools <$> LSQry Shelley.GetCurrentPParams)
-
-            queryNonMyopicMemberRewards
-                :: LSQ
-                    (CardanoBlock StandardCrypto)
-                    IO
-                    (Maybe (Map PoolId W.Coin))
-            queryNonMyopicMemberRewards =
-                shelleyBased
-                    $ (getRewardMap . fromNonMyopicMemberRewards)
-                        <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
-              where
-                stake :: Set (Either SL.Coin a)
-                stake = Set.singleton $ Left $ toShelleyCoin coin
-
-                fromJustRewards =
-                    fromMaybe
-                        ( error
-                            "stakeDistribution: requested rewards\
-                            \ not included in response"
-                        )
-
-                getRewardMap
-                    :: Map (Either W.Coin W.RewardAccount) (Map PoolId W.Coin)
-                    -> Map PoolId W.Coin
-                getRewardMap =
-                    fromJustRewards . Map.lookup (Left coin)
 
         _watchNodeTip readTip cb = do
             observeForever readTip $ \tip -> do
@@ -907,57 +800,11 @@ mkWalletToNodeProtocols
                         slottingParamsLegacy
                 onPParamsUpdate networkParams
 
-        let queryParams = do
-                eraBounds <-
-                    EraInfo
-                        <$> LSQry (QueryAnytimeByron GetEraStart)
-                        <*> LSQry (QueryAnytimeShelley GetEraStart)
-                        <*> LSQry (QueryAnytimeAllegra GetEraStart)
-                        <*> LSQry (QueryAnytimeMary GetEraStart)
-                        <*> LSQry (QueryAnytimeAlonzo GetEraStart)
-                        <*> LSQry (QueryAnytimeBabbage GetEraStart)
-
-                sp <-
-                    byronOrShelleyBased
-                        (pure $ slottingParameters np)
-                        ( (slottingParametersFromGenesis . getCompactGenesis)
-                            <$> LSQry Shelley.GetGenesisConfig
-                        )
-
-                pp <-
-                    onAnyEra
-                        ( protocolParametersFromUpdateState eraBounds
-                            <$> LSQry Byron.GetUpdateInterfaceState
-                        )
-                        ( fromShelleyPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromAllegraPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromMaryPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromAlonzoPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromBabbagePParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                        ( fromConwayPParams eraBounds
-                            <$> LSQry Shelley.GetCurrentPParams
-                        )
-                ppEra <-
-                    onAnyEra
-                        (pure InNonRecentEraByron)
-                        (pure InNonRecentEraShelley)
-                        (pure InNonRecentEraAllegra)
-                        (pure InNonRecentEraMary)
-                        (pure InNonRecentEraAlonzo)
-                        (InRecentEraBabbage <$> LSQry Shelley.GetCurrentPParams)
-                        (InRecentEraConway <$> LSQry Shelley.GetCurrentPParams)
-
-                return $ NetworkParams ppEra pp sp
+        let queryParams =
+                NetworkParams
+                    <$> LSQ.protocolParams
+                    <*> LSQ.protocolParamsLegacy
+                    <*> (LSQ.slottingParamsLegacy np)
 
         let queryInterpreter = LSQry (QueryHardFork GetInterpreter)
 
@@ -968,7 +815,10 @@ mkWalletToNodeProtocols
         --
         -- By blocking (with `send`) we ensure we don't queue multiple queries.
         let onTipUpdate _tip = do
-                let qry = (,,) <$> queryParams <*> queryInterpreter <*> currentEra
+                let qry = (,,)
+                        <$> queryParams
+                        <*> queryInterpreter
+                        <*> LSQ.currentEra
                 (pparams, int, e) <- localStateQueryQ `send` (SomeLSQ qry)
                 onPParamsUpdate' pparams
                 onInterpreterUpdate int
@@ -1045,47 +895,8 @@ fetchRewardAccounts tr queryRewardQ accounts = do
         $ traceWith tr
         $ MsgFetchRewardAccountBalance accounts
 
-    let qry =
-            onAnyEra
-                (pure (byronValue, []))
-                shelleyQry
-                shelleyQry
-                shelleyQry
-                shelleyQry
-                shelleyQry
-                shelleyQry
-
-    (res, logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
-    liftIO $ mapM_ (traceWith tr) logs
-    return res
-  where
-    byronValue :: Map W.RewardAccount W.Coin
-    byronValue = Map.fromList . map (,W.Coin 0) $ Set.toList accounts
-
-    shelleyQry
-        :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
-        => LSQ
-            (Shelley.ShelleyBlock protocol shelleyEra)
-            IO
-            (Map W.RewardAccount W.Coin, [Log])
-    shelleyQry =
-        fmap fromBalanceResult
-            . LSQry
-            . Shelley.GetFilteredDelegationsAndRewardAccounts
-            $ Set.map toLedgerStakeCredential accounts
-
-    fromBalanceResult
-        :: ( Map
-                (SL.Credential 'SL.Staking crypto)
-                (SL.KeyHash 'SL.StakePool crypto)
-           , SL.RewardAccounts crypto
-           )
-        -> (Map W.RewardAccount W.Coin, [Log])
-    fromBalanceResult (deleg, rewardAccounts) =
-        ( Map.mapKeys fromStakeCredential
-            $ Map.map Ledger.toWalletCoin rewardAccounts
-        , [MsgAccountDelegationAndRewards deleg rewardAccounts]
-        )
+    bracketQuery "queryRewards" tr
+        $ queryRewardQ `send` SomeLSQ (LSQ.fetchRewardAccounts accounts)
 
 -- | Monitors values for keys, and allows clients to @query@ them.
 --
@@ -1455,14 +1266,6 @@ data Log where
     MsgLocalStateQueryEraMismatch
         :: MismatchEraInfo (CardanoEras StandardCrypto) -> Log
     MsgFetchRewardAccountBalance :: Set W.RewardAccount -> Log
-    MsgAccountDelegationAndRewards
-        :: forall era crypto
-         . ( Map
-                (SL.Credential 'SL.Staking era)
-                (SL.KeyHash 'SL.StakePool crypto)
-           )
-        -> SL.RewardAccounts era
-        -> Log
     MsgDestroyCursor :: ThreadId -> Log
     MsgWillQueryRewardsForStake :: W.Coin -> Log
     MsgFetchStakePoolsData :: Maybe StakePoolsSummary -> Log
@@ -1525,11 +1328,6 @@ instance ToText Log where
                 [ "Querying the reward account balance for"
                 , fmt $ listF accts
                 ]
-        MsgAccountDelegationAndRewards delegations rewards ->
-            T.unlines
-                [ "  delegations = " <> T.pack (show delegations)
-                , "  rewards = " <> T.pack (show rewards)
-                ]
         MsgDestroyCursor threadId ->
             T.unwords
                 [ "Destroying cursor connection at"
@@ -1577,7 +1375,6 @@ instance HasSeverityAnnotation Log where
         MsgProtocolParameters{} -> Info
         MsgLocalStateQueryError{} -> Error
         MsgLocalStateQueryEraMismatch{} -> Debug
-        MsgAccountDelegationAndRewards{} -> Debug
         MsgDestroyCursor{} -> Debug
         MsgWillQueryRewardsForStake{} -> Info
         MsgFetchStakePoolsData{} -> Debug
@@ -1630,124 +1427,3 @@ instance
             [ "Stopped observing values for key "
             , pretty key
             ]
-
-{-------------------------------------------------------------------------------
-    Local State Query Helpers
--------------------------------------------------------------------------------}
-
-byronOrShelleyBased
-    :: LSQ Byron.ByronBlock m a
-    -> ( forall shelleyEra praos
-          . LSQ
-                ( Shelley.ShelleyBlock
-                    (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
-                )
-                m
-                a
-       )
-    -> LSQ (CardanoBlock StandardCrypto) m a
-byronOrShelleyBased onByron onShelleyBased =
-    onAnyEra
-        onByron
-        onShelleyBased
-        onShelleyBased
-        onShelleyBased
-        onShelleyBased
-        onShelleyBased
-        onShelleyBased
-
--- | Create a local state query specific to the each era.
---
--- This combinator treats @MismatchEraInfo@ as impossible, which is true if the
--- @LSQEra@ value the @LSQ@ interpreter uses always matches the era of the
--- acquired point.
---
--- Where possible, the more convenient @shelleyBased@ or @byronOrShelleyBased@
--- should be used. This more raw helper was added to simplify dealing with
--- @PParams@ in alonzo.
-onAnyEra
-    :: LSQ Byron.ByronBlock m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardConway) m a
-    -> LSQ (CardanoBlock StandardCrypto) m a
-onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
-    currentEra >>= \case
-        AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
-        AnyCardanoEra ShelleyEra -> mapQuery QueryIfCurrentShelley onShelley
-        AnyCardanoEra AllegraEra -> mapQuery QueryIfCurrentAllegra onAllegra
-        AnyCardanoEra MaryEra -> mapQuery QueryIfCurrentMary onMary
-        AnyCardanoEra AlonzoEra -> mapQuery QueryIfCurrentAlonzo onAlonzo
-        AnyCardanoEra BabbageEra -> mapQuery QueryIfCurrentBabbage onBabbage
-        AnyCardanoEra ConwayEra -> mapQuery QueryIfCurrentConway onConway
-  where
-    mapQuery
-        :: ( forall r
-              . BlockQuery block1 r
-             -> BlockQuery
-                    block2
-                    ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r)
-           )
-        -> LSQ block1 m a
-        -> LSQ block2 m a
-    mapQuery _ (LSQPure x) = LSQPure x
-    mapQuery f (LSQBind ma f') = LSQBind (mapQuery f ma) (mapQuery f . f')
-    mapQuery f (LSQry q) = unwrap <$> LSQry (f q)
-
-    unwrap =
-        either
-            ( error
-                "impossible: byronOrShelleyBased query resulted in an \
-                \era mismatch"
-            )
-            id
-
--- | Return Nothings in Byron, or @Just result@ in Shelley.
-shelleyBased
-    :: ( forall shelleyEra praos
-          . LSQ
-                ( Shelley.ShelleyBlock
-                    (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
-                )
-                m
-                a
-       )
-    -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
-shelleyBased onShelleyBased =
-    byronOrShelleyBased
-        (pure Nothing) -- on byron
-        (Just <$> onShelleyBased)
-
--- NOTE:
--- In theory we should be able to know the current era from the tip sync
--- client. But there are is a problem from the combination of:
--- 1. We can't tell the era from a rollback message
--- 2. The initial tip we get is from a rollback message
---
--- which would make us unable to send Local State Queries until the node has
--- updated its tip once.
-currentEra :: LSQ (CardanoBlock StandardCrypto) m AnyCardanoEra
-currentEra = eraIndexToAnyCardanoEra <$> LSQry (QueryHardFork GetCurrentEra)
-
--- | Provides a mapping from 'EraIndex' to 'AnyCardanoEra'.
---
--- This mapping replaces a conversion between enumerations.
---
--- The following is used as a reference for the index mapping:
--- https://github.com/IntersectMBO/cardano-node/blob/3531289c9f79eab7ac5d3272ce6e6821504fec4c/cardano-api/src/Cardano/Api/Eras.hs#L188
-eraIndexToAnyCardanoEra :: EraIndex xs -> AnyCardanoEra
-eraIndexToAnyCardanoEra index =
-    case eraIndexToInt index of
-        0 -> AnyCardanoEra ByronEra
-        1 -> AnyCardanoEra ShelleyEra
-        2 -> AnyCardanoEra AllegraEra
-        3 -> AnyCardanoEra MaryEra
-        4 -> AnyCardanoEra AlonzoEra
-        5 -> AnyCardanoEra BabbageEra
-        6 -> AnyCardanoEra ConwayEra
-        _ -> error "eraIndexToAnyCardanoEra: unknown era"
