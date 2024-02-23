@@ -197,6 +197,7 @@ module Test.Integration.Framework.DSL
     , notDelegating
     , delegating
     , onlyVoting
+    , votingAndDelegating
     , getSlotParams
     , arbitraryStake
 
@@ -235,6 +236,7 @@ module Test.Integration.Framework.DSL
     , listLimitedTransactions
     , noConway
     , noBabbage
+    , babbageOrConway
     ) where
 
 import Prelude
@@ -3522,15 +3524,26 @@ delegating pidActive nexts = (notDelegating nexts)
     { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing Nothing
     }
 
--- this one will be revisited when I add voting and delegation together. Now only voting
 onlyVoting
     :: ApiT DRep
-    -- ^ Pool joined
+    -- ^ voting
     -> [(Maybe (ApiT PoolId), EpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
     -> ApiWalletDelegation
 onlyVoting drep nexts = (notDelegating nexts)
     { active = ApiWalletDelegationNext Voting Nothing (Just drep) Nothing
+    }
+
+votingAndDelegating
+    :: ApiT PoolId
+    -- ^ Pool joined
+    -> ApiT DRep
+    -- ^ voting
+    -> [(Maybe (ApiT PoolId), EpochInfo)]
+    -- ^ Pools to be joined & epoch at which the new delegation will become active
+    -> ApiWalletDelegation
+votingAndDelegating pidActive drep nexts = (notDelegating nexts)
+    { active = ApiWalletDelegationNext VotingAndDelegating (Just pidActive) (Just drep) Nothing
     }
 
 getRetirementEpoch :: StakePool -> Maybe EpochNo
@@ -3602,3 +3615,9 @@ noBabbage :: MonadIO m => Context -> String -> m ()
 noBabbage ctx reason = liftIO $ do
     when (_mainEra ctx == ApiBabbage) $
         pendingWith $ "BABBAGE is not supported: " <> reason
+
+babbageOrConway :: Context -> a -> a -> a
+babbageOrConway ctx valBabbage valConway =
+    case _mainEra ctx of
+        ApiBabbage -> valBabbage
+        _ -> valConway
