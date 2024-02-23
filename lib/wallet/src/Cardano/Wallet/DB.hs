@@ -98,8 +98,7 @@ import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx
-    , Tx (..)
+    ( Tx (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
@@ -258,7 +257,6 @@ data DBLayer m s = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , resubmitTx
         :: Hash "Tx"
-        -> SealedTx -- TODO: ADP-2596 really not needed
         -> SlotNo
         -> stm ()
         -- ^ Resubmit a transaction.
@@ -427,7 +425,7 @@ mkDBLayerFromParts ti wid_ DBLayerCollection{..} = DBLayer
                     (hoistTimeInterpreter liftIO ti)
                     (mkDecorator_ dbTxHistory) tip
                         . fmap snd
-    , resubmitTx = \hash _ slotNo ->
+    , resubmitTx = \hash slotNo ->
             updateSubmissionsNoError dbCheckpoints
                 $ Sbms.resubmitTx hash slotNo
     , rollForwardTxSubmissions = \tip txs ->
