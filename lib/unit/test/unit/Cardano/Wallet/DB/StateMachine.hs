@@ -119,6 +119,9 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters
     , dummyTimeInterpreter
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     )
@@ -1069,6 +1072,7 @@ genDBParams
 genDBParams =
     DBLayerParams
         <$> (getInitialCheckpoint <$> arbitrary)
+        <*> pure RestorationPointAtGenesis
         <*> arbitrary
         <*> fmap unGenTxHistory arbitrary
         <*> pure dummyGenesisParameters
@@ -1079,7 +1083,7 @@ prop_sequential
     => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s)))
     -> Property
 prop_sequential newDB =
-    QC.forAll genDBParams $ \params ->
+    QC.forAllBlind genDBParams $ \params ->
         let measureTagCoverage :: Commands (At (Cmd s)) (At (Resp s))
                 -> Property -> Property
             measureTagCoverage cmds prop = foldl' measureTag prop allTags

@@ -433,7 +433,7 @@ import Cardano.Wallet.Network
     , NetworkLayer (..)
     )
 import Cardano.Wallet.Network.RestorationMode
-    ( RestorationPoint
+    ( RestorationPoint (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toLedgerAddress
@@ -1024,7 +1024,7 @@ createWallet
     (NetworkParameters gp _sp _pp)
     _wid
     wname
-    InitialState {initialState, genesisBlock} = do
+    InitialState {initialState, genesisBlock, restorationPoint} = do
         let (hist, stateAtGenesis) = initWallet genesisBlock initialState
         now <- getCurrentTime
         let meta =
@@ -1033,7 +1033,7 @@ createWallet
                     , creationTime = now
                     , passphraseInfo = Nothing
                     }
-        pure $ DBLayerParams stateAtGenesis meta hist gp
+        pure $ DBLayerParams stateAtGenesis restorationPoint meta hist gp
 
 -- \^ we probably want to pass blockheader here
 -- and not mix the concern of computing
@@ -1075,7 +1075,7 @@ createIcarusWallet
                     , creationTime = now
                     , passphraseInfo = Nothing
                     }
-        pure $ DBLayerParams cp meta hist gp
+        pure $ DBLayerParams cp RestorationPointAtGenesis meta hist gp
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity :: DBLayer IO s -> GenesisParameters -> IO ()

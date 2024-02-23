@@ -138,6 +138,7 @@ data WalletCheckpoint s = WalletCheckpoint
     , discoveries :: !(Discoveries s)
     } deriving (Generic)
 
+deriving instance Show (Discoveries s) => Show (WalletCheckpoint s)
 deriving instance AddressBookIso s => Eq (WalletCheckpoint s)
 
 -- | Helper function: Get the block height of a wallet checkpoint.

@@ -168,7 +168,7 @@ import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , DeltaWalletState1 (..)
     , findNearestPoint
-    , fromGenesis
+    , fromRestorationPoint
     , getLatest
     )
 import Cardano.Wallet.Flavor
@@ -670,7 +670,7 @@ bootDBLayerFromSqliteContext
     -> IO (DBLayer IO s)
 bootDBLayerFromSqliteContext wF ti wid params SqliteContext{runQuery} = do
     let cp = dBLayerParamsState params
-    case fromGenesis cp
+    case fromRestorationPoint cp (dbLayerStartRestorationPoint params)
         $ WalletInfo
             wid
             (dBLayerParamsMetadata params)

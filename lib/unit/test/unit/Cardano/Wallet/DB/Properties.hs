@@ -40,6 +40,9 @@ import Cardano.Wallet.DB.Pure.Implementation
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
+    )
 import Cardano.Wallet.Primitive.Types
     ( ChainPoint (..)
     , GenesisParameters
@@ -143,7 +146,7 @@ withFreshWallet
     -> PropertyM IO ()
 withFreshWallet wid withBootDBLayer f = do
     (InitialCheckpoint cp0, meta) <- pick arbitrary
-    let params = DBLayerParams cp0 meta mempty gp
+    let params = DBLayerParams cp0 RestorationPointAtGenesis meta mempty gp
     withBootDBLayer wid params
         $ \db -> f db wid
 
@@ -385,7 +388,7 @@ prop_rollbackTxHistory
 prop_rollbackTxHistory test (InitialCheckpoint cp0) (GenTxHistory txs0) =
     monadicIO $ do
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
-        let params = DBLayerParams cp0 meta mempty gp
+        let params = DBLayerParams cp0 RestorationPointAtGenesis meta mempty gp
 
         test testWid params $ \DBLayer{..} -> do
             ShowFmt requestedPoint <- namedPick "Requested Rollback slot" arbitrary

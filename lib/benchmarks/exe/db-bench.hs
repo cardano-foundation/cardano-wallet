@@ -146,6 +146,9 @@ import Cardano.Wallet.Flavor
     ( KeyFlavorS (..)
     , WalletFlavor (..)
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (RestorationPointAtGenesis)
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , initWallet
@@ -752,6 +755,7 @@ walletFixture :: WalletFixture StateBench
 walletFixture =
     ( DBLayerParams
         testCp
+        RestorationPointAtGenesis
         testMetadata
         mempty
         dummyGenesisParameters
@@ -762,6 +766,7 @@ walletFixtureByron :: WalletFixture StateBenchByron
 walletFixtureByron =
     ( DBLayerParams
         testCpByron
+        RestorationPointAtGenesis
         testMetadata
         mempty
         dummyGenesisParameters

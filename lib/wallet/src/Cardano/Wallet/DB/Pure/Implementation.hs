@@ -244,7 +244,7 @@ mInitializeWallet
      . wid
     -> DBLayerParams s
     -> Database wid s xprv
-mInitializeWallet wid (DBLayerParams cp meta txs0 gp) =
+mInitializeWallet wid (DBLayerParams cp _ meta txs0 gp) =
     Database wid wal txs0'
   where
     wal = WalletDatabase
