@@ -72,10 +72,12 @@ import Cardano.Wallet.Network
     , withFollowStatsMonitoring
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
-    ( LSQ (..)
+    ( FetchBlockCmd (..)
+    , LSQ (..)
     , LocalStateQueryCmd (..)
     , LocalTxSubmissionCmd (..)
     , PipeliningStrategy
+    , chainSyncFetchNextBlock
     , chainSyncFollowTip
     , chainSyncWithBlocks
     , localStateQuery
@@ -152,6 +154,7 @@ import Control.Concurrent.Class.MonadSTM
     , retry
     , takeTMVar
     , tryReadTMVar
+    , writeTQueue
     , writeTVar
     )
 import Control.Monad
@@ -363,6 +366,7 @@ import System.IO.Error
 import UnliftIO.Async
     ( async
     , link
+    , race
     )
 import UnliftIO.Concurrent
     ( ThreadId
@@ -486,7 +490,7 @@ withNodeNetworkLayerBase
                             retryHandlers = handlers ClientChainSync
                         connectClient trChainSync retryHandlers client versionData conn
                 , fetchNextBlock =
-                    pure . Left . ErrNoBlockAt
+                    _fetchNextBlock (handlers ClientFetchBlock)
                 , currentNodeTip =
                     fromTip getGenesisBlockHash <$> atomically readNodeTip
                 , currentNodeEra =
@@ -571,6 +575,43 @@ withNodeNetworkLayerBase
                 =<< async
                     (connectClient trRewardsClient handlers client versionData conn)
             pure q
+
+        runFetchBlockClient
+            :: forall block
+              . ( block ~ CardanoBlock (StandardCrypto)
+                )
+            => RetryHandlers
+            -> TQueue IO (FetchBlockCmd IO block (Point block))
+            -> IO ()
+        runFetchBlockClient retryHandlers blockQ = do
+            let ouroborosApp
+                    :: NodeToClientVersion -> WalletOuroborosApplication IO
+                ouroborosApp = mkFetchBlockClient cfg blockQ
+            connectClient nullTracer retryHandlers ouroborosApp versionData conn
+
+        _fetchNextBlock retryHandlers pt = do
+            let pt' = toPoint pt
+            blockQ <- newTQueueIO
+            let runNodeToClient =
+                    runFetchBlockClient retryHandlers blockQ
+                awaitResult =
+                    withReturnResult $ \respond ->
+                        atomically
+                            $ writeTQueue blockQ
+                            $ FetchBlockCmd pt' respond
+
+            -- We close the node-to-client connection as soon as
+            -- we have received the result.
+            emblock <- race runNodeToClient awaitResult
+            pure $ case emblock of
+                Right (Just block) -> Right block
+                _ -> Left $ ErrNoBlockAt pt
+          where
+            withReturnResult :: ((a -> IO ()) -> IO ()) -> IO a
+            withReturnResult cont = do
+                var <- newEmptyTMVarIO
+                cont $ atomically . putTMVar var
+                atomically $ readTMVar var
 
         -- NOTE1: only shelley transactions can be submitted like this, because they
         -- are deserialised as shelley transactions before submitting.
@@ -718,6 +759,37 @@ mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
                         runPipelinedPeer nullTracer codec channel
                             $ chainSyncClientPeerPipelined
                             $ chainSyncWithBlocks tr pipeliningStrategy follower
+            }
+
+-- | Construct a network client with the given communication channel,
+-- for the purpose of fetching single blocks.
+mkFetchBlockClient
+    :: forall m block
+     . ( block ~ CardanoBlock (StandardCrypto)
+       , MonadThrow m
+       , MonadST m
+       , MonadTimer m
+       )
+    => CodecConfig block
+    -> TQueue m (FetchBlockCmd m block (Point block))
+    -> NodeToClientVersion
+    -> WalletOuroborosApplication m
+mkFetchBlockClient cfg blockQ nodeToClientVer =
+    nodeToClientProtocols protocols nodeToClientVer
+  where
+    protocols =
+        NodeToClientProtocols
+            { localTxSubmissionProtocol = doNothingProtocol
+            , localStateQueryProtocol = doNothingProtocol
+            , localTxMonitorProtocol = doNothingProtocol
+            , localChainSyncProtocol =
+                InitiatorProtocolOnly
+                    $ MiniProtocolCb
+                    $ \_ channel -> do
+                        let codec = cChainSyncCodec $ codecs nodeToClientVer cfg
+                        runPeer nullTracer codec channel
+                            $ chainSyncClientPeer
+                            $ chainSyncFetchNextBlock blockQ
             }
 
 -- | Construct a network client with the given communication channel, for the
@@ -1236,6 +1308,7 @@ instance HasSeverityAnnotation ConnectionStatusLog where
 data Client
     = ClientChainSync
     | ClientLocalTxSubmission
+    | ClientFetchBlock
     | ClientNodeTip
     | ClientDelegationRewards
 
@@ -1243,6 +1316,7 @@ renderClientName :: Client -> T.Text
 renderClientName = \case
     ClientChainSync -> "Chain Sync"
     ClientLocalTxSubmission -> "Local TX Submission"
+    ClientFetchBlock -> "Fetch block"
     ClientNodeTip -> "Node Tip"
     ClientDelegationRewards -> "Delegation Rewards"
 
