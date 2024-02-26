@@ -39,8 +39,6 @@ module Cardano.Wallet.Read.Eras
   , K (..)
   ,  unK
   , (:*:)(..)
-  -- * Conversion.
-  , isoInAnyCardanoEra
   )
   where
 
@@ -65,9 +63,6 @@ import Cardano.Wallet.Read.Eras.EraValue
     , project
     , sequenceEraValue
     , shelley
-    )
-import Cardano.Wallet.Read.Eras.InAnyCardanoEra
-    ( isoInAnyCardanoEra
     )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras
