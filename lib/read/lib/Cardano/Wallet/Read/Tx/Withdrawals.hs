@@ -22,15 +22,6 @@ module Cardano.Wallet.Read.Tx.Withdrawals
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Address
     ( RewardAcnt
     , unWithdrawals
@@ -44,6 +35,15 @@ import Cardano.Ledger.Core
     )
 import Cardano.Ledger.Crypto
     ( StandardCrypto
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -65,13 +65,13 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 
 type family WithdrawalsType era where
-  WithdrawalsType ByronEra = ()
-  WithdrawalsType ShelleyEra = RewardWithdrawals
-  WithdrawalsType AllegraEra = RewardWithdrawals
-  WithdrawalsType MaryEra = RewardWithdrawals
-  WithdrawalsType AlonzoEra = RewardWithdrawals
-  WithdrawalsType BabbageEra = RewardWithdrawals
-  WithdrawalsType ConwayEra = RewardWithdrawals
+  WithdrawalsType Byron = ()
+  WithdrawalsType Shelley = RewardWithdrawals
+  WithdrawalsType Allegra = RewardWithdrawals
+  WithdrawalsType Mary = RewardWithdrawals
+  WithdrawalsType Alonzo = RewardWithdrawals
+  WithdrawalsType Babbage = RewardWithdrawals
+  WithdrawalsType Conway = RewardWithdrawals
 
 type RewardWithdrawals = Map (RewardAcnt StandardCrypto) Coin
 

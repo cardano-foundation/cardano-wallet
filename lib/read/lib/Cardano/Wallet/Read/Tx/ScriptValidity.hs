@@ -20,20 +20,20 @@ module Cardano.Wallet.Read.Tx.ScriptValidity
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Alonzo.Tx
     ( IsValid
     , isValidTxL
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -47,13 +47,13 @@ import Control.Lens
     )
 
 type family ScriptValidityType era where
-  ScriptValidityType ByronEra = ()
-  ScriptValidityType ShelleyEra = ()
-  ScriptValidityType AllegraEra = ()
-  ScriptValidityType MaryEra = ()
-  ScriptValidityType AlonzoEra = IsValid
-  ScriptValidityType BabbageEra = IsValid
-  ScriptValidityType ConwayEra = IsValid
+  ScriptValidityType Byron = ()
+  ScriptValidityType Shelley = ()
+  ScriptValidityType Allegra = ()
+  ScriptValidityType Mary = ()
+  ScriptValidityType Alonzo = IsValid
+  ScriptValidityType Babbage = IsValid
+  ScriptValidityType Conway = IsValid
 
 newtype ScriptValidity era = ScriptValidity (ScriptValidityType era)
 

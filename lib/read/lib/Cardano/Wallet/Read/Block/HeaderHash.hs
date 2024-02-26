@@ -14,15 +14,6 @@ where
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Binary
     ( EncCBOR
     , EncCBORGroup
@@ -40,6 +31,15 @@ import Cardano.Protocol.TPraos.BHeader
 import Cardano.Wallet.Read
     ( Block (..)
     )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
@@ -56,6 +56,10 @@ import Ouroboros.Consensus.Shelley.Ledger
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ProtoCrypto
     )
+import Ouroboros.Consensus.Shelley.Protocol.Praos
+    ()
+import Ouroboros.Consensus.Shelley.Protocol.TPraos
+    ()
 
 import qualified Cardano.Ledger.Shelley.API as Shelley
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
@@ -64,13 +68,13 @@ import qualified Ouroboros.Network.Block as O
 
 -- | Era-specific header hash type from the ledger
 type family HeaderHashT era where
-    HeaderHashT ByronEra = ByronHash
-    HeaderHashT ShelleyEra = ShelleyHash StandardCrypto
-    HeaderHashT AllegraEra = ShelleyHash StandardCrypto
-    HeaderHashT MaryEra = ShelleyHash StandardCrypto
-    HeaderHashT AlonzoEra = ShelleyHash StandardCrypto
-    HeaderHashT BabbageEra = ShelleyHash StandardCrypto
-    HeaderHashT ConwayEra = ShelleyHash StandardCrypto
+    HeaderHashT Byron = ByronHash
+    HeaderHashT Shelley = ShelleyHash StandardCrypto
+    HeaderHashT Allegra = ShelleyHash StandardCrypto
+    HeaderHashT Mary = ShelleyHash StandardCrypto
+    HeaderHashT Alonzo = ShelleyHash StandardCrypto
+    HeaderHashT Babbage = ShelleyHash StandardCrypto
+    HeaderHashT Conway = ShelleyHash StandardCrypto
 
 -- | Era-specific header hash type from the ledger
 newtype HeaderHash era = HeaderHash (HeaderHashT era)
@@ -101,13 +105,13 @@ getHeaderHashShelley
 
 -- | Era-specific previous header hash type from the ledger
 type family PrevHeaderHashT era where
-    PrevHeaderHashT ByronEra = O.ChainHash ByronBlock
-    PrevHeaderHashT ShelleyEra = PrevHash StandardCrypto
-    PrevHeaderHashT AllegraEra = PrevHash StandardCrypto
-    PrevHeaderHashT MaryEra = PrevHash StandardCrypto
-    PrevHeaderHashT AlonzoEra = PrevHash StandardCrypto
-    PrevHeaderHashT BabbageEra = PrevHash StandardCrypto
-    PrevHeaderHashT ConwayEra = PrevHash StandardCrypto
+    PrevHeaderHashT Byron = O.ChainHash ByronBlock
+    PrevHeaderHashT Shelley = PrevHash StandardCrypto
+    PrevHeaderHashT Allegra = PrevHash StandardCrypto
+    PrevHeaderHashT Mary = PrevHash StandardCrypto
+    PrevHeaderHashT Alonzo = PrevHash StandardCrypto
+    PrevHeaderHashT Babbage = PrevHash StandardCrypto
+    PrevHeaderHashT Conway = PrevHash StandardCrypto
 
 -- | Era-specific previous header hash type from the ledger
 newtype PrevHeaderHash era = PrevHeaderHash (PrevHeaderHashT era)

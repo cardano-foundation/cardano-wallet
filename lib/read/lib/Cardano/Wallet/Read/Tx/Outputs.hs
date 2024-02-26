@@ -21,15 +21,6 @@ module Cardano.Wallet.Read.Tx.Outputs
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )
@@ -42,6 +33,15 @@ import Cardano.Ledger.Core
     )
 import Cardano.Ledger.Shelley.TxOut
     ( ShelleyTxOut
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -73,13 +73,13 @@ import Ouroboros.Consensus.Cardano.Block
 import qualified Cardano.Chain.UTxO as BY
 
 type family OutputsType era where
-    OutputsType ByronEra = NonEmpty BY.TxOut
-    OutputsType ShelleyEra = StrictSeq (ShelleyTxOut StandardShelley)
-    OutputsType AllegraEra = StrictSeq (ShelleyTxOut StandardAllegra)
-    OutputsType MaryEra = StrictSeq (ShelleyTxOut StandardMary)
-    OutputsType AlonzoEra = StrictSeq (AlonzoTxOut StandardAlonzo)
-    OutputsType BabbageEra = StrictSeq (BabbageTxOut StandardBabbage)
-    OutputsType ConwayEra = StrictSeq (BabbageTxOut StandardConway)
+    OutputsType Byron = NonEmpty BY.TxOut
+    OutputsType Shelley = StrictSeq (ShelleyTxOut StandardShelley)
+    OutputsType Allegra = StrictSeq (ShelleyTxOut StandardAllegra)
+    OutputsType Mary = StrictSeq (ShelleyTxOut StandardMary)
+    OutputsType Alonzo = StrictSeq (AlonzoTxOut StandardAlonzo)
+    OutputsType Babbage = StrictSeq (BabbageTxOut StandardBabbage)
+    OutputsType Conway = StrictSeq (BabbageTxOut StandardConway)
 
 newtype Outputs era = Outputs (OutputsType era)
 

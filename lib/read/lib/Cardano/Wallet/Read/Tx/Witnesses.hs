@@ -20,15 +20,6 @@ module Cardano.Wallet.Read.Tx.Witnesses
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Alonzo.TxWits
     ( AlonzoTxWits
     )
@@ -37,6 +28,15 @@ import Cardano.Ledger.Core
     )
 import Cardano.Ledger.Shelley.TxWits
     ( ShelleyTxWits
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -50,23 +50,15 @@ import Cardano.Wallet.Read.Tx.Eras
 import Control.Lens
     ( view
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
 
 type family WitnessesType era where
-  WitnessesType ByronEra = ()
-  WitnessesType ShelleyEra = ShelleyTxWits StandardShelley
-  WitnessesType AllegraEra = ShelleyTxWits StandardAllegra
-  WitnessesType MaryEra = ShelleyTxWits StandardMary
-  WitnessesType AlonzoEra = AlonzoTxWits StandardAlonzo
-  WitnessesType BabbageEra = AlonzoTxWits StandardBabbage
-  WitnessesType ConwayEra = AlonzoTxWits StandardConway
+  WitnessesType Byron = ()
+  WitnessesType Shelley = ShelleyTxWits Shelley
+  WitnessesType Allegra = ShelleyTxWits Allegra
+  WitnessesType Mary = ShelleyTxWits Mary
+  WitnessesType Alonzo = AlonzoTxWits Alonzo
+  WitnessesType Babbage = AlonzoTxWits Babbage
+  WitnessesType Conway = AlonzoTxWits Conway
 
 newtype Witnesses era = Witnesses (WitnessesType era)
 

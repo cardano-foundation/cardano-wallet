@@ -21,15 +21,6 @@ module Cardano.Wallet.Read.Tx.CollateralOutputs
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Babbage.Collateral
     ()
 import Cardano.Ledger.Babbage.Rules
@@ -47,6 +38,15 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -66,14 +66,14 @@ import qualified Cardano.Ledger.Babbage as BA
 import qualified Cardano.Ledger.Conway as Conway
 
 type family CollateralOutputsType era where
-    CollateralOutputsType ByronEra = ()
-    CollateralOutputsType ShelleyEra = ()
-    CollateralOutputsType AllegraEra = ()
-    CollateralOutputsType MaryEra = ()
-    CollateralOutputsType AlonzoEra =  ()
-    CollateralOutputsType BabbageEra
+    CollateralOutputsType Byron = ()
+    CollateralOutputsType Shelley = ()
+    CollateralOutputsType Allegra = ()
+    CollateralOutputsType Mary = ()
+    CollateralOutputsType Alonzo =  ()
+    CollateralOutputsType Babbage
         = StrictMaybe (BabbageTxOut (BA.BabbageEra StandardCrypto))
-    CollateralOutputsType ConwayEra
+    CollateralOutputsType Conway
         = StrictMaybe (BabbageTxOut (Conway.ConwayEra StandardCrypto))
 
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)

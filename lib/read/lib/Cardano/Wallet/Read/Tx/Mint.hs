@@ -22,15 +22,6 @@ module Cardano.Wallet.Read.Tx.Mint
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -42,6 +33,15 @@ import Cardano.Ledger.Mary.Core
     )
 import Cardano.Ledger.Mary.Value
     ( MultiAsset
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -57,13 +57,13 @@ import Control.Lens
     )
 
 type family MintType era where
-  MintType ByronEra = ()
-  MintType ShelleyEra = ()
-  MintType AllegraEra = ()
-  MintType MaryEra = MultiAsset StandardCrypto
-  MintType AlonzoEra = MultiAsset StandardCrypto
-  MintType BabbageEra = MultiAsset StandardCrypto
-  MintType ConwayEra = MultiAsset StandardCrypto
+  MintType Byron = ()
+  MintType Shelley = ()
+  MintType Allegra = ()
+  MintType Mary = MultiAsset StandardCrypto
+  MintType Alonzo = MultiAsset StandardCrypto
+  MintType Babbage = MultiAsset StandardCrypto
+  MintType Conway = MultiAsset StandardCrypto
 
 newtype Mint era = Mint (MintType era)
 
