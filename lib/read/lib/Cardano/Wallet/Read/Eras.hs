@@ -9,6 +9,17 @@ module Cardano.Wallet.Read.Eras
   ( -- * Eras.
     KnownEras
   , knownEraIndices
+  , Era (..)
+  , IsEra (..)
+  , AnyEra (..)
+  , Allegra
+  , Alonzo
+  , Babbage
+  , Byron
+  , Conway
+  , Mary
+  , Shelley
+
     -- * Era bounded values.
   , EraValue
   , eraValueSerialize
@@ -65,7 +76,17 @@ import Cardano.Wallet.Read.Eras.EraValue
     , shelley
     )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras
+    ( Allegra
+    , Alonzo
+    , AnyEra (..)
+    , Babbage
+    , Byron
+    , Conway
+    , Era (..)
+    , IsEra (..)
+    , KnownEras
+    , Mary
+    , Shelley
     , knownEraIndices
     )
 import Generics.SOP
