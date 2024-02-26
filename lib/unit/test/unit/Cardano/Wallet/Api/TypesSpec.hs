@@ -282,6 +282,9 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
+import Cardano.Wallet.Api.Types.RestorationMode
+    ( ApiRestorationMode
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
@@ -309,6 +312,9 @@ import Cardano.Wallet.Gen
     , genScriptCosigners
     , genScriptTemplate
     , shrinkPercentage
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationMode (..)
     )
 import Cardano.Wallet.Pools
     ( EpochInfo (..)
@@ -528,6 +534,7 @@ import Data.OpenApi
     , NamedSchema (..)
     , Schema
     , ToSchema (..)
+    , validateToJSON
     )
 import Data.OpenApi.Declare
     ( Declare
@@ -555,6 +562,7 @@ import Data.Time.Clock
     )
 import Data.Typeable
     ( Typeable
+    , typeRep
     )
 import Data.Word
     ( Word32
@@ -614,6 +622,9 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    )
+import Test.Hspec.QuickCheck
+    ( prop
     )
 import Test.QuickCheck
     ( Arbitrary (..)
@@ -847,6 +858,7 @@ spec = do
         jsonTest @(ApiRewardAccount T0)
         jsonTest @(ApiExternalCertificate T0)
         jsonTest @(ApiT DRep)
+        jsonTest @ApiRestorationMode
 
     describe "ApiEra roundtrip" $
         it "toApiEra . fromApiEra == id" $ property $ \era -> do
@@ -909,6 +921,22 @@ spec = do
               :<|>
                 ReqBody '[JSON] WalletPostData  :> PostNoContent
             )
+
+    describe "Verify that JSON encoding schema validated for type" $
+      do
+        let check
+                :: forall v
+                . (ToJSON v, ToSchema v, Show v, Arbitrary v)
+                => Spec
+            check = prop (show $ typeRep (Proxy @v))
+                $ forAll arbitrary
+                $ \(v :: v) ->
+                    let es = validateToJSON v
+                    in counterexample (show (v, es))
+                        $ length es `shouldBe` 0
+
+        check @WalletPostData
+        check @AccountPostData
 
     describe
         "verify that every path specified by the servant server matches an \
@@ -2697,6 +2725,11 @@ instance Arbitrary (Hash "BlockHeader") where
 instance Arbitrary ApiBlockHeader where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary RestorationMode where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 

@@ -42,6 +42,7 @@ unit-tests-cabal-match match:
 # run unit tests
 unit-tests-cabal:
     just unit-tests-cabal-match ""
+
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
   nix run '.#cardano-wallet-e2e' -- preprod \
@@ -49,6 +50,8 @@ e2e-preprod:
     -c lib/wallet-e2e/config/cardano-node/preprod \
     -t lib/wallet-e2e/test-output/preprod
 
+add_missing_json_goldens:
+    CREATE_MISSING_GOLDEN=1 just unit-tests-cabal-match "JSON"
 
 # run wallet-e2e suite against the local test cluster
 e2e-local:

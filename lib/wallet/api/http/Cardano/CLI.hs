@@ -655,6 +655,7 @@ cmdWalletCreateFromMnemonic mkClient =
                 (ApiT wName)
                 (ApiT wPwd)
                 Nothing
+                Nothing
 
 -- | Arguments for 'wallet create from-public-key' command
 data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
