@@ -111,6 +111,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -326,7 +327,6 @@ import Test.Integration.Framework.TestData
     , errMsg403ForeignTransaction
     , errMsg403InvalidConstructTx
     , errMsg403InvalidValidityBounds
-    , errMsg403MinUTxOValue
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403MissingWitsInTransaction
     , errMsg403MultiaccountTransaction
@@ -895,7 +895,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MinUTxOValue
+            , expectErrorInfo $ flip shouldSatisfy $ \case
+                UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient {} ->
+                    True
+                _anythingElse ->
+                    False
             ]
 
     it "TRANS_NEW_CREATE_04c - Can't cover fee" $ \ctx -> runResourceT $ do
@@ -1160,7 +1164,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MinUTxOValue
+            , expectErrorInfo $ flip shouldSatisfy $ \case
+                UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient {} ->
+                    True
+                _anythingElse ->
+                    False
             ]
 
     it "TRANS_NEW_ASSETS_CREATE_01c - Multi-asset tx without Ada" $ \ctx -> runResourceT $ do
