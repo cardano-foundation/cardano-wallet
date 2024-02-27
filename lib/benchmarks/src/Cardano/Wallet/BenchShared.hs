@@ -202,6 +202,7 @@ withNetworkConfiguration args action = do
         , nodePort         = Just (NodePort port)
         , nodeLoggingHostname = Nothing
         , nodeExecutable   = Nothing
+        , nodeOutputFile   = Nothing
         }
 
 argsNetworkDir :: RestoreBenchArgs -> FilePath

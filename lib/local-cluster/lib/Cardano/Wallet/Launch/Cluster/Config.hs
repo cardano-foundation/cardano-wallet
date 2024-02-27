@@ -65,6 +65,7 @@ data Config = Config
     , cfgShelleyGenesisMods :: [ShelleyGenesisModifier]
     -- ^ Shelley genesis modifications to apply.
     , cfgTracer :: Tracer IO ClusterLog
+    , cfgNodeOutputFile :: Maybe (FileOf "node-output")
     }
 
 newtype NodePathSegment = NodePathSegment FilePath

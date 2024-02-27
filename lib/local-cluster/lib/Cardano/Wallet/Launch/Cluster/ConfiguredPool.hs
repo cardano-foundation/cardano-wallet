@@ -442,8 +442,12 @@ configurePool metadataServer recipe = do
     pure
         ConfiguredPool
             { operatePool = \nodeParams action -> do
-                let NodeParams genesisFiles hardForks (port, peers) logCfg =
-                        nodeParams
+                let NodeParams
+                        genesisFiles
+                        hardForks
+                        (port, peers)
+                        logCfg
+                        nodeOutput = nodeParams
                 let logCfg' = setLoggingName name logCfg
 
                 topology <- withConfig $ genTopology nodeSegment peers
@@ -473,6 +477,7 @@ configurePool metadataServer recipe = do
                                 , nodePort = Just (NodePort port)
                                 , nodeLoggingHostname = Just name
                                 , nodeExecutable = Nothing
+                                , nodeOutputFile = nodeOutput
                                 }
 
                     withConfig

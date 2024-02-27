@@ -19,7 +19,6 @@ module Cardano.Launcher.Node
 
     -- * Helpers
     , nodeSocketPath
-    , cardanoNodeProcess
     ) where
 
 import Prelude
@@ -27,6 +26,7 @@ import Prelude
 import Cardano.Launcher
     ( LauncherLog
     , ProcessHasExited
+    , StdStream (..)
     , withBackendCreateProcess
     )
 import Control.Tracer
@@ -57,6 +57,10 @@ import System.FilePath
     )
 import System.Info
     ( os
+    )
+import System.IO
+    ( IOMode (..)
+    , withFile
     )
 import UnliftIO.Process
     ( CreateProcess (..)
@@ -118,6 +122,7 @@ data CardanoNodeConfig = CardanoNodeConfig
     , nodePort            :: Maybe NodePort
     , nodeLoggingHostname :: Maybe String
     , nodeExecutable      :: Maybe FilePath
+    , nodeOutputFile      :: Maybe FilePath
     } deriving (Show, Eq)
 
 -- | Spawns a @cardano-node@ process.
@@ -132,38 +137,53 @@ withCardanoNode
     -> IO (Either ProcessHasExited a)
 withCardanoNode tr cfg action = do
     let socketPath = nodeSocketPath (nodeDir cfg)
-    cp <- cardanoNodeProcess cfg socketPath
-    withBackendCreateProcess tr cp $ \_ _ -> action $ CardanoNodeConn socketPath
+    let run output = do
+            cp <- cardanoNodeProcess cfg output socketPath
+            withBackendCreateProcess tr cp
+                $ \_ _ -> action $ CardanoNodeConn socketPath
+    case nodeOutputFile cfg of
+        Nothing -> run Inherit
+        Just file ->
+            withFile file AppendMode $ \h -> run (UseHandle h)
 
 {-------------------------------------------------------------------------------
                                     Helpers
 -------------------------------------------------------------------------------}
 
--- | Generate command-line arguments for launching @cardano-node@.
-cardanoNodeProcess :: CardanoNodeConfig -> FilePath -> IO CreateProcess
-cardanoNodeProcess cfg socketPath = do
+-- Generate command-line arguments for launching @cardano-node@.
+cardanoNodeProcess
+    :: CardanoNodeConfig
+    -> StdStream
+    -> FilePath
+    -> IO CreateProcess
+cardanoNodeProcess cfg output socketPath = do
     myEnv <- getEnvironment
     let env' = ("CARDANO_NODE_LOGGING_HOSTNAME",) <$> nodeLoggingHostname cfg
-
-    pure $ (proc (fromMaybe "cardano-node" $ nodeExecutable cfg) args)
-        { env = Just $ maybeToList env' ++ myEnv
-        , cwd = Just $ nodeDir cfg
-        }
+    pure
+        $ (proc (fromMaybe "cardano-node" $ nodeExecutable cfg) args)
+            { env = Just $ maybeToList env' ++ myEnv
+            , cwd = Just $ nodeDir cfg
+            , std_out = output
+            }
   where
     args =
         [ "run"
-        , "--config", nodeConfigFile cfg
-        , "--topology", nodeTopologyFile cfg
-        , "--database-path", nodeDatabaseDir cfg
-        , "--socket-path", socketPath
+        , "--config"
+        , nodeConfigFile cfg
+        , "--topology"
+        , nodeTopologyFile cfg
+        , "--database-path"
+        , nodeDatabaseDir cfg
+        , "--socket-path"
+        , socketPath
         ]
-        ++ opt "--port" (show . unNodePort <$> nodePort cfg)
-        ++ opt "--byron-signing-key" (nodeSignKeyFile cfg)
-        ++ opt "--byron-delegation-certificate" (nodeDlgCertFile cfg)
-        ++ opt "--shelley-operational-certificate" (nodeOpCertFile cfg)
-        ++ opt "--shelley-kes-key" (nodeKesKeyFile cfg)
-        ++ opt "--shelley-vrf-key" (nodeVrfKeyFile cfg)
-        ++ ["+RTS", "-N4", "-RTS"]
+            ++ opt "--port" (show . unNodePort <$> nodePort cfg)
+            ++ opt "--byron-signing-key" (nodeSignKeyFile cfg)
+            ++ opt "--byron-delegation-certificate" (nodeDlgCertFile cfg)
+            ++ opt "--shelley-operational-certificate" (nodeOpCertFile cfg)
+            ++ opt "--shelley-kes-key" (nodeKesKeyFile cfg)
+            ++ opt "--shelley-vrf-key" (nodeVrfKeyFile cfg)
+            ++ ["+RTS", "-N4", "-RTS"]
 
     opt _ Nothing = []
     opt arg (Just val) = [arg, val]

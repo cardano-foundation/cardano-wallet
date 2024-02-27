@@ -73,7 +73,7 @@ withRelayNode params onClusterStart = do
     let name = "node"
         nodeSegment = NodePathSegment name
     nodeDir' <- askNodeDir nodeSegment
-    let NodeParams genesisFiles hardForks (port, peers) logCfg = params
+    let NodeParams genesisFiles hardForks (port, peers) logCfg _ = params
     bracketTracer' "withRelayNode" $ do
         liftIO $ createDirectory nodeDir'
 
@@ -101,6 +101,7 @@ withRelayNode params onClusterStart = do
                     , nodePort = Just (NodePort port)
                     , nodeLoggingHostname = Just name
                     , nodeExecutable = Nothing
+                    , nodeOutputFile = nodeParamsOutputFile params
                     }
 
         let onClusterStart' socket = onClusterStart (RunningNode socket genesisData vd)

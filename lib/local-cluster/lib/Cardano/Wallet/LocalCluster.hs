@@ -221,6 +221,7 @@ main = withUtf8 $ do
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
                     , cfgTracer = stdoutTextTracer
+                    , cfgNodeOutputFile = Nothing
                     }
         withFaucet $ \faucetClientEnv -> do
             maryAllegraFunds <-

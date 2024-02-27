@@ -10,6 +10,7 @@ module Cardano.Wallet.Launch.Cluster.ClusterEra
     , clusterEraToString
     , ignoreInConway
     , ignoreInBabbage
+    , nodeOutputFileFromEnv
     )
 where
 
@@ -74,6 +75,10 @@ localClusterConfigsFromEnv =
         <&> FileOf @"cluster-configs"
             . fromMaybe
                 (".." </> "local-cluster" </> "test" </> "data" </> "cluster-configs")
+
+nodeOutputFileFromEnv :: IO (Maybe (FileOf "node-output"))
+nodeOutputFileFromEnv = fmap FileOf
+    <$> lookupEnvNonEmpty "LOCAL_CLUSTER_NODE_OUTPUT_FILE"
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case
