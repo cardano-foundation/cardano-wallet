@@ -65,19 +65,15 @@ e2e-manual:
 
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-match match:
-  echo "Running integration tests with cardano-wallet exe compiled"
-  LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
-  CARDANO_WALLET_TEST_DATA=../../lib/integration/test/data \
-  cabal test integration -O0 -v0 \
-    --test-options '--match="{{match}}"'
+    just integration-tests-cabal-options '--match="{{match}}"'
 
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-options options:
-  echo "Running integration tests with cardano-wallet exe compiled"
+  LOCAL_CLUSTER_NODE_OUTPUT_FILE=/dev/null \
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   CARDANO_WALLET_TEST_DATA=../../lib/integration/test/data \
   cabal test integration -O0 -v0 \
-    --test-options 'options'
+    --test-options '{{options}}'
 
 # run babbage integration tests matching the given pattern via cabal
 babbage-integration-tests-cabal-match match:
