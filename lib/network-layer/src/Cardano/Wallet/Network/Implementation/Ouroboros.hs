@@ -27,6 +27,10 @@ module Cardano.Wallet.Network.Implementation.Ouroboros
       -- * ChainSyncFollowTip
       chainSyncFollowTip
 
+      -- * ChainSyncFetchBlock
+    , FetchBlockCmd (..)
+    , chainSyncFetchNextBlock
+
       -- * ChainSyncWithBlocks
     , chainSyncWithBlocks
     , PipeliningStrategy(..)
@@ -73,6 +77,7 @@ import Control.Concurrent.Class.MonadSTM
     )
 import Control.Monad
     ( ap
+    , join
     , liftM
     )
 import Control.Monad.Class.MonadThrow
@@ -228,6 +233,81 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
         , recvMsgIntersectNotFound = \_tip ->
             ChainSyncClient $ clientStIdle False
         }
+
+{-----------------------------------------------------------------------------
+    chainSyncFetchBlock
+------------------------------------------------------------------------------}
+-- | Type of commands that are stored in a queue for fetching the next block.
+data FetchBlockCmd m block point =
+    FetchBlockCmd point (Maybe block -> m ())
+
+-- | Client for the 'Chain Sync' mini-protocol,
+-- which retrieves a single block and stops after that.
+chainSyncFetchNextBlock
+    :: forall m block point tip. (MonadSTM m)
+    => TQueue m (FetchBlockCmd m block point)
+        -- ^ We use a 'TQueue' as a communication channel to drive queries from
+        -- outside of the network client to the client itself.
+        -- Requests are pushed to the queue which are then transformed into
+        -- messages to keep the state-machine moving.
+    -> ChainSyncClient block point tip m Void
+chainSyncFetchNextBlock queue =
+    ChainSyncClient idle
+  where
+    idle :: m (ClientStIdle block point tip m Void)
+    idle = do
+        FetchBlockCmd pt _ <- awaitNextCmd
+        pure $ SendMsgFindIntersect [pt] clientStIntersect
+
+    result :: Maybe block -> ChainSyncClient block point tip m Void
+    result mblock = ChainSyncClient $ do
+        finalizeCmd mblock
+        idle
+
+    -- Ask the node whether it has the block.
+    clientStIntersect
+        :: ClientStIntersect block point tip m Void
+    clientStIntersect =
+        ClientStIntersect
+            { recvMsgIntersectFound = \_ _ ->
+                ChainSyncClient $ pure clientRequestBlock
+            , recvMsgIntersectNotFound = \_ ->
+                result Nothing
+            }
+
+    -- Request the block in case of success.
+    clientRequestBlock
+        :: ClientStIdle block point tip m Void
+    clientRequestBlock =
+        SendMsgRequestNext clientStNext (pure clientStNext)
+
+    -- Fetch the block on rollforward.
+    clientStNext
+        :: ClientStNext block point tip m Void
+    clientStNext = ClientStNext
+        { recvMsgRollForward = \block _ ->
+            result $ Just block
+        , recvMsgRollBackward = \_ _ ->
+            result Nothing
+        }
+
+    -- | Note that we use peekTQueue when starting the
+    -- request, and only remove the command from the queue after we have
+    -- processed the response from the node.
+    --
+    -- If the connection to the node drops, this makes cancelled commands
+    -- automatically retry on reconnection.
+    --
+    -- IMPORTANT: callers must also `finalizeCmd`, because of the above.
+    awaitNextCmd :: m (FetchBlockCmd m block point)
+    awaitNextCmd = atomically $ peekTQueue queue
+
+    finalizeCmd :: Maybe block -> m ()
+    finalizeCmd answer =
+        join
+            $ atomically $ tryReadTQueue queue >>= \case
+                Just (FetchBlockCmd _ respond) -> pure $ respond answer
+                Nothing -> error "finalizeCmd: queue is not empty"
 
 --------------------------------------------------------------------------------
 --
