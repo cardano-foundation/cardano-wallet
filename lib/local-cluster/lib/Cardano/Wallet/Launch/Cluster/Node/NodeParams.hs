@@ -33,6 +33,7 @@ data NodeParams = NodeParams
     -- ^ The node will always log to "cardano-node.log" relative to the
     -- config. This option can set the minimum severity and add another output
     -- file.
+    , nodeParamsOutputFile :: Maybe FilePath
     }
     deriving stock (Show)
 
@@ -40,6 +41,7 @@ singleNodeParams
     :: GenesisFiles
     -> Severity
     -> Maybe (FilePath, Severity)
+    -> Maybe FilePath
     -> NodeParams
 singleNodeParams genesisFiles severity extraLogFile =
     NodeParams genesisFiles BabbageHardFork (0, []) LogFileConfig

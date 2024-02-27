@@ -666,6 +666,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                               -- when it low then cluster is not making blocks;
                             ]
                         , cfgTracer = stdoutTextTracer
+                        , cfgNodeOutputFile = Nothing
                         }
             withCluster
                 clusterConfig

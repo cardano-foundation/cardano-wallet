@@ -217,6 +217,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                         cfgLastHardFork
                         pool0port
                         cfgNodeLogging
+                        nodeOutputFile
             liftIO $ operatePool pool0 pool0Cfg $ \runningPool0 ->
                 runClusterM config $ do
                     extraClusterSetupUsingNode configuredPools runningPool0
@@ -234,6 +235,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                                 , extraLogDir = Nothing
                                                 , minSeverityFile = Info
                                                 }
+                                        , nodeParamsOutputFile = nodeOutputFile
                                         }
                             launchPools
                                 others
@@ -247,7 +249,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
   where
     FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials massiveWalletFunds
         = faucetFunds
-
+    nodeOutputFile = pathOf <$> cfgNodeOutputFile
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
         :: NonEmpty ConfiguredPool -> RunningNode -> ClusterM ()
@@ -294,7 +296,8 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         -> (RunningNode -> ClusterM a)
         -- \^ Action to run once when the stake pools are setup.
         -> ClusterM a
-    launchPools configuredPools genesisFiles ports fallbackNode action = do
+    launchPools
+        configuredPools genesisFiles ports fallbackNode action = do
         waitGroup <- newChan
         doneGroup <- newChan
 
@@ -319,6 +322,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                     cfgLastHardFork
                     (port, peers)
                     cfgNodeLogging
+                    nodeOutputFile
         asyncs <- forM (zip (NE.toList configuredPools) ports)
             $ \(configuredPool, (port, peers)) -> do
                 async $ handle onException $ do

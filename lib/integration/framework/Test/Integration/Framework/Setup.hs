@@ -73,6 +73,9 @@ import Cardano.Wallet.Launch.Cluster
     , withFaucet
     , withSMASH
     )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( nodeOutputFileFromEnv
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
     )
@@ -303,6 +306,7 @@ withServer
     -> FileOf "cluster-configs"
     -> FaucetFunds
     -> Pool.DBDecorator IO
+    -> Maybe (FileOf "node-output")
     -> ( T.Text
          -> CardanoNodeConn
          -> NetworkParameters
@@ -310,27 +314,34 @@ withServer
          -> IO ()
        )
     -> IO ExitCode
-withServer ctx@TestingCtx{..} clusterConfigs faucetFunds dbDecorator onReady =
-    bracketTracer' tr "withServer" $ do
-        let tr' = contramap MsgCluster tr
-        era <- clusterEraFromEnv
-        withSMASH tr' testDir $ \smashUrl -> do
-            let clusterConfig =
-                    Cluster.Config
-                        { cfgStakePools = Cluster.defaultPoolConfigs
-                        , cfgLastHardFork = era
-                        , cfgNodeLogging = LogFileConfig Info Nothing Info
-                        , cfgClusterDir = FileOf @"cluster" testDir
-                        , cfgClusterConfigs = clusterConfigs
-                        , cfgTestnetMagic = testnetMagic
-                        , cfgShelleyGenesisMods = []
-                        , cfgTracer = tr'
-                        }
-            withCluster clusterConfig faucetFunds
-                $ onClusterStart
-                    ctx
-                    (onReady (T.pack smashUrl))
-                    dbDecorator
+withServer
+    ctx@TestingCtx{..}
+    clusterConfigs
+    faucetFunds
+    dbDecorator
+    nodeOutputFile
+    onReady =
+        bracketTracer' tr "withServer" $ do
+            let tr' = contramap MsgCluster tr
+            era <- clusterEraFromEnv
+            withSMASH tr' testDir $ \smashUrl -> do
+                let clusterConfig =
+                        Cluster.Config
+                            { cfgStakePools = Cluster.defaultPoolConfigs
+                            , cfgLastHardFork = era
+                            , cfgNodeLogging = LogFileConfig Info Nothing Info
+                            , cfgClusterDir = FileOf @"cluster" testDir
+                            , cfgClusterConfigs = clusterConfigs
+                            , cfgTestnetMagic = testnetMagic
+                            , cfgShelleyGenesisMods = []
+                            , cfgTracer = tr'
+                            , cfgNodeOutputFile = nodeOutputFile
+                            }
+                withCluster clusterConfig faucetFunds
+                    $ onClusterStart
+                        ctx
+                        (onReady (T.pack smashUrl))
+                        dbDecorator
 
 onClusterStart
     :: TestingCtx
@@ -391,6 +402,7 @@ setupContext
     -> MVar Context
     -> ClientEnv
     -> IORef [PoolGarbageCollectionEvent]
+    -> Maybe (FileOf "node-output")
     -> T.Text
     -> CardanoNodeConn
     -> NetworkParameters
@@ -401,75 +413,97 @@ setupContext
     ctx
     faucetClientEnv
     poolGarbageCollectionEvents
+    nodeOutputFile
     smashUrl
     nodeConnection
     networkParameters
-    baseUrl = bracketTracer' tr "setupContext" $ do
-        clusterConfigs <- Cluster.localClusterConfigsFromEnv
-        faucet <- Faucet.initFaucet faucetClientEnv
-        let tr' = contramap MsgCluster tr
-        prometheusUrl <-
-            let packPort (h, p) =
-                    T.pack h <> ":" <> toText @(Port "Prometheus") p
-             in maybe "none" packPort <$> getPrometheusURL
-        ekgUrl <-
-            let packPort (h, p) =
-                    T.pack h <> ":" <> toText @(Port "EKG") p
-             in maybe "none" packPort <$> getEKGURL
-        traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
-        manager <- httpManager
-        mintSeaHorseAssetsLock <- newMVar ()
+    baseUrl =
+        bracketTracer' tr "setupContext" $ do
+            clusterConfigs <- Cluster.localClusterConfigsFromEnv
+            faucet <- Faucet.initFaucet faucetClientEnv
+            let tr' = contramap MsgCluster tr
+            prometheusUrl <-
+                let packPort (h, p) =
+                        T.pack h <> ":" <> toText @(Port "Prometheus") p
+                 in maybe "none" packPort <$> getPrometheusURL
+            ekgUrl <-
+                let packPort (h, p) =
+                        T.pack h <> ":" <> toText @(Port "EKG") p
+                 in maybe "none" packPort <$> getEKGURL
+            traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
+            manager <- httpManager
+            mintSeaHorseAssetsLock <- newMVar ()
 
-        let withConfig = runClusterM $
-                Cluster.Config
-                    { cfgStakePools = error "cfgStakePools: unused"
-                    , cfgLastHardFork = localClusterEra
-                    , cfgNodeLogging = error "cfgNodeLogging: unused"
-                    , cfgClusterDir = FileOf @"cluster" testDir
-                    , cfgClusterConfigs = clusterConfigs
-                    , cfgTestnetMagic = testnetMagic
-                    , cfgShelleyGenesisMods = []
-                    , cfgTracer = tr'
+            let withConfig =
+                    runClusterM
+                        $ Cluster.Config
+                            { cfgStakePools = error "cfgStakePools: unused"
+                            , cfgLastHardFork = localClusterEra
+                            , cfgNodeLogging = error "cfgNodeLogging: unused"
+                            , cfgClusterDir = FileOf @"cluster" testDir
+                            , cfgClusterConfigs = clusterConfigs
+                            , cfgTestnetMagic = testnetMagic
+                            , cfgShelleyGenesisMods = []
+                            , cfgTracer = tr'
+                            , cfgNodeOutputFile = nodeOutputFile
+                            }
+
+            putMVar
+                ctx
+                Context
+                    { _cleanup = pure ()
+                    , _manager = (baseUrl, manager)
+                    , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
+                    , _faucet = faucet
+                    , _networkParameters = networkParameters
+                    , _testnetMagic = testnetMagic
+                    , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
+                    , _mainEra = clusterToApiEra localClusterEra
+                    , _smashUrl = smashUrl
+                    , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
+                        withMVar mintSeaHorseAssetsLock $ \() ->
+                            withConfig
+                                $ sendFaucetAssetsTo
+                                    nodeConnection
+                                    batchSize
+                                    (Faucet.seaHorseTestAssets nPerAddr c addrs)
+                    , _moveRewardsToScript = \(script, coin) ->
+                        withConfig
+                            $ moveInstantaneousRewardsTo
+                                nodeConnection
+                                [(ScriptCredential script, coin)]
                     }
-
-        putMVar
-            ctx
-            Context
-                { _cleanup = pure ()
-                , _manager = (baseUrl, manager)
-                , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
-                , _faucet = faucet
-                , _networkParameters = networkParameters
-                , _testnetMagic = testnetMagic
-                , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
-                , _mainEra = clusterToApiEra localClusterEra
-                , _smashUrl = smashUrl
-                , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
-                    withMVar mintSeaHorseAssetsLock $ \() ->
-                        withConfig $ sendFaucetAssetsTo
-                            nodeConnection
-                            batchSize
-                            (Faucet.seaHorseTestAssets nPerAddr c addrs)
-                , _moveRewardsToScript = \(script, coin) ->
-                    withConfig $ moveInstantaneousRewardsTo
-                        nodeConnection
-                        [(ScriptCredential script, coin)]
-                }
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()
 withContext testingCtx@TestingCtx{..} action = do
     bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
         ctx <- newEmptyMVar
+        nodeOutputFile <- nodeOutputFileFromEnv
         clusterConfigs <- Cluster.localClusterConfigsFromEnv
         poolGarbageCollectionEvents <- newIORef []
         faucetFunds <- runFaucetM faucetClientEnv $ mkFaucetFunds testnetMagic
 
         let dbEventRecorder =
-                recordPoolGarbageCollectionEvents testingCtx poolGarbageCollectionEvents
-            cluster = setupContext testingCtx ctx faucetClientEnv poolGarbageCollectionEvents
+                recordPoolGarbageCollectionEvents
+                    testingCtx
+                    poolGarbageCollectionEvents
+            cluster =
+                setupContext
+                    testingCtx
+                    ctx
+                    faucetClientEnv
+                    poolGarbageCollectionEvents
+                    nodeOutputFile
         res <-
             race
-                (withServer testingCtx clusterConfigs faucetFunds dbEventRecorder cluster)
+                ( withServer
+                    testingCtx
+                    clusterConfigs
+                    faucetFunds
+                    dbEventRecorder
+                    nodeOutputFile
+                    cluster
+                )
                 (takeMVar ctx >>= bracketTracer' tr "spec" . action)
         whenLeft res (throwIO . ProcessHasExited "integration")
 

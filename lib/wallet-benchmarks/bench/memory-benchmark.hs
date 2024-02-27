@@ -268,6 +268,7 @@ withCardanoNode tr nodeExe BenchmarkConfig{..} =
             , C.nodePort = Just (C.NodePort 8061)
             , C.nodeLoggingHostname = Nothing
             , C.nodeExecutable = Just nodeExe
+            , C.nodeOutputFile = Nothing
             }
 
 {-----------------------------------------------------------------------------
