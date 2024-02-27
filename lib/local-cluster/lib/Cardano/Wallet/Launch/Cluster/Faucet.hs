@@ -118,7 +118,6 @@ import Servant.Client
     , ClientEnv
     , Scheme (..)
     , mkClientEnv
-    , showBaseUrl
     )
 import System.Directory
     ( listDirectory
@@ -363,7 +362,6 @@ writePolicySigningKey keyHash cborHex = do
 withFaucet :: (ClientEnv -> IO a) -> IO a
 withFaucet useBaseUrl = Warp.withApplication Faucet.initApp $ \port -> do
     let baseUrl = BaseUrl Http "localhost" port ""
-    putStrLn $ "Faucet started at " <> showBaseUrl baseUrl
     let tenSeconds = 10 * 1_000_000 -- 10s in microseconds
     manager <-
         Http.newManager
