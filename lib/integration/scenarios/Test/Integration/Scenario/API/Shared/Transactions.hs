@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( mkApiWitnessCount
@@ -167,6 +168,7 @@ import Test.Integration.Framework.DSL
     , emptySharedWallet
     , emptyWallet
     , eventually
+    , expectErrorInfo
     , expectErrorMessage
     , expectField
     , expectListField
@@ -213,7 +215,6 @@ import Test.Integration.Framework.TestData
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403InvalidConstructTx
-    , errMsg403MinUTxOValue
     , errMsg403MissingWitsInTransaction
     , errMsg404CannotFindTx
     , errMsg404NoWallet
@@ -823,7 +824,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MinUTxOValue
+            , expectErrorInfo $ flip shouldSatisfy $ \case
+                UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient {} ->
+                    True
+                _anythingElse ->
+                    False
             ]
 
     it "SHARED_TRANSACTIONS_CREATE_04d - \
