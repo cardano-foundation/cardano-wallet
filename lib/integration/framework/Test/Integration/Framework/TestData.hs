@@ -79,7 +79,6 @@ module Test.Integration.Framework.TestData
     , errMsgNotInDictionary
     , errMsg400MinWithdrawalWrong
     , errMsg403WithdrawalNotBeneficial
-    , errMsg403MinUTxOValue
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     , errMsg403WrongIndex
@@ -334,15 +333,6 @@ errMsg403InvalidConstructTx =
     "It looks like I've created an empty transaction that does not have \
      \any payments, withdrawals, delegations, metadata nor minting. \
      \Include at least one of them."
-
-errMsg403MinUTxOValue :: String
-errMsg403MinUTxOValue = unwords
-    [ "One of the outputs you've specified has an ada quantity that is"
-    , "below the minimum required. Either increase the ada quantity to"
-    , "at least the minimum, or specify an ada quantity of zero, in"
-    , "which case the wallet will automatically assign the correct"
-    , "minimum ada quantity to the output."
-    ]
 
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\
