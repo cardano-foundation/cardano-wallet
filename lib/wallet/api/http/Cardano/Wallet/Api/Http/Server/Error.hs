@@ -993,22 +993,12 @@ instance IsServerError ErrAddCosignerKey where
                 , "different key to each cosigner."
                 ]
         ErrAddCosignerKey (NoSuchCosigner credType (Cosigner cosignerIndex)) ->
-            let errorInfo = SharedWalletNoSuchCosigner
-                    ApiErrorSharedWalletNoSuchCosigner
-                        { cosignerIndex =
-                            ApiCosignerIndex cosignerIndex
-                        , credentialType =
-                            ApiCredentialType credType
-                        }
-                errorMessage = T.unwords
-                    [ "It looks like you've tried to add a cosigner key to a"
-                    , "shared wallet's"
-                    , toText credType
-                    , "template for a non-existing cosigner index:"
-                    , pretty cosignerIndex
-                    ]
-            in
-            apiErrorOldDeprecated err403 errorInfo errorMessage
+            apiError err403
+                $ SharedWalletNoSuchCosigner
+                $ ApiErrorSharedWalletNoSuchCosigner
+                    { cosignerIndex = ApiCosignerIndex cosignerIndex
+                    , credentialType = ApiCredentialType credType
+                    }
         ErrAddCosignerKey CannotUpdateSharedWalletKey ->
             apiErrorOldDeprecated err403 SharedWalletCannotUpdateKey $ T.unwords
                 [ "It looks like you've tried to update the key of a cosigner"
