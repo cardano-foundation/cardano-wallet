@@ -284,6 +284,11 @@ apiError err info = err
     -- 'apiErrorOldDeprecated'.
     message = ApiErrorMessage ""
 
+-- | Old, deprecated way of creating API errors, relying on hand-built error
+--   message strings.
+--
+-- Please use 'apiError' instead.
+--
 apiErrorOldDeprecated :: ServerError -> ApiErrorInfo -> Text -> ServerError
 apiErrorOldDeprecated err info messageUnformatted = err
     { errBody = Aeson.encode ApiError {info, message}
