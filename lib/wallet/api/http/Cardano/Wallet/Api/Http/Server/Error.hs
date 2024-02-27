@@ -613,15 +613,14 @@ instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
                 , "Please sign the transaction after it is balanced instead."
                 ]
         ErrBalanceTxAssetsInsufficient e ->
-            apiErrorOldDeprecated err403 (NotEnoughMoney info) $ mconcat
-                [ "I can't process this payment as there are not "
-                , "enough funds available in the wallet."
-                ]
-              where
-                info = ApiErrorNotEnoughMoney ApiErrorNotEnoughMoneyShortfall
+            apiError err403
+                $ NotEnoughMoney
+                $ ApiErrorNotEnoughMoney
+                $ ApiErrorNotEnoughMoneyShortfall
                     { ada = ApiAmount.fromCoin shortfallAda
                     , assets = ApiWalletAssets.fromTokenMap shortfallAssets
                     }
+              where
                 TokenBundle shortfallAda shortfallAssets =
                     toWalletTokenBundle $ e ^. #shortfall
         ErrBalanceTxAssignRedeemers err -> toServerError err
