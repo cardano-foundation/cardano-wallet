@@ -102,7 +102,7 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( apiError
+    ( apiErrorOldDeprecated
     , balanceTransaction
     , constructSharedTransaction
     , constructTransaction
@@ -348,7 +348,10 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> (handler id . postAnyAddress (networkIdVal (sNetworkId @n)))
       where
         toServerError :: TextDecodingError -> ServerError
-        toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
+        toServerError
+            = apiErrorOldDeprecated err400 BadRequest
+            . T.pack
+            . getTextDecodingError
 
         handler :: (a -> result) -> Either TextDecodingError a -> Handler result
         handler transform =
@@ -421,11 +424,15 @@ server byron icarus shelley multisig spl ntp blockchainSource =
             Just (ApiT stake) -> do
                 currentEpoch <- getCurrentEpoch shelley
                 liftIO $ fmap ApiT <$> listStakePools spl currentEpoch stake
-            Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
-                mconcat
-                [ "The stake intended to delegate must be provided as a query "
-                , "parameter as it affects the rewards and ranking."
-                ]
+            Nothing ->
+                Handler
+                    $ throwE
+                    $ apiErrorOldDeprecated err400 QueryParamMissing
+                    $ mconcat
+                        [ "The stake intended to delegate must be provided as "
+                        , "a query parameter as it affects the rewards and "
+                        , "ranking."
+                        ]
 
         postPoolMaintenance action' = do
             case action' of
@@ -524,7 +531,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         genChangeSequential paymentK _ = paymentAddressS @n paymentK
     byronCoinSelections _ _ = Handler
         $ throwE
-        $ apiError err400 InvalidWalletType
+        $ apiErrorOldDeprecated err400 InvalidWalletType
         "Byron wallets don't have delegation capabilities."
 
     byronTransactions :: Server (ByronTransactions n)

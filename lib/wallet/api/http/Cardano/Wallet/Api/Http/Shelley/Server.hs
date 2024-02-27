@@ -117,7 +117,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     -- * Server error responses
     , IsServerError(..)
     , liftHandler
-    , apiError
+    , apiErrorOldDeprecated
 
     -- * Internals
     , mkShelleyWallet
@@ -318,7 +318,7 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..)
-    , apiError
+    , apiErrorOldDeprecated
     , handler
     , liftE
     , liftHandler
@@ -5373,7 +5373,7 @@ data ErrTemporarilyDisabled = ErrTemporarilyDisabled
 instance IsServerError ErrCurrentEpoch where
     toServerError = \case
         ErrUnableToDetermineCurrentEpoch ->
-            apiError err500 UnableToDetermineCurrentEpoch $ mconcat
+            apiErrorOldDeprecated err500 UnableToDetermineCurrentEpoch $ mconcat
                 [ "I'm unable to determine the current epoch. "
                 , "Please wait a while for the node to sync and try again."
                 ]
@@ -5382,7 +5382,7 @@ instance IsServerError ErrCurrentEpoch where
 instance IsServerError ErrUnexpectedPoolIdPlaceholder where
     toServerError = \case
         ErrUnexpectedPoolIdPlaceholder ->
-            apiError err400 BadRequest $
+            apiErrorOldDeprecated err400 BadRequest $
                 case fromText @PoolId "INVALID" of
                     Left msg -> pretty msg
                     Right _ -> "Invalid pool id placeholder"
@@ -5391,7 +5391,7 @@ instance IsServerError ErrCreateWallet where
     toServerError = \case
         ErrCreateWalletAlreadyExists e -> toServerError e
         ErrCreateWalletFailedToCreateWorker ->
-            apiError err500 UnexpectedError $ mconcat
+            apiErrorOldDeprecated err500 UnexpectedError $ mconcat
                 [ "That's embarrassing. Your wallet looks good, but I couldn't "
                 , "open a new database to store its data. This is unexpected "
                 , "and likely not your fault. Perhaps, check your filesystem's "
@@ -5401,7 +5401,7 @@ instance IsServerError ErrCreateWallet where
 instance IsServerError ErrGetAsset where
     toServerError = \case
         ErrGetAssetNotPresent ->
-            apiError err404 AssetNotPresent $ mconcat
+            apiErrorOldDeprecated err404 AssetNotPresent $ mconcat
                 [ "The requested asset is not associated with this wallet."
                 ]
 
