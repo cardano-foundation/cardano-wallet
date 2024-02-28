@@ -48,20 +48,18 @@ module Cardano.Wallet.Read.Eras.EraValue
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , AnyCardanoEra (..)
-    , BabbageEra
-    , ByronEra
-    , CardanoEra (..)
-    , ConwayEra
-    , IsCardanoEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras
+    ( Allegra
+    , Alonzo
+    , AnyEra (..)
+    , Babbage
+    , Byron
+    , Conway
+    , Era (..)
+    , IsEra
+    , KnownEras
+    , Mary
+    , Shelley
     )
 import Control.DeepSeq
     ( NFData
@@ -112,23 +110,23 @@ deriving instance (All (Compose Eq f) KnownEras) => Eq (EraValue f)
 deriving instance (All (Compose Ord f) KnownEras) => Ord (EraValue f)
 deriving instance (All (Compose NFData f) KnownEras) => NFData (EraValue f)
 
--- | Internal product of 'CardanoEra'
-cardanoEras :: NP CardanoEra KnownEras
+-- | Internal product of 'Era'
+cardanoEras :: NP Era KnownEras
 cardanoEras =
-    ByronEra
-        :* ShelleyEra
-        :* AllegraEra
-        :* MaryEra
-        :* AlonzoEra
-        :* BabbageEra
-        :* ConwayEra
+    Byron
+        :* Shelley
+        :* Allegra
+        :* Mary
+        :* Alonzo
+        :* Babbage
+        :* Conway
         :* Nil
 
 -- | Add an era witness to an era independent EraValue.
-witnessEra :: EraValue (K b) -> EraValue (K (AnyCardanoEra, b))
+witnessEra :: EraValue (K b) -> EraValue (K (AnyEra, b))
 witnessEra (EraValue v) = EraValue $ ap_NS
-    (cmap_NP (Proxy @IsCardanoEra)
-        (Fn . (\x (K y) -> K (AnyCardanoEra x, y))) cardanoEras
+    (cmap_NP (Proxy @IsEra)
+        (Fn . (\x (K y) -> K (AnyEra x, y))) cardanoEras
     )
     v
 
@@ -149,25 +147,25 @@ sequenceEraValue (EraValue v) = EraValue <$> sequence'_NS v
 newtype MkEraValue f era = MkEraValue (Prism' (EraValue f) (f era))
 
 -- | Byron era prism.
-byron :: MkEraValue f ByronEra
+byron :: MkEraValue f Byron
 
 -- | Shelley era prism.
-shelley :: MkEraValue f ShelleyEra
+shelley :: MkEraValue f Shelley
 
 -- | Allegra era prism.
-allegra :: MkEraValue f AllegraEra
+allegra :: MkEraValue f Allegra
 
 -- | Mary era prism.
-mary :: MkEraValue f MaryEra
+mary :: MkEraValue f Mary
 
 -- | Alonzo era prism.
-alonzo :: MkEraValue f AlonzoEra
+alonzo :: MkEraValue f Alonzo
 
 -- | Babbage era prism.
-babbage :: MkEraValue f BabbageEra
+babbage :: MkEraValue f Babbage
 
 -- | Conway era prism.
-conway :: MkEraValue f ConwayEra
+conway :: MkEraValue f Conway
 
 byron :* shelley :* allegra :* mary :* alonzo :* babbage :* conway :* Nil
   = zipWith_NP g injections ejections

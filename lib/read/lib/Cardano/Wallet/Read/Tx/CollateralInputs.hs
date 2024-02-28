@@ -21,15 +21,6 @@ module Cardano.Wallet.Read.Tx.CollateralInputs
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Babbage.TxBody
     ( collateralInputsTxBodyL
     )
@@ -40,6 +31,15 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -58,13 +58,13 @@ import Data.Set
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family CollateralInputsType era where
-    CollateralInputsType ByronEra = ()
-    CollateralInputsType ShelleyEra = ()
-    CollateralInputsType AllegraEra = ()
-    CollateralInputsType MaryEra = ()
-    CollateralInputsType AlonzoEra = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType BabbageEra = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType ConwayEra = Set (SH.TxIn StandardCrypto)
+    CollateralInputsType Byron = ()
+    CollateralInputsType Shelley = ()
+    CollateralInputsType Allegra = ()
+    CollateralInputsType Mary = ()
+    CollateralInputsType Alonzo = Set (SH.TxIn StandardCrypto)
+    CollateralInputsType Babbage = Set (SH.TxIn StandardCrypto)
+    CollateralInputsType Conway = Set (SH.TxIn StandardCrypto)
 
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 

@@ -8,9 +8,6 @@ module Cardano.Wallet.Read.Block.Txs
 
 import Prelude
 
-import Cardano.Api
-    ( ByronEra
-    )
 import Cardano.Ledger.Binary
     ( EncCBOR
     )
@@ -18,7 +15,8 @@ import Cardano.Wallet.Read.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
+    ( Byron
+    , EraFun (..)
     , (:.:) (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -31,6 +29,10 @@ import Data.Foldable
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyProtocolHeader
     )
+import Ouroboros.Consensus.Shelley.Protocol.Praos
+    ()
+import Ouroboros.Consensus.Shelley.Protocol.TPraos
+    ()
 
 import qualified Cardano.Chain.Block as Byron
 import qualified Cardano.Chain.UTxO as Byron
@@ -56,7 +58,7 @@ getEraTransactions =
   where
     getTxs' f (Block block) = Comp $ Tx <$> f block
 
-getTxsFromBlockByron :: O.ByronBlock -> [TxT ByronEra]
+getTxsFromBlockByron :: O.ByronBlock -> [TxT Byron]
 getTxsFromBlockByron block =
     case Byron.byronBlockRaw block of
         Byron.ABOBBlock b -> Byron.unTxPayload . Byron.blockTxPayload $ b

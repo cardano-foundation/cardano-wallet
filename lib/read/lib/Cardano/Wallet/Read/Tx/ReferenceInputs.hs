@@ -21,15 +21,6 @@ module Cardano.Wallet.Read.Tx.ReferenceInputs
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Babbage.TxBody
     ( referenceInputsTxBodyL
     )
@@ -40,6 +31,15 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -58,13 +58,13 @@ import Data.Set
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family ReferenceInputsType era where
-    ReferenceInputsType ByronEra = ()
-    ReferenceInputsType ShelleyEra = ()
-    ReferenceInputsType AllegraEra = ()
-    ReferenceInputsType MaryEra = ()
-    ReferenceInputsType AlonzoEra = ()
-    ReferenceInputsType BabbageEra = Set (SH.TxIn StandardCrypto)
-    ReferenceInputsType ConwayEra = Set (SH.TxIn StandardCrypto)
+    ReferenceInputsType Byron = ()
+    ReferenceInputsType Shelley = ()
+    ReferenceInputsType Allegra = ()
+    ReferenceInputsType Mary = ()
+    ReferenceInputsType Alonzo = ()
+    ReferenceInputsType Babbage = Set (SH.TxIn StandardCrypto)
+    ReferenceInputsType Conway = Set (SH.TxIn StandardCrypto)
 
 newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 

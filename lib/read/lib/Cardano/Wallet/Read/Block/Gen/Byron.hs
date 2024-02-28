@@ -10,9 +10,6 @@ where
 
 import Prelude
 
-import Cardano.Api
-    ( ByronEra
-    )
 import Cardano.Chain.Block
     ( mkHeaderExplicit
     )
@@ -36,6 +33,9 @@ import Cardano.Wallet.Read.Block.Gen.BlockParameters
     )
 import Cardano.Wallet.Read.Block.SlotNo
     ( SlotNo (..)
+    )
+import Cardano.Wallet.Read.Eras
+    ( Byron
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -65,7 +65,7 @@ import qualified Cardano.Crypto.Signing as S
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Ouroboros.Consensus.Byron.Ledger as O
 
-mkByronBlock :: BlockParameters ByronEra -> O.ByronBlock
+mkByronBlock :: BlockParameters Byron -> O.ByronBlock
 mkByronBlock
     BlockParameters
         { slotNumber = SlotNo slotNo

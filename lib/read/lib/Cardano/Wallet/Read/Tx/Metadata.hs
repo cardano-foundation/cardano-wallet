@@ -20,15 +20,6 @@ module Cardano.Wallet.Read.Tx.Metadata
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData
     )
@@ -40,6 +31,15 @@ import Cardano.Ledger.Core
     )
 import Cardano.Ledger.Shelley.TxAuxData
     ( ShelleyTxAuxData
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -56,23 +56,15 @@ import Control.Lens
 import Data.Maybe.Strict
     ( StrictMaybe
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
 
 type family MetadataType era where
-  MetadataType ByronEra = ()
-  MetadataType ShelleyEra = StrictMaybe (ShelleyTxAuxData StandardShelley)
-  MetadataType AllegraEra = StrictMaybe (AllegraTxAuxData StandardAllegra)
-  MetadataType MaryEra = StrictMaybe (AllegraTxAuxData StandardMary)
-  MetadataType AlonzoEra = StrictMaybe (AlonzoTxAuxData StandardAlonzo)
-  MetadataType BabbageEra = StrictMaybe (AlonzoTxAuxData StandardBabbage)
-  MetadataType ConwayEra = StrictMaybe (AlonzoTxAuxData StandardConway)
+  MetadataType Byron = ()
+  MetadataType Shelley = StrictMaybe (ShelleyTxAuxData Shelley)
+  MetadataType Allegra = StrictMaybe (AllegraTxAuxData Allegra)
+  MetadataType Mary = StrictMaybe (AllegraTxAuxData Mary)
+  MetadataType Alonzo = StrictMaybe (AlonzoTxAuxData Alonzo)
+  MetadataType Babbage = StrictMaybe (AlonzoTxAuxData Babbage)
+  MetadataType Conway = StrictMaybe (AlonzoTxAuxData Conway)
 
 newtype Metadata era = Metadata (MetadataType era)
 

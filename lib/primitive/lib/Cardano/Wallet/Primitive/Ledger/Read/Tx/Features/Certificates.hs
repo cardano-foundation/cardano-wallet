@@ -19,9 +19,6 @@ import Prelude hiding
     ( (.)
     )
 
-import Cardano.Api
-    ( ConwayEra
-    )
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
     )
@@ -61,7 +58,8 @@ import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     , StakePoolMetadataUrl (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
+    ( Conway
+    , EraFun (..)
     , K (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -123,8 +121,8 @@ primitiveCertificates =
         }
 
 mkConwayCertsK
-    :: Certificates ConwayEra
-    -> K [W.Certificate] ConwayEra
+    :: Certificates Conway
+    -> K [W.Certificate] Conway
 mkConwayCertsK (Certificates cs) = K $ fromConwayCert <$> toList cs
 
 fromConwayCert

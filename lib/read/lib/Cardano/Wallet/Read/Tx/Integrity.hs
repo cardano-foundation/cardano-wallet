@@ -13,20 +13,14 @@
 --
 
 module Cardano.Wallet.Read.Tx.Integrity
-    ( IntegrityType, Integrity (..), getEraIntegrity )
+    ( IntegrityType
+    , Integrity (..)
+    , getEraIntegrity
+    )
     where
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash
     )
@@ -40,6 +34,15 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -56,13 +59,13 @@ import Data.Maybe.Strict
     )
 
 type family IntegrityType era where
-    IntegrityType ByronEra = ()
-    IntegrityType ShelleyEra = ()
-    IntegrityType AllegraEra = ()
-    IntegrityType MaryEra = ()
-    IntegrityType AlonzoEra = StrictMaybe (ScriptIntegrityHash StandardCrypto)
-    IntegrityType BabbageEra = StrictMaybe (ScriptIntegrityHash StandardCrypto)
-    IntegrityType ConwayEra = StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    IntegrityType Byron = ()
+    IntegrityType Shelley = ()
+    IntegrityType Allegra = ()
+    IntegrityType Mary = ()
+    IntegrityType Alonzo = StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    IntegrityType Babbage = StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    IntegrityType Conway = StrictMaybe (ScriptIntegrityHash StandardCrypto)
 
 newtype Integrity era = Integrity (IntegrityType era)
 

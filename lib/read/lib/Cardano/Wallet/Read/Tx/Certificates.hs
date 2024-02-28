@@ -22,15 +22,6 @@ module Cardano.Wallet.Read.Tx.Certificates
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Api
     ( bodyTxL
     , certsTxBodyL
@@ -43,6 +34,15 @@ import Cardano.Ledger.Crypto
     )
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
@@ -63,19 +63,19 @@ import Data.Sequence.Strict
 import qualified Cardano.Ledger.Api as Ledger
 
 type family CertificatesType era where
-    CertificatesType ByronEra =
+    CertificatesType Byron =
         ()
-    CertificatesType ShelleyEra =
+    CertificatesType Shelley =
         StrictSeq (ShelleyTxCert (Ledger.ShelleyEra StandardCrypto))
-    CertificatesType AllegraEra =
+    CertificatesType Allegra =
         StrictSeq (ShelleyTxCert (Ledger.AllegraEra StandardCrypto))
-    CertificatesType MaryEra =
+    CertificatesType Mary =
         StrictSeq (ShelleyTxCert (Ledger.MaryEra StandardCrypto))
-    CertificatesType AlonzoEra =
+    CertificatesType Alonzo =
         StrictSeq (ShelleyTxCert (Ledger.AlonzoEra StandardCrypto))
-    CertificatesType BabbageEra =
+    CertificatesType Babbage =
         StrictSeq (ShelleyTxCert (Ledger.BabbageEra StandardCrypto))
-    CertificatesType ConwayEra =
+    CertificatesType Conway =
         StrictSeq (ConwayTxCert (Ledger.ConwayEra StandardCrypto))
 
 newtype Certificates era = Certificates (CertificatesType era)

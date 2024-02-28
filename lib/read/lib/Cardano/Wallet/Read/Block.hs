@@ -19,22 +19,20 @@ module Cardano.Wallet.Read.Block
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Api
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , EraFun (..)
     , EraValue
     , K (..)
+    , Mary
+    , Shelley
     , allegra
     , alonzo
     , babbage
@@ -60,18 +58,19 @@ type ConsensusBlock = O.CardanoBlock O.StandardCrypto
 
 -- Family of era-specific block types
 type family BlockT era where
-    BlockT ByronEra = O.ByronBlock
-    BlockT ShelleyEra =
+    BlockT Byron =
+        O.ByronBlock
+    BlockT Shelley =
         O.ShelleyBlock (TPraos StandardCrypto) (O.ShelleyEra StandardCrypto)
-    BlockT AllegraEra =
+    BlockT Allegra =
         O.ShelleyBlock (TPraos StandardCrypto) (O.AllegraEra StandardCrypto)
-    BlockT MaryEra =
+    BlockT Mary =
         O.ShelleyBlock (TPraos StandardCrypto) (O.MaryEra StandardCrypto)
-    BlockT AlonzoEra =
+    BlockT Alonzo =
         O.ShelleyBlock (TPraos StandardCrypto) (O.AlonzoEra StandardCrypto)
-    BlockT BabbageEra =
+    BlockT Babbage =
         O.ShelleyBlock (Praos StandardCrypto) (O.BabbageEra StandardCrypto)
-    BlockT ConwayEra =
+    BlockT Conway =
         O.ShelleyBlock (Praos StandardCrypto) (O.ConwayEra StandardCrypto)
 
 newtype Block era = Block {unBlock :: BlockT era}

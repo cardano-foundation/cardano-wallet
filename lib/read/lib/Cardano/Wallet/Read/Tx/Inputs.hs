@@ -21,15 +21,6 @@ module Cardano.Wallet.Read.Tx.Inputs
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
     , inputsTxBodyL
@@ -38,6 +29,15 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -60,13 +60,13 @@ import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Ledger.Shelley.API as SH
 
 type family InputsType era where
-    InputsType ByronEra = NonEmpty BY.TxIn
-    InputsType ShelleyEra = Set (SH.TxIn StandardCrypto)
-    InputsType AllegraEra = Set (SH.TxIn StandardCrypto)
-    InputsType MaryEra = Set (SH.TxIn StandardCrypto)
-    InputsType AlonzoEra = Set (SH.TxIn StandardCrypto)
-    InputsType BabbageEra = Set (SH.TxIn StandardCrypto)
-    InputsType ConwayEra = Set (SH.TxIn StandardCrypto)
+    InputsType Byron = NonEmpty BY.TxIn
+    InputsType Shelley = Set (SH.TxIn StandardCrypto)
+    InputsType Allegra = Set (SH.TxIn StandardCrypto)
+    InputsType Mary = Set (SH.TxIn StandardCrypto)
+    InputsType Alonzo = Set (SH.TxIn StandardCrypto)
+    InputsType Babbage = Set (SH.TxIn StandardCrypto)
+    InputsType Conway = Set (SH.TxIn StandardCrypto)
 
 newtype Inputs era = Inputs (InputsType era)
 

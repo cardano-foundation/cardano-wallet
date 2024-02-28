@@ -21,15 +21,6 @@ module Cardano.Wallet.Read.Tx.Validity
 
 import Prelude
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Ledger.Allegra.Scripts
     ( ValidityInterval
     )
@@ -46,6 +37,15 @@ import Cardano.Ledger.Slot
     ( SlotNo
     )
 import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
+    )
+import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
@@ -59,13 +59,13 @@ import Control.Lens
     )
 
 type family ValidityType era where
-    ValidityType ByronEra = ()
-    ValidityType ShelleyEra = SlotNo
-    ValidityType AllegraEra = ValidityInterval
-    ValidityType MaryEra = ValidityInterval
-    ValidityType AlonzoEra = ValidityInterval
-    ValidityType BabbageEra = ValidityInterval
-    ValidityType ConwayEra = ValidityInterval
+    ValidityType Byron = ()
+    ValidityType Shelley = SlotNo
+    ValidityType Allegra = ValidityInterval
+    ValidityType Mary = ValidityInterval
+    ValidityType Alonzo = ValidityInterval
+    ValidityType Babbage = ValidityInterval
+    ValidityType Conway = ValidityInterval
 
 newtype Validity era = Validity (ValidityType era)
 

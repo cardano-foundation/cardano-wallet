@@ -68,15 +68,6 @@ module Cardano.Wallet.Read.Eras.EraFun
     )
 where
 
-import Cardano.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ByronEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
-    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
     , MkEraValue (..)
@@ -84,7 +75,14 @@ import Cardano.Wallet.Read.Eras.EraValue
     , prisms
     )
 import Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , KnownEras
+    , Mary
+    , Shelley
     )
 import Control.Category
     ( Category (..)
@@ -126,19 +124,19 @@ type EraFunI f g = NP (f -.-> g) KnownEras
 
 -- | A product of functions indexed by KnownEras expressed as record
 pattern EraFun
-    :: Fun f g ByronEra
+    :: Fun f g Byron
     -- ^ Byron era function
-    -> Fun f g ShelleyEra
+    -> Fun f g Shelley
     -- ^ Shelley era function
-    -> Fun f g AllegraEra
+    -> Fun f g Allegra
     -- ^ Allegra era function
-    -> Fun f g MaryEra
+    -> Fun f g Mary
     -- ^ Mary era function
-    -> Fun f g AlonzoEra
+    -> Fun f g Alonzo
     -- ^ Alonzo era function
-    -> Fun f g BabbageEra
+    -> Fun f g Babbage
     -- ^ Babbage era function
-    -> Fun f g ConwayEra
+    -> Fun f g Conway
     -- ^ Conway era function
     -> EraFun f g
 pattern EraFun
@@ -234,13 +232,13 @@ newtype AllEraValue f = AllEraValue {_unAllEraValue :: EraFun (K ()) f}
 
 -- | A pattern to construct/deconstruct an 'AllEraValue'
 pattern AllEraValueP
-    :: f ByronEra
-    -> f ShelleyEra
-    -> f AllegraEra
-    -> f MaryEra
-    -> f AlonzoEra
-    -> f BabbageEra
-    -> f ConwayEra
+    :: f Byron
+    -> f Shelley
+    -> f Allegra
+    -> f Mary
+    -> f Alonzo
+    -> f Babbage
+    -> f Conway
     -> AllEraValue f
 pattern AllEraValueP
     { byronVal
