@@ -282,7 +282,24 @@ quitStakePool
     -> Passphrase "user"
     -> IO (W.BuiltTx, UTCTime)
 quitStakePool ctx walletId passphrase = do
-    txCtx <- WD.quitStakePool netLayer db ti
+    (rewardAccount, _, derivationPath) <- W.readRewardAccount db
+    withdrawal <- WithdrawalSelf rewardAccount derivationPath
+        <$> getCachedRewardAccountBalance netLayer rewardAccount
+
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    pp <- currentProtocolParameters netLayer
+
+    action <-
+        WD.quitStakePoolDelegationAction db currentEpochSlotting withdrawal
+
+    ttl <- W.transactionExpirySlot ti Nothing
+    let transactionCtx =
+            defaultTransactionCtx
+                { txWithdrawal = withdrawal
+                , txValidityInterval = (Nothing, ttl)
+                , txDelegationAction = Just action
+                , txDeposit = Just $ stakeKeyDeposit pp
+                }
 
     let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
     W.buildSignSubmitTransaction @s
@@ -293,7 +310,7 @@ quitStakePool ctx walletId passphrase = do
         walletId
         changeAddrGen
         (PreSelection [])
-        txCtx
+        transactionCtx
   where
     db = ctx ^. dbLayer
     netLayer = ctx ^. networkLayer

@@ -10,7 +10,6 @@
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
     , guardJoin
-    , quitStakePool
     , guardQuit
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
@@ -34,30 +33,14 @@ import Cardano.Wallet
     , WalletException (..)
     , WalletLog (..)
     , fetchRewardBalance
-    , getCurrentEpochSlotting
     , isStakeKeyRegistered
     , readDelegation
-    , readRewardAccount
-    , transactionExpirySlot
-    )
-import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..)
-    )
-import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..)
     )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     )
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
-    )
-import Cardano.Wallet.Network
-    ( NetworkLayer (..)
-    )
-import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , TimeInterpreter
     )
 import Cardano.Wallet.Primitive.Types
     ( IsDelegatingTo (..)
@@ -72,13 +55,7 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
-    , TransactionCtx
     , Withdrawal (..)
-    , defaultTransactionCtx
-    , txDelegationAction
-    , txDeposit
-    , txValidityInterval
-    , txWithdrawal
     )
 import Control.Error
     ( lastMay
@@ -240,27 +217,6 @@ quitStakePoolDelegationAction db@DBLayer{..} currentEpochSlotting withdrawal = d
     either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
         (guardQuit (delegation currentEpochSlotting) withdrawal rewards)
     pure Tx.Quit
-
-quitStakePool
-    :: forall n block
-     . NetworkLayer IO block
-    -> DBLayer IO (SeqState n ShelleyKey)
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
-    -> IO TransactionCtx
-quitStakePool netLayer db timeInterpreter = do
-    (rewardAccount, _, derivationPath) <- readRewardAccount db
-    withdrawal <- WithdrawalSelf rewardAccount derivationPath
-        <$> getCachedRewardAccountBalance netLayer rewardAccount
-    currentEpochSlotting <- getCurrentEpochSlotting netLayer
-    pp <- currentProtocolParameters netLayer
-    action <- quitStakePoolDelegationAction db currentEpochSlotting withdrawal
-    ttl <- transactionExpirySlot timeInterpreter  Nothing
-    pure defaultTransactionCtx
-        { txWithdrawal = withdrawal
-        , txValidityInterval = (Nothing, ttl)
-        , txDelegationAction = Just action
-        , txDeposit = Just $ W.stakeKeyDeposit pp
-        }
 
 guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
 guardQuit WalletDelegation{active,next} wdrl rewards = do
