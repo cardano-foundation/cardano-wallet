@@ -9,7 +9,6 @@
 
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
-    , joinStakePool
     , guardJoin
     , quitStakePool
     , guardQuit
@@ -205,32 +204,6 @@ joinStakePoolDelegationAction
         MonadIO m => (e -> ErrStakePoolDelegation) -> ExceptT e m a -> m a
     throwInIO f = runExceptT >=>
         either (liftIO . throwIO . ExceptionStakePoolDelegation . f) pure
-
-joinStakePool
-    :: Tracer IO WalletLog
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
-    -> DBLayer IO s
-    -> CurrentEpochSlotting
-    -> Coin
-    -> Set PoolId
-    -> PoolId
-    -> PoolLifeCycleStatus
-    -> IO TransactionCtx
-joinStakePool tr ti db currentEpochSlotting deposit pools poolId poolStatus = do
-    action <- joinStakePoolDelegationAction
-        tr
-        db
-        currentEpochSlotting
-        pools
-        poolId
-        poolStatus
-    ttl <- transactionExpirySlot ti Nothing
-    pure defaultTransactionCtx
-        { txWithdrawal = NoWithdrawal
-        , txValidityInterval = (Nothing, ttl)
-        , txDelegationAction = Just action
-        , txDeposit = Just deposit
-        }
 
 guardJoin
     :: Set PoolId

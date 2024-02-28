@@ -79,6 +79,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Transaction
     ( PreSelection (..)
     , TransactionCtx (..)
+    , Withdrawal (..)
     , defaultTransactionCtx
     )
 import Data.Functor.Contravariant
@@ -232,16 +233,23 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     pp <- currentProtocolParameters netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
 
-    transactionCtx <-
-        WD.joinStakePool
+    action <-
+        WD.joinStakePoolDelegationAction
             (W.MsgWallet >$< (ctx ^. logger))
-            ti
             db
             currentEpochSlotting
-            (stakeKeyDeposit pp)
             pools
             poolId
             poolStatus
+
+    ttl <- W.transactionExpirySlot ti Nothing
+    let transactionCtx =
+            defaultTransactionCtx
+                { txWithdrawal = NoWithdrawal
+                , txValidityInterval = (Nothing, ttl)
+                , txDelegationAction = Just action
+                , txDeposit = Just $ stakeKeyDeposit pp
+                }
 
     let changeAddrGen = W.defaultChangeAddressGen @s (delegationAddressS @n)
     W.buildSignSubmitTransaction @s
