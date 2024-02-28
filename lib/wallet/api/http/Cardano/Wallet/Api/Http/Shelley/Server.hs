@@ -3925,6 +3925,10 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     hasDelegationKeyHash s =
         isTimelock s && all isDelegationKeyHash (retrieveAllKeyHashes s)
 
+{-------------------------------------------------------------------------------
+    Delegation
+-------------------------------------------------------------------------------}
+
 joinStakePool
     :: forall s n k.
         ( s ~ SeqState n k
@@ -3937,12 +3941,12 @@ joinStakePool
         , AddressBookIso s
         , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
         , HasDelegation s
-        , MkKeyFingerprint k Address, NetworkDiscriminantCheck k
+        , NetworkDiscriminantCheck k
         , AddressCredential k ~ 'CredFromKeyK
         , HasSNetworkId n
+        , DelegationAddress k 'CredFromKeyK
         )
     => ApiLayer s
-    -> ArgGenChange s
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -3952,7 +3956,7 @@ joinStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 joinStakePool
-    ctx@ApiLayer{..} argGenChange knownPools
+    ctx@ApiLayer{..} knownPools
     getPoolStatus apiPool (ApiT walletId) body = do
     poolId <- case apiPool of
         AllPools -> liftE ErrUnexpectedPoolIdPlaceholder
@@ -3960,30 +3964,17 @@ joinStakePool
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
     pp <- liftIO $ NW.currentProtocolParameters netLayer
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let tr = wrk ^. logger
-            db = wrk ^. typed @(DBLayer IO s)
-            ti = timeInterpreter netLayer
-        currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        (BuiltTx{..}, txTime) <- liftIO $
-            W.buildSignSubmitTransaction @s
-                db
-                netLayer
-                txLayer
-                (coerce $ getApiT $ body ^. #passphrase)
-                walletId
-                (W.defaultChangeAddressGen argGenChange)
-                (PreSelection [])
-                =<< WD.joinStakePool
-                    (MsgWallet >$< tr)
-                    ti
-                    db
-                    currentEpochSlotting
-                    (W.stakeKeyDeposit pp)
-                    pools
-                    poolId
-                    poolStatus
+    let ti = timeInterpreter netLayer
 
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        (BuiltTx{..}, txTime) <- liftIO
+            $ Cardano.Wallet.IO.Delegation.joinStakePool
+                wrk
+                walletId
+                pools
+                poolId
+                poolStatus
+                (coerce $ getApiT $ body ^. #passphrase)
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
                 { txId = builtTx ^. #txId

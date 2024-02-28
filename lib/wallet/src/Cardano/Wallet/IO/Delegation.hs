@@ -14,6 +14,7 @@
 module Cardano.Wallet.IO.Delegation
     ( selectCoinsForJoin
     , selectCoinsForQuit
+    , joinStakePool
     )
     where
 
@@ -205,4 +206,55 @@ selectCoinsForQuit ctx = do
   where
     db = ctx ^. dbLayer
     netLayer = ctx ^. networkLayer
+
+-- | Send a transaction to the network where we join a stake pool.
+joinStakePool
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , AddressIndexDerivationType k ~ 'Soft
+        , GenChange s
+        , IsOurs (SeqState n k) RewardAccount
+        , AddressBookIso s
+        , Seq.SupportsDiscovery n k
+        , DelegationAddress k 'CredFromKeyK
+        )
+    => WalletLayer IO s
+    -> WalletId
+    -> Set PoolId
+    -> PoolId
+    -> PoolLifeCycleStatus
+    -> Passphrase "user"
+    -> IO (W.BuiltTx, UTCTime)
+joinStakePool ctx wid pools poolId poolStatus passphrase = do
+    pp <- currentProtocolParameters netLayer
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+
+    transactionCtx <-
+        WD.joinStakePool
+            (W.MsgWallet >$< (ctx ^. logger))
+            ti
+            db
+            currentEpochSlotting
+            (stakeKeyDeposit pp)
+            pools
+            poolId
+            poolStatus
+
+    let changeAddrGen = W.defaultChangeAddressGen @s (delegationAddressS @n)
+    W.buildSignSubmitTransaction @s
+        db
+        netLayer
+        txLayer
+        passphrase
+        wid
+        changeAddrGen
+        (PreSelection [])
+        transactionCtx
+  where
+    db = ctx ^. dbLayer
+    netLayer = ctx ^. networkLayer
+    ti = timeInterpreter netLayer
+    txLayer = ctx ^. transactionLayer
 
