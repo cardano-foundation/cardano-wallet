@@ -15,6 +15,7 @@ module Cardano.Wallet.IO.Delegation
     ( selectCoinsForJoin
     , selectCoinsForQuit
     , joinStakePool
+    , quitStakePool
     )
     where
 
@@ -258,3 +259,35 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
+-- | Send a transaction to the network where we quit staking.
+quitStakePool
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        , GenChange s
+        , AddressBookIso s
+        , IsOurs (SeqState n k) RewardAccount
+        , HasSNetworkId n
+        )
+    => WalletLayer IO s
+    -> WalletId
+    -> Passphrase "user"
+    -> IO (W.BuiltTx, UTCTime)
+quitStakePool ctx walletId passphrase = do
+    txCtx <- WD.quitStakePool netLayer db ti
+
+    let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
+    W.buildSignSubmitTransaction @s
+        db
+        netLayer
+        txLayer
+        passphrase
+        walletId
+        changeAddrGen
+        (PreSelection [])
+        txCtx
+  where
+    db = ctx ^. dbLayer
+    netLayer = ctx ^. networkLayer
+    ti = timeInterpreter netLayer
+    txLayer = ctx ^. transactionLayer

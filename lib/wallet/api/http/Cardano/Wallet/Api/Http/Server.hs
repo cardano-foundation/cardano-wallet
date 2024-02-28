@@ -411,6 +411,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     stakePools =
              listStakePools_
         :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
+        :<|> quitStakePool shelley
         :<|> (postPoolMaintenance :<|> getPoolMaintenance)
         :<|> delegationFee shelley
         :<|> listStakeKeys rewardAccountFromAddress shelley

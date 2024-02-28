@@ -4020,31 +4020,23 @@ quitStakePool
         , k ~ ShelleyKey
         , GenChange s
         , AddressBookIso s
-        , IsOurs (SeqState n k) RewardAccount
         , HasSNetworkId n
         )
     => ApiLayer s
-    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let db = wrk ^. typed @(DBLayer IO s)
-            ti = timeInterpreter netLayer
-        txCtx <- liftIO $ WD.quitStakePool netLayer db ti
-        (BuiltTx{..}, txTime) <- liftIO $ do
-            W.buildSignSubmitTransaction @s
-                db
-                netLayer
-                txLayer
-                (coerce $ getApiT $ body ^. #passphrase)
-                walletId
-                (W.defaultChangeAddressGen argGenChange)
-                (PreSelection [])
-                txCtx
+quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
+    pp <- liftIO $ NW.currentProtocolParameters netLayer
+    let ti = timeInterpreter netLayer
 
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        (BuiltTx{..}, txTime) <- liftIO
+            $ Cardano.Wallet.IO.Delegation.quitStakePool
+                wrk
+                walletId
+                (coerce $ getApiT $ body ^. #passphrase)
+
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
                 { txId = builtTx ^. #txId
