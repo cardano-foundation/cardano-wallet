@@ -12,6 +12,8 @@
 -- Delegation functionality used by Daedalus.
 --
 module Cardano.Wallet.IO.Delegation
+    ( selectCoinsForJoin
+    )
     where
 
 import Prelude
@@ -93,3 +95,62 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Internal.Cardano.Write.Tx as Write
+
+{-----------------------------------------------------------------------------
+    Delegation
+------------------------------------------------------------------------------}
+-- | Perform a coin selection for a transaction that joins a stake pool.
+selectCoinsForJoin
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , AddressBookIso s
+        , Seq.SupportsDiscovery n k
+        , DelegationAddress k 'CredFromKeyK
+        )
+    => WalletLayer IO s
+    -> Set PoolId
+    -> PoolId
+    -> PoolLifeCycleStatus
+    -> IO W.CoinSelection
+selectCoinsForJoin ctx pools poolId poolStatus = do
+    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
+        <- W.readNodeTipStateForTxWrite netLayer
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+
+    action <- WD.joinStakePoolDelegationAction @s
+        (W.MsgWallet >$< (ctx ^. logger))
+        db
+        currentEpochSlotting
+        pools
+        poolId
+        poolStatus
+
+    let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
+
+    optionalVoteAction <-
+        W.handleVotingWhenMissingInConway era db
+
+    let txCtx = defaultTransactionCtx
+            { txDelegationAction = Just action
+            , txVotingAction = optionalVoteAction
+            , txDeposit = Just $ W.getStakeKeyDeposit pp
+            }
+
+    let paymentOuts = []
+
+    (tx, walletState) <-
+        W.buildTransaction @s era
+            db timeTranslation changeAddrGen pp txCtx paymentOuts
+
+    pure
+        $ W.buildCoinSelectionForTransaction @s @n
+            walletState
+            paymentOuts
+            (W.getStakeKeyDeposit pp)
+            (Just action)
+            tx
+  where
+    db = ctx ^. dbLayer
+    netLayer = ctx ^. networkLayer

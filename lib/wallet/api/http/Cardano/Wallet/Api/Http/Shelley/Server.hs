@@ -900,6 +900,7 @@ import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
+import qualified Cardano.Wallet.IO.Delegation
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -2142,48 +2143,15 @@ selectCoinsForJoin
     -> PoolId
     -> WalletId
     -> Handler (Api.ApiCoinSelection n)
-selectCoinsForJoin ctx@ApiLayer{..}
-    knownPools getPoolStatus poolId walletId = do
-    --
+selectCoinsForJoin ctx knownPools getPoolStatus poolId walletId = do
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
-    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
-        <- liftIO @Handler $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
-        let db = workerCtx ^. typed @(DBLayer IO s)
-        currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        action <- liftIO $ WD.joinStakePoolDelegationAction @s
-            (contramap MsgWallet $ workerCtx ^. logger)
-            db
-            currentEpochSlotting
+        W.CoinSelection{..} <- Cardano.Wallet.IO.Delegation.selectCoinsForJoin
+            workerCtx
             pools
             poolId
             poolStatus
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
-
-        optionalVoteAction <-
-            liftIO $ W.handleVotingWhenMissingInConway era db
-
-        let txCtx = defaultTransactionCtx
-                { txDelegationAction = Just action
-                , txVotingAction = optionalVoteAction
-                , txDeposit = Just $ W.getStakeKeyDeposit pp
-                }
-
-        let paymentOuts = []
-
-        (tx, walletState) <-
-            W.buildTransaction @s era
-            db timeTranslation changeAddrGen pp txCtx paymentOuts
-
-        let W.CoinSelection{..} =
-                W.buildCoinSelectionForTransaction @s @n
-                    walletState
-                    paymentOuts
-                    (W.getStakeKeyDeposit pp)
-                    (Just action)
-                    tx
-
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
             , outputs = mkApiCoinSelectionOutput <$> outputs
