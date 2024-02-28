@@ -126,8 +126,8 @@ instance HasSeverityAnnotation TestsLog where
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
         MsgServerError e
-            | isAsyncException e -> Critical
-            | otherwise -> Critical
+            | isAsyncException e -> Notice
+            | otherwise -> Warning
 
 withTracers
     :: FilePath
