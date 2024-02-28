@@ -13,6 +13,7 @@
 --
 module Cardano.Wallet.IO.Delegation
     ( selectCoinsForJoin
+    , selectCoinsForQuit
     )
     where
 
@@ -154,3 +155,54 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
   where
     db = ctx ^. dbLayer
     netLayer = ctx ^. networkLayer
+
+-- | Perform a coin selection for a transactions that quits a stake pool.
+selectCoinsForQuit
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , AddressBookIso s
+        , Seq.SupportsDiscovery n k
+        , DelegationAddress k 'CredFromKeyK
+        )
+    => WalletLayer IO s
+    -> IO W.CoinSelection
+selectCoinsForQuit ctx = do
+    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
+        <- W.readNodeTipStateForTxWrite netLayer
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+
+    withdrawal <- W.shelleyOnlyMkSelfWithdrawal
+        netLayer
+        (W.txWitnessTagForKey $ keyOfWallet $ walletFlavor @s)
+        db
+
+    action <- WD.quitStakePoolDelegationAction
+        db currentEpochSlotting withdrawal
+
+    let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
+
+    let txCtx = defaultTransactionCtx
+            { txDelegationAction = Just action
+            , txWithdrawal = withdrawal
+            , txDeposit = Just $ W.getStakeKeyDeposit pp
+            }
+
+    let paymentOuts = []
+
+    (tx, walletState) <-
+        W.buildTransaction @s era
+            db timeTranslation changeAddrGen pp txCtx paymentOuts
+
+    pure
+        $ W.buildCoinSelectionForTransaction @s @n
+            walletState
+            paymentOuts
+            (W.getStakeKeyDeposit pp)
+            (Just action)
+            tx
+  where
+    db = ctx ^. dbLayer
+    netLayer = ctx ^. networkLayer
+

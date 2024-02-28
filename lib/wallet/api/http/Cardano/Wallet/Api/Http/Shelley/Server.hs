@@ -2177,40 +2177,10 @@ selectCoinsForQuit
     => ApiLayer (SeqState n k)
     -> ApiT WalletId
     -> Handler (ApiCoinSelection n)
-selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
-    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
-        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+selectCoinsForQuit ctx (ApiT walletId) = do
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
-        let db = workerCtx ^. typed @(DBLayer IO s)
-        withdrawal <- W.shelleyOnlyMkSelfWithdrawal
-            netLayer
-            (txWitnessTagForKey $ keyOfWallet $ walletFlavor @s)
-            db
-        currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        action <- WD.quitStakePoolDelegationAction
-            db currentEpochSlotting withdrawal
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
-
-        let txCtx = defaultTransactionCtx
-                { txDelegationAction = Just action
-                , txWithdrawal = withdrawal
-                , txDeposit = Just $ W.getStakeKeyDeposit pp
-                }
-
-        let paymentOuts = []
-
-        (tx, walletState) <-
-            W.buildTransaction @s era
-            db timeTranslation changeAddrGen pp txCtx paymentOuts
-
-        let W.CoinSelection{..} =
-                W.buildCoinSelectionForTransaction @s @n
-                    walletState
-                    paymentOuts
-                    (W.getStakeKeyDeposit pp)
-                    (Just action)
-                    tx
-
+        W.CoinSelection{..} <-
+            Cardano.Wallet.IO.Delegation.selectCoinsForQuit workerCtx
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
             , outputs = mkApiCoinSelectionOutput <$> outputs
