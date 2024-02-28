@@ -69,6 +69,7 @@ integration-tests-cabal-match match:
 
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-options options:
+  TESTS_TRACING_MIN_SEVERITY=Warning \
   LOCAL_CLUSTER_NODE_OUTPUT_FILE=/dev/null \
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   CARDANO_WALLET_TEST_DATA=../../lib/integration/test/data \
