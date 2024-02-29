@@ -37,6 +37,7 @@ library
     Cardano.Wallet.Launch.Cluster.ClusterM
     Cardano.Wallet.Launch.Cluster.Config
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
+    Cardano.Wallet.Launch.Cluster.Env
     Cardano.Wallet.Launch.Cluster.Faucet
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
