@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -13,7 +12,6 @@ module Cardano.Wallet.Delegation
     , guardQuit
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
-    , handleDelegationRequest
     , voteAction
     ) where
 
@@ -102,26 +100,6 @@ data DelegationRequest
     | Quit
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
-
-handleDelegationRequest
-    :: forall s
-     . Tracer IO WalletLog
-    -> DBLayer IO s
-    -> CurrentEpochSlotting
-    -> IO (Set PoolId)
-    -> (PoolId -> IO PoolLifeCycleStatus)
-    -> Withdrawal
-    -> DelegationRequest
-    -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
-handleDelegationRequest
-    tr db currentEpochSlotting getKnownPools getPoolStatus withdrawal = \case
-    Join poolId -> liftIO $ do
-        poolStatus <- getPoolStatus poolId
-        pools <- getKnownPools
-        joinStakePoolDelegationAction
-            tr db currentEpochSlotting pools poolId poolStatus
-    Quit -> liftIO
-        $ quitStakePoolDelegationAction db currentEpochSlotting withdrawal
 
 voteAction
     :: Tracer IO WalletLog

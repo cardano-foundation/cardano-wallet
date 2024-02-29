@@ -2740,11 +2740,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             _ -> pure NoWithdrawal
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        optionalDelegationAction <- liftHandler $
+        optionalDelegationAction <- liftIO $
             forM delegationRequest $
-                WD.handleDelegationRequest
-                    trWorker
-                    db currentEpochSlotting knownPools
+                Cardano.Wallet.IO.Delegation.handleDelegationRequest
+                    wrk
+                    currentEpochSlotting knownPools
                     poolStatus withdrawal
 
         optionalVoteAction <- case (body ^. #vote) of
@@ -3292,10 +3292,10 @@ constructSharedTransaction
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
 
-        optionalDelegationAction <- liftHandler $
+        optionalDelegationAction <- liftIO $
             forM delegationRequest $
-                WD.handleDelegationRequest
-                    trWorker db currentEpochSlotting knownPools
+                Cardano.Wallet.IO.Delegation.handleDelegationRequest
+                    wrk currentEpochSlotting knownPools
                     getPoolStatus NoWithdrawal
 
         optionalVoteAction <- case (body ^. #vote) of

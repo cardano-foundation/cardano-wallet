@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -12,7 +13,8 @@
 -- Delegation functionality used by Daedalus.
 --
 module Cardano.Wallet.IO.Delegation
-    ( selectCoinsForJoin
+    ( handleDelegationRequest
+    , selectCoinsForJoin
     , selectCoinsForQuit
     , joinStakePool
     , quitStakePool
@@ -53,6 +55,9 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState (..)
+    )
+import Cardano.Wallet.DB.Store.Delegations.Layer
+    ( CurrentEpochSlotting
     )
 import Cardano.Wallet.Flavor
     ( Excluding
@@ -98,10 +103,41 @@ import Data.Time.Clock
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Delegation as WD
+import qualified Cardano.Wallet.Transaction as Tx
 import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
-    Delegation
+    Used by constructTransaction
+------------------------------------------------------------------------------}
+handleDelegationRequest
+    :: forall s
+     . WalletLayer IO s
+    -> CurrentEpochSlotting
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> Withdrawal
+    -> WD.DelegationRequest
+    -> IO Tx.DelegationAction
+handleDelegationRequest
+    ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal = \case
+    WD.Join poolId -> do
+        poolStatus <- getPoolStatus poolId
+        pools <- getKnownPools
+        WD.joinStakePoolDelegationAction
+            (W.MsgWallet >$< (ctx ^. logger))
+            (ctx ^. dbLayer)
+            currentEpochSlotting
+            pools
+            poolId
+            poolStatus
+    WD.Quit ->
+        WD.quitStakePoolDelegationAction
+            (ctx ^. dbLayer)
+            currentEpochSlotting
+            withdrawal
+
+{-----------------------------------------------------------------------------
+    Used by Daedalus
 ------------------------------------------------------------------------------}
 -- | Perform a coin selection for a transaction that joins a stake pool.
 selectCoinsForJoin
