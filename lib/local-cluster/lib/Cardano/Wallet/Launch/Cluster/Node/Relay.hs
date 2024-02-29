@@ -25,7 +25,8 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.Logging
-    ( setLoggingName
+    ( NodeId (..)
+    , setLoggingName
     )
 import Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     ( genNodeConfig
@@ -108,4 +109,4 @@ withRelayNode params onClusterStart = do
                     }
 
         let onClusterStart' socket = onClusterStart (RunningNode socket genesisData vd)
-        withCardanoNodeProcess name cfg onClusterStart'
+        withCardanoNodeProcess RelayNode cfg onClusterStart'

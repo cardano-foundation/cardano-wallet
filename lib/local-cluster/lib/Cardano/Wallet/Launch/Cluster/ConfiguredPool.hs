@@ -74,6 +74,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
+    , NodeId (..)
     , setLoggingName
     )
 import Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
@@ -438,6 +439,7 @@ configurePool metadataServer recipe = do
     let name = "pool-" <> show i
         nodeRelativePath :: RelDir
         nodeRelativePath = relDir name
+        nodeId = PoolNode i
     poolDirPath@(DirOf poolDir) <- askNodeDir nodeRelativePath
     liftIO $ createDirectoryIfMissing True poolDir
 
@@ -497,7 +499,7 @@ configurePool metadataServer recipe = do
                                 }
 
                     withConfig
-                        $ withCardanoNodeProcess name cfg
+                        $ withCardanoNodeProcess nodeId cfg
                         $ \socket -> action $ RunningNode socket genesisData vd
             , registerViaShelleyGenesis = withConfig $ do
                 poolId <- stakePoolIdFromOperatorVerKey opPub

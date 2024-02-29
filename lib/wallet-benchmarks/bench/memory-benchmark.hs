@@ -254,7 +254,7 @@ withCardanoNode
     -> (C.CardanoNodeConn -> IO r)
     -> IO (Either C.ProcessHasExited r)
 withCardanoNode tr nodeExe BenchmarkConfig{..} =
-    C.withCardanoNode tr
+    C.withCardanoNode tr Nothing Nothing
         C.CardanoNodeConfig
             { C.nodeDir = nodeDatabaseDir
             , C.nodeConfigFile = nodeConfigDir </> "config.json"

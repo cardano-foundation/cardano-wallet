@@ -30,11 +30,22 @@ import Cardano.Launcher
     , StdStream (..)
     , withBackendCreateProcess
     )
+import Cardano.Launcher.Logging
+    ( traceHandle
+    )
+import Control.Monad
+    ( (<=<)
+    )
 import Control.Tracer
     ( Tracer (..)
+    , debugTracer
+    , stdoutTracer
     )
 import Data.Bifunctor
     ( first
+    )
+import Data.Functor.Contravariant
+    ( (>$<)
     )
 import Data.List
     ( isPrefixOf
@@ -42,6 +53,9 @@ import Data.List
 import Data.Maybe
     ( fromMaybe
     , maybeToList
+    )
+import Data.Text
+    ( Text
     )
 import Data.Text.Class
     ( FromText (..)
@@ -60,8 +74,11 @@ import System.Info
     ( os
     )
 import System.IO
-    ( IOMode (..)
-    , withFile
+    ( Handle
+    )
+import UnliftIO
+    ( async
+    , link
     )
 import UnliftIO.Process
     ( CreateProcess (..)
@@ -126,26 +143,41 @@ data CardanoNodeConfig = CardanoNodeConfig
     , nodeOutputFile      :: Maybe FilePath
     } deriving (Show, Eq)
 
+traceProcessHandles :: Tracer IO Text -> Maybe Handle -> IO ()
+traceProcessHandles _ Nothing = pure ()
+traceProcessHandles r (Just h) = link <=< async $ traceHandle r h
+
+defaultOutTracer :: Maybe (Tracer IO Text) -> Tracer IO Text
+defaultOutTracer Nothing = T.unpack >$< stdoutTracer
+defaultOutTracer (Just tr) = tr
+
+defaultErrTracer :: Maybe (Tracer IO Text) -> Tracer IO Text
+defaultErrTracer Nothing = T.unpack >$< debugTracer
+defaultErrTracer (Just tr) = tr
+
 -- | Spawns a @cardano-node@ process.
 --
 -- IMPORTANT: @cardano-node@ must be available on the current path.
 withCardanoNode
     :: Tracer IO LauncherLog
     -- ^ Trace for subprocess control logging
+    -> Maybe (Tracer IO Text)
+    -- ^ Trace for cardano-node stdout
+    -> Maybe (Tracer IO Text)
+    -- ^ Trace for cardano-node stderr
     -> CardanoNodeConfig
     -> (CardanoNodeConn -> IO a)
     -- ^ Callback function with a socket filename and genesis params
     -> IO (Either ProcessHasExited a)
-withCardanoNode tr cfg action = do
+withCardanoNode tr nodeOutTr nodeErrTr cfg action = do
     let socketPath = nodeSocketPath (nodeDir cfg)
-    let run output = do
-            cp <- cardanoNodeProcess cfg output socketPath
-            withBackendCreateProcess tr cp
-                $ ProcessRun $ \_ _ _ _ -> action $ CardanoNodeConn socketPath
-    case nodeOutputFile cfg of
-        Nothing -> run Inherit
-        Just file ->
-            withFile file AppendMode $ \h -> run (UseHandle h)
+    cp <- cardanoNodeProcess cfg socketPath
+    withBackendCreateProcess tr cp
+        $ ProcessRun
+        $ \_ mout merr _ -> do
+            traceProcessHandles (defaultOutTracer nodeOutTr) mout
+            traceProcessHandles (defaultErrTracer nodeErrTr) merr
+            action $ CardanoNodeConn socketPath
 
 {-------------------------------------------------------------------------------
                                     Helpers
@@ -154,17 +186,17 @@ withCardanoNode tr cfg action = do
 -- Generate command-line arguments for launching @cardano-node@.
 cardanoNodeProcess
     :: CardanoNodeConfig
-    -> StdStream
     -> FilePath
     -> IO CreateProcess
-cardanoNodeProcess cfg output socketPath = do
+cardanoNodeProcess cfg socketPath = do
     myEnv <- getEnvironment
     let env' = ("CARDANO_NODE_LOGGING_HOSTNAME",) <$> nodeLoggingHostname cfg
     pure
         $ (proc (fromMaybe "cardano-node" $ nodeExecutable cfg) args)
             { env = Just $ maybeToList env' ++ myEnv
             , cwd = Just $ nodeDir cfg
-            , std_out = output
+            , std_out = CreatePipe
+            , std_err = CreatePipe
             }
   where
     args =
