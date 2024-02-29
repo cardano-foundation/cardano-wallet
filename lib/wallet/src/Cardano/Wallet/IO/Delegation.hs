@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -27,7 +28,8 @@ import Cardano.Pool.Types
     ( PoolId
     )
 import Cardano.Wallet
-    ( WalletLayer
+    ( WalletException (..)
+    , WalletLayer (..)
     , dbLayer
     , logger
     , networkLayer
@@ -55,6 +57,9 @@ import Cardano.Wallet.Address.Discovery
     )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( SeqState (..)
+    )
+import Cardano.Wallet.DB
+    ( DBLayer (..)
     )
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
@@ -86,6 +91,15 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , Withdrawal (..)
     , defaultTransactionCtx
+    )
+import Control.Exception
+    ( throwIO
+    )
+import Data.DBVar
+    ( readDBVar
+    )
+import Data.Function
+    ( (&)
     )
 import Data.Functor.Contravariant
     ( (>$<)
@@ -131,8 +145,8 @@ handleDelegationRequest
             poolId
             poolStatus
     WD.Quit ->
-        WD.quitStakePoolDelegationAction
-            (ctx ^. dbLayer)
+        quitStakePoolDelegationAction
+            ctx
             currentEpochSlotting
             withdrawal
 
@@ -217,8 +231,8 @@ selectCoinsForQuit ctx = do
         (W.txWitnessTagForKey $ keyOfWallet $ walletFlavor @s)
         db
 
-    action <- WD.quitStakePoolDelegationAction
-        db currentEpochSlotting withdrawal
+    action <-
+        quitStakePoolDelegationAction ctx currentEpochSlotting withdrawal
 
     let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
@@ -303,6 +317,27 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
+{-----------------------------------------------------------------------------
+    Quit stake pool
+------------------------------------------------------------------------------}
+quitStakePoolDelegationAction
+    :: WalletLayer IO s
+    -> CurrentEpochSlotting
+    -> Withdrawal
+    -> IO Tx.DelegationAction
+quitStakePoolDelegationAction ctx currentEpochSlotting withdrawal = do
+    wallet <- db & \DBLayer{atomically,walletState} ->
+        atomically $ readDBVar walletState
+    rewards <- W.fetchRewardBalance db
+    either (throwIO . ExceptionStakePoolDelegation) pure
+        $ WD.quitStakePoolDelegationAction
+            wallet
+            rewards
+            currentEpochSlotting
+            withdrawal
+  where
+    db = ctx ^. dbLayer
+
 -- | Send a transaction to the network where we quit staking.
 quitStakePool
     :: forall s n k.
@@ -326,7 +361,7 @@ quitStakePool ctx walletId passphrase = do
     pp <- currentProtocolParameters netLayer
 
     action <-
-        WD.quitStakePoolDelegationAction db currentEpochSlotting withdrawal
+        quitStakePoolDelegationAction ctx currentEpochSlotting withdrawal
 
     ttl <- W.transactionExpirySlot ti Nothing
     let transactionCtx =

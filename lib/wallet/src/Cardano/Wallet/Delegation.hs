@@ -17,6 +17,8 @@ module Cardano.Wallet.Delegation
 
 import Prelude
 
+import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
+import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Set as Set
@@ -30,7 +32,6 @@ import Cardano.Wallet
     , PoolRetirementEpochInfo (..)
     , WalletException (..)
     , WalletLog (..)
-    , fetchRewardBalance
     , isStakeKeyRegistered
     , readDelegation
     )
@@ -182,19 +183,27 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
   where
     WalletDelegation {active, next} = delegation
 
--- | Helper function to factor necessary logic for quitting a stake pool.
+{-----------------------------------------------------------------------------
+    Quit stake pool
+------------------------------------------------------------------------------}
+-- | Given the state of the wallet,
+-- return a 'DelegationAction' for quitting the current stake pool.
 quitStakePoolDelegationAction
     :: forall s
-     . DBLayer IO s
+     . WalletState.WalletState s
+    -> Coin
+    -- ^ Reward balance of the wallet
     -> CurrentEpochSlotting
     -> Withdrawal
-    -> IO Tx.DelegationAction
-quitStakePoolDelegationAction db@DBLayer{..} currentEpochSlotting withdrawal = do
-    delegation <- atomically $ readDelegation walletState
-    rewards <- liftIO $ fetchRewardBalance db
-    either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
-        (guardQuit (delegation currentEpochSlotting) withdrawal rewards)
-    pure Tx.Quit
+    -> Either ErrStakePoolDelegation Tx.DelegationAction
+quitStakePoolDelegationAction wallet rewards currentEpochSlotting withdrawal =
+    case guardQuit delegation withdrawal rewards of
+        Left e -> Left $ ErrStakePoolQuit e
+        Right () -> Right Tx.Quit
+  where
+    delegation =
+        Dlgs.readDelegation currentEpochSlotting
+        $ WalletState.delegations wallet
 
 guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
 guardQuit WalletDelegation{active,next} wdrl rewards = do
