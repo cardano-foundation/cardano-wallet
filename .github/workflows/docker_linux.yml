@@ -37,7 +37,9 @@ jobs:
       - name: Check docker-compose
         run: |
           docker-compose up -d
-          ./scripts/connect_wallet.rb
+          mkdir logs
+          docker-compose logs > logs/docker-compose.log
+          docker-compose down
         env:
             NODE_TAG: ${{ github.event.inputs.nodeTag || '8.7.3'}}
             WALLET_TAG: ${{ github.event.inputs.walletTag || 'rc-latest'}}
@@ -45,6 +47,11 @@ jobs:
             WALLET_DB: /tmp/wallet-db
             NODE_DB: /tmp/node-db
             WALLET_PORT: 8090
+      - name: Save logs
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: ./logs
   report:
     needs: [build]
     if: always()
