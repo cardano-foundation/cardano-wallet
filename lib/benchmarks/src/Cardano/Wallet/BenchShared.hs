@@ -170,8 +170,12 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
             pure ExitSuccess
         Nothing -> do
             res <- withNetworkConfiguration args $ \nodeConfig ->
-                withCardanoNode (trMessageText tr) nodeConfig $
-                    action tr (networkConfig args)
+                withCardanoNode
+                    (trMessageText tr)
+                    Nothing
+                    Nothing
+                    nodeConfig
+                    $ action tr (networkConfig args)
             case res of
                 Left exited -> do
                     sayErr $ "FAIL: cardano-node exited with status " <> toText exited

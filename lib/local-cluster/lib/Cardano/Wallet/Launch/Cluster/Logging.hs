@@ -3,6 +3,7 @@
 
 module Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
+    , NodeId (..)
     , LogFileConfig (..)
     , bracketTracer'
     , logFileConfigFromEnv
@@ -75,6 +76,9 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Encoding.Error as T
 
+data NodeId = PoolNode Int | RelayNode
+    deriving stock (Show)
+
 data ClusterLog
     = -- | How many pools
       MsgRegisteringStakePools Int
@@ -94,6 +98,8 @@ data ClusterLog
     | MsgGenOperatorKeyPair FilePath
     | MsgCLI [String]
     | MsgHardFork ClusterEra
+    | MsgNodeStdout NodeId Text
+    | MsgNodeStderr NodeId Text
     deriving stock (Show)
 
 instance ToText ClusterLog where
@@ -168,6 +174,8 @@ instance ToText ClusterLog where
         MsgCLI args -> T.pack $ unwords ("cardano-cli" : args)
         MsgHardFork era ->
             "Hard fork to " <> T.pack (clusterEraToString era)
+        MsgNodeStdout node msg -> T.pack (show node) <> "(stdout): " <> msg
+        MsgNodeStderr node msg -> T.pack (show node) <> "(stderr): " <> msg
       where
         indent =
             T.unlines
@@ -202,6 +210,8 @@ instance HasSeverityAnnotation ClusterLog where
         MsgRegisteringPoolMetadataInSMASH{} -> Info
         MsgRegisteringPoolMetadata{} -> Info
         MsgHardFork _ -> Info
+        MsgNodeStdout _ _ -> Debug
+        MsgNodeStderr _ _ -> Debug
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
