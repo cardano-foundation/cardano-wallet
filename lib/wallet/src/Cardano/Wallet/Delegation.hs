@@ -17,6 +17,7 @@ module Cardano.Wallet.Delegation
 
 import Prelude
 
+import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -30,9 +31,7 @@ import Cardano.Wallet
     ( ErrCannotQuit (..)
     , ErrStakePoolDelegation (..)
     , PoolRetirementEpochInfo (..)
-    , WalletException (..)
     , WalletLog (..)
-    , isStakeKeyRegistered
     , readDelegation
     )
 import Cardano.Wallet.DB
@@ -59,24 +58,10 @@ import Cardano.Wallet.Transaction
 import Control.Error
     ( lastMay
     )
-import Control.Exception
-    ( throwIO
-    )
 import Control.Monad
     ( forM_
     , unless
     , when
-    , (>=>)
-    )
-import Control.Monad.Except
-    ( ExceptT
-    , runExceptT
-    )
-import Control.Monad.IO.Class
-    ( MonadIO (..)
-    )
-import Control.Monad.Trans.Except
-    ( except
     )
 import Control.Tracer
     ( Tracer
@@ -111,7 +96,7 @@ voteAction tr DBLayer{..} action = do
     (_, stakeKeyIsRegistered) <-
         atomically $
             (,) <$> readDelegation walletState
-                <*> isStakeKeyRegistered walletState
+                <*> W.isStakeKeyRegistered walletState
 
     traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
@@ -120,46 +105,35 @@ voteAction tr DBLayer{..} action = do
         then Tx.Vote action
         else Tx.VoteRegisteringKey action
 
+{-----------------------------------------------------------------------------
+    Join stake pool
+------------------------------------------------------------------------------}
 joinStakePoolDelegationAction
-    :: Tracer IO WalletLog
-    -> DBLayer IO s
+    :: WalletState.WalletState s
     -> CurrentEpochSlotting
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> IO Tx.DelegationAction
+    -> Either ErrStakePoolDelegation Tx.DelegationAction
 joinStakePoolDelegationAction
-    tr DBLayer{..} currentEpochSlotting
-        knownPools poolId poolStatus = do
-    (walletDelegation, stakeKeyIsRegistered) <-
-        atomically $
-            (,) <$> readDelegation walletState
-                <*> isStakeKeyRegistered walletState
-
-    let retirementInfo =
-            PoolRetirementEpochInfo (currentEpochSlotting ^. #currentEpoch)
-                . view #retirementEpoch <$>
-                W.getPoolRetirementCertificate poolStatus
-
-    throwInIO ErrStakePoolJoin . except
-        $ guardJoin
-            knownPools
-            (walletDelegation currentEpochSlotting)
-            poolId
-            retirementInfo
-
-    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
-
-    pure $
-        if stakeKeyIsRegistered
-        then Tx.Join poolId
-        else Tx.JoinRegisteringKey poolId
-
+    wallet currentEpochSlotting knownPools poolId poolStatus
+  = case guardJoin knownPools delegation poolId retirementInfo of
+        Left e -> Left $ ErrStakePoolJoin e
+        Right () -> Right $
+            if stakeKeyIsRegistered
+            then Tx.Join poolId
+            else Tx.JoinRegisteringKey poolId
   where
-    throwInIO ::
-        MonadIO m => (e -> ErrStakePoolDelegation) -> ExceptT e m a -> m a
-    throwInIO f = runExceptT >=>
-        either (liftIO . throwIO . ExceptionStakePoolDelegation . f) pure
+    stakeKeyIsRegistered =
+        Dlgs.isStakeKeyRegistered
+        $ WalletState.delegations wallet
+    delegation =
+        Dlgs.readDelegation currentEpochSlotting
+        $ WalletState.delegations wallet
+    retirementInfo =
+        PoolRetirementEpochInfo (currentEpochSlotting ^. #currentEpoch)
+            . view #retirementEpoch <$>
+            W.getPoolRetirementCertificate poolStatus
 
 guardJoin
     :: Set PoolId

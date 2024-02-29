@@ -31,6 +31,7 @@ import Cardano.Wallet
     ( WalletException (..)
     , WalletLayer (..)
     , dbLayer
+    , isStakeKeyRegistered
     , logger
     , networkLayer
     , transactionLayer
@@ -95,14 +96,14 @@ import Cardano.Wallet.Transaction
 import Control.Exception
     ( throwIO
     )
+import Control.Tracer
+    ( traceWith
+    )
 import Data.DBVar
     ( readDBVar
     )
 import Data.Function
     ( (&)
-    )
-import Data.Functor.Contravariant
-    ( (>$<)
     )
 import Data.Generics.Internal.VL.Lens
     ( (^.)
@@ -137,9 +138,8 @@ handleDelegationRequest
     WD.Join poolId -> do
         poolStatus <- getPoolStatus poolId
         pools <- getKnownPools
-        WD.joinStakePoolDelegationAction
-            (W.MsgWallet >$< (ctx ^. logger))
-            (ctx ^. dbLayer)
+        joinStakePoolDelegationAction
+            ctx
             currentEpochSlotting
             pools
             poolId
@@ -173,9 +173,8 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
         <- W.readNodeTipStateForTxWrite netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
 
-    action <- WD.joinStakePoolDelegationAction @s
-        (W.MsgWallet >$< (ctx ^. logger))
-        db
+    action <- joinStakePoolDelegationAction
+        ctx
         currentEpochSlotting
         pools
         poolId
@@ -259,6 +258,38 @@ selectCoinsForQuit ctx = do
     db = ctx ^. dbLayer
     netLayer = ctx ^. networkLayer
 
+{-----------------------------------------------------------------------------
+    Join stake pool
+------------------------------------------------------------------------------}
+joinStakePoolDelegationAction
+    :: WalletLayer IO s
+    -> CurrentEpochSlotting
+    -> Set PoolId
+    -> PoolId
+    -> PoolLifeCycleStatus
+    -> IO Tx.DelegationAction
+joinStakePoolDelegationAction
+    ctx currentEpochSlotting knownPools poolId poolStatus
+  = do
+    (wallet, stakeKeyIsRegistered) <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            (,) <$> readDBVar walletState
+                <*> isStakeKeyRegistered walletState
+
+    traceWith tr
+        $ W.MsgWallet $ W.MsgIsStakeKeyRegistered stakeKeyIsRegistered
+
+    either (throwIO . ExceptionStakePoolDelegation) pure
+        $ WD.joinStakePoolDelegationAction
+            wallet
+            currentEpochSlotting
+            knownPools
+            poolId
+            poolStatus
+  where
+    db = ctx ^. dbLayer
+    tr = ctx ^. logger
+
 -- | Send a transaction to the network where we join a stake pool.
 joinStakePool
     :: forall s n k.
@@ -284,9 +315,8 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
 
     action <-
-        WD.joinStakePoolDelegationAction
-            (W.MsgWallet >$< (ctx ^. logger))
-            db
+        joinStakePoolDelegationAction
+            ctx
             currentEpochSlotting
             pools
             poolId
