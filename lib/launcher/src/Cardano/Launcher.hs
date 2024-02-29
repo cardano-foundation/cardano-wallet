@@ -16,6 +16,7 @@
 
 module Cardano.Launcher
     ( Command (..)
+    , ProcessRun (..)
     , StdStream(..)
     , ProcessHasExited(..)
     , withBackendProcess
@@ -185,6 +186,8 @@ data ProcessHasExited
 
 instance Exception ProcessHasExited
 
+newtype ProcessRun m a = ProcessRun
+    (Maybe Handle -> Maybe Handle -> Maybe Handle -> ProcessHandle -> m a)
 -- | Starts a command in the background and then runs an action. If the action
 -- finishes (through an exception or otherwise) then the process is terminated
 -- (see 'withCreateProcess') for details. If the process exits, the action is
@@ -197,7 +200,7 @@ withBackendProcess
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
-    -> (Maybe Handle -> ProcessHandle -> m a)
+    -> ProcessRun m a
     -- ^ Action to execute while process is running.
     -> m (Either ProcessHasExited a)
 withBackendProcess tr (Command name args before std_in std_out) action =
@@ -230,16 +233,16 @@ withBackendCreateProcess
     -- ^ Logging
     -> CreateProcess
     -- ^ 'Command' description
-    -> (Maybe Handle -> ProcessHandle -> m a)
+    -> ProcessRun m a
     -- ^ Action to execute while process is running.
     -> m (Either ProcessHasExited a)
-withBackendCreateProcess tr process action = do
+withBackendCreateProcess tr process (ProcessRun action) = do
     traceWith tr $ MsgLauncherStart name args
     exitVar <- newEmptyMVar
     res <- fmap join $ tryJust spawnPredicate $ bracket
         (createProcess process)
         (cleanupProcessAndWait (readMVar exitVar)) $
-            \(mstdin, _, _, ph) -> do
+            \(mstdin, mstdout, mstderr, ph) -> do
                 pid <- maybe "-" (T.pack . show) <$> liftIO (getPid ph)
                 let tr' = contramap (WithProcessInfo name pid) tr
                 let tr'' = contramap MsgLauncherWait tr'
@@ -248,7 +251,7 @@ withBackendCreateProcess tr process action = do
                 race (ProcessHasExited name <$> readMVar exitVar) $ bracket_
                     (traceWith tr' MsgLauncherAction)
                     (traceWith tr' MsgLauncherActionDone)
-                    (action mstdin ph)
+                    (action mstdin mstdout mstderr ph)
 
     traceWith tr $ MsgLauncherFinish (leftToMaybe res)
     pure res

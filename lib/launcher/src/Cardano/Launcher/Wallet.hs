@@ -21,6 +21,7 @@ import Prelude
 import Cardano.Launcher
     ( LauncherLog
     , ProcessHasExited
+    , ProcessRun (..)
     , withBackendCreateProcess
     )
 import Cardano.Launcher.Node
@@ -94,7 +95,7 @@ withCardanoWallet
     -> IO (Either ProcessHasExited a)
 withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
     withBackendCreateProcess tr (cardanoWallet cfg node)
-        $ \_ _ -> action $ CardanoWalletConn walletPort
+        $ ProcessRun $ \_ _ _ _ -> action $ CardanoWalletConn walletPort
 
 cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =
