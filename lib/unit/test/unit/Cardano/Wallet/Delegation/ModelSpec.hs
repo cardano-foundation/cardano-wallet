@@ -93,6 +93,7 @@ genDelta c h = do
         [ ApplyTransition (VoteAndDelegate (Just drep) (Just pool)) slot
         , ApplyTransition (VoteAndDelegate Nothing (Just pool)) slot
         , ApplyTransition (VoteAndDelegate (Just drep) Nothing) slot
+        , ApplyTransition Deregister slot
         , Rollback slot
         ]
 
