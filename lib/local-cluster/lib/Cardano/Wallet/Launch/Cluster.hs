@@ -58,9 +58,7 @@ import Cardano.Wallet.Launch.Cluster.Cluster
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)
-    , clusterEraFromEnv
     , clusterEraToString
-    , localClusterConfigsFromEnv
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
@@ -70,6 +68,10 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Env
+    ( clusterEraFromEnv
+    , localClusterConfigsFromEnv
     )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( sendFaucetAssetsTo
