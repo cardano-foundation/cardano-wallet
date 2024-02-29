@@ -42,6 +42,7 @@ import Cardano.Wallet.DB.Store.Delegations.Store
 import Cardano.Wallet.Delegation.Model
     ( Operation (..)
     , Status (..)
+    , Transition (..)
     , status
     )
 import Cardano.Wallet.Delegation.ModelSpec
@@ -112,16 +113,20 @@ conf =
         }
 
 pattern Register :: slot -> Operation slot drep pool
-pattern Register i = VoteAndDelegate Nothing Nothing i
+pattern Register i = ApplyTransition (VoteAndDelegate Nothing Nothing) i
 
 pattern Delegate :: pool -> slot -> Operation slot drep pool
-pattern Delegate p i = VoteAndDelegate Nothing (Just p) i
+pattern Delegate p i = ApplyTransition (VoteAndDelegate Nothing (Just p)) i
 
 pattern Vote :: drep -> slot -> Operation slot drep pool
-pattern Vote v i = VoteAndDelegate (Just v) Nothing i
+pattern Vote v i = ApplyTransition (VoteAndDelegate (Just v) Nothing) i
+
+pattern Deregister' :: slot -> Operation slot drep pool
+pattern Deregister' i = ApplyTransition Deregister i
 
 pattern DelegateAndVote :: pool -> drep -> slot -> Operation slot drep pool
-pattern DelegateAndVote p v i = VoteAndDelegate (Just v) (Just p) i
+pattern DelegateAndVote p v i
+    = ApplyTransition (VoteAndDelegate (Just v) (Just p)) i
 
 pattern Registered :: Status drep pool
 pattern Registered = Active Nothing Nothing
@@ -151,20 +156,20 @@ units = withInitializedWalletProp $ \_ runQ -> do
     runQ $ unitTestStore mempty mkStoreDelegations $ do
         unit "reg-dereg" $ do
             applyS $ Register 0
-            applyS $ Deregister 0
+            applyS $ Deregister' 0
             observeStatus 0 Inactive
         unit "reg-dereg, different time" $ do
             applyS $ Register 0
             observeStatus 0 Registered
-            applyS $ Deregister 1
+            applyS $ Deregister' 1
             observeStatus 0 Registered
             observeStatus 1 Inactive
         unit "dereg-reg" $ do
-            applyS $ Deregister 0
+            applyS $ Deregister' 0
             applyS $ Register 0
             observeStatus 0 Registered
         unit "dereg-reg different time" $ do
-            applyS $ Deregister 0
+            applyS $ Deregister' 0
             applyS $ Register 1
             observeStatus 1 Registered
         unit "reg-deleg" $ do
@@ -184,7 +189,7 @@ units = withInitializedWalletProp $ \_ runQ -> do
         unit "reg-deleg-dereg" $ do
             applyS $ Register 0
             applyS $ Delegate p0 0
-            applyS $ Deregister 1
+            applyS $ Deregister' 1
             observeStatus 2 Inactive
         unit "reg-vote" $ do
             applyS $ Register 0
@@ -203,7 +208,7 @@ units = withInitializedWalletProp $ \_ runQ -> do
         unit "reg-vote-dereg" $ do
             applyS $ Register 0
             applyS $ Vote v0 0
-            applyS $ Deregister 1
+            applyS $ Deregister' 1
             observeStatus 2 Inactive
         unit "reg-deleg-and-vote" $ do
             applyS $ Register 0
@@ -222,7 +227,7 @@ units = withInitializedWalletProp $ \_ runQ -> do
         unit "reg-deleg-and-vote-dereg" $ do
             applyS $ Register 0
             applyS $ DelegateAndVote p0 v0 0
-            applyS $ Deregister 1
+            applyS $ Deregister' 1
             observeStatus 2 Inactive
         unit "reg-deleg-then-vote" $ do
             applyS $ Register 0

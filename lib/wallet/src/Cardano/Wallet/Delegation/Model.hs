@@ -7,6 +7,7 @@
 -- Data types that represents a history of delegations and its changes.
 module Cardano.Wallet.Delegation.Model
     ( Operation (..)
+    , Transition (..)
     , slotOf
     , Status (..)
     , History
@@ -27,18 +28,21 @@ import Data.Map.Strict
 
 import qualified Data.Map.Strict as Map
 
+data Transition drep pool
+    = VoteAndDelegate (Maybe drep) (Maybe pool)
+    | Deregister
+    deriving (Show)
+
 -- | Delta type for the delegation 'History'.
 data Operation slot drep pool
-    = VoteAndDelegate (Maybe drep) (Maybe pool) slot
-    | Deregister slot
+    = ApplyTransition (Transition drep pool) slot
     | Rollback slot
     deriving (Show)
 
 -- | Target slot of each 'Operation'.
 slotOf :: Operation slot drep pool -> slot
-slotOf (Deregister x) = x
 slotOf (Rollback x) = x
-slotOf (VoteAndDelegate _ _ x) = x
+slotOf (ApplyTransition _ x) = x
 
 -- | Valid state for the delegations, independent of time.
 data Status drep pool
@@ -56,16 +60,17 @@ instance (Ord slot, Eq pool, Eq drep) => Delta (Operation slot drep pool) where
         slot = slotOf r
         hist' = cut (< slot) hist
         miss = status slot hist'
-        wanted = transition r $ status slot hist
+        wanted = case r of
+            ApplyTransition t _ -> applyTransition t $ status slot hist
+            Rollback _ -> status slot hist
 
-transition :: Operation slot drep pool -> Status drep pool -> Status drep pool
-transition (Deregister _) _ = Inactive
-transition (VoteAndDelegate d p _) (Active d' p') = Active d'' p''
+applyTransition :: Transition drep pool -> Status drep pool -> Status drep pool
+applyTransition Deregister _ = Inactive
+applyTransition (VoteAndDelegate d p) (Active d' p') = Active d'' p''
     where
         d'' = insertIfJust d d'
         p'' = insertIfJust p p'
-transition (VoteAndDelegate d p _) _ = Active d p
-transition _ s = s
+applyTransition (VoteAndDelegate d p) _ = Active d p
 
 insertIfJust :: Maybe a -> Maybe a -> Maybe a
 insertIfJust (Just y) _ = Just y

@@ -20,6 +20,7 @@ import Cardano.Wallet.Delegation.Model
     ( History
     , Operation (..)
     , Status (..)
+    , Transition (..)
     , slotOf
     , status
     )
@@ -88,7 +89,7 @@ properties genSlot step =
                 $ property' genSlot step
                 $ precond cond target
     in  case delta_ step of
-            Deregister _ ->
+            ApplyTransition Deregister _ ->
                 that "deregister invariant is respected"
                     $ prop
                         ( \case
@@ -96,7 +97,7 @@ properties genSlot step =
                             _ -> (False, Nothing)
                         )
                         (const Inactive)
-            VoteAndDelegate v p _ -> do
+            ApplyTransition (VoteAndDelegate v p) _ -> do
                 that "delegate and/or vote invariant is respected"
                     $ prop
                         ( \case

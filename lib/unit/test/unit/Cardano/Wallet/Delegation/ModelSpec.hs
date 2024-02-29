@@ -22,6 +22,7 @@ import Cardano.Wallet.Delegation.Model
     ( History
     , Operation (..)
     , Status (Active)
+    , Transition (..)
     )
 import Cardano.Wallet.Delegation.Properties
     ( Step (Step)
@@ -89,9 +90,9 @@ genDelta c h = do
     pool <- genPool c h
     drep <- genRep c h
     elements
-        [ VoteAndDelegate (Just drep) (Just pool) slot
-        , VoteAndDelegate Nothing (Just pool) slot
-        , VoteAndDelegate (Just drep) Nothing slot
+        [ ApplyTransition (VoteAndDelegate (Just drep) (Just pool)) slot
+        , ApplyTransition (VoteAndDelegate Nothing (Just pool)) slot
+        , ApplyTransition (VoteAndDelegate (Just drep) Nothing) slot
         , Rollback slot
         ]
 
