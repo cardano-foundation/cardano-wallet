@@ -900,6 +900,7 @@ import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
+import qualified Cardano.Wallet.IO.Delegation
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -2142,48 +2143,15 @@ selectCoinsForJoin
     -> PoolId
     -> WalletId
     -> Handler (Api.ApiCoinSelection n)
-selectCoinsForJoin ctx@ApiLayer{..}
-    knownPools getPoolStatus poolId walletId = do
-    --
+selectCoinsForJoin ctx knownPools getPoolStatus poolId walletId = do
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
-    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
-        <- liftIO @Handler $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
-        let db = workerCtx ^. typed @(DBLayer IO s)
-        currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        action <- liftIO $ WD.joinStakePoolDelegationAction @s
-            (contramap MsgWallet $ workerCtx ^. logger)
-            db
-            currentEpochSlotting
+        W.CoinSelection{..} <- Cardano.Wallet.IO.Delegation.selectCoinsForJoin
+            workerCtx
             pools
             poolId
             poolStatus
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
-
-        optionalVoteAction <-
-            liftIO $ W.handleVotingWhenMissingInConway era db
-
-        let txCtx = defaultTransactionCtx
-                { txDelegationAction = Just action
-                , txVotingAction = optionalVoteAction
-                , txDeposit = Just $ W.getStakeKeyDeposit pp
-                }
-
-        let paymentOuts = []
-
-        (tx, walletState) <-
-            W.buildTransaction @s era
-            db timeTranslation changeAddrGen pp txCtx paymentOuts
-
-        let W.CoinSelection{..} =
-                W.buildCoinSelectionForTransaction @s @n
-                    walletState
-                    paymentOuts
-                    (W.getStakeKeyDeposit pp)
-                    (Just action)
-                    tx
-
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
             , outputs = mkApiCoinSelectionOutput <$> outputs
@@ -2209,40 +2177,10 @@ selectCoinsForQuit
     => ApiLayer (SeqState n k)
     -> ApiT WalletId
     -> Handler (ApiCoinSelection n)
-selectCoinsForQuit ctx@ApiLayer{..} (ApiT walletId) = do
-    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
-        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+selectCoinsForQuit ctx (ApiT walletId) = do
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
-        let db = workerCtx ^. typed @(DBLayer IO s)
-        withdrawal <- W.shelleyOnlyMkSelfWithdrawal
-            netLayer
-            (txWitnessTagForKey $ keyOfWallet $ walletFlavor @s)
-            db
-        currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        action <- WD.quitStakePoolDelegationAction
-            db currentEpochSlotting withdrawal
-        let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
-
-        let txCtx = defaultTransactionCtx
-                { txDelegationAction = Just action
-                , txWithdrawal = withdrawal
-                , txDeposit = Just $ W.getStakeKeyDeposit pp
-                }
-
-        let paymentOuts = []
-
-        (tx, walletState) <-
-            W.buildTransaction @s era
-            db timeTranslation changeAddrGen pp txCtx paymentOuts
-
-        let W.CoinSelection{..} =
-                W.buildCoinSelectionForTransaction @s @n
-                    walletState
-                    paymentOuts
-                    (W.getStakeKeyDeposit pp)
-                    (Just action)
-                    tx
-
+        W.CoinSelection{..} <-
+            Cardano.Wallet.IO.Delegation.selectCoinsForQuit workerCtx
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
             , outputs = mkApiCoinSelectionOutput <$> outputs
@@ -3987,6 +3925,10 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     hasDelegationKeyHash s =
         isTimelock s && all isDelegationKeyHash (retrieveAllKeyHashes s)
 
+{-------------------------------------------------------------------------------
+    Delegation
+-------------------------------------------------------------------------------}
+
 joinStakePool
     :: forall s n k.
         ( s ~ SeqState n k
@@ -3999,12 +3941,12 @@ joinStakePool
         , AddressBookIso s
         , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
         , HasDelegation s
-        , MkKeyFingerprint k Address, NetworkDiscriminantCheck k
+        , NetworkDiscriminantCheck k
         , AddressCredential k ~ 'CredFromKeyK
         , HasSNetworkId n
+        , DelegationAddress k 'CredFromKeyK
         )
     => ApiLayer s
-    -> ArgGenChange s
     -> IO (Set PoolId)
        -- ^ Known pools
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
@@ -4014,7 +3956,7 @@ joinStakePool
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
 joinStakePool
-    ctx@ApiLayer{..} argGenChange knownPools
+    ctx@ApiLayer{..} knownPools
     getPoolStatus apiPool (ApiT walletId) body = do
     poolId <- case apiPool of
         AllPools -> liftE ErrUnexpectedPoolIdPlaceholder
@@ -4022,30 +3964,17 @@ joinStakePool
     poolStatus <- liftIO (getPoolStatus poolId)
     pools <- liftIO knownPools
     pp <- liftIO $ NW.currentProtocolParameters netLayer
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let tr = wrk ^. logger
-            db = wrk ^. typed @(DBLayer IO s)
-            ti = timeInterpreter netLayer
-        currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        (BuiltTx{..}, txTime) <- liftIO $
-            W.buildSignSubmitTransaction @s
-                db
-                netLayer
-                txLayer
-                (coerce $ getApiT $ body ^. #passphrase)
-                walletId
-                (W.defaultChangeAddressGen argGenChange)
-                (PreSelection [])
-                =<< WD.joinStakePool
-                    (MsgWallet >$< tr)
-                    ti
-                    db
-                    currentEpochSlotting
-                    (W.stakeKeyDeposit pp)
-                    pools
-                    poolId
-                    poolStatus
+    let ti = timeInterpreter netLayer
 
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        (BuiltTx{..}, txTime) <- liftIO
+            $ Cardano.Wallet.IO.Delegation.joinStakePool
+                wrk
+                walletId
+                pools
+                poolId
+                poolStatus
+                (coerce $ getApiT $ body ^. #passphrase)
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
                 { txId = builtTx ^. #txId
@@ -4091,31 +4020,23 @@ quitStakePool
         , k ~ ShelleyKey
         , GenChange s
         , AddressBookIso s
-        , IsOurs (SeqState n k) RewardAccount
         , HasSNetworkId n
         )
     => ApiLayer s
-    -> ArgGenChange s
     -> ApiT WalletId
     -> ApiWalletPassphrase
     -> Handler (ApiTransaction n)
-quitStakePool ctx@ApiLayer{..} argGenChange (ApiT walletId) body = do
-    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
-        let db = wrk ^. typed @(DBLayer IO s)
-            ti = timeInterpreter netLayer
-        txCtx <- liftIO $ WD.quitStakePool netLayer db ti
-        (BuiltTx{..}, txTime) <- liftIO $ do
-            W.buildSignSubmitTransaction @s
-                db
-                netLayer
-                txLayer
-                (coerce $ getApiT $ body ^. #passphrase)
-                walletId
-                (W.defaultChangeAddressGen argGenChange)
-                (PreSelection [])
-                txCtx
+quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
+    pp <- liftIO $ NW.currentProtocolParameters netLayer
+    let ti = timeInterpreter netLayer
 
-        pp <- liftIO $ NW.currentProtocolParameters netLayer
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        (BuiltTx{..}, txTime) <- liftIO
+            $ Cardano.Wallet.IO.Delegation.quitStakePool
+                wrk
+                walletId
+                (coerce $ getApiT $ body ^. #passphrase)
+
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
                 { txId = builtTx ^. #txId
