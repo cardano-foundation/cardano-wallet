@@ -38,6 +38,8 @@ unit-tests-cabal-match match:
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   cabal test cardano-wallet-unit:unit cardano-wallet-read:test -O0 -v0 \
     --test-options '--match="{{match}}"'
+  cabal test cardano-wallet-launcher:unit -O0 -v0 \
+    --test-options '--match="{{match}}"'
 
 # run unit tests
 unit-tests-cabal:

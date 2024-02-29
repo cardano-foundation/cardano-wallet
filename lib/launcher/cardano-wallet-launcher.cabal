@@ -4,30 +4,28 @@ synopsis:            Utilities for a building commands launcher
 homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              Cardano Foundation (High Assurance Lab)
 maintainer:          hal@cardanofoundation.org
-copyright:           2018-2020 IOHK
+copyright:           2018-2023 IOHK, 2024- Cardano Foundation
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
 
 flag release
-    description: Enable optimization and `-Werror`
-    default: False
-    manual: True
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 library
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
-  if (flag(release))
-    ghc-options:
-      -Werror
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
+    ghc-options: -Werror
+
   build-depends:
       base
     , bytestring
@@ -43,33 +41,35 @@ library
     , text-class
     , unliftio
     , unliftio-core
-  hs-source-dirs:
-      src
+
+  hs-source-dirs:     src
   exposed-modules:
-      Cardano.Launcher
-    , Cardano.Launcher.Node
-      Cardano.Launcher.Wallet
-    , Cardano.Startup
+    Cardano.Launcher
+    Cardano.Launcher.Logging
+    Cardano.Launcher.Node
+    Cardano.Launcher.Wallet
+    Cardano.Startup
+
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Startup.Windows
     cpp-options:   -DWINDOWS
+
   else
     build-depends: unix
     other-modules: Cardano.Startup.POSIX
 
 test-suite unit
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded
-      -rtsopts
-      -Wall
-  if (flag(release))
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -threaded -rtsopts -Wall
+
+  if flag(release)
     ghc-options: -O2 -Werror
+
   build-depends:
       base
     , bytestring
@@ -86,16 +86,15 @@ test-suite unit
     , text-class
     , time
     , unliftio
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      test/unit
-  main-is:
-      launcher-unit-test.hs
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            launcher-unit-test.hs
   other-modules:
-      Cardano.LauncherSpec
-    , Cardano.StartupSpec
+    Cardano.Launcher.LoggingSpec
+    Cardano.LauncherSpec
+    Cardano.StartupSpec
+
   if os(windows)
-    cpp-options:   -DWINDOWS
+    cpp-options: -DWINDOWS
