@@ -39,6 +39,7 @@ import Cardano.Launcher
     ( Command (..)
     , LauncherLog
     , ProcessHasExited (..)
+    , ProcessRun (..)
     , StdStream (..)
     , withBackendProcess
     )
@@ -205,9 +206,10 @@ spec = beforeAll setupMockCommands $ do
     it "Backend process is terminated when Async thread is cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
         pendingOnWine "SYSTEM32 commands not available under wine"
         mvar <- newEmptyMVar
-        let backend = withBackendProcess tr foreverCommand $ \_ ph -> do
-                putMVar mvar ph
-                forever $ threadDelay maxBound
+        let backend = withBackendProcess tr foreverCommand $ ProcessRun
+                $ \_ _ _ ph -> do
+                    putMVar mvar ph
+                    forever $ threadDelay maxBound
         before <- getCurrentTime
         race_ backend (threadDelay 1000000)
         after <- getCurrentTime
@@ -220,9 +222,10 @@ spec = beforeAll setupMockCommands $ do
     it "Misbehaving backend process is killed when Async thread is cancelled" $ \_ -> withTestLogging $ \tr -> do
         skipOnWindows "Not applicable"
         mvar <- newEmptyMVar
-        let backend = withBackendProcess tr unkillableCommand $ \_ ph -> do
-                putMVar mvar ph
-                forever $ threadDelay maxBound
+        let backend = withBackendProcess tr unkillableCommand $ ProcessRun
+                $ \_ _ _ ph -> do
+                    putMVar mvar ph
+                    forever $ threadDelay maxBound
         before <- getCurrentTime
         race_ backend (threadDelay 1000000)
         after <- getCurrentTime
@@ -271,7 +274,7 @@ launch :: Tracer IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasE
 launch tr cmds = do
     phsVar <- newMVar []
     let
-        waitForOthers _ ph = do
+        waitForOthers = ProcessRun $ \_ _ _ ph -> do
             modifyMVar_ phsVar (pure . (ph:))
             forever $ threadDelay maxBound
         start = async . flip (withBackendProcess tr) waitForOthers
