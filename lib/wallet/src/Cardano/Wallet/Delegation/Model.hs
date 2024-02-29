@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -12,6 +13,15 @@ module Cardano.Wallet.Delegation.Model
     , Status (..)
     , History
     , status
+    , pattern Register
+    , pattern Delegate
+    , pattern Vote
+    , pattern Deregister'
+    , pattern DelegateAndVote
+    , pattern Registered
+    , pattern Delegating
+    , pattern Voting
+    , pattern DelegatingAndVoting
     ) where
 
 import Prelude
@@ -84,3 +94,31 @@ cut op = fst . Map.spanAntitone op
 -- | Status of the delegation at a given slot.
 status :: Ord slot => slot -> Map slot (Status drep pool) -> Status drep pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)
+
+pattern Register :: slot -> Operation slot drep pool
+pattern Register i = ApplyTransition (VoteAndDelegate Nothing Nothing) i
+
+pattern Delegate :: pool -> slot -> Operation slot drep pool
+pattern Delegate p i = ApplyTransition (VoteAndDelegate Nothing (Just p)) i
+
+pattern Vote :: drep -> slot -> Operation slot drep pool
+pattern Vote v i = ApplyTransition (VoteAndDelegate (Just v) Nothing) i
+
+pattern Deregister' :: slot -> Operation slot drep pool
+pattern Deregister' i = ApplyTransition Deregister i
+
+pattern DelegateAndVote :: pool -> drep -> slot -> Operation slot drep pool
+pattern DelegateAndVote p v i
+    = ApplyTransition (VoteAndDelegate (Just v) (Just p)) i
+
+pattern Registered :: Status drep pool
+pattern Registered = Active Nothing Nothing
+
+pattern Delegating :: pool -> Status drep pool
+pattern Delegating p = Active Nothing (Just p)
+
+pattern Voting :: drep -> Status drep pool
+pattern Voting v = Active (Just v) Nothing
+
+pattern DelegatingAndVoting :: pool -> drep -> Status drep pool
+pattern DelegatingAndVoting p v = Active (Just v) (Just p)

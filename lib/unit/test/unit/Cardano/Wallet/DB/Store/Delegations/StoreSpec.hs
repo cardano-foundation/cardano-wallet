@@ -40,9 +40,16 @@ import Cardano.Wallet.DB.Store.Delegations.Store
     ( mkStoreDelegations
     )
 import Cardano.Wallet.Delegation.Model
-    ( Operation (..)
-    , Status (..)
-    , Transition (..)
+    ( Status (Inactive)
+    , pattern Delegate
+    , pattern DelegateAndVote
+    , pattern Delegating
+    , pattern DelegatingAndVoting
+    , pattern Deregister'
+    , pattern Register
+    , pattern Registered
+    , pattern Vote
+    , pattern Voting
     , status
     )
 import Cardano.Wallet.Delegation.ModelSpec
@@ -111,34 +118,6 @@ conf =
         , genNewPool = \xs -> arbitrary `suchThat` (not . (`elem` xs))
         , genNewDRep = \xs -> arbitrary `suchThat` (not . (`elem` xs))
         }
-
-pattern Register :: slot -> Operation slot drep pool
-pattern Register i = ApplyTransition (VoteAndDelegate Nothing Nothing) i
-
-pattern Delegate :: pool -> slot -> Operation slot drep pool
-pattern Delegate p i = ApplyTransition (VoteAndDelegate Nothing (Just p)) i
-
-pattern Vote :: drep -> slot -> Operation slot drep pool
-pattern Vote v i = ApplyTransition (VoteAndDelegate (Just v) Nothing) i
-
-pattern Deregister' :: slot -> Operation slot drep pool
-pattern Deregister' i = ApplyTransition Deregister i
-
-pattern DelegateAndVote :: pool -> drep -> slot -> Operation slot drep pool
-pattern DelegateAndVote p v i
-    = ApplyTransition (VoteAndDelegate (Just v) (Just p)) i
-
-pattern Registered :: Status drep pool
-pattern Registered = Active Nothing Nothing
-
-pattern Delegating :: pool -> Status drep pool
-pattern Delegating p = Active Nothing (Just p)
-
-pattern Voting :: drep -> Status drep pool
-pattern Voting v = Active (Just v) Nothing
-
-pattern DelegatingAndVoting :: pool -> drep -> Status drep pool
-pattern DelegatingAndVoting p v = Active (Just v) (Just p)
 
 units :: WalletProperty
 units = withInitializedWalletProp $ \_ runQ -> do
