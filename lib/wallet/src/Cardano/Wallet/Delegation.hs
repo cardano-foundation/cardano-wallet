@@ -3,7 +3,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Delegation
@@ -12,12 +11,10 @@ module Cardano.Wallet.Delegation
     , guardQuit
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
-    , voteAction
     ) where
 
 import Prelude
 
-import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
 import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -31,11 +28,6 @@ import Cardano.Wallet
     ( ErrCannotQuit (..)
     , ErrStakePoolDelegation (..)
     , PoolRetirementEpochInfo (..)
-    , WalletLog (..)
-    , readDelegation
-    )
-import Cardano.Wallet.DB
-    ( DBLayer (..)
     )
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
@@ -48,9 +40,6 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
-    )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
     , Withdrawal (..)
@@ -62,10 +51,6 @@ import Control.Monad
     ( forM_
     , unless
     , when
-    )
-import Control.Tracer
-    ( Tracer
-    , traceWith
     )
 import Data.Generics.Internal.VL.Lens
     ( view
@@ -86,24 +71,6 @@ data DelegationRequest
     | Quit
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
-
-voteAction
-    :: Tracer IO WalletLog
-    -> DBLayer IO s
-    -> DRep
-    -> IO Tx.VotingAction
-voteAction tr DBLayer{..} action = do
-    (_, stakeKeyIsRegistered) <-
-        atomically $
-            (,) <$> readDelegation walletState
-                <*> W.isStakeKeyRegistered walletState
-
-    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
-
-    pure $
-        if stakeKeyIsRegistered
-        then Tx.Vote action
-        else Tx.VoteRegisteringKey action
 
 {-----------------------------------------------------------------------------
     Join stake pool

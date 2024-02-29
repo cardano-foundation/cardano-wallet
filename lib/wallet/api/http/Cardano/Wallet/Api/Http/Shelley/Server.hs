@@ -738,9 +738,6 @@ import Data.Function
 import Data.Functor
     ( (<&>)
     )
-import Data.Functor.Contravariant
-    ( (>$<)
-    )
 import Data.Functor.Identity
     ( Identity (..)
     )
@@ -2722,9 +2719,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
 
-            trWorker :: Tracer IO W.WalletLog
-            trWorker = MsgWallet >$< wrk ^. logger
-
         (Write.PParamsInAnyRecentEra era pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
@@ -2749,7 +2743,8 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
         optionalVoteAction <- case (body ^. #vote) of
             Just (ApiT action) ->
-                liftIO $ Just <$> WD.voteAction trWorker db action
+                liftIO $ Just <$>
+                    Cardano.Wallet.IO.Delegation.voteAction wrk action
             Nothing ->
                 pure Nothing
 
@@ -3268,9 +3263,6 @@ constructSharedTransaction
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
 
-            trWorker :: Tracer IO W.WalletLog
-            trWorker = MsgWallet >$< wrk ^. logger
-
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         (Write.PParamsInAnyRecentEra era pp, _)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
@@ -3299,7 +3291,8 @@ constructSharedTransaction
                     getPoolStatus NoWithdrawal
 
         optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) -> liftIO $ Just <$> WD.voteAction trWorker db action
+            Just (ApiT action) -> liftIO $ Just <$>
+                Cardano.Wallet.IO.Delegation.voteAction wrk action
             Nothing -> pure Nothing
 
         let txCtx = defaultTransactionCtx

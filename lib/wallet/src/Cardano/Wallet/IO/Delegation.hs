@@ -14,7 +14,8 @@
 -- Delegation functionality used by Daedalus.
 --
 module Cardano.Wallet.IO.Delegation
-    ( handleDelegationRequest
+    ( voteAction
+    , handleDelegationRequest
     , selectCoinsForJoin
     , selectCoinsForQuit
     , joinStakePool
@@ -30,10 +31,12 @@ import Cardano.Pool.Types
 import Cardano.Wallet
     ( WalletException (..)
     , WalletLayer (..)
+    , WalletLog (..)
     , dbLayer
     , isStakeKeyRegistered
     , logger
     , networkLayer
+    , readDelegation
     , transactionLayer
     )
 import Cardano.Wallet.Address.Book
@@ -83,6 +86,9 @@ import Cardano.Wallet.Primitive.Types
     ( PoolLifeCycleStatus
     , ProtocolParameters (..)
     , WalletId
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
@@ -149,6 +155,26 @@ handleDelegationRequest
             ctx
             currentEpochSlotting
             withdrawal
+
+voteAction
+    :: WalletLayer IO s
+    -> DRep
+    -> IO Tx.VotingAction
+voteAction ctx action = do
+    (_, stakeKeyIsRegistered) <- db & \DBLayer{atomically,walletState} ->
+        atomically $
+            (,) <$> readDelegation walletState
+                <*> W.isStakeKeyRegistered walletState
+
+    traceWith tr $ W.MsgWallet $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
+
+    pure $
+        if stakeKeyIsRegistered
+        then Tx.Vote action
+        else Tx.VoteRegisteringKey action
+  where
+    db = ctx ^. dbLayer
+    tr = ctx ^. logger
 
 {-----------------------------------------------------------------------------
     Used by Daedalus
