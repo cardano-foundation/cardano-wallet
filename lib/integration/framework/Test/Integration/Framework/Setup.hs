@@ -71,7 +71,7 @@ import Cardano.Wallet.Launch.Cluster
     , withFaucet
     , withSMASH
     )
-import Cardano.Wallet.Launch.Cluster.ClusterEra
+import Cardano.Wallet.Launch.Cluster.Env
     ( nodeOutputFileFromEnv
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
