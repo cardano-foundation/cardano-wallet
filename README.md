@@ -56,7 +56,10 @@ start with Daedalus.
 
 ## Quickstart
 
-The `cardano-wallet` executable is an HTTP server that manages your wallet(s). Here is one way to start both node and wallet using Docker:
+The `cardano-wallet` executable is an HTTP server that manages your wallet(s).
+Here is one way to start both node and wallet using Docker and running the nightly version of the wallet.
+
+```bash
 
 THE FOLLOWING EXPOSES THE WALLET PORT. DO NOT USE IT WITH mainnet !
 
@@ -64,50 +67,57 @@ Prerequisties:
     - 100GB of disk space
     - 13GB of RAM
 
+Copy this script to a file, e.g. `start.sh` and make it executable with `chmod +x start.sh`
+
 ```bash
+#! /bin/bash
+
+set -euo pipefail
+
 # set the network, mainnet or preprod or sanchonet
 export NETWORK=preprod
 
 # set a directory for the node-db
 export NODE_DB=`pwd`/node-db
-
-# clean up the node-db directory
-rm -rf $NODE_DB/*
-
-if [ $NETWORK == "mainnet" ]
-then
-    # download the node-db snapshot, or wait for the node to sync for a long time
-    curl -o - https://downloads.csnapshots.io/snapshots/mainnet/$(curl -s https://downloads.csnapshots.io/snapshots/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
-elif [ $NETWORK == "preprod" ]
-then
-    curl -o - https://downloads.csnapshots.io/snapshots/testnet/$(curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
-elif [ $NETWORK == "sanchonet" ]
-else
-    echo "NETWORK must be mainnet or preprod or sanchonet"
-    exit 1
-fi
+# set a directory for the wallet-db
+export WALLET_DB=`pwd`/wallet-db
 
 # set the node tag and wallet tag to compatible versions
 export NODE_TAG=8.7.3
 export WALLET_TAG=rc-latest # 2023.12.18
-export WALLET_VERSION=rc-latest # v2023-12-18
-
-# set a directory for the wallet-db
-export WALLET_DB=`pwd`/wallet-db
 
 # set a port for the wallet server
 export WALLET_PORT=8090
 
+
+if [ "$(ls -A "${NODE_DB}")" ]
+then
+    echo "Node state is present, not downloading the snapshot."
+else
+    if [ $NETWORK == "mainnet" ]
+    then
+        # download the node-db snapshot, or wait for the node to sync for a long time
+        curl -o - https://downloads.csnapshots.io/mainnet/$(curl -s https://downloads.csnapshots.io/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
+        mv $NODE_DB/db/* $NODE_DB/
+        rm -rf $NODE_DB/db
+    elif [ $NETWORK == "preprod" ]
+    then
+        curl -o - https://downloads.csnapshots.io/testnet/$(curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
+        mv $NODE_DB/db/* $NODE_DB/
+        rm -rf $NODE_DB/db
+    elif [ $NETWORK == "sanchonet" ]
+    then echo "no cache for sancho";
+    else
+        echo "NETWORK must be mainnet or preprod or sanchonet"
+        exit 1
+    fi
+fi
+
 # start the services
-docker-compose up -d
-
-# work with the wallet with icarus frontend
-#    (not a production tool, DO NOT USE IT WITH mainnet)
-# connect to http://localhost:4444
-
-# clear the services
-docker-compose down
+docker-compose up
 ```
+
+
 
 Fantastic! server is up-and-running, waiting for HTTP requests on `localhost:8090`
 
@@ -127,9 +137,12 @@ Icarus UI will be available at
 http://localhost:4444
 ```
 
-See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide/Docker) for more information about using docker.
+To stop the services, press `Ctrl+C`.
 
-NixOS users can also use the [NixOS service](https://cardano-foundation.github.io/cardano-wallet/user-guide/NixOS).
+
+See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide/installation/use-docker.html) for more information about using docker.
+
+NixOS users can also use the [NixOS service](https://cardano-foundation.github.io/cardano-wallet/user-guide/installation/use-nixos.html).
 
 ## Obtaining `cardano-wallet`
 
