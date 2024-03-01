@@ -897,7 +897,7 @@ import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
-import qualified Cardano.Wallet.IO.Delegation
+import qualified Cardano.Wallet.IO.Delegation as IODeleg
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -2144,7 +2144,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus poolId walletId = do
     poolStatus <- liftIO $ getPoolStatus poolId
     pools <- liftIO knownPools
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
-        W.CoinSelection{..} <- Cardano.Wallet.IO.Delegation.selectCoinsForJoin
+        W.CoinSelection{..} <- IODeleg.selectCoinsForJoin
             workerCtx
             pools
             poolId
@@ -2177,7 +2177,7 @@ selectCoinsForQuit
 selectCoinsForQuit ctx (ApiT walletId) = do
     withWorkerCtx ctx walletId liftE liftE $ \workerCtx -> liftIO $ do
         W.CoinSelection{..} <-
-            Cardano.Wallet.IO.Delegation.selectCoinsForQuit workerCtx
+            IODeleg.selectCoinsForQuit workerCtx
         pure ApiCoinSelection
             { inputs = mkApiCoinSelectionInput <$> inputs
             , outputs = mkApiCoinSelectionOutput <$> outputs
@@ -2736,7 +2736,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         optionalDelegationAction <- liftIO $
             forM delegationRequest $
-                Cardano.Wallet.IO.Delegation.handleDelegationRequest
+                IODeleg.handleDelegationRequest
                     wrk
                     currentEpochSlotting knownPools
                     poolStatus withdrawal
@@ -2744,7 +2744,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         optionalVoteAction <- case (body ^. #vote) of
             Just (ApiT action) ->
                 liftIO $ Just <$>
-                    Cardano.Wallet.IO.Delegation.voteAction wrk action
+                    IODeleg.voteAction wrk action
             Nothing ->
                 pure Nothing
 
@@ -3286,13 +3286,13 @@ constructSharedTransaction
 
         optionalDelegationAction <- liftIO $
             forM delegationRequest $
-                Cardano.Wallet.IO.Delegation.handleDelegationRequest
+                IODeleg.handleDelegationRequest
                     wrk currentEpochSlotting knownPools
                     getPoolStatus NoWithdrawal
 
         optionalVoteAction <- case (body ^. #vote) of
             Just (ApiT action) -> liftIO $ Just <$>
-                Cardano.Wallet.IO.Delegation.voteAction wrk action
+                IODeleg.voteAction wrk action
             Nothing -> pure Nothing
 
         let txCtx = defaultTransactionCtx
@@ -3961,7 +3961,7 @@ joinStakePool
 
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         (BuiltTx{..}, txTime) <- liftIO
-            $ Cardano.Wallet.IO.Delegation.joinStakePool
+            $ IODeleg.joinStakePool
                 wrk
                 walletId
                 pools
@@ -4025,7 +4025,7 @@ quitStakePool ctx@ApiLayer{..} (ApiT walletId) body = do
 
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         (BuiltTx{..}, txTime) <- liftIO
-            $ Cardano.Wallet.IO.Delegation.quitStakePool
+            $ IODeleg.quitStakePool
                 wrk
                 walletId
                 (coerce $ getApiT $ body ^. #passphrase)
