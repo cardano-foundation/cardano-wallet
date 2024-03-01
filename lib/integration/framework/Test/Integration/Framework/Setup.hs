@@ -53,7 +53,6 @@ import Cardano.Wallet.Api.Types
     ( ApiEra (..)
     , ApiPoolSpecifier (..)
     , ApiT (..)
-    , ApiWalletBalance (available)
     )
 import Cardano.Wallet.Faucet
     ( FaucetM
@@ -250,7 +249,7 @@ mkFaucetFunds testnetMagic = do
     onlyDustWallet <- Faucet.onlyDustWallet shelleyTestnet
     bigDustWallet <- Faucet.bigDustWallet shelleyTestnet
     preregKeyWallet <- Faucet.preregKeyWallet shelleyTestnet
-    instantaneousRewardFunds <- Faucet.mirFunds shelleyTestnet
+    rewardWalletFunds <- Faucet.rewardWalletFunds shelleyTestnet
     massiveWallet <- Faucet.massiveWalletFunds (Coin 0) 0 shelleyTestnet
     maryAllegraFunds <-
         Faucet.maryAllegraFunds
@@ -268,7 +267,7 @@ mkFaucetFunds testnetMagic = do
                     , onlyDustWallet
                     , bigDustWallet
                     , preregKeyWallet
-                    , instantaneousRewardFunds
+                    , rewardWalletFunds
                     ]
             , maryAllegraFunds
             , massiveWalletFunds = massiveWallet
@@ -510,14 +509,14 @@ withContext testingCtx@TestingCtx{..} action = do
                     (\c -> setupDelegation faucetClientEnv c >> action c))
         whenLeft res (throwIO . ProcessHasExited "integration")
   where
-    -- | Setup delegation for 'rewardWallet' / 'mirMnemonics'.
+    -- | Setup delegation for 'rewardWallet' / 'rewardWalletMnemonics'.
     --
     -- Rewards take 4-5 epochs (here ~2 min) to acrue from when we delegate. By
     -- doing this up-front, the rewards are likely available by the time
     -- 'rewardWallet' is called, and we save time.
     setupDelegation :: ClientEnv -> Context -> IO ()
     setupDelegation faucetClientEnv ctx = do
-        mnemonics <- runFaucetM faucetClientEnv Faucet.mirMnemonics
+        mnemonics <- runFaucetM faucetClientEnv Faucet.rewardWalletMnemonics
         pool : _ : _ <-
             map (view #id . getApiT) . snd
                 <$> unsafeRequest @[ApiT StakePool]
