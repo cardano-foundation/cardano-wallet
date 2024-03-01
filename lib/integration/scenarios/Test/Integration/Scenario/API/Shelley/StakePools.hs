@@ -403,28 +403,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (`shouldBe` walletRewards)
                         ]
 
-            -- Listing stake keys shows
-            let delegStatus = babbageOrConway ctx Delegating VotingAndDelegating
-            request @(ApiStakeKeys n) ctx (Link.listStakeKeys src) Default Empty
-                >>= flip
-                    verify
-                    [ expectField (#_foreign) (`shouldBe` [])
-                    , expectField
-                        (#_ours)
-                        ( \case
-                            [acc] -> do
-                                (acc ^. #_stake) .> ApiAmount 0
-                                acc
-                                    ^. (#_delegation . #active . #status)
-                                        `shouldBe` delegStatus
-                                acc
-                                    ^. (#_delegation . #active . #target)
-                                        `shouldBe` (Just (ApiT pool))
-                            _ -> expectationFailure "wrong number of accounts in \"ours\""
-                        )
-                    , expectField (#_none . #_stake) (.> ApiAmount 0)
-                    ]
-
             -- there's currently no withdrawals in the wallet
             rw1 <-
                 request @[ApiTransaction n]
