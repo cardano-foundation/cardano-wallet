@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
@@ -20,6 +20,7 @@ import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx as Write
 
 import Cardano.Pool.Types
     ( PoolId (..)
@@ -39,6 +40,9 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
     )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
@@ -76,20 +80,31 @@ data DelegationRequest
     Join stake pool
 ------------------------------------------------------------------------------}
 joinStakePoolDelegationAction
-    :: WalletState.WalletState s
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> WalletState.WalletState s
     -> CurrentEpochSlotting
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> Either ErrStakePoolDelegation Tx.DelegationAction
+    -> Either
+        ErrStakePoolDelegation
+        (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    wallet currentEpochSlotting knownPools poolId poolStatus
+    era wallet currentEpochSlotting knownPools poolId poolStatus
   = case guardJoin knownPools delegation poolId retirementInfo of
         Left e -> Left $ ErrStakePoolJoin e
-        Right () -> Right $
-            if stakeKeyIsRegistered
-            then Tx.Join poolId
-            else Tx.JoinRegisteringKey poolId
+        Right () -> Right
+            ( if stakeKeyIsRegistered
+                then Tx.Join poolId
+                else Tx.JoinRegisteringKey poolId
+            , case era of
+                Write.RecentEraBabbage -> Nothing
+                Write.RecentEraConway -> Just $
+                    if stakeKeyIsRegistered
+                    then Tx.Vote Abstain
+                    else Tx.VoteRegisteringKey Abstain
+            )
   where
     stakeKeyIsRegistered =
         Dlgs.isStakeKeyRegistered
@@ -130,8 +145,8 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 -- | Given the state of the wallet,
 -- return a 'DelegationAction' for quitting the current stake pool.
 quitStakePoolDelegationAction
-    :: forall s
-     . WalletState.WalletState s
+    :: forall s. ()
+    => WalletState.WalletState s
     -> Coin
     -- ^ Reward balance of the wallet
     -> CurrentEpochSlotting

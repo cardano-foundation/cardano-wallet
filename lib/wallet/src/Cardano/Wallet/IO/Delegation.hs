@@ -144,7 +144,7 @@ handleDelegationRequest
     WD.Join poolId -> do
         poolStatus <- getPoolStatus poolId
         pools <- getKnownPools
-        joinStakePoolDelegationAction
+        fst <$> joinStakePoolDelegationAction
             ctx
             currentEpochSlotting
             pools
@@ -199,7 +199,7 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
         <- W.readNodeTipStateForTxWrite netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
 
-    action <- joinStakePoolDelegationAction
+    (action, _) <- joinStakePoolDelegationAction
         ctx
         currentEpochSlotting
         pools
@@ -293,7 +293,7 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> IO Tx.DelegationAction
+    -> IO (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
     ctx currentEpochSlotting knownPools poolId poolStatus
   = do
@@ -305,8 +305,12 @@ joinStakePoolDelegationAction
     traceWith tr
         $ W.MsgWallet $ W.MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
+    (Write.PParamsInAnyRecentEra era _, _)
+        <- W.readNodeTipStateForTxWrite netLayer
+
     either (throwIO . ExceptionStakePoolDelegation) pure
         $ WD.joinStakePoolDelegationAction
+            era
             wallet
             currentEpochSlotting
             knownPools
@@ -315,6 +319,7 @@ joinStakePoolDelegationAction
   where
     db = ctx ^. dbLayer
     tr = ctx ^. logger
+    netLayer = ctx ^. networkLayer
 
 -- | Send a transaction to the network where we join a stake pool.
 joinStakePool
@@ -340,7 +345,7 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     pp <- currentProtocolParameters netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
 
-    action <-
+    (delegation, votingM) <-
         joinStakePoolDelegationAction
             ctx
             currentEpochSlotting
@@ -353,7 +358,8 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
             defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
                 , txValidityInterval = (Nothing, ttl)
-                , txDelegationAction = Just action
+                , txDelegationAction = Just delegation
+                , txVotingAction = votingM
                 , txDeposit = Just $ stakeKeyDeposit pp
                 }
 
