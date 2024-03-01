@@ -1,9 +1,9 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
@@ -20,6 +20,7 @@ import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx as Write
 
 import Cardano.Pool.Types
     ( PoolId (..)
@@ -40,6 +41,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
     , Withdrawal (..)
@@ -49,7 +53,6 @@ import Control.Error
     )
 import Control.Monad
     ( forM_
-    , unless
     , when
     )
 import Data.Generics.Internal.VL.Lens
@@ -76,20 +79,31 @@ data DelegationRequest
     Join stake pool
 ------------------------------------------------------------------------------}
 joinStakePoolDelegationAction
-    :: WalletState.WalletState s
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> WalletState.WalletState s
     -> CurrentEpochSlotting
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> Either ErrStakePoolDelegation Tx.DelegationAction
+    -> Either
+        ErrStakePoolDelegation
+        (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    wallet currentEpochSlotting knownPools poolId poolStatus
+    era wallet currentEpochSlotting knownPools poolId poolStatus
   = case guardJoin knownPools delegation poolId retirementInfo of
         Left e -> Left $ ErrStakePoolJoin e
-        Right () -> Right $
-            if stakeKeyIsRegistered
-            then Tx.Join poolId
-            else Tx.JoinRegisteringKey poolId
+        Right () -> Right
+            ( if stakeKeyIsRegistered
+                then Tx.Join poolId
+                else Tx.JoinRegisteringKey poolId
+            , case era of
+                Write.RecentEraBabbage -> Nothing
+                Write.RecentEraConway -> Just $
+                    if stakeKeyIsRegistered
+                    then Tx.Vote Abstain
+                    else Tx.VoteRegisteringKey Abstain
+            )
   where
     stakeKeyIsRegistered =
         Dlgs.isStakeKeyRegistered
@@ -130,27 +144,36 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 -- | Given the state of the wallet,
 -- return a 'DelegationAction' for quitting the current stake pool.
 quitStakePoolDelegationAction
-    :: forall s
-     . WalletState.WalletState s
+    :: forall s. ()
+    => WalletState.WalletState s
     -> Coin
     -- ^ Reward balance of the wallet
     -> CurrentEpochSlotting
     -> Withdrawal
     -> Either ErrStakePoolDelegation Tx.DelegationAction
 quitStakePoolDelegationAction wallet rewards currentEpochSlotting withdrawal =
-    case guardQuit delegation withdrawal rewards of
+    case guardQuit delegation withdrawal rewards voting of
         Left e -> Left $ ErrStakePoolQuit e
         Right () -> Right Tx.Quit
   where
+    voting =
+        Dlgs.isVoting
+        $ WalletState.delegations wallet
     delegation =
         Dlgs.readDelegation currentEpochSlotting
         $ WalletState.delegations wallet
 
-guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
-guardQuit WalletDelegation{active,next} wdrl rewards = do
+guardQuit
+    :: WalletDelegation
+    -> Withdrawal
+    -> Coin
+    -> Bool
+    -> Either ErrCannotQuit ()
+guardQuit WalletDelegation{active,next} wdrl rewards voting = do
     let last_ = maybe active (view #status) $ lastMay next
     let anyone _ = True
-    unless (isDelegatingTo anyone last_) $ Left ErrNotDelegatingOrAboutTo
+    when (not (isDelegatingTo anyone last_) && not voting)
+        $ Left ErrNotDelegatingOrAboutTo
     case wdrl of
         WithdrawalSelf {} -> Right ()
         _

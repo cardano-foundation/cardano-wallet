@@ -139,26 +139,26 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            WD.guardQuit dlg NoWithdrawal (Coin 0)
+            WD.guardQuit dlg NoWithdrawal (Coin 0) False
                 `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [not_delegating]" $ do
             let next1 = WalletDelegationNext (EpochNo 1) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1]}
-            WD.guardQuit dlg NoWithdrawal (Coin 0)
+            WD.guardQuit dlg NoWithdrawal (Coin 0) False
                 `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Cannot quit when active: A, next = [B, not_delegating]" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
             let next2 = WalletDelegationNext (EpochNo 2) NotDelegating
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            WD.guardQuit dlg NoWithdrawal (Coin 0)
+            WD.guardQuit dlg NoWithdrawal (Coin 0) False
                 `shouldBe` Left (W.ErrNotDelegatingOrAboutTo)
         it "Can quit when active: not_delegating, next = [A]" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation
                     {active = NotDelegating, next = [next1]}
-            WD.guardQuit dlg NoWithdrawal (Coin 0) `shouldBe` Right ()
+            WD.guardQuit dlg NoWithdrawal (Coin 0) False `shouldBe` Right ()
   where
     pidA = PoolId "A"
     pidB = PoolId "B"
@@ -192,7 +192,7 @@ prop_guardJoinQuit knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
             label "ErrNoSuchPool" $ property True
         Left W.ErrAlreadyDelegating{} ->
             label "ErrAlreadyDelegating"
-                (WD.guardQuit dlg wdrl (Coin 0) === Right ())
+                (WD.guardQuit dlg wdrl (Coin 0) False === Right ())
   where
     knownPools = Set.fromList knownPoolsList
     retirementNotPlanned =
@@ -215,7 +215,7 @@ prop_guardQuitJoin
 prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
     let knownPools = Set.fromList knownPoolsList in
     let noRetirementPlanned = Nothing in
-    case WD.guardQuit dlg wdrl (Coin.fromWord64 rewards) of
+    case WD.guardQuit dlg wdrl (Coin.fromWord64 rewards) False  of
         Right () ->
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->

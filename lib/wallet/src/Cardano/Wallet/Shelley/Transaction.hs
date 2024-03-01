@@ -767,7 +767,7 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
                             , "either xpub or script when there is delegation"
                             , "action"
                             ]
-            let certs = L.nub $ votingCerts <> delegCerts
+            let certs = L.nub $ delegCerts <> votingCerts
             let payload = (view #txMetadata ctx, certs)
             constructUnsignedTx networkId payload ttl wdrl
                 selection delta assetsToBeMinted assetsToBeBurned inpsScripts

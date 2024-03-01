@@ -71,6 +71,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..)
     )
@@ -152,6 +155,7 @@ import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)
     , arbitraryStake
+    , babbageOrConway
     , bracketSettings
     , decodeErrorInfo
     , delegating
@@ -193,6 +197,7 @@ import Test.Integration.Framework.DSL
     , verify
     , verifyMaintenanceAction
     , verifyMetadataSource
+    , votingAndDelegating
     , waitForEpoch
     , waitForNextEpoch
     , waitForTxImmutability
@@ -399,6 +404,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         ]
 
             -- Listing stake keys shows
+            let delegStatus = babbageOrConway ctx Delegating VotingAndDelegating
             request @(ApiStakeKeys n) ctx (Link.listStakeKeys src) Default Empty
                 >>= flip
                     verify
@@ -410,7 +416,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                                 (acc ^. #_stake) .> ApiAmount 0
                                 acc
                                     ^. (#_delegation . #active . #status)
-                                        `shouldBe` Delegating
+                                        `shouldBe` delegStatus
                                 acc
                                     ^. (#_delegation . #active . #target)
                                         `shouldBe` (Just (ApiT pool))
@@ -709,12 +715,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         waitForTxStatus ctx w InLedger . getResponse
             =<< joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
 
+        let delegStatus = babbageOrConway ctx Delegating VotingAndDelegating
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip
                 verify
                 [ expectField (#delegation . #next) $ \case
                     [dlg] -> do
-                        (dlg ^. #status) `shouldBe` Delegating
+                        (dlg ^. #status) `shouldBe` delegStatus
                         (dlg ^. #target) `shouldBe` Just (ApiT pool1)
                         (view #epochNumber <$> dlg ^. #changesAt)
                             `shouldSatisfy` ( \x ->
@@ -736,10 +743,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         -- Epoch A+2: stake is active, rewards start accumulating.
         waitNumberOfEpochBoundaries 2 ctx
 
+        let deleg pool = babbageOrConway ctx
+                     (delegating (ApiT pool) [])
+                     (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip
                 verify
-                [expectField #delegation (`shouldBe` delegating (ApiT pool1) [])]
+                [expectField #delegation (`shouldBe` deleg pool1)]
 
         -- join another stake pool
         waitForTxStatus ctx w InLedger . getResponse
@@ -751,7 +762,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip
                     verify
-                    [expectField #delegation (`shouldBe` delegating (ApiT pool2) [])]
+                    [expectField #delegation (`shouldBe` deleg pool2)]
 
     it "STAKE_POOLS_JOIN_04 - Rewards accumulate" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
@@ -986,10 +997,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             waitNumberOfEpochBoundaries 2 ctx
 
+            let deleg = babbageOrConway ctx
+                         (delegating (ApiT pool1) [])
+                         (votingAndDelegating (ApiT pool1) (ApiT Abstain) [])
+
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip
                     verify
-                    [expectField #delegation (`shouldBe` delegating (ApiT pool1) [])]
+                    [expectField #delegation (`shouldBe` deleg)]
 
             -- Cannot join the same pool
             liftIO
@@ -1138,6 +1153,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 -- Epoch A+2: stake is active, rewards start accumulating.
                 waitNumberOfEpochBoundaries 2 ctx
 
+                let deleg = babbageOrConway ctx
+                             (delegating (ApiT pool) [])
+                             (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+
                 request @ApiWallet
                     ctx
                     (Link.getWallet @'Shelley w)
@@ -1145,7 +1164,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
+                        [ expectField #delegation (`shouldBe` deleg)
                         ]
 
                 rQuit <- quitStakePool @n ctx (w, fixturePassphrase)
@@ -1202,7 +1221,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough to cover fees"
             $ \ctx -> runResourceT $ do
-                let initBalance = [costOfJoining ctx + depositAmt ctx]
+                let fuzz = costOf 50 ctx
+                let initBalance = [costOfJoining ctx + depositAmt ctx + fuzz]
                 w <- fixtureWalletWith @n ctx initBalance
 
                 pool : _ <-
@@ -1225,6 +1245,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 -- Epoch A+2: stake is active, rewards start accumulating.
                 waitNumberOfEpochBoundaries 2 ctx
 
+                let deleg = babbageOrConway ctx
+                             (delegating (ApiT pool) [])
+                             (votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+
                 request @ApiWallet
                     ctx
                     (Link.getWallet @'Shelley w)
@@ -1232,7 +1256,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     Empty
                     >>= flip
                         verify
-                        [ expectField #delegation (`shouldBe` delegating (ApiT pool) [])
+                        [ expectField #delegation (`shouldBe` deleg)
                         ]
 
                 response <- quitStakePool @n ctx (w, fixturePassphrase)
