@@ -53,7 +53,6 @@ import Control.Error
     )
 import Control.Monad
     ( forM_
-    , unless
     , when
     )
 import Data.Generics.Internal.VL.Lens
@@ -153,19 +152,28 @@ quitStakePoolDelegationAction
     -> Withdrawal
     -> Either ErrStakePoolDelegation Tx.DelegationAction
 quitStakePoolDelegationAction wallet rewards currentEpochSlotting withdrawal =
-    case guardQuit delegation withdrawal rewards of
+    case guardQuit delegation withdrawal rewards voting of
         Left e -> Left $ ErrStakePoolQuit e
         Right () -> Right Tx.Quit
   where
+    voting =
+        Dlgs.isVoting
+        $ WalletState.delegations wallet
     delegation =
         Dlgs.readDelegation currentEpochSlotting
         $ WalletState.delegations wallet
 
-guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
-guardQuit WalletDelegation{active,next} wdrl rewards = do
+guardQuit
+    :: WalletDelegation
+    -> Withdrawal
+    -> Coin
+    -> Bool
+    -> Either ErrCannotQuit ()
+guardQuit WalletDelegation{active,next} wdrl rewards voting = do
     let last_ = maybe active (view #status) $ lastMay next
     let anyone _ = True
-    unless (isDelegatingTo anyone last_) $ Left ErrNotDelegatingOrAboutTo
+    when (not (isDelegatingTo anyone last_) && not voting)
+        $ Left ErrNotDelegatingOrAboutTo
     case wdrl of
         WithdrawalSelf {} -> Right ()
         _
