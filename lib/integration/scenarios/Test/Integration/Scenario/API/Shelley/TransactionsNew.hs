@@ -228,6 +228,7 @@ import Data.Generics.Wrapped
     )
 import Data.Maybe
     ( fromJust
+    , fromMaybe
     , isJust
     )
 import Data.Proxy
@@ -3304,9 +3305,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
         noConway ctx "difficult to test in conway"
         (src, _) <- rewardWallet ctx
-        pool1:_ <- map (view #id . getApiT) . snd <$> unsafeRequest
-            @[ApiT StakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
+        let ApiT currentDelegation = fromMaybe
+                (error "wallet should be delegating")
+                (src ^. #delegation . #active . #target)
+        pools <- map (view #id . getApiT) . snd
+            <$> unsafeRequest @[ApiT StakePool]
+                    ctx (Link.listStakePools arbitraryStake) Empty
+        let pool1:_ = filter (/= currentDelegation) pools
 
         let delegationJoin = Json [json|{
                 "delegations": [{
