@@ -35,9 +35,6 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Transaction
     ( DelegationAction
     )
-import Data.ByteString
-    ( ByteString
-    )
 import Data.IORef
     ( IORef
     )
@@ -69,10 +66,6 @@ data Context = Context
     , _faucet
         :: Faucet
         -- ^ Provides access to funded wallets.
-    , _moveRewardsToScript
-        :: (ByteString, Coin)
-        -> IO ()
-        -- ^ A function to inject rewards into some stake address.
     , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain.
     , _testnetMagic :: TestnetMagic

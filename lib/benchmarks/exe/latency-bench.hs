@@ -619,8 +619,6 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                     , _smashUrl = ""
                     , _mainEra = maxBound
                     , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
-                    , _moveRewardsToScript =
-                        error "moveRewardsToScript not available"
                     }
     race_
         (takeMVar ctx >>= action massiveWalletMnemonic')

@@ -60,13 +60,11 @@ import Cardano.Wallet.Faucet
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
-    , Credential (..)
     , FaucetFunds (..)
     , FileOf (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , clusterEraFromEnv
-    , moveInstantaneousRewardsTo
     , runClusterM
     , sendFaucetAssetsTo
     , withCluster
@@ -467,11 +465,6 @@ setupContext
                                     nodeConnection
                                     batchSize
                                     (Faucet.seaHorseTestAssets nPerAddr c addrs)
-                    , _moveRewardsToScript = \(script, coin) ->
-                        withConfig
-                            $ moveInstantaneousRewardsTo
-                                nodeConnection
-                                [(ScriptCredential script, coin)]
                     }
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()

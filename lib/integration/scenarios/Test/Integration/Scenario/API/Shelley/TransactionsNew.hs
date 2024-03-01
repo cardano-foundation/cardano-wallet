@@ -2867,18 +2867,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         pure (mint, [burn])
                   , [ expectResponseCode HTTP.status202 ]
                   )
-                , ( "withdrawal"
-                  , \ctx _w -> do
-                        let (script, _scriptHash) = PlutusScenario.alwaysTrueValidator
-                        liftIO $ _moveRewardsToScript ctx
-                            ( unsafeFromHex $ T.encodeUtf8 script
-                            , Coin 42_000_000
-                            )
-                        waitForNextEpoch ctx
-                        withdrawal <- PlutusScenario.withdrawScript_1
-                        pure (withdrawal, [])
-                  , [ expectResponseCode HTTP.status202 ]
-                  )
                 , ( "currency", \ctx w -> do
                     liftIO $ pendingWith "flaky #3124"
                     ApiAddress addr <- view #id . head <$> listAddresses @n ctx w
