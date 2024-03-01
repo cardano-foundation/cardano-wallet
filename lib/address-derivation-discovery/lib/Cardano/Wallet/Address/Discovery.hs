@@ -60,7 +60,7 @@ import Data.Kind
     ( Type
     )
 import Data.List.NonEmpty
-    ( NonEmpty
+    ( NonEmpty (..)
     )
 import Data.String
     ( fromString
@@ -224,7 +224,7 @@ nextChangeIndex pool (PendingIxs pendingIndexes) =
                 [] -> (firstUnused, PendingIxs [firstUnused])
                 firstIndex : restIndexes ->
                     if length pendingIndexes < AddressPool.gap pool
-                        then let next = succ firstIndex
+                        then let next = succ $ maximum (firstIndex :| restIndexes)
                              in (next, PendingIxs (next : pendingIndexes))
                         else ( firstIndex
                              , PendingIxs (restIndexes <> [firstIndex])
