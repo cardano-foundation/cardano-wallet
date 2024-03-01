@@ -582,7 +582,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
-        noConway ctx "withdrawal_not_possible_without_vote"
         (wa, _) <- rewardWallet ctx
 
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
@@ -3512,7 +3511,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
         $ \ctx -> runResourceT $ do
-        noConway ctx "withdrawal_not_possible_without_vote"
         (w, _) <- rewardWallet ctx
 
         let payload = Json [json|{
