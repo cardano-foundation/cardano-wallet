@@ -124,6 +124,7 @@ import Test.Integration.Framework.DSL
     , waitForTxImmutability
     , walletId
     , (.>)
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403NothingToMigrate
@@ -366,9 +367,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         "SHELLEY_CREATE_MIGRATION_PLAN_06 - \
         \Can create a migration plan for a wallet that has rewards."
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
             (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
-            -- Check that the source wallet has the expected balance.
             request @ApiWallet
                 ctx
                 (Link.getWallet @'Shelley sourceWallet)
@@ -378,13 +377,13 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     verify
                     [ expectField
                         (#balance . #reward . #toNatural)
-                        (`shouldBe` 1_000_000_000_000)
+                        (.> 0)
                     , expectField
                         (#balance . #available . #toNatural)
-                        (`shouldBe` 100_000_000_000)
+                        (.> 0)
                     , expectField
                         (#balance . #total . #toNatural)
-                        (`shouldBe` 1_100_000_000_000)
+                        (.> 0)
                     ]
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
@@ -416,7 +415,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ((`shouldBe` 1) . length . view #withdrawals . NE.head)
                 , expectField
                     (#selections)
-                    ( (`shouldBe` 1_000_000_000_000)
+                    ( (.> 0)
                         . view #toNatural
                         . view #amount
                         . head
@@ -425,7 +424,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     )
                 , expectField
                     (#balanceSelected . #ada . #toNatural)
-                    (`shouldBe` 1_100_000_000_000)
+                    (.> (sourceWallet ^. (#balance . #available . #toNatural)))
                 , expectField
                     (#balanceLeftover . #ada . #toNatural)
                     (`shouldBe` 0)
@@ -1251,32 +1250,17 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         "SHELLEY_MIGRATE_09 - \
         \Can migrate a wallet that has rewards."
         $ \ctx -> runResourceT @IO $ do
-            noConway ctx "MIR"
 
             -- Create a source wallet with rewards:
             (sourceWallet, _sourceWalletMnemonic) <- rewardWallet ctx
 
-            -- Check that the source wallet has the expected balance:
-            let expectedAdaBalanceAvailable = 100_000_000_000
-            let expectedAdaBalanceReward = 1_000_000_000_000
-            let expectedAdaBalanceTotal = 1_100_000_000_000
-            request @ApiWallet
-                ctx
-                (Link.getWallet @'Shelley sourceWallet)
-                Default
-                Empty
-                >>= flip
-                    verify
-                    [ expectField
-                        (#balance . #available . #toNatural)
-                        (`shouldBe` expectedAdaBalanceAvailable)
-                    , expectField
-                        (#balance . #reward . #toNatural)
-                        (`shouldBe` expectedAdaBalanceReward)
-                    , expectField
-                        (#balance . #total . #toNatural)
-                        (`shouldBe` expectedAdaBalanceTotal)
-                    ]
+            let utxoBalance = sourceWallet
+                    ^. (#balance . #available . #toNatural)
+            let rewardBalance0 = sourceWallet ^. -- may increase during test
+                    (#balance . #reward . #toNatural)
+
+            utxoBalance .> 99_000_000_000
+            liftIO $ rewardBalance0 .> 0
 
             -- Create an empty target wallet:
             targetWallet <- emptyWallet ctx
@@ -1313,7 +1297,6 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             waitForTxImmutability ctx
 
             -- Check that funds become available in the target wallet:
-            let expectedTargetBalance = expectedAdaBalanceTotal - expectedFee
             request @ApiWallet
                 ctx
                 (Link.getWallet @'Shelley targetWallet)
@@ -1322,11 +1305,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 >>= flip
                     verify
                     [ expectField
-                        (#balance . #available)
-                        (`shouldBe` ApiAmount expectedTargetBalance)
+                        (#balance . #available . #toNatural)
+                        (.>= (rewardBalance0 + utxoBalance - expectedFee))
                     , expectField
-                        (#balance . #total)
-                        (`shouldBe` ApiAmount expectedTargetBalance)
+                        (#balance . #total . #toNatural)
+                        (.>= (rewardBalance0 + utxoBalance - expectedFee))
                     ]
 
             -- Check that the source wallet has been depleted:

@@ -48,6 +48,8 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses
+    , cardano-crypto-class
+    , cardano-data
     , cardano-ledger-shelley
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
@@ -80,6 +82,7 @@ library framework
     , HUnit
     , iohk-monitoring
     , iohk-monitoring-extra
+    , lens
     , lobemo-backend-ekg
     , local-cluster
     , memory

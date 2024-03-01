@@ -181,7 +181,6 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
-    , noConway
     , notDelegating
     , notRetiringPools
     , postWallet
@@ -656,23 +655,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_QUIT_03 - Can quit with rewards"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
             (w, _) <- rewardWallet ctx
-
-            pool : _ : _ <-
-                map (view #id . getApiT) . snd
-                    <$> unsafeRequest @[ApiT StakePool]
-                        ctx
-                        (Link.listStakePools arbitraryStake)
-                        Empty
-            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status202
-                    , expectField #depositTaken (`shouldBe` ApiAmount 0)
-                    , expectField #depositReturned (`shouldBe` ApiAmount 0)
-                    ]
-            waitForTxImmutability ctx
             quitStakePool @n ctx (w, fixturePassphrase)
                 >>= flip
                     verify
@@ -1591,8 +1574,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         w <- fixtureWallet ctx
         let balance = ApiAmount 1_000_000_000_000
 
-        -- fixtureWallets have funds on payment addresses, so their entire ada
-        -- balance is not associated with their first stake key.
         request @(ApiStakeKeys n) ctx (Link.listStakeKeys w) Default Empty
             >>= flip
                 verify
@@ -1602,13 +1583,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     ( \case
                         [acc] -> do
                             (acc ^. #_index) `shouldBe` 0
-                            (acc ^. #_stake) `shouldBe` ApiAmount 0
+                            (acc ^. #_stake) `shouldBe` balance
                             acc
                                 ^. (#_delegation . #active . #status)
                                     `shouldBe` NotDelegating
                         _ -> expectationFailure "wrong number of accounts in \"ours\""
                     )
-                , expectField (#_none . #_stake) (`shouldBe` balance)
+                , expectField (#_none . #_stake) (`shouldBe` ApiAmount 0)
                 ]
 
         -- By sending funds to ourselves, we associate funds with our stake key.

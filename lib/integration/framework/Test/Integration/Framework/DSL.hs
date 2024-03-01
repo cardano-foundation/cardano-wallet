@@ -83,6 +83,7 @@ module Test.Integration.Framework.DSL
     , emptyWalletAndMnemonicAndSndFactor
     , emptyWalletAndMnemonicWith
     , emptyByronWalletFromXPrvWith
+    , walletFromMnemonic
     , rewardWallet
     , emptySharedWallet
     , emptySharedWalletDelegating
@@ -1788,6 +1789,21 @@ emptyWalletAndMnemonicWith ctx (name, passphrase, addrPoolGap) = do
     r <- postWallet ctx payload
     expectResponseCode HTTP.status201 r
     return (getResponse r, mnemonic)
+
+walletFromMnemonic
+    :: MonadUnliftIO m
+    => Context
+    -> SomeMnemonic
+    -> ResourceT m ApiWallet
+walletFromMnemonic ctx (SomeMnemonic m) = do
+    let payload = Json [aesonQQ|{
+            "name": "MIR Wallet",
+            "mnemonic_sentence": #{mnemonicToText m},
+            "passphrase": #{fixturePassphrase}
+        }|]
+    r <- postWallet ctx payload
+    expectResponseCode HTTP.status201 r
+    return $ getResponse r
 
 rewardWallet
     :: MonadUnliftIO m

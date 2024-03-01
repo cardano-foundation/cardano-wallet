@@ -634,7 +634,6 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             FaucetFunds
                 { pureAdaFunds = shelleyFunds
                 , maryAllegraFunds
-                , mirCredentials = []
                 , massiveWalletFunds = massiveFunds
                 }
 

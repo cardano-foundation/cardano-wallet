@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -38,11 +39,8 @@ import Cardano.Launcher
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
-import Cardano.Ledger.Shelley.API
-    ( ShelleyGenesis (..)
-    )
-import Cardano.Mnemonic
-    ( SomeMnemonic (..)
+import Cardano.Ledger.Shelley.Genesis
+    ( sgNetworkMagic
     )
 import Cardano.Startup
     ( installSignalHandlersNoLogging
@@ -53,6 +51,9 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiEra (..)
+    , ApiPoolSpecifier (..)
+    , ApiT (..)
+    , ApiWalletBalance (available)
     )
 import Cardano.Wallet.Faucet
     ( FaucetM
@@ -80,11 +81,15 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
 import Cardano.Wallet.Network.Ports
     ( portFromURL
     )
+import Cardano.Wallet.Pools
+    ( StakePool
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkId (..)
+    ( NetworkDiscriminant (Testnet)
+    , NetworkId (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..)
@@ -105,6 +110,12 @@ import Cardano.Wallet.Shelley.BlockchainSource
 import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic
     , withMetadataServer
+    )
+import Control.Lens
+    ( view
+    )
+import Control.Monad
+    ( forM_
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -168,6 +179,15 @@ import Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
     )
+import Test.Integration.Framework.DSL
+    ( Payload (..)
+    , arbitraryStake
+    , fixturePassphrase
+    , joinStakePool
+    , runResourceT
+    , unsafeRequest
+    , walletFromMnemonic
+    )
 import Test.Integration.Framework.Logging
     ( TestsLog (..)
     , withTracers
@@ -188,11 +208,10 @@ import UnliftIO.MVar
     , withMVar
     )
 
-import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.CLI as CLI
-import qualified Cardano.Faucet.Addresses as Addresses
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
+import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Text as T
@@ -237,15 +256,6 @@ mkFaucetFunds testnetMagic = do
         Faucet.maryAllegraFunds
             (Coin 10__000_000)
             shelleyTestnet
-
-    mirCredentials <- do
-        mnemonics <- Faucet.mirMnemonics
-        let oneMioAda = Coin 1_000_000__000_000
-            mkRewardAccountCred (SomeMnemonic m) =
-                let (xpub, _prv) = Addresses.shelleyRewardAccount m
-                in  KeyCredential (Shelley.getKey xpub)
-        pure [(mkRewardAccountCred m, oneMioAda) | m <- mnemonics]
-
     pure
         FaucetFunds
             { pureAdaFunds =
@@ -261,7 +271,6 @@ mkFaucetFunds testnetMagic = do
                     , instantaneousRewardFunds
                     ]
             , maryAllegraFunds
-            , mirCredentials
             , massiveWalletFunds = massiveWallet
             }
 
@@ -497,8 +506,35 @@ withContext testingCtx@TestingCtx{..} action = do
                     nodeOutputFile
                     cluster
                 )
-                (takeMVar ctx >>= bracketTracer' tr "spec" . action)
+                (takeMVar ctx >>= bracketTracer' tr "spec" .
+                    (\c -> setupDelegation faucetClientEnv c >> action c))
         whenLeft res (throwIO . ProcessHasExited "integration")
+  where
+    -- | Setup delegation for 'rewardWallet' / 'mirMnemonics'.
+    --
+    -- Rewards take 4-5 epochs (here ~2 min) to acrue from when we delegate. By
+    -- doing this up-front, the rewards are likely available by the time
+    -- 'rewardWallet' is called, and we save time.
+    setupDelegation :: ClientEnv -> Context -> IO ()
+    setupDelegation faucetClientEnv ctx = do
+        mnemonics <- runFaucetM faucetClientEnv Faucet.mirMnemonics
+        pool : _ : _ <-
+            map (view #id . getApiT) . snd
+                <$> unsafeRequest @[ApiT StakePool]
+                    ctx
+                    (Link.listStakePools arbitraryStake)
+                    Empty
+        -- Having 'runResourceT' /inside/ the loop ensures the wallets are
+        -- deleted as quickly as possible, not to deplete file descriptors or
+        -- resources for unnecessary restoration.
+        forM_ mnemonics $ \mw -> runResourceT $ do
+            w <- walletFromMnemonic ctx mw
+            _ <- joinStakePool
+                @('Testnet 0) -- protocol magic doesn't matter
+                ctx
+                (SpecificPool pool)
+                (w, fixturePassphrase)
+            pure ()
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer $ contramap (MsgBracket name) tr

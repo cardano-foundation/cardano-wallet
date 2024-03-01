@@ -38,10 +38,8 @@ module Cardano.Wallet.Launch.Cluster
     , changeFileOf
 
       -- * Faucets
-    , Credential (..)
     , sendFaucetFundsTo
     , sendFaucetAssetsTo
-    , moveInstantaneousRewardsTo
     , genMonetaryPolicyScript
 
       -- * Logging
@@ -79,10 +77,6 @@ import Cardano.Wallet.Launch.Cluster.Faucet
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
     , changeFileOf
-    )
-import Cardano.Wallet.Launch.Cluster.InstantaneousRewards
-    ( Credential (..)
-    , moveInstantaneousRewardsTo
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)

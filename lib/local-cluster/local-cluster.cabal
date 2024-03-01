@@ -40,7 +40,6 @@ library
     Cardano.Wallet.Launch.Cluster.Faucet
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
-    Cardano.Wallet.Launch.Cluster.InstantaneousRewards
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript

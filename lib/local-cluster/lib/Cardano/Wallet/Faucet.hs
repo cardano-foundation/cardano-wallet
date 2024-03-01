@@ -321,7 +321,10 @@ preregKeyWallet tag = do
     pure $ as <&> (,defaultAmount)
 
 mirMnemonicRange :: MnemonicRange
-mirMnemonicRange = MnemonicRange 0 199
+mirMnemonicRange =
+    MnemonicRange 0 30
+    -- As few as possible; the cardano-wallet integration tests need to call
+    -- postWallet for each one at the beginning of the tests.
 
 mirMnemonics :: FaucetM [SomeMnemonic]
 mirMnemonics = FaucetM $
