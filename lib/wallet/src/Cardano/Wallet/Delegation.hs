@@ -1,26 +1,22 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
-    , joinStakePool
     , guardJoin
-    , quitStakePool
     , guardQuit
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
-    , handleDelegationRequest
-    , voteAction
     ) where
 
 import Prelude
 
+import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
+import qualified Cardano.Wallet.DB.WalletState as WalletState
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Set as Set
@@ -32,33 +28,9 @@ import Cardano.Wallet
     ( ErrCannotQuit (..)
     , ErrStakePoolDelegation (..)
     , PoolRetirementEpochInfo (..)
-    , WalletException (..)
-    , WalletLog (..)
-    , fetchRewardBalance
-    , getCurrentEpochSlotting
-    , isStakeKeyRegistered
-    , readDelegation
-    , readRewardAccount
-    , transactionExpirySlot
-    )
-import Cardano.Wallet.Address.Derivation.Shelley
-    ( ShelleyKey (..)
-    )
-import Cardano.Wallet.Address.Discovery.Sequential
-    ( SeqState (..)
-    )
-import Cardano.Wallet.DB
-    ( DBLayer (..)
     )
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
-    )
-import Cardano.Wallet.Network
-    ( NetworkLayer (..)
-    )
-import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , TimeInterpreter
     )
 import Cardano.Wallet.Primitive.Types
     ( IsDelegatingTo (..)
@@ -68,44 +40,17 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
-    )
 import Cardano.Wallet.Transaction
     ( ErrCannotJoin (..)
-    , TransactionCtx
     , Withdrawal (..)
-    , defaultTransactionCtx
-    , txDelegationAction
-    , txDeposit
-    , txValidityInterval
-    , txWithdrawal
     )
 import Control.Error
     ( lastMay
-    )
-import Control.Exception
-    ( throwIO
     )
 import Control.Monad
     ( forM_
     , unless
     , when
-    , (>=>)
-    )
-import Control.Monad.Except
-    ( ExceptT
-    , runExceptT
-    )
-import Control.Monad.IO.Class
-    ( MonadIO (..)
-    )
-import Control.Monad.Trans.Except
-    ( except
-    )
-import Control.Tracer
-    ( Tracer
-    , traceWith
     )
 import Data.Generics.Internal.VL.Lens
     ( view
@@ -127,110 +72,35 @@ data DelegationRequest
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
 
-handleDelegationRequest
-    :: forall s
-     . Tracer IO WalletLog
-    -> DBLayer IO s
-    -> CurrentEpochSlotting
-    -> IO (Set PoolId)
-    -> (PoolId -> IO PoolLifeCycleStatus)
-    -> Withdrawal
-    -> DelegationRequest
-    -> ExceptT ErrStakePoolDelegation IO Tx.DelegationAction
-handleDelegationRequest
-    tr db currentEpochSlotting getKnownPools getPoolStatus withdrawal = \case
-    Join poolId -> liftIO $ do
-        poolStatus <- getPoolStatus poolId
-        pools <- getKnownPools
-        joinStakePoolDelegationAction
-            tr db currentEpochSlotting pools poolId poolStatus
-    Quit -> liftIO
-        $ quitStakePoolDelegationAction db currentEpochSlotting withdrawal
-
-voteAction
-    :: Tracer IO WalletLog
-    -> DBLayer IO s
-    -> DRep
-    -> IO Tx.VotingAction
-voteAction tr DBLayer{..} action = do
-    (_, stakeKeyIsRegistered) <-
-        atomically $
-            (,) <$> readDelegation walletState
-                <*> isStakeKeyRegistered walletState
-
-    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
-
-    pure $
-        if stakeKeyIsRegistered
-        then Tx.Vote action
-        else Tx.VoteRegisteringKey action
-
+{-----------------------------------------------------------------------------
+    Join stake pool
+------------------------------------------------------------------------------}
 joinStakePoolDelegationAction
-    :: Tracer IO WalletLog
-    -> DBLayer IO s
+    :: WalletState.WalletState s
     -> CurrentEpochSlotting
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> IO Tx.DelegationAction
+    -> Either ErrStakePoolDelegation Tx.DelegationAction
 joinStakePoolDelegationAction
-    tr DBLayer{..} currentEpochSlotting
-        knownPools poolId poolStatus = do
-    (walletDelegation, stakeKeyIsRegistered) <-
-        atomically $
-            (,) <$> readDelegation walletState
-                <*> isStakeKeyRegistered walletState
-
-    let retirementInfo =
-            PoolRetirementEpochInfo (currentEpochSlotting ^. #currentEpoch)
-                . view #retirementEpoch <$>
-                W.getPoolRetirementCertificate poolStatus
-
-    throwInIO ErrStakePoolJoin . except
-        $ guardJoin
-            knownPools
-            (walletDelegation currentEpochSlotting)
-            poolId
-            retirementInfo
-
-    traceWith tr $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
-
-    pure $
-        if stakeKeyIsRegistered
-        then Tx.Join poolId
-        else Tx.JoinRegisteringKey poolId
-
+    wallet currentEpochSlotting knownPools poolId poolStatus
+  = case guardJoin knownPools delegation poolId retirementInfo of
+        Left e -> Left $ ErrStakePoolJoin e
+        Right () -> Right $
+            if stakeKeyIsRegistered
+            then Tx.Join poolId
+            else Tx.JoinRegisteringKey poolId
   where
-    throwInIO ::
-        MonadIO m => (e -> ErrStakePoolDelegation) -> ExceptT e m a -> m a
-    throwInIO f = runExceptT >=>
-        either (liftIO . throwIO . ExceptionStakePoolDelegation . f) pure
-
-joinStakePool
-    :: Tracer IO WalletLog
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
-    -> DBLayer IO s
-    -> CurrentEpochSlotting
-    -> Coin
-    -> Set PoolId
-    -> PoolId
-    -> PoolLifeCycleStatus
-    -> IO TransactionCtx
-joinStakePool tr ti db currentEpochSlotting deposit pools poolId poolStatus = do
-    action <- joinStakePoolDelegationAction
-        tr
-        db
-        currentEpochSlotting
-        pools
-        poolId
-        poolStatus
-    ttl <- transactionExpirySlot ti Nothing
-    pure defaultTransactionCtx
-        { txWithdrawal = NoWithdrawal
-        , txValidityInterval = (Nothing, ttl)
-        , txDelegationAction = Just action
-        , txDeposit = Just deposit
-        }
+    stakeKeyIsRegistered =
+        Dlgs.isStakeKeyRegistered
+        $ WalletState.delegations wallet
+    delegation =
+        Dlgs.readDelegation currentEpochSlotting
+        $ WalletState.delegations wallet
+    retirementInfo =
+        PoolRetirementEpochInfo (currentEpochSlotting ^. #currentEpoch)
+            . view #retirementEpoch <$>
+            W.getPoolRetirementCertificate poolStatus
 
 guardJoin
     :: Set PoolId
@@ -254,40 +124,27 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
   where
     WalletDelegation {active, next} = delegation
 
--- | Helper function to factor necessary logic for quitting a stake pool.
+{-----------------------------------------------------------------------------
+    Quit stake pool
+------------------------------------------------------------------------------}
+-- | Given the state of the wallet,
+-- return a 'DelegationAction' for quitting the current stake pool.
 quitStakePoolDelegationAction
     :: forall s
-     . DBLayer IO s
+     . WalletState.WalletState s
+    -> Coin
+    -- ^ Reward balance of the wallet
     -> CurrentEpochSlotting
     -> Withdrawal
-    -> IO Tx.DelegationAction
-quitStakePoolDelegationAction db@DBLayer{..} currentEpochSlotting withdrawal = do
-    delegation <- atomically $ readDelegation walletState
-    rewards <- liftIO $ fetchRewardBalance db
-    either (throwIO . ExceptionStakePoolDelegation . ErrStakePoolQuit) pure
-        (guardQuit (delegation currentEpochSlotting) withdrawal rewards)
-    pure Tx.Quit
-
-quitStakePool
-    :: forall n block
-     . NetworkLayer IO block
-    -> DBLayer IO (SeqState n ShelleyKey)
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
-    -> IO TransactionCtx
-quitStakePool netLayer db timeInterpreter = do
-    (rewardAccount, _, derivationPath) <- readRewardAccount db
-    withdrawal <- WithdrawalSelf rewardAccount derivationPath
-        <$> getCachedRewardAccountBalance netLayer rewardAccount
-    currentEpochSlotting <- getCurrentEpochSlotting netLayer
-    pp <- currentProtocolParameters netLayer
-    action <- quitStakePoolDelegationAction db currentEpochSlotting withdrawal
-    ttl <- transactionExpirySlot timeInterpreter  Nothing
-    pure defaultTransactionCtx
-        { txWithdrawal = withdrawal
-        , txValidityInterval = (Nothing, ttl)
-        , txDelegationAction = Just action
-        , txDeposit = Just $ W.stakeKeyDeposit pp
-        }
+    -> Either ErrStakePoolDelegation Tx.DelegationAction
+quitStakePoolDelegationAction wallet rewards currentEpochSlotting withdrawal =
+    case guardQuit delegation withdrawal rewards of
+        Left e -> Left $ ErrStakePoolQuit e
+        Right () -> Right Tx.Quit
+  where
+    delegation =
+        Dlgs.readDelegation currentEpochSlotting
+        $ WalletState.delegations wallet
 
 guardQuit :: WalletDelegation -> Withdrawal -> Coin -> Either ErrCannotQuit ()
 guardQuit WalletDelegation{active,next} wdrl rewards = do
