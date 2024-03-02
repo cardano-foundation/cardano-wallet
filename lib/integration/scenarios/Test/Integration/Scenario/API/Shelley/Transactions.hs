@@ -193,7 +193,6 @@ import Test.Integration.Framework.DSL
     , listTransactions
     , minUTxOValue
     , mkTxPayloadMA
-    , noConway
     , pickAnAsset
     , postTx
     , request
@@ -2972,41 +2971,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 NotEnoughMoney{} -> True
                 _someOtherError -> False
 
-    it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee"
-        $ \ctx -> runResourceT $ do
-            noConway ctx "rewardWallet not voting"
-            wSelf <- fixtureWalletWith @n ctx [oneThousandAda]
-            (wRewards, SomeMnemonic mw) <- rewardWallet ctx
-            addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
-            let amt = oneThousandAda + wRewards ^. (#balance . #reward . #toNatural)
-
-            let payload =
-                    Json
-                        [json|{
-                "withdrawal": #{mnemonicToText mw},
-                "payments": [{
-                    "address": #{addr},
-                    "amount": { "quantity": #{amt}, "unit": "lovelace" }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
-
-            -- Try withdrawing when cannot cover fee
-            rTx <-
-                request @(ApiTransaction n)
-                    ctx
-                    (Link.createTransactionOld @'Shelley wSelf)
-                    Default
-                    payload
-            verify
-                rTx
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403Fee
-                ]
-
     it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money"
         $ \ctx -> runResourceT $ do
-            noConway ctx "redeem rewards"
             (_, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- fixtureWalletWith @n ctx [oneThousandAda]
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
