@@ -511,7 +511,7 @@ withContext testingCtx@TestingCtx{..} action = do
   where
     -- | Setup delegation for 'rewardWallet' / 'rewardWalletMnemonics'.
     --
-    -- Rewards take 4-5 epochs (here ~2 min) to acrue from when we delegate. By
+    -- Rewards take 4-5 epochs (here ~2 min) to accrue from delegating. By
     -- doing this up-front, the rewards are likely available by the time
     -- 'rewardWallet' is called, and we save time.
     setupDelegation :: ClientEnv -> Context -> IO ()

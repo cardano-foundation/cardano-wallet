@@ -1797,7 +1797,7 @@ walletFromMnemonic
     -> ResourceT m ApiWallet
 walletFromMnemonic ctx (SomeMnemonic m) = do
     let payload = Json [aesonQQ|{
-            "name": "MIR Wallet",
+            "name": "walletFromMnemonic Wallet",
             "mnemonic_sentence": #{mnemonicToText m},
             "passphrase": #{fixturePassphrase}
         }|]
@@ -1812,7 +1812,7 @@ rewardWallet
 rewardWallet ctx = do
     mnemonic@(SomeMnemonic m) <- liftIO $ nextRewardMnemonic (_faucet ctx)
     let payload = Json [aesonQQ|{
-            "name": "MIR Wallet",
+            "name": "Reward Wallet",
             "mnemonic_sentence": #{mnemonicToText m},
             "passphrase": #{fixturePassphrase}
         }|]
