@@ -192,7 +192,6 @@ import Test.Integration.Framework.DSL
     , listTransactions
     , minUTxOValue
     , mkTxPayloadMA
-    , noConway
     , pickAnAsset
     , postTx
     , request
@@ -1637,8 +1636,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         "TRANS_ESTIMATE_03b - \
         \we see result when we can't cover fee (with withdrawal)"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-
             liftIO
                 $ pendingWith
                     "This now triggers a new error on the backend side which is harder \
@@ -2567,8 +2564,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-
             (wSrc, _) <- rewardWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSrc
 
@@ -2618,10 +2613,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-            (wOther, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- fixtureWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+            (wOther, SomeMnemonic mw) <- rewardWallet ctx
+            let rewardBalance = wOther ^. #balance . #reward . #toNatural
 
             let payload =
                     Json
@@ -2641,7 +2636,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     ctx
                     (Link.getTransactionFeeOld @'Shelley wSelf)
                     payload
-
             rTx <-
                 request @(ApiTransaction n)
                     ctx
@@ -2660,7 +2654,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` Incoming)
                 , expectField
                     (#amount . #toNatural)
-                    (`shouldBe` (oneMillionAda - fee))
+                    (.>= (rewardBalance - fee))
                 , -- TODO: Drop https://cardanofoundation.atlassian.net/browse/ADP-2935
                   expectField
                     (#fee . #toNatural)
@@ -2701,7 +2695,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` Outgoing)
                     , expectField
                         (#amount . #toNatural)
-                        (`shouldBe` oneMillionAda)
+                        (.>= rewardBalance)
                     ]
 
             eventually "rewards appear on self" $ do
@@ -2737,7 +2731,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (`shouldBe` Incoming)
                     , expectField
                         (#amount . #toNatural)
-                        (`shouldBe` (oneMillionAda - fee))
+                        (.>= (rewardBalance - estimatedFeeMax))
                     , expectField
                         (#status . #getApiT)
                         (`shouldBe` InLedger)
@@ -2745,8 +2739,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-
             (wOther, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- fixtureWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
@@ -2895,8 +2887,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-
             (_, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- emptyWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
@@ -2927,8 +2917,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-
             liftIO $ pendingWith "Migration endpoints temporarily disabled"
             (wRewards, SomeMnemonic mw) <- rewardWallet ctx
             wOther <- emptyWallet ctx
@@ -2982,42 +2970,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 NotEnoughMoney{} -> True
                 _someOtherError -> False
 
-    it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee"
-        $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
-
-            (_, SomeMnemonic mw) <- rewardWallet ctx
-            wSelf <- fixtureWalletWith @n ctx [oneThousandAda]
-            addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf
-            let amt = oneThousandAda + oneMillionAda
-
-            let payload =
-                    Json
-                        [json|{
-                "withdrawal": #{mnemonicToText mw},
-                "payments": [{
-                    "address": #{addr},
-                    "amount": { "quantity": #{amt}, "unit": "lovelace" }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
-
-            -- Try withdrawing when cannot cover fee
-            rTx <-
-                request @(ApiTransaction n)
-                    ctx
-                    (Link.createTransactionOld @'Shelley wSelf)
-                    Default
-                    payload
-            verify
-                rTx
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403Fee
-                ]
-
     it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money"
         $ \ctx -> runResourceT $ do
-            noConway ctx "redeem rewards"
             (_, SomeMnemonic mw) <- rewardWallet ctx
             wSelf <- fixtureWalletWith @n ctx [oneThousandAda]
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx wSelf

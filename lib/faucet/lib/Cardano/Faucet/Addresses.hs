@@ -48,6 +48,7 @@ import Cardano.Address.Style.Icarus
     )
 import Cardano.Address.Style.Shelley
     ( Shelley
+    , deriveDelegationPrivateKey
     )
 import Cardano.Mnemonic
     ( Mnemonic
@@ -117,15 +118,19 @@ shelley netTag mnemonic = mkPaymentAddrForIx <$> paymentKeyIxs
         let firstIx = minBound
             in firstIx : unfoldr (fmap dupe . nextIndex) firstIx
     mkPaymentAddrForIx paymentAddrIx =
-        Shelley.paymentAddress netTag credential
+        Shelley.delegationAddress
+            netTag
+            (Shelley.PaymentFromExtendedKey $ toXPub <$> paymentKey)
+            (Shelley.DelegationFromExtendedKey $ toXPub <$> stakeKey)
       where
-        credential :: Shelley.Credential PaymentK =
-            Shelley.PaymentFromExtendedKey (toXPub <$> paymentKey)
         paymentKey :: Shelley PaymentK XPrv =
             deriveAddressPrivateKey
                 (deriveShelleyAccountKey mnemonic)
                 Shelley.UTxOExternal
                 paymentAddrIx
+        stakeKey :: Shelley DelegationK XPrv =
+            deriveDelegationPrivateKey
+                (deriveShelleyAccountKey mnemonic)
 
 shelleyRewardAccount
     :: KnownNat n

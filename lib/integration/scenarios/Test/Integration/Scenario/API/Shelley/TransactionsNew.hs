@@ -97,6 +97,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxMetadata (..)
     , ApiTxOutputGeneral (..)
     , ApiWallet
+    , ApiWalletBalance (available)
     , ApiWalletInput (..)
     , ApiWalletOutput (..)
     , ResourceContext (..)
@@ -148,6 +149,9 @@ import Cardano.Wallet.Primitive.Types.AssetName
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -227,6 +231,7 @@ import Data.Generics.Wrapped
     )
 import Data.Maybe
     ( fromJust
+    , fromMaybe
     , isJust
     )
 import Data.Proxy
@@ -310,6 +315,7 @@ import Test.Integration.Framework.DSL
     , submitTxWithWid
     , unsafeRequest
     , verify
+    , votingAndDelegating
     , waitForNextEpoch
     , waitForTxImmutability
     , waitNumberOfEpochBoundaries
@@ -580,11 +586,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self" $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         (wa, _) <- rewardWallet ctx
+
         let withdrawal = Json [json|{ "withdrawal": "self" }|]
-        let withdrawalAmt = 1_000_000_000_000
-        let rewardInitialBalance = 100_000_000_000
+        let rewardInitialBalance = wa ^. (#balance . #available . #toNatural)
 
         rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley wa) Default withdrawal
@@ -603,7 +608,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let decodePayload = Json (toJSON signedTx)
         let withdrawalWith ownership wdrls = case wdrls of
                 [wdrl] ->
-                    wdrl ^. #amount == ApiAmount withdrawalAmt &&
+                    wdrl ^. #amount > ApiAmount 0 &&
                     wdrl ^. #context == ownership
                 _ -> False
 
@@ -622,6 +627,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Make sure wallet balance is increased by withdrawalAmt - fee
+        let withdrawalAmt =
+                view (#amount . #toNatural) $ head
+                $ getFromResponse (#withdrawals) rDecodedTx
         eventually "Wallet balance is increased by withdrawalAmt - fee" $ do
             rWa <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
@@ -651,7 +659,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_CREATE_04a - Single Output Transaction with decode transaction" $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         let initialAmt = 3 * minUTxOValue (_mainEra ctx)
         wa <- fixtureWalletWith @n ctx [initialAmt]
         wb <- emptyWallet ctx
@@ -2659,7 +2666,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
         noConway ctx "wrong era"
         -- Construct tx
@@ -2865,18 +2871,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                                 "vkHash": #{vkHash}
                             }|]
                         pure (mint, [burn])
-                  , [ expectResponseCode HTTP.status202 ]
-                  )
-                , ( "withdrawal"
-                  , \ctx _w -> do
-                        let (script, _scriptHash) = PlutusScenario.alwaysTrueValidator
-                        liftIO $ _moveRewardsToScript ctx
-                            ( unsafeFromHex $ T.encodeUtf8 script
-                            , Coin 42_000_000
-                            )
-                        waitForNextEpoch ctx
-                        withdrawal <- PlutusScenario.withdrawScript_1
-                        pure (withdrawal, [])
                   , [ expectResponseCode HTTP.status202 ]
                   )
                 , ( "currency", \ctx w -> do
@@ -3312,16 +3306,19 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         (src, _) <- rewardWallet ctx
-        pool1:_ <- map (view #id . getApiT) . snd <$> unsafeRequest
-            @[ApiT StakePool]
-            ctx (Link.listStakePools arbitraryStake) Empty
+        let ApiT currentDelegation = fromMaybe
+                (error "wallet should be delegating")
+                (src ^. #delegation . #active . #target)
+        pools <- map (view #id . getApiT) . snd
+            <$> unsafeRequest @[ApiT StakePool]
+                    ctx (Link.listStakePools arbitraryStake) Empty
+        let newPool:_ = filter (/= currentDelegation) pools
 
         let delegationJoin = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{ApiT pool1},
+                        "pool": #{ApiT newPool},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -3350,6 +3347,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let txId1 = getFromResponse #id submittedTx1
         let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
+
         eventually "delegation transaction is in ledger" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
@@ -3363,15 +3361,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         waitNumberOfEpochBoundaries 4 ctx
 
-        eventually "Wallet gets rewards from pool1" $ do
+        eventually "Wallet gets rewards from newPool" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                 [ expectField (#balance . #reward) (.> ApiAmount 0) ]
 
-        eventually "Wallet is delegating to pool1" $ do
+        let expectedDelegation =
+                if _mainEra ctx >= ApiConway
+                then votingAndDelegating (ApiT newPool) (ApiT Abstain) []
+                else delegating (ApiT newPool) []
+
+        eventually "Wallet is delegating to newPool" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
-                [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                [ expectField #delegation (`shouldBe` expectedDelegation)
                 ]
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
@@ -3500,33 +3503,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
         $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
-
-        pool1:_:_ <- map (view #id . getApiT) . snd
-            <$> unsafeRequest @[ApiT StakePool]
-                ctx (Link.listStakePools arbitraryStake) Empty
-
         let payload = Json [json|{
-                "delegations": [{
-                    "join": {
-                        "pool": #{ApiT pool1},
-                        "stake_key_index": "0H"
-                    }
-                }]
-            }|]
-        (ApiSerialisedTransaction unsignedTx1 _) <- view #transaction . snd
-            <$> unsafeRequest @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley w) payload
-        signedTx1 <- signTx ctx w unsignedTx1 [ expectResponseCode HTTP.status202 ]
-        submitTxWithWid ctx w signedTx1 >>= flip verify
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        waitForTxImmutability ctx
-
-        let payload2 = Json [json|{
                 "delegations": [{
                     "quit": {
                         "stake_key_index": "0H"
@@ -3534,7 +3512,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 }]
             }|]
         request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley w) Default payload2
+            (Link.createUnsignedTransaction @'Shelley w) Default payload
             >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NonNullReward
@@ -3542,55 +3520,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
         $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         (w, _) <- rewardWallet ctx
 
-        pool1:_:_ <- map (view #id . getApiT) . snd
-            <$> unsafeRequest @[ApiT StakePool]
-                ctx (Link.listStakePools arbitraryStake) Empty
-
         let payload = Json [json|{
-                "delegations": [{
-                    "join": {
-                        "pool": #{ApiT pool1},
-                        "stake_key_index": "0H"
-                    }
-                }]
-            }|]
-        rUnsignedTx1 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley w) Default payload
-        let ApiSerialisedTransaction unsignedTx1 _ =
-                getFromResponse #transaction rUnsignedTx1
-        verify rUnsignedTx1
-            [ expectField (#coinSelection . #depositsReturned)
-                (`shouldBe` [])
-            , expectField (#coinSelection . #depositsTaken)
-                (`shouldBe` []) -- key already registered
-            ]
-        signedTx1 <- signTx ctx w unsignedTx1 [ expectResponseCode HTTP.status202 ]
-        submitTxWithWid ctx w signedTx1 >>= flip verify
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-
-        waitForTxImmutability ctx
-
-        let payload2 = Json [json|{
                 "delegations": [{ "quit": { "stake_key_index": "0H" } }],
                 "withdrawal": "self"
             }|]
-        rUnsignedTx2 <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley w) Default payload2
-        let ApiSerialisedTransaction unsignedTx2 _ =
-                getFromResponse #transaction rUnsignedTx2
-        verify rUnsignedTx2
+        rUnsignedTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley w) Default payload
+        let ApiSerialisedTransaction unsignedTx _ =
+                getFromResponse #transaction rUnsignedTx
+        verify rUnsignedTx
             [ expectField (#coinSelection . #depositsReturned)
                 (`shouldBe` [ApiAmount 1_000_000])
             , expectField (#coinSelection . #depositsTaken)
                 (`shouldBe` [])
             ]
-        signedTx2 <- signTx ctx w unsignedTx2 [ expectResponseCode HTTP.status202 ]
-        submitTxWithWid ctx w signedTx2 >>= flip verify
+        signedTx <- signTx ctx w unsignedTx [ expectResponseCode HTTP.status202 ]
+        submitTxWithWid ctx w signedTx >>= flip verify
             [ expectSuccess
             , expectResponseCode HTTP.status202
             ]
@@ -3598,8 +3545,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_MULTI_TX - Tx including \
         \payments, delegation, metadata, withdrawals, validity_interval" $
         \ctx -> runResourceT $ do
-        noConway ctx "certificate"
-
         wa <- fixtureWallet ctx
         wb <- emptyWallet ctx
         addrs <- listAddresses @n ctx wb

@@ -11,7 +11,7 @@
 
 module Cardano.Faucet.Mnemonics
     ( random
-    , mir
+    , reward
     , hardwareLedger
     , MnemonicLength (..)
     , generate
@@ -150,8 +150,8 @@ random =
             , ["jaguar", "bitter", "merry", "destroy", "frozen", "dune", "embody", "pull", "cradle", "peasant", "sail", "whisper"]
             ]
 
-mir :: [Mnemonic 24]
-mir =
+reward :: [Mnemonic 24]
+reward =
     unsafeMnemonic
         <$> [ ["ketchup", "embody", "define", "thing", "few", "tornado", "worry", "few", "wisdom", "people", "sure", "bean", "ring", "impact", "clerk", "mirror", "antenna", "truly", "chief", "truth", "sign", "drip", "sorry", "flush"]
             , ["obscure", "protect", "still", "woman", "rescue", "plunge", "lemon", "warm", "cash", "quote", "wood", "adapt", "erase", "muffin", "blush", "diet", "noodle", "biology", "scrap", "involve", "radar", "filter", "oval", "filter"]

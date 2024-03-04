@@ -100,7 +100,6 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
-    , noConway
     , request
     , rewardWallet
     , runResourceT
@@ -341,7 +340,6 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 ]
 
     it "WALLETS_COIN_SELECTION_06a - can redeem rewards from self" $ \ctx -> runResourceT $ do
-        noConway ctx "MIR"
         (source, _) <- rewardWallet ctx
         addr : _ <- fmap (view #id) <$> listAddresses @n ctx source
 
@@ -366,7 +364,6 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other"
         $ \ctx -> runResourceT $ do
-            noConway ctx "MIR"
             (_, SomeMnemonic (mnemonicToText -> mnemonicTxt)) <- rewardWallet ctx
             source <- fixtureWallet ctx
             addr : _ <- fmap (view #id) <$> listAddresses @n ctx source

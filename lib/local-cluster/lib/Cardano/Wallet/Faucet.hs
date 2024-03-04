@@ -30,8 +30,8 @@ module Cardano.Wallet.Faucet
     , onlyDustWallet
     , bigDustWallet
     , preregKeyWallet
-    , mirFunds
-    , mirMnemonics
+    , rewardWalletFunds
+    , rewardWalletMnemonics
     , byronIntegrationTestFunds
     , maryAllegraFunds
     , hwLedgerFunds
@@ -200,7 +200,7 @@ initFaucet clientEnv = do
     shelley <- newMVar shelleyMnemonicRange
     icarus <- newMVar icarusMnemonicRange
     byron <- newMVar byronMnemonicRange
-    reward <- newMVar mirMnemonicRange
+    reward <- newMVar rewardWalletMnemonicRange
     maryAllegra <- newMVar maryAllegraMnemonicRange
 
     let nextMnemonic
@@ -320,17 +320,23 @@ preregKeyWallet tag = do
     as <- anyFunds preregKeyWalletRange M15 AddressStyleShelley 0 99 tag
     pure $ as <&> (,defaultAmount)
 
-mirMnemonicRange :: MnemonicRange
-mirMnemonicRange = MnemonicRange 0 199
+rewardWalletMnemonicRange :: MnemonicRange
+rewardWalletMnemonicRange =
+    MnemonicRange 0 30
+    -- As few as possible; the cardano-wallet integration tests need to call
+    -- postWallet for each one at the beginning of the tests.
 
-mirMnemonics :: FaucetM [SomeMnemonic]
-mirMnemonics = FaucetM $
+rewardWalletMnemonics :: FaucetM [SomeMnemonic]
+rewardWalletMnemonics = FaucetM $
     fmap (Faucet.toSomeMnemonic . unIndexedMnemonic)
-        <$> fetchMnemonicRange M24 (from mirMnemonicRange) (to mirMnemonicRange)
+        <$> fetchMnemonicRange
+            M24
+            (from rewardWalletMnemonicRange)
+            (to rewardWalletMnemonicRange)
 
-mirFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
-mirFunds tag = do
-    as <- anyFunds mirMnemonicRange M24 AddressStyleShelley 0 0 tag
+rewardWalletFunds :: CA.NetworkTag -> FaucetM [(Address, Coin)]
+rewardWalletFunds tag = do
+    as <- anyFunds rewardWalletMnemonicRange M24 AddressStyleShelley 0 0 tag
     pure $ as <&> (,defaultAmount)
 
 adaToCoin :: Natural -> Coin
@@ -413,7 +419,7 @@ maryAssetScripts =
         ]
 
 maryAllegraMnemonicRange :: MnemonicRange
-maryAllegraMnemonicRange = nextRange 200 mirMnemonicRange
+maryAllegraMnemonicRange = nextRange 200 rewardWalletMnemonicRange
 
 -- | A list of addresses, and assets to be provisioned there.
 --

@@ -67,9 +67,6 @@ import UnliftIO.Concurrent
     ( threadDelay
     )
 
-import qualified Cardano.Address.Style.Shelley as Shelley
-import qualified Cardano.Faucet.Addresses as Addresses
-import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
 import qualified Cardano.Wallet.Faucet as Faucet
@@ -233,13 +230,6 @@ main = withUtf8 $ do
                 Cluster.FaucetFunds
                     { pureAdaFunds = []
                     , maryAllegraFunds
-                    , mirCredentials =
-                        [ ( Cluster.KeyCredential (Shelley.getKey xPub)
-                          , Coin 1_000_000__000_000
-                          )
-                        | m <- Mnemonics.mir
-                        , let (xPub, _xPrv) = Addresses.shelleyRewardAccount m
-                        ]
                     , massiveWalletFunds = []
                     }
                 $ \node -> do

@@ -31,12 +31,44 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
+import Cardano.Wallet.Launch.Cluster.ConfiguredPool
+    ( ConfiguredPool (..)
+    , configurePools
+    )
+import Cardano.Wallet.Launch.Cluster.Faucet
+    ( readFaucetAddresses
+    , resetGlobals
+    , sendFaucetAssetsTo
+    )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( FileOf (..)
+    , changeFileOf
+    )
+import Cardano.Wallet.Launch.Cluster.GenesisFiles
+    ( GenesisFiles (..)
+    , generateGenesis
+    )
+import Cardano.Wallet.Launch.Cluster.KeyRegistration
+    ( prepareKeyRegistration
+    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , LogFileConfig (..)
     )
+import Cardano.Wallet.Launch.Cluster.Node.NodeParams
+    ( NodeParams (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Node.Relay
+    ( withRelayNode
+    )
+import Cardano.Wallet.Launch.Cluster.Node.RunningNode
+    ( RunningNode (RunningNode)
+    )
 import Cardano.Wallet.Launch.Cluster.PoolMetadataServer
     ( withPoolMetadataServer
+    )
+import Cardano.Wallet.Launch.Cluster.Tx
+    ( signAndSubmitTx
     )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts
@@ -50,12 +82,17 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Util
     ( HasCallStack
     )
+import Control.Concurrent
+    ( threadDelay
+    )
 import Control.Monad
     ( forM
     , forM_
     , replicateM
     , replicateM_
-    , when
+    )
+import Control.Monad.Reader
+    ( MonadIO (..)
     )
 import Control.Tracer
     ( traceWith
@@ -97,49 +134,6 @@ import UnliftIO.Exception
     , throwIO
     )
 
-import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra (BabbageHardFork)
-    )
-import Cardano.Wallet.Launch.Cluster.ConfiguredPool
-    ( ConfiguredPool (..)
-    , configurePools
-    )
-import Cardano.Wallet.Launch.Cluster.Faucet
-    ( readFaucetAddresses
-    , resetGlobals
-    , sendFaucetAssetsTo
-    )
-import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
-    , changeFileOf
-    )
-import Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles (..)
-    , generateGenesis
-    )
-import Cardano.Wallet.Launch.Cluster.InstantaneousRewards
-    ( Credential (..)
-    , moveInstantaneousRewardsTo
-    )
-import Cardano.Wallet.Launch.Cluster.KeyRegistration
-    ( prepareKeyRegistration
-    )
-import Cardano.Wallet.Launch.Cluster.Node.NodeParams
-    ( NodeParams (..)
-    )
-import Cardano.Wallet.Launch.Cluster.Node.Relay
-    ( withRelayNode
-    )
-import Cardano.Wallet.Launch.Cluster.Node.RunningNode
-    ( RunningNode (RunningNode)
-    )
-import Cardano.Wallet.Launch.Cluster.Tx
-    ( signAndSubmitTx
-    )
-import Control.Monad.Reader
-    ( MonadIO (..)
-    )
-
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 
@@ -151,8 +145,6 @@ data FaucetFunds = FaucetFunds
     -- Beside the assets, there is a list of
     -- @(signing key, verification key hash)@, so that they can be minted by
     -- the faucet.
-    , mirCredentials :: [(Credential, Coin)]
-    -- ^ "Move instantaneous rewards" - for easily funding reward accounts.
     , massiveWalletFunds :: [(Address, Coin)]
     }
     deriving stock (Eq, Show)
@@ -247,7 +239,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                         relayNodeParams
                                         onClusterStart
   where
-    FaucetFunds pureAdaFunds maryAllegraFunds mirCredentials massiveWalletFunds
+    FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds
         = faucetFunds
     nodeOutputFile = pathOf <$> cfgNodeOutputFile
     -- Important cluster setup to run without rollbacks
@@ -255,11 +247,6 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         :: NonEmpty ConfiguredPool -> RunningNode -> ClusterM ()
     extraClusterSetupUsingNode configuredPools runningNode = do
         let RunningNode conn _ _ = runningNode
-
-        -- Needs to happen in the first 20% of the epoch, so we run this first.
-        when (cfgLastHardFork == BabbageHardFork)
-            $ moveInstantaneousRewardsTo conn mirCredentials
-
         -- Submit retirement certs for all pools using the connection to
         -- the only running first pool to avoid the certs being rolled
         -- back.
@@ -282,6 +269,10 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
             (changeFileOf @"reg-tx" @"tx-body" rawTx)
             [changeFileOf @"faucet-prv" @"signing-key" faucetPrv]
             "pre-registered stake key"
+
+        -- Give the above txs a chance of getting included into the chain
+        -- without competition
+        liftIO $ threadDelay 10_000_000
 
     -- \| Actually spin up the pools.
     launchPools
