@@ -150,6 +150,9 @@ import Cardano.Wallet.Primitive.Types.AssetName
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep (..)
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
@@ -312,6 +315,7 @@ import Test.Integration.Framework.DSL
     , submitTxWithWid
     , unsafeRequest
     , verify
+    , votingAndDelegating
     , waitForNextEpoch
     , waitForTxImmutability
     , waitNumberOfEpochBoundaries
@@ -3302,7 +3306,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
-        noConway ctx "difficult to test in conway"
         (src, _) <- rewardWallet ctx
         let ApiT currentDelegation = fromMaybe
                 (error "wallet should be delegating")
@@ -3310,12 +3313,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         pools <- map (view #id . getApiT) . snd
             <$> unsafeRequest @[ApiT StakePool]
                     ctx (Link.listStakePools arbitraryStake) Empty
-        let pool1:_ = filter (/= currentDelegation) pools
+        let newPool:_ = filter (/= currentDelegation) pools
 
         let delegationJoin = Json [json|{
                 "delegations": [{
                     "join": {
-                        "pool": #{ApiT pool1},
+                        "pool": #{ApiT newPool},
                         "stake_key_index": "0H"
                     }
                 }]
@@ -3344,6 +3347,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let txId1 = getFromResponse #id submittedTx1
         let link = Link.getTransaction @'Shelley src (ApiTxId txId1)
+
         eventually "delegation transaction is in ledger" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
@@ -3357,15 +3361,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         waitNumberOfEpochBoundaries 4 ctx
 
-        eventually "Wallet gets rewards from pool1" $ do
+        eventually "Wallet gets rewards from newPool" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                 [ expectField (#balance . #reward) (.> ApiAmount 0) ]
 
-        eventually "Wallet is delegating to pool1" $ do
+        let expectedDelegation =
+                if _mainEra ctx >= ApiConway
+                then votingAndDelegating (ApiT newPool) (ApiT Abstain) []
+                else delegating (ApiT newPool) []
+
+        eventually "Wallet is delegating to newPool" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
-                [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                [ expectField #delegation (`shouldBe` expectedDelegation)
                 ]
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
