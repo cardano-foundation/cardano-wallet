@@ -67,7 +67,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: cardano-wallet-tests-win64
-      - run: '.\\cardano-wallet-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
+      - run: '.\\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
         env:
           LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
 
