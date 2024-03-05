@@ -244,7 +244,7 @@ data FetchBlockCmd m block point =
 -- | Client for the 'Chain Sync' mini-protocol,
 -- which retrieves a single block and stops after that.
 chainSyncFetchNextBlock
-    :: forall m block point tip. (MonadSTM m)
+    :: forall m block point tip. (MonadSTM m, Eq point)
     => TQueue m (FetchBlockCmd m block point)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
@@ -256,8 +256,8 @@ chainSyncFetchNextBlock queue =
   where
     idle :: m (ClientStIdle block point tip m Void)
     idle = do
-        FetchBlockCmd pt _ <- awaitNextCmd
-        pure $ SendMsgFindIntersect [pt] clientStIntersect
+        FetchBlockCmd point _ <- awaitNextCmd
+        pure $ SendMsgFindIntersect [point] (clientStIntersect point)
 
     result :: Maybe block -> ChainSyncClient block point tip m Void
     result mblock = ChainSyncClient $ do
@@ -266,29 +266,34 @@ chainSyncFetchNextBlock queue =
 
     -- Ask the node whether it has the block.
     clientStIntersect
-        :: ClientStIntersect block point tip m Void
-    clientStIntersect =
+        :: point -> ClientStIntersect block point tip m Void
+    clientStIntersect point =
         ClientStIntersect
             { recvMsgIntersectFound = \_ _ ->
-                ChainSyncClient $ pure clientRequestBlock
+                ChainSyncClient $ pure $ clientRequestBlock point
             , recvMsgIntersectNotFound = \_ ->
                 result Nothing
             }
 
     -- Request the block in case of success.
     clientRequestBlock
-        :: ClientStIdle block point tip m Void
-    clientRequestBlock =
-        SendMsgRequestNext clientStNext (pure clientStNext)
+        :: point -> ClientStIdle block point tip m Void
+    clientRequestBlock point =
+        SendMsgRequestNext (clientStNext point) (pure $ clientStNext point)
 
     -- Fetch the block on rollforward.
     clientStNext
-        :: ClientStNext block point tip m Void
-    clientStNext = ClientStNext
+        :: point -> ClientStNext block point tip m Void
+    clientStNext point = ClientStNext
         { recvMsgRollForward = \block _ ->
             result $ Just block
-        , recvMsgRollBackward = \_ _ ->
-            result Nothing
+        , recvMsgRollBackward = \point' _ ->
+            -- Note: When starting the chainsync protocol,
+            -- the cardano-node may send an initial rollback message,
+            -- which we will detect here and treat as a no-op.
+            if point' == point
+            then ChainSyncClient $ pure $ clientRequestBlock point
+            else result Nothing
         }
 
     -- | Note that we use peekTQueue when starting the
