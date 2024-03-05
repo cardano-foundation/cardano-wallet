@@ -11,7 +11,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- Command-line option passing for cardano-wallet shelley.
+-- Convert abbreviated NetworkConfiguration into extended configuration data.
 --
 
 module Cardano.Wallet.Network.Config
@@ -29,9 +29,11 @@ import Cardano.Chain.Genesis
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Block
     ( Block (..)
-    , NetworkParameters (..)
+    )
+import Cardano.Wallet.Primitive.Types.NetworkParameters
+    ( NetworkParameters (..)
     )
 import Control.Monad.Trans.Except
     ( ExceptT (..)

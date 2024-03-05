@@ -43,6 +43,7 @@ library
   hs-source-dirs:  src
   exposed-modules:
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Implementation
     Cardano.Wallet.Network.Implementation.Ouroboros
     Cardano.Wallet.Network.Implementation.UnliftIO
@@ -63,6 +64,7 @@ library
     , cardano-api
     , cardano-balance-tx:internal
     , cardano-crypto-class
+    , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-slotting
