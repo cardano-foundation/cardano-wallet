@@ -54,6 +54,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata
@@ -218,7 +219,6 @@ import Test.Integration.Framework.TestData
     , errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
     , errMsg403Fee
-    , errMsg403MinUTxOValue
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -993,9 +993,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (Link.createTransactionOld @'Shelley wSrc)
                     Default
                     payload
-            -- It should fail with InsufficientMinCoinValueError
-            expectResponseCode HTTP.status403 rtx
-            expectErrorMessage errMsg403MinUTxOValue rtx
+            verify rtx
+                [ expectResponseCode HTTP.status403
+                , expectErrorInfo $ flip shouldSatisfy $ \case
+                    UtxoTooSmall ApiErrorTxOutputLovelaceInsufficient {} ->
+                        True
+                    _anythingElse ->
+                        False
+                ]
 
     it "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada"
         $ \ctx -> runResourceT $ do
