@@ -220,7 +220,6 @@ library
     Cardano.Wallet.Flavor
     Cardano.Wallet.Gen
     Cardano.Wallet.IO.Delegation
-    Cardano.Wallet.Network.Config
     Cardano.Wallet.Pools
     Cardano.Wallet.Primitive.Delegation.State
     Cardano.Wallet.Primitive.Delegation.UTxO
