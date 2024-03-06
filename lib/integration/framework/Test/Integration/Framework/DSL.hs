@@ -108,6 +108,7 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , clientEnv
     , computeApiCoinSelectionFee
     , isValidDerivationPath
     , derivationPathValidationErrors
@@ -618,6 +619,7 @@ import Test.HUnit.Lang
 import Test.Integration.Framework.Context
     ( Context (..)
     , TxDescription (..)
+    , clientEnv
     )
 import Test.Integration.Framework.Request
     ( Headers (..)

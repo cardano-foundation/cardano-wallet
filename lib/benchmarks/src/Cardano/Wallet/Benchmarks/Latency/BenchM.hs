@@ -6,7 +6,6 @@ module Cardano.Wallet.Benchmarks.Latency.BenchM
     ( BenchM
     , BenchCtx (..)
     , partialFromRight
-    , clientEnv
     , fixtureMultiAssetWallet
     , fixtureWallet
     , fixtureWalletWith
@@ -53,15 +52,13 @@ import Numeric.Natural
     ( Natural
     )
 import Servant.Client
-    ( ClientEnv
-    , ClientError
+    ( ClientError
     , ClientM
-    , mkClientEnv
-    , parseBaseUrl
     , runClientM
     )
 import Test.Integration.Framework.DSL
     ( Context
+    , clientEnv
     )
 
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
@@ -71,12 +68,6 @@ data BenchCtx = BenchCtx
     { dslContext :: Context
     , logFun :: LogCaptureFunc ApiLog ()
     }
-
--- one day we will export the manager from the context
-clientEnv :: Context -> ClientEnv
-clientEnv ctx = case parseBaseUrl $ show (fst $ ctx ^. #_manager) of
-    Left _ -> error "Invalid base URL"
-    Right bu -> mkClientEnv (snd $ ctx ^. #_manager) bu
 
 partialFromRight :: Show l => Either l r -> r
 partialFromRight = either (error . show) Prelude.id

@@ -6,18 +6,23 @@ module Cardano.Wallet.Api.Clients.Testnet.Network
     ( networkInformation
     , networkParameters
     , networkClock
+    , blocksLatestHeader
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Network
+    ( GetBlocksLatestHeader
+    , Network
     )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
+    )
+import Cardano.Wallet.Api.Types.BlockHeader
+    ( ApiBlockHeader
     )
 import Data.Proxy
     ( Proxy (..)
@@ -39,3 +44,6 @@ networkClock
     :: Bool -> ClientM ApiNetworkClock
 networkInformation :<|> networkParameters :<|> networkClock =
     client (Proxy @("v2" :> Network))
+
+blocksLatestHeader :: ClientM ApiBlockHeader
+blocksLatestHeader = client (Proxy @("v2" :> GetBlocksLatestHeader))
