@@ -28,7 +28,7 @@ import Cardano.Ledger.Era
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash
     )
-import Cardano.Wallet.Read
+import Cardano.Wallet.Read.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras

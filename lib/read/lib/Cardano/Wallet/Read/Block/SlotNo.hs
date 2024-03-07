@@ -17,9 +17,13 @@ import Cardano.Ledger.Era
     ( Era
     , EraSegWits (..)
     )
-import Cardano.Wallet.Read
+import Cardano.Wallet.Read.Block.Block
     ( Block (..)
     )
+import Cardano.Wallet.Read.Block.BlockNo
+    ()
+    -- ?! GHC 9.6.4: This import looks redundant, but the compilation
+    -- of getSlotNoShelley will fail if we don't that. No idea why.
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     )
@@ -37,7 +41,6 @@ import Ouroboros.Consensus.Protocol.TPraos
     )
 
 import qualified Cardano.Ledger.Shelley.API as Shelley
-import qualified Cardano.Ledger.Slot as L
 import qualified Cardano.Protocol.TPraos.BHeader as Shelley
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as O
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
@@ -55,7 +58,7 @@ getEraSlotNo =
         , conwayFun = \(Block block) -> k $ getSlotNoBabbage block
         }
   where
-    k = K . SlotNo . fromIntegral . L.unSlotNo
+    k = K . SlotNo . fromIntegral . O.unSlotNo
 
 newtype SlotNo = SlotNo {unSlotNo :: Natural}
     deriving (Eq, Show)
@@ -67,6 +70,7 @@ getSlotNoShelley
 getSlotNoShelley
     (O.ShelleyBlock (Shelley.Block (Shelley.BHeader header _) _) _) =
         Shelley.bheaderSlotNo header
+
 getSlotNoBabbage
     :: (Era era, EncCBORGroup (TxSeq era), Crypto crypto)
     => O.ShelleyBlock (Praos crypto) era
