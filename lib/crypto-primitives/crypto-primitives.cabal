@@ -1,7 +1,7 @@
 cabal-version: 3.0
-name:          crypto-hash-extra
+name:          crypto-primitives
 version:       0.1.0.0
-synopsis:      Extra functionality for cryptographic hashing
+synopsis:      Cryptographic primitives
 license:       Apache-2.0
 author:        Cardano Foundation (High Assurance Lab)
 maintainer:    hal@cardanofoundation.org
@@ -24,7 +24,7 @@ library
     -freverse-errors
 
   hs-source-dirs:     src
-  exposed-modules:    Crypto.Hash.Extra
+  exposed-modules:    Cryptography.Hash.Extra
   build-depends:
     , base                    >= 4.14.3 && < 4.19
     , bytestring              >= 0.10.12 && < 0.13
