@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
 
-module Cryptography.Hash.Extra
+module Cryptography.Hash.Blake
     ( blake2b256
     , blake2b224
     ) where

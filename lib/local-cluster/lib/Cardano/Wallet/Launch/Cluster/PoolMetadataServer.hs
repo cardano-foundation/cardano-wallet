@@ -28,7 +28,7 @@ import Cardano.Wallet.Launch.Cluster.Logging
 import Control.Monad.Reader
     ( MonadIO (..)
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b256
     )
 import Data.ByteArray.Encoding

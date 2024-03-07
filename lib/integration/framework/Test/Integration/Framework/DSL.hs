@@ -467,7 +467,7 @@ import Crypto.Hash
     , Digest
     , digestFromByteString
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b224
     )
 import Data.Aeson

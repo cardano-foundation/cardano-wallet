@@ -62,7 +62,7 @@ library framework
     , command
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , cryptonite
     , directory
     , either

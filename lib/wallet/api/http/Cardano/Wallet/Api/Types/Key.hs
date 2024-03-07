@@ -59,7 +59,7 @@ import Codec.Binary.Bech32.TH
 import Control.DeepSeq
     ( NFData
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b224
     )
 import Data.Aeson.Types

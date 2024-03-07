@@ -87,7 +87,7 @@ import Control.Monad
 import Crypto.Hash.Algorithms
     ( Blake2b_224 (..)
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b224
     )
 import Crypto.Hash.IO
