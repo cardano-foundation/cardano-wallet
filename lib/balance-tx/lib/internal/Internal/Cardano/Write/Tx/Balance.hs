@@ -964,7 +964,7 @@ selectAssets pp utxoAssumptions outs' redeemers
     utxoSelection balance fee0 changeGen selectionStrategy = do
         seed <- stdGenSeed
         except validateTxOutputs'
-        except (performSelection' seed)
+        performSelection' seed
   where
     era = recentEra @era
 
@@ -983,9 +983,10 @@ selectAssets pp utxoAssumptions outs' redeemers
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: StdGenSeed -> Either (ErrBalanceTx era) Selection
+        :: StdGenSeed -> ExceptT (ErrBalanceTx era) m Selection
     performSelection' seed
-        = left coinSelectionErrorToBalanceTxError
+        = except
+        $ left coinSelectionErrorToBalanceTxError
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
 
