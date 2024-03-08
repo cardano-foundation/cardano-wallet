@@ -18,7 +18,7 @@ import Cardano.Ledger.Era
     ( Era
     , EraSegWits (..)
     )
-import Cardano.Wallet.Read
+import Cardano.Wallet.Read.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras.EraFun
