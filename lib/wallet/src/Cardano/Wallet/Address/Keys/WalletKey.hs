@@ -71,13 +71,13 @@ import Control.Lens
     , view
     , (^.)
     )
+import Cryptography.Hash.Blake
+    ( blake2b224
+    )
 import Cryptography.Hash.Core
     ( Digest
     , HashAlgorithm
     , hash
-    )
-import Cryptography.Hash.Blake
-    ( blake2b224
     )
 
 -- | Re-encrypt a private key using a different passphrase.
