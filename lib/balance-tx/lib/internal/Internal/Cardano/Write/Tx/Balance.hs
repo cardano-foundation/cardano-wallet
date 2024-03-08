@@ -964,9 +964,10 @@ selectAssets
     -- ^ A function to assess the size of a token bundle.
     -> ExceptT (ErrBalanceTx era) m Selection
 selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 seed changeGen selectionStrategy = do
+    utxoSelection balance fee0 _seed changeGen selectionStrategy = do
+        seed <- stdGenSeed
         except validateTxOutputs'
-        except performSelection'
+        except (performSelection' seed)
   where
     era = recentEra @era
 
@@ -985,8 +986,8 @@ selectAssets pp utxoAssumptions outs' redeemers
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: Either (ErrBalanceTx era) Selection
-    performSelection'
+        :: StdGenSeed -> Either (ErrBalanceTx era) Selection
+    performSelection' seed
         = left coinSelectionErrorToBalanceTxError
         $ (`evalRand` stdGenFromSeed seed) . runExceptT
         $ performSelection selectionConstraints selectionParams
