@@ -124,13 +124,11 @@ import Control.Monad
     )
 import Control.Monad.Random
     ( MonadRandom
-    , evalRand
     )
 import Control.Monad.Trans.Except
     ( ExceptT (ExceptT)
     , catchE
     , except
-    , runExceptT
     , throwE
     , withExceptT
     )
@@ -263,11 +261,6 @@ import Internal.Cardano.Write.UTxOAssumptions
     )
 import Numeric.Natural
     ( Natural
-    )
-import System.Random.StdGenSeed
-    ( StdGenSeed (..)
-    , stdGenFromSeed
-    , stdGenSeed
     )
 import Text.Pretty.Simple
     ( pShow
@@ -663,7 +656,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- adjust the change and ExUnits of each redeemer to something more
         -- sensible than the max execution cost.
 
-        randomSeed <- stdGenSeed
         let
             transform
                 :: Selection
@@ -697,11 +689,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 utxoSelection
                 balance0
                 (Convert.toWalletCoin minfee0)
-                randomSeed
                 genChange
                 selectionStrategy
 
-        except $ transform <$> mSel
+        transform <$> mSel
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -943,8 +934,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 -- transaction. For this, and other reasons, the selection may include too
 -- much ada.
 selectAssets
-    :: forall era changeState
-     . IsRecentEra era
+    :: forall era m changeState.
+        ( MonadRandom m
+        , IsRecentEra era
+        )
     => PParams era
     -> UTxOAssumptions
     -> [TxOut era]
@@ -956,14 +949,13 @@ selectAssets
     -- ^ Balance to cover.
     -> W.Coin
     -- ^ Current minimum fee (before selecting assets).
-    -> StdGenSeed
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
-    -> Either (ErrBalanceTx era) Selection
+    -> ExceptT (ErrBalanceTx era) m Selection
 selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 seed changeGen selectionStrategy = do
-        validateTxOutputs'
+    utxoSelection balance fee0 changeGen selectionStrategy = do
+        except validateTxOutputs'
         performSelection'
   where
     era = recentEra @era
@@ -983,10 +975,9 @@ selectAssets pp utxoAssumptions outs' redeemers
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: Either (ErrBalanceTx era) Selection
+        :: ExceptT (ErrBalanceTx era) m Selection
     performSelection'
-        = left coinSelectionErrorToBalanceTxError
-        $ (`evalRand` stdGenFromSeed seed) . runExceptT
+        = withExceptT coinSelectionErrorToBalanceTxError
         $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
