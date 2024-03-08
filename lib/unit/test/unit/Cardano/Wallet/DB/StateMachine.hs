@@ -230,9 +230,11 @@ import Control.Monad
 import Control.Monad.IO.Unlift
     ( MonadIO
     )
-import Crypto.Hash
+import Cryptography.Hash.Blake
     ( Blake2b_160
-    , Digest
+    )
+import Cryptography.Hash.Core
+    ( Digest
     , digestFromByteString
     , hash
     )

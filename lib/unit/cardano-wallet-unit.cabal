@@ -98,7 +98,6 @@ test-suite unit
     , containers
     , contra-tracer
     , crypto-primitives
-    , cryptonite
     , data-default
     , data-interval
     , deepseq

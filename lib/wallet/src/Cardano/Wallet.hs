@@ -664,9 +664,11 @@ import Control.Tracer
     , contramap
     , traceWith
     )
-import Crypto.Hash
+import Cryptography.Hash.Blake
     ( Blake2b_256
-    , hash
+    )
+import Cryptography.Hash.Core
+    ( hash
     )
 import Data.Bifunctor
     ( first

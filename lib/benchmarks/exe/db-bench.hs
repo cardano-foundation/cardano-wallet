@@ -240,7 +240,7 @@ import Criterion.Main
     , defaultMain
     , perRunEnvWithCleanup
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.ByteString

@@ -71,7 +71,7 @@ import Control.Lens
     , view
     , (^.)
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( Digest
     , HashAlgorithm
     , hash

@@ -261,7 +261,7 @@ import Control.Tracer
     ( natTracer
     , nullTracer
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.ByteString

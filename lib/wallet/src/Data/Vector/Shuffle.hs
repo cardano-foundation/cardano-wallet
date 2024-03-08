@@ -22,11 +22,9 @@ import Control.Monad.Trans.State.Strict
     ( evalStateT
     , state
     )
-import Crypto.Hash
-    ( hash
-    )
-import Crypto.Hash.Algorithms
+import Cryptography.Hash.Core
     ( MD5
+    , hash
     )
 import Data.Text
     ( Text

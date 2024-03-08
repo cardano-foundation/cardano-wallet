@@ -70,7 +70,7 @@ import Cardano.Wallet.Unsafe
 import Control.Monad
     ( replicateM
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.Maybe

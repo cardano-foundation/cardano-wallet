@@ -84,14 +84,9 @@ import Cardano.Wallet.Primitive.Types.Address
 import Control.Monad
     ( (<=<)
     )
-import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..)
-    )
 import Cryptography.Hash.Blake
     ( blake2b224
-    )
-import Crypto.Hash.IO
-    ( HashAlgorithm (hashDigestSize)
+    , hashSizeBlake2b224
     )
 import Data.ByteString
     ( ByteString
@@ -168,7 +163,7 @@ instance MkKeyFingerprint SharedKey Address where
             enterpriseAddr = 0b01110000 -- scripthash
             rewardAcct = 0b11110000     -- scripthash
         in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
-            Right $ KeyFingerprint $ BS.take hashSize rest
+            Right $ KeyFingerprint $ BS.take hashSizeBlake2b224 rest
            else
             Left $ ErrInvalidAddress addr (Proxy @SharedKey)
 
@@ -181,10 +176,3 @@ instance
     where
     paymentKeyFingerprint (_, paymentK) =
         Right $ KeyFingerprint $ blake2b224 $ xpubPublicKey $ getKey paymentK
-
-{-------------------------------------------------------------------------------
-                                 Internals
--------------------------------------------------------------------------------}
-
-hashSize :: Int
-hashSize = hashDigestSize Blake2b_224

@@ -117,14 +117,9 @@ import Control.Monad
     ( guard
     , (<=<)
     )
-import Crypto.Hash.Algorithms
-    ( Blake2b_224 (..)
-    )
 import Cryptography.Hash.Blake
     ( blake2b224
-    )
-import Crypto.Hash.IO
-    ( HashAlgorithm (hashDigestSize)
+    , hashSizeBlake2b224
     )
 import Data.Binary.Put
     ( putByteString
@@ -359,7 +354,7 @@ instance MkKeyFingerprint ShelleyKey Address where
             enterpriseAddr = 0b01100000 -- keyhash
             rewardAcct = 0b11100000     -- keyhash
         in if addrType `elem` [baseAddr, enterpriseAddr, rewardAcct] then
-            Right $ KeyFingerprint $ BS.take hashSize rest
+            Right $ KeyFingerprint $ BS.take hashSizeBlake2b224 rest
            else
             Left $ ErrInvalidAddress addr (Proxy @ShelleyKey)
 
@@ -436,11 +431,3 @@ instance PersistPublicKey (ShelleyKey depth) where
         either err ShelleyKey . (xpub <=< fromHex @ByteString)
       where
         err _ = error "unsafeDeserializeXPub: unable to deserialize ShelleyKey"
-
-{-------------------------------------------------------------------------------
-                                 Internals
--------------------------------------------------------------------------------}
-
-hashSize :: Int
-hashSize =
-    hashDigestSize Blake2b_224

@@ -103,15 +103,11 @@ import Control.Lens
 import Control.Monad
     ( (<=<)
     )
-import Crypto.Error
-    ( eitherCryptoError
-    )
-import Crypto.Hash.Algorithms
-    ( SHA256 (..)
-    , SHA512 (..)
-    )
-import Crypto.MAC.HMAC
+import Cryptography.Hash.Core
     ( HMAC
+    , SHA256 (..)
+    , SHA512 (..)
+    , eitherCryptoError
     , hmac
     )
 import Data.Bifunctor
@@ -144,8 +140,8 @@ import GHC.Generics
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.ECC.Edwards25519 as Ed25519
-import qualified Crypto.KDF.PBKDF2 as PBKDF2
+import qualified Cryptography.ECC.Edwards25519 as Ed25519
+import qualified Cryptography.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.Text as T

@@ -462,13 +462,13 @@ import Control.Retry
     , constantDelay
     , retrying
     )
-import Crypto.Hash
-    ( Blake2b_160
-    , Digest
-    , digestFromByteString
-    )
 import Cryptography.Hash.Blake
-    ( blake2b224
+    ( Blake2b_160
+    , blake2b224
+    )
+import Cryptography.Hash.Core
+    ( Digest
+    , digestFromByteString
     )
 import Data.Aeson
     ( FromJSON

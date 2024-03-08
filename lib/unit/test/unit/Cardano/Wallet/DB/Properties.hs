@@ -76,7 +76,7 @@ import Control.Monad.Trans
 import Control.Monad.Trans.Except
     ( ExceptT
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.ByteString

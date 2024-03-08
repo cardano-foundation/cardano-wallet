@@ -74,7 +74,6 @@ library
     , containers
     , contra-tracer
     , crypto-primitives
-    , cryptonite
     , deepseq
     , delta-types
     , errors

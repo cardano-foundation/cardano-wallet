@@ -88,9 +88,11 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Control.Monad
     ( unless
     )
-import Crypto.Hash
+import Cryptography.Hash.Blake
     ( Blake2b_160
-    , Digest
+    )
+import Cryptography.Hash.Core
+    ( Digest
     , hash
     )
 import Data.Either

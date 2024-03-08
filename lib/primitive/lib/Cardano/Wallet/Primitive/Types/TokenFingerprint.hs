@@ -29,11 +29,11 @@ import Codec.Binary.Bech32.TH
 import Control.DeepSeq
     ( NFData
     )
-import Crypto.Hash
-    ( hash
-    )
-import Crypto.Hash.Algorithms
+import Cryptography.Hash.Blake
     ( Blake2b_160
+    )
+import Cryptography.Hash.Core
+    ( hash
     )
 import Data.ByteArray
     ( convert

@@ -24,7 +24,11 @@ library
     -freverse-errors
 
   hs-source-dirs:     src
-  exposed-modules:    Cryptography.Hash.Blake
+  exposed-modules:    Cryptography.Cipher.ChaChaPoly1305
+                      Cryptography.ECC.Edwards25519
+                      Cryptography.Hash.Blake
+                      Cryptography.Hash.Core
+                      Cryptography.KDF.PBKDF2
   build-depends:
     , base                    >= 4.14.3 && < 4.19
     , bytestring              >= 0.10.12 && < 0.13

@@ -38,7 +38,7 @@ import Control.Monad
 import Control.Tracer
     ( Tracer
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.Text

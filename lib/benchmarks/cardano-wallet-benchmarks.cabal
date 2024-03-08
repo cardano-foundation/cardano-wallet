@@ -173,7 +173,7 @@ benchmark db
     , containers
     , contra-tracer
     , criterion
-    , cryptonite
+    , crypto-primitives
     , deepseq
     , directory
     , filepath

@@ -63,7 +63,6 @@ library framework
     , containers
     , contra-tracer
     , crypto-primitives
-    , cryptonite
     , directory
     , either
     , extra
