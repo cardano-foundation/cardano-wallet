@@ -701,7 +701,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 genChange
                 selectionStrategy
 
-        except $ transform <$> mSel
+        transform <$> mSel
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -943,8 +943,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 -- transaction. For this, and other reasons, the selection may include too
 -- much ada.
 selectAssets
-    :: forall era changeState
-     . IsRecentEra era
+    :: forall era m changeState.
+        ( MonadRandom m
+        , IsRecentEra era
+        )
     => PParams era
     -> UTxOAssumptions
     -> [TxOut era]
@@ -960,11 +962,11 @@ selectAssets
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
-    -> Either (ErrBalanceTx era) Selection
+    -> ExceptT (ErrBalanceTx era) m Selection
 selectAssets pp utxoAssumptions outs' redeemers
     utxoSelection balance fee0 seed changeGen selectionStrategy = do
-        validateTxOutputs'
-        performSelection'
+        except validateTxOutputs'
+        except performSelection'
   where
     era = recentEra @era
 
