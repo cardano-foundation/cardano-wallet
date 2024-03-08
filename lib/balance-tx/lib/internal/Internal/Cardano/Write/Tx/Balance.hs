@@ -124,13 +124,11 @@ import Control.Monad
     )
 import Control.Monad.Random
     ( MonadRandom
-    , evalRand
     )
 import Control.Monad.Trans.Except
     ( ExceptT (ExceptT)
     , catchE
     , except
-    , runExceptT
     , throwE
     , withExceptT
     )
@@ -263,10 +261,6 @@ import Internal.Cardano.Write.UTxOAssumptions
     )
 import Numeric.Natural
     ( Natural
-    )
-import System.Random.StdGenSeed
-    ( stdGenFromSeed
-    , stdGenSeed
     )
 import Text.Pretty.Simple
     ( pShow
@@ -982,12 +976,9 @@ selectAssets pp utxoAssumptions outs' redeemers
 
     performSelection'
         :: ExceptT (ErrBalanceTx era) m Selection
-    performSelection' = do
-        seed <- stdGenSeed
-        except
-            $ left coinSelectionErrorToBalanceTxError
-            $ (`evalRand` stdGenFromSeed seed) . runExceptT
-            $ performSelection selectionConstraints selectionParams
+    performSelection'
+        = withExceptT coinSelectionErrorToBalanceTxError
+        $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
         { tokenBundleSizeAssessor =
