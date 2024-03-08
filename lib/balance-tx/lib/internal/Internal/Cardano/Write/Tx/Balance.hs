@@ -663,7 +663,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- adjust the change and ExUnits of each redeemer to something more
         -- sensible than the max execution cost.
 
-        randomSeed <- stdGenSeed
         let
             transform
                 :: Selection
@@ -697,7 +696,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                 utxoSelection
                 balance0
                 (Convert.toWalletCoin minfee0)
-                randomSeed
                 genChange
                 selectionStrategy
 
@@ -958,13 +956,12 @@ selectAssets
     -- ^ Balance to cover.
     -> W.Coin
     -- ^ Current minimum fee (before selecting assets).
-    -> StdGenSeed
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -- ^ A function to assess the size of a token bundle.
     -> ExceptT (ErrBalanceTx era) m Selection
 selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 _seed changeGen selectionStrategy = do
+    utxoSelection balance fee0 changeGen selectionStrategy = do
         seed <- stdGenSeed
         except validateTxOutputs'
         except (performSelection' seed)
