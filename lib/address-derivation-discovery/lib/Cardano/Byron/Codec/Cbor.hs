@@ -77,13 +77,15 @@ import Control.Monad
     ( replicateM
     , when
     )
+import Cryptography.Core
+    ( CryptoError (..)
+    , CryptoFailable (..)
+    )
 import Cryptography.Hash.Blake
     ( Blake2b_224
     )
 import Cryptography.Hash.Core
-    ( CryptoError (..)
-    , CryptoFailable (..)
-    , SHA3_256
+    ( SHA3_256
     , hash
     )
 import Data.ByteString

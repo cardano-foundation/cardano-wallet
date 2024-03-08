@@ -33,7 +33,7 @@ import Prelude
 import Control.DeepSeq
     ( NFData
     )
-import Crypto.Random.Types
+import Cryptography.Core
     ( MonadRandom (..)
     )
 import Data.Bifunctor

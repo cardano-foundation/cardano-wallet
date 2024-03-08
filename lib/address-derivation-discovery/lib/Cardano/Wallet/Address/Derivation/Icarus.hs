@@ -103,11 +103,13 @@ import Control.Lens
 import Control.Monad
     ( (<=<)
     )
+import Cryptography.Core
+    ( eitherCryptoError
+    )
 import Cryptography.Hash.Core
     ( HMAC
     , SHA256 (..)
     , SHA512 (..)
-    , eitherCryptoError
     , hmac
     )
 import Data.Bifunctor

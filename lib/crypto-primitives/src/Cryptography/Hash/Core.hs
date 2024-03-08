@@ -15,16 +15,8 @@ module Cryptography.Hash.Core
     , Digest
     , digestFromByteString
 
-    , CryptoError (..)
-    , CryptoFailable (..)
-    , eitherCryptoError
     ) where
 
-import Crypto.Error
-    ( CryptoError (..)
-    , CryptoFailable (..)
-    , eitherCryptoError
-    )
 import Crypto.Hash
     ( Digest
     , digestFromByteString

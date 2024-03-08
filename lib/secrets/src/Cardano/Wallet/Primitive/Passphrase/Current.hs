@@ -25,12 +25,12 @@ import Cardano.Wallet.Primitive.Passphrase.Types
 import Control.Monad
     ( unless
     )
-import Crypto.KDF.PBKDF2
+import Cryptography.Core
+    ( MonadRandom (..)
+    )
+import Cryptography.KDF.PBKDF2
     ( Parameters (..)
     , fastPBKDF2_SHA512
-    )
-import Crypto.Random.Types
-    ( MonadRandom (..)
     )
 import Data.ByteArray
     ( ScrubbedBytes
