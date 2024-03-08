@@ -245,7 +245,7 @@ import Control.Monad.IO.Class
 import Control.Tracer
     ( Tracer
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.ByteString

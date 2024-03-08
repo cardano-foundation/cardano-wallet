@@ -69,8 +69,7 @@ library
     , cborg
     , containers
     , contra-tracer
-    , crypto-hash-extra
-    , cryptonite
+    , crypto-primitives
     , deepseq
     , delta-store
     , delta-types
@@ -298,7 +297,7 @@ library cardano-wallet-api-http
     , cardano-wallet-secrets
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , data-default
     , deepseq
     , directory
@@ -437,4 +436,3 @@ executable mock-token-metadata-server
     , cardano-wallet:{cardano-wallet, mock-token-metadata}
     , optparse-applicative
     , wai-extra
-

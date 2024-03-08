@@ -91,7 +91,7 @@ library
     , cborg
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , directory
     , extra
     , faucet

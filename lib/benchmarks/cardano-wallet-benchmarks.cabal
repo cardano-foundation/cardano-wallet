@@ -99,7 +99,7 @@ benchmark restore
     , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
     , containers
     , contra-tracer
-    , crypto-hash-extra
+    , crypto-primitives
     , filepath
     , fmt
     , iohk-monitoring
@@ -173,7 +173,7 @@ benchmark db
     , containers
     , contra-tracer
     , criterion
-    , cryptonite
+    , crypto-primitives
     , deepseq
     , directory
     , filepath

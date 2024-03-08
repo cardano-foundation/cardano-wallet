@@ -88,11 +88,11 @@ import Control.Lens
     ( Lens
     , lens
     )
-import Crypto.Hash.Algorithms
-    ( SHA512 (..)
-    )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b256
+    )
+import Cryptography.Hash.Core
+    ( SHA512 (..)
     )
 import Data.ByteArray
     ( ScrubbedBytes
@@ -114,7 +114,7 @@ import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Wallet.Address.Derivation as W
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.KDF.PBKDF2 as PBKDF2
+import qualified Cryptography.KDF.PBKDF2 as PBKDF2
 import qualified Data.ByteArray as BA
 
 {-------------------------------------------------------------------------------

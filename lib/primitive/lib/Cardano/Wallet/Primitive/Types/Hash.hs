@@ -30,10 +30,12 @@ import Cardano.Wallet.Util
 import Control.DeepSeq
     ( NFData (..)
     )
-import Crypto.Hash
+import Cryptography.Hash.Blake
     ( Blake2b_224
     , Blake2b_256
-    , hash
+    )
+import Cryptography.Hash.Core
+    ( hash
     )
 import Data.ByteArray
     ( ByteArrayAccess

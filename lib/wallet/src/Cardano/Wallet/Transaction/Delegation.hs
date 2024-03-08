@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b224
     )
 import Data.ByteString.Short

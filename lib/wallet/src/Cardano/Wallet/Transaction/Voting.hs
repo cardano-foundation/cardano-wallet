@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Transaction
     ( VotingAction (..)
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b224
     )
 import Data.ByteString.Short

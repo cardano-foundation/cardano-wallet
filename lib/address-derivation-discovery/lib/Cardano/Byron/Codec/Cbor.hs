@@ -77,16 +77,16 @@ import Control.Monad
     ( replicateM
     , when
     )
-import Crypto.Error
+import Cryptography.Core
     ( CryptoError (..)
     , CryptoFailable (..)
     )
-import Crypto.Hash
-    ( hash
-    )
-import Crypto.Hash.Algorithms
+import Cryptography.Hash.Blake
     ( Blake2b_224
-    , SHA3_256
+    )
+import Cryptography.Hash.Core
+    ( SHA3_256
+    , hash
     )
 import Data.ByteString
     ( ByteString
@@ -107,7 +107,7 @@ import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.Cipher.ChaChaPoly1305 as Poly
+import qualified Cryptography.Cipher.ChaChaPoly1305 as Poly
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL

@@ -97,8 +97,7 @@ test-suite unit
     , connection
     , containers
     , contra-tracer
-    , crypto-hash-extra
-    , cryptonite
+    , crypto-primitives
     , data-default
     , data-interval
     , deepseq

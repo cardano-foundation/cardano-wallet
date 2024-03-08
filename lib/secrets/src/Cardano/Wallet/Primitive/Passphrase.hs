@@ -38,7 +38,7 @@ import Cardano.Crypto.Wallet
     , xPrvChangePass
     )
 import Cardano.Wallet.Primitive.Passphrase.Types
-import Crypto.Random.Types
+import Cryptography.Core
     ( MonadRandom
     )
 

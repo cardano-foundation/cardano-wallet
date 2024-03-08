@@ -71,7 +71,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b256
     )
 import Data.Coerce

@@ -48,8 +48,8 @@ cradle:
     - path: "lib/coin-selection/bench"
       component: "cardano-coin-selection:bench:utxo-index"
 
-    - path: "lib/crypto-hash-extra/src"
-      component: "lib:crypto-hash-extra"
+    - path: "lib/crypto-primitives/src"
+      component: "lib:crypto-primitives"
 
     - path: "lib/customer-deposit-wallet/src"
       component: "lib:customer-deposit-wallet"

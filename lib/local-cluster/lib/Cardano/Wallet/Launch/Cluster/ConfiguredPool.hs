@@ -116,7 +116,7 @@ import Control.Monad.Reader
 import Control.Tracer
     ( traceWith
     )
-import Crypto.Hash.Extra
+import Cryptography.Hash.Blake
     ( blake2b256
     )
 import Data.Foldable

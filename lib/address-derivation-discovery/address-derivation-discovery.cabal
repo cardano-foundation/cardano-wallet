@@ -58,8 +58,7 @@ library
     , cardano-wallet-secrets
     , cborg
     , containers
-    , crypto-hash-extra
-    , cryptonite
+    , crypto-primitives
     , data-interval
     , deepseq
     , digest

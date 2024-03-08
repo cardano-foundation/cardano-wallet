@@ -34,11 +34,11 @@ import Cardano.Wallet.Primitive.Passphrase.Types
     ( Passphrase (..)
     , PassphraseHash (..)
     )
-import Crypto.Hash.Extra
-    ( blake2b256
-    )
-import Crypto.Random.Types
+import Cryptography.Core
     ( MonadRandom (..)
+    )
+import Cryptography.Hash.Blake
+    ( blake2b256
     )
 import Data.ByteArray.Encoding
     ( Base (..)
@@ -54,7 +54,7 @@ import Data.Word
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
-import qualified Crypto.KDF.Scrypt as Scrypt
+import qualified Cryptography.KDF.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 

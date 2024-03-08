@@ -153,7 +153,7 @@ import Control.Monad
     ( forM_
     , replicateM
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.Either

@@ -240,9 +240,11 @@ import Control.DeepSeq
 import Control.Monad
     ( (>=>)
     )
-import Crypto.Hash
+import Cryptography.Hash.Blake
     ( Blake2b_160
-    , Digest
+    )
+import Cryptography.Hash.Core
+    ( Digest
     , digestFromByteString
     )
 import Data.Aeson

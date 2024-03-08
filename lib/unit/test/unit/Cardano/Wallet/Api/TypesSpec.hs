@@ -470,7 +470,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO
     )
-import Crypto.Hash
+import Cryptography.Hash.Core
     ( hash
     )
 import Data.Aeson
