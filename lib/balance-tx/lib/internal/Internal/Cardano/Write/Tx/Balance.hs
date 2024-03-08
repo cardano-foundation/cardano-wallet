@@ -984,11 +984,12 @@ selectAssets pp utxoAssumptions outs' redeemers
 
     performSelection'
         :: StdGenSeed -> ExceptT (ErrBalanceTx era) m Selection
-    performSelection' seed
-        = except
-        $ left coinSelectionErrorToBalanceTxError
-        $ (`evalRand` stdGenFromSeed seed) . runExceptT
-        $ performSelection selectionConstraints selectionParams
+    performSelection' _seed = do
+        seed <- stdGenSeed
+        except
+            $ left coinSelectionErrorToBalanceTxError
+            $ (`evalRand` stdGenFromSeed seed) . runExceptT
+            $ performSelection selectionConstraints selectionParams
 
     selectionConstraints = SelectionConstraints
         { tokenBundleSizeAssessor =
