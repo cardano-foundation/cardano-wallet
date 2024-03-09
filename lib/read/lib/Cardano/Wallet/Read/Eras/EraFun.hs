@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuantifiedConstraints #-}
@@ -36,6 +37,8 @@ module Cardano.Wallet.Read.Eras.EraFun
         , babbageFun
         , conwayFun
         )
+    , mkEraFun
+    , runEraFun
     , EraFunSel
 
       -- * Composition.
@@ -80,6 +83,8 @@ import Cardano.Wallet.Read.Eras.KnownEras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , KnownEras
     , Mary
     , Shelley
@@ -98,8 +103,6 @@ import Generics.SOP.Classes
 import Generics.SOP.NP
     ( NP (..)
     , collapse_NP
-    , map_NP
-    , pure_NP
     , zipWith_NP
     )
 import Generics.SOP.NS
@@ -147,9 +150,9 @@ pattern EraFun
     , alonzoFun
     , babbageFun
     , conwayFun
-    } =
-    MkEraFun
-        ( Fn byronFun
+    } <-
+        (fromEraFun ->
+            ( Fn byronFun
                 :* Fn shelleyFun
                 :* Fn allegraFun
                 :* Fn maryFun
@@ -158,9 +161,61 @@ pattern EraFun
                 :* Fn conwayFun
                 :* Nil
             )
+        )
+  where
+    EraFun f1 f2 f3 f4 f5 f6 f7
+        = fromEraFunI
+            ( Fn f1
+                :* Fn f2
+                :* Fn f3
+                :* Fn f4
+                :* Fn f5
+                :* Fn f6
+                :* Fn f7
+                :* Nil
+            )
 
--- | Type of vector functions that cover all eras.
-newtype EraFun f g = MkEraFun {fromEraFun :: EraFunI f g}
+fromEraFun :: EraFun f g -> EraFunI f g
+fromEraFun (EraFunCon f) =
+    Fn f
+        :* Fn f
+        :* Fn f
+        :* Fn f
+        :* Fn f
+        :* Fn f
+        :* Fn f
+        :* Nil
+
+fromEraFunI :: forall f g. EraFunI f g -> EraFun f g
+fromEraFunI
+    (Fn f1
+        :* Fn f2
+        :* Fn f3
+        :* Fn f4
+        :* Fn f5
+        :* Fn f6
+        :* Fn f7
+        :* Nil
+    )
+  = EraFunCon match
+  where
+    match :: forall era. IsEra era => f era -> g era
+    match = case theEra :: Era era of
+        Byron -> f1
+        Shelley -> f2
+        Allegra -> f3
+        Mary -> f4
+        Alonzo -> f5
+        Babbage -> f6
+        Conway -> f7
+
+-- | Function that maps an era-indexed type.
+newtype EraFun f g = EraFunCon
+    {runEraFun :: forall era. IsEra era => f era -> g era}
+
+-- | Smart constructor.
+mkEraFun :: (forall era. IsEra era => f era -> g era) -> EraFun f g
+mkEraFun = EraFunCon
 
 -- | Apply an 'EraFun' to an 'EraValue'.
 -- Because EraValue is a value in a specific era, the application will choose
@@ -168,45 +223,25 @@ newtype EraFun f g = MkEraFun {fromEraFun :: EraFunI f g}
 -- In case of repeated application use this function curried on the 'EraFun'
 -- argument, this will avoid the recomputation of the core
 applyEraFun :: EraFun f g -> EraValue f -> EraValue g
-applyEraFun (MkEraFun f) (EraValue v) = EraValue $ ap_NS f v
+applyEraFun (fromEraFun -> f) (EraValue v) = EraValue $ ap_NS f v
 
 instance Category EraFun where
-    id = MkEraFun $ pure_NP $ Fn id
-    f . g =
-        MkEraFun
-            $ zipWith_NP
-                (\(Fn f') (Fn g') -> Fn $ f' . g')
-                (fromEraFun f)
-                (fromEraFun g)
+    id = EraFunCon id
+    (EraFunCon f) . (EraFunCon g) = EraFunCon (f . g)
 
 infixr 9 *.**
 
 -- | Compose 2 EraFunI as a category, jumping the outer functorial layer in the
 -- output of the first one.
 (*.**) :: Functor w => EraFun g h -> EraFun f (w :.: g) -> EraFun f (w :.: h)
-f *.** g =
-    MkEraFun
-        $ composeEraFunWith
-            (\f' g' -> Comp . fmap f' . unComp . g')
-            (fromEraFun f)
-            (fromEraFun g)
-
--- | Compose 2 EraFunI as a category, keeping the outer layer in the
--- output of the first one.
-composeEraFunWith
-    :: (forall a. (g a -> h a) -> (f a -> w g a) -> f a -> w h a)
-    -> EraFunI g h
-    -> EraFunI f (w g)
-    -> EraFunI f (w h)
-composeEraFunWith q = zipWith_NP (\(Fn f') (Fn g') -> Fn $ q f' g')
+(EraFunCon a) *.** (EraFunCon b) =
+    EraFunCon (Comp . fmap a . unComp . b)
 
 infixr 8 *&&&*
 
--- | Compose 2 EraFunI as parallel application using '(:*:)'.
+-- | Compose 2 'EraFun' as parallel application using '(:*:)'.
 (*&&&*) :: EraFun f g -> EraFun f h -> EraFun f (g :*: h)
-f *&&&* g = MkEraFun $ zipWith_NP r (fromEraFun f) (fromEraFun g)
-  where
-    r (Fn f') (Fn g') = Fn $ \x -> f' x :*: g' x
+(EraFunCon f) *&&&* (EraFunCon g) = EraFunCon (\x -> f x :*: g x)
 
 -- | A type of EraFun with a constant output functor
 -- wrapped up to be an applicative.
@@ -214,18 +249,13 @@ newtype EraFunK src ft = EraFunK {fromEraFunK :: EraFun src (K ft)}
 
 instance Functor (EraFunK src) where
     fmap :: forall a b. (a -> b) -> EraFunK src a -> EraFunK src b
-    fmap f (EraFunK g) =
-        EraFunK (MkEraFun $ map_NP q $ fromEraFun g)
-      where
-        q :: (-.->) src (K a) era -> (-.->) src (K b) era
-        q (Fn h) = Fn $ \x -> K . f $ unK $ h x
+    fmap f (EraFunK (EraFunCon g)) =
+        EraFunK $ EraFunCon $ K . f . unK . g
 
 instance Applicative (EraFunK src) where
-    pure x = EraFunK $ MkEraFun $ pure_NP $ Fn $ \_ -> K x
-    EraFunK f <*> EraFunK g =
-        EraFunK $ MkEraFun $ zipWith_NP q (fromEraFun f) (fromEraFun g)
-      where
-        q (Fn h) (Fn j) = Fn $ \src -> K $ unK (h src) $ unK $ j src
+    pure x = EraFunK $ EraFunCon $ \_ -> K x
+    EraFunK (EraFunCon f) <*> EraFunK (EraFunCon x) =
+        EraFunK $ EraFunCon $ \src -> K $ unK (f src) $ unK (x src)
 
 -- | A constant era 'EraFun' wrapped to expose the semigroup instance
 newtype AllEraValue f = AllEraValue {_unAllEraValue :: EraFunI (K ()) f}
@@ -291,9 +321,8 @@ runAllEraValue (AllEraValue v) = collapse_NP $ zipWith_NP q prisms v
 
 -- | Lift an internal K of the output functor of the EraFun
 liftK :: Functor g => EraFun f (g :.: K a) -> EraFun f (K (g a))
-liftK f = MkEraFun $ map_NP q $ fromEraFun f
+liftK (EraFunCon f) = EraFunCon (deComp . f)
   where
-    q (Fn h) = Fn $ deComp . h
     deComp :: Functor g => (g :.: K a) era -> K (g a) era
     deComp (Comp l) = K $ unK <$> l
 
@@ -303,18 +332,13 @@ mapOnEraFun
      . (forall a. g a -> h a)
     -> EraFun f g
     -> EraFun f h
-mapOnEraFun f e = MkEraFun $ map_NP g $ fromEraFun e
-  where
-    g :: (-.->) f g a -> (-.->) f h a
-    g (Fn f') = Fn $ f . f'
+mapOnEraFun f (EraFunCon e) = EraFunCon (f . e)
 
 infixr 9 *****
 
 -- | Compose 2 EraFun as parallel application.
 (*****) :: EraFun f g -> EraFun h k -> EraFun (f :*: h) (g :*: k)
-f ***** g = MkEraFun $ zipWith_NP r (fromEraFun f) (fromEraFun g)
-  where
-    r (Fn f') (Fn g') = Fn $ \(x :*: y) -> f' x :*: g' y
+(EraFunCon f) ***** (EraFunCon g) = EraFunCon (\(x :*: y) -> f x :*: g y)
 
 -- | A type family that computes the tuple type from a product type of Ks.
 type family TupleFromProduct f where
