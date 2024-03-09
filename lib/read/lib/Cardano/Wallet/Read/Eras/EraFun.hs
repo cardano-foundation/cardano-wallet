@@ -228,7 +228,7 @@ instance Applicative (EraFunK src) where
         q (Fn h) (Fn j) = Fn $ \src -> K $ unK (h src) $ unK $ j src
 
 -- | A constant era 'EraFun' wrapped to expose the semigroup instance
-newtype AllEraValue f = AllEraValue {_unAllEraValue :: EraFun (K ()) f}
+newtype AllEraValue f = AllEraValue {_unAllEraValue :: EraFunI (K ()) f}
 
 -- | A pattern to construct/deconstruct an 'AllEraValue'
 pattern AllEraValueP
@@ -250,15 +250,14 @@ pattern AllEraValueP
     , conwayVal
     } <-
     AllEraValue
-        ( EraFun
-                { byronFun = (mkConst -> byronVal)
-                , shelleyFun = (mkConst -> shelleyVal)
-                , allegraFun = (mkConst -> allegraVal)
-                , maryFun = (mkConst -> maryVal)
-                , alonzoFun = (mkConst -> alonzoVal)
-                , babbageFun = (mkConst -> babbageVal)
-                , conwayFun = (mkConst -> conwayVal)
-                }
+        ( Fn (mkConst -> byronVal)
+                :* Fn (mkConst -> shelleyVal)
+                :* Fn (mkConst -> allegraVal)
+                :* Fn (mkConst -> maryVal)
+                :* Fn (mkConst -> alonzoVal)
+                :* Fn (mkConst -> babbageVal)
+                :* Fn (mkConst -> conwayVal)
+                :* Nil
             )
     where
         AllEraValueP
@@ -270,22 +269,22 @@ pattern AllEraValueP
             babbageVal'
             conwayVal' =
                 AllEraValue
-                    $ EraFun
-                        { byronFun = const byronVal'
-                        , shelleyFun = const shelleyVal'
-                        , allegraFun = const allegraVal'
-                        , maryFun = const maryVal'
-                        , alonzoFun = const alonzoVal'
-                        , babbageFun = const babbageVal'
-                        , conwayFun = const conwayVal'
-                        }
+                    ( Fn (const byronVal')
+                        :* Fn (const shelleyVal')
+                        :* Fn (const allegraVal')
+                        :* Fn (const maryVal')
+                        :* Fn (const alonzoVal')
+                        :* Fn (const babbageVal')
+                        :* Fn (const conwayVal')
+                        :* Nil
+                    )
 
 mkConst :: (K () x -> f x) -> f x
 mkConst = ($ K ())
 
 -- | Collapse an 'AllEraValue' into a list of 'EraValue'.
 runAllEraValue :: AllEraValue f -> [EraValue f]
-runAllEraValue (AllEraValue v) = collapse_NP $ zipWith_NP q prisms (fromEraFun v)
+runAllEraValue (AllEraValue v) = collapse_NP $ zipWith_NP q prisms v
   where
     q :: MkEraValue f era -> (K () -.-> f) era -> K (EraValue f) era
     q p (Fn f) = K $ inject p $ f (K ())
