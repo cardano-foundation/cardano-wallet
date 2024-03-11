@@ -3508,11 +3508,21 @@ balanceTransaction
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-        let utxoIndex =
-                Write.constructUTxOIndex $
-                Write.fromWalletUTxO utxo
+        (utxoWallet, wallet, _txs) <- handler $ W.readWalletUTxO wrk
         partialTx <- parsePartialTx era
+
+        utxoSpendable = Write.fromWalletUTxO utxoWallet
+        utxoSpendableTxIns = Map.keysSet $ unUTxO utxoSpendable
+        utxoExternal
+            = Write.utxoFromTxOutsInRecentEra
+            $ map fromExternalInput
+            $ body ^. #inputs
+        -- TODO: The line below assumes there are no conflicts.
+        -- We should respond with an 'InputResolutionConflicts'
+        -- error if there are.
+        utxoAll = utxoExternal <> utxoSpendable
+        utxoIndex = Write.constructUTxOIndex utxoAll utxoSpendableTxIns
+
         balancedTx <- liftHandler
             . fmap
                 ( Cardano.InAnyCardanoEra
@@ -3541,11 +3551,6 @@ balanceTransaction
         => Write.RecentEra era
         -> Handler (Write.PartialTx era)
     parsePartialTx era = do
-        let externalUTxO
-                = Write.utxoFromTxOutsInRecentEra
-                $ map fromExternalInput
-                $ body ^. #inputs
-
         tx <- maybe
                 (liftHandler
                     . throwE
@@ -3558,7 +3563,7 @@ balanceTransaction
 
         pure $ Write.PartialTx
             (Write.fromCardanoApiTx tx)
-            externalUTxO
+            mempty  -- externalUTxO
             (fromApiRedeemer <$> body ^. #redeemers)
             timelockKeyWitnessCounts
 
