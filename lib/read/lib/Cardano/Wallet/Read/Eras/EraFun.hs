@@ -43,7 +43,6 @@ module Cardano.Wallet.Read.Eras.EraFun
       -- * Composition.
     , (*.**)
     , (*&&&*)
-    , (*****)
 
       -- * Application.
     , applyEraFun
@@ -61,9 +60,6 @@ module Cardano.Wallet.Read.Eras.EraFun
         , babbageVal
         , conwayVal
         )
-    , liftK
-    , mapOnEraFun
-    , CollectTuple (..)
     , runEraFunK
     , mkEraFunK
     )
@@ -94,8 +90,7 @@ import Generics.SOP
     ( K (..)
     , NP
     , unComp
-    , unK
-    , (:.:) (..)
+    , (:.:) (..), unK
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
@@ -308,45 +303,3 @@ runAllEraValue (AllEraValue v) = collapse_NP $ zipWith_NP q prisms v
   where
     q :: MkEraValue f era -> (K () -.-> f) era -> K (EraValue f) era
     q p (Fn f) = K $ inject p $ f (K ())
-
--- | Lift an internal K of the output functor of the EraFun
-liftK :: Functor g => EraFun f (g :.: K a) -> EraFun f (K (g a))
-liftK (EraFunCon f) = EraFunCon (deComp . f)
-  where
-    deComp :: Functor g => (g :.: K a) era -> K (g a) era
-    deComp (Comp l) = K $ unK <$> l
-
--- | Map on the output of an EraFun with an era independent function
-mapOnEraFun
-    :: forall f g h
-     . (forall a. g a -> h a)
-    -> EraFun f g
-    -> EraFun f h
-mapOnEraFun f (EraFunCon e) = EraFunCon (f . e)
-
-infixr 9 *****
-
--- | Compose 2 EraFun as parallel application.
-(*****) :: EraFun f g -> EraFun h k -> EraFun (f :*: h) (g :*: k)
-(EraFunCon f) ***** (EraFunCon g) = EraFunCon (\(x :*: y) -> f x :*: g y)
-
--- | A type family that computes the tuple type from a product type of Ks.
-type family TupleFromProduct f where
-    TupleFromProduct (K f :*: K g) = (f, g)
-    TupleFromProduct (K f :*: g) = (f, TupleFromProduct g)
-
-class CollectTuple f where
-    -- | Collect a tuple from a product of Ks.
-    collectTuple :: f x -> K (TupleFromProduct f) x
-
-instance CollectTuple (K f :*: K g) where
-    collectTuple (K f :*: K g) = K (f, g)
-
-instance
-    {-# OVERLAPS #-}
-    (CollectTuple g, TupleFromProduct (K f :*: g) ~ (f, TupleFromProduct g))
-    => CollectTuple (K f :*: g)
-    where
-    collectTuple (K f :*: g) =
-        let K g' = collectTuple g
-        in  K (f, g')
