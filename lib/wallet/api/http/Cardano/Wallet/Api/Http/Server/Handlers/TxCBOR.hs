@@ -20,7 +20,7 @@ import Cardano.Binary
     )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..)
-    , apiError
+    , apiErrorOldDeprecated
     , liftE
     , showT
     )
@@ -102,7 +102,7 @@ newtype ErrParseCBOR = ErrParseCBOR DecoderError
 
 instance IsServerError ErrParseCBOR where
     toServerError (ErrParseCBOR decoderError) =
-        apiError err500 UnexpectedError $ T.unwords
+        apiErrorOldDeprecated err500 UnexpectedError $ T.unwords
             [ "Error while trying to parse a transaction CBOR from the database"
             , showT decoderError
             ]
