@@ -1,0 +1,24 @@
+Restoration from checkpoint (partial restoration)
+
+Usage:  wallet create from-recovery-phrase from-checkpoint 
+         [--port INT] WALLET_NAME [--address-pool-gap INT]
+         --block-header-hash BLOCKHEADERHASH --slot-no SLOTNO
+
+  Restore the wallet from a specific checkpoint.
+
+Available options:
+  --port INT               port used for serving the wallet API.
+                           (default: 8090)
+  WALLET_NAME              Name of the wallet.
+  --address-pool-gap INT   number of unused consecutive addresses
+                           to keep track of. (default: 20)
+  --block-header-hash BLOCKHEADERHASH
+                           The block hash to restore from.
+  --slot-no SLOTNO         The slot number to restore from.
+  -h,--help                Show this help text
+
+This is the way to restore the wallet from a specific checkpoint.
+It will create a partial view of the wallet if the wallet has transactions before the checkpoint!
+You will need a blockheader hash and a slot number to restore from.
+Example:
+  cardano-wallet wallet create from-recovery-passphrase from-checkpoint --block-header-hash 95af5a1da7d43571d030c92ba82728d69c86c82007cff6ee3c8b2442ab148723 --slot-no 118332737 'My wallet'

@@ -3126,7 +3126,7 @@ createWalletViaCLI ctx args mnemonic secondFactor passphrase =
         let portArgs =
                 [ "--port", show (ctx ^. typed @(Port "wallet")) ]
         let fullArgs =
-                [ "wallet", "create", "from-recovery-phrase" ] ++ portArgs ++ args
+                [ "wallet", "create", "from-recovery-phrase", "from-genesis" ] ++ portArgs ++ args
         let process = proc' commandName fullArgs
         liftIO $ withCreateProcess process $
             \(Just stdin) (Just stdout) (Just stderr) h -> do

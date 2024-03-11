@@ -147,6 +147,7 @@ spec = do
             , ["wallet", "list", "--help"]
             , ["wallet", "create", "from-recovery-phrase", "--help"]
             , ["wallet", "create", "from-public-key", "--help"]
+            , ["wallet", "create", "from-recovery-phrase", "from-checkpoint", "--help"]
             , ["wallet", "get", "--help"]
             , ["wallet", "update", "--help"]
             , ["wallet", "delete", "--help"]
