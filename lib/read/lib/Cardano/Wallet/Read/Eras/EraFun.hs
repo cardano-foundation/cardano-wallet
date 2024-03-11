@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
@@ -49,9 +48,6 @@ module Cardano.Wallet.Read.Eras.EraFun
       -- * Application.
     , applyEraFun
 
-      -- * Constant era 'EraFun'
-    , EraFunK (..)
-
       -- * higher order record encoding
     , runAllEraValue
     , AllEraValue
@@ -68,6 +64,8 @@ module Cardano.Wallet.Read.Eras.EraFun
     , liftK
     , mapOnEraFun
     , CollectTuple (..)
+    , runEraFunK
+    , mkEraFunK
     )
 where
 
@@ -243,19 +241,11 @@ infixr 8 *&&&*
 (*&&&*) :: EraFun f g -> EraFun f h -> EraFun f (g :*: h)
 (EraFunCon f) *&&&* (EraFunCon g) = EraFunCon (\x -> f x :*: g x)
 
--- | A type of EraFun with a constant output functor
--- wrapped up to be an applicative.
-newtype EraFunK src ft = EraFunK {fromEraFunK :: EraFun src (K ft)}
+mkEraFunK :: (forall era. IsEra era => f era -> g ) -> EraFun f (K g)
+mkEraFunK f = EraFunCon (K . f)
 
-instance Functor (EraFunK src) where
-    fmap :: forall a b. (a -> b) -> EraFunK src a -> EraFunK src b
-    fmap f (EraFunK (EraFunCon g)) =
-        EraFunK $ EraFunCon $ K . f . unK . g
-
-instance Applicative (EraFunK src) where
-    pure x = EraFunK $ EraFunCon $ \_ -> K x
-    EraFunK (EraFunCon f) <*> EraFunK (EraFunCon x) =
-        EraFunK $ EraFunCon $ \src -> K $ unK (f src) $ unK (x src)
+runEraFunK :: IsEra era => EraFun f (K c) -> f era -> c
+runEraFunK f = unK . runEraFun f
 
 -- | A constant era 'EraFun' wrapped to expose the semigroup instance
 newtype AllEraValue f = AllEraValue {_unAllEraValue :: EraFunI (K ()) f}

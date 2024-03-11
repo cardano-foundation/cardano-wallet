@@ -48,7 +48,8 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
-    , EraFunK (..)
+    , mkEraFunK
+    , runEraFunK
     )
 import Control.Category
     ( (.)
@@ -87,15 +88,12 @@ getBlockHeader gp =
 
 -- | Compute a wallet primitive block header from a ledger
 primitiveBlockHeader :: W.Hash "Genesis" -> EraFun Block (K W.BlockHeader)
-primitiveBlockHeader gp =
-    fromEraFunK $ do
-        slotNo <- fromSlotNo <$> EraFunK getEraSlotNo
-        blockNo <- fromBlockNo <$> EraFunK getEraBlockNo
-        headerHash <- EraFunK (primitiveHash . getEraHeaderHash)
-        prevHeaderHash <-
-            Just
-                <$> EraFunK (primitivePrevHash gp . getEraPrevHeaderHash)
-        pure $ W.BlockHeader slotNo blockNo headerHash prevHeaderHash
+primitiveBlockHeader gp = mkEraFunK $ do
+    slotNo <- fromSlotNo <$> runEraFunK getEraSlotNo
+    blockNo <- fromBlockNo <$> runEraFunK getEraBlockNo
+    headerHash <- runEraFunK $ primitiveHash . getEraHeaderHash
+    prevHeaderHash <- runEraFunK $ primitivePrevHash gp . getEraPrevHeaderHash
+    pure $ W.BlockHeader slotNo blockNo headerHash (Just prevHeaderHash)
 
 fromBlockNo :: Num a => BlockNo -> Quantity unit a
 fromBlockNo (BlockNo h) = Quantity (fromIntegral h)

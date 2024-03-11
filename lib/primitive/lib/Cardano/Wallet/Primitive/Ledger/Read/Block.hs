@@ -30,7 +30,7 @@ import Cardano.Wallet.Read.Block.Txs
     ( getEraTransactions
     )
 import Cardano.Wallet.Read.Eras
-    ( K
+    ( K (..)
     , applyEraFun
     , extractEraValue
     , (*.**)
@@ -38,9 +38,10 @@ import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Eras.EraFun
     ( CollectTuple (..)
     , EraFun
-    , EraFunK (..)
     , liftK
     , mapOnEraFun
+    , mkEraFunK
+    , runEraFunK
     , (*&&&*)
     , (*****)
     )
@@ -63,16 +64,14 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 primitiveBlock
     :: W.Hash "Genesis"
     -> EraFun Block (K (W.Block, [W.PoolCertificate]))
-primitiveBlock hg = fromEraFunK $ do
-    header <- EraFunK $ primitiveBlockHeader hg
-    (transactions, certificates) <- unzip <$> EraFunK getTxsAndCertificates
+primitiveBlock hg = mkEraFunK $ do
+    header <- runEraFunK $ primitiveBlockHeader hg
+    (transactions, certificates) <- unzip <$> runEraFunK getTxsAndCertificates
+    let (delegations, pools) = pickWalletCertificates $ concat certificates
     pure
-        $ let
-            (delegations, pools) = pickWalletCertificates $ concat certificates
-          in
-            ( W.Block header transactions delegations
-            , pools
-            )
+        ( W.Block header transactions delegations
+        , pools
+        )
 
 getTxsAndCertificates :: EraFun Block (K [(W.Tx, [W.Certificate])])
 getTxsAndCertificates =
