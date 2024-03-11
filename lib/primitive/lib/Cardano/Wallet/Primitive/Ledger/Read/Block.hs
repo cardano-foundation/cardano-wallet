@@ -25,6 +25,7 @@ import Cardano.Wallet.Read
     ( Block
     , ConsensusBlock
     , fromConsensusBlock
+    , (:.:) (Comp)
     )
 import Cardano.Wallet.Read.Block.Txs
     ( getEraTransactions
@@ -41,6 +42,7 @@ import Cardano.Wallet.Read.Eras.EraFun
     , liftK
     , mapOnEraFun
     , mkEraFunK
+    , runEraFun
     , runEraFunK
     , (*&&&*)
     , (*****)
@@ -74,11 +76,12 @@ primitiveBlock hg = mkEraFunK $ do
         )
 
 getTxsAndCertificates :: EraFun Block (K [(W.Tx, [W.Certificate])])
-getTxsAndCertificates =
-    liftK
-        $ mapOnEraFun collectTuple (primitiveTx ***** primitiveCertificates)
-            *.** (id *&&&* getEraCertificates)
-            *.** getEraTransactions
+getTxsAndCertificates = mkEraFunK $ \block ->
+    let Comp txs = runEraFun getEraTransactions block
+        ptxs = runEraFunK primitiveTx <$> txs
+        pcts = runEraFunK primitiveCertificates
+            . runEraFun getEraCertificates <$> txs
+    in zip ptxs pcts
 
 pickWalletCertificates
     :: [W.Certificate]
