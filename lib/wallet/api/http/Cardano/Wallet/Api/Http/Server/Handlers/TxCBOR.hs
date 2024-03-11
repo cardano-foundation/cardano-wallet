@@ -43,12 +43,12 @@ import Cardano.Wallet.Read.Eras
     , applyEraFun
     , extractEraValue
     , sequenceEraValue
-    , (*.**)
     , (:*:) (..)
-    , (:.:)
+    , (:.:) (..)
     )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( mkEraFunK
+    ( mkEraFun
+    , mkEraFunK
     , runEraFunK
     )
 import Cardano.Wallet.Read.Tx.CBOR
@@ -133,10 +133,10 @@ parser = mkEraFunK $ do
     extraSignatures <- runEraFunK $ Feature.extraSigs <<< getEraExtraSigs
     pure $ ParsedTxCBOR{..}
 
-
 txCBORParser ::
     EraFun (K BL.ByteString) (Either DecoderError :.: K (ParsedTxCBOR))
-txCBORParser = parser *.** deserializeTx
+txCBORParser = mkEraFun (Comp . fmap (runEraFun parser) . unComp . runEraFun deserializeTx)
+  where unComp (Comp a) = a
 
 -- | Parse CBOR to some values and throw a server deserialize error if failing.
 parseTxCBOR :: TxCBOR -> Handler ParsedTxCBOR

@@ -40,9 +40,6 @@ module Cardano.Wallet.Read.Eras.EraFun
     , runEraFun
     , EraFunSel
 
-      -- * Composition.
-    , (*.**)
-
       -- * Application.
     , applyEraFun
 
@@ -88,9 +85,7 @@ import Control.Category
 import Generics.SOP
     ( K (..)
     , NP
-    , unComp
     , unK
-    , (:.:) (..)
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
@@ -217,15 +212,7 @@ applyEraFun (fromEraFun -> f) (EraValue v) = EraValue $ ap_NS f v
 
 instance Category EraFun where
     id = EraFunCon id
-    (EraFunCon f) . (EraFunCon g) = EraFunCon (f . g)
-
-infixr 9 *.**
-
--- | Compose 2 EraFunI as a category, jumping the outer functorial layer in the
--- output of the first one.
-(*.**) :: Functor w => EraFun g h -> EraFun f (w :.: g) -> EraFun f (w :.: h)
-(EraFunCon a) *.** (EraFunCon b) =
-    EraFunCon (Comp . fmap a . unComp . b)
+    EraFunCon f . EraFunCon g = EraFunCon (f . g)
 
 mkEraFunK :: (forall era. IsEra era => f era -> g ) -> EraFun f (K g)
 mkEraFunK f = EraFunCon (K . f)

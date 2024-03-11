@@ -40,8 +40,6 @@ module Cardano.Wallet.Read.Eras
   , sequenceEraValue
   -- * Era bounded functions.
   , EraFun (..)
-  -- * Composing era functions.
-  , (*.**)
   -- * Applying era functions.
   , applyEraFun
   -- * Reexports from elsewhere.
@@ -55,7 +53,6 @@ module Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Eras.EraFun
     ( EraFun (..)
     , applyEraFun
-    , (*.**)
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
