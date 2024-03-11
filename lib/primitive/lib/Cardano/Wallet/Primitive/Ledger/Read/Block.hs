@@ -34,18 +34,12 @@ import Cardano.Wallet.Read.Eras
     ( K (..)
     , applyEraFun
     , extractEraValue
-    , (*.**)
     )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( CollectTuple (..)
-    , EraFun
-    , liftK
-    , mapOnEraFun
+    ( EraFun
     , mkEraFunK
     , runEraFun
     , runEraFunK
-    , (*&&&*)
-    , (*****)
     )
 import Cardano.Wallet.Read.Tx.Certificates
     ( getEraCertificates

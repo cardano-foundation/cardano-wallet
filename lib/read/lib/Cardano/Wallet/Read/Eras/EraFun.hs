@@ -42,7 +42,6 @@ module Cardano.Wallet.Read.Eras.EraFun
 
       -- * Composition.
     , (*.**)
-    , (*&&&*)
 
       -- * Application.
     , applyEraFun
@@ -90,7 +89,8 @@ import Generics.SOP
     ( K (..)
     , NP
     , unComp
-    , (:.:) (..), unK
+    , unK
+    , (:.:) (..)
     )
 import Generics.SOP.Classes
 import Generics.SOP.NP
@@ -100,9 +100,6 @@ import Generics.SOP.NP
     )
 import Generics.SOP.NS
     ( ap_NS
-    )
-import GHC.Generics
-    ( (:*:) (..)
     )
 import Prelude hiding
     ( id
@@ -229,12 +226,6 @@ infixr 9 *.**
 (*.**) :: Functor w => EraFun g h -> EraFun f (w :.: g) -> EraFun f (w :.: h)
 (EraFunCon a) *.** (EraFunCon b) =
     EraFunCon (Comp . fmap a . unComp . b)
-
-infixr 8 *&&&*
-
--- | Compose 2 'EraFun' as parallel application using '(:*:)'.
-(*&&&*) :: EraFun f g -> EraFun f h -> EraFun f (g :*: h)
-(EraFunCon f) *&&&* (EraFunCon g) = EraFunCon (\x -> f x :*: g x)
 
 mkEraFunK :: (forall era. IsEra era => f era -> g ) -> EraFun f (K g)
 mkEraFunK f = EraFunCon (K . f)

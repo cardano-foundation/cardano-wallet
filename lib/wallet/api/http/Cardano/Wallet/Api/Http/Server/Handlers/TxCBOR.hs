@@ -43,8 +43,8 @@ import Cardano.Wallet.Read.Eras
     , applyEraFun
     , extractEraValue
     , sequenceEraValue
-    , (*&&&*)
     , (*.**)
+    , (:*:) (..)
     , (:.:)
     )
 import Cardano.Wallet.Read.Eras.EraFun
@@ -123,16 +123,16 @@ parser :: EraFun Tx (K ParsedTxCBOR)
 parser = mkEraFunK $ do
     certificates <-
         runEraFunK $ Feature.primitiveCertificates <<< getEraCertificates
-    mintBurn <-
-        runEraFunK
-            $ Feature.mint
-            <<< getEraMint
-                *&&&* getEraWitnesses
-                *&&&* getEraReferenceInputs
+    witnesses <- runEraFun getEraWitnesses
+    referenceInputs <- runEraFun getEraReferenceInputs
+    mint <- runEraFun getEraMint
+    let mintBurn = runEraFunK Feature.mint
+            $ mint :*: witnesses :*: referenceInputs
     validityInterval <- runEraFunK $ Feature.getValidity <<< getEraValidity
     scriptIntegrity <- runEraFunK $ Feature.integrity <<< getEraIntegrity
     extraSignatures <- runEraFunK $ Feature.extraSigs <<< getEraExtraSigs
     pure $ ParsedTxCBOR{..}
+
 
 txCBORParser ::
     EraFun (K BL.ByteString) (Either DecoderError :.: K (ParsedTxCBOR))
