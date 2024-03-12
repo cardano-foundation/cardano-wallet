@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -24,8 +26,8 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
     ( ValidityIntervalExplicit (ValidityIntervalExplicit)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.Validity
     ( Validity (..)
@@ -39,20 +41,18 @@ import Data.Quantity
 
 import qualified Ouroboros.Network.Block as O
 
-getValidity :: EraFun Validity (K (Maybe ValidityIntervalExplicit))
-getValidity =
-    EraFun
-        { byronFun = \_validity -> K Nothing
-        , shelleyFun = \(Validity ttl) -> K . Just $ shelleyValidityInterval ttl
-        , allegraFun = afterShelleyValidity
-        , maryFun = afterShelleyValidity
-        , alonzoFun = afterShelleyValidity
-        , babbageFun = afterShelleyValidity
-        , conwayFun = afterShelleyValidity
-        }
+getValidity :: forall era. IsEra era => Validity era -> Maybe ValidityIntervalExplicit
+getValidity = case theEra @era of
+    Byron -> \_validity -> Nothing
+    Shelley -> \(Validity ttl) -> Just $ shelleyValidityInterval ttl
+    Allegra -> afterShelleyValidity
+    Mary -> afterShelleyValidity
+    Alonzo -> afterShelleyValidity
+    Babbage -> afterShelleyValidity
+    Conway -> afterShelleyValidity
   where
-    afterShelleyValidity (Validity validity)
-        = K . Just $ afterShelleyValidityInterval validity
+    afterShelleyValidity (Validity validity) =
+        Just $ afterShelleyValidityInterval validity
 
 afterShelleyValidityInterval :: ValidityInterval -> ValidityIntervalExplicit
 afterShelleyValidityInterval (ValidityInterval from to) =

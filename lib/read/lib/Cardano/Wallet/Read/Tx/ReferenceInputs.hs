@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -36,11 +38,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -71,17 +72,15 @@ newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 deriving instance Show (ReferenceInputsType era) => Show (ReferenceInputs era)
 deriving instance Eq (ReferenceInputsType era) => Eq (ReferenceInputs era)
 
-getEraReferenceInputs :: EraFun Tx ReferenceInputs
-getEraReferenceInputs =
-    EraFun
-        { byronFun = \_ -> ReferenceInputs ()
-        , shelleyFun = \_ -> ReferenceInputs ()
-        , allegraFun = \_ -> ReferenceInputs ()
-        , maryFun = \_ -> ReferenceInputs ()
-        , alonzoFun = \_ -> ReferenceInputs ()
-        , babbageFun = referenceInputsBabbage
-        , conwayFun = referenceInputsBabbage
-        }
+getEraReferenceInputs :: forall era. IsEra era => Tx era -> ReferenceInputs era
+getEraReferenceInputs = case theEra @era of
+    Byron -> \_ -> ReferenceInputs ()
+    Shelley -> \_ -> ReferenceInputs ()
+    Allegra -> \_ -> ReferenceInputs ()
+    Mary -> \_ -> ReferenceInputs ()
+    Alonzo -> \_ -> ReferenceInputs ()
+    Babbage -> referenceInputsBabbage
+    Conway -> referenceInputsBabbage
   where
     referenceInputsBabbage = onTx $ \tx ->
         ReferenceInputs $ tx ^. bodyTxL . referenceInputsTxBodyL

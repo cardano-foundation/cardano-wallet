@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
@@ -31,9 +33,12 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletTokenBundle
     )
+import Cardano.Wallet.Read
+    ( Era (..)
+    , theEra
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( IsEra
     )
 import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..)
@@ -78,16 +83,15 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 
-getOutputs :: EraFun Outputs (K [W.TxOut])
-getOutputs = EraFun
-    { byronFun = \(Outputs os) -> K . fmap fromByronTxOut $ toList os
-    , shelleyFun = \(Outputs os) -> K . fmap fromShelleyTxOut $ toList os
-    , allegraFun = \(Outputs os) -> K . fmap fromAllegraTxOut $ toList os
-    , maryFun = \(Outputs os) -> K . fmap fromMaryTxOut $ toList os
-    , alonzoFun = \(Outputs os) -> K . fmap fromAlonzoTxOut $ toList os
-    , babbageFun = \(Outputs os) -> K . fmap (fst . fromBabbageTxOut) $ toList os
-    , conwayFun = \(Outputs os) -> K . fmap (fst . fromConwayTxOut) $ toList os
-    }
+getOutputs :: forall era . IsEra era => Outputs era -> [W.TxOut]
+getOutputs = case theEra @era of
+    Byron -> \(Outputs os) -> fromByronTxOut <$> toList os
+    Shelley -> \(Outputs os) -> fromShelleyTxOut <$> toList os
+    Allegra -> \(Outputs os) -> fromAllegraTxOut <$> toList os
+    Mary -> \(Outputs os) -> fromMaryTxOut <$> toList os
+    Alonzo -> \(Outputs os) -> fromAlonzoTxOut <$> toList os
+    Babbage -> \(Outputs os) -> fst . fromBabbageTxOut <$> toList os
+    Conway -> \(Outputs os) -> fst . fromConwayTxOut <$> toList os
 
 fromShelleyAddress :: SL.Addr crypto -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr

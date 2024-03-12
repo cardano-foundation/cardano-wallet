@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -71,8 +72,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     , (:*:) (..)
     )
 import Cardano.Wallet.Read.Tx.Mint
@@ -117,29 +118,25 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 
-mint :: EraFun
-    (Mint :*: Witnesses :*: ReferenceInputs)
-    (K (TokenMapWithScripts, TokenMapWithScripts))
-mint =
-    EraFun
-        { byronFun = noMints
-        , shelleyFun = noMints
-        , allegraFun = noMints
-        , maryFun =
-            \(Mint mint' :*: Witnesses wits :*: _refInps) ->
-                K $ maryMint mint' wits
-        , alonzoFun =
-            \(Mint mint' :*: Witnesses wits :*: _refInps) ->
-                K $ alonzoMint mint' wits
-        , babbageFun =
-            \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
-                K $ babbageMint refInps mint' wits
-        , conwayFun =
-            \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
-                K $ conwayMint refInps mint' wits
-        }
+mint
+    :: forall era
+     . IsEra era
+    => (Mint :*: Witnesses :*: ReferenceInputs) era
+    -> (TokenMapWithScripts, TokenMapWithScripts)
+mint = case theEra @era of
+    Byron -> noMints
+    Shelley -> noMints
+    Allegra -> noMints
+    Mary -> \(Mint mint' :*: Witnesses wits :*: _refInps) ->
+        maryMint mint' wits
+    Alonzo -> \(Mint mint' :*: Witnesses wits :*: _refInps) ->
+        alonzoMint mint' wits
+    Babbage -> \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
+        babbageMint refInps mint' wits
+    Conway -> \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
+        conwayMint refInps mint' wits
   where
-    noMints = const $ K (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
+    noMints = const $ (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
 
 maryMint
     :: MultiAsset StandardCrypto

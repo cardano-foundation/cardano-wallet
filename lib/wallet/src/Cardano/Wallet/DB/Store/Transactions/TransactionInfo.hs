@@ -1,6 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     ( mkTransactionInfoFromRelation
@@ -75,12 +77,13 @@ import Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , slotToUTCTime
     )
+import Cardano.Wallet.Read
+    ( Tx
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun
-    , EraValue
-    , K
+    ( EraValue
+    , IsEra
     , applyEraFun
-    , extractEraValue
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
@@ -253,8 +256,8 @@ mkTransactionInfoFromReadTx ti tip tx decor SubmissionMeta{..} status = do
   where
     tipH = getQuantity $ tip ^. #blockHeight
 
-    value :: EraFun Read.Tx (K a) -> a
-    value f = extractEraValue $ applyEraFun f tx
+    value :: (forall era . IsEra era => Tx era -> a) -> a
+    value f = applyEraFun f tx
 
     height = getQuantity submissionMetaHeight
 

@@ -54,7 +54,6 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     )
 import Cardano.Wallet.Read.Eras
     ( EraValue
-    , extractEraValue
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
@@ -219,10 +218,8 @@ decorateTxInsForReadTxFromLookupTxOut
     -> m DecoratedTxIns
 decorateTxInsForReadTxFromLookupTxOut lookupTxOut' tx
     = decorateTxInsInternal lookupTxOut'
-            (fmap undoWTxIn
-                $ extractEraValue $ applyEraFun (getInputs . getEraInputs) tx)
-            (fmap undoWTxIn
-                $ extractEraValue $ applyEraFun
+            (undoWTxIn <$> applyEraFun (getInputs . getEraInputs) tx)
+            (undoWTxIn <$> applyEraFun
                     (getCollateralInputs . getEraCollateralInputs) tx)
     where
         undoWTxIn :: W.TxIn -> (TxId, Word32)

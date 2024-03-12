@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -36,11 +38,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -72,15 +73,16 @@ deriving instance Show (CollateralInputsType era) => Show (CollateralInputs era)
 deriving instance Eq (CollateralInputsType era) => Eq (CollateralInputs era)
 
 -- | Extract the collateral inputs from a 'Tx' in any era.
-getEraCollateralInputs :: EraFun Tx CollateralInputs
-getEraCollateralInputs = EraFun
-    { byronFun = \_ -> CollateralInputs ()
-    , shelleyFun = \_ -> CollateralInputs ()
-    , allegraFun = \_ -> CollateralInputs ()
-    , maryFun = \_ -> CollateralInputs ()
-    , alonzoFun = mkCollateralInputs
-    , babbageFun = mkCollateralInputs
-    , conwayFun = mkCollateralInputs
-    }
-    where mkCollateralInputs = onTx $ \tx -> CollateralInputs
-            $ tx ^. bodyTxL. collateralInputsTxBodyL
+getEraCollateralInputs :: forall era. IsEra era => Tx era -> CollateralInputs era
+getEraCollateralInputs = case theEra @era of
+    Byron -> \_ -> CollateralInputs ()
+    Shelley -> \_ -> CollateralInputs ()
+    Allegra -> \_ -> CollateralInputs ()
+    Mary -> \_ -> CollateralInputs ()
+    Alonzo -> mkCollateralInputs
+    Babbage -> mkCollateralInputs
+    Conway -> mkCollateralInputs
+  where
+    mkCollateralInputs = onTx $ \tx ->
+        CollateralInputs
+            $ tx ^. bodyTxL . collateralInputsTxBodyL

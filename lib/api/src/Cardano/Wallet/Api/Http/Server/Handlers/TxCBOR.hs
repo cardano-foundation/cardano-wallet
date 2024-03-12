@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -35,21 +34,16 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
     )
 import Cardano.Wallet.Read
-    ( Tx (..)
+    ( IsEra
+    , Tx (..)
+    , unComp
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
-    , applyEraFun
-    , extractEraValue
-    , sequenceEraValue
+    ( K (..)
     , (:*:) (..)
-    , (:.:) (..)
     )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( mkEraFun
-    , mkEraFunK
-    , runEraFunK
+    ( applyEraFun
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
@@ -79,9 +73,6 @@ import Cardano.Wallet.Read.Tx.Witnesses
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts
     , ValidityIntervalExplicit
-    )
-import Control.Category
-    ( (<<<)
     )
 import GHC.Generics
     ( Generic
@@ -119,29 +110,26 @@ data ParsedTxCBOR = ParsedTxCBOR
     }
     deriving Generic
 
-parser :: EraFun Tx (K ParsedTxCBOR)
-parser = mkEraFunK $ do
-    certificates <-
-        runEraFunK $ Feature.primitiveCertificates <<< getEraCertificates
-    witnesses <- runEraFun getEraWitnesses
-    referenceInputs <- runEraFun getEraReferenceInputs
-    mint <- runEraFun getEraMint
-    let mintBurn = runEraFunK Feature.mint
-            $ mint :*: witnesses :*: referenceInputs
-    validityInterval <- runEraFunK $ Feature.getValidity <<< getEraValidity
-    scriptIntegrity <- runEraFunK $ Feature.integrity <<< getEraIntegrity
-    extraSignatures <- runEraFunK $ Feature.extraSigs <<< getEraExtraSigs
+parser :: IsEra era => Tx era -> ParsedTxCBOR
+parser = do
+    certificates <- Feature.primitiveCertificates . getEraCertificates
+    witnesses <- getEraWitnesses
+    referenceInputs <- getEraReferenceInputs
+    mint <- getEraMint
+    let mintBurn = Feature.mint $ mint :*: witnesses :*: referenceInputs
+    validityInterval <- Feature.getValidity . getEraValidity
+    scriptIntegrity <- Feature.integrity . getEraIntegrity
+    extraSignatures <- Feature.extraSigs . getEraExtraSigs
     pure $ ParsedTxCBOR{..}
 
-txCBORParser ::
-    EraFun (K BL.ByteString) (Either DecoderError :.: K (ParsedTxCBOR))
-txCBORParser = mkEraFun (Comp . fmap (runEraFun parser) . unComp . runEraFun deserializeTx)
-  where unComp (Comp a) = a
+txCBORParser
+    :: IsEra era
+    => K BL.ByteString era
+    -> Either DecoderError ParsedTxCBOR
+txCBORParser = fmap parser . unComp . deserializeTx
 
 -- | Parse CBOR to some values and throw a server deserialize error if failing.
 parseTxCBOR :: TxCBOR -> Handler ParsedTxCBOR
 parseTxCBOR cbor =
-    either
-        (liftE . ErrParseCBOR)
-        (pure . extractEraValue)
-        (sequenceEraValue (applyEraFun txCBORParser cbor))
+    either (liftE . ErrParseCBOR) pure
+        $ applyEraFun txCBORParser cbor

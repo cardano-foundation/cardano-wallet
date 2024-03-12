@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -28,11 +30,10 @@ import Cardano.Ledger.SafeHash
     ( SafeToHash (originalBytes)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
+    ( Era (..)
     , EraValue
-    , K (..)
+    , IsEra (..)
     , applyEraFun
-    , extractEraValue
     )
 import Cardano.Wallet.Read.Tx
     ( Tx
@@ -51,19 +52,19 @@ import Data.Maybe.Strict
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
-integrity :: EraFun Integrity (K (Maybe (W.Hash "ScriptIntegrity")))
-integrity = EraFun
-    { byronFun = noIntegrity
-    , shelleyFun = noIntegrity
-    , allegraFun = noIntegrity
-    , maryFun = noIntegrity
-    , alonzoFun = yesIntegrity
-    , babbageFun = yesIntegrity
-    , conwayFun = yesIntegrity
-    }
+integrity :: forall era . IsEra era
+    => Integrity era -> Maybe (W.Hash "ScriptIntegrity")
+integrity = case theEra @era of
+    Byron -> noIntegrity
+    Shelley -> noIntegrity
+    Allegra -> noIntegrity
+    Mary -> noIntegrity
+    Alonzo -> yesIntegrity
+    Babbage -> yesIntegrity
+    Conway -> yesIntegrity
   where
-    noIntegrity = const $ K Nothing
-    yesIntegrity (Integrity es) = K $ getIntegrity es
+    noIntegrity = const Nothing
+    yesIntegrity (Integrity es) = getIntegrity es
 
 getIntegrity
     :: StrictMaybe (ScriptIntegrityHash StandardCrypto)
@@ -72,9 +73,9 @@ getIntegrity = strictMaybeToMaybe . fmap (W.Hash . originalBytes)
 
 -- Era functions extract from Tx to primitive W.Hash.
 -- Useful to cache this composition here, to be exported in case of reuse.
-txIntegrityEraFun :: EraFun Tx (K (Maybe (W.Hash "ScriptIntegrity")))
+txIntegrityEraFun :: IsEra era => Tx era -> Maybe (W.Hash "ScriptIntegrity")
 txIntegrityEraFun = integrity . getEraIntegrity
 
 -- | Extract from Tx in any era to primitive W.Hash.
 txIntegrity :: EraValue Tx -> Maybe (W.Hash "ScriptIntegrity")
-txIntegrity = extractEraValue . applyEraFun txIntegrityEraFun
+txIntegrity = applyEraFun txIntegrityEraFun

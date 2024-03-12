@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE Rank2Types #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
@@ -20,14 +21,7 @@ import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     )
 import Cardano.Wallet.Read.Eras
     ( EraValue
-    , K (..)
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun
     , applyEraFun
-    )
-import Cardano.Wallet.Read.Eras.EraValue
-    ( extractEraValue
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -43,5 +37,5 @@ fromSealedTx sealed =
     case unsafeCardanoTx sealed of
         InAnyCardanoEra _ce tx -> fromCardanoApiTx tx
 
-anythingFromSealedTx :: EraFun Tx (K a) -> SealedTx -> a
-anythingFromSealedTx f = extractEraValue . applyEraFun f . fromSealedTx
+anythingFromSealedTx :: (forall era . Tx era -> a) -> SealedTx -> a
+anythingFromSealedTx f = applyEraFun f . fromSealedTx

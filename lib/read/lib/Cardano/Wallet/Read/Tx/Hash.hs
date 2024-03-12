@@ -8,6 +8,7 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -41,8 +42,8 @@ import Cardano.Wallet.Read
     ( Tx
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.Eras
     ( onTx
@@ -57,19 +58,17 @@ import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.SafeHash as SafeHash
 
 -- | Extract the hash of a transaction in any era.
-getEraTxHash :: EraFun Tx (K Crypto.ByteString)
-getEraTxHash =
-    EraFun
-        { byronFun = onTx $ K . byronTxHash
-        , shelleyFun = mkShelleyHash
-        , allegraFun = mkShelleyHash
-        , maryFun = mkShelleyHash
-        , alonzoFun = mkShelleyHash
-        , babbageFun = mkShelleyHash
-        , conwayFun = mkShelleyHash
-        }
+getEraTxHash :: forall era. IsEra era => Tx era -> Crypto.ByteString
+getEraTxHash = case theEra @era of
+    Byron -> onTx byronTxHash
+    Shelley -> mkShelleyHash
+    Allegra -> mkShelleyHash
+    Mary -> mkShelleyHash
+    Alonzo -> mkShelleyHash
+    Babbage -> mkShelleyHash
+    Conway -> mkShelleyHash
   where
-    mkShelleyHash = onTx $ \tx -> K $ shelleyTxHash tx
+    mkShelleyHash = onTx $ \tx -> shelleyTxHash tx
 
 shelleyTxHash :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
 shelleyTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)

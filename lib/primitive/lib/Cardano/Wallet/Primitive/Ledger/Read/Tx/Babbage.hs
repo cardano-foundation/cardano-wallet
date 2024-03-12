@@ -139,7 +139,7 @@ fromBabbageTx
        )
 fromBabbageTx tx witCtx =
     ( tx'
-    , Read.unK . Read.babbageFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Babbage $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

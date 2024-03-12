@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
@@ -112,7 +113,7 @@ fromMaryTx
        )
 fromMaryTx tx witCtx =
     ( fromMaryTx' tx
-    , Read.unK . Read.maryFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Mary $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

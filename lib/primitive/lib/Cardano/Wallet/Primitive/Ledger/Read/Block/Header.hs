@@ -2,6 +2,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Primitive.Ledger.Read.Block.Header
@@ -23,7 +25,10 @@ import Cardano.Ledger.Crypto
 import Cardano.Wallet.Read
     ( Block
     , ConsensusBlock
+    , Era (..)
+    , IsEra
     , fromConsensusBlock
+    , theEra
     )
 import Cardano.Wallet.Read.Block.BlockNo
     ( BlockNo (..)
@@ -41,15 +46,8 @@ import Cardano.Wallet.Read.Block.SlotNo
     ( SlotNo (..)
     , getEraSlotNo
     )
-import Cardano.Wallet.Read.Eras
-    ( EraFun
-    , applyEraFun
-    , extractEraValue
-    )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
-    , mkEraFunK
-    , runEraFunK
+    ( applyEraFun
     )
 import Control.Category
     ( (.)
@@ -60,11 +58,9 @@ import Data.Coerce
 import Data.Quantity
     ( Quantity (..)
     )
-import Generics.SOP
-    ( K (..)
-    )
 import Ouroboros.Consensus.Byron.Ledger.Block
-    ( ByronHash (..)
+    ( ByronBlock
+    , ByronHash (..)
     )
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyHash (..)
@@ -82,17 +78,20 @@ fromByronHash = W.Hash . CC.hashToBytes . unByronHash
 -- | Get a wallet primitive block header from a ledger block
 getBlockHeader :: W.Hash "Genesis" -> ConsensusBlock -> W.BlockHeader
 getBlockHeader gp =
-    extractEraValue
-        . applyEraFun (primitiveBlockHeader gp)
+        applyEraFun (primitiveBlockHeader gp)
         . fromConsensusBlock
 
 -- | Compute a wallet primitive block header from a ledger
-primitiveBlockHeader :: W.Hash "Genesis" -> EraFun Block (K W.BlockHeader)
-primitiveBlockHeader gp = mkEraFunK $ do
-    slotNo <- fromSlotNo <$> runEraFunK getEraSlotNo
-    blockNo <- fromBlockNo <$> runEraFunK getEraBlockNo
-    headerHash <- runEraFunK $ primitiveHash . getEraHeaderHash
-    prevHeaderHash <- runEraFunK $ primitivePrevHash gp . getEraPrevHeaderHash
+primitiveBlockHeader
+    :: IsEra era
+    => W.Hash "Genesis"
+    -> Block era
+    -> W.BlockHeader
+primitiveBlockHeader gp = do
+    slotNo <- fromSlotNo <$> getEraSlotNo
+    blockNo <- fromBlockNo <$> getEraBlockNo
+    headerHash <- primitiveHash . getEraHeaderHash
+    prevHeaderHash <- primitivePrevHash gp . getEraPrevHeaderHash
     pure $ W.BlockHeader slotNo blockNo headerHash (Just prevHeaderHash)
 
 fromBlockNo :: Num a => BlockNo -> Quantity unit a
@@ -101,44 +100,45 @@ fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
 fromSlotNo :: SlotNo -> O.SlotNo
 fromSlotNo (SlotNo s) = O.SlotNo $ fromIntegral s
 
-primitiveHash :: EraFun HeaderHash (K (W.Hash "BlockHeader"))
-primitiveHash =
-    EraFun
-        { byronFun = \(HeaderHash h) -> K . fromByronHash $ h
-        , shelleyFun = mkHashShelley
-        , allegraFun = mkHashShelley
-        , maryFun = mkHashShelley
-        , alonzoFun = mkHashShelley
-        , babbageFun = mkHashShelley
-        , conwayFun = mkHashShelley
-        }
+primitiveHash :: forall era. IsEra era => HeaderHash era -> W.Hash "BlockHeader"
+primitiveHash = case theEra @era of
+    Byron -> \(HeaderHash h) -> fromByronHash h
+    Shelley -> mkHashShelley
+    Allegra -> mkHashShelley
+    Mary -> mkHashShelley
+    Alonzo -> mkHashShelley
+    Babbage -> mkHashShelley
+    Conway -> mkHashShelley
   where
     mkHashShelley
         :: HeaderHashT era ~ ShelleyHash crypto
         => HeaderHash era
-        -> K (W.Hash "BlockHeader") era
-    mkHashShelley (HeaderHash (ShelleyHash h)) = K . W.Hash . hashToBytes $ h
+        -> W.Hash "BlockHeader"
+    mkHashShelley (HeaderHash (ShelleyHash h)) = W.Hash . hashToBytes $ h
 
 primitivePrevHash
-    :: W.Hash "Genesis"
-    -> EraFun PrevHeaderHash (K (W.Hash "BlockHeader"))
-primitivePrevHash gp =
-    EraFun
-        { byronFun = \(PrevHeaderHash h) -> K . fromChainHash $ h
-        , shelleyFun = mkPrevHashShelley
-        , allegraFun = mkPrevHashShelley
-        , maryFun = mkPrevHashShelley
-        , alonzoFun = mkPrevHashShelley
-        , babbageFun = mkPrevHashShelley
-        , conwayFun = mkPrevHashShelley
-        }
+    :: forall era
+    . IsEra era
+    => W.Hash "Genesis"
+    -> PrevHeaderHash era
+    -> W.Hash "BlockHeader"
+primitivePrevHash gp = case theEra @era of
+        Byron -> \(PrevHeaderHash h) -> fromChainHash h
+        Shelley -> mkPrevHashShelley
+        Allegra -> mkPrevHashShelley
+        Mary -> mkPrevHashShelley
+        Alonzo -> mkPrevHashShelley
+        Babbage -> mkPrevHashShelley
+        Conway -> mkPrevHashShelley
+
   where
     mkPrevHashShelley
         :: (SL.PrevHash StandardCrypto ~ PrevHeaderHashT era)
         => PrevHeaderHash era
-        -> K (W.Hash "BlockHeader") era
-    mkPrevHashShelley (PrevHeaderHash h) = K . fromPrevHash $ h
+        -> W.Hash "BlockHeader"
+    mkPrevHashShelley (PrevHeaderHash h) = fromPrevHash h
     genesisHash = coerce gp :: W.Hash "BlockHeader"
+    fromChainHash :: O.ChainHash ByronBlock -> W.Hash "BlockHeader"
     fromChainHash = \case
         O.GenesisHash -> genesisHash
         O.BlockHash h -> fromByronHash h
