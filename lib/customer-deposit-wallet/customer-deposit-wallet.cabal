@@ -14,6 +14,7 @@ category:           Web
 
 extra-source-files:
   spec/**/*.lagda.md
+  spec/**/*.openapi.yaml
 
 common language
   default-language:
@@ -81,7 +82,7 @@ test-suite unit
     , cardano-wallet:cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , customer-deposit-wallet:customer-deposit-wallet
+    , customer-deposit-wallet
     , hspec >=2.8.2
     , QuickCheck
     , with-utf8
@@ -92,11 +93,24 @@ test-suite unit
 
 library customer-deposit-wallet-http
   import:          language, opts-lib
-  hs-source-dirs:  api/http
+  hs-source-dirs:  http
   build-depends:
-    , customer-deposit-wallet:customer-deposit-wallet
+    , aeson
+    , base
+    , customer-deposit-wallet
+    , memory
+    , servant
+    , servant-server
+    , text
+    , text-class
+    , warp
   exposed-modules:
     Cardano.Wallet.Deposit.HTTP
+    Cardano.Wallet.Deposit.HTTP.Endpoints
+    Cardano.Wallet.Deposit.HTTP.Implementation
+    Cardano.Wallet.Deposit.HTTP.Types.API
+    Cardano.Wallet.Deposit.HTTP.Types.JSON
+    Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
 
 executable customer-deposit-wallet
   import:         language, opts-exe

@@ -1,0 +1,27 @@
+openapi: 3.0.0
+info:
+  title: Cardano.Wallet.Deposit.HTTP.Types.JSON
+  version: ''
+
+components:
+  schemas:
+    Address:
+      type: string
+      format: base16
+    Customer:
+      type: integer
+      minimum: 0
+    CustomerList:
+      type: array
+      items:
+        additionalProperties: false
+        properties:
+          'customer':
+            allOf:
+            - $ref: '#/components/schemas/Customer'
+          'address':
+            allOf:
+            - $ref: '#/components/schemas/Address'
+        required:
+          - 'customer'
+          - 'address'
