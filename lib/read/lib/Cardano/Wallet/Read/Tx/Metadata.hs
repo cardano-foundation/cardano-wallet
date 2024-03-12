@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -38,11 +40,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -71,16 +72,15 @@ newtype Metadata era = Metadata (MetadataType era)
 deriving instance Show (MetadataType era) => Show (Metadata era)
 deriving instance Eq (MetadataType era) => Eq (Metadata era)
 
-getEraMetadata :: EraFun Tx Metadata
-getEraMetadata =
-    EraFun
-        { byronFun = \_ -> Metadata ()
-        , shelleyFun = metadata
-        , allegraFun = metadata
-        , maryFun = metadata
-        , alonzoFun = metadata
-        , babbageFun = metadata
-        , conwayFun = metadata
-        }
+getEraMetadata :: forall era . IsEra era => Tx era -> Metadata era
+getEraMetadata = case theEra @era of
+    Byron -> \_ -> Metadata ()
+    Shelley -> metadata
+    Allegra -> metadata
+    Mary -> metadata
+    Alonzo -> metadata
+    Babbage -> metadata
+    Conway -> metadata
+
   where
     metadata = onTx $ Metadata . view auxDataTxL

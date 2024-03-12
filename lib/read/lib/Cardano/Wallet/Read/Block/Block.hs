@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -28,9 +30,8 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
-    , EraFun (..)
     , EraValue
-    , K (..)
+    , IsEra
     , Mary
     , Shelley
     , allegra
@@ -49,6 +50,10 @@ import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
 
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
+    )
 import qualified Ouroboros.Consensus.Byron.Ledger as O
 import qualified Ouroboros.Consensus.Cardano.Block as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
@@ -91,14 +96,12 @@ fromConsensusBlock = \case
     O.BlockBabbage block -> inject babbage $ Block block
     O.BlockConway block -> inject conway $ Block block
 
-toConsensusBlock :: EraFun Block (K ConsensusBlock)
-toConsensusBlock =
-    EraFun
-        { byronFun = K . O.BlockByron . unBlock
-        , shelleyFun = K . O.BlockShelley . unBlock
-        , allegraFun = K . O.BlockAllegra . unBlock
-        , maryFun = K . O.BlockMary . unBlock
-        , alonzoFun = K . O.BlockAlonzo . unBlock
-        , babbageFun = K . O.BlockBabbage . unBlock
-        , conwayFun = K . O.BlockConway . unBlock
-        }
+toConsensusBlock :: forall era . IsEra era => Block era -> ConsensusBlock
+toConsensusBlock = case theEra @era of
+    Byron -> O.BlockByron . unBlock
+    Shelley -> O.BlockShelley . unBlock
+    Allegra -> O.BlockAllegra . unBlock
+    Mary -> O.BlockMary . unBlock
+    Alonzo -> O.BlockAlonzo . unBlock
+    Babbage -> O.BlockBabbage . unBlock
+    Conway -> O.BlockConway . unBlock

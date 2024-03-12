@@ -10,7 +10,7 @@ import Prelude
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     , parseTxFromCBOR
-    , serializeTx
+    , renderTxToCBOR
     )
 import Data.ByteArray.Encoding
     ( Base (..)
@@ -40,7 +40,6 @@ import Cardano.Wallet.Read.Eras
     , MkEraValue
     , allegra
     , alonzo
-    , applyEraFun
     , babbage
     , byron
     , inject
@@ -68,8 +67,7 @@ spec = describe "Cardano.Wallet.Read.Tx.CBOR" $ do
             property $ prop_roundtrip babbageTx
 
 prop_roundtrip :: TxCBOR -> Property
-prop_roundtrip tx =
-    (applyEraFun serializeTx <$> parseTxFromCBOR tx) === Right tx
+prop_roundtrip tx = (renderTxToCBOR <$> parseTxFromCBOR tx) === Right tx
 
 alonzoTx :: TxCBOR
 alonzoTx = mkTxCBOR alonzo

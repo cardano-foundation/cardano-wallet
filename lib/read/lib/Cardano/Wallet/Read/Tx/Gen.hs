@@ -1,9 +1,14 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.Read.Tx.Gen where
 
 import Prelude
 
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
+import Cardano.Wallet.Read.Eras
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -32,21 +37,15 @@ import Cardano.Wallet.Read.Tx.Gen.Shelley
 import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( TxParameters
     )
-import Generics.SOP
-    ( K
-    , unK
-    )
 
-mkTxEra :: EraFun (K TxParameters) Tx
-mkTxEra =
-    EraFun
-        { byronFun = g mkByronTx
-        , shelleyFun = g mkShelleyTx
-        , allegraFun = g mkAllegraTx
-        , maryFun = g mkMaryTx
-        , alonzoFun = g mkAlonzoTx
-        , babbageFun = g mkBabbageTx
-        , conwayFun = g mkConwayTx
-        }
+mkTxEra :: forall era. IsEra era => TxParameters -> Tx era
+mkTxEra = case theEra @era of
+    Byron -> g mkByronTx
+    Shelley -> g mkShelleyTx
+    Allegra -> g mkAllegraTx
+    Mary -> g mkMaryTx
+    Alonzo -> g mkAlonzoTx
+    Babbage -> g mkBabbageTx
+    Conway -> g mkConwayTx
   where
-    g f = Tx . f . unK
+    g f = Tx . f

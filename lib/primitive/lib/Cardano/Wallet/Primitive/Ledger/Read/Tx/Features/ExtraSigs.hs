@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -26,8 +28,8 @@ import Cardano.Ledger.Keys
     , KeyRole (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.ExtraSigs
     ( ExtraSigs (..)
@@ -47,19 +49,18 @@ import Data.Set
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
-extraSigs :: EraFun ExtraSigs (K [W.Hash "ExtraSignature"])
-extraSigs = EraFun
-    { byronFun = noExtraSigs
-    , shelleyFun = noExtraSigs
-    , allegraFun = noExtraSigs
-    , maryFun = noExtraSigs
-    , alonzoFun = yesExtraSigs
-    , babbageFun = yesExtraSigs
-    , conwayFun = yesExtraSigs
-    }
-    where
-        noExtraSigs = const $ K []
-        yesExtraSigs (ExtraSigs es) = K $ getExtraSigs es
+extraSigs :: forall era. IsEra era => ExtraSigs era -> [W.Hash "ExtraSignature"]
+extraSigs = case theEra @era of
+    Byron -> noExtraSigs
+    Shelley -> noExtraSigs
+    Allegra -> noExtraSigs
+    Mary -> noExtraSigs
+    Alonzo -> yesExtraSigs
+    Babbage -> yesExtraSigs
+    Conway -> yesExtraSigs
+  where
+    noExtraSigs = const []
+    yesExtraSigs (ExtraSigs es) = getExtraSigs es
 
 getExtraSigs
     :: Set (KeyHash 'Witness StandardCrypto)

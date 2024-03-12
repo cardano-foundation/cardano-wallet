@@ -38,21 +38,22 @@ module Cardano.Wallet.Read.Eras
   , project
   -- * Specials.
   , sequenceEraValue
-  -- * Era bounded functions.
-  , EraFun (..)
+  -- * Era polymorphic functions.
   -- * Applying era functions.
   , applyEraFun
+  , applyEraFunValue
   -- * Reexports from elsewhere.
   , (:.:)(..)
   , K (..)
   ,  unK
   , (:*:)(..)
+  , unComp
   )
   where
 
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
-    , applyEraFun
+    ( applyEraFun
+    , applyEraFunValue
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
@@ -86,6 +87,7 @@ import Cardano.Wallet.Read.Eras.KnownEras
     )
 import Generics.SOP
     ( K (..)
+    , unComp
     , unK
     , (:.:) (..)
     )

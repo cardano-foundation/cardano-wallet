@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -35,8 +37,8 @@ import Cardano.Ledger.Shelley.TxAuxData
     , ShelleyTxAuxData (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.Metadata
     ( Metadata (..)
@@ -60,20 +62,18 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Shelley as CardanoAPI
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 
-getMetadata :: EraFun Metadata (K (Maybe (W.TxMetadata)))
-getMetadata =
-    EraFun
-        { byronFun = noMetadatas
-        , shelleyFun = yesMetadata fromShelleyMetadata
-        , allegraFun = yesMetadata fromAllegraMetadata
-        , maryFun = yesMetadata fromMaryMetadata
-        , alonzoFun = yesMetadata fromAlonzoMetadata
-        , babbageFun = yesMetadata fromBabbageMetadata
-        , conwayFun = yesMetadata fromConwayMetadata
-        }
+getMetadata :: forall era . IsEra era => Metadata era -> Maybe W.TxMetadata
+getMetadata = case theEra @era of
+    Byron -> noMetadatas
+    Shelley -> yesMetadata fromShelleyMetadata
+    Allegra -> yesMetadata fromAllegraMetadata
+    Mary -> yesMetadata fromMaryMetadata
+    Alonzo -> yesMetadata fromAlonzoMetadata
+    Babbage -> yesMetadata fromBabbageMetadata
+    Conway -> yesMetadata fromConwayMetadata
   where
-    noMetadatas _ = K Nothing
-    yesMetadata f (Metadata s) = K . fmap f $ strictMaybeToMaybe s
+    noMetadatas _ = Nothing
+    yesMetadata f (Metadata s) = f <$> strictMaybeToMaybe s
 
 fromShelleyMetadata :: ShelleyTxAuxData StandardShelley -> W.TxMetadata
 fromShelleyMetadata (ShelleyTxAuxData md) = fromMetadata md

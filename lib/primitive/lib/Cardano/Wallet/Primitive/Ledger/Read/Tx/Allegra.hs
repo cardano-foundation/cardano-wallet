@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -119,7 +120,7 @@ fromAllegraTx
        )
 fromAllegraTx tx =
     ( fromAllegraTx' tx
-    , Read.unK . Read.allegraFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Allegra $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

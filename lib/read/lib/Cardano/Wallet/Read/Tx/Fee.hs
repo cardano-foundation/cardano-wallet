@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -34,11 +36,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -65,16 +66,14 @@ deriving instance Show (FeeType era) => Show (Fee era)
 deriving instance Eq (FeeType era) => Eq (Fee era)
 
 -- | Extract fee from 'Tx' in all available eras.
-getEraFee :: EraFun Tx Fee
-getEraFee =
-    EraFun
-        { byronFun = onTx $ \_ -> Fee ()
-        , shelleyFun = mkFee
-        , allegraFun = mkFee
-        , maryFun = mkFee
-        , alonzoFun = mkFee
-        , babbageFun = mkFee
-        , conwayFun = mkFee
-        }
+getEraFee :: forall era. IsEra era => Tx era -> Fee era
+getEraFee = case theEra @era of
+    Byron -> onTx $ \_ -> Fee ()
+    Shelley -> mkFee
+    Allegra -> mkFee
+    Mary -> mkFee
+    Alonzo -> mkFee
+    Babbage -> mkFee
+    Conway -> mkFee
   where
     mkFee = onTx $ \tx -> Fee $ tx ^. bodyTxL . feeTxBodyL

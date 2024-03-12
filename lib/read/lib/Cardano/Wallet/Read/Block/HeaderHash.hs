@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -22,8 +24,7 @@ import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
 import Cardano.Ledger.Era
-    ( Era
-    , EraSegWits (..)
+    ( EraSegWits (..)
     )
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash
@@ -37,11 +38,13 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , IsEra
     , Mary
     , Shelley
     )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
     )
 import Ouroboros.Consensus.Block.Abstract
     ( headerPrevHash
@@ -61,6 +64,7 @@ import Ouroboros.Consensus.Shelley.Protocol.Praos
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
     ()
 
+import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Shelley.API as Shelley
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Shelley
@@ -79,22 +83,20 @@ type family HeaderHashT era where
 -- | Era-specific header hash type from the ledger
 newtype HeaderHash era = HeaderHash (HeaderHashT era)
 
-getEraHeaderHash :: EraFun Block HeaderHash
-getEraHeaderHash =
-    EraFun
-        { byronFun = \(Block block) -> HeaderHash $ O.blockHash block
-        , shelleyFun = \(Block block) -> HeaderHash $ getHeaderHashShelley block
-        , allegraFun = \(Block block) -> HeaderHash $ getHeaderHashShelley block
-        , maryFun = \(Block block) -> HeaderHash $ getHeaderHashShelley block
-        , alonzoFun = \(Block block) -> HeaderHash $ getHeaderHashShelley block
-        , babbageFun = \(Block block) -> HeaderHash $ getHeaderHashShelley block
-        , conwayFun = \(Block block) -> HeaderHash $ getHeaderHashShelley block
-        }
+getEraHeaderHash :: forall era . IsEra era => Block era -> HeaderHash era
+getEraHeaderHash = case theEra @era of
+    Byron -> \(Block block) -> HeaderHash $ O.blockHash block
+    Shelley -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
+    Allegra -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
+    Mary -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
+    Alonzo -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
+    Babbage -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
+    Conway -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
 
 getHeaderHashShelley
     :: ( ProtoCrypto (praos StandardCrypto) ~ StandardCrypto
        , Shelley.ProtocolHeaderSupportsEnvelope (praos StandardCrypto)
-       , Era era
+       , L.Era era
        , EncCBORGroup (TxSeq era)
        , EncCBOR (Shelley.ShelleyProtocolHeader (praos StandardCrypto))
        )
@@ -117,7 +119,7 @@ type family PrevHeaderHashT era where
 newtype PrevHeaderHash era = PrevHeaderHash (PrevHeaderHashT era)
 
 getPrevHeaderHashShelley
-    :: ( Era era
+    :: ( L.Era era
        , EncCBORGroup (TxSeq era)
        , EncCBOR (Shelley.ShelleyProtocolHeader proto)
        , Shelley.ProtocolHeaderSupportsEnvelope proto
@@ -127,21 +129,12 @@ getPrevHeaderHashShelley
 getPrevHeaderHashShelley (O.ShelleyBlock (Shelley.Block header _) _) =
     Shelley.pHeaderPrevHash header
 
-getEraPrevHeaderHash :: EraFun Block PrevHeaderHash
-getEraPrevHeaderHash =
-    EraFun
-        { byronFun = \(Block block) ->
-            PrevHeaderHash $ headerPrevHash $ O.getHeader block
-        , shelleyFun = \(Block block) ->
-            PrevHeaderHash $ getPrevHeaderHashShelley block
-        , allegraFun = \(Block block) ->
-            PrevHeaderHash $ getPrevHeaderHashShelley block
-        , maryFun = \(Block block) ->
-            PrevHeaderHash $ getPrevHeaderHashShelley block
-        , alonzoFun = \(Block block) ->
-            PrevHeaderHash $ getPrevHeaderHashShelley block
-        , babbageFun = \(Block block) ->
-            PrevHeaderHash $ getPrevHeaderHashShelley block
-        , conwayFun = \(Block block) ->
-            PrevHeaderHash $ getPrevHeaderHashShelley block
-        }
+getEraPrevHeaderHash :: forall era . IsEra era => Block era -> PrevHeaderHash era
+getEraPrevHeaderHash = case theEra @era of
+    Byron -> \(Block block) -> PrevHeaderHash $ headerPrevHash $ O.getHeader block
+    Shelley -> \(Block block) -> PrevHeaderHash $ getPrevHeaderHashShelley block
+    Allegra -> \(Block block) -> PrevHeaderHash $ getPrevHeaderHashShelley block
+    Mary -> \(Block block) -> PrevHeaderHash $ getPrevHeaderHashShelley block
+    Alonzo -> \(Block block) -> PrevHeaderHash $ getPrevHeaderHashShelley block
+    Babbage -> \(Block block) -> PrevHeaderHash $ getPrevHeaderHashShelley block
+    Conway -> \(Block block) -> PrevHeaderHash $ getPrevHeaderHashShelley block

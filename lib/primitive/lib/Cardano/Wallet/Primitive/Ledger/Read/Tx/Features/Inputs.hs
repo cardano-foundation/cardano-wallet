@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -15,8 +17,8 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
@@ -42,23 +44,22 @@ import qualified Cardano.Ledger.TxIn as SL
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 
-getInputs :: EraFun Inputs (K [W.TxIn])
-getInputs = EraFun
-    { byronFun = \(Inputs ins) -> K . fmap fromByronTxIn $ toList ins
-    , shelleyFun = mkShelleyTxInputsIns
-    , allegraFun = mkShelleyTxInputsIns
-    , maryFun = mkShelleyTxInputsIns
-    , alonzoFun = mkShelleyTxInputsIns
-    , babbageFun = mkShelleyTxInputsIns
-    , conwayFun = mkShelleyTxInputsIns
-    }
+getInputs :: forall era. IsEra era => Inputs era -> [W.TxIn]
+getInputs = case theEra @era of
+    Byron -> \(Inputs ins) -> fromByronTxIn <$> toList ins
+    Shelley -> mkShelleyTxInputsIns
+    Allegra -> mkShelleyTxInputsIns
+    Mary -> mkShelleyTxInputsIns
+    Alonzo -> mkShelleyTxInputsIns
+    Babbage -> mkShelleyTxInputsIns
+    Conway -> mkShelleyTxInputsIns
 
-fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> K [W.TxIn] b
-fromShelleyTxIns ins = K . fmap fromShelleyTxIn $ toList ins
+fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> [W.TxIn]
+fromShelleyTxIns ins = fromShelleyTxIn <$> toList ins
 
 mkShelleyTxInputsIns :: (Foldable t, InputsType era ~ t (SH.TxIn crypto))
     => Inputs era -- ^
-  -> K [W.TxIn] b
+  -> [W.TxIn]
 mkShelleyTxInputsIns (Inputs ins) = fromShelleyTxIns ins
 
 fromByronTxIn :: BY.TxIn -> W.TxIn

@@ -6,6 +6,7 @@
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# LANGUAGE GADTs #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
@@ -41,13 +42,18 @@ import Cardano.Ledger.Binary.Decoding
     , shelleyProtVer
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , EraValue
+    ( EraValue
+    , IsEra
     , K (..)
-    , applyEraFun
+    , applyEraFunValue
     , extractEraValue
     , sequenceEraValue
+    , unK
     , (:.:) (..)
+    )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -93,42 +99,41 @@ instance ToText TxCBOR
 
 -- | Render a tx into its cbor, it just applies 'serializeTx'.
 renderTxToCBOR :: EraValue Tx -> EraValue (K BL.ByteString)
-renderTxToCBOR = applyEraFun serializeTx
+renderTxToCBOR = applyEraFunValue serializeTx
 
 -- | CBOR serialization of a tx in any era.
-serializeTx :: EraFun Tx (K BL.ByteString)
-serializeTx = EraFun
-    { byronFun = f byronProtVer
-    , shelleyFun = f (eraProtVerLow @StandardShelley)
-    , allegraFun = f (eraProtVerLow @StandardAllegra)
-    , maryFun = f (eraProtVerLow @StandardMary)
-    , alonzoFun = f (eraProtVerLow @StandardAlonzo)
-    , babbageFun = f (eraProtVerLow @StandardBabbage)
-    , conwayFun = f (eraProtVerLow @StandardConway)
-    }
+serializeTx :: forall era . IsEra era => Tx era -> K BL.ByteString era
+serializeTx = case theEra @era of
+    Byron -> f byronProtVer
+    Shelley -> f (eraProtVerLow @StandardShelley)
+    Allegra -> f (eraProtVerLow @StandardAllegra)
+    Mary -> f (eraProtVerLow @StandardMary)
+    Alonzo -> f (eraProtVerLow @StandardAlonzo)
+    Babbage -> f (eraProtVerLow @StandardBabbage)
+    Conway -> f (eraProtVerLow @StandardConway)
+
   where
-    f :: EncCBOR (TxT era) => Ledger.Version -> Tx era -> K BL.ByteString  era
+    f :: EncCBOR (TxT era) => Ledger.Version -> Tx era -> K BL.ByteString era
     f protVer = K . Ledger.serialize protVer . unTx
 
 -- | Parse CBOR into a transaction in any eras
 -- , smart application  of `deserializeTx`.
 parseTxFromCBOR :: TxCBOR -> Either DecoderError (EraValue Tx)
-parseTxFromCBOR = sequenceEraValue . applyEraFun deserializeTx
+parseTxFromCBOR = sequenceEraValue
+    . applyEraFunValue deserializeTx
 
 -- | CBOR deserialization of a tx in any era.
-deserializeTx :: EraFun (K BL.ByteString) (Either DecoderError :.: Tx)
-deserializeTx =
-    EraFun
-        { byronFun = \(K txCBOR) ->
-            Comp $ Tx <$> decodeFull byronProtVer txCBOR
-        , shelleyFun = decodeTx shelleyProtVer "ShelleyTx"
-        , allegraFun = decodeTx (eraProtVerLow @StandardAllegra) "AllegraTx"
-        , maryFun = decodeTx (eraProtVerLow @StandardMary) "MaryTx"
-        , alonzoFun = decodeTx (eraProtVerLow @StandardAlonzo) "AlonzoTx"
-        , babbageFun = decodeTx (eraProtVerLow @StandardBabbage) "BabbageTx"
-        , conwayFun = decodeTx (eraProtVerLow @StandardConway) "ConwayTx"
-        }
-  where
+deserializeTx :: forall era . IsEra era => K BL.ByteString era -> (Either DecoderError :.: Tx) era
+deserializeTx = case theEra @era of
+    Byron -> \txCBOR ->
+        Comp $ Tx <$> decodeFull byronProtVer (unK txCBOR)
+    Shelley -> decodeTx shelleyProtVer "ShelleyTx"
+    Allegra -> decodeTx (eraProtVerLow @StandardAllegra) "AllegraTx"
+    Mary -> decodeTx (eraProtVerLow @StandardMary) "MaryTx"
+    Alonzo -> decodeTx (eraProtVerLow @StandardAlonzo) "AlonzoTx"
+    Babbage -> decodeTx (eraProtVerLow @StandardBabbage) "BabbageTx"
+    Conway -> decodeTx (eraProtVerLow @StandardConway) "ConwayTx"
+    where
     decodeTx protVer label (K txCBOR) =
         Comp $ Tx <$> decodeFullAnnotator protVer label decCBOR txCBOR
 

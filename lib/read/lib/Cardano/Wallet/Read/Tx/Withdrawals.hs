@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -42,11 +44,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -82,17 +83,15 @@ deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
 deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 
 -- | Extract withdrawals from tx for any available era.
-getEraWithdrawals :: EraFun Tx Withdrawals
-getEraWithdrawals =
-    EraFun
-        { byronFun = \_ -> Withdrawals ()
-        , shelleyFun = withdrawals
-        , allegraFun = withdrawals
-        , maryFun = withdrawals
-        , alonzoFun = withdrawals
-        , babbageFun = withdrawals
-        , conwayFun = withdrawals
-        }
+getEraWithdrawals :: forall era . IsEra era => Tx era -> Withdrawals era
+getEraWithdrawals = case theEra @era of
+    Byron -> \_ -> Withdrawals ()
+    Shelley -> withdrawals
+    Allegra -> withdrawals
+    Mary -> withdrawals
+    Alonzo -> withdrawals
+    Babbage -> withdrawals
+    Conway -> withdrawals
   where
     withdrawals = onTx $ Withdrawals . shelleyWithdrawals
 

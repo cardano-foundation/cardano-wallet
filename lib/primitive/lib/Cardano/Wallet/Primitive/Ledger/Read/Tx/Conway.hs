@@ -140,7 +140,7 @@ fromConwayTx
        )
 fromConwayTx tx witCtx =
     ( tx'
-    , Read.unK . Read.conwayFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Conway $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

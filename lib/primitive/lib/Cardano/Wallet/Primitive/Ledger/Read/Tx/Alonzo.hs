@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -103,7 +104,7 @@ fromAlonzoTx
        )
 fromAlonzoTx tx witCtx =
     ( fromAlonzoTx' tx
-    , Read.unK . Read.alonzoFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Alonzo $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL

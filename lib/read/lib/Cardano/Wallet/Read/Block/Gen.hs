@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Read.Block.Gen
@@ -27,22 +29,21 @@ import Cardano.Wallet.Read.Block.Gen.Shelley
     ( mkShelleyBlock
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Control.Category
     ( (.)
     )
 
-mkBlockEra :: EraFun BlockParameters Block
-mkBlockEra =
-    EraFun
-        { byronFun = g mkByronBlock
-        , shelleyFun = g $ mkShelleyBlock (natVersion @2)
-        , allegraFun = g $ mkShelleyBlock (natVersion @3)
-        , maryFun = g $ mkShelleyBlock (natVersion @4)
-        , alonzoFun = g $ mkShelleyBlock (natVersion @6)
-        , babbageFun = g $ mkBabbageBlock (natVersion @7)
-        , conwayFun = g $ mkBabbageBlock (natVersion @8)
-        }
+mkBlockEra :: forall era . IsEra era => BlockParameters era -> Block era
+mkBlockEra = case theEra @era of
+    Byron -> g mkByronBlock
+    Shelley -> g $ mkShelleyBlock (natVersion @2)
+    Allegra -> g $ mkShelleyBlock (natVersion @3)
+    Mary -> g $ mkShelleyBlock (natVersion @4)
+    Alonzo -> g $ mkShelleyBlock (natVersion @6)
+    Babbage -> g $ mkBabbageBlock (natVersion @7)
+    Conway -> g $ mkBabbageBlock (natVersion @8)
   where
     g f = Block . f

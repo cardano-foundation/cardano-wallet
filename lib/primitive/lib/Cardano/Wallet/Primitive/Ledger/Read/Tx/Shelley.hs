@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -131,7 +132,7 @@ fromShelleyTx
        )
 fromShelleyTx tx =
     ( fromShelleyTx' tx
-    , Read.unK . Read.shelleyFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Shelley $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL
