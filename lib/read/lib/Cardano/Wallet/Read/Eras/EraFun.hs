@@ -4,7 +4,6 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -35,21 +34,6 @@ import Cardano.Wallet.Read.Eras.EraValue
 import Cardano.Wallet.Read.Eras.KnownEras
     ( IsEra (..)
     )
-import Control.Category
-    ( Category (..)
-    )
-import Generics.SOP
-    ( K (..)
-    , Proxy (..)
-    , type (-.->) (..)
-    )
-import Generics.SOP.NP
-    ( cpure_NP
-    )
-import Generics.SOP.NS
-    ( ap_NS
-    , collapse_NS
-    )
 import Prelude hiding
     ( id
     , (.)
@@ -57,12 +41,10 @@ import Prelude hiding
 
 -- | Apply an 'EraFun' to an 'EraValue'.
 applyEraFun :: (forall era. IsEra era => f era -> g) -> EraValue f -> g
-applyEraFun f (EraValue v) =
-    collapse_NS $ ap_NS (cpure_NP (Proxy @IsEra) $ Fn (K . f)) v
+applyEraFun f (EraValue x) = f x
 
 applyEraFunValue
     :: (forall era. IsEra era => f era -> g era)
     -> EraValue f
     -> EraValue g
-applyEraFunValue f (EraValue v) =
-    EraValue $ ap_NS (cpure_NP (Proxy @IsEra) $ Fn f) v
+applyEraFunValue f (EraValue x) = EraValue (f x)

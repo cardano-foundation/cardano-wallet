@@ -71,6 +71,9 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
     )
+import Cardano.Wallet.Read.Eras
+    ( eraValue
+    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
     )
@@ -150,7 +153,7 @@ fromShelleyTx' tx =
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ Read.inject Read.shelley $ Read.Tx tx
+            Just $ renderTxToCBOR $ eraValue @Shelley  $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =
