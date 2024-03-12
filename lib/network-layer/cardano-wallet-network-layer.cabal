@@ -55,6 +55,7 @@ library
     Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation
+    Cardano.Wallet.Network.RestorationMode
 
   -- other-modules:
   -- other-extensions:
@@ -70,6 +71,7 @@ library
     , cardano-slotting
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cborg
     , containers
     , contra-tracer

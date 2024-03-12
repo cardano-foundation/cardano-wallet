@@ -154,7 +154,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet create)" $ \_ -> do
-        let args = ["wallet", "create", "from-recovery-phrase", "myWallet"]
+        let args = ["wallet", "create", "from-recovery-phrase", "from-genesis", "myWallet"]
         Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
         let pwd = "Secure passphrase"
         let process = proc' commandName args

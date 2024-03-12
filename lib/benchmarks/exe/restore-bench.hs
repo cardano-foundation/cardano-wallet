@@ -67,7 +67,8 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     )
 import Cardano.Wallet
-    ( WalletLayer (..)
+    ( InitialState (..)
+    , WalletLayer (..)
     , WalletWorkerLog (..)
     , dummyChangeAddressGen
     )
@@ -156,6 +157,9 @@ import Cardano.Wallet.Network.Implementation
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( PipeliningStrategy
     , tunedForMainnetPipeliningStrategy
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Block
     ( fromCardanoBlock
@@ -846,7 +850,9 @@ bench_restoration
             let ti = neverFails "bench db shouldn't forecast into future"
                     $ timeInterpreter nw
             let gps = (emptyGenesis gp, np)
-            withBenchDBLayer @s wlTr ti wid wname gps s
+                initialState
+                    = InitialState s (emptyGenesis gp) RestorationPointAtGenesis
+            withBenchDBLayer @s wlTr ti wid wname np initialState
                 $ \db -> withWalletLayerTracer
                     benchname pipeliningStrat traceToDisk
                 $ \progressTrace -> do
@@ -955,13 +961,13 @@ withBenchDBLayer
     -> TimeInterpreter IO
     -> WalletId
     -> WalletName
-    -> (Block, NetworkParameters)
-    -> s
+    -> NetworkParameters
+    -> InitialState s
     -> (DBLayer IO s -> IO a)
     -> IO a
-withBenchDBLayer tr ti wid wname gps s action =
+withBenchDBLayer tr ti wid wname np initialState action =
     withTempSqliteFile $ \dbFile -> do
-        params <- W.createWallet gps wid wname s
+        params <- W.createWallet np wid wname initialState
         withBootDBLayerFromFile
             (walletFlavor @s)
             tr'

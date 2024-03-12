@@ -373,6 +373,9 @@ import Cardano.Wallet.Api.Types.MintBurn
     , ApiTokenAmountFingerprint (..)
     , ApiTokens (..)
     )
+import Cardano.Wallet.Api.Types.RestorationMode
+    ( ApiRestorationMode
+    )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataWithSchema
     )
@@ -1068,6 +1071,7 @@ data WalletPostData = WalletPostData
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "user"))
     , oneChangeAddressMode :: !(Maybe Bool)
+    , restorationMode :: Maybe ApiRestorationMode
     }
     deriving (FromJSON, ToJSON) via DefaultRecord WalletPostData
     deriving (Eq, Generic, Show)

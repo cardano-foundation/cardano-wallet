@@ -323,6 +323,9 @@ import Network.HTTP.Client
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..)
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationMode (..)
+    )
 import GHC.Num
     ( Natural
     )
@@ -342,11 +345,14 @@ import "optparse-applicative" Options.Applicative
     , eitherReader
     , flag
     , flag'
+    , footer
+    , footerDoc
     , header
     , help
     , helpDoc
     , helper
     , hidden
+    , hsubparser
     , info
     , long
     , metavar
@@ -362,7 +368,8 @@ import "optparse-applicative" Options.Applicative
     , value
     )
 import "optparse-applicative" Options.Applicative.Help.Pretty
-    ( vsep
+    ( indent
+    , vsep
     )
 import "optparse-applicative" Options.Applicative.Types
     ( ReadM (..)
@@ -631,20 +638,22 @@ data WalletCreateArgs = WalletCreateArgs
     { _port :: Port "Wallet"
     , _name :: WalletName
     , _gap :: AddressPoolGap
+    , _restorationMode :: RestorationMode
     }
 
 cmdWalletCreateFromMnemonic
     :: WalletClient ApiWallet
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromMnemonic mkClient =
-    command "from-recovery-phrase" $ info (helper <*> cmd) $ mempty
-        <> progDesc "Create a new wallet using a recovery phrase."
+     command "from-recovery-phrase"
+        $ info (fmap exec $ helper <*> restorationModeOption cmd)
+        $ progDesc "Create a new wallet using a recovery phrase."
   where
-    cmd = fmap exec $ WalletCreateArgs
+    cmd =  WalletCreateArgs
         <$> portOption
         <*> walletNameArgument
         <*> poolGapOption
-    exec (WalletCreateArgs wPort wName wGap) = do
+    exec (WalletCreateArgs wPort wName wGap rm) = do
         (wSeed, wSndFactor) <- getMnemonics
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
@@ -655,6 +664,56 @@ cmdWalletCreateFromMnemonic mkClient =
                 (ApiT wName)
                 (ApiT wPwd)
                 Nothing
+                (Just $ ApiT rm)
+
+restorationModeOption :: Parser (RestorationMode -> a) -> Parser a
+restorationModeOption f =
+    hsubparser
+        $ fromGenesisCmd <> fromCheckpointCmd <> fromTipCmd
+  where
+    fromGenesisCmd =
+        command "from-genesis"
+            $ info (f <*> pure RestoreFromGenesis)
+            $ progDesc "Restore the wallet from genesis."
+            <> header "Restoration from genesis (full restoration)"
+            <> footer "This is the way to restore the wallet from the very beginning."
+    fromTipCmd =
+        command "from-tip"
+            $ info (f <*> pure RestoreFromTip)
+            $ progDesc "Restore the wallet from the tip."
+            <> header "Restoration from tip (no restoration)"
+            <> footer "This is the way to not restore the wallet"
+    fromCheckpointCmd =
+        command "from-checkpoint"
+            $ info (f <*> fromCheckpointP)
+            $ progDesc "Restore the wallet from a specific checkpoint."
+            <> header "Restoration from checkpoint (partial restoration)"
+            <> footerDoc (Just fromCheckpointCmdFooter)
+
+    fromCheckpointCmdFooter = vsep [
+        "This is the way to restore the wallet from a specific checkpoint."
+        , "It will create a partial view of the wallet if the wallet has \
+            \transactions before the checkpoint!"
+        , "You will need a blockheader hash and a slot number to restore from."
+        , "Example:"
+        , indent 2 "cardano-wallet wallet create from-recovery-passphrase \
+            \from-checkpoint \
+            \--block-header-hash 95af5a1da7d43571d030c92ba82728d69c86c82007cff6ee3c8b2442ab148723 \
+            \--slot-no 118332737 \
+            \'My wallet'"
+        ]
+    fromCheckpointP = do
+        blockHash <-
+            option auto
+                $ long "block-header-hash"
+                    <> metavar "BLOCKHEADERHASH"
+                    <> help "The block hash to restore from."
+        slotNo <-
+            option auto
+                $ long "slot-no"
+                    <> metavar "SLOTNO"
+                    <> help "The slot number to restore from."
+        pure $ RestoreFromBlock blockHash slotNo
 
 -- | Arguments for 'wallet create from-public-key' command
 data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs

@@ -66,6 +66,7 @@ module Cardano.Wallet
 
     -- * Interface
     -- ** Wallet
+    , InitialState (..)
     , createWallet
     , createIcarusWallet
     , attachPrivateKeyFromPwd
@@ -430,6 +431,9 @@ import Cardano.Wallet.Network
     , ChainFollower (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toLedgerAddress
@@ -997,32 +1001,43 @@ onWalletState ctx update' = db & \DBLayer{..} ->
                                    Wallet
 -------------------------------------------------------------------------------}
 
+data InitialState s
+    = InitialState
+        { initialState :: s
+        , genesisBlock :: Block
+        , restorationPoint :: RestorationPoint
+        }
+
 -- | Create initial 'DBLayerParams' for the given wallet.
 createWallet
     :: forall s
      . ( IsOurs s Address
        , IsOurs s RewardAccount
+       , AddressBookIso s
        )
-    => (Block, NetworkParameters)
+    => NetworkParameters
     -> WalletId
     -> WalletName
-    -> s
+    -> InitialState s
     -> IO (DBLayerParams s)
 createWallet
-    (block0, NetworkParameters gp _sp _pp)
+    (NetworkParameters gp _sp _pp)
     _wid
     wname
-    s =
-        do
-            let (hist, cp) = initWallet block0 s
-            now <- getCurrentTime
-            let meta =
-                    WalletMetadata
-                        { name = wname
-                        , creationTime = now
-                        , passphraseInfo = Nothing
-                        }
-            pure $ DBLayerParams cp meta hist gp
+    InitialState {initialState, genesisBlock, restorationPoint} = do
+        let (hist, stateAtGenesis) = initWallet genesisBlock initialState
+        now <- getCurrentTime
+        let meta =
+                WalletMetadata
+                    { name = wname
+                    , creationTime = now
+                    , passphraseInfo = Nothing
+                    }
+        pure $ DBLayerParams stateAtGenesis restorationPoint meta hist gp
+
+-- \^ we probably want to pass blockheader here
+-- and not mix the concern of computing
+-- the additional checkpoint
 
 -- | Create initial 'DBLayerParams' for a new legacy Icarus wallet
 --
@@ -1060,7 +1075,7 @@ createIcarusWallet
                     , creationTime = now
                     , passphraseInfo = Nothing
                     }
-        pure $ DBLayerParams cp meta hist gp
+        pure $ DBLayerParams cp RestorationPointAtGenesis meta hist gp
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity :: DBLayer IO s -> GenesisParameters -> IO ()

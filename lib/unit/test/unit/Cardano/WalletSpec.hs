@@ -38,6 +38,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet
     ( ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
+    , InitialState (..)
     , LocalTxSubmissionConfig (..)
     , SelectionWithoutChange
     , WalletLayer (..)
@@ -108,6 +109,9 @@ import Cardano.Wallet.Gen
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (Mainnet)
@@ -1342,8 +1346,9 @@ setupFixture
     -> (WalletId, WalletName, s)
     -> m (WalletLayerFixture s m)
 setupFixture wF (wid,wname,wstate) = do
+    let initialState  = InitialState wstate block0 RestorationPointAtGenesis
     params <- liftIO
-        $ W.createWallet (block0, dummyNetworkParameters) wid wname wstate
+        $ W.createWallet dummyNetworkParameters wid wname initialState
     (_kill, db) <- liftIO
         $ newBootDBLayerInMemory wF
             nullTracer

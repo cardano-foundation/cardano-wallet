@@ -5,6 +5,9 @@ module Test.Integration.Framework.Context
     ( Context (..)
     , PoolGarbageCollectionEvent (..)
     , TxDescription (..)
+    , clientEnv
+    , runClientRequest
+    , runPartialClientRequest
     ) where
 
 import Prelude
@@ -35,6 +38,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Transaction
     ( DelegationAction
     )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
 import Data.IORef
     ( IORef
     )
@@ -49,6 +55,14 @@ import Network.HTTP.Client
     )
 import Network.URI
     ( URI
+    )
+import Servant.Client
+    ( ClientEnv
+    , ClientError
+    , ClientM
+    , mkClientEnv
+    , parseBaseUrl
+    , runClientM
     )
 
 -- | Context for integration tests.
@@ -114,3 +128,19 @@ data TxDescription
             :: Int
         }
     deriving Show
+
+-- one day we will export the manager from the context
+clientEnv :: Context -> ClientEnv
+clientEnv ctx = case parseBaseUrl $ show (fst $ _manager ctx) of
+    Left _ -> error "Invalid base URL"
+    Right bu -> mkClientEnv (snd $ _manager ctx) bu
+
+runClientRequest :: MonadIO m => Context -> ClientM a -> m (Either ClientError a)
+runClientRequest ctx action = liftIO $ runClientM action (clientEnv ctx)
+
+runPartialClientRequest :: MonadIO m => Context -> ClientM a -> m a
+runPartialClientRequest ctx action = liftIO $ do
+    res <- runClientRequest ctx action
+    case res of
+        Left e -> fail $ show e
+        Right a -> return a

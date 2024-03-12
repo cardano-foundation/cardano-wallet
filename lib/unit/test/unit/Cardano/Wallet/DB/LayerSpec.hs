@@ -154,6 +154,9 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Gen
     ( genMnemonic
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint (..)
+    )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)
     , Wallet
@@ -978,7 +981,7 @@ prop_randomOpChunks (cp,meta) ops =
             ]
 
     cp0 = imposeGenesisState cp
-    initialDBLayerParams = DBLayerParams cp0 meta mempty gp
+    initialDBLayerParams = DBLayerParams cp0 RestorationPointAtGenesis meta mempty gp
 
     initializeDBFile filepath =
         withBootDBLayerFromFile (walletFlavor @TestState)
@@ -1625,7 +1628,8 @@ testMetadata = WalletMetadata
     }
 
 testDBLayerParams :: DBLayerParams TestState
-testDBLayerParams = DBLayerParams testCp testMetadata mempty gp
+testDBLayerParams
+    = DBLayerParams testCp RestorationPointAtGenesis testMetadata mempty gp
 
 testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))

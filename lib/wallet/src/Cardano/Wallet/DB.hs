@@ -7,6 +7,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -20,7 +21,6 @@ module Cardano.Wallet.DB
       DBLayer (..)
     , DBFactory (..)
     , DBLayerParams(..)
-
     -- * DBLayer building blocks
     , DBLayerCollection (..)
     , DBCheckpoints (..)
@@ -63,6 +63,9 @@ import Cardano.Wallet.DB.WalletState
     ( DeltaWalletState
     , WalletState (submissions)
     , updateSubmissions
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationPoint
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
@@ -191,14 +194,16 @@ data DBFactory m s = DBFactory
 {-----------------------------------------------------------------------------
     DBLayer
 ------------------------------------------------------------------------------}
+
 -- | Necessary arguments to create a new wallet.
 data DBLayerParams s = DBLayerParams
     { dBLayerParamsState :: Wallet s
+    , dbLayerStartRestorationPoint :: RestorationPoint
     , dBLayerParamsMetadata :: WalletMetadata
     , dBLayerParamsHistory :: [(Tx, TxMeta)]
     , dBLayerParamsGenesisParameters :: GenesisParameters
     }
-    deriving (Eq, Show)
+    deriving (Eq)
 
 -- | An open database which contains a valid state of one wallet
 -- with a specific 'WalletId'. You can access the state using 'walletState'.

@@ -36,6 +36,9 @@ import GHC.TypeNats
 import System.Environment
     ( lookupEnv
     )
+import Test.Hspec
+    ( mapSubject
+    )
 import Test.Hspec.Core.Spec
     ( SpecM
     , describe
@@ -50,6 +53,9 @@ import Test.Integration.Framework.Setup
     ( TestingCtx (..)
     , withContext
     , withTestsSetup
+    )
+import UnliftIO.STM
+    ( newTVarIO
     )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -69,6 +75,7 @@ import qualified Test.Integration.Scenario.API.Shelley.CoinSelections as CoinSel
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Migrations as Migrations
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
+import qualified Test.Integration.Scenario.API.Shelley.Restoration as Restoration
 import qualified Test.Integration.Scenario.API.Shelley.Settings as Settings
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
@@ -123,6 +130,7 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
                     ByronTransactions.spec @n
                     ByronHWWallets.spec @n
                     Voting.spec @n
+                    Restoration.spec
 
             -- Possible conflict with StakePools - mark as not parallizable
             sequential Settings.spec

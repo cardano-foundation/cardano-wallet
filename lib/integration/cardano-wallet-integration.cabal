@@ -87,6 +87,7 @@ library framework
     , memory
     , microstache
     , monad-loops
+    , mtl
     , network-uri
     , resourcet
     , retry
@@ -105,6 +106,9 @@ library framework
   exposed-modules:
     Test.Integration.Framework.Context
     Test.Integration.Framework.DSL
+    Test.Integration.Framework.DSL.Network
+    Test.Integration.Framework.DSL.TestM
+    Test.Integration.Framework.DSL.Wallet
     Test.Integration.Framework.Logging
     Test.Integration.Framework.PendingInEra
     Test.Integration.Framework.Request
@@ -128,6 +132,7 @@ library scenarios
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
@@ -149,6 +154,7 @@ library scenarios
     , memory
     , pretty-simple
     , resourcet
+    , servant-client
     , text
     , text-class
     , time
@@ -175,6 +181,7 @@ library scenarios
     Test.Integration.Scenario.API.Shelley.HWWallets
     Test.Integration.Scenario.API.Shelley.Migrations
     Test.Integration.Scenario.API.Shelley.Network
+    Test.Integration.Scenario.API.Shelley.Restoration
     Test.Integration.Scenario.API.Shelley.Settings
     Test.Integration.Scenario.API.Shelley.StakePools
     Test.Integration.Scenario.API.Shelley.Transactions

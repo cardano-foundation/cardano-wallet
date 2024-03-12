@@ -33,6 +33,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
 import Cardano.Wallet.Api.Types
     ( ApiAddressWithPath
     , ApiByronWallet
+    , ApiMnemonicT (..)
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
@@ -41,10 +42,15 @@ import Cardano.Wallet.Api.Types
     , ApiVerificationKeyShelley (..)
     , ApiWallet
     , ApiWalletUtxoSnapshot
+    , WalletOrAccountPostData (..)
+    , WalletPostData (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationMode (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -68,6 +74,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHexText
+    , unsafeFromText
     , unsafeXPub
     )
 import Control.Monad
@@ -119,6 +126,9 @@ import Test.Hspec.Expectations.Lifted
     )
 import Test.Hspec.Extra
     ( it
+    )
+import Test.Integration.Framework.Context
+    ( runPartialClientRequest
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -185,6 +195,7 @@ import Test.Integration.Framework.TestData
 -- of cardano-crypto here.
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
+import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -227,6 +238,30 @@ spec = describe "SHELLEY_WALLETS" $ do
             rg <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wid) Default Empty
             expectField (#state . #getApiT) (`shouldBe` Ready) rg
+
+    it "WALLETS_CREATE_01.1 create a wallet restoring from tip" $ \ctx ->
+        runResourceT $ do
+            m15 <- Mnemonics.generateSome Mnemonics.M15
+            w <- runPartialClientRequest ctx
+                    $ C.postWallet
+                    $ WalletOrAccountPostData
+                    $ Left
+                    $ WalletPostData
+                        { addressPoolGap = Nothing
+                        , mnemonicSentence = ApiMnemonicT m15
+                        , mnemonicSecondFactor = Nothing
+                        , name = ApiT $ unsafeFromText "Wallet from tip"
+                        , passphrase = ApiT $ unsafeFromText fixturePassphrase
+                        , oneChangeAddressMode = Nothing
+                        , restorationMode = Just $ ApiT RestoreFromTip
+                        }
+            r <- eventually "Wallet state is ready" $ do
+                r <- runPartialClientRequest ctx $ C.getWallet $ w ^. #id
+                r ^. #state `shouldBe` ApiT Ready
+                pure r
+            r ^. #name . #getApiT `shouldBe` unsafeFromText "Wallet from tip"
+            r ^. #addressPoolGap . #getApiT . #getAddressPoolGap `shouldBe` 20
+            r ^. #balance . #available . #toNatural `shouldBe` 0
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
              \SQL injection when creating a wallet" $  do
