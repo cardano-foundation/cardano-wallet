@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -25,8 +26,10 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromByronTxOut
     )
 import Cardano.Wallet.Read.Eras
-    ( byron
-    , inject
+    ( eraValue
+    )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Byron
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -50,7 +53,7 @@ fromTxAux txAux = case taTx txAux of
     UnsafeTx inputs outputs _attributes -> W.Tx
         { txId = W.Hash $ byronTxHash txAux
 
-        , txCBOR = Just $ renderTxToCBOR $ inject byron $ Tx $ void txAux
+        , txCBOR = Just $ renderTxToCBOR $ eraValue @Byron $ Tx $ void txAux
 
         , fee = Nothing
 

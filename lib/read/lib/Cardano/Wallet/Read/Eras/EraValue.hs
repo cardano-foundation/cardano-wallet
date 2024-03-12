@@ -1,10 +1,8 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -15,207 +13,135 @@
 -- License: Apache-2.0
 --
 -- A datatype that represents values that can be different in any known eras.
---
-
 module Cardano.Wallet.Read.Eras.EraValue
-  ( -- * Era bounded values
-    EraValue (..)
-  , eraValueSerialize
-  , extractEraValue
-
-  -- * Era specific prisms
-  , MkEraValue (..)
-  , byron
-  , conway
-  , shelley
-  , allegra
-  , mary
-  , alonzo
-  , babbage
-  , inject
-  , project
-  , prisms
-
-  -- * Specials
-  , sequenceEraValue
-  , witnessEra
-  , hoistEraValue
-
-  -- * Internals
-  , cardanoEras
-  )
-  where
+    ( -- * Era bounded values
+      EraValue (..)
+    , eraValueSerialize
+    , extractEraValue
+    , sequenceEraValue
+    , eraValue
+    )
+where
 
 import Prelude
 
 import Cardano.Wallet.Read.Eras.KnownEras
     ( Allegra
     , Alonzo
-    , AnyEra (..)
     , Babbage
     , Byron
     , Conway
     , Era (..)
-    , IsEra
+    , IsEra (..)
     , KnownEras
     , Mary
     , Shelley
     )
 import Control.DeepSeq
-    ( NFData
+    ( NFData (..)
     )
-import Data.Either.Extra
-    ( eitherToMaybe
-    )
-import Data.Generics.Internal.VL
+import Control.Lens
     ( Prism'
-    , build
-    , match
     , prism
     )
 import Generics.SOP
     ( All
     , Compose
     , K (..)
-    , NP (..)
-    , NS
-    , Proxy (..)
-    , ejections
-    , injections
-    , unComp
-    , unK
-    , (:.:)
+    , (:.:) (..)
     )
-import Generics.SOP.Classes
-import Generics.SOP.NP
-    ( cmap_NP
-    , pure_NP
-    , zipWith_NP
-    )
-import Generics.SOP.NS
-    ( ap_NS
-    , collapse_NS
-    , index_NS
-    , sequence'_NS
-    )
-
-import qualified GHC.Generics as GHC
 
 -- | A value which is in one era.
-newtype EraValue f = EraValue (NS f KnownEras)
-    deriving GHC.Generic
+data EraValue f = forall era. IsEra era => EraValue (f era)
 
-deriving instance (All (Compose Show f) KnownEras) => Show (EraValue f)
-deriving instance (All (Compose Eq f) KnownEras) => Eq (EraValue f)
-deriving instance (All (Compose Ord f) KnownEras) => Ord (EraValue f)
-deriving instance (All (Compose NFData f) KnownEras) => NFData (EraValue f)
+eraValue :: IsEra era => f era -> EraValue f
+eraValue = EraValue
 
--- | Internal product of 'Era'
-cardanoEras :: NP Era KnownEras
-cardanoEras =
-    Byron
-        :* Shelley
-        :* Allegra
-        :* Mary
-        :* Alonzo
-        :* Babbage
-        :* Conway
-        :* Nil
+instance (All (Compose Show f) KnownEras) => Show (EraValue f) where
+    show (EraValue (x :: f era)) = case theEra @era of
+        Byron -> "InByron " ++ show x
+        Shelley -> "InShelley " ++ show x
+        Allegra -> "InAllegra " ++ show x
+        Mary -> "InMary " ++ show x
+        Alonzo -> "InAlonzo " ++ show x
+        Babbage -> "InBabbage " ++ show x
+        Conway -> "InConway " ++ show x
 
--- | Add an era witness to an era independent EraValue.
-witnessEra :: EraValue (K b) -> EraValue (K (AnyEra, b))
-witnessEra (EraValue v) = EraValue $ ap_NS
-    (cmap_NP (Proxy @IsEra)
-        (Fn . (\x (K y) -> K (AnyEra x, y))) cardanoEras
-    )
-    v
+instance (All (Compose Eq f) KnownEras) => Eq (EraValue f) where
+    (==) (EraValue (v :: f erax)) (EraValue (w :: f eray)) =
+        case (theEra @erax, theEra @eray) of
+            (Byron, Byron) -> v == w
+            (Shelley, Shelley) -> v == w
+            (Allegra, Allegra) -> v == w
+            (Mary, Mary) -> v == w
+            (Alonzo, Alonzo) -> v == w
+            (Babbage, Babbage) -> v == w
+            (Conway, Conway) -> v == w
+            (_, _) -> False
+
+instance (All (Compose Ord f) KnownEras) => Ord (EraValue f) where
+    compare ex@(EraValue (x :: f erax)) ey@(EraValue (y :: f eray)) =
+        case (theEra @erax, theEra @eray) of
+            (Byron, Byron) -> compare x y
+            (Shelley, Shelley) -> compare x y
+            (Allegra, Allegra) -> compare x y
+            (Mary, Mary) -> compare x y
+            (Alonzo, Alonzo) -> compare x y
+            (Babbage, Babbage) -> compare x y
+            (Conway, Conway) -> compare x y
+            (_, _) -> compare (indexEraValue ex) (indexEraValue ey)
+
+instance (All (Compose NFData f) KnownEras) => NFData (EraValue f) where
+    rnf (EraValue (x :: f era)) = case theEra @era of
+        Byron -> rnf x
+        Shelley -> rnf x
+        Allegra -> rnf x
+        Mary -> rnf x
+        Alonzo -> rnf x
+        Babbage -> rnf x
+        Conway -> rnf x
 
 -- | Extract an era indipendent value.
 extractEraValue :: EraValue (K a) -> a
-extractEraValue (EraValue v) = collapse_NS v
+extractEraValue (EraValue (K x)) = x
 
 indexEraValue :: EraValue f -> Int
-indexEraValue (EraValue v) = index_NS v
+indexEraValue (EraValue (_ :: f era)) = case theEra @era of
+    Byron -> 0
+    Shelley -> 1
+    Allegra -> 2
+    Mary -> 3
+    Alonzo -> 4
+    Babbage -> 5
+    Conway -> 6
 
 -- | Sequence one applicative functor level out.
 sequenceEraValue :: Applicative f => EraValue (f :.: g) -> f (EraValue g)
-sequenceEraValue (EraValue v) = EraValue <$> sequence'_NS v
-
--- | A prism for one era that can project `f era` into `EraValue f`
--- it's a prism because extracting the `f era` is potentially impossible
--- as the value could not be in the requested era.
-newtype MkEraValue f era = MkEraValue (Prism' (EraValue f) (f era))
-
--- | Byron era prism.
-byron :: MkEraValue f Byron
-
--- | Shelley era prism.
-shelley :: MkEraValue f Shelley
-
--- | Allegra era prism.
-allegra :: MkEraValue f Allegra
-
--- | Mary era prism.
-mary :: MkEraValue f Mary
-
--- | Alonzo era prism.
-alonzo :: MkEraValue f Alonzo
-
--- | Babbage era prism.
-babbage :: MkEraValue f Babbage
-
--- | Conway era prism.
-conway :: MkEraValue f Conway
-
-byron :* shelley :* allegra :* mary :* alonzo :* babbage :* conway :* Nil
-  = zipWith_NP g injections ejections
-      where
-        g i e = MkEraValue $ prism (inject' i) (project' e)
-        inject' f =  EraValue . unK . apFn f
-        project' e vb@(EraValue v) = case unComp $ apFn e (K v) of
-          Nothing -> Left vb
-          Just r -> Right r
-
-prisms :: NP (MkEraValue f) KnownEras
-prisms = byron :* shelley :* allegra :* mary :* alonzo :* babbage :* conway :* Nil
-
--- | Inject a value into its era position.
-inject :: MkEraValue f era -> f era -> EraValue f
-inject (MkEraValue p) = build p
-
--- | Try to project a value from its era position.
-project :: MkEraValue f era -> EraValue f -> Maybe (f era)
-project (MkEraValue p) = eitherToMaybe . match p
+sequenceEraValue (EraValue (Comp fg)) = EraValue <$> fg
 
 {-----------------------------------------------------------------------------
     Serialization
 ------------------------------------------------------------------------------}
-parseEraValue
-  :: forall a n
-  . (Eq n, Num n)
-  => (a, n)
-  -> Either (a, n) (EraValue (K a))
-parseEraValue (x, era) = case era  of
-    0 -> r byron
-    1 -> r shelley
-    2 -> r allegra
-    3 -> r mary
-    4 -> r alonzo
-    5 -> r babbage
-    6 -> r conway
-    _ -> Left (x, era)
-    where
-      r :: MkEraValue (K a) era  -> Either (a, n) (EraValue (K a))
-      r e = Right $ inject e (K x)
 
-renderEraValue :: EraValue (K b) -> (b, Int)
+parseEraValue
+    :: forall a n
+     . (Eq n, Num n)
+    => (a, n)
+    -> Either (a, n) (EraValue (K a))
+parseEraValue (x, era) = case era of
+    0 -> Right $ EraValue (K x :: K a Byron)
+    1 -> Right $ EraValue (K x :: K a Shelley)
+    2 -> Right $ EraValue (K x :: K a Allegra)
+    3 -> Right $ EraValue (K x :: K a Mary)
+    4 -> Right $ EraValue (K x :: K a Alonzo)
+    5 -> Right $ EraValue (K x :: K a Babbage)
+    6 -> Right $ EraValue (K x :: K a Conway)
+    _ -> Left (x, era)
+
+renderEraValue :: EraValue (K a) -> (a, Int)
 renderEraValue e = (extractEraValue e, indexEraValue e)
 
--- | The prism to serialize era independent EraValues into the value ant the
+-- | The prism to serialize EraValues into the value at the
 -- era expressed as Int, starting from 0, see 'KnownEras'.
 eraValueSerialize :: Prism' (a, Int) (EraValue (K a))
 eraValueSerialize = prism renderEraValue parseEraValue
-
--- | change unconditionally the functor
-hoistEraValue :: (forall a. f a -> g a)  -> EraValue f -> EraValue g
-hoistEraValue f (EraValue ns) = EraValue $ ap_NS (pure_NP $ Fn f) ns

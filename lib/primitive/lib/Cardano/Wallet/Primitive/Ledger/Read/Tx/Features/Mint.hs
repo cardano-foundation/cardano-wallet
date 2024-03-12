@@ -136,7 +136,7 @@ mint = case theEra @era of
     Conway -> \(Mint mint' :*: Witnesses wits :*: ReferenceInputs refInps) ->
         conwayMint refInps mint' wits
   where
-    noMints = const $ (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
+    noMints = const (emptyTokenMapWithScripts, emptyTokenMapWithScripts)
 
 maryMint
     :: MultiAsset StandardCrypto

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -56,6 +57,8 @@ data Era era where
     Alonzo :: Era Alonzo
     Babbage :: Era Babbage
     Conway :: Era Conway
+
+deriving instance Show (Era era)
 
 -- | Existentially quantified era.
 data AnyEra where

@@ -71,8 +71,7 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     , toKeyRole
     )
 import Cardano.Wallet.Read.Eras
-    ( inject
-    , mary
+    ( eraValue
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (Tx)
@@ -136,7 +135,7 @@ fromMaryTx' tx =
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject mary $ Tx tx
+            Just $ renderTxToCBOR $ eraValue @Mary $ Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

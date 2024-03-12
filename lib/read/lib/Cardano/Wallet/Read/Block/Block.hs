@@ -30,18 +30,15 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
-    , EraValue
+    , EraValue (..)
     , IsEra
     , Mary
     , Shelley
-    , allegra
-    , alonzo
-    , babbage
-    , byron
-    , conway
-    , inject
-    , mary
-    , shelley
+    , eraValue
+    )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
     )
 import Ouroboros.Consensus.Protocol.Praos
     ( Praos
@@ -50,10 +47,6 @@ import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
 
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
-    , IsEra (..)
-    )
 import qualified Ouroboros.Consensus.Byron.Ledger as O
 import qualified Ouroboros.Consensus.Cardano.Block as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
@@ -88,13 +81,13 @@ deriving instance Eq (BlockT era) => Eq (Block era)
 -- via Haskell library of mini-protocol.
 fromConsensusBlock :: ConsensusBlock -> EraValue Block
 fromConsensusBlock = \case
-    O.BlockByron b -> inject byron $ Block b
-    O.BlockShelley block -> inject shelley $ Block block
-    O.BlockAllegra block -> inject allegra $ Block block
-    O.BlockMary block -> inject mary $ Block block
-    O.BlockAlonzo block -> inject alonzo $ Block block
-    O.BlockBabbage block -> inject babbage $ Block block
-    O.BlockConway block -> inject conway $ Block block
+    O.BlockByron b -> eraValue @Byron $ Block b
+    O.BlockShelley block -> eraValue @Shelley $ Block block
+    O.BlockAllegra block -> eraValue @Allegra $ Block block
+    O.BlockMary block -> eraValue @Mary $ Block block
+    O.BlockAlonzo block -> eraValue @Alonzo $ Block block
+    O.BlockBabbage block -> eraValue @Babbage $ Block block
+    O.BlockConway block -> eraValue @Conway $ Block block
 
 toConsensusBlock :: forall era . IsEra era => Block era -> ConsensusBlock
 toConsensusBlock = case theEra @era of
