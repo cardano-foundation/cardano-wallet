@@ -94,6 +94,9 @@ import Cryptography.Hash.Blake
 import Cryptography.Hash.Core
     ( SHA512 (..)
     )
+import Cryptography.KDF.PBKDF2
+    ( PBKDF2Config (..)
+    )
 import Data.ByteArray
     ( ScrubbedBytes
     )
@@ -242,12 +245,16 @@ hashSeed = BA.convert . cbor . blake2b256 . cbor . BA.convert
 -- derivation path. PBKDF2 encryption using HMAC with the hash algorithm SHA512
 -- is employed.
 hdPassphrase :: XPub -> Passphrase "addr-derivation-payload"
-hdPassphrase masterKey = Passphrase $
-    PBKDF2.generate
-    (PBKDF2.prfHMAC SHA512)
-    (PBKDF2.Parameters 500 32)
-    (unXPub masterKey)
-    ("address-hashing" :: ByteString)
+hdPassphrase masterKey = Passphrase $ BA.convert $
+    fst $ PBKDF2.generateKey config (unXPub masterKey) (Just salt)
+  where
+    salt = "address-hashing" :: ByteString
+    config = PBKDF2Config
+        { hash = SHA512
+        , iterations = 500
+        , keyLength = 32
+        , ivLength = 0
+        }
 
 mkByronKeyFromMasterKey
     :: XPrv
