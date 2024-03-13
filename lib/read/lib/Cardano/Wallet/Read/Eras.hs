@@ -11,7 +11,6 @@ module Cardano.Wallet.Read.Eras
   , knownEraIndices
   , Era (..)
   , IsEra (..)
-  , AnyEra (..)
   , Allegra
   , Alonzo
   , Babbage
@@ -54,7 +53,6 @@ import Cardano.Wallet.Read.Eras.EraValue
 import Cardano.Wallet.Read.Eras.KnownEras
     ( Allegra
     , Alonzo
-    , AnyEra (..)
     , Babbage
     , Byron
     , Conway

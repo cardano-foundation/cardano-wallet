@@ -14,9 +14,7 @@
 module Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras
     , knownEraIndices
-
     , Era (..)
-    , AnyEra (..)
     , IsEra (..)
     , Allegra
     , Alonzo
@@ -59,10 +57,6 @@ data Era era where
     Conway :: Era Conway
 
 deriving instance Show (Era era)
-
--- | Existentially quantified era.
-data AnyEra where
-    AnyEra :: forall era. Era era -> AnyEra
 
 -- | Singleton class for eras.
 class IsEra era where
