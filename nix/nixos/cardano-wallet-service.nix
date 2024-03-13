@@ -60,7 +60,7 @@ in
 
     package = mkOption {
       type = types.package;
-      default = ((import ../.. { }).legacyPackages.${pkgs.system}).hsPkgs.cardano-wallet.components.exes.cardano-wallet;
+      default = ((import ../.. { }).legacyPackages.${pkgs.system}).hsPkgs.cardano-wallet-api.components.exes.cardano-wallet;
       description = "Package for the cardano wallet executable.";
     };
 

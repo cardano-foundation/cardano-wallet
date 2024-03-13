@@ -146,6 +146,7 @@ library
     Cardano.Wallet.Api.Types.Key
     Cardano.Wallet.Api.Types.MintBurn
     Cardano.Wallet.Api.Types.Primitive
+    Cardano.Wallet.Api.Types.RestorationMode
     Cardano.Wallet.Api.Types.SchemaMetadata
     Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Api.Types.WalletAsset

@@ -285,6 +285,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                 };
 
               # Add shell completions for main executables.
+              packages.cardano-wallet-api.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
               packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
@@ -347,7 +348,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           # Enable profiling on executables if the profiling argument is set.
           (lib.optionalAttrs profiling {
             enableLibraryProfiling = true;
-            packages.cardano-wallet.components.exes.cardano-wallet.enableProfiling = true;
+            packages.cardano-wallet-api.components.exes.cardano-wallet.enableProfiling = true;
             packages.cardano-wallet-benchmarks.components.benchmarks.restore.enableProfiling = true;
             packages.plutus-core.ghcOptions = [ "-fexternal-interpreter" ];
           })
@@ -367,8 +368,8 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             {
               # Apply fully static options to our Haskell executables
               packages.cardano-wallet-benchmarks.components.benchmarks.restore = fullyStaticOptions;
-              packages.cardano-wallet.components.exes.cardano-wallet = fullyStaticOptions;
-              packages.cardano-wallet.components.tests.integration = fullyStaticOptions;
+              packages.cardano-wallet-api.components.exes.cardano-wallet = fullyStaticOptions;
+              packages.cardano-wallet-integration.components.tests.integration = fullyStaticOptions;
               packages.cardano-wallet-unit.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-benchmarks.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;

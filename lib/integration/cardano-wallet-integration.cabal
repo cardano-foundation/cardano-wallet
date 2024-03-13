@@ -133,9 +133,10 @@ library scenarios
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
-    , cardano-wallet-network-layer
     , cardano-wallet
+    , cardano-wallet-api
     , cardano-wallet-integration:framework
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
