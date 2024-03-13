@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -8,45 +9,94 @@
 module Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
-    where
+where
 
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
-    ( fromAllegraTx'
+import Prelude
+
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
+    ( getCollateralInputs
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
-    ( fromAlonzoTx'
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
+    ( getCollateralOutputs
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
-    ( fromBabbageTx'
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Fee
+    ( getFee
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
-    ( fromTxAux
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
+    ( getInputs
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
-    ( fromConwayTx'
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
+    ( getMetadata
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
-    ( fromMaryTx'
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
+    ( getOutputs
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
-    ( fromShelleyTx'
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
+    ( getScriptValidity
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    ( getWithdrawals
     )
 import Cardano.Wallet.Read
     ( IsEra (..)
     , Tx (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( Era (..)
+    ( eraValue
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( renderTxToCBOR
+    )
+import Cardano.Wallet.Read.Tx.CollateralInputs
+    ( getEraCollateralInputs
+    )
+import Cardano.Wallet.Read.Tx.CollateralOutputs
+    ( getEraCollateralOutputs
+    )
+import Cardano.Wallet.Read.Tx.Fee
+    ( getEraFee
+    )
+import Cardano.Wallet.Read.Tx.Hash
+    ( getEraTxHash
+    )
+import Cardano.Wallet.Read.Tx.Inputs
+    ( getEraInputs
+    )
+import Cardano.Wallet.Read.Tx.Metadata
+    ( getEraMetadata
+    )
+import Cardano.Wallet.Read.Tx.Outputs
+    ( getEraOutputs
+    )
+import Cardano.Wallet.Read.Tx.ScriptValidity
+    ( getEraScriptValidity
+    )
+import Cardano.Wallet.Read.Tx.Withdrawals
+    ( getEraWithdrawals
+    )
+import Data.Foldable
+    ( fold
     )
 
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
-primitiveTx :: forall era . IsEra era => Tx era -> W.Tx
-primitiveTx = case theEra @era of
-    Byron -> \(Tx tx) -> fromTxAux tx
-    Shelley -> \(Tx tx) -> fromShelleyTx' tx
-    Allegra -> \(Tx tx) -> fromAllegraTx' tx
-    Mary -> \(Tx tx) -> fromMaryTx' tx
-    Alonzo -> \(Tx tx) -> fromAlonzoTx' tx
-    Babbage -> \(Tx tx) -> fromBabbageTx' tx
-    Conway -> \(Tx tx) -> fromConwayTx' tx
+primitiveTx
+    :: IsEra era
+    => Tx era
+    -> W.Tx
+primitiveTx = do
+    txId <- W.Hash . getEraTxHash
+    txCBOR <- Just . renderTxToCBOR . eraValue
+    fee <- getFee . getEraFee
+    resolvedInputs <- fmap (,Nothing) . getInputs . getEraInputs
+    resolvedCollateralInputs <-
+        fmap (,Nothing)
+            . getCollateralInputs
+            . getEraCollateralInputs
+    outputs <- getOutputs . getEraOutputs
+    collateralOutput <- getCollateralOutputs . getEraCollateralOutputs
+    withdrawals <- fold . getWithdrawals . getEraWithdrawals
+    metadata <- getMetadata . getEraMetadata
+    scriptValidity <- getScriptValidity . getEraScriptValidity
+    pure $ W.Tx{..}
