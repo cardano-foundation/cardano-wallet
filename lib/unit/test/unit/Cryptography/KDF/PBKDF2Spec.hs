@@ -150,6 +150,119 @@ spec = do
             , iv = ""
             }
 
+        -- Note: "00000000" is "3030303030303030" in hex
+        -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -P -S 3030303030303030 -iter 10000 -P
+        it "golden 9" $
+            toKeyIV TestCase
+            { algo = SHA256
+            , iters = 10000
+            , keyL = 32
+            , ivL = 0
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "26A1A6F599173BAF863F97F2A18AF2FD8E99104E726D9EB682FCB7ED53517CF9"
+            , iv = ""
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -P -S 3030303030303030 -iter 5000 -P
+        it "golden 10" $
+            toKeyIV TestCase
+            { algo = SHA256
+            , iters = 5000
+            , keyL = 32
+            , ivL = 0
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "3BE342BC36004A2F34B8FAD4BDCA91AE3495A946CF7C0DD789EDE283AF8A3EE1"
+            , iv = ""
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -P -md sha512 -S 3030303030303030 -iter 10000 -P
+        it "golden 11" $
+            toKeyIV TestCase
+            { algo = SHA512
+            , iters = 10000
+            , keyL = 32
+            , ivL = 0
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "A0BEF9E8434D518A2D9BCCF7883808BEDC5093E678AC7AC3CA1C6F7071B49575"
+            , iv = ""
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -P -md sha512 -S 3030303030303030 -iter 5000 -P
+        it "golden 12" $
+            toKeyIV TestCase
+            { algo = SHA512
+            , iters = 5000
+            , keyL = 32
+            , ivL = 0
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "0DB80B6BC6D151C4FA474E8533DD2D4172208B895BBDB1D7ED564B1817F50B51"
+            , iv = ""
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -S 3030303030303030 -iter 10000 -P
+        it "golden 13" $
+            toKeyIV TestCase
+            { algo = SHA256
+            , iters = 10000
+            , keyL = 32
+            , ivL = 16
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "26A1A6F599173BAF863F97F2A18AF2FD8E99104E726D9EB682FCB7ED53517CF9"
+            , iv = "131BAB9240C168CC60A9F6DFA8CA5A6D"
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -S 3030303030303030 -iter 5000 -P
+        it "golden 14" $
+            toKeyIV TestCase
+            { algo = SHA256
+            , iters = 5000
+            , keyL = 32
+            , ivL = 16
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "3BE342BC36004A2F34B8FAD4BDCA91AE3495A946CF7C0DD789EDE283AF8A3EE1"
+            , iv = "345CFDD8532C26C590107A30008200F6"
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -md sha512 -S 3030303030303030 -iter 10000 -P
+        it "golden 15" $
+            toKeyIV TestCase
+            { algo = SHA512
+            , iters = 10000
+            , keyL = 32
+            , ivL = 16
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "A0BEF9E8434D518A2D9BCCF7883808BEDC5093E678AC7AC3CA1C6F7071B49575"
+            , iv = "8CEAB15C11F31E8BD3907D24C2D60E94"
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -md sha512 -S 3030303030303030 -iter 5000 -P
+        it "golden 16" $
+            toKeyIV TestCase
+            { algo = SHA512
+            , iters = 5000
+            , keyL = 32
+            , ivL = 16
+            , passwd = "password"
+            , salt = Just "00000000"
+            } `shouldBe` OpenSSLOutput
+            { key = "0DB80B6BC6D151C4FA474E8533DD2D4172208B895BBDB1D7ED564B1817F50B51"
+            , iv = "BD53567BFDA090E3A7C9BB54E34E4A8F"
+            }
+
         -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -saltlen 15 -S 616464726573732D68617368696E67 -iter 500 -md sha512 -P
         -- Note: "address-hashing" is "616464726573732D68617368696E67" in hex
         -- Note: saltlen option needs to be specified as 8 bytes salt length is a default value and enforced. The option is available from OpenSSL 3.2 onwards.
@@ -168,7 +281,7 @@ spec = do
 
         -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -S 6D6E656D6F6E6963 -iter 2048 -md sha512 -P
         -- Note: "mnemonic" is "6D6E656D6F6E6963" in hex
-        -- Note: Icarus uses 64 byte key but here we check for 32 byte.
+        -- Note: Icarus uses 64 byte output key but here we check for 32 byte case.
         it "golden Icarus" $
             toKeyIV TestCase
             { algo = SHA512
