@@ -49,6 +49,9 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
     )
+import Cardano.Wallet.Read.Tx.Validity
+    ( getEraValidity
+    )
 import Control.Lens
     ( folded
     , (^.)
@@ -58,9 +61,6 @@ import Control.Lens
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
-import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity
-    )
 import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
