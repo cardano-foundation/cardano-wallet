@@ -12,8 +12,8 @@ import Cryptography.Hash.Core
     , SHA512 (..)
     )
 import Cryptography.KDF.PBKDF2
-    ( generateKey
-    , PBKDF2Config (..)
+    ( PBKDF2Config (..)
+    , generateKey
     )
 import Data.ByteArray.Encoding
     ( Base (..)
