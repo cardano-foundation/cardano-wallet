@@ -72,6 +72,7 @@ newtype Metadata era = Metadata (MetadataType era)
 deriving instance Show (MetadataType era) => Show (Metadata era)
 deriving instance Eq (MetadataType era) => Eq (Metadata era)
 
+{-# INLINABLE getEraMetadata #-}
 getEraMetadata :: forall era . IsEra era => Tx era -> Metadata era
 getEraMetadata = case theEra @era of
     Byron -> \_ -> Metadata ()

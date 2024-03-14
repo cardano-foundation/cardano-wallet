@@ -36,6 +36,7 @@ import Control.Category
     ( (.)
     )
 
+{-# INLINABLE mkBlockEra #-}
 mkBlockEra :: forall era . IsEra era => BlockParameters era -> Block era
 mkBlockEra = case theEra @era of
     Byron -> g mkByronBlock

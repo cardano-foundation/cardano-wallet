@@ -73,6 +73,7 @@ newtype Validity era = Validity (ValidityType era)
 deriving instance Show (ValidityType era) => Show (Validity era)
 deriving instance Eq (ValidityType era) => Eq (Validity era)
 
+{-# INLINABLE getEraValidity #-}
 -- | Extract validity data from tx for any available era.
 getEraValidity :: forall era . IsEra era => Tx era -> Validity era
 getEraValidity = case theEra @era of

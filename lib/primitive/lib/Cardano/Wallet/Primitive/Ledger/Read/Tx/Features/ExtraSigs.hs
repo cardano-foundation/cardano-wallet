@@ -49,6 +49,7 @@ import Data.Set
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
+{-# INLINABLE extraSigs #-}
 extraSigs :: forall era. IsEra era => ExtraSigs era -> [W.Hash "ExtraSignature"]
 extraSigs = case theEra @era of
     Byron -> noExtraSigs

@@ -62,6 +62,7 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Shelley as CardanoAPI
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
 
+{-# INLINABLE getMetadata #-}
 getMetadata :: forall era . IsEra era => Metadata era -> Maybe W.TxMetadata
 getMetadata = case theEra @era of
     Byron -> noMetadatas

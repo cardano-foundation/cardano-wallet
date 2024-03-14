@@ -83,6 +83,7 @@ deriving instance Show (CollateralOutputsType era)
     => Show (CollateralOutputs era)
 deriving instance Eq (CollateralOutputsType era) => Eq (CollateralOutputs era)
 
+{-# INLINABLE getEraCollateralOutputs #-}
 -- | Get the 'CollateralOutputs' for a given 'Tx' in any era.
 getEraCollateralOutputs
     :: forall era. IsEra era => Tx era -> CollateralOutputs era

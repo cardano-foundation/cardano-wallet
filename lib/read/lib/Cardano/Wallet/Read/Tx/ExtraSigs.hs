@@ -69,6 +69,7 @@ newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 deriving instance Show (ExtraSigsType era) => Show (ExtraSigs era)
 deriving instance Eq (ExtraSigsType era) => Eq (ExtraSigs era)
 
+{-# INLINABLE getEraExtraSigs #-}
 -- | Get extra signatures required for a transaction in any era.
 getEraExtraSigs :: forall era. IsEra era => Tx era -> ExtraSigs era
 getEraExtraSigs = case theEra @era of

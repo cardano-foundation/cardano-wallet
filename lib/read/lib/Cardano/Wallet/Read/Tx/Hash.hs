@@ -57,6 +57,7 @@ import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.SafeHash as SafeHash
 
+{-# INLINE getEraTxHash #-}
 -- | Extract the hash of a transaction in any era.
 getEraTxHash :: forall era. IsEra era => Tx era -> Crypto.ByteString
 getEraTxHash = case theEra @era of

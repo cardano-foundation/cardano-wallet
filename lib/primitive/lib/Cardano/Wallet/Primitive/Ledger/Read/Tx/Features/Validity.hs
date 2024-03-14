@@ -41,6 +41,7 @@ import Data.Quantity
 
 import qualified Ouroboros.Network.Block as O
 
+{-# INLINABLE getValidity #-}
 getValidity :: forall era. IsEra era => Validity era -> Maybe ValidityIntervalExplicit
 getValidity = case theEra @era of
     Byron -> \_validity -> Nothing

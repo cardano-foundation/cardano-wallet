@@ -44,6 +44,7 @@ import qualified Cardano.Ledger.TxIn as SL
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 
+{-# INLINABLE getInputs #-}
 getInputs :: forall era. IsEra era => Inputs era -> [W.TxIn]
 getInputs = case theEra @era of
     Byron -> \(Inputs ins) -> fromByronTxIn <$> toList ins

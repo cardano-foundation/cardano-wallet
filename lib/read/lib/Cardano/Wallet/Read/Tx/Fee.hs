@@ -65,6 +65,7 @@ newtype Fee era = Fee (FeeType era)
 deriving instance Show (FeeType era) => Show (Fee era)
 deriving instance Eq (FeeType era) => Eq (Fee era)
 
+{-# INLINABLE getEraFee #-}
 -- | Extract fee from 'Tx' in all available eras.
 getEraFee :: forall era. IsEra era => Tx era -> Fee era
 getEraFee = case theEra @era of

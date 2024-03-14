@@ -52,6 +52,7 @@ import Data.Maybe.Strict
 
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 
+{-# INLINABLE integrity #-}
 integrity :: forall era . IsEra era
     => Integrity era -> Maybe (W.Hash "ScriptIntegrity")
 integrity = case theEra @era of

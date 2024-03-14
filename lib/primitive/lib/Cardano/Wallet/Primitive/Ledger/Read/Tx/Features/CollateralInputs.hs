@@ -25,6 +25,7 @@ import Cardano.Wallet.Read.Tx.CollateralInputs
 import qualified Cardano.Ledger.Shelley.API as SH
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 
+{-# INLINABLE getCollateralInputs #-}
 getCollateralInputs :: forall era. IsEra era => CollateralInputs era -> [W.TxIn]
 getCollateralInputs = case theEra @era of
     Byron -> \_ -> []

@@ -89,6 +89,7 @@ fromConsensusBlock = \case
     O.BlockBabbage block -> eraValue @Babbage $ Block block
     O.BlockConway block -> eraValue @Conway $ Block block
 
+{-# INLINABLE toConsensusBlock #-}
 toConsensusBlock :: forall era . IsEra era => Block era -> ConsensusBlock
 toConsensusBlock = case theEra @era of
     Byron -> O.BlockByron . unBlock

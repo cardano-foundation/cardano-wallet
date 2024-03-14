@@ -61,6 +61,7 @@ newtype ScriptValidity era = ScriptValidity (ScriptValidityType era)
 deriving instance Show (ScriptValidityType era) => Show (ScriptValidity era)
 deriving instance Eq (ScriptValidityType era) => Eq (ScriptValidity era)
 
+{-# INLINABLE getEraScriptValidity #-}
 getEraScriptValidity :: forall era. IsEra era => Tx era -> ScriptValidity era
 getEraScriptValidity = case theEra @era of
     Byron -> \_ -> ScriptValidity ()

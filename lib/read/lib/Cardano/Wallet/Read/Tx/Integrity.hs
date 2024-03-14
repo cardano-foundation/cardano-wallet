@@ -73,6 +73,7 @@ newtype Integrity era = Integrity (IntegrityType era)
 deriving instance Show (IntegrityType era) => Show (Integrity era)
 deriving instance Eq (IntegrityType era) => Eq (Integrity era)
 
+{-# INLINABLE getEraIntegrity #-}
 -- | Extract the script integrity data from a transaction in any available era.
 getEraIntegrity :: forall era. IsEra era => Tx era -> Integrity era
 getEraIntegrity = case theEra @era of
