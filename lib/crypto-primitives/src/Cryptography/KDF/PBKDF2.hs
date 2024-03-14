@@ -39,7 +39,7 @@ import qualified Data.ByteString as BS
 -- like in case of elliptic encryption (for example, aes-256-ecb) one can take only 'key'
 -- and omit 'iv'.
 -- A number of pass iterations translates into slowness of the algorithm (and its security).
--- Salting is used to randomize the hashing.
+-- A salt is used to randomize the hashing and overall is advised to be used.
 -- |
 -- | 4. 'key' and 'iv' needed for aes-256-cbc with sha256 and salt='00000000' (which is in hex equivalent to '3030303030303030')
 -- | $ echo -n "metadata-secret" | openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -S 3030303030303030 -iter 10000 -P

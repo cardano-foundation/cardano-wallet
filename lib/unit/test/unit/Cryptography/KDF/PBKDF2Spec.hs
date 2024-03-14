@@ -149,6 +149,53 @@ spec = do
             { key = "ECC1A2E6F16D6420F9A953AD8A80FDD0D8AC12839E964C0D132C25047B430FFD"
             , iv = ""
             }
+
+        -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -saltlen 15 -S 616464726573732D68617368696E67 -iter 500 -md sha512 -P
+        -- Note: "address-hashing" is "616464726573732D68617368696E67" in hex
+        -- Note: saltlen option needs to be specified as 8 bytes salt length is a default value and enforced. The option is available from OpenSSL 3.2 onwards.
+        it "golden Byron" $
+            toKeyIV TestCase
+            { algo = SHA512
+            , iters = 500
+            , keyL = 32
+            , ivL = 0
+            , passwd = "password"
+            , salt = Just "address-hashing"
+            } `shouldBe` OpenSSLOutput
+            { key = "6D3FF0C9AAE42F26B518C4E9F98D1A1EAB59B55E5A82F78F66DFC7CAA956DCA0"
+            , iv = ""
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-ecb -pbkdf2 -pass stdin -S 6D6E656D6F6E6963 -iter 2048 -md sha512 -P
+        -- Note: "mnemonic" is "6D6E656D6F6E6963" in hex
+        -- Note: Icarus uses 64 byte key but here we check for 32 byte.
+        it "golden Icarus" $
+            toKeyIV TestCase
+            { algo = SHA512
+            , iters = 2048
+            , keyL = 32
+            , ivL = 0
+            , passwd = "password"
+            , salt = Just "mnemonic"
+            } `shouldBe` OpenSSLOutput
+            { key = "E0FB520D01112056904730F762AD263B806953F1FE5B4662C97B1F301BB5F862"
+            , iv = ""
+            }
+
+        -- echo -n "password" | openssl enc -aes-256-cbc -pbkdf2 -pass stdin -S 6162636465666768 -iter 10000 -md sha256 -P
+        -- Note: "abcdefgh" is "6162636465666768" in hex. Salt is 8-byte.
+        it "golden CIP83" $
+            toKeyIV TestCase
+            { algo = SHA256
+            , iters = 10000
+            , keyL = 32
+            , ivL = 16
+            , passwd = "password"
+            , salt = Just "abcdefgh"
+            } `shouldBe` OpenSSLOutput
+            { key = "6BBCD65DA84D7BB1D214908270352A56FF25B375E53B7D3F237330666CCBF0DF"
+            , iv = "FD40C29618D438E3658388C52EB7974E"
+            }
   where
     toKeyIV TestCase {..} =
         tohex (generateKey (PBKDF2Config algo iters keyL ivL) passwd salt)
