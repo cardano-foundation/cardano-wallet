@@ -26,7 +26,6 @@ module Cardano.Wallet.Primitive.Ledger.Byron
     , fromGenesisData
     , byronCodecConfig
     , fromProtocolMagicId
-    , fromTxAux
     , fromByronTxIn
     , fromByronTxOut
     , protocolParametersFromUpdateState
@@ -58,9 +57,6 @@ import Cardano.Chain.UTxO
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId
     , unProtocolMagicId
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
-    ( fromTxAux
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( fromByronTxIn
