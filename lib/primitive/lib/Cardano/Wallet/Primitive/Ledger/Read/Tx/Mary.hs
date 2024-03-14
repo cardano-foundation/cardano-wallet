@@ -1,7 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -11,7 +7,6 @@
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
     ( fromMaryTx
-    , fromMaryTx'
     )
     where
 
@@ -20,13 +15,9 @@ import Prelude
 import Cardano.Ledger.Api
     ( Mary
     , addrTxWitsL
-    , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
-    , feeTxBodyL
-    , inputsTxBodyL
     , mintTxBodyL
-    , outputsTxBodyL
     , scriptTxWitsL
     , vldtTxBodyL
     , witsTxL
@@ -34,26 +25,17 @@ import Cardano.Ledger.Api
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( primitiveTx
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( anyEraCerts
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
-    ( fromShelleyTxIn
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
-    ( fromMaryMetadata
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( maryMint
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
-    ( fromMaryTxOut
-    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( afterShelleyValidityInterval
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (NativeExplicitScript)
@@ -70,32 +52,14 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     , WitnessCountCtx
     , toKeyRole
     )
-import Cardano.Wallet.Read.Eras
-    ( eraValue
-    )
-import Cardano.Wallet.Read.Tx
-    ( Tx (Tx)
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR
-    )
-import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash
-    )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals
-    )
 import Control.Lens
     ( folded
     , (^.)
     , (^..)
     )
 
-import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
@@ -111,7 +75,7 @@ fromMaryTx
        , WitnessCount
        )
 fromMaryTx tx witCtx =
-    ( fromMaryTx' tx
+    ( primitiveTx @Mary $ Read.Tx tx
     , anyEraCerts @Mary $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
@@ -126,30 +90,3 @@ fromMaryTx tx witCtx =
   where
     (assetsToMint, assetsToBurn) =
         maryMint (tx ^. bodyTxL.mintTxBodyL) (tx ^. witsTxL)
-
-fromMaryTx' ::
-    SL.ShelleyTx Mary ->
-    W.Tx
-fromMaryTx' tx =
-    W.Tx
-        { txId =
-            W.Hash $ shelleyTxHash tx
-        , txCBOR =
-            Just $ renderTxToCBOR $ eraValue @Mary $ Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
-        , resolvedCollateralInputs =
-            []
-        , outputs =
-            fromMaryTxOut <$> tx ^.. bodyTxL . outputsTxBodyL . folded
-        , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Mary.
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromMaryMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Nothing
-        }
