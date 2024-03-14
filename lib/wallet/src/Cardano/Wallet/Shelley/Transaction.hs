@@ -104,7 +104,7 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.CardanoApi
     ( fromCardanoTx
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
