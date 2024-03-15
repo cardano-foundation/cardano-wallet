@@ -147,14 +147,28 @@ steps:
     env:
       TMPDIR: "/cache"
 
-  - block: 'Run benchmark (api)'
+  - block: 'Run benchmarks'
     if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
     depends_on: linux-nix
-    key: trigger-benchmark-api
+    key: trigger-benchmarks
 
-  - label: 'Run benchmark (api)'
+  - label: 'API benchmark'
     command: "./.buildkite/bench-api.sh"
-    depends_on: trigger-benchmark-api
+    depends_on: trigger-benchmarks
+    timeout_in_minutes: 20
+    agents:
+      system: x86_64-linux
+    # We do not use the  benchmark  queue here, as we don't want
+    # to use system resources that are intended for long-running processes
+    # to perform quick-and-dirty benchmark runs.
+    # queue: benchmark
+    if: 'build.env("step") == null || build.env("step") =~ /bench-api/'
+    env:
+      TMPDIR: "/cache"
+
+  - label: 'Read-blocks benchmark'
+    command: "./.buildkite/bench-read-blocks.sh"
+    depends_on: trigger-benchmarks
     timeout_in_minutes: 20
     agents:
       system: x86_64-linux

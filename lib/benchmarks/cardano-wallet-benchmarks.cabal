@@ -215,11 +215,11 @@ benchmark api
     , time
     , with-utf8
 
-benchmark erafun-benchmark
+benchmark read-blocks
   import:           language, opts-exe
   type:             exitcode-stdio-1.0
   hs-source-dirs:   exe
-  main-is:          EraFun.hs
+  main-is:          read-blocks.hs
   build-depends:
     , base
     , bytestring

@@ -35,11 +35,12 @@ main :: IO ()
 main =
     defaultMain
         [ bgroup
-            "fib"
-            [ bench "1 new" $ nf (run new) 1
-            , bench "10 new" $ nf (run new) 10
-            , bench "100 new" $ nf (run new) 100
-            , bench "1000 new" $ nf (run new) 1000
+            "read blocks"
+            [ bench "1 block" $ nf (run new) 1
+            , bench "10 blocks" $ nf (run new) 10
+            , bench "100 blocks" $ nf (run new) 100
+            , bench "1000 blocks" $ nf (run new) 1000
+            , bench "10000 blocks" $ nf (run new) 10000
             ]
         ]
 
