@@ -84,8 +84,7 @@ import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
 import Cardano.Wallet.Primitive.Types
-    ( Certificate
-    , SlotNo (..)
+    ( SlotNo (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
@@ -125,8 +124,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity
     )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
-    ( Tx (..)
-    , TxMetadata
+    ( TxMetadata
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -173,6 +171,9 @@ import Internal.Cardano.Write.Tx.SizeEstimation
     )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended
+    )
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
@@ -202,15 +203,8 @@ data TransactionLayer (k :: Depth -> Type -> Type) ktype tx = TransactionLayer
 
     , decodeTx
         :: AnyCardanoEra
-        -> WitnessCountCtx
-        -> tx ->
-            ( Tx
-            , TokenMapWithScripts
-            , TokenMapWithScripts
-            , [Certificate]
-            , Maybe ValidityIntervalExplicit
-            , WitnessCount
-            )
+        -> tx
+        -> TxExtended
     -- ^ Decode an externally-created transaction.
 
     , transactionWitnessTag :: TxWitnessTag

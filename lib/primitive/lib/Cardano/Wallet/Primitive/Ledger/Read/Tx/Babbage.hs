@@ -1,14 +1,13 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
     ( fromBabbageTx
     )
-    where
+where
 
 import Prelude
 
@@ -65,14 +64,12 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( ReferenceInput (ReferenceInput)
     , ScriptReference (ViaReferenceInput, ViaSpending)
-    , TokenMapWithScripts
     )
-import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
-    ( ValidityIntervalExplicit
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
-    , WitnessCountCtx
     )
 import Control.Lens
     ( folded
@@ -88,8 +85,6 @@ import Data.Word
     )
 
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
-import qualified Cardano.Wallet.Primitive.Types.Certificates as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -97,37 +92,32 @@ import qualified Data.Set as Set
 
 fromBabbageTx
     :: Alonzo.AlonzoTx Babbage
-    -> WitnessCountCtx
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       , WitnessCount
-       )
-fromBabbageTx tx witCtx =
-    ( tx'
-    , anyEraCerts @Babbage $ Read.Tx tx
-    , assetsToMint
-    , assetsToBurn
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
-    , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        (Map.elems $ Map.union anyScriptsFromWits anyScriptsFromTxOuts)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
-    )
+    -> TxExtended
+fromBabbageTx tx = TxExtended{..}
   where
-    tx' = primitiveTx @Babbage $ Read.Tx tx
-    txId' = txId tx'
-
-    anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
-    anyScriptsFromTxOuts =
-        Map.fromList
-            [ babbageAnyExplicitScript witCtx ledgerScript
-            | Just ledgerScript <- L.zipWith scriptWithHashIx
-                [0..] (tx ^.. bodyTxL.outputsTxBodyL.folded)
-            ]
+    walletTx = primitiveTx @Babbage $ Read.Tx tx
+    certificates = anyEraCerts @Babbage $ Read.Tx tx
+    toMint = assetsToMint
+    toBurn = assetsToBurn
+    validity = Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
+    witnessCount witCtx =
+        WitnessCount
+            (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+            (Map.elems $ Map.union anyScriptsFromWits anyScriptsFromTxOuts)
+            (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
       where
+        txId' = txId walletTx
+
+        anyScriptsFromTxOuts :: Map TokenPolicyId AnyExplicitScript
+        anyScriptsFromTxOuts =
+            Map.fromList
+                [ babbageAnyExplicitScript witCtx ledgerScript
+                | Just ledgerScript <-
+                    L.zipWith
+                        scriptWithHashIx
+                        [0 ..]
+                        (tx ^.. bodyTxL . outputsTxBodyL . folded)
+                ]
         scriptWithHashIx
             :: Word32
             -> BabbageTxOut Babbage
@@ -143,15 +133,15 @@ fromBabbageTx tx witCtx =
                 , script
                 )
 
-    anyScriptsFromWits :: Map TokenPolicyId AnyExplicitScript
-    anyScriptsFromWits =
-        Map.fromList
-            [ babbageAnyExplicitScript witCtx (ViaSpending, scriptH, script)
-            | (scriptH, script) <- Map.toList (tx ^. witsTxL.scriptTxWitsL)
-            ]
+        anyScriptsFromWits :: Map TokenPolicyId AnyExplicitScript
+        anyScriptsFromWits =
+            Map.fromList
+                [ babbageAnyExplicitScript witCtx (ViaSpending, scriptH, script)
+                | (scriptH, script) <- Map.toList (tx ^. witsTxL . scriptTxWitsL)
+                ]
 
     (assetsToMint, assetsToBurn) =
         babbageMint
-            (tx ^. bodyTxL.referenceInputsTxBodyL)
-            (tx ^. bodyTxL.mintTxBodyL)
+            (tx ^. bodyTxL . referenceInputsTxBodyL)
+            (tx ^. bodyTxL . mintTxBodyL)
             (tx ^. witsTxL)

@@ -1,14 +1,13 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK 2023- CardanoFoundation
 -- License: Apache-2.0
---
-
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
     ( fromAllegraTx
     )
-    where
+where
 
 import Prelude
 
@@ -46,11 +45,10 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( ScriptReference (ViaSpending)
-    , TokenMapWithScripts
     , emptyTokenMapWithScripts
     )
-import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
-    ( ValidityIntervalExplicit
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
@@ -61,8 +59,6 @@ import Control.Lens
     , (^..)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Certificates as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
 
@@ -70,23 +66,20 @@ import qualified Data.Set as Set
 
 fromAllegraTx
     :: ShelleyTx Allegra
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       , WitnessCount
-       )
+    -> TxExtended
 fromAllegraTx tx =
-    ( primitiveTx @Allegra $ Read.Tx tx
-    , anyEraCerts @Allegra $ Read.Tx tx
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
-    , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
-    , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL.addrTxWitsL)
-        ((`NativeExplicitScript` ViaSpending)
-         . toWalletScript (\_vkey -> Payment)
-            <$> tx ^.. witsTxL.scriptTxWitsL.folded)
-        (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
-    )
+    TxExtended{..}
+  where
+    walletTx = primitiveTx @Allegra $ Read.Tx tx
+    certificates = anyEraCerts @Allegra $ Read.Tx tx
+    toMint = emptyTokenMapWithScripts
+    toBurn = emptyTokenMapWithScripts
+    validity = Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
+    witnessCount _ =
+        WitnessCount
+            (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+            ( (`NativeExplicitScript` ViaSpending)
+                . toWalletScript (\_vkey -> Payment)
+                <$> tx ^.. witsTxL . scriptTxWitsL . folded
+            )
+            (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)

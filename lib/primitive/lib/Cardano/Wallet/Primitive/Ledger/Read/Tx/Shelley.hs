@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -40,11 +41,10 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( ScriptReference (..)
-    , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     )
-import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
-    ( ValidityIntervalExplicit
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
@@ -58,32 +58,26 @@ import Control.Lens
     , (^..)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Certificates as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
     :: ShelleyTx Shelley
-    -> ( W.Tx
-       , [W.Certificate]
-       , TokenMapWithScripts
-       , TokenMapWithScripts
-       , Maybe ValidityIntervalExplicit
-       , WitnessCount
-       )
+    -> TxExtended
 fromShelleyTx tx =
-    ( primitiveTx @Shelley $ Read.Tx tx
-    , anyEraCerts @Shelley $ Read.Tx tx
-    , emptyTokenMapWithScripts
-    , emptyTokenMapWithScripts
-    , getValidity . getEraValidity @Shelley $ Read.Tx tx
-    , WitnessCount
-        (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
-        ( (`NativeExplicitScript` ViaSpending)
-            . toWalletScriptFromShelley Payment
-            <$> tx ^.. witsTxL . scriptTxWitsL . folded
-        )
-        (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)
-    )
+    TxExtended{..}
+  where
+    walletTx = primitiveTx @Shelley $ Read.Tx tx
+    certificates = anyEraCerts @Shelley $ Read.Tx tx
+    toMint = emptyTokenMapWithScripts
+    toBurn = emptyTokenMapWithScripts
+    validity = getValidity . getEraValidity @Shelley $ Read.Tx tx
+    witnessCount _ =
+        WitnessCount
+            (fromIntegral $ Set.size $ tx ^. witsTxL . addrTxWitsL)
+            ( (`NativeExplicitScript` ViaSpending)
+                . toWalletScriptFromShelley Payment
+                <$> tx ^.. witsTxL . scriptTxWitsL . folded
+            )
+            (fromIntegral $ Set.size $ tx ^. witsTxL . bootAddrTxWitsL)

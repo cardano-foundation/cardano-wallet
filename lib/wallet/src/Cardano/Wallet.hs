@@ -561,6 +561,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
     , fromTransactionInfo
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
@@ -2282,13 +2285,7 @@ buildAndSignTransactionPure
             Nothing
             (sealedTxFromCardano $ inAnyCardanoEra unsignedBalancedTx)
 
-        ( tx
-            , _tokenMapWithScripts1
-            , _tokenMapWithScripts2
-            , _certificates
-            , _validityIntervalExplicit
-            , _witnessCount
-            ) = decodeTx txLayer anyCardanoEra AnyWitnessCountCtx signedTx
+        tx = walletTx $ decodeTx txLayer anyCardanoEra signedTx
 
         utxo' = applyOurTxToUTxO
             (Slot.at $ currentTip wallet ^. #slotNo)
@@ -2659,7 +2656,7 @@ submitExternalTx tr nw tl sealedTx = do
     -- FIXME: We read the current era to constrain the @sealedTx@ **twice**:
     -- once here for decodeTx, and once in postTx before submitting.
     era <- liftIO $ currentNodeEra nw
-    let (tx, _, _, _, _, _) = decodeTx tl era AnyWitnessCountCtx sealedTx
+    let tx = walletTx $ decodeTx tl era sealedTx
         txid = tx ^. #txId
     _ <- traceResult (MsgSubmitExternalTx txid >$< tr) $ do
         postTx nw sealedTx

@@ -23,6 +23,7 @@
 {-# OPTIONS_GHC -Wno-unused-matches #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# LANGUAGE RecordWildCards #-}
 {- HLINT ignore "Use <$>" -}
 {- HLINT ignore "Use camelCase" -}
 
@@ -44,7 +45,6 @@ module Cardano.Wallet.Shelley.Transaction
     -- * Internals
     , TxPayload (..)
     , TxWitnessTag (..)
-    , _decodeSealedTx
     , mkByronWitness
     , mkShelleyWitness
     , mkUnsignedTx
@@ -104,7 +104,7 @@ import Cardano.Wallet.Flavor
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toLedger)
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.CardanoApi
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     ( fromCardanoTx
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
@@ -158,6 +158,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
     , TxSize (..)
     , txOutMaxCoin
     , txOutMaxTokenQuantity
+    )
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -403,10 +406,10 @@ mkTransaction era networkId keyF stakeCreds addrResolver ctx cs = do
                 addrResolver
                 inputResolver
                 (Write.fromCardanoApiTx $ Cardano.Tx unsigned [])
-    let withResolvedInputs (tx, _, _, _, _, _) =
+    let withResolvedInputs tx =
             tx {resolvedInputs = second Just <$> F.toList (view #inputs cs)}
     Right
-        ( withResolvedInputs (fromCardanoTx AnyWitnessCountCtx signed)
+        ( withResolvedInputs $ walletTx $ fromCardanoTx signed
         , sealedTxFromCardano' signed
         )
   where
@@ -503,20 +506,16 @@ signTransaction
             ]
 
         certs = cardanoCertKeysForWitnesses $ Cardano.txCertificates bodyContent
-
+        TxExtended{..} = fromCardanoTx $ Cardano.makeSignedTransaction wits body
         mintBurnScriptsKeyHashes =
-            let (_, toMint, toBurn, _, _, _) = fromCardanoTx witCountCtx $
-                    Cardano.makeSignedTransaction wits body
-            in
             -- Note that we use 'nub' here because multiple scripts can share
             -- the same policyXPub. It's sufficient to have one witness for
             -- each.
             L.nub $ getScriptsKeyHashes toMint <> getScriptsKeyHashes toBurn
 
         stakingScriptsKeyHashes =
-            let (_, _, _, _, _, (WitnessCount _ nativeScripts _)) =
-                    fromCardanoTx witCountCtx $
-                    Cardano.makeSignedTransaction wits body
+            let WitnessCount _ nativeScripts _ = witnessCount witCountCtx
+
                 isDelegationKeyHash (KeyHash Delegation _) = True
                 isDelegationKeyHash (KeyHash _ _) = False
             in
@@ -775,19 +774,12 @@ mkUnsignedTransaction networkId stakeCred ctx selection = do
 
 _decodeSealedTx
     :: AnyCardanoEra
-    -> WitnessCountCtx
     -> SealedTx
-    ->  ( Tx
-        , TokenMapWithScripts
-        , TokenMapWithScripts
-        , [Certificate]
-        , Maybe ValidityIntervalExplicit
-        , WitnessCount
-        )
-_decodeSealedTx preferredLatestEra witCtx sealedTx =
+    -> TxExtended
+_decodeSealedTx preferredLatestEra sealedTx =
     case cardanoTxIdeallyNoLaterThan preferredLatestEra sealedTx of
         Cardano.InAnyCardanoEra _ tx ->
-            fromCardanoTx witCtx tx
+            fromCardanoTx tx
 
 -- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
 -- in. However, quoting Duncan:

@@ -124,7 +124,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.CardanoApi
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
@@ -195,6 +195,7 @@ library
     Cardano.Wallet.Primitive.Types.TokenQuantity
     Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     Cardano.Wallet.Primitive.Types.Tx
+    Cardano.Wallet.Primitive.Types.Tx.TxExtended
     Cardano.Wallet.Primitive.Types.Tx.Constraints
     Cardano.Wallet.Primitive.Types.Tx.Gen
     Cardano.Wallet.Primitive.Types.Tx.Metadata.Gen
