@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
 
 -- |
@@ -42,12 +43,13 @@ import Cardano.Wallet.Read.Eras
     , applyEraFun
     , extractEraValue
     , sequenceEraValue
-    , (*&&&*)
-    , (*.**)
-    , (:.:)
+    , (:*:) (..)
+    , (:.:) (..)
     )
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFunK (..)
+    ( mkEraFun
+    , mkEraFunK
+    , runEraFunK
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
@@ -118,18 +120,23 @@ data ParsedTxCBOR = ParsedTxCBOR
     deriving Generic
 
 parser :: EraFun Tx (K ParsedTxCBOR)
-parser = fromEraFunK
-    $ ParsedTxCBOR
-        <$> EraFunK (Feature.primitiveCertificates <<< getEraCertificates)
-        <*> EraFunK (Feature.mint <<<
-            getEraMint *&&&* getEraWitnesses *&&&* getEraReferenceInputs)
-        <*> EraFunK (Feature.getValidity <<< getEraValidity)
-        <*> EraFunK (Feature.integrity <<< getEraIntegrity)
-        <*> EraFunK (Feature.extraSigs <<< getEraExtraSigs)
+parser = mkEraFunK $ do
+    certificates <-
+        runEraFunK $ Feature.primitiveCertificates <<< getEraCertificates
+    witnesses <- runEraFun getEraWitnesses
+    referenceInputs <- runEraFun getEraReferenceInputs
+    mint <- runEraFun getEraMint
+    let mintBurn = runEraFunK Feature.mint
+            $ mint :*: witnesses :*: referenceInputs
+    validityInterval <- runEraFunK $ Feature.getValidity <<< getEraValidity
+    scriptIntegrity <- runEraFunK $ Feature.integrity <<< getEraIntegrity
+    extraSignatures <- runEraFunK $ Feature.extraSigs <<< getEraExtraSigs
+    pure $ ParsedTxCBOR{..}
 
 txCBORParser ::
     EraFun (K BL.ByteString) (Either DecoderError :.: K (ParsedTxCBOR))
-txCBORParser = parser *.** deserializeTx
+txCBORParser = mkEraFun (Comp . fmap (runEraFun parser) . unComp . runEraFun deserializeTx)
+  where unComp (Comp a) = a
 
 -- | Parse CBOR to some values and throw a server deserialize error if failing.
 parseTxCBOR :: TxCBOR -> Handler ParsedTxCBOR
