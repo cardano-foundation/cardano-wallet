@@ -25,6 +25,7 @@ library
 
   hs-source-dirs:     src
   exposed-modules:    Cryptography.Cipher.ChaChaPoly1305
+                      Cryptography.Cipher.AES256CBC
                       Cryptography.Core
                       Cryptography.ECC.Edwards25519
                       Cryptography.Hash.Blake
