@@ -112,6 +112,9 @@ import Cryptography.Hash.Core
     , SHA512 (..)
     , hmac
     )
+import Cryptography.KDF.PBKDF2
+    ( PBKDF2Config (..)
+    )
 import Data.Bifunctor
     ( bimap
     )
@@ -282,11 +285,16 @@ generateKeyFromHardwareLedger (SomeMnemonic mw) (Passphrase pwd) = unsafeFromRig
 
     -- As described in [BIP 0039 - From Mnemonic to Seed](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#from-mnemonic-to-seed)
     pbkdf2HmacSha512 :: ByteString -> ByteString
-    pbkdf2HmacSha512 bytes = PBKDF2.generate
-        (PBKDF2.prfHMAC SHA512)
-        (PBKDF2.Parameters 2048 64)
-        bytes
-        ("mnemonic" :: ByteString)
+    pbkdf2HmacSha512 bytes =
+        fst $ PBKDF2.generateKey config bytes (Just salt')
+      where
+        salt' = "mnemonic" :: ByteString
+        config = PBKDF2Config
+            { hash = SHA512
+            , iterations = 2048
+            , keyLength = 64
+            , ivLength = 0
+            }
 
     hmacSha256 :: ByteString -> ByteString
     hmacSha256 =
