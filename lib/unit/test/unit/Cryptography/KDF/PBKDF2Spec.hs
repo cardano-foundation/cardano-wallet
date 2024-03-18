@@ -17,10 +17,14 @@ import Cryptography.KDF.PBKDF2
     )
 import Data.ByteArray.Encoding
     ( Base (..)
+    , convertFromBase
     , convertToBase
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Either.Combinators
+    ( rightToMaybe
     )
 import Data.Text
     ( Text
@@ -159,7 +163,7 @@ spec = do
             , keyL = 32
             , ivL = 0
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "26A1A6F599173BAF863F97F2A18AF2FD8E99104E726D9EB682FCB7ED53517CF9"
             , iv = ""
@@ -173,7 +177,7 @@ spec = do
             , keyL = 32
             , ivL = 0
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "3BE342BC36004A2F34B8FAD4BDCA91AE3495A946CF7C0DD789EDE283AF8A3EE1"
             , iv = ""
@@ -187,7 +191,7 @@ spec = do
             , keyL = 32
             , ivL = 0
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "A0BEF9E8434D518A2D9BCCF7883808BEDC5093E678AC7AC3CA1C6F7071B49575"
             , iv = ""
@@ -201,7 +205,7 @@ spec = do
             , keyL = 32
             , ivL = 0
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "0DB80B6BC6D151C4FA474E8533DD2D4172208B895BBDB1D7ED564B1817F50B51"
             , iv = ""
@@ -215,7 +219,7 @@ spec = do
             , keyL = 32
             , ivL = 16
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "26A1A6F599173BAF863F97F2A18AF2FD8E99104E726D9EB682FCB7ED53517CF9"
             , iv = "131BAB9240C168CC60A9F6DFA8CA5A6D"
@@ -229,7 +233,7 @@ spec = do
             , keyL = 32
             , ivL = 16
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "3BE342BC36004A2F34B8FAD4BDCA91AE3495A946CF7C0DD789EDE283AF8A3EE1"
             , iv = "345CFDD8532C26C590107A30008200F6"
@@ -243,7 +247,7 @@ spec = do
             , keyL = 32
             , ivL = 16
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "A0BEF9E8434D518A2D9BCCF7883808BEDC5093E678AC7AC3CA1C6F7071B49575"
             , iv = "8CEAB15C11F31E8BD3907D24C2D60E94"
@@ -257,7 +261,7 @@ spec = do
             , keyL = 32
             , ivL = 16
             , passwd = "password"
-            , salt = Just "00000000"
+            , salt = fromHex "3030303030303030"
             } `shouldBe` OpenSSLOutput
             { key = "0DB80B6BC6D151C4FA474E8533DD2D4172208B895BBDB1D7ED564B1817F50B51"
             , iv = "BD53567BFDA090E3A7C9BB54E34E4A8F"
@@ -273,7 +277,7 @@ spec = do
             , keyL = 32
             , ivL = 0
             , passwd = "password"
-            , salt = Just "address-hashing"
+            , salt = fromHex "616464726573732D68617368696E67"
             } `shouldBe` OpenSSLOutput
             { key = "6D3FF0C9AAE42F26B518C4E9F98D1A1EAB59B55E5A82F78F66DFC7CAA956DCA0"
             , iv = ""
@@ -289,7 +293,7 @@ spec = do
             , keyL = 32
             , ivL = 0
             , passwd = "password"
-            , salt = Just "mnemonic"
+            , salt = fromHex "6D6E656D6F6E6963"
             } `shouldBe` OpenSSLOutput
             { key = "E0FB520D01112056904730F762AD263B806953F1FE5B4662C97B1F301BB5F862"
             , iv = ""
@@ -304,7 +308,7 @@ spec = do
             , keyL = 32
             , ivL = 16
             , passwd = "password"
-            , salt = Just "abcdefgh"
+            , salt = fromHex "6162636465666768"
             } `shouldBe` OpenSSLOutput
             { key = "6BBCD65DA84D7BB1D214908270352A56FF25B375E53B7D3F237330666CCBF0DF"
             , iv = "FD40C29618D438E3658388C52EB7974E"
@@ -316,6 +320,7 @@ spec = do
     tohex (a, b) =
         let convert = T.toUpper . T.decodeUtf8 . convertToBase Base16
         in OpenSSLOutput (convert a) (convert b)
+    fromHex = rightToMaybe . convertFromBase Base16 . T.encodeUtf8
 
 data TestCase h = TestCase
     { algo :: h

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Cryptography.KDF.PBKDF2
     ( PBKDF2Config (..)
@@ -60,11 +61,11 @@ generateKey
     -- ^ salt
     -> (ByteString, ByteString)
     -- ^ (key, iv)
-generateKey (PBKDF2Config hashAlgoType iter keyLen ivLen) payload saltM =
-    BS.splitAt keyLen whole
+generateKey PBKDF2Config{hash,iterations,keyLength,ivLength} payload saltM =
+    BS.splitAt keyLength whole
   where
     whole = generate
-        (prfHMAC hashAlgoType)
-        (Parameters iter (keyLen + ivLen))
+        (prfHMAC hash)
+        (Parameters iterations (keyLength + ivLength))
         payload
         (fromMaybe BS.empty saltM)

@@ -256,9 +256,9 @@ test-suite unit
     Cardano.Wallet.Submissions.PrimitivesSpec
     Cardano.Wallet.TokenMetadataSpec
     Cardano.WalletSpec
-    Cryptography.KDF.PBKDF2Spec
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec
+    Cryptography.KDF.PBKDF2Spec
     Data.Function.UtilsSpec
     Data.Time.TextSpec
     Data.Time.UtilsSpec
