@@ -207,12 +207,12 @@ fail to build.</p>
 <li>
 <p>Run the freshly-built <code>cardano-wallet</code> executable.</p>
 <p>As an example, this will show the help page:</p>
-<pre><code class="language-console">&gt; cabal run cardano-wallet:exe:cardano-wallet -- --help
+<pre><code class="language-console">&gt; cabal run cardano-wallet-api:exe:cardano-wallet -- --help
 </code></pre>
 </li>
 <li>
 <p>Make a build with <code>-O2</code> level compiler optimizations:</p>
-<pre><code class="language-console">&gt; cabal build cardano-wallet:exe:cardano-wallet -frelease
+<pre><code class="language-console">&gt; cabal build cardano-wallet-api:exe:cardano-wallet -frelease
 </code></pre>
 </li>
 <li>
@@ -221,13 +221,13 @@ fail to build.</p>
 <pre><code class="language-console">&gt; cabal configure --enable-tests --enable-benchmarks
 </code></pre>
 <p>To run one of the unit test suites:</p>
-<pre><code class="language-console">&gt; cabal run cardano-wallet:test:unit
+<pre><code class="language-console">&gt; cabal run cardano-wallet-unit:test:unit
 </code></pre>
 <p>To run the DB benchmark:</p>
-<pre><code class="language-console">&gt; cabal run cardano-wallet:bench:db
+<pre><code class="language-console">&gt; cabal run cardano-wallet-benchmarks:bench:db
 </code></pre>
 <p>To run the integration test suite:</p>
-<pre><code class="language-console">&gt; cabal run cardano-wallet:test:integration
+<pre><code class="language-console">&gt; cabal run cardano-wallet-integration:test:integration
 </code></pre>
 </li>
 <li>
