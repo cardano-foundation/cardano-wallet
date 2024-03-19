@@ -159,7 +159,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
       };
 
-      inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
+      inputMap = { "https://chap.intersectmbo.org/" = CHaP; };
 
       modules =
         let inherit (config) src coverage profiling;
