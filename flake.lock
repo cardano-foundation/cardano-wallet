@@ -913,11 +913,11 @@
     "hackage": {
       "flake": false,
       "locked": {
-        "lastModified": 1705278263,
-        "narHash": "sha256-7y7BujULv8Wma0eOTVnki6wCRtZhpn3Iw+IXOI0yO+0=",
+        "lastModified": 1710807758,
+        "narHash": "sha256-lQY4KSZQlMyKizC+Xbsl29hxNPHV52pRTDZac+vPaeU=",
         "owner": "input-output-hk",
         "repo": "hackage.nix",
-        "rev": "5eba43fa91e04a2f5c9e81d545358624ffa2fe43",
+        "rev": "dc3cafd9dbaeebe37c96613a9d145e162cadcf79",
         "type": "github"
       },
       "original": {
