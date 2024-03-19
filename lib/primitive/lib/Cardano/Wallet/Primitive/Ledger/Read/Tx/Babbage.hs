@@ -27,7 +27,7 @@ import Cardano.Ledger.Api
     , witsTxL
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( anyEraCerts
+    ( getCertificates
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( babbageMint
@@ -71,6 +71,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxExtended
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     )
+import Cardano.Wallet.Read.Tx.Certificates
+    ( getEraCertificates
+    )
 import Control.Lens
     ( folded
     , (<&>)
@@ -96,7 +99,7 @@ fromBabbageTx
 fromBabbageTx tx = TxExtended{..}
   where
     walletTx = primitiveTx @Babbage $ Read.Tx tx
-    certificates = anyEraCerts @Babbage $ Read.Tx tx
+    certificates = getCertificates @Babbage $ getEraCertificates $ Read.Tx tx
     toMint = assetsToMint
     toBurn = assetsToBurn
     validity = Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL

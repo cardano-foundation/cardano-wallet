@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( anyEraCerts
+    ( getCertificates
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( afterShelleyValidityInterval
@@ -52,6 +52,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxExtended
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
+    )
+import Cardano.Wallet.Read.Tx.Certificates
+    ( getEraCertificates
     )
 import Control.Lens
     ( folded
@@ -71,7 +74,7 @@ fromAllegraTx tx =
     TxExtended{..}
   where
     walletTx = primitiveTx @Allegra $ Read.Tx tx
-    certificates = anyEraCerts @Allegra $ Read.Tx tx
+    certificates = getCertificates @Allegra $ getEraCertificates $ Read.Tx tx
     toMint = emptyTokenMapWithScripts
     toBurn = emptyTokenMapWithScripts
     validity = Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL

@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( anyEraCerts
+    ( getCertificates
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( getValidity
@@ -48,6 +48,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxExtended
     )
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
+    )
+import Cardano.Wallet.Read.Tx.Certificates
+    ( getEraCertificates
     )
 import Cardano.Wallet.Read.Tx.Validity
     ( getEraValidity
@@ -69,7 +72,7 @@ fromShelleyTx tx =
     TxExtended{..}
   where
     walletTx = primitiveTx @Shelley $ Read.Tx tx
-    certificates = anyEraCerts @Shelley $ Read.Tx tx
+    certificates = getCertificates @Shelley $ getEraCertificates $ Read.Tx tx
     toMint = emptyTokenMapWithScripts
     toBurn = emptyTokenMapWithScripts
     validity = getValidity . getEraValidity @Shelley $ Read.Tx tx

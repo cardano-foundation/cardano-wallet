@@ -112,7 +112,7 @@ data ParsedTxCBOR = ParsedTxCBOR
 
 parser :: IsEra era => Tx era -> ParsedTxCBOR
 parser = do
-    certificates <- Feature.primitiveCertificates . getEraCertificates
+    certificates <- Feature.getCertificates . getEraCertificates
     witnesses <- getEraWitnesses
     referenceInputs <- getEraReferenceInputs
     mint <- getEraMint

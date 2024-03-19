@@ -140,6 +140,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ScriptValidity
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.WitnessCount
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley

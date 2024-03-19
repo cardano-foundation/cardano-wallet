@@ -35,7 +35,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( anyEraCerts
+    ( getCertificates
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( conwayMint
@@ -71,6 +71,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     )
+import Cardano.Wallet.Read.Tx.Certificates
+    ( getEraCertificates
+    )
 import Control.Lens
     ( folded
     , (<&>)
@@ -97,7 +100,7 @@ fromConwayTx
 fromConwayTx tx = TxExtended{..}
   where
     walletTx = primitiveTx @Conway $ Read.Tx tx
-    certificates = anyEraCerts @Conway $ Read.Tx tx
+    certificates = getCertificates @Conway $ getEraCertificates $ Read.Tx tx
     toMint = assetsToMint
     toBurn = assetsToBurn
     validity = Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL

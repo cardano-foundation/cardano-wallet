@@ -28,7 +28,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( anyEraCerts
+    ( getCertificates
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
     ( maryMint
@@ -49,6 +49,9 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     , toKeyRole
     )
+import Cardano.Wallet.Read.Tx.Certificates
+    ( getEraCertificates
+    )
 import Control.Lens
     ( folded
     , (^.)
@@ -65,7 +68,7 @@ fromMaryTx
 fromMaryTx tx = TxExtended{..}
   where
     walletTx = primitiveTx @Mary $ Read.Tx tx
-    certificates = anyEraCerts @Mary $ Read.Tx tx
+    certificates = getCertificates @Mary $ getEraCertificates $ Read.Tx tx
     toMint = assetsToMint
     toBurn = assetsToBurn
     validity = Just $ afterShelleyValidityInterval $ tx ^. bodyTxL . vldtTxBodyL
