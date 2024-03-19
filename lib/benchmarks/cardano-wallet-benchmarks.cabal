@@ -41,13 +41,14 @@ library
     , aeson
     , base
     , cardano-addresses
+    , cardano-wallet
+    , cardano-wallet-api
     , cardano-wallet-application-extras
+    , cardano-wallet-integration:framework
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
-    , cardano-wallet-integration:framework
     , criterion-measurement
     , deepseq
     , directory
@@ -92,11 +93,12 @@ benchmark restore
     , bytestring
     , cardano-addresses
     , cardano-balance-tx:internal
+    , cardano-wallet
+    , cardano-wallet-api
     , cardano-wallet-benchmarks
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
     , containers
     , contra-tracer
     , crypto-primitives
@@ -120,12 +122,13 @@ benchmark latency
     , aeson
     , base
     , cardano-addresses
+    , cardano-wallet
+    , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-benchmarks
+    , cardano-wallet-integration:framework
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
-    , cardano-wallet-integration:framework
     , directory
     , exceptions
     , faucet
@@ -162,6 +165,7 @@ benchmark db
     , cardano-addresses
     , cardano-api
     , cardano-crypto
+    , cardano-wallet
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -169,7 +173,6 @@ benchmark db
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cardano-wallet-unit:test-common
-    , cardano-wallet:cardano-wallet
     , containers
     , contra-tracer
     , criterion
@@ -200,12 +203,12 @@ benchmark api
     , bytestring
     , cardano-api
     , cardano-balance-tx:internal
+    , cardano-wallet
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-unit:test-common
-    , cardano-wallet:cardano-wallet
     , containers
     , fmt
     , iohk-monitoring

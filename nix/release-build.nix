@@ -11,7 +11,7 @@
 with pkgs.lib;
 
 let drv = pkgs.stdenv.mkDerivation rec {
-  name = "${exe.identifier.name}-${version}";
+  name = "${exe.exeName}-${version}";
   version = exe.identifier.version;
   phases = [ "installPhase" ];
   installPhase = ''

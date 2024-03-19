@@ -1,6 +1,6 @@
-#!/usr/bin/env ruby
 
 ############################################################################
+#!/usr/bin/env ruby
 # Checks that every executable required in the release package is
 # present and works.
 # On Linux it checks if executables are statically linked.
@@ -10,11 +10,13 @@
 require 'open3'
 
 tests = {
-  "cardano-wallet" => [ "cardano-node", "cardano-cli", "bech32", "cardano-address" ]
+  "cardano-wallet.exe" => [ "cardano-node", "cardano-cli", "bech32", "cardano-address" ], "cardano-wallet" => [ "cardano-node", "cardano-cli", "bech32", "cardano-address" ]
 }
 
 if ARGV.length < 1 || ARGV.length > 2 || tests[ARGV[0]] == nil
   STDERR.puts "Usage: check-bundle cardano-wallet [RUNNER]"
+  STDERR.puts ARGV[0]
+  STDERR.puts ARGV[1]
   exit 1
 end
 

@@ -51,13 +51,14 @@ library framework
     , cardano-crypto-class
     , cardano-data
     , cardano-ledger-shelley
+    , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http, mock-token-metadata}
+    , cardano-wallet:{cardano-wallet, mock-token-metadata}
     , cborg
     , command
     , containers
@@ -132,12 +133,13 @@ library scenarios
     , cardano-crypto-class
     , cardano-ledger-alonzo
     , cardano-ledger-core
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-integration:framework
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, cardano-wallet-api-http}
-    , cardano-wallet-integration:framework
     , command
     , containers
     , either
@@ -206,11 +208,11 @@ common integration-common
     , cardano-wallet-integration:scenarios
 
 executable integration-exe
-  import:             integration-common
-  main-is:            integration-tests-exe.hs
+  import:  integration-common
+  main-is: integration-tests-exe.hs
 
 test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
-  build-tool-depends: cardano-wallet:cardano-wallet
+  build-tool-depends: cardano-wallet-api:cardano-wallet
