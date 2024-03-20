@@ -1,25 +1,12 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2020-2022 IOHK
+-- Copyright: © 2020-2022 IOHK 2023- CardanoFoundation
 -- License: Apache-2.0
 --
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
     ( fromAllegraTx
-    , fromAllegraTx'
     )
     where
 
@@ -31,12 +18,8 @@ import Cardano.Address.Script
 import Cardano.Ledger.Api
     ( Allegra
     , addrTxWitsL
-    , auxDataTxL
     , bodyTxL
     , bootAddrTxWitsL
-    , feeTxBodyL
-    , inputsTxBodyL
-    , outputsTxBodyL
     , scriptTxWitsL
     , vldtTxBodyL
     , witsTxL
@@ -49,23 +32,14 @@ import Cardano.Ledger.Shelley.Tx
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( primitiveTx
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( anyEraCerts
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
-    ( fromShelleyTxIn
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
-    ( fromAllegraMetadata
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
-    ( fromAllegraTxOut
-    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     ( afterShelleyValidityInterval
-    )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
-    ( fromLedgerWithdrawals
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript (NativeExplicitScript)
@@ -81,31 +55,13 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     )
-import Cardano.Wallet.Read.Eras
-    ( eraValue
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR
-    )
-import Cardano.Wallet.Read.Tx.Hash
-    ( shelleyTxHash
-    )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( shelleyWithdrawals
-    )
 import Control.Lens
     ( folded
     , (^.)
     , (^..)
     )
-import Data.Foldable
-    ( toList
-    )
 
-import qualified Cardano.Ledger.BaseTypes as SL
-import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Set as Set
@@ -122,7 +78,7 @@ fromAllegraTx
        , WitnessCount
        )
 fromAllegraTx tx =
-    ( fromAllegraTx' tx
+    ( primitiveTx @Allegra $ Read.Tx tx
     , anyEraCerts @Allegra $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
@@ -134,28 +90,3 @@ fromAllegraTx tx =
             <$> tx ^.. witsTxL.scriptTxWitsL.folded)
         (fromIntegral $ Set.size $ tx ^. witsTxL.bootAddrTxWitsL)
     )
-
-fromAllegraTx' :: ShelleyTx Allegra -> W.Tx
-fromAllegraTx' tx =
-    W.Tx
-        { txId =
-            W.Hash $ shelleyTxHash tx
-        , txCBOR =
-            Just $ renderTxToCBOR $ eraValue @Allegra $ Read.Tx tx
-        , fee =
-            Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
-        , resolvedInputs =
-            (,Nothing) . fromShelleyTxIn <$> tx ^.. bodyTxL . inputsTxBodyL . folded
-        , resolvedCollateralInputs =
-            [] -- TODO: (ADP-957)
-        , outputs =
-            fromAllegraTxOut <$> toList (tx ^. bodyTxL . outputsTxBodyL)
-        , collateralOutput =
-            Nothing -- Collateral outputs are not supported in Allegra.
-        , withdrawals =
-            fromLedgerWithdrawals . shelleyWithdrawals $ tx
-        , metadata =
-            fromAllegraMetadata <$> SL.strictMaybeToMaybe (tx ^. auxDataTxL)
-        , scriptValidity =
-            Nothing
-        }

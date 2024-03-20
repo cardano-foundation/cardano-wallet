@@ -124,7 +124,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
+    Cardano.Wallet.Primitive.Ledger.Read.Tx.CardanoApi
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs

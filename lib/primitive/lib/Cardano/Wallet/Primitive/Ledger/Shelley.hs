@@ -171,8 +171,8 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( maryTokenBundleMaxSize
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx.Byron
-    ( fromTxAux
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( primitiveTx
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( fromStakeCredential
@@ -199,6 +199,9 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     ( StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
+    )
+import Cardano.Wallet.Read
+    ( Byron
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
@@ -369,6 +372,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (TxOut)
     )
 import qualified Cardano.Wallet.Primitive.Types.TxParameters as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Short as SBS
 import qualified Data.ListMap as ListMap
@@ -497,7 +501,8 @@ numberOfTransactionsInBlock = \case
         (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
             case byronBlockRaw blk of
             ABOBBlock blk' ->
-                length $ fromTxAux <$> unTxPayload (blockTxPayload blk')
+                length $ primitiveTx @Byron . Read.Tx
+                    <$> unTxPayload (blockTxPayload blk')
             ABOBBoundary _ ->
                 0
 
