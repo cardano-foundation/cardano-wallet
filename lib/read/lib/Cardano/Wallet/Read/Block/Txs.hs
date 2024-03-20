@@ -46,6 +46,7 @@ import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Byron.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
+{-# INLINABLE getEraTransactions #-}
 -- | Get the list of transactions in the block.
 getEraTransactions :: forall era. IsEra era => Block era -> ([] :.: Tx) era
 getEraTransactions = case theEra @era of

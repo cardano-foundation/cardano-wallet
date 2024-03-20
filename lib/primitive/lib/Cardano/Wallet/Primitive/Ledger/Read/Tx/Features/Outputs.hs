@@ -83,6 +83,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 
+{-# INLINABLE getOutputs #-}
 getOutputs :: forall era . IsEra era => Outputs era -> [W.TxOut]
 getOutputs = case theEra @era of
     Byron -> \(Outputs os) -> fromByronTxOut <$> toList os

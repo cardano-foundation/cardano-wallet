@@ -70,6 +70,7 @@ newtype Mint era = Mint (MintType era)
 deriving instance Show (MintType era) => Show (Mint era)
 deriving instance Eq (MintType era) => Eq (Mint era)
 
+{-# INLINABLE getEraMint #-}
 getEraMint :: forall era. IsEra era => Tx era -> Mint era
 getEraMint = case theEra @era of
     Byron -> \_ -> Mint ()

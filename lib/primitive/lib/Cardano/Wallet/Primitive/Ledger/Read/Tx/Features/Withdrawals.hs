@@ -41,6 +41,7 @@ import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates a
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.Map as Map
 
+{-# INLINABLE getWithdrawals #-}
 getWithdrawals :: forall era. IsEra era => Withdrawals era -> Maybe (Map RewardAccount Coin)
 getWithdrawals = case theEra @era of
     Byron -> \_withdrawals -> Nothing

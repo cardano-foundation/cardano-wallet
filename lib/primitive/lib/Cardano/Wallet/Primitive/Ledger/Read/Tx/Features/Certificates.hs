@@ -110,6 +110,7 @@ import qualified Data.Set as Set
 anyEraCerts :: forall era . IsEra era => Tx era -> [Certificate]
 anyEraCerts = primitiveCertificates . getEraCertificates
 
+{-# INLINABLE primitiveCertificates #-}
 -- | Compute wallet primitive certificates from ledger certificates
 primitiveCertificates
     :: forall era . IsEra era => Certificates era -> [W.Certificate]

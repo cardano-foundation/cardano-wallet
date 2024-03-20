@@ -27,6 +27,7 @@ import Cardano.Wallet.Read.Tx.Fee
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 
+{-# INLINABLE getFee #-}
 getFee :: forall era . IsEra era => Fee era -> Maybe W.Coin
 getFee = case theEra @era of
     Byron -> \_ -> Nothing

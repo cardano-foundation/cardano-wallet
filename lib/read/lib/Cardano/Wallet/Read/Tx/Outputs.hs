@@ -87,6 +87,7 @@ newtype Outputs era = Outputs (OutputsType era)
 deriving instance Show (OutputsType era) => Show (Outputs era)
 deriving instance Eq (OutputsType era) => Eq (Outputs era)
 
+{-# INLINE getEraOutputs #-}
 getEraOutputs :: forall era . IsEra era => Tx era -> Outputs era
 getEraOutputs = case theEra @era of
     Byron -> onTx $ Outputs . BY.txOutputs . BY.taTx

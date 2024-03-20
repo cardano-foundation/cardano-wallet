@@ -82,6 +82,7 @@ newtype Withdrawals era
 deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
 deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 
+{-# INLINABLE getEraWithdrawals #-}
 -- | Extract withdrawals from tx for any available era.
 getEraWithdrawals :: forall era . IsEra era => Tx era -> Withdrawals era
 getEraWithdrawals = case theEra @era of

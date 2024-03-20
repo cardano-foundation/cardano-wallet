@@ -74,6 +74,7 @@ newtype Inputs era = Inputs (InputsType era)
 deriving instance Show (InputsType era) => Show (Inputs era)
 deriving instance Eq (InputsType era) => Eq (Inputs era)
 
+{-# INLINABLE getEraInputs #-}
 -- | Extract the inputs from a transaction in any era.
 getEraInputs :: forall era . IsEra era => Tx era -> Inputs era
 getEraInputs = case theEra @era of

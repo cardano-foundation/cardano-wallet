@@ -83,6 +83,7 @@ newtype Certificates era = Certificates (CertificatesType era)
 deriving instance Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
+{-# INLINABLE getEraCertificates #-}
 -- | Extract certificates from a 'Tx' in any era.
 getEraCertificates :: forall era . IsEra era => Tx era -> Certificates era
 getEraCertificates = case theEra @era of

@@ -44,6 +44,7 @@ import qualified Ouroboros.Consensus.Protocol.Praos.Header as O
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import qualified Ouroboros.Network.Block as O
 
+{-# INLINABLE getEraBlockNo #-}
 getEraBlockNo :: forall era. IsEra era => Block era -> BlockNo
 getEraBlockNo = case theEra @era of
     Byron -> \(Block block) -> k $ O.blockNo block

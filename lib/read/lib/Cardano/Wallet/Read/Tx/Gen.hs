@@ -38,6 +38,7 @@ import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( TxParameters
     )
 
+{-# INLINABLE mkTxEra #-}
 mkTxEra :: forall era. IsEra era => TxParameters -> Tx era
 mkTxEra = case theEra @era of
     Byron -> g mkByronTx

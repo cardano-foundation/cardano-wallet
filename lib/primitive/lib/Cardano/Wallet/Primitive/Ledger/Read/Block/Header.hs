@@ -100,6 +100,7 @@ fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
 fromSlotNo :: SlotNo -> O.SlotNo
 fromSlotNo (SlotNo s) = O.SlotNo $ fromIntegral s
 
+{-# INLINEABLE primitiveHash #-}
 primitiveHash :: forall era. IsEra era => HeaderHash era -> W.Hash "BlockHeader"
 primitiveHash = case theEra @era of
     Byron -> \(HeaderHash h) -> fromByronHash h
@@ -116,6 +117,7 @@ primitiveHash = case theEra @era of
         -> W.Hash "BlockHeader"
     mkHashShelley (HeaderHash (ShelleyHash h)) = W.Hash . hashToBytes $ h
 
+{-# INLINABLE primitivePrevHash #-}
 primitivePrevHash
     :: forall era
     . IsEra era

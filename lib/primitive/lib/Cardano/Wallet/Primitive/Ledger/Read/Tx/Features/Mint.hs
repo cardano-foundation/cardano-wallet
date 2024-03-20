@@ -118,6 +118,7 @@ import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 
+{-# INLINABLE mint #-}
 mint
     :: forall era
      . IsEra era

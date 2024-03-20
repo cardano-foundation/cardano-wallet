@@ -68,6 +68,7 @@ newtype Witnesses era = Witnesses (WitnessesType era)
 deriving instance Show (WitnessesType era) => Show (Witnesses era)
 deriving instance Eq (WitnessesType era) => Eq (Witnesses era)
 
+{-# INLINABLE getEraWitnesses #-}
 getEraWitnesses :: forall era .  IsEra era => Tx era ->  Witnesses era
 getEraWitnesses = case theEra @era of
         Byron -> const $ Witnesses ()

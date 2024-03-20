@@ -34,6 +34,7 @@ import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 
+{-# INLINABLE getCollateralOutputs #-}
 getCollateralOutputs
     :: forall era
      . IsEra era

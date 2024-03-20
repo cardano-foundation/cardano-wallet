@@ -83,6 +83,7 @@ type family HeaderHashT era where
 -- | Era-specific header hash type from the ledger
 newtype HeaderHash era = HeaderHash (HeaderHashT era)
 
+{-# INLINABLE getEraHeaderHash #-}
 getEraHeaderHash :: forall era . IsEra era => Block era -> HeaderHash era
 getEraHeaderHash = case theEra @era of
     Byron -> \(Block block) -> HeaderHash $ O.blockHash block
@@ -129,6 +130,7 @@ getPrevHeaderHashShelley
 getPrevHeaderHashShelley (O.ShelleyBlock (Shelley.Block header _) _) =
     Shelley.pHeaderPrevHash header
 
+{-# INLINABLE getEraPrevHeaderHash #-}
 getEraPrevHeaderHash :: forall era . IsEra era => Block era -> PrevHeaderHash era
 getEraPrevHeaderHash = case theEra @era of
     Byron -> \(Block block) -> PrevHeaderHash $ headerPrevHash $ O.getHeader block

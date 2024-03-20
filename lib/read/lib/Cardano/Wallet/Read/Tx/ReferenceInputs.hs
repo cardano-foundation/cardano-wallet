@@ -72,6 +72,7 @@ newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 deriving instance Show (ReferenceInputsType era) => Show (ReferenceInputs era)
 deriving instance Eq (ReferenceInputsType era) => Eq (ReferenceInputs era)
 
+{-# INLINABLE getEraReferenceInputs #-}
 getEraReferenceInputs :: forall era. IsEra era => Tx era -> ReferenceInputs era
 getEraReferenceInputs = case theEra @era of
     Byron -> \_ -> ReferenceInputs ()

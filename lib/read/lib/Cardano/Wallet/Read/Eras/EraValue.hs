@@ -68,6 +68,7 @@ instance (All (Compose Show f) KnownEras) => Show (EraValue f) where
         Conway -> "InConway " ++ show x
 
 instance (All (Compose Eq f) KnownEras) => Eq (EraValue f) where
+    {-# INLINABLE (==) #-}
     (==) (EraValue (v :: f erax)) (EraValue (w :: f eray)) =
         case (theEra @erax, theEra @eray) of
             (Byron, Byron) -> v == w
@@ -80,6 +81,7 @@ instance (All (Compose Eq f) KnownEras) => Eq (EraValue f) where
             (_, _) -> False
 
 instance (All (Compose Ord f) KnownEras) => Ord (EraValue f) where
+    {-# INLINABLE compare #-}
     compare ex@(EraValue (x :: f erax)) ey@(EraValue (y :: f eray)) =
         case (theEra @erax, theEra @eray) of
             (Byron, Byron) -> compare x y
@@ -92,6 +94,7 @@ instance (All (Compose Ord f) KnownEras) => Ord (EraValue f) where
             (_, _) -> compare (indexEraValue ex) (indexEraValue ey)
 
 instance (All (Compose NFData f) KnownEras) => NFData (EraValue f) where
+    {-# INLINABLE rnf #-}
     rnf (EraValue (x :: f era)) = case theEra @era of
         Byron -> rnf x
         Shelley -> rnf x
@@ -105,6 +108,7 @@ instance (All (Compose NFData f) KnownEras) => NFData (EraValue f) where
 extractEraValue :: EraValue (K a) -> a
 extractEraValue (EraValue (K x)) = x
 
+{-# INLINABLE indexEraValue #-}
 indexEraValue :: EraValue f -> Int
 indexEraValue (EraValue (_ :: f era)) = case theEra @era of
     Byron -> 0

@@ -72,6 +72,7 @@ newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 deriving instance Show (CollateralInputsType era) => Show (CollateralInputs era)
 deriving instance Eq (CollateralInputsType era) => Eq (CollateralInputs era)
 
+{-# INLINABLE getEraCollateralInputs #-}
 -- | Extract the collateral inputs from a 'Tx' in any era.
 getEraCollateralInputs :: forall era. IsEra era => Tx era -> CollateralInputs era
 getEraCollateralInputs = case theEra @era of

@@ -101,6 +101,7 @@ instance ToText TxCBOR
 renderTxToCBOR :: EraValue Tx -> EraValue (K BL.ByteString)
 renderTxToCBOR = applyEraFunValue serializeTx
 
+{-# INLINABLE serializeTx #-}
 -- | CBOR serialization of a tx in any era.
 serializeTx :: forall era . IsEra era => Tx era -> K BL.ByteString era
 serializeTx = case theEra @era of
@@ -122,6 +123,7 @@ parseTxFromCBOR :: TxCBOR -> Either DecoderError (EraValue Tx)
 parseTxFromCBOR = sequenceEraValue
     . applyEraFunValue deserializeTx
 
+{-# INLINABLE deserializeTx #-}
 -- | CBOR deserialization of a tx in any era.
 deserializeTx :: forall era . IsEra era => K BL.ByteString era -> (Either DecoderError :.: Tx) era
 deserializeTx = case theEra @era of
