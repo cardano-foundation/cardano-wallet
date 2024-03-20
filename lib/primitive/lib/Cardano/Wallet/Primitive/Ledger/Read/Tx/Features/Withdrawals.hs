@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -22,8 +24,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.Withdrawals
     ( Withdrawals (..)
@@ -39,20 +41,19 @@ import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates a
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.Map as Map
 
-getWithdrawals :: EraFun Withdrawals (K (Maybe (Map RewardAccount Coin)))
-getWithdrawals =
-    EraFun
-        { byronFun = \_withdrawals -> K Nothing
-        , shelleyFun = eraFromWithdrawals
-        , allegraFun = eraFromWithdrawals
-        , maryFun = eraFromWithdrawals
-        , alonzoFun = eraFromWithdrawals
-        , babbageFun = eraFromWithdrawals
-        , conwayFun = eraFromWithdrawals
-        }
+getWithdrawals :: forall era. IsEra era => Withdrawals era -> Maybe (Map RewardAccount Coin)
+getWithdrawals = case theEra @era of
+    Byron -> \_withdrawals -> Nothing
+    Shelley -> eraFromWithdrawals
+    Allegra -> eraFromWithdrawals
+    Mary -> eraFromWithdrawals
+    Alonzo -> eraFromWithdrawals
+    Babbage -> eraFromWithdrawals
+    Conway -> eraFromWithdrawals
+
   where
     eraFromWithdrawals (Withdrawals withdrawals) =
-        K . Just $ fromLedgerWithdrawals withdrawals
+        Just $ fromLedgerWithdrawals withdrawals
 
 fromLedgerWithdrawals
     :: (Map (Ledger.RewardAcnt crypto) Ledger.Coin) -> Map RewardAccount W.Coin

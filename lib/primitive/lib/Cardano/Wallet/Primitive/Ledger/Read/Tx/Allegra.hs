@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -80,6 +81,9 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     )
+import Cardano.Wallet.Read.Eras
+    ( eraValue
+    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
     )
@@ -119,7 +123,7 @@ fromAllegraTx
        )
 fromAllegraTx tx =
     ( fromAllegraTx' tx
-    , Read.unK . Read.allegraFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Allegra $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -137,7 +141,7 @@ fromAllegraTx' tx =
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ Read.inject Read.allegra $ Read.Tx tx
+            Just $ renderTxToCBOR $ eraValue @Allegra $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

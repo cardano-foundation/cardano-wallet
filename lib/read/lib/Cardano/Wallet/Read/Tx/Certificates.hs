@@ -3,6 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -41,11 +42,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -84,16 +84,14 @@ deriving instance Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
 -- | Extract certificates from a 'Tx' in any era.
-getEraCertificates :: EraFun Tx Certificates
-getEraCertificates =
-    EraFun
-        { byronFun = \_ -> Certificates ()
-        , shelleyFun = certificates
-        , allegraFun = certificates
-        , maryFun = certificates
-        , alonzoFun = certificates
-        , babbageFun = certificates
-        , conwayFun = onTx $ Certificates . view (bodyTxL . certsTxBodyL)
-        }
+getEraCertificates :: forall era . IsEra era => Tx era -> Certificates era
+getEraCertificates = case theEra @era of
+    Byron -> const $ Certificates ()
+    Shelley -> certificates
+    Allegra -> certificates
+    Mary -> certificates
+    Alonzo -> certificates
+    Babbage -> certificates
+    Conway -> certificates
   where
     certificates = onTx $ Certificates . view (bodyTxL . certsTxBodyL)

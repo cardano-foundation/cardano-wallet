@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -13,9 +14,7 @@
 module Cardano.Wallet.Read.Eras.KnownEras
     ( KnownEras
     , knownEraIndices
-
     , Era (..)
-    , AnyEra (..)
     , IsEra (..)
     , Allegra
     , Alonzo
@@ -57,9 +56,7 @@ data Era era where
     Babbage :: Era Babbage
     Conway :: Era Conway
 
--- | Existentially quantified era.
-data AnyEra where
-    AnyEra :: forall era. Era era -> AnyEra
+deriving instance Show (Era era)
 
 -- | Singleton class for eras.
 class IsEra era where

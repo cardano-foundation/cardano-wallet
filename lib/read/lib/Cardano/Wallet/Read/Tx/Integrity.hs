@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -39,11 +41,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -73,18 +74,16 @@ deriving instance Show (IntegrityType era) => Show (Integrity era)
 deriving instance Eq (IntegrityType era) => Eq (Integrity era)
 
 -- | Extract the script integrity data from a transaction in any available era.
-getEraIntegrity :: EraFun Tx Integrity
-getEraIntegrity =
-    EraFun
-        { byronFun = \_ -> Integrity ()
-        , shelleyFun = \_ -> Integrity ()
-        , allegraFun = \_ -> Integrity ()
-        , maryFun = \_ -> Integrity ()
-        , alonzoFun = alonzoIntegrity
-        , babbageFun = alonzoIntegrity
-        , conwayFun = alonzoIntegrity
-        }
+getEraIntegrity :: forall era. IsEra era => Tx era -> Integrity era
+getEraIntegrity = case theEra @era of
+    Byron -> \_ -> Integrity ()
+    Shelley -> \_ -> Integrity ()
+    Allegra -> \_ -> Integrity ()
+    Mary -> \_ -> Integrity ()
+    Alonzo -> alonzoIntegrity
+    Babbage -> alonzoIntegrity
+    Conway -> alonzoIntegrity
   where
     alonzoIntegrity = onTx $ \tx ->
-        Integrity $
-            tx ^. bodyTxL . scriptIntegrityHashTxBodyL
+        Integrity
+            $ tx ^. bodyTxL . scriptIntegrityHashTxBodyL

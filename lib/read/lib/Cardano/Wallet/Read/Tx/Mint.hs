@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -40,11 +41,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -70,16 +70,14 @@ newtype Mint era = Mint (MintType era)
 deriving instance Show (MintType era) => Show (Mint era)
 deriving instance Eq (MintType era) => Eq (Mint era)
 
-getEraMint :: EraFun Tx Mint
-getEraMint =
-    EraFun
-        { byronFun = \_ -> Mint ()
-        , shelleyFun = \_ -> Mint ()
-        , allegraFun =  \_ -> Mint ()
-        , maryFun = mint
-        , alonzoFun = mint
-        , babbageFun = mint
-        , conwayFun = mint
-        }
+getEraMint :: forall era. IsEra era => Tx era -> Mint era
+getEraMint = case theEra @era of
+    Byron -> \_ -> Mint ()
+    Shelley -> \_ -> Mint ()
+    Allegra -> \_ -> Mint ()
+    Mary -> mint
+    Alonzo -> mint
+    Babbage -> mint
+    Conway -> mint
   where
     mint = onTx $ Mint . view (bodyTxL . mintTxBodyL)

@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -34,11 +36,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -74,16 +75,14 @@ deriving instance Show (InputsType era) => Show (Inputs era)
 deriving instance Eq (InputsType era) => Eq (Inputs era)
 
 -- | Extract the inputs from a transaction in any era.
-getEraInputs :: EraFun Tx Inputs
-getEraInputs =
-    EraFun
-        { byronFun = onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx
-        , shelleyFun = shelleyInputs
-        , allegraFun = shelleyInputs
-        , maryFun = shelleyInputs
-        , alonzoFun = shelleyInputs
-        , babbageFun = shelleyInputs
-        , conwayFun = shelleyInputs
-        }
+getEraInputs :: forall era . IsEra era => Tx era -> Inputs era
+getEraInputs = case theEra @era of
+    Byron -> onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx
+    Shelley -> shelleyInputs
+    Allegra -> shelleyInputs
+    Mary -> shelleyInputs
+    Alonzo -> shelleyInputs
+    Babbage -> shelleyInputs
+    Conway -> shelleyInputs
   where
     shelleyInputs = onTx $ \tx -> Inputs (tx ^. bodyTxL . inputsTxBodyL)

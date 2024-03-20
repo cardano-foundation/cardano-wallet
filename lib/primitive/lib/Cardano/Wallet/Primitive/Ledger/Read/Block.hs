@@ -24,6 +24,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
 import Cardano.Wallet.Read
     ( Block
     , ConsensusBlock
+    , IsEra
     , fromConsensusBlock
     , (:.:) (Comp)
     )
@@ -31,15 +32,7 @@ import Cardano.Wallet.Read.Block.Txs
     ( getEraTransactions
     )
 import Cardano.Wallet.Read.Eras
-    ( K (..)
-    , applyEraFun
-    , extractEraValue
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun
-    , mkEraFunK
-    , runEraFun
-    , runEraFunK
+    ( applyEraFun
     )
 import Cardano.Wallet.Read.Tx.Certificates
     ( getEraCertificates
@@ -58,24 +51,25 @@ import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
 -- | Compute a wallet primitive  'W.Block' from a ledger 'Block'
 primitiveBlock
-    :: W.Hash "Genesis"
-    -> EraFun Block (K (W.Block, [W.PoolCertificate]))
-primitiveBlock hg = mkEraFunK $ do
-    header <- runEraFunK $ primitiveBlockHeader hg
-    (transactions, certificates) <- unzip <$> runEraFunK getTxsAndCertificates
+    :: IsEra era
+    => W.Hash "Genesis"
+    -> Block era
+    -> (W.Block, [W.PoolCertificate])
+primitiveBlock hg = do
+    header <- primitiveBlockHeader hg
+    (transactions, certificates) <- unzip <$> getTxsAndCertificates
     let (delegations, pools) = pickWalletCertificates $ concat certificates
     pure
         ( W.Block header transactions delegations
         , pools
         )
 
-getTxsAndCertificates :: EraFun Block (K [(W.Tx, [W.Certificate])])
-getTxsAndCertificates = mkEraFunK $ \block ->
-    let Comp txs = runEraFun getEraTransactions block
-        ptxs = runEraFunK primitiveTx <$> txs
-        pcts = runEraFunK primitiveCertificates
-            . runEraFun getEraCertificates <$> txs
-    in zip ptxs pcts
+getTxsAndCertificates :: IsEra era => Block era -> [(W.Tx, [W.Certificate])]
+getTxsAndCertificates block =
+    let Comp txs = getEraTransactions block
+        ptxs = primitiveTx <$> txs
+        pcts = primitiveCertificates . getEraCertificates <$> txs
+    in  zip ptxs pcts
 
 pickWalletCertificates
     :: [W.Certificate]
@@ -91,8 +85,4 @@ fromCardanoBlock
     :: W.Hash "Genesis"
     -> ConsensusBlock
     -> (W.Block, [W.PoolCertificate])
-fromCardanoBlock gp =
-    let primitiveBlock' = primitiveBlock gp
-    in  extractEraValue
-            . applyEraFun primitiveBlock'
-            . fromConsensusBlock
+fromCardanoBlock gp = applyEraFun (primitiveBlock gp) . fromConsensusBlock

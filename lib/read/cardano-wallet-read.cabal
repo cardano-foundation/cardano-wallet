@@ -141,6 +141,7 @@ test-suite test
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Cardano.Wallet.Read.EraValueSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Spec
     SpecHook
@@ -154,6 +155,7 @@ test-suite test
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , hspec
+    , lens
     , memory
     , QuickCheck
     , with-utf8

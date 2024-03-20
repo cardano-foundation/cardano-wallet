@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -10,9 +12,12 @@ import Prelude
 import Cardano.Ledger.Coin
     ( Coin
     )
+import Cardano.Wallet.Read
+    ( Era (..)
+    , theEra
+    )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( IsEra
     )
 import Cardano.Wallet.Read.Tx.Fee
     ( Fee (..)
@@ -22,16 +27,15 @@ import Cardano.Wallet.Read.Tx.Fee
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 
-getFee :: EraFun Fee (K (Maybe W.Coin))
-getFee = EraFun
-    { byronFun = \_ -> K Nothing
-    , shelleyFun = mkShelleyTxFee
-    , allegraFun = mkShelleyTxFee
-    , maryFun = mkShelleyTxFee
-    , alonzoFun = mkShelleyTxFee
-    , babbageFun = mkShelleyTxFee
-    , conwayFun = mkShelleyTxFee
-    }
+getFee :: forall era . IsEra era => Fee era -> Maybe W.Coin
+getFee = case theEra @era of
+    Byron -> \_ -> Nothing
+    Shelley -> mkShelleyTxFee
+    Allegra -> mkShelleyTxFee
+    Mary -> mkShelleyTxFee
+    Alonzo -> mkShelleyTxFee
+    Babbage -> mkShelleyTxFee
+    Conway -> mkShelleyTxFee
 
-mkShelleyTxFee :: FeeType era ~ Coin => Fee era -> K (Maybe W.Coin) b
-mkShelleyTxFee (Fee c) = K $ Just $ Ledger.toWalletCoin c
+mkShelleyTxFee :: FeeType era ~ Coin => Fee era -> Maybe W.Coin
+mkShelleyTxFee (Fee c) = Just $ Ledger.toWalletCoin c

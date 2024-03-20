@@ -1,5 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
@@ -12,15 +14,17 @@ module Cardano.Wallet.Read.Tx.Cardano
 
 import Prelude
 
-import Cardano.Wallet.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras
     ( EraValue
-    , allegra
-    , alonzo
-    , babbage
-    , conway
-    , inject
-    , mary
-    , shelley
+    , eraValue
+    )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Conway
+    , Mary
+    , Shelley
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -32,9 +36,9 @@ import qualified Cardano.Api.Shelley as Cardano
 fromCardanoApiTx :: Cardano.Tx era -> EraValue Tx
 fromCardanoApiTx = \case
     Cardano.ShelleyTx era tx -> case era of
-        Cardano.ShelleyBasedEraShelley -> inject shelley $ Tx tx
-        Cardano.ShelleyBasedEraAllegra -> inject allegra $ Tx tx
-        Cardano.ShelleyBasedEraMary -> inject mary $ Tx tx
-        Cardano.ShelleyBasedEraAlonzo -> inject alonzo $ Tx tx
-        Cardano.ShelleyBasedEraBabbage -> inject babbage $ Tx tx
-        Cardano.ShelleyBasedEraConway -> inject conway $ Tx tx
+        Cardano.ShelleyBasedEraShelley -> eraValue @Shelley $ Tx tx
+        Cardano.ShelleyBasedEraAllegra -> eraValue @Allegra $ Tx tx
+        Cardano.ShelleyBasedEraMary -> eraValue @Mary $ Tx tx
+        Cardano.ShelleyBasedEraAlonzo -> eraValue @Alonzo $ Tx tx
+        Cardano.ShelleyBasedEraBabbage -> eraValue @Babbage $ Tx tx
+        Cardano.ShelleyBasedEraConway -> eraValue @Conway $ Tx tx

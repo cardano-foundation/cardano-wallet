@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -28,19 +30,15 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
-    , EraFun (..)
-    , EraValue
-    , K (..)
+    , EraValue (..)
+    , IsEra
     , Mary
     , Shelley
-    , allegra
-    , alonzo
-    , babbage
-    , byron
-    , conway
-    , inject
-    , mary
-    , shelley
+    , eraValue
+    )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
     )
 import Ouroboros.Consensus.Protocol.Praos
     ( Praos
@@ -83,22 +81,20 @@ deriving instance Eq (BlockT era) => Eq (Block era)
 -- via Haskell library of mini-protocol.
 fromConsensusBlock :: ConsensusBlock -> EraValue Block
 fromConsensusBlock = \case
-    O.BlockByron b -> inject byron $ Block b
-    O.BlockShelley block -> inject shelley $ Block block
-    O.BlockAllegra block -> inject allegra $ Block block
-    O.BlockMary block -> inject mary $ Block block
-    O.BlockAlonzo block -> inject alonzo $ Block block
-    O.BlockBabbage block -> inject babbage $ Block block
-    O.BlockConway block -> inject conway $ Block block
+    O.BlockByron b -> eraValue @Byron $ Block b
+    O.BlockShelley block -> eraValue @Shelley $ Block block
+    O.BlockAllegra block -> eraValue @Allegra $ Block block
+    O.BlockMary block -> eraValue @Mary $ Block block
+    O.BlockAlonzo block -> eraValue @Alonzo $ Block block
+    O.BlockBabbage block -> eraValue @Babbage $ Block block
+    O.BlockConway block -> eraValue @Conway $ Block block
 
-toConsensusBlock :: EraFun Block (K ConsensusBlock)
-toConsensusBlock =
-    EraFun
-        { byronFun = K . O.BlockByron . unBlock
-        , shelleyFun = K . O.BlockShelley . unBlock
-        , allegraFun = K . O.BlockAllegra . unBlock
-        , maryFun = K . O.BlockMary . unBlock
-        , alonzoFun = K . O.BlockAlonzo . unBlock
-        , babbageFun = K . O.BlockBabbage . unBlock
-        , conwayFun = K . O.BlockConway . unBlock
-        }
+toConsensusBlock :: forall era . IsEra era => Block era -> ConsensusBlock
+toConsensusBlock = case theEra @era of
+    Byron -> O.BlockByron . unBlock
+    Shelley -> O.BlockShelley . unBlock
+    Allegra -> O.BlockAllegra . unBlock
+    Mary -> O.BlockMary . unBlock
+    Alonzo -> O.BlockAlonzo . unBlock
+    Babbage -> O.BlockBabbage . unBlock
+    Conway -> O.BlockConway . unBlock

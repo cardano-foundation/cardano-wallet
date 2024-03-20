@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -50,13 +52,11 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     , WitnessCountCtx
     )
 import Cardano.Wallet.Read
-    ( Tx (..)
+    ( IsEra (..)
+    , Tx (..)
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    )
-import Generics.SOP
-    ( K (..)
+    ( Era (..)
     )
 
 import qualified Cardano.Api as Cardano
@@ -64,16 +64,16 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Certificates as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 
-fromCardanoTx ::
-    WitnessCountCtx ->
-    Cardano.Tx era ->
-    ( W.Tx
-    , TokenMapWithScripts
-    , TokenMapWithScripts
-    , [W.Certificate]
-    , Maybe ValidityIntervalExplicit
-    , WitnessCount
-    )
+fromCardanoTx
+    :: WitnessCountCtx
+    -> Cardano.Tx era
+    -> ( W.Tx
+       , TokenMapWithScripts
+       , TokenMapWithScripts
+       , [W.Certificate]
+       , Maybe ValidityIntervalExplicit
+       , WitnessCount
+       )
 fromCardanoTx witCtx = \case
     Cardano.ShelleyTx era tx -> case era of
         Cardano.ShelleyBasedEraShelley ->
@@ -92,14 +92,12 @@ fromCardanoTx witCtx = \case
     extract (tx, certs, mint, burn, validity, wits) =
         (tx, mint, burn, certs, validity, wits)
 
-primitiveTx :: EraFun Tx (K W.Tx)
-primitiveTx =
-    EraFun
-        { byronFun = \(Tx tx) -> K . fromTxAux $ tx
-        , shelleyFun = \(Tx tx) -> K . fromShelleyTx' $ tx
-        , allegraFun = \(Tx tx) -> K . fromAllegraTx' $ tx
-        , maryFun = \(Tx tx) -> K . fromMaryTx' $ tx
-        , alonzoFun = \(Tx tx) -> K . fromAlonzoTx' $ tx
-        , babbageFun = \(Tx tx) -> K . fromBabbageTx' $ tx
-        , conwayFun = \(Tx tx) -> K . fromConwayTx' $ tx
-        }
+primitiveTx :: forall era . IsEra era => Tx era -> W.Tx
+primitiveTx = case theEra @era of
+    Byron -> \(Tx tx) -> fromTxAux tx
+    Shelley -> \(Tx tx) -> fromShelleyTx' tx
+    Allegra -> \(Tx tx) -> fromAllegraTx' tx
+    Mary -> \(Tx tx) -> fromMaryTx' tx
+    Alonzo -> \(Tx tx) -> fromAlonzoTx' tx
+    Babbage -> \(Tx tx) -> fromBabbageTx' tx
+    Conway -> \(Tx tx) -> fromConwayTx' tx

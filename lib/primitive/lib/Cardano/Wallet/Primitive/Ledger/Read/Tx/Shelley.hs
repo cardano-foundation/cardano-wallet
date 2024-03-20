@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -70,6 +71,9 @@ import Cardano.Wallet.Primitive.Types.ValidityIntervalExplicit
 import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (..)
     )
+import Cardano.Wallet.Read.Eras
+    ( eraValue
+    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
     )
@@ -131,7 +135,7 @@ fromShelleyTx
        )
 fromShelleyTx tx =
     ( fromShelleyTx' tx
-    , Read.unK . Read.shelleyFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Shelley $ Read.Tx tx
     , emptyTokenMapWithScripts
     , emptyTokenMapWithScripts
     , Just $ shelleyValidityInterval $ tx ^. bodyTxL.ttlTxBodyL
@@ -149,7 +153,7 @@ fromShelleyTx' tx =
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ Read.inject Read.shelley $ Read.Tx tx
+            Just $ renderTxToCBOR $ eraValue @Shelley  $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

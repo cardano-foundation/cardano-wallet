@@ -11,7 +11,6 @@ module Cardano.Wallet.Read.Eras
   , knownEraIndices
   , Era (..)
   , IsEra (..)
-  , AnyEra (..)
   , Allegra
   , Alonzo
   , Babbage
@@ -21,59 +20,39 @@ module Cardano.Wallet.Read.Eras
   , Shelley
 
     -- * Era bounded values.
-  , EraValue
+  , EraValue (..)
+  , eraValue
   , eraValueSerialize
   , extractEraValue
-  -- * Era specific prisms.
-  , MkEraValue (..)
-  , byron
-  , shelley
-  , allegra
-  , mary
-  , alonzo
-  , babbage
-  , conway
-  -- * Era specific prism shortcuts.
-  , inject
-  , project
   -- * Specials.
   , sequenceEraValue
-  -- * Era bounded functions.
-  , EraFun (..)
+  -- * Era polymorphic functions.
   -- * Applying era functions.
   , applyEraFun
+  , applyEraFunValue
   -- * Reexports from elsewhere.
   , (:.:)(..)
   , K (..)
   ,  unK
   , (:*:)(..)
+  , unComp
   )
   where
 
 import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
-    , applyEraFun
+    ( applyEraFun
+    , applyEraFunValue
     )
 import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue
-    , MkEraValue (..)
-    , allegra
-    , alonzo
-    , babbage
-    , byron
-    , conway
+    ( EraValue (..)
+    , eraValue
     , eraValueSerialize
     , extractEraValue
-    , inject
-    , mary
-    , project
     , sequenceEraValue
-    , shelley
     )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( Allegra
     , Alonzo
-    , AnyEra (..)
     , Babbage
     , Byron
     , Conway
@@ -86,6 +65,7 @@ import Cardano.Wallet.Read.Eras.KnownEras
     )
 import Generics.SOP
     ( K (..)
+    , unComp
     , unK
     , (:.:) (..)
     )

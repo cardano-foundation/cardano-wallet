@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2020-2022 IOHK
@@ -70,8 +71,7 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     , toKeyRole
     )
 import Cardano.Wallet.Read.Eras
-    ( inject
-    , mary
+    ( eraValue
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (Tx)
@@ -112,7 +112,7 @@ fromMaryTx
        )
 fromMaryTx tx witCtx =
     ( fromMaryTx' tx
-    , Read.unK . Read.maryFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Mary $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -135,7 +135,7 @@ fromMaryTx' tx =
         { txId =
             W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ inject mary $ Tx tx
+            Just $ renderTxToCBOR $ eraValue @Mary $ Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

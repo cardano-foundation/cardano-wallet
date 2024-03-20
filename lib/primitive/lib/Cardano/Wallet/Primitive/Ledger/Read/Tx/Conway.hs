@@ -91,6 +91,9 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     , WitnessCountCtx
     )
+import Cardano.Wallet.Read.Eras
+    ( eraValue
+    )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
     )
@@ -140,7 +143,7 @@ fromConwayTx
        )
 fromConwayTx tx witCtx =
     ( tx'
-    , Read.unK . Read.conwayFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Conway $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -194,7 +197,7 @@ fromConwayTx' tx =
     W.Tx
         { txId = W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ Read.inject Read.conway $ Read.Tx tx
+            Just $ renderTxToCBOR $ eraValue @Conway $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL . feeTxBodyL
         , resolvedInputs =

@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -16,8 +18,11 @@ import Cardano.Wallet.Read.Block.Block
     )
 import Cardano.Wallet.Read.Eras
     ( Byron
-    , EraFun (..)
     , (:.:) (..)
+    )
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -31,8 +36,6 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
     ()
-import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    ()
 
 import qualified Cardano.Chain.Block as Byron
 import qualified Cardano.Chain.UTxO as Byron
@@ -44,17 +47,15 @@ import qualified Ouroboros.Consensus.Byron.Ledger as O
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
 -- | Get the list of transactions in the block.
-getEraTransactions :: EraFun Block ([] :.: Tx)
-getEraTransactions =
-    EraFun
-        { byronFun = getTxs' getTxsFromBlockByron
-        , shelleyFun = getTxs' getTxsFromBlockShelleyAndOn
-        , maryFun = getTxs' getTxsFromBlockShelleyAndOn
-        , allegraFun = getTxs' getTxsFromBlockShelleyAndOn
-        , alonzoFun = getTxs' getTxsFromBlockShelleyAndOn
-        , babbageFun = getTxs' getTxsFromBlockShelleyAndOn
-        , conwayFun = getTxs' getTxsFromBlockShelleyAndOn
-        }
+getEraTransactions :: forall era. IsEra era => Block era -> ([] :.: Tx) era
+getEraTransactions = case theEra @era of
+    Byron -> getTxs' getTxsFromBlockByron
+    Shelley -> getTxs' getTxsFromBlockShelleyAndOn
+    Allegra -> getTxs' getTxsFromBlockShelleyAndOn
+    Mary -> getTxs' getTxsFromBlockShelleyAndOn
+    Alonzo -> getTxs' getTxsFromBlockShelleyAndOn
+    Babbage -> getTxs' getTxsFromBlockShelleyAndOn
+    Conway -> getTxs' getTxsFromBlockShelleyAndOn
   where
     getTxs' f (Block block) = Comp $ Tx <$> f block
 

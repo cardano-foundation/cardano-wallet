@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -30,11 +32,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -60,17 +61,14 @@ newtype ScriptValidity era = ScriptValidity (ScriptValidityType era)
 deriving instance Show (ScriptValidityType era) => Show (ScriptValidity era)
 deriving instance Eq (ScriptValidityType era) => Eq (ScriptValidity era)
 
-getEraScriptValidity :: EraFun Tx ScriptValidity
-getEraScriptValidity =
-    EraFun
-        { byronFun = \_ -> ScriptValidity ()
-        , shelleyFun = \_ -> ScriptValidity ()
-        , allegraFun = \_ -> ScriptValidity ()
-        , maryFun = \_ -> ScriptValidity ()
-        , alonzoFun = alonzoScriptValidity
-        , babbageFun = alonzoScriptValidity
-        , conwayFun = alonzoScriptValidity
-        }
+getEraScriptValidity :: forall era. IsEra era => Tx era -> ScriptValidity era
+getEraScriptValidity = case theEra @era of
+    Byron -> \_ -> ScriptValidity ()
+    Shelley -> \_ -> ScriptValidity ()
+    Allegra -> \_ -> ScriptValidity ()
+    Mary -> \_ -> ScriptValidity ()
+    Alonzo -> alonzoScriptValidity
+    Babbage -> alonzoScriptValidity
+    Conway -> alonzoScriptValidity
   where
-    alonzoScriptValidity = onTx $
-        \tx -> ScriptValidity $ tx ^. isValidTxL
+    alonzoScriptValidity = onTx $ \tx -> ScriptValidity $ tx ^. isValidTxL

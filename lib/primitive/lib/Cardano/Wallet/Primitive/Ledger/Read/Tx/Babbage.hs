@@ -100,6 +100,9 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCount (WitnessCount)
     , WitnessCountCtx
     )
+import Cardano.Wallet.Read.Eras
+    ( eraValue
+    )
 import Control.Lens
     ( folded
     , (<&>)
@@ -139,7 +142,7 @@ fromBabbageTx
        )
 fromBabbageTx tx witCtx =
     ( tx'
-    , Read.unK . Read.babbageFun anyEraCerts $ Read.Tx tx
+    , anyEraCerts @Babbage $ Read.Tx tx
     , assetsToMint
     , assetsToBurn
     , Just $ afterShelleyValidityInterval $ tx ^. bodyTxL.vldtTxBodyL
@@ -193,7 +196,7 @@ fromBabbageTx' tx =
     W.Tx
         { txId = W.Hash $ shelleyTxHash tx
         , txCBOR =
-            Just $ renderTxToCBOR $ Read.inject Read.babbage $ Read.Tx tx
+            Just $ renderTxToCBOR $ eraValue @Babbage $ Read.Tx tx
         , fee =
             Just $ Ledger.toWalletCoin $ tx ^. bodyTxL.feeTxBodyL
         , resolvedInputs =

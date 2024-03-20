@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -38,8 +40,9 @@ import Cardano.Wallet.Read.Eras
     , Mary
     , Shelley
     )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
+import Cardano.Wallet.Read.Eras.KnownEras
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -65,16 +68,14 @@ newtype Witnesses era = Witnesses (WitnessesType era)
 deriving instance Show (WitnessesType era) => Show (Witnesses era)
 deriving instance Eq (WitnessesType era) => Eq (Witnesses era)
 
-getEraWitnesses :: EraFun Tx Witnesses
-getEraWitnesses =
-    EraFun
-        { byronFun = \_ -> Witnesses ()
-        , shelleyFun = witnesses
-        , allegraFun = witnesses
-        , maryFun = witnesses
-        , alonzoFun = witnesses
-        , babbageFun = witnesses
-        , conwayFun = witnesses
-        }
+getEraWitnesses :: forall era .  IsEra era => Tx era ->  Witnesses era
+getEraWitnesses = case theEra @era of
+        Byron -> const $ Witnesses ()
+        Shelley -> witnesses
+        Allegra -> witnesses
+        Mary -> witnesses
+        Alonzo -> witnesses
+        Babbage -> witnesses
+        Conway -> witnesses
   where
     witnesses = onTx $ Witnesses . view witsTxL

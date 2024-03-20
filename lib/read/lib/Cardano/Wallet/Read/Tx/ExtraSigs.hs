@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -35,11 +37,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -69,16 +70,16 @@ deriving instance Show (ExtraSigsType era) => Show (ExtraSigs era)
 deriving instance Eq (ExtraSigsType era) => Eq (ExtraSigs era)
 
 -- | Get extra signatures required for a transaction in any era.
-getEraExtraSigs :: EraFun Tx ExtraSigs
-getEraExtraSigs
-    = EraFun
-        { byronFun = \_ -> ExtraSigs ()
-        , shelleyFun = \_ -> ExtraSigs ()
-        , allegraFun = \_ -> ExtraSigs ()
-        , maryFun = \_ -> ExtraSigs ()
-        , alonzoFun = mkExtraSignatures
-        , babbageFun = mkExtraSignatures
-        , conwayFun = mkExtraSignatures
-        }
-        where mkExtraSignatures =  onTx $ \tx -> ExtraSigs
-                $ tx ^. bodyTxL . reqSignerHashesTxBodyL
+getEraExtraSigs :: forall era. IsEra era => Tx era -> ExtraSigs era
+getEraExtraSigs = case theEra @era of
+    Byron -> const $ ExtraSigs ()
+    Shelley -> const $ ExtraSigs ()
+    Allegra -> const $ ExtraSigs ()
+    Mary -> const $ ExtraSigs ()
+    Alonzo -> mkExtraSignatures
+    Babbage -> mkExtraSignatures
+    Conway -> mkExtraSignatures
+  where
+    mkExtraSignatures = onTx $ \tx ->
+        ExtraSigs
+            $ tx ^. bodyTxL . reqSignerHashesTxBodyL

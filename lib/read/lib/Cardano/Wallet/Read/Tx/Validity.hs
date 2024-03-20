@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -42,11 +44,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -73,17 +74,15 @@ deriving instance Show (ValidityType era) => Show (Validity era)
 deriving instance Eq (ValidityType era) => Eq (Validity era)
 
 -- | Extract validity data from tx for any available era.
-getEraValidity :: EraFun Tx Validity
-getEraValidity =
-    EraFun
-        { byronFun = \_ -> Validity ()
-        , shelleyFun = anyValidity ttlTxBodyL
-        , allegraFun = allegraValidity
-        , maryFun = allegraValidity
-        , alonzoFun = allegraValidity
-        , babbageFun = allegraValidity
-        , conwayFun = allegraValidity
-        }
+getEraValidity :: forall era . IsEra era => Tx era -> Validity era
+getEraValidity = case theEra @era of
+    Byron -> \_ -> Validity ()
+    Shelley -> anyValidity ttlTxBodyL
+    Allegra -> allegraValidity
+    Mary -> allegraValidity
+    Alonzo -> allegraValidity
+    Babbage -> allegraValidity
+    Conway -> allegraValidity
   where
     anyValidity l = onTx $ \tx -> Validity $ tx ^. bodyTxL . l
     allegraValidity = anyValidity vldtTxBodyL

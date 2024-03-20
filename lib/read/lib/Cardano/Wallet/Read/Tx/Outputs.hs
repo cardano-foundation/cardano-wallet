@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -40,11 +42,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( EraFun (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -86,16 +87,14 @@ newtype Outputs era = Outputs (OutputsType era)
 deriving instance Show (OutputsType era) => Show (Outputs era)
 deriving instance Eq (OutputsType era) => Eq (Outputs era)
 
-getEraOutputs :: EraFun Tx Outputs
-getEraOutputs =
-    EraFun
-        { byronFun = onTx $ Outputs . BY.txOutputs . BY.taTx
-        , shelleyFun = outputs
-        , allegraFun = outputs
-        , maryFun = outputs
-        , alonzoFun = outputs
-        , babbageFun = outputs
-        , conwayFun = outputs
-        }
+getEraOutputs :: forall era . IsEra era => Tx era -> Outputs era
+getEraOutputs = case theEra @era of
+    Byron -> onTx $ Outputs . BY.txOutputs . BY.taTx
+    Shelley -> outputs
+    Allegra -> outputs
+    Mary -> outputs
+    Alonzo -> outputs
+    Babbage -> outputs
+    Conway -> outputs
   where
     outputs = onTx $ Outputs . view (bodyTxL . outputsTxBodyL)

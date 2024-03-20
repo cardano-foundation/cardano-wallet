@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -59,8 +61,9 @@ import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     )
 import Cardano.Wallet.Read.Eras
     ( Conway
-    , EraFun (..)
-    , K (..)
+    , Era (..)
+    , IsEra
+    , theEra
     )
 import Cardano.Wallet.Read.Tx
     ( Tx
@@ -104,26 +107,25 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 
-anyEraCerts :: EraFun Tx (K [W.Certificate])
+anyEraCerts :: forall era . IsEra era => Tx era -> [Certificate]
 anyEraCerts = primitiveCertificates . getEraCertificates
 
 -- | Compute wallet primitive certificates from ledger certificates
-primitiveCertificates :: EraFun Certificates (K [W.Certificate])
-primitiveCertificates =
-    EraFun
-        { byronFun = const $ K []
-        , shelleyFun = mkShelleyCertsK
-        , allegraFun = mkShelleyCertsK
-        , maryFun = mkShelleyCertsK
-        , alonzoFun = mkShelleyCertsK
-        , babbageFun = mkShelleyCertsK
-        , conwayFun = mkConwayCertsK
-        }
+primitiveCertificates
+    :: forall era . IsEra era => Certificates era -> [W.Certificate]
+primitiveCertificates = case theEra @era of
+    Byron -> const []
+    Shelley -> mkShelleyCertsK
+    Allegra -> mkShelleyCertsK
+    Mary -> mkShelleyCertsK
+    Alonzo -> mkShelleyCertsK
+    Babbage -> mkShelleyCertsK
+    Conway -> mkConwayCertsK
 
 mkConwayCertsK
     :: Certificates Conway
-    -> K [W.Certificate] Conway
-mkConwayCertsK (Certificates cs) = K $ fromConwayCert <$> toList cs
+    -> [W.Certificate]
+mkConwayCertsK (Certificates cs) = fromConwayCert <$> toList cs
 
 fromConwayCert
     :: Ledger.ConwayEraTxCert era
@@ -164,8 +166,8 @@ mkShelleyCertsK
        , Ledger.TxCert era' ~ ShelleyTxCert era'
        )
     => Certificates era
-    -> K [W.Certificate] b
-mkShelleyCertsK (Certificates cs) = K . map fromShelleyCert $ toList cs
+    -> [W.Certificate]
+mkShelleyCertsK (Certificates cs) = map fromShelleyCert $ toList cs
 
 mkPoolRegistrationCertificate :: PoolParams c -> W.Certificate
 mkPoolRegistrationCertificate pp =

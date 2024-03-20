@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
@@ -14,8 +16,8 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromShelleyAddress
     )
 import Cardano.Wallet.Read.Eras
-    ( EraFun (..)
-    , K (..)
+    ( Era (..)
+    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx.CollateralOutputs
     ( CollateralOutputs (..)
@@ -32,18 +34,21 @@ import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 
-getCollateralOutputs :: EraFun CollateralOutputs (K (Maybe W.TxOut))
-getCollateralOutputs = EraFun
-    { byronFun = \_ -> K Nothing
-    , shelleyFun = \_ -> K Nothing
-    , allegraFun = \_ -> K Nothing
-    , maryFun = \_ -> K Nothing
-    , alonzoFun = \_ -> K Nothing
-    , babbageFun = \(CollateralOutputs mo)
-        -> K $ fromBabbageTxOut <$> strictMaybeToMaybe mo
-    , conwayFun = \(CollateralOutputs mo)
-        -> K $ fromConwayTxOut <$> strictMaybeToMaybe mo
-    }
+getCollateralOutputs
+    :: forall era
+     . IsEra era
+    => CollateralOutputs era
+    -> Maybe W.TxOut
+getCollateralOutputs = case theEra @era of
+    Byron -> \_ -> Nothing
+    Shelley -> \_ -> Nothing
+    Allegra -> \_ -> Nothing
+    Mary -> \_ -> Nothing
+    Alonzo -> \_ -> Nothing
+    Babbage -> \(CollateralOutputs mo) ->
+        fromBabbageTxOut <$> strictMaybeToMaybe mo
+    Conway -> \(CollateralOutputs mo) ->
+        fromConwayTxOut <$> strictMaybeToMaybe mo
 
 fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
