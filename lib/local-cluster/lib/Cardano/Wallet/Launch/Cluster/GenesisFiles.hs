@@ -37,7 +37,8 @@ import Cardano.Ledger.Api
     , ppTauL
     )
 import Cardano.Ledger.BaseTypes
-    ( Network (Testnet)
+    ( EpochInterval (..)
+    , Network (Testnet)
     , natVersion
     )
 import Cardano.Ledger.Shelley.API
@@ -104,7 +105,7 @@ import System.FilePath
     ( (</>)
     )
 
-import qualified Cardano.Ledger.Address as Ledger
+import qualified Cardano.Ledger.Api.Tx.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Data.Aeson as Aeson
@@ -160,7 +161,7 @@ generateGenesis initialFunds genesisMods = do
                     & ppMaxBBSizeL
                         .~ 239_857
                     & ppMaxBHSizeL
-                        .~ 217_569
+                        .~ 1_100
                     & ppMaxTxSizeL
                         .~ 16_384
                     & ppMinPoolCostL
@@ -187,7 +188,7 @@ generateGenesis initialFunds genesisMods = do
                     -- in advance retirements may be announced. For testing purposes,
                     -- we allow retirements to be announced far into the future.
                     & ppEMaxL
-                        .~ 1_000_000
+                        .~ EpochInterval 1_000_000
 
         let shelleyGenesisData =
                 foldr
@@ -209,7 +210,7 @@ generateGenesis initialFunds genesisMods = do
                         , sgInitialFunds =
                             ListMap.fromList
                                 [ ( fromMaybe (error "sgInitialFunds: invalid addr")
-                                        $ Ledger.deserialiseAddr
+                                        $ Ledger.decodeAddrLenient
                                         $ unAddress address
                                   , Ledger.Coin $ intCast c
                                   )

@@ -505,7 +505,7 @@ configurePool metadataServer recipe = do
                                 SJust
                                     $ Ledger.PoolMetadata
                                         ( fromMaybe (error "invalid url (too long)")
-                                            $ textToUrl
+                                            $ textToUrl 128
                                             $ T.pack metadataURL
                                         )
                                         (blake2b256 (BL.toStrict metadataBytes))
