@@ -121,11 +121,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Block
     Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     Cardano.Wallet.Primitive.Ledger.Read.Tx
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Allegra
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Alonzo
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Babbage
     Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Conway
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
@@ -141,9 +137,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.WitnessCount
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Mary
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
-    Cardano.Wallet.Primitive.Ledger.Read.Tx.Shelley
     Cardano.Wallet.Primitive.Ledger.Shelley
     Cardano.Wallet.Primitive.NetworkId
     Cardano.Wallet.Primitive.Slotting
