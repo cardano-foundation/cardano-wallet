@@ -220,6 +220,9 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Generics.Labels
     ()
+import Data.IntCast
+    ( intCast
+    )
 import Data.Map.Strict
     ( Map
     )
@@ -1215,7 +1218,7 @@ txConstraints protocolParams witnessTag = TxConstraints
         _txRewardWithdrawalSize (Right witnessTag)
 
     txMaximumSize =
-        TxSize $ protocolParams ^. Ledger.ppMaxTxSizeL
+        TxSize $ intCast $ protocolParams ^. Ledger.ppMaxTxSizeL
 
     empty :: TxSkeleton
     empty = TxSkeleton
