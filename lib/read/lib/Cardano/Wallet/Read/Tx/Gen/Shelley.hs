@@ -53,26 +53,20 @@ import Cardano.Ledger.Keys
 import Cardano.Ledger.SafeHash
     ( unsafeMakeSafeHash
     )
+import Cardano.Ledger.Shelley.API.Types
+    ( ShelleyTx (ShelleyTx)
+    , ShelleyTxAuxData
+    , ShelleyTxBody (ShelleyTxBody)
+    , ShelleyTxOut (ShelleyTxOut)
+    , ShelleyTxWits
+    , TxIn (..)
+    , Withdrawals (Withdrawals)
+    )
 import Cardano.Ledger.Shelley.PParams
     ( Update
     )
-import Cardano.Ledger.Shelley.Tx
-    ( ShelleyTx (ShelleyTx)
-    , ShelleyTxBody (ShelleyTxBody)
-    , ShelleyTxOut (ShelleyTxOut)
-    , TxIn (..)
-    )
-import Cardano.Ledger.Shelley.TxAuxData
-    ( ShelleyTxAuxData
-    )
-import Cardano.Ledger.Shelley.TxBody
-    ( Withdrawals (Withdrawals)
-    )
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
-    )
-import Cardano.Ledger.Shelley.TxWits
-    ( ShelleyTxWits
     )
 import Cardano.Ledger.Slot
     ( SlotNo (..)

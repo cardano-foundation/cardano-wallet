@@ -9,6 +9,9 @@ where
 
 import Prelude
 
+import Cardano.Ledger.Allegra.Core
+    ( ValidityInterval (..)
+    )
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData
     )
@@ -21,16 +24,15 @@ import Cardano.Ledger.Coin
     )
 import Cardano.Ledger.Mary.TxBody
     ( MaryTxBody (..)
-    , StrictMaybe (..)
-    , ValidityInterval (..)
     )
 import Cardano.Ledger.Mary.Value
     ( MaryValue (..)
     , MultiAsset
     )
-import Cardano.Ledger.Shelley.Tx
+import Cardano.Ledger.Shelley.API.Types
     ( ShelleyTx (ShelleyTx)
-    , ShelleyTxOut (..)
+    , ShelleyTxOut (ShelleyTxOut)
+    , StrictMaybe (..)
     )
 import Cardano.Wallet.Read.Tx.Gen.Address
     ( decodeShelleyAddress

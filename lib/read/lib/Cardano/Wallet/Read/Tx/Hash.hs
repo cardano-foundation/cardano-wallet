@@ -29,11 +29,9 @@ import Cardano.Chain.UTxO
 import Cardano.Crypto
     ( serializeCborHash
     )
-import Cardano.Ledger.Block
-    ( txid
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
+    , txIdTxBody
     )
 import Cardano.Ledger.TxIn
     ( TxId (..)
@@ -72,7 +70,7 @@ getEraTxHash = case theEra @era of
     mkShelleyHash = onTx $ \tx -> shelleyTxHash tx
 
 shelleyTxHash :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
-shelleyTxHash tx = fromShelleyTxId $ txid (tx ^. bodyTxL)
+shelleyTxHash tx = fromShelleyTxId $ txIdTxBody (tx ^. bodyTxL)
 
 byronTxHash :: ATxAux a -> Crypto.ByteString
 byronTxHash = CryptoC.hashToBytes . serializeCborHash . taTx

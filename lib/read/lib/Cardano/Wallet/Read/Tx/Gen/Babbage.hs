@@ -18,6 +18,9 @@ import Cardano.Ledger.Alonzo
 import Cardano.Ledger.Alonzo.TxAuxData
     ( AuxiliaryDataHash
     )
+import Cardano.Ledger.Api
+    ( Datum (NoDatum)
+    )
 import Cardano.Ledger.Api.Era
     ( BabbageEra
     , StandardCrypto
@@ -29,7 +32,6 @@ import Cardano.Ledger.Babbage.Tx
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxBody (..)
     , BabbageTxOut (..)
-    , Datum (NoDatum)
     , ScriptIntegrityHash
     )
 import Cardano.Ledger.Babbage.TxWits
@@ -54,7 +56,7 @@ import Cardano.Ledger.Keys
 import Cardano.Ledger.Mary.Value
     ( MultiAsset
     )
-import Cardano.Ledger.Shelley.Tx
+import Cardano.Ledger.Shelley.API.Types
     ( TxIn
     )
 import Cardano.Wallet.Read.Tx.Gen.Address

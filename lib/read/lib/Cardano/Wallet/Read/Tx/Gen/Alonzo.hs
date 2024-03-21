@@ -29,6 +29,9 @@ import Cardano.Ledger.Api.Era
     ( AlonzoEra
     , StandardCrypto
     )
+import Cardano.Ledger.Api.Tx.In
+    ( TxIn
+    )
 import Cardano.Ledger.BaseTypes
     ( Network
     )
@@ -38,9 +41,6 @@ import Cardano.Ledger.Keys
     )
 import Cardano.Ledger.Mary.Value
     ( MultiAsset
-    )
-import Cardano.Ledger.Shelley.Tx
-    ( TxIn
     )
 import Cardano.Wallet.Read.Tx.Gen.Address
     ( decodeShelleyAddress
