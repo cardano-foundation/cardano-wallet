@@ -86,6 +86,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Ledger.Address as L
+import qualified Cardano.Ledger.Api.Tx.Address as L
 import qualified Cardano.Ledger.Crypto as CC
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary.Get as B
@@ -377,8 +378,8 @@ prop_genAddress_coverage =
 simplifyAddress :: Address -> Maybe Address
 simplifyAddress (Address addrBytes) = do
     -- Don't try to simplify malformed addresses or stake addresses. Note that
-    -- "deserialiseAddr" will not parse stake addresses.
-    _ <- L.deserialiseAddr addrBytes :: Maybe (L.Addr CC.StandardCrypto)
+    -- "decodeAddrLenient" will not parse stake addresses.
+    _ <- L.decodeAddrLenient addrBytes :: Maybe (L.Addr CC.StandardCrypto)
 
     bytes <- case runGetMaybe getAddressType (BL.fromStrict addrBytes) of
         Just BootstrapAddress ->
@@ -444,10 +445,10 @@ prop_simplifyAddress_validAddress =
                 Just (Address simplifiedBytes) ->
                     let
                         originalAddress :: Maybe (L.Addr CC.StandardCrypto)
-                        originalAddress = L.deserialiseAddr addrBytes
+                        originalAddress = L.decodeAddrLenient addrBytes
 
                         simplifiedAddress :: Maybe (L.Addr CC.StandardCrypto)
-                        simplifiedAddress = L.deserialiseAddr simplifiedBytes
+                        simplifiedAddress = L.decodeAddrLenient simplifiedBytes
 
                         commonErrorOutput :: Testable prop => prop -> Property
                         commonErrorOutput prop =
@@ -571,7 +572,7 @@ prop_addressSuitableForCollateral =
 -- | Returns True if the given address parses as a known address.
 isValidAddress :: Address -> Bool
 isValidAddress (Address addrBytes) =
-    isJust (L.deserialiseAddr addrBytes
+    isJust (L.decodeAddrLenient addrBytes
         :: Maybe (L.Addr CC.StandardCrypto))
     ||
     isJust (L.deserialiseRewardAcnt addrBytes

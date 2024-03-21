@@ -4,6 +4,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -25,6 +26,7 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toLedgerTimelockScript
     , toLedgerDelegatee
     , toLedgerDRep
+    , toPlutusScriptInfo
 
       -- * Conversions from ledger specification types to wallet types
     , toWalletAddress
@@ -85,6 +87,9 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
+    ( PlutusVersion (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
@@ -137,6 +142,8 @@ import Ouroboros.Consensus.Shelley.Eras
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Ledger.Allegra.Scripts as Scripts
+import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
+import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway.TxCert as Conway
@@ -144,6 +151,7 @@ import qualified Cardano.Ledger.Core as LCore
 import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
+import qualified Cardano.Ledger.Plutus.Language as Ledger
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -326,7 +334,7 @@ instance Convert Address (Ledger.Addr StandardCrypto) where
     toWallet = toWalletAddress
 
 toLedgerAddress :: Address -> Ledger.Addr StandardCrypto
-toLedgerAddress (Address bytes) = case Ledger.deserialiseAddr bytes of
+toLedgerAddress (Address bytes) = case Ledger.decodeAddrLenient bytes of
     Just addr -> addr
     Nothing -> error $ unwords
         [ "toLedger @Address: Invalid address:"
@@ -348,7 +356,7 @@ toBabbageTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
         (toLedger addr)
         (toLedger bundle)
-        Babbage.NoDatum
+        Ledger.NoDatum
         Ledger.SNothing
 
 toConwayTxOut
@@ -358,7 +366,7 @@ toConwayTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
         (toLedger addr)
         (toLedger bundle)
-        Babbage.NoDatum
+        Ledger.NoDatum
         Ledger.SNothing
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
@@ -476,3 +484,12 @@ toLedgerDRep = \case
     FromDRepID (DRepFromScriptHash (DRepScriptHash scripthash)) ->
         Ledger.DRepCredential . Ledger.ScriptHashObj . Ledger.ScriptHash . Crypto.UnsafeHash $
         toShort scripthash
+
+toPlutusScriptInfo
+    :: forall era. Alonzo.AlonzoEraScript era
+    => Alonzo.PlutusScript era
+    -> PlutusVersion
+toPlutusScriptInfo script = case Alonzo.plutusScriptLanguage @era script of
+    Ledger.PlutusV1 -> PlutusVersionV1
+    Ledger.PlutusV2 -> PlutusVersionV2
+    Ledger.PlutusV3 -> PlutusVersionV3

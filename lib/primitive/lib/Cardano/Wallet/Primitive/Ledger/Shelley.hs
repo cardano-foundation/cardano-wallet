@@ -270,9 +270,6 @@ import Fmt
 import GHC.Stack
     ( HasCallStack
     )
-import Numeric.Natural
-    ( Natural
-    )
 import Ouroboros.Consensus.Byron.Ledger
     ( byronBlockRaw
     )
@@ -575,7 +572,7 @@ toTip genesisHash (W.BlockHeader sl bl h _)
         (BlockNo $ fromIntegral $ getQuantity bl)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
-fromMaxSize :: Natural -> Quantity "byte" Word16
+fromMaxSize :: Word32 -> Quantity "byte" Word16
 fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
