@@ -177,6 +177,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo (..)
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
@@ -1372,30 +1375,34 @@ slotNoTime = posixSecondsToUTCTime . fromIntegral . unSlotNo
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer ShelleyKey 'CredFromKeyK SealedTx
-dummyTransactionLayer = TransactionLayer
-    { addVkWitnesses =
-        error "dummyTransactionLayer: addVkWitnesses not implemented"
-    , decodeTx = \_era _witCtx _sealed ->
-        ( Tx
-            { txId = Hash ""
-            , txCBOR = Nothing
-            , fee = mempty
-            , resolvedInputs = mempty
-            , resolvedCollateralInputs = mempty
-            , outputs = mempty
-            , collateralOutput = Nothing
-            , withdrawals = mempty
-            , metadata = mempty
-            , scriptValidity = Nothing
-            }
-        , emptyTokenMapWithScripts
-        , emptyTokenMapWithScripts
-        , []
-        , Nothing
-        , emptyWitnessCount
-        )
-    , transactionWitnessTag = TxWitnessShelleyUTxO
-    }
+dummyTransactionLayer =
+    TransactionLayer
+        { addVkWitnesses =
+            error "dummyTransactionLayer: addVkWitnesses not implemented"
+        , decodeTx = \_era _sealed ->
+            let
+                walletTx =
+                    Tx
+                        { txId = Hash ""
+                        , txCBOR = Nothing
+                        , fee = Nothing
+                        , resolvedInputs = []
+                        , resolvedCollateralInputs = []
+                        , outputs = []
+                        , collateralOutput = Nothing
+                        , withdrawals = mempty
+                        , metadata = Nothing
+                        , scriptValidity = Nothing
+                        }
+                toMint = emptyTokenMapWithScripts
+                toBurn = emptyTokenMapWithScripts
+                certificates = []
+                validity = Nothing
+                witnessCount _ = emptyWitnessCount
+            in
+                TxExtended{..}
+        , transactionWitnessTag = TxWitnessShelleyUTxO
+        }
 
 fakeSealedTx :: HasCallStack => (Hash "Tx", [ByteString]) -> SealedTx
 fakeSealedTx (tx, wit) = mockSealedTx $ B8.pack repr

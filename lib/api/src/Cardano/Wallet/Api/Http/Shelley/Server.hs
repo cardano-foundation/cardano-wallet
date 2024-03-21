@@ -637,6 +637,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Constraints
 import Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
     ( TransactionInfo
     )
+import Cardano.Wallet.Primitive.Types.Tx.TxExtended
+    ( TxExtended (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
@@ -3429,8 +3432,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
         <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (cp, _, _) <- handler $ W.readWallet wrk
         let witCountCtx = toWitnessCountCtx SharedWallet (getState cp)
-        let (decodedTx, _toMint, _toBurn, allCerts, interval, witsCount) =
-                decodeTx tl era witCountCtx sealed
+        let TxExtended{..} = decodeTx tl era sealed
         let (Tx { txId
                 , fee
                 , resolvedInputs
@@ -3439,7 +3441,7 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
                 , withdrawals
                 , metadata
                 , scriptValidity
-                }) = decodedTx
+                }) = walletTx
         inputPaths <-
             handler $ W.lookupTxIns @_ wrk $ fst <$> resolvedInputs
         collateralInputPaths <-
@@ -3460,7 +3462,8 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
                             CA.toScriptHash script
                     in Just $ FromScriptHash scriptHash
                 Nothing -> Nothing
-        let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath <$> allCerts
+        let certs = mkApiAnyCertificate rewardAcctM rewardAcctPath
+                <$> certificates
         pure
             ( inputPaths
             , collateralInputPaths
@@ -3471,8 +3474,8 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
             , fee
             , metadata
             , scriptValidity
-            , interval
-            , witsCount
+            , validity
+            , witnessCount witCountCtx
             , withdrawals
             , rewardAcctM
             )
@@ -3605,8 +3608,7 @@ decodeTransaction
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
-        let (decodedTx, toMint, toBurn, allCerts, interval, witsCount) =
-                decodeTx tl era (ShelleyWalletCtx keyhash) sealed
+        let TxExtended{..} = decodeTx tl era sealed
         let Tx { txId
                , fee
                , resolvedInputs
@@ -3615,7 +3617,7 @@ decodeTransaction
                , withdrawals
                , metadata
                , scriptValidity
-               } = decodedTx
+               } = walletTx
         let db = wrk ^. dbLayer
         (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s db
@@ -3630,7 +3632,7 @@ decodeTransaction
         pp <- liftIO $ NW.currentProtocolParameters (wrk ^. networkLayer)
         (minted, burned) <-
             convertApiAssetMintBurn wrk (toMint, toBurn)
-        let certs = mkApiAnyCertificate (Just acct) acctPath <$> allCerts
+        let certs = mkApiAnyCertificate (Just acct) acctPath <$> certificates
         pure $ ApiDecodedTransaction
             { id = ApiT txId
             , fee = maybe mempty ApiAmount.fromCoin fee
@@ -3651,8 +3653,9 @@ decodeTransaction
                     <$ filter ourRewardAccountDeregistration certs
             , metadata = ApiTxMetadata $ ApiT <$> metadata
             , scriptValidity = ApiT <$> scriptValidity
-            , validityInterval = ApiValidityIntervalExplicit <$> interval
-            , witnessCount = mkApiWitnessCount witsCount
+            , validityInterval = ApiValidityIntervalExplicit <$> validity
+            , witnessCount = mkApiWitnessCount $ witnessCount
+                $ ShelleyWalletCtx keyhash
             }
   where
     tl = ctx ^. W.transactionLayer @(KeyOf s) @'CredFromKeyK
@@ -3761,10 +3764,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
             witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
-        let keyhash = KeyHash Policy (xpubToBytes k)
-        let (tx,_,_,_,_,_) = decodeTx tl era (ShelleyWalletCtx keyhash) sealedTx
-
+        let tx = walletTx $ decodeTx tl era sealedTx
         let db = wrk ^. dbLayer
         (acct, _, path) <- liftHandler
             $ W.shelleyOnlyReadRewardAccount @s db
@@ -3881,8 +3881,8 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
 
         (cp, _, _) <- handler $ W.readWallet @_ wrk
         let witCountCtx = toWitnessCountCtx SharedWallet (getState cp)
-        let (tx,_,_,_,_, (WitnessCount _ nativeScripts _)) =
-                decodeTx tl era witCountCtx sealedTx
+        let TxExtended{..} = decodeTx tl era sealedTx
+            WitnessCount _ nativeScripts _ = witnessCount witCountCtx
 
         let numberStakingNativeScripts =
                 length $ filter hasDelegationKeyHash nativeScripts
@@ -3920,7 +3920,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
         txMeta <- handler $ W.constructTxMeta db txCtx ourInps ourOuts
         liftHandler $ W.submitTx (wrk ^. logger) db nl
             BuiltTx
-                { builtTx = tx
+                { builtTx = walletTx
                 , builtTxMeta = txMeta
                 , builtSealedTx = sealedTx
                 }

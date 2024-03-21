@@ -19,7 +19,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( primitiveCertificates
+    ( getCertificates
     )
 import Cardano.Wallet.Read
     ( Block
@@ -68,7 +68,7 @@ getTxsAndCertificates :: IsEra era => Block era -> [(W.Tx, [W.Certificate])]
 getTxsAndCertificates block =
     let Comp txs = getEraTransactions block
         ptxs = primitiveTx <$> txs
-        pcts = primitiveCertificates . getEraCertificates <$> txs
+        pcts = getCertificates . getEraCertificates <$> txs
     in  zip ptxs pcts
 
 pickWalletCertificates

@@ -10,8 +10,7 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
-    ( primitiveCertificates
-    , anyEraCerts
+    ( getCertificates
     , fromStakeCredential
     , fromConwayCert
     )
@@ -65,13 +64,9 @@ import Cardano.Wallet.Read.Eras
     , IsEra
     , theEra
     )
-import Cardano.Wallet.Read.Tx
-    ( Tx
-    )
 import Cardano.Wallet.Read.Tx.Certificates
     ( Certificates (..)
     , CertificatesType
-    , getEraCertificates
     )
 import Cardano.Wallet.Util
     ( internalError
@@ -107,14 +102,11 @@ import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 
-anyEraCerts :: forall era . IsEra era => Tx era -> [Certificate]
-anyEraCerts = primitiveCertificates . getEraCertificates
-
-{-# INLINABLE primitiveCertificates #-}
+{-# INLINABLE getCertificates #-}
 -- | Compute wallet primitive certificates from ledger certificates
-primitiveCertificates
+getCertificates
     :: forall era . IsEra era => Certificates era -> [W.Certificate]
-primitiveCertificates = case theEra @era of
+getCertificates = case theEra @era of
     Byron -> const []
     Shelley -> mkShelleyCertsK
     Allegra -> mkShelleyCertsK
