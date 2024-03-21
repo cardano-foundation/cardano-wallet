@@ -151,6 +151,9 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( ClientStAcquiring (..)
     , LocalStateQueryClient (..)
     )
+import Ouroboros.Network.Protocol.LocalStateQuery.Type
+    ( Target (..)
+    )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( LocalTxClientStIdle (..)
     , LocalTxSubmissionClient (..)
@@ -180,15 +183,16 @@ chainSyncFollowTip
     -- ^ Callback for when the tip changes.
     -> ChainSyncClient block (Point block) (Tip block) m Void
 chainSyncFollowTip toCardanoEra onTipUpdate =
-    ChainSyncClient (clientStIdle False)
+    ChainSyncClient (pure $ clientStIdle False)
   where
     -- Client in the state 'Idle'. We immediately request the next block.
     clientStIdle
         :: Bool
-        -> m (ClientStIdle block (Point block) (Tip block) m Void)
-    clientStIdle synced = pure $ SendMsgRequestNext
-        (clientStNext synced)
-        (pure $ clientStNext synced)
+        -> ClientStIdle block (Point block) (Tip block) m Void
+    clientStIdle synced =
+        SendMsgRequestNext
+            (pure ())
+            (clientStNext synced)
 
     -- In the CanAwait state, we take the tip point given by the node and
     -- ask for the intersection of that point. This fast-fowards us to the
@@ -202,8 +206,9 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
             , recvMsgRollForward = const findIntersect
             }
       where
-        findIntersect tip = ChainSyncClient $
-            pure $ SendMsgFindIntersect [getTipPoint $ castTip tip] clientStIntersect
+        findIntersect tip =
+            ChainSyncClient . pure
+                $ SendMsgFindIntersect [getTipPoint $ castTip tip] clientStIntersect
 
     -- On tip update, we'll also propagate the era inferred from blocks we
     -- received. In case of rollback, we only have a 'Point' and they are
@@ -221,7 +226,7 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
             -> ChainSyncClient block (Point block) (Tip block) m Void
         doUpdate era tip = ChainSyncClient $ do
             onTipUpdate era (castTip tip)
-            clientStIdle True
+            pure $ clientStIdle True
 
     -- After an intersection is found, we return to idle with the sync flag
     -- set.
@@ -229,9 +234,9 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
         :: ClientStIntersect block (Point block) (Tip block) m Void
     clientStIntersect = ClientStIntersect
         { recvMsgIntersectFound = \_intersection _tip ->
-            ChainSyncClient $ clientStIdle True
+            ChainSyncClient . pure $ clientStIdle True
         , recvMsgIntersectNotFound = \_tip ->
-            ChainSyncClient $ clientStIdle False
+            ChainSyncClient . pure $ clientStIdle False
         }
 
 {-----------------------------------------------------------------------------
@@ -279,7 +284,7 @@ chainSyncFetchNextBlock queue =
     clientRequestBlock
         :: point -> ClientStIdle block point tip m Void
     clientRequestBlock point =
-        SendMsgRequestNext (clientStNext point) (pure $ clientStNext point)
+        SendMsgRequestNext (pure ()) (clientStNext point)
 
     -- Fetch the block on rollforward.
     clientStNext
@@ -504,9 +509,10 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
 
     -- Simple strategy that sends a request and waits for an answer.
     oneByOne :: RequestNextStrategy m 'Z block
-    oneByOne = P.SendMsgRequestNext
-        (collectResponses [] Zero)
-        (pure $ collectResponses [] Zero)
+    oneByOne =
+        P.SendMsgRequestNext
+            (pure ())
+            (collectResponses [] Zero)
 
     -- We only pipeline requests when we are far from the tip. As soon as we
     -- reach the tip however, there's no point pipelining anymore, so we start
@@ -522,7 +528,7 @@ chainSyncWithBlocks tr pipeliningStrategy chainFollower =
     pipeline goal (Succ n) | natToInt (Succ n) == goal =
         P.CollectResponse Nothing $ collectResponses [] n
     pipeline goal n =
-        P.SendMsgRequestNextPipelined $ pipeline goal (Succ n)
+        P.SendMsgRequestNextPipelined (pure ()) $ pipeline goal (Succ n)
 
     collectResponses
         :: [block]
@@ -678,7 +684,7 @@ localStateQuery queue =
     clientStIdle
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
     clientStIdle =
-        LSQ.SendMsgAcquire Nothing . clientStAcquiring <$> awaitNextCmd
+        LSQ.SendMsgAcquire VolatileTip . clientStAcquiring <$> awaitNextCmd
 
     clientStAcquiring
         :: LocalStateQueryCmd block m
@@ -686,7 +692,7 @@ localStateQuery queue =
     clientStAcquiring qry = LSQ.ClientStAcquiring
         { recvMsgAcquired = clientStAcquired qry
         , recvMsgFailure = \_failure -> do
-            pure $ LSQ.SendMsgAcquire Nothing (clientStAcquiring qry)
+            pure $ LSQ.SendMsgAcquire VolatileTip (clientStAcquiring qry)
         }
 
     clientStAcquired
