@@ -27,6 +27,8 @@ import Data.ByteString
     ( ByteString
     )
 
+import qualified Data.ByteString as BS
+
 -- | AES is a subset of the family of block ciphers known as Rijndael.
 -- That family includes no less than 15 variants, for three possible block sizes (128, 192 and 256 bits).
 -- Three are supported by cryptonite, AES128, AES192 and AES256 (used here).
@@ -103,10 +105,27 @@ decrypt key iv msg = do
 -- A 16 byte payload requires 2 blocks with padding.
 paddingPKCS7
     :: ByteString
-    -> ByteString
-paddingPKCS7 = undefined
+    -> Maybe ByteString
+paddingPKCS7 payload =
+    let remaining = (BS.length payload) `mod` 16
+        padding =
+            if remaining == 0 then
+                BS.replicate 16 16
+            else
+                BS.replicate remaining (fromIntegral remaining)
+    in if BS.length payload == 0 then
+           Nothing
+       else
+           Just $ BS.append payload padding
 
 unpaddingPKCS7
     :: ByteString
-    -> ByteString
-unpaddingPKCS7 = undefined
+    -> Maybe ByteString
+unpaddingPKCS7 payload =
+    let initLast = BS.unsnoc payload
+        cut (_, lastByte) =
+            if (fromIntegral lastByte) >= BS.length payload then
+                payload
+            else
+                BS.dropEnd (fromIntegral lastByte) payload
+    in cut <$> initLast
