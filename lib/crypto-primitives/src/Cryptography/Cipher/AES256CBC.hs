@@ -5,6 +5,7 @@ module Cryptography.Cipher.AES256CBC
     ( encrypt
     , decrypt
     , paddingPKCS7
+    , unpaddingPKCS7
     ) where
 
 import Prelude
@@ -104,3 +105,8 @@ paddingPKCS7
     :: ByteString
     -> ByteString
 paddingPKCS7 = undefined
+
+unpaddingPKCS7
+    :: ByteString
+    -> ByteString
+unpaddingPKCS7 = undefined
