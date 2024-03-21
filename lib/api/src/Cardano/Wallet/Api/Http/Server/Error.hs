@@ -1,11 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
@@ -28,9 +32,6 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner (..)
-    )
-import Cardano.Ledger.Alonzo.Plutus.TxInfo
-    ( TranslationError (..)
     )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
@@ -86,6 +87,17 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Api.Hex
     ( hexText
     )
+import Cardano.Wallet.Api.Http.Server.Error.AssignReedemers
+    ()
+import Cardano.Wallet.Api.Http.Server.Error.IsServerError
+    ( IsServerError (..)
+    , apiError
+    , err425
+    , handler
+    , liftE
+    , liftHandler
+    , showT
+    )
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
@@ -93,10 +105,8 @@ import Cardano.Wallet.Api.Types
     , toApiEra
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiError (..)
-    , ApiErrorBalanceTxUnderestimatedFee (..)
+    ( ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
-    , ApiErrorMessage (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
@@ -126,16 +136,6 @@ import Cardano.Write.Tx
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
     )
-import Control.Monad.Except
-    ( ExceptT
-    , withExceptT
-    )
-import Control.Monad.IO.Class
-    ( liftIO
-    )
-import Control.Monad.Trans.Except
-    ( throwE
-    )
 import Data.Generics.Internal.VL
     ( view
     , (^.)
@@ -152,9 +152,6 @@ import Data.List
 import Data.Maybe
     ( isJust
     )
-import Data.Text
-    ( Text
-    )
 import Data.Text.Class
     ( ToText (..)
     )
@@ -168,29 +165,15 @@ import Fmt
     , listF
     , pretty
     )
-import Internal.Cardano.Write.Tx.Sign
-    ( KeyWitnessCounts (..)
-    )
-import Network.HTTP.Media
-    ( renderHeader
-    )
-import Network.HTTP.Types
-    ( hContentType
-    )
+import Internal.Cardano.Write.Tx
 import Network.Wai
     ( Request (pathInfo)
     )
 import Safe
     ( fromJustNote
     )
-import Servant
-    ( Accept (contentType)
-    , JSON
-    , Proxy (Proxy)
-    )
 import Servant.Server
-    ( Handler (Handler)
-    , ServerError (..)
+    ( ServerError (..)
     , err400
     , err403
     , err404
@@ -218,43 +201,10 @@ import qualified Internal.Cardano.Write.Tx as Write
     , serializeTx
     , toAnyCardanoEra
     )
+import qualified Internal.Cardano.Write.Tx as WriteTx
 import qualified Internal.Cardano.Write.Tx.Balance as Write
     ( toWalletUTxO
     )
-
--- | Maps types to servant error responses.
-class IsServerError e where
-    -- | A structured human-readable error code to return to API clients.
-    toServerError :: e -> ServerError
-
--- | Lift our wallet layer into servant 'Handler', by mapping each error to a
--- corresponding servant error.
-liftHandler :: IsServerError e => ExceptT e IO a -> Handler a
-liftHandler action = Handler (withExceptT toServerError action)
-
-liftE :: IsServerError e => e -> Handler a
-liftE = liftHandler . throwE
-
--- | Lift an IO action into servant 'Handler'
-handler :: IO a -> Handler a
-handler = Handler . liftIO
-
-apiError :: ServerError -> ApiErrorInfo -> Text -> ServerError
-apiError err info messageUnformatted = err
-    { errBody = Aeson.encode ApiError {info, message}
-    , errHeaders =
-        (hContentType, renderHeader $ contentType $ Proxy @JSON)
-        : errHeaders err
-    }
-  where
-    message = ApiErrorMessage (T.replace "\n" " " messageUnformatted)
-
-err425 :: ServerError
-err425 = ServerError 425 "Too early" "" []
-
--- | Small helper to easy show things to Text
-showT :: Show a => a -> Text
-showT = T.pack . show
 
 instance IsServerError WalletException where
     toServerError = \case
@@ -543,7 +493,8 @@ instance IsServerError ErrWriteTxEra where
                 , "compatible with a recent era."
                 ]
 
-instance Write.IsRecentEra era => IsServerError (ErrBalanceTx era) where
+instance (Write.IsRecentEra era, IsServerError (ErrAssignRedeemers era))
+    => IsServerError (ErrBalanceTx era) where
     toServerError = \case
         ErrBalanceTxExistingKeyWitnesses n ->
             apiError err403 BalanceTxExistingKeyWitnesses $ mconcat
@@ -633,15 +584,15 @@ instance
     Write.IsRecentEra era => IsServerError (ErrBalanceTxInternalError era)
   where
     toServerError = \case
-        ErrUnderestimatedFee coin candidateTx keyWitnessCounts ->
+        ErrUnderestimatedFee coin' candidateTx keyWitnessCounts ->
             apiError err500 (BalanceTxUnderestimatedFee info) $ T.unwords
                 [ "I have somehow underestimated the fee of the transaction by"
-                , pretty (toWalletCoin coin), "and cannot finish balancing."
+                , pretty (toWalletCoin coin'), "and cannot finish balancing."
                 ]
           where
             KeyWitnessCounts nWits nBootWits = keyWitnessCounts
             info = ApiErrorBalanceTxUnderestimatedFee
-                { underestimation = ApiAmount.fromCoin $ toWalletCoin coin
+                { underestimation = ApiAmount.fromCoin $ toWalletCoin coin'
                 , candidateTxHex = hexText $ Write.serializeTx @era candidateTx
                 , candidateTxReadable = T.pack (show candidateTx)
                 , estimatedNumberOfKeyWits = intCast nWits
@@ -1080,57 +1031,6 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
                 , "between 0H and ", pretty (Index $ maxIx - minIx), "H."
                 ]
 
-instance IsServerError ErrAssignRedeemers where
-    toServerError = \case
-        ErrAssignRedeemersScriptFailure r failure ->
-            apiError err400 RedeemerScriptFailure $ T.unwords
-                [ "I was unable to assign execution units to one of your"
-                , "redeemers:", pretty r <> ";"
-                , "Its execution is failing with the following error:"
-                , T.pack failure <> "."
-                ]
-        ErrAssignRedeemersTargetNotFound r ->
-            apiError err400 RedeemerTargetNotFound $ T.unwords
-                [ "I was unable to resolve one of your redeemers to the location"
-                , "indicated in the request payload:", pretty r <> ";"
-                , "Please double-check both your serialised transaction and"
-                , "the provided redeemers."
-                ]
-        ErrAssignRedeemersInvalidData r _ ->
-            apiError err400 RedeemerInvalidData $ T.unwords
-                [ "It looks like you have provided an invalid 'data' payload"
-                , "for one of your redeemers since I am unable to decode it"
-                , "into a valid Plutus data:", pretty r <> "."
-                ]
-        ErrAssignRedeemersTranslationError (TranslationLogicMissingInput inp) ->
-             -- Note that although this error is thrown from
-             -- '_assignScriptRedeemers', it's more related to balanceTransaction
-             -- in general than to assigning redeemers. Hence we don't mention
-             -- redeemers in the message.
-             apiError err400 UnresolvedInputs $ T.unwords
-                 [ "The transaction I was given contains inputs I don't know"
-                 , "about. Please ensure all foreign inputs are specified as "
-                 , "part of the API request. The unknown input is:\n\n"
-                 , T.pack $ show inp
-                 ]
-        ErrAssignRedeemersTranslationError (TimeTranslationPastHorizon t) ->
-            -- We differentiate this from @TranslationError@ for partial API
-            -- backwards compatibility.
-            apiError err400 PastHorizon $ T.unwords
-                [ "The transaction's validity interval is past the horizon"
-                , "of safe slot-to-time conversions."
-                , "This may happen when I know about a future era"
-                , "which has not yet been confirmed on-chain. Try setting the"
-                , "bounds of the validity interval to be earlier.\n\n"
-                , "Here are the full details: " <> t
-                ]
-        ErrAssignRedeemersTranslationError e ->
-            apiError err400 TranslationError $ T.unwords
-                [ "The transaction I was given contains bits that cannot be"
-                , "translated in the current era. The following is wrong:\n\n"
-                , showT e
-                ]
-
 instance IsServerError (Request, ServerError) where
     toServerError (req, err@(ServerError code _ body _))
       | not (isJSON body) = case code of
@@ -1188,3 +1088,9 @@ instance IsServerError (Request, ServerError) where
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         isJSON = isJust . Aeson.decode @Aeson.Value
+
+instance IsServerError WriteTx.ErrInvalidTxOutInEra where
+     toServerError = \case
+         WriteTx.InlinePlutusV3ScriptNotSupportedInBabbage ->
+             apiError err400 BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+                 "Plutus V3 scripts are not supported in the Babbage era."

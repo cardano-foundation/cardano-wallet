@@ -3569,7 +3569,7 @@ balanceTransaction
         => Write.RecentEra era
         -> Handler (Write.PartialTx era)
     parsePartialTx era = do
-        let externalUTxO
+        let mExternalUTxO
                 = Write.utxoFromTxOutsInRecentEra
                 $ map fromExternalInput
                 $ body ^. #inputs
@@ -3584,11 +3584,13 @@ balanceTransaction
             . getApiT
             $ body ^. #transaction
 
-        pure $ Write.PartialTx
-            (Write.fromCardanoApiTx tx)
-            externalUTxO
-            (fromApiRedeemer <$> body ^. #redeemers)
-            timelockKeyWitnessCounts
+        case mExternalUTxO of
+            Right externalUTxO -> pure $ Write.PartialTx
+                (Write.fromCardanoApiTx tx)
+                externalUTxO
+                (fromApiRedeemer <$> body ^. #redeemers)
+                timelockKeyWitnessCounts
+            Left e -> liftHandler $ throwE e
 
 decodeTransaction
     :: forall s n
