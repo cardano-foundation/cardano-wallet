@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- |
 -- Copyright: © 2022–2023 IOHK
@@ -8,8 +8,7 @@
 --
 -- Properties of the delegations-history model.
 module Cardano.Wallet.Delegation.Properties
-    ( GenSlot
-    , Step (..)
+    ( Step (..)
     , properties
     )
 where
@@ -20,16 +19,14 @@ import Cardano.Wallet.Delegation.Model
     ( History
     , Operation (..)
     , Status (..)
-    , Transition (..)
+    , applyTransition
     , slotOf
     , status
-    )
-import Control.Applicative
-    ( (<|>)
     )
 import Test.QuickCheck
     ( Gen
     , Property
+    , conjoin
     , counterexample
     , forAll
     , (===)
@@ -44,39 +41,27 @@ data Step slot drep pool = Step
     }
     deriving (Show)
 
--- | Compute a not so random slot from a 'History' of delegations.
-type GenSlot slot drep pool = History slot drep pool -> Gen slot
-
-property'
-    :: (Ord a, Show a, Show drep, Show pool, Eq drep, Eq pool)
-    => (History a drep pool -> Gen a)
-    -> Step a drep pool
-    -> (Status drep pool -> Status drep pool -> Property)
+setsTheFuture
+    :: (Ord slot, Show slot, Show drep, Show pool, Eq drep, Eq pool)
+    => (History slot drep pool -> Gen slot)
+    -> Step slot drep pool
+    -> (slot -> Operation slot drep pool)
+    -> (Status drep pool -> Status drep pool)
     -> Property
-property' genSlot Step{old_ = xs, new_ = xs', delta_ = diff} change =
-    let x = slotOf diff
-        old = status x xs
-    in  forAll (genSlot xs') $ \y ->
-            let new = status y xs'
+setsTheFuture genSlot Step{old_=history, new_=history', delta_} op transition =
+    let x = slotOf delta_
+        old = status x history
+    in  conjoin
+        [ delta_ === op x
+        , forAll (genSlot history') $ \y ->
+            let new = status y history'
             in  case compare y x of
-                    LT -> new === status y xs
-                    _ -> change old new
+                    LT -> new === status y history
+                    _ -> new === transition old
+        ]
 
-precond
-    :: (Eq drep, Eq pool, Show drep, Show pool)
-    => (Status drep pool -> (Bool, Maybe x))
-    -> (Maybe x -> Status drep pool)
-    -> Status drep pool
-    -> Status drep pool
-    -> Property
-precond check target old new
-    | (fst $ check old) = counterexample "new target"
-        $ new === (target (snd $ check old))
-    | otherwise = counterexample "no changes"
-        $ new === old
-
--- | Properties replicated verbatim from specifications. See
--- 'specifications/Cardano/Wallet/delegation.lean'
+-- | Properties replicated verbatim from specifications.
+-- See 'specifications/Cardano/Wallet/Delegation.agda'.
 properties
     :: (Show slot, Show drep, Show pool, Ord slot, Eq drep, Eq pool)
     => (History slot drep pool -> Gen slot)
@@ -84,30 +69,17 @@ properties
     -> Property
 properties genSlot step =
     let that msg = counterexample ("falsified: " <> msg)
-        prop cond target =
+        setsTheFuture' op =
             counterexample (show step)
-                $ property' genSlot step
-                $ precond cond target
+                . setsTheFuture genSlot step op
     in  case delta_ step of
-            ApplyTransition Deregister _ ->
-                that "deregister invariant is respected"
-                    $ prop
-                        ( \case
-                            Active _ _ -> (True, Nothing)
-                            _ -> (False, Nothing)
-                        )
-                        (const Inactive)
-            ApplyTransition (VoteAndDelegate v p) _ -> do
-                that "delegate and/or vote invariant is respected"
-                    $ prop
-                        ( \case
-                            Inactive -> (True, Just Inactive)
-                            Active v' p'-> (True, Just (Active v' p'))
-                        )
-                        $ \case
-                            Just (Active v' p') -> Active (v <|> v') (p <|> p')
-                            Just Inactive -> Active v p
-                            _ -> error "VoteAndDelegate branch broke"
+            ApplyTransition t _ ->
+                that "ApplyTransition invariant is respected"
+                    $ setsTheFuture'
+                        (ApplyTransition t)
+                        (applyTransition t)
             Rollback _ ->
-                that "rollback invariant is respected"
-                    $ property' genSlot step (===)
+                that "Rollback invariant is respected"
+                    $ setsTheFuture'
+                        Rollback
+                        id

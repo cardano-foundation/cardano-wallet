@@ -77,14 +77,11 @@ record HistoryLaws (api : HistoryApi) : Set₁ where
   field
     prop-transitions
       : ∀ (t : Transition)
-          (history : History api)
       → setsTheFuture api
           (ApplyTransition t)
           (applyTransition t)
     
     prop-rollback
-      : ∀ (slot : Slot)
-          (history : History api)
-      → setsTheFuture api
+      : setsTheFuture api
           Rollback
           (λ old → old)

@@ -8,11 +8,16 @@
 -- Data types that represents a history of delegations and its changes.
 module Cardano.Wallet.Delegation.Model
     ( Operation (..)
-    , Transition (..)
     , slotOf
+
+    , Transition (..)
+    , applyTransition
+
     , Status (..)
+
     , History
     , status
+
     , pattern Register
     , pattern Delegate
     , pattern Vote
@@ -41,13 +46,13 @@ import qualified Data.Map.Strict as Map
 data Transition drep pool
     = VoteAndDelegate (Maybe drep) (Maybe pool)
     | Deregister
-    deriving (Show)
+    deriving (Eq, Show)
 
 -- | Delta type for the delegation 'History'.
 data Operation slot drep pool
     = ApplyTransition (Transition drep pool) slot
     | Rollback slot
-    deriving (Show)
+    deriving (Eq, Show)
 
 -- | Target slot of each 'Operation'.
 slotOf :: Operation slot drep pool -> slot
