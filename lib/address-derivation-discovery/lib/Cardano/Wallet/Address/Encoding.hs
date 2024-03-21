@@ -110,9 +110,9 @@ import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Ledger.Address as SL
+import qualified Cardano.Ledger.Api as SL
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -253,7 +253,7 @@ shelleyDecodeAddress serverNetwork =
     decodeShelleyAddress :: forall c.
         (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
-        case SL.deserialiseAddr @c bytes of
+        case SL.decodeAddrLenient @c bytes of
             Just (SL.Addr addrNetwork _ _) -> do
                 guardNetwork addrNetwork serverNetwork
                 pure (W.Address bytes)
