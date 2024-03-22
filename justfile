@@ -12,7 +12,7 @@ hlint:
 
 # build wallet
 build:
-  cabal build all  --enable-benchmarks --enable-tests -O0 -v0 --ghc-options="-Werror"
+  cabal build all  --enable-benchmarks --enable-tests --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
 
 # build after clean
 clean-build:

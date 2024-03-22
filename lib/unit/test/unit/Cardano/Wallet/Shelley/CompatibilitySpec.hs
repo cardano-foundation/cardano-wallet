@@ -141,7 +141,7 @@ spec = do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
             let Address addr
                     = paymentAddress @ShelleyKey @'CredFromKeyK SMainnet k
-            case SL.deserialiseAddr @StandardCrypto addr of
+            case SL.decodeAddr @StandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False
 

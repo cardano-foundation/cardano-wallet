@@ -339,6 +339,7 @@ import Test.Utils.Pretty
 
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Error as Cardano
+import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -1411,7 +1412,7 @@ mockTxConstraints =
         , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
         , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
         , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
-        , Cardano.protocolParamPoolRetireMaxEpoch = Cardano.EpochNo 2
+        , Cardano.protocolParamPoolRetireMaxEpoch = L.EpochInterval 2
         , Cardano.protocolParamStakePoolTargetNum = 100
         , Cardano.protocolParamPoolPledgeInfluence = 0
         , Cardano.protocolParamMonetaryExpansion = 0

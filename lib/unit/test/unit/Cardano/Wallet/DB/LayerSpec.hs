@@ -20,6 +20,8 @@
 {-# LANGUAGE TypeOperators #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -291,7 +293,8 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
     )
 import Data.Typeable
-    ( Typeable
+    ( Proxy (..)
+    , Typeable
     , typeOf
     )
 import Data.Word
@@ -434,8 +437,8 @@ stateMachineSpec
        , Typeable s
        , WalletFlavor s
        )
-    => Spec
-stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
+    => Proxy s -> Spec
+stateMachineSpec _ = describe ("State machine test (" ++ showState @s ++ ")") $ do
     validateGenerators @s
     it "Sequential" $ prop_sequential @s boot
   where
@@ -450,11 +453,11 @@ stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq =
-    stateMachineSpec @TestState
+    stateMachineSpec (Proxy @TestState)
 stateMachineSpecRnd =
-    stateMachineSpec @(RndState 'Mainnet)
+    stateMachineSpec (Proxy @(RndState 'Mainnet))
 stateMachineSpecShared =
-    stateMachineSpec @(SharedState 'Mainnet SharedKey)
+    stateMachineSpec (Proxy @(SharedState 'Mainnet SharedKey))
 
 instance PaymentAddress SharedKey 'CredFromScriptK where
     paymentAddress _ = error
