@@ -92,6 +92,7 @@ module Internal.Cardano.Write.Tx
     , BabbageTxOut (..)
     , TxOutInBabbage
     , TxOutInRecentEra (..)
+    , ErrInvalidTxOutInEra (..)
     , unwrapTxOutInRecentEra
 
     , computeMinimumCoinForTxOut
@@ -133,6 +134,7 @@ module Internal.Cardano.Write.Tx
     -- * UTxO
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
+    , unsafeUtxoFromTxOutsInRecentEra
 
     -- * Policy and asset identifiers
     , type PolicyId
@@ -153,12 +155,12 @@ import Cardano.Crypto.Hash
 import Cardano.Ledger.Allegra.Scripts
     ( translateTimelock
     )
-import Cardano.Ledger.Alonzo.Plutus.TxInfo
+import Cardano.Ledger.Alonzo.Plutus.Context
     ( EraPlutusContext
-    , ExtendedUTxO
     )
 import Cardano.Ledger.Alonzo.Scripts
-    ( AlonzoScript (..)
+    ( AlonzoEraScript
+    , AlonzoScript (..)
     )
 import Cardano.Ledger.Alonzo.TxWits
     ( AlonzoTxWits
@@ -168,6 +170,7 @@ import Cardano.Ledger.Alonzo.UTxO
     )
 import Cardano.Ledger.Api
     ( coinTxOutL
+    , estimateMinFeeTx
     , ppKeyDepositL
     )
 import Cardano.Ledger.Api.UTxO
@@ -178,6 +181,7 @@ import Cardano.Ledger.Babbage.TxBody
     )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
+    , StrictMaybe (..)
     , Version
     , maybeToStrictMaybe
     )
@@ -186,6 +190,9 @@ import Cardano.Ledger.Coin
     )
 import Cardano.Ledger.Conway.PParams
     ( ppDRepDepositL
+    )
+import Cardano.Ledger.Conway.Scripts
+    ( PlutusScript (..)
     )
 import Cardano.Ledger.Crypto
     ( StandardCrypto
@@ -200,9 +207,6 @@ import Cardano.Ledger.Plutus.Data
     ( BinaryData
     , Datum (..)
     )
-import Cardano.Ledger.Plutus.Language
-    ( Language (PlutusV1)
-    )
 import Cardano.Ledger.SafeHash
     ( SafeHash
     , extractHash
@@ -213,8 +217,10 @@ import Cardano.Ledger.Val
     , modifyCoin
     )
 import Control.Arrow
-    ( second
-    , (>>>)
+    ( (>>>)
+    )
+import Data.Bits
+    ( Bits
     )
 import Data.ByteString
     ( ByteString
@@ -275,7 +281,6 @@ import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Value
 import qualified Cardano.Ledger.Plutus.Data as Alonzo
-import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
@@ -344,22 +349,25 @@ type RecentEraConstraints era =
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ Value
     , Core.TxWits era ~ AlonzoTxWits era
-    , ExtendedUTxO era
+    -- , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
-    , EraPlutusContext 'PlutusV1 era
+    , AlonzoEraScript era
+    -- , EraPlutusContext 'PlutusV1 era
     , Eq (TxOut era)
     , Ledger.Crypto (Core.EraCrypto era)
     , Show (TxOut era)
     , Show (Core.Tx era)
     , Eq (Core.Tx era)
     , Babbage.BabbageEraTxBody era
+    , Alonzo.AlonzoEraTxBody era
     , Shelley.EraUTxO era
     , Show (TxOut era)
     , Eq (TxOut era)
     , Show (PParams era)
     , Show (Script era)
+    , EraPlutusContext era
     )
 
 -- | Returns a proof that the given era is a recent era.
@@ -535,7 +543,7 @@ type ScriptHash = Core.ScriptHash StandardCrypto
 type Value = MaryValue StandardCrypto
 
 unsafeAddressFromBytes :: ByteString -> Address
-unsafeAddressFromBytes bytes = case Ledger.deserialiseAddr bytes of
+unsafeAddressFromBytes bytes = case Ledger.decodeAddr bytes of
     Just addr -> addr
     Nothing -> error "unsafeAddressFromBytes: failed to deserialise"
 
@@ -566,12 +574,16 @@ data TxOutInRecentEra =
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
 
+data ErrInvalidTxOutInEra
+    = InlinePlutusV3ScriptNotSupportedInBabbage
+    deriving (Show, Eq)
+
 unwrapTxOutInRecentEra
     :: forall era. IsRecentEra era
     => TxOutInRecentEra
-    -> TxOut era
+    -> Either ErrInvalidTxOutInEra (TxOut era)
 unwrapTxOutInRecentEra recentEraTxOut = case recentEra @era of
-    RecentEraConway -> recentEraToConwayTxOut recentEraTxOut
+    RecentEraConway -> pure $ recentEraToConwayTxOut recentEraTxOut
     RecentEraBabbage -> recentEraToBabbageTxOut recentEraTxOut
 
 recentEraToConwayTxOut
@@ -582,25 +594,36 @@ recentEraToConwayTxOut (TxOutInRecentEra addr val datum mscript) =
 
 recentEraToBabbageTxOut
     :: TxOutInRecentEra
-    -> Babbage.BabbageTxOut (Babbage.BabbageEra StandardCrypto)
+    -> Either ErrInvalidTxOutInEra (BabbageTxOut BabbageEra)
 recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
     Babbage.BabbageTxOut addr val
-        (castDatum datum)
-        (maybeToStrictMaybe (castScript <$> mscript))
+        (downgradeDatum datum)
+        <$> (maybe (Right SNothing) (fmap SJust . downgradeScript) mscript)
   where
-    castDatum = \case
+    downgradeDatum = \case
         Alonzo.NoDatum ->
             Alonzo.NoDatum
         Alonzo.DatumHash h ->
             Alonzo.DatumHash h
         Alonzo.Datum binaryData ->
             Alonzo.Datum (coerce binaryData)
-    castScript :: AlonzoScript StandardConway -> AlonzoScript StandardBabbage
-    castScript = \case
-        Alonzo.TimelockScript timelockEra ->
-            Alonzo.TimelockScript (translateTimelock timelockEra)
-        Alonzo.PlutusScript bs ->
-            Alonzo.PlutusScript bs
+
+    downgradeScript
+        :: AlonzoScript ConwayEra
+        -> Either ErrInvalidTxOutInEra (AlonzoScript BabbageEra)
+    downgradeScript = \case
+        TimelockScript timelockEra
+            -> pure $ Alonzo.TimelockScript (translateTimelock timelockEra)
+        PlutusScript s
+            -> PlutusScript <$> downgradePlutusScript s
+
+    downgradePlutusScript
+        :: PlutusScript ConwayEra
+        -> Either ErrInvalidTxOutInEra (PlutusScript BabbageEra)
+    downgradePlutusScript = \case
+        ConwayPlutusV1 s -> pure $ BabbagePlutusV1 s
+        ConwayPlutusV2 s -> pure $ BabbagePlutusV2 s
+        ConwayPlutusV3 _s -> Left InlinePlutusV3ScriptNotSupportedInBabbage
 
 --
 -- MinimumUTxO
@@ -661,9 +684,20 @@ isBelowMinimumCoinForTxOut pp out =
 utxoFromTxOutsInRecentEra
     :: IsRecentEra era
     => [(TxIn, TxOutInRecentEra)]
-    -> Shelley.UTxO era
+    -> Either ErrInvalidTxOutInEra (Shelley.UTxO era)
 utxoFromTxOutsInRecentEra =
-    Shelley.UTxO . Map.fromList . map (second unwrapTxOutInRecentEra)
+    fmap (Shelley.UTxO . Map.fromList) . mapM (secondM unwrapTxOutInRecentEra)
+
+  where
+    secondM :: Monad m => (o -> m o') -> (i, o) -> m (i, o')
+    secondM f (i, o) = f o >>= \o' -> return (i, o')
+
+unsafeUtxoFromTxOutsInRecentEra
+    :: IsRecentEra era
+    => [(TxIn, TxOutInRecentEra)]
+    -> Shelley.UTxO era
+unsafeUtxoFromTxOutsInRecentEra =
+    either (error . show) id . utxoFromTxOutsInRecentEra
 
 --------------------------------------------------------------------------------
 -- Tx
@@ -804,9 +838,17 @@ evaluateMinimumFee pp tx kwc =
     KeyWitnessCounts {nKeyWits, nBootstrapWits} = kwc
 
     mainFee :: Coin
-    mainFee = Shelley.evaluateTransactionFee pp tx nKeyWits
+    mainFee =
+        estimateMinFeeTx pp tx
+            (unsafeIntCast nKeyWits)
+            accountForBootWitsElsewhere
 
     FeePerByte feePerByte = getFeePerByte pp
+
+    -- 'estimateMinFeeTx' appears to assume byron/bootstrap wits contain no
+    -- address attributes or payload. For now, let's keep using our own
+    -- estimation.
+    accountForBootWitsElsewhere = 0
 
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $ intCast $ feePerByte * byteCount
@@ -819,6 +861,14 @@ evaluateMinimumFee pp tx kwc =
         sizeOf_BootstrapWitnesses :: Natural -> Natural
         sizeOf_BootstrapWitnesses 0 = 0
         sizeOf_BootstrapWitnesses n = 4 + 180 * n
+
+    unsafeIntCast
+        :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
+        => a
+        -> b
+    unsafeIntCast x = fromMaybe err $ intCastMaybe x
+      where
+        err = error $ "unsafeIntCast failed for " <> show x
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --

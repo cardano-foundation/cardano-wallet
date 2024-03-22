@@ -161,7 +161,8 @@ import Data.Group
     ( Group (invert)
     )
 import Data.IntCast
-    ( intCastMaybe
+    ( intCast
+    , intCastMaybe
     )
 import Data.List.NonEmpty
     ( NonEmpty (..)
@@ -392,7 +393,7 @@ data ErrBalanceTx era
     | ErrBalanceTxInsufficientCollateral
         (ErrBalanceTxInsufficientCollateralError era)
     | ErrBalanceTxConflictingNetworks
-    | ErrBalanceTxAssignRedeemers ErrAssignRedeemers
+    | ErrBalanceTxAssignRedeemers (ErrAssignRedeemers era)
     | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
     | ErrBalanceTxInputResolutionConflicts
         (NonEmpty (TxOut era, TxOut era))
@@ -824,7 +825,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> Tx era
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     guardTxSize witCount tx = do
-        let maxSize = W.TxSize (pp ^. ppMaxTxSizeL)
+        let maxSize =  W.TxSize $ intCast (pp ^. ppMaxTxSizeL)
         when (estimateSignedTxSize pp witCount tx > maxSize) $
             throwE ErrBalanceTxMaxSizeLimitExceeded
         pure tx

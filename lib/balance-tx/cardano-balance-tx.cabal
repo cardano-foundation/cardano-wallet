@@ -119,6 +119,7 @@ test-suite test
     , cardano-ledger-api
     , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
     , cardano-ledger-byron
+    , cardano-ledger-conway
     , cardano-ledger-conway:testlib
     , cardano-ledger-core
     , cardano-ledger-mary:testlib
