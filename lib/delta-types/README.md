@@ -41,7 +41,8 @@ In general, there may be multiple delta types associated with a single base type
 
 1. Alvarez-Picallo, M., Eyers-Taylor, A., Peyton Jones, M., Ong, CH.L. (2019). [Fixing Incremental Computation][1811.06069]. In: Caires, L. (eds) Programming Languages and Systems. ESOP 2019. Lecture Notes in Computer Science(), vol 11423. Springer, Cham.
 2. M. Alvarez-Picallo, M. (2020). [Change actions: from incremental computation to discrete derivatives][2002.05256]. PhD thesis, Oxford.
+3. Apfelmus, H. (2023). [Delta encodings help separate business logic from database operations][bobkonf2023]. Bobkonf 2023, Berlin.
 
-
+  [bobkonf2023]: https://bobkonf.de/2023/apfelmus.html
   [2002.05256]: https://arxiv.org/abs/2002.05256
   [1811.06069]: https://arxiv.org/abs/1811.06069

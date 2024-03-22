@@ -3,6 +3,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-|
+Copyright: © 2021-2023 IOHK, 2024 Cardano Foundation
+License: Apache-2.0
+
+Delta types for 'Data.Map.Map'.
+-}
 module Data.DeltaMap
     ( DeltaMap(..)
     ) where
