@@ -70,6 +70,9 @@ import Data.Kind
 import Data.List.NonEmpty
     ( NonEmpty
     )
+import Data.Monoid
+    ( Endo (..)
+    )
 import Data.Semigroupoid
     ( Semigroupoid (..)
     )
@@ -101,6 +104,11 @@ class Delta delta where
     --
     -- prop> apply mempty = id
     apply :: delta -> Base delta -> Base delta
+
+-- | 'Endo' is the most general delta, which allows any change.
+instance Delta (Endo a) where
+    type Base (Endo a) = a
+    apply (Endo f) = f
 
 -- | The least general delta, where nothing is changed.
 data NoChange (a :: Type) = NoChange
