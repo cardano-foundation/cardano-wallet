@@ -33,7 +33,7 @@ module Data.Delta (
     , DeltaSet1 (..)
     , DeltaSet
     , mkDeltaSet
-    , deltaSetToList
+    , listFromDeltaSet
     , deltaSetFromList
 
     -- * Embedding of delta types
@@ -231,8 +231,8 @@ mkDeltaSet new old =
 --
 -- In the result list, the set of @a@ appearing as 'Insert'@ a@
 -- is /disjoint/ from the set of @a@ appearing as 'Delete'@ a@.
-deltaSetToList :: DeltaSet a -> [DeltaSet1 a]
-deltaSetToList DeltaSet{inserts,deletes} =
+listFromDeltaSet :: DeltaSet a -> [DeltaSet1 a]
+listFromDeltaSet DeltaSet{inserts,deletes} =
     map Insert (Set.toList inserts) <> map Delete (Set.toList deletes)
 
 -- | Collect insertions or deletions of elements into a 'DeltaSet'.
