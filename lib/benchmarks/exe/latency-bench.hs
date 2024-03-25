@@ -104,8 +104,7 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
-    , NetworkId (..)
+    ( NetworkId (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..)
@@ -237,9 +236,6 @@ import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
 import qualified Options.Applicative as O
-
--- will go away once we have all implemented in terms of servant-client code
-type A = 'Testnet 42
 
 main :: IO ()
 main = withUtf8
@@ -402,7 +398,7 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
     wSrcId <- view #id <$> fixtureWallet
     replicateM_ batchSize
         $ do
-            addrs <- request $ C.listAddresses @A (wDest ^. #id) Nothing
+            addrs <- request $ C.listAddresses (wDest ^. #id) Nothing
             let destination = addrs !! 1 ^. #id
                 amount =
                     AddressAmount
@@ -432,7 +428,7 @@ scene title scenario = measureApiLogs scenario >>= fmtResult title
 sceneOfClientM :: String -> ClientM a -> BenchM ()
 sceneOfClientM title action = scene title $ requestWithError action
 
-listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction (Testnet 42)]
+listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction C.Testnet42]
 listAllTransactions walId =
     C.listTransactions
         walId
@@ -458,14 +454,14 @@ runScenario scenario = lift . runResourceT $ do
     sceneOfClientM "listWallets" C.listWallets
     sceneOfClientM "getWallet" $ C.getWallet wal1Id
     sceneOfClientM "getUTxOsStatistics" $ C.getWalletUtxoStatistics wal1Id
-    sceneOfClientM "listAddresses" $ C.listAddresses @A wal1Id Nothing
+    sceneOfClientM "listAddresses" $ C.listAddresses wal1Id Nothing
     sceneOfClientM "listTransactions" $ listAllTransactions wal1Id
 
     txs <- request $ listAllTransactions wal1Id
     sceneOfClientM "getTransaction"
-        $ C.getTransaction @A wal1Id (ApiTxId $ txs !! 1 ^. #id) False
+        $ C.getTransaction wal1Id (ApiTxId $ txs !! 1 ^. #id) False
 
-    addrs <- request $ C.listAddresses @A wal2Id Nothing
+    addrs <- request $ C.listAddresses wal2Id Nothing
     let destination = addrs !! 1 ^. #id
         amount =
             AddressAmount

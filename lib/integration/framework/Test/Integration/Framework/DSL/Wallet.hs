@@ -4,7 +4,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.DSL.Wallet
     ( createARandomWalletWithMnemonics
@@ -25,6 +24,9 @@ import Prelude
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
+import Cardano.Wallet.Api.Clients.Testnet.Shelley
+    ( Testnet42
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiMnemonicT (..)
@@ -43,10 +45,6 @@ import Cardano.Wallet.Api.Types.WalletAssets
     )
 import Cardano.Wallet.Faucet
     ( Faucet (nextShelleyMnemonic)
-    )
-import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId
-    , NetworkDiscriminant (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
@@ -73,9 +71,6 @@ import Control.Monad.Reader
 import Data.Generics.Internal.VL
     ( (.~)
     , (^.)
-    )
-import Data.Proxy
-    ( Proxy (..)
     )
 import Data.Text
     ( Text
@@ -172,14 +167,11 @@ aFaucetWallet = do
     pure faucetWalletId
 
 fundWallet :: Natural -> Over AWallet ()
-fundWallet = fundWallet' (Proxy @(Testnet 42))
-
-fundWallet' :: forall n p . (HasSNetworkId n) => p n -> Natural -> Over AWallet ()
-fundWallet' _ amt = do
+fundWallet amt = do
     w <- ask
     lift $ do
         faucetWalletId <- aFaucetWallet
-        Partial addrs <- request $ C.listAddresses @n w Nothing
+        Partial addrs <- request $ C.listAddresses w Nothing
         over faucetWalletId $ do
             let destination = head addrs ^. #id
                 addressAmount =
@@ -199,14 +191,14 @@ fundWallet' _ amt = do
             submitTx payload
 
 -- | Submit a transaction and wait for it to be on the ledger
-submitTx :: forall n. HasSNetworkId n => PostTransactionOldData n -> Over AWallet ()
+submitTx :: PostTransactionOldData Testnet42 -> Over AWallet ()
 submitTx payload = do
     w <- ask
     lift $ do
         Partial tx <- request $ C.postTransaction w payload
         eventually "Transaction didn't make it" $ do
             Partial tx' <-
-                request $ C.getTransaction @n w (ApiTxId $ tx ^. #id) False
+                request $ C.getTransaction w (ApiTxId $ tx ^. #id) False
             lift $ tx' ^. #status . #getApiT `shouldBe` InLedger
 
 withApiWallet :: Over ApiWallet a -> Over AWallet a

@@ -122,6 +122,7 @@ library
     Cardano.Wallet.Api.Aeson
     Cardano.Wallet.Api.Aeson.Variant
     Cardano.Wallet.Api.Client
+    Cardano.Wallet.Api.Clients.Shelley
     Cardano.Wallet.Api.Clients.Testnet.Byron
     Cardano.Wallet.Api.Clients.Testnet.Network
     Cardano.Wallet.Api.Clients.Testnet.Shelley

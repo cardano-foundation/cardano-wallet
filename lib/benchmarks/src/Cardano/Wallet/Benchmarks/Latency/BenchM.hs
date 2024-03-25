@@ -58,9 +58,6 @@ import Test.Integration.Framework.DSL
     ( Context
     , clientEnv
     )
-import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
-    )
 
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Test.Integration.Framework.DSL as DSL
@@ -106,4 +103,4 @@ fixtureWallet = runDSL DSL.fixtureWallet
 
 fixtureWalletWith :: [Natural] -> BenchM ApiWallet
 fixtureWalletWith w = runDSL $
-    \ctx -> DSL.fixtureWalletWith @('Testnet 42) ctx w
+    \ctx -> DSL.fixtureWalletWith @C.Testnet42 ctx w
