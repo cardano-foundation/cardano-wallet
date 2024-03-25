@@ -18,10 +18,10 @@
  0.850000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 850000) (MultiAsset (fromList [])), required = MaryValue (Coin 1000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 150000) (MultiAsset (fromList []))})
  0.900000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 900000) (MultiAsset (fromList [])), required = MaryValue (Coin 1000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 100000) (MultiAsset (fromList []))})
  0.950000,ErrBalanceTxAssetsInsufficient (ErrBalanceTxAssetsInsufficientError {available = MaryValue (Coin 950000) (MultiAsset (fromList [])), required = MaryValue (Coin 1000000) (MultiAsset (fromList [])), shortfall = MaryValue (Coin 50000) (MultiAsset (fromList []))})
- 1.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 168845, shortfall = Coin 168845})
- 1.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 168845, shortfall = Coin 118845})
- 1.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 168845, shortfall = Coin 68845})
- 1.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 168845, shortfall = Coin 18845})
+ 1.000000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 169021, shortfall = Coin 169021})
+ 1.050000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 169021, shortfall = Coin 119021})
+ 1.100000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 169021, shortfall = Coin 69021})
+ 1.150000,ErrBalanceTxUnableToCreateChange (ErrBalanceTxUnableToCreateChangeError {requiredCost = Coin 169021, shortfall = Coin 19021})
  1.200000,0.200000,0.163741
  1.250000,0.250000,0.163741
  1.300000,0.300000,0.163741

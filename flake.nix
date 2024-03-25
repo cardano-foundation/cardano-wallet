@@ -120,7 +120,7 @@
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
     hostNixpkgs.follows = "nixpkgs";
     CHaP = {
-      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+      url = "github:intersectmbo/cardano-haskell-packages?ref=repo";
       flake = false;
     };
     haskellNix = {
@@ -142,7 +142,7 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=8.7.3";
+    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=8.9.0";
     hls = {
       url = "github:cardano-scaling/haskell-language-server?ref=2.6-patched";
       flake = false;

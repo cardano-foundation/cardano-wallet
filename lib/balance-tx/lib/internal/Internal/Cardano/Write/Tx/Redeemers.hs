@@ -4,9 +4,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 {- HLINT ignore "Use <$>" -}
 
 -- |
@@ -22,11 +24,12 @@ module Internal.Cardano.Write.Tx.Redeemers
 
 import Prelude
 
-import Cardano.Ledger.Alonzo.Plutus.TxInfo
-    ( TranslationError
+import Cardano.Ledger.Alonzo.Plutus.Context
+    ( EraPlutusContext (..)
     )
 import Cardano.Ledger.Api
-    ( Tx
+    ( AsItem (..)
+    , Tx
     , bodyTxL
     , rdmrsTxWitsL
     , scriptIntegrityHashTxBodyL
@@ -79,6 +82,9 @@ import Data.Map.Strict
     ( Map
     , (!)
     )
+import Data.Word
+    ( Word32
+    )
 import Fmt
     ( Buildable (..)
     )
@@ -89,8 +95,8 @@ import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
     , PParams
     , PolicyId
+    , RecentEra (..)
     , RewardAccount
-    , StandardCrypto
     , TxIn
     , UTxO
     )
@@ -100,26 +106,30 @@ import Internal.Cardano.Write.Tx.TimeTranslation
     , systemStartTime
     )
 
-import qualified Cardano.Ledger.Alonzo.PlutusScriptApi as Alonzo
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Alonzo.Tx as Alonzo
+import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
+import qualified Cardano.Ledger.Api as Alonzo
+import qualified Cardano.Ledger.Api as Conway
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Plutus.Data as Alonzo
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map as Map
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 
-data ErrAssignRedeemers
+data ErrAssignRedeemers era
     = ErrAssignRedeemersScriptFailure Redeemer String
     | ErrAssignRedeemersTargetNotFound Redeemer
     -- ^ The given redeemer target couldn't be located in the transaction.
     | ErrAssignRedeemersInvalidData Redeemer String
     -- ^ Redeemer's data isn't a valid Plutus' data.
-    | ErrAssignRedeemersTranslationError (TranslationError StandardCrypto)
-    deriving (Generic, Eq, Show)
+    | ErrAssignRedeemersTranslationError (ContextError era)
+    deriving (Generic)
+
+deriving instance Eq (ContextError era) => Eq (ErrAssignRedeemers era)
+deriving instance Show (ContextError era) => Show (ErrAssignRedeemers era)
 
 assignScriptRedeemers
     :: forall era. IsRecentEra era
@@ -128,7 +138,7 @@ assignScriptRedeemers
     -> UTxO era
     -> [Redeemer]
     -> Tx era
-    -> Either ErrAssignRedeemers (Tx era)
+    -> Either (ErrAssignRedeemers era) (Tx era)
 assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     flip execStateT tx $ do
         indexedRedeemers <- StateT assignNullRedeemers
@@ -149,8 +159,8 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     -- 'Redeemer' type which is mapped to an 'Alonzo.ScriptPurpose'.
     assignNullRedeemers
         :: Tx era
-        -> Either ErrAssignRedeemers
-            ( Map Alonzo.RdmrPtr Redeemer
+        -> Either (ErrAssignRedeemers era)
+            ( Map (Alonzo.PlutusPurpose Alonzo.AsIndex era)  Redeemer
             , Tx era
             )
     assignNullRedeemers ledgerTx = do
@@ -164,9 +174,9 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
             )
       where
         parseRedeemer rd = do
-            let mPtr = Alonzo.rdptr
-                    (view bodyTxL ledgerTx)
-                    (toScriptPurpose rd)
+            let mPtr = Alonzo.redeemerPointer
+                     (view bodyTxL ledgerTx)
+                     (toScriptPurpose @era rd)
             ptr <- case mPtr of
                 SNothing -> Left $ ErrAssignRedeemersTargetNotFound rd
                 SJust ptr -> pure ptr
@@ -180,31 +190,32 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits
-        :: Map Alonzo.RdmrPtr Redeemer
+        :: Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) Redeemer
         -> Tx era
-        -> Either ErrAssignRedeemers
-            (Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits))
+        -> Either (ErrAssignRedeemers era)
+            (Map (Alonzo.PlutusPurpose Alonzo.AsIndex era)
+                (Either (ErrAssignRedeemers era) Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers ledgerTx =
         Ledger.evalTxExUnits
             pparams ledgerTx utxo epochInformation systemStart
         & bimap
-            ErrAssignRedeemersTranslationError
-            (hoistScriptFailure indexedRedeemers)
+            ErrAssignRedeemersTranslationError (hoistScriptFailure indexedRedeemers)
 
     hoistScriptFailure
         :: Show scriptFailure
-        => Map Alonzo.RdmrPtr Redeemer
-        -> Map Alonzo.RdmrPtr (Either scriptFailure a)
-        -> Map Alonzo.RdmrPtr (Either ErrAssignRedeemers a)
+        => Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) Redeemer
+        -> Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) (Either scriptFailure a)
+        -> Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) (Either (ErrAssignRedeemers era) a)
     hoistScriptFailure indexedRedeemers = Map.mapWithKey $ \ptr -> left $ \e ->
         ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
     assignExecutionUnits
-        :: Map Alonzo.RdmrPtr (Either ErrAssignRedeemers Alonzo.ExUnits)
+        :: Map (Alonzo.PlutusPurpose Alonzo.AsIndex era)
+                (Either (ErrAssignRedeemers era) Alonzo.ExUnits)
         -> Tx era
-        -> Either ErrAssignRedeemers (Tx era)
+        -> Either (ErrAssignRedeemers era) (Tx era)
     assignExecutionUnits exUnits ledgerTx = do
         let Alonzo.Redeemers rdmrs = view (witsTxL . rdmrsTxWitsL) ledgerTx
 
@@ -234,14 +245,14 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
             Alonzo.hashScriptIntegrity
                 (Set.fromList $ Alonzo.getLanguageView pparams <$> langs)
                 (Alonzo.txrdmrs wits)
-                (Alonzo.txdats wits)
+                (Alonzo.txdats' wits)
       where
         wits = Alonzo.wits ledgerTx
         langs =
-            [ l
+            [ Alonzo.plutusScriptLanguage plutus
             | (_hash, script) <- Map.toList (Alonzo.txscripts wits)
             , (not . Ledger.isNativeScript @era) script
-            , Just l <- [Alonzo.language script]
+            , Just plutus <- [Alonzo.toPlutusScript script]
             ]
 
 --
@@ -273,14 +284,41 @@ redeemerData = \case
 toScriptPurpose
     :: IsRecentEra era
     => Redeemer
-    -> Alonzo.ScriptPurpose era
+    -> Alonzo.PlutusPurpose AsItem  era
 toScriptPurpose = \case
     RedeemerSpending _ txin ->
-        Alonzo.Spending txin
+        mkSpendingPurpose $ AsItem txin
     RedeemerMinting _ pid ->
-        Alonzo.Minting pid
+        mkMintingPurpose $ AsItem pid
     RedeemerRewarding _ acc ->
-        Alonzo.Rewarding acc
+        mkRewardingPurpose $ AsItem acc
+
+mkSpendingPurpose
+    :: forall era
+     . IsRecentEra era
+    => AsItem Word32 TxIn
+    -> Alonzo.PlutusPurpose AsItem era
+mkSpendingPurpose = case recentEra @era of
+    RecentEraBabbage -> Alonzo.AlonzoSpending
+    RecentEraConway -> Conway.ConwaySpending
+
+mkMintingPurpose
+    :: forall era
+     . IsRecentEra era
+    => AsItem Word32 PolicyId
+    -> Alonzo.PlutusPurpose AsItem era
+mkMintingPurpose = case recentEra @era of
+    RecentEraBabbage -> Alonzo.AlonzoMinting
+    RecentEraConway -> Conway.ConwayMinting
+
+mkRewardingPurpose
+    :: forall era
+     . IsRecentEra era
+    => AsItem Word32 RewardAccount
+    -> Alonzo.PlutusPurpose AsItem era
+mkRewardingPurpose = case recentEra @era of
+    RecentEraBabbage -> Alonzo.AlonzoRewarding
+    RecentEraConway -> Conway.ConwayRewarding
 
 --------------------------------------------------------------------------------
 -- Utils

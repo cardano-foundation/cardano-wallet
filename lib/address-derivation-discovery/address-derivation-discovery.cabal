@@ -50,6 +50,7 @@ library
     , cardano-addresses
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-ledger-api
     , cardano-ledger-byron
     , cardano-ledger-core
     , cardano-ledger-shelley

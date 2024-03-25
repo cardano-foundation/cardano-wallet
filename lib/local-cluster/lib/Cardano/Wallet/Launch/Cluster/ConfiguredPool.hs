@@ -112,6 +112,7 @@ import Control.Monad.IO.Class
     )
 import Control.Monad.Reader
     ( MonadReader (..)
+    , asks
     )
 import Control.Tracer
     ( traceWith
@@ -290,8 +291,10 @@ genStakeAddrKeyPair
     :: (FileOf "stake-prv", FileOf "stake-pub")
     -> ClusterM ()
 genStakeAddrKeyPair (stakePrv, stakePub) = do
+    Config{..} <- ask
     cli
-        [ "stake-address"
+        [ clusterEraToString cfgLastHardFork
+        , "stake-address"
         , "key-gen"
         , "--verification-key-file"
         , pathOf stakePub
@@ -398,10 +401,12 @@ issuePoolRetirementCert
     -> Word31
     -> ClusterM (FileOf "retirement-cert")
 issuePoolRetirementCert nodeSegment opPub retirementEpoch = do
+    lastHardFork <- asks cfgLastHardFork
     poolDir <- askNodeDir nodeSegment
     let file = poolDir </> "pool-retirement.cert"
     cli
-        [ "stake-pool"
+        [ clusterEraToString lastHardFork
+        , "stake-pool"
         , "deregistration-certificate"
         , "--cold-verification-key-file"
         , pathOf opPub
@@ -505,7 +510,7 @@ configurePool metadataServer recipe = do
                                 SJust
                                     $ Ledger.PoolMetadata
                                         ( fromMaybe (error "invalid url (too long)")
-                                            $ textToUrl
+                                            $ textToUrl 128
                                             $ T.pack metadataURL
                                         )
                                         (blake2b256 (BL.toStrict metadataBytes))

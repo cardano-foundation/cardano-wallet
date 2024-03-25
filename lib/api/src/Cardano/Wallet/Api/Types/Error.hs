@@ -206,6 +206,9 @@ data ApiErrorInfo
     | WithdrawalNotPossibleWithoutVote
     | WrongMnemonic
     | BlockHeaderNotFound
+    | TranslationByronTxOutInContext
+    | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

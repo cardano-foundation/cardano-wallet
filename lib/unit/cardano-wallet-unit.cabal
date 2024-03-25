@@ -77,6 +77,7 @@ test-suite unit
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-ledger-core
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
     , cardano-ledger-core

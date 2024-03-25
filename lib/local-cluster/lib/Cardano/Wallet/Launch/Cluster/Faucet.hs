@@ -8,7 +8,7 @@ module Cardano.Wallet.Launch.Cluster.Faucet
     , readFaucetAddresses
     , faucetAmt
     , depositAmt
-    , preRegisteredStakeKey
+    , preRegisteredStakeKeyPair
     , resetGlobals
     , sendFaucetFundsTo
     , sendFaucetAssetsTo
@@ -201,23 +201,31 @@ resetGlobals :: IO ()
 resetGlobals = do
     void $ swapMVar faucetIndex 1
 
--- | A public stake key associated with a mnemonic that we pre-registered for
--- STAKE_POOLS_JOIN_05.
+-- | A public stake key pair
+-- associated with a mnemonic that we pre-registered for STAKE_POOLS_JOIN_05.
 --
 -- ["over", "decorate", "flock", "badge", "beauty"
 -- , "stamp", "chest", "owner", "excess", "omit"
 -- , "bid", "raccoon", "spin", "reduce", "rival"
 -- ]
-preRegisteredStakeKey
-    :: Aeson.Value
-preRegisteredStakeKey =
-    Aeson.object
+preRegisteredStakeKeyPair
+    :: (Aeson.Value, Aeson.Value)
+preRegisteredStakeKeyPair =
+    ( Aeson.object
         [ "type" .= Aeson.String "StakeVerificationKeyShelley_ed25519"
         , "description" .= Aeson.String "Free form text"
         , "cborHex"
             .= Aeson.String
                 "5820949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f"
         ]
+    , Aeson.object
+        [ "type" .= Aeson.String "StakeExtendedSigningKeyShelley_ed25519_bip32"
+        , "description" .= Aeson.String "Free form text"
+        , "cborHex"
+            .= Aeson.String
+                "5880784cda4d590b72c795792ec5d05b2a4216d153e36dad0b5376b6ea6308008d4e3cb0088852dce3b89577c7a4fb262ebf6a71f44f2c8ca45794ccfaa76bd95bcb949fc9e6b7e1e12e933ac35de5a565c9264b0ac5b631b4f5a21548bc6d65616f3042af27ce48e0fce0f88696b6ed3476f8c3412cce2f984931fb7658dee1872e"
+        ]
+    )
 
 -- | Deposit amount required for registering certificates.
 depositAmt :: Integer

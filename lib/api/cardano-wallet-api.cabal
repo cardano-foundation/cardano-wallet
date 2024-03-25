@@ -40,7 +40,6 @@ flag release
 
 library
   import:          language, opts-lib
-  visibility:      public
   hs-source-dirs:  src
   build-depends:
     , address-derivation-discovery
@@ -59,6 +58,8 @@ library
     , cardano-binary
     , cardano-crypto
     , cardano-ledger-alonzo
+    , cardano-ledger-babbage
+    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-launcher
@@ -129,6 +130,8 @@ library
     Cardano.Wallet.Api.Http.Logging
     Cardano.Wallet.Api.Http.Server
     Cardano.Wallet.Api.Http.Server.Error
+    Cardano.Wallet.Api.Http.Server.Error.AssignReedemers
+    Cardano.Wallet.Api.Http.Server.Error.IsServerError
     Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     Cardano.Wallet.Api.Http.Server.Tls

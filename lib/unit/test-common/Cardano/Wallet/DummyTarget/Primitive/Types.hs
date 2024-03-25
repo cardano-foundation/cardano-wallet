@@ -96,6 +96,7 @@ import GHC.Stack
     ( HasCallStack
     )
 
+import qualified Cardano.Api.Ledger as C
 import qualified Cardano.Api.Shelley as C
 import qualified Data.ByteString.Char8 as B8
 
@@ -183,7 +184,7 @@ dummyNodeProtocolParameters = C.ProtocolParameters
     , C.protocolParamStakeAddressDeposit = C.Lovelace 0
     , C.protocolParamStakePoolDeposit = C.Lovelace 500_000_000
     , C.protocolParamMinPoolCost = C.Lovelace 340_000_000
-    , C.protocolParamPoolRetireMaxEpoch = C.EpochNo 18
+    , C.protocolParamPoolRetireMaxEpoch = C.EpochInterval 18
     , C.protocolParamStakePoolTargetNum = 100
     , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
     , C.protocolParamMonetaryExpansion = 0.003 -- rho
@@ -288,7 +289,7 @@ babbageMainnetProtocolParameters = C.ProtocolParameters
     , C.protocolParamStakeAddressDeposit = C.Lovelace 2_000_000
     , C.protocolParamStakePoolDeposit = C.Lovelace 500_000_000
     , C.protocolParamMinPoolCost = C.Lovelace 340_000_000
-    , C.protocolParamPoolRetireMaxEpoch = C.EpochNo 18
+    , C.protocolParamPoolRetireMaxEpoch = C.EpochInterval 18
     , C.protocolParamStakePoolTargetNum = 500
     , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
     , C.protocolParamMonetaryExpansion = 0.003 -- rho

@@ -8,7 +8,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
@@ -17,6 +16,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -47,6 +47,7 @@ module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
     , validateGenerators
     , TestConstraints
+    , Model
     ) where
 
 import Prelude
@@ -128,6 +129,10 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (..)
     )
+import Cardano.Wallet.Primitive.Passphrase
+    ( PassphraseScheme
+    , WalletPassphraseInfo
+    )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ChainPoint
@@ -141,10 +146,12 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate
+    , StartTime
     , TokenBundleMaxSize
     , TxParameters (..)
     , WalletId (..)
     , WalletMetadata (..)
+    , WalletName
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
@@ -279,11 +286,6 @@ import Data.Time.Clock
     , diffUTCTime
     , getCurrentTime
     )
-import Data.TreeDiff
-    ( ToExpr (..)
-    , defaultExprViaShow
-    , genericToExpr
-    )
 import Fmt
     ( Buildable
     )
@@ -332,6 +334,13 @@ import Test.StateMachine
     , runCommands
     , (.==)
     )
+import Test.StateMachine.Diffing
+    ( CanDiff
+    )
+import Test.StateMachine.TreeDiff
+    ( ToExpr (toExpr)
+    , defaultExprViaShow
+    )
 import Test.StateMachine.Types
     ( Commands (..)
     )
@@ -354,8 +363,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.TreeDiff as Expr
-import qualified Data.TreeDiff.OMap as Expr
 import qualified Test.QuickCheck as QC
 import qualified Test.StateMachine.Types as QSM
 import qualified Test.StateMachine.Types.Rank2 as Rank2
@@ -754,58 +761,44 @@ instance Traversable t => Rank2.Traversable (At t) where
           -> f (QSM.Reference x r')
         lift f (QSM.Reference x) = QSM.Reference <$> f x
 
-deriving instance ToExpr s => ToExpr (Model s Concrete)
+deriving instance ToExpr SlotNo
 
-instance ToExpr s => ToExpr (Mock s) where
-    toExpr = genericToExpr
+deriving instance ToExpr s => ToExpr (Mock s)
 
 instance ToExpr WalletId where
     toExpr = defaultExprViaShow
 
-instance ToExpr s => ToExpr (Wallet s) where
-    toExpr = genericToExpr
+deriving instance ToExpr s => ToExpr (Wallet s)
 
-instance ToExpr BlockHeader where
-    toExpr = genericToExpr
+deriving instance ToExpr BlockHeader
 
-instance ToExpr (Hash purpose) where
-    toExpr = genericToExpr
+deriving instance ToExpr (Hash purpose)
 
-instance ToExpr b => ToExpr (Quantity a b) where
-    toExpr = genericToExpr
+deriving instance ToExpr b => ToExpr (Quantity a b)
 
-instance ToExpr GenesisParameters where
-    toExpr = defaultExprViaShow
+deriving instance ToExpr GenesisParameters
+
+deriving instance ToExpr StartTime
 
 instance ToExpr EpochNo where
     toExpr = defaultExprViaShow
 
-instance ToExpr TxStatus where
-    toExpr = genericToExpr
+deriving instance ToExpr TxStatus
 
-instance ToExpr DRepKeyHash where
-    toExpr = genericToExpr
+deriving instance ToExpr DRepKeyHash
 
-instance ToExpr DRepScriptHash where
-    toExpr = genericToExpr
+deriving instance ToExpr DRepScriptHash
 
-instance ToExpr DRepID where
-    toExpr = genericToExpr
+deriving instance ToExpr DRepID
 
-instance ToExpr DRep where
-    toExpr = genericToExpr
+deriving instance ToExpr DRep
 
-instance ToExpr PoolId where
+deriving instance ToExpr PoolId
+
+deriving instance ToExpr AddressState
+
+instance (ToExpr addr, ToExpr ix, Show addr, Show ix) => ToExpr (AddressPool.Pool addr ix) where
     toExpr = defaultExprViaShow
-
-instance ToExpr AddressState where
-    toExpr = genericToExpr
-
-instance (ToExpr addr, ToExpr ix) => ToExpr (AddressPool.Pool addr ix) where
-    toExpr pool = Expr.Rec "Pool" $ Expr.fromList
-        [ ("gap", toExpr $ AddressPool.gap pool)
-        , ("addresses", toExpr $ AddressPool.addresses pool)
-        ]
 
 instance ToExpr DerivationPrefix where
     toExpr = defaultExprViaShow
@@ -819,14 +812,11 @@ instance ToExpr (SeqState 'Mainnet ShelleyKey) where
 instance ToExpr (RndState 'Mainnet) where
     toExpr = defaultExprViaShow
 
-instance ToExpr a => ToExpr (Readiness a) where
-    toExpr = genericToExpr
+deriving instance ToExpr a => ToExpr (Readiness a)
 
-instance ToExpr AddressPoolGap where
-    toExpr = genericToExpr
+deriving instance ToExpr AddressPoolGap
 
-instance ToExpr ChangeAddressMode where
-    toExpr = genericToExpr
+deriving instance ToExpr ChangeAddressMode
 
 instance ToExpr ScriptTemplate where
     toExpr = defaultExprViaShow
@@ -837,110 +827,88 @@ instance ToExpr (SharedKey 'AccountK CC.XPub) where
 instance ToExpr (KeyFingerprint "payment" SharedKey) where
     toExpr = defaultExprViaShow
 
-instance ToExpr (PendingIxs 'CredFromScriptK) where
-    toExpr = genericToExpr
+deriving instance ToExpr (PendingIxs 'CredFromScriptK)
 
-instance ToExpr (SharedAddressPool 'UtxoExternal SharedKey) where
-    toExpr = genericToExpr
+deriving instance ToExpr (SharedAddressPool 'UtxoExternal SharedKey)
 
-instance ToExpr (SharedAddressPool 'UtxoInternal SharedKey) where
-    toExpr = genericToExpr
+deriving instance ToExpr (SharedAddressPool 'UtxoInternal SharedKey)
 
-instance ToExpr (SharedAddressPools SharedKey) where
-    toExpr = genericToExpr
+deriving instance ToExpr (SharedAddressPools SharedKey)
 
-instance ToExpr (SharedState 'Mainnet SharedKey) where
-    toExpr = genericToExpr
+deriving instance ToExpr (SharedState 'Mainnet SharedKey)
 
-instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv) where
-    toExpr = genericToExpr
+instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv)
 
-instance ToExpr UTxO where
-    toExpr = genericToExpr
+deriving instance ToExpr UTxO
 
-instance ToExpr WalletMetadata where
-    toExpr = defaultExprViaShow
+deriving instance ToExpr WalletMetadata
+
+deriving instance ToExpr WalletName
+
+deriving instance ToExpr WalletPassphraseInfo
+
+deriving instance ToExpr PassphraseScheme
 
 instance ToExpr TxCBOR where
     toExpr = toExpr . fst . build eraValueSerialize
 
-instance ToExpr Tx where
-    toExpr = genericToExpr
+deriving instance ToExpr Tx
 
-instance ToExpr TxScriptValidity where
-    toExpr = genericToExpr
+deriving instance ToExpr TxScriptValidity
 
-instance ToExpr TxIn where
-    toExpr = genericToExpr
+deriving instance ToExpr TxIn
 
 instance ToExpr TxMetadata where
     toExpr = defaultExprViaShow
 
-instance ToExpr Coin where
-    toExpr = genericToExpr
+deriving instance ToExpr Coin
 
-instance ToExpr TxOut where
-    toExpr = genericToExpr
+deriving instance ToExpr TxOut
 
-instance ToExpr TokenBundle where
-    toExpr = genericToExpr
+deriving instance ToExpr TokenBundle
 
 instance ToExpr TokenMap where
-    toExpr = genericToExpr . TokenMap.toNestedList
+    toExpr = toExpr . TokenMap.toNestedList
 
-instance ToExpr AssetName where
-    toExpr = genericToExpr
+deriving instance ToExpr AssetName
 
-instance ToExpr TokenPolicyId where
-    toExpr = genericToExpr
+deriving instance ToExpr TokenPolicyId
 
-instance ToExpr TokenQuantity where
-    toExpr = genericToExpr
+deriving instance ToExpr TokenQuantity
 
-instance ToExpr Address where
-    toExpr = genericToExpr
+deriving instance ToExpr Address
 
-instance ToExpr TxMeta where
-    toExpr = genericToExpr
+deriving instance ToExpr TxMeta
 
 instance ToExpr SealedTx where
     toExpr = defaultExprViaShow
 
-instance ToExpr Percentage where
-    toExpr = genericToExpr
+deriving instance ToExpr Percentage
 
-instance ToExpr DecentralizationLevel where
-    toExpr = genericToExpr
+deriving instance ToExpr DecentralizationLevel
 
-instance ToExpr TxSize where
-    toExpr = genericToExpr
+deriving instance ToExpr TxSize
 
-instance ToExpr TokenBundleMaxSize where
-    toExpr = genericToExpr
+deriving instance ToExpr TokenBundleMaxSize
 
-instance ToExpr TxParameters where
-    toExpr = genericToExpr
+deriving instance ToExpr TxParameters
 
-instance ToExpr ExecutionUnits where
-    toExpr = genericToExpr
+deriving instance ToExpr ExecutionUnits
 
-instance ToExpr a => ToExpr (LinearFunction a) where
-    toExpr = genericToExpr
+deriving instance ToExpr a => ToExpr (LinearFunction a)
 
-instance ToExpr FeePolicy where
-    toExpr = genericToExpr
+deriving instance ToExpr FeePolicy
 
-instance ToExpr Direction where
-    toExpr = genericToExpr
+deriving instance ToExpr Direction
+
+deriving instance ToExpr s => ToExpr (Model s Concrete)
 
 instance ToExpr MWid where
     toExpr = defaultExprViaShow
 
-instance ToExpr StakeKeyCertificate where
-    toExpr = genericToExpr
+deriving instance ToExpr StakeKeyCertificate
 
-instance ToExpr RewardAccount where
-    toExpr = genericToExpr
+deriving instance ToExpr RewardAccount
 
 {-------------------------------------------------------------------------------
   Tagging
@@ -1079,7 +1047,7 @@ genDBParams =
 
 prop_sequential
     :: forall s
-     . TestConstraints s
+     . (CanDiff (Model s Concrete), TestConstraints s)
     => (WalletId -> DBLayerParams s -> (IO (IO (),DBLayer IO s)))
     -> Property
 prop_sequential newDB =

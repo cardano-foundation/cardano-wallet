@@ -10,6 +10,10 @@ module Internal.Cardano.Write.TxSpec where
 
 import Prelude
 
+import Cardano.Api.Gen
+    ( genTxIn
+    , genTxOut
+    )
 import Cardano.Ledger.Api
     ( PParams
     , coinTxOutL
@@ -67,7 +71,6 @@ import Test.Utils.Laws
     )
 
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Gen as CardanoApi
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 
@@ -143,8 +146,8 @@ instance Arbitrary (CardanoApi.UTxO CardanoApi.BabbageEra) where
     arbitrary = CardanoApi.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
       where
         genTxInOutEntry = (,)
-            <$> CardanoApi.genTxIn
-            <*> CardanoApi.genTxOut CardanoApi.BabbageEra
+            <$> genTxIn
+            <*> genTxOut CardanoApi.BabbageEra
 
 --------------------------------------------------------------------------------
 -- Helpers

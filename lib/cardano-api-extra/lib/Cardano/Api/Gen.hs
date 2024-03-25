@@ -210,12 +210,14 @@ import Cardano.Api
     , TxOut (..)
     , TxOutDatum (..)
     , TxOutValue (..)
+    , TxProposalProcedures (..)
     , TxReturnCollateral (..)
     , TxScriptValidity (TxScriptValidity)
     , TxTotalCollateral (..)
     , TxUpdateProposal (..)
     , TxValidityLowerBound (TxValidityLowerBound)
     , TxValidityUpperBound (..)
+    , TxVotingProcedures (..)
     , TxWithdrawals (..)
     , UpdateProposal (UpdateProposal)
     , Value
@@ -225,7 +227,6 @@ import Cardano.Api
     , Witness (..)
     , byronAddressInEra
     , collectTxBodyScriptWitnesses
-    , conwayEraOnwardsConstraints
     , createAndValidateTransactionBody
     , forEraMaybeEon
     , hashScript
@@ -258,7 +259,6 @@ import Cardano.Api.Shelley
     , PlutusScript (..)
     , PlutusScriptOrReferenceInput (..)
     , PoolId
-    , Proposal (..)
     , ProtocolParameters (..)
     , ReferenceScript (..)
     , SimpleScriptOrReferenceInput (..)
@@ -1219,6 +1219,11 @@ genNat = do
     Large (n :: Word64) <- arbitrary
     pure $ fromIntegral n
 
+genLarge :: (Integral a, Bounded a) => Gen a
+genLarge = do
+    Large (n :: a) <- arbitrary
+    pure n
+
 genRational :: Gen Rational
 genRational =
     (\d -> ratioToRational (1 % d)) <$> genDenominator
@@ -1324,7 +1329,7 @@ genRecentEraProtocolParameters =
         <*> genLovelace
         <*> genLovelace
         <*> genLovelace
-        <*> genEpochNo
+        <*> genInterval
         <*> genNat
         <*> genRationalInt64
         <*> genRational
@@ -1337,6 +1342,9 @@ genRecentEraProtocolParameters =
         <*> (Just <$> genNat)
         <*> (Just <$> genNat)
         <*> (Just <$> genLovelace)
+
+genInterval :: Gen Ledger.EpochInterval
+genInterval = Ledger.EpochInterval <$> arbitrary
 
 genWitnessNetworkIdOrByronAddress :: Gen WitnessNetworkIdOrByronAddress
 genWitnessNetworkIdOrByronAddress =
@@ -1494,7 +1502,7 @@ genStakePoolRelay = do
     genDnsName = do
         txtLength <- choose (1, 63)
         txt <- T.pack <$> vectorOf txtLength arbitraryASCIIChar
-        case Ledger.textToDns txt of
+        case Ledger.textToDns 64 txt of
             Nothing -> error "wrong generator for DnsName"
             Just dns -> return dns
 
@@ -1657,11 +1665,11 @@ genProtocolParametersUpdate = do
     protocolUpdateExtraPraosEntropy <-
         liftArbitrary (liftArbitrary genPraosNonce)
     protocolUpdateMaxBlockHeaderSize <-
-        liftArbitrary genNat
+        liftArbitrary genLarge
     protocolUpdateMaxBlockBodySize <-
-        liftArbitrary genNat
+        liftArbitrary genLarge
     protocolUpdateMaxTxSize <-
-        liftArbitrary genNat
+        liftArbitrary genLarge
     protocolUpdateTxFeeFixed <-
         liftArbitrary genLovelace
     protocolUpdateTxFeePerByte <-
@@ -1675,7 +1683,7 @@ genProtocolParametersUpdate = do
     protocolUpdateMinPoolCost <-
         liftArbitrary genLovelace
     protocolUpdatePoolRetireMaxEpoch <-
-        liftArbitrary genEpochNo
+        liftArbitrary genInterval
     protocolUpdateStakePoolTargetNum <-
         liftArbitrary genNat
     protocolUpdatePoolPledgeInfluence <-
@@ -1774,18 +1782,21 @@ genMaybeFeaturedInEra f =
     inEonForEra (pure Nothing) $ \w ->
         fmap Just (genFeaturedInEra w (f w))
 
-genProposals :: forall era. ConwayEraOnwards era -> Gen [Proposal era]
+genProposals :: forall era. ConwayEraOnwards era -> Gen (ShelleyApi.TxProposalProcedures BuildTx era)
 genProposals w = case w of
-    ConwayEraOnwardsConway -> vectorOf 10 $ genProposal w
+    ConwayEraOnwardsConway ->
+        oneof
+            [ pure TxProposalProceduresNone
+            , TxProposalProcedures <$> arbitrary <*> pure (BuildTxWith mempty)
+            ]
 
-genProposal :: ConwayEraOnwards era -> Gen (Proposal era)
-genProposal w = case w of
-    ConwayEraOnwardsConway -> fmap Proposal arbitrary
-
-genVotingProcedures :: ConwayEraOnwards era -> Gen (ShelleyApi.VotingProcedures era)
-genVotingProcedures w =
-    conwayEraOnwardsConstraints w
-        $ ShelleyApi.VotingProcedures <$> arbitrary
+genVotingProcedures :: ConwayEraOnwards era -> Gen (ShelleyApi.TxVotingProcedures BuildTx era)
+genVotingProcedures w = case w of
+    ConwayEraOnwardsConway ->
+        oneof
+            [ TxVotingProcedures <$> arbitrary <*> pure (BuildTxWith mempty)
+            , pure TxVotingProceduresNone
+         ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = withEraWitness era $ \sbe -> do

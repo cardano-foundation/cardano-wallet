@@ -230,6 +230,7 @@ test-suite test
     , cardano-api
     , cardano-crypto-class
     , cardano-ledger-allegra:{testlib}
+    , cardano-ledger-api
     , cardano-ledger-core:{cardano-ledger-core, testlib}
     , cardano-ledger-shelley
     , cardano-numeric

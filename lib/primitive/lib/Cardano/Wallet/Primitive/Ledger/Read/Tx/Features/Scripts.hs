@@ -10,7 +10,6 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
     ( alonzoAnyExplicitScript
     , babbageAnyExplicitScript
     , conwayAnyExplicitScript
-    , toPlutusVer
     )
     where
 
@@ -31,7 +30,8 @@ import Cardano.Ledger.Mary.Value
     ( PolicyID (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
-    ( toWalletScript
+    ( toPlutusScriptInfo
+    , toWalletScript
     , toWalletTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
@@ -42,7 +42,6 @@ import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     )
 import Cardano.Wallet.Primitive.Types.TokenMapWithScripts
     ( PlutusScriptInfo (PlutusScriptInfo)
-    , PlutusVersion (..)
     , ScriptReference (ViaSpending)
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
@@ -52,9 +51,13 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCountCtx
     , toKeyRole
     )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardAlonzo
+    , StandardBabbage
+    , StandardConway
+    )
 
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Plutus.Language as Plutus
 
 alonzoAnyExplicitScript
     :: WitnessCountCtx -> AlonzoScript Alonzo -> AnyExplicitScript
@@ -63,10 +66,10 @@ alonzoAnyExplicitScript witCtx = \case
         NativeExplicitScript
             (toWalletScript (toKeyRole witCtx) script)
             ViaSpending
-    script@(Alonzo.PlutusScript (Plutus.Plutus ver _)) ->
+    script@(Alonzo.PlutusScript s) ->
         PlutusExplicitScript
             (PlutusScriptInfo
-                (toPlutusVer ver)
+                (toPlutusScriptInfo @StandardAlonzo s)
                 (fromLedgerScriptHash $ hashScript @Alonzo script)
             )
             ViaSpending
@@ -86,10 +89,10 @@ babbageAnyExplicitScript witCtx (scriptRef, scriptH, script) =
             NativeExplicitScript
                 (toWalletScript (toKeyRole witCtx) timelockScript)
                 scriptRef
-        Alonzo.PlutusScript (Plutus.Plutus ver _) ->
+        Alonzo.PlutusScript s ->
             PlutusExplicitScript
                 (PlutusScriptInfo
-                    (toPlutusVer ver)
+                    (toPlutusScriptInfo @StandardBabbage s)
                     (fromLedgerScriptHash $ hashScript @Babbage script)
                 )
                 scriptRef
@@ -109,15 +112,10 @@ conwayAnyExplicitScript witCtx (scriptRef, scriptH, script) =
             NativeExplicitScript
                 (toWalletScript (toKeyRole witCtx) timelockScript)
                 scriptRef
-        Alonzo.PlutusScript (Plutus.Plutus ver _) ->
+        Alonzo.PlutusScript s ->
             PlutusExplicitScript
                 (PlutusScriptInfo
-                    (toPlutusVer ver)
+                    (toPlutusScriptInfo @StandardConway s)
                     (fromLedgerScriptHash $ hashScript @Conway script)
                 )
                 scriptRef
-
-toPlutusVer :: Plutus.Language -> PlutusVersion
-toPlutusVer Plutus.PlutusV1 = PlutusVersionV1
-toPlutusVer Plutus.PlutusV2 = PlutusVersionV2
-toPlutusVer Plutus.PlutusV3 = PlutusVersionV3

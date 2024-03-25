@@ -23,7 +23,7 @@ module Cardano.Wallet.Read.Tx.CollateralInputs
 
 import Prelude
 
-import Cardano.Ledger.Babbage.TxBody
+import Cardano.Ledger.Api
     ( collateralInputsTxBodyL
     )
 import Cardano.Ledger.Core

@@ -49,7 +49,7 @@ import Cardano.Wallet.Launch.Cluster.GenesisFiles
     , generateGenesis
     )
 import Cardano.Wallet.Launch.Cluster.KeyRegistration
-    ( prepareKeyRegistration
+    ( prepareStakeKeyRegistration
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -263,11 +263,13 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         sendFaucetAssetsTo conn 20 maryAllegraFunds
 
         -- Should ideally not be hard-coded in 'withCluster'
-        (rawTx, faucetPrv) <- prepareKeyRegistration
+        (rawTx, faucetPrv, stakePrv) <- prepareStakeKeyRegistration
         signAndSubmitTx
             conn
             (changeFileOf @"reg-tx" @"tx-body" rawTx)
-            [changeFileOf @"faucet-prv" @"signing-key" faucetPrv]
+            [ changeFileOf @"faucet-prv" @"signing-key" faucetPrv
+                , changeFileOf @"stake-prv" @"signing-key" stakePrv
+                ]
             "pre-registered stake key"
 
         -- Give the above txs a chance of getting included into the chain
