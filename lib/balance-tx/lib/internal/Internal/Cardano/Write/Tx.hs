@@ -16,6 +16,10 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 
+{-# OPTIONS_GHC -Wno-warnings-deprecations #-}
+-- For 'Shelley.evaluateTransactionFee', see ADP-3334
+-- https://cardanofoundation.atlassian.net/browse/ADP-3334
+
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
@@ -170,7 +174,6 @@ import Cardano.Ledger.Alonzo.UTxO
     )
 import Cardano.Ledger.Api
     ( coinTxOutL
-    , estimateMinFeeTx
     , ppKeyDepositL
     )
 import Cardano.Ledger.Api.UTxO
@@ -218,9 +221,6 @@ import Cardano.Ledger.Val
     )
 import Control.Arrow
     ( (>>>)
-    )
-import Data.Bits
-    ( Bits
     )
 import Data.ByteString
     ( ByteString
@@ -281,6 +281,7 @@ import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Value
 import qualified Cardano.Ledger.Plutus.Data as Alonzo
+import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
@@ -838,17 +839,11 @@ evaluateMinimumFee pp tx kwc =
     KeyWitnessCounts {nKeyWits, nBootstrapWits} = kwc
 
     mainFee :: Coin
-    mainFee =
-        estimateMinFeeTx pp tx
-            (unsafeIntCast nKeyWits)
-            accountForBootWitsElsewhere
+    mainFee = Shelley.evaluateTransactionFee pp tx nKeyWits
+    -- TODO [ADP-3334] Stop using deprecated ledger function
+    -- https://cardanofoundation.atlassian.net/browse/ADP-3334
 
     FeePerByte feePerByte = getFeePerByte pp
-
-    -- 'estimateMinFeeTx' appears to assume byron/bootstrap wits contain no
-    -- address attributes or payload. For now, let's keep using our own
-    -- estimation.
-    accountForBootWitsElsewhere = 0
 
     bootWitnessFee :: Coin
     bootWitnessFee = Coin $ intCast $ feePerByte * byteCount
@@ -861,14 +856,6 @@ evaluateMinimumFee pp tx kwc =
         sizeOf_BootstrapWitnesses :: Natural -> Natural
         sizeOf_BootstrapWitnesses 0 = 0
         sizeOf_BootstrapWitnesses n = 4 + 180 * n
-
-    unsafeIntCast
-        :: (HasCallStack, Integral a, Integral b, Bits a, Bits b, Show a)
-        => a
-        -> b
-    unsafeIntCast x = fromMaybe err $ intCastMaybe x
-      where
-        err = error $ "unsafeIntCast failed for " <> show x
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --
