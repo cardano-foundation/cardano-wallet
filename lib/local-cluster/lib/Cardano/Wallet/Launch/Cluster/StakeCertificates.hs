@@ -11,11 +11,15 @@ import Prelude
 import Cardano.Wallet.Launch.Cluster.CardanoCLI
     ( cli
     )
+import Cardano.Wallet.Launch.Cluster.ClusterEra
+    ( ClusterEra (..)
+    , clusterEraToString
+    )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
-    ( Config (cfgClusterDir)
+    ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
@@ -40,15 +44,22 @@ issueStakeVkCert
     -> ClusterM (FileOf "stake-vk-cert")
 issueStakeVkCert prefix stakePub = do
     outputDir <- asks cfgClusterDir
+    lastHardFork <- asks cfgLastHardFork
     let file = pathOf outputDir </> untag prefix <> "-stake.cert"
-    cli
-        [ "stake-address"
+    cli $
+        [ clusterEraToString lastHardFork
+        , "stake-address"
         , "registration-certificate"
         , "--staking-verification-key-file"
         , pathOf stakePub
         , "--out-file"
         , file
-        ]
+        ] <> case lastHardFork of
+            BabbageHardFork -> []
+            ConwayHardFork -> [
+                "--key-reg-deposit-amt"
+                , "1000000"
+                ]
     pure $ FileOf file
 
 -- | Create a stake address registration certificate from a script
