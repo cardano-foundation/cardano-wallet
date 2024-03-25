@@ -32,7 +32,7 @@ module Data.Delta (
     , DeltaList (..)
     , DeltaSet1 (..)
     , DeltaSet
-    , mkDeltaSet
+    , diffSet
     , listFromDeltaSet
     , deltaSetFromList
 
@@ -218,10 +218,10 @@ instance Ord a => Delta (DeltaSet a) where
 
 -- | The smallest delta that changes the second argument to the first argument.
 --
--- prop> new = apply (mkDeltaSet new old) old
--- prop> mkDeltaSet (Set.fromList "ac") (Set.fromList "ab") = deltaSetFromList [Insert 'c', Delete 'b']
-mkDeltaSet :: Ord a => Set a -> Set a -> DeltaSet a
-mkDeltaSet new old =
+-- prop> new = apply (diffSet new old) old
+-- prop> diffSet (Set.fromList "ac") (Set.fromList "ab") = deltaSetFromList [Insert 'c', Delete 'b']
+diffSet :: Ord a => Set a -> Set a -> DeltaSet a
+diffSet new old =
     DeltaSet
         { inserts = new `Set.difference` old
         , deletes = old `Set.difference` new
