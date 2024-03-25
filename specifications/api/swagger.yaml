@@ -4990,6 +4990,19 @@ x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
       type: string
       enum: ["balance_tx_conflicting_networks"]
 
+x-errTranslationByronTxOutInContext: &errTranslationByronTxOutInContext
+  <<: *responsesErr
+  title: translation_byron_tx_out_in_context
+  properties:
+    message:
+      type: string
+      description: |
+        The given transaction contains a Byron-style TxOut which i not supported when executing
+        Plutus scripts.
+    code:
+      type: string
+      enum: ["translation_byron_tx_out_in_context"]
+
 x-errBalanceTxInlinePlutusV3ScriptNotSupportedInBabbage: &errBalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
   <<: *responsesErr
   title: balance_tx_inline_plutus_v3_script_not_supported_in_babbage
@@ -6466,6 +6479,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errUtxoTooSmall
             - <<: *errTxNotInNodeEra
             - <<: *errBalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+            - <<: *errTranslationByronTxOutInContext
 
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
