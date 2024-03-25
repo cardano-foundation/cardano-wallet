@@ -1,7 +1,10 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.DSL.Wallet
     ( createARandomWalletWithMnemonics
@@ -41,6 +44,10 @@ import Cardano.Wallet.Api.Types.WalletAssets
 import Cardano.Wallet.Faucet
     ( Faucet (nextShelleyMnemonic)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( HasSNetworkId
+    , NetworkDiscriminant (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
@@ -53,6 +60,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
     )
+import Control.Lens
+    ( view
+    )
 import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
@@ -64,11 +74,17 @@ import Data.Generics.Internal.VL
     ( (.~)
     , (^.)
     )
+import Data.Proxy
+    ( Proxy (..)
+    )
 import Data.Text
     ( Text
     )
 import Numeric.Natural
     ( Natural
+    )
+import Servant.Client
+    ( ClientError
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -87,19 +103,11 @@ import Test.Integration.Framework.DSL.TestM
 
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
-import Control.Lens
-    ( view
-    )
-import Servant.Client
-    ( ClientError
-    )
 
 type AWallet = ApiT WalletId
 
 type Patch a = a -> a
 
--- createWalletFromMnemonicsFull :: SomeMnemonic
---     -> (WalletPostData -> WalletPostData) -> TestM _
 createWalletFromMnemonics
     :: SomeMnemonic
     -> (WalletPostData -> WalletPostData)
@@ -132,7 +140,7 @@ createARandomWalletWithMnemonics
 createARandomWalletWithMnemonics refine = do
     m15 <- Mnemonics.generateSome Mnemonics.M15
     w <- createWalletFromMnemonics m15 refine
-    pure $ (, m15) <$> w
+    pure $ (,m15) <$> w
 
 deleteWallet :: Over AWallet ()
 deleteWallet = do
@@ -164,11 +172,14 @@ aFaucetWallet = do
     pure faucetWalletId
 
 fundWallet :: Natural -> Over AWallet ()
-fundWallet amt = do
+fundWallet = fundWallet' (Proxy @(Testnet 42))
+
+fundWallet' :: forall n p . (HasSNetworkId n) => p n -> Natural -> Over AWallet ()
+fundWallet' _ amt = do
     w <- ask
     lift $ do
         faucetWalletId <- aFaucetWallet
-        Partial addrs <- request $ C.listAddresses w Nothing
+        Partial addrs <- request $ C.listAddresses @n w Nothing
         over faucetWalletId $ do
             let destination = head addrs ^. #id
                 addressAmount =
@@ -188,14 +199,14 @@ fundWallet amt = do
             submitTx payload
 
 -- | Submit a transaction and wait for it to be on the ledger
-submitTx :: PostTransactionOldData C.A -> Over AWallet ()
+submitTx :: forall n. HasSNetworkId n => PostTransactionOldData n -> Over AWallet ()
 submitTx payload = do
     w <- ask
     lift $ do
         Partial tx <- request $ C.postTransaction w payload
         eventually "Transaction didn't make it" $ do
             Partial tx' <-
-                request $ C.getTransaction w (ApiTxId $ tx ^. #id) False
+                request $ C.getTransaction @n w (ApiTxId $ tx ^. #id) False
             lift $ tx' ^. #status . #getApiT `shouldBe` InLedger
 
 withApiWallet :: Over ApiWallet a -> Over AWallet a

@@ -1,57 +1,39 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Api.Clients.Testnet.Shelley
-    ( A
-    , deleteWallet
-    , getWallet
-    , listWallets
-    , postWallet
-    , putWallet
-    , putWalletPassphrase
-    , getWalletUtxoSnapshot
-    , getWalletUtxoStatistics
-    , constructTransaction
-    , signTransaction
-    , listTransactions
-    , getTransaction
-    , deleteTransaction
-    , postTransaction
-    , postTransactionFee
-    , balanceTransaction
-    , decodeTransaction
-    , submitTransaction
-    , postExternalTransaction
-    , listAddresses
-    , inspectAddress
-    , postScriptAddress
-    , listPools
-    , joinStakePool
-    , quitStakePool
-    , networkInformation
-    , networkParameters
-    , networkClock
-    , getAssets
-    , getAsset
-    , getAsset'
-    , planMigration
-    , migrate
-    )
 where
 
 import Prelude
 
 import Cardano.Wallet.Api
-    ( Addresses
-    , Assets
+    ( Assets
+    , BalanceTransaction
+    , ConstructTransaction
+    , CreateShelleyWalletMigrationPlan
+    , CreateTransactionOld
+    , DecodeTransaction
+    , DeleteTransaction
+    , GetTransaction
+    , InspectAddress
+    , JoinStakePool
+    , ListAddresses
+    , ListStakePools
+    , ListTransactions
+    , MigrateShelleyWallet
     , Network
+    , PostAnyAddress
+    , PostTransactionFeeOld
     , Proxy_
-    , ShelleyMigrations
-    , ShelleyTransactions
-    , StakePools
+    , QuitStakePool
+    , SignTransaction
+    , SubmitTransaction
     , Wallets
     )
+
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddressData
@@ -97,7 +79,7 @@ import Cardano.Wallet.Pools
     ( StakePool
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (Testnet)
+    ( HasSNetworkId
     )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder
@@ -136,8 +118,6 @@ import Servant.Client
     , client
     )
 
-type A = Testnet 42
-
 deleteWallet
     :: ApiT WalletId -> ClientM NoContent
 getWallet
@@ -167,63 +147,97 @@ deleteWallet
         client (Proxy @("v2" :> Wallets))
 
 constructTransaction
-    :: ApiT WalletId
-    -> ApiConstructTransactionData A
-    -> ClientM (ApiConstructTransaction A)
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
+    -> ApiConstructTransactionData network
+    -> ClientM (ApiConstructTransaction network)
+constructTransaction =
+    client (Proxy @("v2" :> ConstructTransaction network))
+
 signTransaction
-    :: ApiT WalletId
+    :: forall p network
+     . p network
+    -> ApiT WalletId
     -> ApiSignTransactionPostData
     -> ClientM ApiSerialisedTransaction
+signTransaction _ =
+    client (Proxy @("v2" :> SignTransaction network))
+
 listTransactions
-    :: ApiT WalletId
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
     -> Maybe MinWithdrawal
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
     -> Maybe ApiLimit
-    -> Maybe (ApiAddress A)
+    -> Maybe (ApiAddress network)
     -> Bool
-    -> ClientM [ApiTransaction A]
+    -> ClientM [ApiTransaction network]
+listTransactions =
+    client (Proxy @("v2" :> ListTransactions network))
+
 getTransaction
-    :: ApiT WalletId
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
     -> ApiTxId
     -> Bool
-    -> ClientM (ApiTransaction A)
+    -> ClientM (ApiTransaction network)
+getTransaction =
+    client (Proxy @("v2" :> GetTransaction network))
+
 deleteTransaction
     :: ApiT WalletId
     -> ApiTxId
     -> ClientM NoContent
+deleteTransaction =
+    client (Proxy @("v2" :> DeleteTransaction))
+
 postTransaction
-    :: ApiT WalletId
-    -> PostTransactionOldData A
-    -> ClientM (ApiTransaction A)
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
+    -> PostTransactionOldData network
+    -> ClientM (ApiTransaction network)
+postTransaction =
+    client (Proxy @("v2" :> CreateTransactionOld network))
+
 postTransactionFee
-    :: ApiT WalletId
-    -> PostTransactionFeeOldData A
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
+    -> PostTransactionFeeOldData network
     -> ClientM ApiFee
+postTransactionFee =
+    client (Proxy @("v2" :> PostTransactionFeeOld network))
+
 balanceTransaction
-    :: ApiT WalletId
-    -> ApiBalanceTransactionPostData A
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
+    -> ApiBalanceTransactionPostData network
     -> ClientM ApiSerialisedTransaction
+balanceTransaction =
+    client (Proxy @("v2" :> BalanceTransaction network))
+
 decodeTransaction
-    :: ApiT WalletId
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
     -> ApiDecodeTransactionPostData
-    -> ClientM (ApiDecodedTransaction A)
+    -> ClientM (ApiDecodedTransaction network)
+decodeTransaction =
+    client (Proxy @("v2" :> DecodeTransaction network))
+
 submitTransaction
     :: ApiT WalletId
     -> ApiSerialisedTransaction
     -> ClientM ApiTxId
-constructTransaction
-    :<|> signTransaction
-    :<|> listTransactions
-    :<|> getTransaction
-    :<|> deleteTransaction
-    :<|> postTransaction
-    :<|> postTransactionFee
-    :<|> balanceTransaction
-    :<|> decodeTransaction
-    :<|> submitTransaction =
-        client (Proxy @("v2" :> (ShelleyTransactions A)))
+submitTransaction =
+    client (Proxy @("v2" :> SubmitTransaction))
 
 postExternalTransaction
     :: ApiT SealedTx -> ClientM ApiTxId
@@ -231,36 +245,42 @@ postExternalTransaction =
     client (Proxy @("v2" :> Proxy_))
 
 listAddresses
-    :: ApiT WalletId
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
     -> Maybe (ApiT AddressState)
-    -> ClientM [ApiAddressWithPath A]
+    -> ClientM [ApiAddressWithPath network]
+listAddresses = client (Proxy @("v2" :> ListAddresses network))
+
 inspectAddress
     :: ApiAddressInspectData -> ClientM ApiAddressInspect
+inspectAddress = client (Proxy @("v2" :> InspectAddress))
+
 postScriptAddress
-    :: ApiAddressData -> ClientM AnyAddress
-listAddresses
-    :<|> inspectAddress
-    :<|> postScriptAddress =
-        client (Proxy @("v2" :> Addresses A))
+    :: forall p network. p network -> ApiAddressData -> ClientM AnyAddress
+postScriptAddress _ = client (Proxy @("v2" :> PostAnyAddress network))
 
 listPools
     :: Maybe (ApiT Coin) -> ClientM [ApiT StakePool]
+listPools = client (Proxy @("v2" :> ListStakePools))
+
 joinStakePool
-    :: ApiPoolSpecifier
+    :: forall network
+     . HasSNetworkId network
+    => ApiPoolSpecifier
     -> ApiT WalletId
     -> ApiWalletPassphrase
-    -> ClientM (ApiTransaction A)
+    -> ClientM (ApiTransaction network)
+joinStakePool = client (Proxy @("v2" :> JoinStakePool network))
+
 quitStakePool
-    :: ApiT WalletId
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
     -> ApiWalletPassphrase
-    -> ClientM (ApiTransaction A)
-listPools
-    :<|> joinStakePool
-    :<|> quitStakePool
-    :<|> _
-    :<|> _
-    :<|> _ =
-        client (Proxy @("v2" :> StakePools A))
+    -> ClientM (ApiTransaction network)
+quitStakePool = client (Proxy @("v2" :> QuitStakePool network))
+
 networkInformation
     :: ClientM ApiNetworkInformation
 networkParameters
@@ -280,11 +300,17 @@ getAssets :<|> getAsset :<|> getAsset' =
     client (Proxy @("v2" :> Assets))
 
 planMigration
-    :: ApiT WalletId
-    -> ApiWalletMigrationPlanPostData (Testnet 42)
-    -> ClientM (ApiWalletMigrationPlan A)
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
+    -> ApiWalletMigrationPlanPostData network
+    -> ClientM (ApiWalletMigrationPlan network)
+planMigration = client (Proxy @("v2" :> CreateShelleyWalletMigrationPlan network))
+
 migrate
-    :: ApiT WalletId
-    -> ApiWalletMigrationPostData (Testnet 42) "user"
-    -> ClientM (NonEmpty (ApiTransaction (Testnet 42)))
-planMigration :<|> migrate = client (Proxy @("v2" :> ShelleyMigrations A))
+    :: forall network
+     . HasSNetworkId network
+    => ApiT WalletId
+    -> ApiWalletMigrationPostData network "user"
+    -> ClientM (NonEmpty (ApiTransaction network))
+migrate = client (Proxy @("v2" :> MigrateShelleyWallet network))
