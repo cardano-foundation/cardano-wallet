@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.KeyRegistration
-    ( prepareKeyRegistration
+    ( prepareStakeKeyRegistration
     )
 where
 
@@ -25,7 +25,7 @@ import Cardano.Wallet.Launch.Cluster.Config
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( depositAmt
     , faucetAmt
-    , preRegisteredStakeKey
+    , preRegisteredStakeKeyPair
     , takeFaucet
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
@@ -53,17 +53,28 @@ import System.FilePath
 
 import qualified Data.Aeson as Aeson
 
--- | Generate a raw transaction. We kill two birds one stone here by also
+-- | Generate a raw transaction that registers a staking certificate.
+-- We kill two birds one stone here by also
 -- automatically delegating 'pledge' amount to the given stake key.
-prepareKeyRegistration
-    :: ClusterM (FileOf "reg-tx" , FileOf "faucet-prv")
-prepareKeyRegistration = do
+prepareStakeKeyRegistration
+    :: ClusterM
+        ( FileOf "reg-tx"
+        , FileOf "faucet-prv"
+        , FileOf "stake-prv"
+        )
+prepareStakeKeyRegistration = do
     Config{..} <- ask
     let file = pathOf cfgClusterDir </> "tx.raw"
     let stakePub =
             FileOf @"stake-pub"
-                $ pathOf cfgClusterDir </> "pre-registered-stake.pub"
-    liftIO $ Aeson.encodeFile (pathOf stakePub) preRegisteredStakeKey
+                $ pathOf cfgClusterDir </> "pre-registered-stake.vkey"
+        stakePrv =
+            FileOf @"stake-prv"
+                $ pathOf cfgClusterDir </> "pre-registered-stake.skey"
+    liftIO $ do
+        let (pub, prv) = preRegisteredStakeKeyPair
+        Aeson.encodeFile (pathOf stakePub) pub
+        Aeson.encodeFile (pathOf stakePrv) prv
     (faucetInput, faucetPrv) <- takeFaucet
     cert <-
         issueStakeVkCert
@@ -87,4 +98,4 @@ prepareKeyRegistration = do
         , "--out-file"
         , file
         ]
-    pure (FileOf @"reg-tx" file, faucetPrv)
+    pure (FileOf @"reg-tx" file, faucetPrv, stakePrv)
