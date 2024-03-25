@@ -230,25 +230,25 @@ generateGenesis initialFunds genesisMods = do
                         }
                     genesisMods
 
-        let shelleyGenesis = pathOf cfgClusterDir </> "genesis-shelley.json"
+        let shelleyGenesis = pathOf cfgClusterDir </> "shelley-genesis.json"
         Aeson.encodeFile shelleyGenesis shelleyGenesisData
 
         let fileToAeson :: FilePath -> IO Aeson.Value
             fileToAeson f = Aeson.eitherDecodeFileStrict f >>= either fail pure
 
         let byronGenesis = pathOf cfgClusterDir </> "genesis-byron.json"
-        fileToAeson (pathOf cfgClusterConfigs </> "genesis-byron.json")
+        fileToAeson (pathOf cfgClusterConfigs </> "byron-genesis.json")
             >>= withAddedKey
                 "startTime"
                 (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
             >>= Aeson.encodeFile byronGenesis
 
         let alonzoGenesis = pathOf cfgClusterDir </> "genesis-alonzo.json"
-        fileToAeson (pathOf cfgClusterConfigs </> "genesis-alonzo.json")
+        fileToAeson (pathOf cfgClusterConfigs </> "alonzo-genesis.json")
             >>= Aeson.encodeFile alonzoGenesis
 
         let conwayGenesis = pathOf cfgClusterDir </> "genesis-conway.json"
-        copyFile (pathOf cfgClusterConfigs </> "genesis-conway.json") conwayGenesis
+        copyFile (pathOf cfgClusterConfigs </> "conway-genesis.json") conwayGenesis
 
         pure
             GenesisFiles

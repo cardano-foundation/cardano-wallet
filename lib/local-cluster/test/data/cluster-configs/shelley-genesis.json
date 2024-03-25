@@ -1,0 +1,48 @@
+{
+    "activeSlotsCoeff": 5.0e-2,
+    "epochLength": 21600,
+    "genDelegs": {
+        "8a1cebc0df78b69ef71099de3867a78d85b93b57513fc0508b27bee6": {
+            "delegate": "2103d8279e759d7163d1422467cfb88c19e584adc9506d4b8484a397",
+            "vrf": "8d8f6e4c0685ca835d7dbe4ec4c240f4d71d0ceb2e4fe1d7bd97b7b3d30f435d"
+        }
+    },
+    "initialFunds": {},
+    "maxKESEvolutions": 62,
+    "maxLovelaceSupply": 45000000000000000,
+    "networkId": "Testnet",
+    "networkMagic": 42,
+    "protocolParams": {
+        "a0": 0.3,
+        "decentralisationParam": 1.0,
+        "eMax": 18,
+        "extraEntropy": {
+            "tag": "NeutralNonce"
+        },
+        "keyDeposit": 2000000,
+        "maxBlockBodySize": 65536,
+        "maxBlockHeaderSize": 1100,
+        "maxTxSize": 16384,
+        "minFeeA": 44,
+        "minFeeB": 155381,
+        "minPoolCost": 340000000,
+        "minUTxOValue": 1000000,
+        "nOpt": 150,
+        "poolDeposit": 500000000,
+        "protocolVersion": {
+            "major": 6,
+            "minor": 0
+        },
+        "rho": 3.0e-3,
+        "tau": 0.2
+    },
+    "securityParam": 108,
+    "slotLength": 1,
+    "slotsPerKESPeriod": 129600,
+    "staking": {
+        "pools": {},
+        "stake": {}
+    },
+    "systemStart": "2024-03-25T10:34:26.544957596Z",
+    "updateQuorum": 1
+}
