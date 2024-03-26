@@ -1,0 +1,59 @@
+openapi: 3.0.0
+info:
+  title: Customer Deposit Wallet HTTP API
+  version: 0.1.0.0
+  license:
+    name: Apache-2.0
+    url: https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/LICENSE
+  description: |
+    Customer Deposit Wallet
+
+servers:
+  - url: https://localhost:8090/
+
+###############################################################################
+# Parameters
+###############################################################################
+
+components:
+  parameters:
+    in: path
+    name: customerId
+    required: true
+    schema:
+      $ref: './HTTP/Types/JSON#/components/schemas/Customer'
+
+###############################################################################
+# Paths
+###############################################################################
+
+paths:
+  /customers:
+    get:
+      operationId: listCustomers
+      summary: List
+      description: |
+        Return a list of all known customer IDs and their addresses.
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: './HTTP/Types/JSON#/components/schemas/CustomerList'
+
+  /customers/{customerId}:
+    put:
+      operationId: createAddress
+      summary: Create
+      description: |
+        Create an association between a customer ID and an address.
+      parameters:
+        - $ref: '#/components/parameters/customerId'
+      responses:
+        200:
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: './HTTP/Types/JSON#/components/schemas/Address'
