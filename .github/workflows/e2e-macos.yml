@@ -56,19 +56,7 @@ jobs:
     - name: Fetch preprod snapshot
       if: steps.cache-node.outputs.cache-hit != 'true'
       run: |
-        mkdir state || true
-        cd state
-        mkdir node_db
-        cd node_db
-        mkdir preprod
-        cd preprod
-        curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json \
-            | jq -r .[].file_name > snapshot.json
-        curl -o - \
-            https://downloads.csnapshots.io/snapshots/testnet/$(cat snapshot.json) \
-            | lz4 -c -d - | tar -x -C .
-        mv db/* .
-
+        ../../scripts/gh/fetch-preprod-snapshot.sh
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       run: rake setup[preprod,$BRANCH]
