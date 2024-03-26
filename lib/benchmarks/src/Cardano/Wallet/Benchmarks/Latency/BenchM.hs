@@ -59,6 +59,7 @@ import Test.Integration.Framework.DSL
     , clientEnv
     )
 
+import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Test.Integration.Framework.DSL as DSL
 

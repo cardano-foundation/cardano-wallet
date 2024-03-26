@@ -229,6 +229,7 @@ import UnliftIO.STM
     ( TVar
     )
 
+import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
 import qualified Cardano.Wallet.Api.Clients.Testnet.Network as CN
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Cardano.Wallet.Benchmarks.Latency.Measure as Measure

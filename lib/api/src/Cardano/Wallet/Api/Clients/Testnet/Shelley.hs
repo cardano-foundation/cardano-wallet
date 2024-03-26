@@ -8,6 +8,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Api.Clients.Testnet.Id
+    ( Testnet42
+    )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddressData
@@ -49,9 +52,6 @@ import Cardano.Wallet.Api.Types.Transaction
 import Cardano.Wallet.Pools
     ( StakePool
     )
-import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
-    )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder
     , WalletId
@@ -87,8 +87,6 @@ import Servant.Client
     )
 
 import qualified Cardano.Wallet.Api.Clients.Shelley as Shelley
-
-type Testnet42 = 'Testnet 42
 
 deleteWallet
     :: ApiT WalletId -> ClientM NoContent

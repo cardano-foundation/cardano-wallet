@@ -24,7 +24,7 @@ import Prelude
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
-import Cardano.Wallet.Api.Clients.Testnet.Shelley
+import Cardano.Wallet.Api.Clients.Testnet.Id
     ( Testnet42
     )
 import Cardano.Wallet.Api.Types

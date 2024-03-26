@@ -1,22 +1,19 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Api.Clients.Testnet.Byron
-    ( A
+    ( Testnet42
     , deleteWallet
     , deleteTransaction
     , getTransaction
     , getWallet
     , getWalletUtxoSnapshot
     , getWalletUtxoStatistics
-    , inspectAddress
     , listAddresses
     , listTransactions
     , listWallets
     , postExternalTransaction
     , postRandomAddress
-    , postScriptAddress
     , postTransaction
     , postTransactionFee
     , postWallet
@@ -29,19 +26,11 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Api
-    ( Addresses
-    , ByronAddresses
-    , ByronTransactions
-    , ByronWallets
-    , Proxy_
+import Cardano.Wallet.Api.Clients.Testnet.Id
+    ( Testnet42
     )
 import Cardano.Wallet.Api.Types
-    ( AnyAddress
-    , ApiAddressData
-    , ApiAddressIdT
-    , ApiAddressInspect (..)
-    , ApiAddressInspectData (..)
+    ( ApiAddressIdT
     , ApiAddressT
     , ApiByronWallet
     , ApiFee
@@ -62,9 +51,6 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit
     )
-import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
-    )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder
     , WalletId
@@ -77,55 +63,54 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Data.Generics.Labels
     ()
-import Data.Proxy
-    ( Proxy (..)
-    )
 import Servant
     ( NoContent
-    , (:<|>) (..)
-    , (:>)
     )
 import Servant.Client
     ( ClientM
-    , client
     )
 
-type A = Testnet 42
+import qualified Cardano.Wallet.Api.Clients.Byron as Byron
 
 postWallet
     :: SomeByronWalletPostData
     -> ClientM ApiByronWallet
+postWallet = Byron.postWallet
+
 deleteWallet
     :: ApiT WalletId
     -> ClientM NoContent
+deleteWallet = Byron.deleteWallet
+
 getWallet
     :: ApiT WalletId
     -> ClientM ApiByronWallet
-listWallets
-    :: ClientM [ApiByronWallet]
+getWallet = Byron.getWallet
+
+listWallets :: ClientM [ApiByronWallet]
+listWallets = Byron.listWallets
+
 putWalletByron
     :: ApiT WalletId
     -> ApiWalletPutData
     -> ClientM ApiByronWallet
+putWalletByron = Byron.putWalletByron
+
 getWalletUtxoSnapshot
     :: ApiT WalletId
     -> ClientM ApiWalletUtxoSnapshot
+getWalletUtxoSnapshot = Byron.getWalletUtxoSnapshot
+
 getWalletUtxoStatistics
     :: ApiT WalletId
     -> ClientM ApiUtxoStatistics
+getWalletUtxoStatistics = Byron.getWalletUtxoStatistics
+
 putWalletPassphrase
     :: ApiT WalletId
     -> ByronWalletPutPassphraseData
     -> ClientM NoContent
-postWallet
-    :<|> deleteWallet
-    :<|> getWallet
-    :<|> listWallets
-    :<|> putWalletByron
-    :<|> getWalletUtxoSnapshot
-    :<|> getWalletUtxoStatistics
-    :<|> putWalletPassphrase =
-        client (Proxy @("v2" :> ByronWallets))
+putWalletPassphrase = Byron.putWalletPassphrase
 
 listTransactions
     :: ApiT WalletId
@@ -133,63 +118,57 @@ listTransactions
     -> Maybe Iso8601Time
     -> Maybe (ApiT SortOrder)
     -> Maybe ApiLimit
-    -> Maybe (ApiAddressIdT A)
-    -> ClientM [ApiTransactionT A]
+    -> Maybe (ApiAddressIdT Testnet42)
+    -> ClientM [ApiTransactionT Testnet42]
+listTransactions = Byron.listTransactions
+
 getTransaction
     :: ApiT WalletId
     -> ApiTxId
-    -> ClientM (ApiTransactionT A)
+    -> ClientM (ApiTransactionT Testnet42)
+getTransaction = Byron.getTransaction
+
 deleteTransaction
     :: ApiT WalletId
     -> ApiTxId
     -> ClientM NoContent
+deleteTransaction = Byron.deleteTransaction
+
 postTransaction
     :: ApiT WalletId
-    -> PostTransactionOldDataT A
-    -> ClientM (ApiTransactionT A)
+    -> PostTransactionOldDataT Testnet42
+    -> ClientM (ApiTransactionT Testnet42)
+postTransaction = Byron.postTransaction
+
 postTransactionFee
     :: ApiT WalletId
-    -> PostTransactionFeeOldDataT A
+    -> PostTransactionFeeOldDataT Testnet42
     -> ClientM ApiFee
-listTransactions
-    :<|> getTransaction
-    :<|> deleteTransaction
-    :<|> postTransaction
-    :<|> postTransactionFee =
-        client (Proxy @("v2" :> (ByronTransactions A)))
+postTransactionFee = Byron.postTransactionFee
 
 postExternalTransaction :: ApiT SealedTx -> ClientM ApiTxId
-postExternalTransaction =
-    client (Proxy @("v2" :> Proxy_))
-
-inspectAddress
-    :: ApiAddressInspectData
-    -> ClientM ApiAddressInspect
-postScriptAddress
-    :: ApiAddressData
-    -> ClientM AnyAddress
-_ :<|> inspectAddress
-    :<|> postScriptAddress =
-        client (Proxy @("v2" :> Addresses A))
+postExternalTransaction = Byron.postExternalTransaction
 
 postRandomAddress
     :: ApiT WalletId
     -> ApiPostRandomAddressData
-    -> ClientM (ApiAddressT A)
+    -> ClientM (ApiAddressT Testnet42)
+postRandomAddress = Byron.postRandomAddress
+
 putRandomAddress
     :: ApiT WalletId
-    -> ApiAddressIdT A
+    -> ApiAddressIdT Testnet42
     -> ClientM NoContent
+putRandomAddress = Byron.putRandomAddress
+
 putRandomAddresses
     :: ApiT WalletId
-    -> ApiPutAddressesDataT A
+    -> ApiPutAddressesDataT Testnet42
     -> ClientM NoContent
+putRandomAddresses = Byron.putRandomAddresses
+
 listAddresses
     :: ApiT WalletId
     -> Maybe (ApiT AddressState)
-    -> ClientM [ApiAddressT A]
-postRandomAddress
-    :<|> putRandomAddress
-    :<|> putRandomAddresses
-    :<|> listAddresses =
-        client (Proxy @("v2" :> ByronAddresses A))
+    -> ClientM [ApiAddressT Testnet42]
+listAddresses = Byron.listAddresses
