@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Cardano.Wallet.Api.Clients.Testnet.Network
+module Cardano.Wallet.Api.Clients.Network
     ( networkInformation
     , networkParameters
     , networkClock

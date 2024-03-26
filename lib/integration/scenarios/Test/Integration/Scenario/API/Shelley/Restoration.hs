@@ -65,7 +65,7 @@ import Test.Integration.Framework.DSL.Wallet
     , withApiWallet
     )
 
-import qualified Cardano.Wallet.Api.Clients.Testnet.Network as C
+import qualified Cardano.Wallet.Api.Clients.Network as C
 
 spec :: SpecWith Context
 spec = describe "restoration of wallets" $ do

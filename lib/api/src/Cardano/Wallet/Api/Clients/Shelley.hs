@@ -24,7 +24,6 @@ import Cardano.Wallet.Api
     , ListStakePools
     , ListTransactions
     , MigrateShelleyWallet
-    , Network
     , PostAnyAddress
     , PostTransactionFeeOld
     , Proxy_
@@ -46,9 +45,6 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionData
     , ApiDecodeTransactionPostData
     , ApiFee
-    , ApiNetworkClock
-    , ApiNetworkInformation
-    , ApiNetworkParameters
     , ApiPoolSpecifier
     , ApiSerialisedTransaction
     , ApiSignTransactionPostData
@@ -259,8 +255,9 @@ inspectAddress = client (Proxy @("v2" :> InspectAddress))
 
 postScriptAddress
     :: forall (network :: NetworkDiscriminant)
-    . Proxy network
-    -> ApiAddressData -> ClientM AnyAddress
+     . Proxy network
+    -> ApiAddressData
+    -> ClientM AnyAddress
 postScriptAddress _ = client (Proxy @("v2" :> PostAnyAddress network))
 
 listPools
@@ -283,15 +280,6 @@ quitStakePool
     -> ApiWalletPassphrase
     -> ClientM (ApiTransaction network)
 quitStakePool = client (Proxy @("v2" :> QuitStakePool network))
-
-networkInformation
-    :: ClientM ApiNetworkInformation
-networkParameters
-    :: ClientM ApiNetworkParameters
-networkClock
-    :: Bool -> ClientM ApiNetworkClock
-networkInformation :<|> networkParameters :<|> networkClock =
-    client (Proxy @("v2" :> Network))
 
 getAssets
     :: ApiT WalletId -> ClientM [ApiAsset]
