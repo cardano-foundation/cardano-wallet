@@ -201,7 +201,7 @@ constraints:
   , bech32 == 1.1.3
 
   -- Cardano Node dependencies:
-  , cardano-node == 8.9.0
+  , cardano-node == 8.9.1
   , cardano-api ^>=8.39.2.0
   , cardano-crypto-class >=2.1.4.0
   , cardano-crypto-class +secp256k1-support
