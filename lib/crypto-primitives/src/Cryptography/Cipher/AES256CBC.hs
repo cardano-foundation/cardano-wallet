@@ -2,7 +2,9 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Cryptography.Cipher.AES256CBC
-    ( encrypt
+    ( CipherMode (..)
+    , CipherError (..)
+    , encrypt
     , decrypt
     , paddingPKCS7
     , unpaddingPKCS7
@@ -19,12 +21,17 @@ import Crypto.Cipher.Types
     , IV
     , makeIV
     )
-import Crypto.Error
+import Cryptography.Core
     ( CryptoError (..)
     , CryptoFailable (..)
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Either.Combinators
+    ( mapBoth
+    , mapLeft
+    , maybeToRight
     )
 
 import qualified Data.ByteString as BS
@@ -47,6 +54,14 @@ import qualified Data.ByteString as BS
 -- and then detect if the decryption was successful by checking that all of
 -- the bytes removed have the same value.
 
+data CipherMode =
+    WithoutPadding | WithPadding
+    deriving (Eq, Show)
+
+data CipherError =
+    FromCryptonite CryptoError | WrongPayload
+    deriving (Eq, Show)
+
 -- | Initialize a block cipher
 initCipher
     :: ByteString
@@ -66,33 +81,41 @@ initIV iv =
 
 -- | Encrypt using AES256 using CBC mode
 encrypt
-    :: ByteString
+    :: CipherMode
+    -- ^ with or without padding
+    -> ByteString
     -- ^ secret key, needs to be 32 bytes
     -> ByteString
     -- ^ iv, needs to be 16 bytes
     -> ByteString
     -- ^ payload, must be a multiple of a block size, ie., 16 bytes
-    -> Either CryptoError ByteString
-encrypt key iv msg = do
-   initedIV <- initIV iv
-   case initCipher key of
-     Left e -> Left e
-     Right c -> Right $ cbcEncrypt c initedIV msg
+    -> Either CipherError ByteString
+encrypt mode key iv msg = do
+   initedIV <- mapLeft FromCryptonite (initIV iv)
+   let msgM = case mode of
+           WithoutPadding -> Just msg
+           WithPadding -> paddingPKCS7 msg
+   msg' <- maybeToRight WrongPayload msgM
+   mapBoth FromCryptonite (\c -> cbcEncrypt c initedIV msg') (initCipher key)
 
 -- | Decrypt using AES256 using CBC mode
 decrypt
-    :: ByteString
+    :: CipherMode
+    -- ^ with or without padding
+    -> ByteString
     -- ^ secret key, needs to be 32 bytes
     -> ByteString
     -- ^ iv, needs to be 16 bytes
     -> ByteString
     -- ^ payload, must be a multiple of a block size, ie., 16 bytes
-    -> Either CryptoError ByteString
-decrypt key iv msg = do
-   initedIV <- initIV iv
-   case initCipher key of
-     Left e -> Left e
-     Right c -> Right $ cbcDecrypt c initedIV msg
+    -> Either CipherError ByteString
+decrypt mode key iv msg = do
+   initedIV <- mapLeft FromCryptonite (initIV iv)
+   let msgM = case mode of
+           WithoutPadding -> Just msg
+           WithPadding -> unpaddingPKCS7 msg
+   msg' <- maybeToRight WrongPayload msgM
+   mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg') (initCipher key)
 
 -- | Apply PKCS#7 padding to payload and end up with a multiple of a block size, i.e., 16 bytes,
 -- according to https://datatracker.ietf.org/doc/html/rfc5652#section-6.3 .
