@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,9 +19,6 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Api.Clients.Testnet.Shelley
-    ( A
-    )
 import Cardano.Wallet.Api.Types
     ( ApiWallet
     )
@@ -61,6 +59,7 @@ import Test.Integration.Framework.DSL
     , clientEnv
     )
 
+import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Test.Integration.Framework.DSL as DSL
 
@@ -104,4 +103,5 @@ fixtureWallet :: BenchM ApiWallet
 fixtureWallet = runDSL DSL.fixtureWallet
 
 fixtureWalletWith :: [Natural] -> BenchM ApiWallet
-fixtureWalletWith w = runDSL $ \ctx -> DSL.fixtureWalletWith @A ctx w
+fixtureWalletWith w = runDSL $
+    \ctx -> DSL.fixtureWalletWith @C.Testnet42 ctx w

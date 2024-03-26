@@ -1,6 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
 module Test.Integration.Framework.DSL.Wallet
@@ -21,6 +23,9 @@ import Prelude
 
 import Cardano.Mnemonic
     ( SomeMnemonic
+    )
+import Cardano.Wallet.Api.Clients.Testnet.Id
+    ( Testnet42
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
@@ -53,6 +58,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
     )
+import Control.Lens
+    ( view
+    )
 import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
@@ -69,6 +77,9 @@ import Data.Text
     )
 import Numeric.Natural
     ( Natural
+    )
+import Servant.Client
+    ( ClientError
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -87,19 +98,11 @@ import Test.Integration.Framework.DSL.TestM
 
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
-import Control.Lens
-    ( view
-    )
-import Servant.Client
-    ( ClientError
-    )
 
 type AWallet = ApiT WalletId
 
 type Patch a = a -> a
 
--- createWalletFromMnemonicsFull :: SomeMnemonic
---     -> (WalletPostData -> WalletPostData) -> TestM _
 createWalletFromMnemonics
     :: SomeMnemonic
     -> (WalletPostData -> WalletPostData)
@@ -132,7 +135,7 @@ createARandomWalletWithMnemonics
 createARandomWalletWithMnemonics refine = do
     m15 <- Mnemonics.generateSome Mnemonics.M15
     w <- createWalletFromMnemonics m15 refine
-    pure $ (, m15) <$> w
+    pure $ (,m15) <$> w
 
 deleteWallet :: Over AWallet ()
 deleteWallet = do
@@ -188,7 +191,7 @@ fundWallet amt = do
             submitTx payload
 
 -- | Submit a transaction and wait for it to be on the ledger
-submitTx :: PostTransactionOldData C.A -> Over AWallet ()
+submitTx :: PostTransactionOldData Testnet42 -> Over AWallet ()
 submitTx payload = do
     w <- ask
     lift $ do

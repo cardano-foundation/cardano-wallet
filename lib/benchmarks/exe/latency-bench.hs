@@ -104,8 +104,7 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (..)
-    , NetworkId (..)
+    ( NetworkId (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..)
@@ -230,16 +229,14 @@ import UnliftIO.STM
     ( TVar
     )
 
-import qualified Cardano.Wallet.Api.Clients.Testnet.Network as CN
+import qualified Cardano.Wallet.Api.Clients.Network as CN
+import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 import qualified Cardano.Wallet.Benchmarks.Latency.Measure as Measure
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
 import qualified Options.Applicative as O
-
--- will go away once we have all implemented in terms of servant-client code
-type A = 'Testnet 42
 
 main :: IO ()
 main = withUtf8
@@ -432,7 +429,7 @@ scene title scenario = measureApiLogs scenario >>= fmtResult title
 sceneOfClientM :: String -> ClientM a -> BenchM ()
 sceneOfClientM title action = scene title $ requestWithError action
 
-listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction C.A]
+listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction C.Testnet42]
 listAllTransactions walId =
     C.listTransactions
         walId

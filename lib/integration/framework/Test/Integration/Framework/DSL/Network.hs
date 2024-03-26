@@ -27,7 +27,7 @@ import Test.Integration.Framework.DSL.TestM
     , request
     )
 
-import qualified Cardano.Wallet.Api.Clients.Testnet.Network as C
+import qualified Cardano.Wallet.Api.Clients.Network as C
 
 tipInfo :: TestM EpochNo
 tipInfo = do
