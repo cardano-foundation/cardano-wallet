@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MonoLocalBinds #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -22,6 +23,10 @@ import Cardano.Wallet.Delegation.Model
     ( History
     , Operation (..)
     , Status (Active)
+    , pattern Delegate
+    , pattern DelegateAndVote
+    , pattern Deregister'
+    , pattern Vote
     )
 import Cardano.Wallet.Delegation.Properties
     ( Step (Step)
@@ -89,9 +94,10 @@ genDelta c h = do
     pool <- genPool c h
     drep <- genRep c h
     elements
-        [ VoteAndDelegate (Just drep) (Just pool) slot
-        , VoteAndDelegate Nothing (Just pool) slot
-        , VoteAndDelegate (Just drep) Nothing slot
+        [ DelegateAndVote pool drep slot
+        , Delegate pool slot
+        , Vote drep slot
+        , Deregister' slot
         , Rollback slot
         ]
 

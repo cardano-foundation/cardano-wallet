@@ -25,6 +25,7 @@ import Cardano.Wallet.DB.Store.Delegations.Model
 import Cardano.Wallet.Delegation.Model
     ( Operation (..)
     , Status (..)
+    , Transition (..)
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -87,8 +88,9 @@ putDelegationCertificate
     -> SlotNo
     -> DeltaDelegations
 putDelegationCertificate cert sl = case cert of
-    CertDelegateNone _ -> Deregister sl
-    CertVoteAndDelegate _ pool drep -> VoteAndDelegate drep pool sl
+    CertDelegateNone _ -> ApplyTransition Deregister sl
+    CertVoteAndDelegate _ pool drep -> ApplyTransition
+        (VoteAndDelegate drep pool) sl
 
 -- | Arguments to 'readDelegation'.
 data CurrentEpochSlotting = CurrentEpochSlotting
