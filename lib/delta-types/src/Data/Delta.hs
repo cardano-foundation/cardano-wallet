@@ -5,32 +5,55 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {- HLINT ignore "Use newtype instead of data" -}
-module Data.Delta (
-    -- * Synopsis
-    -- | Delta encodings.
-    --
-    -- The type constraint 'Delta'@ delta@ means that the type @delta@
-    -- is a delta encoding of the corresponding base type 'Base'@ delta@.
-    --
-    -- Delta encodings can be transformed into each other using an 'Embedding'.
 
-    -- * Delta encodings
+{-|
+Copyright: © 2021-2023 IOHK, 2024 Cardano Foundation
+License: Apache-2.0
+
+Delta types.
+
+The type constraint 'Delta'@ delta@ means that the type @delta@
+is a delta type of the corresponding base type 'Base'@ delta@.
+
+Delta types can be transformed into each other using an 'Embedding'.
+
+Examples:
+
+prop> apply (Replace 7) 3 = 7
+prop> apply [Append [1], Append [2]] [3] = [1,2,3]
+prop> apply [Insert 'c', Delete 'b'] (Set.fromList "ab") = Set.fromList "ac"
+prop> ∀(x :: Set Char). apply [Delete 'b', Insert 'b'] x = apply (Delete 'b') x
+-}
+module Data.Delta (
+    -- * Delta types
     Delta (..)
-    , NoChange (..), Replace (..)
+    , NoChange (..)
+    , Replace (..)
     , DeltaList (..)
     , DeltaSet1 (..)
-    , DeltaSet, mkDeltaSet, deltaSetToList, deltaSetFromList
+    , DeltaSet
+    , diffSet
+    , listFromDeltaSet
+    , deltaSetFromList
 
-    -- * Embedding of types and delta encodings
+    -- * Embedding of delta types
     -- $Embedding
     , Embedding
     , module Data.Semigroupoid
-    , Embedding' (..), mkEmbedding
-    , fromEmbedding, pair, liftUpdates
+    , Embedding' (..)
+    , mkEmbedding
+    , fromEmbedding
+    , pair
+    , liftUpdates
     , replaceFromApply
 
     -- * Internal
-    , inject, project, Machine (..), idle, pairMachine, fromState,
+    , inject
+    , project
+    , Machine (..)
+    , idle
+    , pairMachine
+    , fromState
     ) where
 
 import Prelude
@@ -47,6 +70,9 @@ import Data.Kind
 import Data.List.NonEmpty
     ( NonEmpty
     )
+import Data.Monoid
+    ( Endo (..)
+    )
 import Data.Semigroupoid
     ( Semigroupoid (..)
     )
@@ -57,35 +83,60 @@ import Data.Set
 import qualified Data.Set as Set
 
 {-------------------------------------------------------------------------------
-    Delta encodings
+    Delta types
 -------------------------------------------------------------------------------}
--- | Type class for delta encodings.
+-- | Type class for delta types.
 class Delta delta where
-    -- | Base type for which @delta@ represents a delta encoding.
+    -- | Base type for which @delta@ represents a delta.
     -- This is implemented as a type family, so that we can have
-    -- multiple delta encodings for the same base type.
+    -- multiple delta types for the same base type.
     type Base delta :: Type
-    -- | Apply a delta encoding to the base type.
+    -- | Apply a delta to the base type.
+    --
+    -- Whenever the type @delta@ is a 'Semigroup', we require that
+    --
+    -- prop> apply (d1 <> d2) = apply d1 . apply d2
+    --
+    -- This means that deltas are applied __right-to-left__:
+    -- @d1@ is applied __after__ @d2@.
+    --
+    -- Whenever the type @delta@ is a 'Monoid', we require that
+    --
+    -- prop> apply mempty = id
     apply :: delta -> Base delta -> Base delta
 
--- | Trivial delta encoding for the type @a@ that admits no change at all.
+-- | 'Endo' is the most general delta, which allows any change.
+instance Delta (Endo a) where
+    type Base (Endo a) = a
+    apply (Endo f) = f
+
+-- | The least general delta, where nothing is changed.
 data NoChange (a :: Type) = NoChange
     deriving (Eq, Ord, Show)
 
+-- | prop> apply NoChange a = a
 instance Delta (NoChange a) where
     type Base (NoChange a) = a
     apply _ a = a
 
--- | Trivial delta encoding for the type @a@ that replaces the value wholesale.
+-- | Trivial delta type for the type @a@ that replaces the value wholesale.
 newtype Replace a = Replace a
     deriving (Eq, Ord, Show)
 
+-- |
+-- prop> apply (Replace a) _ = a
 instance Delta (Replace a) where
     type Base (Replace a) = a
     apply (Replace a) _ = a
 
 -- | Combine replacements. The first argument takes precedence.
--- In this way, 'apply' becomes a 'Semigroup' morphism.
+-- Hence, 'apply' is a morphism:
+--
+-- prop> apply (Replace a <> Replace b) = apply (Replace a) . apply (Replace b)
+--
+-- More strongly, we have
+--
+-- prop> apply (Replace a <> _) = apply (Replace a)
 instance Semigroup (Replace a) where
     r <> _ = r
 
@@ -97,17 +148,20 @@ instance Delta delta => Delta (Maybe delta) where
 -- | A list of deltas can be applied like a single delta.
 -- This overloading of 'apply' is very convenient.
 --
--- Order is important: The 'head' of the list is applied __last__.
--- This way, we have a morphism to the 'Endo' 'Monoid':
+-- Order is important: The 'head' of the list is applied __last__,
+-- so deltas are applied __right-to-left__.
+-- Hence, 'apply' is a morphism
 --
--- > apply []         = id
--- > apply (d1 <> d2) = apply d1 . apply d2
+-- prop> apply []         = id
+-- prop> apply (d1 ++ d2) = apply d1 . apply d2
 instance Delta delta => Delta [delta] where
     type Base [delta] = Base delta
     apply ds a = foldr apply a ds
 
 -- | For convenience, a nonempty list of deltas
 -- can be applied like a list of deltas.
+--
+-- Remember that deltas are applied right-to-left.
 instance Delta delta => Delta (NonEmpty delta) where
     type Base (NonEmpty delta) = Base delta
     apply ds a = foldr apply a ds
@@ -128,16 +182,20 @@ instance (Delta d1, Delta d2, Delta d3, Delta d4) => Delta (d1,d2,d3,d4) where
     apply (d1,d2,d3,d4) (a1,a2,a3,a4) =
         (apply d1 a1, apply d2 a2, apply d3 a3, apply d4 a4)
 
--- | Delta encoding for lists where a list of elements is prepended.
+-- | Delta type for lists where a list of elements is prepended.
 data DeltaList a = Append [a]
     deriving (Eq, Ord, Show)
 
+-- |
+-- prop> apply (Append xs) ys = xs ++ ys
 instance Delta (DeltaList a) where
     type Base (DeltaList a) = [a]
     apply (Append xs) ys = xs ++ ys
 
--- | Delta encoding for 'Set' where a single element is deleted or added.
-data DeltaSet1 a = Insert a | Delete a
+-- | Delta type for 'Set' where a single element is deleted or added.
+data DeltaSet1 a
+    = Insert a
+    | Delete a
     deriving (Eq, Ord, Show)
 
 instance Ord a => Delta (DeltaSet1 a) where
@@ -145,29 +203,36 @@ instance Ord a => Delta (DeltaSet1 a) where
     apply (Insert a) = Set.insert a
     apply (Delete a) = Set.delete a
 
--- | Delta encoding for a 'Set' where
+-- | Delta type for a 'Set' where
 -- collections of elements are inserted or deleted.
 data DeltaSet a = DeltaSet
     { inserts :: Set a
     , deletes :: Set a
-    } deriving (Eq)
--- INVARIANT: The two sets are always disjoint.
+    -- INVARIANT: The two sets are always disjoint.
+    }
+    deriving (Eq)
 
 instance Ord a => Delta (DeltaSet a) where
     type Base (DeltaSet a) = Set a
     apply (DeltaSet i d) x = i `Set.union` (x `Set.difference` d)
 
--- | Delta to get from the second argument to the first argument.
-mkDeltaSet :: Ord a => Set a -> Set a -> DeltaSet a
-mkDeltaSet new old =
-    DeltaSet (new `Set.difference` old) (old `Set.difference` new)
+-- | The smallest delta that changes the second argument to the first argument.
+--
+-- prop> new = apply (diffSet new old) old
+-- prop> diffSet (Set.fromList "ac") (Set.fromList "ab") = deltaSetFromList [Insert 'c', Delete 'b']
+diffSet :: Ord a => Set a -> Set a -> DeltaSet a
+diffSet new old =
+    DeltaSet
+        { inserts = new `Set.difference` old
+        , deletes = old `Set.difference` new
+        }
 
 -- | Flatten a 'DeltaSet' to a list of 'DeltaSet1'.
 --
 -- In the result list, the set of @a@ appearing as 'Insert'@ a@
 -- is /disjoint/ from the set of @a@ appearing as 'Delete'@ a@.
-deltaSetToList :: DeltaSet a -> [DeltaSet1 a]
-deltaSetToList DeltaSet{inserts,deletes} =
+listFromDeltaSet :: DeltaSet a -> [DeltaSet1 a]
+listFromDeltaSet DeltaSet{inserts,deletes} =
     map Insert (Set.toList inserts) <> map Delete (Set.toList deletes)
 
 -- | Collect insertions or deletions of elements into a 'DeltaSet'.
@@ -176,7 +241,7 @@ deltaSetToList DeltaSet{inserts,deletes} =
 -- for the same element are simplified when possible.
 -- These simplifications always preserve the property
 --
--- > apply (deltaSetFromList ds) = apply ds
+-- prop> apply (deltaSetFromList ds) = apply ds
 deltaSetFromList :: Ord a => [DeltaSet1 a] -> DeltaSet a
 deltaSetFromList = foldr step empty
   where
@@ -195,7 +260,11 @@ The following cancellation laws hold:
 
 -}
 
--- | 'apply' distributes over '(<>)'.
+-- | Remember that the semigroup instance is required to satisfy
+-- the following properties:
+--
+-- prop> apply mempty = id
+-- prop> apply (d1 <> d2) = apply d1 . apply d2
 instance Ord a => Semigroup (DeltaSet a) where
     (DeltaSet i1 d1) <> (DeltaSet i2 d2) = DeltaSet
         (i1 `Set.union` (i2 `Set.difference` d1))
@@ -210,21 +279,21 @@ instance Ord a => Monoid (DeltaSet a) where
 -------------------------------------------------------------------------------}
 {- $Embedding
 
-An 'Embedding'@ da db@ embeds one type and its delta encoding @da@
-into another type and its delta encoding @db@.
+An 'Embedding'@ da db@ embeds one type and its delta type @da@
+into another type and its delta type @db@.
 
 For reasons of efficiency, 'Embedding' is an abstract type.
 It is constructed using the 'Embedding'' type, which has
 three components.
 
-* 'write' embeds values from the type @a = Base da@
-    into the type @b = Base bd@.
+* 'write' embeds values from the type @a = 'Base' da@
+    into the type @b = 'Base' db@.
 * 'load' attempts to retrieve the value of type @a@
     from the type @b@, but does not necessarily succeed.
-* 'update' maps a delta encoding @da@ to a delta encoding @db@.
+* 'update' maps a delta type @da@ to a delta type @db@.
     For this mapping, the value of type @a@ and a corresponding
     value of type @b@ are provided;
-    the delta encodings of types @da@ and @db@ are
+    the delta types @da@ and @db@ are
     relative to these values.
 
 The embedding of one type into the other is characterized by the following
@@ -242,12 +311,12 @@ properties:
     The type @b@ may contain multiple values that correspond to
     one and the same @a@.
     This is why the 'update' function expects the type @b@ as argument,
-    so that the right delta encoding can be computed.
+    so that the right deltas can be computed.
     Put differently, we often have
 
         > write a ≠ b   where Right a = load b
 
-* The embedding of delta encoding __commutes with 'apply'__.
+* The embedding of a delta __commutes with 'apply'__.
     We have
 
         > Just (apply da a) = load (apply (update a b da) b)
@@ -258,8 +327,8 @@ properties:
         > apply (update a (write a) da) (write a) ≠ write (apply da a)
 -}
 
--- | Specification of an embedding of a type @a@ with delta encoding @da@
--- into the type @b@ with delta encoding @db@.
+-- | Specification of an embedding of a type @a@ with delta types @da@
+-- into the type @b@ with delta type @db@.
 -- See [the discussion of @Embedding@](#g:3) for a more detailed description.
 data Embedding' da db where
     Embedding'
@@ -329,10 +398,13 @@ pair (Embedding inject1 project1) (Embedding inject2 project2) =
 liftUpdates
     :: Delta da
     => Embedding da db
-    -> [da] -- ^ List of deltas to apply. The 'head' is applied /last/.
-    -> Base da -- ^ Base value to apply the deltas to.
+    -> [da]
+    -- ^ List of deltas to apply.
+    -- The deltas are applied right-to-left; the 'head' is applied __last__.
+    -> Base da
+    -- ^ Base value to apply the deltas to.
     -> (Base db, [db])
-    -- ^ (Final base value, updates that were applied ('head' is /last/)).
+    -- ^ (Final base value, updates that were applied ('head' is __last__)).
 liftUpdates Embedding{inject} das0 a0 =
     let (b,dbs) = go (inject a0) a0 (reverse das0) in (b, reverse dbs)
   where
@@ -343,7 +415,7 @@ liftUpdates Embedding{inject} das0 a0 =
         (db,machine2) = step_ machine1 (a,da)
 
 -- | Having an 'apply' function is equivalent to the existence
--- of a canonical embedding into the trivial 'Replace' delta encoding.
+-- of a canonical embedding into the trivial 'Replace' delta type.
 replaceFromApply :: (Delta da, a ~ Base da) => Embedding' da (Replace a)
 replaceFromApply = Embedding'
     { load = Right
@@ -353,7 +425,7 @@ replaceFromApply = Embedding'
 
 {-
 -- | Use the 'update' function of an 'Embedding' to convert
--- one delta encoding to another.
+-- one delta type to another.
 --
 -- This function assumes that the 'Embedding' argument satisfies
 -- @load = Just@ and @write = id@.
@@ -366,7 +438,7 @@ applyWithEmbedding e delta1 a = apply (update e a delta1) a
 {-------------------------------------------------------------------------------
     Machine (state machines) with efficient composition
 -------------------------------------------------------------------------------}
--- | Strict pair.
+-- Strict pair.
 -- If a value of this type is in WHNF, so are the two components.
 -- data StrictPair a b = !a :*: !b
 -- infixr 1 :*:
@@ -389,7 +461,7 @@ instance Semigroupoid Machine where
 idle :: Delta da => Base da -> Machine da da
 idle a0 = Machine a0 $ \(a1,da) -> let a2 = apply da a1 in (da, idle a2)
 
--- | Pair two 'Machine'.
+-- | Pair two 'Machine's.
 pairMachine
     :: Machine da1 db1 -> Machine da2 db2 -> Machine (da1,da2) (db1,db2)
 pairMachine (Machine s1 step1) (Machine s2 step2) =
@@ -398,7 +470,7 @@ pairMachine (Machine s1 step1) (Machine s2 step2) =
             (db2, m2) = step2 (a2,da2)
         in  ((db1,db2), pairMachine m1 m2)
 
--- | Create a 'Machine' from a specific state 's',
+-- | Create a 'Machine' from a specific state @s@,
 -- and the built-in state 'Base'@ db@.
 fromState
     :: Delta db

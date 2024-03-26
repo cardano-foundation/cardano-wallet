@@ -244,7 +244,7 @@ fromSet = Pile . Set.toList
 
 -- | Map a 'DeltaSet' to a 'Pile' of single element insertions and deltions.
 deltaSetToPile :: DeltaSet a -> Pile (DeltaSet1 a)
-deltaSetToPile = Pile . Delta.deltaSetToList
+deltaSetToPile = Pile . Delta.listFromDeltaSet
 
 -- | Restore a 'DeltaSet' from a 'Pile' of single element
 -- insertions and deletions.
