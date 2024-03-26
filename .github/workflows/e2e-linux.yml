@@ -52,11 +52,11 @@ jobs:
     - name: Fetch preprod snapshot
       if: steps.cache-node.outputs.cache-hit != 'true'
       run: |
-        mkdir state || true
+        mkdir -p state
         cd state
-        mkdir node_db
+        mkdir -p node_db
         cd node_db
-        mkdir preprod
+        mkdir -p preprod
         cd preprod
         curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json \
             | jq -r .[].file_name > snapshot.json
