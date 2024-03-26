@@ -314,7 +314,7 @@
       },
       "original": {
         "owner": "IntersectMBO",
-        "ref": "8.9.0",
+        "ref": "8.9.1",
         "repo": "cardano-node",
         "type": "github"
       }
