@@ -70,8 +70,8 @@ library
     Data.Delta.Core
     Data.Delta.Embedding
     Data.Delta.List
+    Data.Delta.Map
     Data.Delta.Set
-    Data.DeltaMap
 
 test-suite unit
   import:           language, opts-exe

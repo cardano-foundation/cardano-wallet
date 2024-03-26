@@ -9,13 +9,13 @@ License: Apache-2.0
 
 Delta types for 'Data.Map.Map'.
 -}
-module Data.DeltaMap
+module Data.Delta.Map
     ( DeltaMap(..)
     ) where
 
 import Prelude
 
-import Data.Delta
+import Data.Delta.Core
     ( Delta (..)
     )
 import Data.Map.Strict
@@ -28,8 +28,7 @@ import Fmt
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
-    A Delta type for Maps,
-    useful for handling multiple wallets.
+    Delta type for 'Map'
 -------------------------------------------------------------------------------}
 -- | Delta type for 'Map'.
 data DeltaMap key da
