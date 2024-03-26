@@ -67,6 +67,10 @@ library
     , semigroupoids
   exposed-modules:
     Data.Delta
+    Data.Delta.Core
+    Data.Delta.Embedding
+    Data.Delta.List
+    Data.Delta.Set
     Data.DeltaMap
 
 test-suite unit
