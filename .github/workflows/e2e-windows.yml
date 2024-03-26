@@ -83,8 +83,8 @@ jobs:
         cd node_db
         mkdir preprod
         cd preprod
-        curl -s https://downloads.csnapshots.io/snapshots/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
-        curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/snapshots/testnet/$(cat snapshot.json)
+        curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
+        curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
         arc unarchive snapshot.tar.lz4
         mv db/* .
 
