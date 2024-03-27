@@ -67,7 +67,11 @@ library
     , semigroupoids
   exposed-modules:
     Data.Delta
-    Data.DeltaMap
+    Data.Delta.Core
+    Data.Delta.Embedding
+    Data.Delta.List
+    Data.Delta.Map
+    Data.Delta.Set
 
 test-suite unit
   import:           language, opts-exe
