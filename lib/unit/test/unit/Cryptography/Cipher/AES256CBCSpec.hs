@@ -54,18 +54,32 @@ spec = do
             toPayload (encrypt WithPadding key' iv' payload' >>=
                 decrypt WithPadding key' iv') === Right payload'
 
+    describe "encrypt/decrypt roundtrip without padding" $
+        it "decrypt . encrypt $ payload == payload" $ property $
+        \(CipherRawSetup payload' key' iv') -> do
+            let toPayload (Left WrongPayload) = Right BS.empty
+                toPayload res = res
+            toPayload (encrypt WithoutPadding key' iv' payload' >>=
+                decrypt WithoutPadding key' iv') === Right payload'
+
 newtype Payload = Payload
     { unPayload :: ByteString } deriving (Eq, Show)
 
 data CipherPaddingSetup = CipherPaddingSetup
-    { payload :: ByteString
-    , key :: ByteString
-    , iv :: ByteString
+    { payloadPad :: ByteString
+    , keyPad :: ByteString
+    , ivPad :: ByteString
+    } deriving (Eq, Show)
+
+data CipherRawSetup = CipherRawSetup
+    { payloadRaw :: ByteString
+    , keyRaw :: ByteString
+    , ivRaw :: ByteString
     } deriving (Eq, Show)
 
 instance Arbitrary Payload where
     arbitrary = do
-        payloadLength <- chooseInt (1, 250)
+        payloadLength <- chooseInt (1, 512)
         oneof [ Payload . BS.pack <$> vectorOf payloadLength arbitrary
               , pure $ Payload BS.empty
               ]
@@ -76,3 +90,11 @@ instance Arbitrary CipherPaddingSetup where
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
         pure $ CipherPaddingSetup payload' key' iv'
+
+instance Arbitrary CipherRawSetup where
+    arbitrary = do
+        lenMult <- chooseInt (1,256)
+        payload' <- BS.pack <$> vectorOf (lenMult * 16) arbitrary
+        key' <- BS.pack <$> vectorOf 32 arbitrary
+        iv' <- BS.pack <$> vectorOf 16 arbitrary
+        pure $ CipherRawSetup payload' key' iv'
