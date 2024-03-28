@@ -354,17 +354,25 @@ databases, use:</p>
 <pre><code class="language-console">&gt; cardano-wallet wallet list
 </code></pre>
 <h3 id="wallet-create-from-recovery-phrase"><a class="header" href="#wallet-create-from-recovery-phrase">wallet create from recovery-phrase</a></h3>
-<pre><code class="language-console">&gt; cardano-wallet wallet create from-recovery-phrase [--port=INT] &lt;name&gt; [--address-pool-gap=INT]
+<pre><code class="language-console">&gt; cardano-wallet wallet create from-recovery-phrase from-genesis [--port INT] WALLET_NAME [--address-pool-gap INT]
 </code></pre>
 <p>Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for recovery-phrase words and password.</p>
-<pre><code class="language-console">&gt; cardano-wallet wallet create &quot;My Wallet&quot;
+<pre><code class="language-console">&gt; cardano-wallet wallet create from-recovery-phrase from-genesis &quot;My Wallet&quot;
 Please enter a 15–24 word recovery-phrase sentence: &lt;enter generated recovery-phrase here&gt;
 (Enter a blank line if you do not wish to use a second factor.)
 Please enter a 9–12 word recovery-phrase second factor: &lt;skip or enter new recovery-phrase here&gt;
 Please enter a passphrase: ****************
 Enter the passphrase a second time: ****************
 </code></pre>
-<p>after this your new wallet will be created</p>
+<p>after this your new wallet will be created.</p>
+<h3 id="wallet-create-from-recovery-phrase-from-checkpoint"><a class="header" href="#wallet-create-from-recovery-phrase-from-checkpoint">wallet create from recovery-phrase from-checkpoint</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet create from-recovery-phrase from-checkpoint [--port INT] WALLET_NAME [--address-pool-gap INT] --block-header-hash BLOCKHEADERHASH --slot-no SLOTNO
+</code></pre>
+<p>This command will create a wallet whose synchronization starts from the block specified by <code>BLOCKHEADERHASH</code> and <code>SLOTNO</code>. This will create a partial view of the wallet if the wallet has transactions before the checkpoint!</p>
+<h3 id="wallet-create-from-recovery-phrase-from-tip"><a class="header" href="#wallet-create-from-recovery-phrase-from-tip">wallet create from recovery-phrase from-tip</a></h3>
+<pre><code class="language-console">&gt; cardano-wallet wallet create from-recovery-phrase from-tip [--port INT] WALLET_NAME [--address-pool-gap INT]
+</code></pre>
+<p>This command will create a wallet whose synchronization starts from the current node tip. Useful for creating an empty wallet for testing.</p>
 <h3 id="wallet-get"><a class="header" href="#wallet-get">wallet get</a></h3>
 <pre><code class="language-console">&gt; cardano-wallet wallet get [--port=INT] WALLET_ID
 </code></pre>
