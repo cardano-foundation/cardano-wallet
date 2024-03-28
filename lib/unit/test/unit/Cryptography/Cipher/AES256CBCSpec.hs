@@ -28,6 +28,7 @@ import Test.QuickCheck
     , chooseInt
     , oneof
     , property
+    , suchThat
     , vectorOf
     , (===)
     )
@@ -49,7 +50,7 @@ spec = do
     describe "encrypt/decrypt roundtrip with padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
         \(CipherPaddingSetup payload' key' iv') -> do
-            let toPayload (Left WrongPayload) = Right BS.empty
+            let toPayload (Left EmptyPayload) = Right BS.empty
                 toPayload res = res
             toPayload (encrypt WithPadding key' iv' payload' >>=
                 decrypt WithPadding key' iv') === Right payload'
@@ -57,10 +58,22 @@ spec = do
     describe "encrypt/decrypt roundtrip without padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
         \(CipherRawSetup payload' key' iv') -> do
-            let toPayload (Left WrongPayload) = Right BS.empty
+            let toPayload (Left EmptyPayload) = Right BS.empty
                 toPayload res = res
             toPayload (encrypt WithoutPadding key' iv' payload' >>=
                 decrypt WithoutPadding key' iv') === Right payload'
+
+    describe "encrypt with incorrect block size" $
+        it "encrypt payload == error" $ property $
+        \(CipherWrongSetup payload' key' iv') -> do
+            encrypt WithoutPadding key' iv' payload' ===
+                Left WrongPayloadSize
+
+    describe "decrypt with incorrect block size" $
+        it "decrypt payload == error" $ property $
+        \(CipherWrongSetup payload' key' iv') -> do
+            decrypt WithoutPadding key' iv' payload' ===
+                Left WrongPayloadSize
 
 newtype Payload = Payload
     { unPayload :: ByteString } deriving (Eq, Show)
@@ -75,6 +88,12 @@ data CipherRawSetup = CipherRawSetup
     { payloadRaw :: ByteString
     , keyRaw :: ByteString
     , ivRaw :: ByteString
+    } deriving (Eq, Show)
+
+data CipherWrongSetup = CipherWrongSetup
+    { payloadWrong :: ByteString
+    , keyWrong :: ByteString
+    , ivWrong :: ByteString
     } deriving (Eq, Show)
 
 instance Arbitrary Payload where
@@ -98,3 +117,11 @@ instance Arbitrary CipherRawSetup where
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
         pure $ CipherRawSetup payload' key' iv'
+
+instance Arbitrary CipherWrongSetup where
+    arbitrary = do
+        len <- chooseInt (1,512) `suchThat` (\p -> p `mod` 16 /= 0)
+        payload' <- BS.pack <$> vectorOf len arbitrary
+        key' <- BS.pack <$> vectorOf 32 arbitrary
+        iv' <- BS.pack <$> vectorOf 16 arbitrary
+        pure $ CipherWrongSetup payload' key' iv'

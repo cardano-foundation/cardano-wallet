@@ -12,6 +12,9 @@ module Cryptography.Cipher.AES256CBC
 
 import Prelude
 
+import Control.Monad
+    ( when
+    )
 import Crypto.Cipher.AES
     ( AES256
     )
@@ -60,7 +63,9 @@ data CipherMode =
     deriving (Eq, Show)
 
 data CipherError =
-    FromCryptonite CryptoError | WrongPayload
+      FromCryptonite CryptoError
+    | EmptyPayload
+    | WrongPayloadSize
     deriving (Eq, Show)
 
 -- | Initialize a block cipher
@@ -92,11 +97,13 @@ encrypt
     -- ^ payload, must be a multiple of a block size, ie., 16 bytes
     -> Either CipherError ByteString
 encrypt mode key iv msg = do
+   when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
+       Left $ WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (initIV iv)
    let msgM = case mode of
            WithoutPadding -> Just msg
            WithPadding -> paddingPKCS7 msg
-   msg' <- maybeToRight WrongPayload msgM
+   msg' <- maybeToRight EmptyPayload msgM
    mapBoth FromCryptonite (\c -> cbcEncrypt c initedIV msg') (initCipher key)
 
 -- | Decrypt using AES256 using CBC mode
@@ -111,10 +118,12 @@ decrypt
     -- ^ payload, must be a multiple of a block size, ie., 16 bytes
     -> Either CipherError ByteString
 decrypt mode key iv msg = do
+   when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
+       Left $ WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (initIV iv)
    let unpadding p = case mode of
            WithoutPadding -> Right p
-           WithPadding -> maybeToRight WrongPayload (unpaddingPKCS7 p)
+           WithPadding -> maybeToRight EmptyPayload (unpaddingPKCS7 p)
    mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
        unpadding
 
