@@ -35,6 +35,7 @@ import Data.Either.Combinators
     )
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 
 -- | AES is a subset of the family of block ciphers known as Rijndael.
 -- That family includes no less than 15 variants, for three possible block sizes (128, 192 and 256 bits).
@@ -111,11 +112,11 @@ decrypt
     -> Either CipherError ByteString
 decrypt mode key iv msg = do
    initedIV <- mapLeft FromCryptonite (initIV iv)
-   let msgM = case mode of
-           WithoutPadding -> Just msg
-           WithPadding -> unpaddingPKCS7 msg
-   msg' <- maybeToRight WrongPayload msgM
-   mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg') (initCipher key)
+   let unpadding p = case mode of
+           WithoutPadding -> Right p
+           WithPadding -> maybeToRight WrongPayload (unpaddingPKCS7 p)
+   mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
+       unpadding
 
 -- | Apply PKCS#7 padding to payload and end up with a multiple of a block size, i.e., 16 bytes,
 -- according to https://datatracker.ietf.org/doc/html/rfc5652#section-6.3 .
@@ -130,13 +131,18 @@ paddingPKCS7
     :: ByteString
     -> Maybe ByteString
 paddingPKCS7 payload =
-    let remaining = (BS.length payload) `mod` 16
+    let len = BS.length payload
+        remaining =
+            if len < 16 then
+                len
+            else
+                len `mod` 16
         padding =
             if remaining == 0 then
-                BS.replicate 16 16
+                B8.replicate 16 (toEnum 16)
             else
-                BS.replicate remaining (fromIntegral remaining)
-    in if BS.length payload == 0 then
+                B8.replicate (16 - remaining) (toEnum (16 - remaining))
+    in if len == 0 then
            Nothing
        else
            Just $ BS.append payload padding
@@ -147,8 +153,8 @@ unpaddingPKCS7
 unpaddingPKCS7 payload =
     let initLast = BS.unsnoc payload
         cut (_, lastByte) =
-            if (fromIntegral lastByte) >= BS.length payload then
+            if (fromEnum lastByte) >= BS.length payload then
                 payload
             else
-                BS.dropEnd (fromIntegral lastByte) payload
+                BS.dropEnd (fromEnum lastByte) payload
     in cut <$> initLast
