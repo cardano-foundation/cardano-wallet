@@ -238,13 +238,13 @@ Lists all your wallets:
 ### wallet create from recovery-phrase
 
 ```console
-> cardano-wallet wallet create from-recovery-phrase [--port=INT] <name> [--address-pool-gap=INT]
+> cardano-wallet wallet create from-recovery-phrase from-genesis [--port INT] WALLET_NAME [--address-pool-gap INT]
 ```
 
 Create a new wallet using a sequential address scheme. This is an interactive command that will prompt you for recovery-phrase words and password.
 
 ```console
-> cardano-wallet wallet create "My Wallet"
+> cardano-wallet wallet create from-recovery-phrase from-genesis "My Wallet"
 Please enter a 15–24 word recovery-phrase sentence: <enter generated recovery-phrase here>
 (Enter a blank line if you do not wish to use a second factor.)
 Please enter a 9–12 word recovery-phrase second factor: <skip or enter new recovery-phrase here>
@@ -252,7 +252,23 @@ Please enter a passphrase: ****************
 Enter the passphrase a second time: ****************
 ```
 
-after this your new wallet will be created
+after this your new wallet will be created.
+
+### wallet create from recovery-phrase from-checkpoint
+
+```console
+> cardano-wallet wallet create from-recovery-phrase from-checkpoint [--port INT] WALLET_NAME [--address-pool-gap INT] --block-header-hash BLOCKHEADERHASH --slot-no SLOTNO
+```
+
+This command will create a wallet whose synchronization starts from the block specified by `BLOCKHEADERHASH` and `SLOTNO`. This will create a partial view of the wallet if the wallet has transactions before the checkpoint!
+
+### wallet create from recovery-phrase from-tip
+
+```console
+> cardano-wallet wallet create from-recovery-phrase from-tip [--port INT] WALLET_NAME [--address-pool-gap INT]
+```
+
+This command will create a wallet whose synchronization starts from the current node tip. Useful for creating an empty wallet for testing.
 
 ### wallet get
 
