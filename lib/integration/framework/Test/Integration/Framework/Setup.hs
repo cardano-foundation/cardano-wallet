@@ -415,7 +415,8 @@ httpManager = do
 setupContext
     :: TestingCtx
     -> MVar Context
-    -> ClientEnv
+
+    -> ClientEnv -- ^ Faucet client environment
     -> IORef [PoolGarbageCollectionEvent]
     -> Maybe (FileOf "node-output")
     -> T.Text

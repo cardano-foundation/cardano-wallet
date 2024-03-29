@@ -16,6 +16,19 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates -Wmissing-deriving-strategies
+    -Wunused-foralls -Wcompat -Widentities -Werror=incomplete-patterns
+    -Wredundant-constraints -Wpartial-fields -Wtabs
+    -fhelpful-errors
+    -fprint-expanded-synonyms -fwarn-unused-do-bind
+    -fwarn-incomplete-uni-patterns -freverse-errors
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+  if flag(release)
+    ghc-options: -O2 -Werror
 
 flag release
   description: Enable optimization and `-Werror`
@@ -29,6 +42,9 @@ library
     Cardano.Node.Cli.Launcher
     Cardano.Wallet.Cli.Launcher
     Cardano.Wallet.Faucet
+    Cardano.Wallet.Faucet.Yaml
+    Cardano.Wallet.Faucet.Gen
+    Cardano.Wallet.Faucet.Gen.Address
     Cardano.Wallet.Launch.Cluster
     Cardano.Wallet.Launch.Cluster.Aeson
     Cardano.Wallet.Launch.Cluster.CardanoCLI
@@ -58,15 +74,6 @@ library
     Cardano.Wallet.Launch.Cluster.Tx
     Cardano.Wallet.Launch.Cluster.UnsafeInterval
     Cardano.Wallet.LocalCluster
-
-  ghc-options:
-    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
-    -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wcompat -Widentities -Werror=incomplete-patterns
-    -Wredundant-constraints -Wpartial-fields -Wtabs
-    -Wmissing-local-signatures -fhelpful-errors
-    -fprint-expanded-synonyms -fwarn-unused-do-bind
-    -fwarn-incomplete-uni-patterns -freverse-errors
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -110,6 +117,7 @@ library
     , ouroboros-network
     , ouroboros-network-api
     , pathtype
+    , QuickCheck
     , resourcet
     , retry
     , servant-client
@@ -126,22 +134,26 @@ library
     , yaml
 
 executable local-cluster
-  import:         language
+  import:         language, opts-exe
   main-is:        Cluster.hs
   hs-source-dirs: exe
-  ghc-options:
-    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
-    -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
-    -fprint-explicit-kinds -Wcompat -Widentities
-    -Werror=incomplete-patterns -Wredundant-constraints
-    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
-    -fprint-expanded-synonyms -fwarn-unused-do-bind
-    -fwarn-incomplete-uni-patterns -freverse-errors -threaded -rtsopts
-
-  if flag(release)
-    ghc-options: -O2 -Werror
 
   build-depends:
     , base
     , local-cluster
+
+test-suite local-cluster-test
+  import:         language, opts-exe
+  type:           exitcode-stdio-1.0
+  main-is:        test.hs
+  hs-source-dirs: test/unit
+
+  build-depends:
+    , base
+    , local-cluster
+    , hspec
+    , pathtype
+    , temporary
+    , QuickCheck
+  other-modules:
+    Spec
