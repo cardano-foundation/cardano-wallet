@@ -259,7 +259,6 @@ test-suite unit
     Cardano.WalletSpec
     Control.Concurrent.ConciergeSpec
     Control.Monad.UtilSpec
-    Cryptography.Cipher.AES256CBCSpec
     Cryptography.KDF.PBKDF2Spec
     Data.Function.UtilsSpec
     Data.Time.TextSpec
