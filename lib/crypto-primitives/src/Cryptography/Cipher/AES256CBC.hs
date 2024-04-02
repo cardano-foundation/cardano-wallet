@@ -144,11 +144,9 @@ decrypt mode key iv msg = do
 paddingPKCS7
     :: ByteString
     -> Maybe ByteString
-paddingPKCS7 payload =
-    if BS.null payload then
-        Nothing
-    else
-        Just $ BS.append payload padding
+paddingPKCS7 payload
+    | BS.null payload = Nothing
+    | otherwise = Just $ BS.append payload padding
   where
     len = BS.length payload
     remaining = len `mod` 16
