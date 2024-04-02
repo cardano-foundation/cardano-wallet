@@ -146,11 +146,7 @@ paddingPKCS7
     -> Maybe ByteString
 paddingPKCS7 payload =
     let len = BS.length payload
-        remaining =
-            if len < 16 then
-                len
-            else
-                len `mod` 16
+        remaining = len `mod` 16
         padding =
             if remaining == 0 then
                 B8.replicate 16 (toEnum 16)
