@@ -147,11 +147,7 @@ paddingPKCS7
 paddingPKCS7 payload =
     let len = BS.length payload
         remaining = len `mod` 16
-        padding =
-            if remaining == 0 then
-                B8.replicate 16 (toEnum 16)
-            else
-                B8.replicate (16 - remaining) (toEnum (16 - remaining))
+        padding = B8.replicate (16 - remaining) (toEnum (16 - remaining))
     in if len == 0 then
            Nothing
        else
