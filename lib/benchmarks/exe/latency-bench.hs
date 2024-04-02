@@ -89,14 +89,14 @@ import Cardano.Wallet.Launch.Cluster
     , withCluster
     , withFaucet
     )
+import Cardano.Wallet.Launch.Cluster.CommandLine
+    ( clusterConfigsDirParser
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , mkRelDirOf
     , newAbsolutizer
     , toFilePath
-    )
-import Cardano.Wallet.LocalCluster
-    ( clusterConfigsDirParser
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
