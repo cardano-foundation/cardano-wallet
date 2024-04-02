@@ -145,13 +145,14 @@ paddingPKCS7
     :: ByteString
     -> Maybe ByteString
 paddingPKCS7 payload =
-    let len = BS.length payload
-        remaining = len `mod` 16
-        padding = B8.replicate (16 - remaining) (toEnum (16 - remaining))
-    in if len == 0 then
-           Nothing
-       else
-           Just $ BS.append payload padding
+    if len == 0 then
+        Nothing
+    else
+        Just $ BS.append payload padding
+  where
+    len = BS.length payload
+    remaining = len `mod` 16
+    padding = B8.replicate (16 - remaining) (toEnum (16 - remaining))
 
 unpaddingPKCS7
     :: ByteString
