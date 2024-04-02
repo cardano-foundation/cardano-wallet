@@ -62,7 +62,7 @@ spec = do
         it "unpad . pad $ payload == payload" $ property $ \payload -> do
             let toPayload Nothing = Payload BS.empty
                 toPayload (Just bs) = Payload bs
-            toPayload ( (paddingPKCS7 $ unPayload payload) >>= unpaddingPKCS7 ) === payload
+            toPayload ( paddingPKCS7 (unPayload payload) >>= unpaddingPKCS7 ) === payload
     describe "Padding produces always payload that is multiple of 16 bytes" $
         it "(pad payload) % 16 == 0" $ property $ \payload -> do
             let toPayloadLen Nothing = 0

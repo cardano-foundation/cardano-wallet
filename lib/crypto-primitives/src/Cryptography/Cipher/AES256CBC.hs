@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Cryptography.Cipher.AES256CBC
     ( CipherMode (..)
@@ -102,7 +101,7 @@ encrypt
     -> Either CipherError ByteString
 encrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
-       Left $ WrongPayloadSize
+       Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (initIV iv)
    let msgM = case mode of
            WithoutPadding -> Just msg
@@ -123,7 +122,7 @@ decrypt
     -> Either CipherError ByteString
 decrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
-       Left $ WrongPayloadSize
+       Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (initIV iv)
    let unpadding p = case mode of
            WithoutPadding -> Right p
