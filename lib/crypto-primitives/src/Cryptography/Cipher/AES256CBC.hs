@@ -145,7 +145,7 @@ paddingPKCS7
     :: ByteString
     -> Maybe ByteString
 paddingPKCS7 payload =
-    if len == 0 then
+    if BS.null payload then
         Nothing
     else
         Just $ BS.append payload padding
