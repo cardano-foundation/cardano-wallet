@@ -148,8 +148,8 @@ paddingPKCS7 payload
     | BS.null payload = Nothing
     | otherwise = Just $ BS.append payload padding
   where
-    remaining = BS.length payload `mod` 16
-    padding = B8.replicate (16 - remaining) (toEnum (16 - remaining))
+    padding = B8.replicate paddingLength (toEnum paddingLength)
+    paddingLength = 16 - (BS.length payload `mod` 16)
 
 unpaddingPKCS7
     :: ByteString
