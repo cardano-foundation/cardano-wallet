@@ -45,8 +45,14 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Control.Lens
     ( over
     )
+import Control.Monad.Cont
+    ( ContT (..)
+    )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Control.Monad.Trans
+    ( lift
     )
 import Control.Monad.Trans.Resource
     ( allocate
@@ -215,7 +221,8 @@ main = withUtf8 $ do
             $ mkRelDirOf
             $ Cluster.clusterEraToString clusterEra
     CommandLineOptions{clusterConfigsDir} <- parseCommandLineOptions
-    withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath -> do
+    flip runContT pure $ do
+        clusterPath <- ContT $ withSystemTempDir tr "test-cluster" skipCleanup
         let clusterCfg =
                 Cluster.Config
                     { cfgStakePools = Cluster.defaultPoolConfigs
@@ -228,49 +235,49 @@ main = withUtf8 $ do
                     , cfgTracer = stdoutTextTracer
                     , cfgNodeOutputFile = Nothing
                     }
-        withFaucet $ \faucetClientEnv -> do
-            maryAllegraFunds <-
-                liftIO
-                    $ runFaucetM faucetClientEnv
-                    $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
-            Cluster.withCluster
-                clusterCfg
-                Cluster.FaucetFunds
-                    { pureAdaFunds = []
-                    , maryAllegraFunds
-                    , massiveWalletFunds = []
-                    }
-                $ \node -> do
-                    let clusterDir = absDir clusterPath
-                    let walletDir = clusterDir </> relDir "wallet"
-                    createDirectoryIfMissing True walletDir
-                    nodeSocket <-
-                        case parse . nodeSocketFile
-                            $ Cluster.runningNodeSocketPath node of
-                            Left e -> error e
-                            Right p -> pure p
+        faucetClientEnv <- ContT withFaucet
+        maryAllegraFunds <-
+            liftIO
+                $ runFaucetM faucetClientEnv
+                $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
+        node <-
+            ContT
+                $ Cluster.withCluster
+                    clusterCfg
+                    Cluster.FaucetFunds
+                        { pureAdaFunds = []
+                        , maryAllegraFunds
+                        , massiveWalletFunds = []
+                        }
+        let clusterDir = absDir clusterPath
+            walletDir = clusterDir </> relDir "wallet"
+        lift $ createDirectoryIfMissing True walletDir
+        nodeSocket <-
+            case parse . nodeSocketFile $ Cluster.runningNodeSocketPath node of
+                Left e -> error e
+                Right p -> pure p
+        lift $ runResourceT $ do
+            (_releaseKey, (_walletInstance, _walletApi)) <-
+                allocate
+                    ( WC.start
+                        WC.WalletProcessConfig
+                            { WC.walletDir =
+                                DirOf walletDir
+                            , WC.walletNodeApi =
+                                NC.NodeApi nodeSocket
+                            , WC.walletDatabase =
+                                DirOf $ clusterDir </> relDir "db"
+                            , WC.walletListenHost =
+                                Nothing
+                            , WC.walletListenPort =
+                                Nothing
+                            , WC.walletByronGenesisForTestnet =
+                                Just
+                                    $ FileOf
+                                    $ clusterDir
+                                        </> relFile "byron-genesis.json"
+                            }
+                    )
+                    (WC.stop . fst)
 
-                    runResourceT do
-                        (_releaseKey, (_walletInstance, _walletApi)) <-
-                            allocate
-                                ( WC.start
-                                    WC.WalletProcessConfig
-                                        { WC.walletDir =
-                                            DirOf walletDir
-                                        , WC.walletNodeApi =
-                                            NC.NodeApi nodeSocket
-                                        , WC.walletDatabase =
-                                            DirOf $ clusterDir </> relDir "db"
-                                        , WC.walletListenHost =
-                                            Nothing
-                                        , WC.walletListenPort =
-                                            Nothing
-                                        , WC.walletByronGenesisForTestnet =
-                                            Just
-                                                $ FileOf
-                                                $ clusterDir
-                                                    </> relFile "byron-genesis.json"
-                                        }
-                                )
-                                (WC.stop . fst)
-                        threadDelay maxBound -- wait for Ctrl+C
+            threadDelay maxBound -- wait for Ctrl+C

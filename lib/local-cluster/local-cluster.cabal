@@ -147,6 +147,7 @@ executable local-cluster
     , iohk-monitoring-extra
     , lens
     , local-cluster
+    , mtl
     , optparse-applicative
     , pathtype
     , resourcet
