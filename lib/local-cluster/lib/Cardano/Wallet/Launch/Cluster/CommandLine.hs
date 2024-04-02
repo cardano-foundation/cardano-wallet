@@ -12,36 +12,57 @@ import Prelude
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( Absolutizer (..)
     , DirOf (..)
+    , FileOf (..)
     , newAbsolutizer
     )
 import Options.Applicative
-    ( (<**>)
+    ( Parser
+    , execParser
+    , help
+    , helper
+    , info
+    , long
+    , metavar
+    , progDesc
+    , strOption
+    , (<**>)
     )
 import System.Path
     ( absRel
     )
 
-import qualified Options.Applicative as O
-
-newtype CommandLineOptions = CommandLineOptions
-    {clusterConfigsDir :: DirOf "cluster-configs"}
+data CommandLineOptions = CommandLineOptions
+    { clusterConfigsDir :: DirOf "cluster-configs"
+    , faucetFundsFile :: FileOf "faucet-funds"
+    }
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
 parseCommandLineOptions = do
     absolutizer <- newAbsolutizer
-    O.execParser
-        $ O.info
-            ( fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
-                <**> O.helper
+    execParser
+        $ info
+            ( CommandLineOptions
+                <$> clusterConfigsDirParser absolutizer
+                <*> faucetFundsParser absolutizer
+                <**> helper
             )
-            (O.progDesc "Local Cluster for testing")
+            (progDesc "Local Cluster for testing")
 
-clusterConfigsDirParser :: Absolutizer -> O.Parser (DirOf "cluster-configs")
+clusterConfigsDirParser :: Absolutizer -> Parser (DirOf "cluster-configs")
 clusterConfigsDirParser (Absolutizer absOf) =
     DirOf . absOf . absRel
-        <$> O.strOption
-            ( O.long "cluster-configs"
-                <> O.metavar "LOCAL_CLUSTER_CONFIGS"
-                <> O.help "Path to the local cluster configuration directory"
+        <$> strOption
+            ( long "cluster-configs"
+                <> metavar "LOCAL_CLUSTER_CONFIGS"
+                <> help "Path to the local cluster configuration directory"
+            )
+
+faucetFundsParser :: Absolutizer -> Parser (FileOf "faucet-funds")
+faucetFundsParser (Absolutizer absOf) =
+    FileOf . absOf . absRel
+        <$> strOption
+            ( long "faucet-funds"
+                <> metavar "FAUCET_FUNDS"
+                <> help "Path to the faucet funds configuration file"
             )
