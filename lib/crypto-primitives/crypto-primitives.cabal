@@ -73,5 +73,6 @@ test-suite test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cryptography.Cipher.AES256CBCSpec
+    Cryptography.KDF.PBKDF2Spec
     Spec
     SpecHook
