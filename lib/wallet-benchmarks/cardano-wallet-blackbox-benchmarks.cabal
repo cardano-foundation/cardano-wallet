@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                cardano-wallet-blackbox-benchmarks
-version:             2024.3.27
+version:             2024.4.3
 synopsis:            Benchmarks for the `cardano-wallet` exectuable.
 description:         This package is a collection of benchmarks
                      for the `cardano-wallet` exectuable.
