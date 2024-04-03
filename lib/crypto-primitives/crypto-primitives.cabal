@@ -51,6 +51,7 @@ library
     , bytestring              >= 0.10.12 && < 0.13
     , cryptonite              ^>=0.30
     , either
+    , extra
     , memory                  ^>=0.18
 
 test-suite test

@@ -35,6 +35,9 @@ import Data.Either.Combinators
     , mapLeft
     , maybeToRight
     )
+import Data.Either.Extra
+    ( maybeToEither
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -79,14 +82,12 @@ initCipher k = case cipherInit k of
    CryptoFailed e -> Left e
    CryptoPassed a -> Right a
 
--- | Initialize IV
-initIV
+-- | Create an initialisation vector (IV).
+createIV
     :: ByteString
     -> Either CryptoError (IV AES256)
-initIV iv =
-    case makeIV iv of
-        Nothing -> Left CryptoError_IvSizeInvalid
-        Just ivOk -> pure ivOk
+createIV =
+    maybeToEither CryptoError_IvSizeInvalid . makeIV
 
 -- | Encrypt using AES256 using CBC mode
 encrypt
@@ -95,14 +96,14 @@ encrypt
     -> ByteString
     -- ^ secret key, needs to be 32 bytes
     -> ByteString
-    -- ^ iv, needs to be 16 bytes
+    -- ^ initialisation vector (IV): must be 16 bytes
     -> ByteString
     -- ^ payload, must be a multiple of a block size, ie., 16 bytes
     -> Either CipherError ByteString
 encrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
-   initedIV <- mapLeft FromCryptonite (initIV iv)
+   initedIV <- mapLeft FromCryptonite (createIV iv)
    let msgM = case mode of
            WithoutPadding -> Just msg
            WithPadding -> paddingPKCS7 msg
@@ -123,7 +124,7 @@ decrypt
 decrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
-   initedIV <- mapLeft FromCryptonite (initIV iv)
+   initedIV <- mapLeft FromCryptonite (createIV iv)
    let unpadding p = case mode of
            WithoutPadding -> Right p
            WithPadding -> maybeToRight EmptyPayload (unpaddingPKCS7 p)
