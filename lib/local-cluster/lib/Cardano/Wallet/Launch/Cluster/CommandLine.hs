@@ -23,6 +23,7 @@ import Options.Applicative
     , info
     , long
     , metavar
+    , optional
     , progDesc
     , strOption
     , (<**>)
@@ -31,8 +32,10 @@ import System.Path
     ( absRel
     )
 
-newtype CommandLineOptions = CommandLineOptions
-    {clusterConfigsDir :: DirOf "cluster-configs"}
+data CommandLineOptions = CommandLineOptions
+    { clusterConfigsDir :: DirOf "cluster-configs"
+    , clusterDir :: Maybe (DirOf "cluster")
+    }
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
@@ -40,7 +43,9 @@ parseCommandLineOptions = do
     absolutizer <- newAbsolutizer
     execParser
         $ info
-            ( fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
+            ( CommandLineOptions
+                <$> clusterConfigsDirParser absolutizer
+                <*> clusterDirParser absolutizer
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
@@ -53,3 +58,13 @@ clusterConfigsDirParser (Absolutizer absOf) =
                 <> metavar "LOCAL_CLUSTER_CONFIGS"
                 <> help "Path to the local cluster configuration directory"
             )
+
+clusterDirParser :: Absolutizer -> Parser (Maybe (DirOf "cluster"))
+clusterDirParser (Absolutizer absOf) =
+    optional
+        $ DirOf . absOf . absRel
+            <$> strOption
+                ( long "cluster"
+                    <> metavar "LOCAL_CLUSTER"
+                    <> help "Path to the local cluster directory"
+                )
