@@ -23,6 +23,7 @@ import Options.Applicative
     , info
     , long
     , metavar
+    , optional
     , progDesc
     , strOption
     , (<**>)
@@ -34,6 +35,7 @@ import System.Path
 data CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: DirOf "cluster-configs"
     , faucetFundsFile :: FileOf "faucet-funds"
+    , clusterDir :: Maybe (DirOf "cluster")
     }
     deriving stock (Show)
 
@@ -45,6 +47,7 @@ parseCommandLineOptions = do
             ( CommandLineOptions
                 <$> clusterConfigsDirParser absolutizer
                 <*> faucetFundsParser absolutizer
+                <*> clusterDirParser absolutizer
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
@@ -66,3 +69,13 @@ faucetFundsParser (Absolutizer absOf) =
                 <> metavar "FAUCET_FUNDS"
                 <> help "Path to the faucet funds configuration file"
             )
+
+clusterDirParser :: Absolutizer -> Parser (Maybe (DirOf "cluster"))
+clusterDirParser (Absolutizer absOf) =
+    optional
+        $ DirOf . absOf . absRel
+            <$> strOption
+                ( long "cluster"
+                    <> metavar "LOCAL_CLUSTER"
+                    <> help "Path to the local cluster directory"
+                )

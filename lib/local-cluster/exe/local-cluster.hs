@@ -143,25 +143,30 @@ main = withUtf8 $ do
             $ Just
             $ mkRelDirOf
             $ Cluster.clusterEraToString clusterEra
-    CommandLineOptions{clusterConfigsDir, faucetFundsFile} <-
+    CommandLineOptions{clusterConfigsDir, faucetFundsFile, clusterDir} <-
         parseCommandLineOptions
-    funds <- retrieveFunds $ pathOf faucetFundsFile
+    funds <- retrieveFunds faucetFundsFile
     flip runContT pure $ do
-        clusterPath <- ContT $ withSystemTempDir tr "test-cluster" skipCleanup
+        clusterPath <-
+            case clusterDir of
+                Just path -> pure path
+                Nothing ->
+                    fmap (DirOf . absDir) $
+                    ContT $ withSystemTempDir tr "test-cluster" skipCleanup
         let clusterCfg =
                 Cluster.Config
                     { cfgStakePools = Cluster.defaultPoolConfigs
                     , cfgLastHardFork = clusterEra
                     , cfgNodeLogging
-                    , cfgClusterDir = DirOf (absDir clusterPath)
+                    , cfgClusterDir = clusterPath
                     , cfgClusterConfigs = clusterConfigsDir
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
                     , cfgTracer = stdoutTextTracer
                     , cfgNodeOutputFile = Nothing
                     }
-        let clusterDir = absDir clusterPath
-            walletDir = clusterDir </> relDir "wallet"
+        let clusterDirPath = absDirOf clusterPath
+            walletDir = clusterDirPath </> relDir "wallet"
         lift $ createDirectoryIfMissing True walletDir
         node <- ContT $ Cluster.withCluster clusterCfg funds
         nodeSocket <-
@@ -173,13 +178,13 @@ main = withUtf8 $ do
                 WC.WalletProcessConfig
                     { WC.walletDir = DirOf walletDir
                     , WC.walletNodeApi = NC.NodeApi nodeSocket
-                    , WC.walletDatabase = DirOf $ clusterDir </> relDir "db"
+                    , WC.walletDatabase = DirOf $ clusterDirPath </> relDir "db"
                     , WC.walletListenHost = Nothing
                     , WC.walletListenPort = Nothing
                     , WC.walletByronGenesisForTestnet =
                         Just
                             $ FileOf
-                            $ clusterDir
+                            $ clusterDirPath
                                 </> relFile "byron-genesis.json"
                     }
         lift
