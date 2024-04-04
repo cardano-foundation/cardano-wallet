@@ -121,7 +121,7 @@ spec = do
          -- ZMGELuBkqtHVw5pUA353vQ==
          -- bytes read   :        1
          -- bytes written:       25
-        it "golden 1-byte payload" $
+        it "golden 1-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0"
             , key = noSaltKey
@@ -134,7 +134,7 @@ spec = do
         -- KBO1WMy3NpqMmm+fEL2kbg==
         -- bytes read   :        2
         -- bytes written:       25
-        it "golden 2-byte payload" $
+        it "golden 2-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00"
             , key = noSaltKey
@@ -147,7 +147,7 @@ spec = do
         -- 49TERtYsEVKVgpJkUzqmJw==
         -- bytes read   :        5
         -- bytes written:       25
-        it "golden 5-byte payload" $
+        it "golden 5-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00000"
             , key = noSaltKey
@@ -160,7 +160,7 @@ spec = do
         -- XaYfTkqDajiW6hRc+SlJ8A==
         -- bytes read   :       10
         -- bytes written:       25
-        it "golden 10-byte payload" $
+        it "golden 10-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0000000000"
             , key = noSaltKey
@@ -173,7 +173,7 @@ spec = do
         -- CXH8t8dSqroR4r4IiNAsfA==
         -- bytes read   :       15
         -- bytes written:       25
-        it "golden 15-byte payload" $
+        it "golden 15-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "000000000000000"
             , key = noSaltKey
@@ -186,7 +186,7 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh8iZSRCztrdYpMEE1aj8ES8=
         -- bytes read   :       16
         -- bytes written:       45
-        it "golden 16-byte payload" $
+        it "golden 16-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0000000000000000"
             , key = noSaltKey
@@ -199,7 +199,7 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh96Z6cWqsqTJlbxfcWg/Nvo=
         -- bytes read   :       20
         -- bytes written:       45
-        it "golden 20-byte payload" $
+        it "golden 20-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00000000000000000000"
             , key = noSaltKey
@@ -212,7 +212,7 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh9VxdtWlCXnKS1n/vvCOwL0=
         -- bytes read   :       31
         -- bytes written:       45
-        it "golden 31-byte payload" $
+        it "golden 31-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0000000000000000000000000000000"
             , key = noSaltKey
@@ -225,7 +225,7 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1
         -- bytes read   :       32
         -- bytes written:       65
-        it "golden 32-byte payload" $
+        it "golden 32-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00000000000000000000000000000000"
             , key = noSaltKey
@@ -234,6 +234,71 @@ spec = do
             } `shouldBe`
             Right
             "hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1"
+
+        -- echo -n 0 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMJCtI/MMCZ7dqZI6TrtlLyg=
+        -- bytes read   :        1
+        -- bytes written:       45
+        it "golden 1-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "0"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMJCtI/MMCZ7dqZI6TrtlLyg="
+
+        -- echo -n 00 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMKZlzmc8ZsSxwTwDKJY4J+I=
+        -- bytes read   :        2
+        -- bytes written:       45
+        it "golden 2-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "00"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMKZlzmc8ZsSxwTwDKJY4J+I="
+
+        -- echo -n 00000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMCP7dvgIZ/E+vzQN+2JuGF0=
+        -- bytes read   :        5
+        -- bytes written:       45
+        it "golden 5-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "00000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMCP7dvgIZ/E+vzQN+2JuGF0="
+
+        -- echo -n 0000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMDXxr84l/PtjzWRCPGb8oSY=
+        -- bytes read   :       10
+        -- bytes written:       45
+        it "golden 10-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "0000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMDXxr84l/PtjzWRCPGb8oSY="
+
+        -- echo -n 000000000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMPCoW2E+adl2BLopcz8iftA=
+        -- bytes read   :       15
+        -- bytes written:       45
+        it "golden 15-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "000000000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMPCoW2E+adl2BLopcz8iftA="
   where
     --  We are using the following key and iv for goldens
     -- $ openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -S 3030303030303030 -k "password" -iter 10000 -P
