@@ -147,8 +147,7 @@ paddingPKCS7 payload
 
 unpaddingPKCS7 :: ByteString -> Maybe ByteString
 unpaddingPKCS7 payload =
-    let initLast = BS.unsnoc payload
-    in cut <$> initLast
+    cut <$> BS.unsnoc payload
   where
     cut (_, lastByte) =
         if (fromEnum lastByte) >= BS.length payload then
