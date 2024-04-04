@@ -75,17 +75,13 @@ data CipherError =
     deriving (Eq, Show)
 
 -- | Initialize a block cipher
-initCipher
-    :: ByteString
-    -> Either CryptoError AES256
+initCipher :: ByteString -> Either CryptoError AES256
 initCipher k = case cipherInit k of
-   CryptoFailed e -> Left e
-   CryptoPassed a -> Right a
+    CryptoFailed e -> Left e
+    CryptoPassed a -> Right a
 
 -- | Create an initialisation vector (IV).
-createIV
-    :: ByteString
-    -> Either CryptoError (IV AES256)
+createIV :: ByteString -> Either CryptoError (IV AES256)
 createIV =
     maybeToEither CryptoError_IvSizeInvalid . makeIV
 
@@ -141,9 +137,7 @@ decrypt mode key iv msg = do
 -- i.e., sixteen copies of 16, which is the blocksize.
 -- This means that payload can only fit 15 bytes into a single block with
 -- padding. A 16 byte payload requires 2 blocks with padding.
-paddingPKCS7
-    :: ByteString
-    -> Maybe ByteString
+paddingPKCS7 :: ByteString -> Maybe ByteString
 paddingPKCS7 payload
     | BS.null payload = Nothing
     | otherwise = Just $ BS.append payload padding
@@ -151,9 +145,7 @@ paddingPKCS7 payload
     padding = B8.replicate paddingLength (toEnum paddingLength)
     paddingLength = 16 - (BS.length payload `mod` 16)
 
-unpaddingPKCS7
-    :: ByteString
-    -> Maybe ByteString
+unpaddingPKCS7 :: ByteString -> Maybe ByteString
 unpaddingPKCS7 payload =
     let initLast = BS.unsnoc payload
         cut (_, lastByte) =
