@@ -50,14 +50,14 @@ import Crypto.Cipher.AES
     ( AES256
     )
 import Crypto.Cipher.Types
-    ( BlockCipher (..)
-    , Cipher (..)
+    ( BlockCipher (cbcDecrypt, cbcEncrypt)
+    , Cipher (cipherInit)
     , IV
     , makeIV
     )
 import Cryptography.Core
-    ( CryptoError (..)
-    , CryptoFailable (..)
+    ( CryptoError (CryptoError_IvSizeInvalid)
+    , CryptoFailable (CryptoFailed, CryptoPassed)
     )
 import Data.ByteString
     ( ByteString
