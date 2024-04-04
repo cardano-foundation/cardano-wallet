@@ -5,7 +5,7 @@ module Cryptography.Cipher.AES256CBC
     , CipherError (..)
     , encrypt
     , decrypt
-    , paddingPKCS7
+    , padPKCS7
     , unpaddingPKCS7
     ) where
 
@@ -102,7 +102,7 @@ encrypt mode key iv msg = do
    initedIV <- mapLeft FromCryptonite (createIV iv)
    let msgM = case mode of
            WithoutPadding -> Just msg
-           WithPadding -> paddingPKCS7 msg
+           WithPadding -> padPKCS7 msg
    msg' <- maybeToRight EmptyPayload msgM
    mapBoth FromCryptonite (\c -> cbcEncrypt c initedIV msg') (initCipher key)
 
@@ -137,8 +137,8 @@ decrypt mode key iv msg = do
 -- i.e., sixteen copies of 16, which is the blocksize.
 -- This means that payload can only fit 15 bytes into a single block with
 -- padding. A 16 byte payload requires 2 blocks with padding.
-paddingPKCS7 :: ByteString -> Maybe ByteString
-paddingPKCS7 payload
+padPKCS7 :: ByteString -> Maybe ByteString
+padPKCS7 payload
     | BS.null payload = Nothing
     | otherwise = Just $ BS.append payload padding
   where

@@ -12,7 +12,7 @@ import Cryptography.Cipher.AES256CBC
     , CipherMode (..)
     , decrypt
     , encrypt
-    , paddingPKCS7
+    , padPKCS7
     , unpaddingPKCS7
     )
 import Cryptography.Hash.Core
@@ -62,13 +62,13 @@ spec = do
         it "unpad . pad $ payload == payload" $ property $ \payload -> do
             let toPayload Nothing = Payload BS.empty
                 toPayload (Just bs) = Payload bs
-            toPayload ( paddingPKCS7 (unPayload payload) >>= unpaddingPKCS7 )
+            toPayload ( padPKCS7 (unPayload payload) >>= unpaddingPKCS7 )
                 === payload
     describe "Padding produces always payload that is multiple of 16 bytes" $
         it "(pad payload) % 16 == 0" $ property $ \payload -> do
             let toPayloadLen Nothing = 0
                 toPayloadLen (Just bs) = BS.length bs
-            (toPayloadLen ( (paddingPKCS7 $ unPayload payload)) ) `mod` 16
+            (toPayloadLen ( (padPKCS7 $ unPayload payload)) ) `mod` 16
                 === 0
     describe "encrypt/decrypt roundtrip with padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
