@@ -72,19 +72,19 @@ spec = do
                 === 0
     describe "encrypt/decrypt roundtrip with padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
-        \(CipherPaddingSetup payload' key' iv' _salt') -> do
-            let toPayload (Left EmptyPayload) = Right BS.empty
+        \(CipherPaddingSetup payload' key' iv' salt') -> do
+            let toPayload (Left EmptyPayload) = Right (BS.empty, salt')
                 toPayload res = res
-            toPayload (encrypt WithPadding key' iv' Nothing payload' >>=
-                decrypt WithPadding key' iv') === Right payload'
+            toPayload (encrypt WithPadding key' iv' salt' payload' >>=
+                decrypt WithPadding key' iv') === Right (payload', salt')
 
     describe "encrypt/decrypt roundtrip without padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
-        \(CipherRawSetup payload' key' iv' _salt') -> do
-            let toPayload (Left EmptyPayload) = Right BS.empty
+        \(CipherRawSetup payload' key' iv' salt') -> do
+            let toPayload (Left EmptyPayload) = Right (BS.empty, salt')
                 toPayload res = res
-            toPayload (encrypt WithoutPadding key' iv' Nothing payload' >>=
-                decrypt WithoutPadding key' iv') === Right payload'
+            toPayload (encrypt WithoutPadding key' iv' salt' payload' >>=
+                decrypt WithoutPadding key' iv') === Right (payload', salt')
 
     describe "encrypt with incorrect block size" $
         it "encrypt payload == error" $ property $

@@ -132,8 +132,10 @@ encrypt mode key iv saltM msg = do
            mapBoth FromCryptonite
            (\c -> cbcEncrypt c initedIV msg') (initCipher key)
  where
-   addSalt salt =
-       "Salted__" <> salt
+   addSalt salt = saltPrefix <> salt
+
+saltPrefix :: ByteString
+saltPrefix = "Salted__"
 
 -- | Decrypt using AES256 using CBC mode.
 decrypt
@@ -144,15 +146,26 @@ decrypt
     -- ^ Initialisation vector (IV): must be 16 bytes.
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
-    -> Either CipherError ByteString
+    -> Either CipherError (ByteString, Maybe ByteString)
+    -- ^ Decrypted payload and optionally salt that was used upon encryption of the payment
 decrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (createIV iv)
+   let (prefix,rest)= BS.splitAt 8 msg
+   let saltDetected = prefix == saltPrefix
    let unpadding p = case mode of
            WithoutPadding -> Right p
            WithPadding -> maybeToRight EmptyPayload (unpadPKCS7 p)
-   mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
+   if saltDetected then
+       mapRight (\c -> (c, Just $ BS.take 8 rest)) $
+       mapBoth FromCryptonite
+       (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
+       unpadding
+   else
+       mapRight (\c -> (c, Nothing)) $
+       mapBoth FromCryptonite
+       (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
        unpadding
 
 -- | Apply PKCS#7 padding to payload and end up with a multiple of a block
