@@ -119,12 +119,13 @@ localClusterProcess CommandLineOptions{..} era = do
 
 withLocalCluster
     :: HasCallStack
-    => Config
+    => Int  -- ^ Port for monitoring the local cluster.
+    -> Config
     -> FaucetFunds
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withLocalCluster Config{..} faucetFunds run = do
+withLocalCluster monitoringPort Config{..} faucetFunds run = do
     r <- withTempFile $ \faucetFundsPath -> do
         let faucetFundsFile = FileOf $ absFile faucetFundsPath
             clusterConfigsDir = cfgClusterConfigs

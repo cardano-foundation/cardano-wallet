@@ -6,6 +6,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 import Prelude
 
@@ -29,10 +30,20 @@ import Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
     , parseCommandLineOptions
     )
+import Cardano.Wallet.Launch.Cluster.Control.Server
+    ( server
+    )
+import Cardano.Wallet.Launch.Cluster.Control.State
+    ( changePhase
+    , withControlLayer
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf (..)
     , mkRelDirOf
+    )
+import Control.Concurrent
+    ( threadDelay
     )
 import Control.Exception
     ( bracket
@@ -40,14 +51,22 @@ import Control.Exception
 import Control.Lens
     ( over
     )
+import Control.Monad
+    ( void
+    , (<=<)
+    )
 import Control.Monad.Cont
     ( ContT (..)
     )
 import Control.Monad.Trans
-    ( lift
+    ( MonadIO (..)
+    , MonadTrans (..)
     )
 import Main.Utf8
     ( withUtf8
+    )
+import Network.Wai.Handler.Warp
+    ( run
     )
 import System.Environment.Extended
     ( isEnvSet
@@ -66,8 +85,9 @@ import System.Path
 import System.Path.Directory
     ( createDirectoryIfMissing
     )
-import UnliftIO.Concurrent
-    ( threadDelay
+import UnliftIO
+    ( async
+    , link
     )
 
 import qualified Cardano.Node.Cli.Launcher as NC
@@ -143,16 +163,24 @@ main = withUtf8 $ do
             $ Just
             $ mkRelDirOf
             $ Cluster.clusterEraToString clusterEra
-    CommandLineOptions{clusterConfigsDir, faucetFundsFile, clusterDir} <-
+    CommandLineOptions
+        { clusterConfigsDir
+        , faucetFundsFile
+        , clusterDir
+        , monitoringPort
+        } <-
         parseCommandLineOptions
     funds <- retrieveFunds faucetFundsFile
     flip runContT pure $ do
+        monitoring <- withControlLayer
+        liftIO $ link <=< async $ server monitoring >>= run monitoringPort
         clusterPath <-
             case clusterDir of
                 Just path -> pure path
                 Nothing ->
-                    fmap (DirOf . absDir) $
-                    ContT $ withSystemTempDir tr "test-cluster" skipCleanup
+                    fmap (DirOf . absDir)
+                        $ ContT
+                        $ withSystemTempDir tr "test-cluster" skipCleanup
         let clusterCfg =
                 Cluster.Config
                     { cfgStakePools = Cluster.defaultPoolConfigs
@@ -168,7 +196,9 @@ main = withUtf8 $ do
         let clusterDirPath = absDirOf clusterPath
             walletDir = clusterDirPath </> relDir "wallet"
         lift $ createDirectoryIfMissing True walletDir
-        node <- ContT $ Cluster.withCluster clusterCfg funds
+        node <-
+            ContT
+                $ Cluster.withCluster (changePhase monitoring) clusterCfg funds
         nodeSocket <-
             case parse . nodeSocketFile $ Cluster.runningNodeSocketPath node of
                 Left e -> error e
@@ -187,9 +217,9 @@ main = withUtf8 $ do
                             $ clusterDirPath
                                 </> relFile "byron-genesis.json"
                     }
-        lift
+        void
+            $ ContT
             $ bracket
                 (WC.start walletProcessConfig)
                 (WC.stop . fst)
-            $ const
-            $ threadDelay maxBound -- wait for Ctrl+C
+        liftIO $ threadDelay maxBound -- wait for Ctrl+C

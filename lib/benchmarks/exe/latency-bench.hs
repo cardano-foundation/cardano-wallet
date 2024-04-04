@@ -673,6 +673,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                         , cfgNodeOutputFile = Nothing
                         }
             withCluster
+                (const $ pure ())
                 clusterConfig
                 faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)

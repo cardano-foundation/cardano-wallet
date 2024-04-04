@@ -35,6 +35,9 @@ import Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
     , configurePools
     )
+import Cardano.Wallet.Launch.Cluster.Control.State
+    ( Phase (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( readFaucetAddresses
     , resetGlobals
@@ -164,23 +167,26 @@ data FaucetFunds = FaucetFunds
 -- The onClusterStart actions are not guaranteed to use the same node.
 withCluster
     :: HasCallStack
-    => Config
+    => (Phase -> IO ())
+    -> Config
     -> FaucetFunds
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
+withCluster phaseChange config@Config{..} faucetFunds onClusterStart
+    = runClusterM config
     $ bracketTracer' "withCluster"
     $ do
         let clusterDir = absDirOf cfgClusterDir
         traceClusterLog $ MsgHardFork cfgLastHardFork
+        phase Metadata
         withPoolMetadataServer $ \metadataServer -> do
             liftIO $ createDirectoryIfMissing True clusterDir
             traceClusterLog $ MsgStartingCluster cfgClusterDir
             liftIO resetGlobals
 
             configuredPools <- configurePools metadataServer cfgStakePools
-
+            phase Genesis
             addGenesisPools <- do
                 genesisDeltas <-
                     liftIO
@@ -195,7 +201,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                 generateGenesis
                     (pureAdaFunds <> faucetAddresses <> massiveWalletFunds)
                     (addGenesisPools : cfgShelleyGenesisMods)
-
+            phase Genesis
             extraPort : poolsTcpPorts <-
                 liftIO
                     $ randomUnusedTCPPorts (length cfgStakePools + 1)
@@ -210,11 +216,15 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                         pool0port
                         cfgNodeLogging
                         cfgNodeOutputFile
+            phase Pool0
             liftIO $ operatePool pool0 pool0Cfg $ \runningPool0 ->
                 runClusterM config $ do
+                    phase Funding
                     extraClusterSetupUsingNode configuredPools runningPool0
                     case NE.nonEmpty otherPools of
-                        Nothing -> liftIO $ onClusterStart runningPool0
+                        Nothing -> do
+                            phase Cluster
+                            liftIO $ onClusterStart runningPool0
                         Just others -> do
                             let relayNodeParams =
                                     NodeParams
@@ -230,18 +240,22 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                         , nodeParamsOutputFile
                                             = cfgNodeOutputFile
                                         }
+                            phase Pools
                             launchPools
                                 others
                                 genesisFiles
                                 poolPorts
                                 runningPool0
-                                $ \_poolNode ->
+                                $ \_poolNode -> do
+                                    phase Relay
                                     withRelayNode
-                                        relayNodeParams
-                                        onClusterStart
+                                        relayNodeParams $ \c -> do
+                                            phaseChange Cluster
+                                            onClusterStart c
   where
     FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds
         = faucetFunds
+    phase = liftIO . phaseChange
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
         :: NonEmpty ConfiguredPool -> RunningNode -> ClusterM ()

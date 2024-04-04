@@ -24,6 +24,7 @@ module Cardano.Wallet.Network.Ports
     -- * Helpers
     , portFromURL
     , randomUnusedTCPPorts
+    , validPorts
     ) where
 
 import Prelude
@@ -127,6 +128,9 @@ portFromURL uri = fromMaybe fallback
   where
     fallback = if uriScheme uri == "https:" then 443 else 80
 
+validPorts :: [Int]
+validPorts = [1024..49151]
+
 -- | Get a list of random TCPv4 ports that currently do not have any servers
 -- listening on them. It may return less than the requested number of ports.
 --
@@ -135,7 +139,7 @@ portFromURL uri = fromMaybe fallback
 -- listening socket to the child process.
 randomUnusedTCPPorts :: Int -> IO [Int]
 randomUnusedTCPPorts count = do
-    usablePorts <- shuffleM [1024..49151]
+    usablePorts <- shuffleM validPorts
     sort <$> filterM unused (take count usablePorts)
   where
     unused = fmap not . isPortOpen . simpleSockAddr (127,0,0,1) . fromIntegral

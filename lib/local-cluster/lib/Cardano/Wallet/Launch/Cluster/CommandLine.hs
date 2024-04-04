@@ -1,3 +1,4 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 
@@ -15,14 +16,25 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , FileOf (..)
     , newAbsolutizer
     )
+import Cardano.Wallet.Network.Ports
+    ( validPorts
+    )
+import Control.Monad
+    ( unless
+    )
+import Network.Wai.Handler.Warp
+    ( Port
+    )
 import Options.Applicative
     ( Parser
+    , auto
     , execParser
     , help
     , helper
     , info
     , long
     , metavar
+    , option
     , optional
     , progDesc
     , strOption
@@ -36,6 +48,7 @@ data CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: DirOf "cluster-configs"
     , faucetFundsFile :: FileOf "faucet-funds"
     , clusterDir :: Maybe (DirOf "cluster")
+    , monitoringPort :: Port
     }
     deriving stock (Show)
 
@@ -48,6 +61,7 @@ parseCommandLineOptions = do
                 <$> clusterConfigsDirParser absolutizer
                 <*> faucetFundsParser absolutizer
                 <*> clusterDirParser absolutizer
+                <*> portParser
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
@@ -79,3 +93,18 @@ clusterDirParser (Absolutizer absOf) =
                     <> metavar "LOCAL_CLUSTER"
                     <> help "Path to the local cluster directory"
                 )
+
+portParser :: Parser Port
+portParser = do
+    option
+        parse
+        ( long "monitor-port"
+            <> metavar "MONITOR_PORT"
+            <> help "Port for the monitoring server"
+        )
+    where parse = do
+            p <- auto
+            unless (p `elem` validPorts) $
+                fail $ "Invalid port number. Must be inside: " ++
+                    show (head validPorts) ++ ".." ++ show (last validPorts)
+            pure p

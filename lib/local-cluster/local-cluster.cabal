@@ -52,6 +52,9 @@ library
     Cardano.Wallet.Launch.Cluster.ClusterEra
     Cardano.Wallet.Launch.Cluster.ClusterM
     Cardano.Wallet.Launch.Cluster.CommandLine
+    Cardano.Wallet.Launch.Cluster.Control.API
+    Cardano.Wallet.Launch.Cluster.Control.Server
+    Cardano.Wallet.Launch.Cluster.Control.State
     Cardano.Wallet.Launch.Cluster.Config
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
     Cardano.Wallet.Launch.Cluster.Env
@@ -120,7 +123,9 @@ library
     , QuickCheck
     , resourcet
     , retry
+    , servant
     , servant-client
+    , servant-server
     , tagged
     , temporary
     , temporary-extra
@@ -154,6 +159,8 @@ executable local-cluster
     , temporary-extra
     , unliftio
     , with-utf8
+    , wai
+    , warp
 
 test-suite local-cluster-test
   import:         language, opts-exe
