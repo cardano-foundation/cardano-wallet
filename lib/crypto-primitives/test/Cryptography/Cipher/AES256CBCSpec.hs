@@ -13,7 +13,7 @@ import Cryptography.Cipher.AES256CBC
     , decrypt
     , encrypt
     , padPKCS7
-    , unpaddingPKCS7
+    , unpadPKCS7
     )
 import Cryptography.Hash.Core
     ( SHA256 (..)
@@ -62,7 +62,7 @@ spec = do
         it "unpad . pad $ payload == payload" $ property $ \payload -> do
             let toPayload Nothing = Payload BS.empty
                 toPayload (Just bs) = Payload bs
-            toPayload ( padPKCS7 (unPayload payload) >>= unpaddingPKCS7 )
+            toPayload ( padPKCS7 (unPayload payload) >>= unpadPKCS7 )
                 === payload
     describe "Padding produces always payload that is multiple of 16 bytes" $
         it "(pad payload) % 16 == 0" $ property $ \payload -> do

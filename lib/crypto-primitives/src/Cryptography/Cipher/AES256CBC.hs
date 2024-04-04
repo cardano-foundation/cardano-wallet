@@ -6,7 +6,7 @@ module Cryptography.Cipher.AES256CBC
     , encrypt
     , decrypt
     , padPKCS7
-    , unpaddingPKCS7
+    , unpadPKCS7
     ) where
 
 import Prelude
@@ -123,7 +123,7 @@ decrypt mode key iv msg = do
    initedIV <- mapLeft FromCryptonite (createIV iv)
    let unpadding p = case mode of
            WithoutPadding -> Right p
-           WithPadding -> maybeToRight EmptyPayload (unpaddingPKCS7 p)
+           WithPadding -> maybeToRight EmptyPayload (unpadPKCS7 p)
    mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
        unpadding
 
@@ -145,8 +145,8 @@ padPKCS7 payload
     padding = B8.replicate paddingLength (toEnum paddingLength)
     paddingLength = 16 - (BS.length payload `mod` 16)
 
-unpaddingPKCS7 :: ByteString -> Maybe ByteString
-unpaddingPKCS7 payload =
+unpadPKCS7 :: ByteString -> Maybe ByteString
+unpadPKCS7 payload =
     stripPadding <$> BS.unsnoc payload
   where
     stripPadding (_, lastByte) = BS.dropEnd paddingLength payload
