@@ -92,6 +92,12 @@ spec = do
             encrypt WithoutPadding key' iv' Nothing payload' ===
                 Left WrongPayloadSize
 
+    describe "encrypt with incorrect salt" $
+        it "encrypt payload == error" $ property $
+        \(CipherWrongSetup payload' key' iv' salt') -> do
+            encrypt WithoutPadding key' iv' salt' payload' ===
+                Left WrongSaltSize
+
     describe "decrypt with incorrect block size" $
         it "decrypt payload == error" $ property $
         \(CipherWrongSetup payload' key' iv' _salt') -> do
@@ -328,8 +334,5 @@ instance Arbitrary CipherWrongSetup where
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
         saltLen <- chooseInt (1,32) `suchThat` (\p -> p /= 8)
-        salt' <- oneof
-            [ Just . BS.pack <$> vectorOf saltLen arbitrary
-            , pure Nothing
-            ]
+        salt' <- Just . BS.pack <$> vectorOf saltLen arbitrary
         pure $ CipherWrongSetup payload' key' iv' salt'

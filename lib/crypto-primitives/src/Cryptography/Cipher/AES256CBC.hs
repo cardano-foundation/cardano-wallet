@@ -114,10 +114,10 @@ encrypt
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
 encrypt mode key iv saltM msg = do
-   when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
-       Left WrongPayloadSize
    when (isJust saltM && BS.length (fromJust saltM) /= 8) $
        Left WrongSaltSize
+   when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
+       Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (createIV iv)
    let msgM = case mode of
            WithoutPadding -> Just msg
