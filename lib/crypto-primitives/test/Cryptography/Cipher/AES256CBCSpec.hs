@@ -12,8 +12,8 @@ import Cryptography.Cipher.AES256CBC
     , CipherMode (..)
     , decrypt
     , encrypt
-    , paddingPKCS7
-    , unpaddingPKCS7
+    , padPKCS7
+    , unpadPKCS7
     )
 import Cryptography.Hash.Core
     ( SHA256 (..)
@@ -62,12 +62,14 @@ spec = do
         it "unpad . pad $ payload == payload" $ property $ \payload -> do
             let toPayload Nothing = Payload BS.empty
                 toPayload (Just bs) = Payload bs
-            toPayload ( paddingPKCS7 (unPayload payload) >>= unpaddingPKCS7 ) === payload
+            toPayload ( padPKCS7 (unPayload payload) >>= unpadPKCS7 )
+                === payload
     describe "Padding produces always payload that is multiple of 16 bytes" $
         it "(pad payload) % 16 == 0" $ property $ \payload -> do
             let toPayloadLen Nothing = 0
                 toPayloadLen (Just bs) = BS.length bs
-            (toPayloadLen ( (paddingPKCS7 $ unPayload payload)) ) `mod` 16 === 0
+            (toPayloadLen ( (padPKCS7 $ unPayload payload)) ) `mod` 16
+                === 0
     describe "encrypt/decrypt roundtrip with padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
         \(CipherPaddingSetup payload' key' iv') -> do
@@ -215,19 +217,28 @@ spec = do
             , key = noSaltKey
             , iv = noSaltIv
             } `shouldBe`
-            Right "hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1"
+            Right
+            "hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1"
   where
     --  We are using the following key and iv for goldens
     -- $ openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -S 3030303030303030 -k "password" -iter 10000 -P
     -- salt=3030303030303030
     -- key=26A1A6F599173BAF863F97F2A18AF2FD8E99104E726D9EB682FCB7ED53517CF9
     -- iv =131BAB9240C168CC60A9F6DFA8CA5A6D
-    (saltKey, saltIv) = generateKey (PBKDF2Config SHA256 10000 32 16) "password" (fromHex "3030303030303030")
+    (saltKey, saltIv) =
+        generateKey
+            (PBKDF2Config SHA256 10000 32 16)
+            "password"
+            (fromHex "3030303030303030")
 
     -- $ openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -nosalt -k "password" -iter 10000 -P
     -- key=E11244295150E6713CD76E9A5112347093BDB6ACBF0C8021ABAE29881130B210
     -- iv =6B7F0C406297F0D90E3BD65AD1FB94BA
-    (noSaltKey, noSaltIv) = generateKey (PBKDF2Config SHA256 10000 32 16) "password" Nothing
+    (noSaltKey, noSaltIv) =
+        generateKey
+            (PBKDF2Config SHA256 10000 32 16)
+            "password"
+            Nothing
 
     fromHex = rightToMaybe . convertFromBase Base16 . T.encodeUtf8
     tohex :: (ByteString, ByteString) -> (Text, Text)
@@ -269,9 +280,10 @@ data CipherWrongSetup = CipherWrongSetup
 instance Arbitrary Payload where
     arbitrary = do
         payloadLength <- chooseInt (1, 512)
-        oneof [ Payload . BS.pack <$> vectorOf payloadLength arbitrary
-              , pure $ Payload BS.empty
-              ]
+        oneof
+            [ Payload . BS.pack <$> vectorOf payloadLength arbitrary
+            , pure $ Payload BS.empty
+            ]
 
 instance Arbitrary CipherPaddingSetup where
     arbitrary = do
