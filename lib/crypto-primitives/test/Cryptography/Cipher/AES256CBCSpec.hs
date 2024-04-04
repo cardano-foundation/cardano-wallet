@@ -452,6 +452,6 @@ instance Arbitrary CipherWrongSetup where
         payload' <- BS.pack <$> vectorOf len arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        saltLen <- chooseInt (1,32) `suchThat` (\p -> p /= 8)
+        saltLen <- chooseInt (1,32) `suchThat` (/= 8)
         salt' <- Just . BS.pack <$> vectorOf saltLen arbitrary
         pure $ CipherWrongSetup payload' key' iv' salt'

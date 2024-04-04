@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Provides support for AES 256.
 --
@@ -158,12 +159,12 @@ decrypt mode key iv msg = do
            WithoutPadding -> Right p
            WithPadding -> maybeToRight EmptyPayload (unpadPKCS7 p)
    if saltDetected then
-       mapRight (\c -> (c, Just $ BS.take 8 rest)) $
+       mapRight (, Just $ BS.take 8 rest) $
        mapBoth FromCryptonite
        (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
        unpadding
    else
-       mapRight (\c -> (c, Nothing)) $
+       mapRight (, Nothing) $
        mapBoth FromCryptonite
        (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
        unpadding
