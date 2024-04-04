@@ -104,8 +104,11 @@ library framework
     , unliftio
     , unliftio-core
     , with-utf8
+    , ouroboros-network
+    , yaml
 
   exposed-modules:
+    Test.Integration.Framework.Cluster.Launch
     Test.Integration.Framework.Context
     Test.Integration.Framework.DSL
     Test.Integration.Framework.DSL.Network

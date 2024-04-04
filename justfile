@@ -12,7 +12,7 @@ hlint:
 
 # build wallet
 build:
-  cabal build all  --enable-benchmarks --enable-tests --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
+  cabal build all -j12 --enable-benchmarks --enable-tests --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
 
 # build after clean
 clean-build:
@@ -70,7 +70,8 @@ e2e-manual:
 
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-match match:
-    just integration-tests-cabal-options '--match="{{match}}"'
+    nix shell '.#local-cluster' -c \
+        just integration-tests-cabal-options '--match="{{match}}"'
 
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-options options:

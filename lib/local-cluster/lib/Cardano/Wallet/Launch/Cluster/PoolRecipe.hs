@@ -12,8 +12,17 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex
+    )
+import Data.Aeson
+    ( KeyValue ((.=))
+    )
 import Data.ByteString
     ( ByteString
+    )
+import Data.List.NonEmpty
+    ( NonEmpty (..)
     )
 import Data.Word.Odd
     ( Word31
@@ -22,10 +31,7 @@ import GHC.Generics
     ( Generic
     )
 
-import Cardano.Wallet.Unsafe
-import Data.Aeson
 import qualified Data.Aeson as Aeson
-import Data.List.NonEmpty
 import qualified Data.List.NonEmpty as NE
 
 newtype PoolId = PoolId {getPoolId :: ByteString}
