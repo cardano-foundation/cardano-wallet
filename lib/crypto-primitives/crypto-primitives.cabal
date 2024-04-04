@@ -7,13 +7,27 @@ author:        Cardano Foundation (High Assurance Lab)
 maintainer:    hal@cardanofoundation.org
 build-type:    Simple
 
-library
+common language
   default-language:   Haskell2010
   default-extensions:
-    NoImplicitPrelude
     DerivingStrategies
+    NoImplicitPrelude
     OverloadedStrings
 
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:             language
+  default-language:   Haskell2010
   ghc-options:
     -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
     -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
@@ -25,6 +39,7 @@ library
 
   hs-source-dirs:     src
   exposed-modules:    Cryptography.Cipher.ChaChaPoly1305
+                      Cryptography.Cipher.AES256CBC
                       Cryptography.Core
                       Cryptography.ECC.Edwards25519
                       Cryptography.Hash.Blake
@@ -35,4 +50,30 @@ library
     , base                    >= 4.14.3 && < 4.19
     , bytestring              >= 0.10.12 && < 0.13
     , cryptonite              ^>=0.30
+    , either
+    , extra
     , memory                  ^>=0.18
+
+test-suite test
+  import:             language, opts-exe
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            run-test-suite.hs
+  build-depends:
+    , base
+    , bytestring
+    , cardano-wallet-test-utils
+    , crypto-primitives
+    , either
+    , hspec
+    , memory
+    , QuickCheck
+    , text
+    , with-utf8
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Cryptography.Cipher.AES256CBCSpec
+    Cryptography.KDF.PBKDF2Spec
+    Spec
+    SpecHook
