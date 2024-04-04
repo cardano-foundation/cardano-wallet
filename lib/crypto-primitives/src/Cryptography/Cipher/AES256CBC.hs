@@ -149,4 +149,7 @@ unpaddingPKCS7 :: ByteString -> Maybe ByteString
 unpaddingPKCS7 payload =
     cut <$> BS.unsnoc payload
   where
-    cut (_, lastByte) = BS.dropEnd (fromEnum lastByte) payload
+    cut (_, lastByte) = BS.dropEnd paddingLength payload
+      where
+        paddingLength :: Int
+        paddingLength = fromEnum lastByte
