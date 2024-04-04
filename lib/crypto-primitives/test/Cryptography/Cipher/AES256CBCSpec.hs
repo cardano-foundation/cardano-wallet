@@ -72,29 +72,29 @@ spec = do
                 === 0
     describe "encrypt/decrypt roundtrip with padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
-        \(CipherPaddingSetup payload' key' iv') -> do
+        \(CipherPaddingSetup payload' key' iv' _salt') -> do
             let toPayload (Left EmptyPayload) = Right BS.empty
                 toPayload res = res
-            toPayload (encrypt WithPadding key' iv' payload' >>=
+            toPayload (encrypt WithPadding key' iv' Nothing payload' >>=
                 decrypt WithPadding key' iv') === Right payload'
 
     describe "encrypt/decrypt roundtrip without padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
-        \(CipherRawSetup payload' key' iv') -> do
+        \(CipherRawSetup payload' key' iv' _salt') -> do
             let toPayload (Left EmptyPayload) = Right BS.empty
                 toPayload res = res
-            toPayload (encrypt WithoutPadding key' iv' payload' >>=
+            toPayload (encrypt WithoutPadding key' iv' Nothing payload' >>=
                 decrypt WithoutPadding key' iv') === Right payload'
 
     describe "encrypt with incorrect block size" $
         it "encrypt payload == error" $ property $
-        \(CipherWrongSetup payload' key' iv') -> do
-            encrypt WithoutPadding key' iv' payload' ===
+        \(CipherWrongSetup payload' key' iv' _salt') -> do
+            encrypt WithoutPadding key' iv' Nothing payload' ===
                 Left WrongPayloadSize
 
     describe "decrypt with incorrect block size" $
         it "decrypt payload == error" $ property $
-        \(CipherWrongSetup payload' key' iv') -> do
+        \(CipherWrongSetup payload' key' iv' _salt') -> do
             decrypt WithoutPadding key' iv' payload' ===
                 Left WrongPayloadSize
 
@@ -120,6 +120,7 @@ spec = do
             { input = "0"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "ZMGELuBkqtHVw5pUA353vQ=="
 
@@ -132,6 +133,7 @@ spec = do
             { input = "00"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "KBO1WMy3NpqMmm+fEL2kbg=="
 
@@ -144,6 +146,7 @@ spec = do
             { input = "00000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "49TERtYsEVKVgpJkUzqmJw=="
 
@@ -156,6 +159,7 @@ spec = do
             { input = "0000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "XaYfTkqDajiW6hRc+SlJ8A=="
 
@@ -168,6 +172,7 @@ spec = do
             { input = "000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "CXH8t8dSqroR4r4IiNAsfA=="
 
@@ -180,6 +185,7 @@ spec = do
             { input = "0000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "hLArzI8DbqOXiEi6HqGQh8iZSRCztrdYpMEE1aj8ES8="
 
@@ -192,6 +198,7 @@ spec = do
             { input = "00000000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "hLArzI8DbqOXiEi6HqGQh96Z6cWqsqTJlbxfcWg/Nvo="
 
@@ -204,6 +211,7 @@ spec = do
             { input = "0000000000000000000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "hLArzI8DbqOXiEi6HqGQh9VxdtWlCXnKS1n/vvCOwL0="
 
@@ -216,6 +224,7 @@ spec = do
             { input = "00000000000000000000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right
             "hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1"
@@ -248,12 +257,13 @@ spec = do
 
     checkEncryption GoldenCase {..} =
         T.decodeUtf8 . convertToBase Base64
-        <$> encrypt WithPadding key iv input
+        <$> encrypt WithPadding key iv salt input
 
 data GoldenCase = GoldenCase
     { input :: ByteString
     , key :: ByteString
     , iv :: ByteString
+    , salt :: Maybe ByteString
     } deriving (Show, Eq)
 
 newtype Payload = Payload
@@ -263,18 +273,21 @@ data CipherPaddingSetup = CipherPaddingSetup
     { payloadPad :: ByteString
     , keyPad :: ByteString
     , ivPad :: ByteString
+    , saltPad :: Maybe ByteString
     } deriving (Eq, Show)
 
 data CipherRawSetup = CipherRawSetup
     { payloadRaw :: ByteString
     , keyRaw :: ByteString
     , ivRaw :: ByteString
+    , saltRaw :: Maybe ByteString
     } deriving (Eq, Show)
 
 data CipherWrongSetup = CipherWrongSetup
     { payloadWrong :: ByteString
     , keyWrong :: ByteString
     , ivWrong :: ByteString
+    , saltWrong :: Maybe ByteString
     } deriving (Eq, Show)
 
 instance Arbitrary Payload where
@@ -290,7 +303,11 @@ instance Arbitrary CipherPaddingSetup where
         Payload payload' <- arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        pure $ CipherPaddingSetup payload' key' iv'
+        salt' <- oneof
+            [ Just . BS.pack <$> vectorOf 8 arbitrary
+            , pure Nothing
+            ]
+        pure $ CipherPaddingSetup payload' key' iv' salt'
 
 instance Arbitrary CipherRawSetup where
     arbitrary = do
@@ -298,7 +315,11 @@ instance Arbitrary CipherRawSetup where
         payload' <- BS.pack <$> vectorOf (lenMult * 16) arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        pure $ CipherRawSetup payload' key' iv'
+        salt' <- oneof
+            [ Just . BS.pack <$> vectorOf 8 arbitrary
+            , pure Nothing
+            ]
+        pure $ CipherRawSetup payload' key' iv' salt'
 
 instance Arbitrary CipherWrongSetup where
     arbitrary = do
@@ -306,4 +327,9 @@ instance Arbitrary CipherWrongSetup where
         payload' <- BS.pack <$> vectorOf len arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        pure $ CipherWrongSetup payload' key' iv'
+        saltLen <- chooseInt (1,32) `suchThat` (\p -> p /= 8)
+        salt' <- oneof
+            [ Just . BS.pack <$> vectorOf saltLen arbitrary
+            , pure Nothing
+            ]
+        pure $ CipherWrongSetup payload' key' iv' salt'
