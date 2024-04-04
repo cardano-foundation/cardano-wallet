@@ -84,7 +84,7 @@ History of delegations
 
 Each delegation certificate that is sent to the blockchain can induce a status transition. The possible transitions are:
 
-1. _degister_ : remove the reward account
+1. _deregister_ : remove the reward account
 1. _register_ : register a reward account
 2. _delegate_ : delegate stake to a stake pool identifier
 3. _vote_ : delegate voting power to a rep

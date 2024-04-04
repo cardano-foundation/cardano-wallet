@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -8,9 +9,24 @@
 module Cardano.Wallet.Delegation.Model
     ( Operation (..)
     , slotOf
+
+    , Transition (..)
+    , applyTransition
+
     , Status (..)
+
     , History
     , status
+
+    , pattern Register
+    , pattern Delegate
+    , pattern Vote
+    , pattern Deregister'
+    , pattern DelegateAndVote
+    , pattern Registered
+    , pattern Delegating
+    , pattern Voting
+    , pattern DelegatingAndVoting
     ) where
 
 import Prelude
@@ -27,18 +43,21 @@ import Data.Map.Strict
 
 import qualified Data.Map.Strict as Map
 
+data Transition drep pool
+    = VoteAndDelegate (Maybe drep) (Maybe pool)
+    | Deregister
+    deriving (Eq, Show)
+
 -- | Delta type for the delegation 'History'.
 data Operation slot drep pool
-    = VoteAndDelegate (Maybe drep) (Maybe pool) slot
-    | Deregister slot
+    = ApplyTransition (Transition drep pool) slot
     | Rollback slot
-    deriving (Show)
+    deriving (Eq, Show)
 
 -- | Target slot of each 'Operation'.
 slotOf :: Operation slot drep pool -> slot
-slotOf (Deregister x) = x
 slotOf (Rollback x) = x
-slotOf (VoteAndDelegate _ _ x) = x
+slotOf (ApplyTransition _ x) = x
 
 -- | Valid state for the delegations, independent of time.
 data Status drep pool
@@ -56,16 +75,17 @@ instance (Ord slot, Eq pool, Eq drep) => Delta (Operation slot drep pool) where
         slot = slotOf r
         hist' = cut (< slot) hist
         miss = status slot hist'
-        wanted = transition r $ status slot hist
+        wanted = case r of
+            ApplyTransition t _ -> applyTransition t $ status slot hist
+            Rollback _ -> status slot hist
 
-transition :: Operation slot drep pool -> Status drep pool -> Status drep pool
-transition (Deregister _) _ = Inactive
-transition (VoteAndDelegate d p _) (Active d' p') = Active d'' p''
+applyTransition :: Transition drep pool -> Status drep pool -> Status drep pool
+applyTransition Deregister _ = Inactive
+applyTransition (VoteAndDelegate d p) (Active d' p') = Active d'' p''
     where
         d'' = insertIfJust d d'
         p'' = insertIfJust p p'
-transition (VoteAndDelegate d p _) _ = Active d p
-transition _ s = s
+applyTransition (VoteAndDelegate d p) _ = Active d p
 
 insertIfJust :: Maybe a -> Maybe a -> Maybe a
 insertIfJust (Just y) _ = Just y
@@ -79,3 +99,31 @@ cut op = fst . Map.spanAntitone op
 -- | Status of the delegation at a given slot.
 status :: Ord slot => slot -> Map slot (Status drep pool) -> Status drep pool
 status x = maybe Inactive snd . Map.lookupMax . cut (<= x)
+
+pattern Register :: slot -> Operation slot drep pool
+pattern Register i = ApplyTransition (VoteAndDelegate Nothing Nothing) i
+
+pattern Delegate :: pool -> slot -> Operation slot drep pool
+pattern Delegate p i = ApplyTransition (VoteAndDelegate Nothing (Just p)) i
+
+pattern Vote :: drep -> slot -> Operation slot drep pool
+pattern Vote v i = ApplyTransition (VoteAndDelegate (Just v) Nothing) i
+
+pattern Deregister' :: slot -> Operation slot drep pool
+pattern Deregister' i = ApplyTransition Deregister i
+
+pattern DelegateAndVote :: pool -> drep -> slot -> Operation slot drep pool
+pattern DelegateAndVote p v i
+    = ApplyTransition (VoteAndDelegate (Just v) (Just p)) i
+
+pattern Registered :: Status drep pool
+pattern Registered = Active Nothing Nothing
+
+pattern Delegating :: pool -> Status drep pool
+pattern Delegating p = Active Nothing (Just p)
+
+pattern Voting :: drep -> Status drep pool
+pattern Voting v = Active (Just v) Nothing
+
+pattern DelegatingAndVoting :: pool -> drep -> Status drep pool
+pattern DelegatingAndVoting p v = Active (Just v) (Just p)
