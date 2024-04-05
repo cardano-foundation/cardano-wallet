@@ -182,9 +182,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
             configuredPools <- configurePools metadataServer cfgStakePools
 
             addGenesisPools <- do
-                genesisDeltas <-
-                    liftIO
-                        $ mapM registerViaShelleyGenesis configuredPools
+                genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
                 pure $ foldr (.) id genesisDeltas
             -- TODO (yura): Use Faucet API isntead of these fixed addresses
             faucetAddresses <-
@@ -210,8 +208,8 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                         pool0port
                         cfgNodeLogging
                         cfgNodeOutputFile
-            liftIO $ operatePool pool0 pool0Cfg $ \runningPool0 ->
-                runClusterM config $ do
+            operatePool pool0 pool0Cfg $ \runningPool0 ->
+                do
                     extraClusterSetupUsingNode configuredPools runningPool0
                     case NE.nonEmpty otherPools of
                         Nothing -> liftIO $ onClusterStart runningPool0
@@ -238,7 +236,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                 $ \_poolNode ->
                                     withRelayNode
                                         relayNodeParams
-                                        onClusterStart
+                                        $ liftIO . onClusterStart
   where
     FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds
         = faucetFunds
@@ -256,8 +254,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         -- integration tests, the integration tests /will fail/ (c.f. #3440).
         -- Later setup is less sensitive. Using a wallet with retrying
         -- submission pool might also be an idea for the future.
-        liftIO
-            $ forM_ configuredPools
+        forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
         sendFaucetAssetsTo conn 20 maryAllegraFunds
@@ -320,7 +317,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
             $ \(configuredPool, (port, peers)) -> do
                 async $ handle onException $ do
                     let cfg = mkConfig (port, peers)
-                    liftIO $ operatePool configuredPool cfg $ \runningPool -> do
+                    operatePool configuredPool cfg $ \runningPool -> do
                         writeChan waitGroup $ Right runningPool
                         readChan doneGroup
         mapM_ link asyncs
