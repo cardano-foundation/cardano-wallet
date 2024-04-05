@@ -178,8 +178,8 @@ data ConfiguredPool = ConfiguredPool
     { operatePool
         :: forall a
          . NodeParams
-        -> (RunningNode -> IO a)
-        -> IO a
+        -> (RunningNode -> ClusterM a)
+        -> ClusterM a
     -- ^ Precondition: the pool must first be registered.
     , metadataUrl
         :: Text
@@ -187,8 +187,9 @@ data ConfiguredPool = ConfiguredPool
         :: PoolRecipe
     -- ^ The 'PoolRecipe' used to create this 'ConfiguredPool'.
     , registerViaShelleyGenesis
-        :: IO (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
-    , finalizeShelleyGenesisSetup :: RunningNode -> IO ()
+        :: ClusterM
+            (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
+    , finalizeShelleyGenesisSetup :: RunningNode -> ClusterM ()
     -- ^ Submit any pool retirement certificate according to the 'recipe'
     -- on-chain.
     }
@@ -432,9 +433,10 @@ configurePool
     -> PoolRecipe
     -> ClusterM ConfiguredPool
 configurePool metadataServer recipe = do
-    let PoolRecipe pledgeAmt i mretirementEpoch metadata _ _ = recipe
-
     UnliftClusterM withConfig Config{..} <- askUnliftClusterM
+
+    let PoolRecipe pledgeAmt i mRetirementEpoch metadata _ _ = recipe
+    liftIO $ registerMetadataForPoolIndex metadataServer i metadata
     -- Use pool-specific dir
     let name = "pool-" <> show i
         nodeRelativePath :: RelDir
@@ -452,121 +454,201 @@ configurePool metadataServer recipe = do
     let ownerPrv = FileOf @"stake-prv" $ poolDir </> relFile "stake.prv"
     genStakeAddrKeyPair (ownerPrv, ownerPub)
 
-    let metadataURL = urlFromPoolIndex metadataServer i
-    liftIO $ registerMetadataForPoolIndex metadataServer i metadata
+    let metadataUrl = T.pack $ urlFromPoolIndex metadataServer i
     let metadataBytes = Aeson.encode metadata
-    pure
-        ConfiguredPool
-            { operatePool = \nodeParams action -> do
-                let NodeParams
-                        genesisFiles
-                        hardForks
-                        (port, peers)
-                        logCfg
-                        nodeOutput = nodeParams
-                let logCfg' = setLoggingName name logCfg
+-- <<<<<<< current
+--     pure
+--         ConfiguredPool
+--             { operatePool = \nodeParams action -> do
+--                 let NodeParams
+--                         genesisFiles
+--                         hardForks
+--                         (port, peers)
+--                         logCfg
+--                         nodeOutput = nodeParams
+--                 let logCfg' = setLoggingName name logCfg
 
-                topology <- withConfig $ genTopology nodeRelativePath peers
-                withStaticServer (toFilePath poolDir) $ \url -> do
-                    traceWith cfgTracer $ MsgStartedStaticServer url poolDirPath
+--                 topology <- withConfig $ genTopology nodeRelativePath peers
+--                 withStaticServer (toFilePath poolDir) $ \url -> do
+--                     traceWith cfgTracer $ MsgStartedStaticServer url poolDirPath
 
-                    (nodeConfig, genesisData, vd) <-
-                        withConfig
-                            $ genNodeConfig
-                                nodeRelativePath
-                                (Tagged @"node-name" mempty)
-                                genesisFiles
-                                hardForks
-                                logCfg'
+--                     (nodeConfig, genesisData, vd) <-
+--                         withConfig
+--                             $ genNodeConfig
+--                                 nodeRelativePath
+--                                 (Tagged @"node-name" mempty)
+--                                 genesisFiles
+--                                 hardForks
+--                                 logCfg'
 
-                    let
-                        cfg =
-                            CardanoNodeConfig
-                                { nodeDir = toFilePath poolDir
-                                , nodeConfigFile = absFilePathOf nodeConfig
-                                , nodeTopologyFile = absFilePathOf topology
-                                , nodeDatabaseDir = toFilePath
-                                    $ poolDir </> relDir "db"
-                                , nodeDlgCertFile = Nothing
-                                , nodeSignKeyFile = Nothing
-                                , nodeOpCertFile = Just $ absFilePathOf opCert
-                                , nodeKesKeyFile = Just $ absFilePathOf kesPrv
-                                , nodeVrfKeyFile = Just $ absFilePathOf vrfPrv
-                                , nodePort = Just (NodePort port)
-                                , nodeLoggingHostname = Just name
-                                , nodeExecutable = Nothing
-                                , nodeOutputFile = absFilePathOf <$> nodeOutput
-                                }
+--                     let
+--                         cfg =
+--                             CardanoNodeConfig
+--                                 { nodeDir = toFilePath poolDir
+--                                 , nodeConfigFile = absFilePathOf nodeConfig
+--                                 , nodeTopologyFile = absFilePathOf topology
+--                                 , nodeDatabaseDir = toFilePath
+--                                     $ poolDir </> relDir "db"
+--                                 , nodeDlgCertFile = Nothing
+--                                 , nodeSignKeyFile = Nothing
+--                                 , nodeOpCertFile = Just $ absFilePathOf opCert
+--                                 , nodeKesKeyFile = Just $ absFilePathOf kesPrv
+--                                 , nodeVrfKeyFile = Just $ absFilePathOf vrfPrv
+--                                 , nodePort = Just (NodePort port)
+--                                 , nodeLoggingHostname = Just name
+--                                 , nodeExecutable = Nothing
+--                                 , nodeOutputFile = absFilePathOf <$> nodeOutput
+--                                 }
+-- =======
+-- >>>>>>> patched
 
+        registerViaShelleyGenesis = do
+            poolId <- stakePoolIdFromOperatorVerKey opPub
+            vrf <- poolVrfFromFile vrfPub
+            stakePubHash <- stakingKeyHashFromFile ownerPub
+            pledgeAddr <- stakingAddrFromVkFile ownerPub
+
+            let params =
+                    Ledger.PoolParams
+                        { ppId = poolId
+                        , ppVrf = vrf
+                        , ppPledge = Ledger.Coin $ intCast pledgeAmt
+                        , ppCost = Ledger.Coin 0
+                        , ppMargin = unsafeUnitInterval 0.1
+                        , ppRewardAcnt =
+                            Ledger.RewardAcnt Testnet
+                                $ Ledger.KeyHashObj stakePubHash
+                        , ppOwners = Set.fromList [stakePubHash]
+                        , ppRelays = mempty
+                        , ppMetadata =
+                            SJust
+                                $ Ledger.PoolMetadata
+                                    ( fromMaybe (error "invalid url (too long)")
+                                        $ textToUrl 128 metadataUrl
+                                    )
+                                    (blake2b256 (BL.toStrict metadataBytes))
+                        }
+            let updateStaking sgs =
+                    sgs
+                        { Ledger.sgsPools =
+                            ListMap.ListMap [(poolId, params)] <> sgsPools sgs
+                        , Ledger.sgsStake =
+                            ListMap.fromList [(stakePubHash, poolId)]
+                                <> Ledger.sgsStake sgs
+                        }
+            let poolSpecificFunds =
+                    ListMap.fromList
+                        [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
+            pure
+                $ over #sgInitialFunds (poolSpecificFunds <>)
+                    . over #sgStaking updateStaking
+
+        finalizeShelleyGenesisSetup (RunningNode socket _ _) = do
+            -- Here is our chance to respect the 'retirementEpoch' of
+            -- the 'PoolRecipe'.
+            --
+            -- NOTE: We also submit the retirement cert in
+            -- @registerViaTx@, but this seems to work regardless. (We
+            -- do want to submit it here for the sake of babbage)
+            let retire e = do
+                    retCert <- issuePoolRetirementCert nodeRelativePath opPub e
+                    (rawTx, faucetPrv) <-
+                        preparePoolRetirement
+                            nodeRelativePath
+                            [retCert]
+                    signAndSubmitTx
+                        socket
+                        (changeFileOf @"retirement-tx" @"tx-body" rawTx)
+                        [ changeFileOf @"faucet-prv" @"signing-key" faucetPrv
+                        , changeFileOf @"stake-prv" @"signing-key" ownerPrv
+                        , changeFileOf @"op-prv" @"signing-key" opPrv
+                        ]
+                        "retirement cert"
+            traverse_ retire mRetirementEpoch
+
+        operatePool nodeParams action = do
+            let NodeParams
+                    genesisFiles
+                    hardForks
+                    (port, peers)
+                    logCfg
+                    nodeOutput = nodeParams
+            let logCfg' = setLoggingName name logCfg
+
+            topology <- genTopology nodeRelativePath peers
+            liftIO $ withStaticServer (toFilePath poolDir) $ \url -> do
+                traceWith cfgTracer $ MsgStartedStaticServer url poolDirPath
+
+                (nodeConfig, genesisData, vd) <-
                     withConfig
-                        $ withCardanoNodeProcess nodeId cfg
-                        $ \socket -> action $ RunningNode socket genesisData vd
-            , registerViaShelleyGenesis = withConfig $ do
-                poolId <- stakePoolIdFromOperatorVerKey opPub
-                vrf <- poolVrfFromFile vrfPub
-                stakePubHash <- stakingKeyHashFromFile ownerPub
-                pledgeAddr <- stakingAddrFromVkFile ownerPub
+                        $ genNodeConfig
+                            nodeRelativePath
+                            (Tagged @"node-name" mempty)
+                            genesisFiles
+                            hardForks
+                            logCfg'
 
-                let params =
-                        Ledger.PoolParams
-                            { ppId = poolId
-                            , ppVrf = vrf
-                            , ppPledge = Ledger.Coin $ intCast pledgeAmt
-                            , ppCost = Ledger.Coin 0
-                            , ppMargin = unsafeUnitInterval 0.1
-                            , ppRewardAcnt =
-                                Ledger.RewardAcnt Testnet
-                                    $ Ledger.KeyHashObj stakePubHash
-                            , ppOwners = Set.fromList [stakePubHash]
-                            , ppRelays = mempty
-                            , ppMetadata =
-                                SJust
-                                    $ Ledger.PoolMetadata
-                                        ( fromMaybe (error "invalid url (too long)")
-                                            $ textToUrl 128
-                                            $ T.pack metadataURL
-                                        )
-                                        (blake2b256 (BL.toStrict metadataBytes))
-                            }
+                let cfg = CardanoNodeConfig
+                        { nodeDir = toFilePath poolDir
+                        , nodeConfigFile = absFilePathOf nodeConfig
+                        , nodeTopologyFile = absFilePathOf topology
+                        , nodeDatabaseDir = toFilePath
+                            $ poolDir </> relDir "db"
+                        , nodeDlgCertFile = Nothing
+                        , nodeSignKeyFile = Nothing
+                        , nodeOpCertFile = Just $ absFilePathOf opCert
+                        , nodeKesKeyFile = Just $ absFilePathOf kesPrv
+                        , nodeVrfKeyFile = Just $ absFilePathOf vrfPrv
+                        , nodePort = Just (NodePort port)
+                        , nodeLoggingHostname = Just name
+                        , nodeExecutable = Nothing
+                        , nodeOutputFile = absFilePathOf <$> nodeOutput
+                        }
 
-                let updateStaking sgs =
-                        sgs
-                            { Ledger.sgsPools =
-                                ListMap.ListMap [(poolId, params)] <> sgsPools sgs
-                            , Ledger.sgsStake =
-                                ListMap.fromList [(stakePubHash, poolId)]
-                                    <> Ledger.sgsStake sgs
-                            }
-                let poolSpecificFunds =
-                        ListMap.fromList
-                            [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
+-- <<<<<<< current
+--                 let updateStaking sgs =
+--                         sgs
+--                             { Ledger.sgsPools =
+--                                 ListMap.ListMap [(poolId, params)] <> sgsPools sgs
+--                             , Ledger.sgsStake =
+--                                 ListMap.fromList [(stakePubHash, poolId)]
+--                                     <> Ledger.sgsStake sgs
+--                             }
+--                 let poolSpecificFunds =
+--                         ListMap.fromList
+--                             [(pledgeAddr, Ledger.Coin $ intCast pledgeAmt)]
 
-                pure
-                    $ over #sgInitialFunds (poolSpecificFunds <>)
-                        . over #sgStaking updateStaking
-            , finalizeShelleyGenesisSetup = \(RunningNode socket _ _) -> do
-                -- Here is our chance to respect the 'retirementEpoch' of
-                -- the 'PoolRecipe'.
-                --
-                -- NOTE: We also submit the retirement cert in
-                -- @registerViaTx@, but this seems to work regardless. (We
-                -- do want to submit it here for the sake of babbage)
-                let retire e = do
-                        retCert <- issuePoolRetirementCert nodeRelativePath opPub e
-                        (rawTx, faucetPrv) <-
-                            preparePoolRetirement
-                                nodeRelativePath
-                                [retCert]
-                        signAndSubmitTx
-                            socket
-                            (changeFileOf @"retirement-tx"  @"tx-body" rawTx)
-                            [ changeFileOf @"faucet-prv"  @"signing-key" faucetPrv
-                            , changeFileOf @"stake-prv"  @"signing-key" ownerPrv
-                            , changeFileOf @"op-prv"  @"signing-key" opPrv
-                            ]
-                            "retirement cert"
+--                 pure
+--                     $ over #sgInitialFunds (poolSpecificFunds <>)
+--                         . over #sgStaking updateStaking
+--             , finalizeShelleyGenesisSetup = \(RunningNode socket _ _) -> do
+--                 -- Here is our chance to respect the 'retirementEpoch' of
+--                 -- the 'PoolRecipe'.
+--                 --
+--                 -- NOTE: We also submit the retirement cert in
+--                 -- @registerViaTx@, but this seems to work regardless. (We
+--                 -- do want to submit it here for the sake of babbage)
+--                 let retire e = do
+--                         retCert <- issuePoolRetirementCert nodeRelativePath opPub e
+--                         (rawTx, faucetPrv) <-
+--                             preparePoolRetirement
+--                                 nodeRelativePath
+--                                 [retCert]
+--                         signAndSubmitTx
+--                             socket
+--                             (changeFileOf @"retirement-tx"  @"tx-body" rawTx)
+--                             [ changeFileOf @"faucet-prv"  @"signing-key" faucetPrv
+--                             , changeFileOf @"stake-prv"  @"signing-key" ownerPrv
+--                             , changeFileOf @"op-prv"  @"signing-key" opPrv
+--                             ]
+--                             "retirement cert"
 
-                withConfig $ traverse_ retire mretirementEpoch
-            , metadataUrl = T.pack metadataURL
-            , recipe = recipe
-            }
+--                 withConfig $ traverse_ retire mretirementEpoch
+--             , metadataUrl = T.pack metadataURL
+--             , recipe = recipe
+--             }
+-- =======
+                withConfig
+                    $ withCardanoNodeProcess nodeId cfg
+                    $ \socket -> action $ RunningNode socket genesisData vd
+    pure ConfiguredPool{..}

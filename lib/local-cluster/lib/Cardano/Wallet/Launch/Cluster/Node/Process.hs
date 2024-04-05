@@ -11,6 +11,8 @@ import Cardano.Launcher.Node
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
+    , UnliftClusterM (UnliftClusterM)
+    , askUnliftClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
@@ -36,10 +38,11 @@ import Data.Functor.Contravariant
 withCardanoNodeProcess
     :: NodeId
     -> CardanoNodeConfig
-    -> (CardanoNodeConn -> IO a)
+    -> (CardanoNodeConn -> ClusterM a)
     -> ClusterM a
 withCardanoNodeProcess name cfg f = do
     Config{..} <- ask
+    UnliftClusterM withConfig _ <- askUnliftClusterM
     liftIO $ do
         r <-
             withCardanoNode
@@ -47,5 +50,5 @@ withCardanoNodeProcess name cfg f = do
                 (Just $ MsgNodeStdout name >$< cfgTracer)
                 (Just $ MsgNodeStderr name >$< cfgTracer)
                 cfg
-                f
+                $ withConfig . f
         either throwIO pure r

@@ -94,8 +94,12 @@ import Control.Monad
     , replicateM
     , replicateM_
     )
+import Control.Monad.Cont
+    ( ContT (..)
+    )
 import Control.Monad.Reader
     ( MonadIO (..)
+    , MonadTrans (..)
     )
 import Control.Tracer
     ( traceWith
@@ -173,34 +177,35 @@ withCluster
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withCluster phaseChange config@Config{..} faucetFunds onClusterStart
-    = runClusterM config
-    $ bracketTracer' "withCluster"
-    $ do
-        let clusterDir = absDirOf cfgClusterDir
-        traceClusterLog $ MsgHardFork cfgLastHardFork
-        phase Metadata
-        withPoolMetadataServer $ \metadataServer -> do
+withCluster phaseChange config@Config{..} faucetFunds onClusterStart =
+    runClusterM config
+        $ bracketTracer' "withCluster"
+        $ flip runContT pure
+        $ do
+            let clusterDir = absDirOf cfgClusterDir
+            lift $ traceClusterLog $ MsgHardFork cfgLastHardFork
+            phase Metadata
+            metadataServer <- ContT withPoolMetadataServer
             liftIO $ createDirectoryIfMissing True clusterDir
-            traceClusterLog $ MsgStartingCluster cfgClusterDir
+            lift $ traceClusterLog $ MsgStartingCluster cfgClusterDir
             liftIO resetGlobals
 
-            configuredPools <- configurePools metadataServer cfgStakePools
+            configuredPools <- lift $ configurePools metadataServer cfgStakePools
             phase Genesis
-            addGenesisPools <- do
-                genesisDeltas <-
-                    liftIO
-                        $ mapM registerViaShelleyGenesis configuredPools
+            addGenesisPools <- lift $ do
+                genesisDeltas <- mapM registerViaShelleyGenesis configuredPools
                 pure $ foldr (.) id genesisDeltas
             -- TODO (yura): Use Faucet API isntead of these fixed addresses
             faucetAddresses <-
-                map (,Coin 1_000_000_000_000_000)
-                    <$> readFaucetAddresses
+                lift
+                    $ map (,Coin 1_000_000_000_000_000)
+                        <$> readFaucetAddresses
 
             genesisFiles <-
-                generateGenesis
-                    (pureAdaFunds <> faucetAddresses <> massiveWalletFunds)
-                    (addGenesisPools : cfgShelleyGenesisMods)
+                lift
+                    $ generateGenesis
+                        (pureAdaFunds <> faucetAddresses <> massiveWalletFunds)
+                        (addGenesisPools : cfgShelleyGenesisMods)
             phase Genesis
             extraPort : poolsTcpPorts <-
                 liftIO
@@ -217,41 +222,35 @@ withCluster phaseChange config@Config{..} faucetFunds onClusterStart
                         cfgNodeLogging
                         cfgNodeOutputFile
             phase Pool0
-            liftIO $ operatePool pool0 pool0Cfg $ \runningPool0 ->
-                runClusterM config $ do
-                    phase Funding
-                    extraClusterSetupUsingNode configuredPools runningPool0
-                    case NE.nonEmpty otherPools of
-                        Nothing -> do
-                            phase Cluster
-                            liftIO $ onClusterStart runningPool0
-                        Just others -> do
-                            let relayNodeParams =
-                                    NodeParams
-                                        { nodeGenesisFiles = genesisFiles
-                                        , nodeHardForks = cfgLastHardFork
-                                        , nodePeers = (extraPort, poolsTcpPorts)
-                                        , nodeLogConfig =
-                                            LogFileConfig
-                                                { minSeverityTerminal = Info
-                                                , extraLogDir = Nothing
-                                                , minSeverityFile = Info
-                                                }
-                                        , nodeParamsOutputFile
-                                            = cfgNodeOutputFile
+            runningPool0 <- ContT $ operatePool pool0 pool0Cfg
+            phase Funding
+            lift $ extraClusterSetupUsingNode configuredPools runningPool0
+            case NE.nonEmpty otherPools of
+                Nothing -> do
+                    phase Cluster
+                    liftIO $ onClusterStart runningPool0
+                Just others -> do
+                    let relayNodeParams =
+                            NodeParams
+                                { nodeGenesisFiles = genesisFiles
+                                , nodeHardForks = cfgLastHardFork
+                                , nodePeers = (extraPort, poolsTcpPorts)
+                                , nodeLogConfig =
+                                    LogFileConfig
+                                        { minSeverityTerminal = Info
+                                        , extraLogDir = Nothing
+                                        , minSeverityFile = Info
                                         }
-                            phase Pools
-                            launchPools
-                                others
-                                genesisFiles
-                                poolPorts
-                                runningPool0
-                                $ \_poolNode -> do
-                                    phase Relay
-                                    withRelayNode
-                                        relayNodeParams $ \c -> do
-                                            phaseChange Cluster
-                                            onClusterStart c
+                                , nodeParamsOutputFile = cfgNodeOutputFile
+                                }
+                    phase Pools
+                    _ <-
+                        ContT
+                            $ launchPools others genesisFiles poolPorts runningPool0
+                    phase Relay
+                    c <- ContT $ withRelayNode relayNodeParams
+                    phase Cluster
+                    liftIO $ onClusterStart c
   where
     FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds
         = faucetFunds
@@ -270,8 +269,7 @@ withCluster phaseChange config@Config{..} faucetFunds onClusterStart
         -- integration tests, the integration tests /will fail/ (c.f. #3440).
         -- Later setup is less sensitive. Using a wallet with retrying
         -- submission pool might also be an idea for the future.
-        liftIO
-            $ forM_ configuredPools
+        forM_ configuredPools
             $ \pool -> finalizeShelleyGenesisSetup pool runningNode
 
         sendFaucetAssetsTo conn 20 maryAllegraFunds
@@ -338,9 +336,10 @@ withCluster phaseChange config@Config{..} faucetFunds onClusterStart
                 $ \(configuredPool, (port, peers)) -> do
                     async $ handle onException $ do
                         let cfg = mkConfig (port, peers)
-                        liftIO $ operatePool configuredPool cfg $ \runningPool -> do
-                            writeChan waitGroup $ Right runningPool
-                            readChan doneGroup
+                        operatePool configuredPool cfg
+                            $ \runningPool -> do
+                                writeChan waitGroup $ Right runningPool
+                                readChan doneGroup
             mapM_ link asyncs
             let cancelAll = do
                     traceWith cfgTracer $ MsgDebug "stopping all stake pools"
