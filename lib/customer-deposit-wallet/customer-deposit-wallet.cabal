@@ -57,6 +57,7 @@ library
     , contra-tracer
     , delta-store
     , delta-types
+    , io-classes
     , iohk-monitoring-extra              ^>=0.1
     , persistent                         >= 2.13 && < 2.15
     , sqlite-simple                      >= 0.4.19.0 && < 0.5
@@ -66,6 +67,7 @@ library
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
+    Cardano.Wallet.Deposit.IO.Network.Mock
     Cardano.Wallet.Deposit.IO.Network.Type
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.Balance
