@@ -15,7 +15,7 @@ module Cardano.Wallet.Deposit.Pure
     , isCustomerAddress
 
     -- ** Reading from the blockchain
-    , fromGenesis
+    , fromXPubAndGenesis
     , localTip
     , availableBalance
     , rollForwardMany
@@ -38,6 +38,9 @@ module Cardano.Wallet.Deposit.Pure
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( XPub
+    )
 import Cardano.Wallet.Deposit.Pure.UTxOHistory
     ( UTxOHistory
     )
@@ -116,8 +119,9 @@ isCustomerAddress _ _ = Nothing
     Reading from the blockchain
 ------------------------------------------------------------------------------}
 
-fromGenesis :: Read.GenesisData -> WalletState
-fromGenesis = undefined
+fromXPubAndGenesis :: XPub -> Integer -> Read.GenesisData -> WalletState
+fromXPubAndGenesis _xpub _knownCustomerCount _ = fromGenesisUTxO mempty
+    -- FIXME: This is a mock implementation
 
 fromGenesisUTxO :: Read.UTxO -> WalletState
 fromGenesisUTxO utxo =

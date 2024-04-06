@@ -4,12 +4,13 @@
 module Cardano.Wallet.Deposit.IO
     (
     -- * Types
-      WalletEnv
+      WalletEnv (..)
     , WalletInstance
 
     -- * Operations
     -- ** Initialization
-    , withWallet
+    , withWalletInit
+    , withWalletLoad
 
     -- ** Mapping between customers and addresses
     , listCustomers
@@ -25,6 +26,9 @@ module Cardano.Wallet.Deposit.IO
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( XPub
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , WalletState
@@ -96,20 +100,37 @@ readWalletState WalletInstance{env,walletState} =
     Operations
     Initialization
 ------------------------------------------------------------------------------}
-withWallet :: WalletEnv IO -> (WalletInstance -> IO a) -> IO a
-withWallet env@WalletEnv{..} action = do
-    walletState <- loadWalletStateFromDatabase
+-- | Initialize a new wallet in the given environment.
+withWalletInit
+    :: WalletEnv IO
+    -> XPub
+    -> Integer
+    -> (WalletInstance -> IO a)
+    -> IO a
+withWalletInit env@WalletEnv{..} xpub knownCustomerCount action = do
+    walletState <- atomically
+        $ DBVar.initDBVar database
+        $ Wallet.fromXPubAndGenesis xpub knownCustomerCount genesisData
+    withWalletDBVar env walletState action
+
+-- | Load an existing wallet from the given environment.
+withWalletLoad
+    :: WalletEnv IO
+    -> (WalletInstance -> IO a)
+    -> IO a
+withWalletLoad env@WalletEnv{..} action = do
+    walletState <- atomically $ DBVar.loadDBVar database
+    withWalletDBVar env walletState action
+
+withWalletDBVar
+    :: WalletEnv IO
+    -> DBVar.DBVar DB.SqlM Wallet.DeltaWalletState
+    -> (WalletInstance -> IO a)
+    -> IO a
+withWalletDBVar env@WalletEnv{..} walletState action = do
     let w = WalletInstance{env,walletState}
     Async.withAsync (doChainSync w) $ \_ -> action w
   where
-    loadWalletStateFromDatabase = atomically $ do
-        es <- Store.loadS database
-        case es of
-            Left _ ->
-                DBVar.initDBVar database $ Wallet.fromGenesis genesisData
-            Right _ ->
-                DBVar.loadDBVar database
-
     doChainSync = Network.chainSync networkEnv trChainSync . chainFollower
     trChainSync = contramap (\_ -> WalletLogDummy) logger
     chainFollower w = Network.ChainFollower

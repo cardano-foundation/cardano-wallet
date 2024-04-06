@@ -48,6 +48,7 @@ library
     , async
     , base
     , bytestring
+    , cardano-crypto
     , cardano-wallet:cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
