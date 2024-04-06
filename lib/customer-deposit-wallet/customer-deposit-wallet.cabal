@@ -14,6 +14,7 @@ category:           Web
 
 extra-source-files:
   spec/**/*.lagda.md
+  spec/**/*.lhs.md
   spec/**/*.openapi.yaml
 
 common language
@@ -95,6 +96,29 @@ test-suite unit
   other-modules:
     Cardano.Wallet.Deposit.PureSpec
     Spec
+
+test-suite scenario
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/scenario
+  main-is:            test-suite-scenario.hs
+  build-tool-depends:
+    markdown-unlit:markdown-unlit
+  ghc-options:
+    -pgmL markdown-unlit 
+  build-depends:
+    , base
+    , cardano-crypto
+    , cardano-wallet-test-utils
+    , containers
+    , contra-tracer
+    , customer-deposit-wallet
+    , delta-store
+    , hspec >=2.8.2
+  other-modules:
+    Test.Scenario.Blockchain
+    Test.Scenario.Wallet.Deposit.Exchanges
+    Test.Scenario.Wallet.Deposit.Run
 
 library customer-deposit-wallet-http
   import:          language, opts-lib

@@ -299,6 +299,9 @@ package cardano-wallet-integration
 package cardano-wallet-test-utils
   tests: True
 
+package customer-deposit-wallet
+  tests: True
+
 package std-gen-seed
   tests: True
 

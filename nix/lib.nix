@@ -50,7 +50,7 @@ rec {
   */
   keepUnitChecks =
     setEmptyAttrsWithCondition
-      (path: !lib.any (name: name == "unit" || name == "test") path);
+      (path: !lib.any (name: name == "unit" || name == "test" || name == "scenario") path);
 
   /* Recursively remove all attributes named `recurseForDerivations`.
   */
