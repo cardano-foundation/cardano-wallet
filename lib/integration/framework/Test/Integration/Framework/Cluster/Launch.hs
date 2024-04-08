@@ -55,6 +55,9 @@ import Control.Concurrent
 import Control.Exception
     ( throwIO
     )
+import Control.Monitoring
+    ( MonitorState
+    )
 import Data.Functor.Contravariant
     ( (>$<)
     )
@@ -119,19 +122,25 @@ localClusterProcess CommandLineOptions{..} era = do
 
 withLocalCluster
     :: HasCallStack
-    => Int  -- ^ Port for monitoring the local cluster.
+    => Int
+    -- ^ Port for monitoring the local cluster.
+    -> MonitorState
+    -- ^ In which state the monitoring should start.
     -> Config
+    -- ^ Configuration for the cluster.
     -> FaucetFunds
+    -- ^ Initial faucet funds.
     -> (RunningNode -> IO a)
     -- ^ Action to run once when all pools have started.
     -> IO a
-withLocalCluster monitoringPort Config{..} faucetFunds run = do
+withLocalCluster monitoringPort initialPullingState Config{..} faucetFunds run = do
     r <- withTempFile $ \faucetFundsPath -> do
         let faucetFundsFile = FileOf $ absFile faucetFundsPath
             clusterConfigsDir = cfgClusterConfigs
             shelleyGenesis = absDirOf cfgClusterDir
                 </> relFile "shelley-genesis.json"
             clusterDir = Just cfgClusterDir
+            pullingMode = initialPullingState
         saveFunds (faucetFundsFile) faucetFunds
         case cardanoNodeConn $ nodeSocketPath $ toFilePath $ absDirOf cfgClusterDir of
             Left err -> error $ "Failed to get socket path: " ++ err

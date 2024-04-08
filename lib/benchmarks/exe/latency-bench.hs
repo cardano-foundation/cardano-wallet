@@ -26,6 +26,7 @@ import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation
     , Tracer (..)
     , filterSeverity
+    , nullTracer
     )
 import Cardano.BM.Extra
     ( stdoutTextTracer
@@ -673,7 +674,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                         , cfgNodeOutputFile = Nothing
                         }
             withCluster
-                (const $ pure ())
+                nullTracer
                 clusterConfig
                 faucetFunds
                 (onClusterStart cfgTestnetMagic setupAction db)

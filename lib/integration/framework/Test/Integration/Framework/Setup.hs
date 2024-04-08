@@ -126,6 +126,7 @@ import Control.Monad.IO.Class
 import Control.Tracer
     ( Tracer (..)
     , contramap
+    , nullTracer
     , traceWith
     )
 import Data.Either.Combinators
@@ -351,7 +352,7 @@ withServer
                             , cfgTracer = tr'
                             , cfgNodeOutputFile = nodeOutputFile
                             }
-                withCluster (const $ pure ()) clusterConfig faucetFunds
+                withCluster nullTracer clusterConfig faucetFunds
                     $ onClusterStart
                         ctx
                         (onReady (T.pack smashUrl))

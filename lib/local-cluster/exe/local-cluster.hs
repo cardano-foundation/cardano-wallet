@@ -33,6 +33,9 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , FileOf (..)
     , mkRelDirOf
     )
+import Cardano.Wallet.Launch.Cluster.Monitoring.Monitor
+    ( withMonitor
+    )
 import Control.Concurrent
     ( threadDelay
     )
@@ -50,14 +53,6 @@ import Control.Monad.Cont
     )
 import Control.Monad.Trans
     ( MonadIO (..)
-    , MonadTrans (..)
-    )
-import Control.Monitoring
-import Data.Foldable
-    ( toList
-    )
-import Data.Time
-    ( getCurrentTime
     )
 import Main.Utf8
     ( withUtf8
@@ -83,7 +78,6 @@ import System.Path.Directory
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
-import qualified Control.Foldl as F
 
 -- |
 -- # OVERVIEW
@@ -159,16 +153,12 @@ main = withUtf8 $ do
         , faucetFundsFile
         , clusterDir
         , monitoringPort
+        , pullingMode
         } <-
         parseCommandLineOptions
     funds <- retrieveFunds faucetFundsFile
     flip runContT pure $ do
-        -- a non-pulling tracer that traces integers and the time they were traced
-        -- and accumulates them in a set
-        c <- lift $
-                mkFoldingMonitor (liftIO getCurrentTime) F.set PullingState
-                    >>= mkMonitor
-        trace <- ContT $ runMonitor monitoringPort (fmap show . toList) c
+        trace <- ContT $ withMonitor monitoringPort pullingMode
         clusterPath <-
             case clusterDir of
                 Just path -> pure path
@@ -190,7 +180,7 @@ main = withUtf8 $ do
                     }
         let clusterDirPath = absDirOf clusterPath
             walletDir = clusterDirPath </> relDir "wallet"
-        lift $ createDirectoryIfMissing True walletDir
+        liftIO $ createDirectoryIfMissing True walletDir
         node <-
             ContT
                 $ Cluster.withCluster trace clusterCfg funds

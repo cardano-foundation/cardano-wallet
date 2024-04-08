@@ -33,7 +33,8 @@ local-cluster:
     -c "local-cluster" \
     --cluster-configs lib/local-cluster/test/data/cluster-configs \
     --faucet-funds ${FAUCET_FUNDS_FILE} \
-    --monitoring-port 12798
+    --monitoring-port 12798 \
+    --pulling-mode not-pulling
 
 # run unit tests on a match
 unit-tests-cabal-match match:

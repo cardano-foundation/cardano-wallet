@@ -354,7 +354,7 @@ withTestNode tr action = do
                         , cfgTracer = tr
                         , cfgNodeOutputFile = Nothing
                         }
-            withCluster (const $ pure ()) clusterConfig (FaucetFunds [] [] [])
+            withCluster nullTracer clusterConfig (FaucetFunds [] [] [])
                 $ \(RunningNode sock genesisData vData) -> do
                     let (np, _, _) = fromGenesisData genesisData
                     action np sock vData

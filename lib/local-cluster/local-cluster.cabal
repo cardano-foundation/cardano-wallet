@@ -52,9 +52,6 @@ library
     Cardano.Wallet.Launch.Cluster.ClusterEra
     Cardano.Wallet.Launch.Cluster.ClusterM
     Cardano.Wallet.Launch.Cluster.CommandLine
-    Cardano.Wallet.Launch.Cluster.Control.API
-    Cardano.Wallet.Launch.Cluster.Control.Server
-    Cardano.Wallet.Launch.Cluster.Control.State
     Cardano.Wallet.Launch.Cluster.Config
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
     Cardano.Wallet.Launch.Cluster.Env
@@ -64,6 +61,8 @@ library
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
+    Cardano.Wallet.Launch.Cluster.Monitoring.Monitor
+    Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     Cardano.Wallet.Launch.Cluster.Node.GenTopology
     Cardano.Wallet.Launch.Cluster.Node.NodeParams

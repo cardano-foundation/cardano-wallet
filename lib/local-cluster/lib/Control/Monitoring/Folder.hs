@@ -86,5 +86,5 @@ mkFoldingMonitor getContext how state = do
                 , notPulling = step $> notPulling
                 }
     pure $ case state of
-        PullingState -> MkNotPulling notPulling
-        NotPullingState -> MkPulling pulling
+        NotPullingState -> MkNotPulling notPulling
+        PullingState -> MkPulling pulling

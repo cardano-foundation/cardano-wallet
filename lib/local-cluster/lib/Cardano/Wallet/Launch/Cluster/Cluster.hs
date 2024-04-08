@@ -35,9 +35,6 @@ import Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
     , configurePools
     )
-import Cardano.Wallet.Launch.Cluster.Control.State
-    ( Phase (..)
-    )
 import Cardano.Wallet.Launch.Cluster.Faucet
     ( readFaucetAddresses
     , resetGlobals
@@ -58,6 +55,10 @@ import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , LogFileConfig (..)
     )
+import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
+    ( Phase (..)
+    , RelayNode (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Node.NodeParams
     ( NodeParams (..)
     )
@@ -65,7 +66,7 @@ import Cardano.Wallet.Launch.Cluster.Node.Relay
     ( withRelayNode
     )
 import Cardano.Wallet.Launch.Cluster.Node.RunningNode
-    ( RunningNode (RunningNode)
+    ( RunningNode (..)
     )
 import Cardano.Wallet.Launch.Cluster.PoolMetadataServer
     ( withPoolMetadataServer
@@ -102,7 +103,8 @@ import Control.Monad.Reader
     , MonadTrans (..)
     )
 import Control.Tracer
-    ( traceWith
+    ( Tracer
+    , traceWith
     )
 import Data.Either
     ( isLeft
@@ -171,7 +173,7 @@ data FaucetFunds = FaucetFunds
 -- The onClusterStart actions are not guaranteed to use the same node.
 withCluster
     :: HasCallStack
-    => (Phase -> IO ())
+    => Tracer IO Phase
     -> Config
     -> FaucetFunds
     -> (RunningNode -> IO a)
@@ -227,7 +229,7 @@ withCluster phaseChange config@Config{..} faucetFunds onClusterStart =
             lift $ extraClusterSetupUsingNode configuredPools runningPool0
             case NE.nonEmpty otherPools of
                 Nothing -> do
-                    phase Cluster
+                    phase $ Cluster Nothing
                     liftIO $ onClusterStart runningPool0
                 Just others -> do
                     let relayNodeParams =
@@ -249,12 +251,12 @@ withCluster phaseChange config@Config{..} faucetFunds onClusterStart =
                             $ launchPools others genesisFiles poolPorts runningPool0
                     phase Relay
                     c <- ContT $ withRelayNode relayNodeParams
-                    phase Cluster
+                    phase $ Cluster $ Just $ RelayNode $ runningNodeSocketPath c
                     liftIO $ onClusterStart c
   where
-    FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds
-        = faucetFunds
-    phase = liftIO . phaseChange
+    phase = liftIO . traceWith phaseChange
+    FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds =
+        faucetFunds
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
         :: NonEmpty ConfiguredPool -> RunningNode -> ClusterM ()
