@@ -53,6 +53,9 @@ import Data.Foldable
 import Data.List.NonEmpty
     ( NonEmpty
     )
+import Data.Map.Strict
+    ( Map
+    )
 import Data.Maybe
     ( isJust
     )
@@ -78,7 +81,7 @@ import qualified Data.Map.Strict as Map
 type Customer = Natural
 
 data WalletState = WalletState
-    { customers :: !(Map.Map Customer Address)
+    { customers :: !(Map Customer Address)
     , changeAddress :: !Address
     , utxoHistory :: !UTxOHistory.UTxOHistory
     -- , txHistory :: [Read.Tx]
@@ -99,11 +102,14 @@ listCustomers :: WalletState -> [(Customer, Address)]
 listCustomers = Map.toList . customers
 
 createAddress :: Customer -> WalletState -> (Address, WalletState)
-createAddress = undefined
+createAddress customer w1 = (address, w2)
+  where
+    address = deriveAddress w1 customer
+    w2 = w1{customers = Map.insert customer address (customers w1)}
 
 -- depend on the private key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
-deriveAddress = undefined
+deriveAddress _ = Read.mockAddress
 
 knownCustomer :: Customer -> WalletState -> Bool
 knownCustomer c = (c `Map.member`) . customers
@@ -112,7 +118,10 @@ knownCustomerAddress :: Address -> WalletState -> Bool
 knownCustomerAddress address = isJust . isCustomerAddress address
 
 isCustomerAddress :: Address -> WalletState -> Maybe Customer
-isCustomerAddress _ _ = Nothing
+isCustomerAddress address w =
+    case filter ((== address) . snd) (Map.toList $ customers w) of
+        [(customer,_address)] -> Just customer
+        _ -> Nothing
 
 {-----------------------------------------------------------------------------
     Operations
@@ -162,7 +171,7 @@ rollBackward
     :: Read.ChainPoint
     -> WalletState
     -> (WalletState, Read.ChainPoint)
-rollBackward = undefined
+rollBackward point w = (w, point) -- FIXME: This is a mock implementation
 
 availableBalance :: WalletState -> Read.Value
 availableBalance w =
