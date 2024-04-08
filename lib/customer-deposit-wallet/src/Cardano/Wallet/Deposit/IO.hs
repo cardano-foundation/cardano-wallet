@@ -20,6 +20,7 @@ module Cardano.Wallet.Deposit.IO
     , getWalletTip
     , availableBalance
     , getCustomerHistory
+    , getCustomerHistories
 
     -- ** Writing to the blockchain
     , createPayment
@@ -59,6 +60,7 @@ import qualified Data.Delta as Delta
     ( Replace (..)
     )
 import qualified Data.Delta.Update as Delta
+import qualified Data.Map.Strict as Map
 import qualified Data.Store as Store
 
 {-----------------------------------------------------------------------------
@@ -168,9 +170,16 @@ availableBalance :: WalletInstance -> IO Read.Value
 availableBalance w =
     Wallet.availableBalance <$> readWalletState w
 
-getCustomerHistory :: WalletInstance -> Customer -> IO [Wallet.TxSummary]
-getCustomerHistory w c =
+getCustomerHistory :: Customer -> WalletInstance -> IO [Wallet.TxSummary]
+getCustomerHistory c w =
     Wallet.getCustomerHistory c <$> readWalletState w
+
+getCustomerHistories
+    :: (Read.ChainPoint, Read.ChainPoint)
+    -> WalletInstance
+    -> IO (Map.Map Customer Wallet.ValueTransfer)
+getCustomerHistories a w =
+    Wallet.getCustomerHistories a <$> readWalletState w
 
 rollForward :: WalletInstance -> NonEmpty Read.Block -> tip -> IO ()
 rollForward w blocks _nodeTip =

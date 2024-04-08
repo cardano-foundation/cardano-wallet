@@ -25,6 +25,7 @@ module Cardano.Wallet.Deposit.Pure
     , TxSummary (..)
     , ValueTransfer (..)
     , getCustomerHistory
+    , getCustomerHistories
 
     -- ** Writing to the blockchain
     , createPayment
@@ -193,6 +194,12 @@ data ValueTransfer = ValueTransfer
 
 getCustomerHistory :: Customer -> WalletState -> [TxSummary]
 getCustomerHistory = undefined
+
+getCustomerHistories
+    :: (Read.ChainPoint, Read.ChainPoint)
+    -> WalletState
+    -> Map Customer ValueTransfer
+getCustomerHistories = undefined
 
 {-----------------------------------------------------------------------------
     Operations
