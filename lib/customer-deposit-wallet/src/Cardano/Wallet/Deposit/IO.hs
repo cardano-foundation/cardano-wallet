@@ -24,6 +24,7 @@ module Cardano.Wallet.Deposit.IO
 
     -- ** Writing to the blockchain
     , createPayment
+    , getBIP32PathsForOwnedInputs
     ) where
 
 import Prelude
@@ -202,6 +203,11 @@ createPayment
     :: [(Address, Read.Value)] -> WalletInstance -> IO (Maybe Write.TxBody)
 createPayment a w =
     Wallet.createPayment a <$> readWalletState w
+
+getBIP32PathsForOwnedInputs
+    :: Write.TxBody -> WalletInstance -> IO [()]
+getBIP32PathsForOwnedInputs a w =
+    Wallet.getBIP32PathsForOwnedInputs a <$> readWalletState w
 
 {-----------------------------------------------------------------------------
     Logging

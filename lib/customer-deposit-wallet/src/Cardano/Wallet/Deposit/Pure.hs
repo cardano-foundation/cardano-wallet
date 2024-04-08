@@ -29,6 +29,7 @@ module Cardano.Wallet.Deposit.Pure
 
     -- ** Writing to the blockchain
     , createPayment
+    , getBIP32PathsForOwnedInputs
 
     , addTxSubmission
     , listTxsInSubmission
@@ -210,6 +211,9 @@ createPayment :: [(Address, Write.Value)] -> WalletState -> Maybe Write.TxBody
 createPayment = undefined
     -- needs balanceTx
     -- needs to sign the transaction
+
+getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [()]
+getBIP32PathsForOwnedInputs = undefined
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined
