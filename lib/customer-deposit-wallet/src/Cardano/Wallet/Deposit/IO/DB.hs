@@ -16,30 +16,27 @@ import Cardano.BM.Extra
     )
 import Cardano.DB.Sqlite
     ( DBLog (..)
-    , dbBackend
-    , withDBHandle
-    , withDBHandleInMemory
     )
 import Control.Concurrent.MVar
     ( newMVar
     , withMVar
-    , withMVarMasked
+    )
+import Control.Monad.Trans.Reader
+    ( ReaderT (..)
     )
 import Control.Tracer
     ( Tracer
     , contramap
-    )
-import Data.Time.Clock
-    ( NominalDiffTime
+    , traceWith
     )
 
-import qualified Database.Persist.Sql as Persistent
+import qualified Database.SQLite.Simple as Sqlite
 
 {-----------------------------------------------------------------------------
     SqlContext
 ------------------------------------------------------------------------------}
 -- | Monad to run SQL queries in.
-type SqlM = Persistent.SqlPersistT IO
+type SqlM = ReaderT Sqlite.Connection IO
 
 -- | A facility to run 'SqlM' computations.
 -- Importantly, computations are not run in parallel, but sequenced.
@@ -54,75 +51,26 @@ withSqlContextInMemory
     -> (SqlContext -> IO a)
     -- ^ Action to run
     -> IO a
-withSqlContextInMemory tr action = do
-    withDBHandleInMemory tr $ \dbhandle -> do
-        -- Lock ensures that database operations are sequenced.
-        lock <- newMVar (dbBackend dbhandle)
-        let runSqlM :: SqlM a -> IO a
-            runSqlM cmd =
-                withMVarMasked lock (observe . Persistent.runSqlConn cmd)
-        action $ SqlContext{runSqlM}
-  where
-    observe :: IO a -> IO a
-    observe = bracketTracer (contramap MsgRun tr)
+withSqlContextInMemory tr = withSqliteFile tr ":memory:"
 
--- | Open an .sqlite database file
+-- | Use sqlite to open a database file
 -- and provide an 'SqlContext' for running 'SqlM' actions.
 withSqliteFile
     :: Tracer IO DBLog
-        -- ^ Logging
+    -- ^ Logging
     -> FilePath
-        -- ^ Database file
+    -- ^ Database file
     -> (SqlContext -> IO a)
-        -- ^ Action to run
+    -- ^ Action to run
     -> IO a
-withSqliteFile tr fp action = do
-    -- Lock ensures that database operations are sequenced.
-    lock <- newMVar ()
-    withDBHandle tr fp $ \dbHandle ->
-        let
-            -- Run a query on the open database,
-            -- but retry on busy.
-            runSqlM :: SqlM a -> IO a
-            runSqlM cmd =
-                observe
-                    . retryOnBusy tr retryOnBusyTimeout
-                    $ withMVar lock
-                    $ const
-                    $ Persistent.runSqlConn cmd
-                    $ dbBackend dbHandle
-        in
-            action $ SqlContext{runSqlM}
+withSqliteFile tr filepath action =
+    Sqlite.withConnection filepath $ \connection0 -> do
+        traceWith tr $ MsgOpenSingleConnection filepath
+        -- The lock ensures that database operations are sequenced.
+        lock <- newMVar connection0
+        let runSqlM :: SqlM a -> IO a
+            runSqlM cmd = withMVar lock (observe . runReaderT cmd)
+        action SqlContext{runSqlM}
   where
     observe :: IO a -> IO a
     observe = bracketTracer (contramap MsgRun tr)
-
--- | Retry an action if the database yields an 'SQLITE_BUSY' error.
---
--- From <https://www.sqlite.org/rescode.html#busy>
---
---     The SQLITE_BUSY result code indicates that the database file could not be
---     written (or in some cases read) because of concurrent activity by some
---     other database connection, usually a database connection in a separate
---     process.
---
---     For example, if process A is in the middle of a large write transaction
---     and at the same time process B attempts to start a new write transaction,
---     process B will get back an SQLITE_BUSY result because SQLite only supports
---     one writer at a time. Process B will need to wait for process A to finish
---     its transaction before starting a new transaction. The sqlite3_busy_timeout()
---     and sqlite3_busy_handler() interfaces and the busy_timeout pragma are
---     available to process B to help it deal with SQLITE_BUSY errors.
-retryOnBusy
-    :: Tracer IO DBLog
-    -- ^ Logging
-    -> NominalDiffTime
-    -- ^ Timeout
-    -> IO a
-    -- ^ Action to retry
-    -> IO a
-retryOnBusy _ _ action = action -- FIXME
-
--- | Default timeout for `retryOnBusy`
-retryOnBusyTimeout :: NominalDiffTime
-retryOnBusyTimeout = 60
