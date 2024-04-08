@@ -32,6 +32,7 @@ module Cardano.DB.Sqlite
       -- * DB Connections
     , DBHandle
     , withDBHandle
+    , withDBHandleInMemory
     , dbConn
     , dbFile
     , dbBackend
@@ -301,6 +302,14 @@ withDBHandle
     -> IO a
 withDBHandle tr fp =
     bracket (newDBHandle tr fp) (closeDBHandleRetrying tr)
+
+-- | Acquire and release a 'DBHandle' in memory.
+withDBHandleInMemory
+    :: Tracer IO DBLog
+    -> (DBHandle -> IO a)
+    -> IO a
+withDBHandleInMemory tr =
+    bracket (newDBHandleInMemory tr) (closeDBHandle tr)
 
 -- | Create a new 'DBHandle' from a file.
 -- Needs to be closed explicitly.

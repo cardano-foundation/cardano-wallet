@@ -4,6 +4,7 @@ module Cardano.Wallet.Deposit.IO.DB
     ( SqlM
     , SqlContext (..)
     , withSqliteFile
+    , withSqlContextInMemory
 
     , DBLog (..)
     ) where
@@ -17,10 +18,12 @@ import Cardano.DB.Sqlite
     ( DBLog (..)
     , dbBackend
     , withDBHandle
+    , withDBHandleInMemory
     )
 import Control.Concurrent.MVar
     ( newMVar
     , withMVar
+    , withMVarMasked
     )
 import Control.Tracer
     ( Tracer
@@ -33,7 +36,7 @@ import Data.Time.Clock
 import qualified Database.Persist.Sql as Persistent
 
 {-----------------------------------------------------------------------------
-    Comment layout
+    SqlContext
 ------------------------------------------------------------------------------}
 -- | Monad to run SQL queries in.
 type SqlM = Persistent.SqlPersistT IO
@@ -41,8 +44,27 @@ type SqlM = Persistent.SqlPersistT IO
 -- | A facility to run 'SqlM' computations.
 -- Importantly, computations are not run in parallel, but sequenced.
 newtype SqlContext = SqlContext
-    { runQuery :: forall a. SqlM a -> IO a
+    { runSqlM :: forall a. SqlM a -> IO a
     }
+
+-- | Acquire and release an 'SqlContext' in memory.
+withSqlContextInMemory
+    :: Tracer IO DBLog
+    -- ^ Logging
+    -> (SqlContext -> IO a)
+    -- ^ Action to run
+    -> IO a
+withSqlContextInMemory tr action = do
+    withDBHandleInMemory tr $ \dbhandle -> do
+        -- Lock ensures that database operations are sequenced.
+        lock <- newMVar (dbBackend dbhandle)
+        let runSqlM :: SqlM a -> IO a
+            runSqlM cmd =
+                withMVarMasked lock (observe . Persistent.runSqlConn cmd)
+        action $ SqlContext{runSqlM}
+  where
+    observe :: IO a -> IO a
+    observe = bracketTracer (contramap MsgRun tr)
 
 -- | Open an .sqlite database file
 -- and provide an 'SqlContext' for running 'SqlM' actions.
@@ -61,8 +83,8 @@ withSqliteFile tr fp action = do
         let
             -- Run a query on the open database,
             -- but retry on busy.
-            runQuery :: SqlM a -> IO a
-            runQuery cmd =
+            runSqlM :: SqlM a -> IO a
+            runSqlM cmd =
                 observe
                     . retryOnBusy tr retryOnBusyTimeout
                     $ withMVar lock
@@ -70,7 +92,7 @@ withSqliteFile tr fp action = do
                     $ Persistent.runSqlConn cmd
                     $ dbBackend dbHandle
         in
-            action $ SqlContext{runQuery}
+            action $ SqlContext{runSqlM}
   where
     observe :: IO a -> IO a
     observe = bracketTracer (contramap MsgRun tr)
