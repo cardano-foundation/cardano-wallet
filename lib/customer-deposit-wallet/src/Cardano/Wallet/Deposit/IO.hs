@@ -17,6 +17,7 @@ module Cardano.Wallet.Deposit.IO
     , createAddress
 
     -- ** Reading from the blockchain
+    , getWalletTip
     , availableBalance
     , getCustomerHistory
 
@@ -159,6 +160,10 @@ createAddress c w =
     Operations
     Reading from the blockchain
 ------------------------------------------------------------------------------}
+getWalletTip :: WalletInstance -> IO Read.ChainPoint
+getWalletTip w =
+    Wallet.getWalletTip <$> readWalletState w
+
 availableBalance :: WalletInstance -> IO Read.Value
 availableBalance w =
     Wallet.availableBalance <$> readWalletState w

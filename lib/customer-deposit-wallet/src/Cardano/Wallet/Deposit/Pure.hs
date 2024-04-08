@@ -16,7 +16,7 @@ module Cardano.Wallet.Deposit.Pure
 
     -- ** Reading from the blockchain
     , fromXPubAndGenesis
-    , localTip
+    , getWalletTip
     , availableBalance
     , rollForwardMany
     , rollForwardOne
@@ -141,8 +141,8 @@ fromGenesisUTxO utxo =
         , submissions = Sbm.empty
         }
 
-localTip :: WalletState -> Read.ChainPoint
-localTip = error "localTip"
+getWalletTip :: WalletState -> Read.ChainPoint
+getWalletTip = error "getWalletTip"
 
 rollForwardMany :: NonEmpty Read.Block -> WalletState -> WalletState
 rollForwardMany blocks w = foldl' (flip rollForwardOne) w blocks
