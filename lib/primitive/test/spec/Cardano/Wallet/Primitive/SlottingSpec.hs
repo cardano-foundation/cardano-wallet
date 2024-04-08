@@ -144,7 +144,7 @@ spec = do
     describe "slotting" $ do
         describe "runQuery NEW mkSingleEraInterpreter == OLD . fromFlatSlot" $ do
             it "epochOf and epochNumber"
-                $  property $ legacySlottingTest (\_ s -> epochNumber s) epochOf
+                $ property $ legacySlottingTest (\_ s -> epochNumber s) epochOf
 
             it "slotToUTCTime and slotStartTime"
                 $ property $ legacySlottingTest slotStartTime slotToUTCTime

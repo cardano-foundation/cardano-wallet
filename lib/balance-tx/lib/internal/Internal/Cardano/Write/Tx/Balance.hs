@@ -1147,7 +1147,7 @@ splitSignedValue :: Value -> (W.TokenBundle, W.TokenBundle)
 splitSignedValue v = (bNegative, bPositive)
   where
     bNegative = Convert.toWallet . filterPositive $ invert v
-    bPositive = Convert.toWallet . filterPositive $        v
+    bPositive = Convert.toWallet . filterPositive $       v
 
     filterPositive :: Value -> Value
     filterPositive (MaryValue (Coin a) (MultiAsset m)) =

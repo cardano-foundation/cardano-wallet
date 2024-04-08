@@ -264,7 +264,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             r ^. #balance . #available . #toNatural `shouldBe` 0
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
-             \SQL injection when creating a wallet" $  do
+             \SQL injection when creating a wallet" $ do
         let matrix =
                 [ ( "new wallet\",'',''); DROP TABLE \"wallet\"; --"
                   , "new wallet\",'',''); DROP TABLE \"wallet\"; --"
@@ -1448,7 +1448,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 \96356ba65598ec159d0c" :: ByteString
         convertToBase Base16 sigBytes `shouldBe` goldenSig
 
-    it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $  do
+    it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
 
         let payload = [json|

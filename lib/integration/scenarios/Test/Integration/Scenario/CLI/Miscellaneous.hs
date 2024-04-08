@@ -118,7 +118,7 @@ spec = describe "COMMON_CLI_MISC" $ do
             o `shouldBe` ""
             e `shouldContain` "Usage:"
 
-    describe "CLI_HELP - cardano-wallet shows help with" $  do
+    describe "CLI_HELP - cardano-wallet shows help with" $ do
         let test option = it option $ do
                 (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @_ @IO [option]
                 e `shouldBe` ""
