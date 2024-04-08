@@ -36,7 +36,7 @@ library
     , fmt
     , iohk-monitoring      ^>=0.1.11.3
     , text
-    , text-class           ^>=2024.3.27
+    , text-class           ^>=2024.4.8
     , time
     , tracer-transformers
     , transformers
