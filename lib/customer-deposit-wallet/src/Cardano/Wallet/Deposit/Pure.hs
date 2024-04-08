@@ -199,7 +199,7 @@ getCustomerHistory = undefined
     Writing to blockchain
 ------------------------------------------------------------------------------}
 
-createPayment :: [(Address, Write.Value)] -> WalletState -> Maybe Write.Tx
+createPayment :: [(Address, Write.Value)] -> WalletState -> Maybe Write.TxBody
 createPayment = undefined
     -- needs balanceTx
     -- needs to sign the transaction
