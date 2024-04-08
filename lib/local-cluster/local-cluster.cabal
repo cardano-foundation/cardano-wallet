@@ -77,6 +77,11 @@ library
     Cardano.Wallet.Launch.Cluster.StakeCertificates
     Cardano.Wallet.Launch.Cluster.Tx
     Cardano.Wallet.Launch.Cluster.UnsafeInterval
+    Control.Monitoring
+    Control.Monitoring.Monitor
+    Control.Monitoring.Tracing
+    Control.Monitoring.Folder
+    Control.Monitoring.Server
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -100,6 +105,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
+    , comonad
     , containers
     , contra-tracer
     , crypto-primitives
@@ -107,6 +113,7 @@ library
     , extra
     , faucet
     , filepath
+    , foldl
     , generic-lens
     , http-client
     , int-cast
@@ -115,11 +122,14 @@ library
     , lens
     , memory
     , mtl
+    , network
+    , network-simple
     , OddWord
     , optparse-applicative
     , ouroboros-network
     , ouroboros-network-api
     , pathtype
+    , profunctors
     , QuickCheck
     , resourcet
     , retry
@@ -150,6 +160,7 @@ executable local-cluster
     , cardano-wallet-launcher
     , cardano-wallet-primitive
     , iohk-monitoring-extra
+    , foldl
     , lens
     , local-cluster
     , mtl
@@ -157,6 +168,7 @@ executable local-cluster
     , pathtype
     , resourcet
     , temporary-extra
+    , time
     , unliftio
     , with-utf8
     , wai

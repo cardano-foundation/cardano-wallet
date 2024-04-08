@@ -3,10 +3,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 import Prelude
 
@@ -30,13 +28,6 @@ import Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
     , parseCommandLineOptions
     )
-import Cardano.Wallet.Launch.Cluster.Control.Server
-    ( server
-    )
-import Cardano.Wallet.Launch.Cluster.Control.State
-    ( changePhase
-    , withControlLayer
-    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf (..)
@@ -53,7 +44,6 @@ import Control.Lens
     )
 import Control.Monad
     ( void
-    , (<=<)
     )
 import Control.Monad.Cont
     ( ContT (..)
@@ -62,11 +52,15 @@ import Control.Monad.Trans
     ( MonadIO (..)
     , MonadTrans (..)
     )
+import Control.Monitoring
+import Data.Foldable
+    ( toList
+    )
+import Data.Time
+    ( getCurrentTime
+    )
 import Main.Utf8
     ( withUtf8
-    )
-import Network.Wai.Handler.Warp
-    ( run
     )
 import System.Environment.Extended
     ( isEnvSet
@@ -85,14 +79,11 @@ import System.Path
 import System.Path.Directory
     ( createDirectoryIfMissing
     )
-import UnliftIO
-    ( async
-    , link
-    )
 
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
+import qualified Control.Foldl as F
 
 -- |
 -- # OVERVIEW
@@ -172,8 +163,12 @@ main = withUtf8 $ do
         parseCommandLineOptions
     funds <- retrieveFunds faucetFundsFile
     flip runContT pure $ do
-        monitoring <- withControlLayer
-        liftIO $ link <=< async $ server monitoring >>= run monitoringPort
+        -- a non-pulling tracer that traces integers and the time they were traced
+        -- and accumulates them in a set
+        c <- lift $
+                mkFoldingMonitor (liftIO getCurrentTime) F.set PullingState
+                    >>= mkMonitor
+        trace <- ContT $ runMonitor monitoringPort (fmap show . toList) c
         clusterPath <-
             case clusterDir of
                 Just path -> pure path
@@ -198,7 +193,7 @@ main = withUtf8 $ do
         lift $ createDirectoryIfMissing True walletDir
         node <-
             ContT
-                $ Cluster.withCluster (changePhase monitoring) clusterCfg funds
+                $ Cluster.withCluster trace clusterCfg funds
         nodeSocket <-
             case parse . nodeSocketFile $ Cluster.runningNodeSocketPath node of
                 Left e -> error e
