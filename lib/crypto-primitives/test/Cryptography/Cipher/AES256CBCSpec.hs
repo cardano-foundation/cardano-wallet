@@ -72,29 +72,35 @@ spec = do
                 === 0
     describe "encrypt/decrypt roundtrip with padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
-        \(CipherPaddingSetup payload' key' iv') -> do
-            let toPayload (Left EmptyPayload) = Right BS.empty
+        \(CipherPaddingSetup payload' key' iv' salt') -> do
+            let toPayload (Left EmptyPayload) = Right (BS.empty, salt')
                 toPayload res = res
-            toPayload (encrypt WithPadding key' iv' payload' >>=
-                decrypt WithPadding key' iv') === Right payload'
+            toPayload (encrypt WithPadding key' iv' salt' payload' >>=
+                decrypt WithPadding key' iv') === Right (payload', salt')
 
     describe "encrypt/decrypt roundtrip without padding" $
         it "decrypt . encrypt $ payload == payload" $ property $
-        \(CipherRawSetup payload' key' iv') -> do
-            let toPayload (Left EmptyPayload) = Right BS.empty
+        \(CipherRawSetup payload' key' iv' salt') -> do
+            let toPayload (Left EmptyPayload) = Right (BS.empty, salt')
                 toPayload res = res
-            toPayload (encrypt WithoutPadding key' iv' payload' >>=
-                decrypt WithoutPadding key' iv') === Right payload'
+            toPayload (encrypt WithoutPadding key' iv' salt' payload' >>=
+                decrypt WithoutPadding key' iv') === Right (payload', salt')
 
     describe "encrypt with incorrect block size" $
         it "encrypt payload == error" $ property $
-        \(CipherWrongSetup payload' key' iv') -> do
-            encrypt WithoutPadding key' iv' payload' ===
+        \(CipherWrongSetup payload' key' iv' _salt') -> do
+            encrypt WithoutPadding key' iv' Nothing payload' ===
                 Left WrongPayloadSize
+
+    describe "encrypt with incorrect salt" $
+        it "encrypt payload == error" $ property $
+        \(CipherWrongSetup payload' key' iv' salt') -> do
+            encrypt WithoutPadding key' iv' salt' payload' ===
+                Left WrongSaltSize
 
     describe "decrypt with incorrect block size" $
         it "decrypt payload == error" $ property $
-        \(CipherWrongSetup payload' key' iv') -> do
+        \(CipherWrongSetup payload' key' iv' _salt') -> do
             decrypt WithoutPadding key' iv' payload' ===
                 Left WrongPayloadSize
 
@@ -115,11 +121,12 @@ spec = do
          -- ZMGELuBkqtHVw5pUA353vQ==
          -- bytes read   :        1
          -- bytes written:       25
-        it "golden 1-byte payload" $
+        it "golden 1-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "ZMGELuBkqtHVw5pUA353vQ=="
 
@@ -127,11 +134,12 @@ spec = do
         -- KBO1WMy3NpqMmm+fEL2kbg==
         -- bytes read   :        2
         -- bytes written:       25
-        it "golden 2-byte payload" $
+        it "golden 2-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "KBO1WMy3NpqMmm+fEL2kbg=="
 
@@ -139,11 +147,12 @@ spec = do
         -- 49TERtYsEVKVgpJkUzqmJw==
         -- bytes read   :        5
         -- bytes written:       25
-        it "golden 5-byte payload" $
+        it "golden 5-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "49TERtYsEVKVgpJkUzqmJw=="
 
@@ -151,11 +160,12 @@ spec = do
         -- XaYfTkqDajiW6hRc+SlJ8A==
         -- bytes read   :       10
         -- bytes written:       25
-        it "golden 10-byte payload" $
+        it "golden 10-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "XaYfTkqDajiW6hRc+SlJ8A=="
 
@@ -163,11 +173,12 @@ spec = do
         -- CXH8t8dSqroR4r4IiNAsfA==
         -- bytes read   :       15
         -- bytes written:       25
-        it "golden 15-byte payload" $
+        it "golden 15-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "CXH8t8dSqroR4r4IiNAsfA=="
 
@@ -175,11 +186,12 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh8iZSRCztrdYpMEE1aj8ES8=
         -- bytes read   :       16
         -- bytes written:       45
-        it "golden 16-byte payload" $
+        it "golden 16-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "hLArzI8DbqOXiEi6HqGQh8iZSRCztrdYpMEE1aj8ES8="
 
@@ -187,11 +199,12 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh96Z6cWqsqTJlbxfcWg/Nvo=
         -- bytes read   :       20
         -- bytes written:       45
-        it "golden 20-byte payload" $
+        it "golden 20-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00000000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "hLArzI8DbqOXiEi6HqGQh96Z6cWqsqTJlbxfcWg/Nvo="
 
@@ -199,11 +212,12 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh9VxdtWlCXnKS1n/vvCOwL0=
         -- bytes read   :       31
         -- bytes written:       45
-        it "golden 31-byte payload" $
+        it "golden 31-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "0000000000000000000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right "hLArzI8DbqOXiEi6HqGQh9VxdtWlCXnKS1n/vvCOwL0="
 
@@ -211,14 +225,134 @@ spec = do
         -- hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1
         -- bytes read   :       32
         -- bytes written:       65
-        it "golden 32-byte payload" $
+        it "golden 32-byte payload no salt" $
             checkEncryption GoldenCase
             { input = "00000000000000000000000000000000"
             , key = noSaltKey
             , iv = noSaltIv
+            , salt = Nothing
             } `shouldBe`
             Right
             "hLArzI8DbqOXiEi6HqGQh/VxwHicJoMlVJqa8H2yg5xUYf9zCre088MTCb8jjIN1"
+
+        -- echo -n 0 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMJCtI/MMCZ7dqZI6TrtlLyg=
+        -- bytes read   :        1
+        -- bytes written:       45
+        it "golden 1-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "0"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMJCtI/MMCZ7dqZI6TrtlLyg="
+
+        -- echo -n 00 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMKZlzmc8ZsSxwTwDKJY4J+I=
+        -- bytes read   :        2
+        -- bytes written:       45
+        it "golden 2-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "00"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMKZlzmc8ZsSxwTwDKJY4J+I="
+
+        -- echo -n 00000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMCP7dvgIZ/E+vzQN+2JuGF0=
+        -- bytes read   :        5
+        -- bytes written:       45
+        it "golden 5-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "00000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMCP7dvgIZ/E+vzQN+2JuGF0="
+
+        -- echo -n 0000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMDXxr84l/PtjzWRCPGb8oSY=
+        -- bytes read   :       10
+        -- bytes written:       45
+        it "golden 10-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "0000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMDXxr84l/PtjzWRCPGb8oSY="
+
+        -- echo -n 000000000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMPCoW2E+adl2BLopcz8iftA=
+        -- bytes read   :       15
+        -- bytes written:       45
+        it "golden 15-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "000000000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMPCoW2E+adl2BLopcz8iftA="
+
+        -- echo -n 0000000000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/KQzjySUk4bPGtysOLjtex2
+        -- bytes read   :       16
+        -- bytes written:       6
+        it "golden 16-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "0000000000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/KQzjySUk4bPGtysOLjtex2"
+
+        -- echo -n 00000000000000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/LR9tAdmXupg7jaO09x75x+
+        -- bytes read   :       20
+        -- bytes written:       65
+        it "golden 20-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "00000000000000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/LR9tAdmXupg7jaO09x75x+"
+
+        -- echo -n 0000000000000000000000000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/I6rOQXQsrifJ04fr1+IKEk
+        -- bytes read   :       31
+        -- bytes written:       65
+        it "golden 31-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "0000000000000000000000000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right "U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/I6rOQXQsrifJ04fr1+IKEk"
+
+        -- echo -n 00000000000000000000000000000000 | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "password" -S 3030303030303030 -v
+        -- U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/K9sJJpdKMH4wS0xz8+OUa3
+        -- 8Hj/N4XOSY5x6a+7PCWwtg==
+        -- bytes read   :       32
+        -- bytes written:       90
+        it "golden 32-byte payload salted" $
+            checkEncryption GoldenCase
+            { input = "00000000000000000000000000000000"
+            , key = saltKey
+            , iv = saltIv
+            , salt = fromHex "3030303030303030"
+            } `shouldBe`
+            Right
+            "U2FsdGVkX18wMDAwMDAwMEmgP1lu1tbBnNx984qKn/K9sJJpdKMH4wS0xz8+OUa38Hj/N4XOSY5x6a+7PCWwtg=="
   where
     --  We are using the following key and iv for goldens
     -- $ openssl enc -aes-256-cbc -pbkdf2 -pass stdin -P -S 3030303030303030 -k "password" -iter 10000 -P
@@ -248,12 +382,13 @@ spec = do
 
     checkEncryption GoldenCase {..} =
         T.decodeUtf8 . convertToBase Base64
-        <$> encrypt WithPadding key iv input
+        <$> encrypt WithPadding key iv salt input
 
 data GoldenCase = GoldenCase
     { input :: ByteString
     , key :: ByteString
     , iv :: ByteString
+    , salt :: Maybe ByteString
     } deriving (Show, Eq)
 
 newtype Payload = Payload
@@ -263,18 +398,21 @@ data CipherPaddingSetup = CipherPaddingSetup
     { payloadPad :: ByteString
     , keyPad :: ByteString
     , ivPad :: ByteString
+    , saltPad :: Maybe ByteString
     } deriving (Eq, Show)
 
 data CipherRawSetup = CipherRawSetup
     { payloadRaw :: ByteString
     , keyRaw :: ByteString
     , ivRaw :: ByteString
+    , saltRaw :: Maybe ByteString
     } deriving (Eq, Show)
 
 data CipherWrongSetup = CipherWrongSetup
     { payloadWrong :: ByteString
     , keyWrong :: ByteString
     , ivWrong :: ByteString
+    , saltWrong :: Maybe ByteString
     } deriving (Eq, Show)
 
 instance Arbitrary Payload where
@@ -290,7 +428,11 @@ instance Arbitrary CipherPaddingSetup where
         Payload payload' <- arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        pure $ CipherPaddingSetup payload' key' iv'
+        salt' <- oneof
+            [ Just . BS.pack <$> vectorOf 8 arbitrary
+            , pure Nothing
+            ]
+        pure $ CipherPaddingSetup payload' key' iv' salt'
 
 instance Arbitrary CipherRawSetup where
     arbitrary = do
@@ -298,7 +440,11 @@ instance Arbitrary CipherRawSetup where
         payload' <- BS.pack <$> vectorOf (lenMult * 16) arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        pure $ CipherRawSetup payload' key' iv'
+        salt' <- oneof
+            [ Just . BS.pack <$> vectorOf 8 arbitrary
+            , pure Nothing
+            ]
+        pure $ CipherRawSetup payload' key' iv' salt'
 
 instance Arbitrary CipherWrongSetup where
     arbitrary = do
@@ -306,4 +452,6 @@ instance Arbitrary CipherWrongSetup where
         payload' <- BS.pack <$> vectorOf len arbitrary
         key' <- BS.pack <$> vectorOf 32 arbitrary
         iv' <- BS.pack <$> vectorOf 16 arbitrary
-        pure $ CipherWrongSetup payload' key' iv'
+        saltLen <- chooseInt (1,32) `suchThat` (/= 8)
+        salt' <- Just . BS.pack <$> vectorOf saltLen arbitrary
+        pure $ CipherWrongSetup payload' key' iv' salt'

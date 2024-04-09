@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | Provides support for AES 256.
 --
@@ -65,6 +66,7 @@ import Data.ByteString
 import Data.Either.Combinators
     ( mapBoth
     , mapLeft
+    , mapRight
     , maybeToRight
     )
 import Data.Either.Extra
@@ -82,6 +84,7 @@ data CipherError =
       FromCryptonite CryptoError
     | EmptyPayload
     | WrongPayloadSize
+    | WrongSaltSize
     deriving (Eq, Show)
 
 -- | Initialise a block cipher.
@@ -102,10 +105,14 @@ encrypt
     -- ^ Secret key: must be 32 bytes.
     -> ByteString
     -- ^ Initialisation vector (IV): must be 16 bytes.
+    -> Maybe ByteString
+    -- ^ Optional salt. If specified, must be 8 bytes.
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
-encrypt mode key iv msg = do
+encrypt mode key iv saltM msg = do
+   when (any ((/= 8) . BS.length) saltM) $
+       Left WrongSaltSize
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (createIV iv)
@@ -113,7 +120,19 @@ encrypt mode key iv msg = do
            WithoutPadding -> Just msg
            WithPadding -> padPKCS7 msg
    msg' <- maybeToRight EmptyPayload msgM
-   mapBoth FromCryptonite (\c -> cbcEncrypt c initedIV msg') (initCipher key)
+   case saltM of
+       Nothing ->
+           mapBoth FromCryptonite
+           (\c -> cbcEncrypt c initedIV msg') (initCipher key)
+       Just salt ->
+           mapRight (\c -> addSalt salt <> c) $
+           mapBoth FromCryptonite
+           (\c -> cbcEncrypt c initedIV msg') (initCipher key)
+ where
+   addSalt salt = saltPrefix <> salt
+
+saltPrefix :: ByteString
+saltPrefix = "Salted__"
 
 -- | Decrypt using AES256 using CBC mode.
 decrypt
@@ -124,15 +143,26 @@ decrypt
     -- ^ Initialisation vector (IV): must be 16 bytes.
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
-    -> Either CipherError ByteString
+    -> Either CipherError (ByteString, Maybe ByteString)
+    -- ^ Decrypted payload and optionally salt that was used for encryption.
 decrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (createIV iv)
+   let (prefix,rest) = BS.splitAt 8 msg
+   let saltDetected = prefix == saltPrefix
    let unpadding p = case mode of
            WithoutPadding -> Right p
            WithPadding -> maybeToRight EmptyPayload (unpadPKCS7 p)
-   mapBoth FromCryptonite (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
+   if saltDetected then
+       mapRight (, Just $ BS.take 8 rest) $
+       mapBoth FromCryptonite
+       (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
+       unpadding
+   else
+       mapRight (, Nothing) $
+       mapBoth FromCryptonite
+       (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
        unpadding
 
 -- | Apply PKCS#7 padding to payload and end up with a multiple of a block
