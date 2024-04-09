@@ -7,6 +7,10 @@ import Prelude
 import Data.ByteString
     ( ByteString
     )
+import Data.Function
+    ( (&) )
+import Data.Maybe
+    ( isJust, isNothing )
 import Test.Hspec
     ( Spec
     , describe
@@ -14,7 +18,10 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Property
+    , checkCoverage
     , chooseInt
+    , cover
     , oneof
     , property
     , vectorOf
@@ -26,18 +33,33 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
-    describe "Padding/unpadding roundtrip" $
-        it "unpad . pad $ payload == payload" $ property $ \payload -> do
-            let toPayload Nothing = Payload BS.empty
-                toPayload (Just bs) = Payload bs
-            toPayload ( PKCS7.pad (unPayload payload) >>= PKCS7.unpad )
-                === payload
+    it "prop_pad_unpad" $
+        prop_pad_unpad
+            & property
+
     describe "Padding produces always payload that is multiple of 16 bytes" $
         it "(pad payload) % 16 == 0" $ property $ \payload -> do
             let toPayloadLen Nothing = 0
                 toPayloadLen (Just bs) = BS.length bs
             (toPayloadLen ( (PKCS7.pad $ unPayload payload)) ) `mod` 16
                 === 0
+
+prop_pad_unpad :: Payload -> Property
+prop_pad_unpad (Payload payload) =
+    case maybePaddedPayload of
+        Nothing ->
+            payload === BS.empty
+        Just paddedPayload ->
+            PKCS7.unpad paddedPayload === Just payload
+    & cover 10
+        (isJust maybePaddedPayload)
+        "isJust maybePaddedPayload"
+    & cover 10
+        (isNothing maybePaddedPayload)
+        "isNothing maybePaddedPayload"
+    & checkCoverage
+  where
+    maybePaddedPayload = PKCS7.pad payload
 
 newtype Payload = Payload
     { unPayload :: ByteString } deriving (Eq, Show)
