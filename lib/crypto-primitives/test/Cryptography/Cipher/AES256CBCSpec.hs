@@ -12,7 +12,9 @@ import Cryptography.Cipher.AES256CBC
     , CipherMode (..)
     , decrypt
     , encrypt
-    , padPKCS7
+    )
+import Cryptography.Format.PKCS7
+    ( padPKCS7
     , unpadPKCS7
     )
 import Cryptography.Hash.Core
