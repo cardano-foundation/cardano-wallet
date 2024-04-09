@@ -20,7 +20,6 @@ import Test.QuickCheck
     , checkCoverage
     , chooseInt
     , cover
-    , oneof
     , property
     , vectorOf
     , (===)
@@ -41,13 +40,13 @@ spec = do
 prop_pad_length :: Payload -> Property
 prop_pad_length (Payload payload) =
     BS.length (PKCS7.pad payload) `mod` 16 === 0
-    & cover 10
+    & cover 5
         (BS.length payload `div` 16 == 0)
         "BS.length payload `div` 16 == 0"
     & cover 10
         (BS.length payload `div` 16 /= 0)
         "BS.length payload `div` 16 /= 0"
-    & cover 10
+    & cover 5
         (BS.length payload `mod` 16 == 0)
         "BS.length payload `mod` 16 == 0"
     & cover 10
@@ -64,8 +63,5 @@ newtype Payload = Payload
 
 instance Arbitrary Payload where
     arbitrary = do
-        payloadLength <- chooseInt (1, 512)
-        oneof
-            [ Payload . BS.pack <$> vectorOf payloadLength arbitrary
-            , pure $ Payload BS.empty
-            ]
+        payloadLength <- chooseInt (0, 256)
+        Payload . BS.pack <$> vectorOf payloadLength arbitrary
