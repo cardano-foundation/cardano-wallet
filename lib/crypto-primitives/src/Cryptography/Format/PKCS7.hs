@@ -41,6 +41,11 @@ pad payload =
     paddingLength :: Int
     paddingLength = 16 - (BS.length payload `mod` 16)
 
+-- | Removes a PKCS#7 padding suffix from a byte string.
+--
+-- Returns 'Nothing' if the given byte string does not have a valid PKCS#7
+-- padding suffix.
+--
 unpad :: ByteString -> Maybe ByteString
 unpad paddedPayload =
     stripPadding =<< BS.unsnoc paddedPayload
