@@ -17,7 +17,9 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , checkCoverage
     , chooseInt
+    , cover
     , oneof
     , property
     , vectorOf
@@ -39,6 +41,19 @@ spec = do
 prop_pad_length :: Payload -> Property
 prop_pad_length (Payload payload) =
     BS.length (PKCS7.pad payload) `mod` 16 === 0
+    & cover 10
+        (BS.length payload `div` 16 == 0)
+        "BS.length payload `div` 16 == 0"
+    & cover 10
+        (BS.length payload `div` 16 /= 0)
+        "BS.length payload `div` 16 /= 0"
+    & cover 10
+        (BS.length payload `mod` 16 == 0)
+        "BS.length payload `mod` 16 == 0"
+    & cover 10
+        (BS.length payload `mod` 16 /= 0)
+        "BS.length payload `mod` 16 /= 0"
+    & checkCoverage
 
 prop_pad_unpad :: Payload -> Property
 prop_pad_unpad (Payload payload) =
