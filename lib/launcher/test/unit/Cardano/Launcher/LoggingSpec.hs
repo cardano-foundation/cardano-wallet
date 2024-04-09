@@ -7,8 +7,8 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (Command)
+    , ProcessHandles (..)
     , ProcessHasExited
-    , ProcessRun (..)
     , StdStream (CreatePipe, NoStream)
     , withBackendProcess
     )
@@ -78,11 +78,11 @@ spec = do
                     (pure ())
                     NoStream
                     CreatePipe
-                run _ (Just handle) _ _ = do
+                run (ProcessHandles _ (Just handle) _ _) = do
                     (tracer, readTrace) <- holdTrace
                     traceHandle (prepend "stdout" >$< tracer) handle
                     readTrace `shouldReturn` prepend "stdout" <$> ["cwd"]
-                run _ _ _ _ = fail "no stdout"
-            r <- try $ withBackendProcess nullTracer c $ ProcessRun run
+                run _ = fail "no stdout"
+            r <- try $ withBackendProcess nullTracer c run
             r `shouldBe` (Right @ProcessHasExited) ()
             pure ()

@@ -25,7 +25,7 @@ import Prelude
 
 import Cardano.Launcher
     ( LauncherLog
-    , ProcessRun (..)
+    , ProcessHandles (..)
     , StdStream (..)
     , withBackendCreateProcess
     )
@@ -172,8 +172,7 @@ withCardanoNode tr nodeOutTr nodeErrTr cfg action = do
     let socketPath = nodeSocketPath (nodeDir cfg)
     cp <- cardanoNodeProcess cfg socketPath
     withBackendCreateProcess tr cp
-        $ ProcessRun
-        $ \_ mout merr _ -> do
+        $ \(ProcessHandles _ mout merr _) -> do
             traceProcessHandles (defaultOutTracer nodeOutTr) mout
             traceProcessHandles (defaultErrTracer nodeErrTr) merr
             action $ CardanoNodeConn socketPath
