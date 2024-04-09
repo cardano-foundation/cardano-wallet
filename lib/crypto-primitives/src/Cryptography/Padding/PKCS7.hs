@@ -22,11 +22,23 @@ import qualified Data.ByteString.Char8 as B8
 -- where @s@ is a padding suffix chosen such that the length of @r@ is exactly
 -- divisible by 16 bytes.
 --
--- There are only 16 possible padding suffixes, characterised by the following
--- properties:
+-- A padding suffix is characterised by the following properties:
 --
--- - The length of a padding suffix is a value in the interval [1, 16].
+-- - The length of a padding suffix is a value in the interval @[1, 16]@.
 -- - The value of each byte in a suffix is identical to the suffix length.
+--
+-- These properties generate the following set of 16 possible padding suffixes:
+--
+-- @
+-- { "\x01"
+-- , "\x02\x02"
+-- , "\x03\x03\x03"
+-- , ...
+-- , "\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e\x0e"
+-- , "\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f"
+-- , "\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10"
+-- }
+-- @
 --
 -- See:
 -- https://datatracker.ietf.org/doc/html/rfc5652#section-6.3.
