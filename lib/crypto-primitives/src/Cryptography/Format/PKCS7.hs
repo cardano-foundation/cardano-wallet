@@ -41,6 +41,8 @@ unpad paddedPayload =
     stripPadding (_, lastByte)
         | BS.length paddedPayload `mod` 16 /= 0 =
             Nothing
+        | paddingLength > 16 =
+            Nothing
         | otherwise =
             stripSuffix padding paddedPayload
       where
