@@ -38,7 +38,11 @@ unpad :: ByteString -> Maybe ByteString
 unpad paddedPayload =
     stripPadding =<< BS.unsnoc paddedPayload
   where
-    stripPadding (_, lastByte) = stripSuffix padding paddedPayload
+    stripPadding (_, lastByte)
+        | BS.length paddedPayload `mod` 16 /= 0 =
+            Nothing
+        | otherwise =
+            stripSuffix padding paddedPayload
       where
         padding :: ByteString
         padding = B8.replicate paddingLength (toEnum paddingLength)
