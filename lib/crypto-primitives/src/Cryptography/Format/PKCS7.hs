@@ -16,16 +16,21 @@ import Data.Semigroup.Cancellative
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
--- | Apply PKCS#7 padding to payload and end up with a multiple of a block
--- size, i.e., 16 bytes, according to
+-- | Appends a PKCS#7 padding suffix to a byte string.
+--
+-- For a given string @b@, this function returns a padded string @r = b <> s@,
+-- where @s@ is a padding suffix chosen such that the length of @r@ is exactly
+-- divisible by 16 bytes.
+--
+-- There are only 16 possible padding suffixes, characterised by the following
+-- properties:
+--
+-- - The length of a padding suffix is a value in the interval [1, 16].
+-- - The value of each byte in a suffix is identical to the suffix length.
+--
+-- See:
 -- https://datatracker.ietf.org/doc/html/rfc5652#section-6.3.
--- The padding value is the number of padding bytes.
--- If 1 byte of padding is required, the padding is "01".
--- If 2 bytes of padding, it's "02 02".
--- If no padding is required, an extra block of 0x10 bytes is added,
--- i.e., sixteen copies of 16, which is the blocksize.
--- This means that payload can only fit 15 bytes into a single block with
--- padding. A 16 byte payload requires 2 blocks with padding.
+--
 pad :: ByteString -> ByteString
 pad payload =
     BS.append payload padding
