@@ -13,7 +13,6 @@ import Data.Maybe
     ( isJust, isNothing )
 import Test.Hspec
     ( Spec
-    , describe
     , it
     )
 import Test.QuickCheck
@@ -33,16 +32,29 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
+    it "prop_pad_length" $
+        prop_pad_length
+            & property
     it "prop_pad_unpad" $
         prop_pad_unpad
             & property
 
-    describe "Padding produces always payload that is multiple of 16 bytes" $
-        it "(pad payload) % 16 == 0" $ property $ \payload -> do
-            let toPayloadLen Nothing = 0
-                toPayloadLen (Just bs) = BS.length bs
-            (toPayloadLen ( (PKCS7.pad $ unPayload payload)) ) `mod` 16
-                === 0
+prop_pad_length :: Payload -> Property
+prop_pad_length (Payload payload) =
+    case maybePaddedPayload of
+        Nothing ->
+            payload === BS.empty
+        Just paddedPayload ->
+            BS.length paddedPayload `mod` 16 === 0
+    & cover 10
+        (isJust maybePaddedPayload)
+        "isJust maybePaddedPayload"
+    & cover 10
+        (isNothing maybePaddedPayload)
+        "isNothing maybePaddedPayload"
+    & checkCoverage
+  where
+    maybePaddedPayload = PKCS7.pad payload
 
 prop_pad_unpad :: Payload -> Property
 prop_pad_unpad (Payload payload) =
