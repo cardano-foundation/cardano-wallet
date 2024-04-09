@@ -76,7 +76,7 @@ import Cardano.Wallet.Launch.Cluster.Env
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
-    , toFilePath
+    , toFilePath, mkRelDirOf
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
@@ -350,6 +350,7 @@ withServer
                             , cfgShelleyGenesisMods = []
                             , cfgTracer = tr'
                             , cfgNodeOutputFile = nodeOutputFile
+                            , cfgRelayNodePath = mkRelDirOf "relay"
                             }
                 withCluster clusterConfig faucetFunds
                     $ onClusterStart
@@ -461,6 +462,7 @@ setupContext
                             , cfgShelleyGenesisMods = []
                             , cfgTracer = tr'
                             , cfgNodeOutputFile = nodeOutputFile
+                            , cfgRelayNodePath = mkRelDirOf "relay"
                             }
 
             putMVar

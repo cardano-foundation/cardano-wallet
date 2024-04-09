@@ -671,6 +671,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                             ]
                         , cfgTracer = stdoutTextTracer
                         , cfgNodeOutputFile = Nothing
+                        , cfgRelayNodePath = mkRelDirOf "relay"
                         }
             withCluster
                 clusterConfig

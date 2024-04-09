@@ -243,7 +243,8 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                 genesisFiles
                                 poolPorts
                                 runningPool0
-                    runningNode <- ContT $ withRelayNode relayNodeParams
+                    runningNode <-
+                        ContT $ withRelayNode relayNodeParams cfgRelayNodePath
                     liftIO $ onClusterStart runningNode
   where
     FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds =

@@ -245,6 +245,7 @@ main = withUtf8 $ do
                     , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
                     , cfgTracer = stdoutTextTracer
                     , cfgNodeOutputFile = Nothing
+                    , cfgRelayNodePath = mkRelDirOf "relay"
                     }
         node <-
             ContT
