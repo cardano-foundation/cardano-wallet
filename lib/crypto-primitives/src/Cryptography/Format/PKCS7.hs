@@ -9,6 +9,9 @@ import Prelude
 import Data.ByteString
     ( ByteString
     )
+import Data.Semigroup.Cancellative
+    ( RightReductive (stripSuffix)
+    )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -33,9 +36,12 @@ pad payload
 
 unpad :: ByteString -> Maybe ByteString
 unpad paddedPayload =
-    stripPadding <$> BS.unsnoc paddedPayload
+    stripPadding =<< BS.unsnoc paddedPayload
   where
-    stripPadding (_, lastByte) = BS.dropEnd paddingLength paddedPayload
+    stripPadding (_, lastByte) = stripSuffix padding paddedPayload
       where
+        padding :: ByteString
+        padding = B8.replicate paddingLength (toEnum paddingLength)
+
         paddingLength :: Int
         paddingLength = fromEnum lastByte

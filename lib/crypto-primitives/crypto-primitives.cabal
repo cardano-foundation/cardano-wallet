@@ -54,6 +54,7 @@ library
     , either
     , extra
     , memory                  ^>=0.18
+    , monoid-subclasses
 
 test-suite test
   import:             language, opts-exe
