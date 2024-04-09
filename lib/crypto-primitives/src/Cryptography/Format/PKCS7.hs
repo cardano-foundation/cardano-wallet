@@ -28,10 +28,15 @@ import qualified Data.ByteString.Char8 as B8
 -- padding. A 16 byte payload requires 2 blocks with padding.
 pad :: ByteString -> Maybe ByteString
 pad payload
-    | BS.null payload = Nothing
-    | otherwise = Just $ BS.append payload padding
+    | BS.null payload =
+        Nothing
+    | otherwise =
+        Just $ BS.append payload padding
   where
+    padding :: ByteString
     padding = B8.replicate paddingLength (toEnum paddingLength)
+
+    paddingLength :: Int
     paddingLength = 16 - (BS.length payload `mod` 16)
 
 unpad :: ByteString -> Maybe ByteString
