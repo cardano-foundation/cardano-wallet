@@ -106,7 +106,7 @@ encrypt
     -> ByteString
     -- ^ Initialisation vector (IV): must be 16 bytes.
     -> Maybe ByteString
-    -- ^ Optional salt, if specified must be 8 bytes
+    -- ^ Optional salt. If specified, must be 8 bytes.
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
@@ -144,12 +144,12 @@ decrypt
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError (ByteString, Maybe ByteString)
-    -- ^ Decrypted payload and optionally salt that was used upon encryption of the payment
+    -- ^ Decrypted payload and optionally salt that was used for encryption.
 decrypt mode key iv msg = do
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
    initedIV <- mapLeft FromCryptonite (createIV iv)
-   let (prefix,rest)= BS.splitAt 8 msg
+   let (prefix,rest) = BS.splitAt 8 msg
    let saltDetected = prefix == saltPrefix
    let unpadding p = case mode of
            WithoutPadding -> Right p
