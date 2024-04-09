@@ -226,7 +226,7 @@ withCardanoWallet
     -> BenchmarkConfig
     -> C.CardanoNodeConn
     -> (C.CardanoWalletConn -> IO r)
-    -> IO (Either C.ProcessHasExited r)
+    -> IO r
 withCardanoWallet tr workingDir walletExe BenchmarkConfig{..} node action = do
     C.withCardanoWallet tr node
         C.CardanoWalletConfig
@@ -252,7 +252,7 @@ withCardanoNode
     -> FilePath
     -> BenchmarkConfig
     -> (C.CardanoNodeConn -> IO r)
-    -> IO (Either C.ProcessHasExited r)
+    -> IO r
 withCardanoNode tr nodeExe BenchmarkConfig{..} =
     C.withCardanoNode tr Nothing Nothing
         C.CardanoNodeConfig

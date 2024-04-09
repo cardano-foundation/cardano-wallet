@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Launcher.LoggingSpec (spec) where
 
@@ -6,7 +7,8 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (Command)
-    , ProcessRun (ProcessRun)
+    , ProcessHasExited
+    , ProcessRun (..)
     , StdStream (CreatePipe, NoStream)
     , withBackendProcess
     )
@@ -43,7 +45,8 @@ import Test.Hspec
     , shouldReturn
     )
 import UnliftIO
-    ( withSystemTempFile
+    ( try
+    , withSystemTempFile
     )
 
 import qualified Data.Text.IO as T
@@ -80,6 +83,6 @@ spec = do
                     traceHandle (prepend "stdout" >$< tracer) handle
                     readTrace `shouldReturn` prepend "stdout" <$> ["cwd"]
                 run _ _ _ _ = fail "no stdout"
-            r <- withBackendProcess nullTracer c $ ProcessRun run
-            r `shouldBe` Right ()
+            r <- try $ withBackendProcess nullTracer c $ ProcessRun run
+            r `shouldBe` (Right @ProcessHasExited) ()
             pure ()

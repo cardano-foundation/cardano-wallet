@@ -52,9 +52,6 @@ import Cardano.Wallet.Launch.Cluster.Node.RunningNode
 import Control.Concurrent
     ( threadDelay
     )
-import Control.Exception
-    ( throwIO
-    )
 import Control.Monitoring
     ( MonitorState
     )
@@ -109,7 +106,7 @@ localClusterProcess CommandLineOptions{..} era = do
   where
     args =
         [ "--cluster-configs"
-        , toFilePath $ absDirOf  clusterConfigsDir
+        , toFilePath $ absDirOf clusterConfigsDir
         , "--faucet-funds"
         , toFilePath $ absFileOf faucetFundsFile
         ]
@@ -134,15 +131,19 @@ withLocalCluster
     -- ^ Action to run once when all pools have started.
     -> IO a
 withLocalCluster monitoringPort initialPullingState Config{..} faucetFunds run = do
-    r <- withTempFile $ \faucetFundsPath -> do
+    withTempFile $ \faucetFundsPath -> do
         let faucetFundsFile = FileOf $ absFile faucetFundsPath
             clusterConfigsDir = cfgClusterConfigs
-            shelleyGenesis = absDirOf cfgClusterDir
-                </> relFile "shelley-genesis.json"
+            shelleyGenesis =
+                absDirOf cfgClusterDir
+                    </> relFile "shelley-genesis.json"
             clusterDir = Just cfgClusterDir
             pullingMode = initialPullingState
-        saveFunds (faucetFundsFile) faucetFunds
-        case cardanoNodeConn $ nodeSocketPath $ toFilePath $ absDirOf cfgClusterDir of
+        saveFunds faucetFundsFile faucetFunds
+        case cardanoNodeConn
+            $ nodeSocketPath
+            $ toFilePath
+            $ absDirOf cfgClusterDir of
             Left err -> error $ "Failed to get socket path: " ++ err
             Right socketPath -> do
                 cp <- localClusterProcess CommandLineOptions{..} cfgLastHardFork
@@ -169,4 +170,3 @@ withLocalCluster monitoringPort initialPullingState Config{..} faucetFunds run =
                                             }
                                     }
                         run runningNode
-    either throwIO pure r

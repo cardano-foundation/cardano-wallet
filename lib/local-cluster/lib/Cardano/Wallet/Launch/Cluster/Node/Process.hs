@@ -21,9 +21,6 @@ import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , NodeId
     )
-import Control.Exception
-    ( throwIO
-    )
 import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
@@ -43,12 +40,10 @@ withCardanoNodeProcess
 withCardanoNodeProcess name cfg f = do
     Config{..} <- ask
     UnliftClusterM withConfig _ <- askUnliftClusterM
-    liftIO $ do
-        r <-
-            withCardanoNode
-                (contramap (MsgLauncher $ show name) cfgTracer)
-                (Just $ MsgNodeStdout name >$< cfgTracer)
-                (Just $ MsgNodeStderr name >$< cfgTracer)
-                cfg
-                $ withConfig . f
-        either throwIO pure r
+    liftIO
+        $ withCardanoNode
+            (contramap (MsgLauncher $ show name) cfgTracer)
+            (Just $ MsgNodeStdout name >$< cfgTracer)
+            (Just $ MsgNodeStderr name >$< cfgTracer)
+            cfg
+        $ withConfig . f
