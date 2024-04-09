@@ -30,12 +30,21 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
+    it "prop_pad_isPrefixOf" $
+        prop_pad_isPrefixOf
+            & property
     it "prop_pad_length" $
         prop_pad_length
             & property
     it "prop_pad_unpad" $
         prop_pad_unpad
             & property
+
+prop_pad_isPrefixOf :: Payload -> Property
+prop_pad_isPrefixOf (Payload payload) =
+    payload `BS.isPrefixOf` PKCS7.pad payload
+    ===
+    True
 
 prop_pad_length :: Payload -> Property
 prop_pad_length (Payload payload) =
