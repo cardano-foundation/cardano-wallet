@@ -32,10 +32,10 @@ pad payload
     paddingLength = 16 - (BS.length payload `mod` 16)
 
 unpad :: ByteString -> Maybe ByteString
-unpad payload =
-    stripPadding <$> BS.unsnoc payload
+unpad paddedPayload =
+    stripPadding <$> BS.unsnoc paddedPayload
   where
-    stripPadding (_, lastByte) = BS.dropEnd paddingLength payload
+    stripPadding (_, lastByte) = BS.dropEnd paddingLength paddedPayload
       where
         paddingLength :: Int
         paddingLength = fromEnum lastByte
