@@ -58,10 +58,6 @@ import Cryptography.Core
     ( CryptoError (CryptoError_IvSizeInvalid)
     , CryptoFailable (CryptoFailed, CryptoPassed)
     )
-import Cryptography.Format.PKCS7
-    ( padPKCS7
-    , unpadPKCS7
-    )
 import Data.ByteString
     ( ByteString
     )
@@ -75,6 +71,7 @@ import Data.Either.Extra
     ( maybeToEither
     )
 
+import qualified Cryptography.Format.PKCS7 as PKCS7
 import qualified Data.ByteString as BS
 
 data CipherMode =
@@ -119,7 +116,7 @@ encrypt mode key iv saltM msg = do
    initedIV <- mapLeft FromCryptonite (createIV iv)
    let msgM = case mode of
            WithoutPadding -> Just msg
-           WithPadding -> padPKCS7 msg
+           WithPadding -> PKCS7.pad msg
    msg' <- maybeToRight EmptyPayload msgM
    case saltM of
        Nothing ->
@@ -154,7 +151,7 @@ decrypt mode key iv msg = do
    let saltDetected = prefix == saltPrefix
    let unpadding p = case mode of
            WithoutPadding -> Right p
-           WithPadding -> maybeToRight EmptyPayload (unpadPKCS7 p)
+           WithPadding -> maybeToRight EmptyPayload (PKCS7.unpad p)
    if saltDetected then
        mapRight (, Just $ BS.take 8 rest) $
        mapBoth FromCryptonite

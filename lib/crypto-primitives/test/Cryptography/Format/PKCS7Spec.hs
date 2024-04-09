@@ -4,10 +4,6 @@ module Cryptography.Format.PKCS7Spec
 
 import Prelude
 
-import Cryptography.Format.PKCS7
-    ( padPKCS7
-    , unpadPKCS7
-    )
 import Data.ByteString
     ( ByteString
     )
@@ -25,6 +21,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cryptography.Format.PKCS7 as PKCS7
 import qualified Data.ByteString as BS
 
 spec :: Spec
@@ -33,13 +30,13 @@ spec = do
         it "unpad . pad $ payload == payload" $ property $ \payload -> do
             let toPayload Nothing = Payload BS.empty
                 toPayload (Just bs) = Payload bs
-            toPayload ( padPKCS7 (unPayload payload) >>= unpadPKCS7 )
+            toPayload ( PKCS7.pad (unPayload payload) >>= PKCS7.unpad )
                 === payload
     describe "Padding produces always payload that is multiple of 16 bytes" $
         it "(pad payload) % 16 == 0" $ property $ \payload -> do
             let toPayloadLen Nothing = 0
                 toPayloadLen (Just bs) = BS.length bs
-            (toPayloadLen ( (padPKCS7 $ unPayload payload)) ) `mod` 16
+            (toPayloadLen ( (PKCS7.pad $ unPayload payload)) ) `mod` 16
                 === 0
 
 newtype Payload = Payload

@@ -1,6 +1,6 @@
 module Cryptography.Format.PKCS7
-    ( padPKCS7
-    , unpadPKCS7
+    ( pad
+    , unpad
     )
     where
 
@@ -23,16 +23,16 @@ import qualified Data.ByteString.Char8 as B8
 -- i.e., sixteen copies of 16, which is the blocksize.
 -- This means that payload can only fit 15 bytes into a single block with
 -- padding. A 16 byte payload requires 2 blocks with padding.
-padPKCS7 :: ByteString -> Maybe ByteString
-padPKCS7 payload
+pad :: ByteString -> Maybe ByteString
+pad payload
     | BS.null payload = Nothing
     | otherwise = Just $ BS.append payload padding
   where
     padding = B8.replicate paddingLength (toEnum paddingLength)
     paddingLength = 16 - (BS.length payload `mod` 16)
 
-unpadPKCS7 :: ByteString -> Maybe ByteString
-unpadPKCS7 payload =
+unpad :: ByteString -> Maybe ByteString
+unpad payload =
     stripPadding <$> BS.unsnoc payload
   where
     stripPadding (_, lastByte) = BS.dropEnd paddingLength payload
