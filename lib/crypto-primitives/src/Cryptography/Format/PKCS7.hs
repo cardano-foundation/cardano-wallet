@@ -26,12 +26,9 @@ import qualified Data.ByteString.Char8 as B8
 -- i.e., sixteen copies of 16, which is the blocksize.
 -- This means that payload can only fit 15 bytes into a single block with
 -- padding. A 16 byte payload requires 2 blocks with padding.
-pad :: ByteString -> Maybe ByteString
-pad payload
-    | BS.null payload =
-        Nothing
-    | otherwise =
-        Just $ BS.append payload padding
+pad :: ByteString -> ByteString
+pad payload =
+    BS.append payload padding
   where
     padding :: ByteString
     padding = B8.replicate paddingLength (toEnum paddingLength)

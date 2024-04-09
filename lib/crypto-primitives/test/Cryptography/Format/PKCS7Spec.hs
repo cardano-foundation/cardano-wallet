@@ -8,9 +8,8 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Function
-    ( (&) )
-import Data.Maybe
-    ( isJust, isNothing )
+    ( (&)
+    )
 import Test.Hspec
     ( Spec
     , it
@@ -18,9 +17,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
-    , checkCoverage
     , chooseInt
-    , cover
     , oneof
     , property
     , vectorOf
@@ -41,37 +38,11 @@ spec = do
 
 prop_pad_length :: Payload -> Property
 prop_pad_length (Payload payload) =
-    case maybePaddedPayload of
-        Nothing ->
-            payload === BS.empty
-        Just paddedPayload ->
-            BS.length paddedPayload `mod` 16 === 0
-    & cover 10
-        (isJust maybePaddedPayload)
-        "isJust maybePaddedPayload"
-    & cover 10
-        (isNothing maybePaddedPayload)
-        "isNothing maybePaddedPayload"
-    & checkCoverage
-  where
-    maybePaddedPayload = PKCS7.pad payload
+    BS.length (PKCS7.pad payload) `mod` 16 === 0
 
 prop_pad_unpad :: Payload -> Property
 prop_pad_unpad (Payload payload) =
-    case maybePaddedPayload of
-        Nothing ->
-            payload === BS.empty
-        Just paddedPayload ->
-            PKCS7.unpad paddedPayload === Just payload
-    & cover 10
-        (isJust maybePaddedPayload)
-        "isJust maybePaddedPayload"
-    & cover 10
-        (isNothing maybePaddedPayload)
-        "isNothing maybePaddedPayload"
-    & checkCoverage
-  where
-    maybePaddedPayload = PKCS7.pad payload
+    PKCS7.unpad (PKCS7.pad payload) === Just payload
 
 newtype Payload = Payload
     { unPayload :: ByteString } deriving (Eq, Show)
