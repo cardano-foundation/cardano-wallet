@@ -72,10 +72,6 @@ import Data.Either.Combinators
 import Data.Either.Extra
     ( maybeToEither
     )
-import Data.Maybe
-    ( fromJust
-    , isJust
-    )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -115,7 +111,7 @@ encrypt
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
 encrypt mode key iv saltM msg = do
-   when (isJust saltM && BS.length (fromJust saltM) /= 8) $
+   when (any ((/= 8) . BS.length) saltM) $
        Left WrongSaltSize
    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
        Left WrongPayloadSize
