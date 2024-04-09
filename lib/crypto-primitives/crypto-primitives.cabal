@@ -66,10 +66,12 @@ test-suite test
     , base
     , bytestring
     , cardano-wallet-test-utils
+    , containers
     , crypto-primitives
     , either
     , hspec
     , memory
+    , monoid-subclasses
     , QuickCheck
     , text
     , with-utf8

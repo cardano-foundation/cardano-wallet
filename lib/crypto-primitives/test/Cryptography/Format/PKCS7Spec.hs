@@ -10,6 +10,12 @@ import Data.ByteString
 import Data.Function
     ( (&)
     )
+import Data.Semigroup.Cancellative
+    ( LeftReductive (stripPrefix)
+    )
+import Data.Set
+    ( Set
+    )
 import Test.Hspec
     ( Spec
     , it
@@ -27,6 +33,8 @@ import Test.QuickCheck
 
 import qualified Cryptography.Format.PKCS7 as PKCS7
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
@@ -35,6 +43,9 @@ spec = do
             & property
     it "prop_pad_length" $
         prop_pad_length
+            & property
+    it "prop_pad_stripPrefix_member_allPossiblePaddingSuffixes" $
+        prop_pad_stripPrefix_member_allPossiblePaddingSuffixes
             & property
     it "prop_pad_unpad" $
         prop_pad_unpad
@@ -62,6 +73,19 @@ prop_pad_length (Payload payload) =
         (BS.length payload `mod` 16 /= 0)
         "BS.length payload `mod` 16 /= 0"
     & checkCoverage
+
+prop_pad_stripPrefix_member_allPossiblePaddingSuffixes :: Payload -> Property
+prop_pad_stripPrefix_member_allPossiblePaddingSuffixes (Payload payload) =
+    property $
+    case stripPrefix payload (PKCS7.pad payload) of
+        Nothing ->
+            False
+        Just paddingSuffix ->
+            paddingSuffix `Set.member` allPossiblePaddingSuffixes
+
+allPossiblePaddingSuffixes :: Set ByteString
+allPossiblePaddingSuffixes = Set.fromList
+    [ B8.replicate i (toEnum i) | i <- [1 .. 16] ]
 
 prop_pad_unpad :: Payload -> Property
 prop_pad_unpad (Payload payload) =
