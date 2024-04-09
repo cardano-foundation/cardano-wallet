@@ -71,7 +71,7 @@ import Data.Either.Extra
     ( maybeToEither
     )
 
-import qualified Cryptography.Format.PKCS7 as PKCS7
+import qualified Cryptography.Padding.PKCS7 as PKCS7
 import qualified Data.ByteString as BS
 
 data CipherMode =

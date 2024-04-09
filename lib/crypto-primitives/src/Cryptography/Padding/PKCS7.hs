@@ -1,4 +1,4 @@
-module Cryptography.Format.PKCS7
+module Cryptography.Padding.PKCS7
     ( pad
     , unpad
     )

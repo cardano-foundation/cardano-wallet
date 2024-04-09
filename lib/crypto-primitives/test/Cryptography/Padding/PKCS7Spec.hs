@@ -1,4 +1,4 @@
-module Cryptography.Format.PKCS7Spec
+module Cryptography.Padding.PKCS7Spec
     ( spec
     ) where
 
@@ -31,7 +31,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cryptography.Format.PKCS7 as PKCS7
+import qualified Cryptography.Padding.PKCS7 as PKCS7
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Set as Set

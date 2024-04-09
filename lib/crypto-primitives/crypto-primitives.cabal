@@ -46,7 +46,7 @@ library
                       Cryptography.Hash.Core
                       Cryptography.KDF.PBKDF2
                       Cryptography.KDF.Scrypt
-                      Cryptography.Format.PKCS7
+                      Cryptography.Padding.PKCS7
   build-depends:
     , base                    >= 4.14.3 && < 4.19
     , bytestring              >= 0.10.12 && < 0.13
@@ -79,6 +79,6 @@ test-suite test
   other-modules:
     Cryptography.Cipher.AES256CBCSpec
     Cryptography.KDF.PBKDF2Spec
-    Cryptography.Format.PKCS7Spec
+    Cryptography.Padding.PKCS7Spec
     Spec
     SpecHook
