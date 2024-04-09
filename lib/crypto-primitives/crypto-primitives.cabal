@@ -76,5 +76,6 @@ test-suite test
   other-modules:
     Cryptography.Cipher.AES256CBCSpec
     Cryptography.KDF.PBKDF2Spec
+    Cryptography.Format.PKCS7Spec
     Spec
     SpecHook
