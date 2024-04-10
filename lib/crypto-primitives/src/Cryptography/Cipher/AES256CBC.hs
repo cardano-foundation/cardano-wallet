@@ -113,7 +113,7 @@ encrypt mode key iv saltM msg = do
     initedIV <- first FromCryptonite (createIV iv)
     let msgM = case mode of
             WithoutPadding -> Just msg
-            WithPadding -> padPKCS7 msg
+            WithPadding -> pad msg
     msg' <- maybeToEither EmptyPayload msgM
     case saltM of
         Nothing ->
@@ -125,7 +125,7 @@ encrypt mode key iv saltM msg = do
             (\c -> cbcEncrypt c initedIV msg') (initCipher key)
   where
     addSalt salt = saltPrefix <> salt
-    padPKCS7 payload
+    pad payload
         | BS.null payload = Nothing
         | otherwise = Just (PKCS7.pad payload)
 
