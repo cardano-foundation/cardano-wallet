@@ -58,14 +58,11 @@ import Cryptography.Core
     ( CryptoError (CryptoError_IvSizeInvalid)
     , CryptoFailable (CryptoFailed, CryptoPassed)
     )
+import Data.Bifunctor
+    ( Bifunctor (bimap, first, second)
+    )
 import Data.ByteString
     ( ByteString
-    )
-import Data.Either.Combinators
-    ( mapBoth
-    , mapLeft
-    , mapRight
-    , maybeToRight
     )
 import Data.Either.Extra
     ( maybeToEither
@@ -108,29 +105,28 @@ encrypt
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
-encrypt mode key iv saltM msg = do
-   when (any ((/= 8) . BS.length) saltM) $
-       Left WrongSaltSize
-   when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
-       Left WrongPayloadSize
-   initedIV <- mapLeft FromCryptonite (createIV iv)
-   let msgM = case mode of
-           WithoutPadding -> Just msg
-           WithPadding -> padPKCS7 msg
-   msg' <- maybeToRight EmptyPayload msgM
-   case saltM of
-       Nothing ->
-           mapBoth FromCryptonite
-           (\c -> cbcEncrypt c initedIV msg') (initCipher key)
-       Just salt ->
-           mapRight (\c -> addSalt salt <> c) $
-           mapBoth FromCryptonite
-           (\c -> cbcEncrypt c initedIV msg') (initCipher key)
- where
-   addSalt salt = saltPrefix <> salt
-   padPKCS7 payload
-       | BS.null payload = Nothing
-       | otherwise = Just (PKCS7.pad payload)
+encrypt mode keyBytes ivBytes saltM msg
+    | any ((/= 8) . BS.length) saltM =
+        Left WrongSaltSize
+    | mode == WithoutPadding && BS.length msg `mod` 16 /= 0 =
+        Left WrongPayloadSize
+    | BS.null msg =
+        Left EmptyPayload
+    | otherwise = do
+        iv <- first FromCryptonite (createIV ivBytes)
+        cypher <- first FromCryptonite (initCipher keyBytes)
+        pure $ maybeAddSalt $ cbcEncrypt cypher iv $ maybePad msg
+  where
+    maybeAddSalt :: ByteString -> ByteString
+    maybeAddSalt =
+        case saltM of
+            Nothing -> id
+            Just salt -> \c -> saltPrefix <> salt <> c
+    maybePad :: ByteString -> ByteString
+    maybePad =
+        case mode of
+            WithoutPadding -> id
+            WithPadding -> PKCS7.pad
 
 saltPrefix :: ByteString
 saltPrefix = "Salted__"
@@ -147,21 +143,23 @@ decrypt
     -> Either CipherError (ByteString, Maybe ByteString)
     -- ^ Decrypted payload and optionally salt that was used for encryption.
 decrypt mode key iv msg = do
-   when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
-       Left WrongPayloadSize
-   initedIV <- mapLeft FromCryptonite (createIV iv)
-   let (prefix,rest) = BS.splitAt 8 msg
-   let saltDetected = prefix == saltPrefix
-   let unpadding p = case mode of
-           WithoutPadding -> Right p
-           WithPadding -> maybeToRight EmptyPayload (PKCS7.unpad p)
-   if saltDetected then
-       mapRight (, Just $ BS.take 8 rest) $
-       mapBoth FromCryptonite
-       (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
-       unpadding
-   else
-       mapRight (, Nothing) $
-       mapBoth FromCryptonite
-       (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
-       unpadding
+    when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
+        Left WrongPayloadSize
+    initedIV <- first FromCryptonite (createIV iv)
+    let (prefix,rest) = BS.splitAt 8 msg
+    let saltDetected = prefix == saltPrefix
+    if saltDetected then
+        second (, Just $ BS.take 8 rest) $
+        bimap FromCryptonite
+        (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
+        unpad
+    else
+        second (, Nothing) $
+        bimap FromCryptonite
+        (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
+        unpad
+  where
+    unpad :: ByteString -> Either CipherError ByteString
+    unpad p = case mode of
+        WithoutPadding -> Right p
+        WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
