@@ -105,7 +105,7 @@ encrypt
     -> ByteString
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
-encrypt mode key iv saltM msg
+encrypt mode keyBytes ivBytes saltM msg
     | any ((/= 8) . BS.length) saltM =
         Left WrongSaltSize
     | mode == WithoutPadding && BS.length msg `mod` 16 /= 0 =
@@ -113,9 +113,9 @@ encrypt mode key iv saltM msg
     | BS.null msg =
         Left EmptyPayload
     | otherwise = do
-        initedIV <- first FromCryptonite (createIV iv)
-        cypher <- first FromCryptonite (initCipher key)
-        pure $ maybeAddSalt $ cbcEncrypt cypher initedIV $ maybePad msg
+        iv <- first FromCryptonite (createIV ivBytes)
+        cypher <- first FromCryptonite (initCipher keyBytes)
+        pure $ maybeAddSalt $ cbcEncrypt cypher iv $ maybePad msg
   where
     maybeAddSalt :: ByteString -> ByteString
     maybeAddSalt =
