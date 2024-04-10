@@ -59,14 +59,13 @@ import Cryptography.Core
     , CryptoFailable (CryptoFailed, CryptoPassed)
     )
 import Data.Bifunctor
-    ( Bifunctor (bimap, first)
+    ( Bifunctor (bimap, first, second)
     )
 import Data.ByteString
     ( ByteString
     )
 import Data.Either.Combinators
-    ( mapRight
-    , maybeToRight
+    ( maybeToRight
     )
 import Data.Either.Extra
     ( maybeToEither
@@ -124,7 +123,7 @@ encrypt mode key iv saltM msg = do
             bimap FromCryptonite
             (\c -> cbcEncrypt c initedIV msg') (initCipher key)
         Just salt ->
-            mapRight (\c -> addSalt salt <> c) $
+            second (\c -> addSalt salt <> c) $
             bimap FromCryptonite
             (\c -> cbcEncrypt c initedIV msg') (initCipher key)
   where
@@ -157,12 +156,12 @@ decrypt mode key iv msg = do
             WithoutPadding -> Right p
             WithPadding -> maybeToRight EmptyPayload (PKCS7.unpad p)
     if saltDetected then
-        mapRight (, Just $ BS.take 8 rest) $
+        second (, Just $ BS.take 8 rest) $
         bimap FromCryptonite
         (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
         unpadding
     else
-        mapRight (, Nothing) $
+        second (, Nothing) $
         bimap FromCryptonite
         (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
         unpadding
