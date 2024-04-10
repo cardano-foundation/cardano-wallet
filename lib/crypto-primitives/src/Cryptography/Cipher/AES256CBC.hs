@@ -149,16 +149,16 @@ decrypt mode key iv msg = do
     initedIV <- first FromCryptonite (createIV iv)
     let (prefix,rest) = BS.splitAt 8 msg
     let saltDetected = prefix == saltPrefix
-    let unpadding p = case mode of
+    let unpad p = case mode of
             WithoutPadding -> Right p
             WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
     if saltDetected then
         second (, Just $ BS.take 8 rest) $
         bimap FromCryptonite
         (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
-        unpadding
+        unpad
     else
         second (, Nothing) $
         bimap FromCryptonite
         (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
-        unpadding
+        unpad
