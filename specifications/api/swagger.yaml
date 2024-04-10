@@ -1788,17 +1788,29 @@ x-transactionMetadata: &transactionMetadata
   # propertyNames:
   #   pattern: '^[0-9]+$'
 
+x-encryptionMethod: &encryptionMethod
+  type: string
+  enum:
+    - base
+
 x-encryptMetadata: &encryptMetadata
   description: |
-    If used then metadata in transaction is going to be encrypted
-    via AEAD scheme using ChaCha20 and Poly1305 (see RFC 7539).
-    PBKDF2 password stretching is used to get a 32-byte symmetric key.
-    PBKDF2 encryption using HMAC with the hash algorithm SHA512 is employed here.
-    The encrypted metadata is going to be stored in blockchain as a consequence.
+    If used then metadata in a transaction is going to be encrypted by
+    AES 256 using CBC mode which is a default method (called base).
+    PBKDF2 password stretching is used to get a 32-byte secret key and a 16-byte
+    initialization vector required in the cipher.
+    PBKDF2 encryption algorithm using HMAC with the SHA256 hash algorithm is employed,
+    and 10000 iterations to get key and iv pair are used.
+    Cipher algorithm uses 8-byte salt, PKCS#7 padding as specified in
+    https://datatracker.ietf.org/doc/html/rfc5652#section-6.3 is applied.
+    Only metadata value under `msg` field is encrypted. If `msg` field is missing error
+    will be emitted.
+    Metadata encryption is in accordance to CIP 83 (https://cips.cardano.org/cips/cip83/).
   type: object
   required:
     - passphrase
   properties:
+    enc: *encryptionMethod
     passphrase: *lenientPassphrase
 
 x-transactionTTL: &transactionTTL
