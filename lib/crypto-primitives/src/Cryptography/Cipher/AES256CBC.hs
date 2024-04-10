@@ -58,12 +58,14 @@ import Cryptography.Core
     ( CryptoError (CryptoError_IvSizeInvalid)
     , CryptoFailable (CryptoFailed, CryptoPassed)
     )
+import Data.Bifunctor
+    ( Bifunctor (bimap)
+    )
 import Data.ByteString
     ( ByteString
     )
 import Data.Either.Combinators
-    ( mapBoth
-    , mapLeft
+    ( mapLeft
     , mapRight
     , maybeToRight
     )
@@ -120,11 +122,11 @@ encrypt mode key iv saltM msg = do
     msg' <- maybeToRight EmptyPayload msgM
     case saltM of
         Nothing ->
-            mapBoth FromCryptonite
+            bimap FromCryptonite
             (\c -> cbcEncrypt c initedIV msg') (initCipher key)
         Just salt ->
             mapRight (\c -> addSalt salt <> c) $
-            mapBoth FromCryptonite
+            bimap FromCryptonite
             (\c -> cbcEncrypt c initedIV msg') (initCipher key)
   where
     addSalt salt = saltPrefix <> salt
@@ -157,11 +159,11 @@ decrypt mode key iv msg = do
             WithPadding -> maybeToRight EmptyPayload (PKCS7.unpad p)
     if saltDetected then
         mapRight (, Just $ BS.take 8 rest) $
-        mapBoth FromCryptonite
+        bimap FromCryptonite
         (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
         unpadding
     else
         mapRight (, Nothing) $
-        mapBoth FromCryptonite
+        bimap FromCryptonite
         (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
         unpadding
