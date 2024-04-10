@@ -110,14 +110,12 @@ encrypt mode key iv saltM msg = do
         Left WrongSaltSize
     when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
         Left WrongPayloadSize
+    when (BS.null msg) $
+        Left EmptyPayload
     initedIV <- first FromCryptonite (createIV iv)
-    let msgM = case mode of
-            WithoutPadding -> Just msg
-            WithPadding -> pad msg
-    msg' <- maybeToEither EmptyPayload msgM
     bimap
         FromCryptonite
-        (maybeAddSalt . (\c -> cbcEncrypt c initedIV msg'))
+        (maybeAddSalt . (\c -> cbcEncrypt c initedIV (maybePad msg)))
         (initCipher key)
   where
     maybeAddSalt :: ByteString -> ByteString
@@ -125,9 +123,11 @@ encrypt mode key iv saltM msg = do
         case saltM of
             Nothing -> id
             Just salt -> \c -> saltPrefix <> salt <> c
-    pad payload
-        | BS.null payload = Nothing
-        | otherwise = Just (PKCS7.pad payload)
+    maybePad :: ByteString -> ByteString
+    maybePad =
+        case mode of
+            WithoutPadding -> id
+            WithPadding -> PKCS7.pad
 
 saltPrefix :: ByteString
 saltPrefix = "Salted__"
