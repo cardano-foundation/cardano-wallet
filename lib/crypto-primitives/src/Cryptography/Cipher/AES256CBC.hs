@@ -59,14 +59,13 @@ import Cryptography.Core
     , CryptoFailable (CryptoFailed, CryptoPassed)
     )
 import Data.Bifunctor
-    ( Bifunctor (bimap)
+    ( Bifunctor (bimap, first)
     )
 import Data.ByteString
     ( ByteString
     )
 import Data.Either.Combinators
-    ( mapLeft
-    , mapRight
+    ( mapRight
     , maybeToRight
     )
 import Data.Either.Extra
@@ -115,7 +114,7 @@ encrypt mode key iv saltM msg = do
         Left WrongSaltSize
     when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
         Left WrongPayloadSize
-    initedIV <- mapLeft FromCryptonite (createIV iv)
+    initedIV <- first FromCryptonite (createIV iv)
     let msgM = case mode of
             WithoutPadding -> Just msg
             WithPadding -> padPKCS7 msg
@@ -151,7 +150,7 @@ decrypt
 decrypt mode key iv msg = do
     when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
         Left WrongPayloadSize
-    initedIV <- mapLeft FromCryptonite (createIV iv)
+    initedIV <- first FromCryptonite (createIV iv)
     let (prefix,rest) = BS.splitAt 8 msg
     let saltDetected = prefix == saltPrefix
     let unpadding p = case mode of
