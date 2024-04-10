@@ -124,8 +124,7 @@ encrypt mode key iv saltM msg = do
     maybeAddSalt =
         case saltM of
             Nothing -> id
-            Just salt -> \c -> addSalt salt <> c
-    addSalt salt = saltPrefix <> salt
+            Just salt -> \c -> saltPrefix <> salt <> c
     pad payload
         | BS.null payload = Nothing
         | otherwise = Just (PKCS7.pad payload)
