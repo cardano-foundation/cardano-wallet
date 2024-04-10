@@ -64,9 +64,6 @@ import Data.Bifunctor
 import Data.ByteString
     ( ByteString
     )
-import Data.Either.Combinators
-    ( maybeToRight
-    )
 import Data.Either.Extra
     ( maybeToEither
     )
@@ -117,7 +114,7 @@ encrypt mode key iv saltM msg = do
     let msgM = case mode of
             WithoutPadding -> Just msg
             WithPadding -> padPKCS7 msg
-    msg' <- maybeToRight EmptyPayload msgM
+    msg' <- maybeToEither EmptyPayload msgM
     case saltM of
         Nothing ->
             bimap FromCryptonite
@@ -154,7 +151,7 @@ decrypt mode key iv msg = do
     let saltDetected = prefix == saltPrefix
     let unpadding p = case mode of
             WithoutPadding -> Right p
-            WithPadding -> maybeToRight EmptyPayload (PKCS7.unpad p)
+            WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
     if saltDetected then
         second (, Just $ BS.take 8 rest) $
         bimap FromCryptonite
