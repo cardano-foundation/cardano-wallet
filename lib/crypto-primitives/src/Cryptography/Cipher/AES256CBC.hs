@@ -114,10 +114,8 @@ encrypt mode key iv saltM msg
         Left EmptyPayload
     | otherwise = do
         initedIV <- first FromCryptonite (createIV iv)
-        bimap
-            FromCryptonite
-            (maybeAddSalt . (\c -> cbcEncrypt c initedIV (maybePad msg)))
-            (initCipher key)
+        cypher <- first FromCryptonite (initCipher key)
+        pure $ maybeAddSalt $ cbcEncrypt cypher initedIV $ maybePad msg
   where
     maybeAddSalt :: ByteString -> ByteString
     maybeAddSalt =
