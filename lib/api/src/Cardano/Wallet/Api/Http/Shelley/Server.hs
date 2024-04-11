@@ -365,6 +365,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionData (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
+    , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -2725,8 +2726,15 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    when (isJust (body ^. #encryptMetadata)) $
-        liftHandler $ throwE ErrConstructTxNotImplemented
+    metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
+            (Just apiEncrypt, Just metadataWithSchema) ->
+                case toMetadataEncrypted apiEncrypt metadataWithSchema of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right meta ->
+                        pure $ Just meta
+            _ ->
+                pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
@@ -2739,9 +2747,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
-
-    let metadata =
-            body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
@@ -3120,6 +3125,42 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+-- When encryption is enabled we do the following:
+-- (a) find field(s) `msg` in the first level value pairs for each key
+-- (b) encrypt the 'msg' values if present, otherwise emit error
+-- (c) and update value of `msg` with the encrypted initial value(s) encoded in base64
+--     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
+-- (d) add `enc` field with encryption method value ("base" or "chachapoly1305")
+toMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> TxMetadataWithSchema
+    -> Either ErrConstructTx Cardano.TxMetadata
+toMetadataEncrypted _apiEncrypt payload = do
+    msgValues <- findMsgValues
+    undefined
+  where
+    getMsgValue (Cardano.TxMetaText metaField, metaValue) =
+        if metaField == "msg" then
+            Just metaValue
+        else Nothing
+    getMsgValue _ = Nothing
+    merge Nothing (Just val) = Just val
+    merge (Just val) Nothing = Just val
+    merge Nothing Nothing = Nothing
+    merge (Just _) (Just _) = error "only one 'msg' field expected"
+    -- assumption: `msg` is not embedded beyond the first level
+    -- we could change that in the future
+    inspectMetaPair (Cardano.TxMetaMap pairs) =
+        foldl merge Nothing (getMsgValue <$> pairs)
+    inspectMetaPair _ = Nothing
+    findMsgValues =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+            filteredMap = Map.filter (isJust . inspectMetaPair) themap
+        in if Map.size filteredMap >= 1 then
+            Right $ Map.toList filteredMap
+           else
+            Left ErrConstructTxIncorrectRawMetadata
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
