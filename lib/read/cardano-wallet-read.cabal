@@ -60,6 +60,7 @@ library
     Cardano.Wallet.Read.Eras.EraFun
     Cardano.Wallet.Read.Eras.EraValue
     Cardano.Wallet.Read.Eras.KnownEras
+    Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.Cardano
     Cardano.Wallet.Read.Tx.CBOR
