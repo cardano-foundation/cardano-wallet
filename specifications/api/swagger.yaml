@@ -4708,6 +4708,17 @@ x-errWithdrawalNotPossibleWithoutVote: &errWithdrawalNotPossibleWithoutVote
       type: string
       enum: ['withdrawal_not_possible_without_vote']
 
+x-errInvalidMetadataEncryption: &errInvalidMetadataEncryption
+  <<: *responsesErr
+  title: invalid_metadata_encryption
+  properties:
+    message:
+      type: string
+      description: The metadata has either wrong structure or cannot be encrypted.
+    code:
+      type: string
+      enum: ['invalid_metadata_encryption']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -6052,6 +6063,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errDelegationInvalid
             - <<: *errVotingInInvalidEra
             - <<: *errWithdrawalNotPossibleWithoutVote
+            - <<: *errInvalidMetadataEncryption
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
