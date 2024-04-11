@@ -24,12 +24,15 @@ import Cardano.Wallet.Read.Block.BlockNo
     , getEraBlockNo
     )
 import Cardano.Wallet.Read.Block.HeaderHash
-    ( HeaderHash (..)
+    ( BHeader
+    , HeaderHash (..)
     , HeaderHashT
     , PrevHeaderHash (..)
     , PrevHeaderHashT
+    , RawHeaderHash
     , getEraHeaderHash
     , getEraPrevHeaderHash
+    , getRawHeaderHash
     )
 import Cardano.Wallet.Read.Block.SlotNo
     ( SlotNo (..)

@@ -5,9 +5,14 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Read.Block.HeaderHash
-    ( getEraHeaderHash
-    , HeaderHash (..)
+    ( HeaderHash (..)
     , HeaderHashT
+    , getEraHeaderHash
+
+    , BHeader
+    , RawHeaderHash
+    , getRawHeaderHash
+
     , PrevHeaderHash (..)
     , PrevHeaderHashT
     , getEraPrevHeaderHash
@@ -46,15 +51,24 @@ import Cardano.Wallet.Read.Eras.KnownEras
     ( Era (..)
     , IsEra (..)
     )
+import Cardano.Wallet.Read.Hash
+    ( Blake2b_256
+    , Hash
+    , castHash
+    , hashFromBytesShort
+    )
+import Data.Maybe
+    ( fromJust
+    )
 import Ouroboros.Consensus.Block.Abstract
     ( headerPrevHash
     )
 import Ouroboros.Consensus.Byron.Ledger
     ( ByronBlock
-    , ByronHash
+    , ByronHash (unByronHash)
     )
 import Ouroboros.Consensus.Shelley.Ledger
-    ( ShelleyHash
+    ( ShelleyHash (unShelleyHash)
     )
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ProtoCrypto
@@ -64,11 +78,16 @@ import Ouroboros.Consensus.Shelley.Protocol.Praos
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
     ()
 
+import qualified Cardano.Crypto.Hashing as Byron
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Shelley.API as Shelley
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Shelley
 import qualified Ouroboros.Network.Block as O
+
+{-----------------------------------------------------------------------------
+    HeaderHash
+------------------------------------------------------------------------------}
 
 -- | Era-specific header hash type from the ledger
 type family HeaderHashT era where
@@ -105,6 +124,34 @@ getHeaderHashShelley
     -> ShelleyHash StandardCrypto
 getHeaderHashShelley
     (O.ShelleyBlock (Shelley.Block header _) _) = Shelley.pHeaderHash header
+
+-- | Tag representing a block header.
+data BHeader
+
+-- | Raw hash digest for a block header.
+type RawHeaderHash = Hash Blake2b_256 BHeader
+
+{-# INLINABLE getRawHeaderHash #-}
+getRawHeaderHash :: forall era. IsEra era => HeaderHash era -> RawHeaderHash
+getRawHeaderHash = case theEra @era of
+    Byron -> \(HeaderHash h) -> fromByron h
+    Shelley -> \(HeaderHash h) -> castHash $ unShelleyHash h
+    Allegra -> \(HeaderHash h) -> castHash $ unShelleyHash h
+    Mary -> \(HeaderHash h) -> castHash $ unShelleyHash h
+    Alonzo -> \(HeaderHash h) -> castHash $ unShelleyHash h
+    Babbage -> \(HeaderHash h) -> castHash $ unShelleyHash h
+    Conway -> \(HeaderHash h) -> castHash $ unShelleyHash h
+  where
+    fromByron :: ByronHash -> Hash Blake2b_256 BHeader
+    fromByron =
+        fromJust
+        . hashFromBytesShort
+        . Byron.abstractHashToShort
+        . unByronHash
+
+{-----------------------------------------------------------------------------
+    PrevHeaderHash
+------------------------------------------------------------------------------}
 
 -- | Era-specific previous header hash type from the ledger
 type family PrevHeaderHashT era where
