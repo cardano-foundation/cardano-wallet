@@ -14,10 +14,12 @@ import qualified Cardano.Wallet.Read as Read
 -}
 module Cardano.Wallet.Read
     ( module Cardano.Wallet.Read.Block
+    , module Cardano.Wallet.Read.Chain
     , module Cardano.Wallet.Read.Eras
     , module Cardano.Wallet.Read.Tx
     ) where
 
 import Cardano.Wallet.Read.Block
+import Cardano.Wallet.Read.Chain
 import Cardano.Wallet.Read.Eras
 import Cardano.Wallet.Read.Tx
