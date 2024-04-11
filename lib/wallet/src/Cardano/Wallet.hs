@@ -3719,6 +3719,7 @@ data ErrConstructTx
     | ErrConstructTxDelegationInvalid
     | ErrConstructTxVotingInWrongEra
     | ErrConstructTxWithdrawalWithoutVoting
+    | ErrConstructTxIncorrectRawMetadata
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 
