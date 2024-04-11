@@ -244,6 +244,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , EncryptMetadataMethod (..)
     , Iso8601Time (..)
     , KeyFormat (..)
     , NtpSyncingStatus (..)
@@ -2078,7 +2079,7 @@ instance Arbitrary TxMetadataWithSchema where
     <*> arbitrary
 
 instance Arbitrary ApiEncryptMetadata where
-    arbitrary = ApiEncryptMetadata <$> arbitrary
+    arbitrary = ApiEncryptMetadata <$> arbitrary <*> pure (Just AES256CBC)
 
 instance Arbitrary DRepID where
     arbitrary = do
