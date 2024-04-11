@@ -60,23 +60,31 @@ import Cardano.Wallet.Faucet
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
+    , Config
     , FaucetFunds (..)
-    , FileOf (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , clusterEraFromEnv
+    , defaultPoolConfigs
     , runClusterM
     , sendFaucetAssetsTo
     , withCluster
     , withFaucet
     , withSMASH
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( Config (..)
+    , TestnetMagic
+    , testnetMagicToNatural
+    )
 import Cardano.Wallet.Launch.Cluster.Env
-    ( nodeOutputFileFromEnv
+    ( localClusterConfigsFromEnv
+    , nodeOutputFileFromEnv
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
-    , toFilePath, mkRelDirOf
+    , mkRelDirOf
+    , toFilePath
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
@@ -219,7 +227,6 @@ import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Faucet as Faucet
-import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.Text as T
 
 -- | Do all the program setup required for integration tests, create a temporary
@@ -246,11 +253,10 @@ withTestsSetup action = do
             let clusterDir = DirOf $ absDir testDir
             withTracers clusterDir $ action clusterDir
 
-mkFaucetFunds :: Cluster.TestnetMagic -> FaucetM FaucetFunds
+mkFaucetFunds :: TestnetMagic -> FaucetM FaucetFunds
 mkFaucetFunds testnetMagic = do
     let networkTag =
-            NetworkTag . fromIntegral
-                $ Cluster.testnetMagicToNatural testnetMagic
+            NetworkTag . fromIntegral $ testnetMagicToNatural testnetMagic
     shelleyFunds <- Faucet.shelleyFunds shelleyTestnet
     byronFunds <- Faucet.byronFunds networkTag
     icarusFunds <- Faucet.icarusFunds networkTag
@@ -282,7 +288,7 @@ mkFaucetFunds testnetMagic = do
             }
 
 data TestingCtx = TestingCtx
-    { testnetMagic :: Cluster.TestnetMagic
+    { testnetMagic :: TestnetMagic
     , testDir :: DirOf "cluster"
     , tr :: Tracer IO TestsLog
     , tracers :: Tracers IO
@@ -317,10 +323,9 @@ recordPoolGarbageCollectionEvents TestingCtx{..} eventsRef =
 
 withServer
     :: TestingCtx
-    -> DirOf "cluster-configs"
+    -> Config
     -> FaucetFunds
     -> Pool.DBDecorator IO
-    -> Maybe (FileOf "node-output")
     -> ( T.Text
          -> CardanoNodeConn
          -> NetworkParameters
@@ -330,28 +335,13 @@ withServer
     -> IO ExitCode
 withServer
     ctx@TestingCtx{..}
-    clusterConfigs
+    clusterConfig
     faucetFunds
     dbDecorator
-    nodeOutputFile
     onReady =
         bracketTracer' tr "withServer" $ do
-            let tr' = contramap MsgCluster tr
-            era <- clusterEraFromEnv
+            let tr' = cfgTracer clusterConfig
             withSMASH tr' (toFilePath . absDirOf $ testDir) $ \smashUrl -> do
-                let clusterConfig =
-                        Cluster.Config
-                            { cfgStakePools = Cluster.defaultPoolConfigs
-                            , cfgLastHardFork = era
-                            , cfgNodeLogging = LogFileConfig Info Nothing Info
-                            , cfgClusterDir = testDir
-                            , cfgClusterConfigs = clusterConfigs
-                            , cfgTestnetMagic = testnetMagic
-                            , cfgShelleyGenesisMods = []
-                            , cfgTracer = tr'
-                            , cfgNodeOutputFile = nodeOutputFile
-                            , cfgRelayNodePath = mkRelDirOf "relay"
-                            }
                 withCluster clusterConfig faucetFunds
                     $ onClusterStart
                         ctx
@@ -415,10 +405,10 @@ httpManager = do
 
 setupContext
     :: TestingCtx
+    -> Config
     -> MVar Context
     -> ClientEnv
     -> IORef [PoolGarbageCollectionEvent]
-    -> Maybe (FileOf "node-output")
     -> T.Text
     -> CardanoNodeConn
     -> NetworkParameters
@@ -426,18 +416,16 @@ setupContext
     -> IO ()
 setupContext
     TestingCtx{..}
+    clusterConfig
     ctx
     faucetClientEnv
     poolGarbageCollectionEvents
-    nodeOutputFile
     smashUrl
     nodeConnection
     networkParameters
     baseUrl =
         bracketTracer' tr "setupContext" $ do
-            clusterConfigs <- Cluster.localClusterConfigsFromEnv
             faucet <- Faucet.initFaucet faucetClientEnv
-            let tr' = contramap MsgCluster tr
             prometheusUrl <-
                 let packPort (h, p) =
                         T.pack h <> ":" <> toText @(Port "Prometheus") p
@@ -449,22 +437,6 @@ setupContext
             traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
             manager <- httpManager
             mintSeaHorseAssetsLock <- newMVar ()
-
-            let withConfig =
-                    runClusterM
-                        $ Cluster.Config
-                            { cfgStakePools = error "cfgStakePools: unused"
-                            , cfgLastHardFork = localClusterEra
-                            , cfgNodeLogging = error "cfgNodeLogging: unused"
-                            , cfgClusterDir = testDir
-                            , cfgClusterConfigs = clusterConfigs
-                            , cfgTestnetMagic = testnetMagic
-                            , cfgShelleyGenesisMods = []
-                            , cfgTracer = tr'
-                            , cfgNodeOutputFile = nodeOutputFile
-                            , cfgRelayNodePath = mkRelDirOf "relay"
-                            }
-
             putMVar
                 ctx
                 Context
@@ -479,7 +451,7 @@ setupContext
                     , _smashUrl = smashUrl
                     , _mintSeaHorseAssets = \nPerAddr batchSize c addrs ->
                         withMVar mintSeaHorseAssetsLock $ \() ->
-                            withConfig
+                            runClusterM clusterConfig
                                 $ sendFaucetAssetsTo
                                     nodeConnection
                                     batchSize
@@ -491,10 +463,23 @@ withContext testingCtx@TestingCtx{..} action = do
     bracketTracer' tr "withContext" $ withFaucet $ \faucetClientEnv -> do
         ctx <- newEmptyMVar
         nodeOutputFile <- nodeOutputFileFromEnv
-        clusterConfigs <- Cluster.localClusterConfigsFromEnv
+        clusterConfigs <- localClusterConfigsFromEnv
         poolGarbageCollectionEvents <- newIORef []
         faucetFunds <- runFaucetM faucetClientEnv $ mkFaucetFunds testnetMagic
-
+        era <- clusterEraFromEnv
+        let clusterConfig =
+                Config
+                    { cfgStakePools = defaultPoolConfigs
+                    , cfgLastHardFork = era
+                    , cfgNodeLogging = LogFileConfig Info Nothing Info
+                    , cfgClusterDir = testDir
+                    , cfgClusterConfigs = clusterConfigs
+                    , cfgTestnetMagic = testnetMagic
+                    , cfgShelleyGenesisMods = []
+                    , cfgTracer = contramap MsgCluster tr
+                    , cfgNodeOutputFile = nodeOutputFile
+                    , cfgRelayNodePath = mkRelDirOf "relay"
+                    }
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents
                     testingCtx
@@ -502,25 +487,26 @@ withContext testingCtx@TestingCtx{..} action = do
             cluster =
                 setupContext
                     testingCtx
+                    clusterConfig
                     ctx
                     faucetClientEnv
                     poolGarbageCollectionEvents
-                    nodeOutputFile
         res <-
             race
                 ( withServer
                     testingCtx
-                    clusterConfigs
+                    clusterConfig
                     faucetFunds
                     dbEventRecorder
-                    nodeOutputFile
                     cluster
                 )
-                (takeMVar ctx >>= bracketTracer' tr "spec" .
-                    (\c -> setupDelegation faucetClientEnv c >> action c))
+                ( takeMVar ctx
+                    >>= bracketTracer' tr "spec"
+                        . (\c -> setupDelegation faucetClientEnv c >> action c)
+                )
         whenLeft res (throwIO . ProcessHasExited "integration")
   where
-    -- | Setup delegation for 'rewardWallet' / 'rewardWalletMnemonics'.
+    -- \| Setup delegation for 'rewardWallet' / 'rewardWalletMnemonics'.
     --
     -- Rewards take 4-5 epochs (here ~2 min) to accrue from delegating. By
     -- doing this up-front, the rewards are likely available by the time
@@ -539,11 +525,12 @@ withContext testingCtx@TestingCtx{..} action = do
         -- resources for unnecessary restoration.
         forM_ mnemonics $ \mw -> runResourceT $ do
             w <- walletFromMnemonic ctx mw
-            _ <- joinStakePool
-                @('Testnet 0) -- protocol magic doesn't matter
-                ctx
-                (SpecificPool pool)
-                (w, fixturePassphrase)
+            _ <-
+                joinStakePool
+                    @('Testnet 0) -- protocol magic doesn't matter
+                    ctx
+                    (SpecificPool pool)
+                    (w, fixturePassphrase)
             pure ()
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
