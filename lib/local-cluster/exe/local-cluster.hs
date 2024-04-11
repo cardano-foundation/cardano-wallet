@@ -218,7 +218,12 @@ main = withUtf8 $ do
             $ Just
             $ mkRelDirOf
             $ Cluster.clusterEraToString clusterEra
-    CommandLineOptions{clusterConfigsDir, clusterDir} <- parseCommandLineOptions
+    CommandLineOptions
+        { clusterConfigsDir
+        , clusterDir
+        , clusterLogs
+        } <-
+        parseCommandLineOptions
     evalContT $ do
         -- Create a temporary directory for the cluster
         clusterPath <-
@@ -246,6 +251,7 @@ main = withUtf8 $ do
                     , cfgTracer = stdoutTextTracer
                     , cfgNodeOutputFile = Nothing
                     , cfgRelayNodePath = mkRelDirOf "relay"
+                    , cfgClusterLogFile = clusterLogs
                     }
         node <-
             ContT

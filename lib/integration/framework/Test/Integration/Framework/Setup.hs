@@ -83,6 +83,7 @@ import Cardano.Wallet.Launch.Cluster.Env
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , FileOf (..)
     , mkRelDirOf
     , toFilePath
     )
@@ -479,6 +480,9 @@ withContext testingCtx@TestingCtx{..} action = do
                     , cfgTracer = contramap MsgCluster tr
                     , cfgNodeOutputFile = nodeOutputFile
                     , cfgRelayNodePath = mkRelDirOf "relay"
+                    , cfgClusterLogFile = Just
+                        $ FileOf @"cluster-logs"
+                        $ absDirOf testDir </> relFile "cluster.logs"
                     }
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents

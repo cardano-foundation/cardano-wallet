@@ -355,7 +355,7 @@ withTestNode tr action = do
                         , cfgTracer = tr
                         , cfgNodeOutputFile = Nothing
                         , cfgRelayNodePath = mkRelDirOf "relay"
-
+                        , cfgClusterLogFile = Nothing
                         }
             withCluster clusterConfig (FaucetFunds [] [] [])
                 $ \(RunningNode sock genesisData vData) -> do

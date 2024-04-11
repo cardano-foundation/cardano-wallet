@@ -68,4 +68,7 @@ data Config = Config
     , cfgNodeOutputFile :: Maybe (FileOf "node-output")
     -- ^ File to write node output to.
     , cfgRelayNodePath :: RelDirOf "relay"
+    -- ^ Path segment for relay node.
+    , cfgClusterLogFile :: Maybe (FileOf "cluster-logs")
+    -- ^ File to write cluster logs to.
     }

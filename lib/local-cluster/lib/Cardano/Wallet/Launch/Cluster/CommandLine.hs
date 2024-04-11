@@ -13,6 +13,7 @@ import Prelude
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( Absolutizer (..)
     , DirOf (..)
+    , FileOf (..)
     , newAbsolutizer
     )
 import Options.Applicative
@@ -35,6 +36,7 @@ import System.Path
 data CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: DirOf "cluster-configs"
     , clusterDir :: Maybe (DirOf "cluster")
+    , clusterLogs :: Maybe (FileOf "cluster-logs")
     }
     deriving stock (Show)
 
@@ -46,6 +48,7 @@ parseCommandLineOptions = do
             ( CommandLineOptions
                 <$> clusterConfigsDirParser absolutizer
                 <*> clusterDirParser absolutizer
+                <*> clusterLogsParser absolutizer
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
@@ -67,4 +70,14 @@ clusterDirParser (Absolutizer absOf) =
                 ( long "cluster"
                     <> metavar "LOCAL_CLUSTER"
                     <> help "Path to the local cluster directory"
+                )
+
+clusterLogsParser :: Absolutizer -> Parser (Maybe (FileOf "cluster-logs"))
+clusterLogsParser (Absolutizer absOf) =
+    optional
+        $ FileOf . absOf . absRel
+            <$> strOption
+                ( long "cluster-logs"
+                    <> metavar "LOCAL_CLUSTER_LOGS"
+                    <> help "Path to the local cluster logs file"
                 )
