@@ -193,6 +193,7 @@ module Cardano.Wallet.Api.Types
     , ApiDecodeTransactionPostData (..)
     , fromApiDecodeTransactionPostData
     , toApiDecodeTransactionPostData
+    , EncryptMetadataMethod (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -1237,8 +1238,22 @@ data ApiMultiDelegationAction
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-newtype ApiEncryptMetadata = ApiEncryptMetadata
-    { passphrase :: ApiT (Passphrase "lenient") }
+data EncryptMetadataMethod =  AES256CBC
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
+instance ToJSON EncryptMetadataMethod where
+    toJSON AES256CBC = "base"
+instance FromJSON EncryptMetadataMethod where
+    parseJSON = withText "base" $ \txt ->
+        if txt == "base" then
+            pure AES256CBC
+        else
+            fail "'base' is expected."
+
+data ApiEncryptMetadata = ApiEncryptMetadata
+    { passphrase :: ApiT (Passphrase "lenient")
+    , enc :: Maybe EncryptMetadataMethod }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
