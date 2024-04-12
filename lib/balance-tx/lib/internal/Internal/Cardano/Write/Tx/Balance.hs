@@ -639,7 +639,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     (PartialTx partialTx extraUTxO redeemers timelockKeyWitnessCounts)
     = do
-    guardExistingCollateral partialTx
+    guardExistingCollateral
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
     guardWalletUTxOConsistencyWith extraUTxO
@@ -897,15 +897,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
-    guardExistingCollateral
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral tx = do
+    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingCollateral = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        let collIns = tx ^. (bodyTxL . collateralInputsTxBodyL)
+        let collIns = partialTx ^. (bodyTxL . collateralInputsTxBodyL)
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
 
