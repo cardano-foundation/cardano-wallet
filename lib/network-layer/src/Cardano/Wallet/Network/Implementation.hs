@@ -85,7 +85,8 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     , send
     )
 import Cardano.Wallet.Network.Implementation.Types
-    ( fromOuroborosTip
+    ( fromOuroborosPoint
+    , fromOuroborosTip
     , toOuroborosPoint
     )
 import Cardano.Wallet.Network.Implementation.UnliftIO
@@ -102,7 +103,6 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     , fromTip'
     , nodeToClientVersions
     , toCardanoEra
-    , toPoint
     , unsealShelleyTx
     )
 import Cardano.Wallet.Primitive.Slotting
@@ -481,13 +481,19 @@ withNodeNetworkLayerBase
                                 (_syncProgress interpreterVar)
                     withStats $ \trChainSyncLog -> do
                         let mapB = getBlockHeader getGenesisBlockHash
-                            mapP = fromPoint
+                            mapP = fromOuroborosPoint
                         let blockHeader = fromTip' gp
                         let client =
                                 mkWalletClient
                                     (mapChainSyncLog mapB mapP >$< trChainSyncLog)
                                     pipeliningStrategy
-                                    (mapChainFollower toPoint mapP blockHeader id follower)
+                                    (mapChainFollower
+                                        toOuroborosPoint
+                                        mapP
+                                        blockHeader
+                                        id
+                                        follower
+                                    )
                                     cfg
                         traceWith trFollowLog MsgStartFollowing
                         let trChainSync = MsgConnectionStatus ClientChainSync >$< tr

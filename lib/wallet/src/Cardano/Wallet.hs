@@ -431,6 +431,7 @@ import Cardano.Wallet.Network
     , ChainFollower (..)
     , ErrPostTx (..)
     , NetworkLayer (..)
+    , mapChainFollower
     )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationPoint (..)
@@ -521,6 +522,10 @@ import Cardano.Wallet.Primitive.Types.Address
     )
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId
+    )
+import Cardano.Wallet.Primitive.Types.Block
+    ( fromWalletChainPoint
+    , toWalletChainPoint
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
     ( ChainEvents
@@ -1264,8 +1269,14 @@ restoreWallet ctx = db & \DBLayer{..} ->
         rollBackward = rollbackBlocks ctx . toSlot
         rollForward' = restoreBlocks ctx (contramap MsgWalletFollow tr)
     in
-      catchFromIO $
-            chainSync nw (contramap MsgChainFollow tr) $ ChainFollower
+      catchFromIO
+        $ chainSync nw (contramap MsgChainFollow tr)
+        $ mapChainFollower
+            fromWalletChainPoint
+            toWalletChainPoint
+            id
+            id
+            ChainFollower
                 { checkpointPolicy
                 , readChainPoints
                 , rollForward = \blocks tip ->
