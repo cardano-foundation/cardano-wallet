@@ -640,7 +640,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     (PartialTx partialTx extraUTxO redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral
-    guardExistingTotalCollateral partialTx
+    guardExistingTotalCollateral
     guardExistingReturnCollateral partialTx
     guardWalletUTxOConsistencyWith extraUTxO
 
@@ -907,11 +907,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
 
-    guardExistingTotalCollateral
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral tx = do
-        let totColl = tx ^. (bodyTxL . totalCollateralTxBodyL)
+    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingTotalCollateral = do
+        let totColl = partialTx ^. (bodyTxL . totalCollateralTxBodyL)
         case totColl of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
