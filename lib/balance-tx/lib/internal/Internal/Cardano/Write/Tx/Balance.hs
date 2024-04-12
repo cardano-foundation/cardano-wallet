@@ -637,7 +637,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx extraUTxO redeemers timelockKeyWitnessCounts)
+    (PartialTx partialTx extraUTxO redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
@@ -674,7 +674,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , s'
                     )
 
-        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
+        externalSelectedUtxo <- extractExternallySelectedUTxO
         let utxoSelection =
                 UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo)
@@ -796,9 +796,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- >>> extractExternallySelectedUTxO ptx
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
-        :: PartialTx era
-        -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms _) = do
+        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
+    extractExternallySelectedUTxO = do
         let res = flip map txIns $ \i-> do
                 case txinLookup i combinedUTxO of
                     Nothing ->
@@ -818,7 +817,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns =
-            Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
+            Set.toList $ partialTx ^. (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCounts
