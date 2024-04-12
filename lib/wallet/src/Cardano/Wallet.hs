@@ -2415,7 +2415,7 @@ buildTransactionPure
             (getState wallet)
             PartialTx
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
-                , inputs = Write.UTxO mempty
+                , extraUTxO = Write.UTxO mempty
                 , redeemers = []
                 , timelockKeyWitnessCounts = mempty
                 }
@@ -3122,7 +3122,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
         let ptx :: Write.PartialTx era
             ptx = PartialTx
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
-                , inputs = Write.UTxO mempty
+                , extraUTxO = Write.UTxO mempty
                 , redeemers = []
                 , timelockKeyWitnessCounts = mempty
                 }

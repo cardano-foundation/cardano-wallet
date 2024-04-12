@@ -426,8 +426,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Tx era
-    , inputs :: UTxO era
-      -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
+    , extraUTxO :: UTxO era
     , redeemers :: [Redeemer]
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
       -- ^ Specifying the intended number of timelock script key witnesses may
