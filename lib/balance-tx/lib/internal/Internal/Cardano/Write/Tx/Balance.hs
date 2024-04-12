@@ -642,7 +642,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingCollateral
     guardExistingTotalCollateral
     guardExistingReturnCollateral
-    guardWalletUTxOConsistencyWith extraUTxO
+    guardWalletUTxOConsistencyWith
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
@@ -866,11 +866,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- They are not consistent iff an input can be looked up in both UTxO sets
     -- with different @Address@, or @TokenBundle@ values.
     --
-    guardWalletUTxOConsistencyWith
-        :: UTxO era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u =
-        case NE.nonEmpty (F.toList (conflicts u walletLedgerUTxO)) of
+    guardWalletUTxOConsistencyWith :: ExceptT (ErrBalanceTx era) m ()
+    guardWalletUTxOConsistencyWith =
+        case NE.nonEmpty (F.toList (conflicts extraUTxO walletLedgerUTxO)) of
             Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
             Nothing -> return ()
       where
