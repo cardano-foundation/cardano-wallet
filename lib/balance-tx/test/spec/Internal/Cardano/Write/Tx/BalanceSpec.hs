@@ -2301,9 +2301,9 @@ restrictResolution
     :: forall era. IsRecentEra era
     => PartialTx era
     -> PartialTx era
-restrictResolution (PartialTx tx inputs redeemers timelockKeyWitnessCounts) =
+restrictResolution (PartialTx tx extraUTxO redeemers timelockKeyWitnessCounts) =
     let
-        CardanoApi.UTxO u = toCardanoApiUTxO inputs
+        CardanoApi.UTxO u = toCardanoApiUTxO extraUTxO
         u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx tx))
         inputs' = fromCardanoApiUTxO (CardanoApi.UTxO u')
     in
