@@ -642,7 +642,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     guardExistingCollateral
     guardExistingTotalCollateral
     guardExistingReturnCollateral
-    guardWalletUTxOConsistencyWith
+    guardUTxOConsistency
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
 
@@ -861,13 +861,13 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
-    -- | Ensures the wallet UTxO set is consistent with the given UTxO set.
+    -- | Ensures that the given UTxO sets are consistent with one another.
     --
     -- They are not consistent iff an input can be looked up in both UTxO sets
     -- with different @Address@, or @TokenBundle@ values.
     --
-    guardWalletUTxOConsistencyWith :: ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith =
+    guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
+    guardUTxOConsistency =
         case NE.nonEmpty (F.toList (conflicts extraUTxO walletLedgerUTxO)) of
             Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
             Nothing -> return ()
