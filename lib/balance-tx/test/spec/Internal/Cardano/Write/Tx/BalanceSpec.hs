@@ -2304,8 +2304,10 @@ restrictResolution
 restrictResolution partialTx@PartialTx {tx, extraUTxO} =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO extraUTxO
-        u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx tx))
-        extraUTxO' = fromCardanoApiUTxO (CardanoApi.UTxO u')
+        extraUTxO'
+            = fromCardanoApiUTxO
+            $ CardanoApi.UTxO
+            $ u `Map.restrictKeys` (inputsInTx (toCardanoApiTx tx))
     in
         partialTx {extraUTxO = extraUTxO'}
   where
