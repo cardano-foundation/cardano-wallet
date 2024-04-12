@@ -18,10 +18,6 @@ module Cardano.Wallet.Network
     , mapChainSyncLog
     , withFollowStatsMonitoring
 
-      -- * Light-mode
-    , LightLayer (..)
-    , LightBlocks
-
       -- * Logging (for testing)
     , FollowStats (..)
     , Rearview (..)
@@ -55,12 +51,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
 import Cardano.Wallet.Primitive.Types.Block
-    ( Block
-    , BlockHeader
+    ( BlockHeader
     , ChainPoint (..)
-    )
-import Cardano.Wallet.Primitive.Types.BlockSummary
-    ( LightSummary
     )
 import Cardano.Wallet.Primitive.Types.Checkpoints.Policy
     ( CheckpointPolicy
@@ -282,24 +274,6 @@ mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
         , rollForward = \bs tip -> rollForward cf (fblocks bs) (ftip tip)
         , rollBackward = fmap fpoint12 . rollBackward cf . fpoint21
         }
-
-{-----------------------------------------------------------------------------
-    LightSync
-------------------------------------------------------------------------------}
--- | Interface for light-mode synchronization.
-newtype LightLayer m block = LightLayer
-    { lightSync
-        :: Maybe
-            ( ChainFollower m ChainPoint BlockHeader (LightBlocks m Block)
-              -> m ()
-            )
-    -- ^ Connect to a data source that offers an efficient
-    -- query @Address -> Transactions@.
-    }
-
--- | In light-mode, we receive either a list of blocks as usual,
--- or a 'LightSummary' of blocks.
-type LightBlocks m block = Either (NonEmpty block) (LightSummary m)
 
 {-------------------------------------------------------------------------------
     Errors
