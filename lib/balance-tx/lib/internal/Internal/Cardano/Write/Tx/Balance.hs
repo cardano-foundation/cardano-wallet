@@ -633,7 +633,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex internalUtxoAvailable availableUTxO)
+    (UTxOIndex availableUTxOIndex availableUTxO)
     genChange
     s
     selectionStrategy
@@ -677,7 +677,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         externalSelectedUtxo <- extractExternallySelectedUTxO
         let utxoSelection =
                 UTxOSelection.fromIndexPair
-                    (internalUtxoAvailable, externalSelectedUtxo)
+                    (availableUTxOIndex, externalSelectedUtxo)
 
         when (UTxOSelection.availableSize utxoSelection == 0) $
             throwE ErrBalanceTxUnableToCreateInput
