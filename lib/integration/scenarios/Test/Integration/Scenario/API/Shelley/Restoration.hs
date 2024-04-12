@@ -22,8 +22,8 @@ import Cardano.Wallet.Api.Types.BlockHeader
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationMode (..)
     )
-import Cardano.Wallet.Primitive.Slotting
-    ( SlotNo (..)
+import Cardano.Wallet.Primitive.Types.Hash
+    ( toRawHeaderHash
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
@@ -66,6 +66,7 @@ import Test.Integration.Framework.DSL.Wallet
     )
 
 import qualified Cardano.Wallet.Api.Clients.Network as C
+import qualified Cardano.Wallet.Read as Read
 
 spec :: SpecWith Context
 spec = describe "restoration of wallets" $ do
@@ -188,8 +189,8 @@ spec = describe "restoration of wallets" $ do
                 errStatusIs 404
                 errResponseBody
                     $ "message"
-                        `fieldIs` "Restoration from a given block failed.\
-                                  \The block at slot SlotNo 0 \
+                        `fieldIs` "Restoration from a given block failed. \
+                                  \The block at slot number 0 \
                                   \and hash 39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf \
                                   \does not exist."
 
@@ -208,5 +209,5 @@ restoringFromCheckpoint
 restoringFromCheckpoint cp =
     setRestorationMode
         $ RestoreFromBlock
-            (headerHash cp)
-            (SlotNo $ getQuantity $ slotNo cp)
+            (Read.SlotNo $ fromIntegral $ getQuantity $ slotNo cp)
+            (toRawHeaderHash $ headerHash cp)

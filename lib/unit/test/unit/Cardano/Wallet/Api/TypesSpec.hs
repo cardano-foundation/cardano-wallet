@@ -698,6 +698,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -2725,6 +2726,9 @@ instance Arbitrary (Hash "BlockHeader") where
 instance Arbitrary ApiBlockHeader where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary Read.SlotNo where
+    arbitrary = Read.SlotNo <$> arbitrary
 
 instance Arbitrary RestorationMode where
     arbitrary = genericArbitrary

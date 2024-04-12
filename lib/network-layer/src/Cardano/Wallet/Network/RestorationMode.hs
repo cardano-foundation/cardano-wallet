@@ -17,18 +17,12 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
-import Cardano.Wallet.Primitive.Slotting
-    ( SlotNo
-    )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
-    , ChainPoint (..)
+    , chainPointFromBlockHeader'
     )
 import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters (..)
-    )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
     )
 import GHC.Generics
     ( Generic
@@ -39,7 +33,7 @@ import qualified Cardano.Wallet.Read as Read
 data RestorationMode
     = RestoreFromGenesis
     | RestoreFromTip
-    | RestoreFromBlock (Hash "BlockHeader") SlotNo
+    | RestoreFromBlock Read.SlotNo Read.RawHeaderHash
     deriving (Eq, Show, Generic)
 
 data RestorationPoint
@@ -58,12 +52,15 @@ getRestorationPoint genesisParams mode netLayer = do
         RestoreFromGenesis -> pure $ Right RestorationPointAtGenesis
         RestoreFromTip -> do
             bh <- currentNodeTip netLayer
-            getRestorationPoint
-                genesisParams
-                (RestoreFromBlock (headerHash bh) (slotNo bh))
-                netLayer
-        RestoreFromBlock hash slot -> do
-            eblock <- fetchNextBlock netLayer $ ChainPoint slot hash
+            case chainPointFromBlockHeader' bh of
+                Read.GenesisPoint -> pure $ Right RestorationPointAtGenesis
+                Read.BlockPoint slot blockhash -> do
+                    getRestorationPoint
+                        genesisParams
+                        (RestoreFromBlock slot blockhash)
+                        netLayer
+        RestoreFromBlock slot blockhash -> do
+            eblock <- fetchNextBlock netLayer (Read.BlockPoint slot blockhash)
             pure $ case eblock of
                 Left e -> Left e
                 Right block' ->

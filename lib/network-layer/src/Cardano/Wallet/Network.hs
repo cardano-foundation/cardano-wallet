@@ -96,9 +96,6 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..)
     )
-import Fmt
-    ( pretty
-    )
 import GHC.Generics
     ( Generic
     )
@@ -106,6 +103,8 @@ import Internal.Cardano.Write.Tx
     ( MaybeInRecentEra
     )
 
+import qualified Cardano.Wallet.Read as Read
+import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
@@ -122,7 +121,7 @@ data NetworkLayer m block = NetworkLayer
     -- are used to handle intersection finding,
     -- the arrival of new blocks, and rollbacks.
     , fetchNextBlock
-        :: ChainPoint
+        :: Read.ChainPoint
         -> m (Either ErrFetchBlock block)
     -- ^ Connect to the node,
     -- try to retrieve the block at a given 'ChainPoint',
@@ -290,10 +289,10 @@ instance ToText ErrPostTx where
             "mempool was full and refused posted transaction"
 
 -- | Error while trying to retrieve a block
-newtype ErrFetchBlock = ErrNoBlockAt ChainPoint
+newtype ErrFetchBlock = ErrNoBlockAt Read.ChainPoint
     deriving (Generic, Show, Eq)
 
 instance ToText ErrFetchBlock where
     toText = \case
         ErrNoBlockAt pt ->
-            "no block found at ChainPoint " <> pretty pt
+            "no block found at ChainPoint " <> T.pack (show pt)

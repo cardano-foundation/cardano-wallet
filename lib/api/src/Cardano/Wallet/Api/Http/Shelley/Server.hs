@@ -579,7 +579,6 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Block
     , BlockHeader (..)
-    , ChainPoint (..)
     , NetworkParameters (..)
     , PoolLifeCycleStatus
     , Signature (..)
@@ -929,6 +928,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxMeta as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteString as BS
@@ -5340,21 +5340,21 @@ instance IsServerError ErrCreateWallet where
                 , "permissions or available space?"
                 ]
         ErrCreateWalletRestorationFromABlockFailed
-            (ErrNoBlockAt (ChainPoint slot block ))
+            (ErrNoBlockAt (Read.BlockPoint (Read.SlotNo slot) block))
             -> apiError err404 UnexpectedError $ mconcat
             [
-            "Restoration from a given block failed."
-            , "The block at slot "
+            "Restoration from a given block failed. "
+            , "The block at slot number "
                 <> T.pack (show slot)
                 <> " and hash "
-                <> toText block
+                <> Hash.hashToTextAsHex block
                 <> " does not exist."
             ]
         ErrCreateWalletRestorationFromABlockFailed
-            (ErrNoBlockAt (ChainPointAtGenesis))
+            (ErrNoBlockAt (Read.GenesisPoint))
             -> apiError err404 UnexpectedError $ mconcat
             [
-            "Restoration from a given block failed."
+            "Restoration from a given block failed. "
             , "The block at genesis does not exist."
             ]
 
