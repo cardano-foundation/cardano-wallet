@@ -461,19 +461,21 @@ instance IsRecentEra era => Buildable (PartialTx era)
         txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
-    { walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
-    , ledgerUTxO :: !(UTxO era)
+    { availableUTxO :: !(UTxO era)
+    -- ^ The set of UTxOs that are available to spend.
+    , availableUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    -- ^ The set of UTxOs that are available to spend, in indexed form.
     }
 
 constructUTxOIndex
     :: IsRecentEra era
     => UTxO era
     -> UTxOIndex era
-constructUTxOIndex ledgerUTxO =
-    UTxOIndex {walletUTxOIndex, ledgerUTxO}
+constructUTxOIndex availableUTxO =
+    UTxOIndex {availableUTxO, availableUTxOIndex}
   where
-    walletUTxOIndex =
-        UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO ledgerUTxO
+    availableUTxOIndex =
+        UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO availableUTxO
 
 fromWalletUTxO
     :: forall era. IsRecentEra era
@@ -633,7 +635,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex internalUtxoAvailable walletLedgerUTxO)
+    UTxOIndex {availableUTxO, availableUTxOIndex}
     genChange
     s
     selectionStrategy
@@ -677,7 +679,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         externalSelectedUtxo <- extractExternallySelectedUTxO
         let utxoSelection =
                 UTxOSelection.fromIndexPair
-                    (internalUtxoAvailable, externalSelectedUtxo)
+                    (availableUTxOIndex, externalSelectedUtxo)
 
         when (UTxOSelection.availableSize utxoSelection == 0) $
             throwE ErrBalanceTxUnableToCreateInput
@@ -868,7 +870,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     --
     guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
     guardUTxOConsistency =
-        case NE.nonEmpty (F.toList (conflicts extraUTxO walletLedgerUTxO)) of
+        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
             Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
             Nothing -> return ()
       where
@@ -884,7 +886,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ extraUTxO
-         , walletLedgerUTxO
+         , availableUTxO
          ]
 
     assembleTransaction
