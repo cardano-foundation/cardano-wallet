@@ -817,7 +817,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns =
-            Set.toList $ partialTx ^. #tx . (bodyTxL . inputsTxBodyL)
+            Set.toList $ partialTx ^. #tx . bodyTxL . inputsTxBodyL
 
     guardTxSize
         :: KeyWitnessCounts
@@ -902,20 +902,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        let collIns = partialTx ^. #tx . (bodyTxL . collateralInputsTxBodyL)
+        let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral = do
-        let totColl = partialTx ^. #tx . (bodyTxL . totalCollateralTxBodyL)
+        let totColl = partialTx ^. #tx . bodyTxL . totalCollateralTxBodyL
         case totColl of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingReturnCollateral = do
-        let collRet = partialTx ^. #tx . (bodyTxL . collateralReturnTxBodyL)
+        let collRet = partialTx ^. #tx . bodyTxL . collateralReturnTxBodyL
         case collRet of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
