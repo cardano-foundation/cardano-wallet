@@ -637,12 +637,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers timelockKeyWitnessCounts)
+    ptx@(PartialTx partialTx extraUTxO redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral partialTx
     guardExistingTotalCollateral partialTx
     guardExistingReturnCollateral partialTx
-    guardWalletUTxOConsistencyWith inputUTxO
+    guardWalletUTxOConsistencyWith extraUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
@@ -886,7 +886,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- use of a datum hash in a UTxO which is also present in the wallet
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
-         [ inputUTxO
+         [ extraUTxO
          , walletLedgerUTxO
          ]
 
