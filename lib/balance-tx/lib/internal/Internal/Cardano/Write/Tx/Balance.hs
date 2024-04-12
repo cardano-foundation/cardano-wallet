@@ -633,7 +633,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    (UTxOIndex internalUtxoAvailable walletLedgerUTxO)
+    (UTxOIndex internalUtxoAvailable availableUTxO)
     genChange
     s
     selectionStrategy
@@ -868,7 +868,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     --
     guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
     guardUTxOConsistency =
-        case NE.nonEmpty (F.toList (conflicts extraUTxO walletLedgerUTxO)) of
+        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
             Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
             Nothing -> return ()
       where
@@ -884,7 +884,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
          [ extraUTxO
-         , walletLedgerUTxO
+         , availableUTxO
          ]
 
     assembleTransaction
