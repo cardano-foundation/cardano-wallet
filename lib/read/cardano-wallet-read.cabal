@@ -122,6 +122,7 @@ library
     , generics-sop
     , lens
     , memory
+    , nothunks
     , operational
     , ouroboros-consensus
     , ouroboros-consensus-cardano

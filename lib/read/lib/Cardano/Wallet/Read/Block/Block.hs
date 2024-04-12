@@ -56,6 +56,8 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 type ConsensusBlock = O.CardanoBlock O.StandardCrypto
 
 -- Family of era-specific block types
+-- TODO: ADP-3351 The results of this type family should be ledger types,
+-- not ouroboros-consensus types.
 type family BlockT era where
     BlockT Byron =
         O.ByronBlock
