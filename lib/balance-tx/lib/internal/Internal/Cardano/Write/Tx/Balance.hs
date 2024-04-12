@@ -443,7 +443,7 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx extraUTxO redeemers timelockKeyWitnessCounts)
+    build PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
         = nameF "PartialTx" $ mconcat
             [ nameF "extraUTxO"
                 (blockListF' "-" inF (Map.toList (unUTxO extraUTxO)))
@@ -637,7 +637,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    partialTx@(PartialTx _ extraUTxO redeemers timelockKeyWitnessCounts)
+    partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
     guardExistingCollateral
     guardExistingTotalCollateral

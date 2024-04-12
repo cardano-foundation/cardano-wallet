@@ -2301,7 +2301,8 @@ restrictResolution
     :: forall era. IsRecentEra era
     => PartialTx era
     -> PartialTx era
-restrictResolution (PartialTx tx extraUTxO redeemers timelockKeyWitnessCounts) =
+restrictResolution
+    PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts} =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO extraUTxO
         u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx tx))
@@ -2688,7 +2689,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             (fromCardanoApiUTxO inputUTxO)
             (redeemers)
             mempty
-    shrink (PartialTx tx extraUTxO redeemers timelockKeyWitnessCounts) =
+    shrink PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts} =
         [ PartialTx tx extraUTxO' redeemers timelockKeyWitnessCounts
         | extraUTxO' <- shrinkInputResolution extraUTxO
         ] <>
