@@ -2688,14 +2688,14 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             (fromCardanoApiUTxO inputUTxO)
             (redeemers)
             mempty
-    shrink (PartialTx tx inputUTxO redeemers timelockKeyWitnessCounts) =
-        [ PartialTx tx inputUTxO' redeemers timelockKeyWitnessCounts
-        | inputUTxO' <- shrinkInputResolution inputUTxO
+    shrink (PartialTx tx extraUTxO redeemers timelockKeyWitnessCounts) =
+        [ PartialTx tx extraUTxO' redeemers timelockKeyWitnessCounts
+        | extraUTxO' <- shrinkInputResolution extraUTxO
         ] <>
         [ restrictResolution $
             PartialTx
                 (fromCardanoApiTx tx')
-                inputUTxO
+                extraUTxO
                 redeemers
                 timelockKeyWitnessCounts
         | tx' <- shrinkCardanoApiTx (toCardanoApiTx tx)
