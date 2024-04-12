@@ -461,7 +461,7 @@ instance IsRecentEra era => Buildable (PartialTx era)
         txF tx' = pretty $ pShow tx'
 
 data UTxOIndex era = UTxOIndex
-    { walletUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    { availableUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
     , availableUTxO :: !(UTxO era)
     }
 
@@ -470,9 +470,9 @@ constructUTxOIndex
     => UTxO era
     -> UTxOIndex era
 constructUTxOIndex availableUTxO =
-    UTxOIndex {walletUTxOIndex, availableUTxO}
+    UTxOIndex {availableUTxOIndex, availableUTxO}
   where
-    walletUTxOIndex =
+    availableUTxOIndex =
         UTxOIndex.fromMap $ toInternalUTxOMap $ toWalletUTxO availableUTxO
 
 fromWalletUTxO
