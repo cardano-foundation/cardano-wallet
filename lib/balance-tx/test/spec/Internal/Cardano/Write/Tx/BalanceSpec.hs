@@ -2301,14 +2301,13 @@ restrictResolution
     :: forall era. IsRecentEra era
     => PartialTx era
     -> PartialTx era
-restrictResolution
-    PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts} =
+restrictResolution partialTx@PartialTx {tx, extraUTxO} =
     let
         CardanoApi.UTxO u = toCardanoApiUTxO extraUTxO
         u' = u `Map.restrictKeys` (inputsInTx (toCardanoApiTx tx))
-        inputs' = fromCardanoApiUTxO (CardanoApi.UTxO u')
+        extraUTxO' = fromCardanoApiUTxO (CardanoApi.UTxO u')
     in
-        PartialTx tx inputs' redeemers timelockKeyWitnessCounts
+        partialTx {extraUTxO = extraUTxO'}
   where
     inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
         Set.fromList $ map fst $ CardanoApi.txIns bod
