@@ -641,7 +641,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     = do
     guardExistingCollateral
     guardExistingTotalCollateral
-    guardExistingReturnCollateral partialTx
+    guardExistingReturnCollateral
     guardWalletUTxOConsistencyWith extraUTxO
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
@@ -914,11 +914,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
-    guardExistingReturnCollateral
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral tx = do
-        let collRet = tx ^. (bodyTxL . collateralReturnTxBodyL)
+    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingReturnCollateral = do
+        let collRet = partialTx ^. (bodyTxL . collateralReturnTxBodyL)
         case collRet of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
