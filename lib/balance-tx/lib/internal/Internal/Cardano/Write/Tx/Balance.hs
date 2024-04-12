@@ -637,14 +637,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    (PartialTx partialTx extraUTxO redeemers timelockKeyWitnessCounts)
+    partialTx@(PartialTx _ extraUTxO redeemers timelockKeyWitnessCounts)
     = do
     guardExistingCollateral
     guardExistingTotalCollateral
     guardExistingReturnCollateral
     guardWalletUTxOConsistencyWith
 
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -685,7 +685,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets
                 pp
                 utxoAssumptions
-                (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
+                (F.toList $ partialTx ^. #tx . bodyTxL . outputsTxBodyL)
                 redeemers
                 utxoSelection
                 balance0
@@ -817,7 +817,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns =
-            Set.toList $ partialTx ^. (bodyTxL . inputsTxBodyL)
+            Set.toList $ partialTx ^. #tx . (bodyTxL . inputsTxBodyL)
 
     guardTxSize
         :: KeyWitnessCounts
@@ -891,7 +891,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left updateTxErrorToBalanceTxError $ updateTx partialTx update
+        tx' <- left updateTxErrorToBalanceTxError
+            $ updateTx (partialTx ^. #tx) update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
@@ -901,20 +902,20 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        let collIns = partialTx ^. (bodyTxL . collateralInputsTxBodyL)
+        let collIns = partialTx ^. #tx . (bodyTxL . collateralInputsTxBodyL)
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral = do
-        let totColl = partialTx ^. (bodyTxL . totalCollateralTxBodyL)
+        let totColl = partialTx ^. #tx . (bodyTxL . totalCollateralTxBodyL)
         case totColl of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingReturnCollateral = do
-        let collRet = partialTx ^. (bodyTxL . collateralReturnTxBodyL)
+        let collRet = partialTx ^. #tx . (bodyTxL . collateralReturnTxBodyL)
         case collRet of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
