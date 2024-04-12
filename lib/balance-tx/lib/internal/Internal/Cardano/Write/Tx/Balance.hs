@@ -426,8 +426,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTx era)
 -- even though they are in an "unordered" set.
 data PartialTx era = PartialTx
     { tx :: Tx era
-    , inputs :: UTxO era
-      -- ^ NOTE: Can we rename this to something better? Perhaps 'extraUTxO'?
+    , extraUTxO :: UTxO era
     , redeemers :: [Redeemer]
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
       -- ^ Specifying the intended number of timelock script key witnesses may
@@ -444,9 +443,10 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers timelockKeyWitnessCounts)
+    build PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
         = nameF "PartialTx" $ mconcat
-            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
+            [ nameF "extraUTxO"
+                (blockListF' "-" inF (Map.toList (unUTxO extraUTxO)))
             , nameF "redeemers" (pretty redeemers)
             , nameF "tx" (txF tx)
             , nameF "intended timelock key witness counts"
@@ -637,14 +637,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     genChange
     s
     selectionStrategy
-    ptx@(PartialTx partialTx inputUTxO redeemers timelockKeyWitnessCounts)
+    partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
-    guardExistingCollateral partialTx
-    guardExistingTotalCollateral partialTx
-    guardExistingReturnCollateral partialTx
-    guardWalletUTxOConsistencyWith inputUTxO
+    guardExistingCollateral
+    guardExistingTotalCollateral
+    guardExistingReturnCollateral
+    guardWalletUTxOConsistencyWith
 
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -674,7 +674,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , s'
                     )
 
-        externalSelectedUtxo <- extractExternallySelectedUTxO ptx
+        externalSelectedUtxo <- extractExternallySelectedUTxO
         let utxoSelection =
                 UTxOSelection.fromIndexPair
                     (internalUtxoAvailable, externalSelectedUtxo)
@@ -685,7 +685,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets
                 pp
                 utxoAssumptions
-                (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
+                (F.toList $ partialTx ^. #tx . bodyTxL . outputsTxBodyL)
                 redeemers
                 utxoSelection
                 balance0
@@ -796,9 +796,8 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- >>> extractExternallySelectedUTxO ptx
     -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
-        :: PartialTx era
-        -> ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO (PartialTx tx _ _rdms _) = do
+        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
+    extractExternallySelectedUTxO = do
         let res = flip map txIns $ \i-> do
                 case txinLookup i combinedUTxO of
                     Nothing ->
@@ -818,7 +817,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns =
-            Set.toList $ tx ^. (bodyTxL . inputsTxBodyL)
+            Set.toList $ partialTx ^. #tx . bodyTxL . inputsTxBodyL
 
     guardTxSize
         :: KeyWitnessCounts
@@ -867,11 +866,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -- They are not consistent iff an input can be looked up in both UTxO sets
     -- with different @Address@, or @TokenBundle@ values.
     --
-    guardWalletUTxOConsistencyWith
-        :: UTxO era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardWalletUTxOConsistencyWith u =
-        case NE.nonEmpty (F.toList (conflicts u walletLedgerUTxO)) of
+    guardWalletUTxOConsistencyWith :: ExceptT (ErrBalanceTx era) m ()
+    guardWalletUTxOConsistencyWith =
+        case NE.nonEmpty (F.toList (conflicts extraUTxO walletLedgerUTxO)) of
             Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
             Nothing -> return ()
       where
@@ -886,7 +883,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
          -- use of a datum hash in a UTxO which is also present in the wallet
          -- UTxO set. (Whether or not this is a sane thing for the user to do,
          -- is another question.)
-         [ inputUTxO
+         [ extraUTxO
          , walletLedgerUTxO
          ]
 
@@ -894,36 +891,31 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
-        tx' <- left updateTxErrorToBalanceTxError $ updateTx partialTx update
+        tx' <- left updateTxErrorToBalanceTxError
+            $ updateTx (partialTx ^. #tx) update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
-    guardExistingCollateral
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral tx = do
+    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingCollateral = do
         -- Coin selection does not support pre-defining collateral. In Sep 2021
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        let collIns = tx ^. (bodyTxL . collateralInputsTxBodyL)
+        let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
 
-    guardExistingTotalCollateral
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral tx = do
-        let totColl = tx ^. (bodyTxL . totalCollateralTxBodyL)
+    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingTotalCollateral = do
+        let totColl = partialTx ^. #tx . bodyTxL . totalCollateralTxBodyL
         case totColl of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
-    guardExistingReturnCollateral
-        :: Tx era
-        -> ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral tx = do
-        let collRet = tx ^. (bodyTxL . collateralReturnTxBodyL)
+    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingReturnCollateral = do
+        let collRet = partialTx ^. #tx . bodyTxL . collateralReturnTxBodyL
         case collRet of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
