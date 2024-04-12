@@ -462,7 +462,9 @@ instance IsRecentEra era => Buildable (PartialTx era)
 
 data UTxOIndex era = UTxOIndex
     { availableUTxO :: !(UTxO era)
+    -- ^ The set of UTxOs that are available to spend.
     , availableUTxOIndex :: !(UTxOIndex.UTxOIndex WalletUTxO)
+    -- ^ The set of UTxOs that are available to spend, in indexed form.
     }
 
 constructUTxOIndex
