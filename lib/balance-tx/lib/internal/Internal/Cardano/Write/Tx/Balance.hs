@@ -443,9 +443,10 @@ deriving instance IsRecentEra era => Show (PartialTx era)
 
 instance IsRecentEra era => Buildable (PartialTx era)
   where
-    build (PartialTx tx (UTxO ins) redeemers timelockKeyWitnessCounts)
+    build (PartialTx tx extraUTxO redeemers timelockKeyWitnessCounts)
         = nameF "PartialTx" $ mconcat
-            [ nameF "inputs" (blockListF' "-" inF (Map.toList ins))
+            [ nameF "extraUTxO"
+                (blockListF' "-" inF (Map.toList (unUTxO extraUTxO)))
             , nameF "redeemers" (pretty redeemers)
             , nameF "tx" (txF tx)
             , nameF "intended timelock key witness counts"
