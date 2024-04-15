@@ -2683,11 +2683,11 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
       where
         genExtraUTxO tx =
             CardanoApi.UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) inputs
+            mapM
+                (\i -> (i,) <$> genTxOut)
+                (fst <$> CardanoApi.txIns content)
           where
             CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
-            inputs :: [CardanoApi.TxIn]
-            inputs = fst <$> CardanoApi.txIns content
         genTxOut =
             -- NOTE: genTxOut does not generate quantities larger than
             -- `maxBound :: Word64`, however users could supply these. We
