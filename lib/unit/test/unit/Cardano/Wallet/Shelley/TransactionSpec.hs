@@ -276,7 +276,7 @@ import Internal.Cardano.Write.Tx
     , ShelleyLedgerEra
     , cardanoEraFromRecentEra
     )
-import Internal.Cardano.Write.Tx.SizeEstimation
+import Internal.Cardano.Write.Tx.Balance.Size.Selection
     ( TxSkeleton (..)
     , estimateTxSize
     )

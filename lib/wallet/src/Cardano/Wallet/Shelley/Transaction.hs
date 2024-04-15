@@ -241,7 +241,7 @@ import Internal.Cardano.Write.Tx
     ( CardanoApiEra
     , RecentEra (..)
     )
-import Internal.Cardano.Write.Tx.SizeEstimation
+import Internal.Cardano.Write.Tx.Balance.Size.Selection
     ( TxSkeleton (..)
     , TxWitnessTag (..)
     , estimateTxCost
@@ -290,13 +290,13 @@ import qualified Internal.Cardano.Write.Tx as Write
     , shelleyBasedEraFromRecentEra
     , toCardanoApiTx
     )
-import qualified Internal.Cardano.Write.Tx.Sign as Write
-    ( estimateMaxWitnessRequiredPerInput
-    )
-import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
+import qualified Internal.Cardano.Write.Tx.Balance.Size.Selection as Write
     ( sizeOf_BootstrapWitnesses
     , sizeOf_VKeyWitnesses
     , sizeOf_Withdrawals
+    )
+import qualified Internal.Cardano.Write.Tx.Sign as Write
+    ( estimateMaxWitnessRequiredPerInput
     )
 
 -- | Type encapsulating what we need to know to add things -- payloads,

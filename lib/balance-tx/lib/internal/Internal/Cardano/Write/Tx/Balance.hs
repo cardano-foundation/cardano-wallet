@@ -227,6 +227,11 @@ import Internal.Cardano.Write.Tx.Balance.Size.Coin
     , TxFeeAndChange (..)
     , distributeSurplus
     )
+import Internal.Cardano.Write.Tx.Balance.Size.Selection
+    ( TxSkeleton (..)
+    , assumedTxWitnessTag
+    , estimateTxCost
+    )
 import Internal.Cardano.Write.Tx.Balance.Size.TokenBundle
     ( mkTokenBundleSizeAssessor
     )
@@ -239,11 +244,6 @@ import Internal.Cardano.Write.Tx.Sign
     ( TimelockKeyWitnessCounts (..)
     , estimateKeyWitnessCounts
     , estimateSignedTxSize
-    )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( TxSkeleton (..)
-    , assumedTxWitnessTag
-    , estimateTxCost
     )
 import Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation

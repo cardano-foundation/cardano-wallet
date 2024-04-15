@@ -89,10 +89,10 @@ library internal
     Internal.Cardano.Write.Tx.Balance.CoinSelection
     Internal.Cardano.Write.Tx.Balance.Size.Coin
     Internal.Cardano.Write.Tx.Balance.Size.TokenBundle
+    Internal.Cardano.Write.Tx.Balance.Size.Selection
     Internal.Cardano.Write.Tx.Gen
     Internal.Cardano.Write.Tx.Redeemers
     Internal.Cardano.Write.Tx.Sign
-    Internal.Cardano.Write.Tx.SizeEstimation
     Internal.Cardano.Write.Tx.TimeTranslation
     Internal.Cardano.Write.UTxOAssumptions
 

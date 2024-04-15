@@ -795,7 +795,7 @@ import Internal.Cardano.Write.Tx.Balance
     , PartialTx (..)
     , UTxOAssumptions (..)
     )
-import Internal.Cardano.Write.Tx.SizeEstimation
+import Internal.Cardano.Write.Tx.Balance.Size.Selection
     ( TxWitnessTag (..)
     )
 import Internal.Cardano.Write.Tx.TimeTranslation

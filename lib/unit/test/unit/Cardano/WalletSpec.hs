@@ -328,7 +328,7 @@ import Data.Word
 import GHC.Generics
     ( Generic
     )
-import Internal.Cardano.Write.Tx.SizeEstimation
+import Internal.Cardano.Write.Tx.Balance.Size.Selection
     ( TxWitnessTag (..)
     )
 import System.Random

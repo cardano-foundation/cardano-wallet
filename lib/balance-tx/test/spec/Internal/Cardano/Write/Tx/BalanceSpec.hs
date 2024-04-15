@@ -298,13 +298,13 @@ import Internal.Cardano.Write.Tx.Balance
     , splitSignedValue
     , updateTx
     )
+import Internal.Cardano.Write.Tx.Balance.Size.Selection
+    ( sizeOf_BootstrapWitnesses
+    )
 import Internal.Cardano.Write.Tx.Sign
     ( KeyWitnessCounts (..)
     , estimateKeyWitnessCounts
     , estimateSignedTxSize
-    )
-import Internal.Cardano.Write.Tx.SizeEstimation
-    ( sizeOf_BootstrapWitnesses
     )
 import Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation

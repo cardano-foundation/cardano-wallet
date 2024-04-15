@@ -22,7 +22,7 @@
 --
 -- Module containing logic relating to size estimation as needed, mainly for
 -- the purpose of coin selection.
-module Internal.Cardano.Write.Tx.SizeEstimation
+module Internal.Cardano.Write.Tx.Balance.Size.Selection
     ( -- * Needed for normal coin selection for balanceTx
       estimateTxSize
     , estimateTxCost
