@@ -2681,9 +2681,9 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             , timelockKeyWitnessCounts = mempty
             }
       where
-        genExtraUTxO tx
-            = fmap (CardanoApi.UTxO . Map.fromList)
-            $ mapM (\i -> (i,) <$> genTxOut) inputs
+        genExtraUTxO tx =
+            CardanoApi.UTxO . Map.fromList <$>
+            mapM (\i -> (i,) <$> genTxOut) inputs
           where
             CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
             inputs :: [CardanoApi.TxIn]
