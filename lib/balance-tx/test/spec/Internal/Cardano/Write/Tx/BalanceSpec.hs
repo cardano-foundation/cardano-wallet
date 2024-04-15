@@ -2674,7 +2674,8 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
         let (CardanoApi.Tx (CardanoApi.TxBody content) _) = tx
-        let inputs = CardanoApi.txIns content
+        let inputs :: [CardanoApi.TxIn]
+            inputs = fst <$> CardanoApi.txIns content
         inputUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
             do
                 -- NOTE: genTxOut does not generate quantities larger than
@@ -2682,7 +2683,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
                 -- should ideally test what happens, and make it clear what
                 -- code, if any, should validate.
                 o <- CardanoApi.genTxOut (cardanoEra @era)
-                return (fst i, o)
+                return (i, o)
         return PartialTx
             { tx = fromCardanoApiTx tx
             , extraUTxO = fromCardanoApiUTxO inputUTxO
