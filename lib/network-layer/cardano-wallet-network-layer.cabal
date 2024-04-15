@@ -123,6 +123,7 @@ test-suite unit
     , bytestring
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , contra-tracer
     , hspec
     , io-classes
