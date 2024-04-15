@@ -203,13 +203,11 @@ import Internal.Cardano.Write.Tx
     , maxScriptExecutionCost
     )
 import Internal.Cardano.Write.Tx.Balance.CoinSelection
-    ( Selection
-    , SelectionBalanceError (..)
+    ( SelectionBalanceError (..)
     , SelectionCollateralError (..)
     , SelectionCollateralRequirement (..)
     , SelectionConstraints (..)
     , SelectionError (..)
-    , SelectionOf (..)
     , SelectionParams (..)
     , SelectionStrategy (..)
     , UnableToConstructChangeError (..)
@@ -302,6 +300,7 @@ import qualified Data.Map as Map
 import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx.Balance.CoinSelection as CoinSelection
 
 -- | Indicates a failure to select a sufficient amount of collateral.
 --
@@ -729,35 +728,16 @@ balanceTxInner
     = do
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
-    (extraInputs, extraCollateral', extraOutputs, s') <- do
-
-        -- NOTE: It is not possible to know the script execution cost in
-        -- advance because it actually depends on the final transaction. Inputs
-        -- selected as part of the fee balancing might have an influence on the
-        -- execution cost.
-        -- However, they are bounded so it is possible to balance the
-        -- transaction considering only the maximum cost, and only after, try to
-        -- adjust the change and ExUnits of each redeemer to something more
-        -- sensible than the max execution cost.
-
-        let
-            transform
-                :: Selection
-                -> ( [(W.TxIn, W.TxOut)]
-                   , [(W.TxIn, W.TxOut)]
-                   , [W.TxOut]
-                   , changeState
-                   )
-            transform sel =
-                let (sel', s') = assignChangeAddresses genChange sel s
-                    inputs = F.toList (sel' ^. #inputs)
-                in  ( inputs
-                    , sel' ^. #collateral
-                    , sel' ^. #change
-                    , s'
-                    )
-
-        let mSel = selectAssets
+    -- NOTE: It is not possible to know the script execution cost in
+    -- advance because it actually depends on the final transaction. Inputs
+    -- selected as part of the fee balancing might have an influence on the
+    -- execution cost.
+    -- However, they are bounded so it is possible to balance the
+    -- transaction considering only the maximum cost, and only after, try to
+    -- adjust the change and ExUnits of each redeemer to something more
+    -- sensible than the max execution cost.
+    (Selection extraInputs extraCollateral' extraOutputs, s') <-
+        selectAssets
                 pp
                 utxoAssumptions
                 (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
@@ -767,8 +747,7 @@ balanceTxInner
                 (Convert.toWalletCoin minfee0)
                 genChange
                 selectionStrategy
-
-        transform <$> mSel
+                s
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -903,6 +882,12 @@ balanceTxInner
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
+data Selection = Selection
+    { extraInputs :: [(W.TxIn, W.TxOut)]
+    , extraCollateral :: [(W.TxIn, W.TxOut)]
+    , extraOutputs :: [W.TxOut]
+    } deriving (Eq, Show)
+
 -- | Select assets to cover the specified balance and fee.
 --
 -- If the transaction contains redeemers, the function will also ensure the
@@ -927,12 +912,12 @@ selectAssets
     -- ^ Current minimum fee (before selecting assets).
     -> ChangeAddressGen changeState
     -> SelectionStrategy
-    -- ^ A function to assess the size of a token bundle.
-    -> ExceptT (ErrBalanceTx era) m Selection
+    -> changeState
+    -> ExceptT (ErrBalanceTx era) m (Selection, changeState)
 selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 changeGen selectionStrategy = do
+    utxoSelection balance fee0 changeGen selectionStrategy s = do
         except validateTxOutputs'
-        performSelection'
+        assignChangeAddressesToSelection <$> performSelection'
   where
     era = recentEra @era
 
@@ -951,7 +936,7 @@ selectAssets pp utxoAssumptions outs' redeemers
             (outs <&> \out -> (view #address out, view #tokens out))
 
     performSelection'
-        :: ExceptT (ErrBalanceTx era) m Selection
+        :: ExceptT (ErrBalanceTx era) m CoinSelection.Selection
     performSelection'
         = withExceptT coinSelectionErrorToBalanceTxError
         $ performSelection selectionConstraints selectionParams
@@ -1064,6 +1049,16 @@ selectAssets pp utxoAssumptions outs' redeemers
         -- in the final stage of 'balanceTx'.
         extraBytes = 8
 
+    assignChangeAddressesToSelection
+        :: CoinSelection.Selection
+        -> (Selection, changeState)
+    assignChangeAddressesToSelection sel =
+        let (sel', s') = assignChangeAddresses changeGen sel s
+            inputs = F.toList (sel' ^. #inputs)
+        in  ( Selection inputs (sel' ^. #collateral) (sel' ^. #change)
+            , s'
+            )
+
 data ChangeAddressGen s = ChangeAddressGen
     {
     -- | Generates a new change address.
@@ -1095,9 +1090,9 @@ data ChangeAddressGen s = ChangeAddressGen
 -- | Assigns addresses to the change outputs of the given selection.
 assignChangeAddresses
     :: ChangeAddressGen s
-    -> SelectionOf W.TokenBundle
+    -> CoinSelection.SelectionOf W.TokenBundle
     -> s
-    -> (SelectionOf W.TxOut, s)
+    -> (CoinSelection.SelectionOf W.TxOut, s)
 assignChangeAddresses (ChangeAddressGen genChange _) sel = runState $ do
     changeOuts <- forM (view #change sel) $ \bundle -> do
         addr <- state genChange
