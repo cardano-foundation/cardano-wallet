@@ -548,7 +548,6 @@ instance Arbitrary (TxBalanceSurplus W.Coin) where
         ]
     shrink = shrinkMapBy TxBalanceSurplus unTxBalanceSurplus W.shrinkCoin
 
-
 instance Arbitrary (TxFeeAndChange [W.TxOut]) where
     arbitrary = do
         fee <- W.genCoin
@@ -575,4 +574,3 @@ instance Arbitrary FeePerByte where
         ]
     shrink (FeePerByte x) =
         FeePerByte <$> shrinkNatural x
-

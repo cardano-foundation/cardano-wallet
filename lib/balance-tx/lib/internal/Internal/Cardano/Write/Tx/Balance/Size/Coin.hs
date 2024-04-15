@@ -258,4 +258,3 @@ burnSurplusAsFees feePolicy surplus (TxFeeAndChange fee0 ())
   where
     costOfBurningSurplus = costOfIncreasingCoin feePolicy fee0 surplus
     shortfall = costOfBurningSurplus <\> surplus
-
