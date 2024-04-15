@@ -2673,7 +2673,7 @@ instance Arbitrary (MixedSign Value) where
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
-        let (CardanoApi.Tx (CardanoApi.TxBody content) _) = tx
+        let CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
         let inputs :: [CardanoApi.TxIn]
             inputs = fst <$> CardanoApi.txIns content
         extraUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
