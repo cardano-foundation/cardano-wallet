@@ -2676,7 +2676,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         let (CardanoApi.Tx (CardanoApi.TxBody content) _) = tx
         let inputs :: [CardanoApi.TxIn]
             inputs = fst <$> CardanoApi.txIns content
-        inputUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
+        extraUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
             do
                 -- NOTE: genTxOut does not generate quantities larger than
                 -- `maxBound :: Word64`, however users could supply these. We
@@ -2686,7 +2686,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
                 return (i, o)
         return PartialTx
             { tx = fromCardanoApiTx tx
-            , extraUTxO = fromCardanoApiUTxO inputUTxO
+            , extraUTxO = fromCardanoApiUTxO extraUTxO
             , redeemers = []
             , timelockKeyWitnessCounts = mempty
             }
