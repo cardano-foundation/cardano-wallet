@@ -1,5 +1,5 @@
 -- | Assessing sizes of token bundles
-module Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+module Internal.Cardano.Write.Tx.Balance.Size.TokenBundle
     ( TokenBundleSizeAssessor (..)
     , mkTokenBundleSizeAssessor
     , computeTokenBundleSerializedLengthBytes

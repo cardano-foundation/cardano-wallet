@@ -88,7 +88,7 @@ library internal
     Internal.Cardano.Write.Tx.Balance
     Internal.Cardano.Write.Tx.Balance.CoinSelection
     Internal.Cardano.Write.Tx.Balance.Size.Coin
-    Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+    Internal.Cardano.Write.Tx.Balance.Size.TokenBundle
     Internal.Cardano.Write.Tx.Gen
     Internal.Cardano.Write.Tx.Redeemers
     Internal.Cardano.Write.Tx.Sign
@@ -161,8 +161,8 @@ test-suite test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec
-    Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec
     Internal.Cardano.Write.Tx.BalanceSpec
     Internal.Cardano.Write.Tx.Balance.Size.CoinSpec
+    Internal.Cardano.Write.Tx.Balance.Size.TokenBundleSpec
     Internal.Cardano.Write.TxSpec
     Spec

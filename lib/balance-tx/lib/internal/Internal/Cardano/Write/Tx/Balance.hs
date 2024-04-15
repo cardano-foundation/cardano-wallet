@@ -227,7 +227,7 @@ import Internal.Cardano.Write.Tx.Balance.Size.Coin
     , TxFeeAndChange (..)
     , distributeSurplus
     )
-import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+import Internal.Cardano.Write.Tx.Balance.Size.TokenBundle
     ( mkTokenBundleSizeAssessor
     )
 import Internal.Cardano.Write.Tx.Redeemers

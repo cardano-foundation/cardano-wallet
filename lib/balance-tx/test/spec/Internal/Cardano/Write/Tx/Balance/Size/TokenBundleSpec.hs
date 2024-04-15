@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-module Internal.Cardano.Write.Tx.Balance.TokenBundleSizeSpec where
+module Internal.Cardano.Write.Tx.Balance.Size.TokenBundleSpec where
 
 import Prelude
 
@@ -38,7 +38,7 @@ import Internal.Cardano.Write.Tx
     , StandardConway
     , Version
     )
-import Internal.Cardano.Write.Tx.Balance.TokenBundleSize
+import Internal.Cardano.Write.Tx.Balance.Size.TokenBundle
     ( TokenBundleSizeAssessor
     , assessTokenBundleSize
     , computeTokenBundleSerializedLengthBytes
