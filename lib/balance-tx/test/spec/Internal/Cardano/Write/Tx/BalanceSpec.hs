@@ -2683,17 +2683,16 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
       where
         genExtraUTxO tx =
             CardanoApi.UTxO . Map.fromList <$>
-            mapM
-                (\i -> (i,) <$> genTxOut)
-                (fst <$> CardanoApi.txIns content)
-          where
-            CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
+            mapM (\i -> (i,) <$> genTxOut) (txInputs tx)
         genTxOut =
             -- NOTE: genTxOut does not generate quantities larger than
             -- `maxBound :: Word64`, however users could supply these. We
             -- should ideally test what happens, and make it clear what
             -- code, if any, should validate.
             CardanoApi.genTxOut (cardanoEra @era)
+        txInputs tx = fst <$> CardanoApi.txIns content
+          where
+            CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
