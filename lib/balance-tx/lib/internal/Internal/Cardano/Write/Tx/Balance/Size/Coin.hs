@@ -2,6 +2,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- The main purpose of this module is containing 'distributeSurplus', which is
+-- needed by 'balanceTransaction'.
 module Internal.Cardano.Write.Tx.Balance.Size.Coin
     ( sizeOfCoin
     , costOfIncreasingCoin
