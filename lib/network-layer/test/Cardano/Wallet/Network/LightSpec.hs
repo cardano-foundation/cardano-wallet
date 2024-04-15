@@ -24,8 +24,8 @@ import Cardano.Wallet.Network.Light
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
-    , ChainPoint (..)
     , chainPointFromBlockHeader
+    , fromWalletChainPoint
     , isGenesisBlockHeader
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types.BlockSummary
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    , mockHash
     )
 import Control.Monad
     ( ap
@@ -89,7 +90,8 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
-import qualified Data.ByteString.Char8 as B8
+import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -145,7 +147,7 @@ mkLightSyncSourceMock = LightSyncSource
     , getAddressTxs = \_ _ _ -> pure ()
     }
   where
-    toPoint = chainPointFromBlockHeader
+    toPoint = chainPointFromBlockHeader'
     toHeight = fromIntegral . fromEnum . blockHeight
 
 data ChainHistory = ChainHistory !MockChain ![(DeltaChain, MockChain)]
@@ -198,12 +200,12 @@ genesisBlock :: Block
 genesisBlock = BlockHeader
     { slotNo = 0
     , blockHeight = Quantity 0
-    , headerHash = mockHash 0
+    , headerHash = mockHashInt 0
     , parentHeaderHash = Nothing
     }
 
-mockHash :: Int -> Hash "BlockHeader"
-mockHash = Hash . B8.pack . show
+mockHashInt :: Int -> Hash "BlockHeader"
+mockHashInt = mockHash
 
 mockStabilityWindow :: Int
 mockStabilityWindow = 5
@@ -308,7 +310,7 @@ evalMockMonad action0 (ChainHistory chain0 deltas0) s0
 
 -- | Run a 'ChainFollower' based on the full synchronization.
 fullSync
-    :: ChainFollower (MockMonad s) ChainPoint BlockHeader
+    :: ChainFollower (MockMonad s) Read.ChainPoint BlockHeader
         (LightBlocks (MockMonad s) Block addr txs)
     -> MockMonad s Void
 fullSync follower = forever $ do
@@ -317,7 +319,7 @@ fullSync follower = forever $ do
         Idle -> wait
         Forward bs tip -> rollForward follower (Left bs) tip
         Backward target -> void $
-            rollBackward follower $ chainPointFromBlockHeader target
+            rollBackward follower $ chainPointFromBlockHeader' target
 
 {-------------------------------------------------------------------------------
     Implementation of a ChainFollower
@@ -334,14 +336,14 @@ latest = NE.head
 -- | Make a 'ChainFollower' for 'FollowerState'.
 mkFollower
     :: (forall a. State FollowerState a -> m a)
-    -> ChainFollower m ChainPoint BlockHeader
+    -> ChainFollower m Read.ChainPoint BlockHeader
         (LightBlocks m Block addr txs)
 mkFollower lift = ChainFollower
     { checkpointPolicy = \epochStability ->
         CP.atTip <> CP.atGenesis
         <> CP.trailingArithmetic 2 (min 1 $ epochStability `div` 3)
     , readChainPoints =
-        lift $ map chainPointFromBlockHeader . NE.toList <$> get
+        lift $ map chainPointFromBlockHeader' . NE.toList <$> get
     , rollForward = \blocks _tip ->
         lift $ modify $ \s -> case blocks of
             Left bs ->
@@ -354,11 +356,13 @@ mkFollower lift = ChainFollower
                     else error "lightSync: BlockSummary out of order"
     , rollBackward = \target -> lift $ do
         modify $ NE.fromList . NE.dropWhile (`after` target)
-        chainPointFromBlockHeader . NE.head <$> get
+        chainPointFromBlockHeader' . NE.head <$> get
     }
   where
-    bh `after` ChainPointAtGenesis = not (isGenesisBlockHeader bh)
-    bh `after` (ChainPoint slot _) = slotNo bh > slot
+    bh `after` Read.GenesisPoint =
+        not (isGenesisBlockHeader bh)
+    bh `after` (Read.BlockPoint (Read.SlotNo slot) _) =
+        slotNo bh > fromIntegral slot
 
     isParentOf :: BlockHeader -> BlockHeader -> Bool
     isParentOf parent = (== Just (headerHash parent)) . parentHeaderHash
@@ -366,10 +370,14 @@ mkFollower lift = ChainFollower
 showBlockChain :: NonEmpty BlockHeader -> String
 showBlockChain = unwords . L.intersperse "->" . fmap showBlockHeader . NE.toList
 
-showChainPoint :: ChainPoint -> String
+-- | Convert a 'BlockHeader' into a 'Read.ChainPoint'.
+chainPointFromBlockHeader' :: BlockHeader -> Read.ChainPoint
+chainPointFromBlockHeader' = fromWalletChainPoint . chainPointFromBlockHeader
+
+showChainPoint :: Read.ChainPoint -> String
 showChainPoint = \case
-    ChainPointAtGenesis -> "G"
-    ChainPoint _ h -> show $ getHash h
+    Read.GenesisPoint -> "Genesis"
+    Read.BlockPoint _ h -> Hash.hashToStringAsHex h
 
 showBlockHeader :: BlockHeader -> String
 showBlockHeader = unHash . headerHash
