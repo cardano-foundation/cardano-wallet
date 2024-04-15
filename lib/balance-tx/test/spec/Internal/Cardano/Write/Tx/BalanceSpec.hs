@@ -2683,11 +2683,10 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
                 -- code, if any, should validate.
                 o <- CardanoApi.genTxOut (cardanoEra @era)
                 return (fst i, o)
-        let redeemers = []
         return PartialTx
             { tx = fromCardanoApiTx tx
             , extraUTxO = fromCardanoApiUTxO inputUTxO
-            , redeemers
+            , redeemers = []
             , timelockKeyWitnessCounts = mempty
             }
     shrink partialTx@PartialTx {tx, extraUTxO} =
