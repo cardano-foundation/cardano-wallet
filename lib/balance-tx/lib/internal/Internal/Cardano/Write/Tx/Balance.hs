@@ -736,7 +736,7 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    (Selection extraInputs extraCollateral' extraOutputs extraInputScripts, s')
+    (Selection extraInputs extraCollateral extraOutputs extraInputScripts, s')
         <- selectAssets
                pp
                utxoAssumptions
@@ -769,7 +769,6 @@ balanceTxInner
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
-    let extraCollateral = fst <$> extraCollateral'
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
@@ -873,8 +872,8 @@ balanceTxInner
             assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
 data Selection = Selection
-    { extraInputs :: [(W.TxIn, W.TxOut)]
-    , extraCollateral :: [(W.TxIn, W.TxOut)]
+    { extraInputs :: [W.TxIn]
+    , extraCollateral :: [W.TxIn]
     , extraOutputs :: [W.TxOut]
     , extraInputScripts :: [CA.Script CA.KeyHash]
     } deriving (Eq, Show)
@@ -1059,7 +1058,12 @@ selectAssets pp utxoAssumptions outs' redeemers
                         . view #address
                         . snd
                         ) <$> inputs <> collateral
-        in  ( Selection inputs collateral change inputScripts
+        in  ( Selection
+                { extraInputs = map fst inputs
+                , extraCollateral = map fst collateral
+                , extraOutputs = change
+                , extraInputScripts = inputScripts
+                }
             , s'
             )
 
@@ -1136,7 +1140,7 @@ splitSignedValue v = (bNegative, bPositive)
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
-    { extraInputs :: [(W.TxIn, W.TxOut)]
+    { extraInputs :: [W.TxIn]
     , extraCollateral :: [W.TxIn]
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
@@ -1236,7 +1240,7 @@ modifyShelleyTxBody txUpdate =
     era = recentEra @era
     TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
-    extraInputs' = Set.fromList (Convert.toLedger . fst <$> extraInputs)
+    extraInputs' = Set.fromList (Convert.toLedger <$> extraInputs)
     extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
 
     modifyFee old = case feeUpdate of
