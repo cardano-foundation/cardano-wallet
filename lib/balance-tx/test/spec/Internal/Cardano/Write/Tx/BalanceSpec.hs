@@ -2684,11 +2684,12 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
                 o <- CardanoApi.genTxOut (cardanoEra @era)
                 return (fst i, o)
         let redeemers = []
-        return $ PartialTx
-            (fromCardanoApiTx tx)
-            (fromCardanoApiUTxO inputUTxO)
-            (redeemers)
-            mempty
+        return PartialTx
+            { tx = fromCardanoApiTx tx
+            , extraUTxO = fromCardanoApiUTxO inputUTxO
+            , redeemers
+            , timelockKeyWitnessCounts = mempty
+            }
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
