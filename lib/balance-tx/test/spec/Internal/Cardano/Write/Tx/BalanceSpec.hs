@@ -2677,9 +2677,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         let inputs :: [CardanoApi.TxIn]
             inputs = fst <$> CardanoApi.txIns content
         extraUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
-            do
-                o <- genTxOut
-                return (i, o)
+            (i,) <$> genTxOut
         return PartialTx
             { tx = fromCardanoApiTx tx
             , extraUTxO = fromCardanoApiUTxO extraUTxO
