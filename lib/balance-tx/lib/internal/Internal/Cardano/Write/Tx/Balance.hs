@@ -736,18 +736,18 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    (Selection extraInputs extraCollateral' extraOutputs, s') <-
-        selectAssets
-                pp
-                utxoAssumptions
-                (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
-                redeemers
-                utxoSelection
-                balance0
-                (Convert.toWalletCoin minfee0)
-                genChange
-                selectionStrategy
-                s
+    (Selection extraInputs extraCollateral' extraOutputs extraInputScripts, s')
+        <- selectAssets
+               pp
+               utxoAssumptions
+               (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
+               redeemers
+               utxoSelection
+               balance0
+               (Convert.toWalletCoin minfee0)
+               genChange
+               selectionStrategy
+               s
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -769,17 +769,7 @@ balanceTxInner
     -- doing such a thing is considered bonkers and this is not a behavior we
     -- ought to support.
 
-    let extraInputScripts =
-            case utxoAssumptions of
-                AllKeyPaymentCredentials -> []
-                AllByronKeyPaymentCredentials -> []
-                AllScriptPaymentCredentialsFrom _template toInpScripts ->
-                    ( toInpScripts
-                    . Convert.toLedgerAddress
-                    . view #address
-                    . snd
-                    ) <$> extraInputs <> extraCollateral'
-        extraCollateral = fst <$> extraCollateral'
+    let extraCollateral = fst <$> extraCollateral'
     candidateTx <- assembleTransaction $ TxUpdate
         { extraInputs
         , extraCollateral
@@ -886,6 +876,7 @@ data Selection = Selection
     { extraInputs :: [(W.TxIn, W.TxOut)]
     , extraCollateral :: [(W.TxIn, W.TxOut)]
     , extraOutputs :: [W.TxOut]
+    , extraInputScripts :: [CA.Script CA.KeyHash]
     } deriving (Eq, Show)
 
 -- | Select assets to cover the specified balance and fee.
@@ -917,7 +908,7 @@ selectAssets
 selectAssets pp utxoAssumptions outs' redeemers
     utxoSelection balance fee0 changeGen selectionStrategy s = do
         except validateTxOutputs'
-        assignChangeAddressesToSelection <$> performSelection'
+        transformSelection <$> performSelection'
   where
     era = recentEra @era
 
@@ -1049,13 +1040,26 @@ selectAssets pp utxoAssumptions outs' redeemers
         -- in the final stage of 'balanceTx'.
         extraBytes = 8
 
-    assignChangeAddressesToSelection
+    transformSelection
         :: CoinSelection.Selection
         -> (Selection, changeState)
-    assignChangeAddressesToSelection sel =
-        let (sel', s') = assignChangeAddresses changeGen sel s
+    transformSelection sel =
+        let
+            (sel', s') = assignChangeAddresses changeGen sel s
             inputs = F.toList (sel' ^. #inputs)
-        in  ( Selection inputs (sel' ^. #collateral) (sel' ^. #change)
+            collateral = sel' ^. #collateral
+            change = sel' ^. #change
+            inputScripts =
+                case utxoAssumptions of
+                    AllKeyPaymentCredentials -> []
+                    AllByronKeyPaymentCredentials -> []
+                    AllScriptPaymentCredentialsFrom _template toInpScripts ->
+                        ( toInpScripts
+                        . Convert.toLedgerAddress
+                        . view #address
+                        . snd
+                        ) <$> inputs <> collateral
+        in  ( Selection inputs collateral change inputScripts
             , s'
             )
 
