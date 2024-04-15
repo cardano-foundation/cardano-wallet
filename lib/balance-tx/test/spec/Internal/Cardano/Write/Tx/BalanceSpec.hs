@@ -2673,11 +2673,7 @@ instance Arbitrary (MixedSign Value) where
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
-        let CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
-        let inputs :: [CardanoApi.TxIn]
-            inputs = fst <$> CardanoApi.txIns content
-        extraUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
-            (i,) <$> genTxOut
+        extraUTxO <- genExtraUTxO tx
         return PartialTx
             { tx = fromCardanoApiTx tx
             , extraUTxO = fromCardanoApiUTxO extraUTxO
@@ -2685,6 +2681,12 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             , timelockKeyWitnessCounts = mempty
             }
       where
+        genExtraUTxO tx = do
+            let CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
+            let inputs :: [CardanoApi.TxIn]
+                inputs = fst <$> CardanoApi.txIns content
+            fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
+                (i,) <$> genTxOut
         genTxOut =
             -- NOTE: genTxOut does not generate quantities larger than
             -- `maxBound :: Word64`, however users could supply these. We
