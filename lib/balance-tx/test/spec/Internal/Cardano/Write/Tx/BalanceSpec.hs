@@ -2678,11 +2678,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             inputs = fst <$> CardanoApi.txIns content
         extraUTxO <- fmap (CardanoApi.UTxO . Map.fromList) . forM inputs $ \i ->
             do
-                -- NOTE: genTxOut does not generate quantities larger than
-                -- `maxBound :: Word64`, however users could supply these. We
-                -- should ideally test what happens, and make it clear what
-                -- code, if any, should validate.
-                o <- CardanoApi.genTxOut (cardanoEra @era)
+                o <- genTxOut
                 return (i, o)
         return PartialTx
             { tx = fromCardanoApiTx tx
@@ -2690,6 +2686,13 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             , redeemers = []
             , timelockKeyWitnessCounts = mempty
             }
+      where
+        genTxOut =
+            -- NOTE: genTxOut does not generate quantities larger than
+            -- `maxBound :: Word64`, however users could supply these. We
+            -- should ideally test what happens, and make it clear what
+            -- code, if any, should validate.
+            CardanoApi.genTxOut (cardanoEra @era)
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
