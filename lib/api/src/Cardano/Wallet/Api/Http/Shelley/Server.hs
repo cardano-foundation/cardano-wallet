@@ -724,8 +724,21 @@ import Control.Tracer
     ( Tracer
     , contramap
     )
+import Cryptography.Cipher.AES256CBC
+    ( CipherMode (..)
+    )
+import Cryptography.Hash.Core
+    ( SHA256 (..)
+    )
+import Cryptography.KDF.PBKDF2
+    ( PBKDF2Config (..)
+    )
 import Data.Bifunctor
     ( first
+    )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -738,7 +751,8 @@ import Data.Either
     , isRight
     )
 import Data.Either.Combinators
-    ( whenLeft
+    ( mapBoth
+    , whenLeft
     )
 import Data.Either.Extra
     ( eitherToMaybe
@@ -932,13 +946,19 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
+import qualified Cryptography.Cipher.AES256CBC as AES256CBC
+import qualified Cryptography.KDF.PBKDF2 as PBKDF2
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
     , IsRecentEra
@@ -3128,18 +3148,26 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 
 -- When encryption is enabled we do the following:
 -- (a) find field(s) `msg` in the first level value pairs for each key
--- (b) encrypt the 'msg' values if present, otherwise emit error
--- (c) and update value of `msg` with the encrypted initial value(s) encoded in base64
+-- (b) encrypt the 'msg' values if present, if there is no 'msg' value emit error
+-- (c) update value of `msg` with the encrypted initial value(s) encoded in base64
 --     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
--- (d) add `enc` field with encryption method value ("base" or "chachapoly1305")
+-- (d) add `enc` field with encryption method value 'base'
 toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
     -> Either ErrConstructTx Cardano.TxMetadata
-toMetadataEncrypted _apiEncrypt payload = do
+toMetadataEncrypted apiEncrypt payload = do
     msgValues <- findMsgValues
+    msgValues' <- mapM encryptingMsg msgValues
     undefined
   where
+    pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
+    (secretKey, iv) = PBKDF2.generateKey PBKDF2Config
+        { hash = SHA256
+        , iterations = 10000
+        , keyLength = 32
+        , ivLength = 16
+        } pwd Nothing
     getMsgValue (Cardano.TxMetaText metaField, metaValue) =
         if metaField == "msg" then
             Just metaValue
@@ -3161,6 +3189,39 @@ toMetadataEncrypted _apiEncrypt payload = do
             Right $ Map.toList filteredMap
            else
             Left ErrConstructTxIncorrectRawMetadata
+    encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
+        if metaField == "msg" then
+            let encrypted =
+                    AES256CBC.encrypt WithPadding secretKey iv Nothing $
+                    BL.toStrict $
+                    Aeson.encode $
+                    Cardano.metadataValueToJsonNoSchema metaValue
+                encMethodEntry =
+                    ( Cardano.TxMetaText "enc"
+                    , Cardano.TxMetaText "base"
+                    )
+                toPair enc =
+                    [ ( Cardano.TxMetaText metaField
+                      , Cardano.TxMetaList
+                        ( map Cardano.TxMetaText $ flip toTextChunks [] $
+                          toBase64Text enc )
+                      )
+                    , encMethodEntry
+                    ]
+            in mapBoth ErrConstructTxEncryptMetadata toPair encrypted
+        else Right [pair]
+    encryptPairIfQualifies pair = Right [pair]
+    toBase64Text = T.decodeUtf8 . convertToBase Base64
+    toTextChunks txt res =
+        if txt == T.empty then
+            reverse res
+        else
+            let (front, back) = T.splitAt 64 txt
+            in toTextChunks back (front:res)
+    encryptingMsg (key, Cardano.TxMetaMap pairs) = do
+        pairs' <- mapM encryptPairIfQualifies pairs
+        pure (key, Cardano.TxMetaMap $ concat pairs')
+    encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
