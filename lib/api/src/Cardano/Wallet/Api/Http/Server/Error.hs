@@ -452,8 +452,14 @@ instance IsServerError ErrConstructTx where
             ]
         ErrConstructTxIncorrectRawMetadata ->
             apiError err403 InvalidMetadataEncryption $ mconcat
-            [ "It looks like the metadata to be encrypted does not "
+            [ "It looks like the metadata does not "
             , "have `msg` field that is supposed to be encrypted."
+            ]
+        ErrConstructTxEncryptMetadata cryptoError ->
+            apiError err403 InvalidMetadataEncryption $ mconcat
+            [ "It looks like the metadata cannot be encrypted. "
+            , "The exact error is: "
+            , T.pack (show cryptoError)
             ]
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
