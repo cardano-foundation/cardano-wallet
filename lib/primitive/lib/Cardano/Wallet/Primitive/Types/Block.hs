@@ -14,6 +14,9 @@ module Cardano.Wallet.Primitive.Types.Block
     , isGenesisBlockHeader
     , compareSlot
     , chainPointFromBlockHeader
+    , chainPointFromBlockHeader'
+    , toWalletChainPoint
+    , fromWalletChainPoint
     , toSlot
     )
 
@@ -22,20 +25,31 @@ where
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( SlotNo
+    ( SlotNo (..)
     , WithOrigin (..)
     )
 import Cardano.Wallet.Primitive.Types.Certificates
     ( DelegationCertificate
     )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (getHash)
+    ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx
     )
 import Control.DeepSeq
     ( NFData
+    )
+import Control.Lens
+    ( view
+    )
+import Data.ByteArray.Encoding
+    ( Base (Base16)
+    , convertToBase
+    )
+import Data.Maybe
+    ( fromJust
+    , isNothing
     )
 import Data.Quantity
     ( Quantity (getQuantity)
@@ -57,16 +71,8 @@ import NoThunks.Class
     ( NoThunks
     )
 
-import Control.Lens
-    ( view
-    )
-import Data.ByteArray.Encoding
-    ( Base (Base16)
-    , convertToBase
-    )
-import Data.Maybe
-    ( isNothing
-    )
+import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.Text.Encoding as T
 
 data Block = Block
@@ -144,6 +150,27 @@ chainPointFromBlockHeader :: BlockHeader -> ChainPoint
 chainPointFromBlockHeader header@(BlockHeader sl _ hash _)
     | isGenesisBlockHeader header = ChainPointAtGenesis
     | otherwise                   = ChainPoint sl hash
+
+chainPointFromBlockHeader' :: BlockHeader -> Read.ChainPoint
+chainPointFromBlockHeader' =
+    fromWalletChainPoint . chainPointFromBlockHeader
+
+toWalletChainPoint :: Read.ChainPoint -> ChainPoint
+toWalletChainPoint Read.GenesisPoint = ChainPointAtGenesis
+toWalletChainPoint (Read.BlockPoint (Read.SlotNo slot) hash) =
+    ChainPoint
+        (SlotNo $ fromIntegral slot)
+        (Hash $ Hash.hashToBytes hash)
+
+fromWalletChainPoint :: ChainPoint -> Read.ChainPoint
+fromWalletChainPoint ChainPointAtGenesis = Read.GenesisPoint
+fromWalletChainPoint (ChainPoint slot hash) =
+    Read.BlockPoint
+        (toReadSlotNo slot)
+        (fromJust $ Hash.hashFromBytes $ getHash hash)
+
+toReadSlotNo :: SlotNo -> Read.SlotNo
+toReadSlotNo (SlotNo n) = Read.SlotNo (fromIntegral n)
 
 instance NFData ChainPoint
 
