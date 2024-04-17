@@ -2786,6 +2786,9 @@ instance IsRecentEra era => Arbitrary (Wallet era) where
         genByronVkAddr = CardanoApi.byronAddressInEra
             <$> CardanoApi.genAddressByron
 
+        genWalletUTxO
+            :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
+            -> Gen W.UTxO
         genWalletUTxO genAddr = scale (* 2) $
             W.UTxO . Map.fromList <$> listOf genEntry
           where
