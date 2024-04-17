@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -26,6 +27,12 @@ import Cardano.Wallet.Read.Block.Block
 import Cardano.Wallet.Read.Eras.KnownEras
     ( Era (..)
     , IsEra (..)
+    )
+import GHC.Generics
+    ( Generic
+    )
+import NoThunks.Class
+    ( NoThunks (..)
     )
 import Numeric.Natural
     ( Natural
@@ -58,7 +65,9 @@ getEraBlockNo = case theEra @era of
     k = BlockNo . fromIntegral . O.unBlockNo
 
 newtype BlockNo = BlockNo {unBlockNo :: Natural}
-    deriving (Eq, Show, Enum)
+    deriving (Eq, Ord, Show, Generic, Enum)
+
+instance NoThunks BlockNo
 
 getBlockNoShelley
     :: (L.Era era, EncCBORGroup (TxSeq era), Crypto c)
