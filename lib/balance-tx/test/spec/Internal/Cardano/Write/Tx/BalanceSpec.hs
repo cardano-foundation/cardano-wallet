@@ -2807,12 +2807,10 @@ instance IsRecentEra era => Arbitrary (Wallet era) where
 
     shrink (Wallet utxoAssumptions utxo changeAddressGen) =
         [ Wallet utxoAssumptions utxo' changeAddressGen
-        | utxo' <- shrinkUTxO utxo
+        | utxo' <- shrinkToUTxOSubset utxo
         ]
       where
-        -- We cannot use 'Cardano.Wallet.Primitive.Types.UTxO.Gen.shrinkUTxO'
-        -- because it will shrink to invalid addresses.
-        shrinkUTxO
+        shrinkToUTxOSubset
             = take 16
             . fmap (UTxO . Map.fromList)
             . shrinkList shrinkEntry
