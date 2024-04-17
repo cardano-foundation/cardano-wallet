@@ -2761,7 +2761,7 @@ instance Arbitrary W.TxOut where
         | bundle' <- W.shrinkTokenBundleSmallRange bundle
         ]
 
-instance IsRecentEra era => Arbitrary (Wallet era) where
+instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
     arbitrary = oneof
         [ Wallet AllKeyPaymentCredentials
             <$> genWalletUTxO genShelleyVkAddr
@@ -2772,7 +2772,7 @@ instance IsRecentEra era => Arbitrary (Wallet era) where
             <*> pure dummyByronChangeAddressGen
         ]
       where
-        genShelleyVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
+        genShelleyVkAddr :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
         genShelleyVkAddr
             = fmap (CardanoApi.shelleyAddressInEra era)
             $ CardanoApi.makeShelleyAddress
@@ -2780,14 +2780,14 @@ instance IsRecentEra era => Arbitrary (Wallet era) where
                 <*> CardanoApi.genPaymentCredential -- only vk credentials
                 <*> CardanoApi.genStakeAddressReference
           where
-            era = CardanoApi.ShelleyBasedEraBabbage
+            era = Write.shelleyBasedEraFromRecentEra (recentEra @era)
 
-        genByronVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
+        genByronVkAddr :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
         genByronVkAddr = CardanoApi.byronAddressInEra
             <$> CardanoApi.genAddressByron
 
         genWalletUTxO
-            :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
+            :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
             -> Gen (UTxO era)
         genWalletUTxO genAddr
             = fmap fromWalletUTxO
@@ -2808,7 +2808,7 @@ instance IsRecentEra era => Arbitrary (Wallet era) where
                         <*> pure CardanoApi.TxOutDatumNone
                         <*> pure CardanoApi.ReferenceScriptNone
                   where
-                    era = CardanoApi.BabbageEra
+                    era = Write.fromRecentEra (recentEra @era)
 
     shrink (Wallet utxoAssumptions utxo changeAddressGen) =
         [ Wallet utxoAssumptions utxo' changeAddressGen
