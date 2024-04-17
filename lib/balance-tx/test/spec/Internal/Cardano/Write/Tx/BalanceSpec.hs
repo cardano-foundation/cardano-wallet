@@ -2770,12 +2770,14 @@ instance Arbitrary Wallet where
         ]
       where
         genShelleyVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
-        genShelleyVkAddr = CardanoApi.shelleyAddressInEra
-            CardanoApi.ShelleyBasedEraBabbage
-            <$> (CardanoApi.makeShelleyAddress
+        genShelleyVkAddr
+            = fmap (CardanoApi.shelleyAddressInEra era)
+            $ CardanoApi.makeShelleyAddress
                 <$> CardanoApi.genNetworkId
                 <*> CardanoApi.genPaymentCredential -- only vk credentials
-                <*> CardanoApi.genStakeAddressReference)
+                <*> CardanoApi.genStakeAddressReference
+          where
+            era = CardanoApi.ShelleyBasedEraBabbage
 
         genByronVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
         genByronVkAddr = CardanoApi.byronAddressInEra
@@ -2790,12 +2792,13 @@ instance Arbitrary Wallet where
                 genIn = W.genTxIn
 
                 genOut :: Gen W.TxOut
-                genOut = cardanoToWalletTxOut <$>
-                    (CardanoApi.TxOut
+                genOut
+                    = fmap cardanoToWalletTxOut
+                    $ CardanoApi.TxOut
                         <$> genAddr
                         <*> scale (* 2) (CardanoApi.genTxOutValue era)
                         <*> pure CardanoApi.TxOutDatumNone
-                        <*> pure CardanoApi.ReferenceScriptNone)
+                        <*> pure CardanoApi.ReferenceScriptNone
                   where
                     era = CardanoApi.BabbageEra
 
