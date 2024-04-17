@@ -3159,7 +3159,7 @@ toMetadataEncrypted
 toMetadataEncrypted apiEncrypt payload = do
     msgValues <- findMsgValues
     msgValues' <- mapM encryptingMsg msgValues
-    undefined
+    pure $ updateTxMetadata msgValues'
   where
     pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
     (secretKey, iv) = PBKDF2.generateKey PBKDF2Config
@@ -3222,6 +3222,9 @@ toMetadataEncrypted apiEncrypt payload = do
         pairs' <- mapM encryptPairIfQualifies pairs
         pure (key, Cardano.TxMetaMap $ concat pairs')
     encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
+    updateTxMetadata =
+        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+        in Cardano.TxMetadata . foldr (\(k,v) -> Map.insert k v) themap
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
