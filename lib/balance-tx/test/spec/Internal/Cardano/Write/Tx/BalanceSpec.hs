@@ -2791,7 +2791,7 @@ instance Arbitrary Wallet where
 
                 genOut :: Gen W.TxOut
                 genOut = cardanoToWalletTxOut <$>
-                  (CardanoApi.TxOut
+                    (CardanoApi.TxOut
                         <$> genAddr
                         <*> (scale (* 2) (CardanoApi.genTxOutValue era))
                         <*> (pure CardanoApi.TxOutDatumNone)
