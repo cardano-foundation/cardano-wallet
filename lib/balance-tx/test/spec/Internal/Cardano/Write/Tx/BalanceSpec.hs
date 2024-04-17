@@ -2169,7 +2169,7 @@ newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
 
 data Wallet = Wallet UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
-    deriving Show via (ShowBuildable Wallet)
+    deriving Show via ShowBuildable Wallet
 
 --------------------------------------------------------------------------------
 -- Utility functions
@@ -2793,9 +2793,9 @@ instance Arbitrary Wallet where
                 genOut = cardanoToWalletTxOut <$>
                     (CardanoApi.TxOut
                         <$> genAddr
-                        <*> (scale (* 2) (CardanoApi.genTxOutValue era))
-                        <*> (pure CardanoApi.TxOutDatumNone)
-                        <*> (pure CardanoApi.ReferenceScriptNone))
+                        <*> scale (* 2) (CardanoApi.genTxOutValue era)
+                        <*> pure CardanoApi.TxOutDatumNone
+                        <*> pure CardanoApi.ReferenceScriptNone)
                   where
                     era = CardanoApi.BabbageEra
 
