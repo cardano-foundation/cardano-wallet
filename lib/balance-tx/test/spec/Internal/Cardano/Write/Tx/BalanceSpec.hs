@@ -311,6 +311,7 @@ import Internal.Cardano.Write.Tx.Balance
     , noTxUpdate
     , sizeOfCoin
     , splitSignedValue
+    , toWalletUTxO
     , updateTx
     )
 import Internal.Cardano.Write.Tx.Sign
@@ -1347,7 +1348,7 @@ prop_balanceTransactionUnableToCreateInput
     erasePartialTxInputList :: PartialTx era -> PartialTx era
     erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
 
-    eraseWalletUTxOSet :: Wallet -> Wallet
+    eraseWalletUTxOSet :: Wallet era -> Wallet era
     eraseWalletUTxOSet (Wallet utxoAssumptions _utxo changeAddressGen) =
         Wallet utxoAssumptions mempty changeAddressGen
 
@@ -1367,7 +1368,7 @@ prop_balanceTransactionValid
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
                 view #extraUTxO partialTx
-                <> fromWalletUTxO walletUTxO
+                <> walletUTxO
         let originalTx = view #tx partialTx
         let originalBalance = txBalance originalTx combinedUTxO
         let originalOuts = outputs originalTx
@@ -2004,14 +2005,6 @@ prop_updateTx tx extraIns extraCol extraOuts newFee = do
             <> Set.fromList (fromWalletTxIn <$> extraCol)
         ]
   where
-    era = Write.recentEra @era
-
-    fromWalletTxOut :: W.TxOut -> TxOut era
-    fromWalletTxOut = case era of
-        RecentEraBabbage -> Convert.toBabbageTxOut
-
-    fromWalletTxIn = Convert.toLedger
-
     inputs = view (bodyTxL . inputsTxBodyL)
     outputs = view (bodyTxL . outputsTxBodyL)
     collateralIns = view (bodyTxL . collateralInputsTxBodyL)
@@ -2052,7 +2045,7 @@ prop_splitSignedValue_mergeSignedValue (MixedSign v) =
 -- | A set of arguments for the 'balanceTx' function.
 --
 data BalanceTxArgs era = BalanceTxArgs
-    { wallet :: !Wallet
+    { wallet :: !(Wallet era)
     , protocolParams :: !(Write.PParams era)
     , timeTranslation :: !TimeTranslation
     , seed :: !StdGenSeed
@@ -2112,7 +2105,7 @@ genBalanceTxArgsForSuccessOrFailure
     => Gen (BalanceTxArgs era)
 genBalanceTxArgsForSuccessOrFailure =
     BalanceTxArgs
-        <$> arbitrary @Wallet
+        <$> arbitrary @(Wallet era)
         <*> genProtocolParams
         <*> genTimeTranslation
         <*> arbitrary @StdGenSeed
@@ -2127,7 +2120,7 @@ shrinkBalanceTxArgsForSuccessOrFailure
     -> [BalanceTxArgs era]
 shrinkBalanceTxArgsForSuccessOrFailure =
     genericRoundRobinShrink
-        <@> shrink @Wallet
+        <@> shrink @(Wallet era)
         <:> shrinkProtocolParams
         <:> shrinkTimeTranslation
         <:> shrink @StdGenSeed
@@ -2168,8 +2161,8 @@ newtype MixedSign a = MixedSign a
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
 
-data Wallet = Wallet UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
-    deriving Show via (ShowBuildable Wallet)
+data Wallet era = Wallet UTxOAssumptions (UTxO era) AnyChangeAddressGenWithState
+    deriving Show via ShowBuildable (Wallet era)
 
 --------------------------------------------------------------------------------
 -- Utility functions
@@ -2191,7 +2184,7 @@ addExtraTxIns extraIns =
 -- protocol parameters. This is up to the caller to provide.
 balanceTx
     :: forall era. IsRecentEra era
-    => Wallet
+    => Wallet era
     -> Write.PParams era
     -> TimeTranslation
     -> StdGenSeed
@@ -2216,7 +2209,7 @@ balanceTx
                 partialTx
         pure transactionInEra
   where
-    utxoIndex = constructUTxOIndex $ fromWalletUTxO utxo
+    utxoIndex = constructUTxOIndex utxo
 
 -- | Also returns the updated change state
 balanceTransactionWithDummyChangeState
@@ -2247,6 +2240,14 @@ deserializeBabbageTx
     . either (error . show) id
     . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
 
+fromWalletTxIn :: W.TxIn -> TxIn
+fromWalletTxIn = Convert.toLedger
+
+fromWalletTxOut :: forall era. IsRecentEra era => W.TxOut -> TxOut era
+fromWalletTxOut = case recentEra @era of
+    RecentEraBabbage -> Convert.toBabbageTxOut
+    RecentEraConway -> Convert.toConwayTxOut
+
 hasInsCollateral
     :: forall era. IsRecentEra era
     => Tx era
@@ -2272,9 +2273,11 @@ hasTotalCollateral tx =
         SJust _ -> True
         SNothing -> False
 
-mkTestWallet :: W.UTxO -> Wallet
-mkTestWallet utxo =
+mkTestWallet :: IsRecentEra era => W.UTxO -> Wallet era
+mkTestWallet walletUTxO =
     Wallet AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
+  where
+    utxo = fromWalletUTxO walletUTxO
 
 mockPParamsForBalancing
     :: forall era . IsRecentEra era => Write.PParams era
@@ -2758,7 +2761,7 @@ instance Arbitrary W.TxOut where
         | bundle' <- W.shrinkTokenBundleSmallRange bundle
         ]
 
-instance Arbitrary Wallet where
+instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
     arbitrary = oneof
         [ Wallet AllKeyPaymentCredentials
             <$> genWalletUTxO genShelleyVkAddr
@@ -2769,49 +2772,56 @@ instance Arbitrary Wallet where
             <*> pure dummyByronChangeAddressGen
         ]
       where
-        genShelleyVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
-        genShelleyVkAddr = CardanoApi.shelleyAddressInEra
-            CardanoApi.ShelleyBasedEraBabbage
-            <$> (CardanoApi.makeShelleyAddress
+        genShelleyVkAddr :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
+        genShelleyVkAddr
+            = fmap (CardanoApi.shelleyAddressInEra era)
+            $ CardanoApi.makeShelleyAddress
                 <$> CardanoApi.genNetworkId
                 <*> CardanoApi.genPaymentCredential -- only vk credentials
-                <*> CardanoApi.genStakeAddressReference)
+                <*> CardanoApi.genStakeAddressReference
+          where
+            era = Write.shelleyBasedEraFromRecentEra (recentEra @era)
 
-        genByronVkAddr :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
+        genByronVkAddr :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
         genByronVkAddr = CardanoApi.byronAddressInEra
             <$> CardanoApi.genAddressByron
 
-        genWalletUTxO genAddr = scale (* 2) $
-            W.UTxO . Map.fromList <$> listOf genEntry
+        genWalletUTxO
+            :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
+            -> Gen (UTxO era)
+        genWalletUTxO genAddr
+            = scale (* 2)
+            $ UTxO . Map.fromList <$> listOf genEntry
           where
             genEntry = (,) <$> genIn <*> genOut
               where
-                genIn :: Gen W.TxIn
-                genIn = W.genTxIn
+                genIn :: Gen TxIn
+                genIn = fromWalletTxIn <$> W.genTxIn
 
-                genOut :: Gen W.TxOut
-                genOut = cardanoToWalletTxOut <$>
-                  (CardanoApi.TxOut
+                genOut :: Gen (TxOut era)
+                genOut
+                    = fmap (fromWalletTxOut . cardanoToWalletTxOut)
+                    $ CardanoApi.TxOut
                         <$> genAddr
-                        <*> (scale (* 2) (CardanoApi.genTxOutValue era))
-                        <*> (pure CardanoApi.TxOutDatumNone)
-                        <*> (pure CardanoApi.ReferenceScriptNone))
+                        <*> scale (* 2) (CardanoApi.genTxOutValue era)
+                        <*> pure CardanoApi.TxOutDatumNone
+                        <*> pure CardanoApi.ReferenceScriptNone
                   where
-                    era = CardanoApi.BabbageEra
+                    era = Write.fromRecentEra (recentEra @era)
 
     shrink (Wallet utxoAssumptions utxo changeAddressGen) =
         [ Wallet utxoAssumptions utxo' changeAddressGen
-        | utxo' <- shrinkUTxO utxo
+        | utxo' <- shrinkToUTxOSubset utxo
         ]
       where
-        -- We cannot use 'Cardano.Wallet.Primitive.Types.UTxO.Gen.shrinkUTxO'
-        -- because it will shrink to invalid addresses.
-        shrinkUTxO
+        shrinkToUTxOSubset
             = take 16
-            . fmap (W.UTxO . Map.fromList)
+            . fmap (UTxO . Map.fromList)
             . shrinkList shrinkEntry
             . Map.toList
-            . W.unUTxO
+            . utxoToMap
+          where
+            utxoToMap (UTxO m) = m
 
         shrinkEntry _ = []
 
@@ -3002,12 +3012,12 @@ instance Buildable BalanceTxGolden where
             | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
             | otherwise = pretty (W.Coin.unsafeFromIntegral l)
 
-instance Buildable Wallet where
+instance IsRecentEra era => Buildable (Wallet era) where
     build (Wallet assumptions utxo changeAddressGen) =
         nameF "Wallet" $ mconcat
             [ nameF "assumptions" $ build assumptions
             , nameF "changeAddressGen" $ build changeAddressGen
-            , nameF "utxo" $ pretty utxo
+            , nameF "utxo" $ pretty $ toWalletUTxO utxo
             ]
 
 --------------------------------------------------------------------------------
