@@ -2790,18 +2790,17 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
             :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
             -> Gen (UTxO era)
         genWalletUTxO genAddr
-            = fmap fromWalletUTxO
-            . scale (* 2)
-            $ W.UTxO . Map.fromList <$> listOf genEntry
+            = scale (* 2)
+            $ UTxO . Map.fromList <$> listOf genEntry
           where
             genEntry = (,) <$> genIn <*> genOut
               where
-                genIn :: Gen W.TxIn
-                genIn = W.genTxIn
+                genIn :: Gen TxIn
+                genIn = fromWalletTxIn <$> W.genTxIn
 
-                genOut :: Gen W.TxOut
+                genOut :: Gen (TxOut era)
                 genOut
-                    = fmap cardanoToWalletTxOut
+                    = fmap (fromWalletTxOut . cardanoToWalletTxOut)
                     $ CardanoApi.TxOut
                         <$> genAddr
                         <*> scale (* 2) (CardanoApi.genTxOutValue era)
