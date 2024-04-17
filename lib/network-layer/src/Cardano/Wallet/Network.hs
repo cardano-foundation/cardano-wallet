@@ -127,7 +127,7 @@ data NetworkLayer m block = NetworkLayer
     -- try to retrieve the block at a given 'ChainPoint',
     -- and close the connection again.
     , currentNodeTip
-        :: m BlockHeader
+        :: m Read.ChainTip
     -- ^ Get the current tip from the chain producer
     , currentNodeEra
         :: m AnyCardanoEra

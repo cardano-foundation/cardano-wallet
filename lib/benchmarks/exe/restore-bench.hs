@@ -371,6 +371,7 @@ import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -1058,25 +1059,29 @@ waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip
     loop :: Int -> IO SlotNo
     loop retries = do
         nodeTip <- currentNodeTip nw
-        if slotNo nodeTip /= 0 then do
-            prog <- syncProgress nw $ slotNo nodeTip
-            traceWith tr $ MsgNodeTipTick nodeTip prog
-            if prog == Ready
-                then pure (slotNo nodeTip)
-                else do
-                    -- 2 seconds poll interval
-                    threadDelay 2000000
-                    loop retries
-        else
-            if retries > 0 then do
-                 let delay = 15000000
-                 traceWith tr $ MsgRetryShortly delay
-                 threadDelay delay
-                 loop (retries - 1)
-            else throwString "Gave up in waitForNodeSync, waiting a tip"
+        case nodeTip of
+            Read.GenesisTip ->
+                if retries > 0
+                then do
+                    let delay = 15000000
+                    traceWith tr $ MsgRetryShortly delay
+                    threadDelay delay
+                    loop (retries - 1)
+                else
+                    throwString "Gave up in waitForNodeSync, waiting a tip"
+            Read.BlockTip{slotNo} -> do
+                let slot = SlotNo $ fromIntegral $ Read.unSlotNo slotNo
+                prog <- syncProgress nw slot
+                traceWith tr $ MsgNodeTipTick nodeTip prog
+                if prog == Ready
+                    then pure slot
+                    else do
+                        -- 2 seconds poll interval
+                        threadDelay 2000000
+                        loop retries
 
 data BenchmarkLog (n :: NetworkDiscriminant)
-    = MsgNodeTipTick BlockHeader SyncProgress
+    = MsgNodeTipTick Read.ChainTip SyncProgress
     | MsgRestorationTick POSIXTime SyncProgress
     | MsgSyncStart (SNetworkId n)
     | MsgSyncCompleted (SNetworkId n) SlotNo

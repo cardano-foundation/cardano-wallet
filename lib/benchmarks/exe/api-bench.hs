@@ -116,17 +116,12 @@ import Cardano.Wallet.Primitive.Slotting
     , hoistTimeInterpreter
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , SlotNo (..)
-    , SortOrder (..)
+    ( SortOrder (..)
     , WalletId
     , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( HistogramBar (..)
@@ -148,6 +143,9 @@ import Data.Aeson
     ( ToJSON (..)
     , genericToJSON
     , (.=)
+    )
+import Data.Maybe
+    ( fromJust
     )
 import Data.Quantity
     ( Quantity (..)
@@ -185,6 +183,7 @@ import qualified Cardano.Wallet.DB.Layer as DB
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -547,13 +546,15 @@ mockNetworkLayer = dummyNetworkLayer
                     C.ShelleyBasedEraBabbage
                     dummyNodeProtocolParameters
     , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
-    , currentNodeTip = pure BlockHeader
-        { slotNo = SlotNo 123456789
-        , blockHeight = Quantity 12345
-        , headerHash = Hash (B8.replicate 32 'a')
-        , parentHeaderHash = Just (Hash (B8.replicate 32 'b'))
+    , currentNodeTip = pure Read.BlockTip
+        { Read.slotNo = Read.SlotNo 123456789
+        , Read.blockNo = Read.BlockNo 12345
+        , Read.headerHash = mockHash
         }
     }
+
+mockHash :: Read.RawHeaderHash
+mockHash = fromJust $ Hash.hashFromBytes (B8.replicate 32 'a')
 
 mockTimeInterpreter :: TimeInterpreter IO
 mockTimeInterpreter = dummyTimeInterpreter

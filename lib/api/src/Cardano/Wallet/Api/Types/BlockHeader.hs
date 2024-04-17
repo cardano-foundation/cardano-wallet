@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 
 -- |
@@ -19,12 +21,8 @@ import Cardano.Wallet.Api.Aeson
     ( fromTextJSON
     , toTextJSON
     )
-import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , SlotNo (..)
-    )
 import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash
+    ( Hash (..)
     )
 import Data.Aeson
     ( FromJSON (parseJSON)
@@ -43,7 +41,10 @@ import GHC.Generics
     ( Generic
     )
 
+import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Char8 as B8
 
 data ApiBlockHeader = ApiBlockHeader
   { headerHash :: Hash "BlockHeader"
@@ -52,9 +53,19 @@ data ApiBlockHeader = ApiBlockHeader
   }
   deriving (Eq, Show, Generic)
 
-mkApiBlockHeader :: BlockHeader -> ApiBlockHeader
-mkApiBlockHeader BlockHeader{..} = ApiBlockHeader
-    {slotNo = Quantity $ unSlotNo slotNo, ..}
+mkApiBlockHeader :: Read.ChainTip -> ApiBlockHeader
+mkApiBlockHeader Read.GenesisTip =
+    ApiBlockHeader
+        { headerHash = Hash $ B8.pack "[genesis]"
+        , slotNo = Quantity 0
+        , blockHeight = Quantity 0
+        }
+mkApiBlockHeader Read.BlockTip{slotNo,headerHash,blockNo} =
+    ApiBlockHeader
+        { headerHash = Hash $ Hash.hashToBytes headerHash
+        , slotNo = Quantity $ fromIntegral $ Read.unSlotNo slotNo
+        , blockHeight = Quantity $ fromIntegral $ Read.unBlockNo blockNo
+        }
 
 instance ToJSON ApiBlockHeader where
     toJSON ApiBlockHeader{..} =
