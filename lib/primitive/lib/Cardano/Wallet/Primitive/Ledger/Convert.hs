@@ -469,7 +469,11 @@ toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Just vote) ->
         Conway.DelegStakeVote (toKeyHash poolId) (toLedgerDRep vote)
     _ ->
-        error "toLedgerDelegatee: wrong use, at least pool or vote action must be present"
+        error $ unwords
+            [ "toLedgerDelegatee:"
+            , "wrong use:"
+            , "at least pool or vote action must be present"
+            ]
   where
     toKeyHash (PoolId pid) = Ledger.KeyHash . Crypto.UnsafeHash $ toShort pid
 
@@ -479,11 +483,17 @@ toLedgerDRep = \case
     Abstain -> Ledger.DRepAlwaysAbstain
     NoConfidence -> Ledger.DRepAlwaysNoConfidence
     FromDRepID (DRepFromKeyHash (DRepKeyHash keyhash)) ->
-        Ledger.DRepCredential . Ledger.KeyHashObj . Ledger.KeyHash . Crypto.UnsafeHash $
-        toShort keyhash
+        Ledger.DRepCredential
+            . Ledger.KeyHashObj
+            . Ledger.KeyHash
+            . Crypto.UnsafeHash
+            $ toShort keyhash
     FromDRepID (DRepFromScriptHash (DRepScriptHash scripthash)) ->
-        Ledger.DRepCredential . Ledger.ScriptHashObj . Ledger.ScriptHash . Crypto.UnsafeHash $
-        toShort scripthash
+        Ledger.DRepCredential
+            . Ledger.ScriptHashObj
+            . Ledger.ScriptHash
+            . Crypto.UnsafeHash
+            $ toShort scripthash
 
 toPlutusScriptInfo
     :: forall era. Alonzo.AlonzoEraScript era
