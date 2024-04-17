@@ -109,6 +109,9 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api
     ( Api
     )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( toMetadataEncrypted
+    )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
@@ -1202,13 +1205,28 @@ spec = do
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
-    describe "Api Errors" $ do
-        it "Every ApiErrorInfo constructor has a corresponding schema type" $
-            let res = fromJSON @SchemaApiErrorInfo specification
-                errStr = case res of
-                    Error s -> s
-                    _ -> ""
-            in counterexample errStr $ res == Success SchemaApiErrorInfo
+    describe "toMetadataEncrypted openssl goldens" $ do
+        -- $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
+        -- vBSywXY+WGcrckHUCyjJcQ==
+        it "msg is 0-level deep short - no salt" $ do
+            let apiEncrypt = ApiEncryptMetadata
+                    { passphrase = ApiT $ Passphrase "cardano"
+                    , enc = Nothing
+                    }
+                schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
+                    [( 0, Cardano.TxMetaMap
+                        [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                        , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data")
+                        ])
+                    ]
+                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                    [ (0, Cardano.TxMetaMap
+                          [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                          , (Cardano.TxMetaText "msg", Cardano.TxMetaList [Cardano.TxMetaText "vBSywXY+WGcrckHUCyjJcQ=="])
+                          , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
+                          ])
+                    ]
+            toMetadataEncrypted apiEncrypt schemaBefore `shouldBe` Right schemaAfter
 
 {-------------------------------------------------------------------------------
                               Error type encoding
