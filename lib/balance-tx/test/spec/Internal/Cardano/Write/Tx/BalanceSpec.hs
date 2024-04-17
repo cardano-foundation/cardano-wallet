@@ -1347,7 +1347,7 @@ prop_balanceTransactionUnableToCreateInput
     erasePartialTxInputList :: PartialTx era -> PartialTx era
     erasePartialTxInputList = over #tx (set (bodyTxL . inputsTxBodyL) mempty)
 
-    eraseWalletUTxOSet :: Wallet -> Wallet
+    eraseWalletUTxOSet :: Wallet era -> Wallet era
     eraseWalletUTxOSet (Wallet utxoAssumptions _utxo changeAddressGen) =
         Wallet utxoAssumptions mempty changeAddressGen
 
@@ -2052,7 +2052,7 @@ prop_splitSignedValue_mergeSignedValue (MixedSign v) =
 -- | A set of arguments for the 'balanceTx' function.
 --
 data BalanceTxArgs era = BalanceTxArgs
-    { wallet :: !Wallet
+    { wallet :: !(Wallet era)
     , protocolParams :: !(Write.PParams era)
     , timeTranslation :: !TimeTranslation
     , seed :: !StdGenSeed
@@ -2112,7 +2112,7 @@ genBalanceTxArgsForSuccessOrFailure
     => Gen (BalanceTxArgs era)
 genBalanceTxArgsForSuccessOrFailure =
     BalanceTxArgs
-        <$> arbitrary @Wallet
+        <$> arbitrary @(Wallet era)
         <*> genProtocolParams
         <*> genTimeTranslation
         <*> arbitrary @StdGenSeed
@@ -2127,7 +2127,7 @@ shrinkBalanceTxArgsForSuccessOrFailure
     -> [BalanceTxArgs era]
 shrinkBalanceTxArgsForSuccessOrFailure =
     genericRoundRobinShrink
-        <@> shrink @Wallet
+        <@> shrink @(Wallet era)
         <:> shrinkProtocolParams
         <:> shrinkTimeTranslation
         <:> shrink @StdGenSeed
@@ -2168,8 +2168,8 @@ newtype MixedSign a = MixedSign a
 newtype TxBalanceSurplus a = TxBalanceSurplus {unTxBalanceSurplus :: a}
     deriving (Eq, Show)
 
-data Wallet = Wallet UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
-    deriving Show via ShowBuildable Wallet
+data Wallet era = Wallet UTxOAssumptions W.UTxO AnyChangeAddressGenWithState
+    deriving Show via ShowBuildable (Wallet era)
 
 --------------------------------------------------------------------------------
 -- Utility functions
@@ -2191,7 +2191,7 @@ addExtraTxIns extraIns =
 -- protocol parameters. This is up to the caller to provide.
 balanceTx
     :: forall era. IsRecentEra era
-    => Wallet
+    => Wallet era
     -> Write.PParams era
     -> TimeTranslation
     -> StdGenSeed
@@ -2272,7 +2272,7 @@ hasTotalCollateral tx =
         SJust _ -> True
         SNothing -> False
 
-mkTestWallet :: W.UTxO -> Wallet
+mkTestWallet :: W.UTxO -> Wallet era
 mkTestWallet utxo =
     Wallet AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
 
@@ -2758,7 +2758,7 @@ instance Arbitrary W.TxOut where
         | bundle' <- W.shrinkTokenBundleSmallRange bundle
         ]
 
-instance Arbitrary Wallet where
+instance Arbitrary (Wallet era) where
     arbitrary = oneof
         [ Wallet AllKeyPaymentCredentials
             <$> genWalletUTxO genShelleyVkAddr
@@ -3005,7 +3005,7 @@ instance Buildable BalanceTxGolden where
             | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
             | otherwise = pretty (W.Coin.unsafeFromIntegral l)
 
-instance Buildable Wallet where
+instance Buildable (Wallet era) where
     build (Wallet assumptions utxo changeAddressGen) =
         nameF "Wallet" $ mconcat
             [ nameF "assumptions" $ build assumptions
