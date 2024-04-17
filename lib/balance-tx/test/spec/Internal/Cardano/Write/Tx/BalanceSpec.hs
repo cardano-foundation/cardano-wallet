@@ -2764,11 +2764,11 @@ instance Arbitrary W.TxOut where
 instance IsRecentEra era => Arbitrary (Wallet era) where
     arbitrary = oneof
         [ Wallet AllKeyPaymentCredentials
-            <$> (fromWalletUTxO <$> genWalletUTxO genShelleyVkAddr)
+            <$> genWalletUTxO genShelleyVkAddr
             <*> pure dummyShelleyChangeAddressGen
 
         , Wallet AllByronKeyPaymentCredentials
-            <$> (fromWalletUTxO <$> genWalletUTxO genByronVkAddr)
+            <$> genWalletUTxO genByronVkAddr
             <*> pure dummyByronChangeAddressGen
         ]
       where
@@ -2788,9 +2788,11 @@ instance IsRecentEra era => Arbitrary (Wallet era) where
 
         genWalletUTxO
             :: Gen (CardanoApi.AddressInEra CardanoApi.BabbageEra)
-            -> Gen W.UTxO
-        genWalletUTxO genAddr = scale (* 2) $
-            W.UTxO . Map.fromList <$> listOf genEntry
+            -> Gen (UTxO era)
+        genWalletUTxO genAddr
+            = fmap fromWalletUTxO
+            . scale (* 2)
+            $ W.UTxO . Map.fromList <$> listOf genEntry
           where
             genEntry = (,) <$> genIn <*> genOut
               where
