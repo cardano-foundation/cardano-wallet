@@ -2005,8 +2005,6 @@ prop_updateTx tx extraIns extraCol extraOuts newFee = do
             <> Set.fromList (fromWalletTxIn <$> extraCol)
         ]
   where
-    fromWalletTxIn = Convert.toLedger
-
     inputs = view (bodyTxL . inputsTxBodyL)
     outputs = view (bodyTxL . outputsTxBodyL)
     collateralIns = view (bodyTxL . collateralInputsTxBodyL)
@@ -2241,6 +2239,9 @@ deserializeBabbageTx
     = fromCardanoApiTx
     . either (error . show) id
     . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
+
+fromWalletTxIn :: W.TxIn -> TxIn
+fromWalletTxIn = Convert.toLedger
 
 fromWalletTxOut :: forall era. IsRecentEra era => W.TxOut -> TxOut era
 fromWalletTxOut = case recentEra @era of
