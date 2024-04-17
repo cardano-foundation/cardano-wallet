@@ -127,6 +127,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
+    , toMetadataEncrypted
 
     -- * Workers
     , manageRewardBalance
@@ -3160,7 +3161,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
 -- (b) encrypt the 'msg' values if present, if there is no 'msg' value emit error
 -- (c) update value of `msg` with the encrypted initial value(s) encoded in base64
 --     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
--- (d) add `enc` field with encryption method value 'base'
+-- (d) add `enc` field with encryption method value 'basic'
 toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
@@ -3207,7 +3208,7 @@ toMetadataEncrypted apiEncrypt payload = do
                     Cardano.metadataValueToJsonNoSchema metaValue
                 encMethodEntry =
                     ( Cardano.TxMetaText "enc"
-                    , Cardano.TxMetaText "base"
+                    , Cardano.TxMetaText "basic"
                     )
                 toPair enc =
                     [ ( Cardano.TxMetaText metaField
