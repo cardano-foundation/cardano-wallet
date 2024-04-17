@@ -208,9 +208,6 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
     )
-import Cardano.Wallet.Primitive.Types.Block
-    ( chainPointFromBlockHeader'
-    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -788,9 +785,9 @@ bench_baseline_restoration
             $ ChainFollower
             { checkpointPolicy = const CP.atTip
             , readChainPoints  = readTVarIO chainPointT
-            , rollForward = \blocks ntip -> do
+            , rollForward = \blocks nodeTip -> do
                 atomically $ writeTVar chainPointT
-                    [chainPointFromBlockHeader' ntip]
+                    [Read.chainPointFromChainTip nodeTip]
                 let (ntxs, hss) = NE.unzip $
                         numberOfTransactionsInBlock <$> blocks
                     (heights, slots) = NE.unzip hss

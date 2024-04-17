@@ -744,7 +744,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
     forward
         :: IORef EpochNo
         -> NonEmpty (CardanoBlock StandardCrypto)
-        -> BlockHeader
+        -> Read.ChainTip
         -> IO ()
     forward latestGarbageCollectionEpochRef blocks _ =
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
