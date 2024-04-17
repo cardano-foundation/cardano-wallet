@@ -1,6 +1,7 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -10,19 +11,17 @@
 --
 -- Restore benchmark CLI handling and setup functions which are shared between
 -- backends.
-
 module Cardano.Wallet.BenchShared
     ( -- * CLI Parser
       RestoreBenchArgs (..)
     , getRestoreBenchArgs
     , argsNetworkDir
 
-    -- * Main function
+      -- * Main function
     , execBenchWithNode
-
     , initBenchmarkLogging
 
-    -- * Benchmark runner
+      -- * Benchmark runner
     , runBenchmarks
     , bench
     , Time
@@ -53,6 +52,8 @@ import Cardano.Launcher
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , CardanoNodeConn
+    , IsMaybe (..)
+    , MaybeK (..)
     , NodePort (..)
     , cardanoNodeConn
     , withCardanoNode
@@ -98,8 +99,7 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
--- See ADP-1910
-import "optparse-applicative" Options.Applicative
+import Options.Applicative
     ( HasValue
     , Mod
     , Parser
@@ -134,6 +134,9 @@ import System.Exit
     )
 import System.FilePath
     ( (</>)
+    )
+import System.IO.Extra
+    ( withTempFile
     )
 import Test.Utils.Startup
     ( withNoBuffering
@@ -175,16 +178,20 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
             pure ExitSuccess
         Nothing -> do
             res <- try $ withNetworkConfiguration args $ \nodeConfig ->
-                withCardanoNode (trMessageText tr) nodeConfig $
-                    action tr (networkConfig args)
+                withCardanoNode (trMessageText tr) nodeConfig
+                    $ \(JustK socket) -> action tr (networkConfig args) socket
             case res of
                 Left (exited :: ProcessHasExited) -> do
-                    sayErr $ "FAIL: cardano-node exited with status "
-                        <> toText exited
+                    sayErr
+                        $ "FAIL: cardano-node exited with status "
+                            <> toText exited
                     pure $ ExitFailure 1
                 Right _ -> pure ExitSuccess
 
-withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
+withNetworkConfiguration
+    :: RestoreBenchArgs
+    -> (CardanoNodeConfig 'IsJust -> IO a)
+    -> IO a
 withNetworkConfiguration args action = do
     -- Temporary directory for storing socket and node database
     let withNodeDir cb = case argNodeDatabaseDir args of
@@ -195,21 +202,25 @@ withNetworkConfiguration args action = do
 
     let networkDir = argsNetworkDir args
     port <- fromIntegral <$> getRandomPort
-    withNodeDir $ \dir -> action CardanoNodeConfig
-        { nodeDir          = dir
-        , nodeConfigFile   = networkDir </> "config.json"
-        , nodeDatabaseDir  = fromMaybe "db" (argNodeDatabaseDir args)
-        , nodeDlgCertFile  = Nothing
-        , nodeSignKeyFile  = Nothing
-        , nodeTopologyFile = networkDir </> "topology.json"
-        , nodeOpCertFile   = Nothing
-        , nodeKesKeyFile   = Nothing
-        , nodeVrfKeyFile   = Nothing
-        , nodePort         = Just (NodePort port)
-        , nodeLoggingHostname = Nothing
-        , nodeExecutable   = Nothing
-        , nodeOutputFile   = Nothing
-        }
+    withNodeDir $ \dir ->
+        withTempFile $ \socket -> do
+            action
+                CardanoNodeConfig
+                    { nodeDir = dir
+                    , nodeConfigFile = networkDir </> "config.json"
+                    , nodeDatabaseDir = fromMaybe "db" (argNodeDatabaseDir args)
+                    , nodeDlgCertFile = Nothing
+                    , nodeSignKeyFile = Nothing
+                    , nodeTopologyFile = networkDir </> "topology.json"
+                    , nodeOpCertFile = Nothing
+                    , nodeKesKeyFile = Nothing
+                    , nodeVrfKeyFile = Nothing
+                    , nodePort = Just (NodePort port)
+                    , nodeLoggingHostname = Nothing
+                    , nodeExecutable = Nothing
+                    , nodeOutputFile = Nothing
+                    , nodeSocketPathFile = JustK socket
+                    }
 
 argsNetworkDir :: RestoreBenchArgs -> FilePath
 argsNetworkDir args = argConfigsDir args </> argNetworkName args
@@ -224,7 +235,8 @@ data RestoreBenchArgs = RestoreBenchArgs
     , argNodeDatabaseDir :: Maybe FilePath
     , argUseAlreadyRunningNodeSocketPath :: Maybe CardanoNodeConn
     , argQuiet :: Bool
-    } deriving (Show, Eq)
+    }
+    deriving (Show, Eq)
 
 restoreBenchArgsParser
     :: Maybe String
@@ -232,55 +244,73 @@ restoreBenchArgsParser
     -> Maybe FilePath
     -> Maybe CardanoNodeConn
     -> Parser RestoreBenchArgs
-restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket = RestoreBenchArgs
-    <$> strArgument
-        ( metavar "NETWORK"
-          <> envDefault "NETWORK" envNetwork
-          <> help "Blockchain to use. Defaults to $NETWORK.")
-    <*> strOption
-        ( long "cardano-node-configs"
-          <> short 'c'
-          <> metavar "DIR"
-          <> envDefault "CARDANO_NODE_CONFIGS" envConfigsDir
-          <> help "Directory containing configurations for each network. \
-              \This must contain a subdirectory corresponding to NETWORK, \
-              \which has the files configuration.json and topology.json.")
-    <*> optional (strOption
-        ( long "node-db"
-          <> metavar "DB"
-          <> envDefault "NODE_DB" envNodeDatabaseDir
-          <> help "Directory to put cardano-node state. Defaults to $NODE_DB, \
-              \falls back to temporary directory"))
-    <*> optional (option (eitherReader cardanoNodeConn)
-        ( long "running-node"
-          <> metavar "SOCKET"
-          <> envDefault "CARDANO_NODE_SOCKET_PATH" envNodeSocket
-          <> help "Path to the socket of an already running cardano-node. \
-              \Also set by $CARDANO_NODE_SOCKET_PATH. If not set, cardano-node \
-              \will automatically be started."))
-    <*> switch
-        ( long ("quiet")
-          <> help "Reduce unnecessary log output.")
+restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket =
+    RestoreBenchArgs
+        <$> strArgument
+            ( metavar "NETWORK"
+                <> envDefault "NETWORK" envNetwork
+                <> help "Blockchain to use. Defaults to $NETWORK."
+            )
+        <*> strOption
+            ( long "cardano-node-configs"
+                <> short 'c'
+                <> metavar "DIR"
+                <> envDefault "CARDANO_NODE_CONFIGS" envConfigsDir
+                <> help
+                    "Directory containing configurations for each network. \
+                    \This must contain a subdirectory corresponding to NETWORK, \
+                    \which has the files configuration.json and topology.json."
+            )
+        <*> optional
+            ( strOption
+                ( long "node-db"
+                    <> metavar "DB"
+                    <> envDefault "NODE_DB" envNodeDatabaseDir
+                    <> help
+                        "Directory to put cardano-node state. Defaults to $NODE_DB, \
+                        \falls back to temporary directory"
+                )
+            )
+        <*> optional
+            ( option
+                (eitherReader cardanoNodeConn)
+                ( long "running-node"
+                    <> metavar "SOCKET"
+                    <> envDefault "CARDANO_NODE_SOCKET_PATH" envNodeSocket
+                    <> help
+                        "Path to the socket of an already running cardano-node. \
+                        \Also set by $CARDANO_NODE_SOCKET_PATH. If not set, cardano-node \
+                        \will automatically be started."
+                )
+            )
+        <*> switch
+            ( long ("quiet")
+                <> help "Reduce unnecessary log output."
+            )
   where
     envDefault :: HasValue f => String -> Maybe a -> Mod f a
-    envDefault name env = showDefaultWith (const ('$':name))
-        <> maybe mempty value env
+    envDefault name env =
+        showDefaultWith (const ('$' : name))
+            <> maybe mempty value env
 
 -- Add fallback environment variables to parsed args. These are set by
 -- `nix/haskell.nix` or `./buildkite/bench-restore.sh` or manually.
 getRestoreBenchArgsParser :: IO (Parser RestoreBenchArgs)
-getRestoreBenchArgsParser = restoreBenchArgsParser
-    <$> lookupEnv' "NETWORK"
-    <*> lookupEnv' "CARDANO_NODE_CONFIGS"
-    <*> lookupEnv' "NODE_DB"
-    <*> parseEnv cardanoNodeConn "CARDANO_NODE_SOCKET"
+getRestoreBenchArgsParser =
+    restoreBenchArgsParser
+        <$> lookupEnv' "NETWORK"
+        <*> lookupEnv' "CARDANO_NODE_CONFIGS"
+        <*> lookupEnv' "NODE_DB"
+        <*> parseEnv cardanoNodeConn "CARDANO_NODE_SOCKET"
   where
-    lookupEnv' k = lookupEnv k <&> \case
-        Just "" -> Nothing
-        Just v -> Just v
-        Nothing -> Nothing
+    lookupEnv' k =
+        lookupEnv k <&> \case
+            Just "" -> Nothing
+            Just v -> Just v
+            Nothing -> Nothing
     parseEnv p k = lookupEnv' k >>= traverse (either exit pure . p)
-        where exit err = die (k ++ ": " ++ err)
+      where
+        exit err = die (k ++ ": " ++ err)
 
 getRestoreBenchArgs :: IO RestoreBenchArgs
 getRestoreBenchArgs = do
@@ -293,7 +323,8 @@ getRestoreBenchArgs = do
 
 newtype Time = Time
     { unTime :: Double
-    } deriving (Show, Generic)
+    }
+    deriving (Show, Generic)
 
 instance Buildable Time where
     build = build . secs . unTime

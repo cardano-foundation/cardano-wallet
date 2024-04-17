@@ -30,6 +30,7 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , FileOf (..)
     , mkRelDirOf
     )
 import Cardano.Wallet.Network
@@ -58,6 +59,13 @@ import Control.Monad
     , unless
     , void
     )
+import Control.Monad.Cont
+    ( ContT (..)
+    , evalContT
+    )
+import Control.Monad.Trans
+    ( lift
+    )
 import Control.Tracer
     ( Tracer
     , contramap
@@ -79,12 +87,16 @@ import Ouroboros.Network.NodeToClient
 import System.Environment.Extended
     ( isEnvSet
     )
+import System.IO.Extra
+    ( withTempFile
+    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
     )
 import System.Path
     ( absDir
+    , absFile
     )
 import Test.Hspec
     ( Spec
@@ -338,26 +350,33 @@ withTestNode
     :: Tracer IO ClusterLog
     -> (NetworkParameters -> CardanoNodeConn -> NodeToClientVersionData -> IO a)
     -> IO a
-withTestNode tr action = do
-    skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup
-        $ \dir -> do
-            cfgClusterConfigs <- localClusterConfigsFromEnv
-            let clusterConfig =
-                    Cluster.Config
-                        { cfgStakePools = defaultPoolConfigs
-                        , cfgLastHardFork = BabbageHardFork
-                        , cfgNodeLogging = LogFileConfig Info Nothing Info
-                        , cfgClusterDir = DirOf @"cluster" $ absDir dir
-                        , cfgClusterConfigs
-                        , cfgTestnetMagic = Cluster.TestnetMagic 42
-                        , cfgShelleyGenesisMods = []
-                        , cfgTracer = tr
-                        , cfgNodeOutputFile = Nothing
-                        , cfgRelayNodePath = mkRelDirOf "relay"
-                        , cfgClusterLogFile = Nothing
-                        }
-            withCluster clusterConfig (FaucetFunds [] [] [])
-                $ \(RunningNode sock genesisData vData) -> do
-                    let (np, _, _) = fromGenesisData genesisData
-                    action np sock vData
+withTestNode tr action = evalContT $ do
+    skipCleanup <- lift $ SkipCleanup <$> isEnvSet "NO_CLEANUP"
+    dir <-
+        ContT
+            $ withSystemTempDir
+                (contramap MsgTempDir tr)
+                "network-spec"
+                skipCleanup
+    socket <- ContT withTempFile
+    let socketPath = absFile socket
+    cfgClusterConfigs <- lift localClusterConfigsFromEnv
+    let clusterConfig =
+            Cluster.Config
+                { cfgStakePools = defaultPoolConfigs
+                , cfgLastHardFork = BabbageHardFork
+                , cfgNodeLogging = LogFileConfig Info Nothing Info
+                , cfgClusterDir = DirOf @"cluster" $ absDir dir
+                , cfgClusterConfigs
+                , cfgTestnetMagic = Cluster.TestnetMagic 42
+                , cfgShelleyGenesisMods = []
+                , cfgTracer = tr
+                , cfgNodeOutputFile = Nothing
+                , cfgRelayNodePath = mkRelDirOf "relay"
+                , cfgClusterLogFile = Nothing
+                , cfgNodeToClientSocket = FileOf socketPath
+                }
+    RunningNode sock genesisData vData <-
+        ContT $ withCluster clusterConfig (FaucetFunds [] [] [])
+    let (np, _, _) = fromGenesisData genesisData
+    lift $ action np sock vData

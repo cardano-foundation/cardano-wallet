@@ -222,6 +222,7 @@ main = withUtf8 $ do
         { clusterConfigsDir
         , clusterDir
         , clusterLogs
+        , nodeToClientSocket
         } <-
         parseCommandLineOptions
     evalContT $ do
@@ -252,6 +253,7 @@ main = withUtf8 $ do
                     , cfgNodeOutputFile = Nothing
                     , cfgRelayNodePath = mkRelDirOf "relay"
                     , cfgClusterLogFile = clusterLogs
+                    , cfgNodeToClientSocket = nodeToClientSocket
                     }
         node <-
             ContT

@@ -37,6 +37,7 @@ data CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: DirOf "cluster-configs"
     , clusterDir :: Maybe (DirOf "cluster")
     , clusterLogs :: Maybe (FileOf "cluster-logs")
+    , nodeToClientSocket :: FileOf "node-to-client-socket"
     }
     deriving stock (Show)
 
@@ -49,9 +50,19 @@ parseCommandLineOptions = do
                 <$> clusterConfigsDirParser absolutizer
                 <*> clusterDirParser absolutizer
                 <*> clusterLogsParser absolutizer
+                <*> nodeToClientSocketParser absolutizer
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
+
+nodeToClientSocketParser :: Absolutizer -> Parser (FileOf "node-to-client-socket")
+nodeToClientSocketParser (Absolutizer absOf) =
+    FileOf . absOf . absRel
+        <$> strOption
+            ( long "socket-path"
+                <> metavar "NODE_TO_CLIENT_SOCKET"
+                <> help "Path to the node-to-client socket"
+            )
 
 clusterConfigsDirParser :: Absolutizer -> Parser (DirOf "cluster-configs")
 clusterConfigsDirParser (Absolutizer absOf) =

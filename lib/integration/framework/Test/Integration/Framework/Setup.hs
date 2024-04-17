@@ -180,12 +180,16 @@ import System.Environment.Extended
 import System.Exit
     ( ExitCode
     )
+import System.IO.Extra
+    ( withTempFile
+    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
     )
 import System.Path
     ( absDir
+    , absFile
     , relDir
     , relFile
     , (</>)
@@ -468,47 +472,49 @@ withContext testingCtx@TestingCtx{..} action = do
         poolGarbageCollectionEvents <- newIORef []
         faucetFunds <- runFaucetM faucetClientEnv $ mkFaucetFunds testnetMagic
         era <- clusterEraFromEnv
-        let clusterConfig =
-                Config
-                    { cfgStakePools = defaultPoolConfigs
-                    , cfgLastHardFork = era
-                    , cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , cfgClusterDir = testDir
-                    , cfgClusterConfigs = clusterConfigs
-                    , cfgTestnetMagic = testnetMagic
-                    , cfgShelleyGenesisMods = []
-                    , cfgTracer = contramap MsgCluster tr
-                    , cfgNodeOutputFile = nodeOutputFile
-                    , cfgRelayNodePath = mkRelDirOf "relay"
-                    , cfgClusterLogFile = Just
-                        $ FileOf @"cluster-logs"
-                        $ absDirOf testDir </> relFile "cluster.logs"
-                    }
-        let dbEventRecorder =
-                recordPoolGarbageCollectionEvents
-                    testingCtx
-                    poolGarbageCollectionEvents
-            cluster =
-                setupContext
-                    testingCtx
-                    clusterConfig
-                    ctx
-                    faucetClientEnv
-                    poolGarbageCollectionEvents
-        res <-
-            race
-                ( withServer
-                    testingCtx
-                    clusterConfig
-                    faucetFunds
-                    dbEventRecorder
-                    cluster
-                )
-                ( takeMVar ctx
-                    >>= bracketTracer' tr "spec"
-                        . (\c -> setupDelegation faucetClientEnv c >> action c)
-                )
-        whenLeft res (throwIO . ProcessHasExited "integration")
+        withTempFile $ \socketPath -> do
+            let clusterConfig =
+                    Config
+                        { cfgStakePools = defaultPoolConfigs
+                        , cfgLastHardFork = era
+                        , cfgNodeLogging = LogFileConfig Info Nothing Info
+                        , cfgClusterDir = testDir
+                        , cfgClusterConfigs = clusterConfigs
+                        , cfgTestnetMagic = testnetMagic
+                        , cfgShelleyGenesisMods = []
+                        , cfgTracer = contramap MsgCluster tr
+                        , cfgNodeOutputFile = nodeOutputFile
+                        , cfgRelayNodePath = mkRelDirOf "relay"
+                        , cfgClusterLogFile = Just
+                            $ FileOf @"cluster-logs"
+                            $ absDirOf testDir </> relFile "cluster.logs"
+                        , cfgNodeToClientSocket = FileOf $ absFile socketPath
+                        }
+            let dbEventRecorder =
+                    recordPoolGarbageCollectionEvents
+                        testingCtx
+                        poolGarbageCollectionEvents
+                cluster =
+                    setupContext
+                        testingCtx
+                        clusterConfig
+                        ctx
+                        faucetClientEnv
+                        poolGarbageCollectionEvents
+            res <-
+                race
+                    ( withServer
+                        testingCtx
+                        clusterConfig
+                        faucetFunds
+                        dbEventRecorder
+                        cluster
+                    )
+                    ( takeMVar ctx
+                        >>= bracketTracer' tr "spec"
+                            . (\c -> setupDelegation faucetClientEnv c >> action c)
+                    )
+            whenLeft res (throwIO . ProcessHasExited "integration")
   where
     -- \| Setup delegation for 'rewardWallet' / 'rewardWalletMnemonics'.
     --

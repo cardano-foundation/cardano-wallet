@@ -71,4 +71,5 @@ data Config = Config
     -- ^ Path segment for relay node.
     , cfgClusterLogFile :: Maybe (FileOf "cluster-logs")
     -- ^ File to write cluster logs to.
+    , cfgNodeToClientSocket :: FileOf "node-to-client-socket"
     }

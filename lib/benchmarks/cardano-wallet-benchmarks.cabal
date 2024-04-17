@@ -52,6 +52,7 @@ library
     , criterion-measurement
     , deepseq
     , directory
+    , extra
     , faucet
     , filepath
     , fmt
@@ -64,6 +65,7 @@ library
     , local-cluster
     , mtl
     , optparse-applicative
+    , pathtype
     , resourcet
     , say
     , servant-client
@@ -133,6 +135,7 @@ benchmark latency
     , cardano-wallet-primitive
     , directory
     , exceptions
+    , extra
     , faucet
     , filepath
     , fmt
