@@ -469,7 +469,11 @@ toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Just vote) ->
         Conway.DelegStakeVote (toKeyHash poolId) (toLedgerDRep vote)
     _ ->
-        error "toLedgerDelegatee: wrong use, at least pool or vote action must be present"
+        error $ unwords
+            [ "toLedgerDelegatee:"
+            , "wrong use:"
+            , "at least pool or vote action must be present"
+            ]
   where
     toKeyHash (PoolId pid) = Ledger.KeyHash . Crypto.UnsafeHash $ toShort pid
 
