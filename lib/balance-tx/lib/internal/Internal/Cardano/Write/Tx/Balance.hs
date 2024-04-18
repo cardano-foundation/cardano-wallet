@@ -531,16 +531,6 @@ balanceTransaction
     s
     partialTx
     = do
-    let balanceWith strategy =
-            balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-                pp
-                timeTranslation
-                utxoAssumptions
-                utxo
-                genChange
-                s
-                strategy
-                adjustedPartialTx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -550,6 +540,20 @@ balanceTransaction
     adjustedPartialTx :: PartialTx era
     adjustedPartialTx = flip (over #tx) partialTx $
         assignMinimalAdaQuantitiesToOutputsWithoutAda pp
+
+    balanceWith
+        :: SelectionStrategy
+        -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
+    balanceWith strategy =
+        balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+            pp
+            timeTranslation
+            utxoAssumptions
+            utxo
+            genChange
+            s
+            strategy
+            adjustedPartialTx
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
