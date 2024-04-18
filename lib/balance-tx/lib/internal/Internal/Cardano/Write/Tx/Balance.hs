@@ -529,7 +529,7 @@ balanceTransaction
     utxo@UTxOIndex {availableUTxO}
     genChange
     s
-    partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
+    partialTx@PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
     = do
     guardExistingCollateral
     guardExistingReturnCollateral
@@ -541,9 +541,8 @@ balanceTransaction
             then balanceWith SelectionStrategyMinimal
             else throwE e
   where
-    adjustedPartialTx :: PartialTx era
-    adjustedPartialTx = flip (over #tx) partialTx $
-        assignMinimalAdaQuantitiesToOutputsWithoutAda pp
+    adjustedPartialTx :: Tx era
+    adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
 
     balanceWith
         :: SelectionStrategy
@@ -560,7 +559,7 @@ balanceTransaction
             strategy
             redeemers
             timelockKeyWitnessCounts
-            (view #tx adjustedPartialTx)
+            adjustedPartialTx
 
     guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral = do
