@@ -543,33 +543,26 @@ balanceTransaction
     when (UTxOSelection.availableSize utxoSelection == 0) $
         throwE ErrBalanceTxUnableToCreateInput
 
-    balanceWith utxoSelection SelectionStrategyOptimal
+    let adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
+        balanceWith strategy =
+            balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+                pp
+                timeTranslation
+                utxoAssumptions
+                utxoReference
+                utxoSelection
+                genChange
+                s
+                strategy
+                redeemers
+                timelockKeyWitnessCounts
+                adjustedPartialTx
+    balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
-            then balanceWith utxoSelection SelectionStrategyMinimal
+            then balanceWith SelectionStrategyMinimal
             else throwE e
   where
-    adjustedPartialTx :: Tx era
-    adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
-
-    balanceWith
-        :: UTxOSelection WalletUTxO
-        -> SelectionStrategy
-        -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
-    balanceWith utxoSelection strategy =
-        balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
-            pp
-            timeTranslation
-            utxoAssumptions
-            utxoReference
-            utxoSelection
-            genChange
-            s
-            strategy
-            redeemers
-            timelockKeyWitnessCounts
-            adjustedPartialTx
-
     -- Creates an index of all UTxOs that are already spent as inputs of the
     -- partial transaction.
     --
