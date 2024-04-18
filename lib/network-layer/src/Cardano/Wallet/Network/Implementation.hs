@@ -99,8 +99,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromPoint
-    , fromTip'
+    ( fromTip'
     , nodeToClientVersions
     , toCardanoEra
     , unsealShelleyTx
