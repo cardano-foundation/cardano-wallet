@@ -125,7 +125,6 @@ import Cardano.Wallet.Primitive.Passphrase.Current
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , BlockHeader (BlockHeader)
     , NetworkParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
@@ -1002,12 +1001,19 @@ prop_localTxSubmission tc = monadicIO $ do
         , watchNodeTip = mockNodeTip (numSlots tc) 0
         }
 
-    mockNodeTip end sl cb
-        | sl < end = do
-            let h = Hash ""
-            void $ cb $ BlockHeader (SlotNo sl) (Quantity (fromIntegral sl)) h (Just h)
-            mockNodeTip end (sl + 1) cb
+    mockNodeTip end slot callback
+        | slot < end = do
+            let tip = Read.BlockTip
+                    { slotNo = Read.SlotNo $ fromIntegral slot
+                    , headerHash = mockHash
+                    , blockNo = Read.BlockNo $ fromIntegral slot
+                    }
+            void $ callback tip
+            mockNodeTip end (slot + 1) callback
         | otherwise = pure ()
+
+    mockHash :: Read.RawHeaderHash
+    mockHash = Read.mockRawHeaderHash 0
 
     stash :: MVar [a] -> a -> TxRetryTestM ()
     stash var x = modifyMVar_ var (\xs -> pure (x:xs))
