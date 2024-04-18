@@ -552,7 +552,7 @@ balanceTransaction
             pp
             timeTranslation
             utxoAssumptions
-            combinedUTxO
+            utxoReference
             availableUTxOIndex
             genChange
             s
@@ -561,8 +561,8 @@ balanceTransaction
             timelockKeyWitnessCounts
             adjustedPartialTx
 
-    combinedUTxO :: UTxO era
-    combinedUTxO = mconcat
+    utxoReference :: UTxO era
+    utxoReference = mconcat
          -- The @CardanoApi.UTxO@ can contain strictly more information than
          -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
          -- precedence. This matters if a user is trying to balance a tx making
@@ -703,7 +703,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    combinedUTxO
+    utxoReference
     availableUTxOIndex
     genChange
     s
@@ -848,7 +848,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     era = recentEra @era
 
     -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
-    -- corresponding 'TxOut' according to @combinedUTxO@.
+    -- corresponding 'TxOut' according to @utxoReference@.
     --
     -- === Examples using pseudo-code
     --
@@ -867,7 +867,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
     extractExternallySelectedUTxO = do
         let res = flip map txIns $ \i-> do
-                case txinLookup i combinedUTxO of
+                case txinLookup i utxoReference of
                     Nothing ->
                        Left i
                     Just o -> do
@@ -910,7 +910,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Tx era -> Value
     txBalance
-        = evaluateTransactionBalance pp combinedUTxO
+        = evaluateTransactionBalance pp utxoReference
         . view bodyTxL
 
     balanceAfterSettingMinFee
@@ -919,7 +919,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount =
                 estimateKeyWitnessCounts
-                    combinedUTxO
+                    utxoReference
                     tx
                     timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
@@ -936,7 +936,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         tx' <- left updateTxErrorToBalanceTxError
             $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
-            assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
+            assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
 -- | Select assets to cover the specified balance and fee.
 --
