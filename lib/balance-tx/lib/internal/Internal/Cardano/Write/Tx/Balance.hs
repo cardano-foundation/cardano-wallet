@@ -526,22 +526,36 @@ balanceTransaction
     pp
     timeTranslation
     utxoAssumptions
-    utxo
+    UTxOIndex {availableUTxO, availableUTxOIndex}
     genChange
     s
-    partialTx
+    PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
     = do
-    let adjustedPartialTx = flip (over #tx) partialTx $
-            assignMinimalAdaQuantitiesToOutputsWithoutAda pp
+    guardExistingCollateral
+    guardExistingReturnCollateral
+    guardExistingTotalCollateral
+
+    guardUTxOConsistency
+    externallySelectedUtxo <- extractExternallySelectedUTxO
+    let utxoSelection =
+            UTxOSelection.fromIndexPair
+                (availableUTxOIndex, externallySelectedUtxo)
+    when (UTxOSelection.availableSize utxoSelection == 0) $
+        throwE ErrBalanceTxUnableToCreateInput
+
+    let adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
         balanceWith strategy =
-            balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+            balanceTransactionInner
                 pp
                 timeTranslation
                 utxoAssumptions
-                utxo
+                utxoReference
+                utxoSelection
                 genChange
                 s
                 strategy
+                redeemers
+                timelockKeyWitnessCounts
                 adjustedPartialTx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
@@ -549,6 +563,82 @@ balanceTransaction
             then balanceWith SelectionStrategyMinimal
             else throwE e
   where
+    -- Creates an index of all UTxOs that are already spent as inputs of the
+    -- partial transaction.
+    --
+    -- This function will fail if any of the inputs refers to a UTxO that
+    -- cannot be found in the UTxO reference set.
+    --
+    extractExternallySelectedUTxO
+        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
+    extractExternallySelectedUTxO = do
+        let res = flip map txIns $ \i ->
+                case txinLookup i utxoReference of
+                    Nothing ->
+                       Left i
+                    Just o -> do
+                        let i' = Convert.toWallet i
+                        let W.TxOut addr bundle = toWalletTxOut era o
+                        pure (WalletUTxO i' addr, bundle)
+        case partitionEithers res of
+            ([], resolved) -> pure $ UTxOIndex.fromSequence resolved
+            (unresolvedInsHead : unresolvedInsTail, _) ->
+                throwE
+                . ErrBalanceTxUnresolvedInputs
+                $ (unresolvedInsHead :| unresolvedInsTail)
+      where
+        era = recentEra @era
+        txIns :: [TxIn]
+        txIns = Set.toList $ tx ^. bodyTxL . inputsTxBodyL
+
+    -- The set of all UTxOs that may be referenced by a balanced transaction.
+    --
+    -- Note that when constructing this set, we give precedence to UTxOs
+    -- provided as part of the 'PartialTx' object. This relies on the
+    -- left-biased nature of the 'Semigroup' 'mappend' operation on UTxO sets.
+    --
+    utxoReference :: UTxO era
+    utxoReference = mconcat [extraUTxO, availableUTxO]
+
+    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingCollateral = do
+        -- Coin selection does not support pre-defining collateral. In Sep 2021
+        -- consensus was that we /could/ allow for it with just a day's work or
+        -- so, but that the need for it was unclear enough that it was not in
+        -- any way a priority.
+        let collIns = tx ^. bodyTxL . collateralInputsTxBodyL
+        unless (null collIns) $
+            throwE ErrBalanceTxExistingCollateral
+
+    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingReturnCollateral = do
+        let collRet = tx ^. bodyTxL . collateralReturnTxBodyL
+        case collRet of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
+
+    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingTotalCollateral = do
+        let totColl = tx ^. bodyTxL . totalCollateralTxBodyL
+        case totColl of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
+
+    -- | Ensures that the given UTxO sets are consistent with one another.
+    --
+    -- They are not consistent iff an input can be looked up in both UTxO sets
+    -- with different @Address@, or @TokenBundle@ values.
+    --
+    guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
+    guardUTxOConsistency =
+        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
+            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
+            Nothing -> return ()
+      where
+        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
+        era = recentEra @era
+
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
     minimalStrategyIsWorthTrying :: ErrBalanceTx era -> Bool
@@ -617,7 +707,7 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda pp =
         if c == mempty then computeMinimumCoinForTxOut pp out else c
 
 -- | Internal helper to 'balanceTransaction'
-balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+balanceTransactionInner
     :: forall era m changeState.
         ( MonadRandom m
         , IsRecentEra era
@@ -625,28 +715,32 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     => PParams era
     -> TimeTranslation
     -> UTxOAssumptions
-    -> UTxOIndex era
+    -> UTxO era
+    -- ^ The reference set of all UTxOs.
+    -> UTxOSelection WalletUTxO
+    -- ^ The set of UTxOs that may be spent by the resultant transaction.
+    -- The subset of UTxOs that are already spent are pre-selected.
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
-    -> PartialTx era
+    -> [Redeemer]
+    -> TimelockKeyWitnessCounts
+    -> Tx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
-balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
+balanceTransactionInner
     pp
     timeTranslation
     utxoAssumptions
-    UTxOIndex {availableUTxO, availableUTxOIndex}
+    utxoReference
+    utxoSelection
     genChange
     s
     selectionStrategy
-    partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
+    redeemers
+    timelockKeyWitnessCounts
+    partialTx
     = do
-    guardExistingCollateral
-    guardExistingTotalCollateral
-    guardExistingReturnCollateral
-    guardUTxOConsistency
-
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -676,18 +770,10 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , s'
                     )
 
-        externalSelectedUtxo <- extractExternallySelectedUTxO
-        let utxoSelection =
-                UTxOSelection.fromIndexPair
-                    (availableUTxOIndex, externalSelectedUtxo)
-
-        when (UTxOSelection.availableSize utxoSelection == 0) $
-            throwE ErrBalanceTxUnableToCreateInput
-
         let mSel = selectAssets
                 pp
                 utxoAssumptions
-                (F.toList $ partialTx ^. #tx . bodyTxL . outputsTxBodyL)
+                (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
                 redeemers
                 utxoSelection
                 balance0
@@ -779,48 +865,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
-    era = recentEra @era
-
-    -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
-    -- corresponding 'TxOut' according to @combinedUTxO@.
-    --
-    -- === Examples using pseudo-code
-    --
-    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
-    -- >>> let tx = addInputs [inA] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Right (UTxOIndex.fromMap {inA -> outA})
-    --
-    -- >>> let extraUTxO = {inB -> outB }
-    -- >>> let tx = addInputs [inA, inC] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
-    extractExternallySelectedUTxO
-        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO = do
-        let res = flip map txIns $ \i-> do
-                case txinLookup i combinedUTxO of
-                    Nothing ->
-                       Left i
-                    Just o -> do
-                        let i' = Convert.toWallet i
-                        let W.TxOut addr bundle = toWalletTxOut era o
-                        pure (WalletUTxO i' addr, bundle)
-
-        case partitionEithers res of
-            ([], resolved) ->
-                pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead:unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                $ (unresolvedInsHead :| unresolvedInsTail)
-      where
-        txIns :: [TxIn]
-        txIns =
-            Set.toList $ partialTx ^. #tx . bodyTxL . inputsTxBodyL
-
     guardTxSize
         :: KeyWitnessCounts
         -> Tx era
@@ -844,7 +888,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
 
     txBalance :: Tx era -> Value
     txBalance
-        = evaluateTransactionBalance pp combinedUTxO
+        = evaluateTransactionBalance pp utxoReference
         . view bodyTxL
 
     balanceAfterSettingMinFee
@@ -853,7 +897,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     balanceAfterSettingMinFee tx = ExceptT . pure $ do
         let witCount =
                 estimateKeyWitnessCounts
-                    combinedUTxO
+                    utxoReference
                     tx
                     timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
@@ -863,64 +907,14 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
 
-    -- | Ensures that the given UTxO sets are consistent with one another.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
-    guardUTxOConsistency =
-        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
-            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
-            Nothing -> return ()
-      where
-        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
-
-    combinedUTxO :: UTxO era
-    combinedUTxO = mconcat
-         -- The @CardanoApi.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
-         [ extraUTxO
-         , availableUTxO
-         ]
-
     assembleTransaction
         :: TxUpdate
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left updateTxErrorToBalanceTxError
-            $ updateTx (partialTx ^. #tx) update
+            $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
-            assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
-
-    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral = do
-        -- Coin selection does not support pre-defining collateral. In Sep 2021
-        -- consensus was that we /could/ allow for it with just a day's work or
-        -- so, but that the need for it was unclear enough that it was not in
-        -- any way a priority.
-        let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
-        unless (null collIns) $
-            throwE ErrBalanceTxExistingCollateral
-
-    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral = do
-        let totColl = partialTx ^. #tx . bodyTxL . totalCollateralTxBodyL
-        case totColl of
-            SNothing -> return ()
-            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
-
-    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral = do
-        let collRet = partialTx ^. #tx . bodyTxL . collateralReturnTxBodyL
-        case collRet of
-            SNothing -> return ()
-            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
+            assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
 -- | Select assets to cover the specified balance and fee.
 --
