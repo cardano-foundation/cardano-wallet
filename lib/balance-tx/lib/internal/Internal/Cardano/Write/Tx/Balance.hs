@@ -526,14 +526,15 @@ balanceTransaction
     pp
     timeTranslation
     utxoAssumptions
-    utxo
+    utxo@UTxOIndex {availableUTxO}
     genChange
     s
-    partialTx
+    partialTx@PartialTx {extraUTxO}
     = do
     guardExistingCollateral
     guardExistingReturnCollateral
     guardExistingTotalCollateral
+    guardUTxOConsistency
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -581,6 +582,21 @@ balanceTransaction
         case totColl of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
+
+    -- | Ensures that the given UTxO sets are consistent with one another.
+    --
+    -- They are not consistent iff an input can be looked up in both UTxO sets
+    -- with different @Address@, or @TokenBundle@ values.
+    --
+    guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
+    guardUTxOConsistency =
+        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
+            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
+            Nothing -> return ()
+      where
+        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
+        era = recentEra @era
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
@@ -674,8 +690,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
-    guardUTxOConsistency
-
     (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
@@ -892,20 +906,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let balance = txBalance tx'
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
-
-    -- | Ensures that the given UTxO sets are consistent with one another.
-    --
-    -- They are not consistent iff an input can be looked up in both UTxO sets
-    -- with different @Address@, or @TokenBundle@ values.
-    --
-    guardUTxOConsistency :: ExceptT (ErrBalanceTx era) m ()
-    guardUTxOConsistency =
-        case NE.nonEmpty (F.toList (conflicts extraUTxO availableUTxO)) of
-            Just cs -> throwE $ ErrBalanceTxInputResolutionConflicts cs
-            Nothing -> return ()
-      where
-        conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
 
     combinedUTxO :: UTxO era
     combinedUTxO = mconcat
