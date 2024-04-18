@@ -570,22 +570,12 @@ balanceTransaction
             timelockKeyWitnessCounts
             adjustedPartialTx
 
-    -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
-    -- corresponding 'TxOut' according to @utxoReference@.
+    -- Creates an index of all UTxOs that are already spent as inputs of the
+    -- partial transaction.
     --
-    -- === Examples using pseudo-code
+    -- This function will fail if any of the inputs refers to a UTxO that
+    -- cannot be found in the UTxO reference set.
     --
-    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
-    -- >>> let tx = addInputs [inA] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Right (UTxOIndex.fromMap {inA -> outA})
-    --
-    -- >>> let extraUTxO = {inB -> outB }
-    -- >>> let tx = addInputs [inA, inC] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
     extractExternallySelectedUTxO
         :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
     extractExternallySelectedUTxO = do
