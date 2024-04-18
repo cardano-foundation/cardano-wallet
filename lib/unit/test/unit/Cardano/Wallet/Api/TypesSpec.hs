@@ -516,6 +516,9 @@ import Data.Aeson.QQ
 import Data.Bifunctor
     ( Bifunctor (..)
     )
+import Data.ByteArray.Encoding
+    ( convertFromBase
+    )
 import Data.ByteString
     ( ByteString
     )
@@ -529,6 +532,7 @@ import Data.Either
     )
 import Data.Either.Combinators
     ( fromRight'
+    , rightToMaybe
     )
 import Data.FileEmbed
     ( embedFile
@@ -1226,7 +1230,8 @@ spec = do
                           , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
                           ])
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore `shouldBe` Right schemaAfter
+            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+                `shouldBe` Right schemaAfter
 
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8
@@ -1251,7 +1256,8 @@ spec = do
                           , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
                           ])
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore `shouldBe` Right schemaAfter
+            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+                `shouldBe` Right schemaAfter
 
         -- $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- IBcjjGQ7akr/CV2Zb0HtCvEPQNndZujCZ7iaFGMjOX3q3PJg5aRUvHgO3gPnDzYE
@@ -1280,7 +1286,94 @@ spec = do
                           , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
                           ])
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore `shouldBe` Right schemaAfter
+            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+                `shouldBe` Right schemaAfter
+
+        -- $ $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
+        -- U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600=
+        it "msg is 0-level deep short - salted" $ do
+            let apiEncrypt = ApiEncryptMetadata
+                    { passphrase = ApiT $ Passphrase "cardano"
+                    , enc = Nothing
+                    }
+                schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
+                    [( 0, Cardano.TxMetaMap
+                        [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                        , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data")
+                        ])
+                    ]
+                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                    [ (0, Cardano.TxMetaMap
+                          [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                          , (Cardano.TxMetaText "msg", Cardano.TxMetaList
+                                [Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600="])
+                          , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
+                          ])
+                    ]
+                saltM = fromHexToM "3030303030303030"
+            toMetadataEncrypted apiEncrypt schemaBefore saltM
+                `shouldBe` Right schemaAfter
+
+        -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
+        -- U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh
+        -- PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU=
+        it "msg is 0-level deep long - salted" $ do
+            let apiEncrypt = ApiEncryptMetadata
+                    { passphrase = ApiT $ Passphrase "cardano"
+                    , enc = Nothing
+                    }
+                schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
+                    [( 0, Cardano.TxMetaMap
+                        [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                        , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes")
+                        ])
+                    ]
+                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                    [ (0, Cardano.TxMetaMap
+                          [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                          , (Cardano.TxMetaText "msg", Cardano.TxMetaList
+                                [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh"
+                                , Cardano.TxMetaText "PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU="])
+                          , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
+                          ])
+                    ]
+                saltM = fromHexToM "3030303030303030"
+            toMetadataEncrypted apiEncrypt schemaBefore saltM
+                `shouldBe` Right schemaAfter
+
+        -- $ $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
+        -- U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do
+        -- +SIXXn04a9xkoFHk4ZH281nIfH5lpClsO16p2vRpSsdBDFO78aTPX3bsHsRE0L2A
+        it "msg is 0-level deep complex - no salt" $ do
+            let apiEncrypt = ApiEncryptMetadata
+                    { passphrase = ApiT $ Passphrase "cardano"
+                    , enc = Nothing
+                    }
+                schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
+                    [( 0, Cardano.TxMetaMap
+                        [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                        , (Cardano.TxMetaText "msg", Cardano.TxMetaList
+                              [ Cardano.TxMetaText "Invoice-No: 123456789"
+                              , Cardano.TxMetaText "Order-No: 7654321"
+                              , Cardano.TxMetaText "Email: john@doe.com"
+                              ])
+                        ])
+                    ]
+                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                    [ (0, Cardano.TxMetaMap
+                          [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                          , (Cardano.TxMetaText "msg", Cardano.TxMetaList
+                                [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do"
+                                , Cardano.TxMetaText "+SIXXn04a9xkoFHk4ZH281nIfH5lpClsO16p2vRpSsdBDFO78aTPX3bsHsRE0L2A"])
+                          , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
+                          ])
+                    ]
+                saltM = fromHexToM "3030303030303030"
+            toMetadataEncrypted apiEncrypt schemaBefore saltM
+                `shouldBe` Right schemaAfter
+
+fromHexToM :: Text -> Maybe ByteString
+fromHexToM = rightToMaybe . convertFromBase Base16 . T.encodeUtf8
 
 {-------------------------------------------------------------------------------
                               Error type encoding
