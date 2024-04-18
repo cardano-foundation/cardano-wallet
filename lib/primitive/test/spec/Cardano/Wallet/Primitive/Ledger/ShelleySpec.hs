@@ -49,13 +49,11 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     , StandardCrypto
     , decentralizationLevelFromPParams
     , fromCardanoValue
-    , fromTip
     , interval0
     , interval1
     , invertUnitInterval
     , toCardanoHash
     , toCardanoValue
-    , toTip
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -168,7 +166,6 @@ import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.PParams as SL
-import qualified Cardano.Wallet.Primitive.Types.Block as W
 import qualified Cardano.Wallet.Primitive.Types.EpochNo as W
 import qualified Cardano.Wallet.Primitive.Types.SlotId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -178,10 +175,6 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = do
     describe "Conversions" $ do
-        it "toTip' . fromTip' == id" $ property $ \gh tip -> do
-            let fromTip' = fromTip gh
-            let toTip' = toTip gh :: W.BlockHeader -> Tip (CardanoBlock StandardCrypto)
-            toTip' (fromTip' tip) === tip
 
         it "unsafeIntToWord" $
             property prop_unsafeIntToWord
