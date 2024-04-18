@@ -529,7 +529,7 @@ balanceTransaction
     utxo@UTxOIndex {availableUTxO}
     genChange
     s
-    partialTx@PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
+    PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
     = do
     guardExistingCollateral
     guardExistingReturnCollateral
@@ -567,20 +567,20 @@ balanceTransaction
         -- consensus was that we /could/ allow for it with just a day's work or
         -- so, but that the need for it was unclear enough that it was not in
         -- any way a priority.
-        let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
+        let collIns = tx ^. bodyTxL . collateralInputsTxBodyL
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
 
     guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingReturnCollateral = do
-        let collRet = partialTx ^. #tx . bodyTxL . collateralReturnTxBodyL
+        let collRet = tx ^. bodyTxL . collateralReturnTxBodyL
         case collRet of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
     guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral = do
-        let totColl = partialTx ^. #tx . bodyTxL . totalCollateralTxBodyL
+        let totColl = tx ^. bodyTxL . totalCollateralTxBodyL
         case totColl of
             SNothing -> return ()
             SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
