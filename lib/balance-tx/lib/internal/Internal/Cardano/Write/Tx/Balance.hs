@@ -552,8 +552,7 @@ balanceTransaction
             pp
             timeTranslation
             utxoAssumptions
-            extraUTxO
-            availableUTxO
+            combinedUTxO
             availableUTxOIndex
             genChange
             s
@@ -561,6 +560,18 @@ balanceTransaction
             redeemers
             timelockKeyWitnessCounts
             adjustedPartialTx
+
+    combinedUTxO :: UTxO era
+    combinedUTxO = mconcat
+         -- The @CardanoApi.UTxO@ can contain strictly more information than
+         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
+         -- precedence. This matters if a user is trying to balance a tx making
+         -- use of a datum hash in a UTxO which is also present in the wallet
+         -- UTxO set. (Whether or not this is a sane thing for the user to do,
+         -- is another question.)
+         [ extraUTxO
+         , availableUTxO
+         ]
 
     guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral = do
@@ -678,11 +689,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> TimeTranslation
     -> UTxOAssumptions
     -> UTxO era
-    -- ^ The set of UTxOs that were provided by the `PartialTx`.
-    -> UTxO era
-    -- ^ The set of UTxOs that are available to spend.
+    -- ^ The reference set of all UTxOs.
     -> UTxOIndex.UTxOIndex WalletUTxO
-    -- ^ The set of UTxOs that are available to spend, in indexed form.
+    -- ^ The subset of UTxOs that are available to spend, in indexed form.
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -694,8 +703,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    extraUTxO
-    availableUTxO
+    combinedUTxO
     availableUTxOIndex
     genChange
     s
@@ -920,18 +928,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let balance = txBalance tx'
             minfee' = Convert.toLedgerCoin minfee
         return (balance, minfee', witCount)
-
-    combinedUTxO :: UTxO era
-    combinedUTxO = mconcat
-         -- The @CardanoApi.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
-         [ extraUTxO
-         , availableUTxO
-         ]
 
     assembleTransaction
         :: TxUpdate
