@@ -568,10 +568,7 @@ balanceTransaction
     -- left-biased nature of the 'Semigroup' 'mappend' operation on UTxO sets.
     --
     utxoReference :: UTxO era
-    utxoReference = mconcat
-         [ extraUTxO
-         , availableUTxO
-         ]
+    utxoReference = mconcat [extraUTxO, availableUTxO]
 
     guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral = do
