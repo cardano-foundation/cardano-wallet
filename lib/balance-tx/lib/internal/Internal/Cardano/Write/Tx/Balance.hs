@@ -531,6 +531,7 @@ balanceTransaction
     s
     partialTx
     = do
+    guardExistingCollateral
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -554,6 +555,16 @@ balanceTransaction
             s
             strategy
             adjustedPartialTx
+
+    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingCollateral = do
+        -- Coin selection does not support pre-defining collateral. In Sep 2021
+        -- consensus was that we /could/ allow for it with just a day's work or
+        -- so, but that the need for it was unclear enough that it was not in
+        -- any way a priority.
+        let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
+        unless (null collIns) $
+            throwE ErrBalanceTxExistingCollateral
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
@@ -647,7 +658,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
-    guardExistingCollateral
     guardExistingTotalCollateral
     guardExistingReturnCollateral
     guardUTxOConsistency
@@ -903,16 +913,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             $ updateTx (partialTx ^. #tx) update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
-
-    guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingCollateral = do
-        -- Coin selection does not support pre-defining collateral. In Sep 2021
-        -- consensus was that we /could/ allow for it with just a day's work or
-        -- so, but that the need for it was unclear enough that it was not in
-        -- any way a priority.
-        let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
-        unless (null collIns) $
-            throwE ErrBalanceTxExistingCollateral
 
     guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral = do
