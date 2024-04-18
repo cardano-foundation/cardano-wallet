@@ -1,4 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NoFieldSelectors #-}
 {- |
 Copyright: © 2024 Cardano Foundation
 License: Apache-2.0
@@ -7,13 +10,13 @@ Data types relating to the consensus about the blockchain.
 -}
 module Cardano.Wallet.Read.Chain
     ( -- * ChainPoint
-      ChainPoint (GenesisPoint, BlockPoint)
+      ChainPoint (..)
     , getChainPoint
     , prettyChainPoint
     , chainPointFromChainTip
 
     -- * ChainTip
-    , ChainTip (GenesisTip, BlockTip)
+    , ChainTip (..)
     , getChainTip
     , prettyChainTip
     ) where
@@ -50,7 +53,10 @@ import qualified Data.Text as T
 -- | A point (block) on the Cardano blockchain.
 data ChainPoint
     = GenesisPoint
-    | BlockPoint !SlotNo !RawHeaderHash
+    | BlockPoint
+        { slotNo :: !SlotNo
+        , headerHash :: !RawHeaderHash
+        }
     deriving (Eq, Ord, Show, Generic)
 
 instance NoThunks ChainPoint
@@ -59,8 +65,9 @@ instance NoThunks ChainPoint
 getChainPoint :: IsEra era => Block era -> ChainPoint
 getChainPoint block =
     BlockPoint
-        (getEraSlotNo block)
-        (getRawHeaderHash $ getEraHeaderHash block)
+        { slotNo = getEraSlotNo block
+        , headerHash = getRawHeaderHash $ getEraHeaderHash block
+        }
 
 -- | Short printed representation of a 'ChainPoint'.
 prettyChainPoint :: ChainPoint -> T.Text
@@ -84,7 +91,11 @@ chainPointFromChainTip (BlockTip slot hash _) = BlockPoint slot hash
 -- Records the 'ChainPoint' and the 'BlockNo' of the block.
 data ChainTip
     = GenesisTip
-    | BlockTip !SlotNo !RawHeaderHash !BlockNo
+    | BlockTip
+        { slotNo :: !SlotNo
+        , headerHash :: !RawHeaderHash
+        , blockNo :: !BlockNo
+        }
     deriving (Eq, Ord, Show, Generic)
 
 instance NoThunks ChainTip
@@ -93,16 +104,17 @@ instance NoThunks ChainTip
 getChainTip :: IsEra era => Block era -> ChainTip
 getChainTip block =
     BlockTip
-        (getEraSlotNo block)
-        (getRawHeaderHash $ getEraHeaderHash block)
-        (getEraBlockNo block)
+        { slotNo = getEraSlotNo block
+        , headerHash = getRawHeaderHash $ getEraHeaderHash block
+        , blockNo = getEraBlockNo block
+        }
 
 -- | Short printed representation of a 'ChainPoint'.
 prettyChainTip :: ChainTip -> T.Text
 prettyChainTip GenesisTip =
     "[tip genesis]"
-prettyChainTip (BlockTip slotNo hash blockNo) =
-    "[tip " <> hashF hash
+prettyChainTip BlockTip{slotNo,headerHash,blockNo} =
+    "[tip " <> hashF headerHash
         <> " at slot " <> slotNoF slotNo
         <> " at blockNo " <> blockNoF blockNo
         <> "]"

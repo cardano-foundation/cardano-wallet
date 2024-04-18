@@ -99,6 +99,7 @@ benchmark restore
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , containers
     , contra-tracer
     , crypto-primitives

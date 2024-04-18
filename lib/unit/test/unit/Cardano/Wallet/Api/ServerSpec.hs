@@ -57,12 +57,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
-    , BlockHeader (..)
     , SlotNo (..)
     , StartTime (..)
-    )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
@@ -78,11 +74,9 @@ import Data.Either
     ( isLeft
     )
 import Data.Maybe
-    ( isJust
+    ( fromJust
+    , isJust
     , isNothing
-    )
-import Data.Quantity
-    ( Quantity (..)
     )
 import Data.SOP.Counting
     ( exactlyOne
@@ -148,6 +142,8 @@ import UnliftIO.Concurrent
     )
 
 import qualified Cardano.Wallet.Primitive.SyncProgress as S
+import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
@@ -267,11 +263,11 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         dummyNetworkLayer
             { currentNodeEra = pure $ AnyCardanoEra MaryEra
             , currentNodeTip = pure $
-                BlockHeader
-                    sl
-                    (Quantity $ fromIntegral $ unSlotNo sl)
-                    (Hash "header hash")
-                    (Just $ Hash "prevHeaderHash")
+                Read.BlockTip
+                    { slotNo = Read.SlotNo $ fromIntegral $ unSlotNo sl
+                    , headerHash = mockHash
+                    , blockNo = Read.BlockNo $ fromIntegral $ unSlotNo sl
+                    }
             , timeInterpreter = ti
             , syncProgress = \slot ->
                 S.syncProgress
@@ -280,6 +276,9 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                     slot
                     relativeTime
             }
+      where
+        mockHash :: Read.RawHeaderHash
+        mockHash = fromJust $ Hash.hashFromBytes $ B8.replicate 32 'a'
 
     forkInterpreter startTime =
         let

@@ -301,6 +301,7 @@ import Data.Map
     )
 import Data.Maybe
     ( catMaybes
+    , fromJust
     , fromMaybe
     , isJust
     , isNothing
@@ -409,6 +410,7 @@ import qualified Cardano.Wallet.DB.Store.Checkpoints.Store as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
 import qualified Data.ByteArray as BA
@@ -1422,8 +1424,8 @@ mockNetworkLayer = dummyNetworkLayer
         error "dummyNetworkLayer: syncProgress not implemented"
     }
   where
-    dummyTip = BlockHeader (SlotNo 0) (Quantity 0) dummyHash (Just dummyHash)
-    dummyHash = Hash "dummy hash"
+    dummyTip = Read.BlockTip (Read.SlotNo 0) dummyHash (Read.BlockNo 0)
+    dummyHash = fromJust $ Hash.hashFromBytes $ B8.replicate 32 'a'
 
 type DummyState =
     TestState

@@ -1,3 +1,5 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-|
 Copyright: © 2024 Cardano Foundation
 License: Apache-2.0
@@ -63,8 +65,11 @@ fromOuroborosPoint (O.BlockPoint slot h) =
 toOuroborosTip :: ChainTip -> O.Tip (CardanoBlock sc)
 toOuroborosTip GenesisTip =
     O.TipGenesis
-toOuroborosTip (BlockTip slot h blockNo) =
-    O.Tip (toCardanoSlotNo slot) (toCardanoHash h) (toCardanoBlockNo blockNo)
+toOuroborosTip BlockTip{slotNo,headerHash,blockNo} =
+    O.Tip
+        (toCardanoSlotNo slotNo)
+        (toCardanoHash headerHash)
+        (toCardanoBlockNo blockNo)
 
 fromOuroborosTip :: O.Tip (CardanoBlock sc) -> ChainTip
 fromOuroborosTip O.TipGenesis =

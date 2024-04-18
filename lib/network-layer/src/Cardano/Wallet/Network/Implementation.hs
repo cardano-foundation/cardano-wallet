@@ -85,7 +85,8 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     , send
     )
 import Cardano.Wallet.Network.Implementation.Types
-    ( toOuroborosPoint
+    ( fromOuroborosTip
+    , toOuroborosPoint
     )
 import Cardano.Wallet.Network.Implementation.UnliftIO
     ( coerceHandlers
@@ -495,7 +496,7 @@ withNodeNetworkLayerBase
                 , fetchNextBlock =
                     _fetchNextBlock (handlers ClientFetchBlock)
                 , currentNodeTip =
-                    fromTip getGenesisBlockHash <$> atomically readNodeTip
+                    fromOuroborosTip <$> atomically readNodeTip
                 , currentNodeEra =
                     -- NOTE: Is not guaranteed to be consistent with @currentNodeTip@
                     readCurrentNodeEra

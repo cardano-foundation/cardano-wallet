@@ -1126,7 +1126,10 @@ getCurrentEpochSlotting
     :: HasCallStack => NetworkLayer IO block -> IO CurrentEpochSlotting
 getCurrentEpochSlotting nl@NetworkLayer{timeInterpreter} = do
     tip <- currentNodeTip nl
-    let epochQuery = Slotting.epochOf (tip ^. #slotNo)
+    let pseudoSlot Read.GenesisTip = 0
+        pseudoSlot Read.BlockTip{slotNo} =
+            SlotNo $ fromIntegral $ Read.unSlotNo slotNo
+        epochQuery = Slotting.epochOf (pseudoSlot tip)
         throwingInterpreter = Slotting.expectAndThrowFailures timeInterpreter
     epoch <- interpretQuery throwingInterpreter epochQuery
     mkCurrentEpochSlotting throwingInterpreter epoch

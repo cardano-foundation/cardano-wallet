@@ -19,7 +19,6 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
-    , chainPointFromBlockHeader'
     )
 import Cardano.Wallet.Primitive.Types.GenesisParameters
     ( GenesisParameters (..)
@@ -51,8 +50,8 @@ getRestorationPoint genesisParams mode netLayer = do
     case mode of
         RestoreFromGenesis -> pure $ Right RestorationPointAtGenesis
         RestoreFromTip -> do
-            bh <- currentNodeTip netLayer
-            case chainPointFromBlockHeader' bh of
+            nodeTip <- currentNodeTip netLayer
+            case Read.chainPointFromChainTip nodeTip of
                 Read.GenesisPoint -> pure $ Right RestorationPointAtGenesis
                 Read.BlockPoint slot blockhash -> do
                     getRestorationPoint

@@ -4387,11 +4387,14 @@ getNetworkInformation nid
         now <- currentRelativeTime ti
         nodeTip <- currentNodeTip
         nodeEra <- currentNodeEra
-        apiNodeTip <- makeApiBlockReferenceFromHeader
+        apiNodeTip <- makeApiBlockReferenceFromTip
             (neverFails "node tip is within safe-zone" timeInterpreter)
             nodeTip
         nowInfo <- runMaybeT $ networkTipInfo now
-        progress <- syncProgress $ view #slotNo nodeTip
+        let pseudoSlot Read.GenesisTip = SlotNo 0
+            pseudoSlot Read.BlockTip{slotNo} =
+                SlotNo $ fromIntegral $ Read.unSlotNo slotNo
+        progress <- syncProgress $ pseudoSlot nodeTip
         pure Api.ApiNetworkInformation
             { Api.syncProgress = ApiT progress
             , Api.nextEpoch = snd <$> nowInfo
@@ -5041,6 +5044,19 @@ makeApiBlockReferenceFromHeader
     -> m ApiBlockReference
 makeApiBlockReferenceFromHeader ti tip =
     makeApiBlockReference ti (tip ^. #slotNo) (natural $ tip ^. #blockHeight)
+
+makeApiBlockReferenceFromTip
+    :: Monad m
+    => TimeInterpreter m
+    -> Read.ChainTip
+    -> m ApiBlockReference
+makeApiBlockReferenceFromTip ti Read.GenesisTip =
+    makeApiBlockReference ti 0 (Quantity 0)
+makeApiBlockReferenceFromTip ti Read.BlockTip{slotNo,blockNo} =
+    makeApiBlockReference
+        ti
+        (fromIntegral $ Read.unSlotNo slotNo)
+        (Quantity $ fromIntegral $ Read.unBlockNo blockNo)
 
 makeApiSlotReference
     :: Monad m
