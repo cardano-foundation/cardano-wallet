@@ -532,6 +532,7 @@ balanceTransaction
     partialTx
     = do
     guardExistingCollateral
+    guardExistingReturnCollateral
     guardExistingTotalCollateral
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
@@ -566,6 +567,13 @@ balanceTransaction
         let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
+
+    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingReturnCollateral = do
+        let collRet = partialTx ^. #tx . bodyTxL . collateralReturnTxBodyL
+        case collRet of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
     guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingTotalCollateral = do
@@ -666,7 +674,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
-    guardExistingReturnCollateral
     guardUTxOConsistency
 
     (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
@@ -920,13 +927,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             $ updateTx (partialTx ^. #tx) update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
-
-    guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingReturnCollateral = do
-        let collRet = partialTx ^. #tx . bodyTxL . collateralReturnTxBodyL
-        case collRet of
-            SNothing -> return ()
-            SJust _ -> throwE ErrBalanceTxExistingReturnCollateral
 
 -- | Select assets to cover the specified balance and fee.
 --
