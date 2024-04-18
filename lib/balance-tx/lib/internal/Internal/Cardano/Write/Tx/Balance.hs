@@ -532,6 +532,7 @@ balanceTransaction
     partialTx
     = do
     guardExistingCollateral
+    guardExistingTotalCollateral
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
@@ -565,6 +566,13 @@ balanceTransaction
         let collIns = partialTx ^. #tx . bodyTxL . collateralInputsTxBodyL
         unless (null collIns) $
             throwE ErrBalanceTxExistingCollateral
+
+    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
+    guardExistingTotalCollateral = do
+        let totColl = partialTx ^. #tx . bodyTxL . totalCollateralTxBodyL
+        case totColl of
+            SNothing -> return ()
+            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
@@ -658,7 +666,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     selectionStrategy
     partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
-    guardExistingTotalCollateral
     guardExistingReturnCollateral
     guardUTxOConsistency
 
@@ -913,13 +920,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             $ updateTx (partialTx ^. #tx) update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
-
-    guardExistingTotalCollateral :: ExceptT (ErrBalanceTx era) m ()
-    guardExistingTotalCollateral = do
-        let totColl = partialTx ^. #tx . bodyTxL . totalCollateralTxBodyL
-        case totColl of
-            SNothing -> return ()
-            SJust _ -> throwE ErrBalanceTxExistingTotalCollateral
 
     guardExistingReturnCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingReturnCollateral = do
