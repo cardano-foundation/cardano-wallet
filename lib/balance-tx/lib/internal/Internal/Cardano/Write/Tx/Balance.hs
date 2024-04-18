@@ -534,32 +534,79 @@ balanceTransaction
     guardExistingCollateral
     guardExistingReturnCollateral
     guardExistingTotalCollateral
+
     guardUTxOConsistency
-    balanceWith SelectionStrategyOptimal
+    externallySelectedUtxo <- extractExternallySelectedUTxO
+    let utxoSelection =
+            UTxOSelection.fromIndexPair
+                (availableUTxOIndex, externallySelectedUtxo)
+    when (UTxOSelection.availableSize utxoSelection == 0) $
+        throwE ErrBalanceTxUnableToCreateInput
+
+    balanceWith utxoSelection SelectionStrategyOptimal
         `catchE` \e ->
             if minimalStrategyIsWorthTrying e
-            then balanceWith SelectionStrategyMinimal
+            then balanceWith utxoSelection SelectionStrategyMinimal
             else throwE e
   where
     adjustedPartialTx :: Tx era
     adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
 
     balanceWith
-        :: SelectionStrategy
+        :: UTxOSelection WalletUTxO
+        -> SelectionStrategy
         -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
-    balanceWith strategy =
+    balanceWith utxoSelection strategy =
         balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             pp
             timeTranslation
             utxoAssumptions
             utxoReference
-            availableUTxOIndex
+            utxoSelection
             genChange
             s
             strategy
             redeemers
             timelockKeyWitnessCounts
             adjustedPartialTx
+
+    -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
+    -- corresponding 'TxOut' according to @utxoReference@.
+    --
+    -- === Examples using pseudo-code
+    --
+    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
+    -- >>> let tx = addInputs [inA] emptyTx
+    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> extractExternallySelectedUTxO ptx
+    -- Right (UTxOIndex.fromMap {inA -> outA})
+    --
+    -- >>> let extraUTxO = {inB -> outB }
+    -- >>> let tx = addInputs [inA, inC] emptyTx
+    -- >>> let ptx = PartialTx tx extraUTxO []
+    -- >>> extractExternallySelectedUTxO ptx
+    -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
+    extractExternallySelectedUTxO
+        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
+    extractExternallySelectedUTxO = do
+        let res = flip map txIns $ \i ->
+                case txinLookup i utxoReference of
+                    Nothing ->
+                       Left i
+                    Just o -> do
+                        let i' = Convert.toWallet i
+                        let W.TxOut addr bundle = toWalletTxOut era o
+                        pure (WalletUTxO i' addr, bundle)
+        case partitionEithers res of
+            ([], resolved) -> pure $ UTxOIndex.fromSequence resolved
+            (unresolvedInsHead : unresolvedInsTail, _) ->
+                throwE
+                . ErrBalanceTxUnresolvedInputs
+                $ (unresolvedInsHead :| unresolvedInsTail)
+      where
+        era = recentEra @era
+        txIns :: [TxIn]
+        txIns = Set.toList $ tx ^. bodyTxL . inputsTxBodyL
 
     -- The set of all UTxOs that may be referenced by a balanced transaction.
     --
@@ -687,8 +734,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> UTxOAssumptions
     -> UTxO era
     -- ^ The reference set of all UTxOs.
-    -> UTxOIndex.UTxOIndex WalletUTxO
-    -- ^ The subset of UTxOs that are available to spend, in indexed form.
+    -> UTxOSelection WalletUTxO
+    -- ^ The set of UTxOs that may be spent by the resultant transaction.
+    -- The subset of UTxOs that are already spent are pre-selected.
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -701,7 +749,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     timeTranslation
     utxoAssumptions
     utxoReference
-    availableUTxOIndex
+    utxoSelection
     genChange
     s
     selectionStrategy
@@ -738,14 +786,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
                     , sel' ^. #change
                     , s'
                     )
-
-        externalSelectedUtxo <- extractExternallySelectedUTxO
-        let utxoSelection =
-                UTxOSelection.fromIndexPair
-                    (availableUTxOIndex, externalSelectedUtxo)
-
-        when (UTxOSelection.availableSize utxoSelection == 0) $
-            throwE ErrBalanceTxUnableToCreateInput
 
         let mSel = selectAssets
                 pp
@@ -842,48 +882,6 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
             , feeUpdate = UseNewTxFee updatedFee
             }
   where
-    era = recentEra @era
-
-    -- | Extract the inputs from the raw 'tx' of the 'Partialtx', with the
-    -- corresponding 'TxOut' according to @utxoReference@.
-    --
-    -- === Examples using pseudo-code
-    --
-    -- >>> let extraUTxO = {inA -> outA, inB -> outB }
-    -- >>> let tx = addInputs [inA] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Right (UTxOIndex.fromMap {inA -> outA})
-    --
-    -- >>> let extraUTxO = {inB -> outB }
-    -- >>> let tx = addInputs [inA, inC] emptyTx
-    -- >>> let ptx = PartialTx tx extraUTxO []
-    -- >>> extractExternallySelectedUTxO ptx
-    -- Left (ErrBalanceTxUnresolvedInputs [inA, inC])
-    extractExternallySelectedUTxO
-        :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO = do
-        let res = flip map txIns $ \i-> do
-                case txinLookup i utxoReference of
-                    Nothing ->
-                       Left i
-                    Just o -> do
-                        let i' = Convert.toWallet i
-                        let W.TxOut addr bundle = toWalletTxOut era o
-                        pure (WalletUTxO i' addr, bundle)
-
-        case partitionEithers res of
-            ([], resolved) ->
-                pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead:unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                $ (unresolvedInsHead :| unresolvedInsTail)
-      where
-        txIns :: [TxIn]
-        txIns =
-            Set.toList $ partialTx ^. bodyTxL . inputsTxBodyL
-
     guardTxSize
         :: KeyWitnessCounts
         -> Tx era
