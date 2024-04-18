@@ -2759,7 +2759,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
 
     metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
             (Just apiEncrypt, Just metadataWithSchema) ->
-                case toMetadataEncrypted apiEncrypt metadataWithSchema of
+                case toMetadataEncrypted apiEncrypt metadataWithSchema Nothing of
                     Left err ->
                         liftHandler $ throwE err
                     Right meta ->
@@ -3164,8 +3164,9 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
 toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
+    -> Maybe ByteString
     -> Either ErrConstructTx Cardano.TxMetadata
-toMetadataEncrypted apiEncrypt payload = do
+toMetadataEncrypted apiEncrypt payload saltM = do
     msgValues <- findMsgValues
     msgValues' <- mapM encryptingMsg msgValues
     pure $ updateTxMetadata msgValues'
@@ -3176,7 +3177,7 @@ toMetadataEncrypted apiEncrypt payload = do
         , iterations = 10000
         , keyLength = 32
         , ivLength = 16
-        } pwd Nothing
+        } pwd saltM
     getMsgValue (Cardano.TxMetaText metaField, metaValue) =
         if metaField == "msg" then
             Just metaValue
@@ -3201,7 +3202,7 @@ toMetadataEncrypted apiEncrypt payload = do
     encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
         if metaField == "msg" then
             let encrypted =
-                    AES256CBC.encrypt WithPadding secretKey iv Nothing $
+                    AES256CBC.encrypt WithPadding secretKey iv saltM $
                     BL.toStrict $
                     Aeson.encode $
                     Cardano.metadataValueToJsonNoSchema metaValue
