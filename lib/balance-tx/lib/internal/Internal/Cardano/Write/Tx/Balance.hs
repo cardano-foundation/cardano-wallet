@@ -526,7 +526,7 @@ balanceTransaction
     pp
     timeTranslation
     utxoAssumptions
-    utxo@UTxOIndex {availableUTxO}
+    UTxOIndex {availableUTxO, availableUTxOIndex}
     genChange
     s
     PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
@@ -552,8 +552,9 @@ balanceTransaction
             pp
             timeTranslation
             utxoAssumptions
-            utxo
             extraUTxO
+            availableUTxO
+            availableUTxOIndex
             genChange
             s
             strategy
@@ -676,9 +677,12 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     => PParams era
     -> TimeTranslation
     -> UTxOAssumptions
-    -> UTxOIndex era
     -> UTxO era
     -- ^ The set of UTxOs that were provided by the `PartialTx`.
+    -> UTxO era
+    -- ^ The set of UTxOs that are available to spend.
+    -> UTxOIndex.UTxOIndex WalletUTxO
+    -- ^ The set of UTxOs that are available to spend, in indexed form.
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
@@ -690,8 +694,9 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
-    UTxOIndex {availableUTxO, availableUTxOIndex}
     extraUTxO
+    availableUTxO
+    availableUTxOIndex
     genChange
     s
     selectionStrategy
