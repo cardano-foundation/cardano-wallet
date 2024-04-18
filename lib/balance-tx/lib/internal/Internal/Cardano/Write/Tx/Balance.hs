@@ -529,7 +529,7 @@ balanceTransaction
     utxo@UTxOIndex {availableUTxO}
     genChange
     s
-    partialTx@PartialTx {extraUTxO}
+    partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
     = do
     guardExistingCollateral
     guardExistingReturnCollateral
@@ -554,10 +554,13 @@ balanceTransaction
             timeTranslation
             utxoAssumptions
             utxo
+            extraUTxO
             genChange
             s
             strategy
-            adjustedPartialTx
+            redeemers
+            timelockKeyWitnessCounts
+            (view #tx adjustedPartialTx)
 
     guardExistingCollateral :: ExceptT (ErrBalanceTx era) m ()
     guardExistingCollateral = do
@@ -675,22 +678,29 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     -> TimeTranslation
     -> UTxOAssumptions
     -> UTxOIndex era
+    -> UTxO era
+    -- ^ The set of UTxOs that were provided by the `PartialTx`.
     -> ChangeAddressGen changeState
     -> changeState
     -> SelectionStrategy
-    -> PartialTx era
+    -> [Redeemer]
+    -> TimelockKeyWitnessCounts
+    -> Tx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
     pp
     timeTranslation
     utxoAssumptions
     UTxOIndex {availableUTxO, availableUTxOIndex}
+    extraUTxO
     genChange
     s
     selectionStrategy
-    partialTx@PartialTx {extraUTxO, redeemers, timelockKeyWitnessCounts}
+    redeemers
+    timelockKeyWitnessCounts
+    partialTx
     = do
-    (balance0, minfee0, _) <- balanceAfterSettingMinFee (partialTx ^. #tx)
+    (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
 
     (extraInputs, extraCollateral', extraOutputs, s') <- do
 
@@ -731,7 +741,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         let mSel = selectAssets
                 pp
                 utxoAssumptions
-                (F.toList $ partialTx ^. #tx . bodyTxL . outputsTxBodyL)
+                (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
                 redeemers
                 utxoSelection
                 balance0
@@ -863,7 +873,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
       where
         txIns :: [TxIn]
         txIns =
-            Set.toList $ partialTx ^. #tx . bodyTxL . inputsTxBodyL
+            Set.toList $ partialTx ^. bodyTxL . inputsTxBodyL
 
     guardTxSize
         :: KeyWitnessCounts
@@ -924,7 +934,7 @@ balanceTransactionWithSelectionStrategyAndNoZeroAdaAdjustment
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     assembleTransaction update = ExceptT . pure $ do
         tx' <- left updateTxErrorToBalanceTxError
-            $ updateTx (partialTx ^. #tx) update
+            $ updateTx partialTx update
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation combinedUTxO redeemers tx'
 
