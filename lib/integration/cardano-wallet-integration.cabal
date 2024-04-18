@@ -138,6 +138,7 @@ library scenarios
     , cardano-wallet-integration:framework
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , command

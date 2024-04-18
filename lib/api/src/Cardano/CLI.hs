@@ -439,6 +439,7 @@ import UnliftIO.Exception
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.BM.Data.Observable as Obs
+import qualified Cardano.Wallet.Read as Read
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
 import qualified Data.Aeson as Aeson
@@ -709,11 +710,11 @@ restorationModeOption f =
                     <> metavar "BLOCKHEADERHASH"
                     <> help "The block hash to restore from."
         slotNo <-
-            option auto
+            option (Read.SlotNo <$> auto)
                 $ long "slot-no"
                     <> metavar "SLOTNO"
                     <> help "The slot number to restore from."
-        pure $ RestoreFromBlock blockHash slotNo
+        pure $ RestoreFromBlock slotNo blockHash
 
 -- | Arguments for 'wallet create from-public-key' command
 data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs

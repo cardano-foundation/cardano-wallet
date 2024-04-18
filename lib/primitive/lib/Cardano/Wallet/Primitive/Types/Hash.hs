@@ -20,6 +20,7 @@ module Cardano.Wallet.Primitive.Types.Hash
     , hashFromText
     , mockHash
     , mockHashRewardAccount
+    , toRawHeaderHash
     ) where
 
 import Prelude
@@ -54,6 +55,9 @@ import Data.Data
 import Data.Hashable
     ( Hashable
     )
+import Data.Maybe
+    ( fromMaybe
+    )
 import Data.Proxy
     ( Proxy (..)
     )
@@ -84,6 +88,8 @@ import Quiet
     ( Quiet (..)
     )
 
+import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -145,6 +151,15 @@ mockHash = Hash . blake2b256 . B8.pack . show
 
 blake2b256 :: ByteString -> ByteString
 blake2b256 = BA.convert . hash @_ @Blake2b_256
+
+toRawHeaderHash :: Hash "BlockHeader" -> Read.RawHeaderHash
+toRawHeaderHash h =
+    fromMaybe err . Hash.hashFromBytes $ getHash h
+  where
+    err = error
+        $ "toRawHeaderHash:"
+        <> "invalid value of type Hash \"BlockHeader\":"
+        <> show h
 
 -- | Construct a hash that is good enough for testing (28 byte length).
 mockHashRewardAccount :: Show a => a -> Hash "RewardAccount"

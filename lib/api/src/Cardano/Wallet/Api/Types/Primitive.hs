@@ -412,6 +412,7 @@ instance FromJSON (ApiT (Hash "ExtraSignature")) where
             (BS.length bytes /= 28)
             $ fail "expected a bech32 req_signer_vkh hash of 28 bytes"
         pure $ ApiT $ Hash bytes
+
 instance ToJSON (ApiT (Hash "ExtraSignature")) where
     toJSON (ApiT (Hash hashed')) =
         toJSON $ Bech32.encodeLenient

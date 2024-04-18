@@ -84,6 +84,9 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     , localTxSubmission
     , send
     )
+import Cardano.Wallet.Network.Implementation.Types
+    ( toOuroborosPoint
+    )
 import Cardano.Wallet.Network.Implementation.UnliftIO
     ( coerceHandlers
     )
@@ -590,7 +593,7 @@ withNodeNetworkLayerBase
             connectClient nullTracer retryHandlers ouroborosApp versionData conn
 
         _fetchNextBlock retryHandlers pt = do
-            let pt' = toPoint pt
+            let pt' = toOuroborosPoint pt
             blockQ <- newTQueueIO
             let runNodeToClient =
                     runFetchBlockClient retryHandlers blockQ

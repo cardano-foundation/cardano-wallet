@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.Types.Certificates
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    , toRawHeaderHash
     )
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx
@@ -48,8 +49,7 @@ import Data.ByteArray.Encoding
     , convertToBase
     )
 import Data.Maybe
-    ( fromJust
-    , isNothing
+    ( isNothing
     )
 import Data.Quantity
     ( Quantity (getQuantity)
@@ -167,7 +167,7 @@ fromWalletChainPoint ChainPointAtGenesis = Read.GenesisPoint
 fromWalletChainPoint (ChainPoint slot hash) =
     Read.BlockPoint
         (toReadSlotNo slot)
-        (fromJust $ Hash.hashFromBytes $ getHash hash)
+        (toRawHeaderHash hash)
 
 toReadSlotNo :: SlotNo -> Read.SlotNo
 toReadSlotNo (SlotNo n) = Read.SlotNo (fromIntegral n)

@@ -30,10 +30,9 @@ import Data.Aeson
 import Data.Aeson.Types
     ( Parser
     )
-import Data.Text.Class
-    ( FromText (..)
-    , ToText (..)
-    )
+
+import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 
 type ApiRestorationMode = ApiT RestorationMode
 
@@ -43,9 +42,9 @@ instance ToJSON ApiRestorationMode where
         getApiT >>> \case
             RestoreFromGenesis -> String "from_genesis"
             RestoreFromTip -> String "from_tip"
-            RestoreFromBlock b s ->
+            RestoreFromBlock (Read.SlotNo s) b ->
                 object
-                    [ "block_header_hash" .= String (toText b)
+                    [ "block_header_hash" .= String (Hash.hashToTextAsHex b)
                     , "absolute_slot_number" .= s
                     ]
 
@@ -56,9 +55,9 @@ instance FromJSON ApiRestorationMode where
             String "from_genesis" -> pure RestoreFromGenesis
             String "from_tip" -> pure RestoreFromTip
             Object obj -> do
-                block <- obj .: "block_header_hash"
+                blockhash <- obj .: "block_header_hash"
                 slot <- obj .: "absolute_slot_number"
-                case fromText block of
-                    Right b -> pure $ RestoreFromBlock b slot
-                    Left r -> fail $ "Invalid block hash: " <> show r
+                case Hash.hashFromTextAsHex blockhash of
+                    Just b -> pure $ RestoreFromBlock (Read.SlotNo slot) b
+                    Nothing -> fail $ "Invalid block hash: " <> show blockhash
             _ -> fail "Invalid restoration mode"
