@@ -561,14 +561,14 @@ balanceTransaction
             timelockKeyWitnessCounts
             adjustedPartialTx
 
+    -- The set of all UTxOs that may be referenced by a balanced transaction.
+    --
+    -- Note that when constructing this set, we give precedence to UTxOs
+    -- provided as part of the 'PartialTx' object. This relies on the
+    -- left-biased nature of the 'Semigroup' 'mappend' operation on UTxO sets.
+    --
     utxoReference :: UTxO era
     utxoReference = mconcat
-         -- The @CardanoApi.UTxO@ can contain strictly more information than
-         -- @W.UTxO@. Therefore we make the user-specified @inputUTxO@ to take
-         -- precedence. This matters if a user is trying to balance a tx making
-         -- use of a datum hash in a UTxO which is also present in the wallet
-         -- UTxO set. (Whether or not this is a sane thing for the user to do,
-         -- is another question.)
          [ extraUTxO
          , availableUTxO
          ]
