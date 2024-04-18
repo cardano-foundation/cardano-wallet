@@ -16,6 +16,9 @@ module Cardano.Wallet.Read.Block.HeaderHash
     , PrevHeaderHash (..)
     , PrevHeaderHashT
     , getEraPrevHeaderHash
+
+    -- * Testing utilities
+    , mockRawHeaderHash
     )
 where
 
@@ -81,6 +84,8 @@ import Ouroboros.Consensus.Shelley.Protocol.TPraos
 import qualified Cardano.Crypto.Hashing as Byron
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Shelley.API as Shelley
+import qualified Cardano.Wallet.Read.Hash as Hash
+import qualified Data.ByteString.Char8 as B8
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Shelley
 import qualified Ouroboros.Network.Block as O
@@ -130,6 +135,11 @@ data BHeader
 
 -- | Raw hash digest for a block header.
 type RawHeaderHash = Hash Blake2b_256 BHeader
+
+-- | Construct a 'RawHeaderHash' that is good enough for testing.
+mockRawHeaderHash :: Integer -> RawHeaderHash
+mockRawHeaderHash n =
+    Hash.hashWith (\_ -> B8.pack $ show n) (error "undefined :: BHeader")
 
 {-# INLINABLE getRawHeaderHash #-}
 getRawHeaderHash :: forall era. IsEra era => HeaderHash era -> RawHeaderHash
