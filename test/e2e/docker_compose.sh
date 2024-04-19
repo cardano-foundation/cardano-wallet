@@ -3,7 +3,7 @@
 NETWORK=preprod \
 TESTS_E2E_TOKEN_METADATA=https://metadata.world.dev.cardano.org/ \
 WALLET=dev-master \
-NODE=8.9.1 \
+NODE=8.9.2 \
 NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
 DATA=`pwd`/state/node_db/$NETWORK \
 WALLET_DATA=`pwd`/state/wallet_db/$NETWORK \
