@@ -111,9 +111,6 @@ import Cardano.Ledger.Mary.Value
     ( MaryValue (MaryValue)
     , MultiAsset (MultiAsset)
     )
-import Cardano.Ledger.UTxO
-    ( txinLookup
-    )
 import Control.Arrow
     ( left
     )
@@ -138,9 +135,6 @@ import Control.Monad.Trans.State
     )
 import Data.Bits
     ( Bits
-    )
-import Data.Either
-    ( partitionEithers
     )
 import Data.Function
     ( on
@@ -574,20 +568,11 @@ balanceTransaction
     --
     indexPreselectedUTxO
         :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    indexPreselectedUTxO = do
-        let res :: [Either TxIn (WalletUTxO, W.TokenBundle)]
-            res = flip map txIns $ \i ->
-                case txinLookup i utxoReference of
-                    Nothing ->
-                       Left i
-                    Just o ->
-                        pure (convertUTxO (i, o))
-        case partitionEithers res of
-            ([], resolved) -> pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead : unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                $ (unresolvedInsHead :| unresolvedInsTail)
+    indexPreselectedUTxO
+        | Just unresolvedTxIns <- maybeUnresolvedTxIns =
+            throwE (ErrBalanceTxUnresolvedInputs unresolvedTxIns)
+        | otherwise =
+            pure selectedUTxOIndex
       where
         era = recentEra @era
         convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
