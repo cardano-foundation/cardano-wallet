@@ -28,6 +28,7 @@ import Cardano.Wallet.Read.Block
     , BlockNo (..)
     , RawHeaderHash
     , SlotNo (..)
+    , getEraBHeader
     , getEraBlockNo
     , getEraHeaderHash
     , getEraSlotNo
@@ -65,7 +66,7 @@ instance NoThunks ChainPoint
 getChainPoint :: IsEra era => Block era -> ChainPoint
 getChainPoint block =
     BlockPoint
-        { slotNo = getEraSlotNo block
+        { slotNo = getEraSlotNo $ getEraBHeader block
         , headerHash = getRawHeaderHash $ getEraHeaderHash block
         }
 
@@ -104,7 +105,7 @@ instance NoThunks ChainTip
 getChainTip :: IsEra era => Block era -> ChainTip
 getChainTip block =
     BlockTip
-        { slotNo = getEraSlotNo block
+        { slotNo = getEraSlotNo $ getEraBHeader block
         , headerHash = getRawHeaderHash $ getEraHeaderHash block
         , blockNo = getEraBlockNo block
         }
