@@ -615,7 +615,7 @@ import Cardano.Wallet.Transaction.Built
 import Cardano.Write.Tx
     ( ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , balanceTransaction
+    , balanceTx
     )
 import Control.Arrow
     ( (>>>)
@@ -1951,7 +1951,7 @@ buildCoinSelectionForTransaction
         out <-
             -- NOTE: We assume that the change outputs are always
             -- at the end of the list. This is true for the current
-            -- 'balanceTransaction' implementation, but may not
+            -- 'balanceTx' implementation, but may not
             -- be true for other implementations.
             drop (length  paymentOutputs) $ fromCardanoTxOut <$> txOuts
         let address = out ^. #address
@@ -2409,7 +2409,7 @@ buildTransactionPure
             Write.constructUTxOIndex $
             Write.fromWalletUTxO utxo
     withExceptT Left $
-        balanceTransaction @_ @_ @s
+        balanceTx @_ @_ @s
             pparams
             timeTranslation
             (utxoAssumptionsForWallet (walletFlavor @s))
@@ -3132,7 +3132,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
 
         wrapErrBalanceTx $ calculateFeePercentiles $ do
             res <- runExceptT $
-                balanceTransaction @_ @_ @s
+                balanceTx @_ @_ @s
                     protocolParams
                     timeTranslation
                     (utxoAssumptionsForWallet (walletFlavor @s))

@@ -5,7 +5,7 @@
 module Cardano.Write.Tx
     (
     -- * Balancing transactions
-      balanceTransaction
+      balanceTx
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)
@@ -36,6 +36,6 @@ import Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxUnableToCreateChangeError (..)
     , UTxOAssumptions
     , UTxOIndex
-    , balanceTransaction
+    , balanceTx
     , constructUTxOIndex
     )

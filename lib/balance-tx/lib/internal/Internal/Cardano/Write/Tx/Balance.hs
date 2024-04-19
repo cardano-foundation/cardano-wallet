@@ -21,7 +21,7 @@
 module Internal.Cardano.Write.Tx.Balance
     (
     -- * Balancing transactions
-      balanceTransaction
+      balanceTx
     , ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)
     , ErrBalanceTxInsufficientCollateralError (..)
@@ -493,7 +493,7 @@ toWalletUTxO (UTxO m) = W.UTxO
     $ Map.mapKeys Convert.toWallet
     $ Map.map (toWalletTxOut (recentEra @era)) m
 
-balanceTransaction
+balanceTx
     :: forall era m changeState.
         ( MonadRandom m
         , IsRecentEra era
@@ -522,7 +522,7 @@ balanceTransaction
     -> changeState
     -> PartialTx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
-balanceTransaction
+balanceTx
     pp
     timeTranslation
     utxoAssumptions
@@ -706,7 +706,7 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda pp =
     modifyTxOut out = flip (over coinTxOutL) out $ \c ->
         if c == mempty then computeMinimumCoinForTxOut pp out else c
 
--- | Internal helper to 'balanceTransaction'
+-- | Internal helper to 'balanceTx'
 balanceTxInner
     :: forall era m changeState.
         ( MonadRandom m
@@ -1074,7 +1074,7 @@ selectAssets pp utxoAssumptions outs' redeemers
         -- moment because of the package split.
         --
         -- Any overestimation will be reduced by 'distributeSurplus'
-        -- in the final stage of 'balanceTransaction'.
+        -- in the final stage of 'balanceTx'.
         extraBytes = 8
 
 data ChangeAddressGen s = ChangeAddressGen
