@@ -536,7 +536,7 @@ balanceTransaction
     guardExistingTotalCollateral
 
     guardUTxOConsistency
-    externallySelectedUtxo <- extractExternallySelectedUTxO
+    externallySelectedUtxo <- indexPreselectedUTxO
     let utxoSelection =
             UTxOSelection.fromIndexPair
                 (availableUTxOIndex, externallySelectedUtxo)
@@ -569,9 +569,9 @@ balanceTransaction
     -- This function will fail if any of the inputs refers to a UTxO that
     -- cannot be found in the UTxO reference set.
     --
-    extractExternallySelectedUTxO
+    indexPreselectedUTxO
         :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO = do
+    indexPreselectedUTxO = do
         let res = flip map txIns $ \i ->
                 case txinLookup i utxoReference of
                     Nothing ->
