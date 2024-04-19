@@ -124,11 +124,11 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     , unSmashServer
     )
-import Cardano.Wallet.Primitive.Types.Block
-    ( chainPointFromBlockHeader'
-    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
+    )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( toRawHeaderHash
     )
 import Cardano.Wallet.Registry
     ( AfterThreadLog
@@ -698,10 +698,13 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
                 SlotNo (fromIntegral slot)
 
             toChainPoint :: BlockHeader -> Read.ChainPoint
-            toChainPoint (BlockHeader 0 _ _ _) =
-                Read.GenesisPoint
-            toChainPoint header =
-                chainPointFromBlockHeader' header
+            toChainPoint (BlockHeader (SlotNo slot) _ hash _)
+                | slot == 0 = Read.GenesisPoint
+                | otherwise =
+                    Read.BlockPoint
+                        { Read.slotNo = (Read.SlotNo $ fromIntegral slot)
+                        , Read.headerHash = toRawHeaderHash hash
+                        }
 
         -- Write genesis pools to DB. These are specific to the integration test
         -- cluster, and is always set to [] in the cardano-wallet executable.
