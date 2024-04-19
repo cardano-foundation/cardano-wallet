@@ -572,7 +572,8 @@ balanceTransaction
     indexPreselectedUTxO
         :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
     indexPreselectedUTxO = do
-        let res = flip map txIns $ \i ->
+        let res :: [Either TxIn (WalletUTxO, W.TokenBundle)]
+            res = flip map txIns $ \i ->
                 case txinLookup i utxoReference of
                     Nothing ->
                        Left i
