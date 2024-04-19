@@ -592,6 +592,11 @@ balanceTransaction
                 $ (unresolvedInsHead :| unresolvedInsTail)
       where
         era = recentEra @era
+        maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
+        maybeUnresolvedTxIns
+            = NE.nonEmpty
+            $ Set.toList
+            $ txInSet <\> Map.keysSet (unUTxO selectedUTxO)
         selectedUTxO :: UTxO era
         selectedUTxO = UTxO $ Map.restrictKeys (unUTxO utxoReference) txInSet
         txIns :: [TxIn]
