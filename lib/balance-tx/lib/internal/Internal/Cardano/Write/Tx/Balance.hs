@@ -536,10 +536,10 @@ balanceTransaction
     guardExistingTotalCollateral
 
     guardUTxOConsistency
-    externallySelectedUtxo <- indexPreselectedUTxO
+    preselectedUTxOIndex <- indexPreselectedUTxO
     let utxoSelection =
             UTxOSelection.fromIndexPair
-                (availableUTxOIndex, externallySelectedUtxo)
+                (availableUTxOIndex, preselectedUTxOIndex)
     when (UTxOSelection.availableSize utxoSelection == 0) $
         throwE ErrBalanceTxUnableToCreateInput
 
