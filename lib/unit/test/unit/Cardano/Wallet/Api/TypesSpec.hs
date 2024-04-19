@@ -77,6 +77,9 @@ import Cardano.Pool.Types
     , PoolOwner (..)
     , StakePoolTicker (..)
     )
+import Cardano.Wallet
+    ( ErrConstructTx (..)
+    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -1344,7 +1347,7 @@ spec = do
         -- $ $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do
         -- +SIXXn04a9xkoFHk4ZH281nIfH5lpClsO16p2vRpSsdBDFO78aTPX3bsHsRE0L2A
-        it "cip msg - no salt" $ do
+        it "cip msg - salted" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
@@ -1371,6 +1374,42 @@ spec = do
                 saltM = fromHexToM "3030303030303030"
             toMetadataEncrypted apiEncrypt schemaBefore saltM
                 `shouldBe` Right schemaAfter
+
+        it "msg wrong label - no salt" $ do
+            let apiEncrypt = ApiEncryptMetadata
+                    { passphrase = ApiT $ Passphrase "cardano"
+                    , enc = Nothing
+                    }
+                schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
+                    [( 675, Cardano.TxMetaMap
+                        [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                        , (Cardano.TxMetaText "msg", Cardano.TxMetaList
+                              [ Cardano.TxMetaText "Invoice-No: 123456789"
+                              , Cardano.TxMetaText "Order-No: 7654321"
+                              , Cardano.TxMetaText "Email: john@doe.com"
+                              ])
+                        ])
+                    ]
+            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+                `shouldBe` Left ErrConstructTxIncorrectRawMetadata
+
+        it "msg without 'msg field' - no salt" $ do
+            let apiEncrypt = ApiEncryptMetadata
+                    { passphrase = ApiT $ Passphrase "cardano"
+                    , enc = Nothing
+                    }
+                schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
+                    [( 674, Cardano.TxMetaMap
+                        [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
+                        , (Cardano.TxMetaText "msgs", Cardano.TxMetaList
+                              [ Cardano.TxMetaText "Invoice-No: 123456789"
+                              , Cardano.TxMetaText "Order-No: 7654321"
+                              , Cardano.TxMetaText "Email: john@doe.com"
+                              ])
+                        ])
+                    ]
+            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+                `shouldBe` Left ErrConstructTxIncorrectRawMetadata
 
 fromHexToM :: Text -> Maybe ByteString
 fromHexToM = rightToMaybe . convertFromBase Base16 . T.encodeUtf8
