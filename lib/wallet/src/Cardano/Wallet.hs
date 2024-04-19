@@ -1357,7 +1357,7 @@ restoreBlocks
     => WalletLayer IO s
     -> Tracer IO WalletFollowLog
     -> BlockData IO (Either Address RewardAccount) ChainEvents s
-    -> BlockHeader
+    -> Read.ChainTip
     -> IO ()
 restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
     slottingParams  <- liftIO $ currentSlottingParameters nl
@@ -1389,8 +1389,18 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
         epochStability = (3*) <$> getSecurityParameter slottingParams
         localTip = currentTip $ NE.last cps
 
-        finalitySlot = nodeTip ^. #slotNo
-            - stabilityWindowShelley slottingParams
+        nodeTipSlotNo = case nodeTip of
+            Read.GenesisTip ->
+                SlotNo 0
+            Read.BlockTip{slotNo} ->
+                SlotNo $ fromIntegral $ Read.unSlotNo slotNo
+        nodeTipBlockNo = case nodeTip of
+            Read.GenesisTip ->
+                Quantity 0
+            Read.BlockTip{blockNo} ->
+                Quantity $ fromIntegral $ Read.unBlockNo blockNo
+
+        finalitySlot = nodeTipSlotNo - stabilityWindowShelley slottingParams
 
         -- Checkpoint deltas
         wcps = snd . fromWallet <$> cps
@@ -1399,7 +1409,7 @@ restoreBlocks ctx tr blocks nodeTip = db & \DBLayer{..} -> atomically $ do
                 getSlot
                 (view $ #currentTip . #blockHeight)
                 epochStability
-                (nodeTip ^. #blockHeight)
+                nodeTipBlockNo
                 wcps
 
         deltaPruneCheckpoints wallet =

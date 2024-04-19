@@ -99,8 +99,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( getBlockHeader
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromTip'
-    , nodeToClientVersions
+    ( nodeToClientVersions
     , toCardanoEra
     , unsealShelleyTx
     )
@@ -481,7 +480,6 @@ withNodeNetworkLayerBase
                     withStats $ \trChainSyncLog -> do
                         let mapB = getBlockHeader getGenesisBlockHash
                             mapP = fromOuroborosPoint
-                        let blockHeader = fromTip' gp
                         let client =
                                 mkWalletClient
                                     (mapChainSyncLog mapB mapP >$< trChainSyncLog)
@@ -489,7 +487,7 @@ withNodeNetworkLayerBase
                                     (mapChainFollower
                                         toOuroborosPoint
                                         mapP
-                                        blockHeader
+                                        fromOuroborosTip
                                         id
                                         follower
                                     )
@@ -528,7 +526,7 @@ withNodeNetworkLayerBase
                 , syncProgress = _syncProgress interpreterVar
                 }
       where
-        gp@GenesisParameters
+        GenesisParameters
             { getGenesisBlockHash
             , getGenesisBlockDate
             } = genesisParameters np

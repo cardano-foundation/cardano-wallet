@@ -82,9 +82,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , toCardanoEra
     , fromShelleyTxOut
     , fromGenesisData
-    , fromTip
-    , fromTip'
-    , toTip
     , slottingParametersFromGenesis
     , getBabbageProducer
     , getConwayProducer
@@ -221,8 +218,7 @@ import Data.ByteString
     ( ByteString
     )
 import Data.ByteString.Short
-    ( fromShort
-    , toShort
+    ( toShort
     )
 import Data.Coerce
     ( coerce
@@ -293,18 +289,12 @@ import Ouroboros.Consensus.Shelley.Ledger.Block
     )
 import Ouroboros.Network.Block
     ( BlockNo (..)
-    , Point (..)
-    , Tip (..)
-    , getTipPoint
     )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , LocalAddress (..)
     , NodeToClientVersion (..)
     , NodeToClientVersionData
-    )
-import Ouroboros.Network.Point
-    ( WithOrigin (..)
     )
 
 import qualified Cardano.Api as Cardano
@@ -376,7 +366,6 @@ import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
-import qualified Ouroboros.Network.Point as Point
 
 --------------------------------------------------------------------------------
 --
@@ -515,48 +504,9 @@ toCardanoEra = \case
     BlockBabbage{} -> AnyCardanoEra BabbageEra
     BlockConway{}  -> AnyCardanoEra ConwayEra
 
-fromCardanoHash :: O.HeaderHash (CardanoBlock sc) -> W.Hash "BlockHeader"
-fromCardanoHash = W.Hash . fromShort . getOneEraHash
-
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32
 fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
-
-fromTip' :: W.GenesisParameters -> Tip (CardanoBlock sc) -> W.BlockHeader
-fromTip' gp = fromTip (W.getGenesisBlockHash gp)
-
-fromTip
-    :: W.Hash "Genesis"
-    -> Tip (CardanoBlock sc)
-    -> W.BlockHeader
-fromTip genesisHash tip = case getPoint (getTipPoint tip) of
-    Origin -> W.BlockHeader
-        { slotNo = Slotting.SlotNo 0
-        , blockHeight = Quantity 0
-        , headerHash = coerce genesisHash
-        , parentHeaderHash = Nothing
-        }
-    At blk -> W.BlockHeader
-        { slotNo = Point.blockPointSlot blk
-        , blockHeight = fromBlockNo $ getLegacyTipBlockNo tip
-        , headerHash = fromCardanoHash $ Point.blockPointHash blk
-        -- TODO: parentHeaderHash could be removed.
-        , parentHeaderHash = Just $ W.Hash "parentHeaderHash - unused in Shelley"
-        }
-  where
-    -- TODO: This function was marked deprecated in ouroboros-network.
-    -- It is wrong, because `Origin` doesn't have a block number.
-    -- We should remove it.
-    getLegacyTipBlockNo t = case O.getTipBlockNo t of
-        Origin -> BlockNo 0
-        At x -> x
-
-toTip :: W.Hash "Genesis" -> W.BlockHeader -> Tip (CardanoBlock sc)
-toTip genesisHash (W.BlockHeader sl bl h _)
-    | h == (coerce genesisHash) = O.TipGenesis
-    | otherwise = O.Tip sl
-        (toCardanoHash h)
-        (BlockNo $ fromIntegral $ getQuantity bl)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxSize :: Word32 -> Quantity "byte" Word16

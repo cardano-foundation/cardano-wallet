@@ -50,9 +50,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
-import Cardano.Wallet.Primitive.Types.Block
-    ( BlockHeader
-    )
 import Cardano.Wallet.Primitive.Types.Checkpoints.Policy
     ( CheckpointPolicy
     )
@@ -113,7 +110,7 @@ import qualified Internal.Cardano.Write.Tx as Write
 data NetworkLayer m block = NetworkLayer
     { chainSync
         :: Tracer IO ChainFollowLog
-        -> ChainFollower m Read.ChainPoint BlockHeader (NonEmpty block)
+        -> ChainFollower m Read.ChainPoint Read.ChainTip (NonEmpty block)
         -> m ()
     -- ^ Connect to the node and run the ChainSync protocol.
     -- The callbacks provided in the 'ChainFollower' argument
