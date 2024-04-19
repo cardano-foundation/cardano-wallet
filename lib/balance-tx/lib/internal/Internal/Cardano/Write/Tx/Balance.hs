@@ -571,8 +571,8 @@ balanceTransaction
     indexPreselectedUTxO
         | Just unresolvedTxIns <- maybeUnresolvedTxIns =
             throwE (ErrBalanceTxUnresolvedInputs unresolvedTxIns)
-        | otherwise =
-            pure selectedUTxOIndex
+        | otherwise = pure $
+            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
       where
         era = recentEra @era
         convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
@@ -584,9 +584,6 @@ balanceTransaction
             NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxO
         selectedUTxO :: Map TxIn (TxOut era)
         selectedUTxO = Map.restrictKeys (unUTxO utxoReference) txIns
-        selectedUTxOIndex :: UTxOIndex.UTxOIndex WalletUTxO
-        selectedUTxOIndex =
-            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
         txIns :: Set TxIn
         txIns = tx ^. bodyTxL . inputsTxBodyL
 
