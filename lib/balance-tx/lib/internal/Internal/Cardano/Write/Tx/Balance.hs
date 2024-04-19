@@ -583,17 +583,17 @@ balanceTransaction
         maybeUnresolvedTxIns
             = NE.nonEmpty
             $ Set.toList
-            $ txInSet <\> Map.keysSet (unUTxO selectedUTxO)
+            $ txIns <\> Map.keysSet (unUTxO selectedUTxO)
         selectedUTxO :: UTxO era
-        selectedUTxO = UTxO $ Map.restrictKeys (unUTxO utxoReference) txInSet
+        selectedUTxO = UTxO $ Map.restrictKeys (unUTxO utxoReference) txIns
         selectedUTxOIndex :: UTxOIndex.UTxOIndex WalletUTxO
         selectedUTxOIndex
             = UTxOIndex.fromSequence
             $ fmap convertUTxO
             $ Map.toList
             $ unUTxO selectedUTxO
-        txInSet :: Set TxIn
-        txInSet = tx ^. bodyTxL . inputsTxBodyL
+        txIns :: Set TxIn
+        txIns = tx ^. bodyTxL . inputsTxBodyL
 
     -- The set of all UTxOs that may be referenced by a balanced transaction.
     --
