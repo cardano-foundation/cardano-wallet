@@ -300,7 +300,7 @@ import Internal.Cardano.Write.Tx.Balance
     , TxFeeUpdate (UseNewTxFee)
     , TxUpdate (TxUpdate)
     , UTxOAssumptions (..)
-    , balanceTransaction
+    , balanceTx
     , constructUTxOIndex
     , costOfIncreasingCoin
     , distributeSurplus
@@ -500,29 +500,29 @@ import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
 spec = do
-    spec_balanceTransaction
+    spec_balanceTx
     spec_distributeSurplus
     spec_estimateSignedTxSize
     spec_updateTx
 
-spec_balanceTransaction :: Spec
-spec_balanceTransaction = describe "balanceTransaction" $ do
+spec_balanceTx :: Spec
+spec_balanceTx = describe "balanceTx" $ do
     -- TODO: Create a test to show that datums are passed through...
 
     it "doesn't balance transactions with existing 'totalCollateral'"
-        $ property prop_balanceTransactionExistingTotalCollateral
+        $ property prop_balanceTxExistingTotalCollateral
 
     it "doesn't balance transactions with existing 'returnCollateral'"
-        $ property prop_balanceTransactionExistingReturnCollateral
+        $ property prop_balanceTxExistingReturnCollateral
 
     it "does not balance transactions if no inputs can be created"
-        $ property prop_balanceTransactionUnableToCreateInput
+        $ property prop_balanceTxUnableToCreateInput
 
     it "produces valid transactions or fails (Babbage)"
-        $ property (prop_balanceTransactionValid @BabbageEra)
+        $ property (prop_balanceTxValid @BabbageEra)
 
     it "produces valid transactions or fails (Conway)"
-        $ property (prop_balanceTransactionValid @ConwayEra)
+        $ property (prop_balanceTxValid @ConwayEra)
 
     describe "bootstrap witnesses" $ do
         -- Used in 'estimateTxSize', and in turn used by coin-selection
@@ -589,11 +589,11 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
                 estimated .>=. measured
                     & tabulateOverestimation
 
-    balanceTransactionGoldenSpec
+    balanceTxGoldenSpec
 
     describe "change address generation" $ do
         let balance' =
-                balanceTransactionWithDummyChangeState
+                balanceTxWithDummyChangeState
                     AllKeyPaymentCredentials
                     dustUTxO
                     testStdGenSeed
@@ -650,7 +650,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     describe "effect of txMaxSize on coin selection" $ do
 
-        let balanceWithDust = balanceTx
+        let balanceWithDust = testBalanceTx
                 dustWallet
                 mockPParamsForBalancing
                 dummyTimeTranslation
@@ -810,7 +810,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         | ix <- [0 .. 500]
         ]
 
-    balance = balanceTx
+    balance = testBalanceTx
         wallet
         mockPParamsForBalancing
         (dummyTimeTranslationWithHorizon horizon)
@@ -827,8 +827,8 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
     dummyAddr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-balanceTransactionGoldenSpec :: Spec
-balanceTransactionGoldenSpec = describe "balance goldens" $ do
+balanceTxGoldenSpec :: Spec
+balanceTxGoldenSpec = describe "balance goldens" $ do
     it "testPParams" $
         let name = "testPParams"
             dir = $(getTestData) </> "balanceTx" </> "binary"
@@ -849,7 +849,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
-            let tx = either (error . show) id $ balanceTx
+            let tx = either (error . show) id $ testBalanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
@@ -911,7 +911,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         mkGolden ptx c =
             let
                 walletUTxO = utxo [c]
-                res = balanceTx
+                res = testBalanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
@@ -1277,17 +1277,18 @@ spec_updateTx = describe "updateTx" $ do
 -- Properties
 --------------------------------------------------------------------------------
 
-prop_balanceTransactionExistingReturnCollateral
+prop_balanceTxExistingReturnCollateral
     :: forall era. (era ~ BabbageEra)
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
-prop_balanceTransactionExistingReturnCollateral
+prop_balanceTxExistingReturnCollateral
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 10 $
         hasReturnCollateral tx
             && not (hasInsCollateral tx)
             && not (hasTotalCollateral tx) ==>
-        case balanceTx wallet protocolParams timeTranslation seed partialTx of
+        case
+        testBalanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
@@ -1295,17 +1296,18 @@ prop_balanceTransactionExistingReturnCollateral
         balanceTxArgs
     PartialTx {tx} = partialTx
 
-prop_balanceTransactionExistingTotalCollateral
+prop_balanceTxExistingTotalCollateral
     :: forall era. (era ~ BabbageEra)
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
-prop_balanceTransactionExistingTotalCollateral
+prop_balanceTxExistingTotalCollateral
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 10 $
         hasTotalCollateral tx
             && not (hasInsCollateral tx)
             && not (hasReturnCollateral tx) ==>
-        case balanceTx wallet protocolParams timeTranslation seed partialTx of
+        case
+        testBalanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
@@ -1325,15 +1327,15 @@ prop_balanceTransactionExistingTotalCollateral
 -- 2. there can be multiple competing failure conditions;
 -- 3. the order in which failure conditions are checked is unspecified.
 --
-prop_balanceTransactionUnableToCreateInput
+prop_balanceTxUnableToCreateInput
     -- TODO: Test with all recent eras [ADP-2997]
     :: forall era. era ~ Write.BabbageEra
     => Success (BalanceTxArgs era)
     -> Property
-prop_balanceTransactionUnableToCreateInput
+prop_balanceTxUnableToCreateInput
     (Success balanceTxArgs) =
         withMaxSuccess 10 $
-        balanceTx
+        testBalanceTx
             (eraseWalletUTxOSet wallet)
             protocolParams
             timeTranslation
@@ -1352,18 +1354,18 @@ prop_balanceTransactionUnableToCreateInput
     eraseWalletUTxOSet (Wallet utxoAssumptions _utxo changeAddressGen) =
         Wallet utxoAssumptions mempty changeAddressGen
 
--- NOTE: 'balanceTransaction' relies on estimating the number of witnesses that
+-- NOTE: 'balanceTx' relies on estimating the number of witnesses that
 -- will be needed. The correctness of this estimation is not tested here.
 --
 -- TODO: Ensure scripts are well tested
 --   - Ensure we have coverage for normal plutus contracts
-prop_balanceTransactionValid
+prop_balanceTxValid
     :: forall era. IsRecentEra era
     -- TODO [ADP-2997] Test with all RecentEras
     -- https://cardanofoundation.atlassian.net/browse/ADP-2997
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
-prop_balanceTransactionValid
+prop_balanceTxValid
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
@@ -1389,7 +1391,7 @@ prop_balanceTransactionValid
                     ">100 payment outputs"
 
         let res =
-                balanceTx
+                testBalanceTx
                     wallet
                     protocolParams
                     timeTranslation
@@ -1424,7 +1426,7 @@ prop_balanceTransactionValid
                         -- validation. Will otherwise fail with:
                         --
                         -- @
-                        --     --match balanceTransaction --seed 139473932`
+                        --     --match balanceTx --seed 139473932`
                         -- @
                         --
                         -- , prop_outputsSatisfyMinAdaRequirement tx
@@ -1505,7 +1507,7 @@ prop_balanceTransactionValid
             Left ErrBalanceTxInputResolutionConflicts{} ->
                 label "input resolution conflicts" $ property True
             Left err -> label "other error" $
-                counterexample ("balanceTransaction failed: " <> show err) False
+                counterexample ("balanceTx failed: " <> show err) False
   where
     BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
         balanceTxArgs
@@ -2061,7 +2063,7 @@ applyBalanceTxArgs
     -> Either (ErrBalanceTx era) (Tx era)
 applyBalanceTxArgs
     (BalanceTxArgs wallet protocolParams timeTranslation seed partialTx) =
-        (balanceTx wallet protocolParams timeTranslation seed partialTx)
+    (testBalanceTx wallet protocolParams timeTranslation seed partialTx)
 
 -- | A set of arguments that will always lead to success.
 --
@@ -2135,7 +2137,7 @@ shrinkBalanceTxArgsForSuccessOrFailure =
 --------------------------------------------------------------------------------
 
 -- | Encapsulates both a 'ChangeAddressGen s' and the 's' required for the
--- generator. This allows properties like 'prop_balanceTransactionValid' to
+-- generator. This allows properties like 'prop_balanceTxValid' to
 -- easily generate arbitrary change address generators.
 data AnyChangeAddressGenWithState where
     AnyChangeAddressGenWithState
@@ -2182,7 +2184,7 @@ addExtraTxIns extraIns =
 -- | Wrapper for testing convenience. Does hide the monad 'm', tracing, and the
 -- updated 'changeState'. Does /not/ specify mock values for things like
 -- protocol parameters. This is up to the caller to provide.
-balanceTx
+testBalanceTx
     :: forall era. IsRecentEra era
     => Wallet era
     -> Write.PParams era
@@ -2190,7 +2192,7 @@ balanceTx
     -> StdGenSeed
     -> PartialTx era
     -> Either (ErrBalanceTx era) (Tx era)
-balanceTx
+testBalanceTx
     (Wallet utxoAssumptions utxo (AnyChangeAddressGenWithState genChangeAddr s))
     protocolParameters
     timeTranslation
@@ -2199,7 +2201,7 @@ balanceTx
     =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $ do
         (transactionInEra, _nextChangeState) <-
-            balanceTransaction
+            balanceTx
                 protocolParameters
                 timeTranslation
                 utxoAssumptions
@@ -2212,7 +2214,7 @@ balanceTx
     utxoIndex = constructUTxOIndex utxo
 
 -- | Also returns the updated change state
-balanceTransactionWithDummyChangeState
+balanceTxWithDummyChangeState
     :: forall era. IsRecentEra era
     => UTxOAssumptions
     -> W.UTxO
@@ -2221,9 +2223,9 @@ balanceTransactionWithDummyChangeState
     -> Either
         (ErrBalanceTx era)
         (Tx era, DummyChangeState)
-balanceTransactionWithDummyChangeState utxoAssumptions utxo seed partialTx =
+balanceTxWithDummyChangeState utxoAssumptions utxo seed partialTx =
     (`evalRand` stdGenFromSeed seed) $ runExceptT $
-        balanceTransaction
+        balanceTx
             mockPParamsForBalancing
             dummyTimeTranslation
             utxoAssumptions

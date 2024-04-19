@@ -954,7 +954,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
     ( PartialTx (PartialTx)
-    , balanceTransaction
+    , balanceTx
     , constructUTxOIndex
     , fromWalletUTxO
     )
@@ -3548,7 +3548,7 @@ balanceTransaction
                 . Write.toCardanoApiTx
                 . fst
                 )
-            $ Write.balanceTransaction
+            $ Write.balanceTx
                 pp
                 timeTranslation
                 utxoAssumptions
