@@ -586,11 +586,8 @@ balanceTransaction
         selectedUTxO@(UTxO selectedUTxOMap) =
             UTxO $ Map.restrictKeys (unUTxO utxoReference) txIns
         selectedUTxOIndex :: UTxOIndex.UTxOIndex WalletUTxO
-        selectedUTxOIndex
-            = UTxOIndex.fromSequence
-            $ fmap convertUTxO
-            $ Map.toList
-            $ unUTxO selectedUTxO
+        selectedUTxOIndex =
+            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxOMap)
         txIns :: Set TxIn
         txIns = tx ^. bodyTxL . inputsTxBodyL
 
