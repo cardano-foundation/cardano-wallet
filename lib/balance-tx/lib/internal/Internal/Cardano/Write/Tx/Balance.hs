@@ -585,7 +585,8 @@ balanceTransaction
             $ Set.toList
             $ txIns <\> Map.keysSet (unUTxO selectedUTxO)
         selectedUTxO :: UTxO era
-        selectedUTxO = UTxO $ Map.restrictKeys (unUTxO utxoReference) txIns
+        selectedUTxO@(UTxO selectedUTxOMap) =
+            UTxO $ Map.restrictKeys (unUTxO utxoReference) txIns
         selectedUTxOIndex :: UTxOIndex.UTxOIndex WalletUTxO
         selectedUTxOIndex
             = UTxOIndex.fromSequence
