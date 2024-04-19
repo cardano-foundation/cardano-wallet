@@ -581,12 +581,12 @@ balanceTransaction
             W.TxOut addr bundle = toWalletTxOut era o
         maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
         maybeUnresolvedTxIns =
-            NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxOMap
-        selectedUTxOMap :: Map TxIn (TxOut era)
-        selectedUTxOMap = Map.restrictKeys (unUTxO utxoReference) txIns
+            NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxO
+        selectedUTxO :: Map TxIn (TxOut era)
+        selectedUTxO = Map.restrictKeys (unUTxO utxoReference) txIns
         selectedUTxOIndex :: UTxOIndex.UTxOIndex WalletUTxO
         selectedUTxOIndex =
-            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxOMap)
+            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
         txIns :: Set TxIn
         txIns = tx ^. bodyTxL . inputsTxBodyL
 
