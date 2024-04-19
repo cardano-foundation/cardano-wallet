@@ -580,10 +580,8 @@ balanceTransaction
                 case txinLookup i utxoReference of
                     Nothing ->
                        Left i
-                    Just o -> do
-                        let i' = Convert.toWallet i
-                        let W.TxOut addr bundle = toWalletTxOut era o
-                        pure (WalletUTxO i' addr, bundle)
+                    Just o ->
+                        pure (convertUTxO (i, o))
         case partitionEithers res of
             ([], resolved) -> pure $ UTxOIndex.fromSequence resolved
             (unresolvedInsHead : unresolvedInsTail, _) ->
@@ -592,6 +590,11 @@ balanceTransaction
                 $ (unresolvedInsHead :| unresolvedInsTail)
       where
         era = recentEra @era
+        convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
+        convertUTxO (i, o) = (WalletUTxO i' addr, bundle)
+          where
+            i' = Convert.toWallet i
+            W.TxOut addr bundle = toWalletTxOut era o
         maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
         maybeUnresolvedTxIns
             = NE.nonEmpty
