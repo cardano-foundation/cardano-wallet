@@ -1791,7 +1791,7 @@ x-transactionMetadata: &transactionMetadata
 x-encryptionMethod: &encryptionMethod
   type: string
   enum:
-    - base
+    - basic
 
 x-encryptMetadata: &encryptMetadata
   description: |

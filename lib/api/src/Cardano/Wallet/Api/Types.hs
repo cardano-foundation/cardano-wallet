@@ -1243,13 +1243,13 @@ data EncryptMetadataMethod =  AES256CBC
     deriving anyclass NFData
 
 instance ToJSON EncryptMetadataMethod where
-    toJSON AES256CBC = "base"
+    toJSON AES256CBC = "basic"
 instance FromJSON EncryptMetadataMethod where
     parseJSON = withText "base" $ \txt ->
-        if txt == "base" then
+        if txt == "basic" then
             pure AES256CBC
         else
-            fail "'base' is expected."
+            fail "'basic' is expected."
 
 data ApiEncryptMetadata = ApiEncryptMetadata
     { passphrase :: ApiT (Passphrase "lenient")
