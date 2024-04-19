@@ -74,8 +74,7 @@ import Data.Either
     ( isLeft
     )
 import Data.Maybe
-    ( fromJust
-    , isJust
+    ( isJust
     , isNothing
     )
 import Data.SOP.Counting
@@ -143,7 +142,6 @@ import UnliftIO.Concurrent
 
 import qualified Cardano.Wallet.Primitive.SyncProgress as S
 import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
@@ -278,7 +276,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
             }
       where
         mockHash :: Read.RawHeaderHash
-        mockHash = fromJust $ Hash.hashFromBytes $ B8.replicate 32 'a'
+        mockHash = Read.mockRawHeaderHash 0
 
     forkInterpreter startTime =
         let

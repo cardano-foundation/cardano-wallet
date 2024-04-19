@@ -33,6 +33,7 @@ import Cardano.Wallet.Read.Block.HeaderHash
     , getEraHeaderHash
     , getEraPrevHeaderHash
     , getRawHeaderHash
+    , mockRawHeaderHash
     )
 import Cardano.Wallet.Read.Block.SlotNo
     ( SlotNo (..)

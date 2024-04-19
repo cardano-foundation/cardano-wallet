@@ -144,9 +144,6 @@ import Data.Aeson
     , genericToJSON
     , (.=)
     )
-import Data.Maybe
-    ( fromJust
-    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -183,10 +180,8 @@ import qualified Cardano.Wallet.DB.Layer as DB
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
-import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
@@ -554,7 +549,7 @@ mockNetworkLayer = dummyNetworkLayer
     }
 
 mockHash :: Read.RawHeaderHash
-mockHash = fromJust $ Hash.hashFromBytes (B8.replicate 32 'a')
+mockHash = Read.mockRawHeaderHash 0
 
 mockTimeInterpreter :: TimeInterpreter IO
 mockTimeInterpreter = dummyTimeInterpreter

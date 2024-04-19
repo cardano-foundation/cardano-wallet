@@ -1651,8 +1651,8 @@ manageRewardBalance
     -> DBLayer IO (SeqState n ShelleyKey)
     -> IO ()
 manageRewardBalance tr' netLayer db = do
-    watchNodeTip netLayer $ \bh -> do
-         traceWith tr $ MsgRewardBalanceQuery bh
+    watchNodeTip netLayer $ \nodeTip -> do
+         traceWith tr $ MsgRewardBalanceQuery nodeTip
          query <- do
             (acct, _, _) <- readRewardAccount db
             liftIO $ getCachedRewardAccountBalance netLayer acct
@@ -1695,8 +1695,8 @@ manageSharedRewardBalance
     -> DBLayer IO (SharedState n SharedKey)
     -> IO ()
 manageSharedRewardBalance tr' netLayer db = do
-    watchNodeTip netLayer $ \bh -> do
-         traceWith tr $ MsgRewardBalanceQuery bh
+    watchNodeTip netLayer $ \nodeTip -> do
+         traceWith tr $ MsgRewardBalanceQuery nodeTip
          query <- runExceptT $ do
             (acct, _, _) <-
                 lift $ readRewardAccount @(SharedState n SharedKey) db
@@ -2804,10 +2804,13 @@ runLocalTxSubmissionPool
     -> WalletLayer m s
     -> m ()
 runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
-    submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
+    submitPending <- rateLimited $ \nodeTip -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
         pending <- readLocalTxSubmissionPending ctx
-        let sl = bh ^. #slotNo
+        let sl = case nodeTip of
+                Read.GenesisTip -> SlotNo 0
+                Read.BlockTip{slotNo} ->
+                    SlotNo $ fromIntegral $ Read.unSlotNo slotNo
             pendingOldStyle = pending >>= mkLocalTxSubmission
         -- Re-submit transactions due, ignore errors
         forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
@@ -3856,7 +3859,7 @@ data WalletFollowLog
 data WalletLog
     = MsgMigrationUTxOBefore UTxOStatistics
     | MsgMigrationUTxOAfter UTxOStatistics
-    | MsgRewardBalanceQuery BlockHeader
+    | MsgRewardBalanceQuery Read.ChainTip
     | MsgRewardBalanceResult (Either ErrFetchRewards Coin)
     | MsgRewardBalanceExited
     | MsgTxSubmit TxSubmitLog
@@ -3906,8 +3909,9 @@ instance ToText WalletLog where
             "About to migrate the following distribution: \n" <> pretty summary
         MsgMigrationUTxOAfter summary ->
             "Expected distribution after complete migration: \n" <> pretty summary
-        MsgRewardBalanceQuery bh ->
-            "Updating the reward balance for block " <> pretty bh
+        MsgRewardBalanceQuery nodeTip ->
+            "Updating the reward balance for block "
+            <> Read.prettyChainTip nodeTip
         MsgRewardBalanceResult (Right amt) ->
             "The reward balance is " <> pretty amt
         MsgRewardBalanceResult (Left err) ->

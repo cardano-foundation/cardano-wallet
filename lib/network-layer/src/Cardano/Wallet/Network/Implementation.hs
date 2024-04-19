@@ -99,7 +99,6 @@ import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromPoint
-    , fromTip
     , fromTip'
     , nodeToClientVersions
     , toCardanoEra
@@ -385,6 +384,7 @@ import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -654,10 +654,11 @@ withNodeNetworkLayerBase
                     return res
                 Nothing -> pure $ StakePoolsSummary 0 mempty mempty
 
-        _watchNodeTip readTip cb = do
+        _watchNodeTip readTip callback = do
             observeForever readTip $ \tip -> do
-                let header = fromTip getGenesisBlockHash tip
-                bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
+                let tip' = fromOuroborosTip tip
+                bracketTracer (contramap (MsgWatcherUpdate tip') tr)
+                    $ callback tip'
 
         -- TODO(#2042): Make wallets call manually, with matching stopObserving.
         _getCachedRewardAccountBalance rewardsObserver k = do
@@ -1356,7 +1357,7 @@ data Log where
         -> Log
         -- ^ Number of pools in stake distribution, and rewards map,
         -- respectively.
-    MsgWatcherUpdate :: BlockHeader -> BracketLog -> Log
+    MsgWatcherUpdate :: Read.ChainTip -> BracketLog -> Log
     MsgInterpreter :: CardanoInterpreter StandardCrypto -> Log
     -- TODO: Combine ^^ and vv
     MsgInterpreterLog :: TimeInterpreterLog -> Log
@@ -1428,7 +1429,7 @@ instance ToText Log where
                 ]
         MsgWatcherUpdate tip b ->
             "Update watcher with tip: "
-                <> pretty tip
+                <> Read.prettyChainTip tip
                 <> ". Callback "
                 <> toText b
                 <> "."

@@ -145,7 +145,7 @@ data NetworkLayer m block = NetworkLayer
     -- ^ Get the last known slotting parameters. In principle, these can
     -- only change once per era.
     , watchNodeTip
-        :: (BlockHeader -> m ())
+        :: (Read.ChainTip -> m ())
         -> m ()
     -- ^ Register a callback for when the node tip changes.
     -- This function should never finish, unless the callback throws an
