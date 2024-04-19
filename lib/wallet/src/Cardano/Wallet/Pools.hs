@@ -108,7 +108,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , CertificatePublicationTime (..)
-    , ChainPoint (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
@@ -124,6 +123,9 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer
+    )
+import Cardano.Wallet.Primitive.Types.Block
+    ( chainPointFromBlockHeader'
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -294,6 +296,7 @@ import UnliftIO.STM
 import qualified Cardano.Pool.DB as PoolDb
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
@@ -688,13 +691,17 @@ monitorStakePools tr (NetworkParameters gp sp _pp) genesisPools nl DBLayer{..} =
                 return point
 
             -- See NOTE [PointSlotNo]
-            pseudoPointSlot :: ChainPoint -> SlotNo
-            pseudoPointSlot ChainPointAtGenesis = SlotNo 0
-            pseudoPointSlot (ChainPoint slot _) = slot
+            pseudoPointSlot :: Read.ChainPoint -> SlotNo
+            pseudoPointSlot Read.GenesisPoint =
+                SlotNo 0
+            pseudoPointSlot (Read.BlockPoint (Read.SlotNo slot) _) =
+                SlotNo (fromIntegral slot)
 
-            toChainPoint :: BlockHeader -> ChainPoint
-            toChainPoint (BlockHeader 0 _ _ _) = ChainPointAtGenesis
-            toChainPoint (BlockHeader sl _ h _) = ChainPoint sl h
+            toChainPoint :: BlockHeader -> Read.ChainPoint
+            toChainPoint (BlockHeader 0 _ _ _) =
+                Read.GenesisPoint
+            toChainPoint header =
+                chainPointFromBlockHeader' header
 
         -- Write genesis pools to DB. These are specific to the integration test
         -- cluster, and is always set to [] in the cardano-wallet executable.

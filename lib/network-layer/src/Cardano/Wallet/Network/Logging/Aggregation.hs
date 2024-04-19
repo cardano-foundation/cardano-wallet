@@ -29,9 +29,6 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
-import Cardano.Wallet.Primitive.Types.Block
-    ( ChainPoint (..)
-    )
 import Control.Concurrent.Class.MonadSTM
     ( atomically
     )
@@ -61,6 +58,8 @@ import NoThunks.Class
     , NoThunks (..)
     )
 
+import qualified Cardano.Wallet.Read as Read
+
 -- | Statistics of interest from the follow-function.
 --
 -- The @f@ allows us to use 'Rearview' to keep track of both current and
@@ -68,7 +67,7 @@ import NoThunks.Class
 data FollowStats f = FollowStats
     { blocksApplied :: !(f Int)
     , rollbacks :: !(f Int)
-    , localTip :: !(f ChainPoint)
+    , localTip :: !(f Read.ChainPoint)
     , time :: !(f UTCTime)
     -- ^ NOTE: Current time is not updated until @flush@ is called.
     , prog :: !(f SyncProgress)
@@ -120,7 +119,7 @@ overCurrent :: (a -> a) -> Rearview a -> Rearview a
 overCurrent f (Rearview pas cur) = Rearview pas (f cur)
 
 emptyStats :: UTCTime -> FollowStats Rearview
-emptyStats t = FollowStats (f 0) (f 0) (f ChainPointAtGenesis) (f t) (f p)
+emptyStats t = FollowStats (f 0) (f 0) (f Read.GenesisPoint) (f t) (f p)
   where
     f = initRearview
     p = NotResponding -- Hijacked as an initial value for simplicity.
@@ -149,7 +148,8 @@ instance ToText (FollowStats Rearview) where
                 [ "Applied " <> pretty (using (-) b) <> " blocks, "
                 , pretty (using (-) r) <> " rollbacks "
                 , "in the last " <> pretty (using diffUTCTime t) <> ". "
-                , "Current tip is " <> pretty (current tip) <> "."
+                , "Current tip is "
+                    <> Read.prettyChainPoint (current tip) <> "."
                 ]
           where
             using f x = f (current x) (past x)
@@ -202,9 +202,9 @@ flushStats t calcSyncProgress var = do
     forgetPast (Rearview _past curr) = initRearview curr
 
 -- See NOTE [PointSlotNo]
-pseudoSlotNo :: ChainPoint -> SlotNo
-pseudoSlotNo ChainPointAtGenesis = SlotNo 0
-pseudoSlotNo (ChainPoint slot _) = slot
+pseudoSlotNo :: Read.ChainPoint -> SlotNo
+pseudoSlotNo Read.GenesisPoint = SlotNo 0
+pseudoSlotNo (Read.BlockPoint (Read.SlotNo slot) _) = fromIntegral slot
 
 {- NOTE [PointSlotNo]
 

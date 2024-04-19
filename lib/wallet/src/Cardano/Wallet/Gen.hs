@@ -47,9 +47,7 @@ import Cardano.Wallet.Address.Discovery.Shared
     ( retrieveAllCosigners
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
-    , ChainPoint (..)
-    , Slot
+    ( Slot
     , SlotNo (..)
     , WalletId (..)
     , WithOrigin (..)
@@ -114,6 +112,7 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Wallet.Read as Read
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Map as Map
@@ -170,13 +169,17 @@ genSlotNo = SlotNo . fromIntegral <$> arbitrary @Word32
 shrinkSlotNo :: SlotNo -> [SlotNo]
 shrinkSlotNo (SlotNo x) = map SlotNo $ shrink x
 
-genChainPoint :: Gen ChainPoint
+genChainPoint :: Gen Read.ChainPoint
 genChainPoint = frequency
-    [ ( 1, pure ChainPointAtGenesis)  -- "common" but not "very common"
-    , (40, toChainPoint <$> (genBlockHeader =<< genSlotNo))
+    [ ( 1, pure Read.GenesisPoint)  -- "common" but not "very common"
+    , (40, Read.BlockPoint <$> genReadSlotNo <*> genHeaderHash)
     ]
   where
-    toChainPoint (BlockHeader slot _ h _) = ChainPoint slot h
+    genReadSlotNo = Read.SlotNo . fromIntegral <$> arbitrary @Word32
+    genHeaderHash = elements mockHashes
+
+mockHashes :: [Read.RawHeaderHash]
+mockHashes = map Read.mockRawHeaderHash [0..2]
 
 genSlot :: Gen Slot
 genSlot = frequency

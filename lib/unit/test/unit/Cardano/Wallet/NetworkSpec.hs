@@ -21,7 +21,6 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , ChainPoint (..)
     )
 import Data.Time.Clock
     ( getCurrentTime
@@ -42,6 +41,7 @@ import Test.QuickCheck
     , property
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.List.NonEmpty as NE
 
 spec :: Spec
@@ -51,7 +51,7 @@ spec = do
 
     describe "updateStats" $ do
         it "results in no unexpected thunks" $ property $
-          \(msg :: ChainSyncLog () ChainPoint) -> do
+          \(msg :: ChainSyncLog () Read.ChainPoint) -> do
             -- This test is not /fully/ fool-proof. Adding lots of nested types to
             -- LogState and logic in updateStats not covered by the generator
             -- might cause us to miss a thunk.
@@ -64,7 +64,7 @@ spec = do
                 Nothing -> return ()
                 Just x -> expectationFailure $ show x
 
-instance Arbitrary block => Arbitrary (ChainSyncLog block ChainPoint) where
+instance Arbitrary block => Arbitrary (ChainSyncLog block Read.ChainPoint) where
     arbitrary = oneof
         [ MsgChainRollForward <$> genNonEmpty <*> genChainPoint
         , MsgChainRollBackward <$> genChainPoint <*> arbitrary

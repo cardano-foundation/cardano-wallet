@@ -44,8 +44,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
       -- * Conversions
     , toCardanoHash
     , unsealShelleyTx
-    , toPoint
-    , fromPoint
     , toCardanoTxId
     , toCardanoTxIn
     , fromCardanoTxIn
@@ -184,9 +182,6 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromCardanoValue
     , fromShelleyAddress
     , fromShelleyTxOut
-    )
-import Cardano.Wallet.Primitive.Types.Block
-    ( ChainPoint (..)
     )
 import Cardano.Wallet.Primitive.Types.Certificates
     ( PoolCertificate
@@ -426,14 +421,6 @@ nodeToClientVersions = [NodeToClientV_15, NodeToClientV_16]
 toCardanoHash :: W.Hash "BlockHeader" -> OneEraHash (CardanoEras sc)
 toCardanoHash (W.Hash bytes) =
     OneEraHash $ toShort bytes
-
-toPoint :: W.ChainPoint -> O.Point (CardanoBlock sc)
-toPoint ChainPointAtGenesis = O.GenesisPoint
-toPoint (ChainPoint slot h) = O.BlockPoint slot (toCardanoHash h)
-
-fromPoint :: O.Point (CardanoBlock sc) -> W.ChainPoint
-fromPoint O.GenesisPoint = ChainPointAtGenesis
-fromPoint (O.BlockPoint slot h) = ChainPoint slot (fromCardanoHash h)
 
 getProducer
     :: (Era era, EncCBORGroup (TxSeq era))

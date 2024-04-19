@@ -204,10 +204,12 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , WalletId (..)
     , WalletName (..)
-    , chainPointFromBlockHeader
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..)
+    )
+import Cardano.Wallet.Primitive.Types.Block
+    ( chainPointFromBlockHeader'
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -788,7 +790,7 @@ bench_baseline_restoration
             , readChainPoints  = readTVarIO chainPointT
             , rollForward = \blocks ntip -> do
                 atomically $ writeTVar chainPointT
-                    [chainPointFromBlockHeader ntip]
+                    [chainPointFromBlockHeader' ntip]
                 let (ntxs, hss) = NE.unzip $
                         numberOfTransactionsInBlock <$> blocks
                     (heights, slots) = NE.unzip hss

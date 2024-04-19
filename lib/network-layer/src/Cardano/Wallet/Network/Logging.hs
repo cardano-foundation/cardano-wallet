@@ -44,7 +44,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader
-    , ChainPoint (..)
     , slotNo
     )
 import Control.Concurrent.Class.MonadSTM
@@ -88,6 +87,7 @@ import UnliftIO.Concurrent
     ( threadDelay
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.List.NonEmpty as NE
 
 -- | Low-level logs of the ChainSync mini-protocol
@@ -114,14 +114,15 @@ mapChainSyncLog f g = \case
     MsgLocalTip point -> MsgLocalTip (g point)
     MsgTipDistance d -> MsgTipDistance d
 
-instance ToText (ChainSyncLog BlockHeader ChainPoint) where
+instance ToText (ChainSyncLog BlockHeader Read.ChainPoint) where
     toText = \case
         MsgChainFindIntersect cps ->
             mconcat
                 [ "Requesting intersection using "
                 , toText (length cps)
                 , " points"
-                , maybe "" ((", the latest being " <>) . pretty) (headMay cps)
+                , maybe "" ((", the latest being " <>) . Read.prettyChainPoint)
+                    (headMay cps)
                 ]
         MsgChainRollForward headers tip ->
             let buildRange (x :| []) = x
@@ -133,21 +134,21 @@ instance ToText (ChainSyncLog BlockHeader ChainPoint) where
                     , buildRange slots
                     , "]"
                     , ", tip is "
-                    , pretty tip
+                    , Read.prettyChainPoint tip
                     ]
         MsgChainRollBackward b 0 ->
-            "ChainSync roll backward: " <> pretty b
+            "ChainSync roll backward: " <> Read.prettyChainPoint b
         MsgChainRollBackward b bufferSize ->
             mconcat
                 [ "ChainSync roll backward: "
-                , pretty b
+                , Read.prettyChainPoint b
                 , ", handled inside pipeline buffer with remaining length "
                 , toText bufferSize
                 ]
         MsgChainTip tip ->
-            "Node tip is " <> pretty tip
+            "Node tip is " <> Read.prettyChainPoint tip
         MsgLocalTip point ->
-            "Synchronized with point: " <> pretty point
+            "Synchronized with point: " <> Read.prettyChainPoint point
         MsgTipDistance d -> "Distance to chain tip: " <> toText d <> " blocks"
 
 instance HasPrivacyAnnotation (ChainSyncLog block point)
@@ -164,7 +165,7 @@ instance HasSeverityAnnotation (ChainSyncLog block point) where
 -- | Higher level log of a chain follower.
 -- Includes computed statistics about synchronization progress.
 data ChainFollowLog
-    = MsgChainSync (ChainSyncLog BlockHeader ChainPoint)
+    = MsgChainSync (ChainSyncLog BlockHeader Read.ChainPoint)
     | MsgFollowStats (FollowStats Rearview)
     | MsgStartFollowing
     deriving (Show, Eq, Generic)
@@ -184,7 +185,7 @@ instance HasSeverityAnnotation ChainFollowLog where
 
 -- | Update the current statistics based on a new log message.
 updateStats
-    :: ChainSyncLog block ChainPoint
+    :: ChainSyncLog block Read.ChainPoint
     -> FollowStats Rearview
     -> FollowStats Rearview
 updateStats msg s = case msg of
@@ -206,7 +207,7 @@ updateStats msg s = case msg of
 withFollowStatsMonitoring
     :: Tracer IO ChainFollowLog
     -> (SlotNo -> IO SyncProgress)
-    -> (Tracer IO (ChainSyncLog BlockHeader ChainPoint) -> IO ())
+    -> (Tracer IO (ChainSyncLog BlockHeader Read.ChainPoint) -> IO ())
     -> IO ()
 withFollowStatsMonitoring tr calcSyncProgress act = do
     t0 <- getCurrentTime
@@ -216,7 +217,7 @@ withFollowStatsMonitoring tr calcSyncProgress act = do
                 s <- takeTMVar var
                 putTMVar var $! updateStats msg s
             pure $ MsgChainSync msg
-    traceWith trChainSyncLog $ MsgLocalTip ChainPointAtGenesis
+    traceWith trChainSyncLog $ MsgLocalTip Read.GenesisPoint
     race_
         (act trChainSyncLog)
         (loop var startupDelay)
