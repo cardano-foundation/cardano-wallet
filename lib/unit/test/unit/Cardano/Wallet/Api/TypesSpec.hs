@@ -1184,19 +1184,19 @@ spec = do
     describe "toMetadataEncrypted openssl goldens" $ do
         -- $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- vBSywXY+WGcrckHUCyjJcQ==
-        it "msg is 0-level deep short - no salt" $ do
+        it "short msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
                     }
                 schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
-                    [( 0, Cardano.TxMetaMap
+                    [( 674, Cardano.TxMetaMap
                         [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data")
                         ])
                     ]
                 schemaAfter = Cardano.TxMetadata $ Map.fromList $
-                    [ (0, Cardano.TxMetaMap
+                    [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList [Cardano.TxMetaText "vBSywXY+WGcrckHUCyjJcQ=="])
                           , (Cardano.TxMetaText "enc", Cardano.TxMetaText "basic")
@@ -1208,19 +1208,19 @@ spec = do
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8
         -- ygjbu25gCdhJh7iEpAJVaA==
-        it "msg is 0-level deep long - no salt" $ do
+        it "long msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
                     }
                 schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
-                    [( 0, Cardano.TxMetaMap
+                    [( 674, Cardano.TxMetaMap
                         [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes")
                         ])
                     ]
                 schemaAfter = Cardano.TxMetadata $ Map.fromList $
-                    [ (0, Cardano.TxMetaMap
+                    [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                                 [ Cardano.TxMetaText "OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8"
@@ -1234,13 +1234,13 @@ spec = do
         -- $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- IBcjjGQ7akr/CV2Zb0HtCvEPQNndZujCZ7iaFGMjOX3q3PJg5aRUvHgO3gPnDzYE
         -- 7jFsGUK1bCdwsrn8kqI92NccbG8oAtPJUktZTTcO/bg=
-        it "msg is 0-level deep complex - no salt" $ do
+        it "cip msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
                     }
                 schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
-                    [( 0, Cardano.TxMetaMap
+                    [( 674, Cardano.TxMetaMap
                         [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                               [ Cardano.TxMetaText "Invoice-No: 123456789"
@@ -1250,7 +1250,7 @@ spec = do
                         ])
                     ]
                 schemaAfter = Cardano.TxMetadata $ Map.fromList $
-                    [ (0, Cardano.TxMetaMap
+                    [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                                 [ Cardano.TxMetaText "IBcjjGQ7akr/CV2Zb0HtCvEPQNndZujCZ7iaFGMjOX3q3PJg5aRUvHgO3gPnDzYE"
@@ -1263,19 +1263,19 @@ spec = do
 
         -- $ $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600=
-        it "msg is 0-level deep short - salted" $ do
+        it "short msg - salted" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
                     }
                 schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
-                    [( 0, Cardano.TxMetaMap
+                    [( 674, Cardano.TxMetaMap
                         [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data")
                         ])
                     ]
                 schemaAfter = Cardano.TxMetadata $ Map.fromList $
-                    [ (0, Cardano.TxMetaMap
+                    [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                                 [Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600="])
@@ -1289,19 +1289,19 @@ spec = do
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh
         -- PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU=
-        it "msg is 0-level deep long - salted" $ do
+        it "long msg - salted" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
                     }
                 schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
-                    [( 0, Cardano.TxMetaMap
+                    [( 674, Cardano.TxMetaMap
                         [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes")
                         ])
                     ]
                 schemaAfter = Cardano.TxMetadata $ Map.fromList $
-                    [ (0, Cardano.TxMetaMap
+                    [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                                 [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh"
@@ -1316,13 +1316,13 @@ spec = do
         -- $ $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do
         -- +SIXXn04a9xkoFHk4ZH281nIfH5lpClsO16p2vRpSsdBDFO78aTPX3bsHsRE0L2A
-        it "msg is 0-level deep complex - no salt" $ do
+        it "cip msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
                     , enc = Nothing
                     }
                 schemaBefore = TxMetadataWithSchema TxMetadataNoSchema $ Cardano.TxMetadata $ Map.fromList
-                    [( 0, Cardano.TxMetaMap
+                    [( 674, Cardano.TxMetaMap
                         [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                               [ Cardano.TxMetaText "Invoice-No: 123456789"
@@ -1332,7 +1332,7 @@ spec = do
                         ])
                     ]
                 schemaAfter = Cardano.TxMetadata $ Map.fromList $
-                    [ (0, Cardano.TxMetaMap
+                    [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
                                 [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do"
