@@ -42,10 +42,6 @@ import Cardano.Wallet.Network.Logging.Aggregation
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
-import Cardano.Wallet.Primitive.Types.Block
-    ( BlockHeader
-    , slotNo
-    )
 import Control.Concurrent.Class.MonadSTM
     ( atomically
     )
@@ -67,9 +63,6 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( getCurrentTime
-    )
-import Fmt
-    ( pretty
     )
 import GHC.Generics
     ( Generic
@@ -114,6 +107,8 @@ mapChainSyncLog f g = \case
     MsgLocalTip point -> MsgLocalTip (g point)
     MsgTipDistance d -> MsgTipDistance d
 
+type BlockHeader = Read.EraValue Read.BHeader
+
 instance ToText (ChainSyncLog BlockHeader Read.ChainPoint) where
     toText = \case
         MsgChainFindIntersect cps ->
@@ -127,7 +122,9 @@ instance ToText (ChainSyncLog BlockHeader Read.ChainPoint) where
         MsgChainRollForward headers tip ->
             let buildRange (x :| []) = x
                 buildRange xs = NE.head xs <> ".." <> NE.last xs
-                slots = pretty . slotNo <$> headers
+                slots =
+                    Read.prettySlotNo . Read.applyEraFun Read.getEraSlotNo
+                    <$> headers
             in  mconcat
                     [ "ChainSync roll forward: "
                     , "applying blocks at slots ["

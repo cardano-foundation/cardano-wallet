@@ -95,9 +95,6 @@ import Cardano.Wallet.Network.Implementation.UnliftIO
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
-    ( getBlockHeader
-    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( nodeToClientVersions
     , toCardanoEra
@@ -478,7 +475,9 @@ withNodeNetworkLayerBase
                                 trFollowLog
                                 (_syncProgress interpreterVar)
                     withStats $ \trChainSyncLog -> do
-                        let mapB = getBlockHeader getGenesisBlockHash
+                        let mapB =
+                                Read.applyEraFunValue Read.getEraBHeader
+                                . Read.fromConsensusBlock
                             mapP = fromOuroborosPoint
                         let client =
                                 mkWalletClient
@@ -527,8 +526,7 @@ withNodeNetworkLayerBase
                 }
       where
         GenesisParameters
-            { getGenesisBlockHash
-            , getGenesisBlockDate
+            { getGenesisBlockDate
             } = genesisParameters np
         sp = slottingParameters np
         cfg = codecConfig sp
