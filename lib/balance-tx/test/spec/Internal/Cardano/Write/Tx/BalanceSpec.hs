@@ -650,7 +650,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
 
     describe "effect of txMaxSize on coin selection" $ do
 
-        let balanceWithDust = balanceTx
+        let balanceWithDust = testBalanceTx
                 dustWallet
                 mockPParamsForBalancing
                 dummyTimeTranslation
@@ -810,7 +810,7 @@ spec_balanceTransaction = describe "balanceTransaction" $ do
         | ix <- [0 .. 500]
         ]
 
-    balance = balanceTx
+    balance = testBalanceTx
         wallet
         mockPParamsForBalancing
         (dummyTimeTranslationWithHorizon horizon)
@@ -849,7 +849,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         let walletUTxO = utxo [W.Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
-            let tx = either (error . show) id $ balanceTx
+            let tx = either (error . show) id $ testBalanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
@@ -911,7 +911,7 @@ balanceTransactionGoldenSpec = describe "balance goldens" $ do
         mkGolden ptx c =
             let
                 walletUTxO = utxo [c]
-                res = balanceTx
+                res = testBalanceTx
                     (mkTestWallet walletUTxO)
                     mockPParamsForBalancing
                     dummyTimeTranslation
@@ -1287,7 +1287,8 @@ prop_balanceTransactionExistingReturnCollateral
         hasReturnCollateral tx
             && not (hasInsCollateral tx)
             && not (hasTotalCollateral tx) ==>
-        case balanceTx wallet protocolParams timeTranslation seed partialTx of
+        case
+        testBalanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingReturnCollateral === err
             e -> counterexample (show e) False
   where
@@ -1305,7 +1306,8 @@ prop_balanceTransactionExistingTotalCollateral
         hasTotalCollateral tx
             && not (hasInsCollateral tx)
             && not (hasReturnCollateral tx) ==>
-        case balanceTx wallet protocolParams timeTranslation seed partialTx of
+        case
+        testBalanceTx wallet protocolParams timeTranslation seed partialTx of
             Left err -> ErrBalanceTxExistingTotalCollateral === err
             e -> counterexample (show e) False
   where
@@ -1333,7 +1335,7 @@ prop_balanceTransactionUnableToCreateInput
 prop_balanceTransactionUnableToCreateInput
     (Success balanceTxArgs) =
         withMaxSuccess 10 $
-        balanceTx
+        testBalanceTx
             (eraseWalletUTxOSet wallet)
             protocolParams
             timeTranslation
@@ -1389,7 +1391,7 @@ prop_balanceTransactionValid
                     ">100 payment outputs"
 
         let res =
-                balanceTx
+                testBalanceTx
                     wallet
                     protocolParams
                     timeTranslation
@@ -2061,7 +2063,7 @@ applyBalanceTxArgs
     -> Either (ErrBalanceTx era) (Tx era)
 applyBalanceTxArgs
     (BalanceTxArgs wallet protocolParams timeTranslation seed partialTx) =
-        (balanceTx wallet protocolParams timeTranslation seed partialTx)
+    (testBalanceTx wallet protocolParams timeTranslation seed partialTx)
 
 -- | A set of arguments that will always lead to success.
 --
@@ -2182,7 +2184,7 @@ addExtraTxIns extraIns =
 -- | Wrapper for testing convenience. Does hide the monad 'm', tracing, and the
 -- updated 'changeState'. Does /not/ specify mock values for things like
 -- protocol parameters. This is up to the caller to provide.
-balanceTx
+testBalanceTx
     :: forall era. IsRecentEra era
     => Wallet era
     -> Write.PParams era
@@ -2190,7 +2192,7 @@ balanceTx
     -> StdGenSeed
     -> PartialTx era
     -> Either (ErrBalanceTx era) (Tx era)
-balanceTx
+testBalanceTx
     (Wallet utxoAssumptions utxo (AnyChangeAddressGenWithState genChangeAddr s))
     protocolParameters
     timeTranslation
