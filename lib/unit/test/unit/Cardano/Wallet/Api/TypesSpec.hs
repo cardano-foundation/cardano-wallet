@@ -1184,6 +1184,14 @@ spec = do
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
+    describe "Api Errors" $ do
+        it "Every ApiErrorInfo constructor has a corresponding schema type" $
+            let res = fromJSON @SchemaApiErrorInfo specification
+                errStr = case res of
+                    Error s -> s
+                    _ -> ""
+            in counterexample errStr $ res == Success SchemaApiErrorInfo
+
     describe "toMetadataEncrypted openssl goldens" $ do
         -- $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- vBSywXY+WGcrckHUCyjJcQ==
