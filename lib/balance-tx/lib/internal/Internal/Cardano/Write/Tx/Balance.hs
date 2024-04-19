@@ -591,9 +591,8 @@ balanceTransaction
       where
         era = recentEra @era
         convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
-        convertUTxO (i, o) = (WalletUTxO i' addr, bundle)
+        convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
           where
-            i' = Convert.toWallet i
             W.TxOut addr bundle = toWalletTxOut era o
         maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
         maybeUnresolvedTxIns
