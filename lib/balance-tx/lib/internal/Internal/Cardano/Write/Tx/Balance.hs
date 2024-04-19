@@ -582,9 +582,8 @@ balanceTransaction
         maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
         maybeUnresolvedTxIns =
             NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxOMap
-        selectedUTxO :: UTxO era
-        selectedUTxO@(UTxO selectedUTxOMap) =
-            UTxO $ Map.restrictKeys (unUTxO utxoReference) txIns
+        selectedUTxOMap :: Map TxIn (TxOut era)
+        selectedUTxOMap = Map.restrictKeys (unUTxO utxoReference) txIns
         selectedUTxOIndex :: UTxOIndex.UTxOIndex WalletUTxO
         selectedUTxOIndex =
             UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxOMap)
