@@ -736,18 +736,18 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    (Selection extraInputs extraCollateral extraOutputs extraInputScripts, s')
+    (Selection{extraInputs,extraCollateral,extraOutputs,extraInputScripts}, s')
         <- selectAssets
-               pp
-               utxoAssumptions
-               (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
-               redeemers
-               utxoSelection
-               balance0
-               (Convert.toWalletCoin minfee0)
-               genChange
-               selectionStrategy
-               s
+            pp
+            utxoAssumptions
+            (F.toList $ partialTx ^. bodyTxL . outputsTxBodyL)
+            redeemers
+            utxoSelection
+            balance0
+            (Convert.toWalletCoin minfee0)
+            genChange
+            selectionStrategy
+            s
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -1060,6 +1060,11 @@ selectAssets pp utxoAssumptions outs' redeemers
                         ) <$> inputs <> collateral
         in  ( Selection
                 { extraInputs = map fst inputs
+                -- TODO [ADP-3355] Filter out pre-selected inputs here
+                --
+                -- The correctness of balanceTx is currently not affected, but
+                -- it is misleading.
+                -- https://cardanofoundation.atlassian.net/browse/ADP-3355
                 , extraCollateral = map fst collateral
                 , extraOutputs = change
                 , extraInputScripts = inputScripts
