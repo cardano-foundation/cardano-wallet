@@ -592,8 +592,6 @@ balanceTransaction
             $ fmap convertUTxO
             $ Map.toList
             $ unUTxO selectedUTxO
-        txIns :: [TxIn]
-        txIns = Set.toList txInSet
         txInSet :: Set TxIn
         txInSet = tx ^. bodyTxL . inputsTxBodyL
 
