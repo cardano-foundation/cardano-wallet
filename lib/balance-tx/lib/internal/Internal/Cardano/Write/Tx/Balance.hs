@@ -111,9 +111,6 @@ import Cardano.Ledger.Mary.Value
     ( MaryValue (MaryValue)
     , MultiAsset (MultiAsset)
     )
-import Cardano.Ledger.UTxO
-    ( txinLookup
-    )
 import Control.Arrow
     ( left
     )
@@ -138,9 +135,6 @@ import Control.Monad.Trans.State
     )
 import Data.Bits
     ( Bits
-    )
-import Data.Either
-    ( partitionEithers
     )
 import Data.Function
     ( on
@@ -179,6 +173,9 @@ import Data.Monoid.Monus
     )
 import Data.Semigroup.Cancellative
     ( Reductive ((</>))
+    )
+import Data.Set
+    ( Set
     )
 import Fmt
     ( Buildable
@@ -536,10 +533,10 @@ balanceTx
     guardExistingTotalCollateral
 
     guardUTxOConsistency
-    externallySelectedUtxo <- extractExternallySelectedUTxO
+    preselectedUTxOIndex <- indexPreselectedUTxO
     let utxoSelection =
             UTxOSelection.fromIndexPair
-                (availableUTxOIndex, externallySelectedUtxo)
+                (availableUTxOIndex, preselectedUTxOIndex)
     when (UTxOSelection.availableSize utxoSelection == 0) $
         throwE ErrBalanceTxUnableToCreateInput
 
@@ -563,33 +560,33 @@ balanceTx
             then balanceWith SelectionStrategyMinimal
             else throwE e
   where
+    era = recentEra @era
+
     -- Creates an index of all UTxOs that are already spent as inputs of the
     -- partial transaction.
     --
     -- This function will fail if any of the inputs refers to a UTxO that
     -- cannot be found in the UTxO reference set.
     --
-    extractExternallySelectedUTxO
+    indexPreselectedUTxO
         :: ExceptT (ErrBalanceTx era) m (UTxOIndex.UTxOIndex WalletUTxO)
-    extractExternallySelectedUTxO = do
-        let res = flip map txIns $ \i ->
-                case txinLookup i utxoReference of
-                    Nothing ->
-                       Left i
-                    Just o -> do
-                        let i' = Convert.toWallet i
-                        let W.TxOut addr bundle = toWalletTxOut era o
-                        pure (WalletUTxO i' addr, bundle)
-        case partitionEithers res of
-            ([], resolved) -> pure $ UTxOIndex.fromSequence resolved
-            (unresolvedInsHead : unresolvedInsTail, _) ->
-                throwE
-                . ErrBalanceTxUnresolvedInputs
-                $ (unresolvedInsHead :| unresolvedInsTail)
+    indexPreselectedUTxO
+        | Just unresolvedTxIns <- maybeUnresolvedTxIns =
+            throwE (ErrBalanceTxUnresolvedInputs unresolvedTxIns)
+        | otherwise = pure $
+            UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
       where
-        era = recentEra @era
-        txIns :: [TxIn]
-        txIns = Set.toList $ tx ^. bodyTxL . inputsTxBodyL
+        convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
+        convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
+          where
+            W.TxOut addr bundle = toWalletTxOut era o
+        maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
+        maybeUnresolvedTxIns =
+            NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxO
+        selectedUTxO :: Map TxIn (TxOut era)
+        selectedUTxO = Map.restrictKeys (unUTxO utxoReference) txIns
+        txIns :: Set TxIn
+        txIns = tx ^. bodyTxL . inputsTxBodyL
 
     -- The set of all UTxOs that may be referenced by a balanced transaction.
     --
@@ -637,7 +634,6 @@ balanceTx
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
         conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
-        era = recentEra @era
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
