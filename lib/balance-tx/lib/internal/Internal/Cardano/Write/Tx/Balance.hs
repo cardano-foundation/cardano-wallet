@@ -545,7 +545,7 @@ balanceTransaction
 
     let adjustedPartialTx = assignMinimalAdaQuantitiesToOutputsWithoutAda pp tx
         balanceWith strategy =
-            balanceTransactionInner
+            balanceTxInner
                 pp
                 timeTranslation
                 utxoAssumptions
@@ -707,7 +707,7 @@ assignMinimalAdaQuantitiesToOutputsWithoutAda pp =
         if c == mempty then computeMinimumCoinForTxOut pp out else c
 
 -- | Internal helper to 'balanceTransaction'
-balanceTransactionInner
+balanceTxInner
     :: forall era m changeState.
         ( MonadRandom m
         , IsRecentEra era
@@ -727,7 +727,7 @@ balanceTransactionInner
     -> TimelockKeyWitnessCounts
     -> Tx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
-balanceTransactionInner
+balanceTxInner
     pp
     timeTranslation
     utxoAssumptions
