@@ -17,10 +17,10 @@ module Cardano.Wallet.Network.Implementation.Types
 import Prelude
 
 import Cardano.Wallet.Read
-    ( BHeader
-    , BlockNo (..)
+    ( BlockNo (..)
     , ChainPoint (..)
     , ChainTip (..)
+    , EraIndependentBlockHeader
     , SlotNo (..)
     )
 import Cardano.Wallet.Read.Hash
@@ -89,10 +89,14 @@ toCardanoSlotNo (SlotNo slot) = O.SlotNo (toEnum $ fromEnum slot)
 fromCardanoSlotNo :: O.SlotNo -> SlotNo
 fromCardanoSlotNo (O.SlotNo slot) = SlotNo (fromIntegral slot)
 
-toCardanoHash :: Hash Blake2b_256 BHeader -> OneEraHash (CardanoEras sc)
+toCardanoHash
+    :: Hash Blake2b_256 EraIndependentBlockHeader
+    -> OneEraHash (CardanoEras sc)
 toCardanoHash = OneEraHash . hashToBytesShort
 
-fromCardanoHash :: OneEraHash (CardanoEras sc) -> Hash Blake2b_256 BHeader
+fromCardanoHash
+    :: OneEraHash (CardanoEras sc)
+    -> Hash Blake2b_256 EraIndependentBlockHeader
 fromCardanoHash = fromJust . hashFromBytesShort . getOneEraHash
 
 toCardanoBlockNo :: BlockNo -> O.BlockNo

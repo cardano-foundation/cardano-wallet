@@ -1,5 +1,9 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-|
 Copyright: © 2024 Cardano Foundation
@@ -10,6 +14,7 @@ Copyright: © 2024 Cardano Foundation
 module Cardano.Wallet.Read.Block.BHeader
     ( BHeader (..)
     , BHeaderT
+    , getEraBHeader
     ) where
 
 import Prelude
@@ -19,6 +24,9 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.Block
     ( bheader
+    )
+import Cardano.Wallet.Read.Block.Block
+    ( Block (..)
     )
 import Cardano.Wallet.Read.Eras
     ( Allegra
@@ -33,18 +41,23 @@ import Cardano.Wallet.Read.Eras.KnownEras
     ( Era (..)
     , IsEra (..)
     )
-import Ouroboros.Consensus.Protocol.Praos
+import GHC.Generics
+    ( Generic
+    )
+import Ouroboros.Consensus.Block.Abstract
+    ( getHeader
+    )
+import Ouroboros.Consensus.Protocol.Praos.Header
     ( Header
-    , Praos
     )
-import Ouroboros.Consensus.Protocol.TPraos
-    ( TPraos
-    )
+import Ouroboros.Consensus.Shelley.Protocol.Praos
+    ()
+import Ouroboros.Consensus.Shelley.Protocol.TPraos
+    ()
 
 import qualified Cardano.Protocol.TPraos.BHeader as TPraos
 import qualified Ouroboros.Consensus.Byron.Ledger.Block as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
-import qualified Ouroboros.Network.Block as O
 
 type family BHeaderT era where
     BHeaderT Byron = Byron.Header Byron.ByronBlock
@@ -56,17 +69,18 @@ type family BHeaderT era where
     BHeaderT Conway = Header StandardCrypto
 
 newtype BHeader era = BHeader {unBHeader :: BHeaderT era}
+    deriving (Generic)
 
-deriving instance Show (BHeaderT era) => Show (BHeaderT era)
-deriving instance Eq (BHeaderT era) => Eq (BHeaderT era)
+deriving instance Show (BHeaderT era) => Show (BHeader era)
+deriving instance Eq (BHeaderT era) => Eq (BHeader era)
 
 {-# INLINABLE getEraBHeader #-}
 getEraBHeader :: forall era. IsEra era => Block era -> BHeader era
-getEraBHeader = case theEra @era of
-    Byron -> \(Block block) -> BHeader $ Byron.getHeader block
-    Shelley -> \(Block block) -> BHeader $ bheader block
-    Allegra -> \(Block block) -> BHeader $ bheader block
-    Mary -> \(Block block) -> BHeader $ bheader block
-    Alonzo -> \(Block block) -> BHeader $ bheader block
-    Babbage -> \(Block block) -> BHeader $ bheader block
-    Conway -> \(Block block) -> BHeader $ bheader block
+getEraBHeader = case theEra :: Era era of
+    Byron -> \(Block block) -> BHeader $ getHeader block
+    Shelley -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
+    Allegra -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
+    Mary -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
+    Alonzo -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
+    Babbage -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
+    Conway -> \(Block (O.ShelleyBlock block _)) -> BHeader $ bheader block
