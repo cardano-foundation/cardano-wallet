@@ -180,6 +180,9 @@ import Data.Monoid.Monus
 import Data.Semigroup.Cancellative
     ( Reductive ((</>))
     )
+import Data.Set
+    ( Set
+    )
 import Fmt
     ( Buildable
     , Builder
@@ -590,7 +593,9 @@ balanceTransaction
       where
         era = recentEra @era
         txIns :: [TxIn]
-        txIns = Set.toList $ tx ^. bodyTxL . inputsTxBodyL
+        txIns = Set.toList txInSet
+        txInSet :: Set TxIn
+        txInSet = tx ^. bodyTxL . inputsTxBodyL
 
     -- The set of all UTxOs that may be referenced by a balanced transaction.
     --
