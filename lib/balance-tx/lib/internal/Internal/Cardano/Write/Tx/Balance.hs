@@ -560,6 +560,8 @@ balanceTransaction
             then balanceWith SelectionStrategyMinimal
             else throwE e
   where
+    era = recentEra @era
+
     -- Creates an index of all UTxOs that are already spent as inputs of the
     -- partial transaction.
     --
@@ -574,7 +576,6 @@ balanceTransaction
         | otherwise = pure $
             UTxOIndex.fromSequence (convertUTxO <$> Map.toList selectedUTxO)
       where
-        era = recentEra @era
         convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
         convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
           where
@@ -633,7 +634,6 @@ balanceTransaction
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
         conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
-        era = recentEra @era
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
