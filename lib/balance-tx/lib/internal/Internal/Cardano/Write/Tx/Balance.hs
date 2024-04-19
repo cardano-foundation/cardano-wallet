@@ -592,6 +592,8 @@ balanceTransaction
                 $ (unresolvedInsHead :| unresolvedInsTail)
       where
         era = recentEra @era
+        selectedUTxO :: UTxO era
+        selectedUTxO = UTxO $ Map.restrictKeys (unUTxO utxoReference) txInSet
         txIns :: [TxIn]
         txIns = Set.toList txInSet
         txInSet :: Set TxIn
