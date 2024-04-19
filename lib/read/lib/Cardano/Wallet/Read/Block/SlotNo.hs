@@ -7,6 +7,7 @@
 module Cardano.Wallet.Read.Block.SlotNo
     ( getEraSlotNo
     , SlotNo (..)
+    , prettySlotNo
     ) where
 
 import Prelude
@@ -35,6 +36,7 @@ import Ouroboros.Consensus.Shelley.Protocol.Praos
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
     ()
 
+import qualified Data.Text as T
 import qualified Ouroboros.Network.Block as O
 
 {-# INLINABLE getEraSlotNo #-}
@@ -55,3 +57,6 @@ newtype SlotNo = SlotNo {unSlotNo :: Natural}
 
 instance NoThunks SlotNo
 
+-- | Short printed representation of a 'ChainPoint'.
+prettySlotNo :: SlotNo -> T.Text
+prettySlotNo (SlotNo n) = T.pack (show n)

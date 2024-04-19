@@ -43,6 +43,7 @@ import Cardano.Wallet.Read.Block.HeaderHash
 import Cardano.Wallet.Read.Block.SlotNo
     ( SlotNo (..)
     , getEraSlotNo
+    , prettySlotNo
     )
 import Cardano.Wallet.Read.Block.Txs
     ( getEraTransactions
