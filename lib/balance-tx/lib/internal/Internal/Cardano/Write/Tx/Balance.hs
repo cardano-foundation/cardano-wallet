@@ -580,10 +580,8 @@ balanceTransaction
           where
             W.TxOut addr bundle = toWalletTxOut era o
         maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
-        maybeUnresolvedTxIns
-            = NE.nonEmpty
-            $ Set.toList
-            $ txIns <\> Map.keysSet (unUTxO selectedUTxO)
+        maybeUnresolvedTxIns =
+            NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxOMap
         selectedUTxO :: UTxO era
         selectedUTxO@(UTxO selectedUTxOMap) =
             UTxO $ Map.restrictKeys (unUTxO utxoReference) txIns
