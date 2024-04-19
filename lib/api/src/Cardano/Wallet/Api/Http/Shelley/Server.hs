@@ -3157,8 +3157,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
 -- When encryption is enabled we do the following:
--- (a) find field(s) `msg` in the first level value pairs for each key
--- (b) encrypt the 'msg' values if present, if there is no 'msg' value emit error
+-- (a) find field `msg` in the object of "674" label
+-- (b) encrypt the 'msg' value if present, if there is neither "674" label
+--     nor 'msg' value inside object of it emit error
 -- (c) update value of `msg` with the encrypted initial value(s) encoded in base64
 --     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
 -- (d) add `enc` field with encryption method value 'basic'
@@ -3168,9 +3169,9 @@ toMetadataEncrypted
     -> Maybe ByteString
     -> Either ErrConstructTx Cardano.TxMetadata
 toMetadataEncrypted apiEncrypt payload saltM = do
-    msgValues <- findMsgValues
-    msgValues' <- mapM encryptingMsg msgValues
-    pure $ updateTxMetadata msgValues'
+    msgValue <- findMsgValue
+    msgValue' <- mapM encryptingMsg msgValue
+    pure $ updateTxMetadata msgValue'
   where
     pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
     (secretKey, iv) = PBKDF2.generateKey PBKDF2Config
@@ -3188,14 +3189,15 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     merge (Just val) Nothing = Just val
     merge Nothing Nothing = Nothing
     merge (Just _) (Just _) = error "only one 'msg' field expected"
-    -- assumption: `msg` is not embedded beyond the first level
-    -- we could change that in the future
+    -- `msg` is not embedded beyond the first level
     inspectMetaPair (Cardano.TxMetaMap pairs) =
         foldl merge Nothing (getMsgValue <$> pairs)
     inspectMetaPair _ = Nothing
-    findMsgValues =
+    keyAndValueCond k v =
+        k == 674 && (isJust $ inspectMetaPair v)
+    findMsgValue =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
-            filteredMap = Map.filter (isJust . inspectMetaPair) themap
+            filteredMap = Map.filterWithKey keyAndValueCond themap
         in if Map.size filteredMap >= 1 then
             Right $ Map.toList filteredMap
            else
