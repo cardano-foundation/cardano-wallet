@@ -110,6 +110,7 @@ library
     , ouroboros-network-api
     , path
     , path-io
+    , pathtype
     , resourcet
     , retry
     , servant-client

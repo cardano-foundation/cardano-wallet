@@ -35,7 +35,10 @@ import Cardano.Wallet.Launch.Cluster
     , withFaucet
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( Absolutizer (..)
+    , DirOf (..)
+    , mkRelDirOf
+    , newAbsolutizer
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -62,6 +65,10 @@ import System.Environment.Extended
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
+    )
+import System.Path
+    ( absDir
+    , absRel
     )
 import UnliftIO.Concurrent
     ( threadDelay
@@ -205,7 +212,9 @@ main = withUtf8 $ do
     clusterEra <- Cluster.clusterEraFromEnv
     cfgNodeLogging <-
         Cluster.logFileConfigFromEnv
-            (Just (Cluster.clusterEraToString clusterEra))
+            $ Just
+            $ mkRelDirOf
+            $ Cluster.clusterEraToString clusterEra
     CommandLineOptions{clusterConfigsDir} <- parseCommandLineOptions
     withSystemTempDir tr "test-cluster" skipCleanup $ \clusterPath -> do
         let clusterCfg =
@@ -213,7 +222,7 @@ main = withUtf8 $ do
                     { cfgStakePools = Cluster.defaultPoolConfigs
                     , cfgLastHardFork = clusterEra
                     , cfgNodeLogging
-                    , cfgClusterDir = FileOf clusterPath
+                    , cfgClusterDir = DirOf (absDir clusterPath)
                     , cfgClusterConfigs = clusterConfigsDir
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
@@ -257,26 +266,29 @@ main = withUtf8 $ do
                                             Nothing
                                         , WC.walletByronGenesisForTestnet =
                                             Just
-                                                $ clusterDir Path.</> [Path.relfile|genesis-byron.json|]
+                                                $ clusterDir Path.</> [Path.relfile|byron-genesis.json|]
                                         }
                                 )
                                 (WC.stop . fst)
                         threadDelay maxBound -- wait for Ctrl+C
 
 newtype CommandLineOptions = CommandLineOptions
-    {clusterConfigsDir :: FileOf "cluster-configs"}
+    {clusterConfigsDir :: DirOf "cluster-configs"}
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
-parseCommandLineOptions =
+parseCommandLineOptions = do
+    absolutizer <- newAbsolutizer
     O.execParser
         $ O.info
-            (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
+            ( fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
+                <**> O.helper
+            )
             (O.progDesc "Local Cluster for testing")
 
-clusterConfigsDirParser :: O.Parser (FileOf "cluster-configs")
-clusterConfigsDirParser =
-    FileOf
+clusterConfigsDirParser :: Absolutizer -> O.Parser (DirOf "cluster-configs")
+clusterConfigsDirParser (Absolutizer absOf) =
+    DirOf . absOf . absRel
         <$> O.strOption
             ( O.long "cluster-configs"
                 <> O.metavar "LOCAL_CLUSTER_CONFIGS"

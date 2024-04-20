@@ -74,6 +74,10 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( nodeOutputFileFromEnv
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , toFilePath
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
     )
@@ -167,12 +171,15 @@ import System.Environment.Extended
 import System.Exit
     ( ExitCode
     )
-import System.FilePath
-    ( (</>)
-    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
+    )
+import System.Path
+    ( absDir
+    , relDir
+    , relFile
+    , (</>)
     )
 import Test.Integration.Framework.Context
     ( Context (..)
@@ -217,7 +224,7 @@ import qualified Data.Text as T
 
 -- | Do all the program setup required for integration tests, create a temporary
 -- directory, and pass this info to the main hspec action.
-withTestsSetup :: (FilePath -> (Tracer IO TestsLog, Tracers IO) -> IO a) -> IO a
+withTestsSetup :: (DirOf "cluster" -> (Tracer IO TestsLog, Tracers IO) -> IO a) -> IO a
 withTestsSetup action = do
     -- Handle SIGTERM properly
     installSignalHandlersNoLogging
@@ -235,8 +242,9 @@ withTestsSetup action = do
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
         withSystemTempDir stdoutTextTracer "test" skipCleanup
-        $ \testDir ->
-            withTracers testDir $ action testDir
+        $ \testDir -> do
+            let clusterDir = DirOf $ absDir testDir
+            withTracers clusterDir $ action clusterDir
 
 mkFaucetFunds :: Cluster.TestnetMagic -> FaucetM FaucetFunds
 mkFaucetFunds testnetMagic = do
@@ -275,11 +283,11 @@ mkFaucetFunds testnetMagic = do
 
 data TestingCtx = TestingCtx
     { testnetMagic :: Cluster.TestnetMagic
-    , testDir :: FilePath
+    , testDir :: DirOf "cluster"
     , tr :: Tracer IO TestsLog
     , tracers :: Tracers IO
     , localClusterEra :: ClusterEra
-    , testDataDir :: FileOf "test-data"
+    , testDataDir :: DirOf "test-data"
     }
 
 -- A decorator for the pool database that records all calls to the
@@ -309,7 +317,7 @@ recordPoolGarbageCollectionEvents TestingCtx{..} eventsRef =
 
 withServer
     :: TestingCtx
-    -> FileOf "cluster-configs"
+    -> DirOf "cluster-configs"
     -> FaucetFunds
     -> Pool.DBDecorator IO
     -> Maybe (FileOf "node-output")
@@ -330,13 +338,13 @@ withServer
         bracketTracer' tr "withServer" $ do
             let tr' = contramap MsgCluster tr
             era <- clusterEraFromEnv
-            withSMASH tr' testDir $ \smashUrl -> do
+            withSMASH tr' (toFilePath . absDirOf $ testDir) $ \smashUrl -> do
                 let clusterConfig =
                         Cluster.Config
                             { cfgStakePools = Cluster.defaultPoolConfigs
                             , cfgLastHardFork = era
                             , cfgNodeLogging = LogFileConfig Info Nothing Info
-                            , cfgClusterDir = FileOf @"cluster" testDir
+                            , cfgClusterDir = testDir
                             , cfgClusterConfigs = clusterConfigs
                             , cfgTestnetMagic = testnetMagic
                             , cfgShelleyGenesisMods = []
@@ -362,28 +370,29 @@ onClusterStart
     (RunningNode nodeConnection genesisData vData) = do
         let (networkParameters, block0, genesisPools) =
                 fromGenesisData genesisData
-        let db = testDir </> "wallets"
-        createDirectory db
+        let db = absDirOf testDir </> relDir "wallets"
+        createDirectory $ toFilePath db
         listen <- walletListenFromEnv envFromText
-        let testMetadata = pathOf testDataDir </> "token-metadata.json"
-        withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl -> do
-            serveWallet
-                (NodeSource nodeConnection vData (SyncTolerance 10))
-                networkParameters
-                tunedForMainnetPipeliningStrategy
-                (NTestnet (fromIntegral (sgNetworkMagic genesisData)))
-                genesisPools
-                tracers
-                (Just db)
-                (Just dbDecorator)
-                "127.0.0.1"
-                listen
-                Nothing
-                Nothing
-                (Just tokenMetaUrl)
-                block0
-                (callback nodeConnection networkParameters)
-                `withException` (traceWith tr . MsgServerError)
+        let testMetadata = absDirOf testDataDir </> relFile "token-metadata.json"
+        withMetadataServer (queryServerStatic $ toFilePath testMetadata)
+            $ \tokenMetaUrl -> do
+                serveWallet
+                    (NodeSource nodeConnection vData (SyncTolerance 10))
+                    networkParameters
+                    tunedForMainnetPipeliningStrategy
+                    (NTestnet (fromIntegral (sgNetworkMagic genesisData)))
+                    genesisPools
+                    tracers
+                    (Just $ toFilePath db)
+                    (Just dbDecorator)
+                    "127.0.0.1"
+                    listen
+                    Nothing
+                    Nothing
+                    (Just tokenMetaUrl)
+                    block0
+                    (callback nodeConnection networkParameters)
+                    `withException` (traceWith tr . MsgServerError)
 
 -- threadDelay $ 3 * 60 * 1_000_000 -- Wait 3 minutes for the node to start
 -- exitSuccess
@@ -446,7 +455,7 @@ setupContext
                             { cfgStakePools = error "cfgStakePools: unused"
                             , cfgLastHardFork = localClusterEra
                             , cfgNodeLogging = error "cfgNodeLogging: unused"
-                            , cfgClusterDir = FileOf @"cluster" testDir
+                            , cfgClusterDir = testDir
                             , cfgClusterConfigs = clusterConfigs
                             , cfgTestnetMagic = testnetMagic
                             , cfgShelleyGenesisMods = []

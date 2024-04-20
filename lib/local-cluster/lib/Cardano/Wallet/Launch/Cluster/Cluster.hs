@@ -41,7 +41,7 @@ import Cardano.Wallet.Launch.Cluster.Faucet
     , sendFaucetAssetsTo
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
     , changeFileOf
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
@@ -111,11 +111,11 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty ((:|))
     )
-import System.Directory
-    ( createDirectoryIfMissing
-    )
 import System.Exit
     ( ExitCode (..)
+    )
+import System.Path.Directory
+    ( createDirectoryIfMissing
     )
 import UnliftIO.Async
     ( async
@@ -172,11 +172,11 @@ withCluster
 withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
     $ bracketTracer' "withCluster"
     $ do
-        let clusterDir = pathOf cfgClusterDir
+        let clusterDir = absDirOf cfgClusterDir
         traceClusterLog $ MsgHardFork cfgLastHardFork
         withPoolMetadataServer $ \metadataServer -> do
             liftIO $ createDirectoryIfMissing True clusterDir
-            traceClusterLog $ MsgStartingCluster clusterDir
+            traceClusterLog $ MsgStartingCluster cfgClusterDir
             liftIO resetGlobals
 
             configuredPools <- configurePools metadataServer cfgStakePools
@@ -209,7 +209,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                         cfgLastHardFork
                         pool0port
                         cfgNodeLogging
-                        nodeOutputFile
+                        cfgNodeOutputFile
             liftIO $ operatePool pool0 pool0Cfg $ \runningPool0 ->
                 runClusterM config $ do
                     extraClusterSetupUsingNode configuredPools runningPool0
@@ -227,7 +227,8 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                                 , extraLogDir = Nothing
                                                 , minSeverityFile = Info
                                                 }
-                                        , nodeParamsOutputFile = nodeOutputFile
+                                        , nodeParamsOutputFile
+                                            = cfgNodeOutputFile
                                         }
                             launchPools
                                 others
@@ -241,7 +242,6 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
   where
     FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds
         = faucetFunds
-    nodeOutputFile = pathOf <$> cfgNodeOutputFile
     -- Important cluster setup to run without rollbacks
     extraClusterSetupUsingNode
         :: NonEmpty ConfiguredPool -> RunningNode -> ClusterM ()
@@ -315,7 +315,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                     cfgLastHardFork
                     (port, peers)
                     cfgNodeLogging
-                    nodeOutputFile
+                    cfgNodeOutputFile
         asyncs <- forM (zip (NE.toList configuredPools) ports)
             $ \(configuredPool, (port, peers)) -> do
                 async $ handle onException $ do

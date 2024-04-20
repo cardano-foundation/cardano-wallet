@@ -20,13 +20,17 @@ import Cardano.Wallet.Launch.Cluster.Config
     , TestnetMagic (testnetMagicToNatural)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , absFilePathOf
+    , toFilePath
     )
 import Control.Monad.Reader
     ( MonadReader (..)
     )
-import System.FilePath
-    ( (</>)
+import System.Path
+    ( relFile
+    , (</>)
     )
 
 genSinkAddress
@@ -35,16 +39,16 @@ genSinkAddress
     -> ClusterM String
 genSinkAddress stakePub = do
     Config{..} <- ask
-    let outputDir = cfgClusterDir
-    let sinkPrv = pathOf outputDir </> "sink.prv"
-    let sinkPub = pathOf outputDir </> "sink.pub"
+    let DirOf outputDir = cfgClusterDir
+    let sinkPrv = outputDir </> relFile "sink.prv"
+    let sinkPub = outputDir </> relFile "sink.pub"
     cli
         [ "address"
         , "key-gen"
         , "--signing-key-file"
-        , sinkPrv
+        , toFilePath sinkPrv
         , "--verification-key-file"
-        , sinkPub
+        , toFilePath sinkPub
         ]
     cliLine
         $ [ "address"
@@ -52,8 +56,8 @@ genSinkAddress stakePub = do
           , "--testnet-magic"
           , show (testnetMagicToNatural cfgTestnetMagic)
           , "--payment-verification-key-file"
-          , sinkPub
+          , toFilePath sinkPub
           ]
             ++ case stakePub of
                 Nothing -> []
-                Just key -> ["--stake-verification-key-file", pathOf key]
+                Just key -> ["--stake-verification-key-file", absFilePathOf key]

@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
@@ -37,10 +36,12 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
-    , NodePathSegment
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , absFilePathOf
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
     ( GenesisFiles (..)
@@ -63,35 +64,39 @@ import Data.Generics.Labels
 import Data.Maybe
     ( catMaybes
     )
+import Data.Tagged
+    ( Tagged
+    , untag
+    )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..)
     )
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..)
     )
-import System.FilePath
-    ( (</>)
+import System.Path
+    ( AbsFile
+    , RelDir
+    , relFile
+    , (<.>)
+    , (</>)
     )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
-import Data.Tagged
-    ( Tagged
-    , untag
-    )
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 
 genNodeConfig
-    :: NodePathSegment
+    :: RelDir
     -- ^ A top-level directory where to put the configuration.
     -> Tagged "node-name" String -- Node name
     -> GenesisFiles
     -- ^ Genesis block start time
     -> ClusterEra
     -- ^ Last era to hard fork into.
-    -> LogFileConfig
+    -> LogFileConfig FileOf
     -- ^ Minimum severity level for logging and optional /extra/ logging output
     -> ClusterM
         ( FileOf "node-config"
@@ -100,7 +105,7 @@ genNodeConfig
         )
 genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
     Config{..} <- ask
-    poolDir <- askNodeDir nodeSegment
+    DirOf poolDir <- askNodeDir nodeSegment
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let GenesisFiles
             { byronGenesis
@@ -124,26 +129,31 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
             map fileScribe
                 $ catMaybes
                     [ Just ("cardano-node.log", severity)
-                    , (,extraSev) . T.pack <$> mExtraLogFile
+                    , case mExtraLogFile of
+                        Just (FileOf file) -> Just
+                            (T.pack $ toFilePath file, extraSev)
+                        Nothing -> Nothing
                     ]
 
     let poolNodeConfig =
-            poolDir </> ("node" <> untag name <> "-config.yaml")
-
+            poolDir </> relFile ("node" <> untag name <> "-config") <.> "yaml"
+        nodeConfigPath :: AbsFile
+        nodeConfigPath = absDirOf cfgClusterConfigs
+            </> relFile "node-config.json"
     liftIO
-        $ Yaml.decodeFileThrow (pathOf cfgClusterConfigs </> "node-config.json")
-            >>= withAddedKey "ShelleyGenesisFile" shelleyGenesis
-            >>= withAddedKey "ByronGenesisFile" byronGenesis
-            >>= withAddedKey "AlonzoGenesisFile" alonzoGenesis
-            >>= withAddedKey "ConwayGenesisFile" conwayGenesis
+        $ Yaml.decodeFileThrow (toFilePath nodeConfigPath)
+            >>= withAddedKey "ShelleyGenesisFile" (absFilePathOf shelleyGenesis)
+            >>= withAddedKey "ByronGenesisFile" (absFilePathOf byronGenesis)
+            >>= withAddedKey "AlonzoGenesisFile" (absFilePathOf alonzoGenesis)
+            >>= withAddedKey "ConwayGenesisFile" (absFilePathOf conwayGenesis)
             >>= withHardForks clusterEra
             >>= withAddedKey "minSeverity" Debug
             >>= withScribes scribes
             >>= withObject (addMinSeverityStdout severity)
-            >>= Yaml.encodeFile poolNodeConfig
+            >>= Yaml.encodeFile (toFilePath poolNodeConfig)
 
     -- Parameters
-    genesisData <- Yaml.decodeFileThrow shelleyGenesis
+    genesisData <- Yaml.decodeFileThrow $ absFilePathOf shelleyGenesis
     let networkMagic = NetworkMagic $ sgNetworkMagic genesisData
     pure
         ( FileOf @"node-config" poolNodeConfig

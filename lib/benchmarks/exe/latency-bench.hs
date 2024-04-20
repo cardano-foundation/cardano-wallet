@@ -7,7 +7,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Main where
@@ -84,12 +83,17 @@ import Cardano.Wallet.Faucet
 import Cardano.Wallet.Launch.Cluster
     ( Config (..)
     , FaucetFunds (..)
-    , FileOf (..)
     , RunningNode (..)
     , defaultPoolConfigs
     , testnetMagicToNatural
     , withCluster
     , withFaucet
+    )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , mkRelDirOf
+    , newAbsolutizer
+    , toFilePath
     )
 import Cardano.Wallet.LocalCluster
     ( clusterConfigsDirParser
@@ -199,12 +203,14 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
-import System.FilePath
-    ( (</>)
-    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
+    )
+import System.Path
+    ( absDir
+    , relDir
+    , (</>)
     )
 import Test.Integration.Framework.DSL
     ( Context (..)
@@ -638,19 +644,22 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
     withServer cfgTestnetMagic faucetFunds setupAction = do
         skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
         withSystemTempDir stdoutTextTracer "latency" skipCleanup $ \dir -> do
-            let db = dir </> "wallets"
-            createDirectory db
+            let testDir = absDir dir
+                db = testDir </> relDir "wallets"
+            createDirectory $ toFilePath db
             CommandLineOptions{clusterConfigsDir} <- parseCommandLineOptions
             clusterEra <- Cluster.clusterEraFromEnv
             cfgNodeLogging <-
                 Cluster.logFileConfigFromEnv
-                    (Just (Cluster.clusterEraToString clusterEra))
+                    $ Just
+                    $ mkRelDirOf
+                    $ Cluster.clusterEraToString clusterEra
             let clusterConfig =
                     Cluster.Config
                         { cfgStakePools = pure (NE.head defaultPoolConfigs)
                         , cfgLastHardFork = clusterEra
                         , cfgNodeLogging
-                        , cfgClusterDir = FileOf @"cluster" dir
+                        , cfgClusterDir = DirOf testDir
                         , cfgClusterConfigs = clusterConfigsDir
                         , cfgTestnetMagic
                         , cfgShelleyGenesisMods =
@@ -678,7 +687,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             (NTestnet . fromIntegral $ testnetMagicToNatural testnetMagic)
             [] -- pool certificates
             tracers
-            (Just db)
+            (Just $ toFilePath db)
             Nothing -- db decorator
             "127.0.0.1"
             (ListenOnPort 8_090)
@@ -703,12 +712,15 @@ era = maxBound
 -- Command line options --------------------------------------------------------
 
 newtype CommandLineOptions = CommandLineOptions
-    {clusterConfigsDir :: FileOf "cluster-configs"}
+    {clusterConfigsDir :: DirOf "cluster-configs"}
     deriving stock (Show)
 
 parseCommandLineOptions :: IO CommandLineOptions
-parseCommandLineOptions =
+parseCommandLineOptions = do
+    absolutizer <- newAbsolutizer
     O.execParser
         $ O.info
-            (fmap CommandLineOptions clusterConfigsDirParser <**> O.helper)
+            (fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
+                <**> O.helper
+            )
             (O.progDesc "Cardano Wallet's Latency Benchmark")

@@ -20,7 +20,8 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgRegisteringPoolMetadata)
@@ -35,11 +36,15 @@ import Data.ByteArray.Encoding
     ( Base (Base16)
     , convertToBase
     )
-import System.Directory
-    ( createDirectoryIfMissing
+import System.Path
+    ( RelFile
+    , relDir
+    , relFile
+    , (<.>)
+    , (</>)
     )
-import System.FilePath
-    ( (</>)
+import System.Path.Directory
+    ( createDirectoryIfMissing
     )
 import Test.Utils.StaticServer
     ( withStaticServer
@@ -60,17 +65,20 @@ withPoolMetadataServer
     -> ClusterM a
 withPoolMetadataServer action = do
     UnliftClusterM withConfig Config{..} <- askUnliftClusterM
-    let metadir = pathOf cfgClusterDir </> "pool-metadata"
+    let metadir = absDirOf cfgClusterDir </> relDir "pool-metadata"
     liftIO $ do
-        createDirectoryIfMissing False metadir
-        withStaticServer metadir $ \baseURL -> do
-            let _urlFromPoolIndex i = baseURL </> metadataFileName i
+        createDirectoryIfMissing True metadir
+        withStaticServer (toFilePath metadir) $ \baseURL -> do
+            let _urlFromPoolIndex i =
+                    baseURL <> toFilePath (metadataFileName i)
             withConfig
                 $ action
                     PoolMetadataServer
                         { registerMetadataForPoolIndex = \i metadata -> do
                             let metadataBytes = Aeson.encode metadata
-                            BL8.writeFile (metadir </> (metadataFileName i)) metadataBytes
+                            BL8.writeFile
+                                (toFilePath $ metadir </> (metadataFileName i))
+                                metadataBytes
                             let hash = blake2b256 (BL.toStrict metadataBytes)
                             traceWith cfgTracer
                                 $ MsgRegisteringPoolMetadata
@@ -79,5 +87,5 @@ withPoolMetadataServer action = do
                         , urlFromPoolIndex = _urlFromPoolIndex
                         }
   where
-    metadataFileName :: Int -> FilePath
-    metadataFileName i = show i <> ".json"
+    metadataFileName :: Int -> RelFile
+    metadataFileName i = relFile (show i) <.> "json"

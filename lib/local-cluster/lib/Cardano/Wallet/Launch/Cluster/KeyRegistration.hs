@@ -29,7 +29,9 @@ import Cardano.Wallet.Launch.Cluster.Faucet
     , takeFaucet
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.SinkAddress
     ( genSinkAddress
@@ -47,8 +49,9 @@ import Data.Tagged
     ( Tagged (..)
     , untag
     )
-import System.FilePath
-    ( (</>)
+import System.Path
+    ( relFile
+    , (</>)
     )
 
 import qualified Data.Aeson as Aeson
@@ -64,22 +67,20 @@ prepareStakeKeyRegistration
         )
 prepareStakeKeyRegistration = do
     Config{..} <- ask
-    let file = pathOf cfgClusterDir </> "tx.raw"
+    let transactionPath = absDirOf cfgClusterDir </> relFile "tx.raw"
     let stakePub =
-            FileOf @"stake-pub"
-                $ pathOf cfgClusterDir </> "pre-registered-stake.vkey"
+            absDirOf cfgClusterDir </> relFile "pre-registered-stake.vkey"
         stakePrv =
-            FileOf @"stake-prv"
-                $ pathOf cfgClusterDir </> "pre-registered-stake.skey"
+            absDirOf cfgClusterDir </> relFile "pre-registered-stake.skey"
     liftIO $ do
         let (pub, prv) = preRegisteredStakeKeyPair
-        Aeson.encodeFile (pathOf stakePub) pub
-        Aeson.encodeFile (pathOf stakePrv) prv
+        Aeson.encodeFile (toFilePath stakePub) pub
+        Aeson.encodeFile (toFilePath stakePrv) prv
     (faucetInput, faucetPrv) <- takeFaucet
-    cert <-
+    FileOf cert <-
         issueStakeVkCert
             (Tagged @"prefix" "pre-registered")
-            stakePub
+            (FileOf stakePub)
     sink <- genSinkAddress Nothing
     cli
         [ clusterEraToString cfgLastHardFork
@@ -94,8 +95,12 @@ prepareStakeKeyRegistration = do
         , "--fee"
         , show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file"
-        , pathOf cert
+        , toFilePath cert
         , "--out-file"
-        , file
+        , toFilePath transactionPath
         ]
-    pure (FileOf @"reg-tx" file, faucetPrv, stakePrv)
+    pure
+        ( FileOf @"reg-tx" transactionPath
+        , faucetPrv
+        , FileOf @"stake-prv" $ stakePrv
+        )

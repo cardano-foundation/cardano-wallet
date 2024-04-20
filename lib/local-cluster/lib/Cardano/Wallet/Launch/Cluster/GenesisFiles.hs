@@ -56,7 +56,9 @@ import Cardano.Wallet.Launch.Cluster.Config
     , TestnetMagic (testnetMagicToNatural)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.UnsafeInterval
     ( unsafeNonNegativeInterval
@@ -101,8 +103,8 @@ import Data.Time.Clock.POSIX
 import System.Directory
     ( copyFile
     )
-import System.FilePath
-    ( (</>)
+import System.Path hiding
+    ( FilePath
     )
 
 import qualified Cardano.Ledger.Api.Tx.Address as Ledger
@@ -112,10 +114,10 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ListMap as ListMap
 
 data GenesisFiles = GenesisFiles
-    { byronGenesis :: FilePath
-    , shelleyGenesis :: FilePath
-    , alonzoGenesis :: FilePath
-    , conwayGenesis :: FilePath
+    { byronGenesis :: FileOf "genesis-byron"
+    , shelleyGenesis :: FileOf "genesis-shelley"
+    , alonzoGenesis :: FileOf "genesis-alonzo"
+    , conwayGenesis :: FileOf "genesis-conway"
     }
     deriving stock (Show, Eq)
 
@@ -230,30 +232,39 @@ generateGenesis initialFunds genesisMods = do
                         }
                     genesisMods
 
-        let shelleyGenesis = pathOf cfgClusterDir </> "shelley-genesis.json"
-        Aeson.encodeFile shelleyGenesis shelleyGenesisData
+        let byronFileOf, shelleyFileOf, alonzoFileOf, conwayFileOf
+                :: DirOf x  -> AbsFile
+            byronFileOf x = absDirOf x </> relFile "byron-genesis.json"
+            shelleyFileOf x = absDirOf x </> relFile "shelley-genesis.json"
+            alonzoFileOf x = absDirOf x </> relFile "alonzo-genesis.json"
+            conwayFileOf x = absDirOf x </> relFile "conway-genesis.json"
+
+        let shelleyGenesis = shelleyFileOf cfgClusterDir
+        Aeson.encodeFile (toFilePath shelleyGenesis) shelleyGenesisData
 
         let fileToAeson :: FilePath -> IO Aeson.Value
             fileToAeson f = Aeson.eitherDecodeFileStrict f >>= either fail pure
 
-        let byronGenesis = pathOf cfgClusterDir </> "genesis-byron.json"
-        fileToAeson (pathOf cfgClusterConfigs </> "byron-genesis.json")
+        let byronGenesis = byronFileOf cfgClusterDir
+        fileToAeson (toFilePath $ byronFileOf cfgClusterConfigs)
             >>= withAddedKey
                 "startTime"
                 (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
-            >>= Aeson.encodeFile byronGenesis
+            >>= Aeson.encodeFile (toFilePath byronGenesis)
 
-        let alonzoGenesis = pathOf cfgClusterDir </> "genesis-alonzo.json"
-        fileToAeson (pathOf cfgClusterConfigs </> "alonzo-genesis.json")
-            >>= Aeson.encodeFile alonzoGenesis
+        let alonzoGenesis = alonzoFileOf cfgClusterDir
+        fileToAeson (toFilePath $ alonzoFileOf cfgClusterConfigs)
+            >>= Aeson.encodeFile (toFilePath alonzoGenesis)
 
-        let conwayGenesis = pathOf cfgClusterDir </> "genesis-conway.json"
-        copyFile (pathOf cfgClusterConfigs </> "conway-genesis.json") conwayGenesis
+        let conwayGenesis = conwayFileOf cfgClusterDir
+        copyFile
+            (toFilePath $ conwayFileOf cfgClusterConfigs)
+            (toFilePath conwayGenesis)
 
         pure
             GenesisFiles
-                { byronGenesis
-                , shelleyGenesis
-                , alonzoGenesis
-                , conwayGenesis
+                { byronGenesis = FileOf byronGenesis
+                , shelleyGenesis = FileOf shelleyGenesis
+                , alonzoGenesis = FileOf alonzoGenesis
+                , conwayGenesis = FileOf conwayGenesis
                 }
