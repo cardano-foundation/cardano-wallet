@@ -2,7 +2,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Read.Block.Txs
     ( getEraTransactions
@@ -18,7 +17,6 @@ import Cardano.Wallet.Read.Block.Block
     )
 import Cardano.Wallet.Read.Eras
     ( Byron
-    , (:.:) (..)
     )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( Era (..)
@@ -48,7 +46,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
 {-# INLINABLE getEraTransactions #-}
 -- | Get the list of transactions in the block.
-getEraTransactions :: forall era. IsEra era => Block era -> ([] :.: Tx) era
+getEraTransactions :: forall era. IsEra era => Block era -> [Tx era]
 getEraTransactions = case theEra @era of
     Byron -> getTxs' getTxsFromBlockByron
     Shelley -> getTxs' getTxsFromBlockShelleyAndOn
@@ -58,7 +56,7 @@ getEraTransactions = case theEra @era of
     Babbage -> getTxs' getTxsFromBlockShelleyAndOn
     Conway -> getTxs' getTxsFromBlockShelleyAndOn
   where
-    getTxs' f (Block block) = Comp $ Tx <$> f block
+    getTxs' f (Block block) = Tx <$> f block
 
 getTxsFromBlockByron :: O.ByronBlock -> [TxT Byron]
 getTxsFromBlockByron block =

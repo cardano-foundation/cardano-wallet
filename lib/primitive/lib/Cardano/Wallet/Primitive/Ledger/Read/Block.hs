@@ -26,7 +26,6 @@ import Cardano.Wallet.Read
     , ConsensusBlock
     , IsEra
     , fromConsensusBlock
-    , (:.:) (Comp)
     )
 import Cardano.Wallet.Read.Block.Txs
     ( getEraTransactions
@@ -66,7 +65,7 @@ primitiveBlock hg = do
 
 getTxsAndCertificates :: IsEra era => Block era -> [(W.Tx, [W.Certificate])]
 getTxsAndCertificates block =
-    let Comp txs = getEraTransactions block
+    let txs = getEraTransactions block
         ptxs = primitiveTx <$> txs
         pcts = getCertificates . getEraCertificates <$> txs
     in  zip ptxs pcts
