@@ -2681,18 +2681,6 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         genTxForBalancing :: Gen (Tx era)
         genTxForBalancing =
             fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
-        genTxOut :: Gen (TxOut era)
-        genTxOut =
-            CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
-                <$> genCardanoApiTxOut
-          where
-            genCardanoApiTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
-            genCardanoApiTxOut =
-                -- NOTE: genTxOut does not generate quantities larger than
-                -- `maxBound :: Word64`, however users could supply these. We
-                -- should ideally test what happens, and make it clear what
-                -- code, if any, should validate.
-                CardanoApi.genTxOut (cardanoEra @era)
         txInputs :: Tx era -> Set TxIn
         txInputs tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
@@ -2819,6 +2807,19 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
             utxoToMap (UTxO m) = m
 
         shrinkEntry _ = []
+
+genTxOut :: forall era. IsRecentEra era => Gen (TxOut era)
+genTxOut =
+    CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
+        <$> genCardanoApiTxOut
+  where
+    genCardanoApiTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
+    genCardanoApiTxOut =
+        -- NOTE: genTxOut does not generate quantities larger than
+        -- `maxBound :: Word64`, however users could supply these. We
+        -- should ideally test what happens, and make it clear what
+        -- code, if any, should validate.
+        CardanoApi.genTxOut (cardanoEra @era)
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]
