@@ -2829,7 +2829,7 @@ shrinkInputResolution
     => Write.UTxO era
     -> [Write.UTxO era]
 shrinkInputResolution =
-    shrinkMapBy utxoFromList utxoToList shrinkKeyValuePairs
+    shrinkMapBy utxoFromList utxoToList (shrinkKeyValuePairs shrinkOutput)
   where
     utxoToList = Map.toList . unUTxO
     utxoFromList = UTxO . Map.fromList
@@ -2838,13 +2838,13 @@ shrinkInputResolution =
 
     -- NOTE: We only want to shrink the values, keeping the keys and length
     -- of the list the same.
-    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
-    shrinkKeyValuePairs = \case
+    shrinkKeyValuePairs :: (v -> [v]) -> [(k, v)] -> [[(k, v)]]
+    shrinkKeyValuePairs shrinkValue = \case
         ((k, v) : rest) -> mconcat
             -- First shrink the first element
-            [ map (\v' -> (k, v') : rest) (shrinkOutput v)
+            [ map (\v' -> (k, v') : rest) (shrinkValue v)
             -- Recurse to shrink subsequent elements on their own
-            , map ((k, v) :) (shrinkKeyValuePairs rest)
+            , map ((k, v) :) (shrinkKeyValuePairs shrinkValue rest)
             ]
         [] -> []
 
