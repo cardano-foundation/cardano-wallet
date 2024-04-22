@@ -2810,16 +2810,12 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
 
 genTxOut :: forall era. IsRecentEra era => Gen (TxOut era)
 genTxOut =
+    -- NOTE: genTxOut does not generate quantities larger than
+    -- `maxBound :: Word64`, however users could supply these. We
+    -- should ideally test what happens, and make it clear what
+    -- code, if any, should validate.
     CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
-        <$> genCardanoApiTxOut
-  where
-    genCardanoApiTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
-    genCardanoApiTxOut =
-        -- NOTE: genTxOut does not generate quantities larger than
-        -- `maxBound :: Word64`, however users could supply these. We
-        -- should ideally test what happens, and make it clear what
-        -- code, if any, should validate.
-        CardanoApi.genTxOut (cardanoEra @era)
+        <$> CardanoApi.genTxOut (cardanoEra @era)
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]
