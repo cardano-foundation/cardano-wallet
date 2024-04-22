@@ -2832,11 +2832,8 @@ shrinkInputResolution
     => Write.UTxO era
     -> [Write.UTxO era]
 shrinkInputResolution =
-    shrinkMapBy utxoFromList utxoToList (shrinkKeyValuePairs shrinkOutput)
+    shrinkMapBy UTxO unUTxO (shrinkMapValues shrinkOutput)
   where
-    utxoToList = Map.toList . unUTxO
-    utxoFromList = UTxO . Map.fromList
-
     shrinkOutput _ = []
 
     shrinkMapValues :: Ord k => (v -> [v]) -> Map k v -> [Map k v]
