@@ -2680,13 +2680,13 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         genExtraUTxO tx =
             UTxO . Map.fromList <$>
             mapM
-                (\i -> (i,) <$> genTxOutLedger)
+                (\i -> (i,) <$> genTxOut)
                 (Set.toList $ txInputsLedger tx)
         genTxForBalancing :: Gen (Tx era)
         genTxForBalancing =
             fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
-        genTxOutLedger :: Gen (TxOut era)
-        genTxOutLedger =
+        genTxOut :: Gen (TxOut era)
+        genTxOut =
             CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
                 <$> genCardanoApiTxOut
           where
