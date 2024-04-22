@@ -2677,9 +2677,10 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         genExtraUTxO :: Tx era -> Gen (UTxO era)
         genExtraUTxO tx =
             UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) (Set.toList $ txInputs tx)
-        txInputs :: Tx era -> Set TxIn
-        txInputs tx = tx ^. bodyTxL . inputsTxBodyL
+            mapM (\i -> (i,) <$> genTxOut) (Set.toList txInputs)
+          where
+            txInputs :: Set TxIn
+            txInputs = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
