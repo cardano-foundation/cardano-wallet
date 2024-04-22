@@ -2685,17 +2685,18 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         genTxForBalancing :: Gen (Tx era)
         genTxForBalancing =
             fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
-        genTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
-        genTxOut =
-            -- NOTE: genTxOut does not generate quantities larger than
-            -- `maxBound :: Word64`, however users could supply these. We
-            -- should ideally test what happens, and make it clear what
-            -- code, if any, should validate.
-            CardanoApi.genTxOut (cardanoEra @era)
         genTxOutLedger :: Gen (TxOut era)
         genTxOutLedger =
             CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
-                <$> genTxOut
+                <$> genCardanoApiTxOut
+          where
+            genCardanoApiTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
+            genCardanoApiTxOut =
+                -- NOTE: genTxOut does not generate quantities larger than
+                -- `maxBound :: Word64`, however users could supply these. We
+                -- should ideally test what happens, and make it clear what
+                -- code, if any, should validate.
+                CardanoApi.genTxOut (cardanoEra @era)
         txInputsLedger tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
