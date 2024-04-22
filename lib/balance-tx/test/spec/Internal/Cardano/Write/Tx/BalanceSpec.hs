@@ -2839,13 +2839,14 @@ shrinkInputResolution =
     -- NOTE: We only want to shrink the outputs, keeping the inputs and length
     -- of the list the same.
     shrinkUTxOEntries :: [(TxIn, TxOut era)] -> [[(TxIn, TxOut era)]]
-    shrinkUTxOEntries ((i, o) : rest) = mconcat
-        -- First shrink the first element
-        [ map (\o' -> (i, o') : rest) (shrinkOutput o)
-        -- Recurse to shrink subsequent elements on their own
-        , map ((i, o) :) (shrinkUTxOEntries rest)
-        ]
-    shrinkUTxOEntries [] = []
+    shrinkUTxOEntries = \case
+        ((i, o) : rest) -> mconcat
+            -- First shrink the first element
+            [ map (\o' -> (i, o') : rest) (shrinkOutput o)
+            -- Recurse to shrink subsequent elements on their own
+            , map ((i, o) :) (shrinkUTxOEntries rest)
+            ]
+        [] -> []
 
 shrinkScriptData
     :: Era (CardanoApi.ShelleyLedgerEra era)
