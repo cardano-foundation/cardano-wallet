@@ -91,7 +91,7 @@ joinStakePoolDelegationAction
         (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
     era wallet currentEpochSlotting knownPools poolId poolStatus
-  = case guardJoin knownPools delegation poolId retirementInfo of
+  = case guardJoin era knownPools delegation poolId retirementInfo of
         Left e -> Left $ ErrStakePoolJoin e
         Right () -> Right
             ( if stakeKeyIsRegistered
@@ -117,12 +117,14 @@ joinStakePoolDelegationAction
             W.getPoolRetirementCertificate poolStatus
 
 guardJoin
-    :: Set PoolId
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> Set PoolId
     -> WalletDelegation
     -> PoolId
     -> Maybe PoolRetirementEpochInfo
     -> Either ErrCannotJoin ()
-guardJoin knownPools delegation pid mRetirementEpochInfo = do
+guardJoin era knownPools delegation pid mRetirementEpochInfo = do
     when (pid `Set.notMember` knownPools) $
         Left (ErrNoSuchPool pid)
 
@@ -131,10 +133,18 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
             Left (ErrNoSuchPool pid)
 
     when ((null next) && isDelegatingTo (== pid) active) $
-        Left (ErrAlreadyDelegating pid)
+        case era of
+                Write.RecentEraBabbage ->
+                    Left (ErrAlreadyDelegating pid)
+                Write.RecentEraConway ->
+                    pure ()
 
     when (not (null next) && isDelegatingTo (== pid) (last next)) $
-        Left (ErrAlreadyDelegating pid)
+        case era of
+                Write.RecentEraBabbage ->
+                    Left (ErrAlreadyDelegating pid)
+                Write.RecentEraConway ->
+                    pure ()
   where
     WalletDelegation {active, next} = delegation
 
