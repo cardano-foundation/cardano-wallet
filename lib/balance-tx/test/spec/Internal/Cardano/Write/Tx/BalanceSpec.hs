@@ -2309,10 +2309,9 @@ restrictResolution partialTx@PartialTx {tx, extraUTxO} =
     partialTx
         { extraUTxO
             = UTxO
-            $ extraUTxOMap `Map.restrictKeys` inputsInTx tx
+            $ unUTxO extraUTxO `Map.restrictKeys` inputsInTx tx
         }
   where
-    UTxO extraUTxOMap = extraUTxO
     inputsInTx tx' = tx' ^. bodyTxL . inputsTxBodyL
 
 serializedSize
