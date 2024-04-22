@@ -2,12 +2,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.LocalCluster where
@@ -31,14 +28,17 @@ import Cardano.Wallet.Faucet
     ( runFaucetM
     )
 import Cardano.Wallet.Launch.Cluster
-    ( FaucetFunds (..)
+    ( Config (..)
+    , FaucetFunds (..)
     , withFaucet
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( Absolutizer (..)
     , DirOf (..)
+    , FileOf (..)
     , mkRelDirOf
     , newAbsolutizer
+    , toFilePath
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -59,6 +59,9 @@ import Control.Monad.Trans.Resource
 import Main.Utf8
     ( withUtf8
     )
+import System.Directory
+    ( createDirectoryIfMissing
+    )
 import System.Environment.Extended
     ( isEnvSet
     )
@@ -69,6 +72,10 @@ import System.IO.Temp.Extra
 import System.Path
     ( absDir
     , absRel
+    , parse
+    , relDir
+    , relFile
+    , (</>)
     )
 import UnliftIO.Concurrent
     ( threadDelay
@@ -79,8 +86,6 @@ import qualified Cardano.Wallet.Cli.Launcher as WC
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Options.Applicative as O
-import qualified Path
-import qualified Path.IO as PathIO
 
 -- |
 -- # OVERVIEW
@@ -242,12 +247,14 @@ main = withUtf8 $ do
                     , massiveWalletFunds = []
                     }
                 $ \node -> do
-                    clusterDir <- Path.parseAbsDir clusterPath
-                    let walletDir = clusterDir Path.</> [Path.reldir|wallet|]
-                    PathIO.createDirIfMissing False walletDir
+                    let clusterDir = absDir clusterPath
+                    let walletDir = clusterDir </> relDir "wallet"
+                    createDirectoryIfMissing True $ toFilePath walletDir
                     nodeSocket <-
-                        Path.parseAbsFile . nodeSocketFile
-                            $ Cluster.runningNodeSocketPath node
+                        case parse . nodeSocketFile
+                            $ Cluster.runningNodeSocketPath node of
+                            Left e -> error e
+                            Right p -> pure p
 
                     runResourceT do
                         (_releaseKey, (_walletInstance, _walletApi)) <-
@@ -255,18 +262,19 @@ main = withUtf8 $ do
                                 ( WC.start
                                     WC.WalletProcessConfig
                                         { WC.walletDir =
-                                            walletDir
+                                            DirOf walletDir
                                         , WC.walletNodeApi =
                                             NC.NodeApi nodeSocket
                                         , WC.walletDatabase =
-                                            clusterDir Path.</> [Path.reldir|db|]
+                                            DirOf $ clusterDir </> relDir "db"
                                         , WC.walletListenHost =
                                             Nothing
                                         , WC.walletListenPort =
                                             Nothing
                                         , WC.walletByronGenesisForTestnet =
                                             Just
-                                                $ clusterDir Path.</> [Path.relfile|byron-genesis.json|]
+                                                $ FileOf $ clusterDir </>
+                                                    relFile "byron-genesis.json"
                                         }
                                 )
                                 (WC.stop . fst)

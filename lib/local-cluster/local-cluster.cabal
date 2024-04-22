@@ -108,8 +108,6 @@ library
     , optparse-applicative
     , ouroboros-network
     , ouroboros-network-api
-    , path
-    , path-io
     , pathtype
     , resourcet
     , retry

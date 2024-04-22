@@ -1,16 +1,14 @@
-module Main where
-
 import qualified Test.Syd.OptParse as SydTest
 
 import Cardano.Wallet.Spec
     ( effectsSpec
     , walletSpec
     )
+import Cardano.Wallet.Spec.Options
+    ( withTestOptions
+    )
 import Main.Utf8
     ( withUtf8
-    )
-import Options
-    ( withTestOptions
     )
 import Test.Syd
     ( sydTestWith

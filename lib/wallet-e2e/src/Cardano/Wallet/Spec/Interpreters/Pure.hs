@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Cardano.Wallet.Spec.Interpreters.Pure
     ( pureStory
     , PureStory
@@ -10,6 +8,9 @@ import qualified Effectful.Error.Static as E
 
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
+    )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
     )
 import Cardano.Wallet.Spec.Effect.Assert
     ( FxAssert
@@ -34,9 +35,6 @@ import Cardano.Wallet.Spec.Interpreters.Config
 import Cardano.Wallet.Unsafe
     ( unsafeMkMnemonic
     )
-import Data.Tagged
-    ( Tagged (..)
-    )
 import Effectful
     ( Eff
     , runPureEff
@@ -48,11 +46,9 @@ import Effectful.Fail
 import GHC.IO
     ( unsafePerformIO
     )
-import Path.IO
-    ( makeAbsolute
-    )
-import Path.Posix
-    ( reldir
+import System.Path
+    ( absRel
+    , dynamicMakeAbsoluteFromCwd
     )
 import Test.Syd
     ( TestDefM
@@ -75,9 +71,10 @@ defaultTraceConfiguration :: TraceConfiguration
 defaultTraceConfiguration =
     TraceConfiguration
         { traceConfigurationDir =
-            Tagged @"tracing-dir"
+            DirOf @"tracing-dir"
                 $ unsafePerformIO
-                $ makeAbsolute [reldir|lib/wallet-e2e/test-output|]
+                $ dynamicMakeAbsoluteFromCwd
+                $ absRel "lib/wallet-e2e/test-output"
         }
 
 pureStory :: String -> PureStory a -> TestDefM outers () ()

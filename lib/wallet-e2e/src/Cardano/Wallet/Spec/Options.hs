@@ -1,19 +1,15 @@
-module Options where
+module Cardano.Wallet.Spec.Options where
 
-import qualified Options.Applicative as OptParse
-
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( Absolutizer (..)
+    , DirOf (..)
+    , newAbsolutizer
+    )
 import Cardano.Wallet.Spec
     ( TestNetworkConfig (..)
     )
 import Cardano.Wallet.Spec.Interpreters.Config
     ( TraceConfiguration (..)
-    )
-import Cardano.Wallet.Spec.Lib.Paths
-    ( SomeDirOf
-    , makeDirAbsolute
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Options.Applicative
     ( Parser
@@ -24,43 +20,48 @@ import Options.Applicative
     , option
     , short
     )
-import Path
-    ( parseSomeDir
+import System.Path
+    ( Abs
+    , parse
     )
+
+import qualified Options.Applicative as OptParse
+import qualified System.Path.PartClass as Path
 
 withTestOptions :: (TestNetworkConfig -> TraceConfiguration -> IO b) -> IO b
 withTestOptions action = do
+    absolutizer <- newAbsolutizer
     TestOptions{..} :: TestOptions <-
         OptParse.execParser
             $ OptParse.info
-                (parserTestOptions OptParse.<**> OptParse.helper)
+                (parserTestOptions absolutizer OptParse.<**> OptParse.helper)
                 (OptParse.fullDesc <> OptParse.progDesc "E2E Wallet test suite")
-    testNetwork <- testNetworkOptionsToConfig testNetworkOptions
     traceConfiguration <- do
-        absTraceDir <-
-            makeDirAbsolute
-                $ testGlobalOptionsTraceOutput testGlobalOptions
+        let absTraceDir = testGlobalOptionsTraceOutput testGlobalOptions
         pure $ TraceConfiguration absTraceDir
-    action testNetwork traceConfiguration
+    action testNetworkConfig traceConfiguration
 
-parserTestOptions :: Parser TestOptions
-parserTestOptions = TestOptions <$> parserNetworkOptions <*> parserGlobalOptions
+parserTestOptions :: Absolutizer -> Parser TestOptions
+parserTestOptions absolutizer =
+    TestOptions
+        <$> parserNetworkOptions absolutizer
+        <*> parserGlobalOptions absolutizer
 
 data TestOptions = TestOptions
-    { testNetworkOptions :: TestNetworkOptions
+    { testNetworkConfig :: TestNetworkConfig
     , testGlobalOptions :: TestGlobalOptions
     }
 
 newtype TestGlobalOptions = TestGlobalOptions
-    { testGlobalOptionsTraceOutput :: SomeDirOf "tracing-dir"
+    { testGlobalOptionsTraceOutput :: DirOf "tracing-dir"
     }
 
-parserGlobalOptions :: Parser TestGlobalOptions
-parserGlobalOptions = TestGlobalOptions <$> traceOutputOption
+parserGlobalOptions :: Absolutizer -> Parser TestGlobalOptions
+parserGlobalOptions absolutizer = TestGlobalOptions <$> traceOutputOption
   where
-    traceOutputOption :: Parser (SomeDirOf "tracing-dir") =
+    traceOutputOption :: Parser (DirOf "tracing-dir") =
         option
-            (eitherReader (bimap show Tagged . parseSomeDir))
+            (eitherReader (bimap show DirOf . parseAbs absolutizer))
             ( long "tracing-dir"
                 <> short 't'
                 <> metavar "TRACE_OUTPUT_DIR"
@@ -68,32 +69,22 @@ parserGlobalOptions = TestGlobalOptions <$> traceOutputOption
                     "Absolute or relative directory path to save trace output"
             )
 
-data TestNetworkOptions
-    = TestNetworkOptionManual
-    | TestNetworkOptionLocal (SomeDirOf "state") (SomeDirOf "config")
-    | TestNetworkOptionPreprod (SomeDirOf "state") (SomeDirOf "config")
+parseAbs :: Path.FileDir t => Absolutizer -> String -> Either String (Abs t)
+parseAbs (Absolutizer absolutizer) str = do
+    dir <- parse str
+    pure $ absolutizer dir
 
-testNetworkOptionsToConfig :: TestNetworkOptions -> IO TestNetworkConfig
-testNetworkOptionsToConfig = \case
-    TestNetworkOptionManual ->
-        pure TestNetworkManual
-    TestNetworkOptionLocal stateDir nodeConfigsDir -> do
-        absStateDir <- makeDirAbsolute stateDir
-        absNodeConfigsDir <- makeDirAbsolute nodeConfigsDir
-        pure (TestNetworkLocal absStateDir absNodeConfigsDir)
-    TestNetworkOptionPreprod stateDir nodeConfigsDir -> do
-        absStateDir <- makeDirAbsolute stateDir
-        absNodeConfigsDir <- makeDirAbsolute nodeConfigsDir
-        pure (TestNetworkPreprod absStateDir absNodeConfigsDir)
-
-parserNetworkOptions :: Parser TestNetworkOptions
-parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
+parserNetworkOptions
+    :: Absolutizer
+    -> Parser TestNetworkConfig
+parserNetworkOptions absolutizer =
+    OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
   where
     cmdManual =
         OptParse.command
             "manual"
             ( OptParse.info
-                (pure TestNetworkOptionManual)
+                (pure TestNetworkManual)
                 ( OptParse.progDesc
                     "Relies on a node and wallet started manually."
                 )
@@ -102,7 +93,7 @@ parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
         OptParse.command
             "local"
             ( OptParse.info
-                ( TestNetworkOptionLocal
+                ( TestNetworkLocal
                     <$> stateDirOption
                     <*> nodeConfigsDirOption
                 )
@@ -112,7 +103,7 @@ parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
         OptParse.command
             "preprod"
             ( OptParse.info
-                ( TestNetworkOptionPreprod
+                ( TestNetworkPreprod
                     <$> stateDirOption
                     <*> nodeConfigsDirOption
                 )
@@ -120,9 +111,9 @@ parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
                     "Automatically starts a preprod node and wallet."
                 )
             )
-    stateDirOption :: Parser (SomeDirOf "state") =
+    stateDirOption :: Parser (DirOf "state") =
         option
-            (eitherReader (bimap show Tagged . parseSomeDir))
+            (eitherReader (bimap show DirOf . parseAbs absolutizer))
             ( long "state-dir"
                 <> short 's'
                 <> metavar "STATE_DIR"
@@ -130,9 +121,9 @@ parserNetworkOptions = OptParse.subparser $ cmdManual <> cmdLocal <> cmdPreprod
                     "Absolute or relative directory path \
                     \ to save node and wallet state"
             )
-    nodeConfigsDirOption :: Parser (SomeDirOf "config") =
+    nodeConfigsDirOption :: Parser (DirOf "config") =
         option
-            (eitherReader (bimap show Tagged . parseSomeDir))
+            (eitherReader (bimap show DirOf . parseAbs absolutizer))
             ( long "node-configs-dir"
                 <> short 'c'
                 <> metavar "NODE_CONFIGS_DIR"

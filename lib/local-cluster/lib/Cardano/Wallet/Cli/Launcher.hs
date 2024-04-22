@@ -1,4 +1,4 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Cli.Launcher
@@ -17,24 +17,24 @@ import Cardano.Node.Cli.Launcher
     ( NodeApi
     , nodeApiSocket
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , FileOf (..)
+    , toFilePath
+    )
 import Data.Maybe
     ( fromMaybe
     )
 import Data.Text
     ( Text
     )
-import Path
-    ( Abs
-    , Dir
-    , File
-    , Path
-    , relfile
-    , toFilePath
-    , (</>)
-    )
 import System.IO
     ( IOMode (AppendMode)
     , openFile
+    )
+import System.Path
+    ( relFile
+    , (</>)
     )
 import System.Process.Typed
     ( Process
@@ -55,12 +55,12 @@ data WalletApi = WalletApi
     }
 
 data WalletProcessConfig = WalletProcessConfig
-    { walletDir :: Path Abs Dir
+    { walletDir :: DirOf "wallet"
     , walletNodeApi :: NodeApi
-    , walletDatabase :: Path Abs Dir
+    , walletDatabase :: DirOf "db"
     , walletListenHost :: Maybe Text
     , walletListenPort :: Maybe Int
-    , walletByronGenesisForTestnet :: Maybe (Path Abs File)
+    , walletByronGenesisForTestnet :: Maybe (FileOf "byron-genesis-testnet")
     }
 
 start :: WalletProcessConfig -> IO (WalletInstance, WalletApi)
@@ -74,7 +74,7 @@ start WalletProcessConfig{..} = do
                 , walletInstanceApiHost = host
                 , walletInstanceApiPort = port
                 }
-    let walletLog = walletDir </> [relfile|wallet.log|]
+    let walletLog = absDirOf walletDir </> relFile "wallet.log"
     handle <- openFile (toFilePath walletLog) AppendMode
     putStrLn $ "Writing wallet logs to " <> toFilePath walletLog
     process <-
@@ -87,12 +87,14 @@ start WalletProcessConfig{..} = do
                 , case walletByronGenesisForTestnet of
                     Nothing ->
                         [ "--mainnet" ]
-                    Just waleltByronGenesis ->
-                        [ "--testnet", toFilePath waleltByronGenesis ]
+                    Just walletByronGenesis ->
+                        [ "--testnet", toFilePath
+                            $ absFileOf walletByronGenesis
+                        ]
                 , [ "--node-socket"
                   , toFilePath (nodeApiSocket walletNodeApi)
                   , "--database"
-                  , toFilePath walletDatabase
+                  , toFilePath $ absDirOf walletDatabase
                   , "--listen-address"
                   , T.unpack host
                   , "--port"
