@@ -282,7 +282,6 @@ import Internal.Cardano.Write.Tx
     , recentEra
     , serializeTx
     , toCardanoApiTx
-    , toCardanoApiUTxO
     , unsafeUtxoFromTxOutsInRecentEra
     )
 import Internal.Cardano.Write.Tx.Balance
@@ -2302,21 +2301,11 @@ paymentPartialTx txouts =
 -- shrinking the CBOR.
 --
 -- NOTE: Perhaps ideally 'PartialTx' would handle this automatically.
-restrictResolution
-    :: forall era. IsRecentEra era
-    => PartialTx era
-    -> PartialTx era
-restrictResolution partialTx@PartialTx {tx, extraUTxO} =
-    partialTx
-        { extraUTxO
-            = fromCardanoApiUTxO
-            $ CardanoApi.UTxO
-            $ extraUTxOMap `Map.restrictKeys` inputsInTx (toCardanoApiTx tx)
-        }
+restrictResolution :: IsRecentEra era => PartialTx era -> PartialTx era
+restrictResolution partialTx@PartialTx {tx, extraUTxO} = partialTx
+    {extraUTxO = UTxO $ unUTxO extraUTxO `Map.restrictKeys` txIns}
   where
-    CardanoApi.UTxO extraUTxOMap = toCardanoApiUTxO extraUTxO
-    inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
-        Set.fromList $ map fst $ CardanoApi.txIns bod
+    txIns = tx ^. bodyTxL . inputsTxBodyL
 
 serializedSize
     :: forall era. IsRecentEra era
