@@ -2685,6 +2685,10 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             -- should ideally test what happens, and make it clear what
             -- code, if any, should validate.
             CardanoApi.genTxOut (cardanoEra @era)
+        genTxOutLedger :: Gen (TxOut era)
+        genTxOutLedger =
+            CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
+                <$> genTxOut
         txInputs tx = fst <$> CardanoApi.txIns content
           where
             CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
