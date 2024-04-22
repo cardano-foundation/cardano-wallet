@@ -2691,8 +2691,8 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
         ] <>
-        [ restrictResolution (partialTx {tx = fromCardanoApiTx tx'})
-        | tx' <- shrinkCardanoApiTx (toCardanoApiTx tx)
+        [ restrictResolution (partialTx {tx = tx'})
+        | tx' <- shrinkTx tx
         ]
       where
         shrinkCardanoApiTx = case recentEra @era of
