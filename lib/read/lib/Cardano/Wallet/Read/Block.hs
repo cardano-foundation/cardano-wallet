@@ -27,6 +27,7 @@ import Cardano.Wallet.Read.Block.Block
 import Cardano.Wallet.Read.Block.BlockNo
     ( BlockNo (..)
     , getEraBlockNo
+    , prettyBlockNo
     )
 import Cardano.Wallet.Read.Block.HeaderHash
     ( EraIndependentBlockHeader
