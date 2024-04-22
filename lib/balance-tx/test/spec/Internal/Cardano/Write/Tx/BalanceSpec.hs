@@ -2695,6 +2695,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         txInputs tx = fst <$> CardanoApi.txIns content
           where
             CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
+        txInputsLedger tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
