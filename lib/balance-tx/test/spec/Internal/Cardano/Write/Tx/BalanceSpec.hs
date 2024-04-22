@@ -278,7 +278,6 @@ import Internal.Cardano.Write.Tx
     , Value
     , cardanoEra
     , fromCardanoApiTx
-    , fromCardanoApiUTxO
     , recentEra
     , serializeTx
     , toCardanoApiTx
@@ -2666,38 +2665,26 @@ instance Arbitrary (MixedSign Value) where
 
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
-        tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
+        tx <- genTxForBalancing
         extraUTxO <- genExtraUTxO tx
-        return PartialTx
-            { tx = fromCardanoApiTx tx
-            , extraUTxO = fromCardanoApiUTxO extraUTxO
-            , redeemers = []
-            , timelockKeyWitnessCounts = mempty
-            }
+        let redeemers = []
+        let timelockKeyWitnessCounts = mempty
+        pure PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
       where
+        genExtraUTxO :: Tx era -> Gen (UTxO era)
         genExtraUTxO tx =
-            CardanoApi.UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) (txInputs tx)
-        genTxOut =
-            -- NOTE: genTxOut does not generate quantities larger than
-            -- `maxBound :: Word64`, however users could supply these. We
-            -- should ideally test what happens, and make it clear what
-            -- code, if any, should validate.
-            CardanoApi.genTxOut (cardanoEra @era)
-        txInputs tx = fst <$> CardanoApi.txIns content
+            UTxO . Map.fromList <$>
+            mapM (\i -> (i,) <$> genTxOut) (Set.toList txInputs)
           where
-            CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
+            txInputs :: Set TxIn
+            txInputs = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
         ] <>
-        [ restrictResolution (partialTx {tx = fromCardanoApiTx tx'})
-        | tx' <- shrinkCardanoApiTx (toCardanoApiTx tx)
+        [ restrictResolution (partialTx {tx = tx'})
+        | tx' <- shrinkTx tx
         ]
-      where
-        shrinkCardanoApiTx = case recentEra @era of
-            RecentEraBabbage -> shrinkTxBabbage
-            RecentEraConway -> \_ -> [] -- no shrinker implemented yet
 
 instance Arbitrary StdGenSeed  where
     arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
@@ -2816,6 +2803,19 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
 
         shrinkEntry _ = []
 
+genTxForBalancing :: forall era. IsRecentEra era => Gen (Tx era)
+genTxForBalancing =
+    fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
+
+genTxOut :: forall era. IsRecentEra era => Gen (TxOut era)
+genTxOut =
+    -- NOTE: genTxOut does not generate quantities larger than
+    -- `maxBound :: Word64`, however users could supply these. We
+    -- should ideally test what happens, and make it clear what
+    -- code, if any, should validate.
+    CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
+        <$> CardanoApi.genTxOut (cardanoEra @era)
+
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]
 prependOriginal shrinker x = x : shrinker x
@@ -2874,6 +2874,14 @@ shrinkStrictMaybe :: StrictMaybe a -> [StrictMaybe a]
 shrinkStrictMaybe = \case
     SNothing -> []
     SJust _ -> [SNothing]
+
+shrinkTx :: forall era. IsRecentEra era => Tx era -> [Tx era]
+shrinkTx =
+    shrinkMapBy fromCardanoApiTx toCardanoApiTx shrinkCardanoApiTx
+  where
+    shrinkCardanoApiTx = case recentEra @era of
+        RecentEraBabbage -> shrinkTxBabbage
+        RecentEraConway -> \_ -> [] -- no shrinker implemented yet
 
 shrinkTxBabbage
     :: CardanoApi.Tx CardanoApi.BabbageEra
