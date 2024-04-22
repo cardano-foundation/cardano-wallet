@@ -2698,6 +2698,9 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         shrinkCardanoApiTx = case recentEra @era of
             RecentEraBabbage -> shrinkTxBabbage
             RecentEraConway -> \_ -> [] -- no shrinker implemented yet
+        shrinkTx :: Tx era -> [Tx era]
+        shrinkTx =
+            shrinkMapBy fromCardanoApiTx toCardanoApiTx shrinkCardanoApiTx
 
 instance Arbitrary StdGenSeed  where
     arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
