@@ -6,7 +6,7 @@
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
-module Internal.Cardano.Write.Tx.Balance.Distribute
+module Internal.Cardano.Write.Tx.Balance.Surplus
     ( distributeSurplus
     , TxFeeAndChange (..)
     , ErrMoreSurplusNeeded (..)

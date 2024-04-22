@@ -219,7 +219,7 @@ import Internal.Cardano.Write.Tx.Balance.CoinSelection
     , toExternalUTxOMap
     , toInternalUTxOMap
     )
-import Internal.Cardano.Write.Tx.Balance.Distribute
+import Internal.Cardano.Write.Tx.Balance.Surplus
     ( ErrMoreSurplusNeeded (..)
     , TxFeeAndChange (..)
     , distributeSurplus

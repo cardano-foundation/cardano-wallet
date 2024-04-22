@@ -7,7 +7,7 @@
 
 {- HLINT ignore "Use null" -}
 
-module Internal.Cardano.Write.Tx.Balance.DistributeSpec where
+module Internal.Cardano.Write.Tx.Balance.SurplusSpec where
 
 import Prelude
 
@@ -33,7 +33,7 @@ import Data.Monoid.Monus
 import Internal.Cardano.Write.Tx
     ( FeePerByte (..)
     )
-import Internal.Cardano.Write.Tx.Balance.Distribute
+import Internal.Cardano.Write.Tx.Balance.Surplus
     ( ErrMoreSurplusNeeded (..)
     , TxFeeAndChange (..)
     , costOfIncreasingCoin
