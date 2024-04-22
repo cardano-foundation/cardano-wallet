@@ -213,6 +213,9 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
+import Data.Map.Strict
+    ( Map
+    )
 import Data.Maybe
     ( catMaybes
     , fromJust
@@ -2835,6 +2838,9 @@ shrinkInputResolution =
     utxoFromList = UTxO . Map.fromList
 
     shrinkOutput _ = []
+
+    shrinkMapValues :: Ord k => (v -> [v]) -> Map k v -> [Map k v]
+    shrinkMapValues = shrinkMapBy Map.fromList Map.toList . shrinkKeyValuePairs
 
     -- NOTE: We only want to shrink the values, keeping the keys and length
     -- of the list the same.
