@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -100,6 +103,7 @@ import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx as Write
 
 spec :: Spec
 spec = describe "Cardano.Wallet.DelegationSpec" $ do
@@ -111,31 +115,51 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
             property prop_guardQuitJoin
 
     describe "Join/Quit Stake pool unit mockEventSource" $ do
-        it "Cannot join A, when active = A" $ do
+        it "Cannot join A, when active = A in Babbage" $ do
             let dlg = WalletDelegation {active = Delegating pidA, next = []}
-            WD.guardJoin knownPools dlg pidA noRetirementPlanned
+            WD.guardJoin Write.RecentEraBabbage knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
-        it "Cannot join A, when next = [A]" $ do
+        it "Can rejoin A, when active = A in Conway" $ do
+            let dlg = WalletDelegation {active = Delegating pidA, next = []}
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned
+                `shouldBe` Right ()
+        it "Cannot join A, when next = [A] in Babbage" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation {active = NotDelegating, next = [next1]}
-            WD.guardJoin knownPools dlg pidA noRetirementPlanned
+            WD.guardJoin Write.RecentEraBabbage knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
-        it "Can join A, when active = A, next = [B]" $ do
+        it "Can join A, when next = [A] in Conway" $ do
+            let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
+            let dlg = WalletDelegation {active = NotDelegating, next = [next1]}
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned
+                `shouldBe` Right ()
+        it "Can join A, when active = A, next = [B] in any era" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1]}
-            WD.guardJoin knownPools dlg pidA noRetirementPlanned
+            WD.guardJoin Write.RecentEraBabbage knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Right ()
-        it "Cannot join A, when active = A, next = [B, A]" $ do
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned
+                `shouldBe` Right ()
+        it "Cannot join A, when active = A, next = [B, A] in Babbage" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
             let next2 = WalletDelegationNext (EpochNo 2) (Delegating pidA)
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            WD.guardJoin knownPools dlg pidA noRetirementPlanned
+            WD.guardJoin Write.RecentEraBabbage knownPools dlg pidA noRetirementPlanned
                 `shouldBe` Left (W.ErrAlreadyDelegating pidA)
-        it "Cannot join when pool is unknown" $ do
+        it "Can join A, when active = A, next = [B, A] in Conway" $ do
+            let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
+            let next2 = WalletDelegationNext (EpochNo 2) (Delegating pidA)
+            let dlg = WalletDelegation
+                    {active = Delegating pidA, next = [next1, next2]}
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned
+                `shouldBe` Right ()
+        it "Cannot join when pool is unknown in any era" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
-            WD.guardJoin knownPools dlg pidUnknown noRetirementPlanned
+            WD.guardJoin Write.RecentEraBabbage knownPools dlg pidUnknown noRetirementPlanned
+                `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidUnknown noRetirementPlanned
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
@@ -184,7 +208,7 @@ prop_guardJoinQuit knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
         "retirementPlanned"
     $ cover 10 alreadyRetired
         "alreadyRetired"
-    $ case WD.guardJoin knownPools dlg pid mRetirementInfo of
+    $ case WD.guardJoin Write.RecentEraBabbage knownPools dlg pid mRetirementInfo of
         Right () ->
             label "I can join" $ property $
                 alreadyRetired `shouldBe` False
@@ -220,7 +244,7 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
             label "ErrNotDelegatingOrAboutTo" $
-                WD.guardJoin
+                WD.guardJoin Write.RecentEraBabbage
                     knownPools dlg (last knownPoolsList) noRetirementPlanned
                     === Right ()
         Left W.ErrNonNullRewards{} ->

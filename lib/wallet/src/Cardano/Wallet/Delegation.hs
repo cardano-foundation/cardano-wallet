@@ -15,13 +15,6 @@ module Cardano.Wallet.Delegation
 
 import Prelude
 
-import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
-import qualified Cardano.Wallet.DB.WalletState as WalletState
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Transaction as Tx
-import qualified Data.Set as Set
-import qualified Internal.Cardano.Write.Tx as Write
-
 import Cardano.Pool.Types
     ( PoolId (..)
     )
@@ -62,6 +55,13 @@ import Data.Generics.Internal.VL.Lens
 import Data.Set
     ( Set
     )
+
+import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
+import qualified Cardano.Wallet.DB.WalletState as WalletState
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Transaction as Tx
+import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx as Write
 
 -- | The data type that represents client's delegation request.
 -- Stake key registration is made implicit by design:
