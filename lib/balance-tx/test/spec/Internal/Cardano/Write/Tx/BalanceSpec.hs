@@ -2665,7 +2665,7 @@ instance Arbitrary (MixedSign Value) where
 
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
-        tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
+        tx <- genTxForBalancing
         extraUTxO <- genExtraUTxO (fromCardanoApiTx tx)
         return PartialTx
             { tx = fromCardanoApiTx tx
@@ -2682,6 +2682,9 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             mapM
                 (\i -> (i,) <$> genTxOutLedger)
                 (Set.toList $ txInputsLedger tx)
+        genTxForBalancing :: Gen (CardanoApi.Tx (CardanoApiEra era))
+        genTxForBalancing =
+            CardanoApi.genTxForBalancing $ cardanoEra @era
         genTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
         genTxOut =
             -- NOTE: genTxOut does not generate quantities larger than
