@@ -92,7 +92,7 @@ primitiveBlockHeader
     -> W.BlockHeader
 primitiveBlockHeader gp = do
     slotNo <- fromSlotNo <$> getEraSlotNo . getEraBHeader
-    blockNo <- fromBlockNo <$> getEraBlockNo
+    blockNo <- fromBlockNo <$> getEraBlockNo . getEraBHeader
     headerHash <- primitiveHash . getEraHeaderHash
     prevHeaderHash <- primitivePrevHash gp . getEraPrevHeaderHash
     pure $ W.BlockHeader slotNo blockNo headerHash (Just prevHeaderHash)

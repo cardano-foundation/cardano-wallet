@@ -107,7 +107,7 @@ getChainTip block =
     BlockTip
         { slotNo = getEraSlotNo $ getEraBHeader block
         , headerHash = getRawHeaderHash $ getEraHeaderHash block
-        , blockNo = getEraBlockNo block
+        , blockNo = getEraBlockNo $ getEraBHeader block
         }
 
 -- | Short printed representation of a 'ChainPoint'.

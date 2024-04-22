@@ -12,17 +12,8 @@ module Cardano.Wallet.Read.Block.BlockNo
 
 import Prelude
 
-import Cardano.Ledger.Binary.Group
-    ( EncCBORGroup
-    )
-import Cardano.Ledger.Crypto
-    ( Crypto
-    )
-import Cardano.Ledger.Era
-    ( EraSegWits (..)
-    )
-import Cardano.Wallet.Read.Block.Block
-    ( Block (..)
+import Cardano.Wallet.Read.Block.BHeader
+    ( BHeader (..)
     )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( Era (..)
@@ -37,30 +28,26 @@ import NoThunks.Class
 import Numeric.Natural
     ( Natural
     )
-import Ouroboros.Consensus.Protocol.Praos
-    ( Praos
+import Ouroboros.Consensus.Shelley.Protocol.Abstract
+    ( pHeaderBlock
     )
-import Ouroboros.Consensus.Protocol.TPraos
-    ( TPraos
-    )
+import Ouroboros.Consensus.Shelley.Protocol.Praos
+    ()
+import Ouroboros.Consensus.Shelley.Protocol.TPraos
+    ()
 
-import qualified Cardano.Ledger.Api as L
-import qualified Cardano.Ledger.Shelley.API as Shelley
-import qualified Cardano.Protocol.TPraos.BHeader as Shelley
-import qualified Ouroboros.Consensus.Protocol.Praos.Header as O
-import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import qualified Ouroboros.Network.Block as O
 
 {-# INLINABLE getEraBlockNo #-}
-getEraBlockNo :: forall era. IsEra era => Block era -> BlockNo
+getEraBlockNo :: forall era. IsEra era => BHeader era -> BlockNo
 getEraBlockNo = case theEra @era of
-    Byron -> \(Block block) -> k $ O.blockNo block
-    Shelley -> \(Block block) -> k $ getBlockNoShelley block
-    Allegra -> \(Block block) -> k $ getBlockNoShelley block
-    Mary -> \(Block block) -> k $ getBlockNoShelley block
-    Alonzo -> \(Block block) -> k $ getBlockNoShelley block
-    Babbage -> \(Block block) -> k $ getBlockNoBabbage block
-    Conway -> \(Block block) -> k $ getBlockNoBabbage block
+    Byron -> \(BHeader h) -> k $ O.blockNo h
+    Shelley -> \(BHeader h) -> k $ pHeaderBlock h
+    Allegra -> \(BHeader h) -> k $ pHeaderBlock h
+    Mary -> \(BHeader h) -> k $ pHeaderBlock h
+    Alonzo -> \(BHeader h) -> k $ pHeaderBlock h
+    Babbage -> \(BHeader h) -> k $ pHeaderBlock h
+    Conway -> \(BHeader h) -> k $ pHeaderBlock h
   where
     k = BlockNo . fromIntegral . O.unBlockNo
 
@@ -68,18 +55,3 @@ newtype BlockNo = BlockNo {unBlockNo :: Natural}
     deriving (Eq, Ord, Show, Generic, Enum)
 
 instance NoThunks BlockNo
-
-getBlockNoShelley
-    :: (L.Era era, EncCBORGroup (TxSeq era), Crypto c)
-    => O.ShelleyBlock (TPraos c) era
-    -> O.BlockNo
-getBlockNoShelley
-    (O.ShelleyBlock (Shelley.Block (Shelley.BHeader header _) _) _) =
-        Shelley.bheaderBlockNo header
-getBlockNoBabbage
-    :: (L.Era era, EncCBORGroup (TxSeq era), Crypto crypto)
-    => O.ShelleyBlock (Praos crypto) era
-    -> O.BlockNo
-getBlockNoBabbage
-    (O.ShelleyBlock (Shelley.Block (O.Header header _) _) _) =
-        O.hbBlockNo header
