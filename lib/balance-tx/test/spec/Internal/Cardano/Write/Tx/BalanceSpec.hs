@@ -2693,9 +2693,6 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         genTxOutLedger =
             CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
                 <$> genTxOut
-        txInputs tx = fst <$> CardanoApi.txIns content
-          where
-            CardanoApi.Tx (CardanoApi.TxBody content) _ = tx
         txInputsLedger tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
