@@ -2670,15 +2670,16 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         extraUTxO <- genExtraUTxO tx
         return PartialTx
             { tx = fromCardanoApiTx tx
-            , extraUTxO = fromCardanoApiUTxO extraUTxO
+            , extraUTxO
             , redeemers = []
             , timelockKeyWitnessCounts = mempty
             }
       where
         genExtraUTxO
             :: CardanoApi.Tx (CardanoApiEra era)
-            -> Gen (CardanoApi.UTxO (CardanoApiEra era))
+            -> Gen (UTxO era)
         genExtraUTxO tx =
+            fromCardanoApiUTxO .
             CardanoApi.UTxO . Map.fromList <$>
             mapM (\i -> (i,) <$> genTxOut) (txInputs tx)
         genTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
