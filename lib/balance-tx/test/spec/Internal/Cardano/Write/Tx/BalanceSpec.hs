@@ -2301,16 +2301,9 @@ paymentPartialTx txouts =
 -- shrinking the CBOR.
 --
 -- NOTE: Perhaps ideally 'PartialTx' would handle this automatically.
-restrictResolution
-    :: forall era. IsRecentEra era
-    => PartialTx era
-    -> PartialTx era
-restrictResolution partialTx@PartialTx {tx, extraUTxO} =
-    partialTx
-        { extraUTxO
-            = UTxO
-            $ unUTxO extraUTxO `Map.restrictKeys` txIns
-        }
+restrictResolution :: IsRecentEra era => PartialTx era -> PartialTx era
+restrictResolution partialTx@PartialTx {tx, extraUTxO} = partialTx
+    {extraUTxO = UTxO $ unUTxO extraUTxO `Map.restrictKeys` txIns}
   where
     txIns = tx ^. bodyTxL . inputsTxBodyL
 
