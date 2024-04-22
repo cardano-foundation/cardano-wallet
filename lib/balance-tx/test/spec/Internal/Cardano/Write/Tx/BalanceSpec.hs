@@ -2667,12 +2667,9 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- genTxForBalancing
         extraUTxO <- genExtraUTxO tx
-        return PartialTx
-            { tx
-            , extraUTxO
-            , redeemers = []
-            , timelockKeyWitnessCounts = mempty
-            }
+        let redeemers = []
+        let timelockKeyWitnessCounts = mempty
+        pure PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
       where
         genExtraUTxO :: Tx era -> Gen (UTxO era)
         genExtraUTxO tx =
