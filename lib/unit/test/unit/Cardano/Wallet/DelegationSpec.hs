@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -21,6 +22,9 @@ import Cardano.Address.Derivation
     )
 import Cardano.Pool.Types
     ( PoolId (..)
+    )
+import Cardano.Wallet
+    ( PoolRetirementEpochInfo (..)
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)
@@ -47,7 +51,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
     )
 import Cardano.Wallet.Transaction
-    ( Withdrawal (..)
+    ( ErrCannotJoin (..)
+    , Withdrawal (..)
     )
 import Data.Function
     ( on
@@ -58,6 +63,9 @@ import Data.List.NonEmpty
 import Data.Maybe
     ( fromJust
     , isNothing
+    )
+import Data.Set
+    ( Set
     )
 import Data.Word
     ( Word64
@@ -109,10 +117,14 @@ spec :: Spec
 spec = describe "Cardano.Wallet.DelegationSpec" $ do
 
     describe "Join/Quit Stake pool properties" $ do
-        it "You can quit if you cannot join" $ do
-            property prop_guardJoinQuit
-        it "You can join if you cannot quit" $ do
-            property prop_guardQuitJoin
+        it "You can quit if you cannot join Babbage" $ do
+            property (prop_guardJoinQuit guardJoinBabbage)
+        it "You can quit if you cannot join Conway" $ do
+            property (prop_guardJoinQuit guardJoinConway)
+        it "You can join if you cannot quit Babbage" $ do
+            property (prop_guardQuitJoin guardJoinBabbage)
+        it "You can join if you cannot quit Conway" $ do
+            property (prop_guardQuitJoin guardJoinConway)
 
     describe "Join/Quit Stake pool unit mockEventSource" $ do
         it "Cannot join A, when active = A in Babbage" $ do
@@ -195,20 +207,21 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
 -------------------------------------------------------------------------------}
 
 prop_guardJoinQuit
-    :: [PoolId]
+    :: (Set PoolId -> WalletDelegation -> PoolId -> Maybe PoolRetirementEpochInfo -> Either ErrCannotJoin ())
+    -> [PoolId]
     -> WalletDelegation
     -> PoolId
     -> Withdrawal
     -> Maybe W.PoolRetirementEpochInfo
     -> Property
-prop_guardJoinQuit knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
+prop_guardJoinQuit guardJoin knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
     $ cover 10 retirementNotPlanned
         "retirementNotPlanned"
     $ cover 10 retirementPlanned
         "retirementPlanned"
     $ cover 10 alreadyRetired
         "alreadyRetired"
-    $ case WD.guardJoin Write.RecentEraBabbage knownPools dlg pid mRetirementInfo of
+    $ case guardJoin knownPools dlg pid mRetirementInfo of
         Right () ->
             label "I can join" $ property $
                 alreadyRetired `shouldBe` False
@@ -231,12 +244,13 @@ prop_guardJoinQuit knownPoolsList dlg pid wdrl mRetirementInfo = checkCoverage
             pure $ W.currentEpoch info >= W.retirementEpoch info
 
 prop_guardQuitJoin
-    :: NonEmptyList PoolId
+    :: (Set PoolId -> WalletDelegation -> PoolId -> Maybe PoolRetirementEpochInfo -> Either ErrCannotJoin ())
+    -> NonEmptyList PoolId
     -> WalletDelegation
     -> Word64
     -> Withdrawal
     -> Property
-prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
+prop_guardQuitJoin guardJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
     let knownPools = Set.fromList knownPoolsList in
     let noRetirementPlanned = Nothing in
     case WD.guardQuit dlg wdrl (Coin.fromWord64 rewards) False  of
@@ -244,8 +258,7 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
             label "I can quit" $ property True
         Left W.ErrNotDelegatingOrAboutTo ->
             label "ErrNotDelegatingOrAboutTo" $
-                WD.guardJoin Write.RecentEraBabbage
-                    knownPools dlg (last knownPoolsList) noRetirementPlanned
+                guardJoin knownPools dlg (last knownPoolsList) noRetirementPlanned
                     === Right ()
         Left W.ErrNonNullRewards{} ->
             label "ErrNonNullRewards" $
@@ -254,6 +267,22 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
   where
     isSelfWdrl WithdrawalSelf{} = True
     isSelfWdrl _                = False
+
+guardJoinBabbage
+    :: Set PoolId
+    -> WalletDelegation
+    -> PoolId
+    -> Maybe PoolRetirementEpochInfo
+    -> Either ErrCannotJoin ()
+guardJoinBabbage = WD.guardJoin Write.RecentEraBabbage
+
+guardJoinConway
+    :: Set PoolId
+    -> WalletDelegation
+    -> PoolId
+    -> Maybe PoolRetirementEpochInfo
+    -> Either ErrCannotJoin ()
+guardJoinConway = WD.guardJoin Write.RecentEraConway
 
 {-------------------------------------------------------------------------------
                     Arbitrary instances
