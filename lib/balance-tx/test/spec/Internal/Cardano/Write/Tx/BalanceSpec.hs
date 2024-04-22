@@ -2836,15 +2836,15 @@ shrinkInputResolution =
 
     shrinkOutput _ = []
 
-    -- NOTE: We only want to shrink the outputs, keeping the inputs and length
+    -- NOTE: We only want to shrink the values, keeping the keys and length
     -- of the list the same.
-    shrinkUTxOEntries :: [(TxIn, TxOut era)] -> [[(TxIn, TxOut era)]]
+    shrinkUTxOEntries :: [(k, v)] -> [[(k, v)]]
     shrinkUTxOEntries = \case
-        ((i, o) : rest) -> mconcat
+        ((k, v) : rest) -> mconcat
             -- First shrink the first element
-            [ map (\o' -> (i, o') : rest) (shrinkOutput o)
+            [ map (\v' -> (k, v') : rest) (shrinkOutput v)
             -- Recurse to shrink subsequent elements on their own
-            , map ((i, o) :) (shrinkUTxOEntries rest)
+            , map ((k, v) :) (shrinkUTxOEntries rest)
             ]
         [] -> []
 
