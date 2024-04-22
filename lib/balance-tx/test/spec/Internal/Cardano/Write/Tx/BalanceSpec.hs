@@ -282,7 +282,6 @@ import Internal.Cardano.Write.Tx
     , recentEra
     , serializeTx
     , toCardanoApiTx
-    , toCardanoApiUTxO
     , unsafeUtxoFromTxOutsInRecentEra
     )
 import Internal.Cardano.Write.Tx.Balance
@@ -2309,14 +2308,12 @@ restrictResolution
 restrictResolution partialTx@PartialTx {tx, extraUTxO} =
     partialTx
         { extraUTxO
-            = fromCardanoApiUTxO
-            $ CardanoApi.UTxO
-            $ extraUTxOMap `Map.restrictKeys` inputsInTx (toCardanoApiTx tx)
+            = UTxO
+            $ extraUTxOMap `Map.restrictKeys` inputsInTx tx
         }
   where
-    CardanoApi.UTxO extraUTxOMap = toCardanoApiUTxO extraUTxO
-    inputsInTx (CardanoApi.Tx (CardanoApi.TxBody bod) _) =
-        Set.fromList $ map fst $ CardanoApi.txIns bod
+    UTxO extraUTxOMap = extraUTxO
+    inputsInTx tx' = tx' ^. bodyTxL . inputsTxBodyL
 
 serializedSize
     :: forall era. IsRecentEra era
