@@ -2836,9 +2836,9 @@ shrinkInputResolution =
   where
     shrinkOutput _ = []
 
-    shrinkMapValues :: Ord k => (v -> [v]) -> Map k v -> [Map k v]
-    shrinkMapValues = shrinkMapBy Map.fromList Map.toList . shrinkKeyValuePairs
-
+shrinkMapValues :: Ord k => (v -> [v]) -> Map k v -> [Map k v]
+shrinkMapValues = shrinkMapBy Map.fromList Map.toList . shrinkKeyValuePairs
+  where
     -- NOTE: We only want to shrink the values, keeping the keys and length
     -- of the list the same.
     shrinkKeyValuePairs :: (v -> [v]) -> [(k, v)] -> [[(k, v)]]
