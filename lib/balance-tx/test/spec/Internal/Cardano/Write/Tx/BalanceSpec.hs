@@ -2674,14 +2674,10 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             , timelockKeyWitnessCounts = mempty
             }
       where
-        genExtraUTxO
-            :: Tx era
-            -> Gen (UTxO era)
+        genExtraUTxO :: Tx era -> Gen (UTxO era)
         genExtraUTxO tx =
             UTxO . Map.fromList <$>
-            mapM
-                (\i -> (i,) <$> genTxOut)
-                (Set.toList $ txInputs tx)
+            mapM (\i -> (i,) <$> genTxOut) (Set.toList $ txInputs tx)
         genTxForBalancing :: Gen (Tx era)
         genTxForBalancing =
             fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
