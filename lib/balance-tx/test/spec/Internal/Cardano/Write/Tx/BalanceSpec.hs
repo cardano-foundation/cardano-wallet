@@ -2309,10 +2309,10 @@ restrictResolution partialTx@PartialTx {tx, extraUTxO} =
     partialTx
         { extraUTxO
             = UTxO
-            $ unUTxO extraUTxO `Map.restrictKeys` inputsInTx
+            $ unUTxO extraUTxO `Map.restrictKeys` txIns
         }
   where
-    inputsInTx = tx ^. bodyTxL . inputsTxBodyL
+    txIns = tx ^. bodyTxL . inputsTxBodyL
 
 serializedSize
     :: forall era. IsRecentEra era
