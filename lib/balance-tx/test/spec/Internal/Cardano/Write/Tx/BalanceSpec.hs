@@ -2678,9 +2678,6 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         genExtraUTxO tx =
             UTxO . Map.fromList <$>
             mapM (\i -> (i,) <$> genTxOut) (Set.toList $ txInputs tx)
-        genTxForBalancing :: Gen (Tx era)
-        genTxForBalancing =
-            fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
         txInputs :: Tx era -> Set TxIn
         txInputs tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
@@ -2807,6 +2804,10 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
             utxoToMap (UTxO m) = m
 
         shrinkEntry _ = []
+
+genTxForBalancing :: forall era. IsRecentEra era => Gen (Tx era)
+genTxForBalancing =
+    fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
 
 genTxOut :: forall era. IsRecentEra era => Gen (TxOut era)
 genTxOut =
