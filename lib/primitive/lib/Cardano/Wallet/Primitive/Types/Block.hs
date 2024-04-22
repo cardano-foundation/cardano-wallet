@@ -14,7 +14,6 @@ module Cardano.Wallet.Primitive.Types.Block
     , isGenesisBlockHeader
     , compareSlot
     , chainPointFromBlockHeader
-    , chainPointFromBlockHeader'
     , toWalletChainPoint
     , fromWalletChainPoint
     , toSlot
@@ -150,10 +149,6 @@ chainPointFromBlockHeader :: BlockHeader -> ChainPoint
 chainPointFromBlockHeader header@(BlockHeader sl _ hash _)
     | isGenesisBlockHeader header = ChainPointAtGenesis
     | otherwise                   = ChainPoint sl hash
-
-chainPointFromBlockHeader' :: BlockHeader -> Read.ChainPoint
-chainPointFromBlockHeader' =
-    fromWalletChainPoint . chainPointFromBlockHeader
 
 toWalletChainPoint :: Read.ChainPoint -> ChainPoint
 toWalletChainPoint Read.GenesisPoint = ChainPointAtGenesis
