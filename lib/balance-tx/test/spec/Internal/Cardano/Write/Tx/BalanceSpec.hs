@@ -2681,7 +2681,7 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             UTxO . Map.fromList <$>
             mapM
                 (\i -> (i,) <$> genTxOut)
-                (Set.toList $ txInputsLedger tx)
+                (Set.toList $ txInputs tx)
         genTxForBalancing :: Gen (Tx era)
         genTxForBalancing =
             fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
@@ -2697,7 +2697,8 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
                 -- should ideally test what happens, and make it clear what
                 -- code, if any, should validate.
                 CardanoApi.genTxOut (cardanoEra @era)
-        txInputsLedger tx = tx ^. bodyTxL . inputsTxBodyL
+        txInputs :: Tx era -> Set TxIn
+        txInputs tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
