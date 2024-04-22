@@ -77,7 +77,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
     , getProducer
-    , fromBlockNo
     , toCardanoEra
     , fromShelleyTxOut
     , fromGenesisData
@@ -270,9 +269,6 @@ import Ouroboros.Consensus.Shelley.Eras
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..)
     )
-import Ouroboros.Network.Block
-    ( BlockNo (..)
-    )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , LocalAddress (..)
@@ -433,10 +429,6 @@ toCardanoEra = \case
     BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
     BlockBabbage{} -> AnyCardanoEra BabbageEra
     BlockConway{}  -> AnyCardanoEra ConwayEra
-
--- FIXME unsafe conversion (Word64 -> Word32)
-fromBlockNo :: BlockNo -> Quantity "block" Word32
-fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxSize :: Word32 -> Quantity "byte" Word16
