@@ -2694,14 +2694,6 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         [ restrictResolution (partialTx {tx = tx'})
         | tx' <- shrinkTx tx
         ]
-      where
-        shrinkTx :: Tx era -> [Tx era]
-        shrinkTx =
-            shrinkMapBy fromCardanoApiTx toCardanoApiTx shrinkCardanoApiTx
-          where
-            shrinkCardanoApiTx = case recentEra @era of
-                RecentEraBabbage -> shrinkTxBabbage
-                RecentEraConway -> \_ -> [] -- no shrinker implemented yet
 
 instance Arbitrary StdGenSeed  where
     arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
@@ -2878,6 +2870,14 @@ shrinkStrictMaybe :: StrictMaybe a -> [StrictMaybe a]
 shrinkStrictMaybe = \case
     SNothing -> []
     SJust _ -> [SNothing]
+
+shrinkTx :: forall era. IsRecentEra era => Tx era -> [Tx era]
+shrinkTx =
+    shrinkMapBy fromCardanoApiTx toCardanoApiTx shrinkCardanoApiTx
+  where
+    shrinkCardanoApiTx = case recentEra @era of
+        RecentEraBabbage -> shrinkTxBabbage
+        RecentEraConway -> \_ -> [] -- no shrinker implemented yet
 
 shrinkTxBabbage
     :: CardanoApi.Tx CardanoApi.BabbageEra
