@@ -2951,8 +2951,8 @@ shrinkTxBodyBabbage
         , b' <- prependOriginal shrinkStrictMaybe b
         ]
 
-shrinkValue :: (Eq a, Monoid a) => a -> [a]
-shrinkValue v = filter (/= v) [mempty]
+    shrinkValue :: (Eq a, Monoid a) => a -> [a]
+    shrinkValue v = filter (/= v) [mempty]
 
 shrinkWdrl :: Withdrawals era -> [Withdrawals era]
 shrinkWdrl (Withdrawals m) = map (Withdrawals . Map.fromList) $
