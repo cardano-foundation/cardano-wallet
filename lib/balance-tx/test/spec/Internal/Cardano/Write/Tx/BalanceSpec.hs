@@ -278,7 +278,6 @@ import Internal.Cardano.Write.Tx
     , Value
     , cardanoEra
     , fromCardanoApiTx
-    , fromCardanoApiUTxO
     , recentEra
     , serializeTx
     , toCardanoApiTx
@@ -2667,7 +2666,7 @@ instance Arbitrary (MixedSign Value) where
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- CardanoApi.genTxForBalancing $ cardanoEra @era
-        extraUTxO <- genExtraUTxO tx
+        extraUTxO <- genExtraUTxO (fromCardanoApiTx tx)
         return PartialTx
             { tx = fromCardanoApiTx tx
             , extraUTxO
@@ -2676,12 +2675,13 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
             }
       where
         genExtraUTxO
-            :: CardanoApi.Tx (CardanoApiEra era)
+            :: Tx era
             -> Gen (UTxO era)
         genExtraUTxO tx =
-            fromCardanoApiUTxO .
-            CardanoApi.UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) (txInputs tx)
+            UTxO . Map.fromList <$>
+            mapM
+                (\i -> (i,) <$> genTxOutLedger)
+                (Set.toList $ txInputsLedger tx)
         genTxOut :: Gen (CardanoApi.TxOut ctx (CardanoApiEra era))
         genTxOut =
             -- NOTE: genTxOut does not generate quantities larger than
