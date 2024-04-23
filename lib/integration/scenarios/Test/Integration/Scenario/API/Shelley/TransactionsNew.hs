@@ -573,6 +573,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
+    it "TRANS_NEW_CREATE_02c - Correct metadata structure to be encrypted - short" $
+        \ctx -> runResourceT $ do
+            let metadataRaw =
+                    TxMetadata (Map.fromList
+                                [ (0,TxMetaText "hello")
+                                , (674,TxMetaMap [(TxMetaText "msg", TxMetaText "world")])
+                                , (50, TxMetaNumber 1_245)
+                                ])
+            wa <- fixtureWallet ctx
+            let metadataToBeEncrypted =
+                    TxMetadataWithSchema TxMetadataNoSchema metadataRaw
+            let encryptMetadata =
+                    ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
+            let payload = Json [json|{
+                    "encrypt_metadata": #{toJSON encryptMetadata},
+                    "metadata": #{toJSON metadataToBeEncrypted}
+                }|]
+            rTx <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley wa) Default payload
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let initialBalance = wa ^. #balance . #available . #toNatural
