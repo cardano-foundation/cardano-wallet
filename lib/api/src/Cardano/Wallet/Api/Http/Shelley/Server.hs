@@ -728,6 +728,9 @@ import Control.Tracer
 import Cryptography.Cipher.AES256CBC
     ( CipherMode (..)
     )
+import Cryptography.Core
+    ( genSalt
+    )
 import Cryptography.Hash.Core
     ( SHA256 (..)
     )
@@ -2748,8 +2751,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         liftHandler $ throwE ErrConstructTxWrongPayload
 
     metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
-            (Just apiEncrypt, Just metadataWithSchema) ->
-                case toMetadataEncrypted apiEncrypt metadataWithSchema Nothing of
+            (Just apiEncrypt, Just metadataWithSchema) -> do
+                salt <- liftIO $ genSalt 8
+                case toMetadataEncrypted apiEncrypt metadataWithSchema (Just salt) of
                     Left err ->
                         liftHandler $ throwE err
                     Right meta ->

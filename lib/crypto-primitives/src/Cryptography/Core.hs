@@ -4,7 +4,10 @@ module Cryptography.Core
     , eitherCryptoError
 
     , MonadRandom (..)
+    , genSalt
     ) where
+
+import Prelude
 
 import Crypto.Error
     ( CryptoError (..)
@@ -14,3 +17,9 @@ import Crypto.Error
 import Crypto.Random.Types
     ( MonadRandom (..)
     )
+import Data.ByteString
+    ( ByteString
+    )
+
+genSalt :: MonadRandom m => Int -> m ByteString
+genSalt = getRandomBytes
