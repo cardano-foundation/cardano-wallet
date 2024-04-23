@@ -3385,6 +3385,65 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectField #delegation (`shouldBe` expectedDelegation)
                 ]
 
+    it "TRANS_NEW_JOIN_01f - Cannot re-join the same pool in Babbage"  $ \ctx ->
+        runResourceT $ do
+        noConway ctx "re-joining the same pool outlawed before Conway"
+
+        let initialAmt = 100 * minUTxOValue (_mainEra ctx)
+        src <- fixtureWalletWith @n ctx [initialAmt, initialAmt]
+        pool1 : _ <- map (view #id) <$> notRetiringPools ctx
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx1 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx1
+            [ expectResponseCode HTTP.status202
+            ]
+
+        let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
+        signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
+
+        submittedTx1 <- submitTxWithWid ctx src signedTx1
+        verify submittedTx1
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getResponse submittedTx1))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
+                ]
+
+        waitNumberOfEpochBoundaries 2 ctx
+
+        let getSrcWallet =
+                let endpoint = Link.getWallet @'Shelley src
+                 in request @ApiWallet ctx endpoint Default Empty
+        eventually "Wallet is delegating to pool1" $ do
+            getSrcWallet >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                ]
+
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx2
+            [ expectResponseCode HTTP.status403
+
+            ]
+        decodeErrorInfo rTx2 `shouldBe` PoolAlreadyJoined
+
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
         let amt = minUTxOValue (_mainEra ctx)
