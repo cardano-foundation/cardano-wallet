@@ -736,7 +736,13 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    (Selection{extraInputs,extraCollateral,extraOutputs,extraInputScripts}, s')
+    ( SelectAssetsResult
+        { extraInputs
+        , extraCollateral
+        , extraOutputs
+        , extraInputScripts
+        }
+        , s')
         <- selectAssets
             pp
             utxoAssumptions
@@ -871,7 +877,7 @@ balanceTxInner
         left ErrBalanceTxAssignRedeemers $
             assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
-data Selection = Selection
+data SelectAssetsResult = SelectAssetsResult
     { extraInputs :: [W.TxIn]
     , extraCollateral :: [W.TxIn]
     , extraOutputs :: [W.TxOut]
@@ -903,7 +909,7 @@ selectAssets
     -> ChangeAddressGen changeState
     -> SelectionStrategy
     -> changeState
-    -> ExceptT (ErrBalanceTx era) m (Selection, changeState)
+    -> ExceptT (ErrBalanceTx era) m (SelectAssetsResult, changeState)
 selectAssets pp utxoAssumptions outs' redeemers
     utxoSelection balance fee0 changeGen selectionStrategy s = do
         except validateTxOutputs'
@@ -1041,7 +1047,7 @@ selectAssets pp utxoAssumptions outs' redeemers
 
     transformSelection
         :: CoinSelection.Selection
-        -> (Selection, changeState)
+        -> (SelectAssetsResult, changeState)
     transformSelection sel =
         let
             (sel', s') = assignChangeAddresses changeGen sel s
@@ -1058,7 +1064,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                         . view #address
                         . snd
                         ) <$> inputs <> collateral
-        in  ( Selection
+        in  ( SelectAssetsResult
                 { extraInputs = map fst inputs
                 -- TODO [ADP-3355] Filter out pre-selected inputs here
                 --
