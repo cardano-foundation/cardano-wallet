@@ -2827,12 +2827,8 @@ shrinkFee :: Ledger.Coin -> [Ledger.Coin]
 shrinkFee (Ledger.Coin 0) = []
 shrinkFee _ = [Ledger.Coin 0]
 
-shrinkInputResolution
-    :: forall era. IsRecentEra era
-    => Write.UTxO era
-    -> [Write.UTxO era]
-shrinkInputResolution =
-    shrinkMapBy UTxO unUTxO (shrinkMapValues shrinkOutput)
+shrinkInputResolution :: IsRecentEra era => Write.UTxO era -> [Write.UTxO era]
+shrinkInputResolution = shrinkMapBy UTxO unUTxO (shrinkMapValues shrinkOutput)
   where
     shrinkOutput _ = []
 
