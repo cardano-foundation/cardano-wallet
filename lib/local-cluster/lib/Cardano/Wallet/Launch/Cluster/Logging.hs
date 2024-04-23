@@ -1,5 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -38,8 +41,11 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra
     , clusterEraToString
     )
-import Control.Monad
-    ( liftM2
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , FileOf (..)
+    , RelDirOf (..)
+    , absolutize
     )
 import Data.Char
     ( toLower
@@ -50,9 +56,6 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..)
     )
-import System.Directory
-    ( makeAbsolute
-    )
 import System.Environment.Extended
     ( lookupEnvNonEmpty
     )
@@ -60,14 +63,14 @@ import System.Exit
     ( ExitCode (..)
     , die
     )
-import System.FilePath
-    ( (</>)
-    )
-import System.FilePath.Posix
-    ( (<.>)
-    )
 import System.IO.Temp.Extra
     ( TempDirLog
+    )
+import System.Path
+    ( absRel
+    , relFile
+    , (<.>)
+    , (</>)
     )
 
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -78,9 +81,9 @@ import qualified Data.Text.Encoding.Error as T
 data ClusterLog
     = -- | How many pools
       MsgRegisteringStakePools Int
-    | MsgStartingCluster FilePath
+    | MsgStartingCluster (DirOf "cluster")
     | MsgLauncher String LauncherLog
-    | MsgStartedStaticServer String FilePath
+    | MsgStartedStaticServer String (DirOf "node")
     | MsgRegisteringPoolMetadataInSMASH String String
     | MsgRegisteringPoolMetadata String String
     | MsgTempDir TempDirLog
@@ -91,7 +94,7 @@ data ClusterLog
     | MsgSocketIsReady CardanoNodeConn
     | MsgStakeDistribution String ExitCode BL8.ByteString BL8.ByteString
     | MsgDebug Text
-    | MsgGenOperatorKeyPair FilePath
+    | MsgGenOperatorKeyPair (DirOf "node")
     | MsgCLI [String]
     | MsgHardFork ClusterEra
     deriving stock (Show)
@@ -99,7 +102,7 @@ data ClusterLog
 instance ToText ClusterLog where
     toText = \case
         MsgStartingCluster dir ->
-            "Configuring cluster in " <> T.pack dir
+            "Configuring cluster in " <> T.pack (show dir)
         MsgRegisteringPoolMetadata url hash ->
             T.pack
                 $ unwords
@@ -125,7 +128,7 @@ instance ToText ClusterLog where
             T.pack name <> " " <> toText msg
         MsgStartedStaticServer baseUrl fp ->
             "Started a static server for "
-                <> T.pack fp
+                <> T.pack (show fp)
                 <> " at "
                 <> T.pack baseUrl
         MsgTempDir msg -> toText msg
@@ -164,7 +167,7 @@ instance ToText ClusterLog where
                     <> indent err
         MsgDebug msg -> msg
         MsgGenOperatorKeyPair dir ->
-            "Generating stake pool operator key pair in " <> T.pack dir
+            "Generating stake pool operator key pair in " <> T.pack (show dir)
         MsgCLI args -> T.pack $ unwords ("cardano-cli" : args)
         MsgHardFork era ->
             "Hard fork to " <> T.pack (clusterEraToString era)
@@ -206,21 +209,22 @@ instance HasSeverityAnnotation ClusterLog where
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
 
-data LogFileConfig = LogFileConfig
+data LogFileConfig a = LogFileConfig
     { minSeverityTerminal :: Severity
     -- ^ Minimum logging severity
-    , extraLogDir :: Maybe FilePath
+    , extraLogDir :: Maybe (a "node-logs")
     -- ^ Optional additional output to log file
     , minSeverityFile :: Severity
     -- ^ Minimum logging severity for 'extraLogFile'
     }
-    deriving stock (Show)
+
+deriving stock instance Show (a "node-logs") => Show (LogFileConfig a)
 
 logFileConfigFromEnv
-    :: Maybe String
+    :: Maybe (RelDirOf "log-subdir")
     -- ^ Optional extra subdir for TESTS_LOGDIR. E.g. @Just "alonzo"@ and
     -- @Just "mary"@ to keep them separate.
-    -> IO LogFileConfig
+    -> IO (LogFileConfig DirOf)
 logFileConfigFromEnv subdir =
     LogFileConfig
         <$> nodeMinSeverityFromEnv
@@ -263,14 +267,22 @@ testMinSeverityFromEnv =
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
-testLogDirFromEnv :: Maybe String -> IO (Maybe FilePath)
+testLogDirFromEnv
+    :: Maybe (RelDirOf "log-subdir")
+    -> IO (Maybe (DirOf "node-logs"))
 testLogDirFromEnv msubdir = do
-    rel <- lookupEnvNonEmpty "TESTS_LOGDIR"
-    makeAbsolute `traverse` case msubdir of
-        Just subdir -> liftM2 (</>) rel (Just subdir)
-        Nothing -> rel
+    mLogDir <- fmap absRel <$> lookupEnvNonEmpty "TESTS_LOGDIR"
+    mAbsLogDir <- absolutize `traverse` mLogDir
+    pure $ do
+        RelDirOf subdir <- msubdir
+        absLogDir <- mAbsLogDir
+        pure $ DirOf $ absLogDir </> subdir
 
-setLoggingName :: String -> LogFileConfig -> LogFileConfig
+setLoggingName
+    :: String
+    -> LogFileConfig DirOf
+    -> LogFileConfig FileOf
 setLoggingName name cfg = cfg{extraLogDir = filename <$> extraLogDir cfg}
   where
-    filename = (</> (name <.> "log"))
+    filename :: DirOf "node-logs" -> FileOf "node-logs"
+    filename (DirOf dir) = FileOf (dir </> (relFile name <.> "log"))

@@ -1,13 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 
 module Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
-    , NodePathSegment (..)
 
     )
 where
@@ -27,7 +25,8 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf
+    ( DirOf
+    , FileOf
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -54,11 +53,11 @@ data Config = Config
     -- ^ Stake pools to register.
     , cfgLastHardFork :: ClusterEra
     -- ^ Which era to use.
-    , cfgNodeLogging :: LogFileConfig
+    , cfgNodeLogging :: LogFileConfig DirOf
     -- ^ Log severity for node.
-    , cfgClusterDir :: FileOf "cluster"
+    , cfgClusterDir :: DirOf "cluster"
     -- ^ Root directory for cluster data.
-    , cfgClusterConfigs :: FileOf "cluster-configs"
+    , cfgClusterConfigs :: DirOf "cluster-configs"
     -- ^ Directory containing data for cluster setup.
     , cfgTestnetMagic :: TestnetMagic
     -- ^ Testnet magic to use.
@@ -67,7 +66,3 @@ data Config = Config
     , cfgTracer :: Tracer IO ClusterLog
     , cfgNodeOutputFile :: Maybe (FileOf "node-output")
     }
-
-newtype NodePathSegment = NodePathSegment FilePath
-    deriving stock (Show)
-    deriving newtype (Eq, Ord)

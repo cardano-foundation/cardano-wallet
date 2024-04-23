@@ -22,12 +22,14 @@ import Cardano.Wallet.Launch.Cluster
     , ClusterLog (..)
     , Config (..)
     , FaucetFunds (..)
-    , FileOf (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , defaultPoolConfigs
     , localClusterConfigsFromEnv
     , withCluster
+    )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
@@ -79,6 +81,9 @@ import System.Environment.Extended
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
+    )
+import System.Path
+    ( absDir
     )
 import Test.Hspec
     ( Spec
@@ -141,21 +146,28 @@ concurrentConnectionSpec = describe "NetworkLayer regression test #1708" $ do
     traceSpec $ it "Parallel local socket connections" $ \tr ->
         withTestNode nullTracer $ \np sock vData -> do
             let sTol = SyncTolerance 60
-            tasks <- replicateM 10 $ async $
-                withNetworkLayer tr
+            tasks <- replicateM 10
+                $ async
+                $ withNetworkLayer
+                    tr
                     tunedForMainnetPipeliningStrategy
-                    np sock vData sTol $ \nl -> do
-                        -- Wait for the first tip result from the node
-                        waiter <- newEmptyMVar
-                        race_
-                            (watchNodeTip nl (putMVar waiter))
-                            (takeMVar waiter)
+                    np
+                    sock
+                    vData
+                    sTol
+                $ \nl -> do
+                    -- Wait for the first tip result from the node
+                    waiter <- newEmptyMVar
+                    race_
+                        (watchNodeTip nl (putMVar waiter))
+                        (takeMVar waiter)
             void $ waitAnyCancel tasks
 
 observerSpec :: Spec
 observerSpec = sequential $ describe "Observer" $ do
     it "can fetch all observed keys, but not any other keys"
-        $ property $ \keys1 keys2 -> monadicIO $ do
+        $ property
+        $ \keys1 keys2 -> monadicIO $ do
             (observer, refresh, _trVar) <- run mockObserver
             run $ mapM_ (startObserving observer) keys1
             run $ refresh True
@@ -166,11 +178,13 @@ observerSpec = sequential $ describe "Observer" $ do
 
             observedValues <- run $ queryKeys observer keys1
 
-            assertEqual "observed keys return expected values"
+            assertEqual
+                "observed keys return expected values"
                 observedValues
                 (fromKeysWith (Just . length) keys1)
 
-            assertEqual "unobserved keys are all Nothing when queried"
+            assertEqual
+                "unobserved keys are all Nothing when queried"
                 unobservedValues
                 (allNothing unobservedKeys)
 
@@ -188,7 +202,7 @@ observerSpec = sequential $ describe "Observer" $ do
         -- They also use smaller @it@ blocks, with more @describe@ nesting,
         -- than much of the rest of the wallet tests. This is done for
         -- concise and readable test output.
-        let k = ("k"::String)
+        let k = ("k" :: String)
         let v = length k
         describe "startObserving" $ do
             it "(query k) returns Nothing before startObserving"
@@ -197,7 +211,8 @@ observerSpec = sequential $ describe "Observer" $ do
                     trVar `shouldHaveTraced` []
                     refresh True
                     (query observer k) `shouldReturn` Nothing
-                    trVar `shouldHaveTraced`
+                    shouldHaveTraced
+                        trVar
                         [ MsgWillFetch Set.empty
                         , MsgDidFetch Map.empty
                         ]
@@ -207,12 +222,13 @@ observerSpec = sequential $ describe "Observer" $ do
                     startObserving observer k
                     refresh True
                     let expectedValue = length k
-                    (query observer k)`shouldReturn` Just expectedValue
+                    query observer k `shouldReturn` Just expectedValue
 
             -- NOTE: Depends on the @refresh@ call from the previous test.
             it "traced MsgAddedObserver, MsgWillFetch, MsgDidFetch"
                 $ \(_, _, trVar) -> do
-                    trVar `shouldHaveTraced`
+                    shouldHaveTraced
+                        trVar
                         [ MsgAddedObserver k
                         , MsgWillFetch $ Set.singleton k
                         , MsgDidFetch $ Map.singleton k v
@@ -223,10 +239,11 @@ observerSpec = sequential $ describe "Observer" $ do
             it "(query k) is still v"
                 $ \(observer, refresh, trVar) -> do
                     startObserving observer k
-                    (query observer k) `shouldReturn` (Just v)
+                    query observer k `shouldReturn` Just v
                     refresh True
-                    (query observer k) `shouldReturn` (Just v)
-                    trVar `shouldHaveTraced`
+                    query observer k `shouldReturn` Just v
+                    shouldHaveTraced
+                        trVar
                         [ MsgWillFetch $ Set.singleton k
                         , MsgDidFetch $ Map.singleton k v
                         ]
@@ -235,23 +252,24 @@ observerSpec = sequential $ describe "Observer" $ do
             it "(query k) returns the existing v"
                 $ \(observer, refresh, _) -> do
                     refresh False
-                    (query observer k) `shouldReturn` Just v
+                    query observer k `shouldReturn` Just v
 
             it "only MsgWillFetch is traced"
                 $ \(_, _, trVar) -> do
-                trVar `shouldHaveTraced`
-                    [ MsgWillFetch $ Set.singleton k
-                    ]
+                    shouldHaveTraced
+                        trVar
+                        [ MsgWillFetch $ Set.singleton k
+                        ]
 
-        describe "stopObserving" $
-            it "makes (query k) return Nothing"
-                $ \(observer, refresh, _) -> do
-                    stopObserving observer k
-                    (query observer k) `shouldReturn` Nothing
-                    refresh True
-                    (query observer k) `shouldReturn` Nothing
+        describe "stopObserving"
+            $ it "makes (query k) return Nothing"
+            $ \(observer, refresh, _) -> do
+                stopObserving observer k
+                query observer k `shouldReturn` Nothing
+                refresh True
+                query observer k `shouldReturn` Nothing
   where
-    -- | Expects given messages to have been traced /and/ clears the @TVar@.
+    -- \| Expects given messages to have been traced /and/ clears the @TVar@.
     --
     -- NOTE: Reverses the contents in the @TVar@ to get a chronological order.
     shouldHaveTraced :: (Show log, Eq log) => TVar [log] -> [log] -> IO ()
@@ -262,29 +280,33 @@ observerSpec = sequential $ describe "Observer" $ do
     fromKeysWith :: Ord k => (k -> v) -> Set k -> Map k v
     fromKeysWith f =
         Map.fromList
-        . map (\k -> (k, f k))
-        . Set.toList
+            . map (\k -> (k, f k))
+            . Set.toList
 
     queryKeys :: (Monad m, Ord k) => Observer m k v -> Set k -> m (Map k (Maybe v))
-    queryKeys observer keys = Map.fromList <$> mapM
-        (\k -> query observer k >>= \v -> return (k, v))
-        (Set.toList keys)
+    queryKeys observer keys =
+        Map.fromList
+            <$> mapM
+                (\k -> query observer k >>= \v -> return (k, v))
+                (Set.toList keys)
 
     mockObserver
-        :: IO ( Observer IO String Int
-              , Bool -> IO ()
-              , TVar [ObserverLog String Int]
-              )
+        :: IO
+            ( Observer IO String Int
+            , Bool -> IO ()
+            , TVar [ObserverLog String Int]
+            )
     mockObserver = do
         trVar <- newTVarIO []
         (ob, refresh) <- newObserver (traceInTVarIO trVar) fetch
         return (ob, refresh, trVar)
       where
-        fetch True keys = pure
-            $ Just
-            $ Map.fromList
-            $ map (\x -> (x,length x))
-            $ Set.toList keys
+        fetch True keys =
+            pure
+                $ Just
+                $ Map.fromList
+                $ map (\x -> (x, length x))
+                $ Set.toList keys
         fetch False _ = pure Nothing
 
     -- Assert equiality in monadic properties with nice counterexamples
@@ -300,11 +322,15 @@ observerSpec = sequential $ describe "Observer" $ do
         let flag = if condition then "✓" else "✗"
         monitor (counterexample $ description <> " " <> flag)
         unless condition $ do
-            monitor $ counterexample $ fmt $ indentF 4 $ mconcat
-                [ build $ show a
-                , "\n/=\n"
-                , build $ show b
-                ]
+            monitor
+                $ counterexample
+                $ fmt
+                $ indentF 4
+                $ mconcat
+                    [ build $ show a
+                    , "\n/=\n"
+                    , build $ show b
+                    ]
         assert condition
 
 withTestNode
@@ -313,21 +339,22 @@ withTestNode
     -> IO a
 withTestNode tr action = do
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup $
-        \dir -> do
+    withSystemTempDir (contramap MsgTempDir tr) "network-spec" skipCleanup
+        $ \dir -> do
             cfgClusterConfigs <- localClusterConfigsFromEnv
-            let clusterConfig = Cluster.Config
-                    { cfgStakePools = defaultPoolConfigs
-                    , cfgLastHardFork = BabbageHardFork
-                    , cfgNodeLogging = LogFileConfig Info Nothing Info
-                    , cfgClusterDir = FileOf @"cluster" dir
-                    , cfgClusterConfigs
-                    , cfgTestnetMagic = Cluster.TestnetMagic 42
-                    , cfgShelleyGenesisMods = []
-                    , cfgTracer = tr
-                    , cfgNodeOutputFile = Nothing
-                    }
-            withCluster clusterConfig (FaucetFunds [] [] []) $
-                \(RunningNode sock genesisData vData) -> do
-                    let (np, _, _ ) = fromGenesisData genesisData
+            let clusterConfig =
+                    Cluster.Config
+                        { cfgStakePools = defaultPoolConfigs
+                        , cfgLastHardFork = BabbageHardFork
+                        , cfgNodeLogging = LogFileConfig Info Nothing Info
+                        , cfgClusterDir = DirOf @"cluster" $ absDir dir
+                        , cfgClusterConfigs
+                        , cfgTestnetMagic = Cluster.TestnetMagic 42
+                        , cfgShelleyGenesisMods = []
+                        , cfgTracer = tr
+                        , cfgNodeOutputFile = Nothing
+                        }
+            withCluster clusterConfig (FaucetFunds [] [] [])
+                $ \(RunningNode sock genesisData vData) -> do
+                    let (np, _, _) = fromGenesisData genesisData
                     action np sock vData

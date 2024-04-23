@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Cardano.Wallet.Spec.Network.Local
     ( configuredNetwork
     ) where
@@ -9,8 +7,9 @@ import qualified Cardano.Wallet.Spec.Network.Wait as Wait
 import Cardano.Wallet.Cli.Launcher
     ( WalletApi (..)
     )
-import Cardano.Wallet.Spec.Lib.Paths
-    ( DirOf
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , toFilePath
     )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork (..)
@@ -19,16 +18,12 @@ import Control.Monad.Trans.Resource
     ( ResourceT
     , allocate
     )
-import Data.Tagged
-    ( untag
-    )
-import Path
-    ( relfile
-    , toFilePath
-    , (</>)
-    )
 import System.IO
     ( openFile
+    )
+import System.Path
+    ( relFile
+    , (</>)
     )
 import System.Process.Typed
     ( Process
@@ -44,7 +39,7 @@ configuredNetwork
     :: DirOf "state"
     -> DirOf "config"
     -> ResourceT IO ConfiguredNetwork
-configuredNetwork stateDir clusterConfigsDir = do
+configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) = do
     walletApi <- startCluster
 
     unlessM (Wait.untilWalletIsConnected walletApi) do
@@ -63,7 +58,7 @@ configuredNetwork stateDir clusterConfigsDir = do
 
     startLocalClusterProcess :: IO (Process () () ())
     startLocalClusterProcess = do
-        let clusterLog = untag stateDir </> [relfile|cluster.log|]
+        let clusterLog = stateDir </> relFile "cluster.log"
         handle <- openFile (toFilePath clusterLog) AppendMode
         putStrLn $ "Writing cluster logs to " <> toFilePath clusterLog
         startProcess
@@ -71,5 +66,5 @@ configuredNetwork stateDir clusterConfigsDir = do
           $ setStdout (useHandleClose handle)
           $ proc "local-cluster"
             [ "--cluster-configs"
-            , toFilePath (untag clusterConfigsDir)
+            , toFilePath clusterConfigsDir
             ]

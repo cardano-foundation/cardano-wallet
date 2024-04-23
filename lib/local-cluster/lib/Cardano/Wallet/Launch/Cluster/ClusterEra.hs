@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (..)
@@ -17,16 +16,12 @@ where
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , absolutize
     )
 import Data.Char
     ( toLower
-    )
-import Data.Functor
-    ( (<&>)
-    )
-import Data.Maybe
-    ( fromMaybe
     )
 import System.Environment.Extended
     ( lookupEnvNonEmpty
@@ -34,8 +29,10 @@ import System.Environment.Extended
 import System.Exit
     ( die
     )
-import System.FilePath
-    ( (</>)
+import System.Path
+    ( absRel
+    , relDir
+    , (</>)
     )
 
 data ClusterEra
@@ -69,16 +66,24 @@ clusterEraFromEnv = do
         "conway" -> pure ConwayHardFork
         _ -> die $ var ++ ": unknown era"
 
-localClusterConfigsFromEnv :: IO (FileOf "cluster-configs")
-localClusterConfigsFromEnv =
-    lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
-        <&> FileOf @"cluster-configs"
-            . fromMaybe
-                (".." </> "local-cluster" </> "test" </> "data" </> "cluster-configs")
+localClusterConfigsFromEnv :: IO (DirOf "cluster-configs")
+localClusterConfigsFromEnv = do
+    mConfigsPath <- lookupEnvNonEmpty "LOCAL_CLUSTER_CONFIGS"
+    let configPath = case mConfigsPath of
+            Just path -> absRel path
+            Nothing ->
+                absRel ".."
+                    </> relDir "local-cluster"
+                    </> relDir "test"
+                    </> relDir "data"
+                    </> relDir "cluster-configs"
+    DirOf <$> absolutize configPath
 
 nodeOutputFileFromEnv :: IO (Maybe (FileOf "node-output"))
-nodeOutputFileFromEnv = fmap FileOf
-    <$> lookupEnvNonEmpty "LOCAL_CLUSTER_NODE_OUTPUT_FILE"
+nodeOutputFileFromEnv = do
+    mNodeOutput <- fmap absRel
+        <$> lookupEnvNonEmpty "LOCAL_CLUSTER_NODE_OUTPUT_FILE"
+    fmap FileOf <$> absolutize `traverse` mNodeOutput
 
 clusterEraToString :: ClusterEra -> String
 clusterEraToString = \case

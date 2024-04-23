@@ -9,12 +9,12 @@ import Cardano.Node.Cli.Launcher
     ( NodeApi
     , nodeApiSocket
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( toFilePath
+    )
 import Data.Aeson
     ( withObject
     , (.:)
-    )
-import Path
-    ( toFilePath
     )
 import Prelude hiding
     ( stderr

@@ -1,6 +1,5 @@
 module Cardano.Wallet.Spec.Interpreters.Config where
-
-import Cardano.Wallet.Spec.Lib.Paths
+import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf
     )
 

@@ -1,22 +1,24 @@
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Node.Cli.Launcher where
 
 import Prelude
 
-import Path
-    ( Abs
-    , Dir
-    , File
-    , Path
-    , relfile
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , FileOf
+    , absFilePathOf
     , toFilePath
-    , (</>)
     )
 import System.IO
     ( IOMode (AppendMode)
     , openFile
+    )
+import System.Path
+    ( AbsFile
+    , relFile
+    , (</>)
     )
 import System.Process.Typed
     ( Process
@@ -30,8 +32,8 @@ import System.Process.Typed
 
 start :: NodeProcessConfig -> IO (NodeInstance, NodeApi)
 start NodeProcessConfig{..} = do
-    let nodeSocket = nodeDir </> [relfile|node.sock|]
-    let nodeLog = nodeDir </> [relfile|node.log|]
+    let nodeSocket = absDirOf nodeDir </> relFile "node.sock"
+    let nodeLog = absDirOf nodeDir </> relFile "node.log"
     handle <- openFile (toFilePath nodeLog) AppendMode
     putStrLn $ "Writing node logs to " <> toFilePath nodeLog
     nodeProcess <-
@@ -42,11 +44,11 @@ start NodeProcessConfig{..} = do
                 "cardano-node"
                 [ "run"
                 , "--config"
-                , toFilePath nodeConfig
+                , absFilePathOf nodeConfig
                 , "--topology"
-                , toFilePath nodeTopology
+                , absFilePathOf nodeTopology
                 , "--database-path"
-                , toFilePath nodeDatabase
+                , toFilePath $ absDirOf nodeDatabase
                 , "--socket-path"
                 , toFilePath nodeSocket
                 , "+RTS"
@@ -62,16 +64,16 @@ stop (NodeInstance process) = do
 --------------------------------------------------------------------------------
 -- Data types ------------------------------------------------------------------
 
-newtype NodeApi = NodeApi (Path Abs File)
+newtype NodeApi = NodeApi AbsFile
 
-nodeApiSocket :: NodeApi -> Path Abs File
+nodeApiSocket :: NodeApi -> AbsFile
 nodeApiSocket (NodeApi socket) = socket
 
 data NodeProcessConfig = NodeProcessConfig
-    { nodeDir :: Path Abs Dir
-    , nodeConfig :: Path Abs File
-    , nodeTopology :: Path Abs File
-    , nodeDatabase :: Path Abs Dir
+    { nodeDir :: DirOf "node"
+    , nodeConfig :: FileOf "node-config"
+    , nodeTopology :: FileOf "node-topology"
+    , nodeDatabase :: DirOf "db"
     }
 
 newtype NodeInstance = NodeInstance (Process () () ())

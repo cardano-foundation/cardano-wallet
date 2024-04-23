@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Launch.Cluster.Tx
     ( signAndSubmitTx
@@ -28,7 +27,10 @@ import Cardano.Wallet.Launch.Cluster.Config
     , TestnetMagic (testnetMagicToNatural)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , absFilePathOf
+    , toFilePath
     )
 import Control.Monad.Reader
     ( MonadIO (..)
@@ -43,6 +45,9 @@ import Data.Tagged
 import System.IO.Temp
     ( emptyTempFile
     )
+import System.Path
+    ( absFile
+    )
 
 import qualified Data.Text as T
 
@@ -55,21 +60,26 @@ signTx
     -> ClusterM (FileOf "tx-signed")
 signTx rawTx keys = do
     Config{..} <- ask
-    let outputDir = cfgClusterDir
-    file <- liftIO $ emptyTempFile (pathOf outputDir) "tx-signed.json"
+    let DirOf outputDir = cfgClusterDir
+    signedTxPath <-
+        fmap absFile
+            $ liftIO
+            $ emptyTempFile (toFilePath outputDir) "tx-signed.json"
     cli
         $ [ clusterEraToString cfgLastHardFork
           , "transaction"
           , "sign"
           , "--tx-body-file"
-          , pathOf rawTx
+          , absFilePathOf rawTx
           , "--testnet-magic"
           , show (testnetMagicToNatural cfgTestnetMagic)
           , "--out-file"
-          , file
+          , toFilePath signedTxPath
           ]
-            ++ concatMap (\key -> ["--signing-key-file", pathOf key]) keys
-    pure $ FileOf @"tx-signed" file
+            ++ concatMap
+                (\key -> ["--signing-key-file", absFilePathOf key])
+                keys
+    pure $ FileOf signedTxPath
 
 -- | Submit a transaction through a running node.
 submitTx
@@ -86,7 +96,7 @@ submitTx conn name signedTx = do
             , "transaction"
             , "submit"
             , "--tx-file"
-            , pathOf signedTx
+            , absFilePathOf signedTx
             , "--testnet-magic"
             , show (testnetMagicToNatural cfgTestnetMagic)
             , "--cardano-mode"

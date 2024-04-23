@@ -19,11 +19,10 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     , askNodeDir
     , bracketTracer'
     )
-import Cardano.Wallet.Launch.Cluster.Config
-    ( NodePathSegment (..)
-    )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , absFilePathOf
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( setLoggingName
@@ -49,8 +48,12 @@ import Control.Monad.Reader
 import Data.Tagged
     ( Tagged (..)
     )
-import System.Directory
-    ( createDirectory
+import System.Path
+    ( relDir
+    , (</>)
+    )
+import System.Path.Directory
+    ( createDirectoryIfMissing
     )
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
@@ -71,12 +74,11 @@ withRelayNode
     -> ClusterM a
 withRelayNode params onClusterStart = do
     let name = "node"
-        nodeSegment = NodePathSegment name
-    nodeDir' <- askNodeDir nodeSegment
+        nodeSegment = relDir name
+    DirOf nodeDirPath <- askNodeDir nodeSegment
     let NodeParams genesisFiles hardForks (port, peers) logCfg _ = params
     bracketTracer' "withRelayNode" $ do
-        liftIO $ createDirectory nodeDir'
-
+        liftIO $ createDirectoryIfMissing True nodeDirPath
         let logCfg' = setLoggingName name logCfg
         (config, genesisData, vd) <-
             genNodeConfig
@@ -89,10 +91,10 @@ withRelayNode params onClusterStart = do
 
         let cfg =
                 CardanoNodeConfig
-                    { nodeDir = nodeDir'
-                    , nodeConfigFile = pathOf config
-                    , nodeTopologyFile = pathOf topology
-                    , nodeDatabaseDir = "db"
+                    { nodeDir = toFilePath nodeDirPath
+                    , nodeConfigFile = absFilePathOf config
+                    , nodeTopologyFile = absFilePathOf topology
+                    , nodeDatabaseDir = toFilePath $ nodeDirPath </> relDir "db"
                     , nodeDlgCertFile = Nothing
                     , nodeSignKeyFile = Nothing
                     , nodeOpCertFile = Nothing
@@ -101,7 +103,8 @@ withRelayNode params onClusterStart = do
                     , nodePort = Just (NodePort port)
                     , nodeLoggingHostname = Just name
                     , nodeExecutable = Nothing
-                    , nodeOutputFile = nodeParamsOutputFile params
+                    , nodeOutputFile = absFilePathOf
+                        <$> nodeParamsOutputFile params
                     }
 
         let onClusterStart' socket = onClusterStart (RunningNode socket genesisData vd)

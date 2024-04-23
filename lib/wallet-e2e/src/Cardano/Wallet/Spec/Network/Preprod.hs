@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Cardano.Wallet.Spec.Network.Preprod
     ( configuredNetwork
     ) where
@@ -14,8 +12,9 @@ import Cardano.Node.Cli.Launcher
 import Cardano.Wallet.Cli.Launcher
     ( WalletProcessConfig (..)
     )
-import Cardano.Wallet.Spec.Lib.Paths
-    ( DirOf
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (DirOf)
+    , FileOf (..)
     )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork (..)
@@ -24,12 +23,9 @@ import Control.Monad.Trans.Resource
     ( ResourceT
     , allocate
     )
-import Data.Tagged
-    ( untag
-    )
-import Path
-    ( reldir
-    , relfile
+import System.Path
+    ( relDir
+    , relFile
     , (</>)
     )
 
@@ -37,7 +33,7 @@ configuredNetwork
     :: DirOf "state"
     -> DirOf "config"
     -> ResourceT IO ConfiguredNetwork
-configuredNetwork stateDir nodeConfigDir = do
+configuredNetwork (DirOf stateDir) (DirOf nodeConfigDir) = do
     nodeApi <- startNode
 
     walletApi <- startWallet nodeApi
@@ -56,32 +52,32 @@ configuredNetwork stateDir nodeConfigDir = do
       }
   where
     startNode = do
-        let nodeDir = untag stateDir </> [reldir|node|]
+        let nodeDir = stateDir </> relDir "node"
         let nodeProcessConfig =
                 NodeProcessConfig
-                { nodeDir
+                { nodeDir = DirOf nodeDir
                 , nodeConfig =
-                    untag nodeConfigDir </> [relfile|config.json|]
+                    FileOf $  nodeConfigDir </> relFile "config.json"
                 , nodeTopology =
-                    untag nodeConfigDir </> [relfile|topology.json|]
+                    FileOf $ nodeConfigDir </> relFile "topology.json"
                 , nodeDatabase =
-                    nodeDir </> [reldir|db|]
+                    DirOf $ nodeDir </> relDir "db"
                 }
         (_nodeReleaseKey, (_nodeInstance, nodeApi)) <-
             allocate (Node.start nodeProcessConfig) (Node.stop . fst)
         pure nodeApi
 
     startWallet nodeApi = do
-      let walletDir = untag stateDir </> [reldir|wallet|]
+      let walletDir = stateDir </> relDir "wallet"
       let walletProcessConfig =
               WalletProcessConfig
-              { walletDir
-              , walletDatabase = walletDir </> [reldir|db|]
+              { walletDir = DirOf walletDir
+              , walletDatabase = DirOf $ walletDir </> relDir "db"
               , walletNodeApi = nodeApi
               , walletListenHost = Nothing
               , walletListenPort = Nothing
               , walletByronGenesisForTestnet = Just $
-                  untag nodeConfigDir </> [relfile|byron-genesis.json|]
+                  FileOf $ nodeConfigDir </> relFile "byron-genesis.json"
               }
       (_walletReleaseKey, (_walletInstance, walletApi)) <-
           allocate (Wallet.start walletProcessConfig) (Wallet.stop . fst)

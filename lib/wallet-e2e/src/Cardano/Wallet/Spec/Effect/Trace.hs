@@ -5,14 +5,15 @@ module Cardano.Wallet.Spec.Effect.Trace where
 
 import qualified Data.Sequence as Seq
 
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , toFilePath
+    )
 import Cardano.Wallet.Spec.Interpreters.Config
     ( TraceConfiguration (..)
     )
 import Data.Sequence
     ( (|>)
-    )
-import Data.Tagged
-    ( Tagged (..)
     )
 import Effectful
     ( Eff
@@ -28,18 +29,18 @@ import Effectful.State.Static.Local
 import Effectful.TH
     ( makeEffect
     )
-import Path
-    ( parseRelFile
-    , toFilePath
-    , (</>)
-    )
-import Path.IO
-    ( ensureDir
-    )
 import Prelude hiding
     ( modify
     , runState
     , trace
+    )
+import System.Path
+    ( relFile
+    , (<.>)
+    , (</>)
+    )
+import System.Path.Directory
+    ( createDirectoryIfMissing
     )
 
 data FxTrace :: Effect where
@@ -52,10 +53,9 @@ runTracePure = reinterpret (runState Seq.empty) \_ (Trace msg) ->
     modify (|> msg)
 
 recordTraceLog :: TraceConfiguration -> String -> Seq Text -> IO ()
-recordTraceLog (TraceConfiguration (Tagged outDir)) storyLabel log = do
-    ensureDir outDir
-    fileName <-
-        parseRelFile
-            $ [if c == ' ' then '_' else c | c <- storyLabel] <> ".log"
+recordTraceLog (TraceConfiguration (DirOf outDir)) storyLabel log = do
+    createDirectoryIfMissing True outDir
+    let fileName = relFile
+            [if c == ' ' then '_' else c | c <- storyLabel] <.> "log"
     let outFile = outDir </> fileName
     writeFile (toFilePath outFile) $ toString $ unlines $ toList log

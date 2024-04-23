@@ -37,8 +37,10 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
     , changeFileOf
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
     ( writeMonetaryPolicyScriptFile
@@ -122,12 +124,15 @@ import Servant.Client
 import System.Directory
     ( listDirectory
     )
-import System.FilePath
-    ( (<.>)
-    , (</>)
-    )
 import System.IO.Unsafe
     ( unsafePerformIO
+    )
+import System.Path
+    ( AbsFile
+    , relDir
+    , relFile
+    , (<.>)
+    , (</>)
     )
 
 import qualified Cardano.Address as Address
@@ -155,11 +160,10 @@ takeFaucet = do
     Config{..} <- ask
     i <- liftIO $ modifyMVar faucetIndex (\i -> pure (i + 1, i))
     let basename =
-            pathOf cfgClusterConfigs
-                </> "faucet-addrs"
-                </> "faucet"
-                <> show i
-    base58Addr <- liftIO $ BS.readFile $ basename <> ".addr"
+            absDirOf cfgClusterConfigs
+                </> relDir "faucet-addrs"
+                </> relFile ("faucet" <> show i)
+    base58Addr <- liftIO $ BS.readFile $ toFilePath $ basename <.> "addr"
     let addr =
             fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
                 . decodeBase58 bitcoinAlphabet
@@ -168,7 +172,7 @@ takeFaucet = do
                 $ T.decodeUtf8 base58Addr
 
     let txin = B8.unpack (convertToBase Base16 (blake2b256 addr)) <> "#0"
-    let signingKey = basename <> ".shelley.key"
+    let signingKey = basename <.> "shelley.key"
     pure (Tagged @"tx-in" txin, FileOf @"faucet-prv" signingKey)
 
 readFaucetAddresses
@@ -176,20 +180,20 @@ readFaucetAddresses
     => ClusterM [Address]
 readFaucetAddresses = do
     Config{..} <- ask
-    let faucetDataPath = pathOf cfgClusterConfigs </> "faucet-addrs"
-    allFileNames <- liftIO $ listDirectory faucetDataPath
-    let addrFileNames = filter (".addr" `isSuffixOf`) allFileNames
+    let faucetDataPath = absDirOf cfgClusterConfigs </> relDir "faucet-addrs"
+    allFileNames <- liftIO $ listDirectory (toFilePath faucetDataPath)
+    let addrFileNames = relFile <$>  filter (".addr" `isSuffixOf`) allFileNames
     liftIO $ forM addrFileNames $ readAddress . (faucetDataPath </>)
   where
-    readAddress :: HasCallStack => FilePath -> IO Address
+    readAddress :: HasCallStack => AbsFile -> IO Address
     readAddress addrFile = do
-        rawFileContents <- TIO.readFile addrFile
+        rawFileContents <- TIO.readFile $ toFilePath addrFile
         let base58EncodedAddress = T.strip rawFileContents
         case Address.fromBase58 base58EncodedAddress of
             Just address -> pure address
             Nothing ->
                 error
-                    $ "Failed to base58-decode address file: " <> addrFile
+                    $ "Failed to base58-decode address file: " <> show addrFile
 
 -- | List of faucets also referenced in the shelley 'genesis.yaml'
 faucetIndex :: MVar Int
@@ -286,9 +290,9 @@ sendFaucet
     -> ClusterM ()
 sendFaucet conn what targets = do
     Config{..} <- ask
-    let clusterDir = cfgClusterDir
+    let DirOf clusterDir = cfgClusterDir
     (faucetInput, faucetPrv) <- takeFaucet
-    let file = pathOf clusterDir </> "faucet-tx.raw"
+    let file = clusterDir </> relFile "faucet-tx.raw"
 
     let mkOutput addr (TokenBundle (Coin c) tokens) =
             [ "--tx-out"
@@ -331,22 +335,23 @@ sendFaucet conn what targets = do
             "--fee"
           , show (faucetAmt - total)
           , "--out-file"
-          , file
+          , toFilePath file
           ]
             ++ concatMap (uncurry mkOutput . fmap fst) targets
             ++ mkMint targetAssets
-            ++ (concatMap (\f -> ["--minting-script-file", pathOf f]) scripts)
+            ++ (concatMap
+                (\f -> ["--minting-script-file", toFilePath (absFileOf f)])
+                scripts
+                )
 
     policyKeys <-
         forM (nub $ concatMap (snd . snd) targets)
-            $ \(skey, keyHash) -> do
-                f <- writePolicySigningKey keyHash skey
-                pure $ FileOf @"signing-key" $ pathOf f
+            $ \(skey, keyHash) -> writePolicySigningKey keyHash skey
 
     signAndSubmitTx
         conn
         (FileOf @"tx-body" file)
-        (changeFileOf faucetPrv : policyKeys)
+        (changeFileOf faucetPrv : (changeFileOf <$> policyKeys))
         (Tagged @"name" $ what ++ " faucet tx")
 
 writePolicySigningKey
@@ -357,9 +362,9 @@ writePolicySigningKey
     -> ClusterM (FileOf "policy-signing-key")
     -- ^ Returns the filename written
 writePolicySigningKey keyHash cborHex = do
-    outputDir <- asks cfgClusterDir
-    let keyFile = pathOf outputDir </> keyHash <.> "skey"
-    liftIO $ Aeson.encodeFile keyFile
+    DirOf outputDir <- asks cfgClusterDir
+    let keyFile = outputDir </> relFile keyHash <.> "skey"
+    liftIO $ Aeson.encodeFile (toFilePath keyFile)
         $ object
             [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
             , "description" .= Aeson.String "Payment Signing Key"

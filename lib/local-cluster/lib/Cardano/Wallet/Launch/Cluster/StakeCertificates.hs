@@ -22,7 +22,9 @@ import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( FileOf (..)
+    ( DirOf (..)
+    , FileOf (..)
+    , toFilePath
     )
 import Control.Monad.Reader
     ( asks
@@ -33,8 +35,10 @@ import Data.Tagged
     ( Tagged (..)
     , untag
     )
-import System.FilePath
-    ( (</>)
+import System.Path
+    ( relFile
+    , (<.>)
+    , (</>)
     )
 
 -- | Create a stake address registration certificate from a vk
@@ -42,25 +46,25 @@ issueStakeVkCert
     :: Tagged "prefix" String
     -> FileOf "stake-pub"
     -> ClusterM (FileOf "stake-vk-cert")
-issueStakeVkCert prefix stakePub = do
-    outputDir <- asks cfgClusterDir
+issueStakeVkCert prefix (FileOf stakePub) = do
+    DirOf outputDir <- asks cfgClusterDir
     lastHardFork <- asks cfgLastHardFork
-    let file = pathOf outputDir </> untag prefix <> "-stake.cert"
+    let certPath = outputDir </> relFile (untag prefix <> "-stake") <.> "cert"
     cli $
         [ clusterEraToString lastHardFork
         , "stake-address"
         , "registration-certificate"
         , "--staking-verification-key-file"
-        , pathOf stakePub
+        , toFilePath stakePub
         , "--out-file"
-        , file
+        , toFilePath certPath
         ] <> case lastHardFork of
             BabbageHardFork -> []
             ConwayHardFork -> [
                 "--key-reg-deposit-amt"
                 , "1000000"
                 ]
-    pure $ FileOf file
+    pure $ FileOf certPath
 
 -- | Create a stake address registration certificate from a script
 issueStakeScriptCert
@@ -68,14 +72,14 @@ issueStakeScriptCert
     -> FilePath
     -> ClusterM (FileOf "stake-script-cert")
 issueStakeScriptCert prefix stakeScript = do
-    outputDir <- asks cfgClusterDir
-    let file = pathOf outputDir </> untag prefix <> "-stake.cert"
+    DirOf outputDir <- asks cfgClusterDir
+    let certPath = outputDir </> relFile (untag prefix <> "-stake") <.> "cert"
     cli
         [ "stake-address"
         , "registration-certificate"
         , "--stake-script-file"
         , stakeScript
         , "--out-file"
-        , file
+        , toFilePath certPath
         ]
-    pure $ FileOf file
+    pure $ FileOf certPath

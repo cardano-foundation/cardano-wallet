@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Test.Integration.Framework.Logging
@@ -40,6 +41,11 @@ import Cardano.Wallet.Launch.Cluster
     , testMinSeverityFromEnv
     , walletMinSeverityFromEnv
     )
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf (..)
+    , mkRelDirOf
+    , toFilePath
+    )
 import Cardano.Wallet.Shelley
     ( Tracers
     , setupTracers
@@ -52,9 +58,6 @@ import Control.Tracer
     ( Tracer (..)
     , contramap
     )
-import Data.Maybe
-    ( fromMaybe
-    )
 import Data.Text
     ( Text
     )
@@ -64,8 +67,9 @@ import Data.Text.Class
 import Network.URI
     ( URI
     )
-import System.FilePath
-    ( (</>)
+import System.Path
+    ( relFile
+    , (</>)
     )
 import Test.Integration.Framework.Context
     ( PoolGarbageCollectionEvent (..)
@@ -130,21 +134,25 @@ instance HasSeverityAnnotation TestsLog where
             | otherwise -> Warning
 
 withTracers
-    :: FilePath
+    :: DirOf "cluster"
     -> ((Tracer IO TestsLog, Tracers IO) -> IO a)
     -> IO a
 withTracers testDir action = do
     let getLogOutputs getMinSev name = do
             minSev <- getMinSev
             eraStr <- clusterEraToString <$> clusterEraFromEnv
-            logDir <- fromMaybe testDir <$> testLogDirFromEnv (Just eraStr)
+            mLogDir <- testLogDirFromEnv $ Just $ mkRelDirOf eraStr
+            let logDir = case mLogDir of
+                    Just d -> absDirOf d
+                    Nothing -> absDirOf testDir -- re-purpose the "cluster" dir
             pure
-                [ LogToFile (logDir </> name) (min minSev Info)
+                [ LogToFile (toFilePath $ logDir </> name) (min minSev Info)
                 , LogToStdStreams minSev
                 ]
 
-    walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
-    testLogOutputs <- getLogOutputs testMinSeverityFromEnv "test.log"
+    walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv
+        $ relFile "wallet.log"
+    testLogOutputs <- getLogOutputs testMinSeverityFromEnv $ relFile "test.log"
 
     withLogging walletLogOutputs $ \(sb, (cfg, walTr)) -> do
         ekgEnabled >>= flip when (EKG.plugin cfg walTr sb >>= loadPlugin sb)

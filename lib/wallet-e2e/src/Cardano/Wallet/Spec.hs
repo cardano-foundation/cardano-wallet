@@ -8,14 +8,14 @@ import qualified Cardano.Wallet.Spec.Network.Local as Local
 import qualified Cardano.Wallet.Spec.Network.Manual as Manual
 import qualified Cardano.Wallet.Spec.Network.Preprod as Preprod
 
+import Cardano.Wallet.Launch.Cluster.FileOf
+    ( DirOf
+    )
 import Cardano.Wallet.Spec.Interpreters.Config
     ( TraceConfiguration
     )
 import Cardano.Wallet.Spec.Interpreters.Effectfully
     ( story
-    )
-import Cardano.Wallet.Spec.Lib.Paths
-    ( DirOf
     )
 import Cardano.Wallet.Spec.Network.Configured
     ( ConfiguredNetwork
