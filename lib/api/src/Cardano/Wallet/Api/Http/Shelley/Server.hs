@@ -3185,7 +3185,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         foldl merge Nothing (getMsgValue <$> pairs)
     inspectMetaPair _ = Nothing
     keyAndValueCond k v =
-        k == 674 && (isJust $ inspectMetaPair v)
+        k == 674 && isJust (inspectMetaPair v)
     findMsgValue =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filterWithKey keyAndValueCond themap
@@ -3228,7 +3228,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
     updateTxMetadata =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
-        in Cardano.TxMetadata . foldr (\(k,v) -> Map.insert k v) themap
+        in Cardano.TxMetadata . foldr (uncurry Map.insert) themap
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
