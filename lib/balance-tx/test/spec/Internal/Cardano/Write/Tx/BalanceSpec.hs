@@ -2838,16 +2838,17 @@ shrinkInputResolution =
 
 -- | Shrinks just the values of a map, keeping the set of keys constant.
 --
-shrinkMapValues :: Ord k => (v -> [v]) -> Map k v -> [Map k v]
-shrinkMapValues = shrinkMapBy Map.fromList Map.toList . shrinkKeyValuePairs
+shrinkMapValues :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
+shrinkMapValues shrinkValue =
+    shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
   where
-    shrinkKeyValuePairs :: (v -> [v]) -> [(k, v)] -> [[(k, v)]]
-    shrinkKeyValuePairs shrinkValue = \case
+    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
+    shrinkKeyValuePairs = \case
         ((k, v) : rest) -> mconcat
             -- First shrink the first element
             [ map (\v' -> (k, v') : rest) (shrinkValue v)
             -- Recurse to shrink subsequent elements on their own
-            , map ((k, v) :) (shrinkKeyValuePairs shrinkValue rest)
+            , map ((k, v) :) (shrinkKeyValuePairs rest)
             ]
         [] -> []
 
