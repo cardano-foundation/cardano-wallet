@@ -555,7 +555,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     TxMetadata (Map.fromList
                                 [ (0,TxMetaText "hello")
                                 , (1,TxMetaMap [(TxMetaText "hello", TxMetaText "world")])
-                                , (50, TxMetaNumber 1245)
+                                , (50, TxMetaNumber 1_245)
                                 ])
             wa <- fixtureWallet ctx
             let metadataToBeEncrypted =
