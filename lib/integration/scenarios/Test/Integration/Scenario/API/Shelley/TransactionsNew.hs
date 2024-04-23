@@ -80,6 +80,8 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
+    , ApiEncryptMetadata (..)
+    , ApiEra (..)
     , ApiExternalCertificate (..)
     , ApiNetworkInformation
     , ApiPolicyId (..)
@@ -119,6 +121,10 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     , ApiErrorUnsupportedEra (..)
     )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( TxMetadataSchema (..)
+    , TxMetadataWithSchema (..)
+    )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
     , ApiValidityIntervalExplicit (..)
@@ -141,6 +147,9 @@ import Cardano.Wallet.Pools
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
+    )
+import Cardano.Wallet.Primitive.Passphrase
+    ( Passphrase (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
@@ -531,6 +540,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     (#balance . #available . #toNatural)
                     (`shouldBe` (fromIntegral oneMillionAda - expectedFee))
                 ]
+
+    it "TRANS_NEW_CREATE_02c - Incorrect metadata structure to be encrypted" $
+        \ctx -> runResourceT $ do
+            let metadataRaw =
+                    TxMetadata (Map.fromList
+                                [ (0,TxMetaText "hello")
+                                , (1,TxMetaMap [(TxMetaText "hello", TxMetaText "world")])
+                                , (50, TxMetaNumber 1245)
+                                ])
+            wa <- fixtureWallet ctx
+            let metadataToBeEncrypted =
+                    TxMetadataWithSchema TxMetadataNoSchema metadataRaw
+            let encryptMetadata =
+                    ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
+            let payload = Json [json|{
+                    "encrypt_metadata": #{toJSON encryptMetadata},
+                    "metadata": #{toJSON metadataToBeEncrypted}
+                }|]
+            rTx <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley wa) Default payload
+            verify rTx
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
