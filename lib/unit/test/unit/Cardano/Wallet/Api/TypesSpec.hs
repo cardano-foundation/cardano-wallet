@@ -1234,7 +1234,7 @@ spec = do
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data")
                         ])
                     ]
-                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                schemaAfter = Cardano.TxMetadata $ Map.fromList
                     [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList [Cardano.TxMetaText "vBSywXY+WGcrckHUCyjJcQ=="])
@@ -1258,7 +1258,7 @@ spec = do
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes")
                         ])
                     ]
-                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                schemaAfter = Cardano.TxMetadata $ Map.fromList
                     [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
@@ -1288,7 +1288,7 @@ spec = do
                               ])
                         ])
                     ]
-                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                schemaAfter = Cardano.TxMetadata $ Map.fromList
                     [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
@@ -1313,7 +1313,7 @@ spec = do
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data")
                         ])
                     ]
-                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                schemaAfter = Cardano.TxMetadata $ Map.fromList
                     [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
@@ -1339,7 +1339,7 @@ spec = do
                         , (Cardano.TxMetaText "msg", Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes")
                         ])
                     ]
-                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                schemaAfter = Cardano.TxMetadata $ Map.fromList
                     [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
@@ -1370,7 +1370,7 @@ spec = do
                               ])
                         ])
                     ]
-                schemaAfter = Cardano.TxMetadata $ Map.fromList $
+                schemaAfter = Cardano.TxMetadata $ Map.fromList
                     [ (674, Cardano.TxMetaMap
                           [ (Cardano.TxMetaText "field", Cardano.TxMetaNumber 123)
                           , (Cardano.TxMetaText "msg", Cardano.TxMetaList
