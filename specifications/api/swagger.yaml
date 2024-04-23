@@ -5200,7 +5200,7 @@ x-errPoolAlreadyJoined: &errPoolAlreadyJoined
   properties:
     message:
       type: string
-      description: May occur when a given poolId matches the current delegation preferences of the wallet's account.
+      description: May occur when a given poolId matches the current delegation preferences of the wallet's account (not in Conway onwards).
     code:
       type: string
       enum: ['pool_already_joined']
