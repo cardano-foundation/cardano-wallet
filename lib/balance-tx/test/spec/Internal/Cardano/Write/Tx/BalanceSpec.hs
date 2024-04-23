@@ -213,6 +213,9 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
+import Data.Map.Strict
+    ( Map
+    )
 import Data.Maybe
     ( catMaybes
     , fromJust
@@ -2824,28 +2827,28 @@ shrinkFee :: Ledger.Coin -> [Ledger.Coin]
 shrinkFee (Ledger.Coin 0) = []
 shrinkFee _ = [Ledger.Coin 0]
 
-shrinkInputResolution
-    :: forall era. IsRecentEra era
-    => Write.UTxO era
-    -> [Write.UTxO era]
-shrinkInputResolution =
-    shrinkMapBy utxoFromList utxoToList shrinkUTxOEntries
-   where
-     utxoToList = Map.toList . unUTxO
-     utxoFromList = UTxO . Map.fromList
+-- TODO: ADP-3272
+-- Fix this function so that it returns something other than the empty list.
+shrinkInputResolution :: IsRecentEra era => Write.UTxO era -> [Write.UTxO era]
+shrinkInputResolution = shrinkMapBy UTxO unUTxO (shrinkMapValues shrinkOutput)
+  where
+    shrinkOutput _ = []
 
-     shrinkOutput _ = []
-
-     -- NOTE: We only want to shrink the outputs, keeping the inputs and length
-     -- of the list the same.
-     shrinkUTxOEntries :: [(TxIn, TxOut era)] -> [[(TxIn, TxOut era)]]
-     shrinkUTxOEntries ((i,o) : rest) = mconcat
-         -- First shrink the first element
-         [ map (\o' -> (i, o') : rest ) (shrinkOutput o)
-         -- Recurse to shrink subsequent elements on their own
-         , map ((i,o):) (shrinkUTxOEntries rest)
-         ]
-     shrinkUTxOEntries [] = []
+-- | Shrinks just the values of a map, keeping the set of keys constant.
+--
+shrinkMapValues :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
+shrinkMapValues shrinkValue =
+    shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
+  where
+    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
+    shrinkKeyValuePairs = \case
+        ((k, v) : rest) -> mconcat
+            -- First shrink the first element
+            [ map (\v' -> (k, v') : rest) (shrinkValue v)
+            -- Recurse to shrink subsequent elements on their own
+            , map ((k, v) :) (shrinkKeyValuePairs rest)
+            ]
+        [] -> []
 
 shrinkScriptData
     :: Era (CardanoApi.ShelleyLedgerEra era)
@@ -2950,8 +2953,8 @@ shrinkTxBodyBabbage
         , b' <- prependOriginal shrinkStrictMaybe b
         ]
 
-shrinkValue :: (Eq a, Monoid a) => a -> [a]
-shrinkValue v = filter (/= v) [mempty]
+    shrinkValue :: (Eq a, Monoid a) => a -> [a]
+    shrinkValue v = filter (/= v) [mempty]
 
 shrinkWdrl :: Withdrawals era -> [Withdrawals era]
 shrinkWdrl (Withdrawals m) = map (Withdrawals . Map.fromList) $
