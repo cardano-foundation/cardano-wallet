@@ -45,6 +45,7 @@ library
   exposed-modules:
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block
+    Cardano.Wallet.Read.Block.BHeader
     Cardano.Wallet.Read.Block.Block
     Cardano.Wallet.Read.Block.BlockNo
     Cardano.Wallet.Read.Block.Gen

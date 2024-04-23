@@ -9,7 +9,7 @@ module Cardano.Wallet.Read.Block.HeaderHash
     , HeaderHashT
     , getEraHeaderHash
 
-    , BHeader
+    , EraIndependentBlockHeader
     , RawHeaderHash
     , getRawHeaderHash
 
@@ -33,6 +33,9 @@ import Cardano.Ledger.Crypto
     )
 import Cardano.Ledger.Era
     ( EraSegWits (..)
+    )
+import Cardano.Ledger.Hashes
+    ( EraIndependentBlockHeader
     )
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash
@@ -130,16 +133,15 @@ getHeaderHashShelley
 getHeaderHashShelley
     (O.ShelleyBlock (Shelley.Block header _) _) = Shelley.pHeaderHash header
 
--- | Tag representing a block header.
-data BHeader
-
 -- | Raw hash digest for a block header.
-type RawHeaderHash = Hash Blake2b_256 BHeader
+type RawHeaderHash = Hash Blake2b_256 EraIndependentBlockHeader
 
 -- | Construct a 'RawHeaderHash' that is good enough for testing.
 mockRawHeaderHash :: Integer -> RawHeaderHash
 mockRawHeaderHash n =
-    Hash.hashWith (\_ -> B8.pack $ show n) (error "undefined :: BHeader")
+    Hash.hashWith
+        (\_ -> B8.pack $ show n)
+        (error "undefined :: EraIndependentBlockHeader")
 
 {-# INLINABLE getRawHeaderHash #-}
 getRawHeaderHash :: forall era. IsEra era => HeaderHash era -> RawHeaderHash
@@ -152,7 +154,7 @@ getRawHeaderHash = case theEra @era of
     Babbage -> \(HeaderHash h) -> castHash $ unShelleyHash h
     Conway -> \(HeaderHash h) -> castHash $ unShelleyHash h
   where
-    fromByron :: ByronHash -> Hash Blake2b_256 BHeader
+    fromByron :: ByronHash -> Hash Blake2b_256 EraIndependentBlockHeader
     fromByron =
         fromJust
         . hashFromBytesShort

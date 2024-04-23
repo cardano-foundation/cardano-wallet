@@ -9,7 +9,6 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -78,7 +77,6 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromNonMyopicMemberRewards
     , optimumNumberOfPools
     , getProducer
-    , fromBlockNo
     , toCardanoEra
     , fromShelleyTxOut
     , fromGenesisData
@@ -116,13 +114,6 @@ import Cardano.Api
 import Cardano.Api.Shelley
     ( ShelleyBasedEra (..)
     , ShelleyGenesis (..)
-    )
-import Cardano.Chain.Block
-    ( ABlockOrBoundary (ABOBBlock, ABOBBoundary)
-    , blockTxPayload
-    )
-import Cardano.Chain.UTxO
-    ( unTxPayload
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
@@ -166,9 +157,6 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( maryTokenBundleMaxSize
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx
-    ( primitiveTx
-    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     ( fromStakeCredential
     )
@@ -191,9 +179,6 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     ( StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
-    )
-import Cardano.Wallet.Read
-    ( Byron
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
@@ -261,9 +246,6 @@ import Fmt
 import GHC.Stack
     ( HasCallStack
     )
-import Ouroboros.Consensus.Byron.Ledger
-    ( byronBlockRaw
-    )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
@@ -287,9 +269,6 @@ import Ouroboros.Consensus.Shelley.Eras
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..)
     )
-import Ouroboros.Network.Block
-    ( BlockNo (..)
-    )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , LocalAddress (..)
@@ -302,17 +281,13 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxSeq as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Conway as Conway
 import qualified Cardano.Ledger.Credential as SL
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
-import qualified Cardano.Ledger.Shelley.BlockChain as SL
 import qualified Cardano.Protocol.TPraos.BHeader as SL
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
@@ -430,69 +405,20 @@ getConwayProducer (ShelleyBlock (SL.Block (Consensus.Header header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (Consensus.hbVk header)
 
 numberOfTransactionsInBlock
-    :: CardanoBlock StandardCrypto -> (Int, (Quantity "block" Word32, O.SlotNo))
-numberOfTransactionsInBlock = \case
-    BlockByron byb -> transactionsByron byb
-    BlockShelley shb -> transactions shb
-    BlockAllegra shb -> transactions shb
-    BlockMary shb -> transactions shb
-    BlockAlonzo shb -> transactionsAlonzo shb
-    BlockBabbage shb -> transactionsBabbage shb
-    BlockConway shb -> transactionsConway shb
+    :: CardanoBlock StandardCrypto -> (Int, (Read.BlockNo, O.SlotNo))
+numberOfTransactionsInBlock =
+    Read.applyEraFun get . Read.fromConsensusBlock
   where
-    transactions
-        (ShelleyBlock
-            (SL.Block (SL.BHeader header _) (SL.ShelleyTxSeq txs'))
-            _
-        ) =
-            ( length txs'
-            , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
-            )
-    transactionsAlonzo
-        (ShelleyBlock
-            (SL.Block (SL.BHeader header _) (Alonzo.AlonzoTxSeq txs'))
-            _
-        ) =
-            ( length txs'
-            , (fromBlockNo $ SL.bheaderBlockNo header, SL.bheaderSlotNo header)
-            )
-    transactionsBabbage
-        :: ShelleyBlock
-            (Consensus.Praos StandardCrypto)
-            (Babbage.BabbageEra StandardCrypto)
-        -> (Int, (Quantity "block" Word32, O.SlotNo))
-    transactionsBabbage
-        (ShelleyBlock
-            (SL.Block (Consensus.Header header _)
-            (Alonzo.AlonzoTxSeq txs')) _) =
-                ( length txs'
-                , ( fromBlockNo $ Consensus.hbBlockNo header
-                  , Consensus.hbSlotNo header
-                  )
-                )
-    transactionsByron blk =
-        (, (fromBlockNo $ O.blockNo blk, O.blockSlot blk)) $
-            case byronBlockRaw blk of
-            ABOBBlock blk' ->
-                length $ primitiveTx @Byron . Read.Tx
-                    <$> unTxPayload (blockTxPayload blk')
-            ABOBBoundary _ ->
-                0
-
-    transactionsConway
-        :: ShelleyBlock
-            (Consensus.Praos StandardCrypto)
-            (Conway.ConwayEra StandardCrypto)
-        -> (Int, (Quantity "block" Word32, O.SlotNo))
-    transactionsConway
-        (ShelleyBlock
-            (SL.Block (Consensus.Header header _)
-            (Alonzo.AlonzoTxSeq txs')) _) =
-                ( length txs'
-                , ( fromBlockNo $ Consensus.hbBlockNo header
-                  , Consensus.hbSlotNo header
-                  )
-                )
+    get :: Read.IsEra era => Read.Block era -> (Int, (Read.BlockNo, O.SlotNo))
+    get block =
+        ( length (Read.getEraTransactions block)
+        , (blockNo, O.SlotNo slotNo)
+        )
+      where
+        header = Read.getEraBHeader block
+        blockNo = Read.getEraBlockNo header
+        slotNo =
+            toEnum $ fromIntegral $ Read.unSlotNo $ Read.getEraSlotNo header
 
 toCardanoEra :: CardanoBlock c -> AnyCardanoEra
 toCardanoEra = \case
@@ -503,10 +429,6 @@ toCardanoEra = \case
     BlockAlonzo{}  -> AnyCardanoEra AlonzoEra
     BlockBabbage{} -> AnyCardanoEra BabbageEra
     BlockConway{}  -> AnyCardanoEra ConwayEra
-
--- FIXME unsafe conversion (Word64 -> Word32)
-fromBlockNo :: BlockNo -> Quantity "block" Word32
-fromBlockNo (BlockNo h) = Quantity (fromIntegral h)
 
 -- NOTE: Unsafe conversion from Natural -> Word16
 fromMaxSize :: Word32 -> Quantity "byte" Word16

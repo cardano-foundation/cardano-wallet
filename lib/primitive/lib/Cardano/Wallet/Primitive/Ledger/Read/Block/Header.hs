@@ -30,6 +30,9 @@ import Cardano.Wallet.Read
     , fromConsensusBlock
     , theEra
     )
+import Cardano.Wallet.Read.Block.BHeader
+    ( getEraBHeader
+    )
 import Cardano.Wallet.Read.Block.BlockNo
     ( BlockNo (..)
     , getEraBlockNo
@@ -88,8 +91,8 @@ primitiveBlockHeader
     -> Block era
     -> W.BlockHeader
 primitiveBlockHeader gp = do
-    slotNo <- fromSlotNo <$> getEraSlotNo
-    blockNo <- fromBlockNo <$> getEraBlockNo
+    slotNo <- fromSlotNo <$> getEraSlotNo . getEraBHeader
+    blockNo <- fromBlockNo <$> getEraBlockNo . getEraBHeader
     headerHash <- primitiveHash . getEraHeaderHash
     prevHeaderHash <- primitivePrevHash gp . getEraPrevHeaderHash
     pure $ W.BlockHeader slotNo blockNo headerHash (Just prevHeaderHash)

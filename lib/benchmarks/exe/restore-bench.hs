@@ -298,9 +298,6 @@ import Data.Time.Clock.POSIX
     , getCurrentTime
     , utcTimeToPOSIXSeconds
     )
-import Data.Word
-    ( Word32
-    )
 import Fmt
     ( Buildable
     , blockListF'
@@ -774,7 +771,7 @@ bench_baseline_restoration
         networkId = networkIdVal (sNetworkId @n)
         networkTrace = trMessageText wlTr
     doRestore
-        :: Tracer IO (Maybe (Quantity "block" Word32))
+        :: Tracer IO (Maybe Read.BlockNo)
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
         -> IO SomeBenchmarkResults
     doRestore progressTrace nw = do
@@ -883,10 +880,10 @@ bench_restoration
 
 walletWorkerLogToBlockHeight
     :: WalletWorkerLog
-    -> Maybe (Quantity "block" Word32)
+    -> Maybe Read.BlockNo
 walletWorkerLogToBlockHeight = \case
     MsgChainFollow (MsgChainSync (MsgChainRollForward bs _nodeTip)) ->
-        Just $ blockHeight $ NE.last bs
+        Just $ Read.applyEraFun Read.getEraBlockNo $ NE.last bs
     _ ->
         Nothing
 
@@ -898,7 +895,7 @@ withWalletLayerTracer
     => Text
     -> a
     -> Bool
-    -> (Tracer IO (Maybe (Quantity "block" Word32)) -> IO r)
+    -> (Tracer IO (Maybe Read.BlockNo) -> IO r)
     -> IO r
 withWalletLayerTracer benchname pipelining traceToDisk act = do
     let benchmarkFilename
@@ -942,9 +939,9 @@ dummySeedFromName = SomeMnemonic @24
 traceBlockHeadersProgressForPlotting
     :: UTCTime
     -> Tracer IO Text
-    -> Tracer IO (Maybe (Quantity "block" Word32))
-traceBlockHeadersProgressForPlotting t0  tr = Tracer $ \bs -> do
-    let mtip = pretty . getQuantity <$> bs
+    -> Tracer IO (Maybe Read.BlockNo)
+traceBlockHeadersProgressForPlotting t0 tr = Tracer $ \bs -> do
+    let mtip = Read.prettyBlockNo <$> bs
     time <- pretty . (`diffUTCTime` t0) <$> getCurrentTime
     case mtip of
         Just tip -> traceWith tr $ time <> " " <> tip
