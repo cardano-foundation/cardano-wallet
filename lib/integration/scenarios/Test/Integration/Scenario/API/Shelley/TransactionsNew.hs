@@ -3461,8 +3461,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rTx3 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
         verify rTx3
-            [ expectResponseCode HTTP.status202
+            [ expectResponseCode HTTP.status403
+
             ]
+        decodeErrorInfo rTx3 `shouldBe` PoolAlreadyJoinedSameVote
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do

@@ -722,7 +722,7 @@ instance IsServerError ErrCannotJoin where
                 , toText pid
                 ]
         ErrAlreadyDelegatingVoting pid ->
-            apiError err403 PoolAlreadyJoined $ mconcat
+            apiError err403 PoolAlreadyJoinedSameVote $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText pid
                 , " and vote. I have already joined this pool, also voted the same last time;"

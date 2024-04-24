@@ -168,6 +168,7 @@ data ApiErrorInfo
     | OutputTokenQuantityExceedsLimit
     | PastHorizon
     | PoolAlreadyJoined
+    | PoolAlreadyJoinedSameVote
     | QueryParamMissing
     | RedeemerInvalidData
     | RedeemerScriptFailure

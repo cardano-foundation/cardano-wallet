@@ -5200,10 +5200,21 @@ x-errPoolAlreadyJoined: &errPoolAlreadyJoined
   properties:
     message:
       type: string
-      description: May occur when a given poolId matches the current delegation preferences of the wallet's account (not in Conway onwards).
+      description: May occur when a given poolId matches the current delegation preferences of the wallet's account (not in Conway onwards provided different vote was also casted).
     code:
       type: string
       enum: ['pool_already_joined']
+
+x-errPoolAlreadyJoinedSameVote: &errPoolAlreadyJoinedSameVote
+  <<: *responsesErr
+  title: pool_already_joined_same_vote
+  properties:
+    message:
+      type: string
+      description: May occur in Conway onwards when a given poolId matches the current delegation preferences of the wallet's account and also the same vote was casted.
+    code:
+      type: string
+      enum: ['pool_already_joined_same_vote']
 
 x-errNotDelegatingTo: &errNotDelegatingTo
   <<: *responsesErr
@@ -6313,6 +6324,7 @@ x-responsesJoinStakePool: &responsesJoinStakePool
             - <<: *errNoUtxosAvailable
             - <<: *errWrongEncryptionPassphrase
             - <<: *errPoolAlreadyJoined
+            - <<: *errPoolAlreadyJoinedSameVote
   404:
     description: Not Found
     content:
