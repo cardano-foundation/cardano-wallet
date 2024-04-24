@@ -2776,6 +2776,9 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     currentEpochSlotting knownPools
                     poolStatus withdrawal votingSameAgain
 
+        when (isNothing optionalDelegationAction && votingSameAgain) $
+            liftHandler $ throwE ErrConstructTxVotingSameAgain
+
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal
                 , txVotingAction = optionalVoteAction
@@ -3324,6 +3327,9 @@ constructSharedTransaction
                 IODeleg.handleDelegationRequest
                     wrk currentEpochSlotting knownPools
                     getPoolStatus NoWithdrawal votingSameAgain
+
+        when (isNothing optionalDelegationAction && votingSameAgain) $
+            liftHandler $ throwE ErrConstructTxVotingSameAgain
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal

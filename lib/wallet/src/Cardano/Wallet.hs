@@ -3670,6 +3670,7 @@ data ErrConstructTx
     | ErrConstructTxDelegationInvalid
     | ErrConstructTxVotingInWrongEra
     | ErrConstructTxWithdrawalWithoutVoting
+    | ErrConstructTxVotingSameAgain
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 

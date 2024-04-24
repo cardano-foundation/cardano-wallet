@@ -3466,6 +3466,17 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         decodeErrorInfo rTx3 `shouldBe` PoolAlreadyJoinedSameVote
 
+        let voteAgain = Json [json|{
+                "vote": "abstain"
+            }|]
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default voteAgain
+        verify rTx4
+            [ expectResponseCode HTTP.status403
+
+            ]
+        decodeErrorInfo rTx4 `shouldBe` VotedAlreadyThat
+
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
         let amt = minUTxOValue (_mainEra ctx)

@@ -448,6 +448,12 @@ instance IsServerError ErrConstructTx where
             , "Please delegate again (in that case, the wallet will automatically vote to abstain), "
             , "or make a vote transaction before the withdrawal transaction."
             ]
+        ErrConstructTxVotingSameAgain ->
+            apiError err403 VotedAlreadyThat $ mconcat
+                [ "I couldn't cast this vote. "
+                , "I have already voted like that recently;"
+                , " voting again would incur an unnecessary fee!"
+                ]
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
