@@ -39,6 +39,7 @@ library
     Cardano.Node.Cli.Launcher
     Cardano.Wallet.Cli.Launcher
     Cardano.Wallet.Faucet
+    Cardano.Wallet.Faucet.Gen.Address
     Cardano.Wallet.Launch.Cluster
     Cardano.Wallet.Launch.Cluster.Aeson
     Cardano.Wallet.Launch.Cluster.CardanoCLI
@@ -50,10 +51,10 @@ library
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
     Cardano.Wallet.Launch.Cluster.Env
     Cardano.Wallet.Launch.Cluster.Faucet
-    Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
-    Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
@@ -135,6 +136,7 @@ library
     , ouroboros-network-api
     , pathtype
     , profunctors
+    , QuickCheck
     , retry
     , servant
     , servant-client
@@ -185,6 +187,7 @@ test-suite test
     , aeson
     , base
     , bytestring
+    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
     , foldl
@@ -200,6 +203,8 @@ test-suite test
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssetsSpec
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenAPISpec
     Cardano.Wallet.Launch.Cluster.Monitoring.MonitorSpec

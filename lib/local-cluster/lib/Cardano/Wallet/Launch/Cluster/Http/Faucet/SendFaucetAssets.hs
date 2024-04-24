@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,6 +10,7 @@ module Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     ( SendFaucetAssets (..)
     , WithNetwork (..)
     , AssetMetadata
+    , genSendFaucetAssets
     )
 where
 
@@ -18,16 +20,20 @@ import Cardano.Wallet.Address.Encoding
     ( decodeAddress
     , encodeAddress
     )
+import Cardano.Wallet.Faucet.Gen.Address
+    ( NetworkTag (..)
+    , genAddress
+    )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
     ( sendAssetsSchema
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (sNetworkId)
-    , NetworkDiscriminant
-    , SNetworkId
+    , NetworkDiscriminant (..)
+    , SNetworkId (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address
+    ( Address (..)
     )
 import Cardano.Wallet.Primitive.Types.AssetId
     ( AssetId (..)
@@ -39,6 +45,9 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle
     , fromFlatList
     , toFlatList
+    )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity
@@ -71,16 +80,24 @@ import Data.OpenApi
 import Data.Typeable
     ( Typeable
     )
+import Test.QuickCheck
+    ( Arbitrary (arbitrary)
+    , Gen
+    , listOf
+    )
+
+import qualified Cardano.Address as Addr
 
 type AssetMetadata = [(String, String)]
 
--- | SendFaucetAssets represents the request to send assets to a list of addresses
+-- | Payload to send assets to a list of addresses
 data SendFaucetAssets = SendFaucetAssets
     { batchSize :: Int
     -- ^ batch size
     , assets :: [(Address, (TokenBundle, AssetMetadata))]
     -- ^ List of addresses and the assets to send to each address
     }
+    deriving stock (Eq, Show)
 
 -- | WithNetwork carries network discriminant around a value
 newtype WithNetwork a (n :: NetworkDiscriminant) = WithNetwork a
@@ -151,8 +168,9 @@ parseMetadataValue = withObject "MetadataValue" $ \o -> do
     pure (k, v)
 
 renderAssetMetadata :: AssetMetadata -> Value
-renderAssetMetadata = toJSON
-    . map (\(k, v) -> object ["key" .= k, "value" .= v])
+renderAssetMetadata =
+    toJSON
+        . map (\(k, v) -> object ["key" .= k, "value" .= v])
 
 -- address parsing/rendering ---------------------------------------------------
 
@@ -199,19 +217,41 @@ renderBundle :: TokenBundle -> Value
 renderBundle = toJSON . renderBundle' . toFlatList
 
 renderBundle' :: (Coin, [(AssetId, TokenQuantity)]) -> Value
-renderBundle' (c, xs) = object
-    [ "coin" .= renderCoin c
-    , "assets" .= map renderAssetQuantity xs
-    ]
+renderBundle' (c, xs) =
+    object
+        [ "coin" .= renderCoin c
+        , "assets" .= map renderAssetQuantity xs
+        ]
 
 renderAssetQuantity :: (AssetId, TokenQuantity) -> Value
-renderAssetQuantity (AssetId tp n, tq) = object
-    [ "asset" .= object
-        [ "policy" .= tp
-        , "name" .= n
+renderAssetQuantity (AssetId tp n, tq) =
+    object
+        [ "asset"
+            .= object
+                [ "policy" .= tp
+                , "name" .= n
+                ]
+        , "quantity" .= tq
         ]
-    , "quantity" .= tq
-    ]
 
 renderCoin :: Coin -> Value
 renderCoin (Coin c) = toJSON c
+
+-- | Generate a 'SendFaucetAssets' payload
+genSendFaucetAssets
+    :: forall n
+     . HasSNetworkId n
+    => Gen (WithNetwork SendFaucetAssets n)
+genSendFaucetAssets = do
+    batchSize <- arbitrary
+    assets <- listOf $ genAsset $ case sNetworkId @n of
+        SMainnet -> MainnetTag
+        STestnet _ -> TestnetTag
+    pure $ WithNetwork SendFaucetAssets{batchSize, assets}
+
+genAsset :: NetworkTag -> Gen (Address, (TokenBundle, [(String, String)]))
+genAsset tag = do
+    addr <- Address . Addr.unAddress <$> genAddress [tag]
+    bundle <- genTokenBundleSmallRange
+    metadata <- listOf ((,) <$> arbitrary <*> arbitrary)
+    pure (addr, (bundle, metadata))

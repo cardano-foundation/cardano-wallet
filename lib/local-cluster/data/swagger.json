@@ -133,6 +133,69 @@
             },
             "Ready": {
                 "type": "boolean"
+            },
+            "SendAssets": {
+                "properties": {
+                    "assets": {
+                        "items": {
+                            "properties": {
+                                "address": {
+                                    "type": "string"
+                                },
+                                "bundle": {
+                                    "properties": {
+                                        "assets": {
+                                            "items": {
+                                                "properties": {
+                                                    "asset": {
+                                                        "properties": {
+                                                            "name": {
+                                                                "type": "string"
+                                                            },
+                                                            "policy": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    "quantity": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "coin": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "type": "object"
+                                },
+                                "metadata": {
+                                    "items": {
+                                        "properties": {
+                                            "key": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "batch-size": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
             }
         }
     },
@@ -209,6 +272,28 @@
                     }
                 },
                 "summary": "Check if the local-cluster is ready"
+            }
+        },
+        "/send/assets": {
+            "parameters": [
+                {
+                    "in": "path",
+                    "name": "assets",
+                    "schema": {
+                        "$ref": "#/components/schemas/SendAssets"
+                    }
+                }
+            ],
+            "post": {
+                "responses": {
+                    "204": {
+                        "content": {
+                            "application/json": {}
+                        },
+                        "description": "No Content"
+                    }
+                },
+                "summary": "Send assets to the faucet"
             }
         }
     }
