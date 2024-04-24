@@ -12,7 +12,8 @@ where
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
-    ( ApiT (..), API
+    ( API
+    , ApiT (..)
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
@@ -52,7 +53,8 @@ import Servant
     ( Application
     , Handler
     , NoContent (..)
-    , (:<|>) (..), Proxy (..)
+    , Proxy (..)
+    , (:<|>) (..)
     )
 import Servant.Server
     ( serve

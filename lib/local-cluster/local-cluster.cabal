@@ -53,6 +53,7 @@ library
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
+    Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.Server
     Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
@@ -117,6 +118,7 @@ library
     , memory
     , network
     , mtl
+    , network
     , OddWord
     , optparse-applicative
     , ouroboros-network
