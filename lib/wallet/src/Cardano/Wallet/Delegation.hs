@@ -86,13 +86,13 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> Bool
+    -> Maybe Bool
     -> Either
         ErrStakePoolDelegation
         (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    era wallet currentEpochSlotting knownPools poolId poolStatus votedTheSame
-  = case guardJoin era knownPools delegation poolId retirementInfo votedTheSame of
+    era wallet currentEpochSlotting knownPools poolId poolStatus votedTheSameM
+  = case guardJoin era knownPools delegation poolId retirementInfo votedTheSameM of
         Left e -> Left $ ErrStakePoolJoin e
         Right () -> Right
             ( if stakeKeyIsRegistered
@@ -124,9 +124,9 @@ guardJoin
     -> WalletDelegation
     -> PoolId
     -> Maybe PoolRetirementEpochInfo
-    -> Bool
+    -> Maybe Bool
     -> Either ErrCannotJoin ()
-guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSame = do
+guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
     when (pid `Set.notMember` knownPools) $
         Left (ErrNoSuchPool pid)
 
@@ -134,27 +134,20 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSame = do
         when (currentEpoch info >= retirementEpoch info) $
             Left (ErrNoSuchPool pid)
 
-    when ((null next) && isDelegatingTo (== pid) active) $
-        case era of
-                Write.RecentEraBabbage ->
-                    Left (ErrAlreadyDelegating pid)
-                Write.RecentEraConway ->
-                    if votedTheSame then
-                        Left (ErrAlreadyDelegatingVoting pid)
-                    else
-                        pure ()
+    when ((null next) && isDelegatingTo (== pid) active) eraVotingLogic
 
-    when (not (null next) && isDelegatingTo (== pid) (last next)) $
-        case era of
-                Write.RecentEraBabbage ->
-                    Left (ErrAlreadyDelegating pid)
-                Write.RecentEraConway ->
-                    if votedTheSame then
-                        Left (ErrAlreadyDelegatingVoting pid)
-                    else
-                        pure ()
+    when (not (null next) && isDelegatingTo (== pid) (last next)) eraVotingLogic
   where
     WalletDelegation {active, next} = delegation
+    eraVotingLogic = case (era, votedTheSameM) of
+        (Write.RecentEraBabbage,_) ->
+            Left (ErrAlreadyDelegating pid)
+        (Write.RecentEraConway, Nothing) ->
+            Left (ErrAlreadyDelegating pid)
+        (Write.RecentEraConway, Just True) ->
+            Left (ErrAlreadyDelegatingVoting pid)
+        (Write.RecentEraConway, Just False) ->
+            pure ()
 
 {-----------------------------------------------------------------------------
     Quit stake pool
