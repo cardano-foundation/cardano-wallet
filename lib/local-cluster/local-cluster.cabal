@@ -144,7 +144,6 @@ library
     , ouroboros-network-api
     , pathtype
     , profunctors
-    , resourcet
     , retry
     , servant
     , servant-client
@@ -179,8 +178,8 @@ executable local-cluster
     , iohk-monitoring-extra
     , lens
     , local-cluster
+    , mtl
     , pathtype
-    , resourcet
     , temporary-extra
     , unliftio
     , with-utf8

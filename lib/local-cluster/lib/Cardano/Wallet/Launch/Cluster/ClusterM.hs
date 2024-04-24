@@ -35,9 +35,6 @@ import Control.Monad.Reader
     , ReaderT (..)
     , asks
     )
-import Control.Monad.Trans.Resource
-    ( MonadUnliftIO
-    )
 import Control.Tracer
     ( contramap
     , traceWith
@@ -48,6 +45,9 @@ import Data.Text
 import System.Path
     ( RelDir
     , (</>)
+    )
+import UnliftIO
+    ( MonadUnliftIO
     )
 
 newtype ClusterM a = ClusterM
