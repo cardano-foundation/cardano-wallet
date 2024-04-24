@@ -68,24 +68,26 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 
 generateOpenapi3 :: BL.ByteString
 generateOpenapi3 = encodePretty apiSchema
-    -- jsonMediaType :: MediaType
-    -- jsonMediaType = "application/json"
+
+-- jsonMediaType :: MediaType
+-- jsonMediaType = "application/json"
 
 apiSchema :: OpenApi
 apiSchema :: OpenApi =
-        mempty
-            & info . title .~ "Cardano Wallet Monitoring API"
-            & info . version .~ "0.1.0.0"
-            & info . description ?~ "This is the API for the monitoring server"
-            & info . license ?~ license'
-            & paths .~ paths'
-            & components . schemas .~ definitions
+    mempty
+        & info . title .~ "Cardano Wallet Monitoring API"
+        & info . version .~ "0.1.0.0"
+        & info . description ?~ "This is the API for the monitoring server"
+        & info . license ?~ license'
+        & paths .~ paths'
+        & components . schemas .~ definitions
 
 definitions :: Definitions Schema
-definitions = [ ("Ready", mempty & type_ ?~ OpenApiBoolean)
-                   , ("MonitorState", monitorStateSchema)
-                   , ("Observation", observationSchema)
-                   ]
+definitions =
+    [ ("Ready", mempty & type_ ?~ OpenApiBoolean)
+    , ("MonitorState", monitorStateSchema)
+    , ("Observation", observationSchema)
+    ]
 
 monitorStateSchema :: Schema
 monitorStateSchema =
@@ -108,7 +110,7 @@ historySchema =
         & type_ ?~ OpenApiArray
         & items
             ?~ OpenApiItemsObject
-                  (Inline timedPhaseSchema)
+                (Inline timedPhaseSchema)
 
 timedPhaseSchema :: Schema
 timedPhaseSchema =

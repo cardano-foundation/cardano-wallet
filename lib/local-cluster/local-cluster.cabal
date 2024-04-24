@@ -10,39 +10,27 @@ maintainer:    hal@cardanofoundation.org
 copyright:     2023 Cardano Foundation
 category:      Web
 build-type:    Simple
-data-files:
-  data/swagger.json
+data-files:    data/swagger.json
 
 common language
   default-language:   Haskell2010
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+
   ghc-options:
-    -fhelpful-errors
-    -fprint-expanded-synonyms
-    -freverse-errors
-    -fwarn-incomplete-uni-patterns
-    -fwarn-unused-do-bind
-    -Wall
-    -Wcompat
-    -Werror=incomplete-patterns
-    -Widentities
-    -Wincomplete-record-updates
-    -Wincomplete-uni-patterns
-    -Wmissing-deriving-strategies
-    -Wmissing-local-signatures
-    -Wpartial-fields
-    -Wredundant-constraints
-    -Wtabs
-    -Wunused-foralls
+    -fhelpful-errors -fprint-expanded-synonyms -freverse-errors
+    -fwarn-incomplete-uni-patterns -fwarn-unused-do-bind -Wall -Wcompat
+    -Werror=incomplete-patterns -Widentities
+    -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies -Wmissing-local-signatures
+    -Wpartial-fields -Wredundant-constraints -Wtabs -Wunused-foralls
     -Wunused-packages
 
 flag release
   description: Enable optimization and `-Werror`
   default:     False
   manual:      True
-
 
 library
   import:          language
@@ -62,6 +50,8 @@ library
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
     Cardano.Wallet.Launch.Cluster.Env
     Cardano.Wallet.Launch.Cluster.Faucet
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
     Cardano.Wallet.Launch.Cluster.KeyRegistration
@@ -88,14 +78,15 @@ library
     Cardano.Wallet.Launch.Cluster.Tx
     Cardano.Wallet.Launch.Cluster.UnsafeInterval
     Control.Monitoring.Concurrent
+    Control.Monitoring.Folder
     Control.Monitoring.Monitor
     Control.Monitoring.Tracing
-    Control.Monitoring.Folder
 
   if flag(release)
     ghc-options: -O2 -Werror
 
   build-depends:
+    , address-derivation-discovery
     , aeson
     , aeson-pretty
     , aeson-qq
@@ -135,7 +126,6 @@ library
     , lens
     , machines
     , memory
-    , network
     , mtl
     , network
     , OddWord
@@ -164,7 +154,7 @@ executable local-cluster
   import:         language
   main-is:        local-cluster.hs
   hs-source-dirs: exe
-  ghc-options: -threaded -rtsopts
+  ghc-options:    -threaded -rtsopts
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -186,12 +176,11 @@ executable local-cluster
     , with-utf8
 
 test-suite test
-  import:         language
-  type:           exitcode-stdio-1.0
-  main-is:        test.hs
-  ghc-options:    -threaded -rtsopts
-  hs-source-dirs: test/unit
-
+  import:             language
+  type:               exitcode-stdio-1.0
+  main-is:            test.hs
+  ghc-options:        -threaded -rtsopts
+  hs-source-dirs:     test/unit
   build-depends:
     , aeson
     , base
