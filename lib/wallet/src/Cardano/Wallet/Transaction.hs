@@ -390,6 +390,7 @@ data ErrSignTx
 
 data ErrCannotJoin
     = ErrAlreadyDelegating PoolId
+    | ErrAlreadyDelegatingVoting PoolId
     | ErrNoSuchPool PoolId
     deriving (Generic, Eq, Show)
 

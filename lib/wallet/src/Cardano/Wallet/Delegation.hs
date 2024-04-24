@@ -86,12 +86,13 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
+    -> Bool
     -> Either
         ErrStakePoolDelegation
         (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    era wallet currentEpochSlotting knownPools poolId poolStatus
-  = case guardJoin era knownPools delegation poolId retirementInfo of
+    era wallet currentEpochSlotting knownPools poolId poolStatus votedTheSame
+  = case guardJoin era knownPools delegation poolId retirementInfo votedTheSame of
         Left e -> Left $ ErrStakePoolJoin e
         Right () -> Right
             ( if stakeKeyIsRegistered
@@ -123,8 +124,9 @@ guardJoin
     -> WalletDelegation
     -> PoolId
     -> Maybe PoolRetirementEpochInfo
+    -> Bool
     -> Either ErrCannotJoin ()
-guardJoin era knownPools delegation pid mRetirementEpochInfo = do
+guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSame = do
     when (pid `Set.notMember` knownPools) $
         Left (ErrNoSuchPool pid)
 
@@ -137,14 +139,20 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo = do
                 Write.RecentEraBabbage ->
                     Left (ErrAlreadyDelegating pid)
                 Write.RecentEraConway ->
-                    pure ()
+                    if votedTheSame then
+                        Left (ErrAlreadyDelegatingVoting pid)
+                    else
+                        pure ()
 
     when (not (null next) && isDelegatingTo (== pid) (last next)) $
         case era of
                 Write.RecentEraBabbage ->
                     Left (ErrAlreadyDelegating pid)
                 Write.RecentEraConway ->
-                    pure ()
+                    if votedTheSame then
+                        Left (ErrAlreadyDelegatingVoting pid)
+                    else
+                        pure ()
   where
     WalletDelegation {active, next} = delegation
 

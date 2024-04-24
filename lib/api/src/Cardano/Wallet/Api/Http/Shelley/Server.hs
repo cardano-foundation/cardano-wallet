@@ -2774,7 +2774,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 IODeleg.handleDelegationRequest
                     wrk
                     currentEpochSlotting knownPools
-                    poolStatus withdrawal
+                    poolStatus withdrawal votingSameAgain
 
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -3323,7 +3323,7 @@ constructSharedTransaction
             forM delegationRequest $
                 IODeleg.handleDelegationRequest
                     wrk currentEpochSlotting knownPools
-                    getPoolStatus NoWithdrawal
+                    getPoolStatus NoWithdrawal votingSameAgain
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal

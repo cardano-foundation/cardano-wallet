@@ -721,6 +721,13 @@ instance IsServerError ErrCannotJoin where
                 [ "I couldn't find any stake pool with the given id: "
                 , toText pid
                 ]
+        ErrAlreadyDelegatingVoting pid ->
+            apiError err403 PoolAlreadyJoined $ mconcat
+                [ "I couldn't join a stake pool with the given id: "
+                , toText pid
+                , " and vote. I have already joined this pool, also voted the same last time;"
+                , " joining/voting again would incur an unnecessary fee!"
+                ]
 
 instance IsServerError ErrCannotQuit where
     toServerError = \case

@@ -140,10 +140,11 @@ handleDelegationRequest
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> Withdrawal
+    -> Bool
     -> WD.DelegationRequest
     -> IO Tx.DelegationAction
 handleDelegationRequest
-    ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal = \case
+    ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal votedTheSame = \case
     WD.Join poolId -> do
         poolStatus <- getPoolStatus poolId
         pools <- getKnownPools
@@ -153,6 +154,7 @@ handleDelegationRequest
             pools
             poolId
             poolStatus
+            votedTheSame
     WD.Quit ->
         quitStakePoolDelegationAction
             ctx
@@ -218,6 +220,7 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
         pools
         poolId
         poolStatus
+        False
 
     let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
@@ -306,9 +309,10 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
+    -> Bool
     -> IO (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    ctx currentEpochSlotting knownPools poolId poolStatus
+    ctx currentEpochSlotting knownPools poolId poolStatus votedTheSame
   = do
     (wallet, stakeKeyIsRegistered) <-
         db & \DBLayer{atomically,walletState} -> atomically $
@@ -329,6 +333,7 @@ joinStakePoolDelegationAction
             knownPools
             poolId
             poolStatus
+            votedTheSame
   where
     db = ctx ^. dbLayer
     tr = ctx ^. logger
@@ -365,6 +370,7 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
             pools
             poolId
             poolStatus
+            False
 
     ttl <- W.transactionExpirySlot ti Nothing
     let transactionCtx =
