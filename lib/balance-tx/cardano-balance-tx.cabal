@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               cardano-balance-tx
-version:            2024.3.27
+version:            2024.4.24
 synopsis:           Balancing transactions for the Cardano blockchain.
 description:        Please see README.md.
 homepage:           https://github.com/cardano-foundation/cardano-wallet
