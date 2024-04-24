@@ -16,6 +16,15 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates -Wmissing-deriving-strategies
+    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
+    -fprint-explicit-kinds -Wcompat -Widentities
+    -Werror=incomplete-patterns -Wredundant-constraints
+    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
+    -fprint-expanded-synonyms -fwarn-unused-do-bind
+    -fwarn-incomplete-uni-patterns -freverse-errors
 
 flag release
   description: Enable optimization and `-Werror`
@@ -57,15 +66,10 @@ library
     Cardano.Wallet.Launch.Cluster.Tx
     Cardano.Wallet.Launch.Cluster.UnsafeInterval
     Cardano.Wallet.LocalCluster
-
-  ghc-options:
-    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
-    -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wcompat -Widentities -Werror=incomplete-patterns
-    -Wredundant-constraints -Wpartial-fields -Wtabs
-    -Wmissing-local-signatures -fhelpful-errors
-    -fprint-expanded-synonyms -fwarn-unused-do-bind
-    -fwarn-incomplete-uni-patterns -freverse-errors
+    Control.Monitoring.Concurrent
+    Control.Monitoring.Monitor
+    Control.Monitoring.Tracing
+    Control.Monitoring.Folder
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -89,19 +93,24 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cborg
+    , comonad
     , containers
     , contra-tracer
     , crypto-primitives
     , directory
+    , exceptions
     , extra
     , faucet
     , filepath
+    , foldl
     , generic-lens
     , http-client
     , int-cast
+    , io-classes
     , iohk-monitoring
     , iohk-monitoring-extra
     , lens
+    , machines
     , memory
     , mtl
     , OddWord
@@ -109,9 +118,11 @@ library
     , ouroboros-network
     , ouroboros-network-api
     , pathtype
+    , profunctors
     , resourcet
     , retry
     , servant-client
+    , stm
     , tagged
     , temporary
     , temporary-extra
@@ -128,15 +139,7 @@ executable local-cluster
   import:         language
   main-is:        Cluster.hs
   hs-source-dirs: exe
-  ghc-options:
-    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
-    -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
-    -fprint-explicit-kinds -Wcompat -Widentities
-    -Werror=incomplete-patterns -Wredundant-constraints
-    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
-    -fprint-expanded-synonyms -fwarn-unused-do-bind
-    -fwarn-incomplete-uni-patterns -freverse-errors -threaded -rtsopts
+  ghc-options: -threaded -rtsopts
 
   if flag(release)
     ghc-options: -O2 -Werror
