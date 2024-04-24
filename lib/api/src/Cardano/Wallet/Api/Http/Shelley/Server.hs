@@ -2761,6 +2761,13 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     db
             _ -> pure NoWithdrawal
 
+        (optionalVoteAction, votingSameAgain) <- case (body ^. #vote) of
+            Just (ApiT action) -> do
+                (voteAction, votingSameAgain) <- liftIO $ IODeleg.voteAction wrk action
+                pure (Just voteAction, votingSameAgain)
+            Nothing ->
+                pure (Nothing, False)
+
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
         optionalDelegationAction <- liftIO $
             forM delegationRequest $
@@ -2768,13 +2775,6 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     wrk
                     currentEpochSlotting knownPools
                     poolStatus withdrawal
-
-        optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) ->
-                liftIO $ Just <$>
-                    IODeleg.voteAction wrk action
-            Nothing ->
-                pure Nothing
 
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -3312,16 +3312,18 @@ constructSharedTransaction
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
 
+        (optionalVoteAction, votingSameAgain) <- case (body ^. #vote) of
+            Just (ApiT action) -> do
+                (voteAction, votingSameAgain) <- liftIO $ IODeleg.voteAction wrk action
+                pure (Just voteAction, votingSameAgain)
+            Nothing ->
+                pure (Nothing, False)
+
         optionalDelegationAction <- liftIO $
             forM delegationRequest $
                 IODeleg.handleDelegationRequest
                     wrk currentEpochSlotting knownPools
                     getPoolStatus NoWithdrawal
-
-        optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) -> liftIO $ Just <$>
-                IODeleg.voteAction wrk action
-            Nothing -> pure Nothing
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal

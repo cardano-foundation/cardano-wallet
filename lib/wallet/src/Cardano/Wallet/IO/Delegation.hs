@@ -85,6 +85,9 @@ import Cardano.Wallet.Primitive.Passphrase
 import Cardano.Wallet.Primitive.Types
     ( PoolLifeCycleStatus
     , ProtocolParameters (..)
+    , WalletDelegation (..)
+    , WalletDelegationNext (..)
+    , WalletDelegationStatus (..)
     , WalletId
     )
 import Cardano.Wallet.Primitive.Types.DRep
@@ -159,8 +162,9 @@ handleDelegationRequest
 voteAction
     :: WalletLayer IO s
     -> DRep
-    -> IO Tx.VotingAction
+    -> IO (Tx.VotingAction, Bool)
 voteAction ctx action = do
+    (_,(_, dlg),_) <- W.readWallet ctx
     (_, stakeKeyIsRegistered) <- db & \DBLayer{atomically,walletState} ->
         atomically $
             (,) <$> readDelegation walletState
@@ -170,11 +174,20 @@ voteAction ctx action = do
 
     pure $
         if stakeKeyIsRegistered
-        then Tx.Vote action
-        else Tx.VoteRegisteringKey action
+        then (Tx.Vote action, sameWalletDelegation dlg)
+        else (Tx.VoteRegisteringKey action, sameWalletDelegation dlg)
   where
     db = ctx ^. dbLayer
     tr = ctx ^. logger
+
+    isDRepSame (Voting drep) = drep == action
+    isDRepSame (DelegatingVoting _ drep) = drep == action
+    isDRepSame _ = False
+
+    isSameNext (WalletDelegationNext _ deleg) = isDRepSame deleg
+
+    sameWalletDelegation (WalletDelegation current coming) =
+        isDRepSame current || any isSameNext coming
 
 {-----------------------------------------------------------------------------
     Used by Daedalus
