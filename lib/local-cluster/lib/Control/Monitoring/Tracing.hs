@@ -42,7 +42,7 @@ data MonitorState
     -- ^ Wating for a step before going into `Wait`
     | Run
     -- ^ Tracing freely
-    deriving stock Show
+    deriving stock (Show, Eq)
 
 -- | Tracing state along with its observation
 data Tracing state a b = Tracing

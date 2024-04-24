@@ -52,6 +52,7 @@ library
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
+    Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
     Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     Cardano.Wallet.Launch.Cluster.Node.GenTopology
@@ -122,8 +123,10 @@ library
     , profunctors
     , resourcet
     , retry
+    , servant
     , servant-client
     , stm
+    , servant-server
     , tagged
     , temporary
     , temporary-extra
@@ -160,18 +163,21 @@ test-suite test
     , base
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , containers
     , foldl
     , hspec
     , local-cluster
     , pathtype
     , QuickCheck
     , temporary
+    , time
     , unliftio
     , with-utf8
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Spec
-    SpecHook
+    Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
     Control.Monitoring.MonitorSpec
     Control.Monitoring.TracingSpec
+    Spec
+    SpecHook
