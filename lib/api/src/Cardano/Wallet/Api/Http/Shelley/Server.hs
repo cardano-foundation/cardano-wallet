@@ -128,6 +128,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , withWorkerCtx
     , getCurrentEpoch
     , toMetadataEncrypted
+    , metadataPBKDF2Config
 
     -- * Workers
     , manageRewardBalance
@@ -3178,12 +3179,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     pure $ updateTxMetadata msgValue'
   where
     pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
-    (secretKey, iv) = PBKDF2.generateKey PBKDF2Config
-        { hash = SHA256
-        , iterations = 10000
-        , keyLength = 32
-        , ivLength = 16
-        } pwd saltM
+    (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
     getMsgValue (Cardano.TxMetaText metaField, metaValue) =
         if metaField == "msg" then
             Just metaValue
@@ -3242,6 +3238,14 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     updateTxMetadata =
         let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
         in Cardano.TxMetadata . foldr (uncurry Map.insert) themap
+
+metadataPBKDF2Config :: PBKDF2Config SHA256
+metadataPBKDF2Config = PBKDF2Config
+    { hash = SHA256
+    , iterations = 10000
+    , keyLength = 32
+    , ivLength = 16
+    }
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
