@@ -70,6 +70,9 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api.Hex
     ( fromHexText
     )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( metadataPBKDF2Config
+    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddressWithPath (..)
@@ -221,9 +224,23 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Resource
     ( runResourceT
     )
+import Cryptography.Cipher.AES256CBC
+    ( CipherMode (..)
+    , encrypt
+    , getSaltFromEncrypted
+    )
+import Cryptography.KDF.PBKDF2
+    ( PBKDF2Config (..)
+    , generateKey
+    )
 import Data.Aeson
     ( toJSON
     , (.=)
+    )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
     )
 import Data.Function
     ( (&)
@@ -257,6 +274,9 @@ import Data.Text
     )
 import Data.Text.Class
     ( toText
+    )
+import Data.Word
+    ( Word64
     )
 import GHC.Exts
     ( IsList (fromList)
@@ -368,6 +388,8 @@ import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
@@ -439,18 +461,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        -- Check for the presence of metadata on signed transaction
-        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
-                \(Cardano.TxBody bodyContent) ->
-                    Cardano.txMetadata bodyContent & \case
-                        Cardano.TxMetadataNone ->
-                            Nothing
-                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                            Just m
-
         let era = fromApiEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
-        case getMetadata tx of
+        case getMetadataFromTx tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
@@ -504,18 +517,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        -- Check for the presence of metadata on signed transaction
-        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
-                \(Cardano.TxBody bodyContent) ->
-                    Cardano.txMetadata bodyContent & \case
-                        Cardano.TxMetadataNone ->
-                            Nothing
-                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                            Just m
-
         let era = fromApiEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
-        case getMetadata tx of
+        case getMetadataFromTx tx of
             Nothing -> error "Tx doesn't include metadata"
             Just m  -> case Map.lookup 1 m of
                 Nothing -> error "Tx doesn't include metadata"
@@ -575,17 +579,20 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_NEW_CREATE_02c - Correct metadata structure to be encrypted - short" $
         \ctx -> runResourceT $ do
+            let toBeEncrypted = TxMetaText "world"
             let metadataRaw =
                     TxMetadata (Map.fromList
-                                [ (0,TxMetaText "hello")
-                                , (674,TxMetaMap [(TxMetaText "msg", TxMetaText "world")])
+                                [ (0, TxMetaText "hello")
+                                , (674, TxMetaMap
+                                      [(TxMetaText "msg", toBeEncrypted)])
                                 , (50, TxMetaNumber 1_245)
                                 ])
             wa <- fixtureWallet ctx
             let metadataToBeEncrypted =
                     TxMetadataWithSchema TxMetadataNoSchema metadataRaw
+            let pwdApiT = ApiT $ Passphrase "metadata-secret"
             let encryptMetadata =
-                    ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
+                    ApiEncryptMetadata pwdApiT Nothing
             let payload = Json [json|{
                     "encrypt_metadata": #{toJSON encryptMetadata},
                     "metadata": #{toJSON metadataToBeEncrypted}
@@ -594,6 +601,37 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Link.createUnsignedTransaction @'Shelley wa) Default payload
             verify rTx
                 [ expectResponseCode HTTP.status202
+                ]
+            let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
+            signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+            let era = fromApiEra $ _mainEra ctx
+            let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
+
+            let encryptedMsg = case getMetadataFromTx tx of
+                    Nothing -> error "Tx doesn't include metadata"
+                    Just m  -> case Map.lookup 674 m of
+                        Nothing -> error "Tx doesn't include metadata"
+                        Just (Cardano.TxMetaMap
+                              [ (TxMetaText "msg",TxMetaList [TxMetaText chunk])
+                              , (TxMetaText "enc",TxMetaText "basic")
+                              ]) -> chunk
+                        Just _ -> error "Tx metadata incorrect"
+
+            -- we retriev salt from the encypted msg, then encrypt the value in `msg`
+            -- field and compare
+            let (Just salt) = getSaltFromEncrypted $ unsafeFromBase64 encryptedMsg
+            let pwd = BA.convert $ unPassphrase $ getApiT pwdApiT
+            let (key, iv) = generateKey metadataPBKDF2Config pwd (Just salt)
+            let (Right encryptedMsgRaw) = encrypt WithPadding key iv (Just salt) $
+                    BL.toStrict $ Aeson.encode $ Cardano.metadataValueToJsonNoSchema
+                    toBeEncrypted
+
+            encryptedMsg `shouldBe` toBase64 encryptedMsgRaw
+
+            submittedTx <- submitTxWithWid ctx wa signedTx
+            verify submittedTx
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
                 ]
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
@@ -4729,6 +4767,24 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
     oneAda :: Integer
     oneAda = 1_000_000
+
+    unsafeFromBase64 t = case convertFromBase Base64 $ T.encodeUtf8 t of
+        Left err -> error $ "unsafeFromBase64: "<> show err
+        Right msg -> msg
+
+    toBase64 = T.decodeUtf8 . convertToBase Base64
+
+        -- Check for the presence of metadata on signed transaction
+    getMetadataFromTx
+        :: InAnyCardanoEra Cardano.Tx
+        -> Maybe (Map.Map Word64 TxMetadataValue)
+    getMetadataFromTx (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
+        \(Cardano.TxBody bodyContent) ->
+            Cardano.txMetadata bodyContent & \case
+                Cardano.TxMetadataNone ->
+                    Nothing
+                Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                    Just m
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
