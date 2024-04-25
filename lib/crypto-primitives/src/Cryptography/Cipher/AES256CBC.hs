@@ -38,6 +38,7 @@ module Cryptography.Cipher.AES256CBC
     , CipherError (..)
     , encrypt
     , decrypt
+    , getSaltFromEncrypted
     ) where
 
 import Prelude
@@ -163,3 +164,15 @@ decrypt mode key iv msg = do
     unpad p = case mode of
         WithoutPadding -> Right p
         WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
+
+getSaltFromEncrypted
+    :: ByteString
+    -> Maybe ByteString
+getSaltFromEncrypted msg = do
+    when (BS.length msg < 32) Nothing
+    let (prefix,rest) = BS.splitAt 8 msg
+    let saltDetected = prefix == saltPrefix
+    if saltDetected then
+        Just $ BS.take 8 rest
+    else
+        Nothing

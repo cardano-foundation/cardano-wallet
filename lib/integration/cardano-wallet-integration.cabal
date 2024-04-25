@@ -144,6 +144,7 @@ library scenarios
     , cardano-wallet-test-utils
     , command
     , containers
+    , crypto-primitives
     , either
     , extra
     , faucet
