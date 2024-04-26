@@ -51,7 +51,7 @@ import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (NoUtxosAvailable)
+    ( ApiErrorInfo (NoUtxosAvailable, PoolAlreadyJoinedSameVote)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -631,12 +631,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     ]
 
             -- joinStakePool would try once again joining pool and voting Abstain
-            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status403
-                    , expectErrorMessage (errMsg403PoolAlreadyJoined $ toText pool)
-                    ]
+            r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+            verify r
+                [ expectResponseCode HTTP.status403
+
+                ]
+            decodeErrorInfo r `shouldBe` PoolAlreadyJoinedSameVote
 
     it "STAKE_POOLS_JOIN_03 - Cannot join a pool that has retired" $ \ctx -> runResourceT $ do
         waitForEpoch 3 ctx -- One pool retires at epoch 3

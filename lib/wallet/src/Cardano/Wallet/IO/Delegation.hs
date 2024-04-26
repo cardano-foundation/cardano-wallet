@@ -363,6 +363,8 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     pp <- currentProtocolParameters netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
 
+    (_,(_, dlg),_) <- W.readWallet ctx
+
     (delegation, votingM) <-
         joinStakePoolDelegationAction
             ctx
@@ -370,7 +372,7 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
             pools
             poolId
             poolStatus
-            Nothing
+            (Just $ votingWalletDelegation dlg)
 
     ttl <- W.transactionExpirySlot ti Nothing
     let transactionCtx =
@@ -397,6 +399,15 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     netLayer = ctx ^. networkLayer
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
+
+    votingWalletDelegation (WalletDelegation current coming) =
+        isVoting current || any isVotingNext coming
+      where
+        isVoting (Voting _) = True
+        isVoting (DelegatingVoting _ _) = True
+        isVoting _ = False
+
+        isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
 
 {-----------------------------------------------------------------------------
     Quit stake pool
