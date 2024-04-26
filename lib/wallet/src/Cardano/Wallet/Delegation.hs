@@ -203,5 +203,4 @@ guardVoting
     -> Either ErrCannotVote ()
 guardVoting optionalDelegationAction votingSameAgainM = do
     when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
-        Left $ ErrAlreadyVoted $ fromJust $ snd <$> votingSameAgainM
-    pure ()
+        Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)

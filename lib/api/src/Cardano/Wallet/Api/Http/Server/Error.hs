@@ -36,8 +36,8 @@ import Cardano.Address.Script
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
-    , ErrCannotVote (..)
     , ErrCannotQuit (..)
+    , ErrCannotVote (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
