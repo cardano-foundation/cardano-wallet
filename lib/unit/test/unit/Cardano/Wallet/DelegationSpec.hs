@@ -224,7 +224,7 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
 -------------------------------------------------------------------------------}
 
 prop_guardJoinQuit
-    :: (Set PoolId -> WalletDelegation -> PoolId -> Maybe PoolRetirementEpochInfo -> Maybe Bool -> Either ErrCannotJoin ())
+    :: GuardJoinFun
     -> [PoolId]
     -> WalletDelegation
     -> PoolId
@@ -263,7 +263,7 @@ prop_guardJoinQuit guardJoin knownPoolsList dlg pid wdrl mRetirementInfo = check
             pure $ W.currentEpoch info >= W.retirementEpoch info
 
 prop_guardQuitJoin
-    :: (Set PoolId -> WalletDelegation -> PoolId -> Maybe PoolRetirementEpochInfo -> Maybe Bool -> Either ErrCannotJoin ())
+    :: GuardJoinFun
     -> NonEmptyList PoolId
     -> WalletDelegation
     -> Word64
@@ -287,22 +287,12 @@ prop_guardQuitJoin guardJoin (NonEmpty knownPoolsList) dlg rewards wdrl =
     isSelfWdrl WithdrawalSelf{} = True
     isSelfWdrl _                = False
 
-guardJoinBabbage
-    :: Set PoolId
-    -> WalletDelegation
-    -> PoolId
-    -> Maybe PoolRetirementEpochInfo
-    -> Maybe Bool
-    -> Either ErrCannotJoin ()
+type GuardJoinFun = Set PoolId -> WalletDelegation -> PoolId -> Maybe PoolRetirementEpochInfo -> Maybe Bool -> Either ErrCannotJoin ()
+
+guardJoinBabbage :: GuardJoinFun
 guardJoinBabbage = WD.guardJoin Write.RecentEraBabbage
 
-guardJoinConway
-    :: Set PoolId
-    -> WalletDelegation
-    -> PoolId
-    -> Maybe PoolRetirementEpochInfo
-    -> Maybe Bool
-    -> Either ErrCannotJoin ()
+guardJoinConway :: GuardJoinFun
 guardJoinConway = WD.guardJoin Write.RecentEraConway
 
 {-------------------------------------------------------------------------------
