@@ -3476,7 +3476,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
 
             ]
-        decodeErrorInfo rTx4 `shouldBe` VotedAlreadyThat
+        decodeErrorInfo rTx4 `shouldBe` SameVote
 
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do

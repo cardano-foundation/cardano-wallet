@@ -14,8 +14,7 @@
 -- Delegation functionality used by Daedalus.
 --
 module Cardano.Wallet.IO.Delegation
-    ( voteAction
-    , handleDelegationRequest
+    ( handleDelegationVoteRequest
     , selectCoinsForJoin
     , selectCoinsForQuit
     , joinStakePool
@@ -105,6 +104,9 @@ import Cardano.Wallet.Transaction
 import Control.Exception
     ( throwIO
     )
+import Control.Monad
+    ( forM
+    )
 import Control.Tracer
     ( traceWith
     )
@@ -116,6 +118,9 @@ import Data.Function
     )
 import Data.Generics.Internal.VL.Lens
     ( (^.)
+    )
+import Data.Maybe
+    ( fromJust
     )
 import Data.Set
     ( Set
@@ -133,6 +138,37 @@ import qualified Internal.Cardano.Write.Tx as Write
 {-----------------------------------------------------------------------------
     Used by constructTransaction
 ------------------------------------------------------------------------------}
+handleDelegationVoteRequest
+    :: forall s
+     . WalletLayer IO s
+    -> CurrentEpochSlotting
+    -> IO (Set PoolId)
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> Withdrawal
+    -> Maybe WD.DelegationRequest
+    -> Maybe DRep
+    -> IO (Maybe Tx.DelegationAction, Maybe Tx.VotingAction)
+handleDelegationVoteRequest
+    ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal
+    delRequestM drepM = do
+        (optionalVoteAction, votingSameAgain) <- case drepM of
+            Just action -> do
+                (vAction, votingSameAgain) <- voteAction ctx action
+                pure (Just vAction, Just votingSameAgain)
+            Nothing ->
+                pure (Nothing, Nothing)
+        optionalDelegationAction <- forM delRequestM $
+            handleDelegationRequest ctx currentEpochSlotting getKnownPools
+            getPoolStatus withdrawal votingSameAgain
+
+        either (throwIO . ExceptionVoting) pure
+            (WD.guardVoting delRequestM $ toDrepEnriched votingSameAgain)
+        pure (optionalDelegationAction, optionalVoteAction)
+  where
+    toDrepEnriched Nothing = Nothing
+    toDrepEnriched (Just True) = Just (True, fromJust drepM)
+    toDrepEnriched (Just False) = Just (False, fromJust drepM)
+
 handleDelegationRequest
     :: forall s
      . WalletLayer IO s

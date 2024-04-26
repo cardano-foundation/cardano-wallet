@@ -174,6 +174,7 @@ data ApiErrorInfo
     | RedeemerScriptFailure
     | RedeemerTargetNotFound
     | RejectedByCoreNode
+    | SameVote
     | SharedWalletActive
     | SharedWalletCannotUpdateKey
     | SharedWalletIncomplete
@@ -198,7 +199,6 @@ data ApiErrorInfo
     | UtxoTooSmall
         !ApiErrorTxOutputLovelaceInsufficient
     | ValidityIntervalNotInsideScriptTimelock
-    | VotedAlreadyThat
     | VotingInInvalidEra
     | WalletAlreadyExists
     | WalletMetadataNotFound

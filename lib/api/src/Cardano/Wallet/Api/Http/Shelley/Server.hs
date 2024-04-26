@@ -2761,24 +2761,12 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                     db
             _ -> pure NoWithdrawal
 
-        (optionalVoteAction, votingSameAgainM) <- case (body ^. #vote) of
-            Just (ApiT action) -> do
-                (voteAction, votingSameAgain) <-
-                    liftIO $ IODeleg.voteAction wrk action
-                pure (Just voteAction, Just votingSameAgain)
-            Nothing ->
-                pure (Nothing, Nothing)
-
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        optionalDelegationAction <- liftIO $
-            forM delegationRequest $
-                IODeleg.handleDelegationRequest
-                    wrk
-                    currentEpochSlotting knownPools
-                    poolStatus withdrawal votingSameAgainM
-
-        when (isNothing optionalDelegationAction && votingSameAgainM == Just True) $
-            liftHandler $ throwE ErrConstructTxVotingSameAgain
+        (optionalDelegationAction, optionalVoteAction) <- liftIO $
+            IODeleg.handleDelegationVoteRequest wrk
+            currentEpochSlotting knownPools
+            poolStatus withdrawal delegationRequest
+            (getApiT <$> body ^. #vote)
 
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -3316,21 +3304,11 @@ constructSharedTransaction
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
 
-        (optionalVoteAction, votingSameAgainM) <- case (body ^. #vote) of
-            Just (ApiT action) -> do
-                (voteAction, votingSameAgain) <- liftIO $ IODeleg.voteAction wrk action
-                pure (Just voteAction, Just votingSameAgain)
-            Nothing ->
-                pure (Nothing, Nothing)
-
-        optionalDelegationAction <- liftIO $
-            forM delegationRequest $
-                IODeleg.handleDelegationRequest
-                    wrk currentEpochSlotting knownPools
-                    getPoolStatus NoWithdrawal votingSameAgainM
-
-        when (isNothing optionalDelegationAction && votingSameAgainM == Just True) $
-            liftHandler $ throwE ErrConstructTxVotingSameAgain
+        (optionalDelegationAction, optionalVoteAction) <- liftIO $
+            IODeleg.handleDelegationVoteRequest wrk
+            currentEpochSlotting knownPools
+            getPoolStatus NoWithdrawal delegationRequest
+            (getApiT <$> body ^. #vote)
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal

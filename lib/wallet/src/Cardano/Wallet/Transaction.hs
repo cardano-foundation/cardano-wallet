@@ -56,6 +56,7 @@ module Cardano.Wallet.Transaction
     , ErrMkTransactionOutputTokenQuantityExceedsLimitError (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrCannotVote (..)
     ) where
 
 import Prelude
@@ -392,6 +393,10 @@ data ErrCannotJoin
     = ErrAlreadyDelegating PoolId
     | ErrAlreadyDelegatingVoting PoolId
     | ErrNoSuchPool PoolId
+    deriving (Generic, Eq, Show)
+
+data ErrCannotVote
+    = ErrAlreadyVoted DRep
     deriving (Generic, Eq, Show)
 
 data ErrCannotQuit

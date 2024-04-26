@@ -9,6 +9,7 @@ module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
     , guardJoin
     , guardQuit
+    , guardVoting
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
     ) where
@@ -20,6 +21,7 @@ import Cardano.Pool.Types
     )
 import Cardano.Wallet
     ( ErrCannotQuit (..)
+    , ErrCannotVote (..)
     , ErrStakePoolDelegation (..)
     , PoolRetirementEpochInfo (..)
     )
@@ -51,6 +53,10 @@ import Control.Monad
 import Data.Generics.Internal.VL.Lens
     ( view
     , (^.)
+    )
+import Data.Maybe
+    ( fromJust
+    , isNothing
     )
 import Data.Set
     ( Set
@@ -190,3 +196,12 @@ guardQuit WalletDelegation{active,next} wdrl rewards voting = do
         _
             | rewards == Coin 0  -> Right ()
             | otherwise          -> Left $ ErrNonNullRewards rewards
+
+guardVoting
+    :: Maybe DelegationRequest
+    -> Maybe (Bool,DRep)
+    -> Either ErrCannotVote ()
+guardVoting optionalDelegationAction votingSameAgainM = do
+    when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
+        Left $ ErrAlreadyVoted $ fromJust $ snd <$> votingSameAgainM
+    pure ()

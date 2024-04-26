@@ -36,6 +36,7 @@ import Cardano.Address.Script
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
+    , ErrCannotVote (..)
     , ErrCannotQuit (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
@@ -240,6 +241,7 @@ instance IsServerError WalletException where
         ExceptionWritePolicyPublicKey e -> toServerError e
         ExceptionSoftDerivationIndex e -> toServerError e
         ExceptionHardenedDerivationIndex e -> toServerError e
+        ExceptionVoting e -> toServerError e
 
 instance IsServerError ErrNoSuchWallet where
     toServerError = \case
@@ -448,12 +450,6 @@ instance IsServerError ErrConstructTx where
             , "Please delegate again (in that case, the wallet will automatically vote to abstain), "
             , "or make a vote transaction before the withdrawal transaction."
             ]
-        ErrConstructTxVotingSameAgain ->
-            apiError err403 VotedAlreadyThat $ mconcat
-                [ "I couldn't cast this vote. "
-                , "I have already voted like that recently;"
-                , " voting again would incur an unnecessary fee!"
-                ]
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
@@ -733,6 +729,16 @@ instance IsServerError ErrCannotJoin where
                 , toText pid
                 , " and vote. I have already joined this pool, also voted the same last time;"
                 , " joining/voting again would incur an unnecessary fee!"
+                ]
+
+instance IsServerError ErrCannotVote where
+    toServerError = \case
+        ErrAlreadyVoted drep ->
+            apiError err403 SameVote $ mconcat
+                [ "I couldn't cast a vote :  "
+                , toText drep
+                , ". I have already voted like that;"
+                , " repeating this action would incur an unnecessary fee!"
                 ]
 
 instance IsServerError ErrCannotQuit where

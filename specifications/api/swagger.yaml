@@ -5216,16 +5216,16 @@ x-errPoolAlreadyJoinedSameVote: &errPoolAlreadyJoinedSameVote
       type: string
       enum: ['pool_already_joined_same_vote']
 
-x-errVotedAlreadyThat: &errVotedAlreadyThat
+x-errSameVote: &errSameVote
   <<: *responsesErr
-  title: voted_already_that
+  title: same_vote
   properties:
     message:
       type: string
-      description: May occur in Conway onwards when the same as before vote is casted.
+      description: May occur in Conway onwards when the same vote was casted.
     code:
       type: string
-      enum: ['voted_already_that']
+      enum: ['same_vote']
 
 x-errNotDelegatingTo: &errNotDelegatingTo
   <<: *responsesErr
@@ -6336,7 +6336,7 @@ x-responsesJoinStakePool: &responsesJoinStakePool
             - <<: *errWrongEncryptionPassphrase
             - <<: *errPoolAlreadyJoined
             - <<: *errPoolAlreadyJoinedSameVote
-            - <<: *errVotedAlreadyThat
+            - <<: *errSameVote
   404:
     description: Not Found
     content:
