@@ -158,6 +158,7 @@ import Test.Integration.Framework.DSL
     , babbageOrConway
     , bracketSettings
     , decodeErrorInfo
+    , delegateToPool
     , delegating
     , delegationFee
     , emptyWallet
@@ -181,6 +182,8 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , noBabbage
+    , noConway
     , notDelegating
     , notRetiringPools
     , postWallet
@@ -575,16 +578,59 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         (`shouldBe` InLedger)
                     ]
 
-    it
-        "STAKE_POOLS_JOIN_02 - \
-        \Cannot join already joined stake pool"
+    it "STAKE_POOLS_JOIN_02 - \
+        \Cannot join already joined stake pool in Babbage"
         $ \ctx -> runResourceT $ do
+            noConway ctx "re-joining the same pool outlawed before Conway"
             w <- fixtureWallet ctx
             pool : _ <- map (view #id) <$> notRetiringPools ctx
 
             waitForTxStatus ctx w InLedger . getResponse
                 =<< joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
 
+            let getSrcWallet =
+                    let endpoint = Link.getWallet @'Shelley w
+                     in request @ApiWallet ctx endpoint Default Empty
+            eventually "Wallet is delegating to pool and voting abstain" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` delegating (ApiT pool) [])
+                    ]
+
+            -- joinStakePool would try once again joining pool and voting Abstain
+            joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+                >>= flip
+                    verify
+                    [ expectResponseCode HTTP.status403
+                    , expectErrorMessage (errMsg403PoolAlreadyJoined $ toText pool)
+                    ]
+
+    it "STAKE_POOLS_JOIN_02 - \
+        \Can join already joined stake pool if voting for the first time in Conway"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "re-joining the same pool possible in Conway if no previous voting"
+
+            (w, pool) <- delegateToPool @n ctx
+
+            let getSrcWallet =
+                    let endpoint = Link.getWallet @'Shelley w
+                     in request @ApiWallet ctx endpoint Default Empty
+            eventually "Wallet is delegating to pool and no voting" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` delegating (ApiT pool) [])
+                    ]
+
+            waitForTxStatus ctx w InLedger . getResponse
+                =<< joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+
+            eventually "Wallet is delegating to pool and voting abstain" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                    ]
+
+            -- joinStakePool would try once again joining pool and voting Abstain
             joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
                 >>= flip
                     verify
