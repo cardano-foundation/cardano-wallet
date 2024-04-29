@@ -147,3 +147,30 @@ executable local-cluster
   build-depends:
     , base
     , local-cluster
+test-suite test
+  import:         language
+  type:           exitcode-stdio-1.0
+  main-is:        test.hs
+  ghc-options:    -threaded -rtsopts
+  hs-source-dirs: test/unit
+
+  build-depends:
+    , aeson
+    , base
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , foldl
+    , hspec
+    , local-cluster
+    , pathtype
+    , QuickCheck
+    , temporary
+    , unliftio
+    , with-utf8
+
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Spec
+    SpecHook
+    Control.Monitoring.MonitorSpec
+    Control.Monitoring.TracingSpec
