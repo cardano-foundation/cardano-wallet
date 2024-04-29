@@ -170,9 +170,11 @@ test-suite test
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
+    , contra-tracer
     , foldl
     , hspec
     , local-cluster
+    , mtl
     , pathtype
     , QuickCheck
     , temporary
@@ -183,6 +185,7 @@ test-suite test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
+    Cardano.Wallet.Launch.Cluster.Monitoring.MonitorSpec
     Control.Monitoring.MonitorSpec
     Control.Monitoring.TracingSpec
     Spec
