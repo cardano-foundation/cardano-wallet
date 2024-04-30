@@ -159,7 +159,7 @@ handleDelegationVoteRequest
                 pure (Nothing, Nothing)
         optionalDelegationAction <- forM delRequestM $
             handleDelegationRequest ctx currentEpochSlotting getKnownPools
-            getPoolStatus withdrawal votingSameAgain
+                getPoolStatus withdrawal votingSameAgain
 
         either (throwIO . ExceptionVoting) pure
             (WD.guardVoting delRequestM $ toDrepEnriched votingSameAgain)
@@ -202,11 +202,12 @@ voteAction
     -> DRep
     -> IO (Tx.VotingAction, Bool)
 voteAction ctx action = do
-    (_,(_, dlg),_) <- W.readWallet ctx
-    (_, stakeKeyIsRegistered) <- db & \DBLayer{atomically,walletState} ->
-        atomically $
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    (calculateWalletDelegations, stakeKeyIsRegistered) <-
+        db & \DBLayer{atomically,walletState} -> atomically $
             (,) <$> readDelegation walletState
                 <*> W.isStakeKeyRegistered walletState
+    let dlg = calculateWalletDelegations currentEpochSlotting
 
     traceWith tr $ W.MsgWallet $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
@@ -217,6 +218,7 @@ voteAction ctx action = do
   where
     db = ctx ^. dbLayer
     tr = ctx ^. logger
+    netLayer = ctx ^. networkLayer
 
     isDRepSame (Voting drep) = drep == action
     isDRepSame (DelegatingVoting _ drep) = drep == action
@@ -398,8 +400,10 @@ joinStakePool
 joinStakePool ctx wid pools poolId poolStatus passphrase = do
     pp <- currentProtocolParameters netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
-
-    (_,(_, dlg),_) <- W.readWallet ctx
+    calculateWalletDelegations <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            readDelegation walletState
+    let dlg = calculateWalletDelegations currentEpochSlotting
 
     (delegation, votingM) <-
         joinStakePoolDelegationAction
