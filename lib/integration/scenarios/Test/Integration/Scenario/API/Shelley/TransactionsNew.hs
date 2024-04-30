@@ -278,9 +278,11 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , ResourceT
     , arbitraryStake
     , counterexample
     , decodeErrorInfo
+    , delegateToPool
     , delegating
     , emptyIcarusWallet
     , emptyRandomWallet
@@ -305,6 +307,7 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , noBabbage
     , noConway
     , notDelegating
     , notRetiringPools
@@ -3385,6 +3388,96 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectField #delegation (`shouldBe` expectedDelegation)
                 ]
 
+    it "TRANS_NEW_JOIN_01f - Cannot re-join the same pool in Babbage"  $ \ctx ->
+        runResourceT $ do
+        noConway ctx "re-joining the same pool outlawed before Conway"
+
+        (src, pool1) <- delegateToPool @n ctx
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx2
+            [ expectResponseCode HTTP.status403
+
+            ]
+        decodeErrorInfo rTx2 `shouldBe` PoolAlreadyJoined
+
+    it "TRANS_NEW_JOIN_01f - Can re-join the same pool in Conway"  $ \ctx ->
+        runResourceT $ do
+        noBabbage ctx "re-joining the same pool is permitted Conway onwards"
+
+        (src, pool1) <- delegateToPool @n ctx
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool1},
+                        "stake_key_index": "0H"
+                    }
+                }],
+                "vote": "abstain"
+            }|]
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx2
+            [ expectResponseCode HTTP.status202
+            ]
+        let ApiSerialisedTransaction apiTx2 _ = getFromResponse #transaction rTx2
+        signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
+
+        submittedTx2 <- submitTxWithWid ctx src signedTx2
+        verify submittedTx2
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getResponse submittedTx2))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                ]
+
+        waitNumberOfEpochBoundaries 2 ctx
+
+        let getSrcWallet =
+                let endpoint = Link.getWallet @'Shelley src
+                 in request @ApiWallet ctx endpoint Default Empty
+        eventually "Wallet is delegating to pool1 and voting abstain" $ do
+            getSrcWallet >>= flip verify
+                [ expectField #delegation
+                     (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT Abstain) [])
+                ]
+
+        rTx3 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx3
+            [ expectResponseCode HTTP.status403
+
+            ]
+        decodeErrorInfo rTx3 `shouldBe` PoolAlreadyJoinedSameVote
+
+        let voteAgain = Json [json|{
+                "vote": "abstain"
+            }|]
+        rTx4 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default voteAgain
+        verify rTx4
+            [ expectResponseCode HTTP.status403
+
+            ]
+        decodeErrorInfo rTx4 `shouldBe` SameVote
+
     it "TRANS_NEW_JOIN_02 - Can join stakepool in case I have many UTxOs on 1 address"
         $ \ctx -> runResourceT $ do
         let amt = minUTxOValue (_mainEra ctx)
@@ -4310,11 +4403,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         noConway ctx "voting supported in Conway onwards and tested in API.Voting module"
         src <- fixtureWallet ctx
 
-        let voteNoConfidence = Json [json|{
+        let voteAbstain = Json [json|{
                 "vote": "abstain"
             }|]
         rTx <- request @(ApiConstructTransaction n) ctx
-            (Link.createUnsignedTransaction @'Shelley src) Default voteNoConfidence
+            (Link.createUnsignedTransaction @'Shelley src) Default voteAbstain
         verify rTx
             [ expectResponseCode HTTP.status403
             ]

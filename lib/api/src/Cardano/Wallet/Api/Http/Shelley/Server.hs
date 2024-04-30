@@ -2762,19 +2762,11 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
             _ -> pure NoWithdrawal
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        optionalDelegationAction <- liftIO $
-            forM delegationRequest $
-                IODeleg.handleDelegationRequest
-                    wrk
-                    currentEpochSlotting knownPools
-                    poolStatus withdrawal
-
-        optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) ->
-                liftIO $ Just <$>
-                    IODeleg.voteAction wrk action
-            Nothing ->
-                pure Nothing
+        (optionalDelegationAction, optionalVoteAction) <- liftIO $
+            IODeleg.handleDelegationVoteRequest wrk
+            currentEpochSlotting knownPools
+            poolStatus withdrawal delegationRequest
+            (getApiT <$> body ^. #vote)
 
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal
@@ -3312,16 +3304,11 @@ constructSharedTransaction
         when (isNothing delegationTemplateM && isJust delegationRequest) $
             liftHandler $ throwE ErrConstructTxDelegationInvalid
 
-        optionalDelegationAction <- liftIO $
-            forM delegationRequest $
-                IODeleg.handleDelegationRequest
-                    wrk currentEpochSlotting knownPools
-                    getPoolStatus NoWithdrawal
-
-        optionalVoteAction <- case (body ^. #vote) of
-            Just (ApiT action) -> liftIO $ Just <$>
-                IODeleg.voteAction wrk action
-            Nothing -> pure Nothing
+        (optionalDelegationAction, optionalVoteAction) <- liftIO $
+            IODeleg.handleDelegationVoteRequest wrk
+            currentEpochSlotting knownPools
+            getPoolStatus NoWithdrawal delegationRequest
+            (getApiT <$> body ^. #vote)
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = withdrawal

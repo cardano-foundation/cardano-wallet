@@ -37,6 +37,7 @@ import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrCannotVote (..)
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
@@ -240,6 +241,7 @@ instance IsServerError WalletException where
         ExceptionWritePolicyPublicKey e -> toServerError e
         ExceptionSoftDerivationIndex e -> toServerError e
         ExceptionHardenedDerivationIndex e -> toServerError e
+        ExceptionVoting e -> toServerError e
 
 instance IsServerError ErrNoSuchWallet where
     toServerError = \case
@@ -720,6 +722,23 @@ instance IsServerError ErrCannotJoin where
             apiError err404 NoSuchPool $ mconcat
                 [ "I couldn't find any stake pool with the given id: "
                 , toText pid
+                ]
+        ErrAlreadyDelegatingVoting pid ->
+            apiError err403 PoolAlreadyJoinedSameVote $ mconcat
+                [ "I couldn't join a stake pool with the given id: "
+                , toText pid
+                , " and vote. I have already joined this pool, also voted the same last time;"
+                , " joining/voting again would incur an unnecessary fee!"
+                ]
+
+instance IsServerError ErrCannotVote where
+    toServerError = \case
+        ErrAlreadyVoted drep ->
+            apiError err403 SameVote $ mconcat
+                [ "I couldn't cast a vote :  "
+                , toText drep
+                , ". I have already voted like that;"
+                , " repeating this action would incur an unnecessary fee!"
                 ]
 
 instance IsServerError ErrCannotQuit where

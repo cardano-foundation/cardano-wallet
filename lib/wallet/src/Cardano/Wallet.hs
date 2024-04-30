@@ -159,6 +159,7 @@ module Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrCannotVote (..)
     , ErrSubmitTransaction (..)
 
     -- ** Migration
@@ -600,6 +601,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrCannotVote (..)
     , ErrMkTransaction (..)
     , ErrSignTx (..)
     , PreSelection (..)
@@ -3810,6 +3812,7 @@ data WalletException
     | ExceptionStartTimeLaterThanEndTime ErrStartTimeLaterThanEndTime
     | ExceptionCreateMigrationPlan ErrCreateMigrationPlan
     | ExceptionStakePoolDelegation ErrStakePoolDelegation
+    | ExceptionVoting ErrCannotVote
     | ExceptionFetchRewards ErrFetchRewards
     | ExceptionWalletNotResponding ErrWalletNotResponding
     | ExceptionCreateRandomAddress ErrCreateRandomAddress

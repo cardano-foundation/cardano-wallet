@@ -9,24 +9,20 @@ module Cardano.Wallet.Delegation
     ( joinStakePoolDelegationAction
     , guardJoin
     , guardQuit
+    , guardVoting
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
+    , VoteRequest (..)
     ) where
 
 import Prelude
-
-import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
-import qualified Cardano.Wallet.DB.WalletState as WalletState
-import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Transaction as Tx
-import qualified Data.Set as Set
-import qualified Internal.Cardano.Write.Tx as Write
 
 import Cardano.Pool.Types
     ( PoolId (..)
     )
 import Cardano.Wallet
     ( ErrCannotQuit (..)
+    , ErrCannotVote (..)
     , ErrStakePoolDelegation (..)
     , PoolRetirementEpochInfo (..)
     )
@@ -59,9 +55,20 @@ import Data.Generics.Internal.VL.Lens
     ( view
     , (^.)
     )
+import Data.Maybe
+    ( fromJust
+    , isNothing
+    )
 import Data.Set
     ( Set
     )
+
+import qualified Cardano.Wallet.DB.Store.Delegations.Layer as Dlgs
+import qualified Cardano.Wallet.DB.WalletState as WalletState
+import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Transaction as Tx
+import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx as Write
 
 -- | The data type that represents client's delegation request.
 -- Stake key registration is made implicit by design:
@@ -75,6 +82,9 @@ data DelegationRequest
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
 
+data VoteRequest = NotVotedYet | VotedSameAsBefore | VotedDifferently
+    deriving (Eq, Show)
+
 {-----------------------------------------------------------------------------
     Join stake pool
 ------------------------------------------------------------------------------}
@@ -86,12 +96,13 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
+    -> VoteRequest
     -> Either
         ErrStakePoolDelegation
         (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    era wallet currentEpochSlotting knownPools poolId poolStatus
-  = case guardJoin knownPools delegation poolId retirementInfo of
+    era wallet currentEpochSlotting knownPools poolId poolStatus votingRequest
+  = case guardJoin era knownPools delegation poolId retirementInfo votingRequest of
         Left e -> Left $ ErrStakePoolJoin e
         Right () -> Right
             ( if stakeKeyIsRegistered
@@ -117,12 +128,15 @@ joinStakePoolDelegationAction
             W.getPoolRetirementCertificate poolStatus
 
 guardJoin
-    :: Set PoolId
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> Set PoolId
     -> WalletDelegation
     -> PoolId
     -> Maybe PoolRetirementEpochInfo
+    -> VoteRequest
     -> Either ErrCannotJoin ()
-guardJoin knownPools delegation pid mRetirementEpochInfo = do
+guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
     when (pid `Set.notMember` knownPools) $
         Left (ErrNoSuchPool pid)
 
@@ -130,13 +144,20 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
         when (currentEpoch info >= retirementEpoch info) $
             Left (ErrNoSuchPool pid)
 
-    when ((null next) && isDelegatingTo (== pid) active) $
-        Left (ErrAlreadyDelegating pid)
+    when ((null next) && isDelegatingTo (== pid) active) eraVotingLogic
 
-    when (not (null next) && isDelegatingTo (== pid) (last next)) $
-        Left (ErrAlreadyDelegating pid)
+    when (not (null next) && isDelegatingTo (== pid) (last next)) eraVotingLogic
   where
     WalletDelegation {active, next} = delegation
+    eraVotingLogic = case (era, votedTheSameM) of
+        (Write.RecentEraBabbage,_) ->
+            Left (ErrAlreadyDelegating pid)
+        (Write.RecentEraConway, NotVotedYet) ->
+            Left (ErrAlreadyDelegating pid)
+        (Write.RecentEraConway, VotedSameAsBefore) ->
+            Left (ErrAlreadyDelegatingVoting pid)
+        (Write.RecentEraConway, VotedDifferently) ->
+            pure ()
 
 {-----------------------------------------------------------------------------
     Quit stake pool
@@ -179,3 +200,11 @@ guardQuit WalletDelegation{active,next} wdrl rewards voting = do
         _
             | rewards == Coin 0  -> Right ()
             | otherwise          -> Left $ ErrNonNullRewards rewards
+
+guardVoting
+    :: Maybe DelegationRequest
+    -> Maybe (Bool,DRep)
+    -> Either ErrCannotVote ()
+guardVoting optionalDelegationAction votingSameAgainM = do
+    when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
+        Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)

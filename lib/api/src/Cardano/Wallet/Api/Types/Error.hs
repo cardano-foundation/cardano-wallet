@@ -168,11 +168,13 @@ data ApiErrorInfo
     | OutputTokenQuantityExceedsLimit
     | PastHorizon
     | PoolAlreadyJoined
+    | PoolAlreadyJoinedSameVote
     | QueryParamMissing
     | RedeemerInvalidData
     | RedeemerScriptFailure
     | RedeemerTargetNotFound
     | RejectedByCoreNode
+    | SameVote
     | SharedWalletActive
     | SharedWalletCannotUpdateKey
     | SharedWalletIncomplete
