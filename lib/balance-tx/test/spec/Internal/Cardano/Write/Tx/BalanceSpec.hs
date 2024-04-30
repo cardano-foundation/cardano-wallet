@@ -289,7 +289,7 @@ import Internal.Cardano.Write.Tx.Balance
     , PartialTx (..)
     , Redeemer (..)
     , TxFeeUpdate (UseNewTxFee)
-    , TxUpdate (TxUpdate)
+    , TxUpdate (..)
     , UTxOAssumptions (..)
     , balanceTx
     , constructUTxOIndex
@@ -1536,23 +1536,29 @@ prop_bootstrapWitnesses
 prop_updateTx
     :: forall era. era ~ Write.BabbageEra
     => Tx era
-    -> [W.TxIn]
-    -> [W.TxIn]
+    -> Set W.TxIn
+    -> Set W.TxIn
     -> [W.TxOut]
     -> W.Coin
     -> Property
-prop_updateTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
+prop_updateTx tx extraInputs extraCollateral extraOutputs newFee = do
+    let extra = TxUpdate
+            { extraInputs
+            , extraCollateral
+            , extraOutputs
+            , extraInputScripts = []
+            , feeUpdate = UseNewTxFee newFee
+            }
     let tx' = either (error . show) id
             $ updateTx tx extra
     conjoin
         [ inputs tx' === inputs tx
-            <> Set.fromList (fromWalletTxIn <$> extraIns)
+            <> Set.map fromWalletTxIn extraInputs
         , outputs tx' === (outputs tx)
-            <> StrictSeq.fromList (fromWalletTxOut <$> extraOuts)
+            <> StrictSeq.fromList (fromWalletTxOut <$> extraOutputs)
         , fee tx' === Convert.toLedger newFee
         , collateralIns tx' === collateralIns tx
-            <> Set.fromList (fromWalletTxIn <$> extraCol)
+            <> Set.map fromWalletTxIn extraCollateral
         ]
   where
     inputs = view (bodyTxL . inputsTxBodyL)

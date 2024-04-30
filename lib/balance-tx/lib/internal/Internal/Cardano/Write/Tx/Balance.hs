@@ -862,7 +862,13 @@ balanceTxInner
                     tx
                     timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
-            update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
+            update = TxUpdate
+                { extraInputs = mempty
+                , extraCollateral = mempty
+                , extraOutputs = []
+                , extraInputScripts = []
+                , feeUpdate = UseNewTxFee minfee
+                }
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
         let balance = txBalance tx'
             minfee' = Convert.toLedgerCoin minfee
@@ -878,8 +884,8 @@ balanceTxInner
             assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
 data SelectAssetsResult = SelectAssetsResult
-    { extraInputs :: [W.TxIn]
-    , extraCollateral :: [W.TxIn]
+    { extraInputs :: Set W.TxIn
+    , extraCollateral :: Set W.TxIn
     , extraOutputs :: [W.TxOut]
     , extraInputScripts :: [CA.Script CA.KeyHash]
     } deriving (Eq, Show)
@@ -1065,13 +1071,13 @@ selectAssets pp utxoAssumptions outs' redeemers
                         . snd
                         ) <$> inputs <> collateral
         in  ( SelectAssetsResult
-                { extraInputs = map fst inputs
+                { extraInputs = Set.fromList (map fst inputs)
                 -- TODO [ADP-3355] Filter out pre-selected inputs here
                 --
                 -- The correctness of balanceTx is currently not affected, but
                 -- it is misleading.
                 -- https://cardanofoundation.atlassian.net/browse/ADP-3355
-                , extraCollateral = map fst collateral
+                , extraCollateral = Set.fromList (map fst collateral)
                 , extraOutputs = change
                 , extraInputScripts = inputScripts
                 }
@@ -1151,8 +1157,8 @@ splitSignedValue v = (bNegative, bPositive)
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
-    { extraInputs :: [W.TxIn]
-    , extraCollateral :: [W.TxIn]
+    { extraInputs :: Set W.TxIn
+    , extraCollateral :: Set W.TxIn
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [W.TxOut]
@@ -1167,7 +1173,13 @@ data TxUpdate = TxUpdate
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
+noTxUpdate = TxUpdate
+    { extraInputs = mempty
+    , extraCollateral = mempty
+    , extraOutputs = []
+    , extraInputScripts = []
+    , feeUpdate = UseOldTxFee
+    }
 
 -- | Method to use when updating the fee of a transaction.
 data TxFeeUpdate
@@ -1249,10 +1261,10 @@ modifyShelleyTxBody txUpdate =
         (<> extraCollateral')
   where
     era = recentEra @era
-    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
+    TxUpdate {extraInputs, extraCollateral, extraOutputs, feeUpdate} = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
-    extraInputs' = Set.fromList (Convert.toLedger <$> extraInputs)
-    extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
+    extraInputs' = Set.map Convert.toLedger extraInputs
+    extraCollateral' = Set.map Convert.toLedger extraCollateral
 
     modifyFee old = case feeUpdate of
         UseNewTxFee c -> Convert.toLedger c
