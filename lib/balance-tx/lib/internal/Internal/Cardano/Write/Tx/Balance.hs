@@ -1261,7 +1261,7 @@ modifyShelleyTxBody txUpdate =
         (<> extraCollateral')
   where
     era = recentEra @era
-    TxUpdate extraInputs extraCollateral extraOutputs _ feeUpdate = txUpdate
+    TxUpdate {extraInputs, extraCollateral, extraOutputs, feeUpdate} = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
     extraInputs' = Set.fromList (Convert.toLedger <$> extraInputs)
     extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
