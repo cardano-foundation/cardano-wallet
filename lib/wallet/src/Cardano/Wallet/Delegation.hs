@@ -82,7 +82,7 @@ data DelegationRequest
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
 
-data VoteRequest = NotVotedYet | VotedSameLikeBefore | VotedDifferently
+data VoteRequest = NotVotedYet | VotedSameAsBefore | VotedDifferently
     deriving (Eq, Show)
 
 {-----------------------------------------------------------------------------
@@ -154,7 +154,7 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
             Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, NotVotedYet) ->
             Left (ErrAlreadyDelegating pid)
-        (Write.RecentEraConway, VotedSameLikeBefore) ->
+        (Write.RecentEraConway, VotedSameAsBefore) ->
             Left (ErrAlreadyDelegatingVoting pid)
         (Write.RecentEraConway, VotedDifferently) ->
             pure ()

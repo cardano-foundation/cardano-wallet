@@ -169,7 +169,7 @@ handleDelegationVoteRequest
         pure (optionalDelegationAction, optionalVoteAction)
   where
     toDrepEnriched NotVotedYet = Nothing
-    toDrepEnriched VotedSameLikeBefore = Just (True, fromJust drepM)
+    toDrepEnriched VotedSameAsBefore = Just (True, fromJust drepM)
     toDrepEnriched VotedDifferently = Just (False, fromJust drepM)
 
 handleDelegationRequest
@@ -231,7 +231,7 @@ voteAction ctx action = do
 
     sameWalletDelegation (WalletDelegation current coming) =
         if isDRepSame current || any isSameNext coming then
-            VotedSameLikeBefore
+            VotedSameAsBefore
         else
             VotedDifferently
 
@@ -448,7 +448,7 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
 
     votingWalletDelegation (WalletDelegation current coming) =
         if isVoting current || any isVotingNext coming then
-            VotedSameLikeBefore
+            VotedSameAsBefore
         else
             VotedDifferently
       where

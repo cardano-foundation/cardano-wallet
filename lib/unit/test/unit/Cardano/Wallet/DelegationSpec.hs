@@ -137,7 +137,7 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 `shouldBe` Right ()
         it "Cannot rejoin A, when active = A in Conway" $ do
             let dlg = WalletDelegation {active = Delegating pidA, next = []}
-            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameLikeBefore
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameAsBefore
                 `shouldBe` Left (W.ErrAlreadyDelegatingVoting pidA)
         it "Cannot join A, when next = [A] in Babbage" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
@@ -152,7 +152,7 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
         it "Can join A, when next = [A] in Conway" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidA)
             let dlg = WalletDelegation {active = NotDelegating, next = [next1]}
-            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameLikeBefore
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameAsBefore
                 `shouldBe` Left (W.ErrAlreadyDelegatingVoting pidA)
         it "Can join A, when active = A, next = [B] in any era" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
@@ -162,7 +162,7 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 `shouldBe` Right ()
             WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedDifferently
                 `shouldBe` Right ()
-            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameLikeBefore
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameAsBefore
                 `shouldBe` Right ()
         it "Cannot join A, when active = A, next = [B, A] in Babbage" $ do
             let next1 = WalletDelegationNext (EpochNo 1) (Delegating pidB)
@@ -183,7 +183,7 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
             let next2 = WalletDelegationNext (EpochNo 2) (Delegating pidA)
             let dlg = WalletDelegation
                     {active = Delegating pidA, next = [next1, next2]}
-            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameLikeBefore
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidA noRetirementPlanned VotedSameAsBefore
                 `shouldBe` Left (W.ErrAlreadyDelegatingVoting pidA)
         it "Cannot join when pool is unknown in any era" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
@@ -191,7 +191,7 @@ spec = describe "Cardano.Wallet.DelegationSpec" $ do
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
             WD.guardJoin Write.RecentEraConway knownPools dlg pidUnknown noRetirementPlanned VotedDifferently
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
-            WD.guardJoin Write.RecentEraConway knownPools dlg pidUnknown noRetirementPlanned VotedSameLikeBefore
+            WD.guardJoin Write.RecentEraConway knownPools dlg pidUnknown noRetirementPlanned VotedSameAsBefore
                 `shouldBe` Left (W.ErrNoSuchPool pidUnknown)
         it "Cannot quit when active: not_delegating, next = []" $ do
             let dlg = WalletDelegation {active = NotDelegating, next = []}
