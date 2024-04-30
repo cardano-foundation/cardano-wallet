@@ -12,8 +12,7 @@ where
 import Prelude
 
 import Cardano.Launcher.Node
-    ( CardanoNodeConn
-    , cardanoNodeConn
+    ( cardanoNodeConn
     , nodeSocketFile
     )
 import Data.Aeson
@@ -32,17 +31,17 @@ import GHC.Generics
     )
 
 -- | A relay node as a reference to its socket file or pipe
-newtype RelayNode = RelayNode CardanoNodeConn
+newtype RelayNode = RelayNode FilePath
     deriving stock (Eq, Show, Generic)
 
 instance ToJSON RelayNode where
-    toJSON (RelayNode f) = toJSON $ nodeSocketFile f
+    toJSON (RelayNode f) = toJSON f
 
 instance FromJSON RelayNode where
     parseJSON x = do
         f <- parseJSON x
         case cardanoNodeConn f of
-            Right conn -> pure $ RelayNode conn
+            Right conn -> pure $ RelayNode $ nodeSocketFile conn
             Left e -> fail e
 
 -- | The different phases the cluster can be in. We use the convention to report
@@ -63,4 +62,4 @@ data Phase
 newtype History = History
     { history :: [(UTCTime, Phase)]
     }
-    deriving stock (Eq, Show)
+    deriving stock (Eq, Show, Generic)

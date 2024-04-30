@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -33,6 +34,9 @@ import Data.Profunctor
     ( Profunctor (..)
     , dimap
     )
+import GHC.Generics
+    ( Generic
+    )
 
 -- | The state of the tracing at the type level and single type value level
 data MonitorState
@@ -42,7 +46,7 @@ data MonitorState
     -- ^ Wating for a step before going into `Wait`
     | Run
     -- ^ Tracing freely
-    deriving stock (Show, Eq)
+    deriving stock (Show, Eq, Generic)
 
 -- | Tracing state along with its observation
 data Tracing state a b = Tracing
