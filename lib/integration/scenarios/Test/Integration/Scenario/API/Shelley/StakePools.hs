@@ -35,8 +35,10 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
     , ApiEra (..)
+    , ApiConstructTransaction
     , ApiHealthCheck
     , ApiPoolSpecifier (..)
+    , ApiSerialisedTransaction (..)
     , ApiStakeKeys
     , ApiT (..)
     , ApiTransaction
@@ -170,6 +172,7 @@ import Test.Integration.Framework.DSL
     , expectListField
     , expectListSize
     , expectResponseCode
+    , expectSuccess
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
@@ -186,12 +189,15 @@ import Test.Integration.Framework.DSL
     , noConway
     , notDelegating
     , notRetiringPools
+    , onlyVoting
     , postWallet
     , quitStakePool
     , quitStakePoolUnsigned
     , replaceStakeKey
     , request
     , rewardWallet
+    , signTx
+    , submitTxWithWid
     , triggerMaintenanceAction
     , unsafeRequest
     , unsafeResponse
@@ -579,7 +585,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     ]
 
     it "STAKE_POOLS_JOIN_02 - \
-        \Cannot join already joined stake pool in Babbage"
+        \Cannot join already the joined stake pool in Babbage"
         $ \ctx -> runResourceT $ do
             noConway ctx "re-joining the same pool outlawed before Conway"
             w <- fixtureWallet ctx
@@ -606,7 +612,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     ]
 
     it "STAKE_POOLS_JOIN_02 - \
-        \Can join already joined stake pool if voting for the first time in Conway"
+        \Can join already joined stake pool if no voting before in Conway"
         $ \ctx -> runResourceT $ do
             noBabbage ctx "re-joining the same pool possible in Conway if no previous voting"
 
@@ -634,7 +640,58 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
             verify r
                 [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo r `shouldBe` PoolAlreadyJoinedSameVote
 
+    it "STAKE_POOLS_JOIN_02 - \
+        \Can join the stake pool if voting was cast before in Conway"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "joining the pool possible in Conway if voting was previously cast"
+
+            w <- fixtureWallet ctx
+
+            let voteAbstain = Json [json|{
+                    "vote": "abstain"
+                }|]
+            rTx1 <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley w) Default voteAbstain
+            verify rTx1
+                [ expectResponseCode HTTP.status202
+                ]
+            let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
+            signedTx1 <- signTx ctx w apiTx1 [ expectResponseCode HTTP.status202 ]
+            submittedTx1 <- submitTxWithWid ctx w signedTx1
+            verify submittedTx1
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+            let voting = ApiT Abstain
+            let getSrcWallet =
+                    let endpoint = Link.getWallet @'Shelley w
+                     in request @ApiWallet ctx endpoint Default Empty
+
+            waitNumberOfEpochBoundaries 2 ctx
+
+            eventually "Wallet is voting abstain" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation (`shouldBe` onlyVoting voting [])
+                    ]
+
+            pool : _ <- map (view #id) <$> notRetiringPools ctx
+
+            waitForTxStatus ctx w InLedger . getResponse
+                =<< joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+
+            eventually "Wallet is delegating to pool and voting abstain" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                    ]
+
+            -- joinStakePool would try once again joining pool and voting Abstain
+            r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+            verify r
+                [ expectResponseCode HTTP.status403
                 ]
             decodeErrorInfo r `shouldBe` PoolAlreadyJoinedSameVote
 

@@ -5211,7 +5211,7 @@ x-errPoolAlreadyJoinedSameVote: &errPoolAlreadyJoinedSameVote
   properties:
     message:
       type: string
-      description: May occur in Conway onwards when a given poolId matches the current delegation preferences of the wallet's account and also the same vote was casted.
+      description: May occur in Conway onwards when a given poolId matches the current delegation preferences of the wallet's account and also the same vote was cast.
     code:
       type: string
       enum: ['pool_already_joined_same_vote']
@@ -5222,7 +5222,7 @@ x-errSameVote: &errSameVote
   properties:
     message:
       type: string
-      description: May occur in Conway onwards when the same vote was casted.
+      description: May occur in Conway onwards when the same vote was cast.
     code:
       type: string
       enum: ['same_vote']
