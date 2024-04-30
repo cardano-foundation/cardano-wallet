@@ -289,7 +289,7 @@ import Internal.Cardano.Write.Tx.Balance
     , PartialTx (..)
     , Redeemer (..)
     , TxFeeUpdate (UseNewTxFee)
-    , TxUpdate (TxUpdate)
+    , TxUpdate (..)
     , UTxOAssumptions (..)
     , balanceTx
     , constructUTxOIndex
@@ -1542,7 +1542,13 @@ prop_updateTx
     -> W.Coin
     -> Property
 prop_updateTx tx extraIns extraCol extraOuts newFee = do
-    let extra = TxUpdate extraIns extraCol extraOuts [] (UseNewTxFee newFee)
+    let extra = TxUpdate
+            { extraInputs = extraIns
+            , extraCollateral = extraCol
+            , extraOutputs = extraOuts
+            , extraInputScripts = []
+            , feeUpdate = UseNewTxFee newFee
+            }
     let tx' = either (error . show) id
             $ updateTx tx extra
     conjoin

@@ -862,7 +862,13 @@ balanceTxInner
                     tx
                     timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
-            update = TxUpdate [] [] [] [] (UseNewTxFee minfee)
+            update = TxUpdate
+                { extraInputs = []
+                , extraCollateral = []
+                , extraOutputs = []
+                , extraInputScripts = []
+                , feeUpdate = UseNewTxFee minfee
+                }
         tx' <- left updateTxErrorToBalanceTxError $ updateTx tx update
         let balance = txBalance tx'
             minfee' = Convert.toLedgerCoin minfee
@@ -1167,7 +1173,13 @@ data TxUpdate = TxUpdate
 --      == Right tx or Left
 -- @
 noTxUpdate :: TxUpdate
-noTxUpdate = TxUpdate [] [] [] [] UseOldTxFee
+noTxUpdate = TxUpdate
+    { extraInputs = []
+    , extraCollateral = []
+    , extraOutputs = []
+    , extraInputScripts = []
+    , feeUpdate = UseOldTxFee
+    }
 
 -- | Method to use when updating the fee of a transaction.
 data TxFeeUpdate
