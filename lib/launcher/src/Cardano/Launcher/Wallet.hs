@@ -94,7 +94,7 @@ withCardanoWallet
     -> IO (Either ProcessHasExited a)
 withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
     withBackendCreateProcess tr (cardanoWallet cfg node)
-        $ \_ _ -> action $ CardanoWalletConn walletPort
+        $ \_ -> action $ CardanoWalletConn walletPort
 
 cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =

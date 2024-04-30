@@ -140,7 +140,7 @@ withCardanoNode tr cfg action = do
     let run output = do
             cp <- cardanoNodeProcess cfg output socketPath
             withBackendCreateProcess tr cp
-                $ \_ _ -> action $ CardanoNodeConn socketPath
+                $ \_ -> action $ CardanoNodeConn socketPath
     case nodeOutputFile cfg of
         Nothing -> run Inherit
         Just file ->
