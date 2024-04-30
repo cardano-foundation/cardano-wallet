@@ -12,6 +12,7 @@ module Cardano.Wallet.Delegation
     , guardVoting
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
+    , VoteRequest (..)
     ) where
 
 import Prelude
@@ -81,6 +82,9 @@ data DelegationRequest
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
 
+data VoteRequest = NotVotedYet | VotedSameLikeBefore | VotedDifferently
+    deriving (Eq, Show)
+
 {-----------------------------------------------------------------------------
     Join stake pool
 ------------------------------------------------------------------------------}
@@ -92,13 +96,13 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> Maybe Bool
+    -> VoteRequest
     -> Either
         ErrStakePoolDelegation
         (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    era wallet currentEpochSlotting knownPools poolId poolStatus votedTheSameM
-  = case guardJoin era knownPools delegation poolId retirementInfo votedTheSameM of
+    era wallet currentEpochSlotting knownPools poolId poolStatus votingRequest
+  = case guardJoin era knownPools delegation poolId retirementInfo votingRequest of
         Left e -> Left $ ErrStakePoolJoin e
         Right () -> Right
             ( if stakeKeyIsRegistered
@@ -130,7 +134,7 @@ guardJoin
     -> WalletDelegation
     -> PoolId
     -> Maybe PoolRetirementEpochInfo
-    -> Maybe Bool
+    -> VoteRequest
     -> Either ErrCannotJoin ()
 guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
     when (pid `Set.notMember` knownPools) $
@@ -148,11 +152,11 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
     eraVotingLogic = case (era, votedTheSameM) of
         (Write.RecentEraBabbage,_) ->
             Left (ErrAlreadyDelegating pid)
-        (Write.RecentEraConway, Nothing) ->
+        (Write.RecentEraConway, NotVotedYet) ->
             Left (ErrAlreadyDelegating pid)
-        (Write.RecentEraConway, Just True) ->
+        (Write.RecentEraConway, VotedSameLikeBefore) ->
             Left (ErrAlreadyDelegatingVoting pid)
-        (Write.RecentEraConway, Just False) ->
+        (Write.RecentEraConway, VotedDifferently) ->
             pure ()
 
 {-----------------------------------------------------------------------------

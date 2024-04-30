@@ -67,6 +67,9 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Store.Delegations.Layer
     ( CurrentEpochSlotting
     )
+import Cardano.Wallet.Delegation
+    ( VoteRequest (..)
+    )
 import Cardano.Wallet.Flavor
     ( Excluding
     , WalletFlavor (..)
@@ -151,23 +154,23 @@ handleDelegationVoteRequest
 handleDelegationVoteRequest
     ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal
     delRequestM drepM = do
-        (optionalVoteAction, votingSameAgain) <- case drepM of
+        (optionalVoteAction, votingRequest) <- case drepM of
             Just action -> do
-                (vAction, votingSameAgain) <- voteAction ctx action
-                pure (Just vAction, Just votingSameAgain)
+                (vAction, votingRequest) <- voteAction ctx action
+                pure (Just vAction, votingRequest)
             Nothing ->
-                pure (Nothing, Nothing)
+                pure (Nothing, NotVotedYet)
         optionalDelegationAction <- forM delRequestM $
             handleDelegationRequest ctx currentEpochSlotting getKnownPools
-                getPoolStatus withdrawal votingSameAgain
+                getPoolStatus withdrawal votingRequest
 
         either (throwIO . ExceptionVoting) pure
-            (WD.guardVoting delRequestM $ toDrepEnriched votingSameAgain)
+            (WD.guardVoting delRequestM $ toDrepEnriched votingRequest)
         pure (optionalDelegationAction, optionalVoteAction)
   where
-    toDrepEnriched Nothing = Nothing
-    toDrepEnriched (Just True) = Just (True, fromJust drepM)
-    toDrepEnriched (Just False) = Just (False, fromJust drepM)
+    toDrepEnriched NotVotedYet = Nothing
+    toDrepEnriched VotedSameLikeBefore = Just (True, fromJust drepM)
+    toDrepEnriched VotedDifferently = Just (False, fromJust drepM)
 
 handleDelegationRequest
     :: forall s
@@ -176,11 +179,11 @@ handleDelegationRequest
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> Withdrawal
-    -> Maybe Bool
+    -> VoteRequest
     -> WD.DelegationRequest
     -> IO Tx.DelegationAction
 handleDelegationRequest
-    ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal votedTheSameM = \case
+    ctx currentEpochSlotting getKnownPools getPoolStatus withdrawal voteRequest = \case
     WD.Join poolId -> do
         poolStatus <- getPoolStatus poolId
         pools <- getKnownPools
@@ -190,7 +193,7 @@ handleDelegationRequest
             pools
             poolId
             poolStatus
-            votedTheSameM
+            voteRequest
     WD.Quit ->
         quitStakePoolDelegationAction
             ctx
@@ -200,7 +203,7 @@ handleDelegationRequest
 voteAction
     :: WalletLayer IO s
     -> DRep
-    -> IO (Tx.VotingAction, Bool)
+    -> IO (Tx.VotingAction, VoteRequest)
 voteAction ctx action = do
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
     (calculateWalletDelegations, stakeKeyIsRegistered) <-
@@ -227,7 +230,10 @@ voteAction ctx action = do
     isSameNext (WalletDelegationNext _ deleg) = isDRepSame deleg
 
     sameWalletDelegation (WalletDelegation current coming) =
-        isDRepSame current || any isSameNext coming
+        if isDRepSame current || any isSameNext coming then
+            VotedSameLikeBefore
+        else
+            VotedDifferently
 
 {-----------------------------------------------------------------------------
     Used by Daedalus
@@ -258,7 +264,7 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
         pools
         poolId
         poolStatus
-        Nothing
+        NotVotedYet
 
     let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
@@ -347,10 +353,10 @@ joinStakePoolDelegationAction
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> Maybe Bool
+    -> VoteRequest
     -> IO (Tx.DelegationAction, Maybe Tx.VotingAction)
 joinStakePoolDelegationAction
-    ctx currentEpochSlotting knownPools poolId poolStatus votedTheSameM
+    ctx currentEpochSlotting knownPools poolId poolStatus votedRequest
   = do
     (wallet, stakeKeyIsRegistered) <-
         db & \DBLayer{atomically,walletState} -> atomically $
@@ -371,7 +377,7 @@ joinStakePoolDelegationAction
             knownPools
             poolId
             poolStatus
-            votedTheSameM
+            votedRequest
   where
     db = ctx ^. dbLayer
     tr = ctx ^. logger
@@ -412,7 +418,7 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
             pools
             poolId
             poolStatus
-            (Just $ votingWalletDelegation dlg)
+            (votingWalletDelegation dlg)
 
     ttl <- W.transactionExpirySlot ti Nothing
     let transactionCtx =
@@ -441,7 +447,10 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     txLayer = ctx ^. transactionLayer
 
     votingWalletDelegation (WalletDelegation current coming) =
-        isVoting current || any isVotingNext coming
+        if isVoting current || any isVotingNext coming then
+            VotedSameLikeBefore
+        else
+            VotedDifferently
       where
         isVoting (Voting _) = True
         isVoting (DelegatingVoting _ _) = True
