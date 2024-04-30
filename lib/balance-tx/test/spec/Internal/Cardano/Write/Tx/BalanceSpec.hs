@@ -1537,7 +1537,7 @@ prop_updateTx
     :: forall era. era ~ Write.BabbageEra
     => Tx era
     -> Set W.TxIn
-    -> [W.TxIn]
+    -> Set W.TxIn
     -> [W.TxOut]
     -> W.Coin
     -> Property
@@ -1558,7 +1558,7 @@ prop_updateTx tx extraInputs extraCollateral extraOutputs newFee = do
             <> StrictSeq.fromList (fromWalletTxOut <$> extraOutputs)
         , fee tx' === Convert.toLedger newFee
         , collateralIns tx' === collateralIns tx
-            <> Set.fromList (fromWalletTxIn <$> extraCollateral)
+            <> Set.map fromWalletTxIn extraCollateral
         ]
   where
     inputs = view (bodyTxL . inputsTxBodyL)

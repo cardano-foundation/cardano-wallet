@@ -864,7 +864,7 @@ balanceTxInner
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate
                 { extraInputs = mempty
-                , extraCollateral = []
+                , extraCollateral = mempty
                 , extraOutputs = []
                 , extraInputScripts = []
                 , feeUpdate = UseNewTxFee minfee
@@ -885,7 +885,7 @@ balanceTxInner
 
 data SelectAssetsResult = SelectAssetsResult
     { extraInputs :: Set W.TxIn
-    , extraCollateral :: [W.TxIn]
+    , extraCollateral :: Set W.TxIn
     , extraOutputs :: [W.TxOut]
     , extraInputScripts :: [CA.Script CA.KeyHash]
     } deriving (Eq, Show)
@@ -1077,7 +1077,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                 -- The correctness of balanceTx is currently not affected, but
                 -- it is misleading.
                 -- https://cardanofoundation.atlassian.net/browse/ADP-3355
-                , extraCollateral = map fst collateral
+                , extraCollateral = Set.fromList (map fst collateral)
                 , extraOutputs = change
                 , extraInputScripts = inputScripts
                 }
@@ -1158,7 +1158,7 @@ splitSignedValue v = (bNegative, bPositive)
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
     { extraInputs :: Set W.TxIn
-    , extraCollateral :: [W.TxIn]
+    , extraCollateral :: Set W.TxIn
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
     , extraOutputs :: [W.TxOut]
@@ -1175,7 +1175,7 @@ data TxUpdate = TxUpdate
 noTxUpdate :: TxUpdate
 noTxUpdate = TxUpdate
     { extraInputs = mempty
-    , extraCollateral = []
+    , extraCollateral = mempty
     , extraOutputs = []
     , extraInputScripts = []
     , feeUpdate = UseOldTxFee
@@ -1264,7 +1264,7 @@ modifyShelleyTxBody txUpdate =
     TxUpdate {extraInputs, extraCollateral, extraOutputs, feeUpdate} = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
     extraInputs' = Set.map Convert.toLedger extraInputs
-    extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
+    extraCollateral' = Set.map Convert.toLedger extraCollateral
 
     modifyFee old = case feeUpdate of
         UseNewTxFee c -> Convert.toLedger c
