@@ -1541,10 +1541,10 @@ prop_updateTx
     -> [W.TxOut]
     -> W.Coin
     -> Property
-prop_updateTx tx extraInputs extraCol extraOuts newFee = do
+prop_updateTx tx extraInputs extraCollateral extraOuts newFee = do
     let extra = TxUpdate
             { extraInputs
-            , extraCollateral = extraCol
+            , extraCollateral
             , extraOutputs = extraOuts
             , extraInputScripts = []
             , feeUpdate = UseNewTxFee newFee
@@ -1558,7 +1558,7 @@ prop_updateTx tx extraInputs extraCol extraOuts newFee = do
             <> StrictSeq.fromList (fromWalletTxOut <$> extraOuts)
         , fee tx' === Convert.toLedger newFee
         , collateralIns tx' === collateralIns tx
-            <> Set.fromList (fromWalletTxIn <$> extraCol)
+            <> Set.fromList (fromWalletTxIn <$> extraCollateral)
         ]
   where
     inputs = view (bodyTxL . inputsTxBodyL)
