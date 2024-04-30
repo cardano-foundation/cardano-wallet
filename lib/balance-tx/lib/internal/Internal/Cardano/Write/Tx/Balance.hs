@@ -863,7 +863,7 @@ balanceTxInner
                     timelockKeyWitnessCounts
             minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
             update = TxUpdate
-                { extraInputs = []
+                { extraInputs = mempty
                 , extraCollateral = []
                 , extraOutputs = []
                 , extraInputScripts = []
@@ -884,7 +884,7 @@ balanceTxInner
             assignScriptRedeemers pp timeTranslation utxoReference redeemers tx'
 
 data SelectAssetsResult = SelectAssetsResult
-    { extraInputs :: [W.TxIn]
+    { extraInputs :: Set W.TxIn
     , extraCollateral :: [W.TxIn]
     , extraOutputs :: [W.TxOut]
     , extraInputScripts :: [CA.Script CA.KeyHash]
@@ -1071,7 +1071,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                         . snd
                         ) <$> inputs <> collateral
         in  ( SelectAssetsResult
-                { extraInputs = map fst inputs
+                { extraInputs = Set.fromList (map fst inputs)
                 -- TODO [ADP-3355] Filter out pre-selected inputs here
                 --
                 -- The correctness of balanceTx is currently not affected, but
@@ -1157,7 +1157,7 @@ splitSignedValue v = (bNegative, bPositive)
 
 -- | Describes modifications that can be made to a `Tx` using `updateTx`.
 data TxUpdate = TxUpdate
-    { extraInputs :: [W.TxIn]
+    { extraInputs :: Set W.TxIn
     , extraCollateral :: [W.TxIn]
        -- ^ Only used in the Alonzo era and later. Will be silently ignored in
        -- previous eras.
@@ -1174,7 +1174,7 @@ data TxUpdate = TxUpdate
 -- @
 noTxUpdate :: TxUpdate
 noTxUpdate = TxUpdate
-    { extraInputs = []
+    { extraInputs = mempty
     , extraCollateral = []
     , extraOutputs = []
     , extraInputScripts = []
@@ -1263,7 +1263,7 @@ modifyShelleyTxBody txUpdate =
     era = recentEra @era
     TxUpdate {extraInputs, extraCollateral, extraOutputs, feeUpdate} = txUpdate
     extraOutputs' = StrictSeq.fromList $ map (toLedgerTxOut era) extraOutputs
-    extraInputs' = Set.fromList (Convert.toLedger <$> extraInputs)
+    extraInputs' = Set.map Convert.toLedger extraInputs
     extraCollateral' = Set.fromList $ Convert.toLedger <$> extraCollateral
 
     modifyFee old = case feeUpdate of

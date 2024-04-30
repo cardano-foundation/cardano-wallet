@@ -1536,7 +1536,7 @@ prop_bootstrapWitnesses
 prop_updateTx
     :: forall era. era ~ Write.BabbageEra
     => Tx era
-    -> [W.TxIn]
+    -> Set W.TxIn
     -> [W.TxIn]
     -> [W.TxOut]
     -> W.Coin
@@ -1553,7 +1553,7 @@ prop_updateTx tx extraInputs extraCollateral extraOutputs newFee = do
             $ updateTx tx extra
     conjoin
         [ inputs tx' === inputs tx
-            <> Set.fromList (fromWalletTxIn <$> extraInputs)
+            <> Set.map fromWalletTxIn extraInputs
         , outputs tx' === (outputs tx)
             <> StrictSeq.fromList (fromWalletTxOut <$> extraOutputs)
         , fee tx' === Convert.toLedger newFee
