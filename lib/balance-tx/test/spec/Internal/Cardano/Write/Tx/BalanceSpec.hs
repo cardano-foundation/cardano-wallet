@@ -1541,9 +1541,9 @@ prop_updateTx
     -> [W.TxOut]
     -> W.Coin
     -> Property
-prop_updateTx tx extraIns extraCol extraOuts newFee = do
+prop_updateTx tx extraInputs extraCol extraOuts newFee = do
     let extra = TxUpdate
-            { extraInputs = extraIns
+            { extraInputs
             , extraCollateral = extraCol
             , extraOutputs = extraOuts
             , extraInputScripts = []
@@ -1553,7 +1553,7 @@ prop_updateTx tx extraIns extraCol extraOuts newFee = do
             $ updateTx tx extra
     conjoin
         [ inputs tx' === inputs tx
-            <> Set.fromList (fromWalletTxIn <$> extraIns)
+            <> Set.fromList (fromWalletTxIn <$> extraInputs)
         , outputs tx' === (outputs tx)
             <> StrictSeq.fromList (fromWalletTxOut <$> extraOuts)
         , fee tx' === Convert.toLedger newFee
