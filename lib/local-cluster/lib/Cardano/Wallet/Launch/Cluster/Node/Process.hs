@@ -17,9 +17,6 @@ import Cardano.Wallet.Launch.Cluster.Config
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgLauncher)
     )
-import Control.Exception
-    ( throwIO
-    )
 import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
@@ -35,6 +32,4 @@ withCardanoNodeProcess
     -> ClusterM a
 withCardanoNodeProcess name cfg f = do
     Config{..} <- ask
-    liftIO $ do
-        r <- withCardanoNode (contramap (MsgLauncher name) cfgTracer) cfg f
-        either throwIO pure r
+    liftIO $ withCardanoNode (contramap (MsgLauncher name) cfgTracer) cfg f

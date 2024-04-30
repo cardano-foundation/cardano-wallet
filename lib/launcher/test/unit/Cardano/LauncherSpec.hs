@@ -105,6 +105,7 @@ import UnliftIO.Concurrent
     )
 import UnliftIO.Exception
     ( bracket
+    , try
     )
 import UnliftIO.MVar
     ( modifyMVar_
@@ -277,7 +278,7 @@ launch tr cmds = do
         waitForOthers (ProcessHandles _ _ _ ph) = do
             modifyMVar_ phsVar (pure . (ph:))
             forever $ threadDelay maxBound
-        start = async . flip (withBackendProcess tr) waitForOthers
+        start = async . try . flip (withBackendProcess tr) waitForOthers
 
     mapM start cmds >>= waitAnyCancel >>= \case
         (_, Left e) -> do

@@ -105,6 +105,7 @@ import UnliftIO.Exception
     , bracket_
     , finally
     , onException
+    , throwIO
     , tryJust
     )
 import UnliftIO.MVar
@@ -206,7 +207,7 @@ withBackendProcess
     -- ^ 'Command' description
     -> (ProcessHandles -> m a)
     -- ^ Action to execute while process is running.
-    -> m (Either ProcessHasExited a)
+    -> m a
 withBackendProcess tr (Command name args before std_in std_out) action =
     liftIO before >> withBackendCreateProcess tr process action
   where
@@ -239,7 +240,7 @@ withBackendCreateProcess
     -- ^ 'Command' description
     -> (ProcessHandles -> m a)
     -- ^ Action to execute while process is running.
-    -> m (Either ProcessHasExited a)
+    -> m a
 withBackendCreateProcess tr process action = do
     traceWith tr $ MsgLauncherStart name args
     exitVar <- newEmptyMVar
@@ -258,7 +259,7 @@ withBackendCreateProcess tr process action = do
                     (action $ ProcessHandles mstdin mstdout mstderr ph)
 
     traceWith tr $ MsgLauncherFinish (leftToMaybe res)
-    pure res
+    either throwIO pure res
   where
     -- Exceptions resulting from the @exec@ call for this command. The most
     -- likely exception is that the command does not exist. We don't want to
