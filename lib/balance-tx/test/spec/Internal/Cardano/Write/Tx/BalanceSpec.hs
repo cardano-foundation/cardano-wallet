@@ -1035,12 +1035,8 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
             | i <- allInputs tx
             ]
       where
-        allInputs
-            :: Tx era
-            -> [TxIn]
-        allInputs body =
-            Set.toList
-            $ body ^. (bodyTxL . allInputsTxBodyF)
+        allInputs :: Tx era -> [TxIn]
+        allInputs body = Set.toList $ body ^. (bodyTxL . allInputsTxBodyF)
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
