@@ -515,7 +515,7 @@ balanceTx
     utxoAssumptions
     UTxOIndex {availableUTxO, availableUTxOIndex}
     genChange
-    s
+    changeState
     PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
     = do
     guardExistingCollateral
@@ -539,7 +539,7 @@ balanceTx
                 utxoReference
                 utxoSelection
                 genChange
-                s
+                changeState
                 strategy
                 redeemers
                 timelockKeyWitnessCounts
