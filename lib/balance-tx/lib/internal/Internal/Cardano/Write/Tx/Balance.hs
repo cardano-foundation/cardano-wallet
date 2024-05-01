@@ -1071,7 +1071,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                         . view #address
                         . snd
                         ) <$> inputs <> collateral
-        in  ( SelectAssetsResult
+            selectAssetsResult = SelectAssetsResult
                 { extraInputs = Set.fromList (map fst inputs)
                 -- TODO [ADP-3355] Filter out pre-selected inputs here
                 --
@@ -1082,8 +1082,8 @@ selectAssets pp utxoAssumptions outs' redeemers
                 , extraOutputs = change
                 , extraInputScripts = inputScripts
                 }
-            , s'
-            )
+        in
+        (selectAssetsResult, s')
 
 data ChangeAddressGen s = ChangeAddressGen
     {
