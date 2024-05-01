@@ -209,9 +209,6 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
-import Data.Map.Strict
-    ( Map
-    )
 import Data.Maybe
     ( catMaybes
     , fromJust
@@ -393,6 +390,7 @@ import Test.QuickCheck.Extra
     , genericRoundRobinShrink
     , getDisjointPair
     , shrinkDisjointPair
+    , shrinkMapValuesWith
     , shrinkNatural
     , (.>=.)
     , (<:>)
@@ -2353,22 +2351,6 @@ shrinkInputResolution =
     shrinkMapBy UTxO unUTxO (shrinkMapValuesWith shrinkOutput)
   where
     shrinkOutput _ = []
-
--- | Shrinks just the values of a map, keeping the set of keys constant.
---
-shrinkMapValuesWith :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
-shrinkMapValuesWith shrinkValue =
-    shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
-  where
-    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
-    shrinkKeyValuePairs = \case
-        ((k, v) : rest) -> mconcat
-            -- First shrink the first element
-            [ map (\v' -> (k, v') : rest) (shrinkValue v)
-            -- Recurse to shrink subsequent elements on their own
-            , map ((k, v) :) (shrinkKeyValuePairs rest)
-            ]
-        [] -> []
 
 shrinkScriptData
     :: Era (CardanoApi.ShelleyLedgerEra era)

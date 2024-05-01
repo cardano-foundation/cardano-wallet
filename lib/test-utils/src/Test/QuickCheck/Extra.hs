@@ -55,6 +55,7 @@ module Test.QuickCheck.Extra
     , genMapWith
     , genMapFromKeysWith
     , shrinkMapWith
+    , shrinkMapValuesWith
 
       -- * Selecting entries from maps
     , selectMapEntry
@@ -621,6 +622,22 @@ shrinkMapWith shrinkKey shrinkValue
     = shrinkMapBy Map.fromList Map.toList
     $ shrinkList
     $ liftShrink2 shrinkKey shrinkValue
+
+-- | Shrinks just the values of a map, keeping the set of keys constant.
+--
+shrinkMapValuesWith :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
+shrinkMapValuesWith shrinkValue =
+    shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
+  where
+    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
+    shrinkKeyValuePairs = \case
+        ((k, v) : rest) -> mconcat
+            -- First shrink the first element
+            [ map (\v' -> (k, v') : rest) (shrinkValue v)
+            -- Recurse to shrink subsequent elements on their own
+            , map ((k, v) :) (shrinkKeyValuePairs rest)
+            ]
+        [] -> []
 
 --------------------------------------------------------------------------------
 -- Labelling
