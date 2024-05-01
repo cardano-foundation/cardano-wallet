@@ -515,7 +515,7 @@ balanceTx
     utxoAssumptions
     UTxOIndex {availableUTxO, availableUTxOIndex}
     genChange
-    s
+    changeState
     PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
     = do
     guardExistingCollateral
@@ -539,7 +539,7 @@ balanceTx
                 utxoReference
                 utxoSelection
                 genChange
-                s
+                changeState
                 strategy
                 redeemers
                 timelockKeyWitnessCounts
@@ -720,7 +720,7 @@ balanceTxInner
     utxoReference
     utxoSelection
     genChange
-    s
+    changeState
     selectionStrategy
     redeemers
     timelockKeyWitnessCounts
@@ -736,7 +736,7 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    (selectAssetsResult, s')
+    (selectAssetsResult, changeState')
         <- selectAssets
             pp
             utxoAssumptions
@@ -747,7 +747,7 @@ balanceTxInner
             (Convert.toWalletCoin minfee0)
             genChange
             selectionStrategy
-            s
+            changeState
     let SelectAssetsResult
             { extraInputs
             , extraCollateral
@@ -816,7 +816,7 @@ balanceTxInner
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
-    fmap ((, s')) . guardTxSize witCount
+    fmap ((, changeState')) . guardTxSize witCount
         =<< guardTxBalanced
         =<< assembleTransaction
         TxUpdate
@@ -918,7 +918,7 @@ selectAssets
     -> changeState
     -> ExceptT (ErrBalanceTx era) m (SelectAssetsResult, changeState)
 selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 changeGen selectionStrategy s = do
+    utxoSelection balance fee0 changeGen selectionStrategy changeState = do
         except validateTxOutputs'
         transformSelection <$> performSelection'
   where
@@ -1057,7 +1057,8 @@ selectAssets pp utxoAssumptions outs' redeemers
         -> (SelectAssetsResult, changeState)
     transformSelection sel =
         let
-            (sel', s') = assignChangeAddresses changeGen sel s
+            (sel', changeState') =
+                assignChangeAddresses changeGen sel changeState
             inputs = F.toList (sel' ^. #inputs)
             collateral = sel' ^. #collateral
             change = sel' ^. #change
@@ -1083,7 +1084,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                 , extraInputScripts = inputScripts
                 }
         in
-        (selectAssetsResult, s')
+        (selectAssetsResult, changeState')
 
 data ChangeAddressGen s = ChangeAddressGen
     {
