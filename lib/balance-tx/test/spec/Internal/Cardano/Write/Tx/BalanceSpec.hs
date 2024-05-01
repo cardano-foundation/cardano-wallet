@@ -606,7 +606,7 @@ spec_balanceTx = describe "balanceTx" $ do
                 `shouldBe`
                 (map (view #address) paymentOuts ++ expectedChange)
 
-        it "returns s' corresponding to which addresses were used" $ do
+        it "returns a change state that corresponds to the addresses used" $ do
             changeState' `shouldBe` DummyChangeState {nextUnusedIndex = nChange}
 
     it "assigns minimal ada quantities to outputs without ada" $ do
