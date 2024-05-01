@@ -918,7 +918,7 @@ selectAssets
     -> changeState
     -> ExceptT (ErrBalanceTx era) m (SelectAssetsResult, changeState)
 selectAssets pp utxoAssumptions outs' redeemers
-    utxoSelection balance fee0 changeGen selectionStrategy s = do
+    utxoSelection balance fee0 changeGen selectionStrategy changeState = do
         except validateTxOutputs'
         transformSelection <$> performSelection'
   where
@@ -1057,7 +1057,8 @@ selectAssets pp utxoAssumptions outs' redeemers
         -> (SelectAssetsResult, changeState)
     transformSelection sel =
         let
-            (sel', s') = assignChangeAddresses changeGen sel s
+            (sel', changeState') =
+                assignChangeAddresses changeGen sel changeState
             inputs = F.toList (sel' ^. #inputs)
             collateral = sel' ^. #collateral
             change = sel' ^. #change
@@ -1083,7 +1084,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                 , extraInputScripts = inputScripts
                 }
         in
-        (selectAssetsResult, s')
+        (selectAssetsResult, changeState')
 
 data ChangeAddressGen s = ChangeAddressGen
     {
