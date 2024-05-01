@@ -589,16 +589,16 @@ spec_balanceTx = describe "balanceTx" $ do
         -- True for values of nPayments small enough not to cause
         -- 'ErrBalanceTxMaxSizeLimitExceeded' or ErrMakeChange
         let nChange = max nPayments 1
-        let s0 = DummyChangeState 0
+        let changeState0 = DummyChangeState 0
         let expectedChange = fmap Convert.toWalletAddress <$>
-                flip evalState s0
+                flip evalState changeState0
                 $ replicateM nChange
                 $ state @Identity dummyChangeAddrGen.genChangeAddress
 
         let address :: Babbage.BabbageTxOut StandardBabbage -> W.Address
             address (Babbage.BabbageTxOut addr _ _ _) = Convert.toWallet addr
 
-        let (tx, s') =
+        let (tx, changeState') =
                 either (error . show) id $ balance' ptx
 
         it "assigns change addresses as expected" $
@@ -607,7 +607,7 @@ spec_balanceTx = describe "balanceTx" $ do
                 (map (view #address) paymentOuts ++ expectedChange)
 
         it "returns s' corresponding to which addresses were used" $ do
-            s' `shouldBe` DummyChangeState { nextUnusedIndex = nChange }
+            changeState' `shouldBe` DummyChangeState {nextUnusedIndex = nChange}
 
     it "assigns minimal ada quantities to outputs without ada" $ do
         let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
