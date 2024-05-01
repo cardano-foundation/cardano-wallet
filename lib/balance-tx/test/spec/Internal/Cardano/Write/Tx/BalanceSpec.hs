@@ -2216,15 +2216,15 @@ instance Arbitrary (MixedSign Value) where
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- genTxForBalancing
-        extraUTxO <- genExtraUTxO tx
+        extraUTxO <- genExtraUTxO (txInputs tx)
         let redeemers = []
         let timelockKeyWitnessCounts = mempty
         pure PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
       where
-        genExtraUTxO :: Tx era -> Gen (UTxO era)
-        genExtraUTxO tx =
+        genExtraUTxO :: Set TxIn -> Gen (UTxO era)
+        genExtraUTxO txIns =
             UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) (Set.toList $ txInputs tx)
+            mapM (\i -> (i,) <$> genTxOut) (Set.toList txIns)
         txInputs :: Tx era -> Set TxIn
         txInputs tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
