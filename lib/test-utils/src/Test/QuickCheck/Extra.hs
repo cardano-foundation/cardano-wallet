@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -52,6 +53,7 @@ module Test.QuickCheck.Extra
 
       -- * Generating and shrinking maps
     , genMapWith
+    , genMapFromKeysWith
     , shrinkMapWith
 
       -- * Selecting entries from maps
@@ -600,6 +602,12 @@ genFunction coarbitraryFn gen = promote (`coarbitraryFn` gen)
 genMapWith :: Ord k => Gen k -> Gen v -> Gen (Map k v)
 genMapWith genKey genValue =
     Map.fromList <$> listOf (liftArbitrary2 genKey genValue)
+
+-- | Generates a 'Map' from a set of keys and a value generation function.
+--
+genMapFromKeysWith :: Ord k => Gen v -> Set k -> Gen (Map k v)
+genMapFromKeysWith genValue =
+    fmap Map.fromList . mapM (\k -> (k,) <$> genValue) . Set.toList
 
 -- | Shrinks a 'Map' with the given key and value shrinking functions.
 --
