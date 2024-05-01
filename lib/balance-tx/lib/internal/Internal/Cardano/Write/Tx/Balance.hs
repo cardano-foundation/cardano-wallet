@@ -736,13 +736,7 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    ( SelectAssetsResult
-        { extraInputs
-        , extraCollateral
-        , extraOutputs
-        , extraInputScripts
-        }
-        , s')
+    (selectAssetsResult, s')
         <- selectAssets
             pp
             utxoAssumptions
@@ -754,6 +748,13 @@ balanceTxInner
             genChange
             selectionStrategy
             s
+    let SelectAssetsResult
+            { extraInputs
+            , extraCollateral
+            , extraOutputs
+            , extraInputScripts
+            }
+            = selectAssetsResult
 
     -- NOTE:
     -- Once the coin selection is done, we need to
