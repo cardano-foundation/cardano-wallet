@@ -2222,9 +2222,10 @@ instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
         pure PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
       where
         genExtraUTxO :: Set TxIn -> Gen (UTxO era)
-        genExtraUTxO txIns =
-            UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) (Set.toList txIns)
+        genExtraUTxO = fmap UTxO . genMapFromKeysWith genTxOut
+        genMapFromKeysWith :: Ord k => Gen v -> Set k -> Gen (Map k v)
+        genMapFromKeysWith genValue =
+            fmap Map.fromList . mapM (\k -> (k,) <$> genValue) . Set.toList
         txInputs :: Tx era -> Set TxIn
         txInputs tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
