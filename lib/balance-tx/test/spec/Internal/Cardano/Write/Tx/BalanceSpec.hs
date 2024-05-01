@@ -2349,14 +2349,15 @@ shrinkFee _ = [Ledger.Coin 0]
 -- TODO: ADP-3272
 -- Fix this function so that it returns something other than the empty list.
 shrinkInputResolution :: IsRecentEra era => Write.UTxO era -> [Write.UTxO era]
-shrinkInputResolution = shrinkMapBy UTxO unUTxO (shrinkMapValues shrinkOutput)
+shrinkInputResolution =
+    shrinkMapBy UTxO unUTxO (shrinkMapValuesWith shrinkOutput)
   where
     shrinkOutput _ = []
 
 -- | Shrinks just the values of a map, keeping the set of keys constant.
 --
-shrinkMapValues :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
-shrinkMapValues shrinkValue =
+shrinkMapValuesWith :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
+shrinkMapValuesWith shrinkValue =
     shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
   where
     shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
