@@ -720,7 +720,7 @@ balanceTxInner
     utxoReference
     utxoSelection
     genChange
-    s
+    changeState
     selectionStrategy
     redeemers
     timelockKeyWitnessCounts
@@ -736,7 +736,7 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    (selectAssetsResult, s')
+    (selectAssetsResult, changeState')
         <- selectAssets
             pp
             utxoAssumptions
@@ -747,7 +747,7 @@ balanceTxInner
             (Convert.toWalletCoin minfee0)
             genChange
             selectionStrategy
-            s
+            changeState
     let SelectAssetsResult
             { extraInputs
             , extraCollateral
@@ -816,7 +816,7 @@ balanceTxInner
         (ExceptT . pure $
             distributeSurplus feePerByte surplus feeAndChange)
 
-    fmap ((, s')) . guardTxSize witCount
+    fmap ((, changeState')) . guardTxSize witCount
         =<< guardTxBalanced
         =<< assembleTransaction
         TxUpdate
