@@ -2425,10 +2425,10 @@ shrinkTxBodyBabbage
         , scriptData' <- prependOriginal shrinkScriptData scriptData
         , scripts' <- prependOriginal (shrinkList (const [])) scripts
         , val' <- val : filter (/= val)
-                    [ CardanoApi.TxScriptValidity
-                        CardanoApi.AlonzoEraOnwardsBabbage
-                        CardanoApi.ScriptValid
-                    ]
+            [ CardanoApi.TxScriptValidity
+                CardanoApi.AlonzoEraOnwardsBabbage
+                CardanoApi.ScriptValid
+            ]
         ]
   where
     shrinkLedgerTxBody
