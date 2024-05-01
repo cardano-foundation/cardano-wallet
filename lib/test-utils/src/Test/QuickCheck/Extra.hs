@@ -21,7 +21,6 @@ module Test.QuickCheck.Extra
     (
       -- * Generation
       genFunction
-    , genMapWith
     , genSized2
     , genSized2With
     , reasonablySized
@@ -35,7 +34,6 @@ module Test.QuickCheck.Extra
       -- * Shrinking
     , liftShrinker
     , shrinkInterleaved
-    , shrinkMapWith
     , groundRobinShrink
     , groundRobinShrink'
     , genericRoundRobinShrink
@@ -51,6 +49,10 @@ module Test.QuickCheck.Extra
 
       -- * Partitioning lists
     , partitionList
+
+      -- * Generating and shrinking maps
+    , genMapWith
+    , shrinkMapWith
 
       -- * Selecting entries from maps
     , selectMapEntry
