@@ -736,13 +736,7 @@ balanceTxInner
     -- transaction considering only the maximum cost, and only after, try to
     -- adjust the change and ExUnits of each redeemer to something more
     -- sensible than the max execution cost.
-    ( SelectAssetsResult
-        { extraInputs
-        , extraCollateral
-        , extraOutputs
-        , extraInputScripts
-        }
-        , s')
+    (selectAssetsResult, s')
         <- selectAssets
             pp
             utxoAssumptions
@@ -754,6 +748,13 @@ balanceTxInner
             genChange
             selectionStrategy
             s
+    let SelectAssetsResult
+            { extraInputs
+            , extraCollateral
+            , extraOutputs
+            , extraInputScripts
+            }
+            = selectAssetsResult
 
     -- NOTE:
     -- Once the coin selection is done, we need to
@@ -1070,7 +1071,7 @@ selectAssets pp utxoAssumptions outs' redeemers
                         . view #address
                         . snd
                         ) <$> inputs <> collateral
-        in  ( SelectAssetsResult
+            selectAssetsResult = SelectAssetsResult
                 { extraInputs = Set.fromList (map fst inputs)
                 -- TODO [ADP-3355] Filter out pre-selected inputs here
                 --
@@ -1081,8 +1082,8 @@ selectAssets pp utxoAssumptions outs' redeemers
                 , extraOutputs = change
                 , extraInputScripts = inputScripts
                 }
-            , s'
-            )
+        in
+        (selectAssetsResult, s')
 
 data ChangeAddressGen s = ChangeAddressGen
     {
