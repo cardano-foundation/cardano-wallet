@@ -209,9 +209,6 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
-import Data.Map.Strict
-    ( Map
-    )
 import Data.Maybe
     ( catMaybes
     , fromJust
@@ -389,9 +386,11 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( DisjointPair
     , genDisjointPair
+    , genMapFromKeysWith
     , genericRoundRobinShrink
     , getDisjointPair
     , shrinkDisjointPair
+    , shrinkMapValuesWith
     , shrinkNatural
     , (.>=.)
     , (<:>)
@@ -2216,18 +2215,15 @@ instance Arbitrary (MixedSign Value) where
 instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
     arbitrary = do
         tx <- genTxForBalancing
-        extraUTxO <- genExtraUTxO tx
+        extraUTxO <- genExtraUTxO (txInputs tx)
         let redeemers = []
         let timelockKeyWitnessCounts = mempty
         pure PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
       where
-        genExtraUTxO :: Tx era -> Gen (UTxO era)
-        genExtraUTxO tx =
-            UTxO . Map.fromList <$>
-            mapM (\i -> (i,) <$> genTxOut) (Set.toList txInputs)
-          where
-            txInputs :: Set TxIn
-            txInputs = tx ^. bodyTxL . inputsTxBodyL
+        genExtraUTxO :: Set TxIn -> Gen (UTxO era)
+        genExtraUTxO = fmap UTxO . genMapFromKeysWith genTxOut
+        txInputs :: Tx era -> Set TxIn
+        txInputs tx = tx ^. bodyTxL . inputsTxBodyL
     shrink partialTx@PartialTx {tx, extraUTxO} =
         [ partialTx {extraUTxO = extraUTxO'}
         | extraUTxO' <- shrinkInputResolution extraUTxO
@@ -2351,25 +2347,10 @@ shrinkFee _ = [Ledger.Coin 0]
 -- TODO: ADP-3272
 -- Fix this function so that it returns something other than the empty list.
 shrinkInputResolution :: IsRecentEra era => Write.UTxO era -> [Write.UTxO era]
-shrinkInputResolution = shrinkMapBy UTxO unUTxO (shrinkMapValues shrinkOutput)
+shrinkInputResolution =
+    shrinkMapBy UTxO unUTxO (shrinkMapValuesWith shrinkOutput)
   where
     shrinkOutput _ = []
-
--- | Shrinks just the values of a map, keeping the set of keys constant.
---
-shrinkMapValues :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
-shrinkMapValues shrinkValue =
-    shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
-  where
-    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
-    shrinkKeyValuePairs = \case
-        ((k, v) : rest) -> mconcat
-            -- First shrink the first element
-            [ map (\v' -> (k, v') : rest) (shrinkValue v)
-            -- Recurse to shrink subsequent elements on their own
-            , map ((k, v) :) (shrinkKeyValuePairs rest)
-            ]
-        [] -> []
 
 shrinkScriptData
     :: Era (CardanoApi.ShelleyLedgerEra era)

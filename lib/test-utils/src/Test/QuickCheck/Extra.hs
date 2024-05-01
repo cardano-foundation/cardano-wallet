@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -21,7 +22,6 @@ module Test.QuickCheck.Extra
     (
       -- * Generation
       genFunction
-    , genMapWith
     , genSized2
     , genSized2With
     , reasonablySized
@@ -35,7 +35,6 @@ module Test.QuickCheck.Extra
       -- * Shrinking
     , liftShrinker
     , shrinkInterleaved
-    , shrinkMapWith
     , groundRobinShrink
     , groundRobinShrink'
     , genericRoundRobinShrink
@@ -51,6 +50,12 @@ module Test.QuickCheck.Extra
 
       -- * Partitioning lists
     , partitionList
+
+      -- * Generating and shrinking maps
+    , genMapWith
+    , genMapFromKeysWith
+    , shrinkMapWith
+    , shrinkMapValuesWith
 
       -- * Selecting entries from maps
     , selectMapEntry
@@ -599,6 +604,12 @@ genMapWith :: Ord k => Gen k -> Gen v -> Gen (Map k v)
 genMapWith genKey genValue =
     Map.fromList <$> listOf (liftArbitrary2 genKey genValue)
 
+-- | Generates a 'Map' from a set of keys and a value generation function.
+--
+genMapFromKeysWith :: Ord k => Gen v -> Set k -> Gen (Map k v)
+genMapFromKeysWith genValue =
+    fmap Map.fromList . mapM (\k -> (k,) <$> genValue) . Set.toList
+
 -- | Shrinks a 'Map' with the given key and value shrinking functions.
 --
 shrinkMapWith
@@ -611,6 +622,22 @@ shrinkMapWith shrinkKey shrinkValue
     = shrinkMapBy Map.fromList Map.toList
     $ shrinkList
     $ liftShrink2 shrinkKey shrinkValue
+
+-- | Shrinks just the values of a 'Map', keeping the set of keys constant.
+--
+shrinkMapValuesWith :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
+shrinkMapValuesWith shrinkValue =
+    shrinkMapBy Map.fromList Map.toList shrinkKeyValuePairs
+  where
+    shrinkKeyValuePairs :: [(k, v)] -> [[(k, v)]]
+    shrinkKeyValuePairs = \case
+        ((k, v) : rest) -> mconcat
+            -- First shrink the first element
+            [ map (\v' -> (k, v') : rest) (shrinkValue v)
+            -- Recurse to shrink subsequent elements on their own
+            , map ((k, v) :) (shrinkKeyValuePairs rest)
+            ]
+        [] -> []
 
 --------------------------------------------------------------------------------
 -- Labelling
