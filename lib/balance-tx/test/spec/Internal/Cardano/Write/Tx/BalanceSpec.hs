@@ -1024,19 +1024,17 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
         -> Tx era
         -> UTxO era
     utxoPromisingInputsHaveAddress addr tx =
-        unsafeUtxoFromTxOutsInRecentEra
-            [ (i
-              , TxOutInRecentEra
-                    (Convert.toLedger addr)
-                    (Convert.toLedgerTokenBundle mempty)
-                    NoDatum
-                    Nothing
-              )
-            | i <- allInputs tx
-            ]
+        unsafeUtxoFromTxOutsInRecentEra [(i, txOut) | i <- allInputs tx]
       where
         allInputs :: Tx era -> [TxIn]
         allInputs body = Set.toList $ body ^. (bodyTxL . allInputsTxBodyF)
+
+        txOut :: TxOutInRecentEra
+        txOut = TxOutInRecentEra
+            (Convert.toLedger addr)
+            (Convert.toLedgerTokenBundle mempty)
+            NoDatum
+            Nothing
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
