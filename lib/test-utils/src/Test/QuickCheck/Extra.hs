@@ -623,7 +623,7 @@ shrinkMapWith shrinkKey shrinkValue
     $ shrinkList
     $ liftShrink2 shrinkKey shrinkValue
 
--- | Shrinks just the values of a map, keeping the set of keys constant.
+-- | Shrinks just the values of a 'Map', keeping the set of keys constant.
 --
 shrinkMapValuesWith :: forall k v. Ord k => (v -> [v]) -> Map k v -> [Map k v]
 shrinkMapValuesWith shrinkValue =
