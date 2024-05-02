@@ -206,9 +206,6 @@ import Data.List
     ( isSuffixOf
     , sortOn
     )
-import Data.List.NonEmpty
-    ( NonEmpty (..)
-    )
 import Data.Maybe
     ( catMaybes
     , fromJust
@@ -671,7 +668,10 @@ spec_balanceTx = describe "balanceTx" $ do
             balance partialTx
                 `shouldBe`
                 Left
-                    (ErrBalanceTxUnresolvedInputs (Convert.toLedger txin :| []))
+                    ( ErrBalanceTxUnresolvedInputs
+                    . NE.singleton
+                    $ Convert.toLedger txin
+                    )
 
         describe "with redeemers" $
             it "fails with ErrBalanceTxUnresolvedInputs" $ do
@@ -679,11 +679,12 @@ spec_balanceTx = describe "balanceTx" $ do
                     withNoUTxO ptx = ptx { extraUTxO = Write.UTxO mempty }
 
                 balance (withNoUTxO pingPong_2)
-                    `shouldBe` Left
-                        (ErrBalanceTxUnresolvedInputs $ NE.fromList
-                            [ Convert.toLedger $ W.TxIn
-                                (W.Hash "11111111111111111111111111111111") 0
-                            ]
+                    `shouldBe`
+                    Left
+                        ( ErrBalanceTxUnresolvedInputs
+                        . NE.singleton
+                        . Convert.toLedger
+                        $ W.TxIn (W.Hash "11111111111111111111111111111111") 0
                         )
 
     describe "when validity interval is too far in the future" $ do
