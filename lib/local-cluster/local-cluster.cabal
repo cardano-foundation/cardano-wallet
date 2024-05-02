@@ -19,14 +19,24 @@ common language
     NoImplicitPrelude
     OverloadedStrings
   ghc-options:
-    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
-    -Wincomplete-record-updates -Wmissing-deriving-strategies
-    -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
-    -fprint-explicit-kinds -Wcompat -Widentities
-    -Werror=incomplete-patterns -Wredundant-constraints
-    -Wpartial-fields -Wtabs -Wmissing-local-signatures -fhelpful-errors
-    -fprint-expanded-synonyms -fwarn-unused-do-bind
-    -fwarn-incomplete-uni-patterns -freverse-errors
+    -fhelpful-errors
+    -fprint-expanded-synonyms
+    -freverse-errors
+    -fwarn-incomplete-uni-patterns
+    -fwarn-unused-do-bind
+    -Wall
+    -Wcompat
+    -Werror=incomplete-patterns
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies
+    -Wmissing-local-signatures
+    -Wpartial-fields
+    -Wredundant-constraints
+    -Wtabs
+    -Wunused-foralls
+    -Wunused-packages
 
 flag release
   description: Enable optimization and `-Werror`
@@ -109,7 +119,6 @@ library
     , contra-tracer
     , crypto-primitives
     , directory
-    , exceptions
     , extra
     , faucet
     , filepath
@@ -139,10 +148,7 @@ library
     , retry
     , servant
     , servant-client
-    , stm
     , servant-server
-    , servant-openapi3
-    , swagger2
     , tagged
     , temporary
     , temporary-extra
@@ -176,23 +182,17 @@ test-suite test
 
   build-depends:
     , aeson
-    , aeson-pretty
     , base
     , bytestring
-    , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , containers
     , contra-tracer
     , foldl
     , hspec
     , hspec-golden
     , local-cluster
     , mtl
-    , pathtype
     , openapi3
     , QuickCheck
-    , servant-openapi3
-    , temporary
     , time
     , unliftio
     , with-utf8
