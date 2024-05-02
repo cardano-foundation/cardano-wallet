@@ -68,6 +68,7 @@ library internal
     , cborg
     , containers
     , deepseq
+    , either
     , fmt
     , generic-lens
     , groups
