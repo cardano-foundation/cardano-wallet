@@ -75,6 +75,7 @@ library internal
     , lens
     , MonadRandom
     , monoid-subclasses
+    , nonempty-containers
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , pretty-simple
@@ -147,6 +148,7 @@ test-suite test
     , lens
     , MonadRandom
     , monoid-subclasses
+    , nonempty-containers
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-network-api
