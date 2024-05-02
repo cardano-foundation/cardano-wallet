@@ -29,11 +29,6 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch || 'rc-latest'}}
 
-      - uses: ruby/setup-ruby@v1
-        with:
-           ruby-version: 2.7.1
-      - name: Install cardano_wallet gem
-        run: gem install cardano_wallet
       - name: Check docker-compose
         run: |
           docker-compose up -d
