@@ -1,0 +1,215 @@
+{
+    "components": {
+        "schemas": {
+            "MonitorState": {
+                "enum": [
+                    "waiting",
+                    "stepping",
+                    "running"
+                ],
+                "type": "string"
+            },
+            "Observation": {
+                "properties": {
+                    "phases": {
+                        "items": {
+                            "properties": {
+                                "phase": {
+                                    "description": "The different phases the cluster can be in",
+                                    "oneOf": [
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "RetrievingFunds"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "Metadata"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "Genesis"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "Pool0"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "Funding"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "Pools"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "tag": {
+                                                    "enum": [
+                                                        "Relay"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        {
+                                            "properties": {
+                                                "contents": {
+                                                    "description": "The socket file or pipe of a relay node",
+                                                    "type": "string"
+                                                },
+                                                "tag": {
+                                                    "enum": [
+                                                        "Cluster"
+                                                    ],
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ],
+                                    "type": "string"
+                                },
+                                "time": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "state": {
+                        "enum": [
+                            "waiting",
+                            "stepping",
+                            "running"
+                        ],
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "Ready": {
+                "type": "boolean"
+            }
+        }
+    },
+    "info": {
+        "description": "This is the API for the monitoring server",
+        "license": {
+            "name": "Apache 2",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "title": "Cardano Wallet Monitoring API",
+        "version": "0.1.0.0"
+    },
+    "openapi": "3.0.0",
+    "paths": {
+        "/control/observe": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Observation"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Observe the local-cluster monitor state"
+            }
+        },
+        "/control/step": {
+            "post": {
+                "responses": {
+                    "204": {
+                        "content": {
+                            "application/json": {}
+                        },
+                        "description": "No Content"
+                    }
+                },
+                "summary": "Step the local-cluster monitor"
+            }
+        },
+        "/control/switch": {
+            "post": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MonitorState"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Switch the local-cluster monitor"
+            }
+        },
+        "/ready": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Ready"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Check if the local-cluster is ready"
+            }
+        }
+    }
+}

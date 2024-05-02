@@ -75,3 +75,6 @@ test-output
 
 ## Membench uncompressed data
 lib/wallet-benchmarks/data/membench-snapshot
+
+## Local cluster swagger golden actual
+lib/local-cluster/data/swagger.json.actual
