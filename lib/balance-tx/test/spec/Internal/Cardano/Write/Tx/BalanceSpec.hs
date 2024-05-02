@@ -458,10 +458,10 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
+import qualified Data.Set.NonEmpty as NESet
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Internal.Cardano.Write.Tx as Write
@@ -669,7 +669,7 @@ spec_balanceTx = describe "balanceTx" $ do
                 `shouldBe`
                 Left
                     ( ErrBalanceTxUnresolvedInputs
-                    . NE.singleton
+                    . NESet.singleton
                     $ Convert.toLedger txin
                     )
 
@@ -682,7 +682,7 @@ spec_balanceTx = describe "balanceTx" $ do
                     `shouldBe`
                     Left
                         ( ErrBalanceTxUnresolvedInputs
-                        . NE.singleton
+                        . NESet.singleton
                         . Convert.toLedger
                         $ W.TxIn (W.Hash "11111111111111111111111111111111") 0
                         )
