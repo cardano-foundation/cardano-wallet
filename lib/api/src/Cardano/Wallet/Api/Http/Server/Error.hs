@@ -193,8 +193,8 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Foldable as F
 import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
@@ -551,7 +551,7 @@ instance (Write.IsRecentEra era, IsServerError (ErrAssignRedeemers era))
             apiError err400 UnresolvedInputs $ T.unwords
                 [ "There are inputs in the transaction for which corresponding"
                 , "outputs could not be found:\n"
-                , pretty $ NE.toList $ show <$> ins
+                , pretty $ show <$> F.toList ins
                 ]
         ErrBalanceTxInputResolutionConflicts conflicts -> do
             let conflictF (a, b) = build (show a) <> "\nvs\n" <> build (show b)

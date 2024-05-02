@@ -165,6 +165,9 @@ import Data.Monoid.Monus
 import Data.Set
     ( Set
     )
+import Data.Set.NonEmpty
+    ( NESet
+    )
 import Fmt
     ( Buildable
     , Builder
@@ -300,6 +303,7 @@ import qualified Data.Map as Map
 import qualified Data.Map.Strict.Extra as Map
 import qualified Data.Sequence.Strict as StrictSeq
 import qualified Data.Set as Set
+import qualified Data.Set.NonEmpty as NESet
 import qualified Internal.Cardano.Write.Tx.Balance.CoinSelection as CoinSelection
 
 -- | Indicates a failure to select a sufficient amount of collateral.
@@ -384,7 +388,7 @@ data ErrBalanceTx era
     | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
     | ErrBalanceTxInputResolutionConflicts
         (NonEmpty (TxOut era, TxOut era))
-    | ErrBalanceTxUnresolvedInputs (NonEmpty TxIn)
+    | ErrBalanceTxUnresolvedInputs (NESet TxIn)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
     | ErrBalanceTxUnableToCreateInput
@@ -570,9 +574,9 @@ balanceTx
         convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
           where
             W.TxOut addr bundle = toWalletTxOut era o
-        maybeUnresolvedTxIns :: Maybe (NonEmpty TxIn)
+        maybeUnresolvedTxIns :: Maybe (NESet TxIn)
         maybeUnresolvedTxIns =
-            NE.nonEmpty $ Set.toList $ txIns <\> Map.keysSet selectedUTxO
+            NESet.nonEmptySet $ txIns <\> Map.keysSet selectedUTxO
         selectedUTxO :: Map TxIn (TxOut era)
         selectedUTxO = Map.restrictKeys (unUTxO utxoReference) txIns
         txIns :: Set TxIn
