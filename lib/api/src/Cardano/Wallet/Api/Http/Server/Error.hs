@@ -551,7 +551,7 @@ instance (Write.IsRecentEra era, IsServerError (ErrAssignRedeemers era))
             apiError err400 UnresolvedInputs $ T.unwords
                 [ "There are inputs in the transaction for which corresponding"
                 , "outputs could not be found:\n"
-                , pretty $ NE.toList $ show <$> ins
+                , pretty $ show <$> NE.toList ins
                 ]
         ErrBalanceTxInputResolutionConflicts conflicts -> do
             let conflictF (a, b) = build (show a) <> "\nvs\n" <> build (show b)
