@@ -7,8 +7,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.LocalCluster where
-
 import Prelude
 
 import Cardano.Address.Style.Shelley
@@ -32,19 +30,18 @@ import Cardano.Wallet.Launch.Cluster
     , FaucetFunds (..)
     , withFaucet
     )
+import Cardano.Wallet.Launch.Cluster.CommandLine
+    ( CommandLineOptions (..)
+    , parseCommandLineOptions
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
-    ( Absolutizer (..)
-    , DirOf (..)
+    ( DirOf (..)
     , FileOf (..)
     , mkRelDirOf
-    , newAbsolutizer
     , toFilePath
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Control.Applicative
-    ( (<**>)
     )
 import Control.Lens
     ( over
@@ -71,7 +68,6 @@ import System.IO.Temp.Extra
     )
 import System.Path
     ( absDir
-    , absRel
     , parse
     , relDir
     , relFile
@@ -85,7 +81,6 @@ import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
-import qualified Options.Applicative as O
 
 -- |
 -- # OVERVIEW
@@ -279,26 +274,3 @@ main = withUtf8 $ do
                                 )
                                 (WC.stop . fst)
                         threadDelay maxBound -- wait for Ctrl+C
-
-newtype CommandLineOptions = CommandLineOptions
-    {clusterConfigsDir :: DirOf "cluster-configs"}
-    deriving stock (Show)
-
-parseCommandLineOptions :: IO CommandLineOptions
-parseCommandLineOptions = do
-    absolutizer <- newAbsolutizer
-    O.execParser
-        $ O.info
-            ( fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
-                <**> O.helper
-            )
-            (O.progDesc "Local Cluster for testing")
-
-clusterConfigsDirParser :: Absolutizer -> O.Parser (DirOf "cluster-configs")
-clusterConfigsDirParser (Absolutizer absOf) =
-    DirOf . absOf . absRel
-        <$> O.strOption
-            ( O.long "cluster-configs"
-                <> O.metavar "LOCAL_CLUSTER_CONFIGS"
-                <> O.help "Path to the local cluster configuration directory"
-            )
