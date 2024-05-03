@@ -6,16 +6,19 @@ where
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
-    ( Query (..)
-    , RunQuery (..)
+    ( MonitorQ (..)
+    , RunMonitorQ (..)
     )
-import Cardano.Wallet.Launch.Cluster.Monitoring.Monitor
+import Cardano.Wallet.Launch.Cluster.Http.Service
     ( MonitorConfiguration (..)
     , withMonitoring
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
     , Phase (..)
+    )
+import Cardano.Wallet.Primitive.NetworkId
+    ( SNetworkId (SMainnet)
     )
 import Control.Monad
     ( unless
@@ -53,18 +56,19 @@ import UnliftIO.Concurrent
 
 testMonitoring
     :: MonitorState
-    -> (Tracer IO Phase -> RunQuery IO -> IO ())
+    -> (Tracer IO Phase -> RunMonitorQ IO -> IO ())
     -> IO ()
 testMonitoring w f =
     evalContT $ do
-        (tracer, query) <-
-            withMonitoring nullTracer
+        (tracer, (query, _)) <-
+            withMonitoring SMainnet (error "No connection")
+                (error "No cluster") nullTracer
                 $ MonitorConfiguration Nothing w
         liftIO $ f tracer query
 
 spec :: Spec
 spec = do
-    describe "withMonitoring" $ do
+    describe "withMonitoring control" $ do
         it "can start" $ do
             testMonitoring Step $ \_ _ -> pure ()
         it "can query" $ do

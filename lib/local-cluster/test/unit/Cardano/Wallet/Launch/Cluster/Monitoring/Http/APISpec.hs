@@ -17,6 +17,9 @@ import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     , Phase (..)
     , RelayNode (..)
     )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (Mainnet)
+    )
 import Control.Monitoring.Tracing
     ( MonitorState (..)
     )

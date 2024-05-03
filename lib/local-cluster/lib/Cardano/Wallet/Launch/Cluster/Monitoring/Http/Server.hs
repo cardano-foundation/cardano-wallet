@@ -1,29 +1,23 @@
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Launch.Cluster.Monitoring.Http.Server
-    ( withHttpServer
-    , httpServer
-    , mkHandlers
-    , Handlers
+    ( mkControlHandlers
+    , ControlHandlers
+    , mkControlServer
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
-    ( API
-    , ApiT (..)
+    ( ApiT (..)
+    , ControlAPI
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
     , Phase (..)
-    )
-import Control.Monad
-    ( (<=<)
-    )
-import Control.Monad.Cont
-    ( ContT (..)
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -43,25 +37,13 @@ import Data.Functor
 import Data.Maybe
     ( isJust
     )
-import Network.Socket
-    ( PortNumber
-    )
-import Network.Wai.Handler.Warp
-    ( run
-    )
 import Servant
-    ( Application
-    , Handler
+    ( Handler
     , NoContent (..)
-    , Proxy (..)
     , (:<|>) (..)
     )
 import Servant.Server
-    ( serve
-    )
-import UnliftIO
-    ( async
-    , link
+    ( HasServer (..)
     )
 
 isReady :: Phase -> Bool
@@ -69,11 +51,11 @@ isReady (Cluster _) = True
 isReady _ = False
 
 -- | Create handlers for the monitoring API
-mkHandlers
+mkControlHandlers
     :: Monitor IO a History
-    -> Handlers
-mkHandlers monitor =
-    Handlers
+    -> ControlHandlers
+mkControlHandlers monitor =
+    ControlHandlers
         { handleReady = do
             s <- history . fst <$> observe monitor
             pure $ isJust $ find (isReady . snd) s
@@ -85,35 +67,18 @@ mkHandlers monitor =
         }
 
 -- | Handlers for the monitoring API, opaque.
-data Handlers = Handlers
+data ControlHandlers = ControlHandlers
     { handleReady :: IO Bool
     , handleStep :: IO ()
     , handleSwitch :: IO MonitorState
     , handleObserve :: IO (History, MonitorState)
     }
 
-server
-    :: Handlers
-    -> IO Application
-server handlers = do
-    let lIO :: forall a. IO a -> Handler a
-        lIO = liftIO
-    pure
-        $ serve (Proxy @API)
-        $ lIO (handleReady handlers)
-            :<|> lIO (handleStep handlers $> NoContent)
-            :<|> lIO (ApiT <$> handleSwitch handlers)
-            :<|> lIO (ApiT <$> handleObserve handlers)
-
--- | Run a HTTP server that serves the monitoring API
-httpServer :: PortNumber -> Handlers -> IO ()
-httpServer port handlers = server handlers >>= run (fromIntegral port)
-
--- | Start a HTTP server in a linked thread that serves the monitoring API
-withHttpServer
-    :: PortNumber
-    -> Handlers
-    -> ContT r IO ()
-withHttpServer port handlers = ContT $ \k -> do
-    link <=< async $ httpServer port handlers
-    k ()
+mkControlServer
+    :: ControlHandlers
+    -> ServerT ControlAPI Handler
+mkControlServer ControlHandlers{..} =
+    liftIO (handleReady)
+        :<|> liftIO (handleStep $> NoContent)
+        :<|> liftIO (ApiT <$> handleSwitch)
+        :<|> liftIO (ApiT <$> handleObserve)

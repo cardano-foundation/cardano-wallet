@@ -10,8 +10,12 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
-    ( API
-    , ApiT (..)
+    ( ApiT (..)
+    , ReadyAPI
+    , StepAPI
+    , SwitchAPI
+    , ObserveAPI
+    , ControlAPI
     )
 where
 
@@ -59,12 +63,13 @@ import Servant.API
     , (:>)
     )
 
--- | The API for the monitoring server
-type API =
-    "ready" :> Get '[JSON] Bool
-        :<|> "control" :> "step" :> PostNoContent
-        :<|> "control" :> "switch" :> Post '[JSON] (ApiT MonitorState)
-        :<|> "control" :> "observe" :> Get '[JSON] (ApiT (History, MonitorState))
+type ReadyAPI = "ready" :> Get '[JSON] Bool
+type StepAPI = "control" :> "step" :> PostNoContent
+type SwitchAPI = "control" :> "switch" :> Post '[JSON] (ApiT MonitorState)
+type ObserveAPI = "control" :> "observe" :> Get '[JSON] (ApiT (History, MonitorState))
+
+-- | The API to control the monitoring server
+type ControlAPI = ReadyAPI :<|> StepAPI :<|> SwitchAPI :<|> ObserveAPI
 
 -- | A newtype wrapper to avoid orphan instances
 newtype ApiT a = ApiT {unApiT :: a}

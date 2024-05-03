@@ -53,18 +53,24 @@ library
     Cardano.Wallet.Launch.Cluster.Faucet
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
+    Cardano.Wallet.Launch.Cluster.Http.API
+    Cardano.Wallet.Launch.Cluster.Http.Client
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.API
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
     Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
+    Cardano.Wallet.Launch.Cluster.Http.Faucet.Server
+    Cardano.Wallet.Launch.Cluster.Http.Logging
     Cardano.Wallet.Launch.Cluster.Http.OpenApi
+    Cardano.Wallet.Launch.Cluster.Http.Server
+    Cardano.Wallet.Launch.Cluster.Http.Service
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.Logging
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.Server
-    Cardano.Wallet.Launch.Cluster.Monitoring.Monitor
     Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     Cardano.Wallet.Launch.Cluster.Node.GenTopology
@@ -168,13 +174,16 @@ executable local-cluster
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , contra-tracer
     , directory
+    , iohk-monitoring
     , iohk-monitoring-extra
     , lens
     , local-cluster
     , mtl
     , pathtype
     , temporary-extra
+    , text-class
     , unliftio
     , with-utf8
 
