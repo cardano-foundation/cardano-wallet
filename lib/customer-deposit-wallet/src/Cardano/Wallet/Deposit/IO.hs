@@ -10,6 +10,7 @@ module Cardano.Wallet.Deposit.IO
     -- * Operations
     -- ** Initialization
     , withWalletInit
+    , Word31
     , withWalletLoad
 
     -- ** Mapping between customers and addresses
@@ -35,6 +36,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , WalletState
+    , Word31
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -108,7 +110,7 @@ readWalletState WalletInstance{env,walletState} =
 withWalletInit
     :: WalletEnv IO
     -> XPub
-    -> Integer
+    -> Word31
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletInit env@WalletEnv{..} xpub knownCustomerCount action = do

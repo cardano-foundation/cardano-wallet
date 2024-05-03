@@ -61,6 +61,7 @@ library
     , delta-types
     , io-classes
     , iohk-monitoring-extra
+    , OddWord
     , persistent
     , sqlite-simple
     , text
@@ -86,6 +87,8 @@ test-suite unit
   main-is:            test-suite-unit.hs
   build-depends:
     , base
+    , bytestring
+    , cardano-crypto
     , cardano-wallet:cardano-wallet
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
@@ -109,6 +112,7 @@ test-suite scenario
     -pgmL markdown-unlit
   build-depends:
     , base
+    , bytestring
     , cardano-crypto
     , cardano-wallet-test-utils
     , containers

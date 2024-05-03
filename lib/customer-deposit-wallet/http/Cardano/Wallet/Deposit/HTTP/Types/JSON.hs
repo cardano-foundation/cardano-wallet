@@ -76,13 +76,13 @@ deriving via ViaText Address instance ToJSON (ApiT Address)
 
 -- Customer
 instance FromHttpApiData (ApiT Customer) where
-    parseUrlPiece = fmap ApiT . fromText'
+    parseUrlPiece = fmap (ApiT . toEnum) . fromText'
 
 instance FromJSON (ApiT Customer) where
-    parseJSON = fmap ApiT . parseJSON
+    parseJSON = fmap (ApiT . toEnum) . parseJSON
 
 instance ToJSON (ApiT Customer) where
-    toJSON = toJSON . unApiT
+    toJSON = toJSON . fromEnum . unApiT
 
 -- | 'fromText' but with a simpler error type.
 fromText' :: FromText a => Text -> Either Text a

@@ -10,6 +10,8 @@ module Cardano.Wallet.Deposit.Read
 
     , Addr
     , Address
+    , fromRawAddress
+    , toRawAddress
     , mockAddress
 
     , Ix
@@ -85,6 +87,12 @@ type Addr = W.Address
 -- The ledger specifications define @Addr@.
 -- Byron addresses are represented by @Addr_bootstrap@.
 type Address = Addr
+
+fromRawAddress :: BS.ByteString -> Address
+fromRawAddress = W.Address
+
+toRawAddress :: Address -> BS.ByteString
+toRawAddress (W.Address a) = a
 
 mockAddress :: Show a => a -> Address
 mockAddress = W.Address . B8.pack . show
