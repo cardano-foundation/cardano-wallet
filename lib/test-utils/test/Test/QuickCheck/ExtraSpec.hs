@@ -100,6 +100,7 @@ import Test.QuickCheck.Extra
     , selectMapEntries
     , selectMapEntry
     , shrinkDisjointPair
+    , shrinkMapToSubmaps
     , shrinkSpace
     , shrinkWhile
     , shrinkWhileSteps
@@ -188,6 +189,17 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                     @Int @Int & property
             it "prop_selectMapEntries_union" $
                 prop_selectMapEntries_union
+                    @Int @Int & property
+
+    describe "Generating and shrinking associative maps" $ do
+
+        describe "Shrinking" $ do
+
+            it "prop_shrinkMapToSubmaps_all_isProperSubmapOf" $
+                prop_shrinkMapToSubmaps_all_isProperSubmapOf
+                    @Int @Int & property
+            it "prop_shrinkMapToSubmaps_unique" $
+                prop_shrinkMapToSubmaps_unique
                     @Int @Int & property
 
     describe "Evaluating shrinkers" $ do
@@ -697,6 +709,36 @@ prop_selectMapEntries_union m0 (Positive (Small i)) =
         cover 1 (length kvs == 0)
             "number of selected entries = 0" $
         Map.fromList kvs `Map.union` m1 === m0
+
+--------------------------------------------------------------------------------
+-- Shrinking associative maps
+--------------------------------------------------------------------------------
+
+prop_shrinkMapToSubmaps_all_isProperSubmapOf
+    :: (Ord k, Eq v)
+    => Map k v
+    -> Property
+prop_shrinkMapToSubmaps_all_isProperSubmapOf m =
+    all (`Map.isProperSubmapOf` m) (shrinkMapToSubmaps m)
+        ===
+        True
+    & cover 10
+        (length (shrinkMapToSubmaps m) >= 10)
+        "length (shrinkMapToSubmaps m) >= 10"
+    & checkCoverage
+
+prop_shrinkMapToSubmaps_unique
+    :: (Ord k, Ord v)
+    => Map k v
+    -> Property
+prop_shrinkMapToSubmaps_unique m =
+    length (shrinkMapToSubmaps m)
+        ===
+        length (Set.fromList (shrinkMapToSubmaps m))
+    & cover 10
+        (length (shrinkMapToSubmaps m) >= 10)
+        "length (shrinkMapToSubmaps m) >= 10"
+    & checkCoverage
 
 --------------------------------------------------------------------------------
 -- Generating sequences of shrunken values
