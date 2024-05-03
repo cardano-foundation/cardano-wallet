@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-13
 
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
