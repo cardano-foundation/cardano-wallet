@@ -30,6 +30,7 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , mkRelDirOf
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
@@ -353,6 +354,8 @@ withTestNode tr action = do
                         , cfgShelleyGenesisMods = []
                         , cfgTracer = tr
                         , cfgNodeOutputFile = Nothing
+                        , cfgRelayNodePath = mkRelDirOf "relay"
+                        , cfgClusterLogFile = Nothing
                         }
             withCluster clusterConfig (FaucetFunds [] [] [])
                 $ \(RunningNode sock genesisData vData) -> do

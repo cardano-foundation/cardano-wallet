@@ -57,8 +57,10 @@ library
     Cardano.Wallet.Launch.Cluster.Cluster
     Cardano.Wallet.Launch.Cluster.ClusterEra
     Cardano.Wallet.Launch.Cluster.ClusterM
+    Cardano.Wallet.Launch.Cluster.CommandLine
     Cardano.Wallet.Launch.Cluster.Config
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
+    Cardano.Wallet.Launch.Cluster.Env
     Cardano.Wallet.Launch.Cluster.Faucet
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
@@ -85,7 +87,6 @@ library
     Cardano.Wallet.Launch.Cluster.StakeCertificates
     Cardano.Wallet.Launch.Cluster.Tx
     Cardano.Wallet.Launch.Cluster.UnsafeInterval
-    Cardano.Wallet.LocalCluster
     Control.Monitoring.Concurrent
     Control.Monitoring.Monitor
     Control.Monitoring.Tracing
@@ -144,7 +145,6 @@ library
     , ouroboros-network-api
     , pathtype
     , profunctors
-    , resourcet
     , retry
     , servant
     , servant-client
@@ -158,12 +158,11 @@ library
     , typed-process
     , unliftio
     , warp
-    , with-utf8
     , yaml
 
 executable local-cluster
   import:         language
-  main-is:        Cluster.hs
+  main-is:        local-cluster.hs
   hs-source-dirs: exe
   ghc-options: -threaded -rtsopts
 
@@ -172,7 +171,20 @@ executable local-cluster
 
   build-depends:
     , base
+    , cardano-addresses
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , directory
+    , iohk-monitoring-extra
+    , lens
     , local-cluster
+    , mtl
+    , pathtype
+    , temporary-extra
+    , unliftio
+    , with-utf8
+
 test-suite test
   import:         language
   type:           exitcode-stdio-1.0

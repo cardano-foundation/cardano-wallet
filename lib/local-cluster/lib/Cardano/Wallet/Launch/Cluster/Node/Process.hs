@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+
 module Cardano.Wallet.Launch.Cluster.Node.Process where
 
 import Prelude
@@ -10,15 +11,14 @@ import Cardano.Launcher.Node
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
+    , UnliftClusterM (UnliftClusterM)
+    , askUnliftClusterM
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (MsgLauncher)
-    )
-import Control.Exception
-    ( throwIO
     )
 import Control.Monad.Reader
     ( MonadIO (..)
@@ -31,10 +31,11 @@ import Control.Tracer
 withCardanoNodeProcess
     :: String
     -> CardanoNodeConfig
-    -> (CardanoNodeConn -> IO a)
+    -> (CardanoNodeConn -> ClusterM a)
     -> ClusterM a
 withCardanoNodeProcess name cfg f = do
     Config{..} <- ask
-    liftIO $ do
-        r <- withCardanoNode (contramap (MsgLauncher name) cfgTracer) cfg f
-        either throwIO pure r
+    UnliftClusterM withConfig _ <- askUnliftClusterM
+    liftIO
+        $ withCardanoNode (contramap (MsgLauncher $ show name) cfgTracer) cfg
+        $ withConfig . f

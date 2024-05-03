@@ -38,6 +38,7 @@ import Cardano.BM.Trace
 import Cardano.Launcher
     ( Command (..)
     , LauncherLog
+    , ProcessHandles (..)
     , ProcessHasExited (..)
     , StdStream (..)
     , withBackendProcess
@@ -104,6 +105,7 @@ import UnliftIO.Concurrent
     )
 import UnliftIO.Exception
     ( bracket
+    , try
     )
 import UnliftIO.MVar
     ( modifyMVar_
@@ -205,9 +207,10 @@ spec = beforeAll setupMockCommands $ do
     it "Backend process is terminated when Async thread is cancelled" $ \MockCommands{..} -> withTestLogging $ \tr -> do
         pendingOnWine "SYSTEM32 commands not available under wine"
         mvar <- newEmptyMVar
-        let backend = withBackendProcess tr foreverCommand $ \_ ph -> do
-                putMVar mvar ph
-                forever $ threadDelay maxBound
+        let backend = withBackendProcess tr foreverCommand
+                $ \(ProcessHandles _ _ _ ph) -> do
+                    putMVar mvar ph
+                    forever $ threadDelay maxBound
         before <- getCurrentTime
         race_ backend (threadDelay 1000000)
         after <- getCurrentTime
@@ -220,9 +223,10 @@ spec = beforeAll setupMockCommands $ do
     it "Misbehaving backend process is killed when Async thread is cancelled" $ \_ -> withTestLogging $ \tr -> do
         skipOnWindows "Not applicable"
         mvar <- newEmptyMVar
-        let backend = withBackendProcess tr unkillableCommand $ \_ ph -> do
-                putMVar mvar ph
-                forever $ threadDelay maxBound
+        let backend = withBackendProcess tr unkillableCommand
+                $ \(ProcessHandles _ _ _ ph) -> do
+                    putMVar mvar ph
+                    forever $ threadDelay maxBound
         before <- getCurrentTime
         race_ backend (threadDelay 1000000)
         after <- getCurrentTime
@@ -271,10 +275,10 @@ launch :: Tracer IO LauncherLog -> [Command] -> IO ([ProcessHandle], ProcessHasE
 launch tr cmds = do
     phsVar <- newMVar []
     let
-        waitForOthers _ ph = do
+        waitForOthers (ProcessHandles _ _ _ ph) = do
             modifyMVar_ phsVar (pure . (ph:))
             forever $ threadDelay maxBound
-        start = async . flip (withBackendProcess tr) waitForOthers
+        start = async . try . flip (withBackendProcess tr) waitForOthers
 
     mapM start cmds >>= waitAnyCancel >>= \case
         (_, Left e) -> do

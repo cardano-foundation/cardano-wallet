@@ -27,6 +27,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterEra
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf
     , FileOf
+    , RelDirOf
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -65,4 +66,9 @@ data Config = Config
     -- ^ Shelley genesis modifications to apply.
     , cfgTracer :: Tracer IO ClusterLog
     , cfgNodeOutputFile :: Maybe (FileOf "node-output")
+    -- ^ File to write node output to.
+    , cfgRelayNodePath :: RelDirOf "relay"
+    -- ^ Path segment for relay node.
+    , cfgClusterLogFile :: Maybe (FileOf "cluster-logs")
+    -- ^ File to write cluster logs to.
     }

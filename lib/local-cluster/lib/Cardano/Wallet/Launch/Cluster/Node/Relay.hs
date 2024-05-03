@@ -21,6 +21,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , RelDirOf (..)
     , absFilePathOf
     , toFilePath
     )
@@ -69,12 +70,13 @@ import System.Path.Directory
 withRelayNode
     :: NodeParams
     -- ^ Parameters used to generate config files.
-    -> (RunningNode -> IO a)
+    -> RelDirOf "relay"
+    -- ^ Path segment for the node to add to the cluster directory.
+    -> (RunningNode -> ClusterM a)
     -- ^ Callback function with socket path
     -> ClusterM a
-withRelayNode params onClusterStart = do
+withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
     let name = "node"
-        nodeSegment = relDir name
     DirOf nodeDirPath <- askNodeDir nodeSegment
     let NodeParams genesisFiles hardForks (port, peers) logCfg _ = params
     bracketTracer' "withRelayNode" $ do
@@ -107,5 +109,6 @@ withRelayNode params onClusterStart = do
                         <$> nodeParamsOutputFile params
                     }
 
-        let onClusterStart' socket = onClusterStart (RunningNode socket genesisData vd)
+        let onClusterStart' socket = onClusterStart
+                $ RunningNode socket genesisData vd
         withCardanoNodeProcess name cfg onClusterStart'

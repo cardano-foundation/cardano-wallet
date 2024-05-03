@@ -25,7 +25,6 @@ import Prelude
 
 import Cardano.Launcher
     ( LauncherLog
-    , ProcessHasExited
     , StdStream (..)
     , withBackendCreateProcess
     )
@@ -134,13 +133,13 @@ withCardanoNode
     -> CardanoNodeConfig
     -> (CardanoNodeConn -> IO a)
     -- ^ Callback function with a socket filename and genesis params
-    -> IO (Either ProcessHasExited a)
+    -> IO a
 withCardanoNode tr cfg action = do
     let socketPath = nodeSocketPath (nodeDir cfg)
     let run output = do
             cp <- cardanoNodeProcess cfg output socketPath
             withBackendCreateProcess tr cp
-                $ \_ _ -> action $ CardanoNodeConn socketPath
+                $ \_ -> action $ CardanoNodeConn socketPath
     case nodeOutputFile cfg of
         Nothing -> run Inherit
         Just file ->

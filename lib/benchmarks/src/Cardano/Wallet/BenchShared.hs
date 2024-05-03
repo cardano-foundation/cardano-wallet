@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PackageImports #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -45,6 +46,9 @@ import Cardano.BM.Setup
 import Cardano.BM.Trace
     ( Trace
     , nullTracer
+    )
+import Cardano.Launcher
+    ( ProcessHasExited (..)
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
@@ -139,6 +143,7 @@ import UnliftIO.Concurrent
     )
 import UnliftIO.Exception
     ( evaluate
+    , try
     )
 import UnliftIO.Temporary
     ( withSystemTempDirectory
@@ -169,12 +174,13 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
             action tr (networkConfig args) conn
             pure ExitSuccess
         Nothing -> do
-            res <- withNetworkConfiguration args $ \nodeConfig ->
+            res <- try $ withNetworkConfiguration args $ \nodeConfig ->
                 withCardanoNode (trMessageText tr) nodeConfig $
                     action tr (networkConfig args)
             case res of
-                Left exited -> do
-                    sayErr $ "FAIL: cardano-node exited with status " <> toText exited
+                Left (exited :: ProcessHasExited) -> do
+                    sayErr $ "FAIL: cardano-node exited with status "
+                        <> toText exited
                     pure $ ExitFailure 1
                 Right _ -> pure ExitSuccess
 
