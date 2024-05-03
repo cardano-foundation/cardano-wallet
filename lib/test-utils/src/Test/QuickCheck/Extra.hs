@@ -54,6 +54,7 @@ module Test.QuickCheck.Extra
       -- * Generating and shrinking maps
     , genMapWith
     , genMapFromKeysWith
+    , shrinkMapToSubmaps
     , shrinkMapWith
     , shrinkMapValuesWith
 
@@ -609,6 +610,21 @@ genMapWith genKey genValue =
 genMapFromKeysWith :: Ord k => Gen v -> Set k -> Gen (Map k v)
 genMapFromKeysWith genValue =
     fmap Map.fromList . mapM (\k -> (k,) <$> genValue) . Set.toList
+
+-- | Shrinks a 'Map' to list of proper submaps.
+--
+-- Satisfies the following property:
+--
+-- @
+-- all (`Map.isProperSubmapOf` m) (shrinkMapToSubmaps m)
+-- @
+--
+shrinkMapToSubmaps :: Ord k => Map k v -> [Map k v]
+shrinkMapToSubmaps =
+    shrinkMapBy Map.fromList Map.toList shrinkListToSublist
+  where
+    shrinkListToSublist :: [a] -> [[a]]
+    shrinkListToSublist = shrinkList (const [])
 
 -- | Shrinks a 'Map' with the given key and value shrinking functions.
 --
