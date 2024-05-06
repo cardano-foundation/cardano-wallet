@@ -30,6 +30,8 @@ module Cardano.Wallet.Deposit.Pure
 
     -- ** Writing to the blockchain
     , createPayment
+    , BIP32Path (..)
+    , DerivationType (..)
     , getBIP32PathsForOwnedInputs
 
     , addTxSubmission
@@ -40,6 +42,10 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub
+    )
+import Cardano.Wallet.Address.BIP32
+    ( BIP32Path (..)
+    , DerivationType (..)
     )
 import Cardano.Wallet.Deposit.Pure.UTxOHistory
     ( UTxOHistory
@@ -58,6 +64,9 @@ import Data.List.NonEmpty
     )
 import Data.Map.Strict
     ( Map
+    )
+import Data.Maybe
+    ( mapMaybe
     )
 import Data.Set
     ( Set
@@ -173,8 +182,11 @@ rollBackward
 rollBackward point w = (w, point) -- FIXME: This is a mock implementation
 
 availableBalance :: WalletState -> Read.Value
-availableBalance w =
-    UTxO.balance $ Balance.availableUTxO utxo pending
+availableBalance = UTxO.balance . availableUTxO
+
+availableUTxO :: WalletState -> UTxO.UTxO
+availableUTxO w =
+    Balance.availableUTxO utxo pending
   where
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
@@ -213,8 +225,21 @@ createPayment = undefined
     -- needs balanceTx
     -- needs to sign the transaction
 
-getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [()]
-getBIP32PathsForOwnedInputs = undefined
+getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [BIP32Path]
+getBIP32PathsForOwnedInputs txbody w =
+    getBIP32Paths w
+    . resolveInputAddresses
+    $ Write.spendInputs txbody <> Write.collInputs txbody
+  where
+    resolveInputAddresses :: Set Read.TxIn -> [Read.Address]
+    resolveInputAddresses ins =
+        map (Read.address . snd)
+        . UTxO.toList
+        $ UTxO.restrictedBy (availableUTxO w) ins
+
+getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
+getBIP32Paths w =
+    mapMaybe $ Address.getBIP32Path (addresses w) . Read.toRawAddress
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined

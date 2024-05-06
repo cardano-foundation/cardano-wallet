@@ -33,6 +33,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub
     )
+import Cardano.Wallet.Address.BIP32
+    ( BIP32Path
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , WalletState
@@ -207,7 +210,7 @@ createPayment a w =
     Wallet.createPayment a <$> readWalletState w
 
 getBIP32PathsForOwnedInputs
-    :: Write.TxBody -> WalletInstance -> IO [()]
+    :: Write.TxBody -> WalletInstance -> IO [BIP32Path]
 getBIP32PathsForOwnedInputs a w =
     Wallet.getBIP32PathsForOwnedInputs a <$> readWalletState w
 
