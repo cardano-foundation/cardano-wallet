@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
@@ -16,14 +17,31 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , FileOf (..)
     , newAbsolutizer
     )
+import Cardano.Wallet.Launch.Cluster.Http.Service
+    ( ServiceConfiguration (..)
+    )
+import Cardano.Wallet.Network.Ports
+    ( PortNumber
+    )
+import Control.Monad
+    ( unless
+    )
+import Control.Monitoring.Tracing
+    ( MonitorState (..)
+    )
+import Data.Maybe
+    ( fromMaybe
+    )
 import Options.Applicative
     ( Parser
+    , auto
     , execParser
     , help
     , helper
     , info
     , long
     , metavar
+    , option
     , optional
     , progDesc
     , strOption
@@ -38,6 +56,7 @@ data CommandLineOptions = CommandLineOptions
     , clusterDir :: Maybe (DirOf "cluster")
     , clusterLogs :: Maybe (FileOf "cluster-logs")
     , nodeToClientSocket :: FileOf "node-to-client-socket"
+    , httpService :: ServiceConfiguration
     }
     deriving stock (Show)
 
@@ -51,9 +70,61 @@ parseCommandLineOptions = do
                 <*> clusterDirParser absolutizer
                 <*> clusterLogsParser absolutizer
                 <*> nodeToClientSocketParser absolutizer
+                <*> monitoringParser
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
+
+monitoringParser :: Parser ServiceConfiguration
+monitoringParser =
+    mkServiceConfiguration
+        <$> httpApiPortParser
+        <*> controlInitalStateParser
+  where
+    mkServiceConfiguration port mstate =
+        ServiceConfiguration port
+            $ fromMaybe Run mstate
+
+controlInitalStateParser :: Parser (Maybe MonitorState)
+controlInitalStateParser =
+    optional
+        $ option
+            parse
+            ( long "control-initial-state"
+                <> metavar "CONTROL_INITIAL_STATE"
+                <> help "Initial state of the control, wait, step or run"
+            )
+  where
+    parse = do
+        s :: String <- auto
+        case s of
+            "wait" -> pure Wait
+            "step" -> pure Step
+            "run" -> pure Run
+            _ -> fail "Invalid control initial state"
+
+httpApiPortParser :: Parser (Maybe PortNumber)
+httpApiPortParser = do
+    optional
+        $ option
+            parse
+            ( long "monitoring-port"
+                <> metavar "MONITORING_PORT"
+                <> help "Port for the monitoring HTTP server"
+            )
+  where
+    parse = do
+        p <- auto
+        unless (p `elem` validPorts)
+            $ fail
+            $ "Invalid port number. Must be inside: "
+                ++ show (head validPorts)
+                ++ ".."
+                ++ show (last validPorts)
+        pure p
+
+validPorts :: [PortNumber]
+validPorts = [1024 .. 65535]
 
 nodeToClientSocketParser :: Absolutizer -> Parser (FileOf "node-to-client-socket")
 nodeToClientSocketParser (Absolutizer absOf) =
