@@ -40,6 +40,20 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , mkRelDirOf
     , toFilePath
     )
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.Server
+    ( newNodeConnVar
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Service
+    ( withServiceServer
+    )
+import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
+    ( Phase (..)
+    , RelayNode (..)
+    )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..)
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -55,6 +69,13 @@ import Control.Monad.Cont
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Control.Tracer
+    ( Tracer (..)
+    , traceWith
+    )
+import Data.Text.Class
+    ( ToText
     )
 import Main.Utf8
     ( withUtf8
@@ -211,7 +232,8 @@ main = withUtf8 $ do
     setDefaultFilePermissions
 
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    let tr = stdoutTextTracer
+    let tr :: ToText a => Tracer IO a
+        tr = stdoutTextTracer
     clusterEra <- Cluster.clusterEraFromEnv
     cfgNodeLogging <-
         Cluster.logFileConfigFromEnv
@@ -223,6 +245,7 @@ main = withUtf8 $ do
         , clusterDir
         , clusterLogs
         , nodeToClientSocket
+        , httpService
         } <-
         parseCommandLineOptions
     evalContT $ do
@@ -231,15 +254,9 @@ main = withUtf8 $ do
             case clusterDir of
                 Just path -> pure path
                 Nothing ->
-                    fmap (DirOf . absDir) $
-                    ContT $ withSystemTempDir tr "test-cluster" skipCleanup
-        -- Start the faucet
-        faucetClientEnv <- ContT withFaucet
-        maryAllegraFunds <-
-            liftIO
-                $ runFaucetM faucetClientEnv
-                $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
-        -- Start the cluster
+                    fmap (DirOf . absDir)
+                        $ ContT
+                        $ withSystemTempDir tr "test-cluster" skipCleanup
         let clusterCfg =
                 Cluster.Config
                     { cfgStakePools = Cluster.defaultPoolConfigs
@@ -255,6 +272,23 @@ main = withUtf8 $ do
                     , cfgClusterLogFile = clusterLogs
                     , cfgNodeToClientSocket = nodeToClientSocket
                     }
+        (_, phaseTracer) <- withSNetworkId (NTestnet 42)
+            $ \network -> do
+                nodeConn <- liftIO newNodeConnVar
+                withServiceServer
+                    network
+                    nodeConn
+                    clusterCfg
+                    tr
+                    httpService
+        -- Start the faucet
+        faucetClientEnv <- ContT withFaucet
+        maryAllegraFunds <-
+            liftIO
+                $ runFaucetM faucetClientEnv
+                $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
+        -- Start the cluster
+
         node <-
             ContT
                 $ Cluster.withCluster
@@ -287,7 +321,14 @@ main = withUtf8 $ do
                             $ clusterDirPath
                                 </> relFile "byron-genesis.json"
                     }
+
         (_walletInstance, _walletApi) <-
             ContT $ bracket (WC.start walletProcessConfig) (WC.stop . fst)
+        liftIO
+            $ traceWith phaseTracer
+            $ Cluster
+            $ Just
+            $ RelayNode
+            $ toFilePath nodeSocket
         -- Wait forever or ctrl-c
         threadDelay maxBound
