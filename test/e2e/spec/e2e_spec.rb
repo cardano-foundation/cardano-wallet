@@ -471,8 +471,9 @@ RSpec.describe 'Cardano Wallet E2E tests', :all, :e2e do
       # Perform coin selection to select input to be used in minting contract
       address = SHELLEY.addresses.list(@wid)[0]['id']
       payload_cs = [{ address: address,
-                      amount: { quantity: 1_000_000_000, unit: 'lovelace' } }]
+                      amount: { quantity: 10_000_000, unit: 'lovelace' } }]
       coin_selection = SHELLEY.coin_selections.random(@wid, payload_cs)
+      print coin_selection if coin_selection['inputs'].nil?
       input = coin_selection['inputs'].select { |i| i['assets'] == [] }.first
       tx_id = input['id']
       tx_idx = input['index'].to_i
