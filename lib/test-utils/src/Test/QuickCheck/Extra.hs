@@ -51,6 +51,9 @@ module Test.QuickCheck.Extra
       -- * Partitioning lists
     , partitionList
 
+      -- * Generating and shrinking sets
+    , genNonEmptyDisjointSet
+
       -- * Generating and shrinking maps
     , genMapWith
     , genMapFromKeysWith
@@ -105,6 +108,7 @@ import Prelude
 import Control.Monad
     ( foldM
     , liftM2
+    , replicateM
     )
 import Data.IntCast
     ( intCast
@@ -144,6 +148,7 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Positive (getPositive)
     , Property
     , Testable
     , chooseInt
@@ -594,6 +599,24 @@ shrinkNonEmpty shrinkA = mapMaybe NE.nonEmpty . shrinkList shrinkA . NE.toList
 --
 genFunction :: (a -> Gen b -> Gen b) -> Gen b -> Gen (a -> b)
 genFunction coarbitraryFn gen = promote (`coarbitraryFn` gen)
+
+--------------------------------------------------------------------------------
+-- Generating and shrinking sets
+--------------------------------------------------------------------------------
+
+-- | Generates a non-empty 'Set' that is disjoint to an existing 'Set'.
+--
+-- The size of the resultant set depends on the implicit size parameter.
+--
+-- Caution: if the given generator is incapable of generating values that are
+-- outside the existing set, then this function will not terminate.
+--
+genNonEmptyDisjointSet :: Ord a => Gen a -> Set a -> Gen (Set a)
+genNonEmptyDisjointSet genElement0 existingElements = do
+    size <- getPositive <$> arbitrary @(Positive Int)
+    Set.fromList <$> replicateM size genElement
+  where
+    genElement = genElement0 `suchThat` (`Set.notMember` existingElements)
 
 --------------------------------------------------------------------------------
 -- Generating and shrinking key-value maps
