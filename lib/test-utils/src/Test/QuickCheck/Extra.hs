@@ -57,6 +57,7 @@ module Test.QuickCheck.Extra
       -- * Generating and shrinking maps
     , genMapWith
     , genMapFromKeysWith
+    , genNonEmptyDisjointMap
     , shrinkMapToSubmaps
     , shrinkMapWith
     , shrinkMapValuesWith
@@ -633,6 +634,18 @@ genMapWith genKey genValue =
 genMapFromKeysWith :: Ord k => Gen v -> Set k -> Gen (Map k v)
 genMapFromKeysWith genValue =
     fmap Map.fromList . mapM (\k -> (k,) <$> genValue) . Set.toList
+
+-- | Generates a non-empty 'Map' that is disjoint to an existing 'Map'.
+--
+-- The size of the resultant map depends on the implicit size parameter.
+--
+-- Caution: if the given key generator is incapable of generating keys that are
+-- outside the existing map's domain, then this function will not terminate.
+--
+genNonEmptyDisjointMap :: Ord k => Gen k -> Gen v -> Map k v -> Gen (Map k v)
+genNonEmptyDisjointMap genKey genValue existingMap =
+    genMapFromKeysWith genValue =<<
+    genNonEmptyDisjointSet genKey (Map.keysSet existingMap)
 
 -- | Shrinks a 'Map' to list of proper submaps.
 --
