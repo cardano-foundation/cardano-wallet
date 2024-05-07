@@ -1253,7 +1253,8 @@ instance FromJSON EncryptMetadataMethod where
 
 data ApiEncryptMetadata = ApiEncryptMetadata
     { passphrase :: ApiT (Passphrase "lenient")
-    , enc :: Maybe EncryptMetadataMethod }
+    , enc :: Maybe EncryptMetadataMethod
+    }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
