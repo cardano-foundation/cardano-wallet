@@ -87,10 +87,13 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , within
+    , (=/=)
     , (===)
     )
 import Test.QuickCheck.Extra
     ( Pretty (..)
+    , genNonEmptyDisjointMap
+    , genNonEmptyDisjointSet
     , genShrinkSequence
     , genericRoundRobinShrink
     , getDisjointPair
@@ -191,7 +194,27 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                 prop_selectMapEntries_union
                     @Int @Int & property
 
+    describe "Generating and shrinking sets" $ do
+
+        describe "Generation" $ do
+
+            it "prop_genNonEmptyDisjointSet_disjoint" $
+                prop_genNonEmptyDisjointSet_disjoint
+                    @Int & property
+            it "prop_genNonEmptyDisjointSet_nonEmpty" $
+                prop_genNonEmptyDisjointSet_nonEmpty
+                    @Int & property
+
     describe "Generating and shrinking associative maps" $ do
+
+        describe "Generation" $ do
+
+            it "prop_genNonEmptyDisjointMap_disjoint" $
+                prop_genNonEmptyDisjointMap_disjoint
+                    @Int @Int & property
+            it "prop_genNonEmptyDisjointMap_nonEmpty" $
+                prop_genNonEmptyDisjointMap_nonEmpty
+                    @Int @Int & property
 
         describe "Shrinking" $ do
 
@@ -574,6 +597,64 @@ prop_partitionList_LT (PartitionListData (x, y) as) =
   where
     x' = max 0 x
     y' = max 1 (max y x')
+
+--------------------------------------------------------------------------------
+-- Generating sets
+--------------------------------------------------------------------------------
+
+prop_genNonEmptyDisjointSet_disjoint
+    :: (Arbitrary a, Ord a, Show a)
+    => Set a
+    -> Property
+prop_genNonEmptyDisjointSet_disjoint set1 =
+    forAll (genNonEmptyDisjointSet arbitrary set1) $ \set2 ->
+        Set.intersection set1 set2 === Set.empty
+        & cover 10
+            (Set.size set1 >= 10 && Set.size set2 >= 10)
+            "Set.size set1 >= 10 && Set.size set2 >= 10"
+        & checkCoverage
+
+prop_genNonEmptyDisjointSet_nonEmpty
+    :: (Arbitrary a, Ord a, Show a)
+    => Set a
+    -> Property
+prop_genNonEmptyDisjointSet_nonEmpty set1 =
+    forAll (genNonEmptyDisjointSet arbitrary set1) $ \set2 ->
+        Set.size set2 =/= 0
+        & cover 10
+            (Set.size set1 >= 10 && Set.size set2 >= 10)
+            "Set.size set1 >= 10 && Set.size set2 >= 10"
+        & checkCoverage
+
+--------------------------------------------------------------------------------
+-- Generating maps
+--------------------------------------------------------------------------------
+
+prop_genNonEmptyDisjointMap_disjoint
+    :: (Arbitrary k, Show k, Ord k)
+    => (Arbitrary v, Show v, Eq v)
+    => Map k v
+    -> Property
+prop_genNonEmptyDisjointMap_disjoint map1 =
+    forAll (genNonEmptyDisjointMap arbitrary arbitrary map1) $ \map2 ->
+        Map.intersectionWith (,) map1 map2 === Map.empty
+        & cover 10
+            (Map.size map1 >= 10 && Map.size map2 >= 10)
+            "Map.size map1 >= 10 && Map.size map2 >= 10"
+        & checkCoverage
+
+prop_genNonEmptyDisjointMap_nonEmpty
+    :: (Arbitrary k, Show k, Ord k)
+    => (Arbitrary v, Show v, Eq v)
+    => Map k v
+    -> Property
+prop_genNonEmptyDisjointMap_nonEmpty map1 =
+    forAll (genNonEmptyDisjointMap arbitrary arbitrary map1) $ \map2 ->
+        Map.size map2 =/= 0
+        & cover 10
+            (Map.size map1 >= 10 && Map.size map2 >= 10)
+            "Map.size map1 >= 10 && Map.size map2 >= 10"
+        & checkCoverage
 
 --------------------------------------------------------------------------------
 -- Selecting map entries (one at a time)
