@@ -165,9 +165,7 @@ decrypt mode key iv msg = do
         WithoutPadding -> Right p
         WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
 
-getSaltFromEncrypted
-    :: ByteString
-    -> Maybe ByteString
+getSaltFromEncrypted :: ByteString -> Maybe ByteString
 getSaltFromEncrypted msg = do
     when (BS.length msg < 32) Nothing
     let (prefix,rest) = BS.splitAt 8 msg
