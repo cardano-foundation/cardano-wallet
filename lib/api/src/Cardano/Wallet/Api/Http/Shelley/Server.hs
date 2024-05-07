@@ -2762,15 +2762,16 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
         liftHandler $ throwE ErrConstructTxWrongPayload
 
     metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
-            (Just apiEncrypt, Just metadataWithSchema) -> do
-                salt <- liftIO $ genSalt 8
-                case toMetadataEncrypted apiEncrypt metadataWithSchema (Just salt) of
+        (Just apiEncrypt, Just metadataWithSchema) -> do
+            salt <- liftIO $ genSalt 8
+            toMetadataEncrypted apiEncrypt metadataWithSchema (Just salt)
+                & \case
                     Left err ->
                         liftHandler $ throwE err
                     Right meta ->
                         pure $ Just meta
-            _ ->
-                pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
+        _ ->
+            pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
@@ -3195,11 +3196,13 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     keyAndValueCond k v =
         k == 674 && isJust (inspectMetaPair v)
     findMsgValue =
-        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+        let Cardano.TxMetadata themap =
+                payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filterWithKey keyAndValueCond themap
-        in if Map.size filteredMap >= 1 then
+        in
+        if Map.size filteredMap >= 1 then
             Right $ Map.toList filteredMap
-           else
+        else
             Left ErrConstructTxIncorrectRawMetadata
     encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
         if metaField == "msg" then
@@ -3216,7 +3219,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                     [ ( Cardano.TxMetaText metaField
                       , Cardano.TxMetaList
                         ( map Cardano.TxMetaText $ flip toTextChunks [] $
-                          toBase64Text enc )
+                          toBase64Text enc
+                        )
                       )
                     , encMethodEntry
                     ]
@@ -3235,7 +3239,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         pure (key, Cardano.TxMetaMap $ concat pairs')
     encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
     updateTxMetadata =
-        let (Cardano.TxMetadata themap) = payload ^. #txMetadataWithSchema_metadata
+        let Cardano.TxMetadata themap =
+                payload ^. #txMetadataWithSchema_metadata
         in Cardano.TxMetadata . foldr (uncurry Map.insert) themap
 
 metadataPBKDF2Config :: PBKDF2Config SHA256
