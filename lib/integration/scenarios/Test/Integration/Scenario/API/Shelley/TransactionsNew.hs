@@ -565,16 +565,18 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_02c - Incorrect metadata structure to be encrypted" $
         \ctx -> runResourceT $ do
             let metadataRaw =
-                    TxMetadata (Map.fromList
-                                [ (0,TxMetaText "hello")
-                                , (1,TxMetaMap [(TxMetaText "hello", TxMetaText "world")])
-                                , (50, TxMetaNumber 1_245)
-                                ])
+                    TxMetadata $ Map.fromList
+                    [ (0,TxMetaText "hello")
+                    , (1,TxMetaMap [(TxMetaText "hello", TxMetaText "world")])
+                    , (50, TxMetaNumber 1_245)
+                    ]
             wa <- fixtureWallet ctx
             let metadataToBeEncrypted =
                     TxMetadataWithSchema TxMetadataNoSchema metadataRaw
             let encryptMetadata =
-                    ApiEncryptMetadata (ApiT $ Passphrase "metadata-secret") Nothing
+                    ApiEncryptMetadata
+                    (ApiT $ Passphrase "metadata-secret")
+                    Nothing
             let payload = Json [json|{
                     "encrypt_metadata": #{toJSON encryptMetadata},
                     "metadata": #{toJSON metadataToBeEncrypted}
@@ -586,32 +588,34 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
-    it "TRANS_NEW_CREATE_02c - Correct metadata structure to be encrypted - short" $
+    it "TRANS_NEW_CREATE_02c - \
+        \Correct metadata structure to be encrypted - short" $
         \ctx -> runResourceT $ do
             let toBeEncrypted = TxMetaText "world"
             let metadataRaw =
-                    TxMetadata (Map.fromList
-                                [ (0, TxMetaText "hello")
-                                , (674, TxMetaMap
-                                      [(TxMetaText "msg", toBeEncrypted)])
-                                , (50, TxMetaNumber 1_245)
-                                ])
+                    TxMetadata $ Map.fromList
+                    [ (0, TxMetaText "hello")
+                    , (674, TxMetaMap [(TxMetaText "msg", toBeEncrypted)])
+                    , (50, TxMetaNumber 1_245)
+                    ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
-    it "TRANS_NEW_CREATE_02c - Correct metadata structure to be encrypted - long" $
+    it "TRANS_NEW_CREATE_02c - \
+        \Correct metadata structure to be encrypted - long" $
         \ctx -> runResourceT $ do
-            let toBeEncrypted = TxMetaList
+            let toBeEncrypted =
+                    TxMetaList
                     [ TxMetaText "Hard times create strong men."
                     , TxMetaText "Strong men create good times."
                     , TxMetaText "Good times create weak men."
-                    , TxMetaText "And, weak men create hard times."]
+                    , TxMetaText "And, weak men create hard times."
+                    ]
             let metadataRaw =
-                    TxMetadata (Map.fromList
-                                [ (0, TxMetaText "hello")
-                                , (674, TxMetaMap
-                                      [(TxMetaText "msg", toBeEncrypted)])
-                                , (50, TxMetaNumber 1_245)
-                                ])
+                    TxMetadata $ Map.fromList
+                    [ (0, TxMetaText "hello")
+                    , (674, TxMetaMap [(TxMetaText "msg", toBeEncrypted)])
+                    , (50, TxMetaNumber 1_245)
+                    ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
@@ -5442,7 +5446,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
         let era = fromApiEra $ _mainEra ctx
-        let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
+        let tx = cardanoTxIdeallyNoLaterThan era $
+                getApiT (signedTx ^. #serialisedTxSealed)
 
         let extractTxt (Cardano.TxMetaText txt) = txt
             extractTxt _ =
@@ -5457,8 +5462,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                           ]) -> foldl T.append T.empty $ extractTxt <$> chunks
                     Just _ -> error "Tx metadata incorrect"
 
-        -- we retriev salt from the encypted msg, then encrypt the value in `msg`
-        -- field and compare
+        -- we retriev salt from the encypted msg, then encrypt the value in
+        -- `msg` field and compare
         let (Just salt) = getSaltFromEncrypted $ unsafeFromBase64 encryptedMsg
         let pwd = BA.convert $ unPassphrase $ getApiT pwdApiT
         let (key, iv) = generateKey metadataPBKDF2Config pwd (Just salt)
