@@ -197,21 +197,28 @@ test-suite test
     , aeson
     , base
     , bytestring
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
+    , filepath
     , foldl
     , hspec
     , hspec-golden
     , local-cluster
     , mtl
     , openapi3
+    , process
     , QuickCheck
     , time
     , unliftio
     , with-utf8
 
-  build-tool-depends: hspec-discover:hspec-discover
+  build-tool-depends:
+    , hspec-discover:hspec-discover
+    , local-cluster:local-cluster
+
   other-modules:
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssetsSpec

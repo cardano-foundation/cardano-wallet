@@ -46,6 +46,9 @@ unit-tests-cabal-match match:
     -O0 -v0 \
     --test-options '--match="{{match}}"'
 
+unit-tests-local-cluster-match match:
+    nix shell '.#local-cluster' 'nixpkgs#just' \
+    -c just unit-tests-cabal-match {{match}}
 # run unit tests
 unit-tests-cabal:
     just unit-tests-cabal-match ""

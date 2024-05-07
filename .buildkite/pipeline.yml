@@ -55,6 +55,15 @@ steps:
     env:
       TMPDIR: "/cache"
 
+  - label: Run local-cluster tests
+    key: local-cluster-tests
+    depends_on: linux-nix
+    command: nix shell .#local-cluster -c cabal test -O0 local-cluster
+    agents:
+      system: ${linux}
+    env:
+      TMPDIR: "/cache"
+
   - label: "Babbage integration tests (linux)"
     key: linux-tests-integration-babbage
     depends_on: linux-nix
