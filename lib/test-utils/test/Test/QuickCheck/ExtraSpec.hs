@@ -92,6 +92,7 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Extra
     ( Pretty (..)
+    , genNonEmptyDisjointMap
     , genNonEmptyDisjointSet
     , genShrinkSequence
     , genericRoundRobinShrink
@@ -205,6 +206,15 @@ spec = describe "Test.QuickCheck.ExtraSpec" $ do
                     @Int & property
 
     describe "Generating and shrinking associative maps" $ do
+
+        describe "Generation" $ do
+
+            it "prop_genNonEmptyDisjointMap_disjoint" $
+                prop_genNonEmptyDisjointMap_disjoint
+                    @Int @Int & property
+            it "prop_genNonEmptyDisjointMap_nonEmpty" $
+                prop_genNonEmptyDisjointMap_nonEmpty
+                    @Int @Int & property
 
         describe "Shrinking" $ do
 
@@ -614,6 +624,36 @@ prop_genNonEmptyDisjointSet_nonEmpty set1 =
         & cover 10
             (Set.size set1 >= 10 && Set.size set2 >= 10)
             "Set.size set1 >= 10 && Set.size set2 >= 10"
+        & checkCoverage
+
+--------------------------------------------------------------------------------
+-- Generating maps
+--------------------------------------------------------------------------------
+
+prop_genNonEmptyDisjointMap_disjoint
+    :: (Arbitrary k, Show k, Ord k)
+    => (Arbitrary v, Show v, Eq v)
+    => Map k v
+    -> Property
+prop_genNonEmptyDisjointMap_disjoint map1 =
+    forAll (genNonEmptyDisjointMap arbitrary arbitrary map1) $ \map2 ->
+        Map.intersectionWith (,) map1 map2 === Map.empty
+        & cover 10
+            (Map.size map1 >= 10 && Map.size map2 >= 10)
+            "Map.size map1 >= 10 && Map.size map2 >= 10"
+        & checkCoverage
+
+prop_genNonEmptyDisjointMap_nonEmpty
+    :: (Arbitrary k, Show k, Ord k)
+    => (Arbitrary v, Show v, Eq v)
+    => Map k v
+    -> Property
+prop_genNonEmptyDisjointMap_nonEmpty map1 =
+    forAll (genNonEmptyDisjointMap arbitrary arbitrary map1) $ \map2 ->
+        Map.size map2 =/= 0
+        & cover 10
+            (Map.size map1 >= 10 && Map.size map2 >= 10)
+            "Map.size map1 >= 10 && Map.size map2 >= 10"
         & checkCoverage
 
 --------------------------------------------------------------------------------
