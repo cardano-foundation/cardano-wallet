@@ -188,10 +188,8 @@ executable local-cluster
     , unliftio
     , with-utf8
 
-test-suite test
+common test-common
   import:             language
-  type:               exitcode-stdio-1.0
-  main-is:            test.hs
   ghc-options:        -threaded -rtsopts
   hs-source-dirs:     test/unit
   build-depends:
@@ -231,3 +229,7 @@ test-suite test
     Paths_local_cluster
     Spec
     SpecHook
+
+executable test-local-cluster-exe
+  import:  test-common
+  main-is: test-exe.hs

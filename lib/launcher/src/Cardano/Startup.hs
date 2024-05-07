@@ -16,6 +16,7 @@ module Cardano.Startup
     , installSignalHandlers
     , installSignalHandlersNoLogging
     , killProcess
+    , interruptProcess
 
     -- * File permissions
     , setDefaultFilePermissions

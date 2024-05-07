@@ -37,10 +37,12 @@ import Cardano.BM.Trace
     )
 import Cardano.Launcher
     ( Command (..)
+    , IfToSendSigINT (DoNotSendSigINT)
     , LauncherLog
     , ProcessHandles (..)
     , ProcessHasExited (..)
     , StdStream (..)
+    , TimeoutInSecs (TimeoutInSecs)
     , withBackendProcess
     )
 import Control.Monad
@@ -208,6 +210,7 @@ spec = beforeAll setupMockCommands $ do
         pendingOnWine "SYSTEM32 commands not available under wine"
         mvar <- newEmptyMVar
         let backend = withBackendProcess tr foreverCommand
+                        (TimeoutInSecs 5) DoNotSendSigINT
                 $ \(ProcessHandles _ _ _ ph) -> do
                     putMVar mvar ph
                     forever $ threadDelay maxBound
@@ -224,6 +227,7 @@ spec = beforeAll setupMockCommands $ do
         skipOnWindows "Not applicable"
         mvar <- newEmptyMVar
         let backend = withBackendProcess tr unkillableCommand
+                        (TimeoutInSecs 5) DoNotSendSigINT
                 $ \(ProcessHandles _ _ _ ph) -> do
                     putMVar mvar ph
                     forever $ threadDelay maxBound
@@ -278,7 +282,8 @@ launch tr cmds = do
         waitForOthers (ProcessHandles _ _ _ ph) = do
             modifyMVar_ phsVar (pure . (ph:))
             forever $ threadDelay maxBound
-        start = async . try . flip (withBackendProcess tr) waitForOthers
+        start c = async . try
+            $ withBackendProcess tr c  (TimeoutInSecs 5) DoNotSendSigINT waitForOthers
 
     mapM start cmds >>= waitAnyCancel >>= \case
         (_, Left e) -> do

@@ -141,3 +141,13 @@ conway-integration-tests:
 latency-bench:
    cabal run -O2 -v0 cardano-wallet-benchmarks:latency -- \
    --cluster-configs lib/local-cluster/test/data/cluster-configs
+
+test-local-cluster:
+    LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
+    nix shell \
+        '.#local-cluster' \
+        '.#test-local-cluster-exe' \
+        '.#cardano-cli' \
+        '.#cardano-node' \
+        '.#cardano-wallet' \
+        -c test-local-cluster-exe

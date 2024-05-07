@@ -9,7 +9,8 @@ import Prelude
 
 import Cardano.Launcher
     ( Command (..)
-    , ProcessHandles (..)
+    , IfToSendSigINT (..)
+    , TimeoutInSecs (..)
     , withBackendProcess
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
@@ -37,12 +38,10 @@ import Cardano.Wallet.Primitive.NetworkId
     , SNetworkId (SMainnet)
     , withSNetworkId
     )
-import Control.Exception
-    ( finally
-    )
 import Control.Monad
     ( forM_
     , unless
+    , void
     )
 import Control.Monad.Cont
     ( ContT (..)
@@ -70,7 +69,6 @@ import System.FilePath
     )
 import System.Process
     ( StdStream (..)
-    , cleanupProcess
     )
 import Test.Hspec
     ( Spec
@@ -154,15 +152,19 @@ testServiceWithCluster
     :: FilePath
     -> ((RunMonitorQ IO, RunFaucetQ IO) -> IO ())
     -> IO ()
-testServiceWithCluster name = runContT $ do
+testServiceWithCluster name action = evalContT $ do
     port <- liftIO getRandomPort
     command <- liftIO $ localClusterCommand name port
-    ProcessHandles in' out err kill <- do
-        ContT $ withBackendProcess nullTracer command
+    void
+        $ ContT
+        $ withBackendProcess
+            nullTracer
+            command
+            NoTimeout
+            DoNotSendSigINT
     queries <- withSNetworkId (NTestnet 42)
         $ \network -> withServiceClient network port nullTracer
-    ContT $ \k -> do
-        k queries `finally` cleanupProcess (in', out, err, kill)
+    liftIO $ action queries
 
 spec :: Spec
 spec = do
