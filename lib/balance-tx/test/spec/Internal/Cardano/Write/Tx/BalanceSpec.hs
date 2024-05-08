@@ -1845,17 +1845,6 @@ paymentPartialTx txouts =
         & outputsTxBodyL .~
             StrictSeq.fromList (Convert.toBabbageTxOut <$> txouts)
 
--- | Restricts the inputs list of the 'PartialTx' to the inputs of the
--- underlying CBOR transaction. This allows us to "fix" the 'PartialTx' after
--- shrinking the CBOR.
---
--- NOTE: Perhaps ideally 'PartialTx' would handle this automatically.
-restrictResolution :: IsRecentEra era => PartialTx era -> PartialTx era
-restrictResolution partialTx@PartialTx {tx, extraUTxO} = partialTx
-    {extraUTxO = UTxO $ unUTxO extraUTxO `Map.restrictKeys` txIns}
-  where
-    txIns = tx ^. bodyTxL . inputsTxBodyL
-
 serializedSize
     :: forall era. IsRecentEra era
     => Tx era
