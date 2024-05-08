@@ -242,6 +242,7 @@ main = withUtf8 $ do
         , clusterLogs
         , nodeToClientSocket
         , httpService
+        , minSeverity
         } <-
         parseCommandLineOptions
     evalContT $ do
@@ -250,7 +251,7 @@ main = withUtf8 $ do
             ContT
                 $ newToTextTracer
                     (toFilePath . absFileOf <$> clusterLogs)
-                    Nothing
+                    minSeverity
 
         -- Create a temporary directory for the cluster
         clusterPath <-

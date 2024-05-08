@@ -11,6 +11,9 @@ where
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( Absolutizer (..)
     , DirOf (..)
@@ -51,10 +54,13 @@ import System.Path
     ( absRel
     )
 
+import qualified Cardano.BM.Data.Severity as Severity
+
 data CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: DirOf "cluster-configs"
     , clusterDir :: Maybe (DirOf "cluster")
     , clusterLogs :: Maybe (FileOf "cluster-logs")
+    , minSeverity :: Maybe Severity
     , nodeToClientSocket :: FileOf "node-to-client-socket"
     , httpService :: ServiceConfiguration
     }
@@ -69,11 +75,35 @@ parseCommandLineOptions = do
                 <$> clusterConfigsDirParser absolutizer
                 <*> clusterDirParser absolutizer
                 <*> clusterLogsParser absolutizer
+                <*> minSeverityParser
                 <*> nodeToClientSocketParser absolutizer
                 <*> monitoringParser
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
+
+minSeverityParser :: Parser (Maybe Severity)
+minSeverityParser =
+    optional
+        $ option
+            parse
+            ( long "min-severity"
+                <> metavar "MIN_SEVERITY"
+                <> help "Minimum severity level for logging"
+            )
+  where
+    parse = do
+        s :: String <- auto
+        case s of
+            "Debug" -> pure Severity.Debug
+            "Info" -> pure Severity.Info
+            "Notice" -> pure Severity.Notice
+            "Warning" -> pure Severity.Warning
+            "Error" -> pure Severity.Error
+            "Critical" -> pure Severity.Critical
+            "Alert" -> pure Severity.Alert
+            "Emergency" -> pure Severity.Emergency
+            _ -> fail "Invalid severity level"
 
 monitoringParser :: Parser ServiceConfiguration
 monitoringParser =
