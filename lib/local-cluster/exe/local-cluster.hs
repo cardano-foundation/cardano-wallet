@@ -83,6 +83,9 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
+import System.IO.Extra
+    ( withTempFile
+    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
@@ -92,7 +95,7 @@ import System.Path
     , parse
     , relDir
     , relFile
-    , (</>)
+    , (</>), absFile
     )
 import UnliftIO.Concurrent
     ( threadDelay
@@ -261,6 +264,9 @@ main = withUtf8 $ do
                     fmap (DirOf . absDir)
                         $ ContT
                         $ withSystemTempDir tr "test-cluster" skipCleanup
+        socketPath <- case nodeToClientSocket of
+            Just path -> pure path
+            Nothing -> FileOf . absFile <$> ContT withTempFile
         let clusterCfg =
                 Cluster.Config
                     { cfgStakePools = Cluster.defaultPoolConfigs
@@ -274,7 +280,7 @@ main = withUtf8 $ do
                     , cfgNodeOutputFile = Nothing
                     , cfgRelayNodePath = mkRelDirOf "relay"
                     , cfgClusterLogFile = clusterLogs
-                    , cfgNodeToClientSocket = nodeToClientSocket
+                    , cfgNodeToClientSocket = socketPath
                     }
         (_, phaseTracer) <- withSNetworkId (NTestnet 42)
             $ \network -> do

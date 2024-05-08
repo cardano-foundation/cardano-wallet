@@ -177,6 +177,7 @@ executable local-cluster
     , cardano-wallet-primitive
     , contra-tracer
     , directory
+    , extra
     , iohk-monitoring-extra
     , lens
     , local-cluster

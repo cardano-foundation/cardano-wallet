@@ -61,7 +61,7 @@ data CommandLineOptions = CommandLineOptions
     , clusterDir :: Maybe (DirOf "cluster")
     , clusterLogs :: Maybe (FileOf "cluster-logs")
     , minSeverity :: Maybe Severity
-    , nodeToClientSocket :: FileOf "node-to-client-socket"
+    , nodeToClientSocket :: Maybe (FileOf "node-to-client-socket")
     , httpService :: ServiceConfiguration
     }
     deriving stock (Show)
@@ -156,14 +156,17 @@ httpApiPortParser = do
 validPorts :: [PortNumber]
 validPorts = [1024 .. 65535]
 
-nodeToClientSocketParser :: Absolutizer -> Parser (FileOf "node-to-client-socket")
+nodeToClientSocketParser
+    :: Absolutizer
+    -> Parser (Maybe (FileOf "node-to-client-socket"))
 nodeToClientSocketParser (Absolutizer absOf) =
-    FileOf . absOf . absRel
-        <$> strOption
-            ( long "socket-path"
-                <> metavar "NODE_TO_CLIENT_SOCKET"
-                <> help "Path to the node-to-client socket"
-            )
+    optional
+        $ FileOf . absOf . absRel
+            <$> strOption
+                ( long "socket-path"
+                    <> metavar "NODE_TO_CLIENT_SOCKET"
+                    <> help "Path to the node-to-client socket"
+                )
 
 clusterConfigsDirParser :: Absolutizer -> Parser (DirOf "cluster-configs")
 clusterConfigsDirParser (Absolutizer absOf) =
