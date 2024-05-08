@@ -170,6 +170,6 @@ decrypt mode key iv msg = do
         WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
 
 getSaltFromEncrypted :: ByteString -> Maybe ByteString
-getSaltFromEncrypted msg = do
-    when (BS.length msg < 32) Nothing
-    BS.take saltLengthBytes <$> BS.stripPrefix saltPrefix msg
+getSaltFromEncrypted msg
+    | BS.length msg < 32 = Nothing
+    | otherwise = BS.take saltLengthBytes <$> BS.stripPrefix saltPrefix msg
