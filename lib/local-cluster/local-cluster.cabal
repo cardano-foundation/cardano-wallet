@@ -184,6 +184,7 @@ executable local-cluster
     , mtl
     , pathtype
     , temporary-extra
+    , text
     , unliftio
     , with-utf8
 
