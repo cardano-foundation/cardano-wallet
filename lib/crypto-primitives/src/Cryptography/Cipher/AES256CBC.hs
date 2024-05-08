@@ -172,9 +172,4 @@ decrypt mode key iv msg = do
 getSaltFromEncrypted :: ByteString -> Maybe ByteString
 getSaltFromEncrypted msg = do
     when (BS.length msg < 32) Nothing
-    let (prefix,rest) = BS.splitAt 8 msg
-    let saltDetected = prefix == saltPrefix
-    if saltDetected then
-        Just $ BS.take saltLengthBytes rest
-    else
-        Nothing
+    BS.take saltLengthBytes <$> BS.stripPrefix saltPrefix msg
