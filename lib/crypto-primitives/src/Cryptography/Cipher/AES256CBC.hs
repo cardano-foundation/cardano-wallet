@@ -129,12 +129,6 @@ encrypt mode keyBytes ivBytes saltM msg
             WithoutPadding -> id
             WithPadding -> PKCS7.pad
 
-saltLengthBytes :: Int
-saltLengthBytes = 8
-
-saltPrefix :: ByteString
-saltPrefix = "Salted__"
-
 -- | Decrypt using AES256 using CBC mode.
 decrypt
     :: CipherMode
@@ -168,6 +162,12 @@ decrypt mode key iv msg = do
     unpad p = case mode of
         WithoutPadding -> Right p
         WithPadding -> maybeToEither EmptyPayload (PKCS7.unpad p)
+
+saltLengthBytes :: Int
+saltLengthBytes = 8
+
+saltPrefix :: ByteString
+saltPrefix = "Salted__"
 
 getSaltFromEncrypted :: ByteString -> Maybe ByteString
 getSaltFromEncrypted msg
