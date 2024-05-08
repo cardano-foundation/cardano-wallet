@@ -392,7 +392,6 @@ import Test.QuickCheck.Extra
     , getDisjointPair
     , shrinkDisjointPair
     , shrinkMapToSubmaps
-    , shrinkMapValuesWith
     , shrinkNatural
     , (.>=.)
     , (<:>)
@@ -2334,14 +2333,6 @@ prependOriginal shrinker x = x : shrinker x
 shrinkFee :: Ledger.Coin -> [Ledger.Coin]
 shrinkFee (Ledger.Coin 0) = []
 shrinkFee _ = [Ledger.Coin 0]
-
--- TODO: ADP-3272
--- Fix this function so that it returns something other than the empty list.
-shrinkInputResolution :: IsRecentEra era => Write.UTxO era -> [Write.UTxO era]
-shrinkInputResolution =
-    shrinkMapBy UTxO unUTxO (shrinkMapValuesWith shrinkOutput)
-  where
-    shrinkOutput _ = []
 
 shrinkScriptData
     :: Era (CardanoApi.ShelleyLedgerEra era)
