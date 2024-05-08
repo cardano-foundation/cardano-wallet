@@ -144,19 +144,18 @@ decrypt mode key iv msg = do
     when (mode == WithoutPadding && BS.length msg `mod` 16 /= 0) $
         Left WrongPayloadSize
     initedIV <- first FromCryptonite (createIV iv)
-    let (prefix,rest) = BS.splitAt 8 msg
-    let saltDetected = prefix == saltPrefix
-    if saltDetected then
-        second (, Just $ BS.take saltLengthBytes rest) $
-        bimap FromCryptonite
-        (\c -> cbcDecrypt c initedIV (BS.drop saltLengthBytes rest))
-        (initCipher key) >>=
-        unpad
-    else
-        second (, Nothing) $
-        bimap FromCryptonite
-        (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
-        unpad
+    case BS.stripPrefix saltPrefix msg of
+        Just rest ->
+            second (, Just $ BS.take saltLengthBytes rest) $
+            bimap FromCryptonite
+            (\c -> cbcDecrypt c initedIV (BS.drop saltLengthBytes rest))
+            (initCipher key) >>=
+            unpad
+        Nothing ->
+            second (, Nothing) $
+            bimap FromCryptonite
+            (\c -> cbcDecrypt c initedIV msg) (initCipher key) >>=
+            unpad
   where
     unpad :: ByteString -> Either CipherError ByteString
     unpad p = case mode of
