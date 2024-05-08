@@ -12,8 +12,9 @@ import Prelude
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
-import Cardano.BM.Extra
-    ( stdoutTextTracer
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , newToTextTracer
     )
 import Cardano.Launcher.Node
     ( nodeSocketFile
@@ -71,11 +72,7 @@ import Control.Monad.IO.Class
     ( MonadIO (..)
     )
 import Control.Tracer
-    ( Tracer (..)
-    , traceWith
-    )
-import Data.Text.Class
-    ( ToText
+    ( traceWith
     )
 import Main.Utf8
     ( withUtf8
@@ -232,8 +229,7 @@ main = withUtf8 $ do
     setDefaultFilePermissions
 
     skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    let tr :: ToText a => Tracer IO a
-        tr = stdoutTextTracer
+
     clusterEra <- Cluster.clusterEraFromEnv
     cfgNodeLogging <-
         Cluster.logFileConfigFromEnv
@@ -249,6 +245,13 @@ main = withUtf8 $ do
         } <-
         parseCommandLineOptions
     evalContT $ do
+        -- Add a tracer for the cluster logs
+        ToTextTracer tr <-
+            ContT
+                $ newToTextTracer
+                    (toFilePath . absFileOf <$> clusterLogs)
+                    Nothing
+
         -- Create a temporary directory for the cluster
         clusterPath <-
             case clusterDir of
@@ -266,7 +269,7 @@ main = withUtf8 $ do
                     , cfgClusterConfigs = clusterConfigsDir
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
                     , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
-                    , cfgTracer = stdoutTextTracer
+                    , cfgTracer = tr
                     , cfgNodeOutputFile = Nothing
                     , cfgRelayNodePath = mkRelDirOf "relay"
                     , cfgClusterLogFile = clusterLogs
