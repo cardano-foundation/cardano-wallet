@@ -107,7 +107,7 @@ encrypt
     -- ^ Payload: must be a multiple of a block size, ie., 16 bytes.
     -> Either CipherError ByteString
 encrypt mode keyBytes ivBytes saltM msg
-    | any ((/= 8) . BS.length) saltM =
+    | any ((/= saltLengthBytes) . BS.length) saltM =
         Left WrongSaltSize
     | mode == WithoutPadding && BS.length msg `mod` 16 /= 0 =
         Left WrongPayloadSize
@@ -128,6 +128,9 @@ encrypt mode keyBytes ivBytes saltM msg
         case mode of
             WithoutPadding -> id
             WithPadding -> PKCS7.pad
+
+saltLengthBytes :: Int
+saltLengthBytes = 8
 
 saltPrefix :: ByteString
 saltPrefix = "Salted__"
@@ -150,9 +153,10 @@ decrypt mode key iv msg = do
     let (prefix,rest) = BS.splitAt 8 msg
     let saltDetected = prefix == saltPrefix
     if saltDetected then
-        second (, Just $ BS.take 8 rest) $
+        second (, Just $ BS.take saltLengthBytes rest) $
         bimap FromCryptonite
-        (\c -> cbcDecrypt c initedIV (BS.drop 8 rest)) (initCipher key) >>=
+        (\c -> cbcDecrypt c initedIV (BS.drop saltLengthBytes rest))
+        (initCipher key) >>=
         unpad
     else
         second (, Nothing) $
@@ -171,6 +175,6 @@ getSaltFromEncrypted msg = do
     let (prefix,rest) = BS.splitAt 8 msg
     let saltDetected = prefix == saltPrefix
     if saltDetected then
-        Just $ BS.take 8 rest
+        Just $ BS.take saltLengthBytes rest
     else
         Nothing
