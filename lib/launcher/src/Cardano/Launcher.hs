@@ -65,6 +65,9 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..)
     )
+import Data.Text.Lazy.Builder
+    ( toLazyText
+    )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -124,6 +127,7 @@ import UnliftIO.Process
     )
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 
 -- | Represent a command to execute. Args are provided as a list where options
 -- are expected to be prefixed with `--` or `-`. For example:
@@ -149,7 +153,7 @@ data Command = Command
     } deriving (Generic)
 
 instance Show Command where
-    show = show . build
+    show = TL.unpack . toLazyText . build
 
 instance Eq Command where
     a == b = build a == build b
