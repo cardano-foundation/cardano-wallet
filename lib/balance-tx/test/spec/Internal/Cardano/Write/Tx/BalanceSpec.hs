@@ -12,6 +12,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -306,6 +307,10 @@ import Internal.Cardano.Write.Tx.TimeTranslation
     ( TimeTranslation
     , timeTranslationFromEpochInfo
     )
+import Internal.Cardano.Write.Tx.TxWithUTxO
+    ( pattern TxWithUTxO
+    , type TxWithUTxO
+    )
 import Numeric.Natural
     ( Natural
     )
@@ -383,10 +388,10 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( DisjointPair
     , genDisjointPair
-    , genMapFromKeysWith
     , genericRoundRobinShrink
     , getDisjointPair
     , shrinkDisjointPair
+    , shrinkMapToSubmaps
     , shrinkMapValuesWith
     , shrinkNatural
     , (.>=.)
@@ -465,6 +470,8 @@ import qualified Data.Set.NonEmpty as NESet
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Internal.Cardano.Write.Tx as Write
+import qualified Internal.Cardano.Write.Tx.TxWithUTxO as TxWithUTxO
+import qualified Internal.Cardano.Write.Tx.TxWithUTxO.Gen as TxWithUTxO
 import qualified Ouroboros.Consensus.HardFork.History as HF
 import qualified Test.Hspec.Extra as Hspec
 
@@ -2203,25 +2210,29 @@ instance Arbitrary (MixedSign Value) where
         genPositive = arbitrary
     shrink (MixedSign v) = MixedSign <$> shrink v
 
-instance forall era. IsRecentEra era => Arbitrary (PartialTx era) where
-    arbitrary = do
-        tx <- genTxForBalancing
-        extraUTxO <- genExtraUTxO (txInputs tx)
-        let redeemers = []
-        let timelockKeyWitnessCounts = mempty
-        pure PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
-      where
-        genExtraUTxO :: Set TxIn -> Gen (UTxO era)
-        genExtraUTxO = fmap UTxO . genMapFromKeysWith genTxOut
-        txInputs :: Tx era -> Set TxIn
-        txInputs tx = tx ^. bodyTxL . inputsTxBodyL
-    shrink partialTx@PartialTx {tx, extraUTxO} =
-        [ partialTx {extraUTxO = extraUTxO'}
-        | extraUTxO' <- shrinkInputResolution extraUTxO
-        ] <>
-        [ restrictResolution (partialTx {tx = tx'})
-        | tx' <- shrinkTx tx
-        ]
+instance IsRecentEra era => Arbitrary (PartialTx era) where
+    arbitrary = mkPartialTx <$> genTxWithUTxO
+    shrink = shrinkMapBy mkPartialTx unPartialTx shrinkTxWithUTxO
+
+mkPartialTx :: IsRecentEra era => TxWithUTxO era -> PartialTx era
+mkPartialTx (TxWithUTxO tx extraUTxO) =
+    PartialTx {tx, extraUTxO, redeemers = [], timelockKeyWitnessCounts = mempty}
+
+unPartialTx :: IsRecentEra era => PartialTx era -> TxWithUTxO era
+unPartialTx PartialTx {tx, extraUTxO} =
+    TxWithUTxO.constructFiltered tx extraUTxO
+
+genTxWithUTxO :: IsRecentEra era => Gen (TxWithUTxO era)
+genTxWithUTxO = TxWithUTxO.generate genTxForBalancing genTxIn genTxOut
+  where
+    genTxIn :: Gen TxIn
+    genTxIn = fromWalletTxIn <$> W.genTxIn
+
+shrinkTxWithUTxO :: IsRecentEra era => TxWithUTxO era -> [TxWithUTxO era]
+shrinkTxWithUTxO = TxWithUTxO.shrinkWith shrinkTx shrinkUTxOToSubsets
+  where
+    shrinkUTxOToSubsets :: IsRecentEra era => UTxO era -> [UTxO era]
+    shrinkUTxOToSubsets = shrinkMapBy UTxO unUTxO shrinkMapToSubmaps
 
 instance Arbitrary StdGenSeed  where
     arbitrary = StdGenSeed . fromIntegral @Int <$> arbitrary
