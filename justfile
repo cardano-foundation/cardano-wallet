@@ -31,10 +31,10 @@ bench target:
 local-cluster:
   nix shell '.#local-cluster' '.#cardano-node' \
     -c "local-cluster" \
-    control \
     --cluster-configs lib/local-cluster/test/data/cluster-configs \
     --cluster-logs ignore-me/cluster.logs \
-    --socket-path ignore-me/cluster.socket
+    --socket-path ignore-me/cluster.socket \
+    --monitoring-port 12788
 
 # run unit tests on a match
 unit-tests-cabal-match match:

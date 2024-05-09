@@ -68,6 +68,7 @@ library
     , cardano-wallet-primitive
     , effectful-core            ^>=2.2.2.0
     , effectful-th              ^>=1.0.0.1
+    , extra
     , faucet
     , http-client               ^>=0.7.13.1
     , http-types                ^>=0.12.3

@@ -1,4 +1,6 @@
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
+{-# LANGUAGE DataKinds #-}
+
+module Cardano.Wallet.Launch.Cluster.Http.Monitor.APISpec
     ( spec
     , genObservation
     , genMonitorState
@@ -7,7 +9,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
@@ -74,7 +76,7 @@ spec = do
 genObservation :: Gen (History, MonitorState)
 genObservation = do
     history' <-
-        History  <$> listOf ((,) <$> genUTCTime <*> genPhase)
+        History <$> listOf ((,) <$> genUTCTime <*> genPhase)
     state <- genMonitorState
     pure (history', state)
 

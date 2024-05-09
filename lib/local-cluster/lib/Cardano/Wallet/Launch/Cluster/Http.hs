@@ -4,7 +4,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -Wno-missing-local-signatures #-}
 
-module Cardano.Wallet.Launch.Cluster.Monitoring.Monitor
+module Cardano.Wallet.Launch.Cluster.Http
     ( MsgHttpMonitoring (..)
     , MonitorConfiguration (..)
     , withMonitoring
@@ -13,14 +13,14 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( RunQuery
     , withHttpClient
     )
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.Logging
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.Logging
     ( MsgHttpMonitoring (..)
     )
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.Server
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.Server
     ( mkHandlers
     , withHttpServer
     )
