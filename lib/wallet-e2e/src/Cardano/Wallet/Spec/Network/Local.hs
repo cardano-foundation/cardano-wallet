@@ -21,6 +21,9 @@ import Control.Monad.Trans.Resource
 import System.IO
     ( openFile
     )
+import System.IO.Extra
+    ( newTempFile
+    )
 import System.Path
     ( relFile
     , (</>)
@@ -48,23 +51,28 @@ configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) = do
     pure ConfiguredNetwork{configuredNetworkWallet = walletApi, ..}
   where
     startCluster :: ResourceT IO WalletApi = do
-      (_clusterReleaseKey, _clusterProcess) <-
-          allocate startLocalClusterProcess stopProcess
-      pure WalletApi
-        { walletInstanceApiUrl = "http://localhost:8090/v2"
-        , walletInstanceApiHost = "localhost"
-        , walletInstanceApiPort = 8090
-        }
+        (_, (socketFile, _)) <- allocate newTempFile snd
+        (_clusterReleaseKey, _clusterProcess) <-
+            allocate (startLocalClusterProcess socketFile) stopProcess
+        pure
+            WalletApi
+                { walletInstanceApiUrl = "http://localhost:8090/v2"
+                , walletInstanceApiHost = "localhost"
+                , walletInstanceApiPort = 8090
+                }
 
-    startLocalClusterProcess :: IO (Process () () ())
-    startLocalClusterProcess = do
+    startLocalClusterProcess :: FilePath -> IO (Process () () ())
+    startLocalClusterProcess socketPath = do
         let clusterLog = stateDir </> relFile "cluster.log"
         handle <- openFile (toFilePath clusterLog) AppendMode
         putStrLn $ "Writing cluster logs to " <> toFilePath clusterLog
         startProcess
-          $ setStderr (useHandleClose handle)
-          $ setStdout (useHandleClose handle)
-          $ proc "local-cluster"
-            [ "--cluster-configs"
-            , toFilePath clusterConfigsDir
-            ]
+            $ setStderr (useHandleClose handle)
+            $ setStdout (useHandleClose handle)
+            $ proc
+                "local-cluster"
+                [ "--cluster-configs"
+                , toFilePath clusterConfigsDir
+                , "--socket-path"
+                , socketPath
+                ]
