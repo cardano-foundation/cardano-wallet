@@ -97,6 +97,7 @@ library internal
     Internal.Cardano.Write.Tx.Sign
     Internal.Cardano.Write.Tx.SizeEstimation
     Internal.Cardano.Write.Tx.TimeTranslation
+    Internal.Cardano.Write.Tx.TxWithUTxO
     Internal.Cardano.Write.UTxOAssumptions
 
 test-suite test
