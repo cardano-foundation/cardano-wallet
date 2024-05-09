@@ -29,9 +29,12 @@ bench target:
 
 # run a local test cluster
 local-cluster:
-  nix shell '.#local-cluster' '.#cardano-node' '.#cardano-wallet' \
+  nix shell '.#local-cluster' '.#cardano-node' \
     -c "local-cluster" \
-    --cluster-configs lib/local-cluster/test/data/cluster-configs
+    control \
+    --cluster-configs lib/local-cluster/test/data/cluster-configs \
+    --cluster-logs ignore-me/cluster.logs \
+    --socket-path ignore-me/cluster.socket
 
 # run unit tests on a match
 unit-tests-cabal-match match:

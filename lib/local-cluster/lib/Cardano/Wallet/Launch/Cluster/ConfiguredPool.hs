@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -32,6 +33,7 @@ import Cardano.CLI.Types.Key
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
+    , MaybeK (..)
     , NodePort (..)
     )
 import Cardano.Ledger.Api
@@ -137,6 +139,9 @@ import Data.List.NonEmpty
 import Data.Maybe
     ( fromMaybe
     )
+import Data.MaybeK
+    ( IsMaybe (IsNothing)
+    )
 import Data.Tagged
     ( Tagged (..)
     , untag
@@ -177,8 +182,8 @@ import qualified Data.Text as T
 data ConfiguredPool = ConfiguredPool
     { operatePool
         :: forall a
-         . NodeParams
-        -> (RunningNode -> ClusterM a)
+         . NodeParams IsNothing
+        -> ClusterM a
         -> ClusterM a
     -- ^ Precondition: the pool must first be registered.
     , metadataUrl
@@ -204,7 +209,7 @@ configurePools metadataServer =
 -- | Create a key pair for a node KES operational key
 genKesKeyPair
     :: RelDir
-    -> ClusterM (FileOf "kes-prv" , FileOf "kes-pub")
+    -> ClusterM (FileOf "kes-prv", FileOf "kes-pub")
 genKesKeyPair nodeSegment = do
     DirOf poolDir <- askNodeDir nodeSegment
     let kesPrv = poolDir </> relFile "kes.prv"
@@ -222,7 +227,7 @@ genKesKeyPair nodeSegment = do
 -- | Create a key pair for a node VRF operational key
 genVrfKeyPair
     :: RelDir
-    -> ClusterM (FileOf "vrf-prv" , FileOf "vrf-pub")
+    -> ClusterM (FileOf "vrf-prv", FileOf "vrf-pub")
 genVrfKeyPair nodeSegment = do
     DirOf poolDir <- askNodeDir nodeSegment
     let vrfPrv = poolDir </> relFile "vrf.prv"
@@ -399,16 +404,18 @@ preparePoolRetirement nodeSegment certs = do
           , toFilePath transactionFile
           ]
             ++ mconcat
-                ((\(FileOf cert) -> ["--certificate-file", toFilePath cert])
+                ( (\(FileOf cert) -> ["--certificate-file", toFilePath cert])
                     <$> certs
                 )
 
     pure (FileOf transactionFile, faucetPrv)
 
 issuePoolRetirementCert
-    :: RelDir -- ^ Node relative path
+    :: RelDir
+    -- ^ Node relative path
     -> FileOf "op-pub"
-    -> Word31 -- ^ Retirement epoch
+    -> Word31
+    -- ^ Retirement epoch
     -> ClusterM (FileOf "retirement-cert")
 issuePoolRetirementCert nodeSegment (FileOf opPub) retirementEpoch = do
     lastHardFork <- asks cfgLastHardFork
@@ -519,21 +526,23 @@ configurePool metadataServer recipe = do
                         ]
                         "retirement cert"
             traverse_ retire mRetirementEpoch
-
+        operatePool :: NodeParams IsNothing -> ClusterM a -> ClusterM a
         operatePool nodeParams action = do
             let NodeParams
                     genesisFiles
                     hardForks
                     (port, peers)
                     logCfg
-                    nodeOutput = nodeParams
+                    nodeOutput
+                    NothingK =
+                        nodeParams
             let logCfg' = setLoggingName name logCfg
 
             topology <- genTopology nodeRelativePath peers
             liftIO $ withStaticServer (toFilePath poolDir) $ \url -> do
                 traceWith cfgTracer $ MsgStartedStaticServer url poolDirPath
 
-                (nodeConfig, genesisData, vd) <-
+                (nodeConfig, _genesisData, _vd) <-
                     withConfig
                         $ genNodeConfig
                             nodeRelativePath
@@ -542,23 +551,27 @@ configurePool metadataServer recipe = do
                             hardForks
                             logCfg'
 
-                let cfg = CardanoNodeConfig
-                        { nodeDir = toFilePath poolDir
-                        , nodeConfigFile = absFilePathOf nodeConfig
-                        , nodeTopologyFile = absFilePathOf topology
-                        , nodeDatabaseDir = toFilePath
-                            $ poolDir </> relDir "db"
-                        , nodeDlgCertFile = Nothing
-                        , nodeSignKeyFile = Nothing
-                        , nodeOpCertFile = Just $ absFilePathOf opCert
-                        , nodeKesKeyFile = Just $ absFilePathOf kesPrv
-                        , nodeVrfKeyFile = Just $ absFilePathOf vrfPrv
-                        , nodePort = Just (NodePort port)
-                        , nodeLoggingHostname = Just name
-                        , nodeExecutable = Nothing
-                        , nodeOutputFile = absFilePathOf <$> nodeOutput
-                        }
+                let cfg =
+                        CardanoNodeConfig
+                            { nodeDir = toFilePath poolDir
+                            , nodeConfigFile = absFilePathOf nodeConfig
+                            , nodeTopologyFile = absFilePathOf topology
+                            , nodeDatabaseDir =
+                                toFilePath
+                                    $ poolDir </> relDir "db"
+                            , nodeDlgCertFile = Nothing
+                            , nodeSignKeyFile = Nothing
+                            , nodeOpCertFile = Just $ absFilePathOf opCert
+                            , nodeKesKeyFile = Just $ absFilePathOf kesPrv
+                            , nodeVrfKeyFile = Just $ absFilePathOf vrfPrv
+                            , nodePort = Just (NodePort port)
+                            , nodeLoggingHostname = Just name
+                            , nodeExecutable = Nothing
+                            , nodeOutputFile = absFilePathOf <$> nodeOutput
+                            , nodeSocketPathFile = NothingK
+                            }
+
                 withConfig
                     $ withCardanoNodeProcess name cfg
-                    $ \socket -> action $ RunningNode socket genesisData vd
+                    $ \NothingK -> action
     pure ConfiguredPool{..}

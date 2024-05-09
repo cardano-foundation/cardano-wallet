@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -7,6 +8,9 @@ import Prelude
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
+    )
+import Cardano.Launcher.Node
+    ( MaybeK (..)
     )
 import Cardano.Startup
     ( installSignalHandlers
@@ -253,7 +257,7 @@ withCardanoNode
     -> BenchmarkConfig
     -> (C.CardanoNodeConn -> IO r)
     -> IO r
-withCardanoNode tr nodeExe BenchmarkConfig{..} =
+withCardanoNode tr nodeExe BenchmarkConfig{..} action =
     C.withCardanoNode tr
         C.CardanoNodeConfig
             { C.nodeDir = nodeDatabaseDir
@@ -269,7 +273,9 @@ withCardanoNode tr nodeExe BenchmarkConfig{..} =
             , C.nodeLoggingHostname = Nothing
             , C.nodeExecutable = Just nodeExe
             , C.nodeOutputFile = Nothing
+            , C.nodeSocketPathFile = JustK $ nodeDatabaseDir </> "node.socket"
             }
+        $ \(JustK c) -> action c
 
 {-----------------------------------------------------------------------------
     Utilities

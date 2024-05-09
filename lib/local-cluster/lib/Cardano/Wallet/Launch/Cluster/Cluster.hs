@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Wallet.Launch.Cluster.Cluster
     ( withCluster
@@ -21,6 +23,9 @@ import Cardano.BM.Data.Severity
     )
 import Cardano.Launcher
     ( ProcessHasExited (..)
+    )
+import Cardano.Launcher.Node
+    ( MaybeK (..)
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
@@ -207,46 +212,48 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
             let pool0port :| poolPorts = NE.fromList (rotate poolsTcpPorts)
             let pool0 :| otherPools = configuredPools
 
-            runningPool0 <-
-                ContT
-                    $ operatePool pool0
-                    $ NodeParams
-                        genesisFiles
-                        cfgLastHardFork
-                        pool0port
-                        cfgNodeLogging
-                        cfgNodeOutputFile
+            contT_
+                $ operatePool pool0
+                $ NodeParams
+                    genesisFiles
+                    cfgLastHardFork
+                    pool0port
+                    cfgNodeLogging
+                    cfgNodeOutputFile
+                    NothingK
 
-            lift $ extraClusterSetupUsingNode configuredPools runningPool0
+            let relayNodeParams =
+                    NodeParams
+                        { nodeGenesisFiles = genesisFiles
+                        , nodeHardForks = cfgLastHardFork
+                        , nodePeers = (extraPort, poolsTcpPorts)
+                        , nodeLogConfig =
+                            LogFileConfig
+                                { minSeverityTerminal = Info
+                                , extraLogDir = Nothing
+                                , minSeverityFile = Info
+                                }
+                        , nodeParamsOutputFile =
+                            cfgNodeOutputFile
+                        , nodeSocket = JustK cfgNodeToClientSocket
+                        }
+            relayNode <-
+                ContT $ withRelayNode relayNodeParams cfgRelayNodePath
+            lift $ extraClusterSetupUsingNode configuredPools relayNode
 
             case NE.nonEmpty otherPools of
-                Nothing -> liftIO $ onClusterStart runningPool0
+                Nothing -> liftIO $ onClusterStart relayNode
                 Just others -> do
-                    let relayNodeParams =
-                            NodeParams
-                                { nodeGenesisFiles = genesisFiles
-                                , nodeHardForks = cfgLastHardFork
-                                , nodePeers = (extraPort, poolsTcpPorts)
-                                , nodeLogConfig =
-                                    LogFileConfig
-                                        { minSeverityTerminal = Info
-                                        , extraLogDir = Nothing
-                                        , minSeverityFile = Info
-                                        }
-                                , nodeParamsOutputFile =
-                                    cfgNodeOutputFile
-                                }
-                    _ <-
-                        ContT
-                            $ launchPools
-                                others
-                                genesisFiles
-                                poolPorts
-                                runningPool0
-                    runningNode <-
-                        ContT $ withRelayNode relayNodeParams cfgRelayNodePath
-                    liftIO $ onClusterStart runningNode
+                    contT_
+                        $ launchPools
+                            others
+                            genesisFiles
+                            poolPorts
+                    liftIO $ onClusterStart relayNode
   where
+    contT_ :: Monad m => (m a -> m a) -> ContT a m ()
+    contT_ f = ContT $ \k -> f $ k ()
+
     FaucetFunds pureAdaFunds maryAllegraFunds massiveWalletFunds =
         faucetFunds
     -- Important cluster setup to run without rollbacks
@@ -290,16 +297,14 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
         -> [(Int, [Int])]
         -- @(port, peers)@ pairs availible for the nodes. Can be used to e.g.
         -- add a BFT node as extra peer for all pools.
-        -> RunningNode
         -- \^ Backup node to run the action with in case passed no pools.
-        -> (RunningNode -> ClusterM a)
+        -> ClusterM a
         -- \^ Action to run once when the stake pools are setup.
         -> ClusterM a
     launchPools
         configuredPools
         genesisFiles
         ports
-        fallbackNode
         action = do
             waitGroup <- newChan
             doneGroup <- newChan
@@ -326,13 +331,15 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                         (port, peers)
                         cfgNodeLogging
                         cfgNodeOutputFile
+                        NothingK
             asyncs <- forM (zip (NE.toList configuredPools) ports)
                 $ \(configuredPool, (port, peers)) -> do
                     async $ handle onException $ do
                         let cfg = mkConfig (port, peers)
-                        operatePool configuredPool cfg $ \runningPool -> do
-                            writeChan waitGroup $ Right runningPool
-                            readChan doneGroup
+                        operatePool configuredPool cfg
+                            $ do
+                                writeChan waitGroup $ Right ()
+                                readChan doneGroup
             mapM_ link asyncs
             let cancelAll = do
                     traceWith cfgTracer $ MsgDebug "stopping all stake pools"
@@ -350,13 +357,7 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                             ("cluster didn't start correctly: " <> errors)
                             (ExitFailure 1)
                 else do
-                    -- Run the action using the connection to the first pool,
-                    -- or the fallback.
-                    let node = case group of
-                            [] -> fallbackNode
-                            Right firstPool : _ -> firstPool
-                            Left e : _ -> error $ show e
-                    action node `finally` liftIO cancelAll
+                    action `finally` liftIO cancelAll
 
     -- \| Get permutations of the size (n-1) for a list of n elements, alongside
     -- with the element left aside. `[a]` is really expected to be `Set a`.

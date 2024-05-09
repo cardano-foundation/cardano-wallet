@@ -46,10 +46,11 @@ library
   hs-source-dirs:
       src
   exposed-modules:
-      Cardano.Launcher
-    , Cardano.Launcher.Node
-      Cardano.Launcher.Wallet
-    , Cardano.Startup
+    Cardano.Launcher
+    Cardano.Launcher.Node
+    Cardano.Launcher.Wallet
+    Cardano.Startup
+    Data.MaybeK
   if os(windows)
     build-depends: Win32
     other-modules: Cardano.Startup.Windows

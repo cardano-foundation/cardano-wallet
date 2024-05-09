@@ -12,6 +12,9 @@ import Prelude
 import Cardano.BM.Tracing
     ( Severity
     )
+import Cardano.Launcher.Node
+    ( MaybeK
+    )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (BabbageHardFork)
     )
@@ -27,7 +30,7 @@ import Cardano.Wallet.Launch.Cluster.Logging
     )
 
 -- | Configuration parameters which update the @node.config@ test data file.
-data NodeParams = NodeParams
+data NodeParams d = NodeParams
     { nodeGenesisFiles :: GenesisFiles
     -- ^ Genesis block start time
     , nodeHardForks :: ClusterEra
@@ -39,6 +42,7 @@ data NodeParams = NodeParams
     -- config. This option can set the minimum severity and add another output
     -- file.
     , nodeParamsOutputFile :: Maybe (FileOf "node-output")
+    , nodeSocket :: MaybeK d (FileOf "node-to-client-socket")
     }
     deriving stock (Show)
 
@@ -47,7 +51,8 @@ singleNodeParams
     -> Severity
     -> Maybe (DirOf "node-logs", Severity)
     -> Maybe (FileOf "node-output")
-    -> NodeParams
+    -> MaybeK d (FileOf "node-to-client-socket")
+    -> NodeParams d
 singleNodeParams genesisFiles severity extraLogFile =
     NodeParams genesisFiles BabbageHardFork (0, []) LogFileConfig
         { minSeverityTerminal = severity

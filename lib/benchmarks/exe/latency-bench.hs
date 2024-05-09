@@ -94,6 +94,7 @@ import Cardano.Wallet.Launch.Cluster.CommandLine
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , FileOf (..)
     , mkRelDirOf
     , newAbsolutizer
     , toFilePath
@@ -203,12 +204,16 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
+import System.IO.Extra
+    ( withTempFile
+    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
     )
 import System.Path
     ( absDir
+    , absFile
     , relDir
     , (</>)
     )
@@ -654,30 +659,32 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                     $ Just
                     $ mkRelDirOf
                     $ Cluster.clusterEraToString clusterEra
-            let clusterConfig =
-                    Cluster.Config
-                        { cfgStakePools = pure (NE.head defaultPoolConfigs)
-                        , cfgLastHardFork = clusterEra
-                        , cfgNodeLogging
-                        , cfgClusterDir = DirOf testDir
-                        , cfgClusterConfigs = clusterConfigsDir
-                        , cfgTestnetMagic
-                        , cfgShelleyGenesisMods =
-                            [ over #sgSlotLength (const 0.2)
-                            , -- to avoid "PastHorizonException" errors, as wallet
-                              -- doesn't keep up with retrieving fresh time interpreter.
-                              over #sgSecurityParam (const 100)
-                              -- when it low then cluster is not making blocks;
-                            ]
-                        , cfgTracer = stdoutTextTracer
-                        , cfgNodeOutputFile = Nothing
-                        , cfgRelayNodePath = mkRelDirOf "relay"
-                        , cfgClusterLogFile = Nothing
-                        }
-            withCluster
-                clusterConfig
-                faucetFunds
-                (onClusterStart cfgTestnetMagic setupAction db)
+            withTempFile $ \socket -> do
+                let clusterConfig =
+                        Cluster.Config
+                            { cfgStakePools = pure (NE.head defaultPoolConfigs)
+                            , cfgLastHardFork = clusterEra
+                            , cfgNodeLogging
+                            , cfgClusterDir = DirOf testDir
+                            , cfgClusterConfigs = clusterConfigsDir
+                            , cfgTestnetMagic
+                            , cfgShelleyGenesisMods =
+                                [ over #sgSlotLength (const 0.2)
+                                , -- to avoid "PastHorizonException" errors, as wallet
+                                  -- doesn't keep up with retrieving fresh time interpreter.
+                                  over #sgSecurityParam (const 100)
+                                  -- when it low then cluster is not making blocks;
+                                ]
+                            , cfgTracer = stdoutTextTracer
+                            , cfgNodeOutputFile = Nothing
+                            , cfgRelayNodePath = mkRelDirOf "relay"
+                            , cfgClusterLogFile = Nothing
+                            , cfgNodeToClientSocket = FileOf $ absFile socket
+                            }
+                withCluster
+                    clusterConfig
+                    faucetFunds
+                    (onClusterStart cfgTestnetMagic setupAction db)
 
     onClusterStart testnetMagic setupAction db node = do
         let (RunningNode conn genesisData vData) = node
@@ -722,7 +729,7 @@ parseCommandLineOptions = do
     absolutizer <- newAbsolutizer
     O.execParser
         $ O.info
-            (fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
+            ( fmap CommandLineOptions (clusterConfigsDirParser absolutizer)
                 <**> O.helper
             )
             (O.progDesc "Cardano Wallet's Latency Benchmark")

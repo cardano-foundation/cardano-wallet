@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -21,6 +22,7 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , FileOf (..)
     , RelDirOf (..)
     , absFilePathOf
     , toFilePath
@@ -46,6 +48,10 @@ import Cardano.Wallet.Launch.Cluster.Node.RunningNode
 import Control.Monad.Reader
     ( MonadIO (..)
     )
+import Data.MaybeK
+    ( IsMaybe (..)
+    , MaybeK (..)
+    )
 import Data.Tagged
     ( Tagged (..)
     )
@@ -68,7 +74,7 @@ import System.Path.Directory
 -- Connectiong wallet to a non-block producing (relay) node allows to avoid
 -- such problems.
 withRelayNode
-    :: NodeParams
+    :: NodeParams IsJust
     -- ^ Parameters used to generate config files.
     -> RelDirOf "relay"
     -- ^ Path segment for the node to add to the cluster directory.
@@ -78,7 +84,9 @@ withRelayNode
 withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
     let name = "node"
     DirOf nodeDirPath <- askNodeDir nodeSegment
-    let NodeParams genesisFiles hardForks (port, peers) logCfg _ = params
+    let NodeParams genesisFiles hardForks (port, peers) logCfg _
+            socket
+            = params
     bracketTracer' "withRelayNode" $ do
         liftIO $ createDirectoryIfMissing True nodeDirPath
         let logCfg' = setLoggingName name logCfg
@@ -91,7 +99,8 @@ withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
                 logCfg'
         topology <- genTopology nodeSegment peers
 
-        let cfg =
+        let
+            cfg =
                 CardanoNodeConfig
                     { nodeDir = toFilePath nodeDirPath
                     , nodeConfigFile = absFilePathOf config
@@ -107,8 +116,9 @@ withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
                     , nodeExecutable = Nothing
                     , nodeOutputFile = absFilePathOf
                         <$> nodeParamsOutputFile params
+                    , nodeSocketPathFile = fmap (toFilePath . absFileOf) socket
                     }
 
-        let onClusterStart' socket = onClusterStart
-                $ RunningNode socket genesisData vd
+        let onClusterStart' (JustK (socketPath)) = onClusterStart
+                $ RunningNode socketPath genesisData vd
         withCardanoNodeProcess name cfg onClusterStart'
