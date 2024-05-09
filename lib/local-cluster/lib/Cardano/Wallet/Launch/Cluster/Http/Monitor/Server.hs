@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.Server
+module Cardano.Wallet.Launch.Cluster.Http.Monitor.Server
     ( mkControlHandlers
     , ControlHandlers
     , mkControlServer
@@ -11,7 +11,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     , ControlAPI
     )

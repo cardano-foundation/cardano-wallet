@@ -1,17 +1,17 @@
-module Cardano.Wallet.Launch.Cluster.Monitoring.MonitorSpec
+module Cardano.Wallet.Launch.Cluster.Http.ServiceSpec
     ( spec
     )
 where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( MonitorQ (..)
     , RunMonitorQ (..)
     )
 import Cardano.Wallet.Launch.Cluster.Http.Service
-    ( MonitorConfiguration (..)
-    , withMonitoring
+    ( ServiceConfiguration (..)
+    , withService
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
@@ -54,37 +54,37 @@ import UnliftIO.Concurrent
     ( threadDelay
     )
 
-testMonitoring
+testService
     :: MonitorState
     -> (Tracer IO Phase -> RunMonitorQ IO -> IO ())
     -> IO ()
-testMonitoring w f =
+testService w f =
     evalContT $ do
         (tracer, (query, _)) <-
-            withMonitoring SMainnet (error "No connection")
+            withService SMainnet (error "No connection")
                 (error "No cluster") nullTracer
-                $ MonitorConfiguration Nothing w
+                $ ServiceConfiguration Nothing w
         liftIO $ f tracer query
 
 spec :: Spec
 spec = do
-    describe "withMonitoring control" $ do
+    describe "withService control" $ do
         it "can start" $ do
-            testMonitoring Step $ \_ _ -> pure ()
+            testService Step $ \_ _ -> pure ()
         it "can query" $ do
-            testMonitoring Step $ \_ (RunQuery query) -> do
+            testService Step $ \_ (RunQuery query) -> do
                 result <- query ReadyQ
                 result `shouldBe` False
         it "can trace" $ do
-            testMonitoring Run $ \tracer _ -> do
+            testService Run $ \tracer _ -> do
                 traceWith tracer RetrievingFunds
         it "can report readiness" $ do
-            testMonitoring Run $ \tracer (RunQuery query) -> do
+            testService Run $ \tracer (RunQuery query) -> do
                 traceWith tracer (Cluster Nothing)
                 result <- query ReadyQ
                 result `shouldBe` True
         it "can step the tracer thread" $ do
-            testMonitoring Step $ \tracer (RunQuery query) -> do
+            testService Step $ \tracer (RunQuery query) -> do
                 tracer' <- async $ do
                     traceWith tracer (Cluster Nothing)
                 fix $ \loop -> do
@@ -92,7 +92,7 @@ spec = do
                     unless result $ query StepQ >> loop
                 wait tracer'
         it "can report the phase history" $ do
-            testMonitoring Run $ \tracer (RunQuery query) -> do
+            testService Run $ \tracer (RunQuery query) -> do
                 traceWith tracer RetrievingFunds
                 traceWith tracer Metadata
                 traceWith tracer Genesis
@@ -115,7 +115,7 @@ spec = do
                                ]
                 state `shouldBe` Run
         it "can switch from step to run" $ do
-            testMonitoring Step $ \tracer (RunQuery query) -> do
+            testService Step $ \tracer (RunQuery query) -> do
                 tracer' <- async $ do
                     traceWith tracer RetrievingFunds
                 state <- query SwitchQ

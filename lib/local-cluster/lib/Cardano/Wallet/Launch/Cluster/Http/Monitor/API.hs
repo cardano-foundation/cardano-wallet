@@ -9,7 +9,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
+module Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     , ReadyAPI
     , StepAPI
@@ -21,7 +21,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
     ( monitorStateSchema
     , observationSchema
     )

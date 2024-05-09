@@ -9,7 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
+module Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( RunMonitorQ (..)
     , MonitorQ (..)
     , MsgMonitorClient (..)
@@ -21,7 +21,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     , ObserveAPI
     , ReadyAPI

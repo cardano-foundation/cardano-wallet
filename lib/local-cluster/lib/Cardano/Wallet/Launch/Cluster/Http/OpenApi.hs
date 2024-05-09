@@ -37,7 +37,7 @@ import Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
     ( faucetDefinitions
     , faucetPaths
     )
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
     ( monitoringDefinitions
     , monitoringPaths
     )

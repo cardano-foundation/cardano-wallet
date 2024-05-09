@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
+module Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
     ( monitoringPaths
     , monitoringDefinitions
     , monitorStateSchema

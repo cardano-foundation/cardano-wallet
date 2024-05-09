@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
+module Cardano.Wallet.Launch.Cluster.Http.Monitor.APISpec
     ( spec
     , genObservation
     , genMonitorState
@@ -9,16 +9,13 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
     , Phase (..)
     , RelayNode (..)
-    )
-import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkDiscriminant (Mainnet)
     )
 import Control.Monitoring.Tracing
     ( MonitorState (..)

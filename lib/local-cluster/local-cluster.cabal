@@ -61,17 +61,18 @@ library
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     Cardano.Wallet.Launch.Cluster.Http.Faucet.Server
     Cardano.Wallet.Launch.Cluster.Http.Logging
+    Cardano.Wallet.Launch.Cluster.Http.Monitor.API
+    Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
+    Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
+    Cardano.Wallet.Launch.Cluster.Http.Monitor.Server
     Cardano.Wallet.Launch.Cluster.Http.OpenApi
     Cardano.Wallet.Launch.Cluster.Http.Server
     Cardano.Wallet.Launch.Cluster.Http.Service
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.API
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.Client
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.Server
     Cardano.Wallet.Launch.Cluster.Monitoring.Phase
+    Cardano.Wallet.Launch.Cluster.Monitoring.TimedMonitor
     Cardano.Wallet.Launch.Cluster.Node.GenNodeConfig
     Cardano.Wallet.Launch.Cluster.Node.GenTopology
     Cardano.Wallet.Launch.Cluster.Node.NodeParams
@@ -215,9 +216,9 @@ test-suite test
   other-modules:
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssetsSpec
+    Cardano.Wallet.Launch.Cluster.Http.Monitor.APISpec
     Cardano.Wallet.Launch.Cluster.Http.OpenAPISpec
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
-    Cardano.Wallet.Launch.Cluster.Monitoring.MonitorSpec
+    Cardano.Wallet.Launch.Cluster.Http.ServiceSpec
     Control.Monitoring.MonitorSpec
     Control.Monitoring.TracingSpec
     Paths_local_cluster
