@@ -175,16 +175,13 @@ executable local-cluster
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
-    , contra-tracer
     , directory
-    , iohk-monitoring
     , iohk-monitoring-extra
     , lens
     , local-cluster
     , mtl
     , pathtype
     , temporary-extra
-    , text-class
     , unliftio
     , with-utf8
 
