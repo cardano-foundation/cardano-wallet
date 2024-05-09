@@ -2,9 +2,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
-    ( generateOpenapi3
-    , apiSchema
-    , definitions
+    ( monitoringPaths
+    , monitoringDefinitions
     , monitorStateSchema
     , observationSchema
     ) where
@@ -18,35 +17,22 @@ import Control.Lens
     , (?~)
     )
 import Data.Aeson
-import Data.Aeson.Encode.Pretty
-    ( encodePretty
-    )
 import Data.HashMap.Strict.InsOrd
     ( InsOrdHashMap
     )
 import Data.OpenApi
     ( Definitions
-    , HasComponents (..)
     , HasContent (..)
     , HasDescription (..)
     , HasEnum (..)
     , HasGet (..)
-    , HasInfo (..)
     , HasItems (..)
-    , HasLicense (license)
     , HasOneOf (..)
-    , HasPaths (..)
     , HasPost (..)
     , HasProperties (..)
     , HasSchema (..)
-    , HasSchemas (..)
     , HasSummary (..)
-    , HasTitle (..)
     , HasType (..)
-    , HasUrl (..)
-    , HasVersion (..)
-    , License
-    , OpenApi
     , OpenApiItems (..)
     , OpenApiType (..)
     , Operation
@@ -54,7 +40,6 @@ import Data.OpenApi
     , Reference (..)
     , Referenced (..)
     , Schema
-    , URL (..)
     , _Inline
     )
 import Data.Text
@@ -64,26 +49,8 @@ import Network.HTTP.Media
     ( MediaType
     )
 
-import qualified Data.ByteString.Lazy.Char8 as BL
-
-generateOpenapi3 :: BL.ByteString
-generateOpenapi3 = encodePretty apiSchema
-
--- jsonMediaType :: MediaType
--- jsonMediaType = "application/json"
-
-apiSchema :: OpenApi
-apiSchema :: OpenApi =
-    mempty
-        & info . title .~ "Cardano Wallet Monitoring API"
-        & info . version .~ "0.1.0.0"
-        & info . description ?~ "This is the API for the monitoring server"
-        & info . license ?~ license'
-        & paths .~ paths'
-        & components . schemas .~ definitions
-
-definitions :: Definitions Schema
-definitions =
+monitoringDefinitions :: Definitions Schema
+monitoringDefinitions =
     [ ("Ready", mempty & type_ ?~ OpenApiBoolean)
     , ("MonitorState", monitorStateSchema)
     , ("Observation", observationSchema)
@@ -162,13 +129,8 @@ relayNodeSchema =
         & type_ ?~ OpenApiString
         & description ?~ "The socket file or pipe of a relay node"
 
-license' :: License
-license' =
-    "Apache 2"
-        & url ?~ URL "https://www.apache.org/licenses/LICENSE-2.0.html"
-
-paths' :: InsOrdHashMap FilePath PathItem
-paths' =
+monitoringPaths :: InsOrdHashMap FilePath PathItem
+monitoringPaths =
     [ readyPath
     , controlStepPath
     , controlSwitchPath

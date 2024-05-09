@@ -55,6 +55,7 @@ library
     Cardano.Wallet.Launch.Cluster.GenesisFiles
     Cardano.Wallet.Launch.Cluster.Http.Faucet.OpenApi
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
+    Cardano.Wallet.Launch.Cluster.Http.OpenApi
     Cardano.Wallet.Launch.Cluster.KeyRegistration
     Cardano.Wallet.Launch.Cluster.Logging
     Cardano.Wallet.Launch.Cluster.MonetaryPolicyScript
@@ -205,8 +206,8 @@ test-suite test
   other-modules:
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssetsSpec
+    Cardano.Wallet.Launch.Cluster.Http.OpenAPISpec
     Cardano.Wallet.Launch.Cluster.Monitoring.Http.APISpec
-    Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenAPISpec
     Cardano.Wallet.Launch.Cluster.Monitoring.MonitorSpec
     Control.Monitoring.MonitorSpec
     Control.Monitoring.TracingSpec

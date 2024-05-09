@@ -1,10 +1,10 @@
-module Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenAPISpec
+module Cardano.Wallet.Launch.Cluster.Http.OpenAPISpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.Monitoring.Http.OpenApi
+import Cardano.Wallet.Launch.Cluster.Http.OpenApi
     ( generateOpenapi3
     )
 import Paths_local_cluster

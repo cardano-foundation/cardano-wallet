@@ -15,6 +15,9 @@ import Control.Lens
     , (.~)
     , (?~)
     )
+import Data.HashMap.Strict.InsOrd
+    ( InsOrdHashMap
+    )
 import Data.OpenApi
     ( Definitions
     , HasContent (..)
@@ -126,7 +129,7 @@ assetNameSchema =
                , ("policy", Inline $ mempty & type_ ?~ OpenApiString)
                ]
 
-faucetPaths :: [(FilePath, PathItem)]
+faucetPaths :: InsOrdHashMap FilePath PathItem
 faucetPaths = [sendFaucetAssetsPath]
 
 sendFaucetAssetsPath :: (FilePath, PathItem)
