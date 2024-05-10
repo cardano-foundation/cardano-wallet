@@ -509,8 +509,14 @@ genSlotNo32 = do
 genLovelace :: Gen Lovelace
 genLovelace =
     frequency
-        [ (10, Lovelace . intCast . getNonNegative @Int <$> arbitrary)
-        , (50, choose (1_000_000, 1_000_000_000))
+        [ (60, genLovelaceForTxOutAdaValue)
+        , (40, choose (1_000_000, 1_000_000_000))
+        ]
+
+genLovelaceForTxOutAdaValue :: Gen Lovelace
+genLovelaceForTxOutAdaValue =
+    frequency
+        [ (60, choose (1_000_000, 1_000_000_000))
         , (10, choose (txOutMinLovelace, txOutMaxLovelace))
         , (30, genEncodingBoundaryLovelace)
         ]
@@ -762,7 +768,7 @@ genValueForTxOut = do
             , pure []
             ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
-    ada <- fromInteger . unLovelace <$> genLovelace
+    ada <- fromInteger . unLovelace <$> genLovelaceForTxOutAdaValue
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
   where
     unLovelace (Lovelace l) = l
