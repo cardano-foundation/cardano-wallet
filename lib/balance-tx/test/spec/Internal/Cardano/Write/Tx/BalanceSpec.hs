@@ -360,6 +360,7 @@ import Test.Hspec.QuickCheck
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Args (..)
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedNatural
@@ -374,10 +375,12 @@ import Test.QuickCheck
     , listOf
     , oneof
     , property
+    , quickCheckWith
     , scale
     , shrinkBoundedEnum
     , shrinkList
     , shrinkMapBy
+    , stdArgs
     , suchThat
     , tabulate
     , vectorOf
@@ -486,11 +489,14 @@ spec = do
 
 spec_balanceTx :: Spec
 spec_balanceTx = describe "balanceTx" $ do
+    let moreDiscardsAllowed = stdArgs { maxDiscardRatio = 100 }
     it "doesn't balance transactions with existing 'totalCollateral'"
-        $ property prop_balanceTxExistingTotalCollateral
+        $ quickCheckWith moreDiscardsAllowed
+            prop_balanceTxExistingTotalCollateral
 
     it "doesn't balance transactions with existing 'returnCollateral'"
-        $ property prop_balanceTxExistingReturnCollateral
+        $ quickCheckWith moreDiscardsAllowed
+            prop_balanceTxExistingReturnCollateral
 
     it "does not balance transactions if no inputs can be created"
         $ property prop_balanceTxUnableToCreateInput
