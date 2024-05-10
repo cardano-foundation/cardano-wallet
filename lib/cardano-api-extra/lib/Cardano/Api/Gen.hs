@@ -615,16 +615,16 @@ genExtraKeyWitnesses era =
 
 genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
 genTxTotalCollateral era = withEraWitness era $ \supported ->
-    oneof
-        [ pure TxTotalCollateralNone
-        , TxTotalCollateral supported <$> genLovelace
+    frequency
+        [ (95, pure TxTotalCollateralNone)
+        , (5, TxTotalCollateral supported <$> genLovelace)
         ]
 
 genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
 genTxReturnCollateral era = withEraWitness era $ \supported ->
-    oneof
-        [ pure TxReturnCollateralNone
-        , TxReturnCollateral supported <$> genTxOut era
+    frequency
+        [ (95, pure TxReturnCollateralNone)
+        , (5, TxReturnCollateral supported <$> genTxOut era)
         ]
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
