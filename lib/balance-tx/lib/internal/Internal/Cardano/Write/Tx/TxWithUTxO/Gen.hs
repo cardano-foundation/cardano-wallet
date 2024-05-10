@@ -43,7 +43,7 @@ import Internal.Cardano.Write.Tx.TxWithUTxO
     )
 import Test.QuickCheck
     ( Gen
-    , oneof
+    , frequency
     )
 import Test.QuickCheck.Extra
     ( genMapFromKeysWith
@@ -65,9 +65,9 @@ generate
     -> Gen (TxOut era)
     -> Gen (TxWithUTxO era)
 generate genTx genTxIn genTxOut =
-    oneof
-        [ generateWithMinimalUTxO genTx genTxIn genTxOut
-        , generateWithSurplusUTxO genTx genTxIn genTxOut
+    frequency
+        [ (9, generateWithMinimalUTxO genTx genTxIn genTxOut)
+        , (1, generateWithSurplusUTxO genTx genTxIn genTxOut)
         ]
 
 -- | Generates a 'TxWithUTxO' object that has a minimal UTxO set.
