@@ -2199,15 +2199,18 @@ instance Arbitrary (MixedSign Value) where
     shrink (MixedSign v) = MixedSign <$> shrink v
 
 instance IsRecentEra era => Arbitrary (PartialTx era) where
-    arbitrary = mkPartialTx <$> genTxWithUTxO
-    shrink = shrinkMapBy mkPartialTx unPartialTx shrinkTxWithUTxO
+    arbitrary = partialTxFromTxWithUTxO <$> genTxWithUTxO
+    shrink = shrinkMapBy
+        partialTxFromTxWithUTxO
+        txWithUTxOFromPartialTx
+        shrinkTxWithUTxO
 
-mkPartialTx :: IsRecentEra era => TxWithUTxO era -> PartialTx era
-mkPartialTx (TxWithUTxO tx extraUTxO) =
+partialTxFromTxWithUTxO :: IsRecentEra era => TxWithUTxO era -> PartialTx era
+partialTxFromTxWithUTxO (TxWithUTxO tx extraUTxO) =
     PartialTx {tx, extraUTxO, redeemers = [], timelockKeyWitnessCounts = mempty}
 
-unPartialTx :: IsRecentEra era => PartialTx era -> TxWithUTxO era
-unPartialTx PartialTx {tx, extraUTxO} =
+txWithUTxOFromPartialTx :: IsRecentEra era => PartialTx era -> TxWithUTxO era
+txWithUTxOFromPartialTx PartialTx {tx, extraUTxO} =
     TxWithUTxO.constructFiltered tx extraUTxO
 
 genTxWithUTxO :: IsRecentEra era => Gen (TxWithUTxO era)
