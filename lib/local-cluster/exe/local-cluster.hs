@@ -1,19 +1,15 @@
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 import Prelude
 
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
-import Cardano.BM.Extra
-    ( stdoutTextTracer
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , newToTextTracer
     )
 import Cardano.Launcher.Node
     ( nodeSocketFile
@@ -40,6 +36,20 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , mkRelDirOf
     , toFilePath
     )
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.Server
+    ( newNodeConnVar
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Service
+    ( withServiceServer
+    )
+import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
+    ( Phase (..)
+    , RelayNode (..)
+    )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkId (..)
+    , withSNetworkId
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -56,6 +66,12 @@ import Control.Monad.Cont
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
+import Control.Tracer
+    ( traceWith
+    )
+import Data.Text
+    ( Text
+    )
 import Main.Utf8
     ( withUtf8
     )
@@ -65,12 +81,16 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
+import System.IO.Extra
+    ( withTempFile
+    )
 import System.IO.Temp.Extra
     ( SkipCleanup (..)
     , withSystemTempDir
     )
 import System.Path
     ( absDir
+    , absFile
     , parse
     , relDir
     , relFile
@@ -210,37 +230,49 @@ main = withUtf8 $ do
     -- Ensure key files have correct permissions for cardano-cli
     setDefaultFilePermissions
 
-    skipCleanup <- SkipCleanup <$> isEnvSet "NO_CLEANUP"
-    let tr = stdoutTextTracer
-    clusterEra <- Cluster.clusterEraFromEnv
-    cfgNodeLogging <-
-        Cluster.logFileConfigFromEnv
-            $ Just
-            $ mkRelDirOf
-            $ Cluster.clusterEraToString clusterEra
     CommandLineOptions
         { clusterConfigsDir
         , clusterDir
         , clusterLogs
         , nodeToClientSocket
+        , httpService
+        , minSeverity
         } <-
         parseCommandLineOptions
     evalContT $ do
-        -- Create a temporary directory for the cluster
-        clusterPath <-
+        -- Add a tracer for the cluster logs
+        ToTextTracer tracer <-
+            ContT
+                $ newToTextTracer
+                    (toFilePath . absFileOf <$> clusterLogs)
+                    minSeverity
+
+        let debug :: MonadIO m => Text -> m ()
+            debug = liftIO . traceWith tracer
+
+        debug "Creating temporary directory for the cluster"
+        clusterPath <- do
+            skipCleanup <- liftIO $ SkipCleanup <$> isEnvSet "NO_CLEANUP"
             case clusterDir of
                 Just path -> pure path
                 Nothing ->
-                    fmap (DirOf . absDir) $
-                    ContT $ withSystemTempDir tr "test-cluster" skipCleanup
-        -- Start the faucet
-        faucetClientEnv <- ContT withFaucet
-        maryAllegraFunds <-
-            liftIO
-                $ runFaucetM faucetClientEnv
-                $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
-        -- Start the cluster
-        let clusterCfg =
+                    fmap (DirOf . absDir)
+                        $ ContT
+                        $ withSystemTempDir tracer "test-cluster" skipCleanup
+
+        debug "Creating cluster configuration"
+        clusterCfg <- do
+            socketPath <- case nodeToClientSocket of
+                Just path -> pure path
+                Nothing -> FileOf . absFile <$> ContT withTempFile
+            clusterEra <- liftIO Cluster.clusterEraFromEnv
+            cfgNodeLogging <-
+                liftIO
+                    $ Cluster.logFileConfigFromEnv
+                    $ Just
+                    $ mkRelDirOf
+                    $ Cluster.clusterEraToString clusterEra
+            pure
                 Cluster.Config
                     { cfgStakePools = Cluster.defaultPoolConfigs
                     , cfgLastHardFork = clusterEra
@@ -248,13 +280,35 @@ main = withUtf8 $ do
                     , cfgClusterDir = clusterPath
                     , cfgClusterConfigs = clusterConfigsDir
                     , cfgTestnetMagic = Cluster.TestnetMagic 42
-                    , cfgShelleyGenesisMods = [over #sgSlotLength \_ -> 0.2]
-                    , cfgTracer = stdoutTextTracer
+                    , cfgShelleyGenesisMods = [over #sgSlotLength $ \_ -> 0.2]
+                    , cfgTracer = tracer
                     , cfgNodeOutputFile = Nothing
                     , cfgRelayNodePath = mkRelDirOf "relay"
                     , cfgClusterLogFile = clusterLogs
-                    , cfgNodeToClientSocket = nodeToClientSocket
+                    , cfgNodeToClientSocket = socketPath
                     }
+
+        debug "Starting the monitoring server"
+        (_, phaseTracer) <- withSNetworkId (NTestnet 42)
+            $ \network -> do
+                nodeConn <- liftIO newNodeConnVar
+                withServiceServer
+                    network
+                    nodeConn
+                    clusterCfg
+                    tracer
+                    httpService
+
+        debug "Starting the faucet"
+        faucetClientEnv <- ContT withFaucet
+
+        debug "Getting multi assets funds"
+        maryAllegraFunds <-
+            liftIO
+                $ runFaucetM faucetClientEnv
+                $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
+
+        debug "Starting the cluster"
         node <-
             ContT
                 $ Cluster.withCluster
@@ -264,30 +318,41 @@ main = withUtf8 $ do
                         , maryAllegraFunds
                         , massiveWalletFunds = []
                         }
+
+        debug "Starting the relay node"
         nodeSocket <-
             case parse . nodeSocketFile
                 $ Cluster.runningNodeSocketPath node of
                 Left e -> error e
                 Right p -> pure p
 
-        -- Start the wallet
-        let clusterDirPath = absDirOf clusterPath
-        let walletDir = clusterDirPath </> relDir "wallet"
-        liftIO $ createDirectoryIfMissing True $ toFilePath walletDir
-        let walletProcessConfig =
-                WC.WalletProcessConfig
-                    { WC.walletDir = DirOf walletDir
-                    , WC.walletNodeApi = NC.NodeApi nodeSocket
-                    , WC.walletDatabase = DirOf $ clusterDirPath </> relDir "db"
-                    , WC.walletListenHost = Nothing
-                    , WC.walletListenPort = Nothing
-                    , WC.walletByronGenesisForTestnet =
-                        Just
-                            $ FileOf
-                            $ clusterDirPath
-                                </> relFile "byron-genesis.json"
-                    }
-        (_walletInstance, _walletApi) <-
+        debug "Starting the wallet"
+        (_walletInstance, _walletApi) <- do
+            let clusterDirPath = absDirOf clusterPath
+                walletDir = clusterDirPath </> relDir "wallet"
+            liftIO $ createDirectoryIfMissing True $ toFilePath walletDir
+            let walletProcessConfig =
+                    WC.WalletProcessConfig
+                        { WC.walletDir = DirOf walletDir
+                        , WC.walletNodeApi = NC.NodeApi nodeSocket
+                        , WC.walletDatabase = DirOf $ clusterDirPath </> relDir "db"
+                        , WC.walletListenHost = Nothing
+                        , WC.walletListenPort = Nothing
+                        , WC.walletByronGenesisForTestnet =
+                            Just
+                                $ FileOf
+                                $ clusterDirPath
+                                    </> relFile "byron-genesis.json"
+                        }
             ContT $ bracket (WC.start walletProcessConfig) (WC.stop . fst)
-        -- Wait forever or ctrl-c
+
+        debug "Tracing the ready phase"
+        liftIO
+            $ traceWith phaseTracer
+            $ Cluster
+            $ Just
+            $ RelayNode
+            $ toFilePath nodeSocket
+
+        debug "Wait forever or ctrl-c"
         threadDelay maxBound

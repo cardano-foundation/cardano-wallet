@@ -121,6 +121,9 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty ((:|))
     )
+import Data.Text
+    ( Text
+    )
 import System.Exit
     ( ExitCode (..)
     )
@@ -182,6 +185,8 @@ withCluster
 withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
     $ bracketTracer' "withCluster"
     $ do
+        let debug :: MonadIO m => Text -> m ()
+            debug  x = liftIO $ traceWith cfgTracer $ MsgDebug x
         liftIO resetGlobals
 
         let clusterDir = absDirOf cfgClusterDir
@@ -244,11 +249,14 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
             case NE.nonEmpty otherPools of
                 Nothing -> liftIO $ onClusterStart relayNode
                 Just others -> do
-                    contT_
-                        $ launchPools
+                    ContT $ \k -> do
+                        debug "Starting pools"
+                        r <- launchPools
                             others
                             genesisFiles
-                            poolPorts
+                            poolPorts $ k ()
+                        debug "Pools are down"
+                        pure r
                     liftIO $ onClusterStart relayNode
   where
     contT_ :: Monad m => (m a -> m a) -> ContT a m ()
@@ -342,9 +350,10 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                                 readChan doneGroup
             mapM_ link asyncs
             let cancelAll = do
-                    traceWith cfgTracer $ MsgDebug "stopping all stake pools"
+                    traceWith cfgTracer $ MsgDebug "Stopping all stake pools"
                     replicateM_ poolCount (writeChan doneGroup ())
                     mapM_ wait asyncs
+                    traceWith cfgTracer $ MsgDebug "All stake pools are down"
 
             traceClusterLog $ MsgRegisteringStakePools poolCount
             group <- waitAll

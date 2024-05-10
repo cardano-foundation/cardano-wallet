@@ -175,41 +175,49 @@ executable local-cluster
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
+    , contra-tracer
     , directory
+    , extra
     , iohk-monitoring-extra
     , lens
     , local-cluster
     , mtl
     , pathtype
     , temporary-extra
+    , text
     , unliftio
     , with-utf8
 
-test-suite test
+common test-common
   import:             language
-  type:               exitcode-stdio-1.0
-  main-is:            test.hs
   ghc-options:        -threaded -rtsopts
   hs-source-dirs:     test/unit
   build-depends:
     , aeson
     , base
     , bytestring
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
+    , filepath
     , foldl
     , hspec
     , hspec-golden
     , local-cluster
     , mtl
     , openapi3
+    , process
     , QuickCheck
     , time
     , unliftio
     , with-utf8
 
-  build-tool-depends: hspec-discover:hspec-discover
+  build-tool-depends:
+    , hspec-discover:hspec-discover
+    , local-cluster:local-cluster
+
   other-modules:
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssetsSpec
@@ -221,3 +229,7 @@ test-suite test
     Paths_local_cluster
     Spec
     SpecHook
+
+executable test-local-cluster-exe
+  import:  test-common
+  main-is: test-exe.hs

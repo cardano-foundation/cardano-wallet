@@ -11,8 +11,8 @@ build-type:    Simple
 library
   default-language:   Haskell2010
   default-extensions:
-    NoImplicitPrelude
     DerivingStrategies
+    NoImplicitPrelude
     OverloadedStrings
 
   ghc-options:
@@ -25,7 +25,10 @@ library
     -freverse-errors
 
   hs-source-dirs:     src
-  exposed-modules:    Cardano.BM.Extra
+  exposed-modules:
+    Cardano.BM.Extra
+    Cardano.BM.ToTextTracer
+
   build-depends:
     , aeson
     , base
@@ -34,9 +37,10 @@ library
     , deepseq
     , exceptions
     , fmt
-    , iohk-monitoring      ^>=0.1.11.3
+    , iohk-monitoring
+    , stm
     , text
-    , text-class           ^>=2024.5.5
+    , text-class
     , time
     , tracer-transformers
     , transformers

@@ -21,6 +21,8 @@ module Cardano.Launcher
     , ProcessHasExited(..)
     , withBackendProcess
     , withBackendCreateProcess
+    , IfToSendSigINT (..)
+    , TimeoutInSecs (..)
 
     -- * Logging
     , LauncherLog(..)
@@ -36,7 +38,8 @@ import Cardano.BM.Data.Tracer
     , HasSeverityAnnotation (..)
     )
 import Cardano.Startup
-    ( killProcess
+    ( interruptProcess
+    , killProcess
     )
 import Control.Monad
     ( join
@@ -64,6 +67,9 @@ import Data.Text
     )
 import Data.Text.Class
     ( ToText (..)
+    )
+import Data.Text.Lazy.Builder
+    ( toLazyText
     )
 import Fmt
     ( Buildable (..)
@@ -124,6 +130,7 @@ import UnliftIO.Process
     )
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 
 -- | Represent a command to execute. Args are provided as a list where options
 -- are expected to be prefixed with `--` or `-`. For example:
@@ -149,7 +156,7 @@ data Command = Command
     } deriving (Generic)
 
 instance Show Command where
-    show = show . build
+    show = TL.unpack . toLazyText . build
 
 instance Eq Command where
     a == b = build a == build b
@@ -187,6 +194,14 @@ data ProcessHasExited
 
 instance Exception ProcessHasExited
 
+-- | Whether to send a SIGINT to the process before cleanup
+data IfToSendSigINT = SendSigINT | DoNotSendSigINT
+
+-- | Timeout in seconds to wait before killing the process, after termination
+-- Do not use NoTimeout if you are not sure the process will terminate with
+-- SIGTERM / SIGINT
+data TimeoutInSecs = NoTimeout | TimeoutInSecs Int
+
 data ProcessHandles = ProcessHandles
     { inputHandle :: Maybe Handle
     , outputHandle :: Maybe Handle
@@ -205,13 +220,23 @@ withBackendProcess
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
+    -> TimeoutInSecs
+    -- ^ Seconds to wait before killing the process, after termination
+    -> IfToSendSigINT
+    -- ^ Whether to send a sigINT to the process before clenup
     -> (ProcessHandles -> m a)
     -- ^ Action to execute while process is running.
     -> m a
-withBackendProcess tr (Command name args before std_in std_out) action =
-    liftIO before >> withBackendCreateProcess tr process action
-  where
-    process = (proc name args) { std_in, std_out, std_err = std_out }
+withBackendProcess
+    tr
+    (Command name args before std_in std_out)
+    mTimeoutSecs
+    ifToSendSigINT
+    action = do
+        liftIO before
+        withBackendCreateProcess tr process mTimeoutSecs ifToSendSigINT action
+      where
+        process = (proc name args){std_in, std_out, std_err = std_out}
 
 -- | A variant of 'withBackendProcess' which accepts a general 'CreateProcess'
 -- object. This version also has nicer async properties than
@@ -233,27 +258,35 @@ withBackendProcess tr (Command name args before std_in std_out) action =
 -- 'System.Process.Typed.withProcessWait' (except for wait timeout). The
 -- launcher code should be converted to use @typed-process@.
 withBackendCreateProcess
-    :: forall m a. (MonadUnliftIO m)
+    :: forall m a
+     . MonadUnliftIO m
     => Tracer m LauncherLog
     -- ^ Logging
     -> CreateProcess
     -- ^ 'Command' description
+    -> TimeoutInSecs
+    -- ^ Seconds to wait before killing the process, after termination
+    -> IfToSendSigINT
+    -- ^ Whether to send a sigINT to the process before clenup
     -> (ProcessHandles -> m a)
     -- ^ Action to execute while process is running.
     -> m a
-withBackendCreateProcess tr process action = do
+withBackendCreateProcess tr process mTimeoutSecs ifToSendSigINT action = do
     traceWith tr $ MsgLauncherStart name args
     exitVar <- newEmptyMVar
-    res <- fmap join $ tryJust spawnPredicate $ bracket
-        (createProcess process)
-        (cleanupProcessAndWait (readMVar exitVar)) $
-            \(mstdin, mstdout, mstderr, ph) -> do
-                pid <- maybe "-" (T.pack . show) <$> liftIO (getPid ph)
-                let tr' = contramap (WithProcessInfo name pid) tr
-                let tr'' = contramap MsgLauncherWait tr'
-                traceWith tr' MsgLauncherStarted
-                interruptibleWaitForProcess tr'' ph (putMVar exitVar)
-                race (ProcessHasExited name <$> readMVar exitVar) $ bracket_
+    res <- fmap join
+        $ tryJust spawnPredicate
+        $ bracket
+            (createProcess process)
+            (cleanupProcessAndWait (readMVar exitVar))
+        $ \(mstdin, mstdout, mstderr, ph) -> do
+            pid <- maybe "-" (T.pack . show) <$> liftIO (getPid ph)
+            let tr' = contramap (WithProcessInfo name pid) tr
+            let tr'' = contramap MsgLauncherWait tr'
+            traceWith tr' MsgLauncherStarted
+            interruptibleWaitForProcess tr'' ph (putMVar exitVar)
+            race (ProcessHasExited name <$> readMVar exitVar)
+                $ bracket_
                     (traceWith tr' MsgLauncherAction)
                     (traceWith tr' MsgLauncherActionDone)
                     (action $ ProcessHandles mstdin mstdout mstderr ph)
@@ -275,16 +308,22 @@ withBackendCreateProcess tr process action = do
      -- doesn't exit after timeout, kill it, to avoid blocking indefinitely.
     cleanupProcessAndWait getExitStatus ps@(_, _, _, ph) = do
         traceWith tr MsgLauncherCleanup
+        -- we also send a sigINT to the process to make sure it terminates
+        case ifToSendSigINT of
+            SendSigINT -> liftIO $ getPid ph >>= mapM_ interruptProcess
+            DoNotSendSigINT -> pure ()
         liftIO $ cleanupProcess ps
-        let timeoutSecs = 5
         -- Async exceptions are currently masked because this is running in a
         -- bracket cleanup handler. We fork a thread and unmask so that the
         -- timeout can be cancelled.
-        tid <- forkIOWithUnmask $ \unmask -> unmask $ do
-            threadDelay (timeoutSecs * 1000 * 1000)
-            traceWith tr (MsgLauncherCleanupTimedOut timeoutSecs)
-            liftIO (getPid ph >>= mapM_ killProcess)
-        void getExitStatus `finally` killThread tid
+        void $ case mTimeoutSecs of
+            NoTimeout -> getExitStatus
+            TimeoutInSecs timeoutSecs -> do
+                tid <- forkIOWithUnmask $ \unmask -> unmask $ do
+                    threadDelay (timeoutSecs * 1000 * 1000)
+                    traceWith tr (MsgLauncherCleanupTimedOut timeoutSecs)
+                    liftIO (getPid ph >>= mapM_ killProcess)
+                getExitStatus `finally` killThread tid
         traceWith tr MsgLauncherCleanupFinished
 
     -- Wraps 'waitForProcess' in another thread. This works around the unwanted

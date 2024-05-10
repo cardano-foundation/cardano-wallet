@@ -2,13 +2,12 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 -- Portability: Windows
---
-
 module Cardano.Startup.Windows
     ( installSignalHandlers
     , setDefaultFilePermissions
     , restrictFileMode
     , killProcess
+    , interruptProcess
     ) where
 
 import Prelude
@@ -33,3 +32,6 @@ restrictFileMode _ = pure ()
 -- 'terminateProcess' is to kill, so this isn't needed.
 killProcess :: Pid -> IO ()
 killProcess _ = pure ()
+
+interruptProcess :: Pid -> IO ()
+interruptProcess _ = pure ()

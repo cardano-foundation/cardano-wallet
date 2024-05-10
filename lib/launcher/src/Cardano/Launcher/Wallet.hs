@@ -19,7 +19,9 @@ module Cardano.Launcher.Wallet
 import Prelude
 
 import Cardano.Launcher
-    ( LauncherLog
+    ( IfToSendSigINT (DoNotSendSigINT)
+    , LauncherLog
+    , TimeoutInSecs (..)
     , withBackendCreateProcess
     )
 import Cardano.Launcher.Node
@@ -92,23 +94,27 @@ withCardanoWallet
     -- ^ Callback function with a socket filename and genesis params
     -> IO a
 withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
-    withBackendCreateProcess tr (cardanoWallet cfg node)
+    withBackendCreateProcess
+        tr
+        (cardanoWallet cfg node)
+        (TimeoutInSecs 4)
+        DoNotSendSigINT
         $ \_ -> action $ CardanoWalletConn walletPort
 
 cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =
-
-    let cp = proc (fromMaybe "cardano-wallet" executable)
-            $ [ "serve"
-            , "--node-socket"
-            , nodeSocketFile node
-            , "--database"
-            , walletDatabaseDir
-            , "--port"
-            , show walletPort
-            ]
-                <> case walletNetwork of
-                    Mainnet -> ["--mainnet"]
-                    Testnet path -> ["--testnet", path]
-                <> extraArgs
-    in cp { cwd = workingDir }
+    let cp =
+            proc (fromMaybe "cardano-wallet" executable)
+                $ [ "serve"
+                  , "--node-socket"
+                  , nodeSocketFile node
+                  , "--database"
+                  , walletDatabaseDir
+                  , "--port"
+                  , show walletPort
+                  ]
+                    <> case walletNetwork of
+                        Mainnet -> ["--mainnet"]
+                        Testnet path -> ["--testnet", path]
+                    <> extraArgs
+    in  cp{cwd = workingDir}

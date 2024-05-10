@@ -1,12 +1,12 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
 -- Provides a function to launch @cardano-node@.
-
 module Cardano.Launcher.Node
     ( -- * Startup
       withCardanoNode
@@ -16,21 +16,23 @@ module Cardano.Launcher.Node
     , maybeFromMaybeK
     , NodePort (..)
 
-    -- * cardano-node Snockets
+      -- * cardano-node Snockets
     , CardanoNodeConn
     , cardanoNodeConn
     , nodeSocketFile
     , isWindows
 
-    -- * Helpers
+      -- * Helpers
     , nodeSocketPath
     ) where
 
 import Prelude
 
 import Cardano.Launcher
-    ( LauncherLog
+    ( IfToSendSigINT (..)
+    , LauncherLog
     , StdStream (..)
+    , TimeoutInSecs (..)
     , withBackendCreateProcess
     )
 import Control.Tracer
@@ -90,19 +92,22 @@ nodeSocketFile (CardanoNodeConn name) = name
 -- 'isWindows') is valid.
 cardanoNodeConn :: FilePath -> Either String CardanoNodeConn
 cardanoNodeConn name
-    | isWindows = if isValidWindowsPipeName name
-        then Right $ CardanoNodeConn name
-        else Left "Invalid pipe name."
-    | otherwise = if isValid name
-        then Right $ CardanoNodeConn name
-        else Left "Invalid file path."
+    | isWindows =
+        if isValidWindowsPipeName name
+            then Right $ CardanoNodeConn name
+            else Left "Invalid pipe name."
+    | otherwise =
+        if isValid name
+            then Right $ CardanoNodeConn name
+            else Left "Invalid file path."
 
 isWindows :: Bool
 isWindows = os == "mingw32"
 
 isValidWindowsPipeName :: FilePath -> Bool
-isValidWindowsPipeName name = slashPipe `isPrefixOf` name
-    && isValid (drop (length slashPipe) name)
+isValidWindowsPipeName name =
+    slashPipe `isPrefixOf` name
+        && isValid (drop (length slashPipe) name)
   where
     slashPipe = "\\\\.\\pipe\\"
 
@@ -112,7 +117,7 @@ instance ToText CardanoNodeConn where
 instance FromText CardanoNodeConn where
     fromText = first TextDecodingError . cardanoNodeConn . T.unpack
 
-newtype NodePort = NodePort { unNodePort :: Int }
+newtype NodePort = NodePort {unNodePort :: Int}
     deriving (Show, Eq)
 
 -- | A subset of the @cardano-node@ CLI parameters, used for starting the
@@ -150,7 +155,7 @@ withCardanoNode tr cfg action = do
     let socketPath = nodeSocketPathFile cfg
     let run output = do
             cp <- cardanoNodeProcess cfg output
-            withBackendCreateProcess tr cp
+            withBackendCreateProcess tr cp (TimeoutInSecs 4) SendSigINT
                 $ \_ -> action $ fmap CardanoNodeConn socketPath
     case nodeOutputFile cfg of
         Nothing -> run Inherit
@@ -185,7 +190,8 @@ cardanoNodeProcess cfg output = do
         , "--database-path"
         , nodeDatabaseDir cfg
         ]
-            <> maybe []
+            <> maybe
+                []
                 (\p -> ["--socket-path", p])
                 (maybeFromMaybeK $ nodeSocketPathFile cfg)
             <> opt "--port" (show . unNodePort <$> nodePort cfg)

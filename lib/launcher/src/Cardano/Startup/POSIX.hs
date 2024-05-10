@@ -2,13 +2,12 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 -- Portability: POSIX
---
-
 module Cardano.Startup.POSIX
     ( installSignalHandlers
     , setDefaultFilePermissions
     , restrictFileMode
     , killProcess
+    , interruptProcess
     ) where
 
 import Prelude
@@ -31,6 +30,7 @@ import System.Posix.Signals
     , installHandler
     , keyboardSignal
     , raiseSignal
+    , sigINT
     , sigKILL
     , signalProcess
     , softwareTermination
@@ -42,18 +42,20 @@ import System.Process
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system has
 -- handlers that will correctly clean up sub-processes.
 installSignalHandlers :: IO () -> IO ()
-installSignalHandlers notify = void $
-    installHandler softwareTermination termHandler Nothing
-    where
-        termHandler = CatchOnce $ do
-            notify
-            raiseSignal keyboardSignal
+installSignalHandlers notify =
+    void
+        $ installHandler softwareTermination termHandler Nothing
+  where
+    termHandler = CatchOnce $ do
+        notify
+        raiseSignal keyboardSignal
 
 -- | Restricts the process umask so that any files created are only readable by
 -- their owner.
 setDefaultFilePermissions :: IO ()
 setDefaultFilePermissions = void $ setFileCreationMask mask
-    where mask = groupModes .|. otherModes
+  where
+    mask = groupModes .|. otherModes
 
 -- | Changes permissions of an existing file so that only the owner can read
 -- them.
@@ -64,3 +66,7 @@ restrictFileMode f = setFileMode f ownerReadMode
 -- terminate the process did not work.
 killProcess :: Pid -> IO ()
 killProcess = signalProcess sigKILL
+
+-- | Interrupt a process with sigINT
+interruptProcess :: Pid -> IO ()
+interruptProcess = signalProcess sigINT

@@ -8,6 +8,10 @@ where
 
 import Prelude
 
+import Cardano.BM.Tracing
+    ( HasSeverityAnnotation (..)
+    , Severity (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Http.Client
     ( MsgClient
     )
@@ -45,3 +49,13 @@ instance ToText MsgHttpService where
             "HTTP monitoring client stopped"
         MsgHttpServiceDone ->
             "HTTP monitoring done"
+
+instance HasSeverityAnnotation MsgHttpService where
+    getSeverityAnnotation = \case
+        MsgHttpServicePort _ -> Info
+        MsgHttpServiceQuery _ -> Info
+        MsgHttpServiceServerStarted -> Info
+        MsgHttpServiceServerStopped -> Info
+        MsgHttpServiceClientStarted -> Info
+        MsgHttpServiceClientStopped -> Info
+        MsgHttpServiceDone -> Info
