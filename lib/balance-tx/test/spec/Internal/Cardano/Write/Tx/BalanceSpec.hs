@@ -486,8 +486,6 @@ spec = do
 
 spec_balanceTx :: Spec
 spec_balanceTx = describe "balanceTx" $ do
-    -- TODO: Create a test to show that datums are passed through...
-
     it "doesn't balance transactions with existing 'totalCollateral'"
         $ property prop_balanceTxExistingTotalCollateral
 
