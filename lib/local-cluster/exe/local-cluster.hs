@@ -1,12 +1,9 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 import Prelude
 
-import Cardano.Address.Style.Shelley
-    ( shelleyTestnet
-    )
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     , newToTextTracer
@@ -18,17 +15,15 @@ import Cardano.Startup
     ( installSignalHandlers
     , setDefaultFilePermissions
     )
-import Cardano.Wallet.Faucet
-    ( runFaucetM
-    )
 import Cardano.Wallet.Launch.Cluster
     ( Config (..)
-    , FaucetFunds (..)
-    , withFaucet
     )
 import Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
     , parseCommandLineOptions
+    )
+import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
+    ( retrieveFunds
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
@@ -49,9 +44,6 @@ import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , withSNetworkId
-    )
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..)
     )
 import Control.Exception
     ( bracket
@@ -102,7 +94,6 @@ import UnliftIO.Concurrent
 
 import qualified Cardano.Node.Cli.Launcher as NC
 import qualified Cardano.Wallet.Cli.Launcher as WC
-import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 
 -- |
@@ -237,6 +228,7 @@ main = withUtf8 $ do
         , nodeToClientSocket
         , httpService
         , minSeverity
+        , faucetFunds = faucetFundsPath
         } <-
         parseCommandLineOptions
     evalContT $ do
@@ -300,24 +292,12 @@ main = withUtf8 $ do
                     httpService
 
         debug "Starting the faucet"
-        faucetClientEnv <- ContT withFaucet
 
         debug "Getting multi assets funds"
-        maryAllegraFunds <-
-            liftIO
-                $ runFaucetM faucetClientEnv
-                $ Faucet.maryAllegraFunds (Coin 10_000_000) shelleyTestnet
+        faucetFunds <- liftIO $ retrieveFunds faucetFundsPath
 
         debug "Starting the cluster"
-        node <-
-            ContT
-                $ Cluster.withCluster
-                    clusterCfg
-                    Cluster.FaucetFunds
-                        { pureAdaFunds = []
-                        , maryAllegraFunds
-                        , massiveWalletFunds = []
-                        }
+        node <- ContT $ Cluster.withCluster clusterCfg faucetFunds
 
         debug "Starting the relay node"
         nodeSocket <-
