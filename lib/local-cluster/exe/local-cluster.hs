@@ -59,7 +59,8 @@ import Control.Monad.IO.Class
     ( MonadIO (..)
     )
 import Control.Tracer
-    ( traceWith
+    ( nullTracer
+    , traceWith
     )
 import Data.Text
     ( Text
@@ -233,11 +234,13 @@ main = withUtf8 $ do
         parseCommandLineOptions
     evalContT $ do
         -- Add a tracer for the cluster logs
-        ToTextTracer tracer <-
-            ContT
-                $ newToTextTracer
-                    (toFilePath . absFileOf <$> clusterLogs)
-                    minSeverity
+        ToTextTracer tracer <- case clusterLogs of
+            Nothing -> pure $ ToTextTracer nullTracer
+            Just path ->
+                ContT
+                    $ newToTextTracer
+                        (toFilePath . absFileOf $ path)
+                        minSeverity
 
         let debug :: MonadIO m => Text -> m ()
             debug = liftIO . traceWith tracer

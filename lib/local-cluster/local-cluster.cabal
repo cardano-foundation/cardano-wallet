@@ -173,7 +173,6 @@ executable local-cluster
 
   build-depends:
     , base
-    , cardano-addresses
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -208,6 +207,7 @@ common test-common
     , foldl
     , hspec
     , hspec-golden
+    , iohk-monitoring-extra
     , local-cluster
     , mtl
     , openapi3

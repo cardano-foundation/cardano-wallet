@@ -1,4 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Evaluate" #-}
 
 module Cardano.Wallet.Launch.Cluster.Http.ServiceSpec
     ( spec
@@ -7,6 +11,10 @@ where
 
 import Prelude
 
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , newToTextTracer
+    )
 import Cardano.Launcher
     ( Command (..)
     , IfToSendSigINT (..)
@@ -41,7 +49,6 @@ import Cardano.Wallet.Primitive.NetworkId
 import Control.Monad
     ( forM_
     , unless
-    , void
     )
 import Control.Monad.Cont
     ( ContT (..)
@@ -65,7 +72,12 @@ import System.Environment
     ( lookupEnv
     )
 import System.FilePath
-    ( (</>)
+    ( (<.>)
+    , (</>)
+    )
+import System.IO
+    ( IOMode (..)
+    , withFile
     )
 import System.Process
     ( StdStream (..)
@@ -107,12 +119,21 @@ localClusterCommand
     -- ^ filename to append to the logs dir
     -> PortNumber
     -- ^ monitoring port
-    -> IO Command
+    -> ContT r IO (Maybe FilePath, Command)
 localClusterCommand name port = do
-    configsPath <- getClusterConfigsPathFromEnv
-    mLogsPath <- getClusterLogsFilePathFromEnv
-    mMinSeverity <- getClusterLogsMinSeverity
+    configsPath <- liftIO getClusterConfigsPathFromEnv
+    mLogsPath <- liftIO getClusterLogsFilePathFromEnv
+    mMinSeverity <- liftIO getClusterLogsMinSeverity
+    (clusterStdout, logsPathName) <- case mLogsPath of
+        Nothing -> pure (NoStream, Nothing)
+        Just logsPath -> do
+            let logsPathName = logsPath </> name
+            fmap (\h -> (UseHandle h, Just logsPathName))
+                $ ContT
+                $ withFile (logsPath </> name <> "-stdout" <.> "log") WriteMode
+
     pure
+        $ (logsPathName,)
         $ Command
             { cmdName = "local-cluster"
             , cmdArgs =
@@ -123,13 +144,16 @@ localClusterCommand name port = do
                 ]
                     <> case mLogsPath of
                         Nothing -> []
-                        Just logsPath -> ["--cluster-logs", logsPath </> name]
+                        Just logsPath ->
+                            [ "--cluster-logs"
+                            , logsPath </> name <.> "log"
+                            ]
                     <> case mMinSeverity of
                         Nothing -> []
                         Just minSeverity -> ["--min-severity", show minSeverity]
             , cmdSetup = pure ()
             , cmdInput = NoStream
-            , cmdOutput = NoStream
+            , cmdOutput = clusterStdout
             }
 
 getClusterConfigsPathFromEnv :: IO FilePath
@@ -154,14 +178,21 @@ testServiceWithCluster
     -> IO ()
 testServiceWithCluster name action = evalContT $ do
     port <- liftIO getRandomPort
-    command <- liftIO $ localClusterCommand name port
-    void
-        $ ContT
-        $ withBackendProcess
-            nullTracer
-            command
-            NoTimeout
-            DoNotSendSigINT
+    (logsPathName, command) <- localClusterCommand name port
+    ToTextTracer processLogs <- case logsPathName of
+        Nothing -> pure $ ToTextTracer nullTracer
+        Just path ->
+            ContT
+                $ newToTextTracer
+                    (path <> "-process" <.> "log")
+                    Nothing
+    _ <-
+        ContT
+            $ withBackendProcess
+                processLogs
+                command
+                NoTimeout
+                DoNotSendSigINT
     queries <- withSNetworkId (NTestnet 42)
         $ \network -> withServiceClient network port nullTracer
     liftIO $ action queries
@@ -226,13 +257,13 @@ spec = do
     describe "withService application" $ do
         it "can start and stop" $ do
             testServiceWithCluster
-                "can-start-and-stop.log"
+                "can-start-and-stop"
                 $ \(RunQuery query, _) -> do
                     result <- query ReadyQ
                     result `shouldBe` False
         it "can wait for cluster ready before ending" $ do
             testServiceWithCluster
-                "can-wait-for-cluster-ready-before-ending.log"
+                "can-wait-for-cluster-ready-before-ending"
                 $ \(RunQuery query, _) -> do
                     fix $ \loop -> do
                         result <- query ReadyQ
