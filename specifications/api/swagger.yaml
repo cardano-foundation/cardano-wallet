@@ -4111,7 +4111,7 @@ x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
   schema:
     type: integer
     minimum: 0
-    maximum: 45_000_000_000_000_000 # 45 B ada (in Lovelace)
+    maximum: 45000000000000000 # 45 B ada (in Lovelace)
   description: |
     The stake the user intends to delegate in Lovelace. Required.
 
