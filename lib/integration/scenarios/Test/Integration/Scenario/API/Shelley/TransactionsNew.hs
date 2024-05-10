@@ -328,13 +328,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403AssetNameTooLong
-    , errMsg403Collateral
-    , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
-    , errMsg403CreatedWrongPolicyScriptTemplateTx
-    , errMsg403Fee
-    , errMsg403ForeignTransaction
-    , errMsg403InvalidConstructTx
+    ( errMsg403InvalidConstructTx
     , errMsg403InvalidValidityBounds
     , errMsg403MintOrBurnAssetQuantityOutOfBounds
     , errMsg403MissingWitsInTransaction
@@ -922,8 +916,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     it "TRANS_NEW_CREATE_04d - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -2412,8 +2406,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     -- This test is disabled because it contains an opaque fixture
     -- without a source code and it makes it impossible to update it
@@ -2455,13 +2449,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 else ("4.280100", "[2.853400]")
         verify rTx'
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Collateral
             , expectErrorMessage $
                 "I need an ada amount of at least: " <> requiredAmt
             , expectErrorMessage $
                 "The largest combination of pure ada UTxOs I could find is: "
                 <> largestFound
             ]
+        decodeErrorInfo rTx' `shouldBe` InsufficientCollateral
 
     -- This test is disabled because it contains an opaque fixture
     -- without a source code and it makes it impossible to update it
@@ -2778,8 +2772,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             submittedTx <- submitTxWithWid ctx wb signedTx
             verify submittedTx
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403ForeignTransaction
                 ]
+            decodeErrorInfo submittedTx `shouldBe` ForeignTransaction
 
     describe "TRANS_NEW_SUBMIT_02 - Submitting on foreign Byron wallet is forbidden" $ do
         let scenarios =
@@ -3797,8 +3791,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedWrongPolicyScriptTemplate
 
     it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
         \ctx -> runResourceT $ do
@@ -3824,8 +3818,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403AssetNameTooLong
             ]
+        decodeErrorInfo rTx `shouldBe` AssetNameTooLong
 
     it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
         \ctx -> runResourceT $ do
@@ -4229,8 +4223,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Link.createUnsignedTransaction @'Shelley wa) Default payload
             verify rTx
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
                 ]
+            decodeErrorInfo rTx `shouldBe` CreatedWrongPolicyScriptTemplate
 
     describe "TRANS_NEW_CREATE_MINT_SCRIPTS - I can mint and burn with correct policy scripts" $ do
         let scenarios =
@@ -4367,8 +4361,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rGet <- request @ApiPolicyId ctx postPolicyId Default payload
         verify rGet
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplatePolicyId
             ]
+        decodeErrorInfo rGet `shouldBe` CreatedWrongPolicyScriptTemplate
 
     it "TRANS_NEW_CREATE_11 - Get policy id \
         \" $ \ctx -> runResourceT $ do
