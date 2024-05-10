@@ -328,15 +328,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403InvalidConstructTx
-    , errMsg403InvalidValidityBounds
-    , errMsg403MintOrBurnAssetQuantityOutOfBounds
-    , errMsg403MissingWitsInTransaction
-    , errMsg403MultiaccountTransaction
-    , errMsg403MultidelegationTransaction
-    , errMsg403NonNullReward
-    , errMsg403NotDelegating
-    , errMsg403ValidityIntervalNotInsideScriptTimelock
+    ( errMsg403MissingWitsInTransaction
     , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
@@ -373,8 +365,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default emptyPayload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "TRANS_NEW_CREATE_01b - Validity interval only is not allowed" $
         \ctx -> runResourceT $ do
@@ -397,8 +389,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default validityInterval
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "TRANS_NEW_CREATE_01c - No payload is bad request" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -3289,8 +3281,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegations
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MultidelegationTransaction
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedMultidelegationTransaction
 
     it "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -3307,8 +3299,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegations
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MultiaccountTransaction
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedMultiaccountTransaction
 
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
         (src, _) <- rewardWallet ctx
@@ -3593,8 +3585,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegation
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotDelegating
             ]
+        decodeErrorInfo rTx `shouldBe` NotDelegatingTo
 
     it "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
         $ \ctx -> runResourceT $ do
@@ -3606,12 +3598,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        request @(ApiConstructTransaction n) ctx
+        rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) Default payload
-            >>= flip verify
+        verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NonNullReward
             ]
+        decodeErrorInfo rTx `shouldBe` NonNullRewards
 
     it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
         $ \ctx -> runResourceT $ do
@@ -3843,9 +3835,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
+        decodeErrorInfo rTx `shouldBe` MintOrBurnAssetQuantityOutOfBounds
 
     it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
         \ctx -> runResourceT $ do
@@ -3869,8 +3860,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
+        decodeErrorInfo rTx `shouldBe` MintOrBurnAssetQuantityOutOfBounds
 
     it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
         \ctx -> runResourceT $ do
@@ -4010,9 +4001,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                errMsg403ValidityIntervalNotInsideScriptTimelock
             ]
+        decodeErrorInfo rTx `shouldBe` ValidityIntervalNotInsideScriptTimelock
 
     it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do
@@ -4431,8 +4421,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidValidityBounds
             ]
+        decodeErrorInfo rTx `shouldBe` InvalidValidityBounds
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Missing lower validity bound is acceptable" $
