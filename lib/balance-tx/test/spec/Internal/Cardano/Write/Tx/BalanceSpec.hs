@@ -2207,7 +2207,11 @@ instance IsRecentEra era => Arbitrary (PartialTx era) where
 
 partialTxFromTxWithUTxO :: IsRecentEra era => TxWithUTxO era -> PartialTx era
 partialTxFromTxWithUTxO (TxWithUTxO tx extraUTxO) =
-    PartialTx {tx, extraUTxO, redeemers = [], timelockKeyWitnessCounts = mempty}
+    PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
+  where
+    -- This embedding uses the following constants:
+    redeemers = []
+    timelockKeyWitnessCounts = mempty
 
 txWithUTxOFromPartialTx :: IsRecentEra era => PartialTx era -> TxWithUTxO era
 txWithUTxOFromPartialTx PartialTx {tx, extraUTxO} =
