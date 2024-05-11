@@ -65,9 +65,11 @@ library internal
     , cardano-slotting
     , cardano-strict-containers
     , cardano-wallet-primitive
+    , cardano-wallet-test-utils
     , cborg
     , containers
     , deepseq
+    , either
     , fmt
     , generic-lens
     , groups
@@ -95,6 +97,8 @@ library internal
     Internal.Cardano.Write.Tx.Sign
     Internal.Cardano.Write.Tx.SizeEstimation
     Internal.Cardano.Write.Tx.TimeTranslation
+    Internal.Cardano.Write.Tx.TxWithUTxO
+    Internal.Cardano.Write.Tx.TxWithUTxO.Gen
     Internal.Cardano.Write.UTxOAssumptions
 
 test-suite test
