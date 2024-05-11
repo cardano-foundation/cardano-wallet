@@ -66,7 +66,7 @@ generate
     -> Gen (TxWithUTxO era)
 generate genTx genTxIn genTxOut =
     frequency
-        [ (9, generateWithMinimalUTxO genTx genTxIn genTxOut)
+        [ (9, generateWithMinimalUTxO genTx         genTxOut)
         , (1, generateWithSurplusUTxO genTx genTxIn genTxOut)
         ]
 
@@ -77,10 +77,9 @@ generate genTx genTxIn genTxOut =
 generateWithMinimalUTxO
     :: IsRecentEra era
     => Gen (Tx era)
-    -> Gen (TxIn)
     -> Gen (TxOut era)
     -> Gen (TxWithUTxO era)
-generateWithMinimalUTxO genTx _genTxIn genTxOut = do
+generateWithMinimalUTxO genTx genTxOut = do
     tx <- genTx
     utxo <- UTxO <$> genMapFromKeysWith genTxOut (txAllInputs tx)
     pure $ TxWithUTxO.constructFiltered tx utxo
@@ -99,7 +98,7 @@ generateWithSurplusUTxO
     -> Gen (TxOut era)
     -> Gen (TxWithUTxO era)
 generateWithSurplusUTxO genTx genTxIn genTxOut =
-    generateWithMinimalUTxO genTx genTxIn genTxOut >>= \case
+    generateWithMinimalUTxO genTx genTxOut >>= \case
         TxWithUTxO tx (UTxO utxo) -> do
             utxoSurplus <- genNonEmptyDisjointMap genTxIn genTxOut utxo
             pure $ TxWithUTxO.constructFiltered tx $ UTxO (utxo <> utxoSurplus)
