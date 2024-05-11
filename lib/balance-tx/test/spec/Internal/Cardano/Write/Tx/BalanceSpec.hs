@@ -2219,9 +2219,6 @@ txWithUTxOFromPartialTx PartialTx {tx, extraUTxO} =
 
 genTxWithUTxO :: IsRecentEra era => Gen (TxWithUTxO era)
 genTxWithUTxO = TxWithUTxO.generate genTxForBalancing genTxIn genTxOut
-  where
-    genTxIn :: Gen TxIn
-    genTxIn = fromWalletTxIn <$> W.genTxIn
 
 shrinkTxWithUTxO :: IsRecentEra era => TxWithUTxO era -> [TxWithUTxO era]
 shrinkTxWithUTxO = TxWithUTxO.shrinkWith shrinkTx shrinkUTxOToSubsets
@@ -2323,6 +2320,9 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
 genTxForBalancing :: forall era. IsRecentEra era => Gen (Tx era)
 genTxForBalancing =
     fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
+
+genTxIn :: Gen TxIn
+genTxIn = fromWalletTxIn <$> W.genTxIn
 
 genTxOut :: forall era. IsRecentEra era => Gen (TxOut era)
 genTxOut =
