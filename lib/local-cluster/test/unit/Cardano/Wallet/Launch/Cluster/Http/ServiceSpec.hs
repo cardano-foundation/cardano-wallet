@@ -21,6 +21,13 @@ import Cardano.Launcher
     , TimeoutInSecs (..)
     , withBackendProcess
     )
+import Cardano.Wallet.Launch.Cluster
+    ( FaucetFunds (FaucetFunds)
+    , FileOf (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
+    ( saveFunds
+    )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
     ( RunFaucetQ
     )
@@ -79,6 +86,12 @@ import System.IO
     ( IOMode (..)
     , withFile
     )
+import System.IO.Extra
+    ( withTempFile
+    )
+import System.Path
+    ( absFile
+    )
 import System.Process
     ( StdStream (..)
     )
@@ -119,8 +132,10 @@ localClusterCommand
     -- ^ filename to append to the logs dir
     -> PortNumber
     -- ^ monitoring port
+    -> FilePath
+    -- ^ faucet funds path
     -> ContT r IO (Maybe FilePath, Command)
-localClusterCommand name port = do
+localClusterCommand name port faucetFundsPath = do
     configsPath <- liftIO getClusterConfigsPathFromEnv
     mLogsPath <- liftIO getClusterLogsFilePathFromEnv
     mMinSeverity <- liftIO getClusterLogsMinSeverity
@@ -137,7 +152,9 @@ localClusterCommand name port = do
         $ Command
             { cmdName = "local-cluster"
             , cmdArgs =
-                [ "--monitoring-port"
+                [ "--faucet-funds"
+                , faucetFundsPath
+                , "--monitoring-port"
                 , show port
                 , "--cluster-configs"
                 , configsPath
@@ -174,11 +191,14 @@ getClusterLogsMinSeverity = lookupEnv "CLUSTER_LOGS_MIN_SEVERITY"
 
 testServiceWithCluster
     :: FilePath
+    -> FaucetFunds
     -> ((RunMonitorQ IO, RunFaucetQ IO) -> IO ())
     -> IO ()
-testServiceWithCluster name action = evalContT $ do
+testServiceWithCluster name faucetFundsValue action = evalContT $ do
     port <- liftIO getRandomPort
-    (logsPathName, command) <- localClusterCommand name port
+    faucetFundsPath <- ContT withTempFile
+    liftIO $ saveFunds (FileOf $ absFile faucetFundsPath) faucetFundsValue
+    (logsPathName, command) <- localClusterCommand name port faucetFundsPath
     ToTextTracer processLogs <- case logsPathName of
         Nothing -> pure $ ToTextTracer nullTracer
         Just path ->
@@ -196,6 +216,9 @@ testServiceWithCluster name action = evalContT $ do
     queries <- withSNetworkId (NTestnet 42)
         $ \network -> withServiceClient network port nullTracer
     liftIO $ action queries
+
+noFunds :: FaucetFunds
+noFunds = FaucetFunds [] [] []
 
 spec :: Spec
 spec = do
@@ -257,13 +280,13 @@ spec = do
     describe "withService application" $ do
         it "can start and stop" $ do
             testServiceWithCluster
-                "can-start-and-stop"
+                "can-start-and-stop" noFunds
                 $ \(RunQuery query, _) -> do
                     result <- query ReadyQ
                     result `shouldBe` False
         it "can wait for cluster ready before ending" $ do
             testServiceWithCluster
-                "can-wait-for-cluster-ready-before-ending"
+                "can-wait-for-cluster-ready-before-ending" noFunds
                 $ \(RunQuery query, _) -> do
                     fix $ \loop -> do
                         result <- query ReadyQ
