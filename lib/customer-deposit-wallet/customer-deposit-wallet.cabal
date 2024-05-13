@@ -58,7 +58,9 @@ library
     , delta-types
     , iohk-monitoring-extra              ^>=0.1
     , persistent                         >= 2.13 && < 2.15
+    , sqlite-simple                      >= 0.4.19.0 && < 0.5
     , text
+    , transformers
     , time
   exposed-modules:
     Cardano.Wallet.Deposit.IO

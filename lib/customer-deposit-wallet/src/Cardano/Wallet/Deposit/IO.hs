@@ -83,6 +83,7 @@ onWalletState
     -> IO r
 onWalletState WalletInstance{env,walletState} update' =
     atomically env $ Delta.onDBVar walletState update'
+    -- FIXME: Propagation of exceptions from Pure to IO.
 
 -- | Convenience to read the 'WalletState'.
 --
