@@ -7,8 +7,15 @@ import qualified Cardano.Wallet.Spec.Network.Wait as Wait
 import Cardano.Wallet.Cli.Launcher
     ( WalletApi (..)
     )
+import Cardano.Wallet.Launch.Cluster
+    ( FaucetFunds (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
+    ( saveFunds
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
+    , FileOf (..)
     , toFilePath
     )
 import Cardano.Wallet.Spec.Network.Configured
@@ -25,12 +32,12 @@ import System.IO.Extra
     ( newTempFile
     )
 import System.Path
-    ( relFile
+    ( absFile
+    , relFile
     , (</>)
     )
 import System.Process.Typed
-    ( Process
-    , proc
+    ( proc
     , setStderr
     , setStdout
     , startProcess
@@ -38,11 +45,15 @@ import System.Process.Typed
     , useHandleClose
     )
 
+tempFile :: ResourceT IO FilePath
+tempFile = fst . snd <$> allocate newTempFile snd
+
 configuredNetwork
     :: DirOf "state"
     -> DirOf "config"
+    -> Maybe FaucetFunds
     -> ResourceT IO ConfiguredNetwork
-configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) = do
+configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) faucetFunds = do
     walletApi <- startCluster
 
     unlessM (Wait.untilWalletIsConnected walletApi) do
@@ -51,28 +62,29 @@ configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) = do
     pure ConfiguredNetwork{configuredNetworkWallet = walletApi, ..}
   where
     startCluster :: ResourceT IO WalletApi = do
-        (_, (socketFile, _)) <- allocate newTempFile snd
-        (_clusterReleaseKey, _clusterProcess) <-
-            allocate (startLocalClusterProcess socketFile) stopProcess
+        socketPath <- tempFile
+        let clusterLog = stateDir </> relFile "cluster.log"
+        faucetFundsPath <- tempFile
+        liftIO $ saveFunds (FileOf $ absFile faucetFundsPath)
+            $ fromMaybe (FaucetFunds [] [] []) faucetFunds
+        handle <- liftIO $ openFile (toFilePath clusterLog) AppendMode
+        putStrLn $ "Writing cluster logs to " <> toFilePath clusterLog
+        let start = startProcess
+                        $ setStderr (useHandleClose handle)
+                        $ setStdout (useHandleClose handle)
+                        $ proc
+                            "local-cluster"
+                            [ "--cluster-configs"
+                            , toFilePath clusterConfigsDir
+                            , "--socket-path"
+                            , socketPath
+                            , "--faucet-funds"
+                            , faucetFundsPath
+                            ]
+        void $ allocate start stopProcess
         pure
             WalletApi
                 { walletInstanceApiUrl = "http://localhost:8090/v2"
                 , walletInstanceApiHost = "localhost"
                 , walletInstanceApiPort = 8090
                 }
-
-    startLocalClusterProcess :: FilePath -> IO (Process () () ())
-    startLocalClusterProcess socketPath = do
-        let clusterLog = stateDir </> relFile "cluster.log"
-        handle <- openFile (toFilePath clusterLog) AppendMode
-        putStrLn $ "Writing cluster logs to " <> toFilePath clusterLog
-        startProcess
-            $ setStderr (useHandleClose handle)
-            $ setStdout (useHandleClose handle)
-            $ proc
-                "local-cluster"
-                [ "--cluster-configs"
-                , toFilePath clusterConfigsDir
-                , "--socket-path"
-                , socketPath
-                ]
