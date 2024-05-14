@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE QuasiQuotes #-}
 
@@ -23,6 +24,9 @@ import Data.ByteArray.Encoding
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Data
+    ( Data
     )
 import Data.List
     ( intercalate
@@ -53,7 +57,7 @@ import qualified Data.Text as T
 -- For Jörmungandr a 'PoolId' is the blake2b-256 hash of the stake pool
 -- registration certificate.
 newtype PoolId = PoolId { getPoolId :: ByteString }
-    deriving (Generic, Eq, Ord)
+    deriving (Data, Generic, Eq, Ord)
 
 instance Show PoolId where
     show p = "(PoolId " <> show (encodePoolIdBech32 p) <> ")"

@@ -53,7 +53,6 @@ module Test.Integration.Framework.TestData
     , errMsg403WrongPass
     , errMsg403WrongMnemonic
     , errMsg403AlreadyInLedger
-    , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
     , errMsg403NotDelegating
     , errMsg403NonNullReward
@@ -434,10 +433,6 @@ errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\
 errMsg403AlreadyInLedger :: Text -> String
 errMsg403AlreadyInLedger tid = "The transaction with id: " ++ unpack tid ++
     " cannot be forgotten as it is already in the ledger."
-
-errMsg404NoSuchPool :: Text -> String
-errMsg404NoSuchPool pid = "I couldn't find any stake pool with the given id: "
-    ++ unpack pid
 
 errMsg403PoolAlreadyJoined :: Text -> String
 errMsg403PoolAlreadyJoined pid = "I couldn't join a stake pool with the given id: "

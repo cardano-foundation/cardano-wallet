@@ -30,6 +30,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchPool (..)
     )
     where
 
@@ -49,6 +50,9 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -152,6 +156,7 @@ data ApiErrorInfo
     | NetworkUnreachable
     | NoRootKey
     | NoSuchPool
+        !ApiErrorNoSuchPool
     | NoSuchTransaction
     | NoSuchWallet
     | NoUtxosAvailable
@@ -298,4 +303,11 @@ data ApiErrorNotEnoughMoneyShortfall = ApiErrorNotEnoughMoneyShortfall
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via
         DefaultRecord ApiErrorNotEnoughMoneyShortfall
+    deriving anyclass NFData
+
+data ApiErrorNoSuchPool = ApiErrorNoSuchPool
+    { poolId :: !PoolId
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchPool
     deriving anyclass NFData
