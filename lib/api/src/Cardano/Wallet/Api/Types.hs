@@ -1239,15 +1239,7 @@ data ApiMultiDelegationAction
 data ApiEncryptMetadataMethod = Basic
     deriving (Bounded, Enum, Eq, Generic, Show)
     deriving anyclass NFData
-
-instance ToJSON ApiEncryptMetadataMethod where
-    toJSON Basic = "basic"
-instance FromJSON ApiEncryptMetadataMethod where
-    parseJSON = withText "base" $ \txt ->
-        if txt == "basic" then
-            pure Basic
-        else
-            fail "'basic' is expected."
+    deriving (FromJSON, ToJSON) via DefaultSum ApiEncryptMetadataMethod
 
 data ApiEncryptMetadata = ApiEncryptMetadata
     { passphrase :: ApiT (Passphrase "lenient")
