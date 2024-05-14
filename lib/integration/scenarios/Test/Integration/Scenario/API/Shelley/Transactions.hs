@@ -214,8 +214,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MinWithdrawalWrong
-    , errMsg400StartTimeLaterThanEndTime
+    ( errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
     , errMsg403Fee
@@ -2167,8 +2166,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage errMsg400MinWithdrawalWrong r
-            pure ()
+            decodeErrorInfo r `shouldBe` MinWithdrawalWrong
 
     it
         "TRANS_LIST_03 - \
