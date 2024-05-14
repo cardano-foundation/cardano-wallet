@@ -804,6 +804,7 @@ spec = do
         jsonTest @ApiCredential
         jsonTest @ApiCredentialType
         jsonTest @ApiDelegationAction
+        jsonTest @ApiEncryptMetadata
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiError
