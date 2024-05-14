@@ -110,13 +110,14 @@ withServiceClient
     => SNetworkId n
     -> PortNumber
     -> Tracer IO MsgHttpService
-    -> ContT () IO (RunMonitorQ IO, RunFaucetQ IO)
+    -> ContT r IO (RunMonitorQ IO, RunFaucetQ IO)
 withServiceClient network port tr = do
     liftIO $ traceWith tr MsgHttpServiceClientStarted
     queries <- withHttpClient network (MsgHttpServiceQuery >$< tr) port
     ContT $ \k -> do
-        k queries
+        r <- k queries
         traceWith tr MsgHttpServiceClientStopped
+        pure r
 
 withServiceServer
     :: HasSNetworkId n
@@ -125,7 +126,7 @@ withServiceServer
     -> Config
     -> Tracer IO MsgHttpService
     -> ServiceConfiguration
-    -> ContT () IO (PortNumber, Tracer IO Phase)
+    -> ContT r IO (PortNumber, Tracer IO Phase)
 withServiceServer network conn clusterConfig tr ServiceConfiguration{..} = do
     monitor <- liftIO $ withTracingState timedMonitor monitorInitialState
     port <- liftIO $ maybe getRandomPort pure servicePort
@@ -137,5 +138,6 @@ withServiceServer network conn clusterConfig tr ServiceConfiguration{..} = do
         (mkFaucetHandlers conn clusterConfig)
     liftIO $ traceWith tr MsgHttpServiceServerStarted
     ContT $ \k -> do
-        k (port, monitorTracer monitor)
+        r <- k (port, monitorTracer monitor)
         traceWith tr MsgHttpServiceServerStopped
+        pure r

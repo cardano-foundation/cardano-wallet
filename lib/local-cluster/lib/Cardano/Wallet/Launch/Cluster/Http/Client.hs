@@ -89,7 +89,7 @@ withHttpClient
     -- ^ how to trace the http client operations
     -> PortNumber
     -- ^ Monitoring port to attach to (http://localhost is hardcoded)
-    -> ContT () m (RunMonitorQ m, RunFaucetQ m)
+    -> ContT r m (RunMonitorQ m, RunFaucetQ m)
 withHttpClient networkId tracer httpPort = ContT $ \continue -> do
     let tr = traceWith tracer
     tr MsgClientStart
@@ -111,6 +111,6 @@ withHttpClient networkId tracer httpPort = ContT $ \continue -> do
             query
             (MsgFaucetClient >$< tracer)
             $ mkFaucet networkId
-    continue (runQuery, runFaucet)
-
+    r <- continue (runQuery, runFaucet)
     tr MsgClientDone
+    pure r
