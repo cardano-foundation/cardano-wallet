@@ -1236,16 +1236,16 @@ data ApiMultiDelegationAction
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiEncryptMetadataMethod = AES256CBC
+data ApiEncryptMetadataMethod = Basic
     deriving (Bounded, Enum, Eq, Generic, Show)
     deriving anyclass NFData
 
 instance ToJSON ApiEncryptMetadataMethod where
-    toJSON AES256CBC = "basic"
+    toJSON Basic = "basic"
 instance FromJSON ApiEncryptMetadataMethod where
     parseJSON = withText "base" $ \txt ->
         if txt == "basic" then
-            pure AES256CBC
+            pure Basic
         else
             fail "'basic' is expected."
 
