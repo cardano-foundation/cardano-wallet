@@ -10,6 +10,7 @@ module Cardano.Wallet.Deposit.Read
 
     , Addr
     , Address
+    , mockAddress
 
     , Ix
     , TxIn
@@ -59,6 +60,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 -- import qualified Ouroboros.Consensus.Cardano.Block as O
 
 {-----------------------------------------------------------------------------
@@ -80,6 +82,9 @@ type Addr = W.Address
 -- The ledger specifications define @Addr@.
 -- Byron addresses are represented by @Addr_bootstrap@.
 type Address = Addr
+
+mockAddress :: Show a => a -> Address
+mockAddress = W.Address . B8.pack . show
 
 dummyAddress :: Address
 dummyAddress = W.Address . BS.pack $ replicate 32 0
