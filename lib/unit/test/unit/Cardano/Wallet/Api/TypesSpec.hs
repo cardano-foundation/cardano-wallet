@@ -1199,7 +1199,7 @@ spec = do
         it "short msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1243,7 +1243,7 @@ spec = do
         it "long msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1291,7 +1291,7 @@ spec = do
         it "cip msg - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1340,7 +1340,7 @@ spec = do
         it "short msg - salted" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1385,7 +1385,7 @@ spec = do
         it "long msg - salted" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1431,7 +1431,7 @@ spec = do
         it "cip msg - salted" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1479,7 +1479,7 @@ spec = do
         it "msg wrong label - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
@@ -1505,7 +1505,7 @@ spec = do
         it "msg without 'msg field' - no salt" $ do
             let apiEncrypt = ApiEncryptMetadata
                     { passphrase = ApiT $ Passphrase "cardano"
-                    , enc = Nothing
+                    , method = Nothing
                     }
                 schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $

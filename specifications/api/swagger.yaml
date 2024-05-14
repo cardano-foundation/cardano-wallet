@@ -1810,7 +1810,7 @@ x-encryptMetadata: &encryptMetadata
   required:
     - passphrase
   properties:
-    enc: *encryptionMethod
+    method: *encryptionMethod
     passphrase: *lenientPassphrase
 
 x-transactionTTL: &transactionTTL

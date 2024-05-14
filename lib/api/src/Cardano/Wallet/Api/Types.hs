@@ -1245,7 +1245,7 @@ data ApiEncryptMetadataMethod = Basic
 
 data ApiEncryptMetadata = ApiEncryptMetadata
     { passphrase :: ApiT (Passphrase "lenient")
-    , enc :: Maybe ApiEncryptMetadataMethod
+    , method :: Maybe ApiEncryptMetadataMethod
     }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
