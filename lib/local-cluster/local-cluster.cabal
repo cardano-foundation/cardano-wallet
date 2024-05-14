@@ -195,8 +195,10 @@ common test-common
   hs-source-dirs:     test/unit
   build-depends:
     , aeson
+    , aeson-qq
     , base
     , bytestring
+    , cardano-ledger-shelley
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -211,12 +213,14 @@ common test-common
     , local-cluster
     , mtl
     , openapi3
+    , ouroboros-network
     , pathtype
     , process
     , QuickCheck
     , time
     , unliftio
     , with-utf8
+
 
   build-tool-depends:
     , hspec-discover:hspec-discover
