@@ -195,6 +195,7 @@ common test-common
   hs-source-dirs:     test/unit
   build-depends:
     , aeson
+    , aeson-pretty
     , aeson-qq
     , base
     , bytestring

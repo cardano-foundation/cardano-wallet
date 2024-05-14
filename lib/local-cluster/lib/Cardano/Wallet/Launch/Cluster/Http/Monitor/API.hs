@@ -16,6 +16,7 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     , SwitchAPI
     , ObserveAPI
     , ControlAPI
+    , renderPhase
     )
 where
 

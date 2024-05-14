@@ -24,6 +24,13 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
+    , renderPhase
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
+    ( monitorStateSchema
+    , monitoringDefinitions
+    , observationSchema
+    , phaseSchema
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
@@ -42,12 +49,16 @@ import Data.Aeson
     , Value
     , fromJSON
     )
+import Data.Aeson.Encode.Pretty
+    ( encodePretty
+    )
 import Data.Aeson.QQ
     ( aesonQQ
     )
 import Data.OpenApi
-    ( ToSchema
-    , validateToJSON
+    ( Definitions
+    , Schema
+    , validateJSON
     )
 import Data.Time
     ( Day (ModifiedJulianDay)
@@ -70,33 +81,80 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Property
+    , Testable
+    , counterexample
     , forAll
+    , forAllShrink
     , listOf
     , oneof
+    , shrinkList
+    , shrinkNothing
     )
+
+import qualified Data.ByteString.Lazy.Char8 as BL
 
 jsonRoundtrip :: (ToJSON a, FromJSON a, Eq a, Show a) => a -> IO ()
 jsonRoundtrip a = fromJSON (toJSON a) `shouldBe` Success a
 
-validate :: (ToJSON t, ToSchema t) => t -> Expectation
-validate x = validateToJSON x `shouldBe` []
+validate :: Definitions Schema -> Schema -> Value -> Expectation
+validate defs sch x = validateJSON defs sch x `shouldBe` []
+
+validateInstance :: ToJSON a => Definitions Schema -> Schema -> a -> Expectation
+validateInstance defs sch = validate defs sch . toJSON
+
+counterExampleJSON
+    :: (Testable prop)
+    => String
+    -> (a -> Value)
+    -> (a -> prop)
+    -> a
+    -> Property
+counterExampleJSON t tojson f x =
+    counterexample
+        ("Failed to " <> t <> ":\n" <> BL.unpack (encodePretty $ tojson x))
+        $ f x
+
+counterExampleJSONInstance
+    :: (Testable prop, ToJSON (ApiT a))
+    => String
+    -> (ApiT a -> prop)
+    -> a
+    -> Property
+counterExampleJSONInstance t f x = counterExampleJSON t toJSON f $ ApiT x
 
 spec :: Spec
 spec = do
     describe "observe endpoint" $ do
         it "json response roundtrips"
-            $ forAll genObservation
-            $ jsonRoundtrip . ApiT
+            $ forAllShrink genObservation shrinkObservation
+            $ counterExampleJSONInstance "roundtrip" jsonRoundtrip
         it "json response schema validates random data"
-            $ forAll genObservation
-            $ validate . ApiT
+            $ forAllShrink genObservation shrinkNothing
+            $ counterExampleJSONInstance "validate"
+            $ validateInstance monitoringDefinitions observationSchema
+    describe "phase type" $ do
+        it "json response validates random data"
+            $ forAll genPhase
+            $ counterExampleJSON "validate" renderPhase
+            $ validate monitoringDefinitions phaseSchema . renderPhase
     describe "switch endpoint" $ do
         it "json response roundtrips"
             $ forAll genMonitorState
-            $ jsonRoundtrip . ApiT
+            $ counterExampleJSONInstance "roundtrip" jsonRoundtrip
         it "json response validates random data"
             $ forAll genMonitorState
-            $ validate . ApiT
+            $ counterExampleJSONInstance "validate"
+            $ validateInstance monitoringDefinitions monitorStateSchema
+
+shrinkObservation :: (History, MonitorState) -> [(History, MonitorState)]
+shrinkObservation (h, s) = [(h', s) | h' <- shrinkHistory h]
+
+shrinkHistory :: History -> [History]
+shrinkHistory (History xs) =
+    [ History xs'
+    | xs' <- shrinkList pure xs
+    ]
 
 genObservation :: Gen (History, MonitorState)
 genObservation = do
