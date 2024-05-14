@@ -276,6 +276,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
@@ -2455,6 +2456,10 @@ instance Arbitrary ApiErrorInfo where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorMessage where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorMissingWitnessesInTransaction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

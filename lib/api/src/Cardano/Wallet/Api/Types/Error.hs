@@ -29,6 +29,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
     )
     where
 
@@ -145,6 +146,7 @@ data ApiErrorInfo
     | MissingPolicyPublicKey
     | MissingRewardAccount
     | MissingWitnessesInTransaction
+        !ApiErrorMissingWitnessesInTransaction
     | NetworkMisconfigured
     | NetworkQueryFailed
     | NetworkUnreachable
@@ -271,6 +273,15 @@ data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
+    deriving anyclass NFData
+
+data ApiErrorMissingWitnessesInTransaction = ApiErrorMissingWitnessesInTransaction
+    { expectedNumberOfKeyWits :: Natural
+    , detectedNumberOfKeyWits :: Natural
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorMissingWitnessesInTransaction
     deriving anyclass NFData
 
 data ApiErrorNotEnoughMoney = ApiErrorNotEnoughMoney

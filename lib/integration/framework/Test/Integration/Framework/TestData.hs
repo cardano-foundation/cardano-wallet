@@ -97,7 +97,6 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403InvalidConstructTx
     , errMsg403ForeignTransaction
-    , errMsg403MissingWitsInTransaction
     , errMsg403MultidelegationTransaction
     , errMsg403MultiaccountTransaction
     , errMsg403CreatedWrongPolicyScriptTemplateTx
@@ -639,13 +638,6 @@ errMsg403ForeignTransaction = mconcat
     [ "The transaction to be submitted is foreign to the current wallet "
     , "and cannot be sent. Submit a transaction that has either input "
     , "or withdrawal belonging to the wallet."
-    ]
-
-errMsg403MissingWitsInTransaction :: Int -> Int -> String
-errMsg403MissingWitsInTransaction expected got = mconcat
-    [ "The transaction expects ", show expected
-    , " witness(es) to be fully-signed but ", show got, " was provided."
-    , " Submit fully-signed transaction."
     ]
 
 errMsg403MultidelegationTransaction :: String
