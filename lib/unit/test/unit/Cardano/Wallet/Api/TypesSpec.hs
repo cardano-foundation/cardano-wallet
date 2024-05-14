@@ -2431,6 +2431,10 @@ instance Arbitrary TxMetadataWithSchema where
 instance Arbitrary ApiEncryptMetadata where
     arbitrary = ApiEncryptMetadata <$> arbitrary <*> pure (Just AES256CBC)
 
+instance Arbitrary ApiEncryptMetadataMethod where
+    arbitrary = arbitraryBoundedEnum
+    shrink = shrinkBoundedEnum
+
 instance Arbitrary DRepID where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
