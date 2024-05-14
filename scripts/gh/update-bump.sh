@@ -12,7 +12,7 @@ bump_swagger() {
   bump "$1" --doc "$BUMP_SH_DOC_ID" --token "$BUMP_SH_TOKEN" specifications/api/swagger.json
 }
 
-yq eval specifications/api/swagger.yaml -j > specifications/api/swagger.json
+yq eval specifications/api/swagger.yaml -o=json > specifications/api/swagger.json
 
 bump_swagger validate
 bump_swagger deploy
