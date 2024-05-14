@@ -108,6 +108,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
@@ -645,11 +646,15 @@ instance IsServerError ErrSubmitTransaction where
                 , "or withdrawal belonging to the wallet."
                 ]
         ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
-            apiError err403 MissingWitnessesInTransaction $ mconcat
+            flip (apiError err403) (mconcat
                 [ "The transaction expects ", toText expectedWitsNo
                 , " witness(es) to be fully-signed but ", toText foundWitsNo, " was provided."
                 , " Submit fully-signed transaction."
-                ]
+                ]) $ MissingWitnessesInTransaction
+            ApiErrorMissingWitnessesInTransaction
+            { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
+            , detectedNumberOfKeyWits = fromIntegral foundWitsNo
+            }
         ErrSubmitTransactionMultidelegationNotSupported ->
             apiError err403 CreatedMultidelegationTransaction $ mconcat
             [ "It looks like the transaction to be sent contains"

@@ -112,6 +112,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -328,8 +329,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403MissingWitsInTransaction
-    , errMsg404NoSuchPool
+    ( errMsg404NoSuchPool
     , errMsg404NoWallet
     )
 import UnliftIO.Exception
@@ -2659,7 +2659,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         submittedTx <- submitTxWithWid ctx w sealedTx
         verify submittedTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403MissingWitsInTransaction 1 0)
+            , expectErrorInfo $ flip shouldBe $ MissingWitnessesInTransaction $
+                ApiErrorMissingWitnessesInTransaction
+                  { expectedNumberOfKeyWits = 1
+                  , detectedNumberOfKeyWits = 0
+                  }
             ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
