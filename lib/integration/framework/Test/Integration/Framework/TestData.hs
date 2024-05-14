@@ -77,7 +77,6 @@ module Test.Integration.Framework.TestData
     , errMsg500
     , errMsg400NumberOfWords
     , errMsgNotInDictionary
-    , errMsg400MinWithdrawalWrong
     , errMsg403WithdrawalNotBeneficial
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
@@ -414,10 +413,6 @@ errMsg403WrongPass = "The given encryption passphrase doesn't match the one\
 
 errMsg403WrongMnemonic :: String
 errMsg403WrongMnemonic = "The given mnemonic doesn't match the one this wallet was created with"
-
-errMsg400MinWithdrawalWrong :: String
-errMsg400MinWithdrawalWrong = "The minimum withdrawal value must be at least \
-    \1 Lovelace."
 
 errMsg403NothingToMigrate :: Text -> String
 errMsg403NothingToMigrate _wid = mconcat

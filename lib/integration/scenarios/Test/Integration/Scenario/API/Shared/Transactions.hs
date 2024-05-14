@@ -212,8 +212,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MinWithdrawalWrong
-    , errMsg400StartTimeLaterThanEndTime
+    ( errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
     , errMsg403InvalidConstructTx
     , errMsg404CannotFindTx
@@ -1580,8 +1579,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage errMsg400MinWithdrawalWrong r
-            pure ()
+            decodeErrorInfo r `shouldBe` MinWithdrawalWrong
 
     it "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal can be 1, shows empty when no withdrawals" $
