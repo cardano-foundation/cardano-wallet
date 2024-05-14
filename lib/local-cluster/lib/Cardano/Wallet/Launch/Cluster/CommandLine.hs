@@ -63,6 +63,7 @@ data CommandLineOptions = CommandLineOptions
     , minSeverity :: Maybe Severity
     , nodeToClientSocket :: Maybe (FileOf "node-to-client-socket")
     , httpService :: ServiceConfiguration
+    , faucetFunds :: FileOf "faucet-funds"
     }
     deriving stock (Show)
 
@@ -78,9 +79,19 @@ parseCommandLineOptions = do
                 <*> minSeverityParser
                 <*> nodeToClientSocketParser absolutizer
                 <*> monitoringParser
+                <*> faucetFundsParser absolutizer
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
+
+faucetFundsParser :: Absolutizer -> Parser (FileOf "faucet-funds")
+faucetFundsParser (Absolutizer absOf) =
+    FileOf . absOf . absRel
+        <$> strOption
+            ( long "faucet-funds"
+                <> metavar "FAUCET_FUNDS"
+                <> help "Path to the faucet funds file"
+            )
 
 minSeverityParser :: Parser (Maybe Severity)
 minSeverityParser =

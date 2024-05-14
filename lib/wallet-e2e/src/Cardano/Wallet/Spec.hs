@@ -75,7 +75,7 @@ configureTestNet testNetworkConfig withConfiguredNetwork = runResourceT $ do
         TestNetworkManual ->
             pure Manual.configuredNetwork
         TestNetworkLocal stateDir nodeConfigDir ->
-            Local.configuredNetwork stateDir nodeConfigDir
+            Local.configuredNetwork stateDir nodeConfigDir Nothing
         TestNetworkPreprod stateDir nodeConfigDir ->
             Preprod.configuredNetwork stateDir nodeConfigDir
     liftIO $ withConfiguredNetwork config

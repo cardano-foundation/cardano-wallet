@@ -51,6 +51,8 @@ library
     Cardano.Wallet.Launch.Cluster.ConfiguredPool
     Cardano.Wallet.Launch.Cluster.Env
     Cardano.Wallet.Launch.Cluster.Faucet
+    Cardano.Wallet.Launch.Cluster.Faucet.Gen
+    Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     Cardano.Wallet.Launch.Cluster.FileOf
     Cardano.Wallet.Launch.Cluster.GenesisFiles
     Cardano.Wallet.Launch.Cluster.Http.API
@@ -171,7 +173,6 @@ executable local-cluster
 
   build-depends:
     , base
-    , cardano-addresses
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -201,13 +202,16 @@ common test-common
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
+    , extra
     , filepath
     , foldl
     , hspec
     , hspec-golden
+    , iohk-monitoring-extra
     , local-cluster
     , mtl
     , openapi3
+    , pathtype
     , process
     , QuickCheck
     , time
@@ -219,6 +223,7 @@ common test-common
     , local-cluster:local-cluster
 
   other-modules:
+    Cardano.Wallet.Launch.Cluster.Faucet.SerializeSpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssetsSpec
     Cardano.Wallet.Launch.Cluster.Http.Monitor.APISpec
@@ -229,6 +234,11 @@ common test-common
     Paths_local_cluster
     Spec
     SpecHook
+
+test-suite test-local-cluster
+  import:  test-common
+  main-is: test.hs
+  type:    exitcode-stdio-1.0
 
 executable test-local-cluster-exe
   import:  test-common

@@ -46,7 +46,6 @@ import UnliftIO
     , link
     , newTChanIO
     , readTChan
-    , stdout
     , withFile
     , writeTChan
     )
@@ -62,19 +61,16 @@ newtype ToTextTracer
 
 -- | Create a new `ToTextTracer`
 newToTextTracer
-    :: Maybe FilePath
+    :: FilePath
     -- ^ If provided, logs will be written to this file, otherwise to stdout
     -> Maybe Severity
     -- ^ Minimum severity level to log
     -> (ToTextTracer -> IO r)
     -- ^ Action to run with the new tracer
     -> IO r
-newToTextTracer clusterLogs minSeverity = runContT $ do
+newToTextTracer clusterLogsFile minSeverity = runContT $ do
     ch <- newTChanIO
-    h <- case clusterLogs of
-        Nothing -> pure stdout
-        Just logFile -> do
-            ContT $ withFile logFile WriteMode
+    h <- ContT $ withFile clusterLogsFile WriteMode
     liftIO $ hSetBuffering h NoBuffering
     liftIO $ async >=> link $ forever $ do
         (x, s, t) <- atomically $ readTChan ch
