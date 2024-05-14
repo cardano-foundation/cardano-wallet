@@ -2429,7 +2429,7 @@ instance Arbitrary TxMetadataWithSchema where
     <*> arbitrary
 
 instance Arbitrary ApiEncryptMetadata where
-    arbitrary = ApiEncryptMetadata <$> arbitrary <*> pure (Just AES256CBC)
+    arbitrary = applyArbitrary2 ApiEncryptMetadata
 
 instance Arbitrary ApiEncryptMetadataMethod where
     arbitrary = arbitraryBoundedEnum
