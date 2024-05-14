@@ -1239,7 +1239,7 @@ data ApiMultiDelegationAction
     deriving anyclass NFData
 
 data ApiEncryptMetadataMethod = AES256CBC
-    deriving (Eq, Generic, Show)
+    deriving (Bounded, Enum, Eq, Generic, Show)
     deriving anyclass NFData
 
 instance ToJSON ApiEncryptMetadataMethod where
