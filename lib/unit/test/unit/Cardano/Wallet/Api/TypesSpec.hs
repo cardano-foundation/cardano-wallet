@@ -3628,10 +3628,10 @@ class GetPath api where
     getPath :: Proxy api -> (StdMethod, String)
 
 instance (Method m) => GetPath (Verb m s ct a) where
-    getPath _ = (method (Proxy @m), "")
+    getPath _ = (stdMethod (Proxy @m), "")
 
 instance (Method m) => GetPath (NoContentVerb m) where
-    getPath _ = (method (Proxy @m), "")
+    getPath _ = (stdMethod (Proxy @m), "")
 
 instance (KnownSymbol path, GetPath sub) => GetPath (path :> sub) where
     getPath _ =
@@ -3664,13 +3664,13 @@ instance GetPath sub => GetPath (Header' opts name ty :> sub) where
 -- A way to demote 'StdMethod' back to the world of values. Servant provides a
 -- 'reflectMethod' that does just that, but demote types to raw 'ByteString' for
 -- an unknown reason :/
-instance Method 'GET where method _ = GET
-instance Method 'POST where method _ = POST
-instance Method 'PUT where method _ = PUT
-instance Method 'DELETE where method _ = DELETE
-instance Method 'PATCH where method _ = PATCH
+instance Method 'GET where stdMethod _ = GET
+instance Method 'POST where stdMethod _ = POST
+instance Method 'PUT where stdMethod _ = PUT
+instance Method 'DELETE where stdMethod _ = DELETE
+instance Method 'PATCH where stdMethod _ = PATCH
 class Method (m :: StdMethod) where
-    method :: Proxy m -> StdMethod
+    stdMethod :: Proxy m -> StdMethod
 
 {-------------------------------------------------------------------------------
             Generating Golden Test Vectors For Address Encoding
