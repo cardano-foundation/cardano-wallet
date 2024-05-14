@@ -280,6 +280,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
+    , ApiErrorNoSuchPool (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
@@ -2456,6 +2457,10 @@ instance Arbitrary ApiErrorInfo where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorMessage where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorNoSuchPool where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

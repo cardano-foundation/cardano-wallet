@@ -113,6 +113,7 @@ import Cardano.Wallet.Api.Types.Certificate
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchPool (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -329,8 +330,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoSuchPool
-    , errMsg404NoWallet
+    ( errMsg404NoWallet
     )
 import UnliftIO.Exception
     ( fromEither
@@ -3263,7 +3263,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegation
         verify rTx
             [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoSuchPool (toText absentPoolId))
+            , expectErrorInfo $ flip shouldBe $ NoSuchPool $
+                ApiErrorNoSuchPool { poolId = absentPoolId }
             ]
 
     it "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do

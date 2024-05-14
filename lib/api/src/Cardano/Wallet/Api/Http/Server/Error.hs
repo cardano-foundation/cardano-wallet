@@ -112,6 +112,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
+    , ApiErrorNoSuchPool (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     )
@@ -724,10 +725,10 @@ instance IsServerError ErrCannotJoin where
                 , " joining again would incur an unnecessary fee!"
                 ]
         ErrNoSuchPool pid ->
-            apiError err404 NoSuchPool $ mconcat
+            flip (apiError err404) (mconcat
                 [ "I couldn't find any stake pool with the given id: "
                 , toText pid
-                ]
+                ]) $ NoSuchPool ApiErrorNoSuchPool { poolId = pid }
         ErrAlreadyDelegatingVoting pid ->
             apiError err403 PoolAlreadyJoinedSameVote $ mconcat
                 [ "I couldn't join a stake pool with the given id: "

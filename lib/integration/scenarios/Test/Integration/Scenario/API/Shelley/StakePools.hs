@@ -53,7 +53,8 @@ import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (NoUtxosAvailable, PoolAlreadyJoinedSameVote)
+    ( ApiErrorInfo (NoSuchPool, NoUtxosAvailable, PoolAlreadyJoinedSameVote)
+    , ApiErrorNoSuchPool (..)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -221,7 +222,6 @@ import Test.Integration.Framework.TestData
     , errMsg403NotDelegating
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
-    , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
 
@@ -281,7 +281,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 1
         r <- joinStakePool @n ctx (SpecificPool poolIdAbsent) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
+        verify r
+            [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
+                ApiErrorNoSuchPool { poolId = poolIdAbsent }
+            ]
 
     it
         "STAKE_POOLS_JOIN_01 - \
@@ -716,15 +719,17 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         w <- fixtureWallet ctx
         r <- joinStakePool @n ctx (SpecificPool retiredPoolId) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoSuchPool (toText retiredPoolId)) r
+        verify r
+            [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
+                ApiErrorNoSuchPool { poolId = retiredPoolId }
+            ]
 
     it "STAKE_POOLS_JOIN_EMPTY - Empty wallet cannot join a pool" $ \ctx ->
         runResourceT $ do
             w <- emptyWallet ctx
             pool : _ <- map (view #id) <$> notRetiringPools ctx
             r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-            verify
-                r
+            verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorInfo (`shouldBe` NoUtxosAvailable)
                 ]
@@ -1020,7 +1025,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             w <- fixtureWallet ctx
             r <- liftIO $ joinStakePoolUnsigned @n @'Shelley ctx w (ApiT retiredPoolId)
             expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoSuchPool (toText retiredPoolId)) r
+            verify r
+                [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
+                    ApiErrorNoSuchPool { poolId = retiredPoolId }
+                ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_04"
         $ it "Cannot join a pool that's never existed"
@@ -1039,9 +1047,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         w
                         (ApiT non_existing_pool_id)
             expectResponseCode HTTP.status404 r
-            expectErrorMessage
-                (errMsg404NoSuchPool (toText non_existing_pool_id))
-                r
+            verify r
+                [ expectErrorInfo $ flip shouldBe $ NoSuchPool $
+                    ApiErrorNoSuchPool { poolId = non_existing_pool_id }
+                ]
 
     it
         "STAKE_POOLS_QUIT_UNSIGNED_01 - \
