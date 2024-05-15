@@ -649,21 +649,21 @@ instance IsServerError ErrSubmitTransaction where
                 ]
         ErrSubmitTransactionMissingWitnesses
             ErrSubmitTransactionMissingWitnessCounts
-                { expectedNumberOfKeyWits = expectedWitsNo
-                , detectedNumberOfKeyWits = foundWitsNo
+                { expectedNumberOfKeyWits
+                , detectedNumberOfKeyWits
                 } ->
                 flip (apiError err403) message $
                 MissingWitnessesInTransaction
                     ApiErrorMissingWitnessesInTransaction
-                    { expectedNumberOfKeyWits = expectedWitsNo
-                    , detectedNumberOfKeyWits = foundWitsNo
+                    { expectedNumberOfKeyWits
+                    , detectedNumberOfKeyWits
                     }
           where
             message = mconcat
                 [ "The transaction expects "
-                , toText expectedWitsNo
+                , toText expectedNumberOfKeyWits
                 , " witness(es) to be fully-signed but "
-                , toText foundWitsNo
+                , toText detectedNumberOfKeyWits
                 , " was provided."
                 , " Please submit a fully-signed transaction."
                 ]
