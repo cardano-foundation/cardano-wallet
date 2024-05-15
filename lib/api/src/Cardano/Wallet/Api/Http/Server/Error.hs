@@ -642,25 +642,33 @@ instance IsServerError ErrSubmitTransaction where
     toServerError = \case
         ErrSubmitTransactionForeignWallet ->
             apiError err403 ForeignTransaction $ mconcat
-                [ "The transaction to be submitted is foreign to the current wallet "
-                , "and cannot be sent. Submit a transaction that has either input "
-                , "or withdrawal belonging to the wallet."
+                [ "The transaction to be submitted is foreign to the current "
+                , "wallet and cannot be sent. Submit a transaction that has "
+                , "either input or withdrawal belonging to the wallet."
                 ]
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
-            flip (apiError err403) (mconcat
-                [ "The transaction expects ", toText expectedWitsNo
-                , " witness(es) to be fully-signed but ", toText foundWitsNo, " was provided."
-                , " Submit fully-signed transaction."
-                ]) $ MissingWitnessesInTransaction
-            ApiErrorMissingWitnessesInTransaction
-            { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
-            , detectedNumberOfKeyWits = fromIntegral foundWitsNo
-            }
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx
+            expectedWitsNo foundWitsNo ->
+                flip (apiError err403)
+                    (mconcat
+                        [ "The transaction expects "
+                        , toText expectedWitsNo
+                        , " witness(es) to be fully-signed but "
+                        , toText foundWitsNo
+                        , " was provided."
+                        , " Submit fully-signed transaction."
+                        ]
+                    ) $
+                MissingWitnessesInTransaction
+                    ApiErrorMissingWitnessesInTransaction
+                    { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
+                    , detectedNumberOfKeyWits = fromIntegral foundWitsNo
+                    }
         ErrSubmitTransactionMultidelegationNotSupported ->
             apiError err403 CreatedMultidelegationTransaction $ mconcat
             [ "It looks like the transaction to be sent contains"
             , "multiple delegations, which is not supported at this moment."
-            , "Please use at most one delegation action in a submitted transaction: join, quit or none."
+            , "Please use at most one delegation action in a submitted "
+            , "transaction: join, quit or none."
             ]
 
 instance IsServerError ErrSubmitTx where
@@ -733,8 +741,9 @@ instance IsServerError ErrCannotJoin where
             apiError err403 PoolAlreadyJoinedSameVote $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText pid
-                , " and vote. I have already joined this pool, also voted the same last time;"
-                , " joining/voting again would incur an unnecessary fee!"
+                , " and vote. I have already joined this pool, also voted the "
+                , "same last time; "
+                , "joining/voting again would incur an unnecessary fee!"
                 ]
 
 instance IsServerError ErrCannotVote where
