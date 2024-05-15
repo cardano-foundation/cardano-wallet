@@ -4361,6 +4361,18 @@ x-errNoUtxosAvailable: &errNoUtxosAvailable
       type: string
       enum: ['no_utxos_available']
 
+x-errNoSuchWalletInitialized: &errNoSuchWalletInitialized
+  <<: *responsesErr
+  title: no_such_wallet_initialized
+  properties:
+    message:
+      type: string
+      description: |
+        May occur when the database for the requested wallet is not initialized.
+    code:
+      type: string
+      enum: ['no_such_wallet_initialized']
+
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
   title: no_such_wallet
@@ -4373,6 +4385,12 @@ x-errNoSuchWallet: &errNoSuchWallet
     code:
       type: string
       enum: ['no_such_wallet']
+    info:
+      type: object
+      required:
+        - wallet_id
+      properties:
+        wallet_id: *walletId
 
 x-errNoSuchTransaction: &errNoSuchTransaction
   <<: *responsesErr
@@ -5647,6 +5665,13 @@ x-responsesErr404WalletNotFound: &responsesErr404WalletNotFound
       application/json:
         schema: *errNoSuchWallet
 
+x-responsesErr404DbNotInitialized: &responsesErr404DbNotInitialized
+  404:
+    description: DB uninitialized
+    content:
+      application/json:
+        schema: *errNoSuchWalletInitialized
+
 x-responsesErr503WalletMetadataNotFound: &responsesErr503WalletMetadataNotFound
   503:
     description: No meta
@@ -5726,6 +5751,7 @@ x-responsesListByronWallets: &responsesListByronWallets
 
 x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -5735,6 +5761,7 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
 
 x-responsesGetWalletUtxoSnapshot: &responsesGetWalletUtxoSnapshot
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -5792,6 +5819,7 @@ x-responsesPostByronWallet: &responsesPostByronWallet
 x-responsesGetWallet: &responsesGetWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -5811,6 +5839,7 @@ x-responsesGetByronWallet: &responsesGetByronWallet
 x-responsesGetSharedWallet: &responsesGetSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -5821,6 +5850,7 @@ x-responsesGetSharedWallet: &responsesGetSharedWallet
 x-responsesPatchSharedWallet: &responsesPatchSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr503WalletMetadataNotFound
   403:
@@ -5847,6 +5877,7 @@ x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
       application/json:
         schema: *errNothingToMigrate
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   202:
     description: Accepted
@@ -5865,6 +5896,7 @@ x-responsesMigrateWallet: &responsesMigrateWallet
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -5879,6 +5911,7 @@ x-responsesMigrateWallet: &responsesMigrateWallet
 x-responsesDeleteWallet: &responsesDeleteWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   204:
     description: No Content
@@ -5895,6 +5928,7 @@ x-responsesForceResyncWallet: &responsesForceResyncWallet
 x-responsesPutWallet: &responsesPutWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   200:
@@ -5906,6 +5940,7 @@ x-responsesPutWallet: &responsesPutWallet
 x-responsesPutSharedWallet: &responsesPutSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   200:
@@ -5926,6 +5961,7 @@ x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
             - <<: *errWrongEncryptionPassphrase
             - <<: *errWrongMnemonic
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   204:
@@ -5950,6 +5986,7 @@ x-responsesSelectCoins: &responsesSelectCoins
             - <<: *errOutputTokenQuantityExceedsLimit
             - <<: *errOutputTokenBundleSizeExceedsLimit
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   200:
@@ -5971,6 +6008,7 @@ x-responsesDeleteTransaction: &responsesDeleteTransaction
         schema:
           oneOf:
             - <<: *errNoSuchWallet
+            - <<: *errNoSuchWalletInitialized
             - <<: *errNoSuchTransaction
   <<: *responsesErr406
   204:
@@ -5986,6 +6024,7 @@ x-responsesListTransactions: &responsesListTransactions
             - <<: *errMinWithdrawalWrong
             - <<: *errStartTimeLaterThanEndTime
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -6008,6 +6047,7 @@ x-responsesGetTransaction: &responsesGetTransaction
         schema:
           oneOf:
             - <<: *errNoSuchWallet
+            - <<: *errNoSuchWalletInitialized
             - <<: *errNoSuchTransaction
   <<: *responsesErr406
   200:
@@ -6037,6 +6077,7 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errWrongEncryptionPassphrase
             - <<: *errUnsupportedEra
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   <<: *responsesErr425MempoolIsFull
@@ -6080,6 +6121,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errVotingInInvalidEra
             - <<: *errWithdrawalNotPossibleWithoutVote
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -6099,6 +6141,7 @@ x-responsesSignTransaction: &responsesSignTransaction
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -6110,6 +6153,7 @@ x-responsesSignTransaction: &responsesSignTransaction
 x-responsesDecodedTransaction: &responsesDecodedTransaction
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -6121,6 +6165,7 @@ x-responsesDecodedTransaction: &responsesDecodedTransaction
 x-responsesSubmitTransaction: &responsesSubmitTransaction
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -6186,6 +6231,7 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
             - <<: *errOutputTokenBundleSizeExceedsLimit
             - <<: *errTransactionIsTooBig
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -6201,6 +6247,7 @@ x-responsesGetDelegationFee: &responsesGetDelegationFee
       application/json:
         schema: *errCannotCoverFee
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -6211,6 +6258,7 @@ x-responsesGetDelegationFee: &responsesGetDelegationFee
 x-responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   200:
     description: Ok
@@ -6383,6 +6431,7 @@ x-responsesJoinStakePool: &responsesJoinStakePool
         schema:
           oneOf:
             - <<: *errNoSuchWallet
+            - <<: *errNoSuchWalletInitialized
             - <<: *errNoSuchPool
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
@@ -6407,6 +6456,7 @@ x-responsesQuitStakePool: &responsesQuitStakePool
             - <<: *errNotDelegatingTo
             - <<: *errNonNullRewards
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
@@ -6545,6 +6595,7 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errTranslationByronTxOutInContext
 
   <<: *responsesErr404WalletNotFound
+  <<: *responsesErr404DbNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
   202:
