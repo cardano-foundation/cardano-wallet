@@ -4918,6 +4918,18 @@ x-errMissingWitnessesInTransaction: &errMissingWitnessesInTransaction
     code:
       type: string
       enum: ['missing_witnesses_in_transaction']
+    info:
+      type: object
+      required:
+        - detected_number_of_key_wits
+        - expected_number_of_key_wits
+      properties:
+        detected_number_of_key_wits:
+          type: integer
+          minimum: 0
+        expected_number_of_key_wits:
+          type: integer
+          minimum: 0
 
 x-errRejectedByCoreNode: &errRejectedByCoreNode
   <<: *responsesErr
