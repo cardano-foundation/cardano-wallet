@@ -280,10 +280,11 @@ data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
     deriving anyclass NFData
 
-data ApiErrorMissingWitnessesInTransaction = ApiErrorMissingWitnessesInTransaction
-    { expectedNumberOfKeyWits :: Natural
-    , detectedNumberOfKeyWits :: Natural
-    }
+data ApiErrorMissingWitnessesInTransaction =
+    ApiErrorMissingWitnessesInTransaction
+        { expectedNumberOfKeyWits :: Natural
+        , detectedNumberOfKeyWits :: Natural
+        }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorMissingWitnessesInTransaction
