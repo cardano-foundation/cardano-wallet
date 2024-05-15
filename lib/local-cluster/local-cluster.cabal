@@ -10,7 +10,9 @@ maintainer:    hal@cardanofoundation.org
 copyright:     2023 Cardano Foundation
 category:      Web
 build-type:    Simple
-data-files:    data/swagger.json
+
+data-files:
+    data/swagger.json
 
 common language
   default-language:   Haskell2010
@@ -26,6 +28,7 @@ common language
     -Wmissing-deriving-strategies -Wmissing-local-signatures
     -Wpartial-fields -Wredundant-constraints -Wtabs -Wunused-foralls
     -Wunused-packages
+    -Wno-missing-home-modules
 
 flag release
   description: Enable optimization and `-Werror`
@@ -202,6 +205,7 @@ common test-common
     , cardano-ledger-shelley
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
+    , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , contra-tracer
@@ -227,6 +231,12 @@ common test-common
     , hspec-discover:hspec-discover
     , local-cluster:local-cluster
 
+-- until cabal has no support for multi home, hls requires to have only one home
+-- for the other modules , so we cannot use the common test-common for those
+test-suite test-local-cluster
+  import:  test-common
+  main-is: test.hs
+  type:    exitcode-stdio-1.0
   other-modules:
     Cardano.Wallet.Launch.Cluster.Faucet.SerializeSpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
@@ -239,11 +249,6 @@ common test-common
     Paths_local_cluster
     Spec
     SpecHook
-
-test-suite test-local-cluster
-  import:  test-common
-  main-is: test.hs
-  type:    exitcode-stdio-1.0
 
 executable test-local-cluster-exe
   import:  test-common

@@ -83,14 +83,6 @@ faucetFundsToValue FaucetFunds{..} =
     massiveWalletFunds' = encodeAddrCoins massiveWalletFunds
     encodeAddrCoins = map (\(addr, Coin coin) -> (bech32 addr, coin))
 
-    -- encodeTokenBundle :: (TokenBundle, [(String, String)]) -> Value
-    -- encodeTokenBundle (bundle, keys) =
-    --     let (Coin c, assets) = toFlatList bundle
-    --     in  object
-    --             [ "coin" .= c
-    --             , "assets" .= (encodeAssets <$> assets)
-    --             , "keys" .= keys
-    --             ]
     encodeTokenBundle :: (TokenBundle, [(String, String)]) -> Value
     encodeTokenBundle (bundle, keys) =
         let (Coin c, assets) = toFlatList bundle
