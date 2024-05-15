@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchWallet (..)
     , ApiErrorUnsupportedEra (..)
     )
     where
@@ -163,6 +164,8 @@ data ApiErrorInfo
         !ApiErrorNoSuchPool
     | NoSuchTransaction
     | NoSuchWallet
+        !ApiErrorNoSuchWallet
+    | NoSuchWalletInitialized
     | NoUtxosAvailable
     | NodeNotYetInRecentEra
         !ApiErrorNodeNotYetInRecentEra
@@ -326,4 +329,11 @@ data ApiErrorNoSuchPool = ApiErrorNoSuchPool
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchPool
+    deriving anyclass NFData
+
+data ApiErrorNoSuchWallet = ApiErrorNoSuchWallet
+    { walletId :: !Text
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchWallet
     deriving anyclass NFData
