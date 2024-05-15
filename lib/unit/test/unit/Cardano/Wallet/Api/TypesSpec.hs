@@ -798,6 +798,7 @@ spec = do
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiError
+        jsonTest @ApiErrorMissingWitnessesInTransaction
         jsonTest @ApiErrorSharedWalletNoSuchCosigner
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiErrorBalanceTxUnderestimatedFee
