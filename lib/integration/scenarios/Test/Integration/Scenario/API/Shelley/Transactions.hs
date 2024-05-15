@@ -214,11 +214,9 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MinWithdrawalWrong
-    , errMsg400StartTimeLaterThanEndTime
+    ( errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
-    , errMsg403Fee
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -766,11 +764,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.createTransactionOld @'Shelley wSrc)
                 Default
                 payload
-        verify
-            r
+        verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo r `shouldBe` CannotCoverFee
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -2167,8 +2164,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage errMsg400MinWithdrawalWrong r
-            pure ()
+            decodeErrorInfo r `shouldBe` MinWithdrawalWrong
 
     it
         "TRANS_LIST_03 - \

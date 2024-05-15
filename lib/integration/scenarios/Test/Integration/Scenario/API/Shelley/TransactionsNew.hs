@@ -112,6 +112,8 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchPool (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -328,23 +330,7 @@ import Test.Integration.Framework.DSL
     , (.>)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403AssetNameTooLong
-    , errMsg403Collateral
-    , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
-    , errMsg403CreatedWrongPolicyScriptTemplateTx
-    , errMsg403Fee
-    , errMsg403ForeignTransaction
-    , errMsg403InvalidConstructTx
-    , errMsg403InvalidValidityBounds
-    , errMsg403MintOrBurnAssetQuantityOutOfBounds
-    , errMsg403MissingWitsInTransaction
-    , errMsg403MultiaccountTransaction
-    , errMsg403MultidelegationTransaction
-    , errMsg403NonNullReward
-    , errMsg403NotDelegating
-    , errMsg403ValidityIntervalNotInsideScriptTimelock
-    , errMsg404NoSuchPool
-    , errMsg404NoWallet
+    ( errMsg404NoWallet
     )
 import UnliftIO.Exception
     ( fromEither
@@ -379,8 +365,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default emptyPayload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "TRANS_NEW_CREATE_01b - Validity interval only is not allowed" $
         \ctx -> runResourceT $ do
@@ -403,8 +389,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default validityInterval
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "TRANS_NEW_CREATE_01c - No payload is bad request" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -922,8 +908,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     it "TRANS_NEW_CREATE_04d - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)
@@ -2412,8 +2398,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.balanceTransaction @'Shelley wa) Default balancePayload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     -- This test is disabled because it contains an opaque fixture
     -- without a source code and it makes it impossible to update it
@@ -2455,13 +2441,13 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 else ("4.280100", "[2.853400]")
         verify rTx'
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Collateral
             , expectErrorMessage $
                 "I need an ada amount of at least: " <> requiredAmt
             , expectErrorMessage $
                 "The largest combination of pure ada UTxOs I could find is: "
                 <> largestFound
             ]
+        decodeErrorInfo rTx' `shouldBe` InsufficientCollateral
 
     -- This test is disabled because it contains an opaque fixture
     -- without a source code and it makes it impossible to update it
@@ -2673,7 +2659,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         submittedTx <- submitTxWithWid ctx w sealedTx
         verify submittedTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403MissingWitsInTransaction 1 0)
+            , expectErrorInfo $ flip shouldBe $ MissingWitnessesInTransaction $
+                ApiErrorMissingWitnessesInTransaction
+                  { expectedNumberOfKeyWits = 1
+                  , detectedNumberOfKeyWits = 0
+                  }
             ]
 
     it "TRANS_NEW_SIGN_03 - Sign withdrawals" $ \ctx -> runResourceT $ do
@@ -2778,8 +2768,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             submittedTx <- submitTxWithWid ctx wb signedTx
             verify submittedTx
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403ForeignTransaction
                 ]
+            decodeErrorInfo submittedTx `shouldBe` ForeignTransaction
 
     describe "TRANS_NEW_SUBMIT_02 - Submitting on foreign Byron wallet is forbidden" $ do
         let scenarios =
@@ -3273,7 +3263,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegation
         verify rTx
             [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoSuchPool (toText absentPoolId))
+            , expectErrorInfo $ flip shouldBe $ NoSuchPool $
+                ApiErrorNoSuchPool { poolId = absentPoolId }
             ]
 
     it "TRANS_NEW_JOIN_01c - Multidelegation not supported" $ \ctx -> runResourceT $ do
@@ -3295,8 +3286,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegations
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MultidelegationTransaction
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedMultidelegationTransaction
 
     it "TRANS_NEW_JOIN_01d - Multiaccount not supported" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
@@ -3313,8 +3304,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegations
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MultiaccountTransaction
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedMultiaccountTransaction
 
     it "TRANS_NEW_JOIN_01e - Can re-join and withdraw at once"  $ \ctx -> runResourceT $ do
         (src, _) <- rewardWallet ctx
@@ -3599,8 +3590,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default delegation
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NotDelegating
             ]
+        decodeErrorInfo rTx `shouldBe` NotDelegatingTo
 
     it "TRANS_NEW_QUIT_02a - Cannot quit with rewards without explicit withdrawal"
         $ \ctx -> runResourceT $ do
@@ -3612,12 +3603,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     }
                 }]
             }|]
-        request @(ApiConstructTransaction n) ctx
+        rTx <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley w) Default payload
-            >>= flip verify
+        verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403NonNullReward
             ]
+        decodeErrorInfo rTx `shouldBe` NonNullRewards
 
     it "TRANS_NEW_QUIT_02b - Can quit with rewards with explicit withdrawal"
         $ \ctx -> runResourceT $ do
@@ -3797,8 +3788,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedWrongPolicyScriptTemplate
 
     it "TRANS_NEW_CREATE_10l - Minting when assetName too long" $
         \ctx -> runResourceT $ do
@@ -3824,8 +3815,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403AssetNameTooLong
             ]
+        decodeErrorInfo rTx `shouldBe` AssetNameTooLong
 
     it "TRANS_NEW_CREATE_10m1 - Minting amount too big" $
         \ctx -> runResourceT $ do
@@ -3849,9 +3840,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
+        decodeErrorInfo rTx `shouldBe` MintOrBurnAssetQuantityOutOfBounds
 
     it "TRANS_NEW_CREATE_10m2 - Minting amount = 0" $
         \ctx -> runResourceT $ do
@@ -3875,8 +3865,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403MintOrBurnAssetQuantityOutOfBounds
             ]
+        decodeErrorInfo rTx `shouldBe` MintOrBurnAssetQuantityOutOfBounds
 
     it "TRANS_NEW_CREATE_10d - Minting assets without timelock" $
         \ctx -> runResourceT $ do
@@ -4016,9 +4006,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage
-                errMsg403ValidityIntervalNotInsideScriptTimelock
             ]
+        decodeErrorInfo rTx `shouldBe` ValidityIntervalNotInsideScriptTimelock
 
     it "TRANS_NEW_CREATE_10f - Burning assets without timelock" $
         \ctx -> runResourceT $ do
@@ -4229,8 +4218,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (Link.createUnsignedTransaction @'Shelley wa) Default payload
             verify rTx
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplateTx
                 ]
+            decodeErrorInfo rTx `shouldBe` CreatedWrongPolicyScriptTemplate
 
     describe "TRANS_NEW_CREATE_MINT_SCRIPTS - I can mint and burn with correct policy scripts" $ do
         let scenarios =
@@ -4367,8 +4356,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         rGet <- request @ApiPolicyId ctx postPolicyId Default payload
         verify rGet
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403CreatedWrongPolicyScriptTemplatePolicyId
             ]
+        decodeErrorInfo rGet `shouldBe` CreatedWrongPolicyScriptTemplate
 
     it "TRANS_NEW_CREATE_11 - Get policy id \
         \" $ \ctx -> runResourceT $ do
@@ -4437,8 +4426,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shelley wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidValidityBounds
             ]
+        decodeErrorInfo rTx `shouldBe` InvalidValidityBounds
 
     it "TRANS_NEW_VALIDITY_INTERVAL_02 - \
         \Missing lower validity bound is acceptable" $

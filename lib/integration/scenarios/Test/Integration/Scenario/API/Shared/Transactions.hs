@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -211,11 +212,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400MinWithdrawalWrong
-    , errMsg400StartTimeLaterThanEndTime
-    , errMsg403Fee
-    , errMsg403InvalidConstructTx
-    , errMsg403MissingWitsInTransaction
+    ( errMsg400StartTimeLaterThanEndTime
     , errMsg404CannotFindTx
     , errMsg404NoWallet
     )
@@ -561,8 +558,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wa) Default emptyPayload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "SHARED_TRANSACTIONS_CREATE_01b - \
         \Validity interval only is not allowed" $
@@ -587,8 +584,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             Default validityInterval
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "SHARED_TRANSACTIONS_CREATE_04a - \
         \Single Output Transaction with decode transaction - single party" $
@@ -844,8 +841,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     it "SHARED_TRANSACTIONS_CREATE_04e - \
         \Multiple Output Tx to single wallet"
@@ -1019,7 +1016,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
         verify submittedTx1
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
+            , expectErrorInfo $ flip shouldBe $ MissingWitnessesInTransaction $
+                ApiErrorMissingWitnessesInTransaction
+                  { expectedNumberOfKeyWits = 2
+                  , detectedNumberOfKeyWits = 1
+                  }
             ]
 
         -- adding the witness by the second participant make tx valid for
@@ -1576,8 +1577,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage errMsg400MinWithdrawalWrong r
-            pure ()
+            decodeErrorInfo r `shouldBe` MinWithdrawalWrong
 
     it "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal can be 1, shows empty when no withdrawals" $
@@ -1938,7 +1938,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         submittedTx1 <- submitSharedTxWithWid ctx party1 signedTx1
         verify submittedTx1
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403MissingWitsInTransaction 3 2)
+            , expectErrorInfo $ flip shouldBe $ MissingWitnessesInTransaction $
+                ApiErrorMissingWitnessesInTransaction
+                  { expectedNumberOfKeyWits = 3
+                  , detectedNumberOfKeyWits = 2
+                  }
             ]
 
         let ApiSerialisedTransaction apiTx2 _ = signedTx1
@@ -3253,7 +3257,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         submittedTx1 <- submitSharedTxWithWid ctx sharedWal1 signedTx1
         verify submittedTx1
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
+            , expectErrorInfo $ flip shouldBe $ MissingWitnessesInTransaction $
+                ApiErrorMissingWitnessesInTransaction
+                  { expectedNumberOfKeyWits = 2
+                  , detectedNumberOfKeyWits = 1
+                  }
             ]
 
         --adding the witness by the same participant does not change the
@@ -3276,7 +3284,11 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         submittedTx2 <- submitSharedTxWithWid ctx sharedWal1 signedTx2
         verify submittedTx2
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage (errMsg403MissingWitsInTransaction 2 1)
+            , expectErrorInfo $ flip shouldBe $ MissingWitnessesInTransaction $
+                ApiErrorMissingWitnessesInTransaction
+                  { expectedNumberOfKeyWits = 2
+                  , detectedNumberOfKeyWits = 1
+                  }
             ]
 
         --adding the witness by the second participant make tx valid for

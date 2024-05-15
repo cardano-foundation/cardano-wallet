@@ -29,6 +29,8 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchPool (..)
     )
     where
 
@@ -48,6 +50,9 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
+    )
+import Cardano.Wallet.Primitive.Types.Pool
+    ( PoolId
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -145,11 +150,13 @@ data ApiErrorInfo
     | MissingPolicyPublicKey
     | MissingRewardAccount
     | MissingWitnessesInTransaction
+        !ApiErrorMissingWitnessesInTransaction
     | NetworkMisconfigured
     | NetworkQueryFailed
     | NetworkUnreachable
     | NoRootKey
     | NoSuchPool
+        !ApiErrorNoSuchPool
     | NoSuchTransaction
     | NoSuchWallet
     | NoUtxosAvailable
@@ -273,6 +280,16 @@ data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
         via DefaultRecord ApiErrorNodeNotYetInRecentEra
     deriving anyclass NFData
 
+data ApiErrorMissingWitnessesInTransaction =
+    ApiErrorMissingWitnessesInTransaction
+        { expectedNumberOfKeyWits :: !Natural
+        , detectedNumberOfKeyWits :: !Natural
+        }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorMissingWitnessesInTransaction
+    deriving anyclass NFData
+
 data ApiErrorNotEnoughMoney = ApiErrorNotEnoughMoney
     { shortfall :: !ApiErrorNotEnoughMoneyShortfall
     }
@@ -287,4 +304,11 @@ data ApiErrorNotEnoughMoneyShortfall = ApiErrorNotEnoughMoneyShortfall
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via
         DefaultRecord ApiErrorNotEnoughMoneyShortfall
+    deriving anyclass NFData
+
+data ApiErrorNoSuchPool = ApiErrorNoSuchPool
+    { poolId :: !PoolId
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchPool
     deriving anyclass NFData

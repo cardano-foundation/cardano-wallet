@@ -108,6 +108,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchPool (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
@@ -640,21 +642,33 @@ instance IsServerError ErrSubmitTransaction where
     toServerError = \case
         ErrSubmitTransactionForeignWallet ->
             apiError err403 ForeignTransaction $ mconcat
-                [ "The transaction to be submitted is foreign to the current wallet "
-                , "and cannot be sent. Submit a transaction that has either input "
-                , "or withdrawal belonging to the wallet."
+                [ "The transaction to be submitted is foreign to the current "
+                , "wallet and cannot be sent. Submit a transaction that has "
+                , "either an input or a withdrawal belonging to the wallet."
                 ]
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx expectedWitsNo foundWitsNo ->
-            apiError err403 MissingWitnessesInTransaction $ mconcat
-                [ "The transaction expects ", toText expectedWitsNo
-                , " witness(es) to be fully-signed but ", toText foundWitsNo, " was provided."
-                , " Submit fully-signed transaction."
+        ErrSubmitTransactionPartiallySignedOrNoSignedTx
+            expectedWitsNo foundWitsNo ->
+                flip (apiError err403) message $
+                MissingWitnessesInTransaction
+                    ApiErrorMissingWitnessesInTransaction
+                    { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
+                    , detectedNumberOfKeyWits = fromIntegral foundWitsNo
+                    }
+          where
+            message = mconcat
+                [ "The transaction expects "
+                , toText expectedWitsNo
+                , " witness(es) to be fully-signed but "
+                , toText foundWitsNo
+                , " was provided."
+                , " Please submit a fully-signed transaction."
                 ]
         ErrSubmitTransactionMultidelegationNotSupported ->
             apiError err403 CreatedMultidelegationTransaction $ mconcat
-            [ "It looks like the transaction to be sent contains"
-            , "multiple delegations, which is not supported at this moment."
-            , "Please use at most one delegation action in a submitted transaction: join, quit or none."
+            [ "It looks like the transaction to be sent contains "
+            , "multiple delegations, which is not supported at this moment. "
+            , "Please use at most one delegation action in a submitted "
+            , "transaction: join, quit or none."
             ]
 
 instance IsServerError ErrSubmitTx where
@@ -719,7 +733,10 @@ instance IsServerError ErrCannotJoin where
                 , " joining again would incur an unnecessary fee!"
                 ]
         ErrNoSuchPool pid ->
-            apiError err404 NoSuchPool $ mconcat
+            flip (apiError err404) message $
+            NoSuchPool ApiErrorNoSuchPool { poolId = pid }
+          where
+            message = mconcat
                 [ "I couldn't find any stake pool with the given id: "
                 , toText pid
                 ]
@@ -727,8 +744,9 @@ instance IsServerError ErrCannotJoin where
             apiError err403 PoolAlreadyJoinedSameVote $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
                 , toText pid
-                , " and vote. I have already joined this pool, also voted the same last time;"
-                , " joining/voting again would incur an unnecessary fee!"
+                , " and vote. I have already joined this pool, also voted the "
+                , "same last time; "
+                , "joining/voting again would incur an unnecessary fee!"
                 ]
 
 instance IsServerError ErrCannotVote where

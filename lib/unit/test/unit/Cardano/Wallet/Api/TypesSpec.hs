@@ -276,6 +276,8 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorBalanceTxUnderestimatedFee (..)
     , ApiErrorInfo (..)
     , ApiErrorMessage (..)
+    , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchPool (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
@@ -796,9 +798,11 @@ spec = do
         jsonTest @ApiEra
         jsonTest @ApiEraInfo
         jsonTest @ApiError
+        jsonTest @ApiErrorMissingWitnessesInTransaction
         jsonTest @ApiErrorSharedWalletNoSuchCosigner
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiErrorBalanceTxUnderestimatedFee
+        jsonTest @ApiErrorNoSuchPool
         jsonTest @ApiErrorNodeNotYetInRecentEra
         jsonTest @ApiErrorNotEnoughMoney
         jsonTest @ApiFee
@@ -2455,6 +2459,14 @@ instance Arbitrary ApiErrorInfo where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorMessage where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorNoSuchPool where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorMissingWitnessesInTransaction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
