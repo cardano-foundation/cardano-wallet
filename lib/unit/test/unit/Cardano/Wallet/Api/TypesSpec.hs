@@ -802,6 +802,7 @@ spec = do
         jsonTest @ApiErrorSharedWalletNoSuchCosigner
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiErrorBalanceTxUnderestimatedFee
+        jsonTest @ApiErrorNoSuchPool
         jsonTest @ApiErrorNodeNotYetInRecentEra
         jsonTest @ApiErrorNotEnoughMoney
         jsonTest @ApiFee

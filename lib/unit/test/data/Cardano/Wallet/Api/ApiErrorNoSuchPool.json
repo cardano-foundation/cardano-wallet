@@ -1,0 +1,35 @@
+{
+    "samples": [
+        {
+            "pool_id": "69b98dd0d2ff323277e4ccef1c2525c9d8b29e0abf6d29d67d818c8e"
+        },
+        {
+            "pool_id": "3f9c495c3ec62e13c9016afbb22c1e1950983d8bfb8c39675ec77b25"
+        },
+        {
+            "pool_id": "58c62302ef2a19ec051d7cd3ebe3fb8a491611b0bb05f01a14fedad1"
+        },
+        {
+            "pool_id": "37b915b5e7f6be14477b14faf3ec374e2398ec54b4f8c755dfd3aa40"
+        },
+        {
+            "pool_id": "f8e27e563ba531940e0c73c93f5136366b8296c1769047d9e230ec6b"
+        },
+        {
+            "pool_id": "c54e72492ebb6f97912a41cf4034bf6810004bd75880ffae838be359"
+        },
+        {
+            "pool_id": "0c907f392b9e5677f2d81f6259de5057df3f001c313b418cf7bb22f1"
+        },
+        {
+            "pool_id": "9d1ac2a8e6969c85f3126de8c2ec5e0741f278e248da31db33b5daa2"
+        },
+        {
+            "pool_id": "1f620884c8f64dd34454f6159aa82bdc53275f0d65e3c5a007615cef"
+        },
+        {
+            "pool_id": "139249a674d3c5883fe3b756a23622745a86b6d3fe5c3b6117229f76"
+        }
+    ],
+    "seed": 1118257763
+}
