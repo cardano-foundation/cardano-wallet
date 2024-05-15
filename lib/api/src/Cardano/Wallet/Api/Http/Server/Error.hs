@@ -648,21 +648,21 @@ instance IsServerError ErrSubmitTransaction where
                 ]
         ErrSubmitTransactionPartiallySignedOrNoSignedTx
             expectedWitsNo foundWitsNo ->
-                flip (apiError err403)
-                    (mconcat
-                        [ "The transaction expects "
-                        , toText expectedWitsNo
-                        , " witness(es) to be fully-signed but "
-                        , toText foundWitsNo
-                        , " was provided."
-                        , " Submit fully-signed transaction."
-                        ]
-                    ) $
+                flip (apiError err403) message $
                 MissingWitnessesInTransaction
                     ApiErrorMissingWitnessesInTransaction
                     { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
                     , detectedNumberOfKeyWits = fromIntegral foundWitsNo
                     }
+          where
+            message = mconcat
+                [ "The transaction expects "
+                , toText expectedWitsNo
+                , " witness(es) to be fully-signed but "
+                , toText foundWitsNo
+                , " was provided."
+                , " Submit fully-signed transaction."
+                ]
         ErrSubmitTransactionMultidelegationNotSupported ->
             apiError err403 CreatedMultidelegationTransaction $ mconcat
             [ "It looks like the transaction to be sent contains"
@@ -733,10 +733,13 @@ instance IsServerError ErrCannotJoin where
                 , " joining again would incur an unnecessary fee!"
                 ]
         ErrNoSuchPool pid ->
-            flip (apiError err404) (mconcat
+            flip (apiError err404) message $
+            NoSuchPool ApiErrorNoSuchPool { poolId = pid }
+          where
+            message = mconcat
                 [ "I couldn't find any stake pool with the given id: "
                 , toText pid
-                ]) $ NoSuchPool ApiErrorNoSuchPool { poolId = pid }
+                ]
         ErrAlreadyDelegatingVoting pid ->
             apiError err403 PoolAlreadyJoinedSameVote $ mconcat
                 [ "I couldn't join a stake pool with the given id: "
