@@ -644,7 +644,7 @@ instance IsServerError ErrSubmitTransaction where
             apiError err403 ForeignTransaction $ mconcat
                 [ "The transaction to be submitted is foreign to the current "
                 , "wallet and cannot be sent. Submit a transaction that has "
-                , "either input or withdrawal belonging to the wallet."
+                , "either an input or a withdrawal belonging to the wallet."
                 ]
         ErrSubmitTransactionPartiallySignedOrNoSignedTx
             expectedWitsNo foundWitsNo ->
@@ -661,12 +661,12 @@ instance IsServerError ErrSubmitTransaction where
                 , " witness(es) to be fully-signed but "
                 , toText foundWitsNo
                 , " was provided."
-                , " Submit fully-signed transaction."
+                , " Please submit a fully-signed transaction."
                 ]
         ErrSubmitTransactionMultidelegationNotSupported ->
             apiError err403 CreatedMultidelegationTransaction $ mconcat
-            [ "It looks like the transaction to be sent contains"
-            , "multiple delegations, which is not supported at this moment."
+            [ "It looks like the transaction to be sent contains "
+            , "multiple delegations, which is not supported at this moment. "
             , "Please use at most one delegation action in a submitted "
             , "transaction: join, quit or none."
             ]
