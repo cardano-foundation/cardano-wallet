@@ -646,7 +646,7 @@ instance IsServerError ErrSubmitTransaction where
                 , "wallet and cannot be sent. Submit a transaction that has "
                 , "either an input or a withdrawal belonging to the wallet."
                 ]
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx
+        ErrSubmitTransactionMissingWitnesses
             expectedWitsNo foundWitsNo ->
                 flip (apiError err403) message $
                 MissingWitnessesInTransaction

@@ -3749,7 +3749,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
 
     when (witsRequiredForInputs > totalNumberOfWits)
         $ liftHandler . throwE
-        $ ErrSubmitTransactionPartiallySignedOrNoSignedTx
+        $ ErrSubmitTransactionMissingWitnesses
             witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -3899,7 +3899,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 paymentWitsRequired + fromIntegral delegationWitsRequired
         when (allWitsRequired > totalNumberOfWits) $
             liftHandler $ throwE $
-            ErrSubmitTransactionPartiallySignedOrNoSignedTx
+            ErrSubmitTransactionMissingWitnesses
             allWitsRequired totalNumberOfWits
 
         let txCtx = defaultTransactionCtx

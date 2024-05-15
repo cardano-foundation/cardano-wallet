@@ -3651,7 +3651,7 @@ data ErrSignPayment
 -- | Errors that can occur when submitting a transaction.
 data ErrSubmitTransaction
     = ErrSubmitTransactionForeignWallet
-    | ErrSubmitTransactionPartiallySignedOrNoSignedTx Int Int
+    | ErrSubmitTransactionMissingWitnesses Int Int
     | ErrSubmitTransactionMultidelegationNotSupported
     deriving (Show, Eq)
 
