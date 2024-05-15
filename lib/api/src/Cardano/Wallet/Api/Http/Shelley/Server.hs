@@ -3752,7 +3752,8 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
         $ liftHandler . throwE
         $ ErrSubmitTransactionMissingWitnesses
         $ ErrSubmitTransactionMissingWitnessCounts
-            witsRequiredForInputs totalNumberOfWits
+            (fromIntegral witsRequiredForInputs)
+            (fromIntegral totalNumberOfWits)
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let tx = walletTx $ decodeTx tl era sealedTx
@@ -3903,7 +3904,8 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
             liftHandler $ throwE $
             ErrSubmitTransactionMissingWitnesses $
             ErrSubmitTransactionMissingWitnessCounts
-            allWitsRequired totalNumberOfWits
+                (fromIntegral allWitsRequired)
+                (fromIntegral totalNumberOfWits)
 
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)

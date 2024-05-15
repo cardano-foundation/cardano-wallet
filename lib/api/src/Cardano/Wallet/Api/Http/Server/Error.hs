@@ -655,8 +655,8 @@ instance IsServerError ErrSubmitTransaction where
                 flip (apiError err403) message $
                 MissingWitnessesInTransaction
                     ApiErrorMissingWitnessesInTransaction
-                    { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
-                    , detectedNumberOfKeyWits = fromIntegral foundWitsNo
+                    { expectedNumberOfKeyWits = expectedWitsNo
+                    , detectedNumberOfKeyWits = foundWitsNo
                     }
           where
             message = mconcat

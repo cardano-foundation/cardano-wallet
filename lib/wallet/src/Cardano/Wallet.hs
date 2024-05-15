@@ -3659,8 +3659,8 @@ data ErrSubmitTransaction
 
 data ErrSubmitTransactionMissingWitnessCounts =
     ErrSubmitTransactionMissingWitnessCounts
-        { expectedNumberOfKeyWits :: !Int
-        , detectedNumberOfKeyWits :: !Int
+        { expectedNumberOfKeyWits :: !Natural
+        , detectedNumberOfKeyWits :: !Natural
         }
     deriving (Show, Eq)
 
