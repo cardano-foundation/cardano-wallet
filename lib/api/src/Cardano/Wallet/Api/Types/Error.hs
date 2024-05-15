@@ -282,8 +282,8 @@ data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
 
 data ApiErrorMissingWitnessesInTransaction =
     ApiErrorMissingWitnessesInTransaction
-        { expectedNumberOfKeyWits :: Natural
-        , detectedNumberOfKeyWits :: Natural
+        { expectedNumberOfKeyWits :: !Natural
+        , detectedNumberOfKeyWits :: !Natural
         }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
