@@ -64,6 +64,7 @@ import Cardano.Wallet
     , ErrStakePoolDelegation (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTransaction (..)
+    , ErrSubmitTransactionMissingWitnessCounts (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
@@ -647,7 +648,10 @@ instance IsServerError ErrSubmitTransaction where
                 , "either an input or a withdrawal belonging to the wallet."
                 ]
         ErrSubmitTransactionMissingWitnesses
-            expectedWitsNo foundWitsNo ->
+            ErrSubmitTransactionMissingWitnessCounts
+                { expectedNumberOfKeyWits = expectedWitsNo
+                , detectedNumberOfKeyWits = foundWitsNo
+                } ->
                 flip (apiError err403) message $
                 MissingWitnessesInTransaction
                     ApiErrorMissingWitnessesInTransaction

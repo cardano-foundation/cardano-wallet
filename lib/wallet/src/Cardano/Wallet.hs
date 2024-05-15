@@ -161,6 +161,7 @@ module Cardano.Wallet
     , ErrCannotQuit (..)
     , ErrCannotVote (..)
     , ErrSubmitTransaction (..)
+    , ErrSubmitTransactionMissingWitnessCounts (..)
 
     -- ** Migration
     , createMigrationPlan
@@ -3651,8 +3652,16 @@ data ErrSignPayment
 -- | Errors that can occur when submitting a transaction.
 data ErrSubmitTransaction
     = ErrSubmitTransactionForeignWallet
-    | ErrSubmitTransactionMissingWitnesses Int Int
+    | ErrSubmitTransactionMissingWitnesses
+        !ErrSubmitTransactionMissingWitnessCounts
     | ErrSubmitTransactionMultidelegationNotSupported
+    deriving (Show, Eq)
+
+data ErrSubmitTransactionMissingWitnessCounts =
+    ErrSubmitTransactionMissingWitnessCounts
+        { expectedNumberOfKeyWits :: !Int
+        , detectedNumberOfKeyWits :: !Int
+        }
     deriving (Show, Eq)
 
 -- | Errors that can occur when constructing an unsigned transaction.

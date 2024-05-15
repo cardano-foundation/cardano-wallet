@@ -189,6 +189,7 @@ import Cardano.Wallet
     , ErrReadRewardAccount (..)
     , ErrSignPayment (..)
     , ErrSubmitTransaction (..)
+    , ErrSubmitTransactionMissingWitnessCounts (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
@@ -3750,6 +3751,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     when (witsRequiredForInputs > totalNumberOfWits)
         $ liftHandler . throwE
         $ ErrSubmitTransactionMissingWitnesses
+        $ ErrSubmitTransactionMissingWitnessCounts
             witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -3899,7 +3901,8 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 paymentWitsRequired + fromIntegral delegationWitsRequired
         when (allWitsRequired > totalNumberOfWits) $
             liftHandler $ throwE $
-            ErrSubmitTransactionMissingWitnesses
+            ErrSubmitTransactionMissingWitnesses $
+            ErrSubmitTransactionMissingWitnessCounts
             allWitsRequired totalNumberOfWits
 
         let txCtx = defaultTransactionCtx
