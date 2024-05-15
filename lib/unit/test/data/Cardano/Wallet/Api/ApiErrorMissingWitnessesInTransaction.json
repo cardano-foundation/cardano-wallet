@@ -1,0 +1,45 @@
+{
+    "samples": [
+        {
+            "detected_number_of_key_wits": 13,
+            "expected_number_of_key_wits": 15
+        },
+        {
+            "detected_number_of_key_wits": 1,
+            "expected_number_of_key_wits": 13
+        },
+        {
+            "detected_number_of_key_wits": 8,
+            "expected_number_of_key_wits": 13
+        },
+        {
+            "detected_number_of_key_wits": 0,
+            "expected_number_of_key_wits": 15
+        },
+        {
+            "detected_number_of_key_wits": 15,
+            "expected_number_of_key_wits": 4
+        },
+        {
+            "detected_number_of_key_wits": 2,
+            "expected_number_of_key_wits": 0
+        },
+        {
+            "detected_number_of_key_wits": 6,
+            "expected_number_of_key_wits": 12
+        },
+        {
+            "detected_number_of_key_wits": 4,
+            "expected_number_of_key_wits": 1
+        },
+        {
+            "detected_number_of_key_wits": 5,
+            "expected_number_of_key_wits": 2
+        },
+        {
+            "detected_number_of_key_wits": 14,
+            "expected_number_of_key_wits": 1
+        }
+    ],
+    "seed": -702842912
+}
