@@ -217,7 +217,6 @@ import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
-    , errMsg403Fee
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -765,11 +764,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.createTransactionOld @'Shelley wSrc)
                 Default
                 payload
-        verify
-            r
+        verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo r `shouldBe` CannotCoverFee
 
     it "TRANS_CREATE_04 - Not enough money" $ \ctx -> runResourceT $ do
         let minUTxOValue' = minUTxOValue (_mainEra ctx)

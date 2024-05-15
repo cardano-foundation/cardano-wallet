@@ -53,7 +53,7 @@ import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (NoSuchPool, NoUtxosAvailable, PoolAlreadyJoinedSameVote)
+    ( ApiErrorInfo (..)
     , ApiErrorNoSuchPool (..)
     )
 import Cardano.Wallet.Faucet
@@ -218,9 +218,7 @@ import Test.Integration.Framework.DSL
     , (.>=)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403Fee
-    , errMsg403NotDelegating
-    , errMsg403PoolAlreadyJoined
+    ( errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg404NoWallet
     )
@@ -754,12 +752,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         \Cannot quit when active: not_delegating"
         $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
-            quitStakePool @n ctx (w, fixturePassphrase)
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status403
-                    , expectErrorMessage errMsg403NotDelegating
-                    ]
+            rTx <- quitStakePool @n ctx (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx `shouldBe` NotDelegatingTo
 
     it "STAKE_POOLS_QUIT_03 - Can quit with rewards"
         $ \ctx -> runResourceT $ do
@@ -1169,12 +1166,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             ctx
                             (Link.listStakePools arbitraryStake)
                             Empty
-                joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-                    >>= flip
-                        verify
-                        [ expectResponseCode HTTP.status403
-                        , expectErrorMessage errMsg403Fee
-                        ]
+                rTx <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+                verify rTx
+                    [ expectResponseCode HTTP.status403
+                    ]
+                decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
         it

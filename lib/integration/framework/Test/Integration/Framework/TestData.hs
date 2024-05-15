@@ -46,8 +46,6 @@ module Test.Integration.Framework.TestData
     -- * Error messages
     , errMsg400WalletIdEncoding
     , errMsg400StartTimeLaterThanEndTime
-    , errMsg403Fee
-    , errMsg403Collateral
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403WrongPass
@@ -55,7 +53,6 @@ module Test.Integration.Framework.TestData
     , errMsg403AlreadyInLedger
     , errMsg403PoolAlreadyJoined
     , errMsg403NotDelegating
-    , errMsg403NonNullReward
     , errMsg403NothingToMigrate
     , errMsg404NoAsset
     , errMsg404NoEndpoint
@@ -93,16 +90,6 @@ module Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403TemplateInvalidDuplicateXPub
     , errMsg403TemplateInvalidScript
-    , errMsg403InvalidConstructTx
-    , errMsg403ForeignTransaction
-    , errMsg403MultidelegationTransaction
-    , errMsg403MultiaccountTransaction
-    , errMsg403CreatedWrongPolicyScriptTemplateTx
-    , errMsg403CreatedWrongPolicyScriptTemplatePolicyId
-    , errMsg403AssetNameTooLong
-    , errMsg403MintOrBurnAssetQuantityOutOfBounds
-    , errMsg403InvalidValidityBounds
-    , errMsg403ValidityIntervalNotInsideScriptTimelock
     ) where
 
 import Prelude
@@ -325,12 +312,6 @@ versionLine = "Running as " <> pack (showFullVersion version gitRevision)
 --- Error messages
 ---
 
-errMsg403InvalidConstructTx :: String
-errMsg403InvalidConstructTx =
-    "It looks like I've created an empty transaction that does not have \
-     \any payments, withdrawals, delegations, metadata nor minting. \
-     \Include at least one of them."
-
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\
      \ id: " ++ walId ++ " However, I already know of a wallet with this id."
@@ -347,18 +328,6 @@ errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
     , endTime
     , "'."
     ]
-
-errMsg403Fee :: String
-errMsg403Fee =
-    "I am unable to finalize the transaction, as there is not enough ada \
-    \available to pay for the fee and also pay for the minimum ada quantities \
-    \of all change outputs."
-
-errMsg403Collateral :: String
-errMsg403Collateral =
-    "I'm unable to create this transaction because the balance of pure ada \
-    \UTxOs in your wallet is insufficient to cover the minimum amount of \
-    \collateral required."
 
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =
@@ -443,10 +412,6 @@ errMsg403NotDelegating :: String
 errMsg403NotDelegating = "It seems that you're trying to retire from \
     \delegation although you're not even delegating, nor won't be in an \
     \immediate future."
-
-errMsg403NonNullReward :: String
-errMsg403NonNullReward = "It seems that you're trying to retire from delegation \
-    \although you've unspoiled rewards in your rewards account!"
 
 errMsg404CannotFindTx :: Text -> String
 errMsg404CannotFindTx tid = "I couldn't find a transaction with the given id: "
@@ -622,69 +587,6 @@ errMsg400ScriptTimelocksContradictory =
 errMsg400ScriptNotUniformRoles :: String
 errMsg400ScriptNotUniformRoles =
     "All keys of a script must have the same role: either payment or delegation."
-
-errMsg403ForeignTransaction :: String
-errMsg403ForeignTransaction = mconcat
-    [ "The transaction to be submitted is foreign to the current wallet "
-    , "and cannot be sent. Submit a transaction that has either input "
-    , "or withdrawal belonging to the wallet."
-    ]
-
-errMsg403MultidelegationTransaction :: String
-errMsg403MultidelegationTransaction = mconcat
-    [ "It looks like I've created a transaction "
-    , "with multiple delegations, which is not supported at this moment. "
-    , "Please use at most one delegation action: join, quit or none."
-    ]
-
-errMsg403MultiaccountTransaction :: String
-errMsg403MultiaccountTransaction = mconcat
-    [ "It looks like I've created a transaction "
-    , "with a delegation, which uses a stake key for the unsupported account. "
-    , "Please use delegation action engaging '0H' account."
-    ]
-
-errMsg403CreatedWrongPolicyScriptTemplateTx :: String
-errMsg403CreatedWrongPolicyScriptTemplateTx = mconcat
-    [ "It looks like I've created a transaction with a minting/burning "
-    , "policy script that either does not pass validation, contains more "
-    , "than one cosigner, or has a cosigner that is different from cosigner#0."
-    ]
-
-errMsg403CreatedWrongPolicyScriptTemplatePolicyId :: String
-errMsg403CreatedWrongPolicyScriptTemplatePolicyId = mconcat
-    [ "It looks like policy id is requested for a "
-    , "policy script that either does not pass validation, contains more "
-    , "than one cosigner, or has a cosigner that is different from cosigner#0."
-    ]
-
-errMsg403AssetNameTooLong :: String
-errMsg403AssetNameTooLong = mconcat
-    [ "Attempted to create a transaction with an asset name that is "
-    , "too long. The maximum length is 32 bytes."
-    ]
-
-errMsg403MintOrBurnAssetQuantityOutOfBounds :: String
-errMsg403MintOrBurnAssetQuantityOutOfBounds = mconcat
-    [ "Attempted to mint or burn an asset quantity that is out of "
-    , "bounds. The asset quantity must be greater than zero and must "
-    , "not exceed 9223372036854775807 (2^63 - 1)."
-    ]
-
-errMsg403InvalidValidityBounds :: String
-errMsg403InvalidValidityBounds = unwords
-    [ "Attempted to create a transaction with invalid validity bounds."
-    , "Please make sure that the 'invalid_before' bound precedes the"
-    , "'invalid_hereafter' bound, and that you have not used negative"
-    , "time values."
-    ]
-
-errMsg403ValidityIntervalNotInsideScriptTimelock :: String
-errMsg403ValidityIntervalNotInsideScriptTimelock = unwords
-    [ "Attempted to create a transaction with a validity interval"
-    , "that is not a subinterval of an associated script's timelock"
-    , "interval."
-    ]
 
 --------------------------------------------------------------------------------
 -- Transaction metadata

@@ -213,8 +213,6 @@ import Test.Integration.Framework.Request
     )
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
-    , errMsg403Fee
-    , errMsg403InvalidConstructTx
     , errMsg404CannotFindTx
     , errMsg404NoWallet
     )
@@ -560,8 +558,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wa) Default emptyPayload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "SHARED_TRANSACTIONS_CREATE_01b - \
         \Validity interval only is not allowed" $
@@ -586,8 +584,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             Default validityInterval
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403InvalidConstructTx
             ]
+        decodeErrorInfo rTx `shouldBe` CreatedInvalidTransaction
 
     it "SHARED_TRANSACTIONS_CREATE_04a - \
         \Single Output Transaction with decode transaction - single party" $
@@ -843,8 +841,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             (Link.createUnsignedTransaction @'Shared wa) Default payload
         verify rTx
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403Fee
             ]
+        decodeErrorInfo rTx `shouldBe` CannotCoverFee
 
     it "SHARED_TRANSACTIONS_CREATE_04e - \
         \Multiple Output Tx to single wallet"
