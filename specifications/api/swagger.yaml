@@ -5193,6 +5193,12 @@ x-errNoSuchPool: &errNoSuchPool
     code:
       type: string
       enum: ['no_such_pool']
+    info:
+      type: object
+      required:
+        - pool_id
+      properties:
+        pool_id: *stakePoolId
 
 x-errPoolAlreadyJoined: &errPoolAlreadyJoined
   <<: *responsesErr
