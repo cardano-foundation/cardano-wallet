@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorUnsupportedEra (..)
     )
     where
 
@@ -75,6 +76,9 @@ import Data.Data
     )
 import Data.Maybe
     ( fromMaybe
+    )
+import Data.Set
+    ( Set
     )
 import Data.Text
     ( Text
@@ -217,6 +221,7 @@ data ApiErrorInfo
     | BlockHeaderNotFound
     | TranslationByronTxOutInContext
     | BalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
+    | UnsupportedEra !ApiErrorUnsupportedEra
 
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
@@ -234,6 +239,16 @@ apiErrorInfoOptions = defaultSumTypeOptions
         , contentsFieldName = "info"
         }
     }
+
+data ApiErrorUnsupportedEra = ApiErrorUnsupportedEra
+    { unsupportedEra :: !ApiEra
+    -- ^ The unsupported era (as specified by the caller).
+    , supportedEras :: !(Set ApiEra)
+    -- ^ The set of eras that we currently support.
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorUnsupportedEra
+    deriving anyclass NFData
 
 data ApiErrorSharedWalletNoSuchCosigner = ApiErrorSharedWalletNoSuchCosigner
     { cosignerIndex
