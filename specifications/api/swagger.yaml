@@ -5557,6 +5557,26 @@ x-errBlockHeaderNotFound: &errBlockHeaderNotFound
       type: string
       enum: ['block_header_not_found']
 
+x-errUnsupportedEra: &errUnsupportedEra
+   <<: *responsesErr
+   title: unsupported_era
+   properties:
+    message:
+      type: string
+    code:
+      type: string
+      enum: ['unsupported_era']
+    info:
+      type: object
+      required:
+        - unsupported_era
+        - supported_eras
+      properties:
+          unsupported_era: *ApiEra
+          supported_eras:
+            type: array
+            items: *ApiEra
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -6015,6 +6035,7 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errTransactionIsTooBig
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
+            - <<: *errUnsupportedEra
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
