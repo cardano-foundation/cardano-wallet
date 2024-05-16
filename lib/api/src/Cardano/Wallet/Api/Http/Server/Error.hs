@@ -649,15 +649,11 @@ instance IsServerError ErrSubmitTransaction where
                 ]
         ErrSubmitTransactionMissingWitnesses
             ErrSubmitTransactionMissingWitnessCounts
-                { expectedNumberOfKeyWits
-                , detectedNumberOfKeyWits
-                } ->
+            {expectedNumberOfKeyWits, detectedNumberOfKeyWits} ->
                 flip (apiError err403) message $
                 MissingWitnessesInTransaction
                     ApiErrorMissingWitnessesInTransaction
-                    { expectedNumberOfKeyWits
-                    , detectedNumberOfKeyWits
-                    }
+                    {expectedNumberOfKeyWits, detectedNumberOfKeyWits}
           where
             message = mconcat
                 [ "The transaction expects "
