@@ -3709,19 +3709,20 @@ toOut ((TxOut addr (TokenBundle c tmap)), (Just path)) =
             }
 
 validateWitnessCounts
-    :: Int
+    :: Monad m
+    => Int
     -- ^ expected number of key witnesses
     -> Int
     -- ^ detected number of key witnesses
-    -> Either ErrSubmitTransaction ()
+    -> ExceptT ErrSubmitTransaction m ()
 validateWitnessCounts expected detected
-    | expected > detected = Left $
+    | expected > detected = throwE $
         ErrSubmitTransactionMissingWitnesses $
         ErrSubmitTransactionMissingWitnessCounts
             { expectedNumberOfKeyWits = toNatural expected
             , detectedNumberOfKeyWits = toNatural detected
             }
-    | otherwise = Right ()
+    | otherwise = pure ()
   where
     toNatural :: Int -> Natural
     toNatural = fromJustNote "validateWitnessCounts.toNatural" . intCastMaybe
@@ -3772,9 +3773,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     when (countJoinsQuits (apiDecoded ^. #certificates) > 1) $
         liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
 
-    liftHandler $ except $ validateWitnessCounts
-        witsRequiredForInputs
-        totalNumberOfWits
+    liftHandler $ validateWitnessCounts witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let tx = walletTx $ decodeTx tl era sealedTx
@@ -3921,9 +3920,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 fromIntegral pWitsPerInput * witsRequiredForInputs
         let allWitsRequired =
                 paymentWitsRequired + fromIntegral delegationWitsRequired
-        liftHandler $ except $ validateWitnessCounts
-            allWitsRequired
-            totalNumberOfWits
+        liftHandler $ validateWitnessCounts allWitsRequired totalNumberOfWits
 
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
