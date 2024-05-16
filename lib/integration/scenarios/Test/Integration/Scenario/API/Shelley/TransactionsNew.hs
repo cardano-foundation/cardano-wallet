@@ -114,6 +114,7 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchWallet (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -325,12 +326,8 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , waitForTxImmutability
     , waitNumberOfEpochBoundaries
-    , walletId
     , (.<)
     , (.>)
-    )
-import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet
     )
 import UnliftIO.Exception
     ( fromEither
@@ -353,6 +350,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Integration.Framework.DSL as DSL
 import qualified Test.Integration.Plutus as PlutusScenario
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
@@ -2779,7 +2777,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         forM_ scenarios $ \(title, foreignByronWallet) -> it title $ \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
             wb <- foreignByronWallet ctx
-            let wid = wb ^. walletId
+            let wid = wb ^. DSL.walletId
 
             -- Construct tx
             payload <- mkTxPayload ctx wa (minUTxOValue (_mainEra ctx)) 1
@@ -2803,8 +2801,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             verify submittedTx
                 [ expectResponseCode HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet wid)
                 ]
+            decodeErrorInfo submittedTx `shouldBe`
+                (NoSuchWallet $ ApiErrorNoSuchWallet wid)
 
     it "TRANS_NEW_SUBMIT_03 - Can submit transaction encoded in base16" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
