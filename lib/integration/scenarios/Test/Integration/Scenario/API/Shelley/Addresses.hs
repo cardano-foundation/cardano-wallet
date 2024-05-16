@@ -38,6 +38,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -85,6 +89,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
@@ -104,7 +109,6 @@ import Test.Integration.Framework.DSL
     , request
     , unsafeRequest
     , verify
-    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg400ScriptDuplicateKeys
@@ -113,7 +117,6 @@ import Test.Integration.Framework.TestData
     , errMsg400ScriptTimelocksContradictory
     , errMsg400ScriptWrongCoeffcient
     , errMsg403WrongIndex
-    , errMsg404NoWallet
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -122,6 +125,7 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Integration.Framework.DSL as DSL
 
 spec
     :: forall n
@@ -130,11 +134,12 @@ spec
 spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
-        let wid = w ^. walletId
+        let wid = w ^. DSL.walletId
         let ep = ("GET", "v2/wallets/" <> wid <> "/addresses")
         r <- request @[ApiAddressWithPath n] ctx ep Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet wid) r
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet wid)
 
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -287,7 +292,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
 
     it "ADDRESS_LIST_05 - bech32 HRP is correct - testnet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
