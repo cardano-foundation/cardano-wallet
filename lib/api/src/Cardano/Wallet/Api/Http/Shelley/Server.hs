@@ -3715,14 +3715,13 @@ validateWitnessCounts
     -> Int
     -- ^ detected number of key witnesses
     -> ExceptT ErrSubmitTransaction m ()
-validateWitnessCounts expected detected
-    | expected > detected = throwE $
+validateWitnessCounts expected detected =
+    when (expected > detected) $ throwE $
         ErrSubmitTransactionMissingWitnesses $
         ErrSubmitTransactionMissingWitnessCounts
             { expectedNumberOfKeyWits = toNatural expected
             , detectedNumberOfKeyWits = toNatural detected
             }
-    | otherwise = pure ()
   where
     toNatural :: Int -> Natural
     toNatural = fromJustNote "validateWitnessCounts.toNatural" . intCastMaybe
