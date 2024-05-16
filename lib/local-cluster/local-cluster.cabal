@@ -202,12 +202,20 @@ common test-common
     , aeson-qq
     , base
     , bytestring
+    , cardano-binary
+    , cardano-ledger-core
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
+    , cardano-ledger-byron
+    , cardano-ledger-mary
     , cardano-ledger-shelley
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , cardano-wallet-test-utils
+    , containers
     , contra-tracer
     , extra
     , filepath
@@ -218,10 +226,12 @@ common test-common
     , local-cluster
     , mtl
     , openapi3
+    , ouroboros-consensus-cardano
     , ouroboros-network
     , pathtype
     , process
     , QuickCheck
+    , streaming
     , time
     , unliftio
     , with-utf8
