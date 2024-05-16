@@ -764,6 +764,9 @@ import Data.Generics.Labels
 import Data.Generics.Product
     ( typed
     )
+import Data.IntCast
+    ( intCastMaybe
+    )
 import Data.List
     ( isInfixOf
     , sortOn
@@ -855,6 +858,9 @@ import Network.Wai.Middleware.ServerError
     )
 import Numeric.Natural
     ( Natural
+    )
+import Safe
+    ( fromJustNote
     )
 import Servant
     ( Application
@@ -3702,6 +3708,24 @@ toOut ((TxOut addr (TokenBundle c tmap)), (Just path)) =
             , derivationPath = NE.map ApiT path
             }
 
+validateWitnessCounts
+    :: Int
+    -- ^ expected number of key witnesses
+    -> Int
+    -- ^ detected number of key witnesses
+    -> Either ErrSubmitTransaction ()
+validateWitnessCounts expected detected
+    | expected > detected = Left $
+        ErrSubmitTransactionMissingWitnesses $
+        ErrSubmitTransactionMissingWitnessCounts
+            { expectedNumberOfKeyWits = toNatural expected
+            , detectedNumberOfKeyWits = toNatural detected
+            }
+    | otherwise = Right ()
+  where
+    toNatural :: Int -> Natural
+    toNatural = fromJustNote "validateWitnessCounts.toNatural" . intCastMaybe
+
 submitTransaction
     :: forall ctx s k n
      . ( ctx ~ ApiLayer s
@@ -3748,12 +3772,9 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     when (countJoinsQuits (apiDecoded ^. #certificates) > 1) $
         liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
 
-    when (witsRequiredForInputs > totalNumberOfWits)
-        $ liftHandler . throwE
-        $ ErrSubmitTransactionMissingWitnesses
-        $ ErrSubmitTransactionMissingWitnessCounts
-            (fromIntegral witsRequiredForInputs)
-            (fromIntegral totalNumberOfWits)
+    liftHandler $ except $ validateWitnessCounts
+        witsRequiredForInputs
+        totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let tx = walletTx $ decodeTx tl era sealedTx
@@ -3900,12 +3921,9 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 fromIntegral pWitsPerInput * witsRequiredForInputs
         let allWitsRequired =
                 paymentWitsRequired + fromIntegral delegationWitsRequired
-        when (allWitsRequired > totalNumberOfWits) $
-            liftHandler $ throwE $
-            ErrSubmitTransactionMissingWitnesses $
-            ErrSubmitTransactionMissingWitnessCounts
-                (fromIntegral allWitsRequired)
-                (fromIntegral totalNumberOfWits)
+        liftHandler $ except $ validateWitnessCounts
+            allWitsRequired
+            totalNumberOfWits
 
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
