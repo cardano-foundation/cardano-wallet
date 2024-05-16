@@ -64,6 +64,7 @@ import Cardano.Wallet
     , ErrStakePoolDelegation (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitTransaction (..)
+    , ErrSubmitTransactionMissingWitnessCounts (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
@@ -646,20 +647,19 @@ instance IsServerError ErrSubmitTransaction where
                 , "wallet and cannot be sent. Submit a transaction that has "
                 , "either an input or a withdrawal belonging to the wallet."
                 ]
-        ErrSubmitTransactionPartiallySignedOrNoSignedTx
-            expectedWitsNo foundWitsNo ->
+        ErrSubmitTransactionMissingWitnesses
+            ErrSubmitTransactionMissingWitnessCounts
+            {expectedNumberOfKeyWits, detectedNumberOfKeyWits} ->
                 flip (apiError err403) message $
                 MissingWitnessesInTransaction
                     ApiErrorMissingWitnessesInTransaction
-                    { expectedNumberOfKeyWits = fromIntegral expectedWitsNo
-                    , detectedNumberOfKeyWits = fromIntegral foundWitsNo
-                    }
+                    {expectedNumberOfKeyWits, detectedNumberOfKeyWits}
           where
             message = mconcat
                 [ "The transaction expects "
-                , toText expectedWitsNo
+                , toText expectedNumberOfKeyWits
                 , " witness(es) to be fully-signed but "
-                , toText foundWitsNo
+                , toText detectedNumberOfKeyWits
                 , " was provided."
                 , " Please submit a fully-signed transaction."
                 ]

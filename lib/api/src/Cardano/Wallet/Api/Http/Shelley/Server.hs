@@ -189,6 +189,7 @@ import Cardano.Wallet
     , ErrReadRewardAccount (..)
     , ErrSignPayment (..)
     , ErrSubmitTransaction (..)
+    , ErrSubmitTransactionMissingWitnessCounts (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
@@ -763,6 +764,9 @@ import Data.Generics.Labels
 import Data.Generics.Product
     ( typed
     )
+import Data.IntCast
+    ( intCastMaybe
+    )
 import Data.List
     ( isInfixOf
     , sortOn
@@ -854,6 +858,9 @@ import Network.Wai.Middleware.ServerError
     )
 import Numeric.Natural
     ( Natural
+    )
+import Safe
+    ( fromJustNote
     )
 import Servant
     ( Application
@@ -3701,6 +3708,24 @@ toOut ((TxOut addr (TokenBundle c tmap)), (Just path)) =
             , derivationPath = NE.map ApiT path
             }
 
+validateWitnessCounts
+    :: Monad m
+    => Int
+    -- ^ expected number of key witnesses
+    -> Int
+    -- ^ detected number of key witnesses
+    -> ExceptT ErrSubmitTransaction m ()
+validateWitnessCounts expected detected =
+    when (expected > detected) $ throwE $
+        ErrSubmitTransactionMissingWitnesses $
+        ErrSubmitTransactionMissingWitnessCounts
+            { expectedNumberOfKeyWits = toNatural expected
+            , detectedNumberOfKeyWits = toNatural detected
+            }
+  where
+    toNatural :: Int -> Natural
+    toNatural = fromJustNote "validateWitnessCounts.toNatural" . intCastMaybe
+
 submitTransaction
     :: forall ctx s k n
      . ( ctx ~ ApiLayer s
@@ -3747,10 +3772,7 @@ submitTransaction ctx apiw@(ApiT wid) apitx = do
     when (countJoinsQuits (apiDecoded ^. #certificates) > 1) $
         liftHandler $ throwE ErrSubmitTransactionMultidelegationNotSupported
 
-    when (witsRequiredForInputs > totalNumberOfWits)
-        $ liftHandler . throwE
-        $ ErrSubmitTransactionPartiallySignedOrNoSignedTx
-            witsRequiredForInputs totalNumberOfWits
+    liftHandler $ validateWitnessCounts witsRequiredForInputs totalNumberOfWits
 
     void $ withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let tx = walletTx $ decodeTx tl era sealedTx
@@ -3897,10 +3919,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
                 fromIntegral pWitsPerInput * witsRequiredForInputs
         let allWitsRequired =
                 paymentWitsRequired + fromIntegral delegationWitsRequired
-        when (allWitsRequired > totalNumberOfWits) $
-            liftHandler $ throwE $
-            ErrSubmitTransactionPartiallySignedOrNoSignedTx
-            allWitsRequired totalNumberOfWits
+        liftHandler $ validateWitnessCounts allWitsRequired totalNumberOfWits
 
         let txCtx = defaultTransactionCtx
                 { txValidityInterval = (Nothing, ttl)
