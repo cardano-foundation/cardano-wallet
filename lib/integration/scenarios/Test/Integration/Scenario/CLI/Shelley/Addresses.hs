@@ -83,8 +83,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet
-    , falseWalletIds
+    ( falseWalletIds
     )
 
 import Cardano.Wallet.Api.Types.Amount
@@ -284,3 +283,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     fixtureWallet' :: Context -> ResourceT IO String
     fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet
+
+    errMsg404NoWallet :: Text -> String
+    errMsg404NoWallet wid =
+        "I couldn't find a wallet with the given id: " ++ T.unpack wid
