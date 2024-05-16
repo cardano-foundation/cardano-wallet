@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -39,6 +40,10 @@ import Cardano.Ledger.Coin
 import Cardano.Ledger.Mary.Value
     ( MaryValue (..)
     )
+import Cardano.Wallet.Faucet.Gen.Address
+    ( NetworkTag (..)
+    , genAddress
+    )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (FaucetFunds)
     , FileOf (..)
@@ -48,7 +53,11 @@ import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     ( saveFunds
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
-    ( RunFaucetQ
+    ( FaucetQ (SendFaucetAssetsQ)
+    , RunFaucetQ (RunFaucetQ)
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
+    ( SendFaucetAssets (SendFaucetAssets)
     )
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( MonitorQ (..)
@@ -100,6 +109,12 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (SyncTolerance)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle (..)
+    )
 import Cardano.Wallet.Read
     ( Era (..)
     , EraValue
@@ -114,9 +129,15 @@ import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..)
     , getEraOutputs
     )
+import Control.Exception
+    ( SomeException (..)
+    , catch
+    , throwIO
+    )
 import Control.Monad
     ( forM_
     , join
+    , replicateM
     , unless
     )
 import Control.Monad.Cont
@@ -143,6 +164,9 @@ import Data.Foldable
 import Data.Map.Strict
     ( Map
     )
+import Data.Set
+    ( Set
+    )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , StandardAllegra
@@ -162,15 +186,20 @@ import System.Environment
     ( lookupEnv
     )
 import System.FilePath
-    ( (<.>)
+    ( takeDirectory
+    , (<.>)
     , (</>)
     )
 import System.IO
-    ( IOMode (..)
-    , withFile
+    ( Handle
+    , IOMode (..)
+    , hClose
+    , hSetBuffering
+    , openFile
     )
 import System.IO.Extra
-    ( withTempFile
+    ( BufferMode (..)
+    , withTempFile
     )
 import System.Path
     ( absFile
@@ -185,8 +214,12 @@ import Test.Hspec
     , shouldBe
     , shouldNotBe
     )
+import Test.QuickCheck
+    ( generate
+    )
 import UnliftIO.Async
     ( async
+    , race
     , wait
     )
 import UnliftIO.Concurrent
@@ -196,6 +229,7 @@ import UnliftIO.Directory
     ( createDirectoryIfMissing
     )
 
+import qualified Cardano.Address as Addr
 import qualified Cardano.Chain.UTxO as Byron
 import qualified Cardano.Ledger.Address as SL
 import qualified Cardano.Ledger.Alonzo.TxOut as Alonzo
@@ -203,7 +237,9 @@ import qualified Cardano.Ledger.Babbage.TxOut as Babbage
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Network.Implementation as NL
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Streaming.Prelude as S
 
 testService
@@ -220,6 +256,17 @@ testService w f =
                 nullTracer
                 $ ServiceConfiguration Nothing w
         liftIO $ f tracer query
+
+withFile :: FilePath -> IOMode -> (Handle -> IO a) -> IO a
+withFile path mode action = do
+    createDirectoryIfMissing True (takeDirectory path)
+    h <- openFile path mode
+    hSetBuffering h NoBuffering
+    catch
+        (action h)
+        $ \(SomeException e) -> do
+            hClose h
+            throwIO e
 
 localClusterCommand
     :: FilePath
@@ -364,7 +411,7 @@ spec = do
                 traceWith tracer Pools
                 traceWith tracer Relay
                 traceWith tracer (Cluster Nothing)
-                threadDelay 10000
+                threadDelay 10_000
                 (History phases, state) <- query ObserveQ
                 snd <$> phases
                     `shouldBe` [ RetrievingFunds
@@ -403,7 +450,7 @@ spec = do
             liftIO $ do
                 fix $ \loop -> do
                     result <- query ReadyQ
-                    unless result $ threadDelay 10000 >> loop
+                    unless result $ threadDelay 1_000_000 >> loop
     describe "withNetwork" $ do
         it "can start and stop" $ evalContT $ do
             ((query, _), ToTextTracer tr) <-
@@ -444,12 +491,49 @@ spec = do
                     $ eraBlockS
                     $ forConsensusS blocks
             liftIO $ firstBalance `shouldNotBe` Nothing
+    describe "send faucet assets" $ do
+        it "can send assets to a node" $ evalContT $ do
+            ((query, RunFaucetQ faucet), ToTextTracer tr) <-
+                testServiceWithCluster
+                    "send-faucet-assets-can-send-assets-to-a-node"
+                    noFunds
+            node <- liftIO $ waitForNode query
+            addrs <- liftIO $ replicateM 2 $ generate $ genAddress [TestnetTag]
+            liftIO
+                $ faucet
+                $ SendFaucetAssetsQ
+                $ SendFaucetAssets
+                    1
+                    [ ( Address . Addr.unAddress $ addr
+                      , (TokenBundle (W.Coin 1_234_567) mempty, mempty)
+                      )
+                    | addr <- addrs
+                    ]
+            network <- withNetwork tr node
+            blocks <-
+                withStreamingFromBlockChain network tr newTMVarBuffer
+            eBalances <-
+                liftIO
+                    $ race (threadDelay 100_000_000)
+                    $ waitForAddressesBalance
+                        (Set.fromList $ Addr.unAddress <$> addrs)
+                    $ balance
+                    $ outputs
+                    $ eraTxS
+                    $ eraBlockS
+                    $ forConsensusS blocks
+            liftIO
+                $ eBalances
+                `shouldBe` Right
+                    ( Map.fromList
+                        $ map (,1_234_567) (Addr.unAddress <$> addrs)
+                    )
 
 waitForNode :: RunMonitorQ IO -> IO RunningNode
 waitForNode (RunQuery query) = fix $ \loop -> do
     (history', _) <- query ObserveQ
     case getNode history' of
-        Nothing -> threadDelay 10000 >> loop
+        Nothing -> threadDelay 10_000 >> loop
         Just node -> pure node
 
 getNode :: History -> Maybe RunningNode
@@ -458,6 +542,19 @@ getNode (History phases) = case phases of
     (_time, phase) : _ -> case phase of
         Cluster (Just node) -> Just node
         _ -> Nothing
+
+waitForAddressesBalance
+    :: Monad m
+    => Set ByteString
+    -> Stream (Of (Map ByteString Integer)) m ()
+    -> m (Map ByteString Integer)
+waitForAddressesBalance addrs s = do
+    mm <- S.head_ . S.dropWhile f $ s
+    pure $ case mm of
+        Nothing -> mempty
+        Just m -> Map.filterWithKey (\k _ -> k `Set.member` addrs) m
+  where
+    f m = not $ addrs `Set.isSubsetOf` Map.keysSet m
 
 data TxOut = TxOut
     { address :: ByteString

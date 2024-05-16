@@ -16,6 +16,7 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     , AnyMonitorQ (..)
     , newRunQuery
     , mkMonitorClient
+    , recovering
     )
 where
 
@@ -129,25 +130,24 @@ newRunQuery query tr MonitorClient{ready, observe, step, switch} =
         UnliftIO unlift <- askUnliftIO
         pure $ RunQuery $ \request -> do
             traceWith tr $ MsgMonitorClientReq $ AnyQuery request
-            let recovering :: forall a. IO a -> IO a
-                recovering doing = recoverAll retryPolicy
-                    $ \rt -> do
-                        unless (firstTry rt)
-                            $ unlift
-                            $ traceWith tr . MsgMonitorClientRetry
-                            $ AnyQuery request
-                        doing
-            liftIO $ recovering $ case request of
+            let f = unlift
+                    . traceWith tr . MsgMonitorClientRetry
+                    $ AnyQuery request
+            liftIO $ recovering f $ case request of
                 ReadyQ -> query ready
                 ObserveQ -> unApiT <$> query observe
                 StepQ -> query step $> ()
                 SwitchQ -> unApiT <$> query switch
 
-retryPolicy :: RetryPolicyM IO
-retryPolicy = capDelay (60 * oneSecond) $ exponentialBackoff oneSecond
-  where
-    oneSecond = 1_000_000 :: Int
-
-firstTry :: RetryStatus -> Bool
-firstTry (RetryStatus 0 _ _) = True
-firstTry _ = False
+recovering :: IO () -> IO a -> IO a
+recovering f doing = recoverAll retryPolicy
+    $ \rt -> do
+        unless (firstTry rt) f
+        doing
+    where
+        retryPolicy :: RetryPolicyM IO
+        retryPolicy = capDelay (60 * oneSecond) $ exponentialBackoff oneSecond
+        oneSecond = 1_000_000 :: Int
+        firstTry :: RetryStatus -> Bool
+        firstTry (RetryStatus 0 _ _) = True
+        firstTry _ = False

@@ -202,6 +202,7 @@ common test-common
     , aeson-qq
     , base
     , bytestring
+    , cardano-addresses
     , cardano-binary
     , cardano-ledger-core
     , cardano-ledger-alonzo

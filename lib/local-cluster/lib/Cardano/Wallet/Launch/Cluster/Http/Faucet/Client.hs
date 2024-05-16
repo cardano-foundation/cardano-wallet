@@ -25,6 +25,9 @@ import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
     ( SendFaucetAssets
     , WithNetwork (..)
     )
+import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
+    ( recovering
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     , SNetworkId
@@ -54,6 +57,8 @@ import Servant.Client
     )
 import UnliftIO
     ( MonadUnliftIO
+    , UnliftIO (..)
+    , askUnliftIO
     )
 
 -- | Queries that can be run against the local cluster
@@ -79,7 +84,7 @@ mkFaucet _ =
         }
 
 newtype MsgFaucetClient = MsgFaucetRequest AnyFaucetQ
-    deriving stock Show
+    deriving stock (Show)
 
 instance ToText MsgFaucetClient where
     toText (MsgFaucetRequest q) = "Faucet request: " <> toText (show q)
@@ -95,12 +100,18 @@ newFaucetQ
     -> Tracer m MsgFaucetClient
     -> Faucet n
     -> m (RunFaucetQ m)
-newFaucetQ query tr Faucet{..} = pure
-    $ RunFaucetQ
-    $ \request -> do
-        traceWith tr (MsgFaucetRequest $ AnyFaucetQ request)
-        case request of
-            SendFaucetAssetsQ assets ->
-                liftIO
-                    $ query
-                    $ sendFaucetAssets (WithNetwork assets) $> ()
+newFaucetQ query tr Faucet{..} = do
+    UnliftIO unlift <- askUnliftIO
+    pure
+        $ RunFaucetQ
+        $ \request -> do
+            let f =
+                    unlift
+                        . traceWith tr
+                        . MsgFaucetRequest
+                        $ AnyFaucetQ request
+            liftIO $ recovering f $ case request of
+                SendFaucetAssetsQ assets ->
+                    liftIO
+                        $ query
+                        $ sendFaucetAssets (WithNetwork assets) $> ()
