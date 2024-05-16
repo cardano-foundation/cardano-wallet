@@ -39,6 +39,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (..)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -90,6 +94,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , addField
+    , decodeErrorInfo
     , derivationPathValidationErrors
     , emptyWallet
     , expectErrorMessage
@@ -107,13 +112,11 @@ import Test.Integration.Framework.DSL
     , selectCoinsWith
     , verify
     , verifyMsg
-    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
-    , errMsg404NoWallet
     , errMsg406
     , errMsg415
     )
@@ -127,6 +130,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
+import qualified Test.Integration.Framework.DSL as DSL
+import qualified Test.Hspec.Expectations.Lifted as Lifted
 
 spec
     :: forall n
@@ -220,12 +225,12 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let minUTxOValue' = ApiAmount . minUTxOValue $ _mainEra ctx
             let payments = AddressAmount addr minUTxOValue' mempty :| []
             _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            selectCoins @_ @'Shelley ctx w payments
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status404
-                    , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
-                    ]
+            rTx <- selectCoins @_ @'Shelley ctx w payments
+            verify rTx
+                [ expectResponseCode HTTP.status404
+                ]
+            decodeErrorInfo rTx `Lifted.shouldBe`
+                (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
 
     it
         "WALLETS_COIN_SELECTION_03 - \
