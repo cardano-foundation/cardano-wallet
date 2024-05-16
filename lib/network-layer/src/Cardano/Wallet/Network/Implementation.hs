@@ -96,7 +96,8 @@ import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( nodeToClientVersions
+    ( UnsealException (..)
+    , nodeToClientVersions
     , toCardanoEra
     , unsealShelleyTx
     )
@@ -630,12 +631,15 @@ withNodeNetworkLayerBase
         _postTx txSubmissionQueue readCurrentEra tx = do
             liftIO $ traceWith tr $ MsgPostTx tx
             preferredEra <- liftIO readCurrentEra
-            let cmd =
-                    CmdSubmitTx . toConsensusGenTx . fromRight (error "SealedTx")
-                        $ unsealShelleyTx preferredEra tx
-            liftIO (send txSubmissionQueue cmd) >>= \case
-                SubmitSuccess -> pure ()
-                SubmitFail e -> throwE $ ErrPostTxValidationError $ T.pack $ show e
+            case unsealShelleyTx preferredEra tx of
+                Left (UnsealedTxInUnsupportedEra era) ->
+                    throwE $ ErrPostTxEraUnsupported era
+                Right tx' -> do
+                    let cmd = CmdSubmitTx . toConsensusGenTx $ tx'
+                    liftIO (send txSubmissionQueue cmd) >>= \case
+                        SubmitSuccess -> pure ()
+                        SubmitFail e ->
+                            throwE $ ErrPostTxValidationError $ T.pack $ show e
 
         _stakeDistribution queue coin = do
             liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin

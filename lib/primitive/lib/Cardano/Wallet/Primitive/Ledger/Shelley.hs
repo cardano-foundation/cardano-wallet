@@ -94,7 +94,7 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , numberOfTransactionsInBlock
 
     -- * Errors
-    , UnsealedTxException (..)
+    , UnsealException (..)
     ) where
 
 import Prelude
@@ -1021,7 +1021,7 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing
 
-newtype UnsealedTxException = UnsealedTxInUnsupportedEra AnyCardanoEra
+newtype UnsealException = UnsealedTxInUnsupportedEra AnyCardanoEra
 
 -- | Converts 'SealedTx' to something that can be submitted with the
 -- 'Cardano.Api' local tx submission client.
@@ -1029,7 +1029,7 @@ unsealShelleyTx
     :: AnyCardanoEra
     -- ^ Preferred latest era (see 'ideallyNoLaterThan')
     -> W.SealedTx
-    -> Either UnsealedTxException TxInMode
+    -> Either UnsealException TxInMode
 unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
     Cardano.InAnyCardanoEra BabbageEra tx ->
         Right $ TxInMode ShelleyBasedEraBabbage tx
