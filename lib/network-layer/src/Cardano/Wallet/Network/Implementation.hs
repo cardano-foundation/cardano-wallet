@@ -631,7 +631,7 @@ withNodeNetworkLayerBase
             liftIO $ traceWith tr $ MsgPostTx tx
             preferredEra <- liftIO readCurrentEra
             let cmd =
-                    CmdSubmitTx . toConsensusGenTx
+                    CmdSubmitTx . toConsensusGenTx . fromRight (error "SealedTx")
                         $ unsealShelleyTx preferredEra tx
             liftIO (send txSubmissionQueue cmd) >>= \case
                 SubmitSuccess -> pure ()
