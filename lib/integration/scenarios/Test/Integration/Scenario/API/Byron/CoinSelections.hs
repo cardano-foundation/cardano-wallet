@@ -25,6 +25,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -50,6 +54,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -68,7 +73,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403NotAnIcarusWallet
-    , errMsg404NoWallet
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -150,7 +154,9 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         let minUTxOValue' = ApiAmount . minUTxOValue $ _mainEra ctx
         let payments = pure (AddressAmount addr minUTxOValue' mempty)
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron icW) Default Empty
-        selectCoins @_ @'Byron ctx icW payments >>= flip verify
+        r <- selectCoins @_ @'Byron ctx icW payments
+        verify r
             [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoWallet $ icW ^. walletId)
             ]
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ icW ^. walletId)
