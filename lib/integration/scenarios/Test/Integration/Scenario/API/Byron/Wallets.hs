@@ -28,6 +28,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -75,6 +79,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyByronWalletFromXPrvWith
     , emptyByronWalletWith
     , emptyIcarusWallet
@@ -106,7 +111,6 @@ import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
     , errMsg403WrongPass
-    , errMsg404NoWallet
     , kanjiWalletName
     , polishWalletName
     , russianWalletName
@@ -129,7 +133,8 @@ spec = describe "BYRON_WALLETS" $ do
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
         rg <- request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 rg
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
+        decodeErrorInfo rg `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> runResourceT $ do
