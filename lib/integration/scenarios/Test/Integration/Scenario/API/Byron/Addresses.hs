@@ -34,6 +34,10 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
@@ -63,6 +67,7 @@ import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyIcarusWallet
     , emptyIcarusWalletMws
     , emptyRandomWallet
@@ -90,7 +95,6 @@ import Test.Integration.Framework.TestData
     ( errMsg403CouldntIdentifyAddrAsMine
     , errMsg403NotAByronWallet
     , errMsg403WrongPass
-    , errMsg404NoWallet
     )
 import Web.HttpApiData
     ( ToHttpApiData (..)
@@ -98,6 +102,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec.Expectations.Lifted as Lifted
 
 spec
     :: forall n
@@ -190,8 +195,9 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     r <- request @[ApiAddressWithPath n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r
         [ expectResponseCode HTTP.status404
-        , expectErrorMessage $ errMsg404NoWallet $ w ^. walletId
         ]
+    decodeErrorInfo r `Lifted.shouldBe`
+        (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
   where
     title = "ADDRESS_LIST_04 - Delete wallet"
 
