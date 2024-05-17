@@ -118,7 +118,8 @@ instance ToText MsgMonitorClient where
         MsgMonitorClientRetry q -> "Client retry: " <> toText (show q)
 
 newRunQuery
-    :: MonadUnliftIO m
+    :: forall m
+        . MonadUnliftIO m
     => (forall a. ClientM a -> IO a)
     -> Tracer m MsgMonitorClient
     -> MonitorClient
@@ -128,15 +129,16 @@ newRunQuery query tr MonitorClient{ready, observe, step, switch} =
         UnliftIO unlift <- askUnliftIO
         pure $ RunQuery $ \request -> do
             traceWith tr $ MsgMonitorClientReq $ AnyQuery request
-            liftIO $ case request of
-                ReadyQ -> recoverAll retryPolicy
+            let recovering :: forall a. IO a -> IO a
+                recovering doing = recoverAll retryPolicy
                     $ \rt -> do
                         unless (firstTry rt)
                             $ unlift
-                            $ traceWith tr
-                            $ MsgMonitorClientRetry
+                            $ traceWith tr . MsgMonitorClientRetry
                             $ AnyQuery request
-                        query ready
+                        doing
+            liftIO $ recovering $ case request of
+                ReadyQ -> query ready
                 ObserveQ -> unApiT <$> query observe
                 StepQ -> query step $> ()
                 SwitchQ -> unApiT <$> query switch

@@ -6,6 +6,7 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.OpenApi
     , monitoringDefinitions
     , monitorStateSchema
     , observationSchema
+    , phaseSchema
     ) where
 
 import Prelude
@@ -21,7 +22,9 @@ import Data.HashMap.Strict.InsOrd
     ( InsOrdHashMap
     )
 import Data.OpenApi
-    ( Definitions
+    ( AdditionalProperties (AdditionalPropertiesAllowed)
+    , Definitions
+    , HasAdditionalProperties (additionalProperties)
     , HasContent (..)
     , HasDescription (..)
     , HasEnum (..)
@@ -106,28 +109,48 @@ taggedWithContent tagName mContentSchema =
                         & enum_ ?~ [String tagName]
                    )
                ]
-                <> maybe [] (\s' -> [("contents", Inline s')]) mContentSchema
+                <> maybe [] (\s' -> [("content", Inline s')]) mContentSchema
 phaseSchema :: Schema
 phaseSchema =
     mempty
         & type_ ?~ OpenApiString
         & description ?~ "The different phases the cluster can be in"
         & oneOf
-            ?~ [ tagged "RetrievingFunds"
-               , tagged "Metadata"
-               , tagged "Genesis"
-               , tagged "Pool0"
-               , tagged "Funding"
-               , tagged "Pools"
-               , tagged "Relay"
-               , taggedWithContent "Cluster" $ Just relayNodeSchema
+            ?~ [ tagged "retrieving-funds"
+               , tagged "metadata"
+               , tagged "genesis"
+               , tagged "pool0"
+               , tagged "funding"
+               , tagged "pools"
+               , tagged "relay"
+               , taggedWithContent "cluster" $ Just runningNodeSchema
                ]
 
-relayNodeSchema :: Schema
-relayNodeSchema =
+runningNodeSchema :: Schema
+runningNodeSchema =
     mempty
-        & type_ ?~ OpenApiString
-        & description ?~ "The socket file or pipe of a relay node"
+        & type_ ?~ OpenApiObject
+        & description ?~ "A running node"
+        & properties
+            .~ [ ("socket", Inline $ mempty & type_ ?~ OpenApiString)
+               , ("genesis", Inline genesisSchema)
+               , ("version", Inline nodeToClientVersionDataSchema)
+               ]
+
+genesisSchema :: Schema
+genesisSchema =
+    mempty
+        & type_ ?~ OpenApiObject
+        & additionalProperties ?~ AdditionalPropertiesAllowed True
+
+nodeToClientVersionDataSchema :: Schema
+nodeToClientVersionDataSchema =
+    mempty
+        & type_ ?~ OpenApiObject
+        & properties
+            .~ [ ("magic", Inline $ mempty & type_ ?~ OpenApiNumber)
+               , ("query", Inline $ mempty & type_ ?~ OpenApiBoolean)
+               ]
 
 monitoringPaths :: InsOrdHashMap FilePath PathItem
 monitoringPaths =

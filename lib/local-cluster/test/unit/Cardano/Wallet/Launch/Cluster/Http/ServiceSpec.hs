@@ -24,6 +24,7 @@ import Cardano.Launcher
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (FaucetFunds)
     , FileOf (..)
+    , RunningNode (..)
     )
 import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     ( saveFunds
@@ -44,14 +45,31 @@ import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
     , Phase (..)
     )
+import Cardano.Wallet.Network
+    ( NetworkLayer (currentNodeTip)
+    )
+import Cardano.Wallet.Network.Implementation
+    ( withNetworkLayer
+    )
+import Cardano.Wallet.Network.Implementation.Ouroboros
+    ( tunedForMainnetPipeliningStrategy
+    )
 import Cardano.Wallet.Network.Ports
     ( PortNumber
     , getRandomPort
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( CardanoBlock
+    , StandardCrypto
+    , fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , SNetworkId (SMainnet)
     , withSNetworkId
+    )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncTolerance (SyncTolerance)
     )
 import Control.Monad
     ( forM_
@@ -111,6 +129,8 @@ import UnliftIO.Concurrent
 import UnliftIO.Directory
     ( createDirectoryIfMissing
     )
+
+import qualified Cardano.Wallet.Network.Implementation as NL
 
 testService
     :: MonitorState
@@ -192,9 +212,8 @@ getClusterLogsMinSeverity = lookupEnv "CLUSTER_LOGS_MIN_SEVERITY"
 testServiceWithCluster
     :: FilePath
     -> FaucetFunds
-    -> ((RunMonitorQ IO, RunFaucetQ IO) -> IO ())
-    -> IO ()
-testServiceWithCluster name faucetFundsValue action = evalContT $ do
+    -> ContT () IO ((RunMonitorQ IO, RunFaucetQ IO), ToTextTracer)
+testServiceWithCluster name faucetFundsValue = do
     port <- liftIO getRandomPort
     faucetFundsPath <- ContT withTempFile
     liftIO $ saveFunds (FileOf $ absFile faucetFundsPath) faucetFundsValue
@@ -215,7 +234,23 @@ testServiceWithCluster name faucetFundsValue action = evalContT $ do
                 DoNotSendSigINT
     queries <- withSNetworkId (NTestnet 42)
         $ \network -> withServiceClient network port nullTracer
-    liftIO $ action queries
+    pure (queries, ToTextTracer processLogs)
+
+withNetwork
+    :: Tracer IO NL.Log
+    -> RunningNode
+    -> ContT r IO (NetworkLayer IO (CardanoBlock StandardCrypto))
+withNetwork tr (RunningNode sock genesisData vData) = do
+    let (np, _, _) = fromGenesisData genesisData
+    let sTol = SyncTolerance 60
+    ContT
+        $ withNetworkLayer
+            tr
+            tunedForMainnetPipeliningStrategy
+            np
+            sock
+            vData
+            sTol
 
 noFunds :: FaucetFunds
 noFunds = FaucetFunds [] [] []
@@ -278,16 +313,44 @@ spec = do
                 (History phases, _state) <- query ObserveQ
                 snd <$> phases `shouldBe` [RetrievingFunds]
     describe "withService application" $ do
-        it "can start and stop" $ do
-            testServiceWithCluster
-                "can-start-and-stop" noFunds
-                $ \(RunQuery query, _) -> do
+        it "can start and stop" $ evalContT $ do
+            ((RunQuery query, _), _) <-
+                testServiceWithCluster
+                    "can-start-and-stop"
+                    noFunds
+            liftIO $ do
+                result <- query ReadyQ
+                result `shouldBe` False
+        it "can wait for cluster ready before ending" $ evalContT $ do
+            ((RunQuery query, _), _) <-
+                testServiceWithCluster
+                    "can-wait-for-cluster-ready-before-ending"
+                    noFunds
+            liftIO $ do
+                fix $ \loop -> do
                     result <- query ReadyQ
-                    result `shouldBe` False
-        it "can wait for cluster ready before ending" $ do
-            testServiceWithCluster
-                "can-wait-for-cluster-ready-before-ending" noFunds
-                $ \(RunQuery query, _) -> do
-                    fix $ \loop -> do
-                        result <- query ReadyQ
-                        unless result $ threadDelay 10000 >> loop
+                    unless result $ threadDelay 10000 >> loop
+    describe "withNetwork" $ do
+        it "can start and stop" $ evalContT $ do
+            ((query, _), ToTextTracer tr) <-
+                testServiceWithCluster
+                    "withNetwork-can-start-and-stop"
+                    noFunds
+            node <- liftIO $ waitForNode query
+            nl <- withNetwork tr node
+            tip <- liftIO $ currentNodeTip nl
+            tip `seq` pure ()
+
+waitForNode :: RunMonitorQ IO -> IO RunningNode
+waitForNode (RunQuery query) = fix $ \loop -> do
+    (history', _) <- query ObserveQ
+    case getNode history' of
+        Nothing -> threadDelay 10000 >> loop
+        Just node -> pure node
+
+getNode :: History -> Maybe RunningNode
+getNode (History phases) = case phases of
+    [] -> Nothing
+    (_time, phase) : _ -> case phase of
+        Cluster (Just node) -> Just node
+        _ -> Nothing

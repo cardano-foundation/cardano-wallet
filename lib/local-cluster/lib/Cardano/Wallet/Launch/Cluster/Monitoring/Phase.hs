@@ -1,27 +1,16 @@
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 
 module Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( Phase (..)
-    , RelayNode (..)
     , History (..)
     )
 where
 
 import Prelude
 
-import Cardano.Launcher.Node
-    ( cardanoNodeConn
-    , nodeSocketFile
-    )
-import Data.Aeson
-    ( FromJSON
-    , ToJSON
-    )
-import Data.Aeson.Types
-    ( FromJSON (..)
-    , ToJSON (..)
+import Cardano.Wallet.Launch.Cluster.Node.RunningNode
+    ( RunningNode
     )
 import Data.Time
     ( UTCTime
@@ -29,20 +18,6 @@ import Data.Time
 import GHC.Generics
     ( Generic
     )
-
--- | A relay node as a reference to its socket file or pipe
-newtype RelayNode = RelayNode FilePath
-    deriving stock (Eq, Show, Generic)
-
-instance ToJSON RelayNode where
-    toJSON (RelayNode f) = toJSON f
-
-instance FromJSON RelayNode where
-    parseJSON x = do
-        f <- parseJSON x
-        case cardanoNodeConn f of
-            Right conn -> pure $ RelayNode $ nodeSocketFile conn
-            Left e -> fail e
 
 -- | The different phases the cluster can be in. We use the convention to report
 -- the start of a phase.
@@ -54,9 +29,9 @@ data Phase
     | Funding
     | Pools
     | Relay
-    | Cluster (Maybe RelayNode)
+    | Cluster (Maybe RunningNode)
     deriving stock (Eq, Show, Generic)
-    deriving anyclass (ToJSON, FromJSON)
+    -- deriving anyclass (ToJSON, FromJSON)
 
 -- | The history of the cluster phases
 newtype History = History

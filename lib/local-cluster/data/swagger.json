@@ -21,7 +21,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "RetrievingFunds"
+                                                        "retrieving-funds"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -32,7 +32,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "Metadata"
+                                                        "metadata"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -43,7 +43,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "Genesis"
+                                                        "genesis"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -54,7 +54,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "Pool0"
+                                                        "pool0"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -65,7 +65,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "Funding"
+                                                        "funding"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -76,7 +76,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "Pools"
+                                                        "pools"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -87,7 +87,7 @@
                                             "properties": {
                                                 "tag": {
                                                     "enum": [
-                                                        "Relay"
+                                                        "relay"
                                                     ],
                                                     "type": "string"
                                                 }
@@ -96,13 +96,33 @@
                                         },
                                         {
                                             "properties": {
-                                                "contents": {
-                                                    "description": "The socket file or pipe of a relay node",
-                                                    "type": "string"
+                                                "content": {
+                                                    "description": "A running node",
+                                                    "properties": {
+                                                        "genesis": {
+                                                            "additionalProperties": true,
+                                                            "type": "object"
+                                                        },
+                                                        "socket": {
+                                                            "type": "string"
+                                                        },
+                                                        "version": {
+                                                            "properties": {
+                                                                "magic": {
+                                                                    "type": "number"
+                                                                },
+                                                                "query": {
+                                                                    "type": "boolean"
+                                                                }
+                                                            },
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "type": "object"
                                                 },
                                                 "tag": {
                                                     "enum": [
-                                                        "Cluster"
+                                                        "cluster"
                                                     ],
                                                     "type": "string"
                                                 }

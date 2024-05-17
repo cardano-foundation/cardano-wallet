@@ -39,7 +39,6 @@ import Cardano.Wallet.Launch.Cluster.Http.Service
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( Phase (..)
-    , RelayNode (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
@@ -333,9 +332,7 @@ main = withUtf8 $ do
         liftIO
             $ traceWith phaseTracer
             $ Cluster
-            $ Just
-            $ RelayNode
-            $ toFilePath nodeSocket
+            $ Just node
 
         debug "Wait forever or ctrl-c"
         threadDelay maxBound
