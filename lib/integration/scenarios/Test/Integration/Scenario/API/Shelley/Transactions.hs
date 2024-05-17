@@ -54,6 +54,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -221,7 +222,6 @@ import Test.Integration.Framework.TestData
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoAsset
-    , errMsg404NoWallet
     , steveToken
     , txMetadata_ADP_1005
     )
@@ -846,7 +846,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 payload
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     describe "TRANS_CREATE_08 - Bad payload" $ do
         let matrix =
@@ -1708,7 +1709,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 payload
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it "TRANS_LIST_01 - Can list Incoming and Outgoing transactions"
         $ \ctx -> runResourceT $ do
@@ -2200,7 +2202,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 Default
                 Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it
         "TRANS_LIST_RANGE_01 - \
@@ -2378,7 +2381,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let link = Link.getTransaction @'Shelley w (ApiTxId txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
+
 
     it "TRANS_GET_03 - Using wrong transaction id" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
