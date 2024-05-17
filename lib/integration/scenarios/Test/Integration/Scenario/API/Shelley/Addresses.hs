@@ -40,7 +40,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
-    , ApiErrorNoSuchWallet (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -109,6 +109,7 @@ import Test.Integration.Framework.DSL
     , request
     , unsafeRequest
     , verify
+    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg400ScriptDuplicateKeys
@@ -125,7 +126,6 @@ import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Test.Integration.Framework.DSL as DSL
 
 spec
     :: forall n
@@ -134,7 +134,7 @@ spec
 spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
-        let wid = w ^. DSL.walletId
+        let wid = w ^. walletId
         let ep = ("GET", "v2/wallets/" <> wid <> "/addresses")
         r <- request @[ApiAddressWithPath n] ctx ep Default Empty
         expectResponseCode HTTP.status404 r
@@ -293,7 +293,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it "ADDRESS_LIST_05 - bech32 HRP is correct - testnet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx

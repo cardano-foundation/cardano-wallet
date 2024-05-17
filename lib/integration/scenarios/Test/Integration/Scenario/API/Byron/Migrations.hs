@@ -36,7 +36,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
-    , ApiErrorNoSuchWallet (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -106,6 +106,7 @@ import Test.Integration.Framework.DSL
     , unsafeResponse
     , verify
     , waitForTxImmutability
+    , walletId
     , (.>)
     )
 import Test.Integration.Framework.TestData
@@ -119,7 +120,6 @@ import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec.Expectations.Lifted as Lifted
-import qualified Test.Integration.Framework.DSL as DSL
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
@@ -168,7 +168,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
-                    (errMsg403NothingToMigrate $ sourceWallet ^. DSL.walletId)
+                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
     it "BYRON_CREATE_MIGRATION_PLAN_02r \
@@ -194,7 +194,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status404
                 ]
             decodeErrorInfo response `Lifted.shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet $ sourceWallet ^. DSL.walletId)
+                (NoSuchWallet $ ApiErrorNoSuchWallet $ sourceWallet ^. walletId)
 
     it "BYRON_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains dust."
@@ -232,7 +232,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             verify response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
-                    (errMsg403NothingToMigrate $ sourceWallet ^. DSL.walletId)
+                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
                 ]
 
     let byronCreateMigrationPlan05 fixtureByronWallet ctx = runResourceT $ do
@@ -400,7 +400,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
         $ \emptyByronWallet -> runResourceT $ do
             sourceWallet <- emptyByronWallet ctx
-            let sourceWalletId = sourceWallet ^. DSL.walletId
+            let sourceWalletId = sourceWallet ^. walletId
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds = targetAddresses <&>
@@ -533,7 +533,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 verify response
                     [ expectResponseCode HTTP.status403
                     , expectErrorMessage
-                        (errMsg403NothingToMigrate (sourceWallet ^. DSL.walletId))
+                        (errMsg403NothingToMigrate (sourceWallet ^. walletId))
                     ]
 
     it "BYRON_MIGRATE_07 - \
@@ -576,7 +576,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     [ expectField (#balance . #available)
                         (`shouldBe` ApiAmount 15)
                     ]
-            let sourceWalletId = sourceWallet ^. DSL.walletId
+            let sourceWalletId = sourceWallet ^. walletId
 
             -- Analyse the source wallet's UTxO distribution:
             let expectedSourceDistribution = [(10, 5)]

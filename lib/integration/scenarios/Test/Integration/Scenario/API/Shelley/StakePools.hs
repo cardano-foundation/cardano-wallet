@@ -55,7 +55,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchPool (..)
-    , ApiErrorNoSuchWallet (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -213,6 +213,7 @@ import Test.Integration.Framework.DSL
     , waitForTxImmutability
     , waitForTxStatus
     , waitNumberOfEpochBoundaries
+    , walletId
     , (.<)
     , (.>)
     , (.>=)
@@ -228,7 +229,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Prelude
-import qualified Test.Integration.Framework.DSL as DSL
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
@@ -262,7 +262,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        let wid = w ^. DSL.walletId
+        let wid = w ^. walletId
         _ <-
             request @ApiWallet
                 ctx

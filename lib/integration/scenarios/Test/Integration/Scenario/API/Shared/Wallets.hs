@@ -63,8 +63,8 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorSharedWalletNoSuchCosigner (..)
-    , ApiErrorNoSuchWallet (..)
     )
 import Cardano.Wallet.Compat
     ( (^?)
@@ -165,6 +165,7 @@ import Test.Integration.Framework.DSL
     , submitSharedTxWithWid
     , unsafeRequest
     , verify
+    , walletId
     , (</>)
     )
 import Test.Integration.Framework.TestData
@@ -187,7 +188,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
-import qualified Test.Integration.Framework.DSL as DSL
 
 spec
     :: forall n
@@ -1036,7 +1036,7 @@ spec = describe "SHARED_WALLETS" $ do
         let putData = Json [json| {
                 "one_change_address_mode": false
                 } |]
-        let walIdOneChangeAddr = walOneAddr ^. DSL.walletId
+        let walIdOneChangeAddr = walOneAddr ^. walletId
         rPut <- request @ApiWallet ctx
             ("PUT", "v2/shared-wallets" </> walIdOneChangeAddr) Default putData
         verify rPut
@@ -1044,7 +1044,7 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField
                     (#addressPoolGap . #getApiT . #getAddressPoolGap)
                     (`shouldBe` 20)
-            , expectField DSL.walletId (`shouldBe` walIdOneChangeAddr)
+            , expectField walletId (`shouldBe` walIdOneChangeAddr)
             ]
 
         forM_ [1,1] $ \num -> realizeTx walOneAddr wFixture (num * minUTxOValue') destFixture
@@ -1500,7 +1500,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal = getFromResponse Prelude.id rPost
 
         rl <- listFilteredSharedWallets
-            (Set.singleton (getWalletIdFromSharedWallet wal ^. DSL.walletId) ) ctx
+            (Set.singleton (getWalletIdFromSharedWallet wal ^. walletId) ) ctx
         verify (fmap (fmap (view #wallet)) <$> rl)
             [ expectResponseCode HTTP.status200
             , expectListSize 1
@@ -1540,7 +1540,7 @@ spec = describe "SHARED_WALLETS" $ do
                 [ expectResponseCode HTTP.status201
                 ]
             let wal = getFromResponse Prelude.id rPost
-            pure (getWalletIdFromSharedWallet wal ^. DSL.walletId)
+            pure (getWalletIdFromSharedWallet wal ^. walletId)
         let name = (^? (#wallet . traverse . #name . #getApiT . #getWalletName))
         rl <- listFilteredSharedWallets (Set.fromList wids) ctx
         verify (fmap (map name) <$> rl)
@@ -1567,7 +1567,7 @@ spec = describe "SHARED_WALLETS" $ do
         expectResponseCode HTTP.status204 rDel
 
         rl <- listFilteredSharedWallets
-            (Set.singleton $ getWalletIdFromSharedWallet wal ^. DSL.walletId) ctx
+            (Set.singleton $ getWalletIdFromSharedWallet wal ^. walletId) ctx
         verify rl
             [ expectResponseCode HTTP.status200
             , expectListSize 0
@@ -1704,7 +1704,7 @@ spec = describe "SHARED_WALLETS" $ do
             Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     describe "SHARED_WALLETS_UTXO_04 - HTTP headers" $ do
         let matrix =

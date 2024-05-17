@@ -41,7 +41,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
-    , ApiErrorNoSuchWallet (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -112,6 +112,7 @@ import Test.Integration.Framework.DSL
     , selectCoinsWith
     , verify
     , verifyMsg
+    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
@@ -130,7 +131,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
-import qualified Test.Integration.Framework.DSL as DSL
 import qualified Test.Hspec.Expectations.Lifted as Lifted
 
 spec
@@ -230,7 +230,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 [ expectResponseCode HTTP.status404
                 ]
             decodeErrorInfo rTx `Lifted.shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
+                (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it
         "WALLETS_COIN_SELECTION_03 - \

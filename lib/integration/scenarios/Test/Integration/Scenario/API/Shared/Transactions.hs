@@ -64,7 +64,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
-    , ApiErrorNoSuchWallet (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -206,6 +206,7 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , waitNumberOfEpochBoundaries
+    , walletId
     , (.>)
     )
 import Test.Integration.Framework.Request
@@ -229,7 +230,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
-import qualified Test.Integration.Framework.DSL as DSL
 
 data TestCase a = TestCase
     { query :: T.Text
@@ -1608,7 +1608,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
         \Transaction at time t is SELECTED by small ranges that cover it" $
@@ -1741,7 +1741,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. DSL.walletId)
+            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
 
     it "SHARED_TRANSACTIONS_GET_03 - \
         \Using wrong transaction id" $
