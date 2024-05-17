@@ -36,6 +36,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (..)
+    )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
     )
@@ -97,6 +101,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -122,14 +127,12 @@ import Test.Integration.Framework.DSL
     , unsafeResponse
     , verify
     , waitForTxImmutability
-    , walletId
     , (.>)
     , (.>=)
     )
 import Test.Integration.Framework.TestData
     ( errMsg403NothingToMigrate
     , errMsg403WrongPass
-    , errMsg404NoWallet
     )
 import Text.Pretty.Simple
     ( pShowNoColor
@@ -147,6 +150,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text.Lazy as TL
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
+import qualified Test.Integration.Framework.DSL as DSL
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
@@ -209,7 +213,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
-                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
+                    (errMsg403NothingToMigrate $ sourceWallet ^. DSL.walletId)
                 ]
 
     describe
@@ -241,12 +245,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             ep
                             Default
                             (Json [json|{addresses: #{targetAddressIds}}|])
-                    verify
-                        result
+                    verify result
                         [ expectResponseCode HTTP.status404
-                        , expectErrorMessage
-                            (errMsg404NoWallet $ sourceWallet ^. walletId)
                         ]
+                    decodeErrorInfo result `shouldBe`
+                        (NoSuchWallet $ ApiErrorNoSuchWallet $ sourceWallet ^. DSL.walletId)
 
     Hspec.it
         "SHELLEY_CREATE_MIGRATION_PLAN_04 - \
@@ -327,7 +330,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
-                    (errMsg403NothingToMigrate $ sourceWallet ^. walletId)
+                    (errMsg403NothingToMigrate $ sourceWallet ^. DSL.walletId)
                 ]
 
     it
@@ -931,7 +934,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         \Migrating an empty wallet should fail."
         $ \ctx -> runResourceT $ do
             sourceWallet <- emptyWallet ctx
-            let sourceWalletId = sourceWallet ^. walletId
+            let sourceWalletId = sourceWallet ^. DSL.walletId
             targetWallet <- emptyWallet ctx
             targetAddresses <- listAddresses @n ctx targetWallet
             let targetAddressIds =
@@ -1077,7 +1080,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 response
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage
-                    (errMsg403NothingToMigrate (sourceWallet ^. walletId))
+                    (errMsg403NothingToMigrate (sourceWallet ^. DSL.walletId))
                 ]
 
     it
