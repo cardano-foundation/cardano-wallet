@@ -1,6 +1,6 @@
 ### Run locally
 
-Exceute the following command in this directory:
+Execute the following command in this directory:
 ```bash
 > mdbook serve site
 ```

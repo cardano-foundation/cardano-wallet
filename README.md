@@ -63,7 +63,7 @@ Here is one way to start both node and wallet using Docker and running the night
 
 THE FOLLOWING EXPOSES THE WALLET PORT. DO NOT USE IT WITH mainnet !
 
-Prerequisties:
+Prerequisites:
     - 100GB of disk space
     - 13GB of RAM
 
