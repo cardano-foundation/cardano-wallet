@@ -1197,7 +1197,8 @@ data SchemaApiErrorInfo = SchemaApiErrorInfo
 instance FromJSON SchemaApiErrorInfo where
     parseJSON = withObject "SchemaApiErrorInfo" $ \o -> do
         let constructors :: [String] =
-                showConstr <$> dataTypeConstrs (dataTypeOf NoSuchWallet)
+                showConstr <$>
+                dataTypeConstrs (dataTypeOf (undefined :: ApiErrorInfo))
         vals :: [Either String Yaml.Value] <-
             forM constructors $ \c ->
                 maybe (Left c) Right <$> o .:? Aeson.fromString (toSchemaName c)
