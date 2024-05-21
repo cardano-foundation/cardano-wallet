@@ -217,7 +217,8 @@ import Control.Monad.Trans.Resource
     ( runResourceT
     )
 import Data.Aeson
-    ( toJSON
+    ( decode
+    , toJSON
     , (.=)
     )
 import Data.Function
@@ -350,6 +351,7 @@ import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
@@ -2961,6 +2963,83 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     pure $ getResponse submittedTx'
 
             foldM_ runStep txid steps
+
+    it "TRANS_NEW_SUBMIT_04 - Mary and Babbage foreign txs submitted" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+
+        --- $ cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
+        --- $ cat payment.skey
+        --- {
+        ---    "type": "PaymentSigningKeyShelley_ed25519",
+        ---    "description": "Payment Signing Key",
+        ---    "cborHex": "5820c18580391024aed84071bdbde7fba81c489a97813b45edd53ad2db5231bb0a69"
+        --- }
+        --- $ cat payment.vkey
+        --- {
+        ---    "type": "PaymentVerificationKeyShelley_ed25519",
+        ---    "description": "Payment Verification Key",
+        ---    "cborHex": "58201a6c21bc45c5d7089685610db372f2d2f87873aaa687af21b6bd62e7055d2402"
+        --- }
+        --- $ cardano-cli address build --payment-verification-key-file payment.vkey --out-file payment.addr "--mainnet"
+        ---
+        --- $ cardano-cli transaction build-raw \
+        --- > --fee 300000 \
+        --- > --tx-in "ab08ccdf5c62ad8008d0ac165b68ff714b88de19235a9bd65c731fc264125daf#0"  \
+        --- > --tx-out $(cat payment.addr)+10000000 \
+        --- > --mary-era \
+        --- > --out-file tx.mary.raw
+        --- $ cardano-cli transaction sign \
+        --- > --tx-body-file tx.mary.raw \
+        --- > --signing-key-file payment.skey \
+        --- > --mainnet \
+        --- > --out-file tx.mary.signed
+        let maryCBOR =
+                "{\"transaction\":\"83a30081825820ab08ccdf5c62ad8008d0ac165b68f\
+                \f714b88de19235a9bd65c731fc264125daf00018182581d6121f322c97d028\
+                \7c6c3cfb06a984e75d50eac2a8e8ba33a71d8f8462a1a00989680021a00049\
+                \3e0a100818258201a6c21bc45c5d7089685610db372f2d2f87873aaa687af2\
+                \1b6bd62e7055d2402584029791f8f82d3413c93700ee63b86e3355880f4bda\
+                \b10893ad020358e04f78ef405bd031397dbbf311ab0297ed66196d6d57f662\
+                \aaab9e3610b2df03ccb38cc0df6\"}" :: LB.ByteString
+        let (Just submitMaryPayload) = decode @ApiSerialisedTransaction maryCBOR
+
+        --- $ cardano-cli transaction build-raw \
+        --- > --fee 300000 \
+        --- > --tx-in "ab08ccdf5c62ad8008d0ac165b68ff714b88de19235a9bd65c731fc264125daf#0"  \
+        --- > --tx-out $(cat payment.addr)+10000000 \
+        --- > --mary-era \
+        --- > --out-file tx.babbage.raw
+        --- $ cardano-cli transaction sign \
+        --- > --tx-body-file tx.babbage.raw \
+        --- > --signing-key-file payment.skey \
+        --- > --mainnet \
+        --- > --out-file tx.babbage.signed
+        let babbageCBOR =
+                "{\"transaction\":\"84a30081825820ab08ccdf5c62ad8008d0ac165b68f\
+                \f714b88de19235a9bd65c731fc264125daf00018182581d6121f322c97d028\
+                \7c6c3cfb06a984e75d50eac2a8e8ba33a71d8f8462a1a00989680021a00049\
+                \3e0a100818258201a6c21bc45c5d7089685610db372f2d2f87873aaa687af2\
+                \1b6bd62e7055d2402584029791f8f82d3413c93700ee63b86e3355880f4bda\
+                \b10893ad020358e04f78ef405bd031397dbbf311ab0297ed66196d6d57f662\
+                \aaab9e3610b2df03ccb38cc0df5f6\"}" :: LB.ByteString
+        let (Just submitBabbagePayload) = decode @ApiSerialisedTransaction babbageCBOR
+
+        -- NOTE: TEST IS PASSING BUT we HAVE in BOTH CASES the FOLLOWING:
+        --INTERNAL ERROR: cardanoTxFromBytes: impossible
+        --CallStack (from HasCallStack):
+        --  error, called at lib/Cardano/Wallet/Util.hs:108:21 in cardano-wallet-primitive-2024.5.5-inplace:Cardano.Wallet.Util
+        --  internalError, called at lib/Cardano/Wallet/Primitive/Types/Tx/SealedTx.hs:290:21 in cardano-wallet-primitive-2024.5.5-inplace:Cardano.Wallet.Primitive.Types.Tx.SealedTx
+        submittedMaryTx <- submitTxWithWid ctx wa submitMaryPayload
+        verify submittedMaryTx
+            [ expectResponseCode HTTP.status403
+            ]
+        decodeErrorInfo submittedMaryTx `shouldBe` ForeignTransaction
+
+        submittedBabbageTx <- submitTxWithWid ctx wa submitBabbagePayload
+        verify submittedBabbageTx
+            [ expectResponseCode HTTP.status403
+            ]
+        decodeErrorInfo submittedBabbageTx `shouldBe` ForeignTransaction
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
