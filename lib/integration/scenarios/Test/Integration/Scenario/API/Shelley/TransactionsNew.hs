@@ -116,6 +116,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
+    , ApiErrorUnsupportedEra (..)
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -361,8 +362,6 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
-import qualified Debug.Trace as TR
-
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
@@ -456,7 +455,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Submit tx
-        submittedTx <- TR.trace ("signedTx: "<> show signedTx) $ submitTxWithWid ctx wa signedTx
+        submittedTx <- submitTxWithWid ctx wa signedTx
         verify submittedTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -3005,6 +3004,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \b10893ad020358e04f78ef405bd031397dbbf311ab0297ed66196d6d57f662\
                 \aaab9e3610b2df03ccb38cc0df6\"}" :: LB.ByteString
         let (Just submitMaryPayload) = decode @ApiSerialisedTransaction maryCBOR
+        let submitMaryPayload' =
+                NonJson $ LB.fromStrict $ view #serialisedTx $ getApiT $
+                view #serialisedTxSealed submitMaryPayload
 
         --- $ cardano-cli transaction build-raw \
         --- > --fee 300000 \
@@ -3026,16 +3028,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \b10893ad020358e04f78ef405bd031397dbbf311ab0297ed66196d6d57f662\
                 \aaab9e3610b2df03ccb38cc0df5f6\"}" :: LB.ByteString
         let (Just submitBabbagePayload) = decode @ApiSerialisedTransaction babbageCBOR
-
         let submitBabbagePayload' =
                 NonJson $ LB.fromStrict $ view #serialisedTx $ getApiT $
                 view #serialisedTxSealed submitBabbagePayload
 
-        -- NOTE: TEST IS PASSING BUT we HAVE in BOTH CASES the FOLLOWING:
-        --INTERNAL ERROR: cardanoTxFromBytes: impossible
-        --CallStack (from HasCallStack):
-        --  error, called at lib/Cardano/Wallet/Util.hs:108:21 in cardano-wallet-primitive-2024.5.5-inplace:Cardano.Wallet.Util
-        --  internalError, called at lib/Cardano/Wallet/Primitive/Types/Tx/SealedTx.hs:290:21 in cardano-wallet-primitive-2024.5.5-inplace:Cardano.Wallet.Primitive.Types.Tx.SealedTx
         submittedMaryTx <- submitTxWithWid ctx wa submitMaryPayload
         verify submittedMaryTx
             [ expectResponseCode HTTP.status403
@@ -3048,11 +3044,28 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         decodeErrorInfo submittedBabbageTx `shouldBe` ForeignTransaction
 
+        -- using external submit users can push txs that result in node errors
         submittedBabbageTxExternal <- request @ApiTxId ctx
-            ("POST", "v2/proxy/transactions") (Headers [ ("Content-Type", "application/octet-stream") ]) submitBabbagePayload'
+            ("POST", "v2/proxy/transactions")
+            (Headers [ ("Content-Type", "application/octet-stream") ])
+            submitBabbagePayload'
         verify submittedBabbageTxExternal
+            [ expectResponseCode HTTP.status500
+            ]
+
+        -- using external submit users cannot push txs to the node constructed in past eras
+        submittedMaryTxExternal <- request @ApiTxId ctx
+            ("POST", "v2/proxy/transactions")
+            (Headers [ ("Content-Type", "application/octet-stream") ])
+            submitMaryPayload'
+        verify submittedMaryTxExternal
             [ expectResponseCode HTTP.status403
             ]
+        let errInfo = UnsupportedEra (ApiErrorUnsupportedEra
+                { unsupportedEra = ApiMary
+                , supportedEras = fromList [ApiBabbage,ApiConway]
+                })
+        decodeErrorInfo submittedMaryTxExternal `shouldBe` errInfo
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
