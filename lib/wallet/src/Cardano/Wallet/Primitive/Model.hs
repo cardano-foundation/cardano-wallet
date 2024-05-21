@@ -171,10 +171,6 @@ import Data.Set
 import Data.Word
     ( Word32
     )
-import Fmt
-    ( Buildable (..)
-    , indentF
-    )
 import GHC.Generics
     ( Generic
     )
@@ -240,12 +236,6 @@ instance NFData s => NFData (Wallet s) where
         deepseq (rnf sl) $
         deepseq (rnf s)
         ()
-
-instance Buildable s => Buildable (Wallet s) where
-    build (Wallet u tip s) = "Wallet s\n"
-        <> indentF 4 ("Tip: " <> build tip)
-        <> indentF 4 ("UTxO:\n" <> indentF 4 (build u))
-        <> indentF 4 (build s)
 
 -- | Delta encoding for 'Wallet'.
 data DeltaWallet s = DeltaWallet
