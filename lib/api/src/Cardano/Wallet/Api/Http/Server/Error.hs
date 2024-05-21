@@ -484,6 +484,7 @@ instance IsServerError ErrWriteTxEra where
             info = ApiErrorNodeNotYetInRecentEra
                 { nodeEra = toApiEra $ Cardano.AnyCardanoEra era
                 , supportedRecentEras =
+                    Set.fromList $
                     map (toApiEra . Write.toAnyCardanoEra) [minBound .. maxBound]
                 }
         ErrPartialTxNotInNodeEra nodeEra ->

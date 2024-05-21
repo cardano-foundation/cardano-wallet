@@ -288,7 +288,7 @@ data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
 
 data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     { nodeEra :: ApiEra
-    , supportedRecentEras :: [ApiEra]
+    , supportedRecentEras :: Set ApiEra
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
