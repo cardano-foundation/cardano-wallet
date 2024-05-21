@@ -361,6 +361,9 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+import qualified Debug.Trace as TR
+
+
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
@@ -453,7 +456,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- Submit tx
-        submittedTx <- submitTxWithWid ctx wa signedTx
+        submittedTx <- TR.trace ("signedTx: "<> show signedTx) $ submitTxWithWid ctx wa signedTx
         verify submittedTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
@@ -3024,6 +3027,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \aaab9e3610b2df03ccb38cc0df5f6\"}" :: LB.ByteString
         let (Just submitBabbagePayload) = decode @ApiSerialisedTransaction babbageCBOR
 
+        let submitBabbagePayload' =
+                NonJson $ LB.fromStrict $ view #serialisedTx $ getApiT $
+                view #serialisedTxSealed submitBabbagePayload
+
         -- NOTE: TEST IS PASSING BUT we HAVE in BOTH CASES the FOLLOWING:
         --INTERNAL ERROR: cardanoTxFromBytes: impossible
         --CallStack (from HasCallStack):
@@ -3040,6 +3047,12 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status403
             ]
         decodeErrorInfo submittedBabbageTx `shouldBe` ForeignTransaction
+
+        submittedBabbageTxExternal <- request @ApiTxId ctx
+            ("POST", "v2/proxy/transactions") (Headers [ ("Content-Type", "application/octet-stream") ]) submitBabbagePayload'
+        verify submittedBabbageTxExternal
+            [ expectResponseCode HTTP.status403
+            ]
 
     it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
