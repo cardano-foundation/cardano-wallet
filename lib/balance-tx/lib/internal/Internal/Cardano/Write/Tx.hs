@@ -231,6 +231,9 @@ import Data.ByteString.Short
 import Data.Coerce
     ( coerce
     )
+import Data.Function
+    ( on
+    )
 import Data.Generics.Internal.VL.Lens
     ( over
     , (^.)
@@ -462,6 +465,9 @@ instance Enum AnyRecentEra where
 instance Bounded AnyRecentEra where
     minBound = AnyRecentEra RecentEraBabbage
     maxBound = AnyRecentEra RecentEraConway
+
+instance Ord AnyRecentEra where
+    compare = compare `on` fromEnum
 
 instance Show AnyRecentEra where
     show (AnyRecentEra era) = "AnyRecentEra " <> show era
