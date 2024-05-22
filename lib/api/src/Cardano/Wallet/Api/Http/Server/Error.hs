@@ -653,7 +653,7 @@ instance IsServerError ErrPostTx where
           where
             error' =
                 UnsupportedEra
-                    $ ApiErrorUnsupportedEra
+                    ApiErrorUnsupportedEra
                         { unsupportedEra = toApiEra unsupported
                         , supportedEras = Api.supportedRecentEras
                         }
