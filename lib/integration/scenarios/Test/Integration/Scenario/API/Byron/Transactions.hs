@@ -557,7 +557,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
             expectResponseCode HTTP.status404 r
             decodeErrorInfo r `shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet wid)
+                NoSuchWallet (ApiErrorNoSuchWallet wid)
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
@@ -568,7 +568,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             r <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 r
             decodeErrorInfo r `shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet wid)
+                NoSuchWallet (ApiErrorNoSuchWallet wid)
 
     it "BYRON_TRANS_ESTIMATE -\
         \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
@@ -590,7 +590,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             r <- request @ApiFee ctx ("POST", endpoint) Default payload
             expectResponseCode HTTP.status404 r
             decodeErrorInfo r `shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet wid)
+                NoSuchWallet (ApiErrorNoSuchWallet wid)
 
     it "BYRON_TX_LIST_02 -\
         \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> runResourceT $ do
@@ -602,7 +602,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status404
             ]
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet wid)
 
     it "BYRON_TX_LIST_03 -\
         \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> runResourceT $ do
@@ -614,7 +614,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             [ expectResponseCode HTTP.status404
             ]
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet wid)
 
     it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
         -- NOTE
@@ -785,7 +785,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
 
     describe "BYRON_TX_LIST_ADDRESS - Transactions can be filtered by address" $
         forM_ [ (fixtureRandomWallet, emptyRandomWallet, "Byron wallet")

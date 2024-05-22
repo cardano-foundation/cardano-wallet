@@ -194,7 +194,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 [ expectResponseCode HTTP.status404
                 ]
             decodeErrorInfo response `Lifted.shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet $ sourceWallet ^. walletId)
+                NoSuchWallet (ApiErrorNoSuchWallet $ sourceWallet ^. walletId)
 
     it "BYRON_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains dust."

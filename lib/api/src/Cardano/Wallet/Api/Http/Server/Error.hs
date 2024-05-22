@@ -263,7 +263,7 @@ instance IsServerError ErrNoSuchWallet where
 instance IsServerError ErrWalletNotInitialized where
     toServerError = \case
         ErrWalletNotInitialized ->
-            apiError err404 NoSuchWalletInitialized $ mconcat
+            apiError err404 WalletNotInitialized $ mconcat
                 [ "The database for the requested wallet is not initialized. "
                 ]
 

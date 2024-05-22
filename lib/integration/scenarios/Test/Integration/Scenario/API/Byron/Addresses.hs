@@ -197,7 +197,7 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
         [ expectResponseCode HTTP.status404
         ]
     decodeErrorInfo r `Lifted.shouldBe`
-        (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
+        NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
   where
     title = "ADDRESS_LIST_04 - Delete wallet"
 

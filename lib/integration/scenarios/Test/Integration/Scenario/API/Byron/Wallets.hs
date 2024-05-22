@@ -134,7 +134,7 @@ spec = describe "BYRON_WALLETS" $ do
         rg <- request @ApiByronWallet ctx (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 rg
         decodeErrorInfo rg `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
 
     it "BYRON_LIST_01 - Byron Wallets are listed from oldest to newest" $
         \ctx -> runResourceT $ do

@@ -273,7 +273,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         r <- joinStakePool @n ctx (SpecificPool poolIdAbsent) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            (NoSuchWallet $ ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet wid)
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx

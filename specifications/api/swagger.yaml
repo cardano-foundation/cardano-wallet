@@ -4361,9 +4361,9 @@ x-errNoUtxosAvailable: &errNoUtxosAvailable
       type: string
       enum: ['no_utxos_available']
 
-x-errNoSuchWalletInitialized: &errNoSuchWalletInitialized
+x-errWalletNotInitialized: &errWalletNotInitialized
   <<: *responsesErr
-  title: no_such_wallet_initialized
+  title: wallet_not_initialized
   properties:
     message:
       type: string
@@ -4371,7 +4371,7 @@ x-errNoSuchWalletInitialized: &errNoSuchWalletInitialized
         May occur when the database for the requested wallet is not initialized.
     code:
       type: string
-      enum: ['no_such_wallet_initialized']
+      enum: ['wallet_not_initialized']
 
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
@@ -5667,10 +5667,10 @@ x-responsesErr404WalletNotFound: &responsesErr404WalletNotFound
 
 x-responsesErr404DbNotInitialized: &responsesErr404DbNotInitialized
   404:
-    description: DB uninitialized
+    description: Wallet not yet initialized
     content:
       application/json:
-        schema: *errNoSuchWalletInitialized
+        schema: *errWalletNotInitialized
 
 x-responsesErr503WalletMetadataNotFound: &responsesErr503WalletMetadataNotFound
   503:
@@ -6008,7 +6008,7 @@ x-responsesDeleteTransaction: &responsesDeleteTransaction
         schema:
           oneOf:
             - <<: *errNoSuchWallet
-            - <<: *errNoSuchWalletInitialized
+            - <<: *errWalletNotInitialized
             - <<: *errNoSuchTransaction
   <<: *responsesErr406
   204:
@@ -6047,7 +6047,7 @@ x-responsesGetTransaction: &responsesGetTransaction
         schema:
           oneOf:
             - <<: *errNoSuchWallet
-            - <<: *errNoSuchWalletInitialized
+            - <<: *errWalletNotInitialized
             - <<: *errNoSuchTransaction
   <<: *responsesErr406
   200:
@@ -6431,7 +6431,7 @@ x-responsesJoinStakePool: &responsesJoinStakePool
         schema:
           oneOf:
             - <<: *errNoSuchWallet
-            - <<: *errNoSuchWalletInitialized
+            - <<: *errWalletNotInitialized
             - <<: *errNoSuchPool
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType

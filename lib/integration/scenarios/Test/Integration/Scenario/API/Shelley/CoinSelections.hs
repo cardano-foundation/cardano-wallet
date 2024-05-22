@@ -230,7 +230,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 [ expectResponseCode HTTP.status404
                 ]
             decodeErrorInfo rTx `Lifted.shouldBe`
-                (NoSuchWallet $ ApiErrorNoSuchWallet $ w ^. walletId)
+                NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
 
     it
         "WALLETS_COIN_SELECTION_03 - \

@@ -165,7 +165,7 @@ data ApiErrorInfo
     | NoSuchTransaction
     | NoSuchWallet
         !ApiErrorNoSuchWallet
-    | NoSuchWalletInitialized
+    | WalletNotInitialized
     | NoUtxosAvailable
     | NodeNotYetInRecentEra
         !ApiErrorNodeNotYetInRecentEra
