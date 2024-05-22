@@ -1217,12 +1217,7 @@ prop_balanceTxValid
                 . classify (length originalOuts > 100)
                     ">100 payment outputs"
         let coverage res =
-                cover 10 (isRight res) "success"
-                -- We're not using 'checkCoverage', as we like to keep direct
-                -- control over the number of tests we run. We are also
-                -- intentionally keeping the "success" /label/ below for the
-                -- sake of preserving the pattern of (at least) one label per
-                -- case branch.
+                checkCoverage . cover 8 (isRight res) "success"
         let res =
                 testBalanceTx
                     wallet
