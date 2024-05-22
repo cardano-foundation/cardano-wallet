@@ -171,6 +171,8 @@ import Fmt
     , pretty
     )
 import Internal.Cardano.Write.Tx
+    ( KeyWitnessCounts (..)
+    )
 import Network.Wai
     ( Request (pathInfo)
     )
