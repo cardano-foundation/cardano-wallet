@@ -1,7 +1,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -18,21 +17,14 @@ where
 
 import Prelude
 
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    )
 import Cardano.Binary
     ( serialize'
     )
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    , newToTextTracer
-    )
 import Cardano.Chain.Common
     ( unsafeGetLovelace
-    )
-import Cardano.Launcher
-    ( Command (..)
-    , IfToSendSigINT (..)
-    , TimeoutInSecs (..)
-    , withBackendProcess
     )
 import Cardano.Ledger.Coin
     ( Coin (..)
@@ -46,11 +38,7 @@ import Cardano.Wallet.Faucet.Gen.Address
     )
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds (FaucetFunds)
-    , FileOf (..)
     , RunningNode (..)
-    )
-import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
-    ( saveFunds
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
     ( FaucetQ (SendFaucetAssetsQ)
@@ -66,11 +54,14 @@ import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
 import Cardano.Wallet.Launch.Cluster.Http.Service
     ( ServiceConfiguration (..)
     , withService
-    , withServiceClient
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
     , Phase (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Process
+    ( defaultEnvVars
+    , withLocalCluster
     )
 import Cardano.Wallet.Network
     ( NetworkLayer (currentNodeTip)
@@ -80,10 +71,6 @@ import Cardano.Wallet.Network.Implementation
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( tunedForMainnetPipeliningStrategy
-    )
-import Cardano.Wallet.Network.Ports
-    ( PortNumber
-    , getRandomPort
     )
 import Cardano.Wallet.Network.Rollback.One
     ( oneHistory
@@ -102,9 +89,7 @@ import Cardano.Wallet.Primitive.Ledger.Shelley
     ( fromGenesisData
     )
 import Cardano.Wallet.Primitive.NetworkId
-    ( NetworkId (..)
-    , SNetworkId (SMainnet)
-    , withSNetworkId
+    ( SNetworkId (SMainnet)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (SyncTolerance)
@@ -129,14 +114,8 @@ import Cardano.Wallet.Read.Tx.Outputs
     ( Outputs (..)
     , getEraOutputs
     )
-import Control.Exception
-    ( SomeException (..)
-    , catch
-    , throwIO
-    )
 import Control.Monad
-    ( forM_
-    , join
+    ( join
     , replicateM
     , unless
     )
@@ -182,31 +161,6 @@ import Streaming
     , Of
     , Stream
     )
-import System.Environment
-    ( lookupEnv
-    )
-import System.FilePath
-    ( takeDirectory
-    , (<.>)
-    , (</>)
-    )
-import System.IO
-    ( Handle
-    , IOMode (..)
-    , hClose
-    , hSetBuffering
-    , openFile
-    )
-import System.IO.Extra
-    ( BufferMode (..)
-    , withTempFile
-    )
-import System.Path
-    ( absFile
-    )
-import System.Process
-    ( StdStream (..)
-    )
 import Test.Hspec
     ( Spec
     , describe
@@ -224,9 +178,6 @@ import UnliftIO.Async
     )
 import UnliftIO.Concurrent
     ( threadDelay
-    )
-import UnliftIO.Directory
-    ( createDirectoryIfMissing
     )
 
 import qualified Cardano.Address as Addr
@@ -256,106 +207,6 @@ testService w f =
                 nullTracer
                 $ ServiceConfiguration Nothing w
         liftIO $ f tracer query
-
-withFile :: FilePath -> IOMode -> (Handle -> IO a) -> IO a
-withFile path mode action = do
-    createDirectoryIfMissing True (takeDirectory path)
-    h <- openFile path mode
-    hSetBuffering h NoBuffering
-    catch
-        (action h)
-        $ \(SomeException e) -> do
-            hClose h
-            throwIO e
-
-localClusterCommand
-    :: FilePath
-    -- ^ filename to append to the logs dir
-    -> PortNumber
-    -- ^ monitoring port
-    -> FilePath
-    -- ^ faucet funds path
-    -> ContT r IO (Maybe FilePath, Command)
-localClusterCommand name port faucetFundsPath = do
-    configsPath <- liftIO getClusterConfigsPathFromEnv
-    mLogsPath <- liftIO getClusterLogsFilePathFromEnv
-    mMinSeverity <- liftIO getClusterLogsMinSeverity
-    (clusterStdout, logsPathName) <- case mLogsPath of
-        Nothing -> pure (NoStream, Nothing)
-        Just logsPath -> do
-            let logsPathName = logsPath </> name
-            fmap (\h -> (UseHandle h, Just logsPathName))
-                $ ContT
-                $ withFile (logsPath </> name <> "-stdout" <.> "log") WriteMode
-
-    pure
-        $ (logsPathName,)
-        $ Command
-            { cmdName = "local-cluster"
-            , cmdArgs =
-                [ "--faucet-funds"
-                , faucetFundsPath
-                , "--monitoring-port"
-                , show port
-                , "--cluster-configs"
-                , configsPath
-                ]
-                    <> case mLogsPath of
-                        Nothing -> []
-                        Just logsPath ->
-                            [ "--cluster-logs"
-                            , logsPath </> name <.> "log"
-                            ]
-                    <> case mMinSeverity of
-                        Nothing -> []
-                        Just minSeverity -> ["--min-severity", show minSeverity]
-            , cmdSetup = pure ()
-            , cmdInput = NoStream
-            , cmdOutput = clusterStdout
-            }
-
-getClusterConfigsPathFromEnv :: IO FilePath
-getClusterConfigsPathFromEnv = do
-    lookupEnv "LOCAL_CLUSTER_CONFIGS" >>= \case
-        Just path -> pure path
-        Nothing -> error "LOCAL_CLUSTER_CONFIGS not set"
-
-getClusterLogsFilePathFromEnv :: IO (Maybe FilePath)
-getClusterLogsFilePathFromEnv = do
-    mp <- lookupEnv "CLUSTER_LOGS_DIR_PATH"
-    forM_ mp $ \dir ->
-        createDirectoryIfMissing True dir
-    pure mp
-
-getClusterLogsMinSeverity :: IO (Maybe String)
-getClusterLogsMinSeverity = lookupEnv "CLUSTER_LOGS_MIN_SEVERITY"
-
-testServiceWithCluster
-    :: FilePath
-    -> FaucetFunds
-    -> ContT () IO ((RunMonitorQ IO, RunFaucetQ IO), ToTextTracer)
-testServiceWithCluster name faucetFundsValue = do
-    port <- liftIO getRandomPort
-    faucetFundsPath <- ContT withTempFile
-    liftIO $ saveFunds (FileOf $ absFile faucetFundsPath) faucetFundsValue
-    (logsPathName, command) <- localClusterCommand name port faucetFundsPath
-    ToTextTracer processLogs <- case logsPathName of
-        Nothing -> pure $ ToTextTracer nullTracer
-        Just path ->
-            ContT
-                $ newToTextTracer
-                    (path <> "-process" <.> "log")
-                    Nothing
-    _ <-
-        ContT
-            $ withBackendProcess
-                processLogs
-                command
-                NoTimeout
-                DoNotSendSigINT
-    queries <- withSNetworkId (NTestnet 42)
-        $ \network -> withServiceClient network port nullTracer
-    pure (queries, ToTextTracer processLogs)
 
 withNetwork
     :: Tracer IO NL.Log
@@ -436,16 +287,18 @@ spec = do
     describe "withService application" $ do
         it "can start and stop" $ evalContT $ do
             ((RunMonitorQ query, _), _) <-
-                testServiceWithCluster
+                withLocalCluster
                     "can-start-and-stop"
+                    defaultEnvVars
                     noFunds
             liftIO $ do
                 result <- query ReadyQ
                 result `shouldBe` False
         it "can wait for cluster ready before ending" $ evalContT $ do
             ((RunMonitorQ query, _), _) <-
-                testServiceWithCluster
+                withLocalCluster
                     "can-wait-for-cluster-ready-before-ending"
+                    defaultEnvVars
                     noFunds
             liftIO $ do
                 fix $ \loop -> do
@@ -454,8 +307,9 @@ spec = do
     describe "withNetwork" $ do
         it "can start and stop" $ evalContT $ do
             ((query, _), ToTextTracer tr) <-
-                testServiceWithCluster
+                withLocalCluster
                     "withNetwork-can-start-and-stop"
+                    defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
             network <- withNetwork tr node
@@ -463,8 +317,9 @@ spec = do
             tip `seq` pure ()
         it "can get the first block" $ evalContT $ do
             ((query, _), ToTextTracer tr) <-
-                testServiceWithCluster
+                withLocalCluster
                     "withNetwork-can-get-collect-the-incoming-blocks"
+                    defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
             network <- withNetwork tr node
@@ -476,8 +331,9 @@ spec = do
             liftIO $ join firstBlock `shouldNotBe` Nothing
         it "can get the first non-empty balance" $ evalContT $ do
             ((query, _), ToTextTracer tr) <-
-                testServiceWithCluster
+                withLocalCluster
                     "withNetwork-can-get-collect-the-incoming-blocks"
+                    defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
             network <- withNetwork tr node
@@ -494,8 +350,9 @@ spec = do
     describe "send faucet assets" $ do
         it "can send assets to a node" $ evalContT $ do
             ((query, RunFaucetQ faucet), ToTextTracer tr) <-
-                testServiceWithCluster
+                withLocalCluster
                     "send-faucet-assets-can-send-assets-to-a-node"
+                    defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
             addrs <- liftIO $ replicateM 2 $ generate $ genAddress [TestnetTag]

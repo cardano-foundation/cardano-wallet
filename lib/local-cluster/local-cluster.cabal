@@ -10,9 +10,7 @@ maintainer:    hal@cardanofoundation.org
 copyright:     2023 Cardano Foundation
 category:      Web
 build-type:    Simple
-
-data-files:
-    data/swagger.json
+data-files:    data/swagger.json
 
 common language
   default-language:   Haskell2010
@@ -27,8 +25,7 @@ common language
     -Wincomplete-record-updates -Wincomplete-uni-patterns
     -Wmissing-deriving-strategies -Wmissing-local-signatures
     -Wpartial-fields -Wredundant-constraints -Wtabs -Wunused-foralls
-    -Wunused-packages
-    -Wno-missing-home-modules
+    -Wunused-packages -Wno-missing-home-modules
 
 flag release
   description: Enable optimization and `-Werror`
@@ -166,6 +163,29 @@ library
     , warp
     , yaml
 
+library local-cluster-process
+  import:          language
+  visibility:      public
+  hs-source-dirs:  process
+  exposed-modules: Cardano.Wallet.Launch.Cluster.Process
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+  build-depends:
+    , base
+    , cardano-wallet-application-extras
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , contra-tracer
+    , directory
+    , extra
+    , filepath
+    , iohk-monitoring-extra
+    , local-cluster
+    , mtl
+    , pathtype
+
 executable local-cluster
   import:         language
   main-is:        local-cluster.hs
@@ -206,13 +226,12 @@ common test-common
     , bytestring
     , cardano-addresses
     , cardano-binary
-    , cardano-ledger-core
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
     , cardano-ledger-byron
+    , cardano-ledger-core
     , cardano-ledger-mary
     , cardano-ledger-shelley
-    , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -221,34 +240,31 @@ common test-common
     , containers
     , contra-tracer
     , extra
-    , filepath
     , foldl
     , hspec
     , hspec-golden
     , iohk-monitoring-extra
     , local-cluster
+    , local-cluster:local-cluster-process
     , mtl
     , openapi3
     , ouroboros-consensus-cardano
     , ouroboros-network
     , pathtype
-    , process
     , QuickCheck
     , streaming
     , time
     , unliftio
     , with-utf8
 
-
-  build-tool-depends:
-    , hspec-discover:hspec-discover
+  build-tool-depends: hspec-discover:hspec-discover
 
 -- until cabal has no support for multi home, hls requires to have only one home
 -- for the other modules , so we cannot use the common test-common for those
 test-suite test-local-cluster
-  import:  test-common
-  main-is: test.hs
-  type:    exitcode-stdio-1.0
+  import:             test-common
+  main-is:            test.hs
+  type:               exitcode-stdio-1.0
   other-modules:
     Cardano.Wallet.Launch.Cluster.Faucet.SerializeSpec
     Cardano.Wallet.Launch.Cluster.Http.Faucet.APISpec
@@ -261,9 +277,10 @@ test-suite test-local-cluster
     Paths_local_cluster
     Spec
     SpecHook
+
   build-tool-depends:
-    , local-cluster:local-cluster
     , cardano-wallet-api:cardano-wallet
+    , local-cluster:local-cluster
 
 executable test-local-cluster-exe
   import:  test-common
