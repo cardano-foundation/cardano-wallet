@@ -649,14 +649,11 @@ instance IsServerError ErrPostTx where
                     , "node because its mempool was full."
                     ]
         e@(ErrPostTxEraUnsupported unsupported) ->
-            apiError err403 error' $ toText e
-          where
-            error' =
-                UnsupportedEra
-                    ApiErrorUnsupportedEra
-                        { unsupportedEra = toApiEra unsupported
-                        , supportedEras = Api.supportedRecentEras
-                        }
+            flip (apiError err403) (toText e) $ UnsupportedEra
+                ApiErrorUnsupportedEra
+                    { unsupportedEra = toApiEra unsupported
+                    , supportedEras = Api.supportedRecentEras
+                    }
 
 instance IsServerError ErrSubmitTransaction where
     toServerError = \case
