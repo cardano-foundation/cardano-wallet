@@ -174,8 +174,8 @@
             "info": {
                 "node_era": "byron",
                 "supported_recent_eras": [
-                    "babbage",
-                    "alonzo"
+                    "alonzo",
+                    "babbage"
                 ]
             },
             "message": "𧰏@qs𬤻DL\u0017􆊛'"
@@ -231,7 +231,6 @@
                 "supported_recent_eras": [
                     "byron",
                     "alonzo",
-                    "byron",
                     "babbage"
                 ]
             },
@@ -294,10 +293,8 @@
             "info": {
                 "node_era": "byron",
                 "supported_recent_eras": [
+                    "byron",
                     "mary",
-                    "babbage",
-                    "byron",
-                    "byron",
                     "babbage"
                 ]
             },
@@ -372,11 +369,8 @@
             "info": {
                 "node_era": "babbage",
                 "supported_recent_eras": [
-                    "allegra",
-                    "babbage",
-                    "allegra",
-                    "allegra",
                     "shelley",
+                    "allegra",
                     "babbage"
                 ]
             },
@@ -774,7 +768,6 @@
                 "node_era": "allegra",
                 "supported_recent_eras": [
                     "allegra",
-                    "mary",
                     "mary"
                 ]
             },
