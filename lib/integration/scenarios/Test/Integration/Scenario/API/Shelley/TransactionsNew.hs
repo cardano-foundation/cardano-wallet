@@ -599,6 +599,36 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
+    it "TRANS_NEW_CREATE_02d - \
+        \Attempt to encrypt multiple metadata messages" $
+        \ctx -> runResourceT $ do
+            wa <- fixtureWallet ctx
+            let toBeEncrypted1 =
+                    TxMetaList [TxMetaText "Extremely secret message #1."]
+            let toBeEncrypted2 =
+                    TxMetaList [TxMetaText "Extremely secret message #2."]
+            let metadataToBeEncrypted =
+                    TxMetadataWithSchema TxMetadataNoSchema $
+                    TxMetadata $
+                    Map.fromList
+                        [ (674, TxMetaMap
+                            [ (TxMetaText "msg", toBeEncrypted1)
+                            , (TxMetaText "msg", toBeEncrypted2)
+                            ]
+                          )
+                        ]
+            let pwdApiT = ApiT $ Passphrase "metadata-secret"
+            let encryptMetadata = ApiEncryptMetadata pwdApiT Nothing
+            let payload = Json [json|{
+                    "encrypt_metadata": #{toJSON encryptMetadata},
+                    "metadata": #{toJSON metadataToBeEncrypted}
+                }|]
+            rTx <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley wa) Default payload
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let initialBalance = wa ^. #balance . #available . #toNatural
