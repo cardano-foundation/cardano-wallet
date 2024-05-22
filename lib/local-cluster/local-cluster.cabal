@@ -229,7 +229,6 @@ common test-common
 
   build-tool-depends:
     , hspec-discover:hspec-discover
-    , local-cluster:local-cluster
 
 -- until cabal has no support for multi home, hls requires to have only one home
 -- for the other modules , so we cannot use the common test-common for those
@@ -249,6 +248,9 @@ test-suite test-local-cluster
     Paths_local_cluster
     Spec
     SpecHook
+  build-tool-depends:
+    , local-cluster:local-cluster
+    , cardano-wallet-api:cardano-wallet
 
 executable test-local-cluster-exe
   import:  test-common
