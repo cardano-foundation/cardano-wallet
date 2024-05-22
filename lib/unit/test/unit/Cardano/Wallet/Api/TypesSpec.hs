@@ -283,6 +283,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
+    , ApiErrorUnsupportedEra (..)
     )
 import Cardano.Wallet.Api.Types.RestorationMode
     ( ApiRestorationMode
@@ -2468,6 +2469,10 @@ instance Arbitrary ApiErrorNoSuchPool where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorMissingWitnessesInTransaction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorUnsupportedEra where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

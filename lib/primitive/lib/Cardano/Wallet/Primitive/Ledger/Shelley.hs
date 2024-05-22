@@ -92,6 +92,9 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , interval0
     , interval1
     , numberOfTransactionsInBlock
+
+    -- * Errors
+    , UnsealException (..)
     ) where
 
 import Prelude
@@ -1018,21 +1021,22 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing
 
+newtype UnsealException = UnsealedTxInUnsupportedEra AnyCardanoEra
+
 -- | Converts 'SealedTx' to something that can be submitted with the
 -- 'Cardano.Api' local tx submission client.
 unsealShelleyTx
     :: AnyCardanoEra
     -- ^ Preferred latest era (see 'ideallyNoLaterThan')
     -> W.SealedTx
-    -> TxInMode
+    -> Either UnsealException TxInMode
 unsealShelleyTx era wtx = case W.cardanoTxIdeallyNoLaterThan era wtx of
     Cardano.InAnyCardanoEra BabbageEra tx ->
-        TxInMode ShelleyBasedEraBabbage tx
+        Right $ TxInMode ShelleyBasedEraBabbage tx
     Cardano.InAnyCardanoEra ConwayEra tx ->
-        TxInMode ShelleyBasedEraConway tx
-    _ -> error $
-        "unsealShelleyTx: Creating transactions in era " <> show era
-        <> " is not supported anymore."
+        Right $ TxInMode ShelleyBasedEraConway tx
+    Cardano.InAnyCardanoEra unsupportedEra _  ->
+        Left $ UnsealedTxInUnsupportedEra $ AnyCardanoEra unsupportedEra
 
 instance (forall era. IsCardanoEra era => Show (thing era)) =>
     Show (InAnyCardanoEra thing) where

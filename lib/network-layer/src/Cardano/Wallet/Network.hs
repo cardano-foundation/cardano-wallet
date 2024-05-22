@@ -106,6 +106,7 @@ import qualified Internal.Cardano.Write.Tx as Write
 {-----------------------------------------------------------------------------
     NetworkLayer
 ------------------------------------------------------------------------------}
+
 -- | Interface for network capabilities.
 data NetworkLayer m block = NetworkLayer
     { chainSync
@@ -134,8 +135,7 @@ data NetworkLayer m block = NetworkLayer
     -- only change once per epoch.
     , currentProtocolParametersInRecentEras
         :: m (MaybeInRecentEra Write.PParams)
-        -- ^ Get the last known protocol parameters for recent eras.
-
+    -- ^ Get the last known protocol parameters for recent eras.
     , currentSlottingParameters
         :: m SlottingParameters
     -- ^ Get the last known slotting parameters. In principle, these can
@@ -193,6 +193,7 @@ instance Functor m => Functor (NetworkLayer m) where
 {-----------------------------------------------------------------------------
     ChainFollower
 ------------------------------------------------------------------------------}
+
 -- | A collection of callbacks to use with the 'chainSync' function.
 data ChainFollower m point tip blocks = ChainFollower
     { checkpointPolicy :: Integer -> CheckpointPolicy
@@ -275,7 +276,10 @@ mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
 -------------------------------------------------------------------------------}
 
 -- | Error while trying to send a transaction
-data ErrPostTx = ErrPostTxValidationError Text | ErrPostTxMempoolFull
+data ErrPostTx
+    = ErrPostTxValidationError Text
+    | ErrPostTxMempoolFull
+    | ErrPostTxEraUnsupported AnyCardanoEra
     deriving (Generic, Show, Eq)
 
 instance ToText ErrPostTx where
@@ -283,6 +287,10 @@ instance ToText ErrPostTx where
         ErrPostTxValidationError msg -> msg
         ErrPostTxMempoolFull ->
             "mempool was full and refused posted transaction"
+        ErrPostTxEraUnsupported unsupported ->
+            "Submitted transaction was in "
+                <> T.pack (show unsupported)
+                <> " era, which is not supported"
 
 -- | Error while trying to retrieve a block
 newtype ErrFetchBlock = ErrNoBlockAt Read.ChainPoint

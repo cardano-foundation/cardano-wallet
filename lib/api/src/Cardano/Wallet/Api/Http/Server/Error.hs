@@ -116,6 +116,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
+    , ApiErrorUnsupportedEra (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
@@ -198,6 +199,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
@@ -626,18 +628,38 @@ instance IsServerError ErrRemoveTx where
 instance IsServerError ErrPostTx where
     toServerError = \case
         ErrPostTxValidationError err ->
-            apiError err500 CreatedInvalidTransaction $ mconcat
-                [ "The submitted transaction was rejected by the local "
-                , "node. Here's an error message that may help with "
-                , "debugging:\n", err
-                ]
+            apiError err500 CreatedInvalidTransaction
+                $ mconcat
+                    [ "The submitted transaction was rejected by the local "
+                    , "node. Here's an error message that may help with "
+                    , "debugging:\n"
+                    , err
+                    ]
         ErrPostTxMempoolFull ->
-            apiError err425
-            {errBody = "Mempool is full, please try resubmitting again later."}
-                MempoolIsFull $ mconcat
-                [ "The submitted transaction was rejected by the Cardano node "
-                , "because its mempool was full."
-                ]
+            apiError
+                err425
+                    { errBody =
+                        "Mempool is full, please try resubmitting again later."
+                    }
+                MempoolIsFull
+                $ mconcat
+                    [ "The submitted transaction was rejected by the Cardano "
+                    , "node because its mempool was full."
+                    ]
+        e@(ErrPostTxEraUnsupported unsupported) ->
+            apiError err403 error' $ toText e
+          where
+            error' =
+                UnsupportedEra
+                    $ ApiErrorUnsupportedEra
+                        { unsupportedEra = toApiEra unsupported
+                        , supportedEras =
+                            Set.fromList
+                                ( toApiEra
+                                    . Write.toAnyCardanoEra
+                                    <$> [minBound .. maxBound]
+                                )
+                        }
 
 instance IsServerError ErrSubmitTransaction where
     toServerError = \case
