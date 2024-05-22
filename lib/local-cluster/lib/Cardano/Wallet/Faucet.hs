@@ -322,7 +322,7 @@ preregKeyWallet tag = do
 
 rewardWalletMnemonicRange :: MnemonicRange
 rewardWalletMnemonicRange =
-    MnemonicRange 0 30
+    MnemonicRange 0 25
     -- As few as possible; the cardano-wallet integration tests need to call
     -- postWallet for each one at the beginning of the tests.
 

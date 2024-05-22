@@ -123,6 +123,9 @@ import Cardano.Wallet.TokenMetadata.MockServer
     ( queryServerStatic
     , withMetadataServer
     )
+import Control.Concurrent
+    ( threadDelay
+    )
 import Control.Lens
     ( view
     )
@@ -530,18 +533,29 @@ withContext testingCtx@TestingCtx{..} action = do
                     ctx
                     (Link.listStakePools arbitraryStake)
                     Empty
-        -- Having 'runResourceT' /inside/ the loop ensures the wallets are
-        -- deleted as quickly as possible, not to deplete file descriptors or
-        -- resources for unnecessary restoration.
-        forM_ mnemonics $ \mw -> runResourceT $ do
-            w <- walletFromMnemonic ctx mw
-            _ <-
-                joinStakePool
-                    @('Testnet 0) -- protocol magic doesn't matter
-                    ctx
-                    (SpecificPool pool)
-                    (w, fixturePassphrase)
-            pure ()
+
+        -- We only delete the wallets together at the end of the loop by
+        -- using this /outer/ 'runResourceT'. While this may be taxing on
+        -- resources, it enables tx submission to ensure all txs make it into
+        -- the chain.
+        runResourceT $ do
+            forM_ mnemonics $ \mw -> do
+                w <- walletFromMnemonic ctx mw
+                (httpStatus, res) <-
+                    joinStakePool
+                        @('Testnet 0) -- protocol magic doesn't matter
+                        ctx
+                        (SpecificPool pool)
+                        (w, fixturePassphrase)
+                liftIO $ case res of
+                    Left err -> traceWith tr
+                        $ MsgRewardWalletDelegationFailed
+                        $ T.pack $ show (httpStatus, err)
+                    Right _ -> return ()
+
+            -- Extra time to ensure the final txs make it into the chain
+            let second = 1_000_000
+            liftIO $ threadDelay $ 10 * second
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer $ contramap (MsgBracket name) tr
