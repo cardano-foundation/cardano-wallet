@@ -89,6 +89,7 @@ data TestsLog
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
     | MsgServerError SomeException
+    | MsgRewardWalletDelegationFailed Text
     deriving (Show)
 
 instance ToText TestsLog where
@@ -120,6 +121,11 @@ instance ToText TestsLog where
             | isAsyncException (SomeException e)
                 -> "Server thread cancelled: " <> T.pack (show e)
             | otherwise -> T.pack (show e)
+        MsgRewardWalletDelegationFailed msg ->
+            T.unlines
+                [ "Reward wallet delegation failed."
+                , "Details: " <> toText msg
+                ]
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
@@ -132,6 +138,7 @@ instance HasSeverityAnnotation TestsLog where
         MsgServerError e
             | isAsyncException e -> Notice
             | otherwise -> Warning
+        MsgRewardWalletDelegationFailed{} -> Error
 
 withTracers
     :: DirOf "cluster"

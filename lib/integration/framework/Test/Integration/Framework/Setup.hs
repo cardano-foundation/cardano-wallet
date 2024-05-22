@@ -535,13 +535,17 @@ withContext testingCtx@TestingCtx{..} action = do
         -- resources for unnecessary restoration.
         forM_ mnemonics $ \mw -> runResourceT $ do
             w <- walletFromMnemonic ctx mw
-            _ <-
+            (httpStatus, res) <-
                 joinStakePool
                     @('Testnet 0) -- protocol magic doesn't matter
                     ctx
                     (SpecificPool pool)
                     (w, fixturePassphrase)
-            pure ()
+            liftIO $ case res of
+                Right _ -> return ()
+                Left err -> traceWith tr
+                    $ MsgRewardWalletDelegationFailed
+                    $ T.pack $ show (httpStatus, err)
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer $ contramap (MsgBracket name) tr
