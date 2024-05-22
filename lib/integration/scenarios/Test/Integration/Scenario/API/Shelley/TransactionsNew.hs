@@ -352,7 +352,7 @@ import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.AssetName as AssetName
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
@@ -3001,10 +3001,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \3e0a100818258201a6c21bc45c5d7089685610db372f2d2f87873aaa687af2\
                 \1b6bd62e7055d2402584029791f8f82d3413c93700ee63b86e3355880f4bda\
                 \b10893ad020358e04f78ef405bd031397dbbf311ab0297ed66196d6d57f662\
-                \aaab9e3610b2df03ccb38cc0df6\"}" :: LB.ByteString
+                \aaab9e3610b2df03ccb38cc0df6\"}" :: BL.ByteString
         let (Just submitMaryPayload) = decode @ApiSerialisedTransaction maryCBOR
         let submitMaryPayload' =
-                NonJson $ LB.fromStrict $ view #serialisedTx $ getApiT $
+                NonJson $ BL.fromStrict $ view #serialisedTx $ getApiT $
                 view #serialisedTxSealed submitMaryPayload
 
         --- $ cardano-cli transaction build-raw \
@@ -3025,10 +3025,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 \3e0a100818258201a6c21bc45c5d7089685610db372f2d2f87873aaa687af2\
                 \1b6bd62e7055d2402584029791f8f82d3413c93700ee63b86e3355880f4bda\
                 \b10893ad020358e04f78ef405bd031397dbbf311ab0297ed66196d6d57f662\
-                \aaab9e3610b2df03ccb38cc0df5f6\"}" :: LB.ByteString
+                \aaab9e3610b2df03ccb38cc0df5f6\"}" :: BL.ByteString
         let (Just submitBabbagePayload) = decode @ApiSerialisedTransaction babbageCBOR
         let submitBabbagePayload' =
-                NonJson $ LB.fromStrict $ view #serialisedTx $ getApiT $
+                NonJson $ BL.fromStrict $ view #serialisedTx $ getApiT $
                 view #serialisedTxSealed submitBabbagePayload
 
         submittedMaryTx <- submitTxWithWid ctx wa submitMaryPayload
