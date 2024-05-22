@@ -47,7 +47,7 @@ module Internal.Cardano.Write.Tx
     , toRecentEraGADT
     , LatestLedgerEra
     , RecentEraConstraints
-    , supportedRecentEras
+    , allRecentEras
 
     -- ** Key witness counts
     , KeyWitnessCounts (..)
@@ -481,10 +481,10 @@ instance Eq AnyRecentEra where
     AnyRecentEra e1 == AnyRecentEra e2 =
         isJust $ testEquality e1 e2
 
--- | The complete set of supported recent eras.
+-- | The complete set of recent eras.
 --
-supportedRecentEras :: Set AnyRecentEra
-supportedRecentEras = Set.fromList [minBound .. maxBound]
+allRecentEras :: Set AnyRecentEra
+allRecentEras = Set.fromList [minBound .. maxBound]
 
 toAnyCardanoEra :: AnyRecentEra -> CardanoApi.AnyCardanoEra
 toAnyCardanoEra (AnyRecentEra era) =

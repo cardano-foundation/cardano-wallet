@@ -168,7 +168,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawalPostData (..)
     , ApiRewardAccount (..)
     , fromApiEra
-    , supportedRecentEras
+    , allRecentEras
     , Iso8601Time (..)
     , KeyFormat (..)
     , MaintenanceAction (..)
@@ -681,9 +681,9 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( DatumHash
+    , allRecentEras
     , datumHashFromBytes
     , datumHashToBytes
-    , supportedRecentEras
     , toAnyCardanoEra
     )
 
@@ -1648,11 +1648,10 @@ fromApiEra ApiAlonzo = AnyCardanoEra AlonzoEra
 fromApiEra ApiBabbage = AnyCardanoEra BabbageEra
 fromApiEra ApiConway = AnyCardanoEra ConwayEra
 
--- | The complete set of supported recent eras.
+-- | The complete set of recent eras.
 --
-supportedRecentEras :: Set ApiEra
-supportedRecentEras =
-    Set.map (toApiEra . Write.toAnyCardanoEra) Write.supportedRecentEras
+allRecentEras :: Set ApiEra
+allRecentEras = Set.map (toApiEra . Write.toAnyCardanoEra) Write.allRecentEras
 
 instance FromJSON ApiEra where
     parseJSON = genericParseJSON $ Aeson.defaultOptions
