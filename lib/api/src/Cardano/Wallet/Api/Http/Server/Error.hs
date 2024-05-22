@@ -191,6 +191,9 @@ import Servant.Server
     )
 
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Wallet.Api.Types as Api
+    ( supportedRecentEras
+    )
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -485,9 +488,7 @@ instance IsServerError ErrWriteTxEra where
           where
             info = ApiErrorNodeNotYetInRecentEra
                 { nodeEra = toApiEra $ Cardano.AnyCardanoEra era
-                , supportedRecentEras =
-                    Set.fromList $
-                    map (toApiEra . Write.toAnyCardanoEra) [minBound .. maxBound]
+                , supportedRecentEras = Api.supportedRecentEras
                 }
         ErrPartialTxNotInNodeEra nodeEra ->
             apiError err403 TxNotInNodeEra $ T.unwords
