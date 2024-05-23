@@ -84,7 +84,8 @@ library framework
     , iohk-monitoring-extra
     , lens
     , lobemo-backend-ekg
-    , local-cluster
+    , local-cluster:local-cluster-process
+    , local-cluster:local-cluster
     , memory
     , microstache
     , monad-loops
@@ -111,6 +112,7 @@ library framework
     Test.Integration.Framework.DSL.Network
     Test.Integration.Framework.DSL.TestM
     Test.Integration.Framework.DSL.Wallet
+    Test.Integration.Framework.LocalCluster.SendFaucetAssets
     Test.Integration.Framework.Logging
     Test.Integration.Framework.PendingInEra
     Test.Integration.Framework.Request

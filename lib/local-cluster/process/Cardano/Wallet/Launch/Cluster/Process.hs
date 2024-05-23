@@ -12,6 +12,9 @@ module Cardano.Wallet.Launch.Cluster.Process
       -- * Re-exports
     , RunMonitorQ (..)
     , RunFaucetQ (..)
+    , FaucetQ (..)
+    , SendFaucetAssets (..)
+    , waitForRunningNode
     ) where
 
 import Prelude
@@ -35,10 +38,15 @@ import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     ( saveFunds
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Client
-    ( RunFaucetQ (..)
+    ( FaucetQ (..)
+    , RunFaucetQ (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Http.Faucet.SendFaucetAssets
+    ( SendFaucetAssets (..)
     )
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( RunMonitorQ (..)
+    , waitForRunningNode
     )
 import Cardano.Wallet.Launch.Cluster.Http.Service
     ( withServiceClient
