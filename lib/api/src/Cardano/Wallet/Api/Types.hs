@@ -88,7 +88,6 @@ module Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
-    , ApiEra (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -167,8 +166,6 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
     , ApiRewardAccount (..)
-    , fromApiEra
-    , allRecentEras
     , Iso8601Time (..)
     , KeyFormat (..)
     , MaintenanceAction (..)
@@ -180,7 +177,6 @@ module Cardano.Wallet.Api.Types
     , SettingsPutData (..)
     , toApiAsset
     , toApiAssetMetadata
-    , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
     , VerificationKeyHashing (..)
@@ -272,9 +268,7 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     )
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , StakeAddress
+    ( StakeAddress
     , deserialiseFromBech32
     , proxyToAsType
     , serialiseToBech32
@@ -359,6 +353,9 @@ import Cardano.Wallet.Api.Types.Certificate
     , ApiExternalCertificate (..)
     , ApiRegisterPool (..)
     , ApiRewardAccount (..)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
@@ -577,9 +574,6 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..)
     )
-import Data.Set
-    ( Set
-    )
 import Data.String
     ( IsString
     )
@@ -675,16 +669,13 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( DatumHash
-    , allRecentEras
     , datumHashFromBytes
     , datumHashToBytes
-    , toAnyCardanoEra
     )
 
 {-------------------------------------------------------------------------------
@@ -1618,47 +1609,6 @@ newtype ApiBlockInfo = ApiBlockInfo
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBlockInfo
     deriving anyclass NFData
     deriving Show via (Quiet ApiBlockInfo)
-
-data ApiEra
-    = ApiByron
-    | ApiShelley
-    | ApiAllegra
-    | ApiMary
-    | ApiAlonzo
-    | ApiBabbage
-    | ApiConway
-    deriving (Data, Show, Eq, Generic, Enum, Ord, Bounded)
-    deriving anyclass NFData
-
-toApiEra :: AnyCardanoEra -> ApiEra
-toApiEra (AnyCardanoEra ByronEra) = ApiByron
-toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
-toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
-toApiEra (AnyCardanoEra MaryEra) = ApiMary
-toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
-toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
-toApiEra (AnyCardanoEra ConwayEra) = ApiConway
-
-fromApiEra :: ApiEra -> AnyCardanoEra
-fromApiEra ApiByron = AnyCardanoEra ByronEra
-fromApiEra ApiShelley = AnyCardanoEra ShelleyEra
-fromApiEra ApiAllegra = AnyCardanoEra AllegraEra
-fromApiEra ApiMary = AnyCardanoEra MaryEra
-fromApiEra ApiAlonzo = AnyCardanoEra AlonzoEra
-fromApiEra ApiBabbage = AnyCardanoEra BabbageEra
-fromApiEra ApiConway = AnyCardanoEra ConwayEra
-
--- | The complete set of recent eras.
---
-allRecentEras :: Set ApiEra
-allRecentEras = Set.map (toApiEra . Write.toAnyCardanoEra) Write.allRecentEras
-
-instance FromJSON ApiEra where
-    parseJSON = genericParseJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 4 . camelTo2 '_' }
-instance ToJSON ApiEra where
-    toJSON = genericToJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 4 . camelTo2 '_' }
 
 data ApiNetworkInfo = ApiNetworkInfo
     { networkId :: !Text

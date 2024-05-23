@@ -104,7 +104,6 @@ import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
     , Iso8601Time (..)
-    , toApiEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorBalanceTxUnderestimatedFee (..)
@@ -191,10 +190,11 @@ import Servant.Server
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Wallet.Api.Types as Api
-    ( allRecentEras
-    )
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.Era as ApiEra
+    ( allRecentEras
+    , fromAnyCardanoEra
+    )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -485,8 +485,8 @@ instance IsServerError ErrWriteTxEra where
                 ]
           where
             info = ApiErrorNodeNotYetInRecentEra
-                { nodeEra = toApiEra $ Cardano.AnyCardanoEra era
-                , supportedRecentEras = Api.allRecentEras
+                { nodeEra = ApiEra.fromAnyCardanoEra $ Cardano.AnyCardanoEra era
+                , supportedRecentEras = ApiEra.allRecentEras
                 }
         ErrPartialTxNotInNodeEra nodeEra ->
             apiError err403 TxNotInNodeEra $ T.unwords
@@ -651,8 +651,8 @@ instance IsServerError ErrPostTx where
         e@(ErrPostTxEraUnsupported unsupported) ->
             flip (apiError err403) (toText e) $ UnsupportedEra
                 ApiErrorUnsupportedEra
-                    { unsupportedEra = toApiEra unsupported
-                    , supportedEras = Api.allRecentEras
+                    { unsupportedEra = ApiEra.fromAnyCardanoEra unsupported
+                    , supportedEras = ApiEra.allRecentEras
                     }
 
 instance IsServerError ErrSubmitTransaction where

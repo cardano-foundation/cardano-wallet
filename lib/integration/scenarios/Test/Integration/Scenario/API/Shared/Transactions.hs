@@ -55,7 +55,6 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , Iso8601Time (..)
     , WalletStyle (..)
-    , fromApiEra
     , insertedAt
     )
 import Cardano.Wallet.Api.Types.Amount
@@ -222,6 +221,9 @@ import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Api.Types.Era as ApiEra
+    ( toAnyCardanoEra
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
@@ -476,7 +478,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        let era = fromApiEra $ _mainEra ctx
+        let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
         let txbinary1 = cardanoTxIdeallyNoLaterThan era $
                 getApiT (txCbor1 ^. #serialisedTxSealed)
         case getMetadata txbinary1 of

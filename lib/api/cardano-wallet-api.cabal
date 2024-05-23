@@ -148,6 +148,7 @@ library
     Cardano.Wallet.Api.Types.Amount
     Cardano.Wallet.Api.Types.BlockHeader
     Cardano.Wallet.Api.Types.Certificate
+    Cardano.Wallet.Api.Types.Era
     Cardano.Wallet.Api.Types.Error
     Cardano.Wallet.Api.Types.Key
     Cardano.Wallet.Api.Types.MintBurn

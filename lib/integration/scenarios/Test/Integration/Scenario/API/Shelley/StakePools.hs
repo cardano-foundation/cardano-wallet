@@ -35,7 +35,6 @@ import Cardano.Pool.Types
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
     , ApiConstructTransaction
-    , ApiEra (..)
     , ApiHealthCheck
     , ApiPoolSpecifier (..)
     , ApiSerialisedTransaction (..)
@@ -51,6 +50,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)

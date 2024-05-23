@@ -6,7 +6,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Api.Types
+import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
 import Test.Hspec.Core.Spec

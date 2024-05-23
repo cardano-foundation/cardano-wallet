@@ -22,7 +22,6 @@ import Cardano.Wallet.Address.Encoding
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiByronWallet
-    , ApiEra (..)
     , ApiT (..)
     , ApiTransaction
     , ApiTxInput (source)
@@ -33,6 +32,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
