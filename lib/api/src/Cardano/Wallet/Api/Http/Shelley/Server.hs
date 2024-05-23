@@ -474,9 +474,6 @@ import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     , mkApiAnyCertificate
     )
-import Cardano.Wallet.Api.Types.Era
-    ( fromAnyCardanoEra
-    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
@@ -913,6 +910,9 @@ import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.Era as ApiEra
+    ( fromAnyCardanoEra
+    )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
@@ -4408,7 +4408,7 @@ getNetworkInformation nid
             , Api.nextEpoch = snd <$> nowInfo
             , Api.nodeTip = apiNodeTip
             , Api.networkTip = fst <$> nowInfo
-            , Api.nodeEra = fromAnyCardanoEra nodeEra
+            , Api.nodeEra = ApiEra.fromAnyCardanoEra nodeEra
             , Api.networkInfo =
                 Api.ApiNetworkInfo
                     ( case nid of

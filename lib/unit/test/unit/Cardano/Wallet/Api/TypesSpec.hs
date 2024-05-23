@@ -701,7 +701,7 @@ import Web.HttpApiData
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
-import qualified Cardano.Wallet.Api.Types.Era as Api
+import qualified Cardano.Wallet.Api.Types.Era as ApiEra
     ( fromAnyCardanoEra
     , toAnyCardanoEra
     )
@@ -874,7 +874,7 @@ spec = do
 
     describe "ApiEra roundtrip" $
         it "fromAnyCardanoEra . toAnyCardanoEra == id" $ property $ \era -> do
-            Api.fromAnyCardanoEra (Api.toAnyCardanoEra era) === era
+            ApiEra.fromAnyCardanoEra (ApiEra.toAnyCardanoEra era) === era
 
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time
