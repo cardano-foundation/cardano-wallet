@@ -872,9 +872,9 @@ spec = do
         jsonTest @(ApiT DRep)
         jsonTest @ApiRestorationMode
 
-    describe "ApiEra roundtrip" $
-        it "fromAnyCardanoEra . toAnyCardanoEra == id" $ property $ \era -> do
-            ApiEra.fromAnyCardanoEra (ApiEra.toAnyCardanoEra era) === era
+    it "Round trip between types `ApiEra` and `AnyCardanoEra`"
+        $ property
+        $ \era -> ApiEra.fromAnyCardanoEra (ApiEra.toAnyCardanoEra era) === era
 
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time
