@@ -13,8 +13,10 @@ module Test.Integration.Scenario.API.Shelley.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
+    ( ApiNetworkParameters (..)
+    )
+import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
-    , ApiNetworkParameters (..)
     )
 import Cardano.Wallet.Pools
     ( EpochInfo (..)

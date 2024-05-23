@@ -104,7 +104,9 @@ import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
     , Iso8601Time (..)
-    , toApiEra
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( toApiEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorBalanceTxUnderestimatedFee (..)
@@ -191,10 +193,10 @@ import Servant.Server
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.Era as Api
     ( allRecentEras
     )
-import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap

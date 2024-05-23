@@ -50,9 +50,11 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     ( walletListenFromEnv
     )
 import Cardano.Wallet.Api.Types
-    ( ApiEra (..)
-    , ApiPoolSpecifier (..)
+    ( ApiPoolSpecifier (..)
     , ApiT (..)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Faucet
     ( FaucetM

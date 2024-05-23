@@ -460,7 +460,6 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     , toApiAsset
     , toApiDecodeTransactionPostData
-    , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
@@ -474,6 +473,9 @@ import Cardano.Wallet.Api.Types.BlockHeader
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     , mkApiAnyCertificate
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( toApiEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)

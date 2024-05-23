@@ -88,7 +88,6 @@ module Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
-    , ApiEra (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -167,8 +166,6 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawalGeneral (..)
     , ApiWithdrawalPostData (..)
     , ApiRewardAccount (..)
-    , fromApiEra
-    , allRecentEras
     , Iso8601Time (..)
     , KeyFormat (..)
     , MaintenanceAction (..)
@@ -180,7 +177,6 @@ module Cardano.Wallet.Api.Types
     , SettingsPutData (..)
     , toApiAsset
     , toApiAssetMetadata
-    , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
     , VerificationKeyHashing (..)
@@ -360,9 +356,6 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
-    , allRecentEras
-    , fromApiEra
-    , toApiEra
     )
 import Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)

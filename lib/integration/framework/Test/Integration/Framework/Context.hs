@@ -18,7 +18,7 @@ import Cardano.Address
 import Cardano.CLI
     ( Port (..)
     )
-import Cardano.Wallet.Api.Types
+import Cardano.Wallet.Api.Types.Era
     ( ApiEra
     )
 import Cardano.Wallet.Faucet

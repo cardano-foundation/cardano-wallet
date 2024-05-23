@@ -45,7 +45,6 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiEra
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTransaction
@@ -60,6 +59,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (..)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)

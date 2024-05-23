@@ -307,7 +307,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiConstructTransaction
-    , ApiEra (..)
     , ApiFee (..)
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
@@ -333,6 +332,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)

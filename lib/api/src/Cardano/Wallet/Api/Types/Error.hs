@@ -44,10 +44,12 @@ import Cardano.Wallet.Api.Lib.Options
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
-    , ApiEra
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets

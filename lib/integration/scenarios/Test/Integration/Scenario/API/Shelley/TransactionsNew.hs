@@ -80,7 +80,6 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
-    , ApiEra (..)
     , ApiExternalCertificate (..)
     , ApiNetworkInformation
     , ApiPolicyId (..)
@@ -102,13 +101,16 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , ResourceContext (..)
     , WalletStyle (..)
-    , fromApiEra
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
+    , fromApiEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)

@@ -55,11 +55,13 @@ import Cardano.Wallet.Api.Types
     , ApiWalletOutput (..)
     , Iso8601Time (..)
     , WalletStyle (..)
-    , fromApiEra
     , insertedAt
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( fromApiEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
