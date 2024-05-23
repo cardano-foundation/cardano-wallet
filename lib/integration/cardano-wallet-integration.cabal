@@ -16,16 +16,17 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
-  ghc-options: -Wunused-packages
+  ghc-options: -Wunused-packages -Wall -Wcompat -Wredundant-constraints
+    -Wunused-imports 
+
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints
-
+  ghc-options:
   if flag(release)
     ghc-options: -O2 -Werror
 
 common opts-exe
-  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+  ghc-options: -threaded -rtsopts
 
   if flag(release)
     ghc-options: -O2 -Werror
