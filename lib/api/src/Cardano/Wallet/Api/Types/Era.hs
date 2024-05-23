@@ -16,7 +16,7 @@
 --
 module Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
-    , toApiEra
+    , fromAnyCardanoEra
     , fromApiEra
     , allRecentEras
     )
@@ -93,8 +93,8 @@ instance ToJSON ApiEra where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 4 . camelTo2 '_' }
 
-toApiEra :: AnyCardanoEra -> ApiEra
-toApiEra = \case
+fromAnyCardanoEra :: AnyCardanoEra -> ApiEra
+fromAnyCardanoEra = \case
     AnyCardanoEra ByronEra -> ApiByron
     AnyCardanoEra ShelleyEra -> ApiShelley
     AnyCardanoEra AllegraEra -> ApiAllegra
@@ -116,4 +116,5 @@ fromApiEra = \case
 -- | The complete set of recent eras.
 --
 allRecentEras :: Set ApiEra
-allRecentEras = Set.map (toApiEra . Write.toAnyCardanoEra) Write.allRecentEras
+allRecentEras =
+    Set.map (fromAnyCardanoEra . Write.toAnyCardanoEra) Write.allRecentEras

@@ -475,7 +475,7 @@ import Cardano.Wallet.Api.Types.Certificate
     , mkApiAnyCertificate
     )
 import Cardano.Wallet.Api.Types.Era
-    ( toApiEra
+    ( fromAnyCardanoEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
@@ -4408,7 +4408,7 @@ getNetworkInformation nid
             , Api.nextEpoch = snd <$> nowInfo
             , Api.nodeTip = apiNodeTip
             , Api.networkTip = fst <$> nowInfo
-            , Api.nodeEra = toApiEra nodeEra
+            , Api.nodeEra = fromAnyCardanoEra nodeEra
             , Api.networkInfo =
                 Api.ApiNetworkInfo
                     ( case nid of
