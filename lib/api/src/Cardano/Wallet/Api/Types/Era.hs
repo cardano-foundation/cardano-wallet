@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GADTs #-}
 
 -- |
 -- Copyright:
@@ -14,9 +15,14 @@
 --
 module Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
+    , toApiEra
     )
     where
 
+import Cardano.Api
+    ( AnyCardanoEra (AnyCardanoEra)
+    , CardanoEra (..)
+    )
 import Control.DeepSeq
     ( NFData
     )
@@ -75,3 +81,12 @@ instance FromJSON ApiEra where
 instance ToJSON ApiEra where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 4 . camelTo2 '_' }
+
+toApiEra :: AnyCardanoEra -> ApiEra
+toApiEra (AnyCardanoEra ByronEra) = ApiByron
+toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
+toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
+toApiEra (AnyCardanoEra MaryEra) = ApiMary
+toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
+toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
+toApiEra (AnyCardanoEra ConwayEra) = ApiConway

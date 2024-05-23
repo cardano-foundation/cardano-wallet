@@ -362,6 +362,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
+    , toApiEra
     )
 import Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
@@ -1621,15 +1622,6 @@ newtype ApiBlockInfo = ApiBlockInfo
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBlockInfo
     deriving anyclass NFData
     deriving Show via (Quiet ApiBlockInfo)
-
-toApiEra :: AnyCardanoEra -> ApiEra
-toApiEra (AnyCardanoEra ByronEra) = ApiByron
-toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
-toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
-toApiEra (AnyCardanoEra MaryEra) = ApiMary
-toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
-toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
-toApiEra (AnyCardanoEra ConwayEra) = ApiConway
 
 fromApiEra :: ApiEra -> AnyCardanoEra
 fromApiEra ApiByron = AnyCardanoEra ByronEra
