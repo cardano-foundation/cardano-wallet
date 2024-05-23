@@ -17,7 +17,7 @@
 module Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     , fromAnyCardanoEra
-    , fromApiEra
+    , toAnyCardanoEra
     , allRecentEras
     )
     where
@@ -103,8 +103,8 @@ fromAnyCardanoEra = \case
     AnyCardanoEra BabbageEra -> ApiBabbage
     AnyCardanoEra ConwayEra -> ApiConway
 
-fromApiEra :: ApiEra -> AnyCardanoEra
-fromApiEra = \case
+toAnyCardanoEra :: ApiEra -> AnyCardanoEra
+toAnyCardanoEra = \case
     ApiByron -> AnyCardanoEra ByronEra
     ApiShelley -> AnyCardanoEra ShelleyEra
     ApiAllegra -> AnyCardanoEra AllegraEra

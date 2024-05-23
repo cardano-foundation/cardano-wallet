@@ -703,7 +703,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.Era as Api
     ( fromAnyCardanoEra
-    , fromApiEra
+    , toAnyCardanoEra
     )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
@@ -873,8 +873,8 @@ spec = do
         jsonTest @ApiRestorationMode
 
     describe "ApiEra roundtrip" $
-        it "fromAnyCardanoEra . fromApiEra == id" $ property $ \era -> do
-            Api.fromAnyCardanoEra (Api.fromApiEra era) === era
+        it "fromAnyCardanoEra . toAnyCardanoEra == id" $ property $ \era -> do
+            Api.fromAnyCardanoEra (Api.toAnyCardanoEra era) === era
 
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time

@@ -61,7 +61,7 @@ import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
 import Cardano.Wallet.Api.Types.Era
-    ( fromApiEra
+    ( toAnyCardanoEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
@@ -478,7 +478,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        let era = fromApiEra $ _mainEra ctx
+        let era = toAnyCardanoEra $ _mainEra ctx
         let txbinary1 = cardanoTxIdeallyNoLaterThan era $
                 getApiT (txCbor1 ^. #serialisedTxSealed)
         case getMetadata txbinary1 of

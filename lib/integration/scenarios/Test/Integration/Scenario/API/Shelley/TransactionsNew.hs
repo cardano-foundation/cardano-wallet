@@ -110,7 +110,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
-    , fromApiEra
+    , toAnyCardanoEra
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
@@ -428,7 +428,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        let era = fromApiEra $ _mainEra ctx
+        let era = toAnyCardanoEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
         case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
@@ -493,7 +493,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
                             Just m
 
-        let era = fromApiEra $ _mainEra ctx
+        let era = toAnyCardanoEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
         case getMetadata tx of
             Nothing -> error "Tx doesn't include metadata"
