@@ -95,10 +95,11 @@ toApiEra = \case
     AnyCardanoEra ConwayEra -> ApiConway
 
 fromApiEra :: ApiEra -> AnyCardanoEra
-fromApiEra ApiByron = AnyCardanoEra ByronEra
-fromApiEra ApiShelley = AnyCardanoEra ShelleyEra
-fromApiEra ApiAllegra = AnyCardanoEra AllegraEra
-fromApiEra ApiMary = AnyCardanoEra MaryEra
-fromApiEra ApiAlonzo = AnyCardanoEra AlonzoEra
-fromApiEra ApiBabbage = AnyCardanoEra BabbageEra
-fromApiEra ApiConway = AnyCardanoEra ConwayEra
+fromApiEra = \case
+    ApiByron -> AnyCardanoEra ByronEra
+    ApiShelley -> AnyCardanoEra ShelleyEra
+    ApiAllegra -> AnyCardanoEra AllegraEra
+    ApiMary -> AnyCardanoEra MaryEra
+    ApiAlonzo -> AnyCardanoEra AlonzoEra
+    ApiBabbage -> AnyCardanoEra BabbageEra
+    ApiConway -> AnyCardanoEra ConwayEra
