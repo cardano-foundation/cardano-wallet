@@ -360,6 +360,9 @@ import Cardano.Wallet.Api.Types.Certificate
     , ApiRegisterPool (..)
     , ApiRewardAccount (..)
     )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
+    )
 import Cardano.Wallet.Api.Types.Key
     ( ApiAccountKey (..)
     , ApiAccountKeyShared (..)
@@ -1619,17 +1622,6 @@ newtype ApiBlockInfo = ApiBlockInfo
     deriving anyclass NFData
     deriving Show via (Quiet ApiBlockInfo)
 
-data ApiEra
-    = ApiByron
-    | ApiShelley
-    | ApiAllegra
-    | ApiMary
-    | ApiAlonzo
-    | ApiBabbage
-    | ApiConway
-    deriving (Data, Show, Eq, Generic, Enum, Ord, Bounded)
-    deriving anyclass NFData
-
 toApiEra :: AnyCardanoEra -> ApiEra
 toApiEra (AnyCardanoEra ByronEra) = ApiByron
 toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
@@ -1652,13 +1644,6 @@ fromApiEra ApiConway = AnyCardanoEra ConwayEra
 --
 allRecentEras :: Set ApiEra
 allRecentEras = Set.map (toApiEra . Write.toAnyCardanoEra) Write.allRecentEras
-
-instance FromJSON ApiEra where
-    parseJSON = genericParseJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 4 . camelTo2 '_' }
-instance ToJSON ApiEra where
-    toJSON = genericToJSON $ Aeson.defaultOptions
-        { constructorTagModifier = drop 4 . camelTo2 '_' }
 
 data ApiNetworkInfo = ApiNetworkInfo
     { networkId :: !Text
