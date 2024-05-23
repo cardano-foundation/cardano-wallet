@@ -178,6 +178,7 @@ import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403WrongMnemonic
     , errMsg403WrongPass
+    , errMsg404NoWallet
     , errMsg406
     , errMsg415
     , kanjiWalletName
@@ -1489,11 +1490,12 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
             (Json payload)
 
+        -- TODO: ADP-3306
+        -- Use `expectErrorInfo` instead of `expectErrorMessage` here:
         verify r
             [ expectResponseCode HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
             ]
-        decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> runResourceT $ do
