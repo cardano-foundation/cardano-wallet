@@ -4,6 +4,7 @@
 module Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( Phase (..)
     , History (..)
+    , matchCluster
     )
 where
 
@@ -38,3 +39,8 @@ newtype History = History
     { history :: [(UTCTime, Phase)]
     }
     deriving stock (Eq, Show, Generic)
+
+-- | Try to extract the 'RunningNode' from a phase.
+matchCluster :: Phase -> Maybe RunningNode
+matchCluster (Cluster m) = m
+matchCluster _ = Nothing

@@ -17,11 +17,11 @@ where
 
 import Prelude
 
-import Cardano.BM.ToTextTracer
-    ( ToTextTracer (..)
-    )
 import Cardano.Binary
     ( serialize'
+    )
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
     )
 import Cardano.Chain.Common
     ( unsafeGetLovelace

@@ -17,11 +17,15 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     , newRunMonitorQ
     , mkMonitorClient
     , recovering
+    , waitForRunningNode
     )
 where
 
 import Prelude
 
+import Cardano.Wallet.Launch.Cluster
+    ( RunningNode
+    )
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     ( ApiT (..)
     , ObserveAPI
@@ -30,10 +34,20 @@ import Cardano.Wallet.Launch.Cluster.Http.Monitor.API
     , SwitchAPI
     )
 import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
-    ( History
+    ( History (..)
+    , matchCluster
+    )
+import Control.Applicative
+    ( asum
+    )
+import Control.Concurrent
+    ( threadDelay
     )
 import Control.Monad
     ( unless
+    )
+import Control.Monad.Fix
+    ( fix
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -151,3 +165,12 @@ recovering f doing = recoverAll retryPolicy
         firstTry :: RetryStatus -> Bool
         firstTry (RetryStatus 0 _ _) = True
         firstTry _ = False
+
+waitForRunningNode :: RunMonitorQ IO -> IO RunningNode
+waitForRunningNode (RunMonitorQ q) = fix $ \loop -> do
+    (History hs, _) <- q ObserveQ
+    case asum $ map matchCluster $ snd <$> hs of
+        Just node -> pure node
+        Nothing -> do
+            threadDelay 100_000
+            loop
