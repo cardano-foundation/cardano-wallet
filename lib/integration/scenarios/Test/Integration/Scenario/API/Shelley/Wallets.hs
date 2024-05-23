@@ -739,7 +739,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Link.getWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 rg
         decodeErrorInfo rg `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "WALLETS_LIST_01 - Created a wallet can be listed" $ \ctx -> runResourceT $ do
         m18 <- Mnemonics.generateSome Mnemonics.M18
@@ -900,7 +900,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
         expectResponseCode HTTP.status404 ru
         decodeErrorInfo ru `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "WALLETS_UPDATE_04 - HTTP headers" $ do
         let matrix =
@@ -1085,7 +1085,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
         expectResponseCode HTTP.status404 rup
         decodeErrorInfo rup `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet walId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available, mnemonic"
       $ \ctx -> runResourceT $ do
@@ -1098,7 +1098,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
         expectResponseCode HTTP.status404 rup
         decodeErrorInfo rup `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet walId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "WALLETS_UPDATE_PASS_05,06 - Transaction after updating passphrase"
       $ do
@@ -1288,7 +1288,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "WALLETS_UTXO_04 - HTTP headers" $ do
         let matrix =
@@ -1389,7 +1389,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             [ expectResponseCode HTTP.status404
             ]
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
         let mnemonic = unsafeMnemonic @15
@@ -1493,7 +1493,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             [ expectResponseCode HTTP.status404
             ]
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> runResourceT $ do
@@ -1506,7 +1506,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         r <- request @ApiUtxoStatistics ctx ("GET", endpoint) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_UPDATE_PASS -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> runResourceT $ do
@@ -1520,7 +1520,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
         expectResponseCode HTTP.status404 rup
         decodeErrorInfo rup `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_UPDATE -\
         \ Cannot update Byron wal with shelley ep (404)" $ \ctx -> runResourceT $ do
@@ -1531,7 +1531,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
         expectResponseCode HTTP.status404 ru
         decodeErrorInfo ru `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -1539,7 +1539,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
@@ -1547,7 +1547,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Link.getWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_LIST_02,03 - \
         \Byron wallets listed only via Byron endpoints + \
@@ -1639,14 +1639,14 @@ spec = describe "SHELLEY_WALLETS" $ do
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_WALLETS_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
         r <- request @ApiByronWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "WALLETS_NETWORK_SHELLEY - Wallet has the same tip as network/information" $ \ctx -> runResourceT $ do
             let getNetworkInfo = request @ApiNetworkInformation ctx

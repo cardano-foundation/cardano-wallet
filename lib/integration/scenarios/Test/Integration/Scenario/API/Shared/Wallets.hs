@@ -1704,7 +1704,7 @@ spec = describe "SHARED_WALLETS" $ do
             Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "SHARED_WALLETS_UTXO_04 - HTTP headers" $ do
         let matrix =

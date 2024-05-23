@@ -46,12 +46,16 @@ import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
     , ApiEra
+    , ApiT
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
+    )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
@@ -332,7 +336,7 @@ data ApiErrorNoSuchPool = ApiErrorNoSuchPool
     deriving anyclass NFData
 
 data ApiErrorNoSuchWallet = ApiErrorNoSuchWallet
-    { walletId :: !Text
+    { walletId :: !(ApiT WalletId)
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchWallet

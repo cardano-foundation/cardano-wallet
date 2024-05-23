@@ -249,7 +249,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         [ expectResponseCode HTTP.status404
                         ]
                     decodeErrorInfo result `shouldBe`
-                        NoSuchWallet (ApiErrorNoSuchWallet $ sourceWallet ^. walletId)
+                        NoSuchWallet
+                            (ApiErrorNoSuchWallet (sourceWallet ^. #id))
 
     Hspec.it
         "SHELLEY_CREATE_MIGRATION_PLAN_04 - \

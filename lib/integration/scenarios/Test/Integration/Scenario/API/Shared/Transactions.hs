@@ -206,7 +206,6 @@ import Test.Integration.Framework.DSL
     , verify
     , waitForNextEpoch
     , waitNumberOfEpochBoundaries
-    , walletId
     , (.>)
     )
 import Test.Integration.Framework.Request
@@ -1608,7 +1607,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
             Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "SHARED_TRANSACTIONS_LIST_RANGE_01 - \
         \Transaction at time t is SELECTED by small ranges that cover it" $
@@ -1741,7 +1740,7 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "SHARED_TRANSACTIONS_GET_03 - \
         \Using wrong transaction id" $

@@ -139,7 +139,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @[ApiAddressWithPath n] ctx ep Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet wid)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -293,7 +293,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "ADDRESS_LIST_05 - bech32 HRP is correct - testnet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx

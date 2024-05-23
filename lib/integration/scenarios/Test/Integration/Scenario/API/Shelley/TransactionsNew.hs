@@ -2803,7 +2803,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status404
                 ]
             decodeErrorInfo submittedTx `shouldBe`
-                NoSuchWallet (ApiErrorNoSuchWallet wid)
+                NoSuchWallet (ApiErrorNoSuchWallet (wb ^. #id))
 
     it "TRANS_NEW_SUBMIT_03 - Can submit transaction encoded in base16" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx

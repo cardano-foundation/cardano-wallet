@@ -69,7 +69,6 @@ import Test.Integration.Framework.DSL
     , runResourceT
     , selectCoins
     , verify
-    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg403NotAnIcarusWallet
@@ -159,4 +158,4 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             [ expectResponseCode HTTP.status404
             ]
         decodeErrorInfo r `shouldBe`
-            NoSuchWallet (ApiErrorNoSuchWallet $ icW ^. walletId)
+            NoSuchWallet (ApiErrorNoSuchWallet $ icW ^. #id)

@@ -89,7 +89,6 @@ import Test.Integration.Framework.DSL
     , randomAddresses
     , request
     , verify
-    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg403CouldntIdentifyAddrAsMine
@@ -197,7 +196,7 @@ scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
         [ expectResponseCode HTTP.status404
         ]
     decodeErrorInfo r `Lifted.shouldBe`
-        NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+        NoSuchWallet (ApiErrorNoSuchWallet $ w ^. #id)
   where
     title = "ADDRESS_LIST_04 - Delete wallet"
 

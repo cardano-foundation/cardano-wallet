@@ -103,6 +103,7 @@ import Cardano.Wallet.Api.Http.Server.Error.IsServerError
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
+    , ApiT (ApiT)
     , Iso8601Time (..)
     , toApiEra
     )
@@ -253,7 +254,7 @@ instance IsServerError ErrNoSuchWallet where
     toServerError = \case
         ErrNoSuchWallet wid ->
             flip (apiError err404) message $
-            NoSuchWallet ApiErrorNoSuchWallet { walletId = toText wid }
+            NoSuchWallet ApiErrorNoSuchWallet { walletId = ApiT wid }
           where
             message = mconcat
                 [ "I couldn't find a wallet with the given id: "

@@ -112,7 +112,6 @@ import Test.Integration.Framework.DSL
     , selectCoinsWith
     , verify
     , verifyMsg
-    , walletId
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
@@ -230,7 +229,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 [ expectResponseCode HTTP.status404
                 ]
             decodeErrorInfo rTx `Lifted.shouldBe`
-                NoSuchWallet (ApiErrorNoSuchWallet $ w ^. walletId)
+                NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it
         "WALLETS_COIN_SELECTION_03 - \
