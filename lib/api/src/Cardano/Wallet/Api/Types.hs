@@ -360,6 +360,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
+    , allRecentEras
     , fromApiEra
     , toApiEra
     )
@@ -580,9 +581,6 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..)
     )
-import Data.Set
-    ( Set
-    )
 import Data.String
     ( IsString
     )
@@ -678,16 +676,13 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Read as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( DatumHash
-    , allRecentEras
     , datumHashFromBytes
     , datumHashToBytes
-    , toAnyCardanoEra
     )
 
 {-------------------------------------------------------------------------------
@@ -1621,11 +1616,6 @@ newtype ApiBlockInfo = ApiBlockInfo
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBlockInfo
     deriving anyclass NFData
     deriving Show via (Quiet ApiBlockInfo)
-
--- | The complete set of recent eras.
---
-allRecentEras :: Set ApiEra
-allRecentEras = Set.map (toApiEra . Write.toAnyCardanoEra) Write.allRecentEras
 
 data ApiNetworkInfo = ApiNetworkInfo
     { networkId :: !Text

@@ -18,6 +18,7 @@ module Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     , toApiEra
     , fromApiEra
+    , allRecentEras
     )
     where
 
@@ -52,6 +53,9 @@ import Data.List
 import Data.Ord
     ( Ord
     )
+import Data.Set
+    ( Set
+    )
 import GHC.Generics
     ( Generic
     )
@@ -64,6 +68,11 @@ import Text.Show
     )
 
 import qualified Data.Aeson as Aeson
+import qualified Data.Set as Set
+import qualified Internal.Cardano.Write.Tx as Write
+    ( allRecentEras
+    , toAnyCardanoEra
+    )
 
 data ApiEra
     = ApiByron
@@ -103,3 +112,8 @@ fromApiEra = \case
     ApiAlonzo -> AnyCardanoEra AlonzoEra
     ApiBabbage -> AnyCardanoEra BabbageEra
     ApiConway -> AnyCardanoEra ConwayEra
+
+-- | The complete set of recent eras.
+--
+allRecentEras :: Set ApiEra
+allRecentEras = Set.map (toApiEra . Write.toAnyCardanoEra) Write.allRecentEras
