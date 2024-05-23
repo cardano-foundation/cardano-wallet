@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 -- Copyright:
@@ -83,10 +84,11 @@ instance ToJSON ApiEra where
         { constructorTagModifier = drop 4 . camelTo2 '_' }
 
 toApiEra :: AnyCardanoEra -> ApiEra
-toApiEra (AnyCardanoEra ByronEra) = ApiByron
-toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
-toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
-toApiEra (AnyCardanoEra MaryEra) = ApiMary
-toApiEra (AnyCardanoEra AlonzoEra) = ApiAlonzo
-toApiEra (AnyCardanoEra BabbageEra) = ApiBabbage
-toApiEra (AnyCardanoEra ConwayEra) = ApiConway
+toApiEra = \case
+    AnyCardanoEra ByronEra -> ApiByron
+    AnyCardanoEra ShelleyEra -> ApiShelley
+    AnyCardanoEra AllegraEra -> ApiAllegra
+    AnyCardanoEra MaryEra -> ApiMary
+    AnyCardanoEra AlonzoEra -> ApiAlonzo
+    AnyCardanoEra BabbageEra -> ApiBabbage
+    AnyCardanoEra ConwayEra -> ApiConway
