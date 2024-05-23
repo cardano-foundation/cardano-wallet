@@ -16,6 +16,7 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+  ghc-options: -Wunused-packages
 
 common opts-lib
   ghc-options: -Wall -Wcompat -Wredundant-constraints
@@ -48,8 +49,6 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses
-    , cardano-crypto-class
-    , cardano-data
     , cardano-ledger-shelley
     , cardano-wallet-api
     , cardano-wallet-application-extras
@@ -68,7 +67,6 @@ library framework
     , either
     , extra
     , faucet
-    , filepath
     , flat
     , fmt
     , generic-lens
@@ -161,7 +159,6 @@ library scenarios
     , pathtype
     , pretty-simple
     , resourcet
-    , servant-client
     , text
     , text-class
     , time
