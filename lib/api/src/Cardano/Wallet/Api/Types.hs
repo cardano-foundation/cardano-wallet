@@ -272,9 +272,7 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     )
 import Cardano.Api
-    ( AnyCardanoEra (..)
-    , CardanoEra (..)
-    , StakeAddress
+    ( StakeAddress
     , deserialiseFromBech32
     , proxyToAsType
     , serialiseToBech32
@@ -362,6 +360,7 @@ import Cardano.Wallet.Api.Types.Certificate
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
+    , fromApiEra
     , toApiEra
     )
 import Cardano.Wallet.Api.Types.Key
@@ -1622,15 +1621,6 @@ newtype ApiBlockInfo = ApiBlockInfo
     deriving (FromJSON, ToJSON) via DefaultRecord ApiBlockInfo
     deriving anyclass NFData
     deriving Show via (Quiet ApiBlockInfo)
-
-fromApiEra :: ApiEra -> AnyCardanoEra
-fromApiEra ApiByron = AnyCardanoEra ByronEra
-fromApiEra ApiShelley = AnyCardanoEra ShelleyEra
-fromApiEra ApiAllegra = AnyCardanoEra AllegraEra
-fromApiEra ApiMary = AnyCardanoEra MaryEra
-fromApiEra ApiAlonzo = AnyCardanoEra AlonzoEra
-fromApiEra ApiBabbage = AnyCardanoEra BabbageEra
-fromApiEra ApiConway = AnyCardanoEra ConwayEra
 
 -- | The complete set of recent eras.
 --
