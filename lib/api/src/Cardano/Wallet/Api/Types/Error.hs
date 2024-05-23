@@ -31,6 +31,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchWallet (..)
     , ApiErrorUnsupportedEra (..)
     )
     where
@@ -44,6 +45,7 @@ import Cardano.Wallet.Api.Lib.Options
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
+    , ApiT
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount
@@ -53,6 +55,9 @@ import Cardano.Wallet.Api.Types.Era
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
+    )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
@@ -165,6 +170,8 @@ data ApiErrorInfo
         !ApiErrorNoSuchPool
     | NoSuchTransaction
     | NoSuchWallet
+        !ApiErrorNoSuchWallet
+    | WalletNotInitialized
     | NoUtxosAvailable
     | NodeNotYetInRecentEra
         !ApiErrorNodeNotYetInRecentEra
@@ -328,4 +335,11 @@ data ApiErrorNoSuchPool = ApiErrorNoSuchPool
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchPool
+    deriving anyclass NFData
+
+data ApiErrorNoSuchWallet = ApiErrorNoSuchWallet
+    { walletId :: !(ApiT WalletId)
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchWallet
     deriving anyclass NFData

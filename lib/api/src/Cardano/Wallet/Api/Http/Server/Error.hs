@@ -103,6 +103,7 @@ import Cardano.Wallet.Api.Http.Server.Error.IsServerError
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
+    , ApiT (ApiT)
     , Iso8601Time (..)
     )
 import Cardano.Wallet.Api.Types.Error
@@ -110,6 +111,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchWallet (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
@@ -254,7 +256,10 @@ instance IsServerError WalletException where
 instance IsServerError ErrNoSuchWallet where
     toServerError = \case
         ErrNoSuchWallet wid ->
-            apiError err404 NoSuchWallet $ mconcat
+            flip (apiError err404) message $
+            NoSuchWallet ApiErrorNoSuchWallet { walletId = ApiT wid }
+          where
+            message = mconcat
                 [ "I couldn't find a wallet with the given id: "
                 , toText wid
                 ]
@@ -262,7 +267,7 @@ instance IsServerError ErrNoSuchWallet where
 instance IsServerError ErrWalletNotInitialized where
     toServerError = \case
         ErrWalletNotInitialized ->
-            apiError err404 NoSuchWallet $ mconcat
+            apiError err404 WalletNotInitialized $ mconcat
                 [ "The database for the requested wallet is not initialized. "
                 ]
 

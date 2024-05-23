@@ -36,6 +36,10 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
@@ -82,6 +86,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -109,7 +114,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403NothingToMigrate
     , errMsg403WrongPass
-    , errMsg404NoWallet
     )
 
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
@@ -117,6 +121,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Api.Types as ApiTypes
 import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec.Expectations.Lifted as Lifted
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
@@ -189,9 +194,9 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 (Json [json|{addresses: #{targetAddressIds}}|])
             verify response
                 [ expectResponseCode HTTP.status404
-                , expectErrorMessage
-                    (errMsg404NoWallet $ sourceWallet ^. walletId)
                 ]
+            decodeErrorInfo response `Lifted.shouldBe`
+                NoSuchWallet (ApiErrorNoSuchWallet $ sourceWallet ^. #id)
 
     it "BYRON_CREATE_MIGRATION_PLAN_04 - \
         \Cannot create a plan for a wallet that only contains dust."

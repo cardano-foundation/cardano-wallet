@@ -57,6 +57,7 @@ import Cardano.Wallet.Api.Types.Era
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -214,7 +215,6 @@ import Test.Integration.Framework.DSL
     , waitForTxImmutability
     , waitForTxStatus
     , waitNumberOfEpochBoundaries
-    , walletId
     , (.<)
     , (.>)
     , (.>=)
@@ -222,7 +222,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
-    , errMsg404NoWallet
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -264,7 +263,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        let wid = w ^. walletId
         _ <-
             request @ApiWallet
                 ctx
@@ -274,7 +272,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 1
         r <- joinStakePool @n ctx (SpecificPool poolIdAbsent) (w, fixturePassphrase)
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet wid) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -263,7 +264,8 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Data
-    ( Proxy (..)
+    ( Data
+    , Proxy (..)
     )
 import Data.Generics.Labels
     ()
@@ -387,7 +389,7 @@ walletNameMaxLength :: Int
 walletNameMaxLength = 255
 
 newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
-    deriving (Generic, Eq, Ord, Show)
+    deriving (Data, Generic, Eq, Ord, Show)
 
 instance NFData WalletId
 

@@ -38,6 +38,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
     )
@@ -85,6 +89,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyRandomWallet
     , emptyWallet
     , emptyWalletWith
@@ -113,7 +118,6 @@ import Test.Integration.Framework.TestData
     , errMsg400ScriptTimelocksContradictory
     , errMsg400ScriptWrongCoeffcient
     , errMsg403WrongIndex
-    , errMsg404NoWallet
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -134,7 +138,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let ep = ("GET", "v2/wallets/" <> wid <> "/addresses")
         r <- request @[ApiAddressWithPath n] ctx ep Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet wid) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -287,7 +292,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @[ApiAddressWithPath n] ctx
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "ADDRESS_LIST_05 - bech32 HRP is correct - testnet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx

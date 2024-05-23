@@ -33,7 +33,8 @@ import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
 import Cardano.Wallet.Api.Types.Error
-    ( ApiErrorInfo (UtxoTooSmall)
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -93,6 +94,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , decodeErrorInfo
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -132,7 +134,6 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
     , errMsg404NoAsset
-    , errMsg404NoWallet
     , steveToken
     )
 
@@ -555,7 +556,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             let endpoint = "v2/wallets/" <> wid <> "/transactions"
             r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
             expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet wid) r
+            decodeErrorInfo r `shouldBe`
+                NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
@@ -565,7 +567,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txid
             r <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet wid) r
+            decodeErrorInfo r `shouldBe`
+                NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_TRANS_ESTIMATE -\
         \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
@@ -586,7 +589,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             let endpoint = "v2/wallets/" <> wid <> "/payment-fees"
             r <- request @ApiFee ctx ("POST", endpoint) Default payload
             expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoWallet wid) r
+            decodeErrorInfo r `shouldBe`
+                NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_TX_LIST_02 -\
         \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> runResourceT $ do
@@ -596,8 +600,9 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx ep Default Empty
         verify r
             [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoWallet wid)
             ]
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_TX_LIST_03 -\
         \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> runResourceT $ do
@@ -607,8 +612,9 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         r <- request @([ApiTransaction n]) ctx ep Default Empty
         verify r
             [ expectResponseCode HTTP.status404
-            , expectErrorMessage (errMsg404NoWallet wid)
             ]
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
         -- NOTE
@@ -778,7 +784,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let link = Link.listTransactions @'Byron w
         r <- request @([ApiTransaction n]) ctx link Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "BYRON_TX_LIST_ADDRESS - Transactions can be filtered by address" $
         forM_ [ (fixtureRandomWallet, emptyRandomWallet, "Byron wallet")

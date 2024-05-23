@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types.Amount
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     )
 import Cardano.Wallet.Compat
@@ -175,7 +176,6 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
     , errMsg403WrongIndex
-    , errMsg404NoWallet
     , errMsg406
     )
 
@@ -1703,7 +1703,8 @@ spec = describe "SHARED_WALLETS" $ do
         r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shared w)
             Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchWallet (ApiErrorNoSuchWallet (w ^. #id))
 
     describe "SHARED_WALLETS_UTXO_04 - HTTP headers" $ do
         let matrix =

@@ -38,6 +38,10 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
     )
@@ -99,6 +103,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , decodeErrorInfo
     , emptyIcarusWallet
     , emptyRandomWallet
     , emptyWallet
@@ -131,7 +136,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403NothingToMigrate
     , errMsg403WrongPass
-    , errMsg404NoWallet
     )
 import Text.Pretty.Simple
     ( pShowNoColor
@@ -243,12 +247,12 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                             ep
                             Default
                             (Json [json|{addresses: #{targetAddressIds}}|])
-                    verify
-                        result
+                    verify result
                         [ expectResponseCode HTTP.status404
-                        , expectErrorMessage
-                            (errMsg404NoWallet $ sourceWallet ^. walletId)
                         ]
+                    decodeErrorInfo result `shouldBe`
+                        NoSuchWallet
+                            (ApiErrorNoSuchWallet (sourceWallet ^. #id))
 
     Hspec.it
         "SHELLEY_CREATE_MIGRATION_PLAN_04 - \

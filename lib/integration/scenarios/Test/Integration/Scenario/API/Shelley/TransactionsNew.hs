@@ -115,6 +115,7 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     , ApiErrorUnsupportedEra (..)
     )
@@ -331,9 +332,6 @@ import Test.Integration.Framework.DSL
     , walletId
     , (.<)
     , (.>)
-    )
-import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet
     )
 import UnliftIO.Exception
     ( fromEither
@@ -2810,8 +2808,9 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
             verify submittedTx
                 [ expectResponseCode HTTP.status404
-                , expectErrorMessage (errMsg404NoWallet wid)
                 ]
+            decodeErrorInfo submittedTx `shouldBe`
+                NoSuchWallet (ApiErrorNoSuchWallet (wb ^. #id))
 
     it "TRANS_NEW_SUBMIT_03 - Can submit transaction encoded in base16" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
