@@ -14,7 +14,7 @@ module Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     , MonitorQ (..)
     , MsgMonitorClient (..)
     , AnyMonitorQ (..)
-    , newRunQuery
+    , newRunMonitorQ
     , mkMonitorClient
     , recovering
     )
@@ -105,7 +105,7 @@ instance Show AnyMonitorQ where
     show (AnyQuery SwitchQ) = "Switch"
 
 -- | Run any query against the monitoring server.
-newtype RunMonitorQ m = RunQuery (forall a. Show a => MonitorQ a -> m a)
+newtype RunMonitorQ m = RunMonitorQ (forall a. Show a => MonitorQ a -> m a)
 
 -- | Messages that can be logged by the http client.
 data MsgMonitorClient
@@ -118,17 +118,17 @@ instance ToText MsgMonitorClient where
         MsgMonitorClientReq q -> "Client request: " <> toText (show q)
         MsgMonitorClientRetry q -> "Client retry: " <> toText (show q)
 
-newRunQuery
+newRunMonitorQ
     :: forall m
         . MonadUnliftIO m
     => (forall a. ClientM a -> IO a)
     -> Tracer m MsgMonitorClient
     -> MonitorClient
     -> m (RunMonitorQ m)
-newRunQuery query tr MonitorClient{ready, observe, step, switch} =
+newRunMonitorQ query tr MonitorClient{ready, observe, step, switch} =
     do
         UnliftIO unlift <- askUnliftIO
-        pure $ RunQuery $ \request -> do
+        pure $ RunMonitorQ $ \request -> do
             traceWith tr $ MsgMonitorClientReq $ AnyQuery request
             let f = unlift
                     . traceWith tr . MsgMonitorClientRetry

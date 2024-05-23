@@ -382,19 +382,19 @@ spec = do
         it "can start" $ do
             testService Step $ \_ _ -> pure ()
         it "can query" $ do
-            testService Step $ \_ (RunQuery query) -> do
+            testService Step $ \_ (RunMonitorQ query) -> do
                 result <- query ReadyQ
                 result `shouldBe` False
         it "can trace" $ do
             testService Run $ \tracer _ -> do
                 traceWith tracer RetrievingFunds
         it "can report readiness" $ do
-            testService Run $ \tracer (RunQuery query) -> do
+            testService Run $ \tracer (RunMonitorQ query) -> do
                 traceWith tracer (Cluster Nothing)
                 result <- query ReadyQ
                 result `shouldBe` True
         it "can step the tracer thread" $ do
-            testService Step $ \tracer (RunQuery query) -> do
+            testService Step $ \tracer (RunMonitorQ query) -> do
                 tracer' <- async $ do
                     traceWith tracer (Cluster Nothing)
                 fix $ \loop -> do
@@ -402,7 +402,7 @@ spec = do
                     unless result $ query StepQ >> loop
                 wait tracer'
         it "can report the phase history" $ do
-            testService Run $ \tracer (RunQuery query) -> do
+            testService Run $ \tracer (RunMonitorQ query) -> do
                 traceWith tracer RetrievingFunds
                 traceWith tracer Metadata
                 traceWith tracer Genesis
@@ -425,7 +425,7 @@ spec = do
                                ]
                 state `shouldBe` Run
         it "can switch from step to run" $ do
-            testService Step $ \tracer (RunQuery query) -> do
+            testService Step $ \tracer (RunMonitorQ query) -> do
                 tracer' <- async $ do
                     traceWith tracer RetrievingFunds
                 state <- query SwitchQ
@@ -435,7 +435,7 @@ spec = do
                 snd <$> phases `shouldBe` [RetrievingFunds]
     describe "withService application" $ do
         it "can start and stop" $ evalContT $ do
-            ((RunQuery query, _), _) <-
+            ((RunMonitorQ query, _), _) <-
                 testServiceWithCluster
                     "can-start-and-stop"
                     noFunds
@@ -443,7 +443,7 @@ spec = do
                 result <- query ReadyQ
                 result `shouldBe` False
         it "can wait for cluster ready before ending" $ evalContT $ do
-            ((RunQuery query, _), _) <-
+            ((RunMonitorQ query, _), _) <-
                 testServiceWithCluster
                     "can-wait-for-cluster-ready-before-ending"
                     noFunds
@@ -530,7 +530,7 @@ spec = do
                     )
 
 waitForNode :: RunMonitorQ IO -> IO RunningNode
-waitForNode (RunQuery query) = fix $ \loop -> do
+waitForNode (RunMonitorQ query) = fix $ \loop -> do
     (history', _) <- query ObserveQ
     case getNode history' of
         Nothing -> threadDelay 10_000 >> loop
