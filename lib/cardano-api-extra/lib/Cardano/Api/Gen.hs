@@ -509,8 +509,14 @@ genSlotNo32 = do
 genLovelace :: Gen Lovelace
 genLovelace =
     frequency
-        [ (10, Lovelace . intCast . getNonNegative @Int <$> arbitrary)
-        , (50, choose (1_000_000, 1_000_000_000))
+        [ (60, genLovelaceForTxOutAdaValue)
+        , (40, choose (1_000_000, 1_000_000_000))
+        ]
+
+genLovelaceForTxOutAdaValue :: Gen Lovelace
+genLovelaceForTxOutAdaValue =
+    frequency
+        [ (60, choose (1_000_000, 1_000_000_000))
         , (10, choose (txOutMinLovelace, txOutMaxLovelace))
         , (30, genEncodingBoundaryLovelace)
         ]
@@ -615,16 +621,16 @@ genExtraKeyWitnesses era =
 
 genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
 genTxTotalCollateral era = withEraWitness era $ \supported ->
-    oneof
-        [ pure TxTotalCollateralNone
-        , TxTotalCollateral supported <$> genLovelace
+    frequency
+        [ (95, pure TxTotalCollateralNone)
+        , (5, TxTotalCollateral supported <$> genLovelace)
         ]
 
 genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
 genTxReturnCollateral era = withEraWitness era $ \supported ->
-    oneof
-        [ pure TxReturnCollateralNone
-        , TxReturnCollateral supported <$> genTxOut era
+    frequency
+        [ (95, pure TxReturnCollateralNone)
+        , (5, TxReturnCollateral supported <$> genTxOut era)
         ]
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
@@ -762,7 +768,7 @@ genValueForTxOut = do
             , pure []
             ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
-    ada <- fromInteger . unLovelace <$> genLovelace
+    ada <- fromInteger . unLovelace <$> genLovelaceForTxOutAdaValue
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
   where
     unLovelace (Lovelace l) = l

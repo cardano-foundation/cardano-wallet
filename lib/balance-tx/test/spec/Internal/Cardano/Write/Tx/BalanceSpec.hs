@@ -360,6 +360,7 @@ import Test.Hspec.QuickCheck
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Args (..)
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedNatural
@@ -374,10 +375,12 @@ import Test.QuickCheck
     , listOf
     , oneof
     , property
+    , quickCheckWith
     , scale
     , shrinkBoundedEnum
     , shrinkList
     , shrinkMapBy
+    , stdArgs
     , suchThat
     , tabulate
     , vectorOf
@@ -486,13 +489,14 @@ spec = do
 
 spec_balanceTx :: Spec
 spec_balanceTx = describe "balanceTx" $ do
-    -- TODO: Create a test to show that datums are passed through...
-
+    let moreDiscardsAllowed = stdArgs { maxDiscardRatio = 100 }
     it "doesn't balance transactions with existing 'totalCollateral'"
-        $ property prop_balanceTxExistingTotalCollateral
+        $ quickCheckWith moreDiscardsAllowed
+            prop_balanceTxExistingTotalCollateral
 
     it "doesn't balance transactions with existing 'returnCollateral'"
-        $ property prop_balanceTxExistingReturnCollateral
+        $ quickCheckWith moreDiscardsAllowed
+            prop_balanceTxExistingReturnCollateral
 
     it "does not balance transactions if no inputs can be created"
         $ property prop_balanceTxUnableToCreateInput
@@ -1212,7 +1216,8 @@ prop_balanceTxValid
                     ">20 payment outputs"
                 . classify (length originalOuts > 100)
                     ">100 payment outputs"
-
+        let coverage res =
+                checkCoverage . cover 8 (isRight res) "success"
         let res =
                 testBalanceTx
                     wallet
@@ -1220,7 +1225,7 @@ prop_balanceTxValid
                     timeTranslation
                     seed
                     partialTx
-        classifications $ case res of
+        coverage res $ classifications $ case res of
             Right tx -> counterexample ("\nResult: " <> show (Pretty tx)) $ do
                 label "success"
                     $ classify (originalBalance == mempty)
