@@ -35,12 +35,12 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
     )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
-    )
-import Cardano.Wallet.Api.Types.Era
-    ( ApiEra (..)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
