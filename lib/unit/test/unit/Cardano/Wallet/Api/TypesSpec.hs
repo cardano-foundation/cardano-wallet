@@ -152,7 +152,6 @@ import Cardano.Wallet.Api.Types
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
     , ApiEncryptMetadata (..)
-    , ApiEra (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -270,6 +269,9 @@ import Cardano.Wallet.Api.Types.BlockHeader
     )
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiError (..)
@@ -700,6 +702,10 @@ import Web.HttpApiData
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.Era as ApiEra
+    ( fromAnyCardanoEra
+    , toAnyCardanoEra
+    )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
@@ -868,9 +874,9 @@ spec = do
         jsonTest @(ApiT DRep)
         jsonTest @ApiRestorationMode
 
-    describe "ApiEra roundtrip" $
-        it "toApiEra . fromApiEra == id" $ property $ \era -> do
-            Api.toApiEra (Api.fromApiEra era) === era
+    it "Round trip between types `ApiEra` and `AnyCardanoEra`"
+        $ property
+        $ \era -> ApiEra.fromAnyCardanoEra (ApiEra.toAnyCardanoEra era) === era
 
     describe "ToText-FromText Roundtrip" $ do
             textRoundtrip $ Proxy @Iso8601Time

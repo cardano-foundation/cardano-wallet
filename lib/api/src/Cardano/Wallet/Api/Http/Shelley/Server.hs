@@ -460,7 +460,6 @@ import Cardano.Wallet.Api.Types
     , getApiMnemonicT
     , toApiAsset
     , toApiDecodeTransactionPostData
-    , toApiEra
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
@@ -911,6 +910,9 @@ import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
 import qualified Cardano.Wallet.Address.Discovery.Shared as Shared
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
+import qualified Cardano.Wallet.Api.Types.Era as ApiEra
+    ( fromAnyCardanoEra
+    )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.DB as W
 import qualified Cardano.Wallet.Delegation as WD
@@ -4406,7 +4408,7 @@ getNetworkInformation nid
             , Api.nextEpoch = snd <$> nowInfo
             , Api.nodeTip = apiNodeTip
             , Api.networkTip = fst <$> nowInfo
-            , Api.nodeEra = toApiEra nodeEra
+            , Api.nodeEra = ApiEra.fromAnyCardanoEra nodeEra
             , Api.networkInfo =
                 Api.ApiNetworkInfo
                     ( case nid of

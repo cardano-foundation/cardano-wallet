@@ -45,11 +45,13 @@ import Cardano.Wallet.Api.Lib.Options
 import Cardano.Wallet.Api.Types
     ( ApiCosignerIndex (..)
     , ApiCredentialType (..)
-    , ApiEra
     , ApiT
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets
@@ -295,7 +297,7 @@ data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
 
 data ApiErrorNodeNotYetInRecentEra = ApiErrorNodeNotYetInRecentEra
     { nodeEra :: ApiEra
-    , supportedRecentEras :: [ApiEra]
+    , supportedRecentEras :: Set ApiEra
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)

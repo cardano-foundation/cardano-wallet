@@ -24,7 +24,6 @@ import Cardano.Wallet.Address.Encoding
     )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
-    , ApiEra (..)
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
@@ -39,6 +38,9 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    )
+import Cardano.Wallet.Api.Types.Era
+    ( ApiEra (..)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
