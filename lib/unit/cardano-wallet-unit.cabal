@@ -106,7 +106,7 @@ test-suite unit
     , delta-types
     , directory
     , either
-    , extra                                                 >=1.6.17
+    , extra
     , file-embed
     , filepath
     , fmt
@@ -115,8 +115,8 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog-corpus
-    , hspec                                                 >=2.8.2
-    , hspec-core                                            >=2.8.2
+    , hspec
+    , hspec-core
     , http-api-data
     , http-client
     , http-client-tls
@@ -151,7 +151,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine                              >=0.6.0
+    , quickcheck-state-machine                             
     , random
     , regex-pcre-builtin
     , resourcet
