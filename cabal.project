@@ -99,15 +99,15 @@ packages:
 source-repository-package
   type: git
   location: https://github.com/biocad/servant-openapi3
-  tag: 4165b837d3a71debd1059c3735460075840000b5
-  --sha256: 1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9
+  tag: 10c45b4e302567d7491cd0371317e52bf823b71c
+  --sha256: 1py1pip77q9qq5v49kpdpbp7p6yxyd0kwjn9c9bh9igp9p1d00a4
 
 -- TODO: ADP-1713
 source-repository-package
   type: git
   location: https://github.com/paolino/openapi3
-  tag: f22c31611c295637a3e72b341cd1c56d1d87b993
-  --sha256: 10l7wlaz9rcr3fysi1vwg7qqa826bb7nidkpx9jy1q7ja7ddw47i
+  tag: fab96d6d1df46418aa4658a7d6f60bf9f045b6dd
+  --sha256: 19wi7rhvb840j2ypmdfblpqk2yh11ac85x2r3y3406nml443f66k
 
 -- END OpenAPI
 --------------------------------------------------------------------------------
@@ -161,6 +161,13 @@ source-repository-package
       lib/cardano-wallet-read
 
 --------------------------------------------------------------------------------
+
+source-repository-package
+    type: git
+    location: https://github.com/paolino/int-cast.git
+    tag: 0232b037552a4247b4a7ac21f816cc77cc95f7a4
+    --sha256: 1pmghd9pz35ycxp0c3f5sz4fghfi6ywjmp6wm9n45f8l5ah9vhhw
+
 -- BEGIN Constraints tweaking section
 
 allow-newer:
@@ -170,7 +177,7 @@ allow-newer:
   , ekg-wai:time
 
 constraints:
-    base >= 4.18.2.0 && < 5
+  bimap >= 0.4.0
   , openapi3 >= 3.2.0
   , persistent ^>= 2.14.6.0
 
