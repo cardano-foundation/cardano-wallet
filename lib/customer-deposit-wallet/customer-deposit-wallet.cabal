@@ -98,7 +98,7 @@ test-suite scenario
     , contra-tracer
     , customer-deposit-wallet
     , delta-store
-    , hspec >=2.8.2
+    , hspec
   other-modules:
     Test.Scenario.Blockchain
     Test.Scenario.Wallet.Deposit.Exchanges
@@ -139,7 +139,7 @@ test-suite unit
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , customer-deposit-wallet:{customer-deposit-wallet, customer-deposit-wallet-http}
-    , hspec >=2.8.2
+    , hspec
     , QuickCheck
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
