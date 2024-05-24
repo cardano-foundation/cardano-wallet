@@ -111,8 +111,7 @@ test-suite scenario
     , contra-tracer
     , customer-deposit-wallet
     , delta-store
-    , hspec                      >=2.8.2
-
+    , hspec
   other-modules:
     Test.Scenario.Blockchain
     Test.Scenario.Wallet.Deposit.Exchanges
