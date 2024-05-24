@@ -563,20 +563,26 @@ data TxOut = TxOut
     deriving stock (Show, Eq)
 
 outputs
-    :: Monad m => ChainStream (EraValue (ctx :*: Tx)) m r
+    :: Monad m
+    => ChainStream (EraValue (ctx :*: Tx)) m r
     -> ChainStream TxOut m r
 outputs = forChainStream $ S.each . extractEraValue . applyEraFunValue f
   where
     f :: IsEra era => (ctx :*: Tx) era -> K [TxOut] era
     f (_bh :*: tx) = txOutFromOutput $ getEraOutputs tx
 
+-- a bit of a hack to drop the first element of a stream
+-- because we know it's a rollback and we're only interested in the
+-- forward
 elements
-    :: Monad m => ChainStream a m r
+    :: Monad m
+    => ChainStream a m r
     -> Stream (Of (Maybe a)) m r
-elements = scanChainStream (const Just) $ oneHistory Nothing
+elements = S.drop 1 . scanChainStream (const Just) (oneHistory Nothing)
 
 balance
-    :: Monad m => ChainStream TxOut m r
+    :: Monad m
+    => ChainStream TxOut m r
     -> Stream (Of (Map ByteString Integer)) m r
 balance =
     scanChainStream
