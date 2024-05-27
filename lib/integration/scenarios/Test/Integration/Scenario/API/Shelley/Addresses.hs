@@ -117,7 +117,6 @@ import Test.Integration.Framework.TestData
     , errMsg400ScriptNotUniformRoles
     , errMsg400ScriptTimelocksContradictory
     , errMsg400ScriptWrongCoeffcient
-    , errMsg403WrongIndex
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -1228,7 +1227,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "format": "extended"
             }|]
         resp <- request @ApiAccountKey ctx endpoint Default payload
-        expectErrorMessage errMsg403WrongIndex resp
+        decodeErrorInfo resp `shouldBe` HardenedDerivationRequired
 
         -- Request first 10 extended account public keys
         let indices = [0..9]
@@ -1289,7 +1288,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "purpose": "1854"
             }|]
         resp <- request @ApiAccountKey ctx accountPath Default payload4
-        expectErrorMessage errMsg403WrongIndex resp
+        decodeErrorInfo resp `shouldBe` HardenedDerivationRequired
 
     it "ANY_ADDRESS_POST_15 - Staking address using stake credential non-hashed" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx

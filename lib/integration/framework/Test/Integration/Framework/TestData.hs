@@ -76,7 +76,6 @@ module Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotBeneficial
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
-    , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg403KeyAlreadyPresent
@@ -477,11 +476,6 @@ errMsg403CouldntIdentifyAddrAsMine = "I \
 
 errMsg503PastHorizon :: String
 errMsg503PastHorizon = "Tried to convert something that is past the horizon"
-
-errMsg403WrongIndex :: String
-errMsg403WrongIndex = "It looks like you've provided a derivation index that is out of bound.\
-     \ The index is well-formed, but I require indexes valid for hardened derivation only. That\
-     \ is, indexes between 0H and 2147483647H."
 
 errMsg403OutputTokenBundleSizeExceedsLimit
     :: Address
