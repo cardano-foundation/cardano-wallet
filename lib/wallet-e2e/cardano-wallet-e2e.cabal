@@ -58,33 +58,33 @@ library
   import:          options
   hs-source-dirs:  src
   build-depends:
-    , aeson                     ^>=2.1.2.1
+    , aeson
     , attoparsec-aeson
-    , base                      >=4.14.3.0  && <4.19
-    , base58-bytestring         ^>=0.1
-    , cardano-addresses         ^>=3.12
-    , cardano-crypto            ^>=1.1.2
-    , cardano-wallet-client     ^>=0.1
+    , base
+    , base58-bytestring
+    , cardano-addresses
+    , cardano-crypto
+    , cardano-wallet-client
     , cardano-wallet-primitive
-    , effectful-core            ^>=2.2.2.0
-    , effectful-th              ^>=1.0.0.1
+    , effectful-core
+    , effectful-th
     , extra
     , faucet
-    , http-client               ^>=0.7.13.1
-    , http-types                ^>=0.12.3
-    , local-cluster             ^>=0.1
-    , optparse-applicative  ^>=0.17.1
+    , http-client
+    , http-types
+    , local-cluster
+    , optparse-applicative
     , pathtype
-    , random                    ^>=1.2.1.1
-    , relude                    ^>=1.2.0.0
-    , resourcet                 ^>=1.3
-    , retry                     ^>=0.9.3.1
-    , sydtest                   ^>=0.15
-    , tagged                    ^>=0.8.7
-    , text                      ^>=2.0.2
-    , time                      >=1.9.3     && <1.13
-    , timespan                  ^>=0.4
-    , typed-process             ^>=0.2.11
+    , random
+    , relude
+    , resourcet
+    , retry
+    , sydtest
+    , tagged
+    , text
+    , time
+    , timespan
+    , typed-process
 
   exposed-modules:
     Cardano.Wallet.Spec
@@ -125,8 +125,8 @@ executable wallet-e2e
   build-depends:
     , base
     , cardano-wallet-e2e
-    , optparse-applicative  ^>=0.17.1
+    , optparse-applicative
     , relude
     , sydtest
     , tagged
-    , with-utf8             ^>=1.0.2.4
+    , with-utf8            

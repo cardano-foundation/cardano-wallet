@@ -92,7 +92,7 @@ library
     , int-cast
     , io-classes
     , iohk-monitoring
-    , iohk-monitoring-extra                              ^>=0.1
+    , iohk-monitoring-extra
     , lens
     , list-transformer
     , memory
@@ -110,10 +110,10 @@ library
     , ouroboros-network
     , ouroboros-network-api
     , path-pieces
-    , persistent                                         >=2.13    && <2.15
-    , persistent-sqlite                                  >=2.13    && <2.15
+    , persistent
+    , persistent-sqlite
     , profunctors
-    , QuickCheck                                         ^>=2.14.3
+    , QuickCheck                                        
     , quiet
     , random
     , retry
