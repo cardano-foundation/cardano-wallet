@@ -111,6 +111,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
@@ -622,7 +623,10 @@ instance
 instance IsServerError ErrRemoveTx where
     toServerError = \case
         ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction tid) ->
-            apiError err404 NoSuchTransaction $ mconcat
+            flip (apiError err404) message $
+            NoSuchTransaction ApiErrorNoSuchTransaction { transactionId = ApiT tid }
+          where
+            message = mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
@@ -734,7 +738,10 @@ instance IsServerError ErrGetTransaction where
 instance IsServerError ErrNoSuchTransaction where
     toServerError = \case
         ErrNoSuchTransaction tid ->
-            apiError err404 NoSuchTransaction $ mconcat
+            flip (apiError err404) message $
+            NoSuchTransaction ApiErrorNoSuchTransaction { transactionId = ApiT tid }
+          where
+            message = mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]

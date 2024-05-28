@@ -4402,6 +4402,12 @@ x-errNoSuchTransaction: &errNoSuchTransaction
     code:
       type: string
       enum: ['no_such_transaction']
+    info:
+      type: object
+      required:
+        - transaction_id
+      properties:
+        transaction_id: *transactionId
 
 x-errTransactionAlreadyInLedger: &errTransactionAlreadyInLedger
   <<: *responsesErr

@@ -280,6 +280,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorMessage (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
@@ -811,6 +812,7 @@ spec = do
         jsonTest @ApiErrorTxOutputLovelaceInsufficient
         jsonTest @ApiErrorBalanceTxUnderestimatedFee
         jsonTest @ApiErrorNoSuchPool
+        jsonTest @ApiErrorNoSuchTransaction
         jsonTest @ApiErrorNoSuchWallet
         jsonTest @ApiErrorNodeNotYetInRecentEra
         jsonTest @ApiErrorNotEnoughMoney
@@ -2477,6 +2479,10 @@ instance Arbitrary ApiErrorNoSuchPool where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorNoSuchWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorNoSuchTransaction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

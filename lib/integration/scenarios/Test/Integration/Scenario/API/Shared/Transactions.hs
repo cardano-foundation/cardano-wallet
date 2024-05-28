@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
@@ -131,7 +132,6 @@ import Data.Maybe
     )
 import Data.Text.Class
     ( FromText (..)
-    , ToText (..)
     )
 import Data.Time.Clock
     ( UTCTime
@@ -212,7 +212,6 @@ import Test.Integration.Framework.Request
     )
 import Test.Integration.Framework.TestData
     ( errMsg400StartTimeLaterThanEndTime
-    , errMsg404CannotFindTx
     )
 
 import qualified Cardano.Address.Script as CA
@@ -1793,7 +1792,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         let link = Link.getTransaction @'Shared wSrc (ApiTxId $ ApiT txid2)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404CannotFindTx $ toText txid2) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid2))
 
     it "SHARED_TRANSACTIONS_DELEGATION_01 - \
         \Cannot delegate when wallet is missing a delegation script template" $

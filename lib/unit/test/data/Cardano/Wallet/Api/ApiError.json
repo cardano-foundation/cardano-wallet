@@ -1,45 +1,45 @@
 {
     "samples": [
         {
-            "code": "balance_tx_existing_return_collateral",
-            "message": "9󲜨𰋆\u001b\u000by쨤v\u001b󳝾"
+            "code": "key_not_found_for_address",
+            "message": "\u0019TS\u0001C~r󵃈"
         },
         {
-            "code": "input_resolution_conflicts",
-            "message": "𨈃鸍𧾒􄧛5ml"
+            "code": "balance_tx_existing_total_collateral",
+            "message": "e;봛󹂁"
         },
         {
-            "code": "missing_reward_account",
-            "message": "!2𨊚="
+            "code": "wrong_encryption_passphrase",
+            "message": ""
         },
         {
-            "code": "invalid_coin_selection",
-            "message": ";𠞊yp󶋸y\u001aT𥯢rn{𘣨"
+            "code": "insufficient_collateral",
+            "message": "JN"
         },
         {
-            "code": "cannot_cover_fee",
-            "message": "~Vo↯"
+            "code": "unexpected_error",
+            "message": "uo𪺁j𝑊\u0004l𐔶"
         },
         {
-            "code": "network_misconfigured",
-            "message": "x\u0000"
+            "code": "mint_or_burn_asset_quantity_out_of_bounds",
+            "message": "e󽯚Eo"
         },
         {
-            "code": "delegation_invalid",
-            "message": "䎇\u0013O躰\u0019!^6U6ꪸ\u001d\u0008䡴"
+            "code": "shared_wallet_key_already_exists",
+            "message": "C𦒊n𱪝\u0015e|"
         },
         {
-            "code": "created_invalid_transaction",
-            "message": "𱨥SP`e{PfE"
+            "code": "shared_wallet_no_delegation_template",
+            "message": "l䇓%\u000b\u0006S'Z󲤑5\u0006𢫠`"
         },
         {
-            "code": "already_withdrawing",
-            "message": "􉅯\"U"
+            "code": "block_header_not_found",
+            "message": "\u000fW`􇜞oqb6BfD[f"
         },
         {
-            "code": "missing_reward_account",
-            "message": "󸺝󰘵V|"
+            "code": "inputs_depleted",
+            "message": "2tqzGW"
         }
     ],
-    "seed": 76464662
+    "seed": -2073486486
 }
