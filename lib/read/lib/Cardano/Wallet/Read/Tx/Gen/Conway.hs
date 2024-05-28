@@ -167,7 +167,7 @@ votingProcedures = VotingProcedures mempty
 witnesses :: Set (KeyHash 'Witness StandardCrypto)
 witnesses = mempty
 
-certs :: StrictSeq (ConwayTxCert (era StandardCrypto))
+certs :: OSet (ConwayTxCert (ConwayEra StandardCrypto))
 certs = mempty
 
 referenceIns :: Set (TxIn StandardCrypto)
