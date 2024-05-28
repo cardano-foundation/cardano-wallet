@@ -3,7 +3,7 @@
 set -euo pipefail
 
 export WALLET_TAG=rc-latest
-export NODE_TAG=8.9.2
+export NODE_TAG=8.11.0-sancho
 export WALLET_PORT=8090
 export NETWORK=sanchonet
 export WALLET_DB=/tmp/cardano-wallet-sanchonet.db
