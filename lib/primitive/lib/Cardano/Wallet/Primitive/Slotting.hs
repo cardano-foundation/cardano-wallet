@@ -557,7 +557,7 @@ mkSingleEraInterpreter start sp = TimeInterpreter
     }
   where
     int = mkInterpreter summary
-    summary = neverForksSummary sz len
+    summary = neverForksSummary sz len $ error "NODE 8.11.0"
     sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ sp ^. #getEpochLength
     len = Cardano.mkSlotLength $ unSlotLength $ sp ^. #getSlotLength
 

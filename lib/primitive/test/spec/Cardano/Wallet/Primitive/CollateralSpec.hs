@@ -575,8 +575,8 @@ isValidAddress (Address addrBytes) =
     isJust (L.decodeAddrLenient addrBytes
         :: Maybe (L.Addr CC.StandardCrypto))
     ||
-    isJust (L.deserialiseRewardAcnt addrBytes
-        :: Maybe (L.RewardAcnt CC.StandardCrypto))
+    isJust (L.deserialiseRewardAccount addrBytes
+        :: Maybe (L.RewardAccount CC.StandardCrypto))
 
 -- To be extra sure, we also test addressSuitableForCollateral with some golden
 -- addresses:
@@ -771,7 +771,7 @@ shelleyEnterprisePaymentAddrGolden = unsafeBech32Decode
 genByronAddr :: Gen (L.Addr CC.StandardCrypto)
 genByronAddr = L.AddrBootstrap <$> arbitrary
 
-genStakeAddr :: Gen (L.RewardAcnt CC.StandardCrypto)
+genStakeAddr :: Gen (L.RewardAccount CC.StandardCrypto)
 genStakeAddr = arbitrary
 
 -- Some helper functions
@@ -779,8 +779,8 @@ genStakeAddr = arbitrary
 asAddress :: L.Addr CC.StandardCrypto -> Address
 asAddress = Address . L.serialiseAddr
 
-asStakeAddress :: L.RewardAcnt crypto -> Address
-asStakeAddress = Address . L.serialiseRewardAcnt
+asStakeAddress :: L.RewardAccount crypto -> Address
+asStakeAddress = Address . L.serialiseRewardAccount
 
 runGetMaybe :: B.Get a -> BL.ByteString -> Maybe a
 runGetMaybe parser x =

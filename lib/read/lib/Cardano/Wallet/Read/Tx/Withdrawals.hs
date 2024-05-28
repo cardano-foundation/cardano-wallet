@@ -25,7 +25,7 @@ module Cardano.Wallet.Read.Tx.Withdrawals
 import Prelude
 
 import Cardano.Ledger.Address
-    ( RewardAcnt
+    ( RewardAccount
     , unWithdrawals
     )
 import Cardano.Ledger.Coin
@@ -73,7 +73,7 @@ type family WithdrawalsType era where
   WithdrawalsType Babbage = RewardWithdrawals
   WithdrawalsType Conway = RewardWithdrawals
 
-type RewardWithdrawals = Map (RewardAcnt StandardCrypto) Coin
+type RewardWithdrawals = Map (RewardAccount StandardCrypto) Coin
 
 newtype Withdrawals era
     = Withdrawals { withdrawalsAsMap :: WithdrawalsType era }
@@ -98,5 +98,5 @@ getEraWithdrawals = case theEra @era of
 shelleyWithdrawals
     :: Ledger.EraTx era
     => Ledger.Tx era
-    -> Map (RewardAcnt (Ledger.EraCrypto era)) Coin
+    -> Map (RewardAccount (Ledger.EraCrypto era)) Coin
 shelleyWithdrawals = unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)
