@@ -43,6 +43,7 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.BaseTypes
     ( EpochInterval (..)
+    , EpochSize (..)
     , Network (Testnet)
     , natVersion
     )
@@ -280,7 +281,7 @@ generateGenesis initialFunds genesisMods = do
                         { sgSystemStart = systemStart
                         , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
                         , sgSecurityParam = 10
-                        , sgEpochLength = 120
+                        , sgEpochLength = EpochSize 120
                         , sgSlotLength = 0.25
                         , sgUpdateQuorum = 1
                         , sgNetworkMagic =
