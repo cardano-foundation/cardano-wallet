@@ -73,9 +73,7 @@ import Test.QuickCheck.Extra
     , shrinkNatural
     )
 
-import qualified Cardano.Api as CardanoApi
 import qualified Cardano.Api.Gen as CardanoApi
-import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
@@ -108,8 +106,8 @@ spec = do
 
         it "matches the size of the Word64 CBOR encoding" $
             property $ checkCoverage $
-                forAll CardanoApi.genEncodingBoundaryLovelace $ \l -> do
-                    let c = cardanoToWalletCoin l
+                forAll CardanoApi.genEncodingBoundaryCoin $ \l -> do
+                    let c = Convert.toWallet l
                     let expected = cborSizeOfCoin c
 
                     -- Use a low coverage requirement of 0.01% just to
@@ -523,9 +521,6 @@ prop_distributeSurplusDelta_coversCostIncreaseAndConservesSurplus
 --------------------------------------------------------------------------------
 -- Utils
 --------------------------------------------------------------------------------
-
-cardanoToWalletCoin :: CardanoApi.Lovelace -> W.Coin
-cardanoToWalletCoin = Convert.toWallet . CardanoApi.toShelleyLovelace
 
 mainnetFeePerByte :: FeePerByte
 mainnetFeePerByte = FeePerByte 44

@@ -47,7 +47,6 @@ import Cardano.Ledger.Api
     , addrTxWitsL
     , bodyTxL
     , bootAddrTxWitsL
-    , getMinFeeTx
     , scriptTxWitsL
     , sizeTxF
     , witsTxL
@@ -61,6 +60,7 @@ import Cardano.Ledger.Tools
     )
 import Cardano.Ledger.UTxO
     ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
+    , getMinFeeTxUtxo
     , txinLookup
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
@@ -402,10 +402,10 @@ estimateSignedTxMinFee
     -> Tx era
     -> KeyWitnessCounts
     -> Coin
-estimateSignedTxMinFee pp _utxoNeededSoon tx (KeyWitnessCounts nWit nBoot) =
+estimateSignedTxMinFee pp utxo tx (KeyWitnessCounts nWit nBoot) =
     -- NOTE: We don't use mock bootstrap witnesses, but rely on the same
     -- size estimation as coin selection does through 'estimateTxSize'
-    getMinFeeTx pp (mockWitnesses nWit pp tx)
+    getMinFeeTxUtxo pp (mockWitnesses nWit pp tx) utxo
         <> bootWitFee
   where
     bootWitFee =
