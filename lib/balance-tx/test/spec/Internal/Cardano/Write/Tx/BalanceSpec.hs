@@ -2044,19 +2044,18 @@ mockCardanoApiPParamsForBalancing = CardanoApi.ProtocolParameters
     , CardanoApi.protocolParamMaxBlockHeaderSize = 1_100
     , CardanoApi.protocolParamMaxBlockBodySize = 100_000
     , CardanoApi.protocolParamStakeAddressDeposit =
-        CardanoApi.Lovelace 2_000_000
+        Coin 2_000_000
     , CardanoApi.protocolParamStakePoolDeposit =
-        CardanoApi.Lovelace 500_000_000
+        Coin 500_000_000
     , CardanoApi.protocolParamMinPoolCost =
-        CardanoApi.Lovelace 32_000_000
+        Coin 32_000_000
     , CardanoApi.protocolParamPoolRetireMaxEpoch = EpochInterval 2
     , CardanoApi.protocolParamStakePoolTargetNum = 100
     , CardanoApi.protocolParamPoolPledgeInfluence = 0
     , CardanoApi.protocolParamMonetaryExpansion = 0
     , CardanoApi.protocolParamTreasuryCut  = 0
     , CardanoApi.protocolParamUTxOCostPerByte =
-        Just $ CardanoApi.fromShelleyLovelace $
-            Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
+        Just $ Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
     , CardanoApi.protocolParamCostModels =
         CardanoApi.fromAlonzoCostModels costModelsForTesting
     , CardanoApi.protocolParamPrices =
@@ -2133,7 +2132,7 @@ signedTxTestData = do
 
 testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
 testParameter_coinsPerUTxOByte_Babbage
-    = Ledger.CoinPerByte $ Ledger.Coin 4_310
+    = Ledger.CoinPerByte $ Coin 4_310
 
 testStdGenSeed :: StdGenSeed
 testStdGenSeed = StdGenSeed 0

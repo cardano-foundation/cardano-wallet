@@ -23,12 +23,12 @@ module Cardano.Api.Gen
     , genCertIx
     , genCostModel
     , genCostModels
-    , genEncodingBoundaryLovelace
+    , genEncodingBoundaryCoin
     , genEpochNo
     , genExecutionUnitPrices
     , genExecutionUnits
     , genExtraKeyWitnesses
-    , genLovelace
+    , genCoin
     , genMIRPot
     , genMIRTarget
     , genNat
@@ -503,23 +503,23 @@ genSlotNo32 = do
   where
     genOffset = choose (0, 10_000)
 
-genLovelace :: Gen Lovelace
-genLovelace =
+genCoin :: Gen Ledger.Coin
+genCoin =
     frequency
-        [ (60, genLovelaceForTxOutAdaValue)
+        [ (60, genCoinForTxOutAdaValue)
         , (40, fromIntegral @Integer <$> choose (1_000_000, 1_000_000_000))
         ]
 
-genLovelaceForTxOutAdaValue :: Gen Lovelace
-genLovelaceForTxOutAdaValue =
+genCoinForTxOutAdaValue :: Gen Ledger.Coin
+genCoinForTxOutAdaValue =
     frequency
         [ (60, fromIntegral @Integer <$> choose (1_000_000, 1_000_000_000))
         , (10, fromIntegral <$> choose (txOutMinLovelace, txOutMaxLovelace))
-        , (30, genEncodingBoundaryLovelace)
+        , (30, genEncodingBoundaryCoin)
         ]
 
-genEncodingBoundaryLovelace :: Gen Lovelace
-genEncodingBoundaryLovelace = do
+genEncodingBoundaryCoin :: Gen Ledger.Coin
+genEncodingBoundaryCoin = do
     -- https://json.nlohmann.me/features/binary_formats/cbor/
     -- Generate a point near a boundary
     -- However, the three first ones are below the minimum utxo value on
@@ -548,7 +548,7 @@ genEncodingBoundaryLovelace = do
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)
 genTxFee era = withEraWitness era $ \supported ->
-    TxFeeExplicit supported <$> genLovelace
+    TxFeeExplicit supported <$> genCoin
 
 genTtl :: Gen SlotNo
 genTtl = genSlotNo
@@ -620,7 +620,7 @@ genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
 genTxTotalCollateral era = withEraWitness era $ \supported ->
     frequency
         [ (95, pure TxTotalCollateralNone)
-        , (5, TxTotalCollateral supported <$> genLovelace)
+        , (5, TxTotalCollateral supported <$> genCoin)
         ]
 
 genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
@@ -765,7 +765,7 @@ genValueForTxOut = do
             , pure []
             ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
-    ada <- fromIntegral <$> genLovelaceForTxOutAdaValue
+    ada <- fromIntegral <$> genCoinForTxOutAdaValue
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
 
 
@@ -783,8 +783,8 @@ genSignedValue = do
     ada <-
         fromIntegral
             <$> oneof
-                [ genLovelace
-                , negate <$> genLovelace
+                [ genCoin
+                , negate <$> genCoin
                 ]
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
 
@@ -955,7 +955,7 @@ genWithdrawalInfo
         )
 genWithdrawalInfo era = do
     stakeAddr <- genStakeAddress
-    amt <- genLovelace
+    amt <- genCoin
     wit <- BuildTxWith <$> genWitnessStake era
     pure (stakeAddr, amt, wit)
 
@@ -1323,12 +1323,12 @@ genRecentEraProtocolParameters =
         <*> genNat
         <*> genNat
         <*> genNat
-        <*> genLovelace
-        <*> genLovelace
-        <*> liftArbitrary genLovelace
-        <*> genLovelace
-        <*> genLovelace
-        <*> genLovelace
+        <*> genCoin
+        <*> genCoin
+        <*> liftArbitrary genCoin
+        <*> genCoin
+        <*> genCoin
+        <*> genCoin
         <*> genInterval
         <*> genNat
         <*> genRationalInt64
@@ -1341,7 +1341,7 @@ genRecentEraProtocolParameters =
         <*> (Just <$> genNat)
         <*> (Just <$> genNat)
         <*> (Just <$> genNat)
-        <*> (Just <$> genLovelace)
+        <*> (Just <$> genCoin)
 
 genInterval :: Gen Ledger.EpochInterval
 genInterval = Ledger.EpochInterval <$> arbitrary
@@ -1528,10 +1528,10 @@ genStakePoolParameters =
     StakePoolParameters
         <$> genPoolId
         <*> genVerificationKeyHash AsVrfKey
-        <*> genLovelace
+        <*> genCoin
         <*> genRational
         <*> genStakeAddress
-        <*> genLovelace
+        <*> genCoin
         <*> scale (`div` 3) (listOf (genVerificationKeyHash AsStakeKey))
         <*> scale (`div` 3) (listOf genStakePoolRelay)
         <*> liftArbitrary genStakePoolMetadataReference
@@ -1540,10 +1540,10 @@ genTxCertificate :: forall era. CardanoEra era -> Gen (Certificate era)
 genTxCertificate era =
     oneof
         [ mkStakeAddressRegistrationCertificate
-            <$> genLovelace
+            <$> genCoin
             <*> genStakeCredential
         , mkStakeAddressUnregistrationCertificate
-            <$> genLovelace
+            <$> genCoin
             <*> genStakeCredential
         , genStakeAddressPoolDelegationCertificate
         , mkPoolRegistrationCertificate <$> genStakePoolParameters
@@ -1671,17 +1671,17 @@ genProtocolParametersUpdate = do
     protocolUpdateMaxTxSize <-
         liftArbitrary genLarge
     protocolUpdateTxFeeFixed <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateTxFeePerByte <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateMinUTxOValue <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateStakeAddressDeposit <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateStakePoolDeposit <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateMinPoolCost <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdatePoolRetireMaxEpoch <-
         liftArbitrary genInterval
     protocolUpdateStakePoolTargetNum <-
@@ -1693,7 +1693,7 @@ genProtocolParametersUpdate = do
     protocolUpdateTreasuryCut <-
         liftArbitrary genRational
     protocolUpdateUTxOCostPerByte <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateCostModels <-
         genCostModels
     protocolUpdatePrices <-
