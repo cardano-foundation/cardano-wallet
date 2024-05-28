@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -116,10 +116,10 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         tools = {
           cabal = { index-state = indexState; };
           cabal-fmt = { index-state = indexState; };
-          # haskell-language-server = {
-          #   index-state = indexState;
-          #   version = "latest";
-          # };
+          haskell-language-server = {
+            index-state = indexState;
+            version = "latest";
+          };
           hoogle = {
             index-state = indexState;
             version = "5.0.18.3";
@@ -151,10 +151,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           haskellPackages.weeder
           haskellPackages.stylish-haskell
 
-          (haskell-nix.tool "ghc964" "haskell-language-server" ({pkgs, ...}: rec {
-            # Use the github source of HLS that is tested with haskell.nix CI
-            src = hls;
-            }))
+
         ]);
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
       };
