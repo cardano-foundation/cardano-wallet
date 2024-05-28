@@ -31,6 +31,6 @@ library
     , iohk-monitoring
     , iohk-monitoring-extra
     , temporary
-    , text                   >= 1.2.4.1 && <2.2
+    , text
     , text-class
     , unliftio

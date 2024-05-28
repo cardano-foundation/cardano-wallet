@@ -69,10 +69,10 @@ library
     , memory
     , mtl
     , openapi3
-    , servant                    >= 0.19.1 && < 0.21
-    , servant-client             >= 0.19   && < 0.21
+    , servant
+    , servant-client
     , servant-openapi3
-    , servant-server             >= 0.19.2 && < 0.21
+    , servant-server
     , stm
     , text
     , wai

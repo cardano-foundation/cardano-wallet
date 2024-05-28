@@ -110,8 +110,8 @@ library
     , ouroboros-network
     , ouroboros-network-api
     , path-pieces
-    , persistent                                         >=2.13    && <2.15
-    , persistent-sqlite                                  >=2.13    && <2.15
+    , persistent
+    , persistent-sqlite
     , profunctors
     , QuickCheck
     , quiet
