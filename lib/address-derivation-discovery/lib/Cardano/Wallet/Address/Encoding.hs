@@ -185,7 +185,7 @@ shelleyDecodeStakeAddress ::
 shelleyDecodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
-    rewardAcnt <- SL.decodeRewardAcnt @StandardCrypto bytes
+    rewardAcnt <- SL.decodeRewardAccount @StandardCrypto bytes
         & left (TextDecodingError . show @String) . reportFailure
     guardNetwork (SL.getRwdNetwork rewardAcnt) serverNetwork
     pure $ fromStakeCredential $ SL.getRwdCred rewardAcnt
