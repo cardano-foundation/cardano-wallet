@@ -17,6 +17,9 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 
 {-# OPTIONS_GHC -Wno-warnings-deprecations #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 -- For 'Shelley.evaluateTransactionFee', see ADP-3334
 -- https://cardanofoundation.atlassian.net/browse/ADP-3334
 
@@ -855,7 +858,8 @@ evaluateMinimumFee pp tx kwc =
     KeyWitnessCounts {nKeyWits, nBootstrapWits} = kwc
 
     mainFee :: Coin
-    mainFee = Shelley.evaluateTransactionFee pp tx nKeyWits
+    mainFee = error "NODE 8.11.0"
+        -- Shelley.evaluateTransactionFee pp tx nKeyWits
     -- TODO [ADP-3334] Stop using deprecated ledger function
     -- https://cardanofoundation.atlassian.net/browse/ADP-3334
 
