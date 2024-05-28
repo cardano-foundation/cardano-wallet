@@ -794,7 +794,7 @@ toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
 
 -- Lovelace to coin. Quantities from ledger should always fit in Word64.
-fromCardanoLovelace :: HasCallStack => Cardano.Lovelace -> W.Coin
+fromCardanoLovelace :: HasCallStack => SL.Coin -> W.Coin
 fromCardanoLovelace =
     Coin.unsafeFromIntegral . unQuantity . Cardano.lovelaceToQuantity
   where
@@ -852,8 +852,8 @@ toCardanoStakeCredential = \case
         . unsafeHashFromBytes
         $ bs
 
-toCardanoLovelace :: W.Coin -> Cardano.Lovelace
-toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ intCast c
+toCardanoLovelace :: W.Coin -> SL.Coin
+toCardanoLovelace (W.Coin c) = fromIntegral c
 
 -- FIXME: This function belongs to the 'Write' modules.
 -- This function only needs to work in recent eras,
