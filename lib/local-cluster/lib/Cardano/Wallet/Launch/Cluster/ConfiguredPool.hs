@@ -24,7 +24,8 @@ import Cardano.Api
     , HasTextEnvelope
     , Key (..)
     , SerialiseAsBech32
-    , SerialiseAsCBOR (..), runExceptT
+    , SerialiseAsCBOR (..)
+    , runExceptT
     )
 import Cardano.Binary
     ( FromCBOR (..)
@@ -326,9 +327,9 @@ readFailVerificationKeyOrFile
     -> ClusterM (VerificationKey keyrole)
 readFailVerificationKeyOrFile role (FileOf op) =
     liftIO
-        $ fmap (either (error . show) id)
-        $ runExceptT
-            ( readVerificationKeyOrFile
+        . fmap (either (error . show) id)
+        . runExceptT
+        $ readVerificationKeyOrFile
                 role
                 (VerificationKeyFilePath $ File $ toFilePath op)
             )
