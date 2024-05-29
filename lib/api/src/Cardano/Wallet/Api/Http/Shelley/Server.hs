@@ -901,6 +901,7 @@ import qualified Cardano.Ledger.Address as Cardano
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
+import qualified Cardano.Ledger.Address as Ledger
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Derivation.Icarus as Icarus
@@ -5112,7 +5113,7 @@ fromApiRedeemer = \case
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
         RedeemerMinting bytes (toLedger p)
     ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
-        RedeemerRewarding bytes (Cardano.RewardAccount x y)
+        RedeemerRewarding bytes (Ledger.RewardAccount x y)
 
 {-------------------------------------------------------------------------------
                                 Api Layer
