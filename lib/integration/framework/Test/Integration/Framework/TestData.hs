@@ -45,7 +45,6 @@ module Test.Integration.Framework.TestData
 
     -- * Error messages
     , errMsg400WalletIdEncoding
-    , errMsg400StartTimeLaterThanEndTime
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403WrongPass
@@ -318,15 +317,6 @@ errMsg409WalletExists walId = "This operation would yield a wallet with the foll
 errMsg400WalletIdEncoding :: String
 errMsg400WalletIdEncoding =
     "wallet id should be a hex-encoded string of 40 characters"
-
-errMsg400StartTimeLaterThanEndTime :: String -> String -> String
-errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
-    [ "The specified start time '"
-    , startTime
-    , "' is later than the specified end time '"
-    , endTime
-    , "'."
-    ]
 
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =

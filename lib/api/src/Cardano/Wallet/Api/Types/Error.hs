@@ -33,6 +33,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchPool (..)
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorUnsupportedEra (..)
     )
     where
@@ -93,6 +94,9 @@ import Data.Set
     )
 import Data.Text
     ( Text
+    )
+import Data.Time.Clock
+    ( UTCTime
     )
 import Data.Typeable
     ( Typeable
@@ -210,6 +214,7 @@ data ApiErrorInfo
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime
+        !ApiErrorStartTimeLaterThanEndTime
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
     | TransactionAlreadyInLedger
@@ -354,4 +359,12 @@ data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchTransaction
+    deriving anyclass NFData
+
+data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
+    { startTime :: UTCTime
+    , endTime :: UTCTime
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorStartTimeLaterThanEndTime
     deriving anyclass NFData

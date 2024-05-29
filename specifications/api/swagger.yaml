@@ -5182,6 +5182,14 @@ x-errStartTimeLaterThanEndTime: &errStartTimeLaterThanEndTime
     code:
       type: string
       enum: ['start_time_later_than_end_time']
+    info:
+      type: object
+      required:
+        - start_time
+        - end_time
+      properties:
+        start_time: *date
+        end_time: *date
 
 # TODO: Map this error to the place it belongs.
 x-errUnableToDetermineCurrentEpoch: &errUnableToDetermineCurrentEpoch

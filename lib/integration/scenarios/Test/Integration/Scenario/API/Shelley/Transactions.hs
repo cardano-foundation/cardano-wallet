@@ -43,6 +43,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
+    , Iso8601Time (..)
     , WalletStyle (..)
     , apiAddress
     , insertedAt
@@ -58,6 +59,7 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -141,6 +143,10 @@ import Data.Time.Clock
     , addUTCTime
     , getCurrentTime
     )
+import Data.Time.Format
+    ( defaultTimeLocale
+    , parseTimeOrError
+    )
 import Data.Time.Utils
     ( utcTimePred
     , utcTimeSucc
@@ -218,8 +224,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
-    , errMsg400TxMetadataStringTooLong
+    ( errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
@@ -2136,23 +2141,25 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_LIST_02 - Start time shouldn't be later than end time"
         $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
-            let startTime = "2009-09-09T09:09:09Z"
-            let endTime = "2001-01-01T01:01:01Z"
+            let startTime' =
+                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
+                    "2009-09-09T09:09:09Z"
+            let endTime' =
+                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
+                    "2001-01-01T01:01:01Z"
             let link =
                     Link.listTransactions' @'Shelley
                         w
                         Nothing
-                        (either (const Nothing) Just $ fromText $ T.pack startTime)
-                        (either (const Nothing) Just $ fromText $ T.pack endTime)
+                        (Just $ Iso8601Time startTime')
+                        (Just $ Iso8601Time endTime')
                         Nothing
                         Nothing
                         Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage
-                (errMsg400StartTimeLaterThanEndTime startTime endTime)
-                r
-            pure ()
+            decodeErrorInfo r `shouldBe` StartTimeLaterThanEndTime
+                (ApiErrorStartTimeLaterThanEndTime startTime' endTime')
 
     it "TRANS_LIST_03 - Minimum withdrawal shouldn't be 0"
         $ \ctx -> runResourceT $ do

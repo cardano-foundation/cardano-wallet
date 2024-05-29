@@ -1,45 +1,60 @@
 {
     "samples": [
         {
-            "code": "key_not_found_for_address",
-            "message": "\u0019TS\u0001C~r󵃈"
-        },
-        {
-            "code": "balance_tx_existing_total_collateral",
-            "message": "e;봛󹂁"
-        },
-        {
-            "code": "wrong_encryption_passphrase",
-            "message": ""
-        },
-        {
-            "code": "insufficient_collateral",
-            "message": "JN"
-        },
-        {
-            "code": "unexpected_error",
-            "message": "uo𪺁j𝑊\u0004l𐔶"
-        },
-        {
-            "code": "mint_or_burn_asset_quantity_out_of_bounds",
-            "message": "e󽯚Eo"
-        },
-        {
-            "code": "shared_wallet_key_already_exists",
-            "message": "C𦒊n𱪝\u0015e|"
+            "code": "transaction_is_too_big",
+            "message": "c𤐶ꭤ$7􇑇[C𒅈"
         },
         {
             "code": "shared_wallet_no_delegation_template",
-            "message": "l䇓%\u000b\u0006S'Z󲤑5\u0006𢫠`"
+            "message": ""
         },
         {
-            "code": "block_header_not_found",
-            "message": "\u000fW`􇜞oqb6BfD[f"
+            "code": "pool_already_joined_same_vote",
+            "message": ""
         },
         {
-            "code": "inputs_depleted",
-            "message": "2tqzGW"
+            "code": "not_enough_money",
+            "info": {
+                "shortfall": {
+                    "ada": {
+                        "quantity": 3766471336365162,
+                        "unit": "lovelace"
+                    },
+                    "assets": [
+                        {
+                            "asset_name": "0000000000010101010100010001010100010101000000010101010001000000",
+                            "policy_id": "00000000010001010100010001000001010001010000010000010101",
+                            "quantity": 0
+                        }
+                    ]
+                }
+            },
+            "message": "rⱁ𝓵?"
+        },
+        {
+            "code": "rejected_by_core_node",
+            "message": ")󼫹\u0014"
+        },
+        {
+            "code": "past_horizon",
+            "message": "㛴k\u0003"
+        },
+        {
+            "code": "balance_tx_existing_total_collateral",
+            "message": "𩩃U􆎩7M6餱~"
+        },
+        {
+            "code": "same_vote",
+            "message": "E􎈵"
+        },
+        {
+            "code": "shared_wallet_incomplete",
+            "message": "\u0006h\u0001N'􈾕槳<KZ7"
+        },
+        {
+            "code": "balance_tx_existing_return_collateral",
+            "message": "󸽱iꕌ8𗞭\u001d𦓶FE\u0000󶡮N􀴋"
         }
     ],
-    "seed": -2073486486
+    "seed": 387949580
 }

@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
@@ -130,12 +131,13 @@ import Data.Generics.Wrapped
 import Data.Maybe
     ( isJust
     )
-import Data.Text.Class
-    ( FromText (..)
-    )
 import Data.Time.Clock
     ( UTCTime
     , addUTCTime
+    )
+import Data.Time.Format
+    ( defaultTimeLocale
+    , parseTimeOrError
     )
 import Data.Time.Utils
     ( utcTimePred
@@ -209,9 +211,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.Request
     ( RequestException
-    )
-import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
     )
 
 import qualified Cardano.Address.Script as CA
@@ -1548,20 +1547,23 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
-            let startTime = "2009-09-09T09:09:09Z"
-            let endTime = "2001-01-01T01:01:01Z"
+            let startTime =
+                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
+                    "2009-09-09T09:09:09Z"
+            let endTime =
+                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
+                    "2001-01-01T01:01:01Z"
             let link = Link.listTransactions' @'Shared w
                     Nothing
-                    (either (const Nothing) Just $ fromText $ T.pack startTime)
-                    (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    (Just $ Iso8601Time startTime)
+                    (Just $ Iso8601Time endTime)
                     Nothing
                     Nothing
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage
-                (errMsg400StartTimeLaterThanEndTime startTime endTime) r
-            pure ()
+            decodeErrorInfo r `shouldBe` StartTimeLaterThanEndTime
+                (ApiErrorStartTimeLaterThanEndTime startTime endTime)
 
     it "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal shouldn't be 0" $
