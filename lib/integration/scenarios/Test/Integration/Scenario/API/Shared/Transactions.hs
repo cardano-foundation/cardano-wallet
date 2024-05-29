@@ -63,9 +63,9 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
-    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
