@@ -327,12 +327,11 @@ readFailVerificationKeyOrFile
     -> ClusterM (VerificationKey keyrole)
 readFailVerificationKeyOrFile role (FileOf op) =
     liftIO
-        $ fmap (either (error . show) id)
-        $ runExceptT
-            ( readVerificationKeyOrFile
+        . fmap (either (error . show) id)
+        . runExceptT
+        $ readVerificationKeyOrFile
                 role
                 (VerificationKeyFilePath $ File $ toFilePath op)
-            )
 
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
