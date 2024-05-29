@@ -86,6 +86,7 @@ import Cardano.Wallet.Launch.Cluster.Env
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf (..)
+    , absolutize
     , mkRelDirOf
     , toFilePath
     )
@@ -176,7 +177,8 @@ import System.Directory
     ( createDirectory
     )
 import System.Environment
-    ( setEnv
+    ( lookupEnv
+    , setEnv
     )
 import System.Environment.Extended
     ( envFromText
@@ -193,8 +195,8 @@ import System.IO.Temp.Extra
     , withSystemTempDir
     )
 import System.Path
-    ( absDir
-    , absFile
+    ( absFile
+    , absRel
     , relDir
     , relFile
     , (</>)
@@ -241,7 +243,9 @@ import qualified Data.Text as T
 
 -- | Do all the program setup required for integration tests, create a temporary
 -- directory, and pass this info to the main hspec action.
-withTestsSetup :: (DirOf "cluster" -> (Tracer IO TestsLog, Tracers IO) -> IO a) -> IO a
+withTestsSetup
+    :: (DirOf "cluster" -> (Tracer IO TestsLog, Tracers IO) -> IO a)
+    -> IO a
 withTestsSetup action = do
     -- Handle SIGTERM properly
     installSignalHandlersNoLogging
@@ -255,13 +259,18 @@ withTestsSetup action = do
     -- Flush test output as soon as a line is printed.
     -- Set UTF-8, regardless of user locale.
     withUtf8
-        $
-        -- This temporary directory will contain logs, and all other data
-        -- produced by the integration tests.
-        withSystemTempDir stdoutTextTracer "test" skipCleanup
-        $ \testDir -> do
-            let clusterDir = DirOf $ absDir testDir
-            withTracers clusterDir $ action clusterDir
+        $ do
+            mEnv <- lookupEnv "INTEGRATION_TEST_DIR"
+            -- This temporary directory will contain logs, and all other data
+            -- produced by the integration tests.
+            let run fp = do
+                    fpa <- absolutize $ absRel fp
+                    let testDir = DirOf fpa
+                    withTracers testDir $ action testDir
+            case mEnv of
+                    Just env -> run env
+                    Nothing -> withSystemTempDir
+                        stdoutTextTracer "test" skipCleanup run
 
 mkFaucetFunds :: TestnetMagic -> FaucetM FaucetFunds
 mkFaucetFunds testnetMagic = do

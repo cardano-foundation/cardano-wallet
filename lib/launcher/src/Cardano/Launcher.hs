@@ -407,7 +407,7 @@ instance HasPrivacyAnnotation WaitForProcessLog
 instance HasSeverityAnnotation WaitForProcessLog where
     getSeverityAnnotation = \case
         MsgWaitBefore -> Debug
-        MsgWaitAfter _ -> Debug
+        MsgWaitAfter _ -> Warning
         MsgWaitCancelled -> Debug
 
 instance ToText ProcessHasExited where
