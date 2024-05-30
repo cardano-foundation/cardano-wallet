@@ -7,6 +7,7 @@ module Cardano.Wallet.Launch.Cluster.Process
     ( withLocalCluster
     , withFile
     , EnvVars (..)
+    , WalletPresence (..)
     , defaultEnvVars
 
       -- * Re-exports
@@ -33,6 +34,9 @@ import Cardano.Launcher
 import Cardano.Wallet.Launch.Cluster
     ( FaucetFunds
     , FileOf (..)
+    )
+import Cardano.Wallet.Launch.Cluster.CommandLine
+    ( WalletPresence (..)
     )
 import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     ( saveFunds
@@ -157,17 +161,19 @@ withFile path mode action = do
 withLocalCluster
     :: FilePath
     -- ^ name of the cluster
+    -> WalletPresence
+    -- ^ whether to start the wallet
     -> EnvVars
     -- ^ environment variables that have to be used
     -> FaucetFunds
     -- ^ initial faucet funds
     -> ContT () IO ((RunMonitorQ IO, RunFaucetQ IO), ToTextTracer)
-withLocalCluster name envs faucetFundsValue = do
+withLocalCluster name walletOption envs faucetFundsValue = do
     port <- liftIO getRandomPort
     faucetFundsPath <- ContT withTempFile
     liftIO $ saveFunds (FileOf $ absFile faucetFundsPath) faucetFundsValue
     (logsPathName, command) <-
-        localClusterCommand name envs port faucetFundsPath
+        localClusterCommand name walletOption envs port faucetFundsPath
     ToTextTracer processLogs <- case logsPathName of
         Nothing -> pure $ ToTextTracer nullTracer
         Just path ->
@@ -191,6 +197,8 @@ withLocalCluster name envs faucetFundsValue = do
 localClusterCommand
     :: FilePath
     -- ^ filename to append to the logs dir
+    -> WalletPresence
+    -- ^ whether to start the wallet
     -> EnvVars
     -- ^ environment variables that have to be used
     -> PortNumber
@@ -198,7 +206,7 @@ localClusterCommand
     -> FilePath
     -- ^ faucet funds path
     -> ContT r IO (Maybe FilePath, Command)
-localClusterCommand name envs port faucetFundsPath = do
+localClusterCommand name walletOptions envs port faucetFundsPath = do
     configsPath <- liftIO $ getClusterConfigsPathFromEnv envs
     mLogsPath <- liftIO $ getClusterLogsFilePathFromEnv envs
     mMinSeverity <- liftIO $ getClusterLogsMinSeverity envs
@@ -234,6 +242,16 @@ localClusterCommand name envs port faucetFundsPath = do
                             [ "--min-severity"
                             , show minSeverity
                             ]
+                    <> case walletOptions of
+                        NoWallet -> []
+                        WalletPresence mPortNumber ->
+                            ["--wallet-present"]
+                                <> case mPortNumber of
+                                    Nothing -> []
+                                    Just portNumber ->
+                                        [ "--wallet-port"
+                                        , show portNumber
+                                        ]
             , cmdSetup = pure ()
             , cmdInput = NoStream
             , cmdOutput = clusterStdout

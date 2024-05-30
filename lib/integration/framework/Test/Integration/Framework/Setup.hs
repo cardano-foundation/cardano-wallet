@@ -76,6 +76,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
 import Cardano.Wallet.Launch.Cluster.Process
     ( RunFaucetQ
     , RunMonitorQ
+    , WalletPresence (..)
     , defaultEnvVars
     , waitForRunningNode
     , withLocalCluster
@@ -346,7 +347,8 @@ withServer
     dbDecorator = do
         _ <- ContT $ \k -> bracketTracer' tr "withServer" $ k ()
         ((runMonitorQ, runFaucetQ), ToTextTracer clog) <-
-            withLocalCluster "main-integration-tests" defaultEnvVars faucetFunds
+            withLocalCluster "main-integration-tests" NoWallet
+                defaultEnvVars faucetFunds
         smashUrl <- ContT $ withSMASH clog (toFilePath . absDirOf $ testDir)
         (np, uri) <-
             onClusterStart

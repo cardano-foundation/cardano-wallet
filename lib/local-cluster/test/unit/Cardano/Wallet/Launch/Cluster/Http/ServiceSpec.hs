@@ -60,7 +60,8 @@ import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     , Phase (..)
     )
 import Cardano.Wallet.Launch.Cluster.Process
-    ( defaultEnvVars
+    ( WalletPresence (..)
+    , defaultEnvVars
     , withLocalCluster
     )
 import Cardano.Wallet.Network
@@ -289,6 +290,7 @@ spec = do
             ((RunMonitorQ query, _), _) <-
                 withLocalCluster
                     "can-start-and-stop"
+                    NoWallet
                     defaultEnvVars
                     noFunds
             liftIO $ do
@@ -298,6 +300,7 @@ spec = do
             ((RunMonitorQ query, _), _) <-
                 withLocalCluster
                     "can-wait-for-cluster-ready-before-ending"
+                    NoWallet
                     defaultEnvVars
                     noFunds
             liftIO $ do
@@ -309,6 +312,7 @@ spec = do
             ((query, _), ToTextTracer tr) <-
                 withLocalCluster
                     "withNetwork-can-start-and-stop"
+                    NoWallet
                     defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
@@ -319,6 +323,7 @@ spec = do
             ((query, _), ToTextTracer tr) <-
                 withLocalCluster
                     "withNetwork-can-get-collect-the-incoming-blocks"
+                    NoWallet
                     defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
@@ -333,6 +338,7 @@ spec = do
             ((query, _), ToTextTracer tr) <-
                 withLocalCluster
                     "withNetwork-can-get-collect-the-incoming-blocks"
+                    NoWallet
                     defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
@@ -352,6 +358,7 @@ spec = do
             ((query, RunFaucetQ faucet), ToTextTracer tr) <-
                 withLocalCluster
                     "send-faucet-assets-can-send-assets-to-a-node"
+                    NoWallet
                     defaultEnvVars
                     noFunds
             node <- liftIO $ waitForNode query
