@@ -332,7 +332,6 @@ readFailVerificationKeyOrFile role (FileOf op) =
         $ readVerificationKeyOrFile
                 role
                 (VerificationKeyFilePath $ File $ toFilePath op)
-            )
 
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
