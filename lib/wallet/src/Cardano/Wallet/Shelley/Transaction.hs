@@ -262,6 +262,7 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
@@ -298,7 +299,6 @@ import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
     , sizeOf_VKeyWitnesses
     , sizeOf_Withdrawals
     )
-import qualified Cardano.Ledger.Coin as Ledger
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.

@@ -482,7 +482,7 @@ configurePool metadataServer recipe = do
                         , ppCost = Ledger.Coin 0
                         , ppMargin = unsafeUnitInterval 0.1
                         , ppRewardAccount =
-                            Ledger.RewardAcnt Testnet
+                            Ledger.RewardAccount Testnet
                                 $ Ledger.KeyHashObj stakePubHash
                         , ppOwners = Set.fromList [stakePubHash]
                         , ppRelays = mempty
