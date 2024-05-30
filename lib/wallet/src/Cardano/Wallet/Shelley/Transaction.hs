@@ -298,6 +298,7 @@ import qualified Internal.Cardano.Write.Tx.SizeEstimation as Write
     , sizeOf_VKeyWitnesses
     , sizeOf_Withdrawals
     )
+import qualified Cardano.Ledger.Coin as Ledger
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -798,9 +799,9 @@ mkUnsignedTx
     => (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -> [(Cardano.StakeAddress, Ledger.Coin)]
     -> [Cardano.Certificate (CardanoApiEra era)]
-    -> Cardano.Lovelace
+    -> Ledger.Coin
     -> TokenMap
     -> TokenMap
     -> Map AssetId ScriptSource
@@ -1091,7 +1092,7 @@ removeDummyInput = \case
 mkWithdrawals
     :: NetworkId
     -> Withdrawal
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -> [(Cardano.StakeAddress, Ledger.Coin)]
 mkWithdrawals networkId wdrl = case wdrl of
     NoWithdrawal -> []
     WithdrawalExternal acc _ amt _ ->
