@@ -169,9 +169,6 @@ import Cardano.BM.Tracing
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
     )
-import Cardano.Ledger.Address
-    ( RewardAcnt (..)
-    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -900,6 +897,7 @@ import UnliftIO.Exception
     , tryJust
     )
 
+import qualified Cardano.Ledger.Address as Cardano
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
@@ -5114,7 +5112,7 @@ fromApiRedeemer = \case
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
         RedeemerMinting bytes (toLedger p)
     ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
-        RedeemerRewarding bytes (RewardAcnt x y)
+        RedeemerRewarding bytes (Cardano.RewardAccount x y)
 
 {-------------------------------------------------------------------------------
                                 Api Layer
