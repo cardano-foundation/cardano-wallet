@@ -122,7 +122,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           };
           hoogle = {
             index-state = indexState;
-            version = "5.0.18.3";
+            version = "latest";
           };
         };
         nativeBuildInputs = (with buildProject.hsPkgs; [
