@@ -21,6 +21,7 @@ import Cardano.Wallet.Launch.Cluster
     )
 import Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
+    , WalletPresence (..)
     , parseCommandLineOptions
     )
 import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
@@ -51,6 +52,9 @@ import Control.Exception
     )
 import Control.Lens
     ( over
+    )
+import Control.Monad
+    ( void
     )
 import Control.Monad.Cont
     ( ContT (..)
@@ -239,6 +243,7 @@ main = withUtf8 $ do
         , httpService
         , minSeverity
         , faucetFunds = faucetFundsPath
+        , walletPresent
         } <-
         parseCommandLineOptions
     hSetBuffering stdout NoBuffering
@@ -323,26 +328,36 @@ main = withUtf8 $ do
                 Left e -> error e
                 Right p -> pure p
 
-        debug "Starting the wallet"
-        (_walletInstance, _walletApi) <- do
-            let clusterDirPath = absDirOf clusterPath
-                walletDir = clusterDirPath </> relDir "wallet"
-            liftIO $ createDirectoryIfMissing True $ toFilePath walletDir
-            let walletProcessConfig =
-                    WC.WalletProcessConfig
-                        { WC.walletDir = DirOf walletDir
-                        , WC.walletNodeApi = NC.NodeApi nodeSocket
-                        , WC.walletDatabase = DirOf $ clusterDirPath </> relDir "db"
-                        , WC.walletListenHost = Nothing
-                        , WC.walletListenPort = Nothing
-                        , WC.walletByronGenesisForTestnet =
-                            Just
-                                $ FileOf
-                                $ clusterDirPath
-                                    </> relFile "byron-genesis.json"
-                        }
-            ContT $ bracket (WC.start walletProcessConfig) (WC.stop . fst)
-
+        case walletPresent of
+            NoWallet -> do
+                debug "No wallet requested"
+            WalletPresence walletPort -> do
+                debug "Starting the wallet"
+                void $ do
+                    let clusterDirPath = absDirOf clusterPath
+                        walletDir = clusterDirPath </> relDir "wallet"
+                    liftIO
+                        $ createDirectoryIfMissing True
+                        $ toFilePath walletDir
+                    let walletProcessConfig =
+                            WC.WalletProcessConfig
+                                { WC.walletDir = DirOf walletDir
+                                , WC.walletNodeApi = NC.NodeApi nodeSocket
+                                , WC.walletDatabase =
+                                    DirOf $ clusterDirPath </> relDir "db"
+                                , WC.walletListenHost = Nothing
+                                , WC.walletListenPort =
+                                        fromIntegral <$> walletPort
+                                , WC.walletByronGenesisForTestnet =
+                                    Just
+                                        $ FileOf
+                                        $ clusterDirPath
+                                            </> relFile "byron-genesis.json"
+                                }
+                    ContT
+                        $ bracket
+                            (WC.start walletProcessConfig)
+                            (WC.stop . fst)
         debug "Tracing the ready phase"
         liftIO
             $ traceWith phaseTracer
