@@ -69,6 +69,7 @@ configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) faucetFunds = do
             $ fromMaybe (FaucetFunds [] [] []) faucetFunds
         handle <- liftIO $ openFile (toFilePath clusterLog) AppendMode
         putStrLn $ "Writing cluster logs to " <> toFilePath clusterLog
+        let randomPort = 64890
         let start = startProcess
                         $ setStderr (useHandleClose handle)
                         $ setStdout (useHandleClose handle)
@@ -80,11 +81,15 @@ configuredNetwork (DirOf stateDir) (DirOf clusterConfigsDir) faucetFunds = do
                             , socketPath
                             , "--faucet-funds"
                             , faucetFundsPath
+                            , "--wallet-present"
+                            , "--wallet-port"
+                            , show randomPort
                             ]
         void $ allocate start stopProcess
         pure
             WalletApi
-                { walletInstanceApiUrl = "http://localhost:8090/v2"
+                { walletInstanceApiUrl =
+                    "http://localhost:" <> show randomPort <> "/v2"
                 , walletInstanceApiHost = "localhost"
-                , walletInstanceApiPort = 8090
+                , walletInstanceApiPort = randomPort
                 }
