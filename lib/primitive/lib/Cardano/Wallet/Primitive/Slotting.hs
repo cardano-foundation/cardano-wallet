@@ -176,6 +176,9 @@ import GHC.Stack
     , getCallStack
     , prettySrcLoc
     )
+import Ouroboros.Consensus.Block
+    ( GenesisWindow (..)
+    )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
     , SystemStart (SystemStart)
@@ -557,7 +560,8 @@ mkSingleEraInterpreter start sp = TimeInterpreter
     }
   where
     int = mkInterpreter summary
-    summary = neverForksSummary sz len $ error "NODE 8.11.0"
+    summary = neverForksSummary sz len win
+    win = GenesisWindow 0
     sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ sp ^. #getEpochLength
     len = Cardano.mkSlotLength $ unSlotLength $ sp ^. #getSlotLength
 
