@@ -201,7 +201,7 @@ constraints:
   -- does not work with optparse-applicative >= 0.18.1.0
   , bech32 == 1.1.3
 
-    -- Cardano Node dependencies:
+  -- Cardano Node dependencies:
   , any.io-classes ==1.4.1.0
   , io-classes -asserts
   , any.io-classes-mtl ==0.1.1.0

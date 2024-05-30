@@ -71,6 +71,7 @@ newToTextTracer
 newToTextTracer clusterLogsFile minSeverity = runContT $ do
     ch <- newTChanIO
     h <- ContT $ withFile clusterLogsFile WriteMode
+    hSetBuffering h NoBuffering
     liftIO $ hSetBuffering h NoBuffering
     liftIO $ async >=> link $ forever $ do
         (x, s, t) <- atomically $ readTChan ch

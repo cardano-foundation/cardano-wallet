@@ -17,6 +17,7 @@ import Cardano.Startup
     )
 import Cardano.Wallet.Launch.Cluster
     ( Config (..)
+    , runningNodeSocketPath
     )
 import Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
@@ -32,7 +33,8 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.Http.Faucet.Server
-    ( newNodeConnVar
+    ( NodeConnVar (setNodeConn)
+    , newNodeConnVar
     )
 import Cardano.Wallet.Launch.Cluster.Http.Service
     ( withServiceServer
@@ -283,15 +285,16 @@ main = withUtf8 $ do
                     }
 
         debug "Starting the monitoring server"
-        (_, phaseTracer) <- withSNetworkId (NTestnet 42)
+        (nodeConn, phaseTracer) <- withSNetworkId (NTestnet 42)
             $ \network -> do
                 nodeConn <- liftIO newNodeConnVar
-                withServiceServer
+                (_ , phaseTracer) <- withServiceServer
                     network
                     nodeConn
                     clusterCfg
                     tracer
                     httpService
+                pure (nodeConn, phaseTracer)
 
         debug "Starting the faucet"
 
@@ -301,6 +304,7 @@ main = withUtf8 $ do
         debug "Starting the cluster"
         node <- ContT $ Cluster.withCluster clusterCfg faucetFunds
 
+        liftIO $ setNodeConn nodeConn $ runningNodeSocketPath node
         debug "Starting the relay node"
         nodeSocket <-
             case parse . nodeSocketFile

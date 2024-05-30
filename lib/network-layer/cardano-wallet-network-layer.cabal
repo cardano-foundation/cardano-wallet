@@ -14,11 +14,11 @@ maintainer:      hal@cardanofoundation.org
 category:        Network
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
+
 -- extra-source-files:
 
 common language
-  default-language:
-    Haskell2010
+  default-language:   Haskell2010
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
@@ -46,8 +46,8 @@ library
     Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Implementation
     Cardano.Wallet.Network.Implementation.Ouroboros
-    Cardano.Wallet.Network.Implementation.UnliftIO
     Cardano.Wallet.Network.Implementation.Types
+    Cardano.Wallet.Network.Implementation.UnliftIO
     Cardano.Wallet.Network.Light
     Cardano.Wallet.Network.LocalStateQuery
     Cardano.Wallet.Network.LocalStateQuery.Extra
@@ -57,6 +57,10 @@ library
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation
     Cardano.Wallet.Network.RestorationMode
+    Cardano.Wallet.Network.Rollback.ChainPoints
+    Cardano.Wallet.Network.Rollback.One
+    Cardano.Wallet.Network.Streaming
+
 
   -- other-modules:
   -- other-extensions:
@@ -65,9 +69,13 @@ library
     , bytestring
     , cardano-api
     , cardano-balance-tx:internal
+    , cardano-binary
     , cardano-crypto-class
+    , cardano-ledger-alonzo
+    , cardano-ledger-babbage
     , cardano-ledger-byron
     , cardano-ledger-core
+    , cardano-ledger-mary
     , cardano-ledger-shelley
     , cardano-slotting
     , cardano-wallet-launcher
@@ -92,8 +100,10 @@ library
     , ouroboros-network-api
     , ouroboros-network-framework
     , ouroboros-network-protocols
+    , parallel
     , retry
     , safe
+    , streaming
     , strict-stm
     , text
     , text-class
@@ -104,23 +114,21 @@ library
     , unliftio-core
 
 test-suite unit
-  import:          language, opts-exe
-  type:            exitcode-stdio-1.0
-  hs-source-dirs:  test
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
   build-depends:
-      base
+    , base
     , bytestring
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , contra-tracer
+    , hspec
     , io-classes
+    , QuickCheck
     , text
     , transformers
-    , hspec
-    , QuickCheck
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  main-is:
-      Main.hs
-  other-modules:
-      Cardano.Wallet.Network.LightSpec
+
+  build-tool-depends: hspec-discover:hspec-discover
+  main-is:            Main.hs
+  other-modules:      Cardano.Wallet.Network.LightSpec
