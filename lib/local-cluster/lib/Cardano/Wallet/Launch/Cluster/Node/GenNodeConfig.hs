@@ -44,7 +44,8 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles (..)
+    ( GenesisFiles
+    , GenesisRecord (..)
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( LogFileConfig (..)
@@ -107,13 +108,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
     Config{..} <- ask
     DirOf poolDir <- askNodeDir nodeSegment
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
-    let GenesisFiles
-            { byronGenesis
-            , shelleyGenesis
-            , alonzoGenesis
-            , conwayGenesis
-            } = genesisFiles
-
+    let GenesisRecord byronFile shelleyFile alonzoFile conwayFile = genesisFiles
     let fileScribe (path, sev) =
             ScribeDefinition
                 { scName = path
@@ -130,8 +125,9 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                 $ catMaybes
                     [ Just ("cardano-node.log", severity)
                     , case mExtraLogFile of
-                        Just (FileOf file) -> Just
-                            (T.pack $ toFilePath file, extraSev)
+                        Just (FileOf file) ->
+                            Just
+                                (T.pack $ toFilePath file, extraSev)
                         Nothing -> Nothing
                     ]
 
@@ -142,10 +138,10 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
             </> relFile "node-config.json"
     liftIO
         $ Yaml.decodeFileThrow (toFilePath nodeConfigPath)
-            >>= withAddedKey "ShelleyGenesisFile" (absFilePathOf shelleyGenesis)
-            >>= withAddedKey "ByronGenesisFile" (absFilePathOf byronGenesis)
-            >>= withAddedKey "AlonzoGenesisFile" (absFilePathOf alonzoGenesis)
-            >>= withAddedKey "ConwayGenesisFile" (absFilePathOf conwayGenesis)
+            >>= withAddedKey "ShelleyGenesisFile" (absFilePathOf shelleyFile)
+            >>= withAddedKey "ByronGenesisFile" (absFilePathOf byronFile)
+            >>= withAddedKey "AlonzoGenesisFile" (absFilePathOf alonzoFile)
+            >>= withAddedKey "ConwayGenesisFile" (absFilePathOf conwayFile)
             >>= withHardForks clusterEra
             >>= withAddedKey "minSeverity" Debug
             >>= withScribes scribes
@@ -153,7 +149,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
             >>= Yaml.encodeFile (toFilePath poolNodeConfig)
 
     -- Parameters
-    genesisData <- Yaml.decodeFileThrow $ absFilePathOf shelleyGenesis
+    genesisData <- Yaml.decodeFileThrow $ absFilePathOf shelleyFile
     let networkMagic = NetworkMagic $ sgNetworkMagic genesisData
     pure
         ( FileOf @"node-config" poolNodeConfig

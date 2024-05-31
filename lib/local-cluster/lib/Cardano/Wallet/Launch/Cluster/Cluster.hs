@@ -50,7 +50,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , changeFileOf
     )
 import Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles (..)
+    ( GenesisFiles
     , generateGenesis
     )
 import Cardano.Wallet.Launch.Cluster.KeyRegistration

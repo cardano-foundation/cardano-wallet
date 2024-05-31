@@ -130,6 +130,7 @@ library
     , filepath
     , foldl
     , generic-lens
+    , hkd
     , http-client
     , http-media
     , insert-ordered-containers
@@ -138,6 +139,7 @@ library
     , iohk-monitoring
     , iohk-monitoring-extra
     , lens
+    , lens-aeson
     , machines
     , memory
     , mtl
