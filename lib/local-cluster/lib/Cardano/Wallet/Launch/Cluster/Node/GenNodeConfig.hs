@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -163,6 +164,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                 & key "setupScribes" .~ toJSON scribes
                 & key "defaultScribes" .~ toJSON (scribeToJSON <$> scribes)
                 & addMinSeverityStdout severity
+                & controlExperimental clusterEra
 
         poolNodeConfig =
             poolDir </> relFile ("node" <> untag name <> "-config") <.> "yaml"
@@ -184,6 +186,16 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
             , query = False
             }
         )
+
+controlExperimental :: ClusterEra -> ChangeValue
+controlExperimental = \case
+    BabbageHardFork -> setExperimental False
+    ConwayHardFork -> setExperimental True
+
+setExperimental :: Bool -> ChangeValue
+setExperimental enabled value = value
+    & atKey "ExperimentalProtocolsEnabled" ?~ Bool enabled
+    & atKey "ExperimentalHardForksEnabled" ?~ Bool enabled
 
 setHardForksForLatestEras :: ClusterEra -> ChangeValue
 setHardForksForLatestEras clusterEra =
