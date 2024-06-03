@@ -49,16 +49,16 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , changeFileOf
     )
-import Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles
-    , generateGenesis
-    )
 import Cardano.Wallet.Launch.Cluster.KeyRegistration
     ( prepareStakeKeyRegistration
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
     , LogFileConfig (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
+    ( GenesisFiles
+    , generateGenesis
     )
 import Cardano.Wallet.Launch.Cluster.Node.NodeParams
     ( NodeParams (..)

@@ -43,7 +43,7 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , absFilePathOf
     , toFilePath
     )
-import Cardano.Wallet.Launch.Cluster.GenesisFiles
+import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
     , GenesisRecord (..)
     )

@@ -9,7 +9,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Launch.Cluster.GenesisFiles
+module Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     ( GenesisFiles
     , GenesisRecord (..)
     , GenesisTemplateMods
