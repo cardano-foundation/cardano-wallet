@@ -46,8 +46,10 @@ import qualified System.Path.PartClass as C
 
 -- | An absolute path with a type-level tag
 newtype FileOf (s :: Symbol) = FileOf {absFileOf :: AbsFile}
-    deriving stock (Show)
     deriving newtype (Eq, Ord)
+
+instance Show (FileOf s) where
+    show (FileOf x) = toFilePath x
 
 -- | Shortcut to get string filepath from a FileOf
 absFilePathOf :: FileOf a -> FilePath
@@ -55,8 +57,10 @@ absFilePathOf (FileOf fp) = toFilePath fp
 
 -- | An absolute directory with a type-level tag
 newtype DirOf (s :: Symbol) = DirOf {absDirOf :: AbsDir}
-    deriving stock (Show)
     deriving newtype (Eq, Ord)
+
+instance Show (DirOf s) where
+    show (DirOf x) = toFilePath x
 
 -- | A relative directory with a type-level tag
 newtype RelDirOf (s :: Symbol) = RelDirOf {relDirOf :: RelDir}
