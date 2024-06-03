@@ -114,8 +114,6 @@ integration-tests match:
   CARDANO_WALLET_TEST_DATA=lib/integration/test/data \
   TESTS_RETRY_FAILED=1 \
   nix shell \
-    '.#cardano-node' \
-    '.#cardano-cli' \
     '.#cardano-wallet' \
     '.#integration-exe' \
     -c integration-exe -j 2 --match="{{match}}"
@@ -123,12 +121,20 @@ integration-tests match:
 # run babbage integration tests matching the given pattern via nix
 babbage-integration-tests-match match:
   LOCAL_CLUSTER_ERA=babbage \
-  just integration-tests "{{match}}"
+  nix shell \
+    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-cli' \
+    --accept-flake-config \
+    -c just integration-tests "{{match}}"
 
 # run conway integration tests matching the given pattern via nix
 conway-integration-tests-match match:
   LOCAL_CLUSTER_ERA=conway \
-  just integration-tests "{{match}}"
+  nix shell \
+    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-cli' \
+    --accept-flake-config \
+    -c just integration-tests "{{match}}"
 
 # run babbage integration tests via nix
 babbage-integration-tests:
