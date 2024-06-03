@@ -18,7 +18,6 @@ import Cardano.BM.Tracing
 import Control.Monad
     ( forever
     , unless
-    , (>=>)
     )
 import Control.Monad.STM
     ( retry
@@ -38,14 +37,12 @@ import Data.Time.Format.ISO8601
 import UnliftIO
     ( BufferMode (NoBuffering)
     , IOMode (WriteMode)
-    , MonadIO (liftIO)
-    , async
     , atomically
     , hSetBuffering
     , isEmptyTChan
-    , link
     , newTChanIO
     , readTChan
+    , withAsync
     , withFile
     , writeTChan
     )
@@ -72,8 +69,7 @@ newToTextTracer clusterLogsFile minSeverity = runContT $ do
     ch <- newTChanIO
     h <- ContT $ withFile clusterLogsFile WriteMode
     hSetBuffering h NoBuffering
-    liftIO $ hSetBuffering h NoBuffering
-    liftIO $ async >=> link $ forever $ do
+    _printer <- ContT $ withAsync $ forever $ do
         (x, s, t) <- atomically $ readTChan ch
         T.hPutStrLn h
             $ T.pack (iso8601Show t)
