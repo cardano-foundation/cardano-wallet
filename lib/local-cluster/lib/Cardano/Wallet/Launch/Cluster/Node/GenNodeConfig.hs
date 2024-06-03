@@ -43,12 +43,12 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     , absFilePathOf
     , toFilePath
     )
-import Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles
-    , GenesisRecord (..)
-    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( LogFileConfig (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
+    ( GenesisFiles
+    , GenesisRecord (..)
     )
 import Control.Monad
     ( (>=>)
