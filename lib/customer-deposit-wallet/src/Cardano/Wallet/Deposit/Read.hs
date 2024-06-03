@@ -72,7 +72,10 @@ data Network = Testnet | Mainnet
 -- Spec: type Slot = Natural
 type Slot = W.SlotNo
 
-data ChainPoint = Origin | At Slot
+data ChainPoint
+    = Origin
+    | At Slot
+    deriving (Eq, Ord, Show)
 
 -- newtype Addr = Addr { getAddressBytes :: ByteString }
 --    deriving (Eq, Show)

@@ -147,6 +147,7 @@ hls: CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           haskellPackages.hlint
           haskellPackages.hp2pretty
           haskellPackages.lentil
+          haskellPackages.markdown-unlit
           haskellPackages.pretty-simple
           haskellPackages.weeder
           haskellPackages.stylish-haskell

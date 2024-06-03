@@ -26,6 +26,7 @@ import GHC.Generics
     )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Write as Write
 
 {-----------------------------------------------------------------------------
     Type
@@ -39,7 +40,7 @@ data NetworkEnv m block = NetworkEnv
         -- ^ Run the chain-sync mini-protocol (forever).
 
     , postTx
-        :: Read.Tx -> m (Either ErrPostTx ())
+        :: Write.Tx -> m (Either ErrPostTx ())
         -- ^ Post a transaction to the Cardano network.
 
     }

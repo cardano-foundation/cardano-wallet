@@ -14,6 +14,7 @@ category:           Web
 
 extra-source-files:
   spec/**/*.lagda.md
+  spec/**/*.lhs.md
   spec/**/*.openapi.yaml
 
 common language
@@ -57,6 +58,7 @@ library
     , contra-tracer
     , delta-store
     , delta-types
+    , io-classes
     , iohk-monitoring-extra              ^>=0.1
     , persistent                         >= 2.13 && < 2.15
     , sqlite-simple                      >= 0.4.19.0 && < 0.5
@@ -66,6 +68,7 @@ library
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
+    Cardano.Wallet.Deposit.IO.Network.Mock
     Cardano.Wallet.Deposit.IO.Network.Type
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.Balance
@@ -93,6 +96,29 @@ test-suite unit
   other-modules:
     Cardano.Wallet.Deposit.PureSpec
     Spec
+
+test-suite scenario
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/scenario
+  main-is:            test-suite-scenario.hs
+  build-tool-depends:
+    markdown-unlit:markdown-unlit
+  ghc-options:
+    -pgmL markdown-unlit 
+  build-depends:
+    , base
+    , cardano-crypto
+    , cardano-wallet-test-utils
+    , containers
+    , contra-tracer
+    , customer-deposit-wallet
+    , delta-store
+    , hspec >=2.8.2
+  other-modules:
+    Test.Scenario.Blockchain
+    Test.Scenario.Wallet.Deposit.Exchanges
+    Test.Scenario.Wallet.Deposit.Run
 
 library customer-deposit-wallet-http
   import:          language, opts-lib

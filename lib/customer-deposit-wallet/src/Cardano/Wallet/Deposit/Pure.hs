@@ -187,15 +187,19 @@ data TxSummary = TxSummary
     , blockHeaderBody :: Read.BHBody
     , transfer :: ValueTransfer
     }
+    deriving (Eq, Ord, Show)
 
 data ValueTransfer = ValueTransfer
     { spent :: Read.Value
     , received :: Read.Value
     }
+    deriving (Eq, Ord, Show)
 
 getCustomerHistory :: Customer -> WalletState -> [TxSummary]
 getCustomerHistory = undefined
 
+-- TODO: Return an error if any of the `ChainPoint` are no longer
+-- part of the consensus chain?
 getCustomerHistories
     :: (Read.ChainPoint, Read.ChainPoint)
     -> WalletState
