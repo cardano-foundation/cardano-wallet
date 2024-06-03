@@ -188,6 +188,7 @@ executable local-cluster
     , local-cluster
     , mtl
     , pathtype
+    , pretty-simple
     , temporary-extra
     , text
     , unliftio

@@ -75,6 +75,11 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
+import System.IO
+    ( BufferMode (NoBuffering)
+    , hSetBuffering
+    , stdout
+    )
 import System.IO.Extra
     ( withTempFile
     )
@@ -89,6 +94,9 @@ import System.Path
     , relDir
     , relFile
     , (</>)
+    )
+import Text.Pretty.Simple
+    ( pPrint
     )
 import UnliftIO.Concurrent
     ( threadDelay
@@ -223,7 +231,7 @@ main = withUtf8 $ do
     -- Ensure key files have correct permissions for cardano-cli
     setDefaultFilePermissions
 
-    CommandLineOptions
+    clo@CommandLineOptions
         { clusterConfigsDir
         , clusterDir
         , clusterLogs
@@ -233,6 +241,8 @@ main = withUtf8 $ do
         , faucetFunds = faucetFundsPath
         } <-
         parseCommandLineOptions
+    hSetBuffering stdout NoBuffering
+    pPrint clo
     evalContT $ do
         -- Add a tracer for the cluster logs
         ToTextTracer tracer <- case clusterLogs of
@@ -288,12 +298,13 @@ main = withUtf8 $ do
         (nodeConn, phaseTracer) <- withSNetworkId (NTestnet 42)
             $ \network -> do
                 nodeConn <- liftIO newNodeConnVar
-                (_ , phaseTracer) <- withServiceServer
-                    network
-                    nodeConn
-                    clusterCfg
-                    tracer
-                    httpService
+                (_, phaseTracer) <-
+                    withServiceServer
+                        network
+                        nodeConn
+                        clusterCfg
+                        tracer
+                        httpService
                 pure (nodeConn, phaseTracer)
 
         debug "Starting the faucet"
