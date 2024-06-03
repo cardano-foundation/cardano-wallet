@@ -4,9 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -17,7 +15,6 @@ module Cardano.Wallet.Launch.Cluster.GenesisFiles
     , GenesisTemplateMods
     , generateGenesis
     )
-
 where
 
 import Prelude
@@ -46,7 +43,6 @@ import Cardano.Ledger.Api
     )
 import Cardano.Ledger.BaseTypes
     ( EpochInterval (..)
-    , EpochSize (..)
     , Network (Testnet)
     , natVersion
     )
@@ -90,22 +86,12 @@ import Control.Monad.Reader
     , MonadReader (..)
     )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
+    ( ToJSON (..)
     , Value
     , encodeFile
     )
 import Data.Aeson.Lens
     ( key
-    )
-import Data.Aeson.QQ
-    ( aesonQQ
-    )
-import Data.Aeson.Types
-    ( parseEither
-    )
-import Data.Either
-    ( fromRight
     )
 import Data.Functor.Const
     ( Const (..)
@@ -316,9 +302,7 @@ generateGenesis initialFunds genesisMods = do
                         , sgStaking = Ledger.emptyGenesisStaking
                         , -- We need this to submit MIR certs
                           -- (and probably for the BFT node pre-babbage):
-                          sgGenDelegs =
-                            fromRight (error "invalid sgGenDelegs")
-                                $ parseEither parseJSON genDelegs
+                          sgGenDelegs = mempty
                         }
                     genesisMods
 
@@ -334,14 +318,3 @@ generateGenesis initialFunds genesisMods = do
                 , alonzoGenesis = Const id
                 , conwayGenesis = Const id
                 }
-
-genDelegs :: Value
-genDelegs =
-    [aesonQQ|
-{
-  "91612ee7b158dc64871a959060973d0f2b8fb6e85ae960f03b8640ac": {
-    "delegate": "180b3fae61789f61cbdbc69e5f8e1beae9093aa2215e482dc8d89ec9",
-    "vrf": "e9ef3b5d81d400eb046de696354ff8e84122f505e706e3c86a361cce919a686e"
-  }
-}
-|]

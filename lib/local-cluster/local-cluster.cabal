@@ -103,7 +103,6 @@ library
     , address-derivation-discovery
     , aeson
     , aeson-pretty
-    , aeson-qq
     , base
     , base58-bytestring
     , bytestring
