@@ -147,8 +147,8 @@ babbage-integration-tests-match match:
 conway-integration-tests-match match:
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-cli' \
+    'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
