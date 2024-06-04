@@ -131,13 +131,13 @@ import Data.Generics.Wrapped
 import Data.Maybe
     ( isJust
     )
+import Data.Text.Class
+    ( FromText (..)
+    , TextDecodingError (..)
+    )
 import Data.Time.Clock
     ( UTCTime
     , addUTCTime
-    )
-import Data.Time.Format
-    ( defaultTimeLocale
-    , parseTimeOrError
     )
 import Data.Time.Utils
     ( utcTimePred
@@ -1547,23 +1547,23 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         \ctx -> runResourceT $ do
 
             (ApiSharedWallet (Right w)) <- emptySharedWallet ctx
-            let startTime =
-                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
-                    "2009-09-09T09:09:09Z"
-            let endTime =
-                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
-                    "2001-01-01T01:01:01Z"
+            let (Iso8601Time startTime') = case fromText "2009-09-09T09:09:09Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
+            let (Iso8601Time endTime') = case fromText "2001-01-01T01:01:01Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
             let link = Link.listTransactions' @'Shared w
                     Nothing
-                    (Just $ Iso8601Time startTime)
-                    (Just $ Iso8601Time endTime)
+                    (Just $ Iso8601Time startTime')
+                    (Just $ Iso8601Time endTime')
                     Nothing
                     Nothing
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
             decodeErrorInfo r `shouldBe` StartTimeLaterThanEndTime
-                (ApiErrorStartTimeLaterThanEndTime startTime endTime)
+                (ApiErrorStartTimeLaterThanEndTime startTime' endTime')
 
     it "SHARED_TRANSACTIONS_LIST_03 - \
         \Minimum withdrawal shouldn't be 0" $

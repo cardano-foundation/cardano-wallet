@@ -73,9 +73,9 @@ import Data.Bifunctor
 import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
-import Data.Time.Format
-    ( defaultTimeLocale
-    , parseTimeOrError
+import Data.Text.Class
+    ( FromText (..)
+    , TextDecodingError (..)
     )
 import Numeric.Natural
     ( Natural
@@ -765,12 +765,12 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     it "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
         \ctx -> runResourceT @IO $ do
             w <- emptyRandomWallet ctx
-            let startTime' =
-                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
-                    "2009-09-09T09:09:09Z"
-            let endTime' =
-                    parseTimeOrError False defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ"
-                    "2001-01-01T01:01:01Z"
+            let (Iso8601Time startTime') = case fromText "2009-09-09T09:09:09Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
+            let (Iso8601Time endTime') = case fromText "2001-01-01T01:01:01Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
             let link = Link.listTransactions' @'Byron w
                     Nothing
                     (Just $ Iso8601Time startTime')
