@@ -1,13 +1,18 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles (..)
+module Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
+    ( GenesisFiles
+    , GenesisRecord (..)
+    , GenesisTemplateMods
     , generateGenesis
     )
 where
@@ -45,7 +50,8 @@ import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
     )
 import Cardano.Wallet.Launch.Cluster.Aeson
-    ( withAddedKey
+    ( ChangeValue
+    , decodeFileThrow
     )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
@@ -79,14 +85,29 @@ import Control.Monad.Reader
     ( MonadIO (..)
     , MonadReader (..)
     )
-import Data.Aeson.QQ
-    ( aesonQQ
+import Data.Aeson
+    ( ToJSON (..)
+    , Value
+    , encodeFile
     )
-import Data.Either
-    ( fromRight
+import Data.Aeson.Lens
+    ( key
+    )
+import Data.Functor.Const
+    ( Const (..)
     )
 import Data.Generics.Labels
     ()
+import Data.HKD
+    ( FFoldable (ffoldMap)
+    , FFunctor (..)
+    , FTraversable (..)
+    , FZip (..)
+    , ffmapDefault
+    , ffoldMapDefault
+    , gftraverse
+    , gfzipWith
+    )
 import Data.IntCast
     ( intCast
     )
@@ -100,26 +121,86 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
     ( utcTimeToPOSIXSeconds
     )
-import System.Directory
-    ( copyFile
+import GHC.Generics
+    ( Generic
     )
-import System.Path hiding
-    ( FilePath
+import System.Path
+    ( relFile
+    , (</>)
     )
 
 import qualified Cardano.Ledger.Api.Tx.Address as Ledger
 import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Ledger.Shelley.API as Ledger
-import qualified Data.Aeson as Aeson
 import qualified Data.ListMap as ListMap
 
-data GenesisFiles = GenesisFiles
-    { byronGenesis :: FileOf "genesis-byron"
-    , shelleyGenesis :: FileOf "genesis-shelley"
-    , alonzoGenesis :: FileOf "genesis-alonzo"
-    , conwayGenesis :: FileOf "genesis-conway"
+data GenesisRecord f = GenesisRecord
+    { byronGenesis :: f "genesis-byron"
+    , shelleyGenesis :: f "genesis-shelley"
+    , alonzoGenesis :: f "genesis-alonzo"
+    , conwayGenesis :: f "genesis-conway"
     }
-    deriving stock (Show, Eq)
+    deriving stock (Generic)
+
+instance FFunctor GenesisRecord where ffmap = ffmapDefault
+instance FFoldable GenesisRecord where ffoldMap = ffoldMapDefault
+instance FTraversable GenesisRecord where ftraverse = gftraverse
+
+instance FZip GenesisRecord where fzipWith = gfzipWith
+
+deriving stock instance Show (GenesisRecord FileOf)
+
+type GenesisFiles = GenesisRecord FileOf
+
+type GenesisTemplateMods = GenesisRecord (Const ChangeValue)
+
+type GenesisValue = GenesisRecord (Const Value)
+
+-- | Read genesis files from disk into json values
+readGenesis :: GenesisFiles -> IO GenesisValue
+readGenesis = ftraverse readGenesisFile
+  where
+    readGenesisFile :: FileOf a -> IO (Const Value a)
+    readGenesisFile (FileOf fp) = Const <$> decodeFileThrow (toFilePath fp)
+
+-- | Apply template modifications to genesis values
+applyTemplateMods :: GenesisTemplateMods -> GenesisValue -> GenesisValue
+applyTemplateMods = fzipWith (\(Const f) (Const v) -> Const $ f v)
+
+-- | Write genesis values to disk
+writeGenesis :: GenesisFiles -> GenesisValue -> IO ()
+writeGenesis fs vs =
+    ffoldMapDefault getConst
+        $ fzipWith
+            (\(FileOf fp) (Const v) -> Const $ encodeFile (toFilePath fp) v)
+            fs
+            vs
+
+-- | Create genesis absolute file paths from a directory
+mkGenesisFiles :: DirOf s -> GenesisFiles
+mkGenesisFiles (DirOf d) =
+    GenesisRecord
+        { byronGenesis = mkFile "byron"
+        , shelleyGenesis = mkFile "shelley"
+        , alonzoGenesis = mkFile "alonzo"
+        , conwayGenesis = mkFile "conway"
+        }
+  where
+    mkFile :: String -> FileOf x
+    mkFile x = FileOf $ d </> relFile (x <> "-genesis.json")
+
+-- | Read genesis files from template directory, apply template modifications
+--   and write them back to the config directory
+produceGenesis
+    :: DirOf template
+    -> DirOf configs
+    -> GenesisTemplateMods
+    -> IO GenesisFiles
+produceGenesis templateDir configsDir mods = do
+    let templates = mkGenesisFiles templateDir
+    let configs = mkGenesisFiles configsDir
+    readGenesis templates >>= writeGenesis configs . applyTemplateMods mods
+    pure configs
 
 generateGenesis
     :: HasCallStack
@@ -221,50 +302,19 @@ generateGenesis initialFunds genesisMods = do
                         , sgStaking = Ledger.emptyGenesisStaking
                         , -- We need this to submit MIR certs
                           -- (and probably for the BFT node pre-babbage):
-                          sgGenDelegs =
-                            fromRight (error "invalid sgGenDelegs") . Aeson.eitherDecode
-                                $ Aeson.encode
-                                    [aesonQQ|
-                    {"91612ee7b158dc64871a959060973d0f2b8fb6e85ae960f03b8640ac": {
-                        "delegate": "180b3fae61789f61cbdbc69e5f8e1beae9093aa2215e482dc8d89ec9",
-                        "vrf": "e9ef3b5d81d400eb046de696354ff8e84122f505e706e3c86a361cce919a686e"
-                    }}|]
+                          sgGenDelegs = mempty
                         }
                     genesisMods
 
-        let byronFileOf, shelleyFileOf, alonzoFileOf, conwayFileOf
-                :: DirOf x  -> AbsFile
-            byronFileOf x = absDirOf x </> relFile "byron-genesis.json"
-            shelleyFileOf x = absDirOf x </> relFile "shelley-genesis.json"
-            alonzoFileOf x = absDirOf x </> relFile "alonzo-genesis.json"
-            conwayFileOf x = absDirOf x </> relFile "conway-genesis.json"
-
-        let shelleyGenesis = shelleyFileOf cfgClusterDir
-        Aeson.encodeFile (toFilePath shelleyGenesis) shelleyGenesisData
-
-        let fileToAeson :: FilePath -> IO Aeson.Value
-            fileToAeson f = Aeson.eitherDecodeFileStrict f >>= either fail pure
-
-        let byronGenesis = byronFileOf cfgClusterDir
-        fileToAeson (toFilePath $ byronFileOf cfgClusterConfigs)
-            >>= withAddedKey
-                "startTime"
-                (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
-            >>= Aeson.encodeFile (toFilePath byronGenesis)
-
-        let alonzoGenesis = alonzoFileOf cfgClusterDir
-        fileToAeson (toFilePath $ alonzoFileOf cfgClusterConfigs)
-            >>= Aeson.encodeFile (toFilePath alonzoGenesis)
-
-        let conwayGenesis = conwayFileOf cfgClusterDir
-        copyFile
-            (toFilePath $ conwayFileOf cfgClusterConfigs)
-            (toFilePath conwayGenesis)
-
-        pure
-            GenesisFiles
-                { byronGenesis = FileOf byronGenesis
-                , shelleyGenesis = FileOf shelleyGenesis
-                , alonzoGenesis = FileOf alonzoGenesis
-                , conwayGenesis = FileOf conwayGenesis
+        produceGenesis cfgClusterConfigs cfgClusterDir
+            $ GenesisRecord
+                { byronGenesis =
+                    Const
+                        $ key "startTime"
+                            .~ toJSON
+                                (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
+                , shelleyGenesis = Const
+                    $ \_ -> toJSON shelleyGenesisData
+                , alonzoGenesis = Const id
+                , conwayGenesis = Const id
                 }

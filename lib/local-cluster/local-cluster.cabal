@@ -57,7 +57,7 @@ library
     Cardano.Wallet.Launch.Cluster.Faucet.Gen
     Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     Cardano.Wallet.Launch.Cluster.FileOf
-    Cardano.Wallet.Launch.Cluster.GenesisFiles
+    Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
     Cardano.Wallet.Launch.Cluster.Http.API
     Cardano.Wallet.Launch.Cluster.Http.Client
     Cardano.Wallet.Launch.Cluster.Http.Faucet.API
@@ -103,7 +103,6 @@ library
     , address-derivation-discovery
     , aeson
     , aeson-pretty
-    , aeson-qq
     , base
     , base58-bytestring
     , bytestring
@@ -130,6 +129,7 @@ library
     , filepath
     , foldl
     , generic-lens
+    , hkd
     , http-client
     , http-media
     , insert-ordered-containers
@@ -138,6 +138,7 @@ library
     , iohk-monitoring
     , iohk-monitoring-extra
     , lens
+    , lens-aeson
     , machines
     , memory
     , mtl

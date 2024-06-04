@@ -3,13 +3,18 @@
 module Cardano.Wallet.Launch.Cluster.Aeson
     ( withAddedKey
     , withObject
+    , ChangeValue
+    , decodeFileThrow
     )
 where
 
 import Prelude
 
 import Data.Aeson
-    ( ToJSON (toJSON)
+    ( FromJSON
+    , ToJSON (toJSON)
+    , Value
+    , eitherDecodeFileStrict
     )
 
 import qualified Data.Aeson as Aeson
@@ -36,3 +41,12 @@ withObject action = \case
         fail
             "withObject: was given an invalid JSON. Expected an Object but got \
             \something else."
+
+type ChangeValue = Value -> Value
+
+decodeFileThrow :: FromJSON a => FilePath -> IO a
+decodeFileThrow fp = do
+    e <- eitherDecodeFileStrict fp
+    case e of
+        Left err -> fail err
+        Right a -> return a

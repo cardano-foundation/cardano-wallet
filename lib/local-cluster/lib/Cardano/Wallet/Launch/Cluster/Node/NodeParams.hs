@@ -22,11 +22,11 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf (..)
     )
-import Cardano.Wallet.Launch.Cluster.GenesisFiles
-    ( GenesisFiles
-    )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( LogFileConfig (..)
+    )
+import Cardano.Wallet.Launch.Cluster.Node.GenesisFiles
+    ( GenesisFiles
     )
 
 -- | Configuration parameters which update the @node.config@ test data file.
