@@ -125,7 +125,6 @@ conway-integration-tests-cabal:
 
 # run any integration test matching the given pattern via nix
 integration-tests match:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   CARDANO_WALLET_TEST_DATA=lib/integration/test/data \
   TESTS_RETRY_FAILED=1 \
   nix shell \
@@ -141,8 +140,16 @@ node-811:
   'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
   'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-cli'
 
+# start a shell with 8.9.3 in scope
+node-893:
+  nix shell \
+  --accept-flake-config \
+  'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
+  'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-cli'
+
 # run babbage integration tests matching the given pattern via nix
 babbage-integration-tests-match match:
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=babbage \
   nix shell \
     'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
@@ -152,6 +159,7 @@ babbage-integration-tests-match match:
 
 # run conway integration tests matching the given pattern via nix
 conway-integration-tests-match match:
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs-sanchonet \
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
     'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
