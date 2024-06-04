@@ -154,6 +154,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                 & setFilePath "ShelleyGenesisFile" shelleyFile
                 & setFilePath "AlonzoGenesisFile" alonzoFile
                 & setFilePath "ConwayGenesisFile" conwayFile
+                & removeGenesisHashes
                 & setHardFork "ShelleyHardFork"
                 & setHardFork "AllegraHardFork"
                 & setHardFork "MaryHardFork"
@@ -226,3 +227,10 @@ addMinSeverityStdout severity =
     setMinSev scribe = case scribe ^? key "scKind" . _String of
         Just "StdoutSK" -> scribe & atKey "scMinSev" ?~ toJSON (show severity)
         _ -> scribe
+
+removeGenesisHashes :: ChangeValue
+removeGenesisHashes value = value
+    & atKey "ByronGenesisHash" .~ Nothing
+    & atKey "ShelleyGenesisHash" .~ Nothing
+    & atKey "AlonzoGenesisHash" .~ Nothing
+    & atKey "ConwayGenesisHash" .~ Nothing
