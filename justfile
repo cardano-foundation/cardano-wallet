@@ -134,6 +134,13 @@ integration-tests match:
     '.#integration-exe' \
     -c integration-exe -j 2 --match="{{match}}"
 
+#start a shell with 8.11 in scope
+node-811:
+  nix shell \
+  --accept-flake-config \
+  'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
+  'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-cli'
+
 # run babbage integration tests matching the given pattern via nix
 babbage-integration-tests-match match:
   LOCAL_CLUSTER_ERA=babbage \
