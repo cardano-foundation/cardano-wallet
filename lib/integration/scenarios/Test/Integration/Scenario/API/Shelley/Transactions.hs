@@ -43,6 +43,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
+    , Iso8601Time (..)
     , WalletStyle (..)
     , apiAddress
     , insertedAt
@@ -56,7 +57,9 @@ import Cardano.Wallet.Api.Types.Era
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
+    , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -132,6 +135,7 @@ import Data.Text
     )
 import Data.Text.Class
     ( FromText (..)
+    , TextDecodingError (..)
     , ToText (..)
     )
 import Data.Time.Clock
@@ -217,12 +221,10 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
-    , errMsg400TxMetadataStringTooLong
+    ( errMsg400TxMetadataStringTooLong
     , errMsg403AlreadyInLedger
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
-    , errMsg404CannotFindTx
     , errMsg404NoAsset
     , steveToken
     , txMetadata_ADP_1005
@@ -2136,23 +2138,25 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_LIST_02 - Start time shouldn't be later than end time"
         $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
-            let startTime = "2009-09-09T09:09:09Z"
-            let endTime = "2001-01-01T01:01:01Z"
+            let (Iso8601Time startTime') = case fromText "2009-09-09T09:09:09Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
+            let (Iso8601Time endTime') = case fromText "2001-01-01T01:01:01Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
             let link =
                     Link.listTransactions' @'Shelley
                         w
                         Nothing
-                        (either (const Nothing) Just $ fromText $ T.pack startTime)
-                        (either (const Nothing) Just $ fromText $ T.pack endTime)
+                        (Just $ Iso8601Time startTime')
+                        (Just $ Iso8601Time endTime')
                         Nothing
                         Nothing
                         Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage
-                (errMsg400StartTimeLaterThanEndTime startTime endTime)
-                r
-            pure ()
+            decodeErrorInfo r `shouldBe` StartTimeLaterThanEndTime
+                (ApiErrorStartTimeLaterThanEndTime startTime' endTime')
 
     it "TRANS_LIST_03 - Minimum withdrawal shouldn't be 0"
         $ \ctx -> runResourceT $ do
@@ -2411,7 +2415,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (ApiTxId $ ApiT txid)
         r <- request @(ApiTransaction n) ctx link Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage (errMsg404CannotFindTx $ toText txid) r
+        decodeErrorInfo r `shouldBe`
+            NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid))
 
     it "TRANS_GET_04 - Sumbitted transactions result in pending state"
         $ \ctx -> runResourceT $ do
@@ -3211,6 +3216,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             w <- eWallet ctx
             let walId = w ^. walletId
             let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let (Right txid') = fromText txid
             let endpoint =
                     "v2/"
                         <> T.pack resource
@@ -3220,7 +3226,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         <> txid
             ra <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 ra
-            expectErrorMessage (errMsg404CannotFindTx txid) ra
+            decodeErrorInfo ra `shouldBe`
+                NoSuchTransaction (ApiErrorNoSuchTransaction (ApiT txid'))
 
     txDeleteFromDifferentWalletTest
         :: (HasType (ApiT WalletId) wal)
@@ -3240,7 +3247,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
             -- try to forget from different wallet
             wDifferent <- eWallet ctx
-            let txid = toText $ getApiT $ getFromResponse #id rMkTx
+            let txidApiT = getFromResponse #id rMkTx
+            let txid = toText $ getApiT txidApiT
             let endpoint =
                     "v2/"
                         <> T.pack resource
@@ -3251,7 +3259,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         <> txid
             ra <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
             expectResponseCode HTTP.status404 ra
-            expectErrorMessage (errMsg404CannotFindTx txid) ra
+            decodeErrorInfo ra `shouldBe`
+                NoSuchTransaction (ApiErrorNoSuchTransaction txidApiT)
 
     verifyWalletBalance
         :: MonadUnliftIO m

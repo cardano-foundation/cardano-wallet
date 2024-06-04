@@ -175,7 +175,6 @@ import Test.Integration.Framework.TestData
     , errMsg403TemplateInvalidNoCosignerInScript
     , errMsg403TemplateInvalidScript
     , errMsg403TemplateInvalidUnknownCosigner
-    , errMsg403WrongIndex
     , errMsg406
     )
 
@@ -910,7 +909,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPost <- postSharedWallet ctx Default payloadCreate
         expectResponseCode HTTP.status403 rPost
-        expectErrorMessage errMsg403WrongIndex rPost
+        decodeErrorInfo rPost `shouldBe` HardenedDerivationRequired
 
     it "SHARED_WALLETS_CREATE_14 - Create wallet with one change address mode on" $ \ctx -> runResourceT $ do
         let verifyAddrs nTotal nUsed addrs = do

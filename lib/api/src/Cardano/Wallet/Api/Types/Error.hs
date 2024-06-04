@@ -31,7 +31,9 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorUnsupportedEra (..)
     )
     where
@@ -58,6 +60,9 @@ import Cardano.Wallet.Api.Types.WalletAssets
     )
 import Cardano.Wallet.Primitive.Types
     ( WalletId
+    )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
@@ -89,6 +94,9 @@ import Data.Set
     )
 import Data.Text
     ( Text
+    )
+import Data.Time.Clock
+    ( UTCTime
     )
 import Data.Typeable
     ( Typeable
@@ -169,6 +177,7 @@ data ApiErrorInfo
     | NoSuchPool
         !ApiErrorNoSuchPool
     | NoSuchTransaction
+        !ApiErrorNoSuchTransaction
     | NoSuchWallet
         !ApiErrorNoSuchWallet
     | WalletNotInitialized
@@ -205,6 +214,7 @@ data ApiErrorInfo
     | SharedWalletScriptTemplateInvalid
     | SoftDerivationRequired
     | StartTimeLaterThanEndTime
+        !ApiErrorStartTimeLaterThanEndTime
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
     | TransactionAlreadyInLedger
@@ -342,4 +352,19 @@ data ApiErrorNoSuchWallet = ApiErrorNoSuchWallet
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchWallet
+    deriving anyclass NFData
+
+data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
+    { transactionId :: !(ApiT (Hash "Tx"))
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchTransaction
+    deriving anyclass NFData
+
+data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
+    { startTime :: UTCTime
+    , endTime :: UTCTime
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorStartTimeLaterThanEndTime
     deriving anyclass NFData

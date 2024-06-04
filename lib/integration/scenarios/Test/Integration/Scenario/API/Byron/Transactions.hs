@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiWallet
     , ApiWalletDiscovery (..)
+    , Iso8601Time (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Api.Types.Amount
@@ -35,6 +36,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -72,7 +74,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
 import Data.Text.Class
-    ( fromText
+    ( FromText (..)
+    , TextDecodingError (..)
     )
 import Numeric.Natural
     ( Natural
@@ -132,8 +135,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime
-    , errMsg404NoAsset
+    ( errMsg404NoAsset
     , steveToken
     )
 
@@ -763,19 +765,23 @@ spec = describe "BYRON_TRANSACTIONS" $ do
     it "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
         \ctx -> runResourceT @IO $ do
             w <- emptyRandomWallet ctx
-            let startTime = "2009-09-09T09:09:09Z"
-            let endTime = "2001-01-01T01:01:01Z"
+            let (Iso8601Time startTime') = case fromText "2009-09-09T09:09:09Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
+            let (Iso8601Time endTime') = case fromText "2001-01-01T01:01:01Z" of
+                    Right ti -> ti
+                    Left (TextDecodingError err) -> error err
             let link = Link.listTransactions' @'Byron w
                     Nothing
-                    (either (const Nothing) Just $ fromText $ T.pack startTime)
-                    (either (const Nothing) Just $ fromText $ T.pack endTime)
+                    (Just $ Iso8601Time startTime')
+                    (Just $ Iso8601Time endTime')
                     Nothing
                     Nothing
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
             expectResponseCode HTTP.status400 r
-            expectErrorMessage
-                (errMsg400StartTimeLaterThanEndTime startTime endTime) r
+            decodeErrorInfo r `shouldBe` StartTimeLaterThanEndTime
+                (ApiErrorStartTimeLaterThanEndTime startTime' endTime')
 
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> runResourceT @IO $ do
         w <- emptyRandomWallet ctx

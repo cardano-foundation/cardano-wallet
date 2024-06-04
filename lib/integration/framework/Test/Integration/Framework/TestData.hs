@@ -45,7 +45,6 @@ module Test.Integration.Framework.TestData
 
     -- * Error messages
     , errMsg400WalletIdEncoding
-    , errMsg400StartTimeLaterThanEndTime
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403WrongPass
@@ -76,7 +75,6 @@ module Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotBeneficial
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
-    , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg403KeyAlreadyPresent
@@ -320,15 +318,6 @@ errMsg400WalletIdEncoding :: String
 errMsg400WalletIdEncoding =
     "wallet id should be a hex-encoded string of 40 characters"
 
-errMsg400StartTimeLaterThanEndTime :: String -> String -> String
-errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
-    [ "The specified start time '"
-    , startTime
-    , "' is later than the specified end time '"
-    , endTime
-    , "'."
-    ]
-
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =
     "I cannot derive new address for this wallet type.\
@@ -477,11 +466,6 @@ errMsg403CouldntIdentifyAddrAsMine = "I \
 
 errMsg503PastHorizon :: String
 errMsg503PastHorizon = "Tried to convert something that is past the horizon"
-
-errMsg403WrongIndex :: String
-errMsg403WrongIndex = "It looks like you've provided a derivation index that is out of bound.\
-     \ The index is well-formed, but I require indexes valid for hardened derivation only. That\
-     \ is, indexes between 0H and 2147483647H."
 
 errMsg403OutputTokenBundleSizeExceedsLimit
     :: Address

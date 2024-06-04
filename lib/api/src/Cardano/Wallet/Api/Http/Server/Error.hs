@@ -111,11 +111,13 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorInfo (..)
     , ApiErrorMissingWitnessesInTransaction (..)
     , ApiErrorNoSuchPool (..)
+    , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
+    , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
     )
@@ -622,7 +624,10 @@ instance
 instance IsServerError ErrRemoveTx where
     toServerError = \case
         ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction tid) ->
-            apiError err404 NoSuchTransaction $ mconcat
+            flip (apiError err404) message $
+            NoSuchTransaction ApiErrorNoSuchTransaction { transactionId = ApiT tid }
+          where
+            message = mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
@@ -710,13 +715,20 @@ instance IsServerError ErrListTransactions where
         ErrListTransactionsPastHorizonException e -> toServerError e
 
 instance IsServerError ErrStartTimeLaterThanEndTime where
-    toServerError err = apiError err400 StartTimeLaterThanEndTime $ mconcat
-        [ "The specified start time '"
-        , toText $ Iso8601Time $ errStartTime err
-        , "' is later than the specified end time '"
-        , toText $ Iso8601Time $ errEndTime err
-        , "'."
-        ]
+    toServerError err =
+        flip (apiError err400) message $
+        StartTimeLaterThanEndTime ApiErrorStartTimeLaterThanEndTime
+        { startTime = errStartTime err
+        , endTime = errEndTime err
+        }
+      where
+        message = mconcat
+            [ "The specified start time '"
+            , toText $ Iso8601Time $ errStartTime err
+            , "' is later than the specified end time '"
+            , toText $ Iso8601Time $ errEndTime err
+            , "'."
+            ]
 
 instance IsServerError PastHorizonException where
     toServerError _ = apiError err503 PastHorizon $ mconcat
@@ -734,7 +746,10 @@ instance IsServerError ErrGetTransaction where
 instance IsServerError ErrNoSuchTransaction where
     toServerError = \case
         ErrNoSuchTransaction tid ->
-            apiError err404 NoSuchTransaction $ mconcat
+            flip (apiError err404) message $
+            NoSuchTransaction ApiErrorNoSuchTransaction { transactionId = ApiT tid }
+          where
+            message = mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
