@@ -53,7 +53,6 @@ module Test.Integration.Framework.TestData
     , errMsg403PoolAlreadyJoined
     , errMsg403NotDelegating
     , errMsg403NothingToMigrate
-    , errMsg404NoAsset
     , errMsg404NoEndpoint
     , errMsg404CannotFindTx
     , errMsg403NoRootKey
@@ -379,9 +378,6 @@ errMsg403NothingToMigrate _wid = mconcat
     , "any of the funds to be migrated. Try adding some ada to "
     , "your wallet before trying again."
     ]
-
-errMsg404NoAsset :: String
-errMsg404NoAsset = "The requested asset is not associated with this wallet."
 
 errMsg404NoEndpoint :: String
 errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\

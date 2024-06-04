@@ -225,7 +225,6 @@ import Test.Integration.Framework.TestData
     , errMsg403AlreadyInLedger
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
-    , errMsg404NoAsset
     , steveToken
     , txMetadata_ADP_1005
     )
@@ -1283,7 +1282,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.getAsset wal polId assName
             r <- request @(ApiAsset) ctx ep Default Empty
             expectResponseCode HTTP.status404 r
-            expectErrorMessage errMsg404NoAsset r
+            decodeErrorInfo r `shouldBe` AssetNotPresent
 
     it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated"
         $ \ctx -> runResourceT $ do
@@ -1292,7 +1291,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.getAsset wal polId AssetName.empty
             r <- request @(ApiAsset) ctx ep Default Empty
             expectResponseCode HTTP.status404 r
-            expectErrorMessage errMsg404NoAsset r
+            decodeErrorInfo r `shouldBe` AssetNotPresent
 
     it "TRANS_TTL_04 - Large TTL"
         $ \ctx -> runResourceT $ do
