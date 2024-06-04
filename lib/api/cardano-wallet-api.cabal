@@ -86,7 +86,7 @@ library
     , http-types
     , int-cast
     , iohk-monitoring
-    , iohk-monitoring-extra                              ^>=0.1
+    , iohk-monitoring-extra
     , memory
     , mtl
     , network

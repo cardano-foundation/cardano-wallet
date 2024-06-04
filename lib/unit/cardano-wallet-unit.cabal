@@ -139,7 +139,7 @@ test-suite unit
     , network-uri
     , nothunks
     , OddWord
-    , openapi3                                              ==3.2.3
+    , openapi3
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-network

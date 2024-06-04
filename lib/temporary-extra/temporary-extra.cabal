@@ -28,9 +28,9 @@ library
   exposed-modules:    System.IO.Temp.Extra
   build-depends:
     , base
-    , iohk-monitoring        ^>=0.1.11.3
-    , iohk-monitoring-extra  ^>=0.1
-    , temporary              ^>=1.3
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , temporary
     , text                   >= 1.2.4.1 && <2.2
-    , text-class             ^>=2024.5.5
-    , unliftio               ^>=0.2.24
+    , text-class
+    , unliftio

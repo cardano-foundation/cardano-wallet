@@ -32,11 +32,11 @@ library
   hs-source-dirs:     lib
   build-depends:
     , base
-    , network                ^>=3.1.4.0
-    , network-uri            ^>=2.6.4.2
-    , random-shuffle         ^>=0.0.4
-    , safe                   ^>=0.3.19
-    , streaming-commons      ^>=0.2.2.6
-    , text                   ^>=2.0.2
-    , text-class             ^>=2024.5.5
-    , unliftio               ^>=0.2.24
+    , network
+    , network-uri
+    , random-shuffle
+    , safe
+    , streaming-commons
+    , text
+    , text-class
+    , unliftio

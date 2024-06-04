@@ -59,9 +59,9 @@ library
     , delta-store
     , delta-types
     , io-classes
-    , iohk-monitoring-extra              ^>=0.1
-    , persistent                         >= 2.13 && < 2.15
-    , sqlite-simple                      >= 0.4.19.0 && < 0.5
+    , iohk-monitoring-extra
+    , persistent
+    , sqlite-simple
     , text
     , transformers
     , time
@@ -105,7 +105,7 @@ test-suite scenario
   build-tool-depends:
     markdown-unlit:markdown-unlit
   ghc-options:
-    -pgmL markdown-unlit 
+    -pgmL markdown-unlit
   build-depends:
     , base
     , cardano-crypto
