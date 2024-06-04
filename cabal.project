@@ -314,3 +314,6 @@ package wai-middleware-logging
 tests: False
 
 -- -------------------------------------------------------------------------
+
+package bitvec
+   flags: -simd
