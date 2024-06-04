@@ -1,0 +1,43 @@
+[plutimus:cardano.node.basicInfo.protocol:Notice:7] [2024-06-04 09:33:12.74 UTC] Byron; Shelley
+[plutimus:cardano.node.basicInfo.version:Notice:7] [2024-06-04 09:33:12.74 UTC] 8.11.0
+[plutimus:cardano.node.basicInfo.commit:Notice:7] [2024-06-04 09:33:12.74 UTC] 235e34f6df9a1490190f6247b610b4e114ca3b96
+[plutimus:cardano.node.basicInfo.nodeStartTime:Notice:7] [2024-06-04 09:33:12.74 UTC] 2024-06-04 09:33:12.743422045 UTC
+[plutimus:cardano.node.basicInfo.systemStartTime:Notice:7] [2024-06-04 09:33:12.74 UTC] 2024-06-04 09:03:15 UTC
+[plutimus:cardano.node.basicInfo.slotLengthByron:Notice:7] [2024-06-04 09:33:12.74 UTC] 20s
+[plutimus:cardano.node.basicInfo.epochLengthByron:Notice:7] [2024-06-04 09:33:12.74 UTC] 1080
+[plutimus:cardano.node.basicInfo.systemStartTime:Notice:7] [2024-06-04 09:33:12.74 UTC] 2024-06-04 09:03:15.045461271 UTC
+[plutimus:cardano.node.basicInfo.slotLengthShelley:Notice:7] [2024-06-04 09:33:12.74 UTC] 0.25s
+[plutimus:cardano.node.basicInfo.epochLengthShelley:Notice:7] [2024-06-04 09:33:12.74 UTC] 120
+[plutimus:cardano.node.basicInfo.slotsPerKESPeriodShelley:Notice:7] [2024-06-04 09:33:12.74 UTC] 86400
+[plutimus:cardano.node.basicInfo.slotLengthAllegra:Notice:7] [2024-06-04 09:33:12.74 UTC] 0.25s
+[plutimus:cardano.node.basicInfo.epochLengthAllegra:Notice:7] [2024-06-04 09:33:12.74 UTC] 120
+[plutimus:cardano.node.basicInfo.slotsPerKESPeriodAllegra:Notice:7] [2024-06-04 09:33:12.74 UTC] 86400
+[plutimus:cardano.node.basicInfo.slotLengthMary:Notice:7] [2024-06-04 09:33:12.74 UTC] 0.25s
+[plutimus:cardano.node.basicInfo.epochLengthMary:Notice:7] [2024-06-04 09:33:12.74 UTC] 120
+[plutimus:cardano.node.basicInfo.slotsPerKESPeriodMary:Notice:7] [2024-06-04 09:33:12.74 UTC] 86400
+[plutimus:cardano.node.basicInfo.slotLengthAlonzo:Notice:7] [2024-06-04 09:33:12.74 UTC] 0.25s
+[plutimus:cardano.node.basicInfo.epochLengthAlonzo:Notice:7] [2024-06-04 09:33:12.74 UTC] 120
+[plutimus:cardano.node.basicInfo.slotsPerKESPeriodAlonzo:Notice:7] [2024-06-04 09:33:12.74 UTC] 86400
+[plutimus:cardano.node.basicInfo.slotLengthBabbage:Notice:7] [2024-06-04 09:33:12.74 UTC] 0.25s
+[plutimus:cardano.node.basicInfo.epochLengthBabbage:Notice:7] [2024-06-04 09:33:12.74 UTC] 120
+[plutimus:cardano.node.basicInfo.slotsPerKESPeriodBabbage:Notice:7] [2024-06-04 09:33:12.74 UTC] 86400
+[plutimus:cardano.node.basicInfo.slotLengthConway:Notice:7] [2024-06-04 09:33:12.74 UTC] 0.25s
+[plutimus:cardano.node.basicInfo.epochLengthConway:Notice:7] [2024-06-04 09:33:12.74 UTC] 120
+[plutimus:cardano.node.basicInfo.slotsPerKESPeriodConway:Notice:7] [2024-06-04 09:33:12.74 UTC] 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Config path /tmp/test-7462eb762be71970/pool-1/node-config.yaml, Network magic NetworkMagic {unNetworkMagic = 42}, Protocol "Byron; Shelley", Version "8.11.0", Commit "235e34f6df9a1490190f6247b610b4e114ca3b96", Node start time 2024-06-04 09:33:12.750243477 UTC
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Byron, Slot length 20s, Epoch length 1080
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Shelley, Slot length 0.25s, Epoch length 120, Slots per KESPeriod 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Allegra, Slot length 0.25s, Epoch length 120, Slots per KESPeriod 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Mary, Slot length 0.25s, Epoch length 120, Slots per KESPeriod 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Alonzo, Slot length 0.25s, Epoch length 120, Slots per KESPeriod 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Babbage, Slot length 0.25s, Epoch length 120, Slots per KESPeriod 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Era Conway, Slot length 0.25s, Epoch length 120, Slots per KESPeriod 86400
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] Performing block forging reconfiguration: Disabling block forging, to enable it please make the credentials files available again and then re-trigger reconfiguration via SIGHUP signal.
+[plutimus:cardano.node.startup:Warning:7] [2024-06-04 09:33:12.75 UTC] enabled development node-to-client versions: [NodeToClientV_16]
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] startup time: 1717493593
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] 
+node addresses:          0.0.0.0:21107, [::]:21107
+local socket:            NONE
+node-to-node versions:   [7,8,9,10,11,12,13]
+node-to-client versions: [9,10,11,12,13,14,15,16]
+[plutimus:cardano.node.startup:Info:7] [2024-06-04 09:33:12.75 UTC] initiator and responder diffusion mode
