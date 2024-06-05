@@ -7,6 +7,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Cardano.Wallet.Network.Light
     ( -- * Interface
       LightSyncSource (..)

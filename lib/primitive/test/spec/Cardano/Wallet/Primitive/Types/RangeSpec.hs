@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Cardano.Wallet.Primitive.Types.RangeSpec
     ( spec

@@ -3,6 +3,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 -- |
 -- Copyright: © 2023 IOHK
 -- License: Apache-2.0

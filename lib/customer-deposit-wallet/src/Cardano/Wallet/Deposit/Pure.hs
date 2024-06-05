@@ -203,13 +203,13 @@ data TxSummary = TxSummary
     , blockHeaderBody :: Read.BHBody
     , transfer :: ValueTransfer
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 data ValueTransfer = ValueTransfer
     { spent :: Read.Value
     , received :: Read.Value
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 getCustomerHistory :: Customer -> WalletState -> [TxSummary]
 getCustomerHistory = undefined
