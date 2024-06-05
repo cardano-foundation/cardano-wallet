@@ -115,6 +115,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchWallet (..)
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
@@ -1021,19 +1022,24 @@ instance IsServerError ErrBalanceTxOutputError where
                     toWalletCoin minimumExpectedCoin
                 }
         ErrBalanceTxOutputSizeExceedsLimit {output} ->
-            apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
-                [ "One of the outputs you've specified contains too many "
-                , "assets. Try splitting these assets across two or more "
-                , "outputs. Destination address: "
-                , pretty address
-                , ". Asset count: "
-                , pretty assetCount
-                , "."
-                ]
+            flip (apiError err403) errorMessage $ OutputTokenBundleSizeExceedsLimit
+            ApiErrorOutputTokenBundleSizeExceedsLimit
+                { address = toText address
+                , bundleSize = assetCount
+                }
               where
                 address = toWalletAddress (fst output)
                 assetCount = TokenMap.size $
                     toWalletTokenBundle (snd output) ^. #tokens
+                errorMessage = T.unwords
+                    [ "One of the outputs you've specified contains too many "
+                    , "assets. Try splitting these assets across two or more "
+                    , "outputs. Destination address: "
+                    , pretty address
+                    , ". Asset count: "
+                    , pretty assetCount
+                    , "."
+                    ]
         ErrBalanceTxOutputTokenQuantityExceedsLimit
             {address, policyId, assetName, quantity, quantityMaxBound} ->
             apiError err403 OutputTokenQuantityExceedsLimit $ mconcat

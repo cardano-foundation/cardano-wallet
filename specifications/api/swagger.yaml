@@ -4766,6 +4766,16 @@ x-errOutputTokenBundleSizeExceedsLimit: &errOutputTokenBundleSizeExceedsLimit
     code:
       type: string
       enum: ['output_token_bundle_size_exceeds_limit']
+    info:
+      type: object
+      required:
+        - address
+        - bundle_size
+      properties:
+          address: *addressId
+          bundle_size:
+            type: integer
+            minimum: 0
 
 x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
   <<: *responsesErr

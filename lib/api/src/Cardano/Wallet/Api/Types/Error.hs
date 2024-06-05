@@ -33,6 +33,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchPool (..)
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorUnsupportedEra (..)
     )
@@ -194,6 +195,7 @@ data ApiErrorInfo
     | NotSynced
     | NothingToMigrate
     | OutputTokenBundleSizeExceedsLimit
+        !ApiErrorOutputTokenBundleSizeExceedsLimit
     | OutputTokenQuantityExceedsLimit
     | PastHorizon
     | PoolAlreadyJoined
@@ -291,6 +293,17 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
+    deriving anyclass NFData
+
+data ApiErrorOutputTokenBundleSizeExceedsLimit = ApiErrorOutputTokenBundleSizeExceedsLimit
+    { address
+        :: !Text
+    , bundleSize
+        :: !Int
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorOutputTokenBundleSizeExceedsLimit
     deriving anyclass NFData
 
 data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
