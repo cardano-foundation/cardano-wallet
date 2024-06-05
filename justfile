@@ -40,9 +40,21 @@ local-cluster:
 unit-tests-cabal-match match:
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   cabal test \
-    local-cluster:test \
-    cardano-wallet-unit:unit \
+    cardano-balance-tx:test \
+    cardano-numeric:unit \
+    cardano-wallet-launcher:unit \
+    cardano-wallet-network-layer:unit \
+    cardano-wallet-primitive:test \
     cardano-wallet-read:test \
+    cardano-wallet-secrets:test \
+    cardano-wallet-test-utils:unit \
+    cardano-wallet-unit:unit \
+    delta-store:unit \
+    delta-table:unit \
+    delta-types:unit \
+    std-gen-seed:unit \
+    text-class:unit \
+    wai-middleware-logging:unit \
     -O0 -v0 \
     --test-options '--match="{{match}}"'
 
@@ -122,8 +134,8 @@ integration-tests match:
 babbage-integration-tests-match match:
   LOCAL_CLUSTER_ERA=babbage \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-cli' \
+    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
@@ -131,8 +143,8 @@ babbage-integration-tests-match match:
 conway-integration-tests-match match:
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=8.9.2#cardano-cli' \
+    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
