@@ -92,6 +92,7 @@ library
     Cardano.Wallet.Read.Tx.Outputs
     Cardano.Wallet.Read.Tx.ReferenceInputs
     Cardano.Wallet.Read.Tx.ScriptValidity
+    Cardano.Wallet.Read.Tx.TxId
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Withdrawals
     Cardano.Wallet.Read.Tx.Witnesses
@@ -149,6 +150,7 @@ test-suite test
   other-modules:
     Cardano.Wallet.Read.EraValueSpec
     Cardano.Wallet.Read.Tx.CBORSpec
+    Cardano.Wallet.Read.Tx.TxIdSpec
     Spec
     SpecHook
 

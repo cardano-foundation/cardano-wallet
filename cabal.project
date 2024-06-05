@@ -269,6 +269,9 @@ package cardano-wallet-network-layer
 package cardano-wallet-primitive
   tests: True
 
+package cardano-wallet-read
+  tests: True
+
 package cardano-wallet-text-class
   tests: True
 
