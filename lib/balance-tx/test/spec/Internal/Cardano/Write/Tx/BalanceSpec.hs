@@ -1312,24 +1312,8 @@ prop_balanceTxValid
                 (ErrBalanceTxAssignRedeemers
                 (ErrAssignRedeemersTranslationError x)) ->
                     case recentEra @era of
-                        RecentEraBabbage -> case x of
-                            ByronTxOutInContext _ ->
-                                label "failed with ByronTxOutInContext"
-                                    $ property True
-                            ReferenceScriptsNotSupported _ ->
-                                label "ReferenceScriptsNotSupported"
-                                    $ property True
-                            _ -> property False
-                        RecentEraConway -> case x of
-                            BabbageContextError y -> case y of
-                                ByronTxOutInContext _ ->
-                                    label "failed with ByronTxOutInContext"
-                                        $ property True
-                                ReferenceScriptsNotSupported _ ->
-                                    label "ReferenceScriptsNotSupported"
-                                        $ property True
-                                _ -> property False
-                            _ -> property False
+                        RecentEraBabbage -> prop_babbageContextError x
+                        RecentEraConway -> prop_conwayContextError x
             Left ErrBalanceTxUnableToCreateChange {} ->
                 label "unable to create change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
@@ -1340,6 +1324,42 @@ prop_balanceTxValid
     BalanceTxArgs {protocolParams, timeTranslation, wallet, partialTx, seed} =
         balanceTxArgs
     Wallet _ walletUTxO _ = wallet
+
+    prop_babbageContextError :: BabbageContextError era -> Property
+    prop_babbageContextError = \case
+        AlonzoContextError (TranslationLogicMissingInput _) ->
+            succeedWithLabel "TranslationLogicMissingInput"
+        AlonzoContextError (TimeTranslationPastHorizon _) ->
+            succeedWithLabel "TimeTranslationPastHorizon"
+        ByronTxOutInContext _ ->
+            succeedWithLabel "ByronTxOutInContext"
+        RedeemerPointerPointsToNothing _ ->
+            succeedWithLabel "RedeemerPointerPointsToNothing"
+        InlineDatumsNotSupported _ ->
+            succeedWithLabel "InlineDatumsNotSupported"
+        ReferenceScriptsNotSupported _ ->
+            succeedWithLabel "ReferenceScriptsNotSupported"
+        ReferenceInputsNotSupported _ ->
+            succeedWithLabel "ReferenceInputsNotSupported"
+
+    prop_conwayContextError :: ConwayContextError era -> Property
+    prop_conwayContextError = \case
+      BabbageContextError e -> prop_babbageContextError e
+      CertificateNotSupported _ ->
+        succeedWithLabel "CertificateNotSupported"
+      PlutusPurposeNotSupported _ ->
+        succeedWithLabel "PlutusPurposeNotSupported"
+      -- Will be needed in later ledger versions:
+      -- CurrentTreasuryFieldNotSupported _ ->
+      --   succeedWithLabel "CurrentTreasuryFieldNotSupported"
+      -- VotingProceduresFieldNotSupported _ ->
+      --   succeedWithLabel "VotingProceduresFieldNotSupported"
+      -- ProposalProceduresFieldNotSupported _ ->
+      --   succeedWithLabel "ProposalProceduresFieldNotSupported"
+      -- TreasuryDonationFieldNotSupported _ ->
+      --   succeedWithLabel "TreasuryDonationFieldNotSupported"
+
+    succeedWithLabel l = label l $ property True
 
     prop_expectFeeExcessSmallerThan
         :: Coin
