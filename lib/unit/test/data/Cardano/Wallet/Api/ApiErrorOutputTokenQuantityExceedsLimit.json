@@ -1,0 +1,75 @@
+{
+    "samples": [
+        {
+            "address": "󲶤p𣼊􂴏{",
+            "asset_name": "\r",
+            "max_quantity": 6,
+            "policy_id": "&e5􂝉􍪡`",
+            "quantity": 6
+        },
+        {
+            "address": "0\u000b󷿩8《",
+            "asset_name": "9\u0017𥯸",
+            "max_quantity": 3,
+            "policy_id": "-\u0004",
+            "quantity": 2
+        },
+        {
+            "address": "",
+            "asset_name": "e+",
+            "max_quantity": 3,
+            "policy_id": "\u000e",
+            "quantity": 1
+        },
+        {
+            "address": "R",
+            "asset_name": "􆰋Zࡧ\u001c",
+            "max_quantity": 1,
+            "policy_id": "",
+            "quantity": 3
+        },
+        {
+            "address": "ci",
+            "asset_name": "k𝓑@",
+            "max_quantity": 4,
+            "policy_id": "n\u0010~g\u0019=",
+            "quantity": 0
+        },
+        {
+            "address": "An",
+            "asset_name": "@􂲣^\u0013H",
+            "max_quantity": 5,
+            "policy_id": "2𫉽Q⌥~",
+            "quantity": 3
+        },
+        {
+            "address": "𡀂",
+            "asset_name": "辞\u0004\u0014",
+            "max_quantity": 4,
+            "policy_id": "𗔊>",
+            "quantity": 0
+        },
+        {
+            "address": "A",
+            "asset_name": "We(\u000e6",
+            "max_quantity": 0,
+            "policy_id": "𗽔𬹫u􂉇3",
+            "quantity": 3
+        },
+        {
+            "address": "a􏤶\"\u001f",
+            "asset_name": "󴟉W|\u0006􈼣",
+            "max_quantity": 0,
+            "policy_id": "E",
+            "quantity": 6
+        },
+        {
+            "address": "\u0003즄8tK",
+            "asset_name": "9f",
+            "max_quantity": 5,
+            "policy_id": "S",
+            "quantity": 1
+        }
+    ],
+    "seed": 1284243243
+}

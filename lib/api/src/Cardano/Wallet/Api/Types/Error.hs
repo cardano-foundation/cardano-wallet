@@ -34,6 +34,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
     , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
+    , ApiErrorOutputTokenQuantityExceedsLimit (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorUnsupportedEra (..)
     )
@@ -197,6 +198,7 @@ data ApiErrorInfo
     | OutputTokenBundleSizeExceedsLimit
         !ApiErrorOutputTokenBundleSizeExceedsLimit
     | OutputTokenQuantityExceedsLimit
+        !ApiErrorOutputTokenQuantityExceedsLimit
     | PastHorizon
     | PoolAlreadyJoined
     | PoolAlreadyJoinedSameVote
@@ -293,6 +295,23 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
+    deriving anyclass NFData
+
+data ApiErrorOutputTokenQuantityExceedsLimit = ApiErrorOutputTokenQuantityExceedsLimit
+    { address
+        :: !Text
+    , policyId
+        :: !Text
+    , assetName
+        :: !Text
+    , quantity
+        :: !Natural
+    , maxQuantity
+        :: !Natural
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorOutputTokenQuantityExceedsLimit
     deriving anyclass NFData
 
 data ApiErrorOutputTokenBundleSizeExceedsLimit = ApiErrorOutputTokenBundleSizeExceedsLimit

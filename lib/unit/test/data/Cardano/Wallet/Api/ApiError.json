@@ -1,60 +1,49 @@
 {
     "samples": [
         {
-            "code": "transaction_is_too_big",
-            "message": "c𤐶ꭤ$7􇑇[C𒅈"
+            "code": "not_implemented",
+            "message": "줻&Su7$@"
         },
         {
-            "code": "shared_wallet_no_delegation_template",
-            "message": ""
+            "code": "created_wrong_policy_script_template",
+            "message": "@{p"
         },
         {
-            "code": "pool_already_joined_same_vote",
-            "message": ""
+            "code": "tokens_minted_but_not_spent_or_burned",
+            "message": ">oW|)`𭩳"
         },
         {
-            "code": "not_enough_money",
+            "code": "voting_in_invalid_era",
+            "message": "#\\7󰳖]efG|~t𠞀"
+        },
+        {
+            "code": "output_token_bundle_size_exceeds_limit",
             "info": {
-                "shortfall": {
-                    "ada": {
-                        "quantity": 3766471336365162,
-                        "unit": "lovelace"
-                    },
-                    "assets": [
-                        {
-                            "asset_name": "0000000000010101010100010001010100010101000000010101010001000000",
-                            "policy_id": "00000000010001010100010001000001010001010000010000010101",
-                            "quantity": 0
-                        }
-                    ]
-                }
+                "address": "{QR𮦣\r'T",
+                "bundle_size": -6
             },
-            "message": "rⱁ𝓵?"
+            "message": "\u001e󻙘\u000bY>"
         },
         {
-            "code": "rejected_by_core_node",
-            "message": ")󼫹\u0014"
+            "code": "created_invalid_transaction",
+            "message": "^M\u0014\u0006帀𬒠㨿󱪫b"
         },
         {
-            "code": "past_horizon",
-            "message": "㛴k\u0003"
+            "code": "not_found",
+            "message": "q𦽺"
         },
         {
-            "code": "balance_tx_existing_total_collateral",
-            "message": "𩩃U􆎩7M6餱~"
+            "code": "wrong_mnemonic",
+            "message": "\u000c\u0004󰧸𖢌𱞁v􉿊\u0005􄓷􂛽_"
         },
         {
-            "code": "same_vote",
-            "message": "E􎈵"
+            "code": "no_root_key",
+            "message": "@&𰣎􍦷Pg"
         },
         {
-            "code": "shared_wallet_incomplete",
-            "message": "\u0006h\u0001N'􈾕槳<KZ7"
-        },
-        {
-            "code": "balance_tx_existing_return_collateral",
-            "message": "󸽱iꕌ8𗞭\u001d𦓶FE\u0000󶡮N􀴋"
+            "code": "asset_name_too_long",
+            "message": "w"
         }
     ],
-    "seed": 387949580
+    "seed": -2101017225
 }

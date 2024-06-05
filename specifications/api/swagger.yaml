@@ -4790,6 +4790,20 @@ x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
     code:
       type: string
       enum: ['output_token_quantity_exceeds_limit']
+    info:
+      type: object
+      required:
+        - address
+        - policy_id
+        - asset_name
+        - quantity
+        - max_quantity
+      properties:
+          address: *addressId
+          policy_id: *assetPolicyId
+          asset_name: *assetName
+          quantity: *assetQuantity
+          max_quantity: *assetQuantity
 
 x-errSharedWalletActive: &errSharedWalletActive
   <<: *responsesErr
