@@ -10,6 +10,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Test.Integration.Scenario.API.Shelley.Migrations
     ( spec
     ) where

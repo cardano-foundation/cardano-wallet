@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0

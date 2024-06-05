@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen
     ( genTxHash

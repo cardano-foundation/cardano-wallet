@@ -185,7 +185,7 @@ data TxChange derivationPath = TxChange
     , amount :: Coin
     , assets :: TokenMap
     , derivationPath :: derivationPath
-    } deriving (Show, Generic, Eq, Ord)
+    } deriving (Show, Generic, Eq)
 
 {-------------------------------------------------------------------------------
                           Conversions (Unsafe)
