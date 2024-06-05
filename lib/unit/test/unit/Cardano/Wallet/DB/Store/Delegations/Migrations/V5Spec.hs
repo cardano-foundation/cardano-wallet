@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Cardano.Wallet.DB.Store.Delegations.Migrations.V5Spec where
 

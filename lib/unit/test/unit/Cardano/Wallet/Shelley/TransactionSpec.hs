@@ -19,6 +19,7 @@
 {- HLINT ignore "Use camelCase" -}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 -- TODO [ADP-3385] Stop using deprecated 'Cardano.ProtocolParameters'
 --https://cardanofoundation.atlassian.net/browse/ADP-3385
