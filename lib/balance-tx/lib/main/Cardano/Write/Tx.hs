@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 -- |
 -- Copyright: © 2023-2024 Cardano Foundation
 -- License: Apache-2.0

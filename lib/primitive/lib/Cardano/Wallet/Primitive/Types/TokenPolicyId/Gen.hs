@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Cardano.Wallet.Primitive.Types.TokenPolicyId.Gen
     (
     -- * Generators and shrinkers
