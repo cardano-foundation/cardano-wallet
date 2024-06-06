@@ -74,8 +74,6 @@ module Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotBeneficial
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
-    , errMsg403OutputTokenBundleSizeExceedsLimit
-    , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg403KeyAlreadyPresent
     , errMsg403CreateIllegal
     , errMsg400ScriptWrongCoeffcient
@@ -101,18 +99,6 @@ import Cardano.Wallet.Api.Types
     ( ApiAssetMetadata (ApiAssetMetadata)
     , ApiT (..)
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( Address
-    )
-import Cardano.Wallet.Primitive.Types.AssetName
-    ( AssetName
-    )
-import Cardano.Wallet.Primitive.Types.TokenPolicyId
-    ( TokenPolicyId
-    )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity
-    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..)
     , TxMetadataValue (..)
@@ -132,9 +118,6 @@ import Data.Text
     )
 import Data.Word
     ( Word32
-    )
-import Fmt
-    ( pretty
     )
 import Test.Integration.Framework.DSL
     ( Payload (..)
@@ -462,49 +445,6 @@ errMsg403CouldntIdentifyAddrAsMine = "I \
 
 errMsg503PastHorizon :: String
 errMsg503PastHorizon = "Tried to convert something that is past the horizon"
-
-errMsg403OutputTokenBundleSizeExceedsLimit
-    :: Address
-    -> Int
-    -- ^ Asset count
-    -> String
-errMsg403OutputTokenBundleSizeExceedsLimit
-    address assetCount = mconcat
-        [ "One of the outputs you've specified contains too many assets. "
-        , "Try splitting these assets across two or more outputs. "
-        , "Destination address: "
-        , pretty address
-        , ". Asset count: "
-        , pretty assetCount
-        , "."
-        ]
-
-errMsg403OutputTokenQuantityExceedsLimit
-    :: Address
-    -> TokenPolicyId
-    -> AssetName
-    -> TokenQuantity
-    -- ^ Specified token quantity
-    -> TokenQuantity
-    -- ^ Maximum allowable token quantity
-    -> String
-errMsg403OutputTokenQuantityExceedsLimit
-    address policy asset quantity quantityMaxBound = mconcat
-        [ "One of the token quantities you've specified is greater than the "
-        , "maximum quantity allowed in a single transaction output. Try "
-        , "splitting this quantity across two or more outputs. "
-        , "Destination address: "
-        , pretty address
-        , ". Token policy identifier: "
-        , pretty policy
-        , ". Asset name: "
-        , pretty asset
-        , ". Token quantity specified: "
-        , pretty quantity
-        , ". Maximum allowable token quantity: "
-        , pretty quantityMaxBound
-        , "."
-        ]
 
 errMsg403KeyAlreadyPresent :: Text -> String
 errMsg403KeyAlreadyPresent cred = mconcat
