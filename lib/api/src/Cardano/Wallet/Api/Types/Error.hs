@@ -36,6 +36,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
     , ApiErrorOutputTokenQuantityExceedsLimit (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorUnsupportedEra (..)
     )
     where
@@ -222,6 +223,7 @@ data ApiErrorInfo
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
     | TransactionAlreadyInLedger
+        !ApiErrorTransactionAlreadyInLedger
     | TransactionIsTooBig
     | TranslationError
     | TxNotInNodeEra
@@ -391,6 +393,13 @@ data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchTransaction
+    deriving anyclass NFData
+
+data ApiErrorTransactionAlreadyInLedger = ApiErrorTransactionAlreadyInLedger
+    { transactionId :: !(ApiT (Hash "Tx"))
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorTransactionAlreadyInLedger
     deriving anyclass NFData
 
 data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime

@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (ApiErrorTransactionAlreadyInLedger)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
@@ -222,14 +223,10 @@ import Test.Integration.Framework.Request
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
-    , errMsg403AlreadyInLedger
     , errMsg403WithdrawalNotBeneficial
     , errMsg403WrongPass
     , steveToken
     , txMetadata_ADP_1005
-    )
-import Web.HttpApiData
-    ( ToHttpApiData (..)
     )
 
 import qualified Cardano.Address as CA
@@ -2559,8 +2556,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)
             rDel <- request @ApiTxId ctx ep Default Empty
             expectResponseCode HTTP.status403 rDel
-            let err = errMsg403AlreadyInLedger (toUrlPiece (ApiTxId txid))
-            expectErrorMessage err rDel
+            decodeErrorInfo rDel `shouldBe`
+                TransactionAlreadyInLedger
+                (ApiErrorTransactionAlreadyInLedger txid)
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"

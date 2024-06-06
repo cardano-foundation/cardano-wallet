@@ -289,6 +289,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorOutputTokenQuantityExceedsLimit (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
     )
@@ -822,6 +823,7 @@ spec = do
         jsonTest @ApiErrorNotEnoughMoney
         jsonTest @ApiErrorOutputTokenBundleSizeExceedsLimit
         jsonTest @ApiErrorOutputTokenQuantityExceedsLimit
+        jsonTest @ApiErrorTransactionAlreadyInLedger
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiIncompleteSharedWallet
@@ -2489,6 +2491,10 @@ instance Arbitrary ApiErrorNoSuchWallet where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorNoSuchTransaction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorTransactionAlreadyInLedger where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

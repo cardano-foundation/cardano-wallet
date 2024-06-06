@@ -4419,6 +4419,12 @@ x-errTransactionAlreadyInLedger: &errTransactionAlreadyInLedger
     code:
       type: string
       enum: ['transaction_already_in_ledger']
+    info:
+      type: object
+      required:
+        - transaction_id
+      properties:
+        transaction_id: *transactionId
 
 x-errWalletAlreadyExists: &errWalletAlreadyExists
   <<: *responsesErr

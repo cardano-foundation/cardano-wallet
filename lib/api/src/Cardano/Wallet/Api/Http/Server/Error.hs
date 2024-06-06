@@ -120,6 +120,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNotEnoughMoneyShortfall (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
     )
@@ -646,7 +647,11 @@ instance IsServerError ErrRemoveTx where
                 , toText tid
                 ]
         ErrRemoveTxAlreadyInLedger tid ->
-            apiError err403 TransactionAlreadyInLedger $ mconcat
+            flip (apiError err403) message $
+            TransactionAlreadyInLedger
+            ApiErrorTransactionAlreadyInLedger { transactionId = ApiT tid }
+          where
+            message = mconcat
                 [ "The transaction with id: ", toText tid,
                   " cannot be forgotten as it is already in the ledger."
                 ]
