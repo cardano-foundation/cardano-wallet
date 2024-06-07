@@ -280,6 +280,7 @@ main = withUtf8
 
 walletApiBench :: SomeMnemonic -> BenchM ()
 walletApiBench massiveMnemonic = do
+
     fmtTitle "Non-cached run"
     runWarmUpScenario
 
