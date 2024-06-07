@@ -85,6 +85,7 @@ import Cardano.Wallet.Unsafe
 import Control.Monad
     ( forM
     , forM_
+    , when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -1143,12 +1144,10 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @(ApiTransaction n) ctx
                 (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
             verify r expectations
-            if checkWrongPass then
+            when checkWrongPass $
                 decodeErrorInfo r `shouldBe`
                     WrongEncryptionPassphrase
                     (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
-            else
-                pure ()
         forM_ matrix $ \(title, pass, expectations, checkWrongPass) -> it title
           $ \ctx -> runResourceT $ do
             (wSrc, mnemonic) <- fixtureShelleyWallet ctx
@@ -1175,12 +1174,10 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @(ApiTransaction n) ctx
                 (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
             verify r expectations
-            if checkWrongPass then
+            when checkWrongPass $
                 decodeErrorInfo r `shouldBe`
                     WrongEncryptionPassphrase
                     (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
-            else
-                pure ()
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
         let matrix =
