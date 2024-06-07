@@ -256,9 +256,6 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , HardForkBlock (..)
     )
-import System.Exit
-    ( ExitCode
-    )
 import System.Random
     ( RandomGen
     , random
@@ -332,7 +329,7 @@ withNodeStakePoolLayer
     -> NetworkParameters
     -> [PoolCertificate] -- Shelley genesis pools
     -> NetworkLayer IO (CardanoBlock StandardCrypto)
-    -> ContT ExitCode IO StakePoolLayer
+    -> ContT r IO StakePoolLayer
 withNodeStakePoolLayer tr settings dbLayer@DBLayer{..} netParams genesisPools netLayer = lift do
     gcStatus <- newTVarIO NotStarted
     forM_ settings $ atomically . putSettings

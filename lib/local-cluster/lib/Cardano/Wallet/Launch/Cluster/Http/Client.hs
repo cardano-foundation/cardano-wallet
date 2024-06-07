@@ -23,7 +23,7 @@ import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
     ( MsgMonitorClient
     , RunMonitorQ
     , mkMonitorClient
-    , newRunQuery
+    , newRunMonitorQ
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -105,12 +105,16 @@ withHttpClient networkId tracer httpPort = ContT $ \continue -> do
         query f = do
             r <- runClientM f $ mkClientEnv manager url
             either throwIO pure r
-    runQuery <- newRunQuery query (MsgMonitorClient >$< tracer) mkMonitorClient
+    runMonitorQ <-
+        newRunMonitorQ
+            query
+            (MsgMonitorClient >$< tracer)
+            mkMonitorClient
     runFaucet <-
         newFaucetQ
             query
             (MsgFaucetClient >$< tracer)
             $ mkFaucet networkId
-    r <- continue (runQuery, runFaucet)
+    r <- continue (runMonitorQ, runFaucet)
     tr MsgClientDone
     pure r

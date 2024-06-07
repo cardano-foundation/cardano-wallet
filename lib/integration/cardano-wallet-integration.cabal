@@ -16,15 +16,17 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+  ghc-options: -Wunused-packages -Wall -Wcompat -Wredundant-constraints
+    -Wunused-imports 
+
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints
-
+  ghc-options:
   if flag(release)
     ghc-options: -O2 -Werror
 
 common opts-exe
-  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+  ghc-options: -threaded -rtsopts
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -48,8 +50,6 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses
-    , cardano-crypto-class
-    , cardano-data
     , cardano-ledger-shelley
     , cardano-wallet-api
     , cardano-wallet-application-extras
@@ -68,7 +68,6 @@ library framework
     , either
     , extra
     , faucet
-    , filepath
     , flat
     , fmt
     , generic-lens
@@ -84,7 +83,8 @@ library framework
     , iohk-monitoring-extra
     , lens
     , lobemo-backend-ekg
-    , local-cluster
+    , local-cluster:local-cluster-process
+    , local-cluster:local-cluster
     , memory
     , microstache
     , monad-loops
@@ -111,6 +111,7 @@ library framework
     Test.Integration.Framework.DSL.Network
     Test.Integration.Framework.DSL.TestM
     Test.Integration.Framework.DSL.Wallet
+    Test.Integration.Framework.LocalCluster.SendFaucetAssets
     Test.Integration.Framework.Logging
     Test.Integration.Framework.PendingInEra
     Test.Integration.Framework.Request
@@ -159,7 +160,6 @@ library scenarios
     , pathtype
     , pretty-simple
     , resourcet
-    , servant-client
     , text
     , text-class
     , time

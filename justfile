@@ -98,8 +98,10 @@ integration-tests-cabal-options options:
   LOCAL_CLUSTER_NODE_OUTPUT_FILE=/dev/null \
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   CARDANO_WALLET_TEST_DATA=../../lib/integration/test/data \
-  cabal test integration -O0 -v0 \
-    --test-options '{{options}}'
+  nix shell \
+    '.#local-cluster' \
+    -c cabal test integration -O0 -v0 \
+        --test-options '{{options}}'
 
 # run babbage integration tests matching the given pattern via cabal
 babbage-integration-tests-cabal-match match:
@@ -127,6 +129,7 @@ integration-tests match:
   TESTS_RETRY_FAILED=1 \
   nix shell \
     '.#cardano-wallet' \
+    '.#local-cluster' \
     '.#integration-exe' \
     -c integration-exe -j 2 --match="{{match}}"
 

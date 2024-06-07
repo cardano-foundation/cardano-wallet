@@ -14,7 +14,7 @@ where
 import Prelude
 
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.Client
-    ( RunQuery
+    ( RunMonitorQ
     , withHttpClient
     )
 import Cardano.Wallet.Launch.Cluster.Http.Monitor.Logging
@@ -102,7 +102,7 @@ withMonitoring
     -- ^ Tracer for logging the monitoring operations
     -> MonitorConfiguration
     -- ^ Configuration for the monitoring service
-    -> ContT () IO (Tracer IO Phase, RunQuery IO)
+    -> ContT () IO (Tracer IO Phase, RunMonitorQ IO)
 withMonitoring tr MonitorConfiguration{..} = do
     monitor <- liftIO $ withTracingState timedMonitor monitorInitialState
     port <- liftIO $ maybe getRandomPort pure monitorPort

@@ -1,9 +1,11 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
+    , WalletPresence (..)
     , parseCommandLineOptions
     , clusterConfigsDirParser
     )
@@ -48,6 +50,7 @@ import Options.Applicative
     , optional
     , progDesc
     , strOption
+    , switch
     , (<**>)
     )
 import System.Path
@@ -55,6 +58,9 @@ import System.Path
     )
 
 import qualified Cardano.BM.Data.Severity as Severity
+
+data WalletPresence = NoWallet | WalletPresence (Maybe PortNumber)
+    deriving stock (Show)
 
 data CommandLineOptions = CommandLineOptions
     { clusterConfigsDir :: DirOf "cluster-configs"
@@ -64,6 +70,7 @@ data CommandLineOptions = CommandLineOptions
     , nodeToClientSocket :: Maybe (FileOf "node-to-client-socket")
     , httpService :: ServiceConfiguration
     , faucetFunds :: FileOf "faucet-funds"
+    , walletPresent :: WalletPresence
     }
     deriving stock (Show)
 
@@ -80,9 +87,33 @@ parseCommandLineOptions = do
                 <*> nodeToClientSocketParser absolutizer
                 <*> monitoringParser
                 <*> faucetFundsParser absolutizer
+                <*> withWalletParser
                 <**> helper
             )
             (progDesc "Local Cluster for testing")
+
+withWalletParser :: Parser WalletPresence
+withWalletParser = do
+    p <- walletPresentParser
+    port <- walletPortParser
+    pure $ if p then WalletPresence port else NoWallet
+
+walletPresentParser :: Parser Bool
+walletPresentParser = do
+    switch
+        ( long "wallet-present"
+            <> help "If to start the wallet or not"
+        )
+
+walletPortParser :: Parser (Maybe PortNumber)
+walletPortParser = do
+    optional
+        $ option
+            auto
+            ( long "wallet-port"
+                <> metavar "WALLET_PORT"
+                <> help "Port for the wallet HTTP server"
+            )
 
 faucetFundsParser :: Absolutizer -> Parser (FileOf "faucet-funds")
 faucetFundsParser (Absolutizer absOf) =
