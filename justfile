@@ -129,6 +129,7 @@ integration-tests match:
   TESTS_RETRY_FAILED=1 \
   nix shell \
     '.#cardano-wallet' \
+    '.#local-cluster' \
     '.#integration-exe' \
     -c integration-exe -j 2 --match="{{match}}"
 
