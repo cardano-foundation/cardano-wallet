@@ -211,7 +211,7 @@ localClusterCommand name walletOptions envs port faucetFundsPath = do
     mLogsPath <- liftIO $ getClusterLogsFilePathFromEnv envs
     mMinSeverity <- liftIO $ getClusterLogsMinSeverity envs
     (clusterStdout, logsPathName) <- case mLogsPath of
-        Nothing -> pure (NoStream, Nothing)
+        Nothing -> pure (Inherit, Nothing)
         Just logsPath -> do
             let logsPathName = logsPath </> name
             fmap (\h -> (UseHandle h, Just logsPathName))
