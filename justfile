@@ -172,3 +172,9 @@ test-local-cluster:
         '.#cardano-node' \
         '.#cardano-wallet' \
         -c test-local-cluster-exe
+
+api-bench:
+    BENCHMARK_CSV_FILE=ignore-me/api-bench.csv \
+    cabal run -O0 -v0 \
+            cardano-wallet-benchmarks:api \
+            -- lib/benchmarks/data/api-bench

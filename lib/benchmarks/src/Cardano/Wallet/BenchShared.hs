@@ -24,7 +24,7 @@ module Cardano.Wallet.BenchShared
       -- * Benchmark runner
     , runBenchmarks
     , bench
-    , Time
+    , Time (..)
     , withTempSqliteFile
     ) where
 

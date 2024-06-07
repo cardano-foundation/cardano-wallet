@@ -5,6 +5,7 @@ module Cardano.BM.ToTextTracer
     , logHandleFromFilePath
     , withFile
     , withToTextTracer
+    , overToTextTracer
     )
 where
 
@@ -133,3 +134,14 @@ withFile path mode action = do
             hClose h
             throwIO e
     catch action' handler
+
+-- | Modify the tracer of a `ToTextTracer`
+overToTextTracer
+    :: ( forall a
+          . (HasSeverityAnnotation a, ToText a)
+         => Tracer IO a
+         -> Tracer IO a
+       )
+    -> ToTextTracer
+    -> ToTextTracer
+overToTextTracer f (ToTextTracer tr) = ToTextTracer (f tr)

@@ -55,8 +55,11 @@ steps:
     key: api-block
 
   - label: 'API benchmark'
-    command: "./.buildkite/bench-api.sh"
+    command: |
+      export BENCHMARK_CSV_FILE="bench-results.csv"
+      ./.buildkite/bench-api.sh
     timeout_in_minutes: 210
+    artifact_paths: [ "./bench-results.csv" ]
     agents:
       system: ${linux}
       queue: adrestia-bench
