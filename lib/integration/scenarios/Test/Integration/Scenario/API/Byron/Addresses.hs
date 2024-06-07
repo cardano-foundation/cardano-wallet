@@ -37,6 +37,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
@@ -93,7 +94,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403CouldntIdentifyAddrAsMine
     , errMsg403NotAByronWallet
-    , errMsg403WrongPass
     )
 import Web.HttpApiData
     ( ToHttpApiData (..)
@@ -234,8 +234,10 @@ scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT $ do
     r <- request @(ApiAddressWithPath n) ctx (Link.postRandomAddress w) Default payload
     verify r
         [ expectResponseCode HTTP.status403
-        , expectErrorMessage errMsg403WrongPass
         ]
+    decodeErrorInfo r `Lifted.shouldBe`
+        WrongEncryptionPassphrase
+        (ApiErrorWrongEncryptionPassphrase (w ^. #id))
   where
     title = "ADDRESS_CREATE_03 - Cannot create a random address with wrong passphrase"
 

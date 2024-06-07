@@ -123,6 +123,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
+    , ApiErrorWrongEncryptionPassphrase (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
@@ -311,7 +312,11 @@ instance IsServerError ErrWithRootKey where
                 , "fully own it."
                 ]
         ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase ->
-            apiError err403 WrongEncryptionPassphrase $ mconcat
+            flip (apiError err403) message $
+            WrongEncryptionPassphrase
+            ApiErrorWrongEncryptionPassphrase { walletId = ApiT wid }
+          where
+            message = mconcat
                 [ "The given encryption passphrase doesn't match the one I use "
                 , "to encrypt the root private key of the given wallet: "
                 , toText wid

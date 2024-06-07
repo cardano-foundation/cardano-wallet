@@ -4474,6 +4474,12 @@ x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
     code:
       type: string
       enum: ['wrong_encryption_passphrase']
+    info:
+      type: object
+      required:
+        - wallet_id
+      properties:
+        wallet_id: *walletId
 
 x-errWrongMnemonic: &errWrongMnemonic
   <<: *responsesErr

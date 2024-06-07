@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTransactionAlreadyInLedger (ApiErrorTransactionAlreadyInLedger)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata
@@ -224,7 +225,6 @@ import Test.Integration.Framework.Request
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
     , errMsg403WithdrawalNotBeneficial
-    , errMsg403WrongPass
     , steveToken
     , txMetadata_ADP_1005
     )
@@ -810,11 +810,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.createTransactionOld @'Shelley wSrc)
                 Default
                 payload
-        verify
-            r
+        verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WrongPass
             ]
+        decodeErrorInfo r `shouldBe`
+            WrongEncryptionPassphrase
+            (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx

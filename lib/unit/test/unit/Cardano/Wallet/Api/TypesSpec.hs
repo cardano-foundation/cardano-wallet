@@ -292,6 +292,7 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
+    , ApiErrorWrongEncryptionPassphrase (..)
     )
 import Cardano.Wallet.Api.Types.RestorationMode
     ( ApiRestorationMode
@@ -824,6 +825,7 @@ spec = do
         jsonTest @ApiErrorOutputTokenBundleSizeExceedsLimit
         jsonTest @ApiErrorOutputTokenQuantityExceedsLimit
         jsonTest @ApiErrorTransactionAlreadyInLedger
+        jsonTest @ApiErrorWrongEncryptionPassphrase
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiIncompleteSharedWallet
@@ -2487,6 +2489,10 @@ instance Arbitrary ApiErrorNoSuchPool where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorNoSuchWallet where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorWrongEncryptionPassphrase where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

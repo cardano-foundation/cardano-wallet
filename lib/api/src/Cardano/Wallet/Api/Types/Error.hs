@@ -38,6 +38,7 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorStartTimeLaterThanEndTime (..)
     , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorUnsupportedEra (..)
+    , ApiErrorWrongEncryptionPassphrase (..)
     )
     where
 
@@ -241,6 +242,7 @@ data ApiErrorInfo
     | WalletNotResponding
     | WithdrawalNotBeneficial
     | WrongEncryptionPassphrase
+        !ApiErrorWrongEncryptionPassphrase
     | WithdrawalNotPossibleWithoutVote
     | WrongMnemonic
     | BlockHeaderNotFound
@@ -408,4 +410,11 @@ data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorStartTimeLaterThanEndTime
+    deriving anyclass NFData
+
+data ApiErrorWrongEncryptionPassphrase = ApiErrorWrongEncryptionPassphrase
+    { walletId :: !(ApiT WalletId)
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorWrongEncryptionPassphrase
     deriving anyclass NFData
