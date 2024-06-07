@@ -6,7 +6,8 @@ import Prelude
 
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
-    , newToTextTracer
+    , logHandleFromFilePath
+    , newToTextTracerFromHandle
     )
 import Cardano.Launcher.Node
     ( nodeSocketFile
@@ -252,11 +253,9 @@ main = withUtf8 $ do
         -- Add a tracer for the cluster logs
         ToTextTracer tracer <- case clusterLogs of
             Nothing -> pure $ ToTextTracer nullTracer
-            Just path ->
-                ContT
-                    $ newToTextTracer
-                        (toFilePath . absFileOf $ path)
-                        minSeverity
+            Just path -> do
+                h <- logHandleFromFilePath $ toFilePath . absFileOf $ path
+                newToTextTracerFromHandle h minSeverity
 
         let debug :: MonadIO m => Text -> m ()
             debug = liftIO . traceWith tracer
@@ -347,7 +346,7 @@ main = withUtf8 $ do
                                     DirOf $ clusterDirPath </> relDir "db"
                                 , WC.walletListenHost = Nothing
                                 , WC.walletListenPort =
-                                        fromIntegral <$> walletPort
+                                    fromIntegral <$> walletPort
                                 , WC.walletByronGenesisForTestnet =
                                     Just
                                         $ FileOf

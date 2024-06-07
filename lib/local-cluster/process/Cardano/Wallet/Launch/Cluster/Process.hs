@@ -5,7 +5,6 @@
 
 module Cardano.Wallet.Launch.Cluster.Process
     ( withLocalCluster
-    , withFile
     , EnvVars (..)
     , WalletPresence (..)
     , defaultEnvVars
@@ -22,7 +21,8 @@ import Prelude
 
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
-    , newToTextTracer
+    , logHandleFromFilePath
+    , newToTextTracerFromHandle
     )
 import Cardano.Launcher
     ( Command (..)
@@ -63,11 +63,6 @@ import Cardano.Wallet.Primitive.NetworkId
     ( NetworkId (..)
     , withSNetworkId
     )
-import Control.Exception
-    ( SomeException (..)
-    , catch
-    , throwIO
-    )
 import Control.Monad
     ( forM_
     )
@@ -87,17 +82,8 @@ import System.Environment
     ( lookupEnv
     )
 import System.FilePath
-    ( takeDirectory
-    , (<.>)
+    ( (<.>)
     , (</>)
-    )
-import System.IO
-    ( BufferMode (NoBuffering)
-    , Handle
-    , IOMode (WriteMode)
-    , hClose
-    , hSetBuffering
-    , openFile
     )
 import System.IO.Extra
     ( withTempFile
@@ -138,23 +124,6 @@ getClusterLogsMinSeverity :: EnvVars -> IO (Maybe String)
 getClusterLogsMinSeverity environmentVars =
     lookupEnv $ clusterLogsMinSeverity environmentVars
 
--- | A withFile function that creates the directory if it doesn't exist,
--- and sets the buffering to NoBuffering. It also catches exceptions and
--- closes the handle before rethrowing the exception.
--- This cover also a problem with the original withFile function that
--- replace any exception happening in the action with a generic
--- "withFile: openFile: does not exist"
-withFile :: FilePath -> IOMode -> (Handle -> IO a) -> IO a
-withFile path mode action = do
-    createDirectoryIfMissing True (takeDirectory path)
-    h <- openFile path mode
-    hSetBuffering h NoBuffering
-    catch
-        (action h)
-        $ \(SomeException e) -> do
-            hClose h
-            throwIO e
-
 -- | Start a local cluster with the given name and initial faucet funds.
 -- The cluster will be started in the background and the function will return
 -- a pair of functions to query the cluster and a tracer to log as the process
@@ -176,11 +145,9 @@ withLocalCluster name walletOption envs faucetFundsValue = do
         localClusterCommand name walletOption envs port faucetFundsPath
     ToTextTracer processLogs <- case logsPathName of
         Nothing -> pure $ ToTextTracer nullTracer
-        Just path ->
-            ContT
-                $ newToTextTracer
-                    (path <> "-process" <.> "log")
-                    Nothing
+        Just path -> do
+            handle <- logHandleFromFilePath $ path <> "-process" <.> "log"
+            newToTextTracerFromHandle handle Nothing
     _ <-
         ContT
             $ withBackendProcess
@@ -215,8 +182,8 @@ localClusterCommand name walletOptions envs port faucetFundsPath = do
         Just logsPath -> do
             let logsPathName = logsPath </> name
             fmap (\h -> (UseHandle h, Just logsPathName))
-                $ ContT
-                $ withFile (logsPath </> name <> "-stdout" <.> "log") WriteMode
+                $ logHandleFromFilePath
+                $ logsPath </> name <> "-stdout" <.> "log"
 
     pure
         $ (logsPathName,)

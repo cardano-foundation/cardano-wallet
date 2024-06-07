@@ -2,7 +2,9 @@
 
 module Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
-    , newToTextTracer
+    , newToTextTracerFromHandle
+    , logHandleFromFilePath
+    , withFile
     )
 where
 
@@ -34,17 +36,30 @@ import Data.Time
 import Data.Time.Format.ISO8601
     ( iso8601Show
     )
+import System.FilePath
+    ( takeDirectory
+    )
+import System.IO
+    ( Handle
+    )
 import UnliftIO
     ( BufferMode (NoBuffering)
     , IOMode (WriteMode)
+    , SomeException (..)
     , atomically
+    , catch
+    , hClose
     , hSetBuffering
     , isEmptyTChan
     , newTChanIO
+    , openFile
     , readTChan
+    , throwIO
     , withAsync
-    , withFile
     , writeTChan
+    )
+import UnliftIO.Directory
+    ( createDirectoryIfMissing
     )
 
 import qualified Data.Text as T
@@ -56,19 +71,23 @@ newtype ToTextTracer
     = ToTextTracer
         (forall a. (HasSeverityAnnotation a, ToText a) => Tracer IO a)
 
+-- | Create a new `Handle` from a file path, opened in `WriteMode` with
+-- `NoBuffering`
+logHandleFromFilePath :: FilePath -> ContT r IO Handle
+logHandleFromFilePath clusterLogsFile = do
+    h <- ContT $ withFile clusterLogsFile WriteMode
+    hSetBuffering h NoBuffering
+    pure h
+
 -- | Create a new `ToTextTracer`
-newToTextTracer
-    :: FilePath
+newToTextTracerFromHandle
+    :: Handle
     -- ^ If provided, logs will be written to this file, otherwise to stdout
     -> Maybe Severity
     -- ^ Minimum severity level to log
-    -> (ToTextTracer -> IO r)
-    -- ^ Action to run with the new tracer
-    -> IO r
-newToTextTracer clusterLogsFile minSeverity = runContT $ do
+    -> ContT r IO ToTextTracer
+newToTextTracerFromHandle h minSeverity = do
     ch <- newTChanIO
-    h <- ContT $ withFile clusterLogsFile WriteMode
-    hSetBuffering h NoBuffering
     _printer <- ContT $ withAsync $ forever $ do
         (x, s, t) <- atomically $ readTChan ch
         T.hPutStrLn h
@@ -88,3 +107,23 @@ newToTextTracer clusterLogsFile minSeverity = runContT $ do
             empty <- isEmptyTChan ch
             unless empty retry
         pure r
+
+-- | A withFile function that creates the directory if it doesn't exist,
+-- and sets the buffering to NoBuffering. It also catches exceptions and
+-- closes the handle before rethrowing the exception.
+-- This cover also a problem with the original withFile function that
+-- replace any exception happening in the action with a generic
+-- "withFile: openFile: does not exist"
+withFile :: FilePath -> IOMode -> (Handle -> IO a) -> IO a
+withFile path mode action = do
+    createDirectoryIfMissing True (takeDirectory path)
+    h <- openFile path mode
+    hSetBuffering h NoBuffering
+    let action' = do
+            r <- action h
+            hClose h
+            pure r
+        handler (SomeException e) = do
+            hClose h
+            throwIO e
+    catch action' handler
