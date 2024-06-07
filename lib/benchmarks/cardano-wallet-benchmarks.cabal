@@ -40,6 +40,7 @@ library
   build-depends:
     , aeson
     , base
+    , bytestring
     , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api
@@ -49,6 +50,9 @@ library
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
+    , cassava
+    , comonad
+    , containers
     , criterion-measurement
     , deepseq
     , directory
@@ -56,6 +60,7 @@ library
     , faucet
     , filepath
     , fmt
+    , foldl
     , generic-lens
     , hspec
     , http-client
@@ -69,17 +74,20 @@ library
     , resourcet
     , say
     , servant-client
+    , stm
     , temporary-extra
     , text
     , text-class
     , time
     , unliftio
     , unliftio-core
+    , vector
     , wai-middleware-logging
     , with-utf8
 
   exposed-modules:
     Cardano.Wallet.BenchShared
+    Cardano.Wallet.Benchmarks.Collect
     Cardano.Wallet.Benchmarks.Latency.Measure
     Cardano.Wallet.Benchmarks.Latency.BenchM
 
@@ -182,14 +190,18 @@ benchmark db
     , containers
     , contra-tracer
     , criterion
+    , criterion-measurement
     , crypto-primitives
     , deepseq
     , directory
+    , extra
     , filepath
     , fmt
+    , foldl
     , iohk-monitoring
     , iohk-monitoring-extra
     , memory
+    , mtl
     , random
     , text
     , text-class
@@ -216,9 +228,11 @@ benchmark api
     , cardano-wallet-read
     , cardano-wallet-unit:test-common
     , containers
+    , filepath
     , fmt
     , iohk-monitoring
     , iohk-monitoring-extra
+    , mtl
     , say
     , text
     , time

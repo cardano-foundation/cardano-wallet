@@ -13,6 +13,7 @@ module Cardano.Wallet.Benchmarks.Latency.Measure
     -- * Formatting results
   , fmtResult
   , fmtTitle
+  , meanAvg
   ) where
 
 import Prelude
