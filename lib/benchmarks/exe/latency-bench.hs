@@ -16,20 +16,20 @@ import Prelude
 import Cardano.Address.Style.Shelley
     ( shelleyTestnet
     )
-import Cardano.BM.Data.LogItem
-    ( LogObject
-    )
 import Cardano.BM.Data.Severity
     ( Severity (Error)
     )
 import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation
-    , Tracer (..)
-    , filterSeverity
+    ( filterSeverity
     )
 import Cardano.BM.Extra
     ( stdoutTextTracer
     , trMessage
+    )
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , overToTextTracer
+    , withToTextTracer
     )
 import Cardano.BM.Trace
     ( traceInTVarIO
@@ -66,6 +66,15 @@ import Cardano.Wallet.Api.Types.Era
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
     )
+import Cardano.Wallet.Benchmarks.Collect
+    ( Benchmark (..)
+    , Reporter (..)
+    , Result (..)
+    , Units (Milliseconds)
+    , mkSemantic
+    , newReporterResourceTFromEnv
+    , report
+    )
 import Cardano.Wallet.Benchmarks.Latency.BenchM
     ( BenchCtx (..)
     , BenchM
@@ -77,7 +86,8 @@ import Cardano.Wallet.Benchmarks.Latency.BenchM
     , requestWithError
     )
 import Cardano.Wallet.Benchmarks.Latency.Measure
-    ( withLatencyLogging
+    ( meanAvg
+    , withLatencyLogging
     )
 import Cardano.Wallet.Faucet
     ( Faucet (massiveWalletMnemonic)
@@ -145,6 +155,9 @@ import Control.Monad.Catch
     ( Exception
     , MonadThrow (..)
     )
+import Control.Monad.Cont
+    ( evalContT
+    )
 import Control.Monad.IO.Class
     ( liftIO
     )
@@ -173,7 +186,6 @@ import Data.Generics.Labels
 import Data.Generics.Wrapped
     ( _Unwrapped
     )
-import Data.Text.Class.Extended
 import Data.Time
     ( NominalDiffTime
     )
@@ -190,9 +202,6 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import Network.Wai.Middleware.Logging
-    ( ApiLog (..)
-    )
 import Numeric.Natural
     ( Natural
     )
@@ -205,6 +214,9 @@ import System.Directory
     )
 import System.Environment.Extended
     ( isEnvSet
+    )
+import System.IO
+    ( stdout
     )
 import System.IO.Extra
     ( withTempFile
@@ -238,9 +250,6 @@ import UnliftIO.MVar
     , putMVar
     , takeMVar
     )
-import UnliftIO.STM
-    ( TVar
-    )
 
 import qualified Cardano.Wallet.Api.Clients.Network as CN
 import qualified Cardano.Wallet.Api.Clients.Testnet.Id as C
@@ -249,85 +258,93 @@ import qualified Cardano.Wallet.Benchmarks.Latency.Measure as Measure
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import qualified Options.Applicative as O
 
 main :: IO ()
-main = withUtf8
-    $ withLatencyLogging setupTracers
-    $ \tracers capture ->
-        withShelleyServer tracers $ \massiveWalletMnemonic' ctx ->
-            runReaderT (runResourceT $ walletApiBench massiveWalletMnemonic')
+main = withUtf8 $ evalContT $ do
+    tr <- withToTextTracer (Left stdout) Nothing
+    let ToTextTracer onlyErrors =
+            overToTextTracer (filterSeverity (const $ pure Error)) tr
+        setupTracers tvar =
+            Tracers
+                { apiServerTracer = trMessage $ snd >$< traceInTVarIO tvar
+                , applicationTracer = onlyErrors
+                , tokenMetadataTracer = onlyErrors
+                , walletEngineTracer = onlyErrors
+                , walletDbTracer = onlyErrors
+                , poolsEngineTracer = onlyErrors
+                , poolsDbTracer = onlyErrors
+                , ntpClientTracer = onlyErrors
+                , networkTracer = onlyErrors
+                }
+    (tracers, capture) <- withLatencyLogging setupTracers
+    liftIO
+        $ withShelleyServer tracers
+        $ \massiveWalletMnemonic' ctx ->
+            runReaderT (runResourceT $ walletApiBench tr massiveWalletMnemonic')
                 $ BenchCtx ctx capture
-  where
-    onlyErrors :: (HasSeverityAnnotation a, ToText a) => Tracer IO a
-    onlyErrors = filterSeverity (const $ pure Error) stdoutTextTracer
-
-    setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
-    setupTracers tvar =
-        Tracers
-            { apiServerTracer = trMessage $ snd >$< traceInTVarIO tvar
-            , applicationTracer = onlyErrors
-            , tokenMetadataTracer = onlyErrors
-            , walletEngineTracer = onlyErrors
-            , walletDbTracer = onlyErrors
-            , poolsEngineTracer = onlyErrors
-            , poolsDbTracer = onlyErrors
-            , ntpClientTracer = onlyErrors
-            , networkTracer = onlyErrors
-            }
 
 -- Creates n fixture wallets and return 3 of them
 
-walletApiBench :: SomeMnemonic -> BenchM ()
-walletApiBench massiveMnemonic = do
+walletApiBench :: ToTextTracer -> SomeMnemonic -> BenchM ()
+walletApiBench (ToTextTracer tr) massiveMnemonic = do
+
+    let semantic = mkSemantic ["latency"]
+    reporter <- newReporterResourceTFromEnv tr semantic
+
+    let runScenarioR semSeg scen = do
+            let sem = mkSemantic [T.pack semSeg]
+            runScenario (addSemantic reporter sem) scen
 
     fmtTitle "Non-cached run"
     runWarmUpScenario
 
-    fmtTitle "Latencies for 2 fixture wallets scenario"
-    runScenario (nFixtureWallet 2)
+    fmtTitle "Latencies for 2 fixture wallets scenarioR"
+    runScenarioR "2-fixture" (nFixtureWallet 2)
 
-    fmtTitle "Latencies for 10 fixture wallets scenario"
-    runScenario (nFixtureWallet 10)
+    fmtTitle "Latencies for 10 fixture wallets scenarioR"
+    runScenarioR "10-fixture" (nFixtureWallet 10)
 
     fmtTitle "Latencies for 100 fixture wallets"
-    runScenario (nFixtureWallet 100)
+    runScenarioR "100-fixture" (nFixtureWallet 100)
 
-    fmtTitle "Latencies for 2 fixture wallets with 10 txs scenario"
-    runScenario (nFixtureWalletWithTxs 2 10)
+    fmtTitle "Latencies for 2 fixture wallets with 10 txs scenarioR"
+    runScenarioR "2-fixture-10-txs" (nFixtureWalletWithTxs 2 10)
 
-    fmtTitle "Latencies for 2 fixture wallets with 20 txs scenario"
-    runScenario (nFixtureWalletWithTxs 2 20)
+    fmtTitle "Latencies for 2 fixture wallets with 20 txs scenarioR"
+    runScenarioR "2-fixture-20-txs" (nFixtureWalletWithTxs 2 20)
 
-    fmtTitle "Latencies for 2 fixture wallets with 100 txs scenario"
-    runScenario (nFixtureWalletWithTxs 2 100)
+    fmtTitle "Latencies for 2 fixture wallets with 100 txs scenarioR"
+    runScenarioR "2-fixture-100-txs" (nFixtureWalletWithTxs 2 100)
 
-    fmtTitle "Latencies for 10 fixture wallets with 10 txs scenario"
-    runScenario (nFixtureWalletWithTxs 10 10)
+    fmtTitle "Latencies for 10 fixture wallets with 10 txs scenarioR"
+    runScenarioR "10-fixture-10-txs" (nFixtureWalletWithTxs 10 10)
 
-    fmtTitle "Latencies for 10 fixture wallets with 20 txs scenario"
-    runScenario (nFixtureWalletWithTxs 10 20)
+    fmtTitle "Latencies for 10 fixture wallets with 20 txs scenarioR"
+    runScenarioR "10-fixture-20-txs" (nFixtureWalletWithTxs 10 20)
 
-    fmtTitle "Latencies for 10 fixture wallets with 100 txs scenario"
-    runScenario (nFixtureWalletWithTxs 10 100)
+    fmtTitle "Latencies for 10 fixture wallets with 100 txs scenarioR"
+    runScenarioR "10-fixture-100-txs" (nFixtureWalletWithTxs 10 100)
 
-    fmtTitle "Latencies for 2 fixture wallets with 100 utxos scenario"
-    runScenario (nFixtureWalletWithUTxOs 2 100)
+    fmtTitle "Latencies for 2 fixture wallets with 100 utxos scenarioR"
+    runScenarioR "2-fixture-100-utxos" (nFixtureWalletWithUTxOs 2 100)
 
-    fmtTitle "Latencies for 2 fixture wallets with 200 utxos scenario"
-    runScenario (nFixtureWalletWithUTxOs 2 200)
+    fmtTitle "Latencies for 2 fixture wallets with 200 utxos scenarioR"
+    runScenarioR "2-fixture-200-utxos" (nFixtureWalletWithUTxOs 2 200)
 
-    fmtTitle "Latencies for 2 fixture wallets with 500 utxos scenario"
-    runScenario (nFixtureWalletWithUTxOs 2 500)
+    fmtTitle "Latencies for 2 fixture wallets with 500 utxos scenarioR"
+    runScenarioR "2-fixture-500-utxos" (nFixtureWalletWithUTxOs 2 500)
 
-    fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
-    runScenario (nFixtureWalletWithUTxOs 2 1_000)
+    fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenarioR"
+    runScenarioR "2-fixture-1000-utxos" (nFixtureWalletWithUTxOs 2 1_000)
 
     fmtTitle
         $ "Latencies for 2 fixture wallets with "
             <> build massiveWalletUTxOSize
             <> " utxos scenario"
-    runScenario $ massiveFixtureWallet massiveMnemonic
+    runScenarioR "2-fixture-massive-utxos"
+        $ massiveFixtureWallet massiveMnemonic
 
 nFixtureWallet
     :: Int
@@ -437,11 +454,17 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
 
     void $ request $ C.deleteWallet wSrcId
 
-scene :: String -> BenchM (Either ClientError a) -> BenchM ()
-scene title scenario = measureApiLogs scenario >>= fmtResult title
+scene :: Reporter IO -> String -> BenchM (Either ClientError a) -> BenchM ()
+scene reporter title scenario = do
+    ts <- measureApiLogs scenario
+    let avg = meanAvg ts
+        semantic = mkSemantic [T.pack title]
+    liftIO $ report reporter $ Benchmark semantic $ Result avg Milliseconds 1
+    fmtResult title ts
 
-sceneOfClientM :: String -> ClientM a -> BenchM ()
-sceneOfClientM title action = scene title $ requestWithError action
+sceneOfClientM :: Reporter IO -> String -> ClientM a -> BenchM ()
+sceneOfClientM reporter title action =
+    scene reporter title $ requestWithError action
 
 listAllTransactions :: ApiT WalletId -> ClientM [ApiTransaction C.Testnet42]
 listAllTransactions walId =
@@ -458,22 +481,27 @@ listAllTransactions walId =
 pend :: Applicative m => m () -> m ()
 pend = const $ pure ()
 
-runScenario :: BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet) -> BenchM ()
-runScenario scenario = lift . runResourceT $ do
+runScenario
+    :: Reporter IO
+    -> BenchM (ApiWallet, ApiWallet, ApiWallet, ApiWallet)
+    -> BenchM ()
+runScenario reporter scenario = lift . runResourceT $ do
+    let sceneOfClientMR :: String -> ClientM a -> BenchM ()
+        sceneOfClientMR = sceneOfClientM reporter
     (wal1, wal2, walMA, maWalletToMigrate) <- scenario
     let wal1Id = wal1 ^. #id
         wal2Id = wal2 ^. #id
         walMAId = walMA ^. #id
         maWalletToMigrateId = maWalletToMigrate ^. #id
         amt = minUTxOValue era
-    sceneOfClientM "listWallets" C.listWallets
-    sceneOfClientM "getWallet" $ C.getWallet wal1Id
-    sceneOfClientM "getUTxOsStatistics" $ C.getWalletUtxoStatistics wal1Id
-    sceneOfClientM "listAddresses" $ C.listAddresses wal1Id Nothing
-    sceneOfClientM "listTransactions" $ listAllTransactions wal1Id
+    sceneOfClientMR "listWallets" C.listWallets
+    sceneOfClientMR "getWallet" $ C.getWallet wal1Id
+    sceneOfClientMR "getUTxOsStatistics" $ C.getWalletUtxoStatistics wal1Id
+    sceneOfClientMR "listAddresses" $ C.listAddresses wal1Id Nothing
+    sceneOfClientMR "listTransactions" $ listAllTransactions wal1Id
 
     txs <- request $ listAllTransactions wal1Id
-    sceneOfClientM "getTransaction"
+    sceneOfClientMR "getTransaction"
         $ C.getTransaction wal1Id (ApiTxId $ txs !! 1 ^. #id) False
 
     addrs <- request $ C.listAddresses wal2Id Nothing
@@ -491,7 +519,7 @@ runScenario scenario = lift . runResourceT $ do
                 , metadata = Nothing
                 , timeToLive = Nothing
                 }
-    sceneOfClientM "postTransactionFee" $ C.postTransactionFee wal1Id payload
+    sceneOfClientMR "postTransactionFee" $ C.postTransactionFee wal1Id payload
 
     let payloadTx =
             PostTransactionOldData
@@ -501,7 +529,7 @@ runScenario scenario = lift . runResourceT $ do
                 , metadata = Nothing
                 , timeToLive = Nothing
                 }
-    sceneOfClientM "postTransaction" $ C.postTransaction wal1Id payloadTx
+    sceneOfClientMR "postTransaction" $ C.postTransaction wal1Id payloadTx
 
     let payments =
             replicate 5
@@ -518,7 +546,7 @@ runScenario scenario = lift . runResourceT $ do
                 , metadata = Nothing
                 , timeToLive = Nothing
                 }
-    sceneOfClientM "postTransactionTo5Addrs"
+    sceneOfClientMR "postTransactionTo5Addrs"
         $ C.postTransaction wal1Id payloadTxTo5Addr
 
     let
@@ -541,27 +569,27 @@ runScenario scenario = lift . runResourceT $ do
                 }
     -- Todo ADP-3293
     pend
-        $ sceneOfClientM "postTransactionMA"
+        $ sceneOfClientMR "postTransactionMA"
         $ C.postTransaction walMAId payloadMA
 
-    sceneOfClientM "listStakePools" $ C.listPools $ ApiT <$> arbitraryStake
+    sceneOfClientMR "listStakePools" $ C.listPools $ ApiT <$> arbitraryStake
 
-    sceneOfClientM "getNetworkInfo" CN.networkInformation
+    sceneOfClientMR "getNetworkInfo" CN.networkInformation
 
-    sceneOfClientM "listAssets" $ C.getAssets walMAId
+    sceneOfClientMR "listAssets" $ C.getAssets walMAId
 
     let assetsSrc = walMA ^. #assets . #total
         (polId, assName) =
             bimap unsafeFromText unsafeFromText
                 $ fst
                 $ pickAnAsset assetsSrc
-    sceneOfClientM "getAsset" $ C.getAsset walMAId (ApiT polId) (ApiT assName)
+    sceneOfClientMR "getAsset" $ C.getAsset walMAId (ApiT polId) (ApiT assName)
 
     let addresses = replicate 5 destination
         migrationPlanPayload =
             ApiWalletMigrationPlanPostData $ NE.fromList addresses
 
-    sceneOfClientM "postMigrationPlan"
+    sceneOfClientMR "postMRigrationPlan"
         $ C.planMigration maWalletToMigrateId migrationPlanPayload
 
     let migrationPayload =
@@ -571,7 +599,7 @@ runScenario scenario = lift . runResourceT $ do
                 }
     -- Todo ADP-3293
     pend
-        $ sceneOfClientM "postMigration"
+        $ sceneOfClientMR "postMRigration"
         $ C.migrate maWalletToMigrateId migrationPayload
 
 fmtResult :: String -> [NominalDiffTime] -> BenchM ()

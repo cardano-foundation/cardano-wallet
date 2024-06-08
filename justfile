@@ -160,7 +160,8 @@ conway-integration-tests:
   just conway-integration-tests-match ""
 
 latency-bench:
-   cabal run -O2 -v0 cardano-wallet-benchmarks:latency -- \
+   BENCHMARK_CSV_FILE=ignore-me/latency-bench.csv \
+   cabal run -O0 -v0 cardano-wallet-benchmarks:latency -- \
    --cluster-configs lib/local-cluster/test/data/cluster-configs
 
 test-local-cluster:
