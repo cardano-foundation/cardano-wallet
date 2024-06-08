@@ -84,7 +84,9 @@ steps:
     key: latency-block
 
   - label: 'Latency benchmark'
-    command: "./.buildkite/bench-latency.sh"
+    command: |
+      export BENCHMARK_CSV_FILE="bench-results.csv"
+      ./.buildkite/bench-latency.sh
     timeout_in_minutes: 120
     agents:
       system: ${linux}
