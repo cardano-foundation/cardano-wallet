@@ -73,11 +73,12 @@ import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( Address (..)
     , Index (..)
     , Lovelace (..)
-    , TxId (..)
     , TxParameters (..)
     )
-import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash
+import Cardano.Wallet.Read.Tx.TxId
+    ( TxId
+    , getTxId
+    , txIdFromHash
     )
 import Control.Category
     ( (.)
@@ -118,6 +119,9 @@ import Data.Kind
 import Data.List.NonEmpty
     ( NonEmpty (..)
     )
+import Data.Maybe
+    ( fromJust
+    )
 import Data.Monoid
     ( Endo (..)
     )
@@ -136,6 +140,7 @@ import Test.QuickCheck.Random
     ( mkQCGen
     )
 
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.ByteString.Char8 as B8
 
 -- | DSL for building a tx
@@ -267,8 +272,8 @@ interpretChainF m genAddress blockNo ml = do
         -> BlockParameters era
         -> ChainM m a
     updateCurrentBlock k newTx bp =
-        let txid' = getEraTxHash newTx
-        in  interpretChainF (k $ TxId txid') genAddress blockNo
+        let txid' = getTxId newTx
+        in  interpretChainF (k txid') genAddress blockNo
                 $ Just
                 $ CurrentBlockParameters
                 $ over txsL (newTx :) bp
@@ -389,11 +394,13 @@ exampleChainF = do
 
 -- Generate an invalid (not an hash) txid from a char
 txid :: Char -> TxId
-txid = TxId . B8.pack . replicate 32
+txid = txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack . replicate 32
 
 -- Generate a random invalid txid
 genTxId :: Gen TxId
-genTxId = TxId . B8.pack <$> replicateM 32 (choose ('a', 'z'))
+genTxId =
+    txIdFromHash . fromJust . Hash.hashFromBytes . B8.pack
+    <$> replicateM 32 (choose ('a', 'z'))
 
 -- an infinite list of example blocks computed out of repeating the 'exampleChainF'
 exampleBlocks :: [ConsensusBlock]

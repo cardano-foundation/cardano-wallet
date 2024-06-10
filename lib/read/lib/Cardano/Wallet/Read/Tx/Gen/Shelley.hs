@@ -50,9 +50,6 @@ import Cardano.Ledger.Credential
 import Cardano.Ledger.Keys
     ( KeyHash (..)
     )
-import Cardano.Ledger.SafeHash
-    ( unsafeMakeSafeHash
-    )
 import Cardano.Ledger.Shelley.API.Types
     ( ShelleyTx (ShelleyTx)
     , ShelleyTxAuxData
@@ -78,9 +75,11 @@ import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( Address (..)
     , Index (..)
     , Lovelace (..)
-    , TxId (..)
     , TxParameters (..)
     , exampleTxParameters
+    )
+import Cardano.Wallet.Read.Tx.TxId
+    ( TxId
     )
 import Data.ByteString
     ( ByteString
@@ -107,7 +106,6 @@ import GHC.Stack
     )
 
 import qualified Cardano.Ledger.Core as L
-import qualified Cardano.Ledger.TxIn as L
 import qualified Data.ByteString.Short as B
 import qualified Data.Set as Set
 
@@ -187,9 +185,9 @@ mkShelleyInput
     => Index
     -> TxId
     -> Set (TxIn StandardCrypto)
-mkShelleyInput (Index idx) (TxId h) =
+mkShelleyInput (Index idx) txid =
     Set.singleton
-        $ mkTxInPartial (L.TxId $ unsafeMakeSafeHash $ UnsafeHash $ B.toShort h)
+        $ mkTxInPartial txid
         $ fromIntegral idx
 
 exampleShelleyTx :: ShelleyTx (ShelleyEra StandardCrypto)
