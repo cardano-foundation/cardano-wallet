@@ -2,8 +2,8 @@
 
 module Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
-    , newToTextTracerFromHandle
     , logHandleFromFilePath
+    , newToTextTracer
     , withFile
     )
 where
@@ -80,14 +80,20 @@ logHandleFromFilePath clusterLogsFile = do
     pure h
 
 -- | Create a new `ToTextTracer`
-newToTextTracerFromHandle
-    :: Handle
+newToTextTracer
+    :: Either Handle FilePath
     -- ^ If provided, logs will be written to this file, otherwise to stdout
     -> Maybe Severity
     -- ^ Minimum severity level to log
     -> ContT r IO ToTextTracer
-newToTextTracerFromHandle h minSeverity = do
+newToTextTracer mClusterLogsFile minSeverity = do
     ch <- newTChanIO
+    h <- case mClusterLogsFile of
+        Left h -> pure h
+        Right clusterLogsFile -> do
+            h <- ContT $ withFile clusterLogsFile WriteMode
+            hSetBuffering h NoBuffering
+            pure h
     _printer <- ContT $ withAsync $ forever $ do
         (x, s, t) <- atomically $ readTChan ch
         T.hPutStrLn h
