@@ -110,24 +110,21 @@ isLogRequestFinish = \case
     ApiLog _ LogRequestFinish -> True
     _ -> False
 
-measureApiLogs :: LogCaptureFunc ApiLog () -> IO a -> IO [NominalDiffTime]
-measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
-
--- | Run tests for at least this long to get accurate timings.
-sampleNTimes :: Int
-sampleNTimes = 10
+measureApiLogs :: Int -> LogCaptureFunc ApiLog () -> IO a -> IO [NominalDiffTime]
+measureApiLogs count = measureLatency count isLogRequestStart isLogRequestFinish
 
 -- | Measure how long an action takes based on trace points and taking an
 -- average of results over a short time period.
 measureLatency
     :: Show msg
-    => (msg -> Bool) -- ^ Predicate for start message
+    => Int
+    -> (msg -> Bool) -- ^ Predicate for start message
     -> (msg -> Bool) -- ^ Predicate for end message
     -> LogCaptureFunc msg () -- ^ Log capture function.
     -> IO a -- ^ Action to run
     -> IO [NominalDiffTime]
-measureLatency start finish capture action = do
-    (logs, ()) <- capture $ replicateM_ sampleNTimes action
+measureLatency count start finish capture action = do
+    (logs, ()) <- capture $ replicateM_ count action
     pure $ extractTimings start finish logs
 
 -- | Scan through iohk-monitoring logs and extract time differences between
