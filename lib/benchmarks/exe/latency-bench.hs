@@ -454,12 +454,19 @@ repeatPostTx wDest amtToSend batchSize amtExp = do
 
     void $ request $ C.deleteWallet wSrcId
 
+iterations :: Int
+iterations = 10
+
 scene :: Reporter IO -> String -> BenchM (Either ClientError a) -> BenchM ()
 scene reporter title scenario = do
-    ts <- measureApiLogs scenario
+    ts <- measureApiLogs iterations scenario
     let avg = meanAvg ts
         semantic = mkSemantic [T.pack title]
-    liftIO $ report reporter [Benchmark semantic $ Result avg Milliseconds 1]
+    liftIO
+        $ report reporter
+        $ pure
+        $ Benchmark semantic
+        $ Result avg Milliseconds iterations
     fmtResult title ts
 
 sceneOfClientM :: Reporter IO -> String -> ClientM a -> BenchM ()
@@ -613,21 +620,21 @@ arbitraryStake = Just $ ada 10_000
   where
     ada = Coin . (1_000_000 *)
 
-measureApiLogs :: Exception e => BenchM (Either e a) -> BenchM [NominalDiffTime]
-measureApiLogs action = do
+measureApiLogs :: Exception e => Int -> BenchM (Either e a) -> BenchM [NominalDiffTime]
+measureApiLogs count action = do
     BenchCtx _ctx capture <- ask
     run <- toIO $ do
         r <- action
         case r of
             Left e -> throwM e
             Right q -> pure q
-    liftIO $ Measure.measureApiLogs capture run
+    liftIO $ Measure.measureApiLogs count capture run
 
 runWarmUpScenario :: BenchM ()
 runWarmUpScenario = do
     -- this one is to have comparable results from first to last measurement
     -- in runScenario
-    t <- measureApiLogs $ requestWithError CN.networkInformation
+    t <- measureApiLogs iterations $ requestWithError CN.networkInformation
     fmtResult "getNetworkInfo     " t
 
 withShelleyServer :: Tracers IO -> (SomeMnemonic -> Context -> IO ()) -> IO ()
