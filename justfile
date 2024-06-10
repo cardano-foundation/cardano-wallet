@@ -184,3 +184,8 @@ db-bench:
     BENCHMARK_CSV_FILE=ignore-me/db-bench.csv \
     cabal run -O0 -v0 \
             cardano-wallet-benchmarks:db \
+
+read-blocks-bench:
+    BENCHMARK_CSV_FILE=ignore-me/read-blocks-bench.csv \
+    cabal run -O0 -v0 \
+            cardano-wallet-benchmarks:read-blocks
