@@ -1,31 +1,63 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-import Prelude
+import Prelude hiding
+    ( takeWhile
+    )
 
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..)
-    , HasSeverityAnnotation (..)
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (ToTextTracer)
+    , withToTextTracer
+    )
+import Cardano.BM.Tracing
+    ( HasSeverityAnnotation (..)
+    , Severity (..)
+    )
+import Cardano.Launcher
+    ( ProcessHandles (..)
     )
 import Cardano.Launcher.Node
     ( MaybeK (..)
     )
+import Cardano.Launcher.Wallet
+    ( CardanoWalletConn (CardanoWalletConn)
+    )
 import Cardano.Startup
     ( installSignalHandlers
+    )
+import Cardano.Wallet.Benchmark.Memory.Pmap
+    ( Line
+    , Pmap (..)
+    , command
+    , memory
+    , pmap
+    )
+import Cardano.Wallet.Benchmarks.Collect
+    ( Benchmark (..)
+    , Result (..)
+    , Units (..)
+    , mkSemantic
+    , newReporterFromEnv
+    , noSemantic
+    , report
     )
 import Control.Concurrent
     ( threadDelay
     )
 import Control.Monad
-    ( unless
-    , void
-    , when
+    ( when
+    )
+import Control.Monad.Cont
+    ( ContT (..)
+    , evalContT
+    )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
     )
 import Control.Tracer
     ( Tracer (..)
-    , contramap
     , traceWith
     )
 import Data.List
@@ -47,6 +79,9 @@ import System.FilePath
     ( takeBaseName
     , (</>)
     )
+import System.IO
+    ( stdout
+    )
 import System.IO.Temp
     ( withSystemTempDirectory
     )
@@ -54,19 +89,12 @@ import Text.Read
     ( readMaybe
     )
 
-import qualified Cardano.BM.Configuration.Model as Log
-import qualified Cardano.BM.Configuration.Static as Log
-import qualified Cardano.BM.Data.BackendKind as Log
-import qualified Cardano.BM.Data.LogItem as Log
-import qualified Cardano.BM.Data.Severity as Log
-import qualified Cardano.BM.Setup as Log
 import qualified Cardano.Launcher as C
 import qualified Cardano.Launcher.Node as C
 import qualified Cardano.Launcher.Wallet as C
-import qualified "optparse-applicative" Options.Applicative as O
+import qualified Data.Text as T
+import qualified Options.Applicative as O
 import qualified System.Process as S
-
--- See ADP-1910 for Options.Applicative usage
 
 {-----------------------------------------------------------------------------
     Configuration
@@ -126,6 +154,14 @@ configInfo = O.info (configParser O.<**> O.helper) $ mconcat
     , O.header "memory-benchmark - a benchmark for cardano-wallet memory usage"
     ]
 
+newtype MemoryBenchLog = MemoryBenchLog Text
+
+instance HasSeverityAnnotation MemoryBenchLog where
+    getSeverityAnnotation _ = Notice
+
+instance ToText MemoryBenchLog where
+    toText (MemoryBenchLog t) = t
+
 main :: IO ()
 main = withUtf8 $ do
     Config{..} <- O.execParser configInfo
@@ -136,20 +172,42 @@ main = withUtf8 $ do
 
     installSignalHandlers (pure ())
 
-    trText <- initLogging "memory-benchmark" Log.Debug
-    let tr0 = trText
-        tr = contramap toText tr0
+    evalContT $ do
+        ToTextTracer tr <- withToTextTracer (Left stdout) (Just Notice)
+        let trace = liftIO . traceWith tr . MemoryBenchLog
+        trace "Starting memory benchmark"
+        tmp <- ContT $ withSystemTempDirectory "wallet"
+        trace $ "Copying snapshot to " <> T.pack tmp
+        cfg <- liftIO $ copyNodeSnapshot snapshot tmp
+        trace "Starting the node"
+        node <- ContT $ withCardanoNode tr nodeExe cfg
+        sleep 5
+        trace "Starting the wallet"
+        wallet@(CardanoWalletConn _c p) <-
+            ContT $ withCardanoWallet tr workingDir walletExe cfg node
+        sleep 1
+        trace "Creating a wallet"
+        liftIO $ createWallet wallet testMnemonic
+        sleep 1
+        trace "Waiting for synchronization"
+        liftIO $ waitUntilSynchronized tr wallet
+        reporter <- newReporterFromEnv tr $ mkSemantic ["memory"]
+        trace "Running pmap on the wallet process"
+        Pmap {pmapLines} <- liftIO $ pmap $ processHandle p
+        let usage = highestMemoryUsageFor "cardano-wallet" pmapLines
+        trace "Reporting the result"
+        liftIO
+            $ report reporter
+            $ pure
+            $ Benchmark noSemantic
+            $ Result (fromIntegral usage) KiloBytes 1
+        trace "End of the benchmark"
 
-    withSystemTempDirectory "wallet" $ \tmp -> do
-        cfg <- copyNodeSnapshot snapshot tmp
-        void $ withCardanoNode tr nodeExe cfg $ \node -> do
-            sleep 5
-            withCardanoWallet tr workingDir walletExe cfg node
-                $ \wallet -> void $ do
-                    sleep 1
-                    createWallet wallet testMnemonic
-                    sleep 1
-                    waitUntilSynchronized tr0 wallet
+highestMemoryUsageFor :: String -> [Line] -> Int
+highestMemoryUsageFor cmd =
+    maximum
+        . map memory
+        . filter (\l -> command l == cmd)
 
 waitUntilSynchronized :: Tracer IO Text  -> C.CardanoWalletConn -> IO ()
 waitUntilSynchronized tr wallet = do
@@ -280,8 +338,8 @@ withCardanoNode tr nodeExe BenchmarkConfig{..} action =
 {-----------------------------------------------------------------------------
     Utilities
 ------------------------------------------------------------------------------}
-sleep :: Int -> IO ()
-sleep seconds = threadDelay (seconds * 1000 * 1000)
+sleep :: MonadIO m => Int -> m ()
+sleep seconds = liftIO $ threadDelay (seconds * 1000 * 1000)
 
 -- | Throw an exception if the executable is not in the `$PATH`.
 requireExecutable :: FilePath -> String -> IO ()
@@ -293,29 +351,3 @@ copyFile source destination = S.callProcess "cp" [source,destination]
 decompress :: FilePath -> FilePath -> IO ()
 decompress source destination =
     S.callProcess "tar" ["-xzvf", source, "-C", destination]
-
-{-----------------------------------------------------------------------------
-    Logging
-------------------------------------------------------------------------------}
-initLogging :: Text -> Log.Severity -> IO (Tracer IO Text)
-initLogging name minSeverity = do
-    c <- Log.defaultConfigStdout
-    Log.setMinSeverity c minSeverity
-    Log.setSetupBackends c [Log.KatipBK, Log.AggregationBK]
-    (tr, _sb) <- Log.setupTrace_ c name
-    pure (trMessageText tr)
-
--- | Tracer transformer which transforms traced items to their 'ToText'
--- representation and further traces them as a 'Log.LogObject'.
--- If the 'ToText' representation is empty, then no tracing happens.
-trMessageText
-    :: (ToText a, HasPrivacyAnnotation a, HasSeverityAnnotation a)
-    => Tracer IO (Log.LoggerName, Log.LogObject Text)
-    -> Tracer IO a
-trMessageText tr = Tracer $ \arg -> do
-    let msg = toText arg
-    unless (msg == mempty) $ do
-        meta <- Log.mkLOMeta
-            (getSeverityAnnotation arg)
-            (getPrivacyAnnotation arg)
-        traceWith tr (mempty, Log.LogObject mempty meta (Log.LogMessage msg))
