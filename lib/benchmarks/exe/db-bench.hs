@@ -17,9 +17,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-#if __GLASGOW_HASKELL__ >= 902
 {-# OPTIONS_GHC -Wno-ambiguous-fields #-}
-#endif
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -56,25 +54,16 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubFromBytes
     )
-import Cardano.BM.Configuration.Static
-    ( defaultConfigStdout
-    )
 import Cardano.BM.Data.Severity
     ( Severity (..)
-    )
-import Cardano.BM.Data.Trace
-    ( Trace
     )
 import Cardano.BM.Data.Tracer
     ( Tracer
     , filterSeverity
     )
-import Cardano.BM.Extra
-    ( trMessageText
-    )
-import Cardano.BM.Setup
-    ( setupTrace_
-    , shutdown
+import Cardano.BM.ToTextTracer
+    ( ToTextTracer (..)
+    , withToTextTracer
     )
 import Cardano.DB.Sqlite
     ( SqliteContext (..)
@@ -123,6 +112,17 @@ import Cardano.Wallet.Address.Keys.SequentialAny
     )
 import Cardano.Wallet.Address.Keys.WalletKey
     ( publicKey
+    )
+import Cardano.Wallet.Benchmarks.Collect
+    ( Reporter
+    , Result (..)
+    , Units (Bytes)
+    , addSemantic
+    , mkSemantic
+    , newReporterFromEnv
+    , noSemantic
+    , report
+    , runCriterionBenchmark
     )
 import Cardano.Wallet.BenchShared
     ( withTempSqliteFile
@@ -233,14 +233,20 @@ import Control.DeepSeq
     , force
     )
 import Control.Monad
-    ( join
+    ( forM_
+    , join
+    )
+import Control.Monad.Cont
+    ( evalContT
+    )
+import Control.Monad.IO.Class
+    ( liftIO
     )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
     , bench
     , bgroup
-    , defaultMain
     , perRunEnvWithCleanup
     )
 import Cryptography.Hash.Core
@@ -269,9 +275,6 @@ import Data.Proxy
     )
 import Data.Quantity
     ( Quantity (..)
-    )
-import Data.Text
-    ( Text
     )
 import Data.Text.Class
     ( fromText
@@ -317,14 +320,16 @@ import System.Random
 import Test.Utils.Resource
     ( unBracket
     )
+import UnliftIO
+    ( stdout
+    )
 import UnliftIO.Exception
     ( bracket
     )
 
-import qualified Cardano.BM.Configuration.Model as CM
-import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Address.Derivation.Byron as Byron
 import qualified Cardano.Wallet.Address.Pool as AddressPool
+import qualified Cardano.Wallet.Benchmarks.Collect as Collect
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -335,20 +340,32 @@ import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
+timeBenchmarks :: Tracer IO WalletDBLog -> [Benchmark]
+timeBenchmarks tr =
+    [ bgroupWriteUTxO tr
+    , bgroupReadUTxO tr
+    , bgroupWriteSeqState tr
+    , bgroupWriteRndState tr
+    , bgroupWriteTxHistory tr
+    , bgroupReadTxHistory tr
+    ]
+
 main :: IO ()
-main = withUtf8 $ withLogging $ \trace -> do
-    let tr = filterSeverity (pure . const Error) $ trMessageText trace
-    defaultMain
-        [ bgroupWriteUTxO tr
-        , bgroupReadUTxO tr
-        , bgroupWriteSeqState tr
-        , bgroupWriteRndState tr
-        , bgroupWriteTxHistory tr
-        , bgroupReadTxHistory tr
-        ]
-    putStrLn "\n--"
-    utxoDiskSpaceTests tr
-    txHistoryDiskSpaceTests tr
+
+main = withUtf8 $ evalContT $ do
+    ToTextTracer tr <- withToTextTracer (Left stdout) Nothing
+    let onlyErrors = filterSeverity (const $ pure Error) tr
+    let sem = mkSemantic ["db"]
+    reporter <- newReporterFromEnv tr sem
+    forM_ (timeBenchmarks onlyErrors)
+        $ liftIO . runCriterionBenchmark 10 tr reporter
+    liftIO $ do
+        let utxoSizeSem = mkSemantic ["size", "utxo"]
+        utxoDiskSpaceTests (addSemantic reporter utxoSizeSem) onlyErrors
+        let txHistorySizeSem = mkSemantic ["size", "txhistory"]
+        txHistoryDiskSpaceTests
+            (addSemantic reporter txHistorySizeSem)
+            onlyErrors
 
 ----------------------------------------------------------------------------
 -- UTxO Benchmarks
@@ -779,58 +796,79 @@ walletFixtureByron =
 -- These are not proper criterion benchmarks but use the benchmark test data to
 -- measure size on disk of the database and its temporary files.
 
-utxoDiskSpaceTests :: Tracer IO WalletDBLog -> IO ()
-utxoDiskSpaceTests tr = do
+utxoDiskSpaceTests :: Reporter IO -> Tracer IO WalletDBLog -> IO ()
+utxoDiskSpaceTests reporter tr = do
     putStrLn "Database disk space usage tests for UTxO\n"
     sequence_
         --      #Checkpoints   UTxO Size
-        [ bUTxO            1          10
-        , bUTxO           10          10
-        , bUTxO            1         100
-        , bUTxO           10         100
-        , bUTxO            1        1000
-        , bUTxO           10        1000
-        , bUTxO            1       10000
-        , bUTxO           10       10000
-        , bUTxO            1      100000
-        , bUTxO           10      100000
+        [ bUTxO 1 10
+        , bUTxO 10 10
+        , bUTxO 1 100
+        , bUTxO 10 100
+        , bUTxO 1 1000
+        , bUTxO 10 1000
+        , bUTxO 1 10000
+        , bUTxO 10 10000
+        , bUTxO 1 100000
+        , bUTxO 10 100000
         ]
   where
-    bUTxO n s = benchDiskSize tr walletFixture $ \db -> do
-        putStrLn ("File size /"+|n|+" CP x "+|s|+" UTxO")
-        benchPutUTxO n s 0 db
+    bUTxO n s = do
+        let sem = mkSemantic
+                [ T.pack $ show n <> "-cp"
+                , T.pack $ show s <> "-utxo"
+                ]
+        benchDiskSize (addSemantic reporter sem) tr walletFixture $ \db -> do
+            putStrLn ("File size /" +| n |+ " CP x " +| s |+ " UTxO")
+            benchPutUTxO n s 0 db
 
-txHistoryDiskSpaceTests :: Tracer IO WalletDBLog -> IO ()
-txHistoryDiskSpaceTests tr = do
+txHistoryDiskSpaceTests
+    :: Reporter IO
+    -> Tracer IO WalletDBLog
+    -> IO ()
+txHistoryDiskSpaceTests reporter tr = do
     putStrLn "Database disk space usage tests for TxHistory\n"
     sequence_
         --       #NTransactions  #NInputs  #NOutputs
-        [ bTxs             100         20         20
-        , bTxs            1000         20         20
-        , bTxs           10000         20         20
-        , bTxs          100000         20         20
+        [ bTxs 100 20 20
+        , bTxs 1000 20 20
+        , bTxs 10000 20 20
+        , bTxs 100000 20 20
         ]
   where
-    bTxs n i o = benchDiskSize tr walletFixture $ \db -> do
-        putStrLn ("File size /"+|n|+" w/ "+|i|+"i + "+|o|+"o")
-        benchPutTxHistory n i o 0 [1..100] db
+    bTxs n i o = do
+        let sem = mkSemantic
+                [ T.pack $ show n <> "-txs"
+                , T.pack $ show i <> "-inputs"
+                , T.pack $ show o <> "-outputs"
+                ]
+        benchDiskSize (addSemantic reporter sem) tr walletFixture $ \db -> do
+            putStrLn ("File size /" +| n |+ " w/ " +| i |+ "i + " +| o |+ "o")
+            benchPutTxHistory n i o 0 [1 .. 100] db
 
 benchDiskSize
-    :: Tracer IO WalletDBLog
+    :: Reporter IO
+    -> Tracer IO WalletDBLog
     -> WalletFixture StateBench
     -> (DBLayerBench -> IO ()) -> IO ()
-benchDiskSize tr fixture action = bracket (setupDB tr fixture) dbDown
+benchDiskSize reporter tr fixture action = bracket (setupDB tr fixture) dbDown
     $ \(BenchEnv destroyPool f db) -> do
         action db
+        mWalSize <- safeGetFileSize $ f <> "-wal"
+        forM_ mWalSize $ \size ->
+            report reporter
+                $ Collect.Benchmark noSemantic
+                $ Result (fromIntegral size) Bytes 1
         mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
         destroyPool
         printFileSize " (closed)" f
         putStrLn ""
   where
+    safeGetFileSize f = doesFileExist f >>= \case
+        True -> Just <$> getFileSize f
+        False -> pure Nothing
     printFileSize sfx f = do
-        size <- doesFileExist f >>= \case
-            True -> Just <$> getFileSize f
-            False -> pure Nothing
+        size <- safeGetFileSize f
         putStrLn $ "  " +|
             padRightF 28 ' ' (takeFileName f ++ sfx) <>
             padLeftF 20 ' ' (maybe "-" sizeF size)
@@ -1031,26 +1069,3 @@ mkByronAddress i j =
     g = mkStdGen $ 1459*i + 1153*j
     unsafeXPub = fromMaybe (error "xpubFromBytes error") . xpubFromBytes
     [acctIx, addrIx] = take 2 $ randoms g
-
--- | Run an action with logging available and configured. When the action is
--- finished (normally or otherwise), log messages are flushed.
-withLogging
-    :: (Trace IO Text -> IO a)
-    -- ^ The action to run with logging configured.
-    -> IO a
-withLogging action = bracket before after between
-  where
-    before = do
-        cfg <- do
-            c <- defaultConfigStdout
-            CM.setMinSeverity c Debug
-            CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-            pure c
-        (tr, sb) <- setupTrace_ cfg "bench-db"
-        pure (sb, tr)
-
-    after =
-        shutdown . fst
-
-    between =
-        action . snd

@@ -199,6 +199,17 @@ steps:
     env:
       TMPDIR: "/cache"
 
+  - label: 'DB benchmark'
+    command: |
+      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+      ./.buildkite/bench-db.sh
+    depends_on: trigger-benchmarks
+    timeout_in_minutes: 50
+    agents:
+      system: x86_64-linux
+    artifact_paths: [ "./bench-results.csv" ]
+    env:
+      TMPDIR: "/cache"
 
   - label: 'Read-blocks benchmark'
     command: "./.buildkite/bench-read-blocks.sh"
