@@ -247,9 +247,12 @@ benchmark read-blocks
     , base
     , bytestring
     , cardano-wallet
+    , cardano-wallet-benchmarks
     , cardano-wallet-primitive
     , cardano-wallet-read
     , criterion
+    , iohk-monitoring-extra
+    , mtl
     , time
 
   default-language: Haskell2010
