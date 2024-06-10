@@ -22,7 +22,7 @@ import Prelude
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     , logHandleFromFilePath
-    , newToTextTracer
+    , withToTextTracer
     )
 import Cardano.Launcher
     ( Command (..)
@@ -146,7 +146,7 @@ withLocalCluster name walletOption envs faucetFundsValue = do
     ToTextTracer processLogs <- case logsPathName of
         Nothing -> pure $ ToTextTracer nullTracer
         Just path ->
-            newToTextTracer (Right $ path <> "-process" <.> "log") Nothing
+            withToTextTracer (Right $ path <> "-process" <.> "log") Nothing
     _ <-
         ContT
             $ withBackendProcess
