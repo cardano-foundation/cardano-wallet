@@ -517,6 +517,8 @@ withNodeNetworkLayerBase
                     _postTx txSubmissionQ readCurrentNodeEra
                 , stakeDistribution =
                     _stakeDistribution queryRewardQ
+                , getUTxOByTxIn =
+                    _getUTxOByTxIn queryRewardQ
                 , getCachedRewardAccountBalance =
                     _getCachedRewardAccountBalance rewardsObserver
                 , fetchRewardAccountBalances =
@@ -658,6 +660,10 @@ withNodeNetworkLayerBase
                             (Map.size rewards)
                     return res
                 Nothing -> pure $ StakePoolsSummary 0 mempty mempty
+
+        _getUTxOByTxIn queue ins =
+            bracketQuery "getUTxOByTxIn" tr
+                $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
 
         _watchNodeTip readTip callback = do
             observeForever readTip $ \tip -> do
