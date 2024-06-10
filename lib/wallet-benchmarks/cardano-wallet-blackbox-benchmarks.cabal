@@ -60,10 +60,14 @@ benchmark memory
     Paths_cardano_wallet_blackbox_benchmarks
   build-depends:
     , base
+    , cardano-wallet-blackbox-benchmarks
+    , cardano-wallet-benchmarks
     , cardano-wallet-launcher
     , contra-tracer
     , filepath
     , iohk-monitoring
+    , iohk-monitoring-extra
+    , mtl
     , process
     , temporary
     , text

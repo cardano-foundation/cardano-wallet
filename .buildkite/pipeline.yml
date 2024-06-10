@@ -223,6 +223,18 @@ steps:
     env:
       TMPDIR: "/cache"
 
+  - label: 'memory benchmark'
+    command: |
+      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+      ./.buildkite/bench-memory.sh
+    depends_on: trigger-benchmarks
+    timeout_in_minutes: 20
+    agents:
+      system: x86_64-linux
+    artifact_paths: [ "./bench-results.csv" ]
+    env:
+      TMPDIR: "/cache"
+
   - block: "macOS steps"
     if: |
       build.branch !~ /^gh-readonly-queue\/master/

@@ -148,6 +148,7 @@ data Units
     | Microseconds
     | Nanoseconds
     | Bytes
+    | KiloBytes
     | MegaBytes
     | GigaBytes
     | Count
@@ -161,6 +162,7 @@ instance FromField Units where
     parseField "us" = pure Microseconds
     parseField "ns" = pure Nanoseconds
     parseField "B" = pure Bytes
+    parseField "KB" = pure KiloBytes
     parseField "MB" = pure MegaBytes
     parseField "GB" = pure GigaBytes
     parseField "count" = pure Count
@@ -175,6 +177,7 @@ showUnits Milliseconds = "ms"
 showUnits Microseconds = "us"
 showUnits Nanoseconds = "ns"
 showUnits Bytes = "B"
+showUnits KiloBytes = "KB"
 showUnits MegaBytes = "MB"
 showUnits GigaBytes = "GB"
 showUnits Count = "count"

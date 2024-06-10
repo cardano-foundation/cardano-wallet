@@ -190,3 +190,19 @@ read-blocks-bench:
     BENCHMARK_CSV_FILE=ignore-me/read-blocks-bench.csv \
     cabal run -O0 -v0 \
             cardano-wallet-benchmarks:read-blocks
+
+memory-bench:
+    mkdir -p ignore-me/memory-bench
+    BENCHMARK_CSV_FILE=ignore-me/memory-bench.csv \
+        nix shell \
+            '.#cardano-node' \
+            '.#cardano-wallet' \
+            'nixpkgs#jq' \
+            'nixpkgs#curl' \
+            'nixpkgs#procps' \
+            -c cabal run -O0 -v0 \
+                cardano-wallet-blackbox-benchmarks:memory -- \
+                    --snapshot lib/wallet-benchmarks/data/membench-snapshot.tgz \
+                    --wallet cardano-wallet \
+                    --node cardano-node \
+                    --work-dir ignore-me/memory-bench
