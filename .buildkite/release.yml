@@ -1,0 +1,15 @@
+agents:
+  queue: "cardano-wallet"
+
+env:
+  LC_ALL: "C.UTF-8"
+  NIX_PATH: "channel:nixos-21.11"
+  TMPDIR: "/cache"
+
+steps:
+  - label: 'Hello'
+    key: build-docker
+    command: |
+      nix shell .#cardano-wallet -c cardano-wallet version
+    agents:
+      system: x86_64-linux
