@@ -421,6 +421,9 @@ import Cardano.Wallet.Primitive.Types.TokenMetadata
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
     )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
     , SerialisedTx (..)
@@ -2543,6 +2546,9 @@ instance Arbitrary ApiErrorNotEnoughMoneyShortfall where
 instance Arbitrary ApiErrorOutputTokenBundleSizeExceedsLimit where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary TokenQuantity where
+    arbitrary = TokenQuantity <$> arbitrary
 
 instance Arbitrary ApiErrorOutputTokenQuantityExceedsLimit where
     arbitrary = genericArbitrary

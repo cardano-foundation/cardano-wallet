@@ -65,11 +65,20 @@ import Cardano.Wallet.Api.Types.WalletAssets
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -305,13 +314,13 @@ data ApiErrorOutputTokenQuantityExceedsLimit = ApiErrorOutputTokenQuantityExceed
     { address
         :: !Text
     , policyId
-        :: !Text
+        :: !(ApiT TokenPolicyId)
     , assetName
-        :: !Text
+        :: !(ApiT AssetName)
     , quantity
-        :: !Natural
+        :: !TokenQuantity
     , maxQuantity
-        :: !Natural
+        :: !TokenQuantity
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
@@ -322,7 +331,7 @@ data ApiErrorOutputTokenBundleSizeExceedsLimit = ApiErrorOutputTokenBundleSizeEx
     { address
         :: !Text
     , bundleSize
-        :: !Int
+        :: !Natural
     }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)

@@ -432,10 +432,10 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 OutputTokenQuantityExceedsLimit
                 ( ApiErrorOutputTokenQuantityExceedsLimit
                     (toText $ apiAddress targetAddress)
-                    (toText policyId)
-                    (toText assetName)
-                    (unTokenQuantity excessiveQuantity)
-                    (unTokenQuantity txOutMaxTokenQuantity)
+                    (ApiT policyId)
+                    (ApiT assetName)
+                    (excessiveQuantity)
+                    (txOutMaxTokenQuantity)
                 )
 
     -- Attempt to create a coin selection with an output that has an excessive
@@ -480,5 +480,5 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 OutputTokenBundleSizeExceedsLimit
                 ( ApiErrorOutputTokenBundleSizeExceedsLimit
                     (toText $ apiAddress targetAddress)
-                    assetCount
+                    (fromIntegral assetCount)
                 )

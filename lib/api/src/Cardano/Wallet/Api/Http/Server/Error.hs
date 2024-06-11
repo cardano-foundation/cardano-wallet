@@ -128,8 +128,10 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
     , toWalletAddress
+    , toWalletAssetName
     , toWalletCoin
     , toWalletTokenBundle
+    , toWalletTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
@@ -370,28 +372,17 @@ instance IsServerError ErrMkTransaction where
             flip (apiError err403) errorMessage $ OutputTokenQuantityExceedsLimit
             ApiErrorOutputTokenQuantityExceedsLimit
                 { address = toText $ view #address e
-                , policyId = toText $ view (#asset . #policyId) e
-                , assetName = toText $ view (#asset . #assetName) e
-                , quantity = unTokenQuantity $ view #quantity e
-                , maxQuantity = unTokenQuantity $ view #quantityMaxBound e
+                , policyId = ApiT $ view (#asset . #policyId) e
+                , assetName = ApiT $ view (#asset . #assetName) e
+                , quantity = view #quantity e
+                , maxQuantity = view #quantityMaxBound e
                 }
               where
                 errorMessage = T.unwords
                     [ "One of the token quantities you've specified is greater "
                     , "than the maximum quantity allowed in a single transaction "
                     , "output. "
-                    , "Try splitting this quantity across two or more outputs. "
-                    , "Destination address: "
-                    , pretty (view #address e)
-                    , ". Token policy identifier: "
-                    , pretty (view (#asset . #policyId) e)
-                    , ". Asset name: "
-                    , pretty (view (#asset . #assetName) e)
-                    , ". Token quantity specified: "
-                    , pretty (view #quantity e)
-                    , ". Maximum allowable token quantity: "
-                    , pretty (view #quantityMaxBound e)
-                    , "."
+                    , "Try splitting this quantity across two or more outputs."
                     ]
         ErrMkTransactionInvalidEra _era ->
             apiError err500 CreatedInvalidTransaction $ mconcat
@@ -1048,7 +1039,7 @@ instance IsServerError ErrBalanceTxOutputError where
             flip (apiError err403) errorMessage $ OutputTokenBundleSizeExceedsLimit
             ApiErrorOutputTokenBundleSizeExceedsLimit
                 { address = toText address
-                , bundleSize = assetCount
+                , bundleSize = fromIntegral assetCount
                 }
               where
                 address = toWalletAddress (fst output)
@@ -1057,21 +1048,17 @@ instance IsServerError ErrBalanceTxOutputError where
                 errorMessage = T.unwords
                     [ "One of the outputs you've specified contains too many "
                     , "assets. Try splitting these assets across two or more "
-                    , "outputs. Destination address: "
-                    , pretty address
-                    , ". Asset count: "
-                    , pretty assetCount
-                    , "."
+                    , "outputs."
                     ]
         ErrBalanceTxOutputTokenQuantityExceedsLimit
             {address, policyId, assetName, quantity, quantityMaxBound} ->
             flip (apiError err403) errorMessage $ OutputTokenQuantityExceedsLimit
             ApiErrorOutputTokenQuantityExceedsLimit
                 { address = toText address'
-                , policyId = T.pack $ show policyId
-                , assetName = T.pack $ show assetName
-                , quantity = quantity
-                , maxQuantity = quantityMaxBound
+                , policyId = ApiT $ toWalletTokenPolicyId policyId
+                , assetName = ApiT $ toWalletAssetName assetName
+                , quantity = TokenQuantity quantity
+                , maxQuantity = TokenQuantity quantityMaxBound
                 }
               where
                 address' = toWalletAddress address
@@ -1079,18 +1066,7 @@ instance IsServerError ErrBalanceTxOutputError where
                     [ "One of the token quantities you've specified is greater "
                     , "than the maximum quantity allowed in a single transaction "
                     , "output. Try splitting this quantity across two or more "
-                    , "outputs. "
-                    , "Destination address: "
-                    , pretty address'
-                    , ". Token policy identifier: "
-                    , pretty (show policyId)
-                    , ". Asset name: "
-                    , pretty (show assetName)
-                    , ". Token quantity specified: "
-                    , pretty (show quantity)
-                    , ". Maximum allowable token quantity: "
-                    , pretty (show quantityMaxBound)
-                    , "."
+                    , "outputs."
                     ]
       where
         selectionOutputCoinInsufficientMessage = T.unwords
