@@ -42,6 +42,7 @@ unit-tests-cabal-match match:
   cabal test \
     cardano-balance-tx:test \
     cardano-numeric:unit \
+    cardano-wallet-blackbox-benchmarks:unit \
     cardano-wallet-launcher:unit \
     cardano-wallet-network-layer:unit \
     cardano-wallet-primitive:test \
