@@ -310,29 +310,31 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
     deriving anyclass NFData
 
-data ApiErrorOutputTokenQuantityExceedsLimit = ApiErrorOutputTokenQuantityExceedsLimit
-    { address
-        :: !Text
-    , policyId
-        :: !(ApiT TokenPolicyId)
-    , assetName
-        :: !(ApiT AssetName)
-    , quantity
-        :: !TokenQuantity
-    , maxQuantity
-        :: !TokenQuantity
-    }
+data ApiErrorOutputTokenQuantityExceedsLimit =
+    ApiErrorOutputTokenQuantityExceedsLimit
+        { address
+            :: !Text
+        , policyId
+            :: !(ApiT TokenPolicyId)
+        , assetName
+            :: !(ApiT AssetName)
+        , quantity
+            :: !TokenQuantity
+        , maxQuantity
+            :: !TokenQuantity
+        }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorOutputTokenQuantityExceedsLimit
     deriving anyclass NFData
 
-data ApiErrorOutputTokenBundleSizeExceedsLimit = ApiErrorOutputTokenBundleSizeExceedsLimit
-    { address
-        :: !Text
-    , bundleSize
-        :: !Natural
-    }
+data ApiErrorOutputTokenBundleSizeExceedsLimit =
+    ApiErrorOutputTokenBundleSizeExceedsLimit
+        { address
+            :: !Text
+        , bundleSize
+            :: !Natural
+        }
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorOutputTokenBundleSizeExceedsLimit
@@ -410,7 +412,8 @@ data ApiErrorTransactionAlreadyInLedger = ApiErrorTransactionAlreadyInLedger
     { transactionId :: !(ApiT (Hash "Tx"))
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorTransactionAlreadyInLedger
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorTransactionAlreadyInLedger
     deriving anyclass NFData
 
 data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
@@ -418,12 +421,14 @@ data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
     , endTime :: UTCTime
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorStartTimeLaterThanEndTime
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorStartTimeLaterThanEndTime
     deriving anyclass NFData
 
 data ApiErrorWrongEncryptionPassphrase = ApiErrorWrongEncryptionPassphrase
     { walletId :: !(ApiT WalletId)
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorWrongEncryptionPassphrase
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorWrongEncryptionPassphrase
     deriving anyclass NFData
