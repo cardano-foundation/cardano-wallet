@@ -161,6 +161,7 @@ dummyNetworkLayer = NetworkLayer
     , getUTxOByTxIn = err "getUTxOByTxIn"
     , getStakeDelegDeposits = error "getStakeDelegDeposits"
     , postSealedTx = err "postSealedTx"
+    , postTx = err "postTx"
     , stakeDistribution = err "stakeDistribution"
     , getCachedRewardAccountBalance = err "getRewardCachedAccountBalance"
     , fetchRewardAccountBalances = err "fetchRewardAccountBalances"

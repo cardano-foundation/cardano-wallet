@@ -60,6 +60,9 @@ import Cardano.Launcher.Node
     ( CardanoNodeConn
     , nodeSocketFile
     )
+import Cardano.Ledger.Core
+    ( txIdTx
+    )
 import Cardano.Wallet.Network
     ( ChainFollowLog (..)
     , ChainFollower
@@ -276,7 +279,6 @@ import Ouroboros.Consensus.Cardano.Block
     ( BlockQuery (..)
     , CardanoEras
     , CodecConfig (..)
-    , GenTx
     )
 import Ouroboros.Consensus.HardFork.Combinator
     ( QueryHardFork (..)
@@ -379,17 +381,20 @@ import UnliftIO.Exception
     , IOException
     )
 
+import qualified Cardano.Read.Ledger.Tx.CBOR as Read
 import qualified Cardano.Wallet.Network.LocalStateQuery as LSQ
 import qualified Cardano.Wallet.Primitive.SyncProgress as SP
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Codec.CBOR.Term as CBOR
+import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
+import qualified Ouroboros.Consensus.Cardano.Block as Consensus
+import qualified Ouroboros.Consensus.Shelley.Ledger.Mempool as Consensus
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -519,6 +524,8 @@ withNodeNetworkLayerBase
                         <$> atomically (readTMVar networkParamsVar)
                 , postSealedTx =
                     _postSealedTx txSubmissionQ readCurrentNodeEra
+                , postTx =
+                    postTxToQueue tr txSubmissionQ
                 , stakeDistribution =
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
@@ -551,7 +558,7 @@ withNodeNetworkLayerBase
                 , TQueue
                     IO
                     ( LocalTxSubmissionCmd
-                        (GenTx (CardanoBlock StandardCrypto))
+                        (Consensus.GenTx (CardanoBlock StandardCrypto))
                         (ApplyTxErr (CardanoBlock StandardCrypto))
                         IO
                     )
@@ -637,7 +644,7 @@ withNodeNetworkLayerBase
         -- shouldn't be needed anymore since we've dropped jormungandr, so we could
         -- instead carry a transaction from cardano-api types with proper typing.
         _postSealedTx txSubmissionQueue readCurrentEra tx = do
-            liftIO $ traceWith tr $ MsgPostTx tx
+            liftIO $ traceWith tr $ MsgPostTx $ BS.fromStrict $ serialisedTx tx
             preferredEra <- liftIO readCurrentEra
             case unsealShelleyTx preferredEra tx of
                 Left (UnsealedTxInUnsupportedEra era) ->
@@ -726,6 +733,45 @@ withNodeNetworkLayerBase
                     -- restarting the node using the same socket but different db.
                     fromRight NotResponding . runExcept . SP.syncProgress tol ti slot
                         <$> currentRelativeTime ti
+
+-- | Post a 'Read.Tx' to submission queue.
+postTxToQueue
+    :: Read.IsEra era
+    => Tracer IO Log
+    -> TQueue
+        IO
+        ( LocalTxSubmissionCmd
+            (Consensus.GenTx (CardanoBlock StandardCrypto))
+            (ApplyTxErr (CardanoBlock StandardCrypto))
+            IO
+        )
+    -> Read.Tx era
+    -> ExceptT ErrPostTx IO ()
+postTxToQueue tr txSubmissionQueue tx = do
+    liftIO $ traceWith tr $ MsgPostTx $ Read.serializeTx tx
+    case consensusGenTxFromTxRecent tx of
+        Left e -> throwE e
+        Right consensusGenTx -> do
+            let cmd = CmdSubmitTx consensusGenTx
+            liftIO (send txSubmissionQueue cmd) >>= \case
+                SubmitSuccess -> pure ()
+                SubmitFail e ->
+                    throwE $ ErrPostTxValidationError $ T.pack $ show e
+
+consensusGenTxFromTxRecent
+    :: forall era. Read.IsEra era
+    => Read.Tx era
+    -> Either ErrPostTx (Consensus.GenTx (CardanoBlock StandardCrypto))
+consensusGenTxFromTxRecent (Read.Tx tx) = case Read.theEra @era of
+    Read.Babbage ->
+        Right
+        $ Consensus.GenTxBabbage
+        $ Consensus.ShelleyTx (txIdTx tx) tx
+    Read.Conway ->
+        Right
+        $ Consensus.GenTxConway
+        $ Consensus.ShelleyTx (txIdTx tx) tx
+    era -> Left $ ErrPostTxEraUnsupported (Read.EraValue era)
 
 {-------------------------------------------------------------------------------
     NetworkClient
@@ -883,7 +929,7 @@ mkWalletToNodeProtocols
     -> TQueue
         m
         ( LocalTxSubmissionCmd
-            (GenTx (CardanoBlock StandardCrypto))
+            (Consensus.GenTx (CardanoBlock StandardCrypto))
             (ApplyTxErr (CardanoBlock StandardCrypto))
             m
         )
@@ -1372,7 +1418,7 @@ data Log where
                 )
            )
         -> Log
-    MsgPostTx :: W.SealedTx -> Log
+    MsgPostTx :: ByteString -> Log
     MsgNodeTip :: BlockHeader -> Log
     MsgProtocolParameters :: ProtocolParameters -> SlottingParameters -> Log
     MsgLocalStateQueryError :: QueryClientName -> String -> Log
@@ -1409,8 +1455,8 @@ instance ToText Log where
             renderClientName client <> " node client: " <> toText statusLog
         MsgTxSubmission msg ->
             T.pack (show msg)
-        MsgPostTx tx ->
-            "Posting transaction, serialized as:\n" +| hexF (serialisedTx tx) |+ ""
+        MsgPostTx txbytes ->
+            "Posting transaction, serialized as:\n" +| hexF txbytes |+ ""
         MsgLocalStateQuery client msg ->
             T.pack (show client <> " " <> show msg)
         MsgNodeTip bh ->

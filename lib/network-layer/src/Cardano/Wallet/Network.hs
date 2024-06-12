@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Cardano.Wallet.Network
     ( -- * Interface
@@ -148,6 +149,11 @@ data NetworkLayer m block = NetworkLayer
     -- exception, which will be rethrown by this function.
     , postSealedTx
         :: SealedTx
+        -> ExceptT ErrPostTx m ()
+    -- ^ Broadcast a transaction to the chain producer (legacy types)
+    , postTx
+        :: forall era. Read.IsEra era
+        => Read.Tx era
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer
     , stakeDistribution
