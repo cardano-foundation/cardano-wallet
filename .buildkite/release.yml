@@ -15,6 +15,15 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: 'Build package (linux)'
+    key: linux-package
+    depends_on: add-release-commits
+    command:
+      - ./scripts/buildkite/release/linux-package.sh
+    artifact_paths: [ "./result/linux/**" ]
+    agents:
+      system: ${linux}
+
   - label: 'Refresh node state'
     key: refresh-node-state
     command:
@@ -26,7 +35,11 @@ steps:
     depends_on:
       - add-release-commits
       - refresh-node-state
+      - linux-package
     commands: |
       ./scripts/buildkite/release/linux-e2e.sh
+    artifact_paths:
+      - "./result/linux/**"
+      - "./logs/**/*"
     agents:
       system: x86_64-linux
