@@ -21,3 +21,12 @@ steps:
       - ./scripts/buildkite/release/fetch-preprod-snapshot.sh
     agents:
       system: x86_64-linux
+
+  - label: 'Run linux e2e tests'
+    depends_on:
+      - add-release-commits
+      - refresh-node-state
+    commands: |
+      ./scripts/buildkite/release/linux-e2e.sh
+    agents:
+      system: x86_64-linux

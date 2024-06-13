@@ -25,5 +25,4 @@ in pkgs.mkShell {
     cardanoWallet.cardano-node
     cardanoWallet.cardano-cli
   ];
-  CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
 }
