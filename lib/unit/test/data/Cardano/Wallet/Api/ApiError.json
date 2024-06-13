@@ -1,49 +1,53 @@
 {
     "samples": [
         {
-            "code": "not_implemented",
-            "message": "줻&Su7$@"
+            "code": "hardened_derivation_required",
+            "message": "c𤀜󼖅k"
         },
         {
-            "code": "created_wrong_policy_script_template",
-            "message": "@{p"
+            "code": "hardened_derivation_required",
+            "message": "IO/F\u0006"
         },
         {
-            "code": "tokens_minted_but_not_spent_or_burned",
-            "message": ">oW|)`𭩳"
+            "code": "unresolved_inputs",
+            "message": "=𗷋1\u0001u%V#"
         },
         {
-            "code": "voting_in_invalid_era",
-            "message": "#\\7󰳖]efG|~t𠞀"
+            "code": "key_not_found_for_address",
+            "message": "𠰩𪠺D𠽈QdH\u0000蛈|c`e"
         },
         {
-            "code": "output_token_bundle_size_exceeds_limit",
+            "code": "input_resolution_conflicts",
+            "message": "􍾗yjaN􍲍*\u0005%𰯕"
+        },
+        {
+            "code": "wallet_metadata_not_found",
+            "message": "<\u001c\t3\u0014"
+        },
+        {
+            "code": "node_not_yet_in_recent_era",
             "info": {
-                "address": "{QR𮦣\r'T",
-                "bundle_size": -6
+                "node_era": "alonzo",
+                "supported_recent_eras": [
+                    "byron",
+                    "allegra",
+                    "alonzo"
+                ]
             },
-            "message": "\u001e󻙘\u000bY>"
+            "message": "F"
         },
         {
-            "code": "created_invalid_transaction",
-            "message": "^M\u0014\u0006帀𬒠㨿󱪫b"
+            "code": "unresolved_inputs",
+            "message": "P=\u00082)g"
         },
         {
-            "code": "not_found",
-            "message": "q𦽺"
+            "code": "foreign_transaction",
+            "message": "-"
         },
         {
-            "code": "wrong_mnemonic",
-            "message": "\u000c\u0004󰧸𖢌𱞁v􉿊\u0005􄓷􂛽_"
-        },
-        {
-            "code": "no_root_key",
-            "message": "@&𰣎􍦷Pg"
-        },
-        {
-            "code": "asset_name_too_long",
-            "message": "w"
+            "code": "pool_already_joined_same_vote",
+            "message": "𭔟\u000c\u001ac>c\u0004>9\t!"
         }
     ],
-    "seed": -2101017225
+    "seed": -2041178437
 }
