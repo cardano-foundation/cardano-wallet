@@ -21,7 +21,7 @@ export TESTS_E2E_FIXTURES=*******
 rake secrets_decode
 ```
 > :information_source:  **_TESTS_E2E_FIXTURES_** secret  is defined on https://github.com/cardano-foundation/cardano-wallet/settings/secrets and also used by GH actions. Note that this step is also executed on very first test run.
-> :information_source:  **_TESTS_E2E_FIXTURES_** is also kept in the team's Vaultwarden.
+> :information_source:  **_TESTS_E2E_FIXTURES_** is also kept in the team's 1Password.
 
 #### Fixture wallets
 The command `rake secrets_decode` can be used to decode the file [fixture_wallets.json.gpg](https://github.com/cardano-foundation/cardano-wallet/blob/master/test/e2e/fixtures/fixture_wallets.json.gpg) into a plain JSON file named `fixture_wallets.json`. This file contains mnemonic sentences of the wallets that are utilized in tests. The test framework will retrieve these wallets from the file. It is important to note that there are separate sets of wallets for different operating systems, namely Linux, MacOS, and Windows. This allows tests to be run in parallel on different operating systems.
