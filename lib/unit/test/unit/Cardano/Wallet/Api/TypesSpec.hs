@@ -285,10 +285,14 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
+    , ApiErrorOutputTokenQuantityExceedsLimit (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
+    , ApiErrorWrongEncryptionPassphrase (..)
     )
 import Cardano.Wallet.Api.Types.RestorationMode
     ( ApiRestorationMode
@@ -416,6 +420,9 @@ import Cardano.Wallet.Primitive.Types.TokenMetadata
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicyId
     ( TokenPolicyId (..)
+    )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
@@ -818,6 +825,10 @@ spec = do
         jsonTest @ApiErrorNoSuchWallet
         jsonTest @ApiErrorNodeNotYetInRecentEra
         jsonTest @ApiErrorNotEnoughMoney
+        jsonTest @ApiErrorOutputTokenBundleSizeExceedsLimit
+        jsonTest @ApiErrorOutputTokenQuantityExceedsLimit
+        jsonTest @ApiErrorTransactionAlreadyInLedger
+        jsonTest @ApiErrorWrongEncryptionPassphrase
         jsonTest @ApiFee
         jsonTest @ApiHealthCheck
         jsonTest @ApiIncompleteSharedWallet
@@ -2484,7 +2495,15 @@ instance Arbitrary ApiErrorNoSuchWallet where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiErrorWrongEncryptionPassphrase where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary ApiErrorNoSuchTransaction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorTransactionAlreadyInLedger where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -2521,6 +2540,17 @@ instance Arbitrary ApiErrorNotEnoughMoney where
     shrink = genericShrink
 
 instance Arbitrary ApiErrorNotEnoughMoneyShortfall where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiErrorOutputTokenBundleSizeExceedsLimit where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary TokenQuantity where
+    arbitrary = TokenQuantity <$> arbitrary
+
+instance Arbitrary ApiErrorOutputTokenQuantityExceedsLimit where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

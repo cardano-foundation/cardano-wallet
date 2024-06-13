@@ -1,0 +1,45 @@
+{
+    "samples": [
+        {
+            "address": ".!r\r+\u0016𣅘􊣓l\u0013\u000c",
+            "bundle_size": 10
+        },
+        {
+            "address": "V躔\u0002W'bC𮀯\u0012A 󺉷横",
+            "bundle_size": 6
+        },
+        {
+            "address": "𣏕q:H",
+            "bundle_size": 1
+        },
+        {
+            "address": "𢳖\u000c~7/n𥅋",
+            "bundle_size": 5
+        },
+        {
+            "address": "\"saz􁚔𖹬J!\u0013~",
+            "bundle_size": 8
+        },
+        {
+            "address": "R%I󸌭ᖁ􆈌Y}v",
+            "bundle_size": 14
+        },
+        {
+            "address": "쵣\u0011#",
+            "bundle_size": 9
+        },
+        {
+            "address": "a\u000e?\u0015{<Te6bfC󰏦􌓑",
+            "bundle_size": 11
+        },
+        {
+            "address": "A􄽵\u0002f\u001dk\u0007g",
+            "bundle_size": 13
+        },
+        {
+            "address": "[p",
+            "bundle_size": 15
+        }
+    ],
+    "seed": 1209041285
+}

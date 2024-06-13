@@ -33,8 +33,12 @@ module Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchPool (..)
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (..)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
+    , ApiErrorOutputTokenQuantityExceedsLimit (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorUnsupportedEra (..)
+    , ApiErrorWrongEncryptionPassphrase (..)
     )
     where
 
@@ -61,11 +65,20 @@ import Cardano.Wallet.Api.Types.WalletAssets
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.Primitive.Types.AssetName
+    ( AssetName
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash
     )
 import Cardano.Wallet.Primitive.Types.Pool
     ( PoolId
+    )
+import Cardano.Wallet.Primitive.Types.TokenPolicyId
+    ( TokenPolicyId
+    )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -194,7 +207,9 @@ data ApiErrorInfo
     | NotSynced
     | NothingToMigrate
     | OutputTokenBundleSizeExceedsLimit
+        !ApiErrorOutputTokenBundleSizeExceedsLimit
     | OutputTokenQuantityExceedsLimit
+        !ApiErrorOutputTokenQuantityExceedsLimit
     | PastHorizon
     | PoolAlreadyJoined
     | PoolAlreadyJoinedSameVote
@@ -218,6 +233,7 @@ data ApiErrorInfo
     | TokensMintedButNotSpentOrBurned
     | TransactionAlreadyBalanced
     | TransactionAlreadyInLedger
+        !ApiErrorTransactionAlreadyInLedger
     | TransactionIsTooBig
     | TranslationError
     | TxNotInNodeEra
@@ -235,6 +251,7 @@ data ApiErrorInfo
     | WalletNotResponding
     | WithdrawalNotBeneficial
     | WrongEncryptionPassphrase
+        !ApiErrorWrongEncryptionPassphrase
     | WithdrawalNotPossibleWithoutVote
     | WrongMnemonic
     | BlockHeaderNotFound
@@ -291,6 +308,36 @@ data ApiErrorTxOutputLovelaceInsufficient = ApiErrorTxOutputLovelaceInsufficient
     deriving (Data, Eq, Generic, Show, Typeable)
     deriving (FromJSON, ToJSON)
         via DefaultRecord ApiErrorTxOutputLovelaceInsufficient
+    deriving anyclass NFData
+
+data ApiErrorOutputTokenQuantityExceedsLimit =
+    ApiErrorOutputTokenQuantityExceedsLimit
+        { address
+            :: !Text
+        , policyId
+            :: !(ApiT TokenPolicyId)
+        , assetName
+            :: !(ApiT AssetName)
+        , quantity
+            :: !TokenQuantity
+        , maxQuantity
+            :: !TokenQuantity
+        }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorOutputTokenQuantityExceedsLimit
+    deriving anyclass NFData
+
+data ApiErrorOutputTokenBundleSizeExceedsLimit =
+    ApiErrorOutputTokenBundleSizeExceedsLimit
+        { address
+            :: !Text
+        , bundleSize
+            :: !Natural
+        }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorOutputTokenBundleSizeExceedsLimit
     deriving anyclass NFData
 
 data ApiErrorBalanceTxUnderestimatedFee = ApiErrorBalanceTxUnderestimatedFee
@@ -361,10 +408,27 @@ data ApiErrorNoSuchTransaction = ApiErrorNoSuchTransaction
     deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorNoSuchTransaction
     deriving anyclass NFData
 
+data ApiErrorTransactionAlreadyInLedger = ApiErrorTransactionAlreadyInLedger
+    { transactionId :: !(ApiT (Hash "Tx"))
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorTransactionAlreadyInLedger
+    deriving anyclass NFData
+
 data ApiErrorStartTimeLaterThanEndTime = ApiErrorStartTimeLaterThanEndTime
     { startTime :: UTCTime
     , endTime :: UTCTime
     }
     deriving (Data, Eq, Generic, Show, Typeable)
-    deriving (FromJSON, ToJSON) via DefaultRecord ApiErrorStartTimeLaterThanEndTime
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorStartTimeLaterThanEndTime
+    deriving anyclass NFData
+
+data ApiErrorWrongEncryptionPassphrase = ApiErrorWrongEncryptionPassphrase
+    { walletId :: !(ApiT WalletId)
+    }
+    deriving (Data, Eq, Generic, Show, Typeable)
+    deriving (FromJSON, ToJSON)
+        via DefaultRecord ApiErrorWrongEncryptionPassphrase
     deriving anyclass NFData

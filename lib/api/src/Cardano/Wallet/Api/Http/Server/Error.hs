@@ -116,22 +116,31 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNodeNotYetInRecentEra (..)
     , ApiErrorNotEnoughMoney (..)
     , ApiErrorNotEnoughMoneyShortfall (..)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit (..)
+    , ApiErrorOutputTokenQuantityExceedsLimit (..)
     , ApiErrorSharedWalletNoSuchCosigner (..)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (..)
     , ApiErrorTxOutputLovelaceInsufficient (..)
     , ApiErrorUnsupportedEra (..)
+    , ApiErrorWrongEncryptionPassphrase (..)
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (toWallet)
     , toWalletAddress
+    , toWalletAssetName
     , toWalletCoin
     , toWalletTokenBundle
+    , toWalletTokenPolicyId
     )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (TokenBundle)
+    )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..)
     )
 import Cardano.Wallet.Transaction
     ( ErrSignTx (..)
@@ -305,7 +314,11 @@ instance IsServerError ErrWithRootKey where
                 , "fully own it."
                 ]
         ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase ->
-            apiError err403 WrongEncryptionPassphrase $ mconcat
+            flip (apiError err403) message $
+            WrongEncryptionPassphrase
+            ApiErrorWrongEncryptionPassphrase { walletId = ApiT wid }
+          where
+            message = mconcat
                 [ "The given encryption passphrase doesn't match the one I use "
                 , "to encrypt the root private key of the given wallet: "
                 , toText wid
@@ -356,23 +369,22 @@ instance IsServerError ErrMkTransaction where
         ErrMkTransactionTxBodyError hint ->
             apiError err500 CreatedInvalidTransaction hint
         ErrMkTransactionOutputTokenQuantityExceedsLimit e ->
-            apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
-                [ "One of the token quantities you've specified is greater "
-                , "than the maximum quantity allowed in a single transaction "
-                , "output. "
-                , "Try splitting this quantity across two or more outputs. "
-                , "Destination address: "
-                , pretty (view #address e)
-                , ". Token policy identifier: "
-                , pretty (view (#asset . #policyId) e)
-                , ". Asset name: "
-                , pretty (view (#asset . #assetName) e)
-                , ". Token quantity specified: "
-                , pretty (view #quantity e)
-                , ". Maximum allowable token quantity: "
-                , pretty (view #quantityMaxBound e)
-                , "."
-                ]
+            flip (apiError err403) errorMessage $
+            OutputTokenQuantityExceedsLimit
+            ApiErrorOutputTokenQuantityExceedsLimit
+                { address = toText $ view #address e
+                , policyId = ApiT $ view (#asset . #policyId) e
+                , assetName = ApiT $ view (#asset . #assetName) e
+                , quantity = view #quantity e
+                , maxQuantity = view #quantityMaxBound e
+                }
+              where
+                errorMessage = T.unwords
+                    [ "One of the token quantities you've specified is greater "
+                    , "than the maximum quantity allowed in a single transaction "
+                    , "output. "
+                    , "Try splitting this quantity across two or more outputs."
+                    ]
         ErrMkTransactionInvalidEra _era ->
             apiError err500 CreatedInvalidTransaction $ mconcat
                 [ "Whoops, it seems like I just experienced a hard-fork in the "
@@ -632,7 +644,11 @@ instance IsServerError ErrRemoveTx where
                 , toText tid
                 ]
         ErrRemoveTxAlreadyInLedger tid ->
-            apiError err403 TransactionAlreadyInLedger $ mconcat
+            flip (apiError err403) message $
+            TransactionAlreadyInLedger
+            ApiErrorTransactionAlreadyInLedger { transactionId = ApiT tid }
+          where
+            message = mconcat
                 [ "The transaction with id: ", toText tid,
                   " cannot be forgotten as it is already in the ledger."
                 ]
@@ -1021,37 +1037,39 @@ instance IsServerError ErrBalanceTxOutputError where
                     toWalletCoin minimumExpectedCoin
                 }
         ErrBalanceTxOutputSizeExceedsLimit {output} ->
-            apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
+            flip (apiError err403) errorMessage $
+            OutputTokenBundleSizeExceedsLimit
+            ApiErrorOutputTokenBundleSizeExceedsLimit
+                { address = toText address
+                , bundleSize = fromIntegral assetCount
+                }
+          where
+            address = toWalletAddress (fst output)
+            assetCount = TokenMap.size $
+                toWalletTokenBundle (snd output) ^. #tokens
+            errorMessage = T.unwords
                 [ "One of the outputs you've specified contains too many "
                 , "assets. Try splitting these assets across two or more "
-                , "outputs. Destination address: "
-                , pretty address
-                , ". Asset count: "
-                , pretty assetCount
-                , "."
+                , "outputs."
                 ]
-              where
-                address = toWalletAddress (fst output)
-                assetCount = TokenMap.size $
-                    toWalletTokenBundle (snd output) ^. #tokens
         ErrBalanceTxOutputTokenQuantityExceedsLimit
             {address, policyId, assetName, quantity, quantityMaxBound} ->
-            apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
+            flip (apiError err403) errorMessage $
+            OutputTokenQuantityExceedsLimit
+            ApiErrorOutputTokenQuantityExceedsLimit
+                { address = toText address'
+                , policyId = ApiT $ toWalletTokenPolicyId policyId
+                , assetName = ApiT $ toWalletAssetName assetName
+                , quantity = TokenQuantity quantity
+                , maxQuantity = TokenQuantity quantityMaxBound
+                }
+          where
+            address' = toWalletAddress address
+            errorMessage = T.unwords
                 [ "One of the token quantities you've specified is greater "
                 , "than the maximum quantity allowed in a single transaction "
                 , "output. Try splitting this quantity across two or more "
-                , "outputs. "
-                , "Destination address: "
-                , pretty (toWalletAddress address)
-                , ". Token policy identifier: "
-                , pretty (show policyId)
-                , ". Asset name: "
-                , pretty (show assetName)
-                , ". Token quantity specified: "
-                , pretty (show quantity)
-                , ". Maximum allowable token quantity: "
-                , pretty (show quantityMaxBound)
-                , "."
+                , "outputs."
                 ]
       where
         selectionOutputCoinInsufficientMessage = T.unwords

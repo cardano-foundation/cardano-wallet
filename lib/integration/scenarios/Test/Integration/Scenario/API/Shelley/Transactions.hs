@@ -60,7 +60,9 @@ import Cardano.Wallet.Api.Types.Error
     , ApiErrorNoSuchTransaction (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
     , ApiErrorStartTimeLaterThanEndTime (..)
+    , ApiErrorTransactionAlreadyInLedger (ApiErrorTransactionAlreadyInLedger)
     , ApiErrorTxOutputLovelaceInsufficient (ApiErrorTxOutputLovelaceInsufficient)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( detailedMetadata
@@ -222,15 +224,9 @@ import Test.Integration.Framework.Request
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
-    , errMsg403AlreadyInLedger
     , errMsg403WithdrawalNotBeneficial
-    , errMsg403WrongPass
-    , errMsg404NoAsset
     , steveToken
     , txMetadata_ADP_1005
-    )
-import Web.HttpApiData
-    ( ToHttpApiData (..)
     )
 
 import qualified Cardano.Address as CA
@@ -814,11 +810,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.createTransactionOld @'Shelley wSrc)
                 Default
                 payload
-        verify
-            r
+        verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WrongPass
             ]
+        decodeErrorInfo r `shouldBe`
+            WrongEncryptionPassphrase
+            (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
 
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
@@ -1283,7 +1280,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.getAsset wal polId assName
             r <- request @(ApiAsset) ctx ep Default Empty
             expectResponseCode HTTP.status404 r
-            expectErrorMessage errMsg404NoAsset r
+            decodeErrorInfo r `shouldBe` AssetNotPresent
 
     it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated"
         $ \ctx -> runResourceT $ do
@@ -1292,7 +1289,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.getAsset wal polId AssetName.empty
             r <- request @(ApiAsset) ctx ep Default Empty
             expectResponseCode HTTP.status404 r
-            expectErrorMessage errMsg404NoAsset r
+            decodeErrorInfo r `shouldBe` AssetNotPresent
 
     it "TRANS_TTL_04 - Large TTL"
         $ \ctx -> runResourceT $ do
@@ -2560,8 +2557,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let ep = Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)
             rDel <- request @ApiTxId ctx ep Default Empty
             expectResponseCode HTTP.status403 rDel
-            let err = errMsg403AlreadyInLedger (toUrlPiece (ApiTxId txid))
-            expectErrorMessage err rDel
+            decodeErrorInfo rDel `shouldBe`
+                TransactionAlreadyInLedger
+                (ApiErrorTransactionAlreadyInLedger txid)
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
         txDeleteNotExistsingTxIdTest emptyWallet "wallets"

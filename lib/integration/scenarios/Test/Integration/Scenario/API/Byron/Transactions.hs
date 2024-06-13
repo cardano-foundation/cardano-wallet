@@ -135,8 +135,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoAsset
-    , steveToken
+    ( steveToken
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -321,7 +320,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let ep = Link.getByronAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage errMsg404NoAsset r
+        decodeErrorInfo r `shouldBe` AssetNotPresent
 
     describe "BYRON_TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
@@ -333,7 +332,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let ep = Link.getByronAsset wal polId AssetName.empty
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
-        expectErrorMessage errMsg404NoAsset r
+        decodeErrorInfo r `shouldBe` AssetNotPresent
 
     describe "BYRON_TRANS_CREATE_01 - Single Output Transaction Byron -> Shelley" $
         forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $

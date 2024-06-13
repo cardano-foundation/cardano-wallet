@@ -58,6 +58,7 @@ import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchPool (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -221,7 +222,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403PoolAlreadyJoined
-    , errMsg403WrongPass
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -296,12 +296,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                         ctx
                         (Link.listStakePools arbitraryStake)
                         Empty
-            joinStakePool @n ctx (SpecificPool pool) (w, "Wrong Passphrase")
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status403
-                    , expectErrorMessage errMsg403WrongPass
-                    ]
+            r <- joinStakePool @n ctx (SpecificPool pool) (w, "Wrong Passphrase")
+            verify r
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo r `shouldBe`
+                WrongEncryptionPassphrase
+                (ApiErrorWrongEncryptionPassphrase (w ^. #id))
 
     it
         "STAKE_POOLS_JOIN_01rewards - \
@@ -741,12 +742,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             =<< joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
 
         let wrongPassphrase = "Incorrect Passphrase"
-        quitStakePool @n ctx (w, wrongPassphrase)
-            >>= flip
-                verify
-                [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403WrongPass
-                ]
+        r <- quitStakePool @n ctx (w, wrongPassphrase)
+        verify r
+            [ expectResponseCode HTTP.status403
+            ]
+        decodeErrorInfo r `shouldBe`
+            WrongEncryptionPassphrase
+            (ApiErrorWrongEncryptionPassphrase (w ^. #id))
 
     it
         "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - \

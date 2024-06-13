@@ -42,6 +42,8 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorOutputTokenBundleSizeExceedsLimit (ApiErrorOutputTokenBundleSizeExceedsLimit)
+    , ApiErrorOutputTokenQuantityExceedsLimit (ApiErrorOutputTokenQuantityExceedsLimit)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -115,8 +117,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
-    , errMsg403OutputTokenBundleSizeExceedsLimit
-    , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg406
     , errMsg415
     )
@@ -426,18 +426,17 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         ctx
                         sourceWallet
                         (payment :| [])
-            makeRequest
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status403
-                    , expectErrorMessage
-                        $ errMsg403OutputTokenQuantityExceedsLimit
-                            (apiAddress targetAddress)
-                            (policyId)
-                            (assetName)
-                            (excessiveQuantity)
-                            (txOutMaxTokenQuantity)
-                    ]
+            sel <- makeRequest
+            verify sel [ expectResponseCode HTTP.status403 ]
+            decodeErrorInfo sel `Lifted.shouldBe`
+                OutputTokenQuantityExceedsLimit
+                ( ApiErrorOutputTokenQuantityExceedsLimit
+                    (toText $ apiAddress targetAddress)
+                    (ApiT policyId)
+                    (ApiT assetName)
+                    (excessiveQuantity)
+                    (txOutMaxTokenQuantity)
+                )
 
     -- Attempt to create a coin selection with an output that has an excessive
     -- number of assets, such that the serialized representation of the output
@@ -475,12 +474,11 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         ctx
                         sourceWallet
                         (payment :| [])
-            makeRequest
-                >>= flip
-                    verify
-                    [ expectResponseCode HTTP.status403
-                    , expectErrorMessage
-                        $ errMsg403OutputTokenBundleSizeExceedsLimit
-                            (apiAddress targetAddress)
-                            (assetCount)
-                    ]
+            sel <- makeRequest
+            verify sel [ expectResponseCode HTTP.status403 ]
+            decodeErrorInfo sel `Lifted.shouldBe`
+                OutputTokenBundleSizeExceedsLimit
+                ( ApiErrorOutputTokenBundleSizeExceedsLimit
+                    (toText $ apiAddress targetAddress)
+                    (fromIntegral assetCount)
+                )

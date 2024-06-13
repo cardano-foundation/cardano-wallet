@@ -31,6 +31,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -110,7 +111,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg400NumberOfWords
-    , errMsg403WrongPass
     , kanjiWalletName
     , polishWalletName
     , russianWalletName
@@ -475,8 +475,10 @@ spec = describe "BYRON_WALLETS" $ do
             (Link.putWalletPassphrase @'Byron w) Default payload
         verify r
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage errMsg403WrongPass
             ]
+        decodeErrorInfo r `shouldBe`
+            WrongEncryptionPassphrase
+            (ApiErrorWrongEncryptionPassphrase (w ^. #id))
 
     it "BYRON_UPDATE_PASS_03 - Updating passphrase with no password wallets" $ \ctx -> runResourceT $ do
         w <- emptyRandomWalletWithPasswd ctx ""

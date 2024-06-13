@@ -41,6 +41,7 @@ import Cardano.Wallet.Api.Types.Era
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Faucet
     ( Faucet (..)
@@ -135,7 +136,6 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg403NothingToMigrate
-    , errMsg403WrongPass
     )
 import Text.Pretty.Simple
     ( pShowNoColor
@@ -1042,8 +1042,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             verify
                 response
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403WrongPass
                 ]
+            decodeErrorInfo response `shouldBe`
+                WrongEncryptionPassphrase
+                (ApiErrorWrongEncryptionPassphrase (sourceWallet ^. #id))
 
     it
         "SHELLEY_MIGRATE_06 - \

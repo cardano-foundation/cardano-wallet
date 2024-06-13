@@ -52,6 +52,7 @@ import Cardano.Wallet.Api.Types.Amount
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     , ApiErrorNoSuchWallet (ApiErrorNoSuchWallet)
+    , ApiErrorWrongEncryptionPassphrase (ApiErrorWrongEncryptionPassphrase)
     )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationMode (..)
@@ -84,6 +85,7 @@ import Cardano.Wallet.Unsafe
 import Control.Monad
     ( forM
     , forM_
+    , when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -177,7 +179,6 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( arabicWalletName
     , errMsg403WrongMnemonic
-    , errMsg403WrongPass
     , errMsg404NoWallet
     , errMsg406
     , errMsg415
@@ -1030,7 +1031,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         rup <- request @ApiWallet ctx
             (Link.putWalletPassphrase @'Shelley w) Default payload
         expectResponseCode HTTP.status403 rup
-        expectErrorMessage errMsg403WrongPass rup
+        decodeErrorInfo rup `shouldBe`
+            WrongEncryptionPassphrase
+            (ApiErrorWrongEncryptionPassphrase (w ^. #id))
 
     it "WALLETS_UPDATE_PASS_03 - Mnemonic incorrect" $ \ctx -> runResourceT $ do
         (w,_mnemonic) <- emptyWalletAndMnemonic ctx
@@ -1107,14 +1110,15 @@ spec = describe "SHELLEY_WALLETS" $ do
         let newPass = "cardano-wallet2"
         let matrix =  [ ("Old passphrase -> fail", oldPass
                         , [ expectResponseCode HTTP.status403
-                          , expectErrorMessage errMsg403WrongPass
                           ]
+                        , True
                         )
                       , ("New passphrase -> OK", newPass
                         , [ expectResponseCode HTTP.status202 ]
+                        , False
                         )
                       ]
-        forM_ matrix $ \(title, pass, expectations) -> it title
+        forM_ matrix $ \(title, pass, expectations, checkWrongPass) -> it title
           $ \ctx -> runResourceT $ do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
@@ -1140,7 +1144,11 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @(ApiTransaction n) ctx
                 (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
             verify r expectations
-        forM_ matrix $ \(title, pass, expectations) -> it title
+            when checkWrongPass $
+                decodeErrorInfo r `shouldBe`
+                    WrongEncryptionPassphrase
+                    (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
+        forM_ matrix $ \(title, pass, expectations, checkWrongPass) -> it title
           $ \ctx -> runResourceT $ do
             (wSrc, mnemonic) <- fixtureShelleyWallet ctx
             wDest <- emptyWallet ctx
@@ -1166,6 +1174,10 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @(ApiTransaction n) ctx
                 (Link.createTransactionOld @'Shelley wSrc) Default payloadTrans
             verify r expectations
+            when checkWrongPass $
+                decodeErrorInfo r `shouldBe`
+                    WrongEncryptionPassphrase
+                    (ApiErrorWrongEncryptionPassphrase (wSrc ^. #id))
 
     describe "WALLETS_UPDATE_PASS_07 - HTTP headers" $ do
         let matrix =
