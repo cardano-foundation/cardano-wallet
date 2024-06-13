@@ -16,6 +16,7 @@ CONFIGS = absolute_path ENV.fetch('CARDANO_NODE_CONFIGS', nil)
 LOGS = absolute_path ENV.fetch('TESTS_LOGDIR', nil)
 NODE_DB = absolute_path ENV.fetch('TESTS_NODE_DB', nil)
 WALLET_DB = absolute_path ENV.fetch('TESTS_WALLET_DB', nil)
+NODE_SOCKET_PATH = ENV.fetch('CARDANO_NODE_SOCKET_PATH', nil)
 
 BINS = absolute_path ENV.fetch('TESTS_E2E_BINDIR', nil)
 
@@ -149,9 +150,13 @@ task :start_node_and_wallet, [:env] do |_task, args|
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
   config_dir = File.join(CONFIGS, args[:env])
+  log ">> Using config directory '#{config_dir}'"
   log_dir = File.join(LOGS, args[:env])
+  log ">> Using log directory '#{log_dir}'"
   wallet_db_dir = File.join(WALLET_DB, args[:env])
+  log ">> Using wallet_db directory '#{wallet_db_dir}'"
   node_db_dir = File.join(NODE_DB, args[:env])
+  log ">> Using node_db directory '#{node_db_dir}'"
   cd = Dir.pwd
   mk_dir(STATE)
   mk_dir(log_dir)
@@ -189,15 +194,17 @@ task :start_node_and_wallet, [:env] do |_task, args|
         --config #{config_dir}/config.json \
         --topology #{config_dir}/topology.json \
         --database-path #{node_db_dir} \
-        --socket-path #{node_db_dir}/node.socket
+        --socket-path #{NODE_SOCKET_PATH}
     CMD
+    log ">> Starting cardano-node with command: #{start_node}"
     start_wallet = <<~CMD
       #{bin_dir}cardano-wallet serve #{network} \
         --port #{WALLET_PORT} \
-        --node-socket #{node_db_dir}/node.socket \
+        --node-socket #{NODE_SOCKET_PATH} \
         --database #{wallet_db_dir} \
         --token-metadata-server #{TOKEN_METADATA}
     CMD
+    log ">> Starting cardano-wallet with command: #{start_wallet}"
     cmd <<~CMD
       screen -dmS NODE_#{args[:env]} -L \
         -Logfile #{log_dir}/node.log \
