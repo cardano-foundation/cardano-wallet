@@ -43,11 +43,9 @@ import Cardano.Wallet
     , networkLayer
     , normalizeDelegationAddress
     , normalizeSharedAddress
-    , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Derivation
-    ( Role (..)
-    , delegationAddressS
+    ( delegationAddressS
     , paymentAddressS
     )
 import Cardano.Wallet.Address.Derivation.Icarus
@@ -55,9 +53,6 @@ import Cardano.Wallet.Address.Derivation.Icarus
     )
 import Cardano.Wallet.Address.Derivation.Shared
     ( SharedKey (..)
-    )
-import Cardano.Wallet.Address.Derivation.SharedKey
-    ( constructAddressFromIx
     )
 import Cardano.Wallet.Address.Derivation.Shelley
     ( ShelleyKey (..)
@@ -208,9 +203,6 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , parseSimpleMetadataFlag
-    )
-import Cardano.Wallet.Flavor
-    ( WalletFlavorS (..)
     )
 import Cardano.Wallet.Pools
     ( StakePoolLayer (..)
@@ -377,7 +369,6 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     shelleyTransactions :: Server (ShelleyTransactions n)
     shelleyTransactions =
              constructTransaction shelley
-                (delegationAddressS @n)
                 (knownPools spl)
                 (getPoolLifeCycleStatus spl)
         :<|> signTransaction shelley
@@ -394,11 +385,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :<|> deleteTransaction shelley
         :<|> postTransactionOld shelley (delegationAddressS @n)
         :<|> postTransactionFeeOld shelley
-        :<|> balanceTransaction
-            shelley
-            (delegationAddressS @n)
-            (utxoAssumptionsForWallet ShelleyWallet)
-            mempty
+        :<|> balanceTransaction shelley
         :<|> decodeTransaction shelley
         :<|> submitTransaction @_ @_ @_ @n shelley
 
@@ -653,7 +640,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
         :: ApiLayer (SharedState n SharedKey)
         -> Server (SharedTransactions n)
     sharedTransactions apilayer =
-        constructSharedTransaction apilayer (constructAddressFromIx @n UtxoInternal)
+        constructSharedTransaction apilayer
             (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> signTransaction apilayer
         :<|> decodeSharedTransaction apilayer

@@ -211,7 +211,6 @@ import Cardano.Wallet
     , readPrivateKey
     , readWalletMeta
     , txWitnessTagForKey
-    , utxoAssumptionsForWallet
     )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso
@@ -505,16 +504,21 @@ import Cardano.Wallet.DB
     , DBLayer
     )
 import Cardano.Wallet.Flavor
-    ( CredFromOf
+    ( AllFlavors
+    , CredFromOf
     , Excluding
+    , FlavorOf
+    , Including
     , KeyFlavorS (..)
     , KeyOf
     , NetworkOf
-    , WalletFlavor (..)
+    , WalletFlavor
     , WalletFlavorS (..)
+    , WalletFlavors (..)
     , keyFlavorFromState
     , keyOfWallet
     , shelleyOrShared
+    , walletFlavor
     )
 import Cardano.Wallet.Network
     ( ErrFetchBlock (..)
@@ -628,7 +632,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , cardanoTxInExactEra
     , getSealedTxWitnesses
-    , sealedTxFromCardanoBody
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( txMintBurnMaxTokenQuantity
@@ -829,8 +832,8 @@ import Internal.Cardano.Write.Tx
     ( AnyRecentEra (..)
     )
 import Internal.Cardano.Write.Tx.Balance
-    ( Redeemer (..)
-    , UTxOAssumptions (..)
+    ( PartialTx (..)
+    , Redeemer (..)
     )
 import Internal.Cardano.Write.Tx.Sign
     ( TimelockKeyWitnessCounts
@@ -952,8 +955,10 @@ import qualified Internal.Cardano.Write.Tx as Write
     , IsRecentEra
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     , RecentEra
+    , Tx
     , TxIn
     , TxOutInRecentEra (TxOutInRecentEra)
+    , cardanoEra
     , cardanoEraFromRecentEra
     , fromCardanoApiTx
     , getFeePerByte
@@ -963,9 +968,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
     ( PartialTx (PartialTx)
-    , balanceTx
-    , constructUTxOIndex
-    , fromWalletUTxO
     )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
     ( TimelockKeyWitnessCounts (TimelockKeyWitnessCounts)
@@ -2709,13 +2711,12 @@ constructTransaction
     :: forall s n
      . (HasSNetworkId n, s ~ SeqState n ShelleyKey)
     => ApiLayer s
-    -> ArgGenChange s
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
-constructTransaction api argGenChange knownPools poolStatus apiWalletId body = do
+constructTransaction api knownPools poolStatus apiWalletId body = do
     body & \(ApiConstructTransactionData _ _ _ _ _ _ _ _ _ _) ->
     -- Above is the way to get a compiler error when number of fields changes,
     -- in order not to forget to update the pattern below:
@@ -2756,7 +2757,7 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
         let db = wrk ^. dbLayer
             netLayer = wrk ^. networkLayer
 
-        (Write.PParamsInAnyRecentEra era pp, _)
+        (Write.PParamsInAnyRecentEra era pp, timeTranslation)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
         when (isJust (body ^. #vote)) $
@@ -2916,18 +2917,16 @@ constructTransaction api argGenChange knownPools poolStatus apiWalletId body = d
                 $ maybe [] NE.toList mintBurnDatum
 
         balancedTx <-
-            balanceTransaction
-                api
-                argGenChange
-                (utxoAssumptionsForWallet (walletFlavor @s))
-                mintBurnTimelockKeyWitCounts
-                apiWalletId
-                ApiBalanceTransactionPostData
-                    { transaction = ApiT
-                        $ sealedTxFromCardanoBody unbalancedTx
-                    , inputs = []
-                    , redeemers = []
-                    , encoding = body ^. #encoding
+            fmap (toApiSerialisedTransaction (body ^. #encoding))
+            . liftIO $ W.balanceTx
+                wrk
+                pp
+                timeTranslation
+                PartialTx
+                    { tx = Write.fromCardanoApiTx $ Cardano.Tx unbalancedTx []
+                    , extraUTxO = mempty
+                    , redeemers = mempty
+                    , timelockKeyWitnessCounts = mintBurnTimelockKeyWitCounts
                     }
 
         apiDecoded <- decodeTransaction @_ @n api apiWalletId
@@ -3263,14 +3262,13 @@ parseValidityInterval ti validityInterval = do
 constructSharedTransaction
     :: forall n . HasSNetworkId n
     => ApiLayer (SharedState n SharedKey)
-    -> ArgGenChange (SharedState n SharedKey)
     -> IO (Set PoolId)
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiT WalletId
     -> ApiConstructTransactionData n
     -> Handler (ApiConstructTransaction n)
 constructSharedTransaction
-    api argGenChange knownPools getPoolStatus (ApiT wid) body = do
+    api knownPools getPoolStatus (ApiT wid) body = do
     let isNoPayload =
             isNothing (body ^. #payments) &&
             isNothing (body ^. #withdrawal) &&
@@ -3293,7 +3291,7 @@ constructSharedTransaction
             netLayer = wrk ^. networkLayer
 
         currentEpochSlotting <- liftIO $ getCurrentEpochSlotting netLayer
-        (Write.PParamsInAnyRecentEra era pp, _)
+        (Write.PParamsInAnyRecentEra era pp, timeTranslation)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
         (cp, _, _) <- handler $ W.readWallet wrk
 
@@ -3339,28 +3337,27 @@ constructSharedTransaction
                             []
                         Just (ApiPaymentAddresses content) ->
                             F.toList (addressAmountToTxOut <$> content)
-                (unbalancedTx, scriptLookup) <- liftHandler $
+                unbalancedTx <- liftHandler $
                     W.constructUnbalancedSharedTransaction @n era
                     db txCtx PreSelection {outputs = outs}
 
-                balancedTx <-
-                    balanceTransaction api argGenChange
-                    (AllScriptPaymentCredentialsFrom
-                        (Shared.paymentTemplate (getState cp))
-                        (scriptLookup . Convert.toWalletAddress)
-                    )
-                    mempty
-                    (ApiT wid)
-                        ApiBalanceTransactionPostData
-                        { transaction =
-                            ApiT $ sealedTxFromCardanoBody unbalancedTx
-                        , inputs = []
-                        , redeemers = []
-                        , encoding = body ^. #encoding
+                balancedTx <- liftIO $ W.balanceTx
+                    wrk
+                    pp
+                    timeTranslation
+                    PartialTx
+                        { tx = Write.fromCardanoApiTx
+                             $ Cardano.Tx unbalancedTx []
+                        , extraUTxO = mempty
+                        , redeemers = mempty
+                        , timelockKeyWitnessCounts = mempty
                         }
 
-                apiDecoded <- decodeSharedTransaction api (ApiT wid)
-                              (toApiDecodeTransactionPostData balancedTx)
+                apiDecoded <- decodeSharedTransaction api (ApiT wid) $
+                    ApiDecodeTransactionPostData
+                        { transaction = ApiT (sealWriteTx balancedTx)
+                        , decrypt_metadata = Nothing
+                        }
                 let deposits = case optionalDelegationAction of
                         Just (JoinRegisteringKey _poolId) ->
                             [W.getStakeKeyDeposit pp]
@@ -3384,7 +3381,9 @@ constructSharedTransaction
                         pure Nothing
 
                 pure $ ApiConstructTransaction
-                    { transaction = balancedTx
+                    { transaction = toApiSerialisedTransaction
+                        (body ^. #encoding)
+                        balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
                         delCertsWithPath md
@@ -3512,53 +3511,27 @@ decodeSharedTransaction ctx (ApiT wid) postData = do
         }
 
 balanceTransaction
-    :: forall s
-     . (GenChange s, WalletFlavor s)
+    :: forall s.
+        ( GenChange s
+        , WalletFlavor s
+        , Including AllFlavors '[ 'ShelleyF, 'SharedF] (FlavorOf s)
+        , HasSNetworkId (NetworkOf s)
+        )
     => ApiLayer s
-    -> ArgGenChange s
-    -> UTxOAssumptions
-    -> TimelockKeyWitnessCounts
     -> ApiT WalletId
     -> ApiBalanceTransactionPostData (NetworkOf s)
     -> Handler ApiSerialisedTransaction
-balanceTransaction
-    ctx@ApiLayer{..}
-    argGenChange
-    utxoAssumptions
-    timelockKeyWitnessCounts
-    (ApiT wid)
-    body
-    = do
-    (Write.PParamsInAnyRecentEra era pp, timeTranslation)
-        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
+balanceTransaction ctx (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (utxo, wallet, _txs) <- handler $ W.readWalletUTxO wrk
-        let utxoIndex =
-                Write.constructUTxOIndex $
-                Write.fromWalletUTxO utxo
+        (Write.PParamsInAnyRecentEra era pp, timeTranslation)
+            <- liftIO $ W.readNodeTipStateForTxWrite (wrk ^. networkLayer)
         partialTx <- parsePartialTx era
-        balancedTx <- liftHandler
-            . fmap
-                ( Cardano.InAnyCardanoEra
-                    (Write.cardanoEraFromRecentEra era)
-                . Write.toCardanoApiTx
-                . fst
-                )
-            $ Write.balanceTx
+        balancedTx <- liftIO $ W.balanceTx
+                wrk
                 pp
                 timeTranslation
-                utxoAssumptions
-                utxoIndex
-                (W.defaultChangeAddressGen argGenChange)
-                (getState wallet)
                 partialTx
-
-        case body ^. #encoding of
-            Just HexEncoded ->
-                pure $ ApiSerialisedTransaction
-                (ApiT $ W.sealedTxFromCardano balancedTx) HexEncoded
-            _ -> pure $ ApiSerialisedTransaction
-                (ApiT $ W.sealedTxFromCardano balancedTx) Base64Encoded
+        return $ toApiSerialisedTransaction (body ^. #encoding) balancedTx
   where
     parsePartialTx
         :: Write.IsRecentEra era
@@ -3585,7 +3558,7 @@ balanceTransaction
                 (Write.fromCardanoApiTx tx)
                 externalUTxO
                 (fromApiRedeemer <$> body ^. #redeemers)
-                timelockKeyWitnessCounts
+                (mempty :: TimelockKeyWitnessCounts)
             Left e -> liftHandler $ throwE e
 
 decodeTransaction
@@ -5115,6 +5088,22 @@ fromApiRedeemer = \case
         RedeemerMinting bytes (toLedger p)
     ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
         RedeemerRewarding bytes (RewardAcnt x y)
+
+sealWriteTx :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx
+sealWriteTx = W.sealedTxFromCardano
+    . Cardano.InAnyCardanoEra (Write.cardanoEra @era)
+    . Write.toCardanoApiTx
+
+toApiSerialisedTransaction
+    :: Write.IsRecentEra era
+    => Maybe ApiSealedTxEncoding
+    -> Write.Tx era
+    -> ApiSerialisedTransaction
+toApiSerialisedTransaction maybeEncoding tx =
+    let
+        encoding = fromMaybe Base64Encoded maybeEncoding
+    in
+        ApiSerialisedTransaction (ApiT $ sealWriteTx tx) encoding
 
 {-------------------------------------------------------------------------------
                                 Api Layer
