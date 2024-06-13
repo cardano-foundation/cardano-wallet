@@ -272,7 +272,8 @@ import Cardano.Crypto.Wallet
     ( toXPub
     )
 import Cardano.Ledger.Api
-    ( bodyTxL
+    ( EraTxBody (allInputsTxBodyF)
+    , bodyTxL
     , feeTxBodyL
     )
 import Cardano.Mnemonic
@@ -720,6 +721,7 @@ import Data.Functor.Contravariant
     )
 import Data.Generics.Internal.VL.Lens
     ( Lens'
+    , over
     , view
     , (.~)
     , (^.)
@@ -795,7 +797,8 @@ import GHC.TypeNats
     ( Nat
     )
 import Internal.Cardano.Write.Tx
-    ( recentEra
+    ( MaybeInRecentEra (..)
+    , recentEra
     , toRecentEraGADT
     )
 import Internal.Cardano.Write.Tx.Balance
@@ -867,8 +870,10 @@ import qualified Data.Vector as V
 import qualified Internal.Cardano.Write.Tx as Write
     ( AnyRecentEra
     , CardanoApiEra
+    , ErrInvalidTxOutInEra
     , FeePerByte
-    , IsRecentEra
+    , IsRecentEra (..)
+    , MaybeInRecentEra (..)
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     , RecentEra (..)
@@ -876,6 +881,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     , UTxO (UTxO)
     , cardanoEraFromRecentEra
     , feeOfBytes
+    , forceUTxOToEra
     , fromCardanoApiTx
     , getFeePerByte
     , stakeKeyDeposit
@@ -2155,6 +2161,9 @@ readNodeTipStateForTxWrite netLayer = do
 -- workflow with Shelley- and Shared- wallet flavors.
 --
 -- Changes to the change state are not written to the DB.
+--
+-- Inputs of the partial transaction are looked up using a local state query to
+-- the node.
 balanceTx
     :: forall s era.
         ( GenChange s
@@ -2175,6 +2184,13 @@ balanceTx wrk pp timeTranslation partialTx = do
             Write.constructUTxOIndex $
             Write.fromWalletUTxO utxo
 
+    -- Resolve inputs using LSQ. Useful for foreign reference inputs supplied by
+    -- the user when calling transactions-construct, or in transactions-balance.
+    let netLayer = wrk ^. networkLayer
+    let inputsToLookup = partialTx ^. #tx . bodyTxL . allInputsTxBodyF
+    lookedUpUTxO <- liftIO $
+        forceUTxOToEra =<< getUTxOByTxIn netLayer inputsToLookup
+
     let utxoAssumptions = case walletFlavor @s of
             ShelleyWallet -> AllKeyPaymentCredentials
             SharedWallet -> AllScriptPaymentCredentialsFrom
@@ -2190,10 +2206,28 @@ balanceTx wrk pp timeTranslation partialTx = do
         utxoIndex
         (defaultChangeAddressGen argGenChange)
         changeState
-        partialTx
+        (over #extraUTxO (<> lookedUpUTxO) partialTx)
 
     return tx
   where
+    -- Assumes the 'utxo' was queried from the node /after/ the 'era'. As
+    -- rolling back to a previous era should be impossible, we know 'IsRecentEra
+    -- era => IsRecentEra eraOfUTxO'.
+    forceUTxOToEra
+        :: Write.MaybeInRecentEra Write.UTxO
+        -> IO (Write.UTxO era)
+    forceUTxOToEra = \case
+        InRecentEraConway utxo -> hoist $ Write.forceUTxOToEra utxo
+        InRecentEraBabbage utxo -> hoist $ Write.forceUTxOToEra utxo
+        InNonRecentEraAlonzo -> impossibleRollback
+        InNonRecentEraMary -> impossibleRollback
+        InNonRecentEraAllegra -> impossibleRollback
+        InNonRecentEraShelley -> impossibleRollback
+        InNonRecentEraByron -> impossibleRollback
+      where
+        impossibleRollback = error "forceUTxOToEra: era should not roll back"
+        hoist = either (throwIO . ExceptionInvalidTxOutInEra) pure
+
     argGenChange :: ArgGenChange s
     argGenChange = case walletFlavor @s of
         ShelleyWallet -> delegationAddressS @(NetworkOf s)
@@ -3850,6 +3884,7 @@ data WalletException
     | ExceptionSignPayment ErrSignPayment
     | forall era. Write.IsRecentEra era => ExceptionBalanceTx (ErrBalanceTx era)
     | ExceptionWriteTxEra ErrWriteTxEra
+    | ExceptionInvalidTxOutInEra Write.ErrInvalidTxOutInEra
     | ExceptionSubmitTransaction ErrSubmitTransaction
     | ExceptionConstructTx ErrConstructTx
     | ExceptionGetPolicyId ErrGetPolicyId

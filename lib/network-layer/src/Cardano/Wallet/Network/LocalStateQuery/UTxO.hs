@@ -11,11 +11,20 @@ module Cardano.Wallet.Network.LocalStateQuery.UTxO
 
 import Prelude
 
+import Cardano.Ledger.TxIn
+    ( TxIn
+    )
+import Cardano.Ledger.UTxO
+    ( UTxO
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
     )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( onAnyEra
+    )
+import Data.Set
+    ( Set
     )
 import Internal.Cardano.Write.Tx
     ( MaybeInRecentEra (..)
@@ -25,15 +34,6 @@ import Ouroboros.Consensus.Cardano
     )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
-    )
-import Cardano.Ledger.TxIn
-    ( TxIn
-    )
-import Cardano.Ledger.UTxO
-    ( UTxO
-    )
-import Data.Set
-    ( Set
     )
 
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
