@@ -369,7 +369,8 @@ instance IsServerError ErrMkTransaction where
         ErrMkTransactionTxBodyError hint ->
             apiError err500 CreatedInvalidTransaction hint
         ErrMkTransactionOutputTokenQuantityExceedsLimit e ->
-            flip (apiError err403) errorMessage $ OutputTokenQuantityExceedsLimit
+            flip (apiError err403) errorMessage $
+            OutputTokenQuantityExceedsLimit
             ApiErrorOutputTokenQuantityExceedsLimit
                 { address = toText $ view #address e
                 , policyId = ApiT $ view (#asset . #policyId) e
@@ -1036,23 +1037,25 @@ instance IsServerError ErrBalanceTxOutputError where
                     toWalletCoin minimumExpectedCoin
                 }
         ErrBalanceTxOutputSizeExceedsLimit {output} ->
-            flip (apiError err403) errorMessage $ OutputTokenBundleSizeExceedsLimit
+            flip (apiError err403) errorMessage $
+            OutputTokenBundleSizeExceedsLimit
             ApiErrorOutputTokenBundleSizeExceedsLimit
                 { address = toText address
                 , bundleSize = fromIntegral assetCount
                 }
-              where
-                address = toWalletAddress (fst output)
-                assetCount = TokenMap.size $
-                    toWalletTokenBundle (snd output) ^. #tokens
-                errorMessage = T.unwords
-                    [ "One of the outputs you've specified contains too many "
-                    , "assets. Try splitting these assets across two or more "
-                    , "outputs."
-                    ]
+          where
+            address = toWalletAddress (fst output)
+            assetCount = TokenMap.size $
+                toWalletTokenBundle (snd output) ^. #tokens
+            errorMessage = T.unwords
+                [ "One of the outputs you've specified contains too many "
+                , "assets. Try splitting these assets across two or more "
+                , "outputs."
+                ]
         ErrBalanceTxOutputTokenQuantityExceedsLimit
             {address, policyId, assetName, quantity, quantityMaxBound} ->
-            flip (apiError err403) errorMessage $ OutputTokenQuantityExceedsLimit
+            flip (apiError err403) errorMessage $
+            OutputTokenQuantityExceedsLimit
             ApiErrorOutputTokenQuantityExceedsLimit
                 { address = toText address'
                 , policyId = ApiT $ toWalletTokenPolicyId policyId
@@ -1060,14 +1063,14 @@ instance IsServerError ErrBalanceTxOutputError where
                 , quantity = TokenQuantity quantity
                 , maxQuantity = TokenQuantity quantityMaxBound
                 }
-              where
-                address' = toWalletAddress address
-                errorMessage = T.unwords
-                    [ "One of the token quantities you've specified is greater "
-                    , "than the maximum quantity allowed in a single transaction "
-                    , "output. Try splitting this quantity across two or more "
-                    , "outputs."
-                    ]
+          where
+            address' = toWalletAddress address
+            errorMessage = T.unwords
+                [ "One of the token quantities you've specified is greater "
+                , "than the maximum quantity allowed in a single transaction "
+                , "output. Try splitting this quantity across two or more "
+                , "outputs."
+                ]
       where
         selectionOutputCoinInsufficientMessage = T.unwords
             [ "One of the outputs you've specified has an ada quantity that is"
