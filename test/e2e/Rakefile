@@ -117,7 +117,7 @@ task :wait_until_node_synced do
 
   network = CardanoWallet.new.misc.network
   # allow 180 mins for connecting to the node in case it needs to replay ledger
-  timeout = 10_800
+  timeout = 300
   current_time = Time.now
   timeout_treshold = current_time + timeout
   log "Timeout: #{timeout}s"
@@ -403,6 +403,8 @@ task :run_on, [:env, :sync_strategy, :skip_bins, :skip_configs, :branch] do |_ta
 
   Rake::Task[:setup].invoke(env, branch, args[:skip_bins], args[:skip_configs])
   Rake::Task[:display_versions].invoke
+
+  Rake::Task[:stop_node_and_wallet].invoke(env)
   Rake::Task[:start_node_and_wallet].invoke(env)
 
   if sync_strategy == 'no-sync'
