@@ -4419,6 +4419,12 @@ x-errTransactionAlreadyInLedger: &errTransactionAlreadyInLedger
     code:
       type: string
       enum: ['transaction_already_in_ledger']
+    info:
+      type: object
+      required:
+        - transaction_id
+      properties:
+        transaction_id: *transactionId
 
 x-errWalletAlreadyExists: &errWalletAlreadyExists
   <<: *responsesErr
@@ -4468,6 +4474,12 @@ x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
     code:
       type: string
       enum: ['wrong_encryption_passphrase']
+    info:
+      type: object
+      required:
+        - wallet_id
+      properties:
+        wallet_id: *walletId
 
 x-errWrongMnemonic: &errWrongMnemonic
   <<: *responsesErr
@@ -4766,6 +4778,16 @@ x-errOutputTokenBundleSizeExceedsLimit: &errOutputTokenBundleSizeExceedsLimit
     code:
       type: string
       enum: ['output_token_bundle_size_exceeds_limit']
+    info:
+      type: object
+      required:
+        - address
+        - bundle_size
+      properties:
+          address: *addressId
+          bundle_size:
+            type: integer
+            minimum: 0
 
 x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
   <<: *responsesErr
@@ -4780,6 +4802,20 @@ x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
     code:
       type: string
       enum: ['output_token_quantity_exceeds_limit']
+    info:
+      type: object
+      required:
+        - address
+        - policy_id
+        - asset_name
+        - quantity
+        - max_quantity
+      properties:
+          address: *addressId
+          policy_id: *assetPolicyId
+          asset_name: *assetName
+          quantity: *assetQuantity
+          max_quantity: *assetQuantity
 
 x-errSharedWalletActive: &errSharedWalletActive
   <<: *responsesErr
