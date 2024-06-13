@@ -164,6 +164,13 @@ source-repository-package
 
 source-repository-package
     type: git
+    location: https://github.com/jonathanknowles/wai.git
+    tag: 5ad3d1a5d472f398ded8817b0befc221a7a84cef
+    --sha256: 1nlbsqar46i9yzl8j5i8wwmya34n82b9zcnik27q3n43rxnvi1ri
+    subdir: wai-app-static
+
+source-repository-package
+    type: git
     location: https://github.com/paolino/int-cast.git
     tag: 0232b037552a4247b4a7ac21f816cc77cc95f7a4
     --sha256: 1pmghd9pz35ycxp0c3f5sz4fghfi6ywjmp6wm9n45f8l5ah9vhhw
