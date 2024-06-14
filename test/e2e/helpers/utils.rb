@@ -82,11 +82,16 @@ module Helpers
     # @param info_type [Symbol] wallet type = :mnemonics, :payment_template, :delegation_template
     def get_fixture_wallet(kind, wallet_type, info_type = :mnemonics)
       fixture = ENV.fetch('TESTS_E2E_FIXTURES_FILE', nil)
+      log "Using fixture file: #{fixture}"
       raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets." unless File.exist? fixture
 
       wallets = from_json(fixture)
+      log "Using #{kind} wallet of type #{wallet_type} with #{info_type} info."
+      log "Wallets: #{wallets}"
       if linux?
-        wallets[:linux][kind][wallet_type][info_type]
+        r = wallets[:linux][kind][wallet_type][info_type]
+        log "Wallet info: #{r}"
+        r
       elsif mac?
         wallets[:macos][kind][wallet_type][info_type]
       elsif win?
