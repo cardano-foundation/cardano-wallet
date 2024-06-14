@@ -43,6 +43,7 @@ flag release
 library
   import:           opts-lib, language
   exposed-modules:
+    Cardano.Read.Ledger
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.BHeader
