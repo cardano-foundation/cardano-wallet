@@ -8,13 +8,11 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 -- |
--- Copyright: © 2020-2022 IOHK
+-- Copyright: © 2020-2024 IOHK
 -- License: Apache-2.0
 --
--- Raw inputs data extraction from 'Tx'
---
 
-module Cardano.Wallet.Read.Tx.Inputs
+module Cardano.Read.Ledger.Tx.Inputs
     ( InputsType
     , Inputs (..)
     , getEraInputs
@@ -75,7 +73,6 @@ deriving instance Show (InputsType era) => Show (Inputs era)
 deriving instance Eq (InputsType era) => Eq (Inputs era)
 
 {-# INLINABLE getEraInputs #-}
--- | Extract the inputs from a transaction in any era.
 getEraInputs :: forall era . IsEra era => Tx era -> Inputs era
 getEraInputs = case theEra @era of
     Byron -> onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx

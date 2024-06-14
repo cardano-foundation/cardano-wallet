@@ -13,6 +13,10 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.Inputs
+    ( Inputs (..)
+    , InputsType
+    )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
     )
@@ -22,10 +26,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( fromShelleyTxId
-    )
-import Cardano.Wallet.Read.Tx.Inputs
-    ( Inputs (..)
-    , InputsType
     )
 import Data.Foldable
     ( toList
