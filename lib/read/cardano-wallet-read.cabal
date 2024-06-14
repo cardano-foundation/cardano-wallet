@@ -44,6 +44,7 @@ library
   import:           opts-lib, language
   exposed-modules:
     Cardano.Read.Ledger
+    Cardano.Read.Ledger.Tx.TxId
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.BHeader
