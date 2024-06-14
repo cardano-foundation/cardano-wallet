@@ -167,6 +167,12 @@ source-repository-package
 
 source-repository-package
     type: git
+    location: https://github.com/jonathanknowles/fgl.git
+    tag: d55661c79ca0bb451d7dc7e8d8b99d4f80108c10
+    --sha256: 0kkw3w37bxwaam9ynmvf4z315ms99ddbmz45k2wlnpq2dp7dha50
+
+source-repository-package
+    type: git
     location: https://github.com/jonathanknowles/wai.git
     tag: 5ad3d1a5d472f398ded8817b0befc221a7a84cef
     --sha256: 1nlbsqar46i9yzl8j5i8wwmya34n82b9zcnik27q3n43rxnvi1ri
