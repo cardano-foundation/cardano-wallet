@@ -137,6 +137,7 @@ def create_incomplete_shared_wallet(m, acc_ix, acc_xpub)
 end
 
 def shared_acc_pubkey(wallet_id)
+  log SHARED.keys.get_acc_public_key(wallet_id, { format: 'extended' })
   SHARED.keys.get_acc_public_key(wallet_id, { format: 'extended' }).parsed_response.delete_prefix('"').delete_suffix('"')
 end
 
@@ -311,6 +312,7 @@ def return_wallet_id(create_wallet_response)
   if create_wallet_response.code == 409
     create_wallet_response['message'].split[10]
   else
+    log "Wallet created with id: #{create_wallet_response}"
     create_wallet_response['id']
   end
 end
@@ -358,7 +360,9 @@ def create_fixture_wallet(type, *templates)
       end
     end
     payload[:account_index] = '0H'
+    log "Creating shared wallet with payload: #{payload}"
     wallet = SHARED.wallets.create(payload)
+    log "Wallet created with id: #{wallet}"
     return_wallet_id(wallet)
   else
     raise "Unsupported wallet type: #{type}"
