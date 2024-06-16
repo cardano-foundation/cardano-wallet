@@ -14,6 +14,9 @@ import Prelude hiding
     ( (.)
     )
 
+import Cardano.Read.Ledger.Tx.Inputs
+    ( getEraInputs
+    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -100,9 +103,6 @@ import Cardano.Wallet.Read.Tx.Fee
     )
 import Cardano.Wallet.Read.Tx.Hash
     ( getEraTxHash
-    )
-import Cardano.Wallet.Read.Tx.Inputs
-    ( getEraInputs
     )
 import Cardano.Wallet.Read.Tx.Metadata
     ( getEraMetadata
