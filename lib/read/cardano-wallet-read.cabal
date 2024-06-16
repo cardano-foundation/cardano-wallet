@@ -93,6 +93,7 @@ library
     Cardano.Wallet.Read.Tx.ReferenceInputs
     Cardano.Wallet.Read.Tx.ScriptValidity
     Cardano.Wallet.Read.Tx.TxId
+    Cardano.Wallet.Read.Tx.TxIn
     Cardano.Wallet.Read.Tx.Validity
     Cardano.Wallet.Read.Tx.Withdrawals
     Cardano.Wallet.Read.Tx.Witnesses
