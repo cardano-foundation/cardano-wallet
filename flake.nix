@@ -1,120 +1,6 @@
 {
   description = "Cardano Wallet";
 
-  ############################################################################
-  #
-  # Cardano Wallet Flake Nix build
-  #
-  # See ./nix/README.md for more documentation about this file.
-  #
-  # Derivation attributes of this file can be build with "nix build .#<attribute>"
-  # Discover attribute names using tab-completion in your shell.
-  #
-  # Interesting top-level attributes:
-  #
-  #   - cardano-wallet - cli executable
-  #   - tests - attrset of test-suite executables
-  #     - cardano-wallet.unit
-  #     - cardano-wallet.integration
-  #     - etc (layout is PACKAGE.COMPONENT)
-  #   - checks - attrset of test-suite results
-  #     - cardano-wallet.unit
-  #     - cardano-wallet.integration
-  #     - etc
-  #   - benchmarks - attret of benchmark executables
-  #     - cardano-wallet.db
-  #     - cardano-wallet.latency
-  #     - etc
-  #   - dockerImage - tarball of the docker image
-  #
-  ############################################################################
-
-  ############################################################################
-  # Continuous Integration (CI)
-  #
-  # This flake contains a few outputs useful for continous integration.
-  # These outputs come in two flavors:
-  #
-  #   outputs.packages."<system>".ci.*  - build a test, benchmark, …
-  #   outputs.apps."<system>".ci.*      - run a test, benchmark, …
-  #
-  # For building, say all tests, use `nix build`:
-  #
-  #   nix build .#ci.tests.all
-  #
-  # For running, say the unit tests use `nix run`:
-  #
-  #   nix run .#ci.tests.unit
-  #
-  # (Running an item will typically also build it if it has not been built
-  #  in the nix store already.)
-  #
-  #
-  # The CI-related outputs are
-  #
-  #  - outputs.packages."<system>".ci.
-  #     - tests
-  #       - all             - build all test executables
-  #     - benchmarks
-  #       - all             - build all benchmarks
-  #       - restore         - build individual benchmark
-  #       - …
-  #     - artifacts         - artifacts by platform
-  #       - linux64.release
-  #       - win64
-  #         - release
-  #         - tests         - bundle of executables for testing on Windows
-  #       - macos-intel.release
-  #       - macos-silicon.release
-  #       - dockerImage
-  #  - outputs.apps."<system>".ci.
-  #     - tests
-  #       - unit            - run the unit tests on this system
-  #       - integration     - run the integration tests on this system
-  #     - benchmarks
-  #       - restore
-  #       - …
-  #
-  # Recommended granularity:
-  #
-  #  after each commit:
-  #    on x86_64-linux:
-  #      nix build .#ci.tests.all
-  #      nix build .#ci.benchmarks.all
-  #      nix build .#ci.artifacts.linux64.release
-  #      nix build .#ci.artifacts.win64.release
-  #      nix build .#ci.artifacts.win64.tests
-  #
-  #      nix run   .#ci.tests.unit
-  #
-  #  before each pull request merge:
-  #    on each supported system:
-  #      nix build .#ci.benchmarks.all
-  #      nix build .#ci.tests.all
-  #
-  #      nix run   .#ci.tests.unit
-  #      nix run   .#ci.tests.integration
-  #
-  #  nightly:
-  #    on x86_64-linux:
-  #      nix build  .#ci.artifacts.dockerImage
-  #
-  #      nix run    .#ci.benchmarks.restore
-  #      nix run    .#ci.benchmarks.…
-  #
-  #    on x65_64-darwin: (macos)
-  #      nix build .#ci.artifacts.win64.release
-  #
-  ############################################################################
-
-  ############################################################################
-  # TODO Continuous Integration (CI)
-  #
-  # Make the flake.nix file *itself* part of continuous integration,
-  # i.e. check that `devShells`, `scripts` or `nixosTests` evalute and build
-  # correctly.
-  ############################################################################
-
   inputs = {
     nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
     nixpkgs.follows = "haskellNix/nixpkgs-unstable";
@@ -149,13 +35,11 @@
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
               ... }:
     let
-      # Import libraries
       lib = import ./nix/lib.nix nixpkgs.lib;
       config = import ./nix/config.nix nixpkgs.lib customConfig;
       inherit (flake-utils.lib) eachSystem mkApp flattenTree;
       inherit (iohkNix.lib) evalService;
 
-      # Definitions
       supportedSystems = import ./nix/supported-systems.nix;
 
       overlay = final: prev: {
@@ -163,9 +47,7 @@
         inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-api.components.exes) cardano-wallet;
         haskell-nix = prev.haskell-nix // {
           extraPkgconfigMappings = prev.haskell-nix.extraPkgconfigMappings // {
-              # String pkgconfig-depends names are mapped to lists of Nixpkgs
-              # package names
-              "libblst" = [ "blst" ];
+            "libblst" = [ "blst" ];
           };
         };
       };
@@ -176,7 +58,6 @@
       };
       nixosModules.cardano-wallet = nixosModule;
 
-      # Define flake outputs for a particular system.
       mkOutputs = system:
         let
           pkgs = import nixpkgs {
@@ -188,9 +69,7 @@
               iohkNix.overlays.cardano-lib
               haskellNix.overlay
               iohkNix.overlays.haskell-nix-extra
-              # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
-              # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
               overlay
             ];
@@ -224,55 +103,35 @@
             let
               coveredProject = project.appendModule { coverage = true; };
               self = {
-                # Cardano wallet
                 cardano-wallet = import ./nix/release-build.nix {
                   inherit pkgs;
                   exe = project.hsPkgs.cardano-wallet-api.components.exes.cardano-wallet;
                   backend = self.cardano-node;
                 };
-                # Local test cluster and mock metadata server
                 inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
                 inherit (project.hsPkgs.cardano-wallet-integration.components.exes) integration-exe;
                 inherit (project.hsPkgs.local-cluster.components.exes) test-local-cluster-exe;
-
-                # Adrestia tool belt
                 inherit (project.hsPkgs.bech32.components.exes) bech32;
                 inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
-
-                # Cardano
                 cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;
                 cardano-node = nodeProject.hsPkgs.cardano-node.components.exes.cardano-node // {
                   deployments = pkgs.cardano-node-deployments;
                 };
-
                 cardano-wallet-e2e = project.hsPkgs.cardano-wallet-e2e.components.exes.wallet-e2e;
-
-                # Provide db-converter, so daedalus can ship it without needing to
-                # pin an ouroborus-network rev.
                 inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
-
-                # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
-                # `tests` are the test suites which have been built.
-                tests =
-                  lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
-                # `checks` are the result of executing the tests.
+                tests = lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
                 checks = lib.removeRecurse (collectChecks isProjectPackage coveredProject.hsPkgs);
-                # `benchmarks` are only built, not run.
-                benchmarks =
-                  lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+                benchmarks = lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
               };
-            in
-            self;
+            in self;
 
-          # nix run .#<network>/wallet
           mkScripts = project: flattenTree (import ./nix/scripts.nix {
             inherit project evalService;
             customConfigs = [ config ];
           });
 
-          # See the imported file for how to use the docker build.
           mkDockerImage = packages: pkgs.callPackage ./nix/docker.nix {
             exes = with packages; [ cardano-wallet local-cluster ];
             base = with packages; [
@@ -287,19 +146,16 @@
           mkDevShells = project: rec {
             default = project.shell;
             profiled = (project.appendModule { profiling = true; }).shell;
-
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
               nativeBuildInputs = [ pkgs.mdbook pkgs.mdbook-mermaid pkgs.mdbook-admonish];
-              # allow building the shell so that it can be cached
               phases = [ "installPhase" ];
               installPhase = "echo $nativeBuildInputs > $out";
             };
           };
 
-          # One ${system} can cross-compile artifacts for other platforms.
           mkReleaseArtifacts = project:
-            let # compiling with musl gives us a statically linked executable
+            let 
               linuxPackages = mkPackages project.projectCross.musl64;
               linuxReleaseExes = [
                 linuxPackages.cardano-wallet
@@ -308,7 +164,6 @@
                 cardano-node-runtime.hydraJobs.x86_64-linux.musl.cardano-cli
                 cardano-node-runtime.hydraJobs.x86_64-linux.musl.cardano-node
               ];
-              # Which exes should be put in the release archives.
               checkReleaseContents = jobs: map (exe: jobs.${exe}) [
                 "cardano-wallet"
                 "bech32"
@@ -327,7 +182,6 @@
                 };
               win64 =
                 let
-                  # windows is cross-compiled from linux
                   windowsPackages =
                     mkPackages project.projectCross.mingwW64 // {
                       cardano-cli =
@@ -349,7 +203,6 @@
                     platform = "win64";
                     format = "zip";
                   };
-                  # Testing on Windows is done using a collection of executables.
                   tests = import ./nix/windows-testing-bundle.nix {
                     inherit pkgs;
                     cardano-wallet = windowsPackages.cardano-wallet;
@@ -360,11 +213,15 @@
                   };
                 };
             }
-            # macos is never cross-compiled
+            // macos is never cross-compiled
             // lib.optionalAttrs buildPlatform.isMacOS {
               macos-intel = lib.optionalAttrs buildPlatform.isx86_64 {
                 release = import ./nix/release-package.nix {
                   inherit pkgs;
+                  walletLib = lib;
+                  exes = let macOsPkgs = mkPackages project; in [
+                    macOsPkgs.cardano-wallet
+                    macOsPkgs.b                  inherit pkgs;
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
@@ -395,15 +252,9 @@
             };
         in
         rec {
-
           legacyPackages = walletProject;
-
-          # Built by `nix build .`
           defaultPackage = packages.cardano-wallet;
-
-          # Run by `nix run .`
           defaultApp = apps.cardano-wallet;
-
           packages =
              mkPackages walletProject
           // mkScripts walletProject
@@ -422,7 +273,6 @@
               project = walletProject;
             };
           }) // {
-            # Continuous integration builds
             ci.tests.all = pkgs.releaseTools.aggregate {
               name = "cardano-wallet-tests";
               meta.description = "Build (all) tests";
@@ -445,8 +295,6 @@
             };
           };
 
-          # Heinrich: I don't quite understand the 'checks' attribute. See also
-          # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
           checks = packages.checks;
 
           mkApp = name: pkg: {
