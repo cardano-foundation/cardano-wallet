@@ -428,6 +428,35 @@ spec = describe "SHARED_WALLETS" $ do
         toText (getApiT $ walActive ^. #id)  `shouldBe`
             "654a69cd246ab08aeb4d44837ff5d5ceddfbce20"
 
+    it "SHARED_WALLETS_CREATE_01a - \
+        \checking e2e error" $
+        \ctx -> runResourceT $ do
+
+        let payloadPost = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": ["vocal", "demand", "debris", "blood", "erupt", "shy", "job", "forum", "sleep", "muffin", "south", "brisk", "direct", "april", "mesh", "amused", "soccer", "day", "digital", "account", "elbow", "either", "local", "captain"],
+                "passphrase": #{fixturePassphrase},
+                "account_index": "0H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    },
+                "delegation_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "self" },
+                      "template":
+                          { "all": ["cosigner#0"]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadPost
+        verify (fmap (view #wallet) <$> rPost)
+            [ expectResponseCode HTTP.status201
+            ]
+
     it "SHARED_WALLETS_CREATE_02 - \
         \Create a pending shared wallet from root xprv" $
         \ctx -> runResourceT $ do
