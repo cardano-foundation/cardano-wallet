@@ -13,6 +13,7 @@ module Cardano.Wallet.Benchmarks.Latency.Measure
     -- * Formatting results
   , fmtResult
   , fmtTitle
+  , meanAvg
   ) where
 
 import Prelude
@@ -37,6 +38,12 @@ import Cardano.BM.Setup
     )
 import Control.Monad
     ( replicateM_
+    )
+import Control.Monad.Cont
+    ( ContT (..)
+    )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
     )
 import Data.Maybe
     ( mapMaybe
@@ -103,24 +110,21 @@ isLogRequestFinish = \case
     ApiLog _ LogRequestFinish -> True
     _ -> False
 
-measureApiLogs :: LogCaptureFunc ApiLog () -> IO a -> IO [NominalDiffTime]
-measureApiLogs = measureLatency isLogRequestStart isLogRequestFinish
-
--- | Run tests for at least this long to get accurate timings.
-sampleNTimes :: Int
-sampleNTimes = 10
+measureApiLogs :: Int -> LogCaptureFunc ApiLog () -> IO a -> IO [NominalDiffTime]
+measureApiLogs count = measureLatency count isLogRequestStart isLogRequestFinish
 
 -- | Measure how long an action takes based on trace points and taking an
 -- average of results over a short time period.
 measureLatency
     :: Show msg
-    => (msg -> Bool) -- ^ Predicate for start message
+    => Int
+    -> (msg -> Bool) -- ^ Predicate for start message
     -> (msg -> Bool) -- ^ Predicate for end message
     -> LogCaptureFunc msg () -- ^ Log capture function.
     -> IO a -- ^ Action to run
     -> IO [NominalDiffTime]
-measureLatency start finish capture action = do
-    (logs, ()) <- capture $ replicateM_ sampleNTimes action
+measureLatency count start finish capture action = do
+    (logs, ()) <- capture $ replicateM_ count action
     pure $ extractTimings start finish logs
 
 -- | Scan through iohk-monitoring logs and extract time differences between
@@ -175,14 +179,18 @@ type LogCaptureFunc msg b = IO b -> IO ([LogObject msg], b)
 
 withLatencyLogging
     :: (TVar [LogObject ApiLog] -> tracers)
-    -> (tracers -> LogCaptureFunc ApiLog b -> IO a)
-    -> IO a
-withLatencyLogging setupTracers action = do
-    tvar <- newTVarIO []
-    cfg <- defaultConfigStdout
-    CM.setMinSeverity cfg Debug
-    bracket (setupTrace_ cfg "bench-latency") (shutdown . snd) $ \(_, sb) -> do
-        action (setupTracers tvar) (logCaptureFunc tvar) `onException` do
+    -> ContT r IO (tracers, LogCaptureFunc ApiLog b)
+withLatencyLogging setupTracers = do
+    cfg <- do
+        cfg <- liftIO defaultConfigStdout
+        liftIO $ CM.setMinSeverity cfg Debug
+        pure cfg
+    tvar <- liftIO $ newTVarIO []
+    (_, sb) <-
+        ContT
+            $ bracket (setupTrace_ cfg "bench-latency") (shutdown . snd)
+    ContT $ \k ->
+        k (setupTracers tvar, logCaptureFunc tvar) `onException` do
             fmtLn "Action failed. Here are the captured logs:"
             readTVarIO tvar >>= mapM_ (effectuate sb) . reverse
 

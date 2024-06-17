@@ -12,8 +12,8 @@ module Cardano.Launcher.Wallet
     , NetworkConfig (..)
 
       -- * Run
-    , CardanoWalletConn
-    , getWalletPort
+    , CardanoWalletConn (..)
+    -- , getWalletPort
     ) where
 
 import Prelude
@@ -21,6 +21,7 @@ import Prelude
 import Cardano.Launcher
     ( IfToSendSigINT (DoNotSendSigINT)
     , LauncherLog
+    , ProcessHandles
     , TimeoutInSecs (..)
     , withBackendCreateProcess
     )
@@ -34,10 +35,10 @@ import Control.Tracer
 import Data.Maybe
     ( fromMaybe
     )
-import Data.Text.Class
-    ( FromText (..)
-    , ToText (..)
-    )
+-- import Data.Text.Class
+--     ( FromText (..)
+--     , ToText (..)
+--     )
 import Network.Socket
     ( PortNumber
     )
@@ -51,14 +52,10 @@ import UnliftIO.Process
 ------------------------------------------------------------------------------}
 
 -- | Parameters for connecting to the running wallet process.
-newtype CardanoWalletConn = CardanoWalletConn {getWalletPort :: PortNumber}
-    deriving (Show, Eq)
-
-instance ToText CardanoWalletConn where
-    toText = toText . fromEnum . getWalletPort
-
-instance FromText CardanoWalletConn where
-    fromText = fmap (CardanoWalletConn . toEnum) . fromText
+data CardanoWalletConn = CardanoWalletConn
+    { getWalletPort :: PortNumber
+    , getWalletHandles :: ProcessHandles
+    }
 
 data NetworkConfig
     = Mainnet
@@ -99,7 +96,7 @@ withCardanoWallet tr node cfg@CardanoWalletConfig{..} action =
         (cardanoWallet cfg node)
         (TimeoutInSecs 4)
         DoNotSendSigINT
-        $ \_ -> action $ CardanoWalletConn walletPort
+        $ \h -> action $ CardanoWalletConn walletPort h
 
 cardanoWallet :: CardanoWalletConfig -> CardanoNodeConn -> CreateProcess
 cardanoWallet CardanoWalletConfig{..} node =

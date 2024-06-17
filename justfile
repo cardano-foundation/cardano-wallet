@@ -42,6 +42,7 @@ unit-tests-cabal-match match:
   cabal test \
     cardano-balance-tx:test \
     cardano-numeric:unit \
+    cardano-wallet-blackbox-benchmarks:unit \
     cardano-wallet-launcher:unit \
     cardano-wallet-network-layer:unit \
     cardano-wallet-primitive:test \
@@ -160,7 +161,8 @@ conway-integration-tests:
   just conway-integration-tests-match ""
 
 latency-bench:
-   cabal run -O2 -v0 cardano-wallet-benchmarks:latency -- \
+   BENCHMARK_CSV_FILE=ignore-me/latency-bench.csv \
+   cabal run -O0 -v0 cardano-wallet-benchmarks:latency -- \
    --cluster-configs lib/local-cluster/test/data/cluster-configs
 
 test-local-cluster:
@@ -172,3 +174,35 @@ test-local-cluster:
         '.#cardano-node' \
         '.#cardano-wallet' \
         -c test-local-cluster-exe
+
+api-bench:
+    BENCHMARK_CSV_FILE=ignore-me/api-bench.csv \
+    cabal run -O0 -v0 \
+            cardano-wallet-benchmarks:api \
+            -- lib/benchmarks/data/api-bench
+
+db-bench:
+    BENCHMARK_CSV_FILE=ignore-me/db-bench.csv \
+    cabal run -O0 -v0 \
+            cardano-wallet-benchmarks:db \
+
+read-blocks-bench:
+    BENCHMARK_CSV_FILE=ignore-me/read-blocks-bench.csv \
+    cabal run -O0 -v0 \
+            cardano-wallet-benchmarks:read-blocks
+
+memory-bench:
+    mkdir -p ignore-me/memory-bench
+    BENCHMARK_CSV_FILE=ignore-me/memory-bench.csv \
+        nix shell \
+            '.#cardano-node' \
+            '.#cardano-wallet' \
+            'nixpkgs#jq' \
+            'nixpkgs#curl' \
+            'nixpkgs#procps' \
+            -c cabal run -O0 -v0 \
+                cardano-wallet-blackbox-benchmarks:memory -- \
+                    --snapshot lib/wallet-benchmarks/data/membench-snapshot.tgz \
+                    --wallet cardano-wallet \
+                    --node cardano-node \
+                    --work-dir ignore-me/memory-bench

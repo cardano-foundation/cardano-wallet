@@ -1,4 +1,4 @@
-cabal-version:       3.0
+cabal-version:       3.6
 name:                cardano-wallet-blackbox-benchmarks
 version:             2024.5.5
 synopsis:            Benchmarks for the `cardano-wallet` exectuable.
@@ -12,15 +12,44 @@ copyright:           2023 Cardano Foundation
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-data-files:          data/membench-snapshot.tgz
+data-files:
+    data/membench-snapshot.tgz
+    data/hoogle-pmap.txt
 
 common language
-  ghc-options:        -threaded -Wall
+  ghc-options:        -threaded -Wall -Wunused-packages
   default-language:   Haskell2010
   default-extensions:
     NamedFieldPuns
     NoImplicitPrelude
     OverloadedStrings
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  import:      opts-lib
+  ghc-options: -threaded -rtsopts
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  build-depends:
+    , attoparsec
+    , base
+    , bytestring
+    , process
+    , unliftio
+  exposed-modules:
+    Cardano.Wallet.Benchmark.Memory.Pmap
 
 benchmark memory
   import:         language
@@ -31,13 +60,33 @@ benchmark memory
     Paths_cardano_wallet_blackbox_benchmarks
   build-depends:
     , base
+    , cardano-wallet-blackbox-benchmarks
+    , cardano-wallet-benchmarks
     , cardano-wallet-launcher
     , contra-tracer
     , filepath
     , iohk-monitoring
+    , iohk-monitoring-extra
+    , mtl
     , process
     , temporary
     , text
     , text-class
     , optparse-applicative
     , with-utf8
+
+test-suite unit
+  import:           language, opts-exe
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Main.hs
+  build-depends:
+    , attoparsec
+    , base
+    , bytestring
+    , hspec
+    , cardano-wallet-blackbox-benchmarks
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Cardano.Wallet.Benchmark.Memory.PmapSpec
+    Paths_cardano_wallet_blackbox_benchmarks
