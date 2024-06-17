@@ -84,7 +84,6 @@ import Cardano.Wallet.Api.Types
     , ApiDecodedTransaction
     , ApiDeregisterPool (..)
     , ApiEncryptMetadata (..)
-    , ApiEra (..)
     , ApiExternalCertificate (..)
     , ApiNetworkInformation
     , ApiPolicyId (..)
@@ -5445,7 +5444,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             ]
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-        let era = fromApiEra $ _mainEra ctx
+        let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $
                 getApiT (signedTx ^. #serialisedTxSealed)
 

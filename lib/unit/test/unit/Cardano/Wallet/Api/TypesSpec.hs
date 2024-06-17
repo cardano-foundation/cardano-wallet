@@ -159,7 +159,6 @@ import Cardano.Wallet.Api.Types
     , ApiDeregisterPool (..)
     , ApiEncryptMetadata (..)
     , ApiEncryptMetadataMethod (..)
-    , ApiEra (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
