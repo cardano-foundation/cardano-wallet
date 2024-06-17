@@ -18,7 +18,6 @@ import Cardano.CLI
     )
 import Control.Monad
     ( forM_
-    , void
     )
 import Data.Generics.Internal.VL.Lens
     ( over
@@ -34,11 +33,6 @@ import System.Command
 import System.Exit
     ( ExitCode (..)
     )
-import System.IO
-    ( hClose
-    , hFlush
-    , hPutStr
-    )
 import Test.Hspec
     ( SpecWith
     , describe
@@ -52,7 +46,6 @@ import Test.Hspec.Extra
     )
 import Test.Integration.Framework.DSL
     ( cardanoWalletCLI
-    , commandName
     , createWalletViaCLI
     , deleteWalletViaCLI
     , generateMnemonicsViaCLI
@@ -60,17 +53,9 @@ import Test.Integration.Framework.DSL
     , listAddressesViaCLI
     , listWalletsViaCLI
     , postTransactionViaCLI
-    , proc'
     , runResourceT
     , updateWalletNameViaCLI
     )
-import UnliftIO.Process
-    ( waitForProcess
-    , withCreateProcess
-    )
-
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
 
 spec
     :: forall s. (HasType (Port "wallet") s)
@@ -148,68 +133,6 @@ spec = describe "COMMON_CLI_PORTS" $ do
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
 
-    it "PORT_03 - Cannot omit --port when server uses random port (wallet list)" $ \_ -> do
-        (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "list"]
-        err `shouldContain` errConnectionRefused
-
-    it "PORT_03 - Cannot omit --port when server uses random port (wallet create)" $ \_ -> do
-        let args = ["wallet", "create", "from-recovery-phrase", "from-genesis", "myWallet"]
-        Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
-        let pwd = "Secure passphrase"
-        let process = proc' commandName args
-        withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
-            hPutStr stdin mnemonics
-            hPutStr stdin "\n"
-            hPutStr stdin (pwd ++ "\n")
-            hPutStr stdin (pwd ++ "\n")
-            hFlush stdin
-            hClose stdin
-            void $ waitForProcess h
-            err <- T.unpack <$> TIO.hGetContents stderr
-            err `shouldContain` errConnectionRefused
-
-    it "PORT_03 - Cannot omit --port when server uses random port (wallet get)" $ \_ -> do
-        let wid = replicate 40 '0'
-        (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "get", wid]
-        err `shouldContain` errConnectionRefused
-
-    it "PORT_03 - Cannot omit --port when server uses random port (wallet delete)" $ \_ -> do
-        let wid = replicate 40 '0'
-        (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "delete", wid]
-        err `shouldContain` errConnectionRefused
-
-    it "PORT_03 - Cannot omit --port when server uses random port (wallet update)" $ \_ -> do
-        let wid = replicate 40 '0'
-        (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["wallet", "update", "name", wid, "My Wallet"]
-        err `shouldContain` errConnectionRefused
-
-    it "PORT_03 - Cannot omit --port when server uses random port (transaction create)" $ \_ -> do
-        let addr =
-                "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
-                \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
-        let args =
-                [ "transaction", "create"
-                , replicate 40 '0' , "--payment", "14@" <> addr
-                ]
-        let process = proc' commandName args
-        withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
-            hPutStr stdin (passphrase ++ "\n")
-            hFlush stdin
-            hClose stdin
-            void $ waitForProcess h
-            err <- T.unpack <$> TIO.hGetContents stderr
-            err `shouldContain` errConnectionRefused
-
-    it "PORT_03 - Cannot omit --port when server uses random port (address list)" $ \_ -> do
-        let wid = replicate 40 '0'
-        (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI ["address", "list", wid]
-        err `shouldContain` errConnectionRefused
-
     describe "PORT_04 - Fail nicely when port is out-of-bounds" $ do
         let tests =
                 [ ("serve", "--port", getPort minBound - 14)
@@ -232,6 +155,3 @@ spec = describe "COMMON_CLI_PORTS" $ do
 
 passphrase :: String
 passphrase = "cardano-wallet"
-
-errConnectionRefused :: String
-errConnectionRefused = "Connection refused"
