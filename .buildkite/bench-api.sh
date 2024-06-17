@@ -3,13 +3,12 @@
 
 set -euo pipefail
 
-# C.UTF-8 = UTF-8 based locale that is not associated with a natural language.
-# This seems necessary so that programs compiled with GHC don't choke,
-# see also <https://stackoverflow.com/a/63751678>.
+# Set locale to C.UTF-8 to avoid issues with GHC compilation
 export LC_ALL=C.UTF-8
 
-export TMPDIR="/$TMPDIR/bench/api"
-mkdir -p $TMPDIR
+# Set temporary directory for benchmarks
+export TMPDIR="/${TMPDIR:-/tmp}/bench/api"
+mkdir -p "$TMPDIR"
 
 bench=api
 log=api.log
@@ -19,45 +18,33 @@ total_time=api-time.txt
 echo "--- Build"
 nix --version
 
+# Build benchmarks using Nix
 nix build .#ci.benchmarks.api -o bench-api
 bench="./bench-api/bin/api lib/benchmarks/data/api-bench"
 
-
 echo "--- Run benchmark"
 
-$bench +RTS -N2 -qg -A1m -I0 -T -M16G -RTS 2>&1 | tee $log
-# Reminder on GHC RTS options:
-#   -N ⟨x⟩
-#         Use ⟨x⟩ simultaneous threads when running the program.
-#   -qg ⟨gen⟩
-#         Use parallel GC in generation ⟨gen⟩ and higher.
-#         Omitting ⟨gen⟩ turns off the parallel GC completely,
-#         reverting to sequential GC.
-#   -A    allocation area size used by the garbage collector
-#   -I0   disables the idle GC.
-#   -T    produce runtime-system statistics, such as
-#         the amount of time spent executing the program
-#         and in the garbage collector.
-#         -T collects the data, but produces no output.
-#   -M ⟨size⟩
-#         Set the maximum heap size to ⟨size⟩ bytes.
-#   -h    Generates a basic heap profile, in the file prog.hp.
+# Run benchmarks with RTS parameters
+$bench +RTS -N2 -qg -A1m -I0 -T -M16G -RTS 2>&1 | tee "$log"
 
 echo "--- Results"
 
-grep -v INFO $log | awk '/All results/,EOF { print $0 }' >$results
-cat $results
+# Extract and display results
+grep -v INFO "$log" | awk '/All results/,EOF { print $0 }' > "$results"
+cat "$results"
 
+# Upload results to Buildkite if environment variable is set
 if [ -n "${BUILDKITE:-}" ]; then
   echo "--- Upload"
-  buildkite-agent artifact upload $results
+  buildkite-agent artifact upload "$results"
 
   for file in *.json; do
-    buildkite-agent artifact upload $file
+    buildkite-agent artifact upload "$file"
   done
 fi
 
-if [ -z "$(cat $results)" ]; then
+# Check for the presence of results and handle errors
+if [ -z "$(cat "$results")" ]; then
   echo "+++ Bad news"
   echo "FAILED - Missing results" >/dev/stderr
   exit 1
