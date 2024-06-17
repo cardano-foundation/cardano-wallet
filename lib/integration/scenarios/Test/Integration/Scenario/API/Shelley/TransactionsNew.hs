@@ -451,15 +451,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
 
-        -- Check for the presence of metadata on signed transaction
-        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
-                \(Cardano.TxBody bodyContent) ->
-                    Cardano.txMetadata bodyContent & \case
-                        Cardano.TxMetadataNone ->
-                            Nothing
-                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                            Just m
-
         let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
         case getMetadataFromTx tx of
@@ -515,15 +506,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let expectedFee = getFromResponse (#fee . #toNatural) rTx
         let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
         signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
-
-        -- Check for the presence of metadata on signed transaction
-        let getMetadata (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
-                \(Cardano.TxBody bodyContent) ->
-                    Cardano.txMetadata bodyContent & \case
-                        Cardano.TxMetadataNone ->
-                            Nothing
-                        Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                            Just m
 
         let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
         let tx = cardanoTxIdeallyNoLaterThan era $ getApiT (signedTx ^. #serialisedTxSealed)
