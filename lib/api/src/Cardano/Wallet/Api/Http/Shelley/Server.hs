@@ -3268,10 +3268,9 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
 
     updateTxMetadata :: [(Word64, TxMetadataValue)] -> W.TxMetadata
-    updateTxMetadata =
-        let TxMetadata themap =
-                payload ^. #txMetadataWithSchema_metadata
-        in TxMetadata . foldr (uncurry Map.insert) themap
+    updateTxMetadata = TxMetadata . foldr (uncurry Map.insert) themap
+      where
+        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
 
 metadataPBKDF2Config :: PBKDF2Config SHA256
 metadataPBKDF2Config = PBKDF2Config
