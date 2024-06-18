@@ -162,7 +162,7 @@ import Cardano.Api
     ( NetworkId
     , SerialiseAsCBOR (..)
     , TxMetadata (TxMetadata)
-    , TxMetadataValue (TxMetaMap, TxMetaText, TxMetaList)
+    , TxMetadataValue (TxMetaList, TxMetaMap, TxMetaText)
     , toNetworkMagic
     , unNetworkMagic
     )
@@ -3242,9 +3242,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                 toPair enc =
                     [ ( TxMetaText metaField
                       , TxMetaList
-                        ( map TxMetaText $ toTextChunks 64 $
-                          toBase64Text enc
-                        )
+                        (map TxMetaText $ T.chunksOf 64 $ toBase64Text enc)
                       )
                     , encMethodEntry
                     ]
@@ -3254,17 +3252,6 @@ toMetadataEncrypted apiEncrypt payload saltM = do
 
     toBase64Text :: ByteString -> Text
     toBase64Text = T.decodeUtf8 . convertToBase Base64
-
-    toTextChunks :: Int -> Text -> [Text]
-    toTextChunks chunkSize = flip go []
-      where
-        go :: Text -> [Text] -> [Text]
-        go txt res =
-            if txt == T.empty then
-                reverse res
-            else
-                let (front, back) = T.splitAt chunkSize txt
-                in go back (front:res)
 
     encryptingMsg
         :: (a, TxMetadataValue) -> Either ErrConstructTx (a, TxMetadataValue)
