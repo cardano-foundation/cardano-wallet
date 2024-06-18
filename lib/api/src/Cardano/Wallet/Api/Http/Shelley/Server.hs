@@ -3241,7 +3241,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                 toPair enc =
                     [ ( TxMetaText metaField
                       , TxMetaList
-                        ( map TxMetaText $ toTextChunks $
+                        ( map TxMetaText $ toTextChunks 64 $
                           toBase64Text enc
                         )
                       )
@@ -3254,15 +3254,15 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     toBase64Text :: ByteString -> Text
     toBase64Text = T.decodeUtf8 . convertToBase Base64
 
-    toTextChunks :: Text -> [Text]
-    toTextChunks = flip go []
+    toTextChunks :: Int -> Text -> [Text]
+    toTextChunks chunkSize = flip go []
       where
         go :: Text -> [Text] -> [Text]
         go txt res =
             if txt == T.empty then
                 reverse res
             else
-                let (front, back) = T.splitAt 64 txt
+                let (front, back) = T.splitAt chunkSize txt
                 in go back (front:res)
 
     encryptingMsg
