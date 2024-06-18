@@ -3262,10 +3262,11 @@ toMetadataEncrypted apiEncrypt payload saltM = do
 
     encryptingMsg
         :: (a, TxMetadataValue) -> Either ErrConstructTx (a, TxMetadataValue)
-    encryptingMsg (key, TxMetaMap pairs) = do
-        pairs' <- mapM encryptPairIfQualifies pairs
-        pure (key, TxMetaMap $ concat pairs')
-    encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
+    encryptingMsg = \case
+        (key, TxMetaMap pairs) -> do
+            pairs' <- mapM encryptPairIfQualifies pairs
+            pure (key, TxMetaMap $ concat pairs')
+        _ -> error "encryptingMsg should have TxMetaMap value"
 
     updateTxMetadata :: [(Word64, TxMetadataValue)] -> W.TxMetadata
     updateTxMetadata = TxMetadata . foldr (uncurry Map.insert) themap
