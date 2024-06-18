@@ -3165,7 +3165,8 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
 -- (a) find field `msg` in the object of "674" label
 -- (b) encrypt the 'msg' value if present, if there is neither "674" label
 --     nor 'msg' value inside object of it emit error
--- (c) update value of `msg` with the encrypted initial value(s) encoded in base64
+-- (c) update value of `msg` with the encrypted initial value(s) encoded in
+--     base64:
 --     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
 -- (d) add `enc` field with encryption method value 'basic'
 toMetadataEncrypted
