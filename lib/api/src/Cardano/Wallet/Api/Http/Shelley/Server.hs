@@ -161,6 +161,8 @@ import Cardano.Address.Script
 import Cardano.Api
     ( NetworkId
     , SerialiseAsCBOR (..)
+    , TxMetadata (TxMetadata)
+    , TxMetadataValue (TxMetaMap, TxMetaText, TxMetaList)
     , toNetworkMagic
     , unNetworkMagic
     )
@@ -3174,7 +3176,7 @@ toMetadataEncrypted
     :: ApiEncryptMetadata
     -> TxMetadataWithSchema
     -> Maybe ByteString
-    -> Either ErrConstructTx Cardano.TxMetadata
+    -> Either ErrConstructTx TxMetadata
 toMetadataEncrypted apiEncrypt payload saltM = do
     msgValue <- findMsgValue
     msgValue' <- mapM encryptingMsg msgValue
@@ -3186,8 +3188,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     secretKey, iv :: ByteString
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
-    getMsgValue :: (Cardano.TxMetadataValue, a) -> Maybe a
-    getMsgValue (Cardano.TxMetaText metaField, metaValue) =
+    getMsgValue :: (TxMetadataValue, a) -> Maybe a
+    getMsgValue (TxMetaText metaField, metaValue) =
         if metaField == "msg" then
             Just metaValue
         else Nothing
@@ -3200,18 +3202,18 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     merge (Just _) (Just _) = error "only one 'msg' field expected"
 
     -- `msg` is not embedded beyond the first level
-    inspectMetaPair :: Cardano.TxMetadataValue -> Maybe Cardano.TxMetadataValue
-    inspectMetaPair (Cardano.TxMetaMap pairs) =
+    inspectMetaPair :: TxMetadataValue -> Maybe TxMetadataValue
+    inspectMetaPair (TxMetaMap pairs) =
         foldl merge Nothing (getMsgValue <$> pairs)
     inspectMetaPair _ = Nothing
 
-    keyAndValueCond :: Word64 -> Cardano.TxMetadataValue -> Bool
+    keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
         k == 674 && isJust (inspectMetaPair v)
 
-    findMsgValue :: Either ErrConstructTx [(Word64, Cardano.TxMetadataValue)]
+    findMsgValue :: Either ErrConstructTx [(Word64, TxMetadataValue)]
     findMsgValue =
-        let Cardano.TxMetadata themap =
+        let TxMetadata themap =
                 payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filterWithKey keyAndValueCond themap
         in
@@ -3221,11 +3223,9 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             Left ErrConstructTxIncorrectRawMetadata
 
     encryptPairIfQualifies
-        :: (Cardano.TxMetadataValue, Cardano.TxMetadataValue)
-        -> Either
-            ErrConstructTx
-            [(Cardano.TxMetadataValue, Cardano.TxMetadataValue)]
-    encryptPairIfQualifies pair@(Cardano.TxMetaText metaField, metaValue) =
+        :: (TxMetadataValue, TxMetadataValue)
+        -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
+    encryptPairIfQualifies pair@(TxMetaText metaField, metaValue) =
         if metaField == "msg" then
             let encrypted =
                     AES256CBC.encrypt WithPadding secretKey iv saltM $
@@ -3233,13 +3233,13 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                     Aeson.encode $
                     Cardano.metadataValueToJsonNoSchema metaValue
                 encMethodEntry =
-                    ( Cardano.TxMetaText "enc"
-                    , Cardano.TxMetaText "basic"
+                    ( TxMetaText "enc"
+                    , TxMetaText "basic"
                     )
                 toPair enc =
-                    [ ( Cardano.TxMetaText metaField
-                      , Cardano.TxMetaList
-                        ( map Cardano.TxMetaText $ flip toTextChunks [] $
+                    [ ( TxMetaText metaField
+                      , TxMetaList
+                        ( map TxMetaText $ flip toTextChunks [] $
                           toBase64Text enc
                         )
                       )
@@ -3261,18 +3261,17 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             in toTextChunks back (front:res)
 
     encryptingMsg
-        :: (a, Cardano.TxMetadataValue)
-        -> Either ErrConstructTx (a, Cardano.TxMetadataValue)
-    encryptingMsg (key, Cardano.TxMetaMap pairs) = do
+        :: (a, TxMetadataValue) -> Either ErrConstructTx (a, TxMetadataValue)
+    encryptingMsg (key, TxMetaMap pairs) = do
         pairs' <- mapM encryptPairIfQualifies pairs
-        pure (key, Cardano.TxMetaMap $ concat pairs')
+        pure (key, TxMetaMap $ concat pairs')
     encryptingMsg _ = error "encryptingMsg should have TxMetaMap value"
 
-    updateTxMetadata :: [(Word64, Cardano.TxMetadataValue)] -> W.TxMetadata
+    updateTxMetadata :: [(Word64, TxMetadataValue)] -> W.TxMetadata
     updateTxMetadata =
-        let Cardano.TxMetadata themap =
+        let TxMetadata themap =
                 payload ^. #txMetadataWithSchema_metadata
-        in Cardano.TxMetadata . foldr (uncurry Map.insert) themap
+        in TxMetadata . foldr (uncurry Map.insert) themap
 
 metadataPBKDF2Config :: PBKDF2Config SHA256
 metadataPBKDF2Config = PBKDF2Config
