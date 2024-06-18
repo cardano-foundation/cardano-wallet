@@ -3229,23 +3229,24 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
     encryptPairIfQualifies = \case
         (TxMetaText metaField, metaValue) | metaField == "msg" ->
-            let encrypted =
-                    AES256CBC.encrypt WithPadding secretKey iv saltM $
-                    BL.toStrict $
-                    Aeson.encode $
-                    Cardano.metadataValueToJsonNoSchema metaValue
-                encMethodEntry =
-                    ( TxMetaText "enc"
-                    , TxMetaText "basic"
-                    )
-                toPair enc =
-                    [ ( TxMetaText metaField
-                      , TxMetaList
-                        (map TxMetaText $ T.chunksOf 64 $ toBase64Text enc)
-                      )
-                    , encMethodEntry
-                    ]
-            in mapBoth ErrConstructTxEncryptMetadata toPair encrypted
+            mapBoth ErrConstructTxEncryptMetadata toPair encrypted
+          where
+            encrypted =
+                AES256CBC.encrypt WithPadding secretKey iv saltM $
+                BL.toStrict $
+                Aeson.encode $
+                Cardano.metadataValueToJsonNoSchema metaValue
+            encMethodEntry =
+                ( TxMetaText "enc"
+                , TxMetaText "basic"
+                )
+            toPair enc =
+                [ ( TxMetaText metaField
+                  , TxMetaList
+                    (map TxMetaText $ T.chunksOf 64 $ toBase64Text enc)
+                  )
+                , encMethodEntry
+                ]
         pair ->
             Right [pair]
 
