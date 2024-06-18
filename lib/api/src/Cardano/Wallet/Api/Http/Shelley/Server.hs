@@ -3204,9 +3204,11 @@ toMetadataEncrypted apiEncrypt payload saltM = do
 
     -- `msg` is not embedded beyond the first level
     inspectMetaPair :: TxMetadataValue -> Maybe TxMetadataValue
-    inspectMetaPair (TxMetaMap pairs) =
-        foldl merge Nothing (getMsgValue <$> pairs)
-    inspectMetaPair _ = Nothing
+    inspectMetaPair = \case
+        TxMetaMap pairs ->
+            foldl merge Nothing (getMsgValue <$> pairs)
+        _ ->
+            Nothing
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
