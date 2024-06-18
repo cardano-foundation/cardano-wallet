@@ -110,7 +110,17 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         filter = haskell-nix.haskellSourceFilter;
       };
 
-      shell = {
+      shell =
+        let
+          # To update gemset.nix, run:
+          #   nix-shell --arg bins false --run bundix
+          gems = pkgs.bundlerEnv {
+            name = "gems-cardano-wallet-e2e";
+            gemdir = ../test/e2e;
+            ruby = pkgs.ruby_3_1;
+          };
+        in
+      {
         name = "cardano-wallet-shell${lib.optionalString config.profiling "-profiled"}";
         packages = ps: builtins.attrValues (haskellLib.selectProjectPackages ps);
         tools = {
@@ -130,6 +140,11 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           nodePkgs.cardano-node
           cardano-addresses-cli.components.exes.cardano-address
           bech32.components.exes.bech32
+          # for e2e tests
+          gems
+          gems.wrappedRuby
+          pkgs.bundix
+          pkgs.screen
         ]) ++ (with pkgs.buildPackages.buildPackages; [
           just
           pkg-config
