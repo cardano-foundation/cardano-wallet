@@ -10,8 +10,8 @@ env:
 steps:
   - label: Add release commits
     key: add-release-commits
-    commands: |
-      ./scripts/buildkite/release/release-candidate.sh
+    commands:
+      - ./scripts/buildkite/release/release-candidate.sh
     agents:
       system: x86_64-linux
 
@@ -36,8 +36,8 @@ steps:
       - add-release-commits
       - refresh-node-state
       - linux-package
-    commands: |
-      ./scripts/buildkite/release/linux-e2e.sh
+    commands:
+      - nix develop -c ./scripts/buildkite/release/linux-e2e.sh
     artifact_paths:
       - "./result/linux/**"
       - "./logs/**/*"

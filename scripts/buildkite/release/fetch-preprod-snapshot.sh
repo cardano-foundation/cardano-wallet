@@ -23,15 +23,21 @@ if [ "$failed" ]; then
         fi
     fi
 
+    export failed2=false
     curl -o - \
         "https://downloads.csnapshots.io/testnet/$(cat file.new)" \
-        | lz4 -c -d - | tar -x -C .
+        | lz4 -c -d - | tar -x -C . || export failed2=true
 
-    mv file.new file.old
+    if [ "$failed2" ]; then
+        echo "Failed to fetch preprod snapshot."
+    else
+        echo "Successfully fetched preprod snapshot."
+        mv file.new file.old
 
-    rm -rf db-new
+        rm -rf db-new
 
-    mv db db-new
+        mv db db-new
+    fi
 else
-    echo "Failed to fetch preprod snapshot. Hope there is an old one available."
+    echo "Failed to fetch preprod snapshot name."
 fi

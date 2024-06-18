@@ -1,4 +1,4 @@
-#! /usr/bin/env -S nix shell 'nixpkgs#rsync' 'nixpkgs#gnutar' --command bash
+#! /usr/bin/env -S nix shell 'nixpkgs#rsync' 'nixpkgs#gnutar' '.#cardano-wallet'  --command bash
 # shellcheck shell=bash
 
 set -euox pipefail
@@ -42,7 +42,6 @@ export TESTS_E2E_STATEDIR
 TESTS_E2E_TOKEN_METADATA=https://metadata.world.dev.cardano.org/
 export TESTS_E2E_TOKEN_METADATA
 
-
-nix-shell --run "rake run_on[preprod,sync,true]"
+rake "run_on[preprod,sync,true]"
 
 rm "$tmpfile"
