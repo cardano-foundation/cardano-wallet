@@ -3226,8 +3226,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     encryptPairIfQualifies
         :: (TxMetadataValue, TxMetadataValue)
         -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
-    encryptPairIfQualifies pair@(TxMetaText metaField, metaValue) =
-        if metaField == "msg" then
+    encryptPairIfQualifies = \case
+        (TxMetaText metaField, metaValue) | metaField == "msg" ->
             let encrypted =
                     AES256CBC.encrypt WithPadding secretKey iv saltM $
                     BL.toStrict $
@@ -3247,8 +3247,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                     , encMethodEntry
                     ]
             in mapBoth ErrConstructTxEncryptMetadata toPair encrypted
-        else Right [pair]
-    encryptPairIfQualifies pair = Right [pair]
+        pair ->
+            Right [pair]
 
     toBase64Text :: ByteString -> Text
     toBase64Text = T.decodeUtf8 . convertToBase Base64
