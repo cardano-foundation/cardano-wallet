@@ -3189,11 +3189,11 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
     getMsgValue :: (TxMetadataValue, a) -> Maybe a
-    getMsgValue (TxMetaText metaField, metaValue) =
-        if metaField == "msg" then
+    getMsgValue = \case
+        (TxMetaText metaField, metaValue) | metaField == "msg" ->
             Just metaValue
-        else Nothing
-    getMsgValue _ = Nothing
+        _ ->
+            Nothing
 
     merge :: Maybe a -> Maybe a -> Maybe a
     merge Nothing (Just val) = Just val
