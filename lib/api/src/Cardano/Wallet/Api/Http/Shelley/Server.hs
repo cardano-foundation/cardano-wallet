@@ -3201,11 +3201,9 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             Nothing
       where
         getMsgValue
-            :: (TxMetadataValue, TxMetadataValue)
-            -> Maybe TxMetadataValue
-        getMsgValue = \case
-            (TxMetaText k, v) | k == "msg" -> Just v
-            _                              -> Nothing
+            :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
+        getMsgValue (TxMetaText "msg", v) = Just v
+        getMsgValue _ = Nothing
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
