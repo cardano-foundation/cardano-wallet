@@ -3191,8 +3191,11 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     -- `msg` is not embedded beyond the first level
     inspectMetaPair :: TxMetadataValue -> Maybe TxMetadataValue
     inspectMetaPair = \case
-        TxMetaMap pairs ->
-            foldl merge Nothing (getMsgValue <$> pairs)
+        TxMetaMap kvs ->
+            case mapMaybe getMsgValue kvs of
+                [ ] -> Nothing
+                [v] -> Just v
+                _vs -> error "only one 'msg' field expected"
         _ ->
             Nothing
       where
@@ -3200,19 +3203,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             :: (TxMetadataValue, TxMetadataValue)
             -> Maybe TxMetadataValue
         getMsgValue = \case
-            (TxMetaText metaField, metaValue) | metaField == "msg" ->
-                Just metaValue
-            _ ->
-                Nothing
-
-        merge
-            :: Maybe TxMetadataValue
-            -> Maybe TxMetadataValue
-            -> Maybe TxMetadataValue
-        merge Nothing (Just val) = Just val
-        merge (Just val) Nothing = Just val
-        merge Nothing Nothing = Nothing
-        merge (Just _) (Just _) = error "only one 'msg' field expected"
+            (TxMetaText k, v) | k == "msg" -> Just v
+            _                              -> Nothing
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
