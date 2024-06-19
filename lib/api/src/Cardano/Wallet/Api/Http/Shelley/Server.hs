@@ -3189,13 +3189,6 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     secretKey, iv :: ByteString
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
-    getMsgValue :: (TxMetadataValue, a) -> Maybe a
-    getMsgValue = \case
-        (TxMetaText metaField, metaValue) | metaField == "msg" ->
-            Just metaValue
-        _ ->
-            Nothing
-
     merge :: Maybe a -> Maybe a -> Maybe a
     merge Nothing (Just val) = Just val
     merge (Just val) Nothing = Just val
@@ -3209,6 +3202,15 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             foldl merge Nothing (getMsgValue <$> pairs)
         _ ->
             Nothing
+      where
+        getMsgValue
+            :: (TxMetadataValue, TxMetadataValue)
+            -> Maybe TxMetadataValue
+        getMsgValue = \case
+            (TxMetaText metaField, metaValue) | metaField == "msg" ->
+                Just metaValue
+            _ ->
+                Nothing
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
