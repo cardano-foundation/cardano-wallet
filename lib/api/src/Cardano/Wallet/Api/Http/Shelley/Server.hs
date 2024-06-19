@@ -3189,12 +3189,6 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     secretKey, iv :: ByteString
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
-    merge :: Maybe a -> Maybe a -> Maybe a
-    merge Nothing (Just val) = Just val
-    merge (Just val) Nothing = Just val
-    merge Nothing Nothing = Nothing
-    merge (Just _) (Just _) = error "only one 'msg' field expected"
-
     -- `msg` is not embedded beyond the first level
     inspectMetaPair :: TxMetadataValue -> Maybe TxMetadataValue
     inspectMetaPair = \case
@@ -3211,6 +3205,15 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                 Just metaValue
             _ ->
                 Nothing
+
+        merge
+            :: Maybe TxMetadataValue
+            -> Maybe TxMetadataValue
+            -> Maybe TxMetadataValue
+        merge Nothing (Just val) = Just val
+        merge (Just val) Nothing = Just val
+        merge Nothing Nothing = Nothing
+        merge (Just _) (Just _) = error "only one 'msg' field expected"
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
