@@ -3220,15 +3220,14 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         k == cip20MetadataKey && isJust (inspectMetaPair v)
 
     findMsgValue :: Either ErrConstructTx (Map Word64 TxMetadataValue)
-    findMsgValue =
-        let TxMetadata themap =
-                payload ^. #txMetadataWithSchema_metadata
-            filteredMap = Map.filterWithKey keyAndValueCond themap
-        in
-        if Map.size filteredMap >= 1 then
+    findMsgValue
+        | Map.size filteredMap >= 1 =
             Right filteredMap
-        else
+        | otherwise =
             Left ErrConstructTxIncorrectRawMetadata
+      where
+        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
+        filteredMap = Map.filterWithKey keyAndValueCond themap
 
     encryptPairIfQualifies
         :: (TxMetadataValue, TxMetadataValue)
