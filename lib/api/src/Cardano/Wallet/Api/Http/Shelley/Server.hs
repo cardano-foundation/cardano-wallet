@@ -3190,7 +3190,7 @@ toMetadataEncrypted
     -> Either ErrConstructTx TxMetadata
 toMetadataEncrypted apiEncrypt payload saltM = do
     msgValue <- findMsgValue
-    msgValue' <- mapM encryptingMsg msgValue
+    msgValue' <- mapM encryptingMsg (Map.toList msgValue)
     pure $ updateTxMetadata msgValue'
   where
     pwd :: ByteString
@@ -3219,14 +3219,14 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     keyAndValueCond k v =
         k == cip20MetadataKey && isJust (inspectMetaPair v)
 
-    findMsgValue :: Either ErrConstructTx [(Word64, TxMetadataValue)]
+    findMsgValue :: Either ErrConstructTx (Map Word64 TxMetadataValue)
     findMsgValue =
         let TxMetadata themap =
                 payload ^. #txMetadataWithSchema_metadata
             filteredMap = Map.filterWithKey keyAndValueCond themap
         in
         if Map.size filteredMap >= 1 then
-            Right $ Map.toList filteredMap
+            Right filteredMap
         else
             Left ErrConstructTxIncorrectRawMetadata
 
