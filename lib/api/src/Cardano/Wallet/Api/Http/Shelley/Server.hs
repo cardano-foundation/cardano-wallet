@@ -3266,7 +3266,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         _ -> error "encryptingMsg should have TxMetaMap value"
 
     updateTxMetadata :: (Word64, TxMetadataValue) -> W.TxMetadata
-    updateTxMetadata = TxMetadata . foldr (uncurry Map.insert) themap . (: [])
+    updateTxMetadata (k, v) = TxMetadata (Map.insert k v themap)
       where
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
 
