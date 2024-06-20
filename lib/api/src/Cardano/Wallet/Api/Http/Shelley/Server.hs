@@ -3219,10 +3219,10 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     keyAndValueCond k v =
         k == cip20MetadataKey && isJust (inspectMetaPair v)
 
-    findMsgValue :: Either ErrConstructTx (Word64, TxMetadataValue)
+    findMsgValue :: Either ErrConstructTx TxMetadataValue
     findMsgValue
-        | [(k, v)] <- Map.toList filteredMap =
-            Right (k, v)
+        | [v] <- F.toList filteredMap =
+            Right v
         | otherwise =
             Left ErrConstructTxIncorrectRawMetadata
       where
@@ -3258,16 +3258,15 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     toBase64Text :: ByteString -> Text
     toBase64Text = T.decodeUtf8 . convertToBase Base64
 
-    encryptingMsg
-        :: (a, TxMetadataValue) -> Either ErrConstructTx (a, TxMetadataValue)
+    encryptingMsg :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
     encryptingMsg = \case
-        (key, TxMetaMap pairs) -> do
+        TxMetaMap pairs -> do
             pairs' <- mapM encryptPairIfQualifies pairs
-            pure (key, TxMetaMap $ concat pairs')
+            pure (TxMetaMap $ concat pairs')
         _ -> error "encryptingMsg should have TxMetaMap value"
 
-    updateTxMetadata :: (Word64, TxMetadataValue) -> W.TxMetadata
-    updateTxMetadata (k, v) = TxMetadata (Map.insert k v themap)
+    updateTxMetadata :: TxMetadataValue -> W.TxMetadata
+    updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
       where
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
 
