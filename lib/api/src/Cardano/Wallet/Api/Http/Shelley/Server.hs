@@ -3164,6 +3164,16 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
+-- A key that identifies transaction metadata, defined in CIP-20 and used by
+-- CIP-83.
+--
+-- See:
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0020
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0083
+--
+cip20MetadataKey :: Word64
+cip20MetadataKey = 674
+
 -- When encryption is enabled we do the following:
 -- (a) find field `msg` in the object of "674" label
 -- (b) encrypt the 'msg' value if present, if there is neither "674" label
@@ -3206,7 +3216,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
-        k == 674 && isJust (inspectMetaPair v)
+        k == cip20MetadataKey && isJust (inspectMetaPair v)
 
     findMsgValue :: Either ErrConstructTx [(Word64, TxMetadataValue)]
     findMsgValue =
