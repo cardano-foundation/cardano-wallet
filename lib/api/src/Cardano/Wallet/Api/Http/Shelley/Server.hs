@@ -3190,7 +3190,7 @@ toMetadataEncrypted
 toMetadataEncrypted apiEncrypt payload saltM = do
     msgValue <- findMsgValue
     msgValue' <- encryptingMsg msgValue
-    pure $ updateTxMetadata [msgValue']
+    pure $ updateTxMetadata msgValue'
   where
     pwd :: ByteString
     pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
@@ -3265,8 +3265,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             pure (key, TxMetaMap $ concat pairs')
         _ -> error "encryptingMsg should have TxMetaMap value"
 
-    updateTxMetadata :: [(Word64, TxMetadataValue)] -> W.TxMetadata
-    updateTxMetadata = TxMetadata . foldr (uncurry Map.insert) themap
+    updateTxMetadata :: (Word64, TxMetadataValue) -> W.TxMetadata
+    updateTxMetadata = TxMetadata . foldr (uncurry Map.insert) themap . (: [])
       where
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
 
