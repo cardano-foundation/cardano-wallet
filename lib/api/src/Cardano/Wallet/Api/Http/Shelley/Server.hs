@@ -3241,17 +3241,16 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                 $ Cardano.metadataValueToJsonNoSchema metaValue
           where
             toPair encryptedMessage =
-                [ (TxMetaText "msg", TxMetaList encryptedChunks)
+                [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
                 , (TxMetaText "enc", TxMetaText "basic")
                 ]
-              where
-                encryptedChunks =
-                    TxMetaText <$> T.chunksOf 64 (toBase64Text encryptedMessage)
+            toChunks
+                = fmap TxMetaText
+                . T.chunksOf 64
+                . T.decodeUtf8
+                . convertToBase Base64
         pair ->
             Right [pair]
-
-    toBase64Text :: ByteString -> Text
-    toBase64Text = T.decodeUtf8 . convertToBase Base64
 
     encryptingMsg :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
     encryptingMsg = \case
