@@ -3240,16 +3240,12 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                 BL.toStrict $
                 Aeson.encode $
                 Cardano.metadataValueToJsonNoSchema metaValue
-            encMethodEntry =
-                ( TxMetaText "enc"
-                , TxMetaText "basic"
-                )
             toPair enc =
                 [ ( TxMetaText "msg"
                   , TxMetaList
                     (map TxMetaText $ T.chunksOf 64 $ toBase64Text enc)
                   )
-                , encMethodEntry
+                , ( TxMetaText "enc", TxMetaText "basic" )
                 ]
         pair ->
             Right [pair]
