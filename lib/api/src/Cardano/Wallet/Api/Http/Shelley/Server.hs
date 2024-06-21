@@ -744,7 +744,8 @@ import Cryptography.KDF.PBKDF2
     ( PBKDF2Config (..)
     )
 import Data.Bifunctor
-    ( first
+    ( bimap
+    , first
     )
 import Data.ByteArray.Encoding
     ( Base (..)
@@ -761,8 +762,7 @@ import Data.Either
     , isRight
     )
 import Data.Either.Combinators
-    ( mapBoth
-    , whenLeft
+    ( whenLeft
     )
 import Data.Either.Extra
     ( eitherToMaybe
@@ -3233,7 +3233,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
     encryptPairIfQualifies = \case
         (TxMetaText "msg", metaValue) ->
-            mapBoth ErrConstructTxEncryptMetadata toPair
+            bimap ErrConstructTxEncryptMetadata toPair
                 $ AES256CBC.encrypt WithPadding secretKey iv saltM
                 $ BL.toStrict
                 $ Aeson.encode
