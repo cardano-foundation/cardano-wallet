@@ -3232,7 +3232,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         :: (TxMetadataValue, TxMetadataValue)
         -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
     encryptPairIfQualifies = \case
-        (TxMetaText metaField, metaValue) | metaField == "msg" ->
+        (TxMetaText "msg", metaValue) ->
             mapBoth ErrConstructTxEncryptMetadata toPair encrypted
           where
             encrypted =
@@ -3245,7 +3245,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                 , TxMetaText "basic"
                 )
             toPair enc =
-                [ ( TxMetaText metaField
+                [ ( TxMetaText "msg"
                   , TxMetaList
                     (map TxMetaText $ T.chunksOf 64 $ toBase64Text enc)
                   )
