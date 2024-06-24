@@ -20,7 +20,7 @@
 , glibcLocales ? null
 
 # Used to generate the docker image names
-, repoName ? "inputoutput/cardano-wallet"
+, repoName ? "cardanofoundation/cardano-wallet"
 }:
 
 

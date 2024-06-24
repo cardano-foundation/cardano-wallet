@@ -3,8 +3,14 @@
 
 set -euox pipefail
 
+git fetch --all
+
 RELEASE_COMMIT=$(buildkite-agent meta-data get "release-commit")
 
 git checkout "$RELEASE_COMMIT"
 
-nix build -o result/linux .#ci.artifacts.linux64.release
+mkdir -p result
+
+nix build .#dockerImage -o result/docker-image
+
+docker load < result/docker-image
