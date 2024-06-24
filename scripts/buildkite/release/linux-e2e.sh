@@ -45,6 +45,8 @@ TESTS_E2E_FIXTURES="$FIXTURE_DECRYPTION_KEY"
 
 export TESTS_E2E_FIXTURES
 
+pkill screen
+
 nix develop -c rake "run_on[preprod,sync,true]" # SPEC_OPTS="-e '<match>'"
 
 rm "$tmpfile"
