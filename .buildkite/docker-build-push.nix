@@ -53,7 +53,7 @@ in
   writeScript "docker-build-push" (''
     #!${runtimeShell}
 
-    set -euo pipefail
+    set -euox pipefail
 
     export PATH=${lib.makeBinPath [ docker gnused ]}
 
@@ -78,7 +78,7 @@ in
       tags+=( "${image.imageTag}" )
       tags+=( "latest" )
     elif [[ "$git_tag" = "rc-latest" ]]; then
-      tags+=( "$git_tag" )
+      tags+=( "$git_tag")
     else
       echo 'Not pushing docker image because this is neither a rc-latest nor a v20* tag build.'
     fi
