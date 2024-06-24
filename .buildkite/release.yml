@@ -25,7 +25,16 @@ steps:
       - ./scripts/buildkite/release/linux-package.sh
     artifact_paths: [ "./result/linux/**" ]
     agents:
-      system: ${linux}
+      system: x86_64-linux
+
+  - label: 'Build Docker Image'
+    key: build-docker
+    depends_on:
+      - add-release-commits
+    commands:
+      ./scripts/buildkite/release/docker-build.sh
+    agents:
+      system: x86_64-linux
 
   - label: 'Run linux e2e tests'
     key: linux-e2e
