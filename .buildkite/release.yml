@@ -40,6 +40,17 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: 'Smoke test docker-compose'
+    depends_on:
+      - build-docker
+      - refresh-node-state
+    commands:
+      - ./scripts/buildkite/release/docker-smoke-test.sh
+    artifact_paths:
+      - "./logs/**/*"
+    agents:
+      system: x86_64-linux
+
   - label: 'Run linux e2e tests'
     depends_on:
       - add-release-commits
