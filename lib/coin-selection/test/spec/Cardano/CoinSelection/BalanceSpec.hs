@@ -1702,6 +1702,10 @@ prop_runSelectionStep_exceedsOptimalTargetAndGetsFurtherAway
 -- Behaviour of selection lenses
 --------------------------------------------------------------------------------
 
+-- When the minimal selection strategy is chosen, the asset selection lens
+-- should give priority to singleton asset quantities over quantities that
+-- are bundled together with other assets.
+--
 prop_assetSelectionLens_givesPriorityToSingletonAssets
     :: Blind (Small (UTxOIndex TestUTxO))
     -> Property
@@ -1755,7 +1759,7 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
     nonAdaAssetCount = Set.size (utxoIndexNonAdaAssets u)
     initialState = UTxOSelection.fromIndex u
     lens = assetSelectionLens
-        SelectionStrategyOptimal (nonAdaAsset, minimumAssetQuantity)
+        SelectionStrategyMinimal (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
 prop_coinSelectionLens_givesPriorityToCoins
