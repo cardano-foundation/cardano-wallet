@@ -973,7 +973,7 @@ performSelectionNonEmpty constraints params
             -- change outputs is fewer than optimal, because the supply of ada
             -- was insufficient. Try again with more ada to see if it leads to
             -- an improvement:
-            selectOneEntry s >>= \case
+            selectMinimalQuantityOfLovelace s >>= \case
                 Just s' ->
                     makeChangeRepeatedly s'
                 Nothing ->
@@ -984,7 +984,7 @@ performSelectionNonEmpty constraints params
         Left changeErr ->
             -- We've failed to make any change outputs, because the supply of
             -- ada was insufficient. Try again with more ada.
-            selectOneEntry s >>= \case
+            selectMinimalQuantityOfLovelace s >>= \case
                 Just s' ->
                     makeChangeRepeatedly s'
                 Nothing ->
@@ -1018,7 +1018,8 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectOneEntry = selectQuantityOf AssetLovelace SelectionStrategyMinimal
+        selectMinimalQuantityOfLovelace =
+            selectQuantityOf AssetLovelace SelectionStrategyMinimal
 
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
