@@ -1018,9 +1018,6 @@ performSelectionNonEmpty constraints params
             , assetsToBurn
             }
 
-        selectMinimalQuantityOfLovelace =
-            selectQuantityOf AssetLovelace SelectionStrategyMinimal
-
         requiredCost = computeMinimumCost SelectionSkeleton
             { skeletonInputCount = UTxOSelection.selectedSize s
             , skeletonOutputs = NE.toList outputsToCover
@@ -1151,6 +1148,14 @@ selectQuantityOf a = selectMatchingQuantity . \case
         ]
     SelectionStrategyOptimal ->
         [ SelectAnyWith a ]
+
+selectMinimalQuantityOfLovelace
+    :: (MonadRandom m, Ord u)
+    => IsUTxOSelection utxoSelection u
+    => utxoSelection u
+    -> m (Maybe (UTxOSelectionNonEmpty u))
+selectMinimalQuantityOfLovelace =
+    selectQuantityOf AssetLovelace SelectionStrategyMinimal
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
