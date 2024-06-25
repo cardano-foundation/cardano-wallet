@@ -1128,7 +1128,7 @@ coinSelectionLens strategy minimumCoinQuantity = SelectionLens
     { currentQuantity = selectedCoinQuantity
     , updatedQuantity = selectedCoinQuantity
     , minimumQuantity = intCast $ unCoin minimumCoinQuantity
-    , selectQuantity  = selectQuantityOf AssetLovelace strategy
+    , selectQuantity  = selectQuantityOfLovelace
     , selectionStrategy = strategy
     }
 
