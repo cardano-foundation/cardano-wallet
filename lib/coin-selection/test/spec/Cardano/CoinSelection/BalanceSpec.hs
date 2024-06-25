@@ -1762,10 +1762,15 @@ prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
         SelectionStrategyMinimal (nonAdaAsset, minimumAssetQuantity)
     minimumAssetQuantity = TokenQuantity 1
 
+-- Regardless of which selection strategy is chosen, the coin selection lens
+-- should always give priority to singleton lovelace quantities (quantities
+-- of lovelace that are not bundled with other assets).
+--
 prop_coinSelectionLens_givesPriorityToCoins
     :: Blind (Small (UTxOIndex TestUTxO))
+    -> SelectionStrategy
     -> Property
-prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
+prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) strategy =
     entryCount > 0 ==> monadicIO $ do
         hasCoin <- isJust <$>
             run (UTxOIndex.selectRandom u (SelectSingleton AssetLovelace))
@@ -1790,8 +1795,7 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
   where
     entryCount = UTxOIndex.size u
     initialState = UTxOSelection.fromIndex u
-    lens = coinSelectionLens
-        SelectionStrategyOptimal minimumCoinQuantity
+    lens = coinSelectionLens strategy minimumCoinQuantity
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------
