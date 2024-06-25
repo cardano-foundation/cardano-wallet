@@ -1061,8 +1061,7 @@ runSelectionNonEmpty
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmpty =
-    runSelectionNonEmptyWith
-        (selectQuantityOf AssetLovelace SelectionStrategyMinimal)
+    runSelectionNonEmptyWith selectMinimalQuantityOfLovelace
     <=<
     runSelection
 
