@@ -973,7 +973,7 @@ performSelectionNonEmpty constraints params
             -- change outputs is fewer than optimal, because the supply of ada
             -- was insufficient. Try again with more ada to see if it leads to
             -- an improvement:
-            selectMinimalQuantityOfLovelace s >>= \case
+            selectQuantityOfLovelace s >>= \case
                 Just s' ->
                     makeChangeRepeatedly s'
                 Nothing ->
@@ -984,7 +984,7 @@ performSelectionNonEmpty constraints params
         Left changeErr ->
             -- We've failed to make any change outputs, because the supply of
             -- ada was insufficient. Try again with more ada.
-            selectMinimalQuantityOfLovelace s >>= \case
+            selectQuantityOfLovelace s >>= \case
                 Just s' ->
                     makeChangeRepeatedly s'
                 Nothing ->
@@ -1061,7 +1061,7 @@ runSelectionNonEmpty
     => RunSelectionParams u
     -> m (Maybe (UTxOSelectionNonEmpty u))
 runSelectionNonEmpty =
-    runSelectionNonEmptyWith selectMinimalQuantityOfLovelace
+    runSelectionNonEmptyWith selectQuantityOfLovelace
     <=<
     runSelection
 
@@ -1148,12 +1148,12 @@ selectQuantityOf a = selectMatchingQuantity . \case
     SelectionStrategyOptimal ->
         [ SelectAnyWith a ]
 
-selectMinimalQuantityOfLovelace
+selectQuantityOfLovelace
     :: (MonadRandom m, Ord u)
     => IsUTxOSelection utxoSelection u
     => utxoSelection u
     -> m (Maybe (UTxOSelectionNonEmpty u))
-selectMinimalQuantityOfLovelace =
+selectQuantityOfLovelace =
     selectQuantityOf AssetLovelace SelectionStrategyMinimal
 
 -- | Selects a UTxO entry that matches one of the specified filters.
