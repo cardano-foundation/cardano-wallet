@@ -3213,9 +3213,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         getValue (TxMetaText "msg", v) = Just v
         getValue _ = Nothing
 
-    keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
-    keyAndValueCond k v =
-        k == cip20MetadataKey && isJust (parseMessage v)
+    validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
+    validKeyAndMessage k v = k == cip20MetadataKey && isJust (parseMessage v)
 
     findMsgValue :: Either ErrConstructTx TxMetadataValue
     findMsgValue
@@ -3225,7 +3224,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             Left ErrConstructTxIncorrectRawMetadata
       where
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
-        filteredMap = Map.filterWithKey keyAndValueCond themap
+        filteredMap = Map.filterWithKey validKeyAndMessage themap
 
     encryptPairIfQualifies
         :: (TxMetadataValue, TxMetadataValue)
