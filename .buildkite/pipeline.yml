@@ -11,14 +11,6 @@ env:
 
 
 steps:
-  - label: 'Merge from staging only'
-    if: 'build.branch == "staging"'
-    command: './.buildkite/check-bors.sh'
-    agents:
-      system: ${linux}
-
-  - wait: ~
-    if: 'build.branch == "staging"'
 
   - label: 'Check nix (linux)'
     # Check whether regenerate.sh was applied when it had to be applied.

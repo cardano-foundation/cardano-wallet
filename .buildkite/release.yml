@@ -1,0 +1,14 @@
+agents:
+  queue: "cardano-wallet"
+
+env:
+  LC_ALL: "C.UTF-8"
+  NIX_PATH: "channel:nixos-21.11"
+
+steps:
+  - label: Add release commits
+    key: add-release-commits
+    commands: |
+      ./scripts/buildkite/release/release-candidate.sh
+    agents:
+      system: x86_64-linux
