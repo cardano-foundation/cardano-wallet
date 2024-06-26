@@ -3202,17 +3202,16 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     parseMessage :: TxMetadataValue -> Maybe TxMetadataValue
     parseMessage = \case
         TxMetaMap kvs ->
-            case mapMaybe getMsgValue kvs of
+            case mapMaybe getValue kvs of
                 [ ] -> Nothing
                 [v] -> Just v
                 _vs -> error "only one 'msg' field expected"
         _ ->
             Nothing
       where
-        getMsgValue
-            :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
-        getMsgValue (TxMetaText "msg", v) = Just v
-        getMsgValue _ = Nothing
+        getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
+        getValue (TxMetaText "msg", v) = Just v
+        getValue _ = Nothing
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
