@@ -3241,16 +3241,6 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         encryptPairIfQualifies = \case
             (TxMetaText "msg", m) ->
                 bimap ErrConstructTxEncryptMetadata toPair (encryptValue m)
-              where
-                toPair encryptedMessage =
-                    [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
-                    , (TxMetaText "enc", TxMetaText "basic")
-                    ]
-                toChunks
-                    = fmap TxMetaText
-                    . T.chunksOf 64
-                    . T.decodeUtf8
-                    . convertToBase Base64
             pair ->
                 Right [pair]
 
@@ -3260,6 +3250,16 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             . BL.toStrict
             . Aeson.encode
             . Cardano.metadataValueToJsonNoSchema
+
+        toPair encryptedMessage =
+            [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
+            , (TxMetaText "enc", TxMetaText "basic")
+            ]
+        toChunks
+            = fmap TxMetaText
+            . T.chunksOf 64
+            . T.decodeUtf8
+            . convertToBase Base64
 
     updateTxMetadata :: TxMetadataValue -> W.TxMetadata
     updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
