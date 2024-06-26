@@ -12,3 +12,13 @@ steps:
       ./scripts/buildkite/release/release-candidate.sh
     agents:
       system: x86_64-linux
+
+  - label: 'Build package (linux)'
+    key: linux-package
+    depends_on: add-release-commits
+    command:
+      - ./scripts/buildkite/release/linux-package.sh
+    artifact_paths: [ "./result/linux/**" ]
+    agents:
+      system: ${linux}
+
