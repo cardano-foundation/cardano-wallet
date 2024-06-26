@@ -3188,10 +3188,8 @@ toMetadataEncrypted
     -> TxMetadataWithSchema
     -> Maybe ByteString
     -> Either ErrConstructTx TxMetadata
-toMetadataEncrypted apiEncrypt payload saltM = do
-    msgValue <- extractMessage
-    msgValue' <- encryptMessage msgValue
-    pure $ updateTxMetadata msgValue'
+toMetadataEncrypted apiEncrypt payload saltM =
+    fmap updateTxMetadata . encryptMessage =<< extractMessage
   where
     pwd :: ByteString
     pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
