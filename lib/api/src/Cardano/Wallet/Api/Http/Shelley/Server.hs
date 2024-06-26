@@ -3200,8 +3200,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
     -- `msg` is not embedded beyond the first level
-    inspectMetaPair :: TxMetadataValue -> Maybe TxMetadataValue
-    inspectMetaPair = \case
+    parseMessage :: TxMetadataValue -> Maybe TxMetadataValue
+    parseMessage = \case
         TxMetaMap kvs ->
             case mapMaybe getMsgValue kvs of
                 [ ] -> Nothing
@@ -3217,7 +3217,7 @@ toMetadataEncrypted apiEncrypt payload saltM = do
 
     keyAndValueCond :: Word64 -> TxMetadataValue -> Bool
     keyAndValueCond k v =
-        k == cip20MetadataKey && isJust (inspectMetaPair v)
+        k == cip20MetadataKey && isJust (parseMessage v)
 
     findMsgValue :: Either ErrConstructTx TxMetadataValue
     findMsgValue
