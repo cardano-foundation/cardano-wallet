@@ -1,4 +1,4 @@
-#! /usr/bin/env -S nix shell 'nixpkgs#curl' 'nixpkgs#lz4' --command bash
+#! /usr/bin/env bash
 # shellcheck shell=bash
 
 set -euox pipefail
