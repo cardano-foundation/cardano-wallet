@@ -889,6 +889,21 @@ spec = do
         jsonTest @(ApiT DRep)
         jsonTest @ApiRestorationMode
 
+    it "Broken round trip for TxMetadataWithSchema" $ do
+
+        let testValue =
+                TxMetadataWithSchema TxMetadataNoSchema $
+                Cardano.TxMetadata $
+                Map.fromList
+                [ ( 1
+                  , Cardano.TxMetaMap
+                    [ (Cardano.TxMetaText "k", Cardano.TxMetaText "v1")
+                    , (Cardano.TxMetaText "k", Cardano.TxMetaText "v2")
+                    ]
+                  )
+                ]
+        Aeson.decode (Aeson.encode testValue) `shouldBe` Just testValue
+
     it "Round trip between types `ApiEra` and `AnyCardanoEra`"
         $ property
         $ \era -> ApiEra.fromAnyCardanoEra (ApiEra.toAnyCardanoEra era) === era
