@@ -3189,7 +3189,7 @@ toMetadataEncrypted
     -> Either ErrConstructTx TxMetadata
 toMetadataEncrypted apiEncrypt payload saltM = do
     msgValue <- extractMessage
-    msgValue' <- encryptingMsg msgValue
+    msgValue' <- encryptMessage msgValue
     pure $ updateTxMetadata msgValue'
   where
     pwd :: ByteString
@@ -3249,12 +3249,12 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         pair ->
             Right [pair]
 
-    encryptingMsg :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
-    encryptingMsg = \case
+    encryptMessage :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
+    encryptMessage = \case
         TxMetaMap pairs -> do
             pairs' <- mapM encryptPairIfQualifies pairs
             pure (TxMetaMap $ concat pairs')
-        _ -> error "encryptingMsg should have TxMetaMap value"
+        _ -> error "encryptMessage should have TxMetaMap value"
 
     updateTxMetadata :: TxMetadataValue -> W.TxMetadata
     updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
