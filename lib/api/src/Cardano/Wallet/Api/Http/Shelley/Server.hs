@@ -3250,10 +3250,13 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             . Aeson.encode
             . Cardano.metadataValueToJsonNoSchema
 
+        toPair :: ByteString -> [(TxMetadataValue, TxMetadataValue)]
         toPair encryptedMessage =
             [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
             , (TxMetaText "enc", TxMetaText "basic")
             ]
+
+        toChunks :: ByteString -> [TxMetadataValue]
         toChunks
             = fmap TxMetaText
             . T.chunksOf 64
