@@ -211,6 +211,7 @@ import Data.Function
     )
 import Data.Functor
     ( ($>)
+    , (<&>)
     )
 import Data.Functor.Contravariant
     ( Contravariant (..)
@@ -518,7 +519,7 @@ withNodeNetworkLayerBase
                 , stakeDistribution =
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
-                    _getUTxOByTxIn queryRewardQ
+                    _getUTxOByTxIn queryRewardQ readCurrentNodeEra
                 , getCachedRewardAccountBalance =
                     _getCachedRewardAccountBalance rewardsObserver
                 , fetchRewardAccountBalances =
@@ -661,8 +662,17 @@ withNodeNetworkLayerBase
                     return res
                 Nothing -> pure $ StakePoolsSummary 0 mempty mempty
 
-        _getUTxOByTxIn queue ins =
-            bracketQuery "getUTxOByTxIn" tr
+        _getUTxOByTxIn queue readCachedEra ins
+            | ins == mempty = readCachedEra <&> \case
+                AnyCardanoEra ByronEra -> InNonRecentEraByron
+                AnyCardanoEra ShelleyEra -> InNonRecentEraShelley
+                AnyCardanoEra AllegraEra -> InNonRecentEraAllegra
+                AnyCardanoEra MaryEra -> InNonRecentEraMary
+                AnyCardanoEra AlonzoEra -> InNonRecentEraAlonzo
+                AnyCardanoEra BabbageEra -> InRecentEraBabbage mempty
+                AnyCardanoEra ConwayEra -> InRecentEraConway mempty
+            | otherwise
+                = bracketQuery "getUTxOByTxIn" tr
                 $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
 
         _watchNodeTip readTip callback = do
