@@ -4750,7 +4750,9 @@ x-errInvalidMetadataEncryption: &errInvalidMetadataEncryption
   properties:
     message:
       type: string
-      description: The metadata has either wrong structure or cannot be encrypted.
+      description: |
+          The supplied metadata object is not compatible with the format
+          specified by CIP-83 (https://cips.cardano.org/cip/CIP-83).
     code:
       type: string
       enum: ['invalid_metadata_encryption']
