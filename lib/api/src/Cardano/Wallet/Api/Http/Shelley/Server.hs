@@ -732,7 +732,8 @@ import Control.Tracer
     , contramap
     )
 import Cryptography.Cipher.AES256CBC
-    ( CipherMode (..)
+    ( CipherError
+    , CipherMode (..)
     )
 import Cryptography.Core
     ( genSalt
@@ -3237,12 +3238,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
             :: (TxMetadataValue, TxMetadataValue)
             -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
         encryptPairIfQualifies = \case
-            (TxMetaText "msg", metaValue) ->
-                bimap ErrConstructTxEncryptMetadata toPair
-                    $ AES256CBC.encrypt WithPadding secretKey iv saltM
-                    $ BL.toStrict
-                    $ Aeson.encode
-                    $ Cardano.metadataValueToJsonNoSchema metaValue
+            (TxMetaText "msg", m) ->
+                bimap ErrConstructTxEncryptMetadata toPair (encryptValue m)
               where
                 toPair encryptedMessage =
                     [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
@@ -3255,6 +3252,13 @@ toMetadataEncrypted apiEncrypt payload saltM = do
                     . convertToBase Base64
             pair ->
                 Right [pair]
+
+        encryptValue :: TxMetadataValue -> Either CipherError ByteString
+        encryptValue
+            = AES256CBC.encrypt WithPadding secretKey iv saltM
+            . BL.toStrict
+            . Aeson.encode
+            . Cardano.metadataValueToJsonNoSchema
 
     updateTxMetadata :: TxMetadataValue -> W.TxMetadata
     updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
