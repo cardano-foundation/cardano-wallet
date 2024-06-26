@@ -127,6 +127,8 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
+    , toMetadataEncrypted
+    , metadataPBKDF2Config
 
     -- * Workers
     , manageRewardBalance
@@ -159,6 +161,8 @@ import Cardano.Address.Script
 import Cardano.Api
     ( NetworkId
     , SerialiseAsCBOR (..)
+    , TxMetadata (TxMetadata)
+    , TxMetadataValue (TxMetaList, TxMetaMap, TxMetaText)
     , toNetworkMagic
     , unNetworkMagic
     )
@@ -365,6 +369,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionData (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
+    , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -726,8 +731,26 @@ import Control.Tracer
     ( Tracer
     , contramap
     )
+import Cryptography.Cipher.AES256CBC
+    ( CipherError
+    , CipherMode (..)
+    )
+import Cryptography.Core
+    ( genSalt
+    )
+import Cryptography.Hash.Core
+    ( SHA256 (..)
+    )
+import Cryptography.KDF.PBKDF2
+    ( PBKDF2Config (..)
+    )
 import Data.Bifunctor
-    ( first
+    ( bimap
+    , first
+    )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -818,6 +841,7 @@ import Data.Traversable
     )
 import Data.Word
     ( Word32
+    , Word64
     )
 import Fmt
     ( pretty
@@ -943,13 +967,19 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
+import qualified Cryptography.Cipher.AES256CBC as AES256CBC
+import qualified Cryptography.KDF.PBKDF2 as PBKDF2
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
     , IsRecentEra
@@ -2735,8 +2765,17 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
         liftHandler $ throwE ErrConstructTxWrongPayload
 
-    when (isJust (body ^. #encryptMetadata)) $
-        liftHandler $ throwE ErrConstructTxNotImplemented
+    metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
+        (Just apiEncrypt, Just metadataWithSchema) -> do
+            salt <- liftIO $ genSalt 8
+            toMetadataEncrypted apiEncrypt metadataWithSchema (Just salt)
+                & \case
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right meta ->
+                        pure $ Just meta
+        _ ->
+            pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     validityInterval <-
         liftHandler $ parseValidityInterval ti $ body ^. #validityInterval
@@ -2749,9 +2788,6 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
 
     delegationRequest <-
         liftHandler $ traverse parseDelegationRequest $ body ^. #delegations
-
-    let metadata =
-            body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
     withWorkerCtx api walletId liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
@@ -3128,6 +3164,115 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
+
+-- A key that identifies transaction metadata, defined in CIP-20 and used by
+-- CIP-83.
+--
+-- See:
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0020
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0083
+--
+cip20MetadataKey :: Word64
+cip20MetadataKey = 674
+
+-- When encryption is enabled we do the following:
+-- (a) find field `msg` in the object of "674" label
+-- (b) encrypt the 'msg' value if present, if there is neither "674" label
+--     nor 'msg' value inside object of it emit error
+-- (c) update value of `msg` with the encrypted initial value(s) encoded in
+--     base64:
+--     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
+-- (d) add `enc` field with encryption method value 'basic'
+toMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> TxMetadataWithSchema
+    -> Maybe ByteString
+    -> Either ErrConstructTx TxMetadata
+toMetadataEncrypted apiEncrypt payload saltM =
+    fmap updateTxMetadata . encryptMessage =<< extractMessage
+  where
+    pwd :: ByteString
+    pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
+
+    secretKey, iv :: ByteString
+    (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
+
+    -- `msg` is not embedded beyond the first level
+    parseMessage :: TxMetadataValue -> Maybe TxMetadataValue
+    parseMessage = \case
+        TxMetaMap kvs ->
+            case mapMaybe getValue kvs of
+                [ ] -> Nothing
+                [v] -> Just v
+                _vs -> error "only one 'msg' field expected"
+        _ ->
+            Nothing
+      where
+        getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
+        getValue (TxMetaText "msg", v) = Just v
+        getValue _ = Nothing
+
+    validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
+    validKeyAndMessage k v = k == cip20MetadataKey && isJust (parseMessage v)
+
+    extractMessage :: Either ErrConstructTx TxMetadataValue
+    extractMessage
+        | [v] <- F.toList filteredMap =
+            Right v
+        | otherwise =
+            Left ErrConstructTxIncorrectRawMetadata
+      where
+        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
+        filteredMap = Map.filterWithKey validKeyAndMessage themap
+
+    encryptMessage :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
+    encryptMessage = \case
+        TxMetaMap pairs ->
+            TxMetaMap . concat <$> mapM encryptPairIfQualifies pairs
+        _ ->
+            error "encryptMessage should have TxMetaMap value"
+      where
+        encryptPairIfQualifies
+            :: (TxMetadataValue, TxMetadataValue)
+            -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
+        encryptPairIfQualifies = \case
+            (TxMetaText "msg", m) ->
+                bimap ErrConstructTxEncryptMetadata toPair (encryptValue m)
+            pair ->
+                Right [pair]
+
+        encryptValue :: TxMetadataValue -> Either CipherError ByteString
+        encryptValue
+            = AES256CBC.encrypt WithPadding secretKey iv saltM
+            . BL.toStrict
+            . Aeson.encode
+            . Cardano.metadataValueToJsonNoSchema
+
+        toPair :: ByteString -> [(TxMetadataValue, TxMetadataValue)]
+        toPair encryptedMessage =
+            [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
+            , (TxMetaText "enc", TxMetaText "basic")
+            ]
+
+        toChunks :: ByteString -> [TxMetadataValue]
+        toChunks
+            = fmap TxMetaText
+            . T.chunksOf 64
+            . T.decodeUtf8
+            . convertToBase Base64
+
+    updateTxMetadata :: TxMetadataValue -> W.TxMetadata
+    updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
+      where
+        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
+
+metadataPBKDF2Config :: PBKDF2Config SHA256
+metadataPBKDF2Config = PBKDF2Config
+    { hash = SHA256
+    , iterations = 10000
+    , keyLength = 32
+    , ivLength = 16
+    }
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)

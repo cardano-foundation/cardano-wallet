@@ -80,6 +80,7 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiCoinSelectionWithdrawal (..)
     , ApiEncryptMetadata (..)
+    , ApiEncryptMetadataMethod (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiCosignerIndex (..)
@@ -1235,8 +1236,15 @@ data ApiMultiDelegationAction
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-newtype ApiEncryptMetadata = ApiEncryptMetadata
-    { passphrase :: ApiT (Passphrase "lenient") }
+data ApiEncryptMetadataMethod = Basic
+    deriving (Bounded, Enum, Eq, Generic, Show)
+    deriving anyclass NFData
+    deriving (FromJSON, ToJSON) via DefaultSum ApiEncryptMetadataMethod
+
+data ApiEncryptMetadata = ApiEncryptMetadata
+    { passphrase :: ApiT (Passphrase "lenient")
+    , method :: Maybe ApiEncryptMetadataMethod
+    }
     deriving (Eq, Generic, Show)
     deriving (FromJSON, ToJSON) via DefaultRecord ApiEncryptMetadata
     deriving anyclass NFData
