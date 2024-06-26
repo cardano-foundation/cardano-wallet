@@ -3227,35 +3227,35 @@ toMetadataEncrypted apiEncrypt payload saltM = do
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
         filteredMap = Map.filterWithKey validKeyAndMessage themap
 
-    encryptPairIfQualifies
-        :: (TxMetadataValue, TxMetadataValue)
-        -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
-    encryptPairIfQualifies = \case
-        (TxMetaText "msg", metaValue) ->
-            bimap ErrConstructTxEncryptMetadata toPair
-                $ AES256CBC.encrypt WithPadding secretKey iv saltM
-                $ BL.toStrict
-                $ Aeson.encode
-                $ Cardano.metadataValueToJsonNoSchema metaValue
-          where
-            toPair encryptedMessage =
-                [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
-                , (TxMetaText "enc", TxMetaText "basic")
-                ]
-            toChunks
-                = fmap TxMetaText
-                . T.chunksOf 64
-                . T.decodeUtf8
-                . convertToBase Base64
-        pair ->
-            Right [pair]
-
     encryptMessage :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
     encryptMessage = \case
         TxMetaMap pairs ->
             TxMetaMap . concat <$> mapM encryptPairIfQualifies pairs
         _ ->
             error "encryptMessage should have TxMetaMap value"
+      where
+        encryptPairIfQualifies
+            :: (TxMetadataValue, TxMetadataValue)
+            -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
+        encryptPairIfQualifies = \case
+            (TxMetaText "msg", metaValue) ->
+                bimap ErrConstructTxEncryptMetadata toPair
+                    $ AES256CBC.encrypt WithPadding secretKey iv saltM
+                    $ BL.toStrict
+                    $ Aeson.encode
+                    $ Cardano.metadataValueToJsonNoSchema metaValue
+              where
+                toPair encryptedMessage =
+                    [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
+                    , (TxMetaText "enc", TxMetaText "basic")
+                    ]
+                toChunks
+                    = fmap TxMetaText
+                    . T.chunksOf 64
+                    . T.decodeUtf8
+                    . convertToBase Base64
+            pair ->
+                Right [pair]
 
     updateTxMetadata :: TxMetadataValue -> W.TxMetadata
     updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
