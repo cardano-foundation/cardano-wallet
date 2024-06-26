@@ -3188,7 +3188,7 @@ toMetadataEncrypted
     -> Maybe ByteString
     -> Either ErrConstructTx TxMetadata
 toMetadataEncrypted apiEncrypt payload saltM = do
-    msgValue <- findMsgValue
+    msgValue <- extractMessage
     msgValue' <- encryptingMsg msgValue
     pure $ updateTxMetadata msgValue'
   where
@@ -3216,8 +3216,8 @@ toMetadataEncrypted apiEncrypt payload saltM = do
     validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
     validKeyAndMessage k v = k == cip20MetadataKey && isJust (parseMessage v)
 
-    findMsgValue :: Either ErrConstructTx TxMetadataValue
-    findMsgValue
+    extractMessage :: Either ErrConstructTx TxMetadataValue
+    extractMessage
         | [v] <- F.toList filteredMap =
             Right v
         | otherwise =
