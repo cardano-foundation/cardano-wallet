@@ -16,6 +16,7 @@ module Cardano.Wallet.Deposit.Pure
 
     -- ** Reading from the blockchain
     , fromXPubAndGenesis
+    , Word31
     , getWalletTip
     , availableBalance
     , rollForwardMany
@@ -29,13 +30,12 @@ module Cardano.Wallet.Deposit.Pure
 
     -- ** Writing to the blockchain
     , createPayment
+    , BIP32Path (..)
+    , DerivationType (..)
     , getBIP32PathsForOwnedInputs
 
     , addTxSubmission
     , listTxsInSubmission
-
-    -- * Internal
-    , fromGenesisUTxO
     ) where
 
 import Prelude
@@ -43,11 +43,18 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub
     )
+import Cardano.Wallet.Address.BIP32
+    ( BIP32Path (..)
+    , DerivationType (..)
+    )
 import Cardano.Wallet.Deposit.Pure.UTxOHistory
     ( UTxOHistory
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    )
+import Data.Bifunctor
+    ( second
     )
 import Data.Foldable
     ( foldl'
@@ -59,15 +66,16 @@ import Data.Map.Strict
     ( Map
     )
 import Data.Maybe
-    ( isJust
+    ( mapMaybe
     )
 import Data.Set
     ( Set
     )
-import Numeric.Natural
-    ( Natural
+import Data.Word.Odd
+    ( Word31
     )
 
+import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
@@ -75,23 +83,20 @@ import qualified Cardano.Wallet.Deposit.Pure.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
-import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------
     Types
 ------------------------------------------------------------------------------}
-type Customer = Natural
+type Customer = Address.Customer
 
 data WalletState = WalletState
-    { customers :: !(Map Customer Address)
-    , changeAddress :: !Address
+    { addresses :: !Address.AddressState
     , utxoHistory :: !UTxOHistory.UTxOHistory
     -- , txHistory :: [Read.Tx]
     , submissions :: Sbm.TxSubmissions
     -- , credentials :: Maybe (HashedCredentials (KeyOf s))
     -- , info :: !WalletInfo
     }
-    deriving (Eq, Show)
 
 type DeltaWalletState = Delta.Replace WalletState
 
@@ -101,47 +106,50 @@ type DeltaWalletState = Delta.Replace WalletState
 ------------------------------------------------------------------------------}
 
 listCustomers :: WalletState -> [(Customer, Address)]
-listCustomers = Map.toList . customers
+listCustomers =
+    map (second Read.fromRawAddress)
+    . Address.listCustomers . addresses
 
 createAddress :: Customer -> WalletState -> (Address, WalletState)
-createAddress customer w1 = (address, w2)
+createAddress customer w0 =
+    (Read.fromRawAddress address, w0{addresses = s1})
   where
-    address = deriveAddress w1 customer
-    w2 = w1{customers = Map.insert customer address (customers w1)}
+    (address, s1) = Address.createAddress customer (addresses w0)
 
 -- depend on the private key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
-deriveAddress _ = Read.mockAddress
+deriveAddress w =
+    Read.fromRawAddress
+    . Address.deriveAddress (Address.getXPub (addresses w))
+    . Address.DerivationCustomer
 
+-- FIXME: More performant with a double index.
 knownCustomer :: Customer -> WalletState -> Bool
-knownCustomer c = (c `Map.member`) . customers
+knownCustomer c = (c `elem`) . map fst . listCustomers
 
 knownCustomerAddress :: Address -> WalletState -> Bool
-knownCustomerAddress address = isJust . isCustomerAddress address
+knownCustomerAddress address =
+    Address.knownCustomerAddress (Read.toRawAddress address) . addresses
 
-isCustomerAddress :: Address -> WalletState -> Maybe Customer
-isCustomerAddress address w =
-    case filter ((== address) . snd) (Map.toList $ customers w) of
-        [(customer,_address)] -> Just customer
-        _ -> Nothing
+isCustomerAddress :: Address -> WalletState -> Bool
+isCustomerAddress address =
+    flip Address.isCustomerAddress (Read.toRawAddress address) . addresses
 
 {-----------------------------------------------------------------------------
     Operations
     Reading from the blockchain
 ------------------------------------------------------------------------------}
 
-fromXPubAndGenesis :: XPub -> Integer -> Read.GenesisData -> WalletState
-fromXPubAndGenesis _xpub _knownCustomerCount _ = fromGenesisUTxO mempty
-    -- FIXME: This is a mock implementation
-
-fromGenesisUTxO :: Read.UTxO -> WalletState
-fromGenesisUTxO utxo =
+fromXPubAndGenesis :: XPub -> Word31 -> Read.GenesisData -> WalletState
+fromXPubAndGenesis xpub knownCustomerCount _ =
     WalletState
-        { customers = Map.empty
-        , changeAddress = Read.dummyAddress
-        , utxoHistory = UTxOHistory.empty utxo
+        { addresses =
+            Address.fromXPubAndCount xpub knownCustomerCount
+        , utxoHistory = UTxOHistory.empty initialUTxO
         , submissions = Sbm.empty
         }
+  where
+    initialUTxO = mempty
 
 getWalletTip :: WalletState -> Read.ChainPoint
 getWalletTip = error "getWalletTip"
@@ -157,9 +165,7 @@ rollForwardOne block w =
         }
   where
     isOurs :: Address -> Bool
-    isOurs addr =
-        ( addr == changeAddress w ) || knownCustomerAddress addr w
-        -- FIXME: Consider payment part only, ignore staking part.
+    isOurs = Address.isOurs (addresses w) . Read.toRawAddress
 
 rollForwardUTxO
     :: (Address -> Bool) -> Read.Block -> UTxOHistory -> UTxOHistory
@@ -176,8 +182,11 @@ rollBackward
 rollBackward point w = (w, point) -- FIXME: This is a mock implementation
 
 availableBalance :: WalletState -> Read.Value
-availableBalance w =
-    UTxO.balance $ Balance.availableUTxO utxo pending
+availableBalance = UTxO.balance . availableUTxO
+
+availableUTxO :: WalletState -> UTxO.UTxO
+availableUTxO w =
+    Balance.availableUTxO utxo pending
   where
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
@@ -216,8 +225,21 @@ createPayment = undefined
     -- needs balanceTx
     -- needs to sign the transaction
 
-getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [()]
-getBIP32PathsForOwnedInputs = undefined
+getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [BIP32Path]
+getBIP32PathsForOwnedInputs txbody w =
+    getBIP32Paths w
+    . resolveInputAddresses
+    $ Write.spendInputs txbody <> Write.collInputs txbody
+  where
+    resolveInputAddresses :: Set Read.TxIn -> [Read.Address]
+    resolveInputAddresses ins =
+        map (Read.address . snd)
+        . UTxO.toList
+        $ UTxO.restrictedBy (availableUTxO w) ins
+
+getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
+getBIP32Paths w =
+    mapMaybe $ Address.getBIP32Path (addresses w) . Read.toRawAddress
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined

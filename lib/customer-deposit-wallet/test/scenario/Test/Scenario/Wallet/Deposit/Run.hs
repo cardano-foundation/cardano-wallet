@@ -12,6 +12,8 @@ import Prelude
 
 import Cardano.Crypto.Wallet
     ( XPub
+    , generate
+    , toXPub
     )
 import Test.Hspec
     ( SpecWith
@@ -32,6 +34,7 @@ import Test.Scenario.Blockchain
     )
 
 import qualified Cardano.Wallet.Deposit.IO as Wallet
+import qualified Data.ByteString.Char8 as B8
 import qualified Test.Scenario.Wallet.Deposit.Exchanges as Exchanges
 
 main :: IO ()
@@ -63,7 +66,9 @@ scenarios = do
                     testBalance env
 
 xpub :: XPub
-xpub = error "todo: xpub"
+xpub =
+    toXPub
+    $ generate (B8.pack "random seed for a testing xpub lala") B8.empty
 
 testBalance
     :: ScenarioEnv -> Wallet.WalletInstance -> IO ()

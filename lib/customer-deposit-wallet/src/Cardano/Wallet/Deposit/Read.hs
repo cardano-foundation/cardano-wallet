@@ -10,11 +10,14 @@ module Cardano.Wallet.Deposit.Read
 
     , Addr
     , Address
+    , fromRawAddress
+    , toRawAddress
     , mockAddress
 
     , Ix
     , TxIn
     , TxOut
+    , address
     , Value
     , UTxO
 
@@ -57,6 +60,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
+import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteString as BS
@@ -86,6 +90,12 @@ type Addr = W.Address
 -- Byron addresses are represented by @Addr_bootstrap@.
 type Address = Addr
 
+fromRawAddress :: BS.ByteString -> Address
+fromRawAddress = W.Address
+
+toRawAddress :: Address -> BS.ByteString
+toRawAddress (W.Address a) = a
+
 mockAddress :: Show a => a -> Address
 mockAddress = W.Address . B8.pack . show
 
@@ -99,6 +109,9 @@ type TxIn = W.TxIn
 
 -- type TxOut = (Addr, Value)
 type TxOut = W.TxOut
+
+address :: TxOut -> Address
+address = TxOut.address
 
 type Value = W.TokenBundle
 

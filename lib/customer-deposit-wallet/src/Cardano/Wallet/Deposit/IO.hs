@@ -10,6 +10,7 @@ module Cardano.Wallet.Deposit.IO
     -- * Operations
     -- ** Initialization
     , withWalletInit
+    , Word31
     , withWalletLoad
 
     -- ** Mapping between customers and addresses
@@ -32,9 +33,13 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPub
     )
+import Cardano.Wallet.Address.BIP32
+    ( BIP32Path
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , WalletState
+    , Word31
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -108,7 +113,7 @@ readWalletState WalletInstance{env,walletState} =
 withWalletInit
     :: WalletEnv IO
     -> XPub
-    -> Integer
+    -> Word31
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletInit env@WalletEnv{..} xpub knownCustomerCount action = do
@@ -205,7 +210,7 @@ createPayment a w =
     Wallet.createPayment a <$> readWalletState w
 
 getBIP32PathsForOwnedInputs
-    :: Write.TxBody -> WalletInstance -> IO [()]
+    :: Write.TxBody -> WalletInstance -> IO [BIP32Path]
 getBIP32PathsForOwnedInputs a w =
     Wallet.getBIP32PathsForOwnedInputs a <$> readWalletState w
 

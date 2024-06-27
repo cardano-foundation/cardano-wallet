@@ -156,6 +156,17 @@ source-repository-package
     --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
     subdir: generated
 
+source-repository-package
+    type: git
+    location: https://github.com/cardano-foundation/cardano-wallet-agda
+    tag: 33702851de8b846cc0bb9c48ee24c987e6d02c01
+    --sha256: 0qiffp4dgz2c8wjjs4qk8g307a8li2lcczbdzinfcyxn0q01pcvy
+    subdir: lib/customer-deposit-wallet-pure
+
+-- With (semi-circular) dependency on cardano-wallet-read:
+-- tag: 1b2b22f68b7535d055b91753b68c92a2b2596038
+-- --sha256: 0yqga8hv66xxmd724pwyr4jdd98s5w3mc35sfzkpaywivi8g3kxx
+
 --------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section
 

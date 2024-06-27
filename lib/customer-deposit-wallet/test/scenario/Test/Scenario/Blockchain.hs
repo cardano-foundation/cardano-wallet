@@ -40,6 +40,9 @@ import Cardano.Wallet.Deposit.IO.Network.Mock
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
     )
+import Cardano.Wallet.Deposit.Pure
+    ( BIP32Path
+    )
 import Control.Tracer
     ( nullTracer
     )
@@ -128,9 +131,8 @@ payFromFaucet env destinations =
 {-----------------------------------------------------------------------------
     Transaction submission
 ------------------------------------------------------------------------------}
-type Path = ()
 
-signTx :: XPrv -> [Path] -> Write.TxBody -> Write.Tx
+signTx :: XPrv -> [BIP32Path] -> Write.TxBody -> Write.Tx
 signTx _ _ txbody =
     Write.Tx
         { Write.txbody = txbody
