@@ -5,17 +5,31 @@ env:
   LC_ALL: "C.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
   STATE_DIR: "/var/lib/buildkite-agent/cache"
-
-
+  STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
 
 steps:
-  - block: "Refresh preprod node state"
-    key: refresh-preprod-node-state-block
-  - label: 'Refresh preprod node state'
-    depends_on: refresh-preprod-node-state-block
-    command:
-      - ./scripts/buildkite/release/fetch-preprod-snapshot.sh
+
+  - block: "Refresh preprod node state (linux)"
+    key: refresh-preprod-node-state-linux-block
+
+  - label: 'Refresh preprod node state (linux)'
+    depends_on: refresh-preprod-node-state-linux-block
+    command: |
+        cd ./scripts/buildkite/admin/ && nix develop -c ./refresh-preprod-snapshot.sh
     env:
       NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
     agents:
       system: x86_64-linux
+
+  - block: "Refresh preprod node state (macOS)"
+    depends_on: []
+    key: refresh-preprod-node-state-macos-block
+
+  - label: 'Refresh preprod node state (macOS)'
+    depends_on: refresh-preprod-node-state-macos-block
+    command: |
+        cd ./scripts/buildkite/admin/ && nix develop -c ./refresh-preprod-snapshot.sh
+    env:
+      NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
+    agents:
+      system: aarch64-darwin
