@@ -298,6 +298,7 @@ import Internal.Cardano.Write.Tx.Balance
 import Internal.Cardano.Write.Tx.Sign
     ( KeyWitnessCounts (..)
     , estimateKeyWitnessCounts
+    , estimateSignedTxMinFee
     , estimateSignedTxSize
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -530,8 +531,9 @@ spec_balanceTx = describe "balanceTx" $ do
                 -> Natural
             evaluateMinimumFeeSize tx = fromIntegral
                 $ Write.unCoin
-                $ Write.evaluateMinimumFee
+                $ estimateSignedTxMinFee
                     pp
+                    inputsHaveNoRefScripts
                     (withNoKeyWits tx)
                     (KeyWitnessCounts 0 (fromIntegral $ length wits))
               where
@@ -540,6 +542,11 @@ spec_balanceTx = describe "balanceTx" $ do
                 -- Dummy PParams to ensure a Coin-delta corresponds to a
                 -- size-delta.
                 pp = Ledger.emptyPParams & set ppMinFeeAL (Ledger.Coin 1)
+
+                -- Dummy UTxO lookup telling the ledger the inputs aren't
+                -- bringing reference scripts into scope
+                inputsHaveNoRefScripts =
+                    utxoPromisingInputsHaveAddress dummyAddr tx
 
         let evaluateMinimumFeeDerivedWitSize tx
                 = evaluateMinimumFeeSize tx
@@ -551,7 +558,7 @@ spec_balanceTx = describe "balanceTx" $ do
             $ \n tx -> do
                 let balanceSize = evaluateMinimumFeeDerivedWitSize tx
                 let csSize = coinSelectionEstimatedSize $ intCast n
-                balanceSize === csSize
+                csSize === balanceSize
                 -- >= would suffice, but we can be stronger
 
         it "balanceTx's size estimation >= measured serialized size"
@@ -954,7 +961,9 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
         -> UTxO era
         -> Coin
     minFee tx u =
-        Write.evaluateMinimumFee mockPParamsForBalancing
+        estimateSignedTxMinFee
+            mockPParamsForBalancing
+            u
             tx
             (estimateKeyWitnessCounts u tx mempty)
 
@@ -1023,24 +1032,6 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
                     ]
             in
                 Hspec.counterexample msg $ f name bs tx
-
-    -- estimateSignedTxSize now depends upon being able to resolve inputs. To
-    -- keep tese tests working, we can create a UTxO with dummy values as long
-    -- as estimateSignedTxSize can tell that all inputs in the tx correspond to
-    -- outputs with vk payment credentials.
-    utxoPromisingInputsHaveAddress
-        :: forall era. (HasCallStack, IsRecentEra era)
-        => W.Address
-        -> Tx era
-        -> UTxO era
-    utxoPromisingInputsHaveAddress addr tx =
-        unsafeUtxoFromTxOutsInRecentEra [(i, txOut) | i <- allInputs tx]
-      where
-        allInputs :: Tx era -> [TxIn]
-        allInputs body = Set.toList $ body ^. (bodyTxL . allInputsTxBodyF)
-
-        txOut :: TxOutInRecentEra
-        txOut = TxOutInRecentEra (Convert.toLedger addr) mempty NoDatum Nothing
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
@@ -1454,7 +1445,7 @@ prop_balanceTxValid
         -> UTxO era
         -> Coin
     minFee tx utxo =
-        Write.evaluateMinimumFee protocolParams
+        estimateSignedTxMinFee protocolParams utxo
             tx
             (estimateKeyWitnessCounts utxo tx
                 partialTx.timelockKeyWitnessCounts)
@@ -1915,6 +1906,22 @@ cardanoToWalletTxOut =
 
 txFee :: IsRecentEra era => Tx era -> Coin
 txFee tx = tx ^. bodyTxL . feeTxBodyL
+
+-- | Construct a dummy 'UTxO era' where all inputs of the 'Tx era' resolve to
+-- outputs with the given 'Address'.
+utxoPromisingInputsHaveAddress
+    :: forall era. (HasCallStack, IsRecentEra era)
+    => W.Address
+    -> Tx era
+    -> UTxO era
+utxoPromisingInputsHaveAddress addr tx =
+    unsafeUtxoFromTxOutsInRecentEra [(i, txOut) | i <- allInputs tx]
+  where
+    allInputs :: Tx era -> [TxIn]
+    allInputs body = Set.toList $ body ^. (bodyTxL . allInputsTxBodyF)
+
+    txOut :: TxOutInRecentEra
+    txOut = TxOutInRecentEra (Convert.toLedger addr) mempty NoDatum Nothing
 
 --------------------------------------------------------------------------------
 -- Test values
