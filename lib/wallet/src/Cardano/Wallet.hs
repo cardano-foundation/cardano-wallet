@@ -2206,7 +2206,8 @@ balanceTx wrk pp timeTranslation partialTx = do
         utxoIndex
         (defaultChangeAddressGen argGenChange)
         changeState
-        (over #extraUTxO (<> lookedUpUTxO) partialTx)
+        -- In case of conflicts, the UTxO looked up from the node will win.
+        (over #extraUTxO (lookedUpUTxO <>) partialTx)
 
     return tx
   where
