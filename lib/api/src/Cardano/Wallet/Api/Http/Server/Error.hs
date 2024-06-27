@@ -263,6 +263,7 @@ instance IsServerError WalletException where
         ExceptionSoftDerivationIndex e -> toServerError e
         ExceptionHardenedDerivationIndex e -> toServerError e
         ExceptionVoting e -> toServerError e
+        ExceptionInvalidTxOutInEra e -> toServerError e
 
 instance IsServerError ErrNoSuchWallet where
     toServerError = \case

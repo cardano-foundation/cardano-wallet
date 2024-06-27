@@ -54,6 +54,7 @@ library
     Cardano.Wallet.Network.LocalStateQuery.PParams
     Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
+    Cardano.Wallet.Network.LocalStateQuery.UTxO
     Cardano.Wallet.Network.Logging
     Cardano.Wallet.Network.Logging.Aggregation
     Cardano.Wallet.Network.RestorationMode

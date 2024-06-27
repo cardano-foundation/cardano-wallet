@@ -99,6 +99,7 @@ module Internal.Cardano.Write.Tx
     , TxOutInRecentEra (..)
     , ErrInvalidTxOutInEra (..)
     , unwrapTxOutInRecentEra
+    , wrapTxOutInRecentEra
 
     , computeMinimumCoinForTxOut
     , isBelowMinimumCoinForTxOut
@@ -140,6 +141,7 @@ module Internal.Cardano.Write.Tx
     , Shelley.UTxO (..)
     , utxoFromTxOutsInRecentEra
     , unsafeUtxoFromTxOutsInRecentEra
+    , forceUTxOToEra
 
     -- * Policy and asset identifiers
     , type PolicyId
@@ -176,9 +178,11 @@ import Cardano.Ledger.Alonzo.UTxO
 import Cardano.Ledger.Api
     ( coinTxOutL
     , ppKeyDepositL
+    , upgradeTxOut
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
+    , UTxO (..)
     )
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxOut (..)
@@ -188,6 +192,7 @@ import Cardano.Ledger.BaseTypes
     , StrictMaybe (..)
     , Version
     , maybeToStrictMaybe
+    , strictMaybeToMaybe
     )
 import Cardano.Ledger.Coin
     ( Coin (..)
@@ -221,7 +226,8 @@ import Cardano.Ledger.Val
     , modifyCoin
     )
 import Control.Arrow
-    ( (>>>)
+    ( second
+    , (>>>)
     )
 import Data.ByteString
     ( ByteString
@@ -591,6 +597,18 @@ data TxOutInRecentEra =
         (Maybe (AlonzoScript LatestLedgerEra))
         -- Same contents as 'TxOut LatestLedgerEra'.
 
+wrapTxOutInRecentEra
+    :: forall era. IsRecentEra era
+    => TxOut era
+    -> TxOutInRecentEra
+wrapTxOutInRecentEra out = case recentEra @era of
+    RecentEraConway ->
+        let
+            BabbageTxOut addr v d s = out
+        in
+            TxOutInRecentEra addr v d (strictMaybeToMaybe s)
+    RecentEraBabbage -> wrapTxOutInRecentEra @ConwayEra $ upgradeTxOut out
+
 data ErrInvalidTxOutInEra
     = InlinePlutusV3ScriptNotSupportedInBabbage
     deriving (Show, Eq)
@@ -715,6 +733,15 @@ unsafeUtxoFromTxOutsInRecentEra
     -> Shelley.UTxO era
 unsafeUtxoFromTxOutsInRecentEra =
     either (error . show) id . utxoFromTxOutsInRecentEra
+
+forceUTxOToEra
+    :: forall era1 era2. (IsRecentEra era1, IsRecentEra era2)
+    => UTxO era1
+    -> Either ErrInvalidTxOutInEra (UTxO era2)
+forceUTxOToEra (UTxO utxo) =
+    utxoFromTxOutsInRecentEra
+    $ map (second wrapTxOutInRecentEra)
+    $ Map.toList utxo
 
 --------------------------------------------------------------------------------
 -- Tx

@@ -222,6 +222,7 @@ dummyNetworkLayer = NetworkLayer
     , currentProtocolParametersInRecentEras
         = err "currentProtocolParametersInRecentEras"
     , currentSlottingParameters = err "currentSlottingParameters"
+    , getUTxOByTxIn = err "getUTxOByTxIn"
     , postTx = err "postTx"
     , stakeDistribution = err "stakeDistribution"
     , getCachedRewardAccountBalance = err "getRewardCachedAccountBalance"

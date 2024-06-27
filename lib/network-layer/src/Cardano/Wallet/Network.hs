@@ -153,6 +153,9 @@ data NetworkLayer m block = NetworkLayer
     , stakeDistribution
         :: Coin -- Stake to consider for rewards
         -> m StakePoolsSummary
+    , getUTxOByTxIn
+        :: Set Write.TxIn
+        -> m (MaybeInRecentEra Write.UTxO)
     , getCachedRewardAccountBalance
         :: RewardAccount
         -- Either reward account from key hash or script hash

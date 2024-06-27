@@ -9,6 +9,7 @@ module Cardano.Wallet.Network.LocalStateQuery
     , module Cardano.Wallet.Network.LocalStateQuery.PParams
     , module Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     , module Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
+    , module Cardano.Wallet.Network.LocalStateQuery.UTxO
     ) where
 
 import Cardano.Wallet.Network.LocalStateQuery.Extra
@@ -24,4 +25,7 @@ import Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     )
 import Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     ( stakeDistribution
+    )
+import Cardano.Wallet.Network.LocalStateQuery.UTxO
+    ( getUTxOByTxIn
     )
