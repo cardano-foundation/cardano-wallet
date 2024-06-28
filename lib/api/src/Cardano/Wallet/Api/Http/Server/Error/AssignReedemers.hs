@@ -166,3 +166,35 @@ fromConwayContextError = \case
                 , "The offending script is:\n\n"
                 , T.pack $ show x
                 ]
+    CurrentTreasuryFieldNotSupported x ->
+        apiError err400 UnsupportedMediaType
+            $ T.unwords
+                [ "The transaction I was given contains a current treasury"
+                , "which is not supported in the current era."
+                , "The offending treasury is:\n\n"
+                , T.pack $ show x
+                ]
+    VotingProceduresFieldNotSupported x ->
+        apiError err400 UnsupportedMediaType
+            $ T.unwords
+                [ "The transaction I was given contains a voting procedure"
+                , "which is not supported in the current era."
+                , "The offending procedure is:\n\n"
+                , T.pack $ show x
+                ]
+    ProposalProceduresFieldNotSupported x ->
+        apiError err400 UnsupportedMediaType
+            $ T.unwords
+                [ "The transaction I was given contains a proposal procedure"
+                , "which is not supported in the current era."
+                , "The offending procedure is:\n\n"
+                , T.pack $ show x
+                ]
+    TreasuryDonationFieldNotSupported x ->
+        apiError err400 UnsupportedMediaType
+            $ T.unwords
+                [ "The transaction I was given contains a treasury donation"
+                , "which is not supported in the current era."
+                , "The offending donation is:\n\n"
+                , T.pack $ show x
+                ]

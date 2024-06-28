@@ -4,7 +4,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -24,12 +23,12 @@ module Cardano.Api.Gen
     , genCertIx
     , genCostModel
     , genCostModels
-    , genEncodingBoundaryLovelace
+    , genEncodingBoundaryCoin
     , genEpochNo
     , genExecutionUnitPrices
     , genExecutionUnits
     , genExtraKeyWitnesses
-    , genLovelace
+    , genCoin
     , genMIRPot
     , genMIRTarget
     , genNat
@@ -148,7 +147,6 @@ import Cardano.Api
     , Key (..)
     , KeyWitness
     , KeyWitnessInCtx (KeyWitnessForSpending, KeyWitnessForStakeAddr)
-    , Lovelace (..)
     , MIRPot (..)
     , MaryEraOnwards (..)
     , NetworkId (..)
@@ -349,9 +347,6 @@ import Network.Socket
 import Numeric.Natural
     ( Natural
     )
-import System.Random
-    ( Random
-    )
 import Test.Cardano.Chain.UTxO.Gen
     ( genVKWitness
     )
@@ -427,19 +422,21 @@ import qualified PlutusLedgerApi.Test.V3.EvaluationContext as V3
 -- Constants
 --------------------------------------------------------------------------------
 
+type Lovelace = Ledger.Coin
+
 -- | The smallest quantity of lovelace that can appear in a transaction output's
 --   value map.
 --
 -- In practice, the protocol parameters may require this value to be higher, so
 -- this is an absolute minimum.
-txOutMinLovelace :: Lovelace
+txOutMinLovelace :: Integer
 txOutMinLovelace = 0
 
 -- | The greatest quantity of lovelace that can appear in a transaction output's
 --   value map.
 --
 -- In practice, this is limited by the total available supply of lovelace.
-txOutMaxLovelace :: Lovelace
+txOutMaxLovelace :: Integer
 txOutMaxLovelace = 45_000_000_000_000_000
 
 --------------------------------------------------------------------------------
@@ -506,23 +503,23 @@ genSlotNo32 = do
   where
     genOffset = choose (0, 10_000)
 
-genLovelace :: Gen Lovelace
-genLovelace =
+genCoin :: Gen Ledger.Coin
+genCoin =
     frequency
-        [ (60, genLovelaceForTxOutAdaValue)
-        , (40, choose (1_000_000, 1_000_000_000))
+        [ (60, genCoinForTxOutAdaValue)
+        , (40, fromIntegral @Integer <$> choose (1_000_000, 1_000_000_000))
         ]
 
-genLovelaceForTxOutAdaValue :: Gen Lovelace
-genLovelaceForTxOutAdaValue =
+genCoinForTxOutAdaValue :: Gen Ledger.Coin
+genCoinForTxOutAdaValue =
     frequency
-        [ (60, choose (1_000_000, 1_000_000_000))
-        , (10, choose (txOutMinLovelace, txOutMaxLovelace))
-        , (30, genEncodingBoundaryLovelace)
+        [ (60, fromIntegral @Integer <$> choose (1_000_000, 1_000_000_000))
+        , (10, fromIntegral <$> choose (txOutMinLovelace, txOutMaxLovelace))
+        , (30, genEncodingBoundaryCoin)
         ]
 
-genEncodingBoundaryLovelace :: Gen Lovelace
-genEncodingBoundaryLovelace = do
+genEncodingBoundaryCoin :: Gen Ledger.Coin
+genEncodingBoundaryCoin = do
     -- https://json.nlohmann.me/features/binary_formats/cbor/
     -- Generate a point near a boundary
     -- However, the three first ones are below the minimum utxo value on
@@ -537,21 +534,21 @@ genEncodingBoundaryLovelace = do
 
     offset <-
         frequency
-            [ (1, choose (-10, 10))
+            [ (1, fromIntegral @Integer <$> choose (-10, 10))
             , -- Either offset by -1 (just below boundary), or 0 (just above boundary)
-              (1, choose (-1, 0))
+              (1, fromIntegral @Integer <$> choose (-1, 0))
             , -- Offset by values close to common fee values, in both the positive
               -- and negative direction, with the hope that this helps find
               -- corner-cases.
-              (1, choose (-220_000, -150_000))
-            , (1, choose (150_000, 220_000))
-            , (1, choose (-1_000_000, 1_000_000))
+              (1, fromIntegral @Integer <$> choose (-220_000, -150_000))
+            , (1, fromIntegral @Integer <$> choose (150_000, 220_000))
+            , (1, fromIntegral @Integer <$> choose (-1_000_000, 1_000_000))
             ]
-    pure $ Lovelace <$> max 0 $ boundary + offset
+    pure $  max 0 $ boundary + offset
 
 genTxFee :: CardanoEra era -> Gen (TxFee era)
 genTxFee era = withEraWitness era $ \supported ->
-    TxFeeExplicit supported <$> genLovelace
+    TxFeeExplicit supported <$> genCoin
 
 genTtl :: Gen SlotNo
 genTtl = genSlotNo
@@ -623,7 +620,7 @@ genTxTotalCollateral :: CardanoEra era -> Gen (TxTotalCollateral era)
 genTxTotalCollateral era = withEraWitness era $ \supported ->
     frequency
         [ (95, pure TxTotalCollateralNone)
-        , (5, TxTotalCollateral supported <$> genLovelace)
+        , (5, TxTotalCollateral supported <$> genCoin)
         ]
 
 genTxReturnCollateral :: CardanoEra era -> Gen (TxReturnCollateral ctx era)
@@ -768,10 +765,8 @@ genValueForTxOut = do
             , pure []
             ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
-    ada <- fromInteger . unLovelace <$> genLovelaceForTxOutAdaValue
+    ada <- fromIntegral <$> genCoinForTxOutAdaValue
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
-  where
-    unLovelace (Lovelace l) = l
 
 -- | Generate a 'Value' which could represent the balance of a partial
 -- transaction, where both ada and other assets can be included, and quantities
@@ -785,14 +780,12 @@ genSignedValue = do
             ]
     assetQuantities <- infiniteListOf genSignedQuantity
     ada <-
-        fromInteger . unLovelace
+        fromIntegral
             <$> oneof
-                [ genLovelace
-                , negate <$> genLovelace
+                [ genCoin
+                , negate <$> genCoin
                 ]
     return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
-  where
-    unLovelace (Lovelace l) = l
 
 -- | Generate a 'Value' suitable for minting, i.e. non-ADA asset ID and a
 -- positive or negative quantity.
@@ -961,7 +954,7 @@ genWithdrawalInfo
         )
 genWithdrawalInfo era = do
     stakeAddr <- genStakeAddress
-    amt <- genLovelace
+    amt <- genCoin
     wit <- BuildTxWith <$> genWitnessStake era
     pure (stakeAddr, amt, wit)
 
@@ -1051,8 +1044,7 @@ genTxMetadata :: Gen TxMetadata
 genTxMetadata =
     fmap (TxMetadata . Map.fromList) $ do
         listOf
-            ( (,)
-                <$> (getLarge <$> arbitrary)
+            ( ((,) . getLarge <$> arbitrary)
                 <*> genTxMetadataValue
             )
 
@@ -1271,7 +1263,8 @@ genCostModel language = do
 
     eCostModel <-
         Alonzo.mkCostModel language
-            <$> mapM (const $ chooseInteger (0, 5_000)) costModelParamsValues
+            <$> mapM (const $ fromIntegral <$> chooseInteger (0, 5_000))
+                costModelParamsValues
     case eCostModel of
         Left err -> error $ "genCostModel: " ++ show err
         Right cModel -> return . CostModel $ Alonzo.getCostModelParams cModel
@@ -1329,12 +1322,12 @@ genRecentEraProtocolParameters =
         <*> genNat
         <*> genNat
         <*> genNat
-        <*> genLovelace
-        <*> genLovelace
-        <*> liftArbitrary genLovelace
-        <*> genLovelace
-        <*> genLovelace
-        <*> genLovelace
+        <*> genCoin
+        <*> genCoin
+        <*> liftArbitrary genCoin
+        <*> genCoin
+        <*> genCoin
+        <*> genCoin
         <*> genInterval
         <*> genNat
         <*> genRationalInt64
@@ -1347,7 +1340,7 @@ genRecentEraProtocolParameters =
         <*> (Just <$> genNat)
         <*> (Just <$> genNat)
         <*> (Just <$> genNat)
-        <*> (Just <$> genLovelace)
+        <*> (Just <$> genCoin)
 
 genInterval :: Gen Ledger.EpochInterval
 genInterval = Ledger.EpochInterval <$> arbitrary
@@ -1534,10 +1527,10 @@ genStakePoolParameters =
     StakePoolParameters
         <$> genPoolId
         <*> genVerificationKeyHash AsVrfKey
-        <*> genLovelace
+        <*> genCoin
         <*> genRational
         <*> genStakeAddress
-        <*> genLovelace
+        <*> genCoin
         <*> scale (`div` 3) (listOf (genVerificationKeyHash AsStakeKey))
         <*> scale (`div` 3) (listOf genStakePoolRelay)
         <*> liftArbitrary genStakePoolMetadataReference
@@ -1546,10 +1539,10 @@ genTxCertificate :: forall era. CardanoEra era -> Gen (Certificate era)
 genTxCertificate era =
     oneof
         [ mkStakeAddressRegistrationCertificate
-            <$> genLovelace
+            <$> genCoin
             <*> genStakeCredential
         , mkStakeAddressUnregistrationCertificate
-            <$> genLovelace
+            <$> genCoin
             <*> genStakeCredential
         , genStakeAddressPoolDelegationCertificate
         , mkPoolRegistrationCertificate <$> genStakePoolParameters
@@ -1677,17 +1670,17 @@ genProtocolParametersUpdate = do
     protocolUpdateMaxTxSize <-
         liftArbitrary genLarge
     protocolUpdateTxFeeFixed <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateTxFeePerByte <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateMinUTxOValue <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateStakeAddressDeposit <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateStakePoolDeposit <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateMinPoolCost <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdatePoolRetireMaxEpoch <-
         liftArbitrary genInterval
     protocolUpdateStakePoolTargetNum <-
@@ -1699,7 +1692,7 @@ genProtocolParametersUpdate = do
     protocolUpdateTreasuryCut <-
         liftArbitrary genRational
     protocolUpdateUTxOCostPerByte <-
-        liftArbitrary genLovelace
+        liftArbitrary genCoin
     protocolUpdateCostModels <-
         genCostModels
     protocolUpdatePrices <-
@@ -1747,13 +1740,13 @@ genProtocolParametersUpdate = do
 genUpdateProposal :: CardanoEra era -> Gen (TxUpdateProposal era)
 genUpdateProposal era = case forEraMaybeEon era of
     Nothing -> pure TxUpdateProposalNone
-    Just (supported :: ShelleyToBabbageEra era) -> frequency
-        [ (95, pure TxUpdateProposalNone)
-        ,
-            ( 5
-            , TxUpdateProposal supported
-                <$> ( UpdateProposal
-                        <$> ( Map.fromList
+    Just (supported :: ShelleyToBabbageEra era) ->
+        frequency
+            [ (95, pure TxUpdateProposalNone)
+            ,
+                ( 5
+                , TxUpdateProposal supported
+                    <$> ( ( UpdateProposal . Map.fromList
                                 <$> scale
                                     (`div` 3)
                                     ( listOf
@@ -1762,11 +1755,11 @@ genUpdateProposal era = case forEraMaybeEon era of
                                             <*> genProtocolParametersUpdate
                                         )
                                     )
-                            )
-                        <*> genEpochNo
-                    )
-            )
-        ]
+                          )
+                            <*> genEpochNo
+                        )
+                )
+            ]
 
 -- | Generate a 'Featured' for the given 'CardanoEra' with the provided generator.
 genFeaturedInEra
@@ -1802,7 +1795,7 @@ genVotingProcedures w = case w of
         oneof
             [ TxVotingProcedures <$> arbitrary <*> pure (BuildTxWith mempty)
             , pure TxVotingProceduresNone
-         ]
+            ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = withEraWitness era $ \sbe -> do
@@ -1985,15 +1978,6 @@ genTx =
 -- TODO: Generate txs with no outputs
 genTxForBalancing :: forall era. CardanoEra era -> Gen (Tx era)
 genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
-
---------------------------------------------------------------------------------
--- Orphan instances
---------------------------------------------------------------------------------
-
--- This definition makes it possible to avoid unwrapping and wrapping
--- 'Lovelace' values when using 'choose'.
---
-deriving via Integer instance Random Lovelace
 
 --------------------------------------------------------------------------------
 -- Assisting ledger generators

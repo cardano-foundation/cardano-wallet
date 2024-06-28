@@ -60,7 +60,7 @@ library
   build-depends:
     , aeson
     , attoparsec-aeson
-    , base                      >=4.14.3.0  && <4.19
+    , base
     , base58-bytestring
     , cardano-addresses
     , cardano-crypto
@@ -82,7 +82,7 @@ library
     , sydtest
     , tagged
     , text
-    , time                      >=1.9.3     && <1.13
+    , time
     , timespan
     , typed-process
 

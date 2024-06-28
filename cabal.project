@@ -185,6 +185,9 @@ allow-newer:
   , libsystemd-journal:base
   , cardano-addresses-cli:mtl
   , servant-openapi3:*
+  , cardano-ledger-alonzo-test:base, plutus-ledger-api
+  , cardano-crypto-class:vector
+  , plutus-core:cardano-crypto-class
 
 
 constraints:
@@ -198,11 +201,9 @@ constraints:
   -- choose versions that work with base >= 4.12
   , hjsonpointer >= 1.5.0
   , hjsonschema >= 1.10.0
-  , Cabal >= 3.4.0.0
   , async-timer >= 0.2.0.0
   , unliftio-core >= 0.2.0.1
   , generic-arbitrary >= 0.2.2
-  , iohk-monitoring >= 0.1.11
 
   -- lower versions of katip won't build with the Win32-2.12.0.1
   -- which is shipped with the ghc-9.2.8
@@ -213,48 +214,11 @@ constraints:
   , bech32 == 1.1.3
 
   -- Cardano Node dependencies:
-  , any.cardano-api ==8.39.3.0
-  , any.cardano-binary ==1.7.1.0
-  , any.cardano-cli ==8.20.3.0
-  , any.cardano-crypto ==1.1.2
-  , any.cardano-crypto-class ==2.1.4.0
-  , any.cardano-crypto-praos ==2.1.2.0
-  , any.cardano-crypto-wrapper ==1.5.1.1
-  , any.cardano-data ==1.2.1.0
-  , any.cardano-ledger-allegra ==1.3.0.0
-  , any.cardano-ledger-alonzo ==1.6.0.0
-  , any.cardano-ledger-api ==1.8.0.0
-  , any.cardano-ledger-babbage ==1.6.0.0
-  , any.cardano-ledger-binary ==1.3.0.0
-  , any.cardano-ledger-byron ==1.0.0.4
-  , any.cardano-ledger-conway ==1.12.0.0
-  , any.cardano-ledger-core ==1.10.0.0
-  , any.cardano-ledger-mary ==1.5.0.0
-  , any.cardano-ledger-shelley ==1.9.0.0
-  , cardano-node +systemd -unexpected_thunks
-  , any.cardano-ping ==0.2.0.13
-  , any.cardano-prelude ==0.1.0.4
-  , any.cardano-protocol-tpraos ==1.1.0.0
-  , any.cardano-slotting ==0.1.2.0
-  , any.cardano-strict-containers ==0.1.3.0
-  , any.ouroboros-consensus ==0.16.0.0
-  , any.ouroboros-consensus-cardano ==0.14.1.0
-  , any.ouroboros-consensus-diffusion ==0.14.0.0
-  , any.ouroboros-consensus-protocol ==0.7.0.0
-  , any.ouroboros-network ==0.15.0.0
-  , any.ouroboros-network-api ==0.7.1.0
-  , any.ouroboros-network-framework ==0.13.0.0
-  , any.ouroboros-network-mock ==0.1.1.1
-  , any.ouroboros-network-protocols ==0.8.1.0
-  , any.ouroboros-network-testing ==0.6.0.1
-  , any.plutus-core ==1.21.0.0
-  , any.plutus-ledger-api ==1.21.0.0
-  , plutus-scripts-bench -defer-plugin-errors -unexpected_thunks
-  , any.plutus-tx ==1.21.0.0
   , any.io-classes ==1.4.1.0
+  , io-classes -asserts
   , any.io-classes-mtl ==0.1.1.0
-
-
+  , optparse-applicative-fork >= 0.18.1
+  , ouroboros-network ^>= 0.16
 
   -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
   , persistent ^>= 2.14.6.0

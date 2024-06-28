@@ -7,6 +7,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-missing-local-signatures #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use <$>" #-}
 
 module Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
@@ -23,6 +25,7 @@ import Cardano.Api
     , Key (..)
     , SerialiseAsBech32
     , SerialiseAsCBOR (..)
+    , runExceptT
     )
 import Cardano.Binary
     ( FromCBOR (..)
@@ -324,8 +327,9 @@ readFailVerificationKeyOrFile
     -> ClusterM (VerificationKey keyrole)
 readFailVerificationKeyOrFile role (FileOf op) =
     liftIO
-        $ either (error . show) id
-            <$> readVerificationKeyOrFile
+        . fmap (either (error . show) id)
+        . runExceptT
+        $ readVerificationKeyOrFile
                 role
                 (VerificationKeyFilePath $ File $ toFilePath op)
 
@@ -476,8 +480,8 @@ configurePool metadataServer recipe = do
                         , ppPledge = Ledger.Coin $ intCast pledgeAmt
                         , ppCost = Ledger.Coin 0
                         , ppMargin = unsafeUnitInterval 0.1
-                        , ppRewardAcnt =
-                            Ledger.RewardAcnt Testnet
+                        , ppRewardAccount =
+                            Ledger.RewardAccount Testnet
                                 $ Ledger.KeyHashObj stakePubHash
                         , ppOwners = Set.fromList [stakePubHash]
                         , ppRelays = mempty

@@ -160,7 +160,7 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     assignNullRedeemers
         :: Tx era
         -> Either (ErrAssignRedeemers era)
-            ( Map (Alonzo.PlutusPurpose Alonzo.AsIndex era)  Redeemer
+            ( Map (Alonzo.PlutusPurpose Alonzo.AsIx era)  Redeemer
             , Tx era
             )
     assignNullRedeemers ledgerTx = do
@@ -190,10 +190,10 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     -- | Evaluate execution units of each script/redeemer in the transaction.
     -- This may fail for each script.
     evaluateExecutionUnits
-        :: Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) Redeemer
+        :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
         -> Tx era
         -> Either (ErrAssignRedeemers era)
-            (Map (Alonzo.PlutusPurpose Alonzo.AsIndex era)
+            (Map (Alonzo.PlutusPurpose Alonzo.AsIx era)
                 (Either (ErrAssignRedeemers era) Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers ledgerTx =
         Ledger.evalTxExUnits
@@ -203,16 +203,16 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
 
     hoistScriptFailure
         :: Show scriptFailure
-        => Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) Redeemer
-        -> Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) (Either scriptFailure a)
-        -> Map (Alonzo.PlutusPurpose Alonzo.AsIndex era) (Either (ErrAssignRedeemers era) a)
+        => Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
+        -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either scriptFailure a)
+        -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either (ErrAssignRedeemers era) a)
     hoistScriptFailure indexedRedeemers = Map.mapWithKey $ \ptr -> left $ \e ->
         ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
     assignExecutionUnits
-        :: Map (Alonzo.PlutusPurpose Alonzo.AsIndex era)
+        :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era)
                 (Either (ErrAssignRedeemers era) Alonzo.ExUnits)
         -> Tx era
         -> Either (ErrAssignRedeemers era) (Tx era)

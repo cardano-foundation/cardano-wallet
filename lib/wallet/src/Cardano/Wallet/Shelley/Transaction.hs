@@ -262,6 +262,7 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Api as Ledger
+import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Keys.Bootstrap as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
@@ -275,6 +276,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( CardanoApiEra
+    , Coin
     , FeePerByte
     , IsRecentEra (recentEra)
     , PParams
@@ -798,9 +800,9 @@ mkUnsignedTx
     => (Maybe SlotNo, SlotNo)
     -> Either PreSelection (SelectionOf TxOut)
     -> Maybe Cardano.TxMetadata
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -> [(Cardano.StakeAddress, Write.Coin)]
     -> [Cardano.Certificate (CardanoApiEra era)]
-    -> Cardano.Lovelace
+    -> Write.Coin
     -> TokenMap
     -> TokenMap
     -> Map AssetId ScriptSource
@@ -1091,7 +1093,7 @@ removeDummyInput = \case
 mkWithdrawals
     :: NetworkId
     -> Withdrawal
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
+    -> [(Cardano.StakeAddress, Write.Coin)]
 mkWithdrawals networkId wdrl = case wdrl of
     NoWithdrawal -> []
     WithdrawalExternal acc _ amt _ ->

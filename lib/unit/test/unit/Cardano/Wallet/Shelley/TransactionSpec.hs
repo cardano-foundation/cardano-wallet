@@ -84,12 +84,14 @@ import Cardano.Wallet.Gen
     ( genMnemonic
     , genScript
     )
+import Cardano.Wallet.Primitive.Ledger.Convert
+    ( toLedgerCoin
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( toCardanoLovelace
-    , toCardanoTxIn
+    ( toCardanoTxIn
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( SNetworkId (..)
@@ -451,9 +453,9 @@ stakeAddressForKey net pubkey =
 withdrawalForKey
     :: SL.Network
     -> XPub
-    -> Cardano.Lovelace
+    -> L.Coin
     ->  ( Cardano.StakeAddress
-        , Cardano.Lovelace
+        , L.Coin
         , Cardano.BuildTxWith Cardano.BuildTx
             (Cardano.Witness Cardano.WitCtxStake era)
         )
@@ -501,7 +503,7 @@ prop_signTransaction_addsRewardAccountKey
 
             extraWdrls =
                 [ withdrawalForKey SL.Mainnet rewardAcctPubKey
-                    (toCardanoLovelace wdrlAmt)
+                    (toLedgerCoin wdrlAmt)
                 ]
 
             addWithdrawals
@@ -1163,7 +1165,7 @@ binaryCalculationsSpec' era = describe ("calculateBinary - "+||era||+"") $ do
           mkByronWitness' unsignedTx (_, (TxOut addr _)) =
               mkByronWitness unsignedTx net addr
           addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-          fee = toCardanoLovelace $ selectionDelta cs
+          fee = toLedgerCoin $ selectionDelta cs
           unsigned = either (error . show) id $
               mkUnsignedTx
                 (Nothing, slotNo) (Right cs) md mempty [] fee
@@ -1220,7 +1222,7 @@ makeShelleyTx _era testCase =
   where
     DecodeSetup utxo outs md slotNo pairs _netwk = testCase
     inps = Map.toList $ unUTxO utxo
-    fee = toCardanoLovelace $ selectionDelta cs
+    fee = toLedgerCoin $ selectionDelta cs
     unsigned = either (error . show) id $
         mkUnsignedTx (Nothing, slotNo) (Right cs) md mempty [] fee
             TokenMap.empty TokenMap.empty Map.empty Map.empty Nothing Nothing
@@ -1411,17 +1413,16 @@ mockTxConstraints =
         , Cardano.protocolParamExtraPraosEntropy = Nothing
         , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
         , Cardano.protocolParamMaxBlockBodySize = 100_000
-        , Cardano.protocolParamStakeAddressDeposit = Cardano.Lovelace 2_000_000
-        , Cardano.protocolParamStakePoolDeposit = Cardano.Lovelace 500_000_000
-        , Cardano.protocolParamMinPoolCost = Cardano.Lovelace 32_000_000
+        , Cardano.protocolParamStakeAddressDeposit = L.Coin 2_000_000
+        , Cardano.protocolParamStakePoolDeposit = L.Coin 500_000_000
+        , Cardano.protocolParamMinPoolCost = L.Coin 32_000_000
         , Cardano.protocolParamPoolRetireMaxEpoch = L.EpochInterval 2
         , Cardano.protocolParamStakePoolTargetNum = 100
         , Cardano.protocolParamPoolPledgeInfluence = 0
         , Cardano.protocolParamMonetaryExpansion = 0
         , Cardano.protocolParamTreasuryCut = 0
         , Cardano.protocolParamUTxOCostPerByte =
-            Just $ Cardano.fromShelleyLovelace $
-                Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
+            Just $ Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
         -- Note: since 'txConstraints' does not make use of cost models, here
         -- we use the simplest possible value, which is 'mempty'.
         , Cardano.protocolParamCostModels = mempty
