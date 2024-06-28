@@ -960,6 +960,8 @@ mkUnsignedTx
         Nothing
     , Cardano.txVotingProcedures =
         Nothing
+    , txCurrentTreasuryValue = Nothing
+    , txTreasuryDonation = Nothing
     }
   where
     era = Write.recentEra @era

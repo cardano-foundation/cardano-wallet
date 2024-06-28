@@ -6,6 +6,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -154,6 +155,7 @@ import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.Plutus.Language as Ledger
 import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley.API as Ledger
+import qualified Cardano.Ledger.Shelley.Scripts as Scripts
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -384,44 +386,55 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
 
 toWalletScript
-    :: LCore.Era crypto
+    :: forall era.
+        ( Scripts.AllegraEraScript era
+        , Ledger.NativeScript era ~ Scripts.Timelock era
+        )
     => (Hash "VerificationKey" -> KeyRole)
-    -> Scripts.Timelock crypto
+    -> Scripts.Timelock era
     -> Script KeyHash
-toWalletScript tokeyrole = fromLedgerScript
-  where
-    fromLedgerScript (Scripts.RequireSignature (Ledger.KeyHash h)) =
+toWalletScript tokeyrole = \case
+    Scripts.RequireSignature (Ledger.KeyHash h) ->
         let payload = hashToBytes h
         in RequireSignatureOf (KeyHash (tokeyrole (Hash payload)) payload)
-    fromLedgerScript (Scripts.RequireAllOf contents) =
-        RequireAllOf $ map fromLedgerScript $ toList contents
-    fromLedgerScript (Scripts.RequireAnyOf contents) =
-        RequireAnyOf $ map fromLedgerScript $ toList contents
-    fromLedgerScript (Scripts.RequireMOf num contents) =
-        RequireSomeOf (fromIntegral num) $ fromLedgerScript <$> toList contents
-    fromLedgerScript (Scripts.RequireTimeExpire (SlotNo slot)) =
+    Scripts.RequireAllOf contents ->
+        RequireAllOf $ map (toWalletScript tokeyrole) $ toList contents
+    Scripts.RequireAnyOf contents ->
+        RequireAnyOf $ map (toWalletScript tokeyrole) $ toList contents
+    Scripts.RequireMOf num contents ->
+        RequireSomeOf (fromIntegral num) $ (toWalletScript tokeyrole) <$> toList contents
+    Scripts.RequireTimeExpire (SlotNo slot) ->
         ActiveUntilSlot $ fromIntegral slot
-    fromLedgerScript (Scripts.RequireTimeStart (SlotNo slot)) =
+    Scripts.RequireTimeStart (SlotNo slot) ->
         ActiveFromSlot $ fromIntegral slot
 
 toWalletScriptFromShelley
-    :: LCore.Era crypto
+    :: forall era.
+        ( Scripts.ShelleyEraScript era
+        , Ledger.NativeScript era ~ Scripts.MultiSig era
+        )
     => KeyRole
-    -> Ledger.MultiSig crypto
+    -> Ledger.MultiSig era
     -> Script KeyHash
 toWalletScriptFromShelley keyrole = fromLedgerScript'
   where
-    fromLedgerScript' (Ledger.RequireSignature (Ledger.KeyHash h)) =
+    fromLedgerScript' :: Ledger.MultiSig era -> Script KeyHash
+
+    fromLedgerScript' (Scripts.RequireSignature (Ledger.KeyHash h)) =
         RequireSignatureOf (KeyHash keyrole (hashToBytes h))
-    fromLedgerScript' (Ledger.RequireAllOf contents) =
+    fromLedgerScript' (Scripts.RequireAllOf contents) =
         RequireAllOf $ map fromLedgerScript' $ toList contents
-    fromLedgerScript' (Ledger.RequireAnyOf contents) =
+    fromLedgerScript' (Scripts.RequireAnyOf contents) =
         RequireAnyOf $ map fromLedgerScript' $ toList contents
-    fromLedgerScript' (Ledger.RequireMOf num contents) =
+    fromLedgerScript' (Scripts.RequireMOf num contents) =
         RequireSomeOf (fromIntegral num) $ fromLedgerScript' <$> toList contents
+    fromLedgerScript' _ = error "impossible"
 
 toLedgerTimelockScript
-    :: LCore.Era era
+    :: forall era.
+        ( Scripts.AllegraEraScript era
+        , LCore.NativeScript era ~ Scripts.Timelock era
+        )
     => Script KeyHash
     -> Scripts.Timelock era
 toLedgerTimelockScript s = case s of

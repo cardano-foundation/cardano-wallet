@@ -24,11 +24,9 @@ module Internal.Cardano.Write.Tx.Redeemers
 
 import Prelude
 
-import Cardano.Ledger.Alonzo.Plutus.Context
-    ( EraPlutusContext (..)
-    )
 import Cardano.Ledger.Api
     ( AsItem (..)
+    , TransactionScriptFailure
     , Tx
     , bodyTxL
     , rdmrsTxWitsL
@@ -63,9 +61,6 @@ import Control.Monad.Trans.State.Strict
     , get
     , modify'
     , put
-    )
-import Data.Bifunctor
-    ( bimap
     )
 import Data.ByteString
     ( ByteString
@@ -120,16 +115,17 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 
 data ErrAssignRedeemers era
-    = ErrAssignRedeemersScriptFailure Redeemer String
+    = ErrAssignRedeemersScriptFailure Redeemer (TransactionScriptFailure era)
     | ErrAssignRedeemersTargetNotFound Redeemer
     -- ^ The given redeemer target couldn't be located in the transaction.
     | ErrAssignRedeemersInvalidData Redeemer String
     -- ^ Redeemer's data isn't a valid Plutus' data.
-    | ErrAssignRedeemersTranslationError (ContextError era)
     deriving (Generic)
 
-deriving instance Eq (ContextError era) => Eq (ErrAssignRedeemers era)
-deriving instance Show (ContextError era) => Show (ErrAssignRedeemers era)
+deriving instance Eq (TransactionScriptFailure era)
+    => Eq (ErrAssignRedeemers era)
+deriving instance Show (TransactionScriptFailure era)
+    => Show (ErrAssignRedeemers era)
 
 assignScriptRedeemers
     :: forall era. IsRecentEra era
@@ -142,8 +138,7 @@ assignScriptRedeemers
 assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     flip execStateT tx $ do
         indexedRedeemers <- StateT assignNullRedeemers
-        executionUnits <- get
-            >>= lift . evaluateExecutionUnits indexedRedeemers
+        executionUnits <- evaluateExecutionUnits indexedRedeemers <$> get
         modifyM (assignExecutionUnits executionUnits)
         modify' addScriptIntegrityHash
   where
@@ -192,22 +187,19 @@ assignScriptRedeemers pparams timeTranslation utxo redeemers tx = do
     evaluateExecutionUnits
         :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
         -> Tx era
-        -> Either (ErrAssignRedeemers era)
-            (Map (Alonzo.PlutusPurpose Alonzo.AsIx era)
+        -> (Map (Alonzo.PlutusPurpose Alonzo.AsIx era)
                 (Either (ErrAssignRedeemers era) Alonzo.ExUnits))
     evaluateExecutionUnits indexedRedeemers ledgerTx =
         Ledger.evalTxExUnits
             pparams ledgerTx utxo epochInformation systemStart
-        & bimap
-            ErrAssignRedeemersTranslationError (hoistScriptFailure indexedRedeemers)
+        & hoistScriptFailure indexedRedeemers
 
     hoistScriptFailure
-        :: Show scriptFailure
-        => Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
-        -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either scriptFailure a)
+        :: Map (Alonzo.PlutusPurpose Alonzo.AsIx era) Redeemer
+        -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either (TransactionScriptFailure era) a)
         -> Map (Alonzo.PlutusPurpose Alonzo.AsIx era) (Either (ErrAssignRedeemers era) a)
     hoistScriptFailure indexedRedeemers = Map.mapWithKey $ \ptr -> left $ \e ->
-        ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) (show e)
+        ErrAssignRedeemersScriptFailure (indexedRedeemers ! ptr) e
 
     -- | Change execution units for each redeemers in the transaction to what
     -- they ought to be.
