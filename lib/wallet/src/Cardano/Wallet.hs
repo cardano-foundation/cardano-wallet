@@ -2179,7 +2179,6 @@ balanceTx
     -> IO (Write.Tx era)
 balanceTx wrk pp timeTranslation partialTx = do
     (utxo, wallet, _txs) <- liftIO $ readWalletUTxO wrk
-    -- FIXME: Why are we not using the availableUTxO here?
     let utxoIndex =
             Write.constructUTxOIndex $
             Write.fromWalletUTxO utxo
