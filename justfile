@@ -133,12 +133,12 @@ integration-tests match:
     '.#integration-exe' \
     -c integration-exe -j 2 --match="{{match}}"
 
-#start a shell with 8.11 in scope
-node-811:
+#start a shell with 8.12.1 in scope
+node-8121:
   nix shell \
   --accept-flake-config \
-  'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
-  'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-cli'
+  'github:IntersectMBO/cardano-node?ref=8.12.1#cardano-node' \
+  'github:IntersectMBO/cardano-node?ref=8.12.1#cardano-cli'
 
 # start a shell with 8.9.4 in scope
 node-893:
@@ -162,8 +162,8 @@ conway-integration-tests-match match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs-sanchonet \
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-cli' \
+    'github:IntersectMBO/cardano-node?ref=8.12.1#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.12.1#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
