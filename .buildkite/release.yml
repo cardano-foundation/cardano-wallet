@@ -6,6 +6,9 @@ env:
   NIX_PATH: "channel:nixos-21.11"
   STATE_DIR: "/var/lib/buildkite-agent/cache"
 
+  linux: "x86_64-linux"
+  macos: "aarch64-darwin"
+
 steps:
   - label: Add release commits
     key: add-release-commits
@@ -36,3 +39,25 @@ steps:
       NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
     agents:
       system: x86_64-linux
+
+  - label: 'Build package (macOS, x86_64)'
+    key: macos-intel-package
+    depends_on:
+      - add-release-commits
+    command:
+      - ./scripts/buildkite/release/macos-intel-package.sh
+    artifact_paths:
+      - "./result/macos-intel/**"
+    agents:
+      system: ${macos}
+
+  - label: 'Build package (macOS, arm64)'
+    key: macos-silicon-package
+    depends_on:
+      - add-release-commits
+    command:
+      - ./scripts/buildkite/release/macos-silicon-package.sh
+    artifact_paths:
+      - "./result/macos-silicon/**"
+    agents:
+      system: ${macos}
