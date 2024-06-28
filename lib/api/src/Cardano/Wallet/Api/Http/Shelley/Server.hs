@@ -3225,7 +3225,8 @@ toMetadataEncrypted apiEncrypt payload saltM =
     encryptMessage :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
     encryptMessage = \case
         TxMetaMap pairs ->
-            TxMetaMap . concat <$> mapM encryptPairIfQualifies pairs
+            TxMetaMap . reverse . L.nub . reverse . concat <$>
+            mapM encryptPairIfQualifies pairs
         _ ->
             error "encryptMessage should have TxMetaMap value"
       where
