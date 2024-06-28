@@ -600,7 +600,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
     it "TRANS_NEW_CREATE_02d - \
-        \Attempt to encrypt multiple metadata messages" $
+        \Encrypt multiple metadata messages" $
         \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
             let toBeEncrypted1 =

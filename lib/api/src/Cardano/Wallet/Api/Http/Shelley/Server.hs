@@ -3195,14 +3195,13 @@ toMetadataEncrypted apiEncrypt payload saltM =
     secretKey, iv :: ByteString
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
-    -- `msg` is not embedded beyond the first level
-    parseMessage :: TxMetadataValue -> Maybe TxMetadataValue
+    -- `msg` is embedded at the first level
+    parseMessage :: TxMetadataValue -> Maybe [TxMetadataValue]
     parseMessage = \case
         TxMetaMap kvs ->
             case mapMaybe getValue kvs of
                 [ ] -> Nothing
-                [v] -> Just v
-                _vs -> error "only one 'msg' field expected"
+                vs -> Just vs
         _ ->
             Nothing
       where
