@@ -13,7 +13,7 @@ class CardanoCli
     if win?
       @socket_path = '\\\\.\\pipe\\cardano-node-testnet'
     else
-      @socket_path = File.join(@node_state, 'node.socket')
+      @socket_path = ENV.fetch('CARDANO_NODE_SOCKET_PATH')
       # Add additional permissions to node.socket if we're in e2e docker test suite,
       # so cardano-cli can work with cardano-node from the docker container
       cmd(%(sudo chmod a+rwx #{@socket_path})) if ENV['E2E_DOCKER_RUN'] == '1'

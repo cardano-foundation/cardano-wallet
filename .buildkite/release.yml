@@ -4,6 +4,7 @@ agents:
 env:
   LC_ALL: "C.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
+  STATE_DIR: "/var/lib/buildkite-agent/cache"
 
 steps:
   - label: Add release commits
@@ -22,3 +23,16 @@ steps:
     agents:
       system: ${linux}
 
+  - label: 'Run linux e2e tests'
+    depends_on:
+      - add-release-commits
+      - linux-package
+    commands: |
+      ./scripts/buildkite/release/linux-e2e.sh
+    artifact_paths:
+      - "./result/linux/**"
+      - "./logs/**/*"
+    env:
+      NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+    agents:
+      system: x86_64-linux
