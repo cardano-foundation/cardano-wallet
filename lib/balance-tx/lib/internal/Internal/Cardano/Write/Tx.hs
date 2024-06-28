@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
@@ -15,10 +14,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
-
-{-# OPTIONS_GHC -Wno-warnings-deprecations #-}
--- For 'Shelley.evaluateTransactionFee', see ADP-3334
--- https://cardanofoundation.atlassian.net/browse/ADP-3334
 
 -- |
 -- Copyright: © 2022 IOHK
@@ -149,7 +144,6 @@ module Internal.Cardano.Write.Tx
     , AssetName
 
     -- * Balancing
-    , evaluateMinimumFee
     , evaluateTransactionBalance
     )
     where
@@ -294,7 +288,6 @@ import qualified Cardano.Ledger.Credential as Core
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Value
 import qualified Cardano.Ledger.Plutus.Data as Alonzo
-import qualified Cardano.Ledger.Shelley.API.Wallet as Shelley
 import qualified Cardano.Ledger.Shelley.UTxO as Shelley
 import qualified Cardano.Ledger.TxIn as Ledger
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
@@ -782,8 +775,6 @@ toCardanoApiUTxO =
     . Map.mapKeys CardanoApi.fromShelleyTxIn
     . Map.map (CardanoApi.fromShelleyTxOut (shelleyBasedEra @era))
     . unUTxO
-  where
-    unUTxO (Shelley.UTxO m) = m
 
 fromCardanoApiUTxO
     :: forall era. IsRecentEra era
@@ -867,38 +858,6 @@ stakeKeyDeposit pp = pp ^. Core.ppKeyDepositL
 --------------------------------------------------------------------------------
 -- Balancing
 --------------------------------------------------------------------------------
-
--- | Computes the minimal fee amount necessary to pay for a given transaction.
---
-evaluateMinimumFee
-    :: IsRecentEra era
-    => PParams era
-    -> Core.Tx era
-    -> KeyWitnessCounts
-    -> Coin
-evaluateMinimumFee pp tx kwc =
-    mainFee <> bootWitnessFee
-  where
-    KeyWitnessCounts {nKeyWits, nBootstrapWits} = kwc
-
-    mainFee :: Coin
-    mainFee = Shelley.evaluateTransactionFee pp tx nKeyWits
-    -- TODO [ADP-3334] Stop using deprecated ledger function
-    -- https://cardanofoundation.atlassian.net/browse/ADP-3334
-
-    FeePerByte feePerByte = getFeePerByte pp
-
-    bootWitnessFee :: Coin
-    bootWitnessFee = Coin $ intCast $ feePerByte * byteCount
-      where
-        byteCount :: Natural
-        byteCount = sizeOf_BootstrapWitnesses $ intCast nBootstrapWits
-
-        -- Matching implementation in "Cardano.Wallet.Shelley.Transaction".
-        -- Equivalence is tested in property.
-        sizeOf_BootstrapWitnesses :: Natural -> Natural
-        sizeOf_BootstrapWitnesses 0 = 0
-        sizeOf_BootstrapWitnesses n = 4 + 180 * n
 
 -- | Evaluate the /balance/ of a transaction using the ledger.
 --

@@ -198,7 +198,6 @@ import Internal.Cardano.Write.Tx
     , UTxO (..)
     , Value
     , computeMinimumCoinForTxOut
-    , evaluateMinimumFee
     , evaluateTransactionBalance
     , feeOfBytes
     , getFeePerByte
@@ -236,6 +235,7 @@ import Internal.Cardano.Write.Tx.Redeemers
 import Internal.Cardano.Write.Tx.Sign
     ( TimelockKeyWitnessCounts (..)
     , estimateKeyWitnessCounts
+    , estimateSignedTxMinFee
     , estimateSignedTxSize
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
@@ -866,7 +866,8 @@ balanceTxInner
                     utxoReference
                     tx
                     timelockKeyWitnessCounts
-            minfee = Convert.toWalletCoin $ evaluateMinimumFee pp tx witCount
+            minfee = Convert.toWalletCoin
+                $ estimateSignedTxMinFee pp utxoReference tx witCount
             update = TxUpdate
                 { extraInputs = mempty
                 , extraCollateral = mempty
