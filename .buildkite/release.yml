@@ -5,6 +5,7 @@ env:
   LC_ALL: "C.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
   STATE_DIR: "/var/lib/buildkite-agent/cache"
+  STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
 
   linux: "x86_64-linux"
   macos: "aarch64-darwin"
@@ -27,6 +28,7 @@ steps:
       system: ${linux}
 
   - label: 'Run linux e2e tests'
+    key: linux-e2e
     depends_on:
       - add-release-commits
       - linux-package
@@ -59,5 +61,19 @@ steps:
       - ./scripts/buildkite/release/macos-silicon-package.sh
     artifact_paths:
       - "./result/macos-silicon/**"
+    agents:
+      system: ${macos}
+
+  - label: 'Run E2E tests (macOS, arm64)'
+    key: macos-silicon-e2e
+    depends_on:
+      - add-release-commits
+      - macos-silicon-package
+    command:
+      - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/release/macos-silicon-e2e.sh
+    artifact_paths:
+      - "./logs/**/*"
+    env:
+      NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
     agents:
       system: ${macos}

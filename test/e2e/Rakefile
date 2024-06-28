@@ -197,6 +197,9 @@ task :start_node_and_wallet, [:env] do |_task, args|
         --socket-path #{NODE_SOCKET_PATH}
     CMD
     log ">> Starting cardano-node with command: #{start_node}"
+    # wait a couple of seconds for the node to provide a socket file, at least
+    sleep 5.0
+
     start_wallet = <<~CMD
       #{bin_dir}cardano-wallet serve #{network} \
         --port #{WALLET_PORT} \
