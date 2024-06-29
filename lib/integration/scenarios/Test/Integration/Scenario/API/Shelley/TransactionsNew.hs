@@ -599,6 +599,80 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
+    it "TRANS_NEW_CREATE_02d - \
+        \Encrypt multiple metadata messages" $
+        \ctx -> runResourceT $ do
+            wa <- fixtureWallet ctx
+            let toBeEncrypted1 =
+                    TxMetaList [TxMetaText "Extremely secret message #1."]
+            let toBeEncrypted2 =
+                    TxMetaList [TxMetaText "Extremely secret message #2."]
+            let metadataToBeEncrypted =
+                    TxMetadataWithSchema TxMetadataDetailedSchema $
+                    TxMetadata $
+                    Map.fromList
+                        [ (674, TxMetaMap
+                            [ (TxMetaText "msg", toBeEncrypted1)
+                            , (TxMetaText "msg", toBeEncrypted2)
+                            ]
+                          )
+                        ]
+            let pwdApiT = ApiT $ Passphrase "metadata-secret"
+            let encryptMetadata = ApiEncryptMetadata pwdApiT Nothing
+            let payload = Json [json|{
+                    "encrypt_metadata": #{toJSON encryptMetadata},
+                    "metadata": #{toJSON metadataToBeEncrypted}
+                }|]
+            rTx <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley wa) Default payload
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+            let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
+            signedTx <- signTx ctx wa apiTx [ expectResponseCode HTTP.status202 ]
+            let era = ApiEra.toAnyCardanoEra $ _mainEra ctx
+            let tx = cardanoTxIdeallyNoLaterThan era $
+                    getApiT (signedTx ^. #serialisedTxSealed)
+
+            let extractTxt (Cardano.TxMetaText txt) = txt
+                extractTxt _ =
+                    error "extractTxt is expected"
+            let encryptedMsg = case getMetadataFromTx tx of
+                    Nothing -> error "Tx doesn't include metadata"
+                    Just m  -> case Map.lookup 674 m of
+                        Nothing -> error "Tx doesn't include metadata"
+                        Just (Cardano.TxMetaMap
+                              [ (TxMetaText "msg",TxMetaList chunks1)
+                              , (TxMetaText "msg",TxMetaList chunks2)
+                              , (TxMetaText "enc",TxMetaText "basic")
+                              ]) -> ( foldl T.append T.empty $ extractTxt <$> chunks1
+                                    , foldl T.append T.empty $ extractTxt <$> chunks2 )
+                        Just _ -> error "Tx metadata incorrect"
+
+            -- we retriev salt from the encypted msg, then encrypt the value in
+            -- `msg` field and compare
+            let (Just salt1) = getSaltFromEncrypted $ unsafeFromBase64 $ fst encryptedMsg
+            let (Just salt2) = getSaltFromEncrypted $ unsafeFromBase64 $ snd encryptedMsg
+
+            let pwd = BA.convert $ unPassphrase $ getApiT pwdApiT
+            let (key1, iv1) = generateKey metadataPBKDF2Config pwd (Just salt1)
+            let (key2, iv2) = generateKey metadataPBKDF2Config pwd (Just salt2)
+
+            let (Right encryptedMsgRaw1) = encrypt WithPadding key1 iv1 (Just salt1) $
+                    BL.toStrict $ Aeson.encode $ Cardano.metadataValueToJsonNoSchema
+                    toBeEncrypted1
+            let (Right encryptedMsgRaw2) = encrypt WithPadding key2 iv2 (Just salt2) $
+                    BL.toStrict $ Aeson.encode $ Cardano.metadataValueToJsonNoSchema
+                    toBeEncrypted2
+
+            encryptedMsg `shouldBe` (toBase64 encryptedMsgRaw1, toBase64 encryptedMsgRaw2)
+
+            submittedTx <- submitTxWithWid ctx wa signedTx
+            verify submittedTx
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+
     it "TRANS_NEW_CREATE_03a - Withdrawal from self, 0 rewards" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
         let initialBalance = wa ^. #balance . #available . #toNatural
