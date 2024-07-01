@@ -31,9 +31,8 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.Types.Block
     ( BlockHeader (..)
-    , ChainPoint (..)
     , chainPointFromBlockHeader
-    , compareSlot
+    , fromWalletChainPoint
     )
 import Cardano.Wallet.Primitive.Types.BlockSummary
     ( BlockSummary (..)
@@ -69,6 +68,7 @@ import GHC.Generics
     ( Generic
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -86,10 +86,10 @@ data LightSyncSource m block addr txs = LightSyncSource
         -- ^ Get the 'BlockHeader' at a given block height.
     , getNextBlockHeader :: BlockHeader -> m (Consensual (Maybe BlockHeader))
         -- ^ Get the next block header.
-    , getBlockHeaderAt :: ChainPoint -> m (Consensual BlockHeader)
+    , getBlockHeaderAt :: Read.ChainPoint -> m (Consensual BlockHeader)
         -- ^ Get the full 'BlockHeader' belonging to a given 'ChainPoint'.
         -- Return 'Nothing' if the point is not consensus anymore.
-    , getNextBlocks :: ChainPoint -> m (Consensual [block])
+    , getNextBlocks :: Read.ChainPoint -> m (Consensual [block])
         -- ^ Get several blocks immediately following the given 'Chainpoint'.
     , getAddressTxs :: BlockHeader -> BlockHeader -> addr -> m txs
         -- ^ Transactions for a given address and point range.
@@ -113,15 +113,28 @@ type LightBlocks m block addr txs =
     Either (NonEmpty block) (BlockSummary m addr txs)
 
 -- | Retrieve the 'ChainPoint' with the highest 'Slot'.
-latest :: [ChainPoint] -> ChainPoint
-latest [] = ChainPointAtGenesis
+latest :: [Read.ChainPoint] -> Read.ChainPoint
+latest [] = Read.GenesisPoint
 latest xs = maximumBy compareSlot xs
 
 -- | Retrieve the 'ChainPoint' with the second-highest 'Slot'.
-secondLatest :: [ChainPoint] -> ChainPoint
-secondLatest []  = ChainPointAtGenesis
-secondLatest [_] = ChainPointAtGenesis
+secondLatest :: [Read.ChainPoint] -> Read.ChainPoint
+secondLatest []  = Read.GenesisPoint
+secondLatest [_] = Read.GenesisPoint
 secondLatest xs  = head . tail $ sortBy (flip compareSlot) xs
+
+-- | Compare the slot numbers of two 'Read.ChainPoint's,
+-- but where the 'Read.GenesisPoint' comes before all other slot numbers.
+compareSlot :: Read.ChainPoint -> Read.ChainPoint -> Ordering
+compareSlot pt1 pt2 = compare (toOrdered pt1) (toOrdered pt2)
+  where
+    toOrdered :: Read.ChainPoint -> Integer
+    toOrdered Read.GenesisPoint = -1
+    toOrdered (Read.BlockPoint (Read.SlotNo nat) _) = toInteger nat
+
+-- | Convert a 'BlockHeader' into a 'Read.ChainPoint'.
+chainPointFromBlockHeader' :: BlockHeader -> Read.ChainPoint
+chainPointFromBlockHeader' = fromWalletChainPoint . chainPointFromBlockHeader
 
 -- | Drive a 'ChainFollower' using a 'LightSyncSource'.
 -- Never returns.
@@ -129,7 +142,10 @@ lightSync
     :: MonadDelay m
     => Tracer m LightLayerLog
     -> LightSyncSource m block addr txs
-    -> ChainFollower m ChainPoint BlockHeader (LightBlocks m block addr txs)
+    -> ChainFollower m
+        Read.ChainPoint
+        BlockHeader
+        (LightBlocks m block addr txs)
     -> m Void
 lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
   where
@@ -147,10 +163,10 @@ lightSync tr light follower = readChainPoints follower >>= syncFrom . latest
                 traceWith tr $ MsgLightRollForward chainPoint old new tip
                 rollForward follower (Right $ mkBlockSummary light old new) tip
                 traceWith tr $ MsgLightRolledForward new
-                pure $ chainPointFromBlockHeader new
+                pure $ chainPointFromBlockHeader' new
             WaitForANewTip tip -> do
                 threadDelay 2 -- seconds
-                $> chainPointFromBlockHeader tip
+                $> chainPointFromBlockHeader' tip
 
 data NextPointMove block
     = RollForward
@@ -191,7 +207,7 @@ consensually k ca =
 proceedToNextPoint
     :: Monad m
     => LightSyncSource m block addr txs
-    -> ChainPoint
+    -> Read.ChainPoint
     -> m (NextPointMove block)
 proceedToNextPoint LightSyncSource{..} chainPoint =
     getBlockHeaderAt chainPoint >>= consensually \currentBlock ->
@@ -236,10 +252,10 @@ mkBlockSummary light old new = BlockSummary
 -------------------------------------------------------------------------------}
 data LightLayerLog
     = MsgLightRollForward
-        ChainPoint BlockHeader BlockHeader BlockHeader
+        Read.ChainPoint BlockHeader BlockHeader BlockHeader
     | MsgLightRolledForward BlockHeader
     | MsgLightRollBackward
-        ChainPoint ChainPoint
+        Read.ChainPoint Read.ChainPoint
     deriving (Show, Eq, Generic)
 
 instance ToText LightLayerLog where
@@ -247,7 +263,7 @@ instance ToText LightLayerLog where
         MsgLightRollForward cp_ from_ to_ tip ->
             T.unwords
                 [ "LightLayer started rolling forward:"
-                , "chain_point: ", pretty cp_
+                , "chain_point: ", Read.prettyChainPoint cp_
                 , "from: ", pretty from_
                 , "to: ", pretty to_
                 , "tip: ", pretty tip
@@ -260,8 +276,8 @@ instance ToText LightLayerLog where
         MsgLightRollBackward from_ to_ ->
             T.unwords
                 [ "LightLayer roll backward:"
-                , "from: ", pretty from_
-                , "to: ", pretty to_
+                , "from: ", Read.prettyChainPoint from_
+                , "to: ", Read.prettyChainPoint to_
                 ]
 
 instance HasPrivacyAnnotation LightLayerLog
