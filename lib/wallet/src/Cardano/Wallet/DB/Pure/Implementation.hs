@@ -16,6 +16,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
