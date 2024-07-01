@@ -8,6 +8,7 @@ NETWORK=preprod
 export NETWORK
 
 TESTS_NODE_DB="$(pwd)/state/node_db"
+
 mkdir -p "$TESTS_NODE_DB"
 export TESTS_NODE_DB
 
@@ -38,6 +39,14 @@ tmpfile=$(mktemp -d /tmp/node-preprod.XXXXXX)
 NODE_SOCKET_DIR="$tmpfile"
 export NODE_SOCKET_DIR
 
+NODE_SOCKET_NAME="node.socket"
+export NODE_SOCKET_NAME
+
+COMPOSE_PROJECT_NAME="docker-smoke-test-$WALLET_PORT"
+export COMPOSE_PROJECT_NAME
+
+docker compose down || true
+
 docker-compose up -d
 
 n=0
@@ -50,10 +59,10 @@ do
             echo "$result" | jq
             break
         else
-            sleep 1
+            sleep 4
             n=$((n+1))
     fi
-    if [ "$n" -ge 20 ]
+    if [ "$n" -ge 30 ]
         then break
     fi
 done
@@ -64,3 +73,9 @@ docker-compose logs > logs/docker-compose.log
 docker-compose down
 
 rm -rf "$tmpfile"
+
+if [ "$result" == "wait" ];
+    then
+    echo "Failed to start the wallet server"
+    exit 1
+fi

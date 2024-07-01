@@ -21,25 +21,26 @@ steps:
   - group: "Linux E2E"
     key: "linux-e2e"
     steps:
-      - block: 'Linux build and test'
-        depends_on: add-release-commits
-        key: linux-block
-        if: build.branch != "master"
 
       - label: 'Build package (linux)'
         key: linux-package
         depends_on:
           - add-release-commits
-          - linux-block
         command:
           - ./scripts/buildkite/release/linux-package.sh
         artifact_paths: [ "./result/linux/**" ]
         agents:
           system: x86_64-linux
 
+      - block: 'Linux build and test'
+        depends_on: add-release-commits
+        key: linux-block
+        if: build.branch != "master"
+
       - label: 'Run linux e2e tests'
         depends_on:
           - linux-package
+          - linux-block
         commands: |
           ./scripts/buildkite/release/linux-e2e.sh
         artifact_paths:
@@ -50,27 +51,27 @@ steps:
         agents:
           system: x86_64-linux
 
-  - group: "Docker E2E"
+  - group: "Docker"
     key: "docker-e2e"
     steps:
-      - block: 'Docker build and test'
-        depends_on: add-release-commits
-        key: docker-block
-        if: build.branch != "master"
-
       - label: 'Build Docker Image'
         key: build-docker
         depends_on:
           - add-release-commits
-          - docker-block
         commands:
           ./scripts/buildkite/release/docker-build.sh
         agents:
           system: x86_64-linux
 
+      - block: 'Docker build and test'
+        depends_on: add-release-commits
+        key: docker-block
+        if: build.branch != "master"
+
       - label: 'Smoke test docker-compose'
         depends_on:
           - build-docker
+          - docker-block
         timeout_in_minutes: 2
         commands:
           - ./scripts/buildkite/release/docker-smoke-test.sh
@@ -81,19 +82,28 @@ steps:
         agents:
           system: x86_64-linux
 
+      - label: 'Run docker e2e suite'
+        depends_on:
+          - build-docker
+          - linux-package
+          - docker-block
+        timeout_in_minutes: 180
+        commands:
+          - ./scripts/buildkite/release/docker-e2e.sh
+        artifact_paths:
+          - "./logs/*"
+        env:
+          NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        agents:
+          system: x86_64-linux
+
   - group: "MacOS E2E"
     key: "macos-e2e"
     steps:
-      - block: 'MacOS build and test'
-        depends_on: add-release-commits
-        key: macos-block
-        if: build.branch != "master"
-
       - label: 'Build package (macOS, x86_64)'
         key: macos-intel-package
         depends_on:
           - add-release-commits
-          - macos-block
         command:
           - ./scripts/buildkite/release/macos-intel-package.sh
         artifact_paths:
@@ -105,7 +115,6 @@ steps:
         key: macos-silicon-package
         depends_on:
           - add-release-commits
-          - macos-block
         command:
           - ./scripts/buildkite/release/macos-silicon-package.sh
         artifact_paths:
@@ -113,11 +122,17 @@ steps:
         agents:
           system: ${macos}
 
+      - block: 'MacOS build and test'
+        depends_on: add-release-commits
+        key: macos-block
+        if: build.branch != "master"
+
       - label: 'Run E2E tests (macOS, arm64)'
         key: macos-silicon-e2e
         depends_on:
           - add-release-commits
           - macos-silicon-package
+          - macos-block
         command:
           - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/release/macos-silicon-e2e.sh
         artifact_paths:
