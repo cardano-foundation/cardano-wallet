@@ -50,7 +50,7 @@ steps:
         agents:
           system: x86_64-linux
 
-  - group: "Docker E2E"
+  - group: "Docker"
     key: "docker-e2e"
     steps:
       - block: 'Docker build and test'
@@ -74,6 +74,19 @@ steps:
         timeout_in_minutes: 2
         commands:
           - ./scripts/buildkite/release/docker-smoke-test.sh
+        artifact_paths:
+          - "./logs/*"
+        env:
+          NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        agents:
+          system: x86_64-linux
+
+      - label: 'Run docker e2e suite'
+        depends_on:
+          - build-docker
+        timeout_in_minutes: 180
+        commands:
+          - ./scripts/buildkite/release/docker-e2e.sh
         artifact_paths:
           - "./logs/*"
         env:

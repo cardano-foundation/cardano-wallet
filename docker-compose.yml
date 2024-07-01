@@ -1,11 +1,12 @@
-version: "3.5"
+
 
 services:
   cardano-node:
+    container_name: cardano-node-on-${WALLET_PORT:-8090}
     image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     environment:
-      NETWORK:
-      CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME}
+      CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME:-node.socket}
+      NETWORK: ${NETWORK:-preprod}
     volumes:
       - ${NODE_DB}:/data
       - ${NODE_SOCKET_DIR}:/ipc
@@ -22,10 +23,12 @@ services:
     command: >
       cardano-node run --topology /configs/${NETWORK}/topology.json
         --database-path /data
-        --socket-path /ipc/node.socket
+        --socket-path ${CARDANO_NODE_SOCKET_PATH}
         --config /configs/${NETWORK}/config.json
+        +RTS -N3
 
   cardano-wallet:
+    container_name: cardano-wallet-on-${WALLET_PORT}
     image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     volumes:
       - ${WALLET_DB}:/wallet-db
@@ -34,13 +37,19 @@ services:
     ports:
       - ${WALLET_PORT}:8090
     entrypoint: []
-    command: bash -c "
-        ([[ $$NETWORK == \"mainnet\" ]] && $$CMD --mainnet) ||
-        ($$CMD --testnet /configs/${NETWORK}/byron-genesis.json)
-      "
+    command: |
+      NETWORK_OPTION=$([[ $$NETWORK == \"mainnet\" ]] && echo --mainnet \
+        || echo --testnet /configs/${NETWORK}/byron-genesis.json)
+      cardano-wallet serve \
+        --node-socket ${CARDANO_NODE_SOCKET_PATH} \
+        --database /wallet-db \
+        --listen-address 0.0.0.0 \
+        $$NETWORK_OPTION \
+        +RTS -N3
     environment:
-      CMD: "cardano-wallet serve --node-socket /ipc/${NODE_SOCKET_NAME} --database /wallet-db --listen-address 0.0.0.0"
-      NETWORK:
+      WALLET_PORT: ${WALLET_PORT:-8090}
+      CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME:-node.socket}
+      NETWORK: ${NETWORK:-preprod}
     user: ${USER_ID}
     restart: on-failure
     logging:
@@ -51,8 +60,8 @@ services:
         max-size: "50m"
   icarus:
     image: piotrstachyra/icarus:v2023-04-14
+    container_name: icarus-on-${WALLET_PORT}
     network_mode: "host"
     restart: on-failure
-
-volumes:
-  node-ipc:
+    environment:
+      WALLET_PORT: ${WALLET_PORT:-8090}
