@@ -5,10 +5,10 @@ services:
     image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     environment:
       NETWORK:
-      CARDANO_NODE_SOCKET_PATH: /ipc/node.socket
+      CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME}
     volumes:
       - ${NODE_DB}:/data
-      - node-ipc:/ipc
+      - ${NODE_SOCKET_DIR}:/ipc
       - ./configs/cardano:/configs
     restart: on-failure
     user: ${USER_ID}
@@ -29,7 +29,7 @@ services:
     image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     volumes:
       - ${WALLET_DB}:/wallet-db
-      - node-ipc:/ipc
+      - ${NODE_SOCKET_DIR}:/ipc
       - ./configs/cardano:/configs
     ports:
       - ${WALLET_PORT}:8090
@@ -39,7 +39,7 @@ services:
         ($$CMD --testnet /configs/${NETWORK}/byron-genesis.json)
       "
     environment:
-      CMD: "cardano-wallet serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
+      CMD: "cardano-wallet serve --node-socket /ipc/${NODE_SOCKET_NAME} --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
     user: ${USER_ID}
     restart: on-failure
