@@ -92,6 +92,11 @@ export WALLET_PORT=8090
 # set your user id
 export USER_ID=$(id -u)
 
+# set a node socket dir path
+export NODE_SOCKET_DIR=`pwd`/node_socket
+
+# set a node socket name
+export NODE_SOCKET_NAME=node.socket
 
 if [ "$(ls -A "${NODE_DB}")" ]
 then

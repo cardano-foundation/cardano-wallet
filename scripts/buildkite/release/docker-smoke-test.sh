@@ -32,6 +32,12 @@ export WALLET_PORT
 USER_ID=$(id -u)
 export USER_ID
 
+tmpfile=$(mktemp -d /tmp/node-preprod.XXXXXX)
+
+# set the node socket path
+NODE_SOCKET_DIR="$tmpfile"
+export NODE_SOCKET_DIR
+
 docker-compose up -d
 
 n=0
@@ -52,6 +58,9 @@ do
     fi
 done
 
+
 mkdir -p logs
 docker-compose logs > logs/docker-compose.log
 docker-compose down
+
+rm -rf "$tmpfile"
