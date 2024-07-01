@@ -89,6 +89,9 @@ export WALLET_TAG=2024.5.5
 # set a port for the wallet server
 export WALLET_PORT=8090
 
+# set your user id
+export USER_ID=$(id -u)
+
 
 if [ "$(ls -A "${NODE_DB}")" ]
 then

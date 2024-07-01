@@ -11,6 +11,7 @@ services:
       - node-ipc:/ipc
       - ./configs/cardano:/configs
     restart: on-failure
+    user: ${USER_ID}
     logging:
       driver: "json-file"
       options:
@@ -40,6 +41,7 @@ services:
     environment:
       CMD: "cardano-wallet serve --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0"
       NETWORK:
+    user: ${USER_ID}
     restart: on-failure
     logging:
       driver: "json-file"
