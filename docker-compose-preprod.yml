@@ -1,0 +1,56 @@
+
+
+
+services:
+
+
+
+  cardano-node:
+    container_name: cardano-node-on-${WALLET_PORT:-8090}
+    image: ghcr.io/intersectmbo/cardano-node:8.9.3
+    command: >
+      cardano-node run --topology /configs/preprod/topology.json
+        --database-path /data
+        --socket-path /ipc/${NODE_SOCKET_NAME:-node.socket}
+        --config /configs/preprod/config.json
+        +RTS -N3
+
+    volumes:
+      - ${NODE_DB}:/data
+      - ${NODE_SOCKET_DIR}:/ipc
+      - ./configs/cardano:/configs
+    restart: on-failure
+    user: ${USER_ID}
+    entrypoint: []
+
+  cardano-wallet:
+    container_name: cardano-wallet-on-${WALLET_PORT}
+    image: cardanofoundation/cardano-wallet:${WALLET_TAG}
+    volumes:
+      - ${WALLET_DB}:/wallet-db
+      - ${NODE_SOCKET_DIR}:/ipc
+      - ./configs/cardano:/configs
+    ports:
+      - ${WALLET_PORT}:8090
+    command: >
+      cardano-wallet serve
+        --node-socket /ipc/${NODE_SOCKET_NAME:-node.socket}
+        --database /wallet-db
+        --listen-address 0.0.0.0
+        --testnet /configs/preprod/byron-genesis.json
+        +RTS -N3
+    entrypoint: []
+    user: ${USER_ID}
+    restart: on-failure
+
+    environment:
+      WALLET_PORT: ${WALLET_PORT:-8090}
+
+  icarus:
+    image: piotrstachyra/icarus:v2023-04-14
+    container_name: icarus-on-${WALLET_PORT}
+    restart: on-failure
+    ports:
+      - 4444:4444
+    environment:
+      WALLET_PORT: ${WALLET_PORT:-8090}

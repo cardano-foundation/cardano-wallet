@@ -114,17 +114,75 @@ else
         mv $NODE_DB/db/* $NODE_DB/
         rm -rf $NODE_DB/db
     elif [ $NETWORK == "sanchonet" ]
-    then echo "no cache for sancho";
+    then
+        echo "no cache for sancho";
+        docker compose -f docker-compose-sanchonet.yml up -d
     else
         echo "NETWORK must be mainnet or preprod or sanchonet"
         exit 1
     fi
 fi
-
-# start the services
-docker-compose up
+if [ $NETWORK == "mainnet" ]
+    then
+        docker compose -f docker-compose-mainnet.yml up -d
+    elif [ $NETWORK == "preprod" ]
+    then
+        docker compose -f docker-compose-preprod.yml up -d
+    elif [ $NETWORK == "sanchonet" ]
+    then
+        docker compose -f docker-compose-sanchonet.yml up -d
+    else
+        echo "NETWORK must be mainnet or preprod or sanchonet"
+        exit 1
+    fi
 ```
 
+and a stop.sh with
+
+```bash
+#! /bin/bash
+
+set -euo pipefail
+
+# set the network, mainnet or preprod or sanchonet
+export NETWORK=preprod
+
+# set a directory for the node-db
+export NODE_DB=`pwd`/node-db
+# set a directory for the wallet-db
+export WALLET_DB=`pwd`/wallet-db
+
+# set the node tag and wallet tag to compatible versions
+export NODE_TAG=8.9.3
+export WALLET_TAG=2024.5.5
+
+# set a port for the wallet server
+export WALLET_PORT=8090
+
+# set your user id
+export USER_ID=$(id -u)
+
+# set a node socket dir path
+export NODE_SOCKET_DIR=`pwd`/node_socket
+
+# set a node socket name
+export NODE_SOCKET_NAME=node.socket
+
+if [ $NETWORK == "mainnet" ]
+    then
+        docker compose -f docker-compose-mainnet.yml down
+    elif [ $NETWORK == "preprod" ]
+    then
+        docker compose -f docker-compose-preprod.yml down
+    elif [ $NETWORK == "sanchonet" ]
+    then
+        docker compose -f docker-compose-sanchonet.yml down
+    else
+        echo "NETWORK must be mainnet or preprod or sanchonet"
+        exit 1
+    fi
+
+```
 
 
 Fantastic! server is up-and-running, waiting for HTTP requests on `localhost:8090`

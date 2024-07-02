@@ -1,0 +1,34 @@
+
+
+
+services:
+  cardano-node:
+    extends:
+      file: docker-compose-common.yml
+      service: cardano-node
+    image: ghcr.io/intersectmbo/cardano-node:8.9.3
+    command: >
+      cardano-node run --topology /configs/mainnet/topology.json
+        --database-path /data
+        --socket-path /ipc/${NODE_SOCKET_NAME:-node.socket}
+        --config /configs/mainnet/config.json
+        +RTS -N3
+
+  cardano-wallet:
+
+    extends:
+      file: docker-compose-common.yml
+      service: cardano-wallet
+
+    command: >
+      cardano-wallet serve
+        --node-socket /ipc/${NODE_SOCKET_NAME:-node.socket}
+        --database /wallet-db
+        --listen-address 0.0.0.0
+        --mainnet
+        +RTS -N3
+
+  icarus:
+    extends:
+      file: docker-compose-common.yml
+      service: icarus
