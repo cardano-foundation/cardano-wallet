@@ -1,0 +1,81 @@
+cabal-version:      3.6
+build-type:         Simple
+name:               delta-chain
+version:            0.2024.5.5
+synopsis:           Example for storing a chain in a database, using delta types.
+description:        Please see README.md
+homepage:           https://github.com/cardano-foundation/cardano-wallet
+license:            Apache-2.0
+author:             Cardano Foundation (High Assurance Lab)
+maintainer:         hal@cardanofoundation.org
+copyright:          2023-2024 Cardano Foundation
+category:           Database
+
+extra-source-files:
+    README.md
+
+common language
+  default-language:
+    Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options:
+    -Wall -Wcompat
+    -Wredundant-constraints
+    -Wincomplete-uni-patterns -Wincomplete-record-updates
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-exe
+  import:      opts-lib
+  ghc-options: -threaded -rtsopts
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  src
+  build-depends:
+      base
+    , conduit
+    , containers
+    , delta-store
+    , delta-types
+    , exceptions
+    , generic-lens
+    , io-classes
+    , monad-logger
+    , persistent
+    , persistent-sqlite
+    , say
+    , semigroupoids
+    , stm
+    , text
+    , transformers
+  hs-source-dirs:
+      src
+  exposed-modules:
+      Data.Chain
+      Data.Table
+      Database.Persist.Delta
+      Database.Schema
+  other-modules:
+      Demo.Database
+
+test-suite unit
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            Main.hs
+  build-tool-depends:
+      hspec-discover:hspec-discover
+  build-depends:
+      base
+    , hspec

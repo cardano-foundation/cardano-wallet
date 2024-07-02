@@ -53,6 +53,7 @@ unit-tests-cabal-match match:
     cardano-wallet-secrets:test \
     cardano-wallet-test-utils:unit \
     cardano-wallet-unit:unit \
+    delta-chain:unit \
     delta-store:unit \
     delta-table:unit \
     delta-types:unit \
