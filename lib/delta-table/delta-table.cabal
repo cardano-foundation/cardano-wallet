@@ -44,23 +44,25 @@ library
   hs-source-dirs:  src
   build-depends:
       base
+    , bytestring
     , containers
     , delta-store
     , delta-types
     , exceptions
-    , generic-lens
-    , io-classes
-    , monad-logger
-    , persistent
-    , stm
+    , Only == 0.1
+    , sqlite-simple
     , text
     , transformers
   hs-source-dirs:
       src
   exposed-modules:
       Data.Table
+      Database.Table
+      Demo.Database
   other-modules:
-      Demo.TableOld
+      Database.Table.Schema
+      Database.Table.SQL.Column
+      Database.Table.SQL.Table
 
 test-suite unit
   import:             language, opts-exe
