@@ -51,9 +51,10 @@ export NODE_SOCKET_NAME
 COMPOSE_PROJECT_NAME="e2e-tests-$WALLET_PORT"
 export COMPOSE_PROJECT_NAME
 
-docker-compose down || true
+dc="docker compose -f docker-compose-preprod.yml"
 
-docker-compose up -d
+${dc} down || true
+${dc} up -d
 
 mkdir -p "$(pwd)/logs"
 
@@ -87,6 +88,6 @@ nix develop -c rake wait_until_node_synced
 nix develop -c rake secrets_decode
 nix develop -c rake spec
 
-docker-compose down
+${dc} down
 
 rm -rf "$NODE_SOCKET_DIR"
