@@ -12,7 +12,6 @@ CARDANO_NODE_CONFIGS="$(pwd)/configs/cardano"
 export CARDANO_NODE_CONFIGS
 
 VERSION=$(buildkite-agent meta-data get "release-version")
-echo "VERSION=$VERSION"
 
 buildkite-agent artifact \
     download "result/linux/cardano-wallet-$VERSION-linux64.tar.gz" "."

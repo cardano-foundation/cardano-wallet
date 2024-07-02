@@ -89,6 +89,14 @@ export WALLET_TAG=2024.5.5
 # set a port for the wallet server
 export WALLET_PORT=8090
 
+# set your user id
+export USER_ID=$(id -u)
+
+# set a node socket dir path
+export NODE_SOCKET_DIR=`pwd`/node_socket
+
+# set a node socket name
+export NODE_SOCKET_NAME=node.socket
 
 if [ "$(ls -A "${NODE_DB}")" ]
 then
@@ -100,11 +108,13 @@ else
         curl -o - https://downloads.csnapshots.io/mainnet/$(curl -s https://downloads.csnapshots.io/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
         mv $NODE_DB/db/* $NODE_DB/
         rm -rf $NODE_DB/db
+        docker compose -f docker-compose-mainnet.yml up -d
     elif [ $NETWORK == "preprod" ]
     then
         curl -o - https://downloads.csnapshots.io/testnet/$(curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
         mv $NODE_DB/db/* $NODE_DB/
         rm -rf $NODE_DB/db
+        docker compose -f docker-compose-preprod.yml up -d
     elif [ $NETWORK == "sanchonet" ]
     then echo "no cache for sancho";
     else
@@ -113,8 +123,7 @@ else
     fi
 fi
 
-# start the services
-docker-compose up
+
 ```
 
 
