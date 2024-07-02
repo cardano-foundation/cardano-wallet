@@ -140,20 +140,20 @@ node-811:
   'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-node' \
   'github:IntersectMBO/cardano-node?ref=8.11.0-sancho#cardano-cli'
 
-# start a shell with 8.9.3 in scope
+# start a shell with 8.9.4 in scope
 node-893:
   nix shell \
   --accept-flake-config \
-  'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
-  'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-cli'
+  'github:IntersectMBO/cardano-node?ref=8.9.4#cardano-node' \
+  'github:IntersectMBO/cardano-node?ref=8.9.4#cardano-cli'
 
 # run babbage integration tests matching the given pattern via nix
 babbage-integration-tests-match match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=babbage \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=8.9.3#cardano-cli' \
+    'github:IntersectMBO/cardano-node?ref=8.9.4#cardano-node' \
+    'github:IntersectMBO/cardano-node?ref=8.9.4#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
