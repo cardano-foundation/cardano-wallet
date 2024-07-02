@@ -16,8 +16,9 @@
 module Cardano.Wallet.Read.Eras.EraValue
     ( -- * Era bounded values
       EraValue (..)
-    , eraValueSerialize
     , extractEraValue
+    , fromEraValue
+    , eraValueSerialize
     , sequenceEraValue
     , eraValue
     )
@@ -104,9 +105,22 @@ instance (All (Compose NFData f) KnownEras) => NFData (EraValue f) where
         Babbage -> rnf x
         Conway -> rnf x
 
--- | Extract an era indipendent value.
+-- | Extract an era independent value.
 extractEraValue :: EraValue (K a) -> a
 extractEraValue (EraValue (K x)) = x
+
+-- | Extract an 'EraValue' for the era which is specified in the result type.
+fromEraValue :: forall era f. IsEra era => EraValue f -> Maybe (f era)
+fromEraValue (EraValue (fx :: f eray)) =
+    case (theEra @era, theEra @eray) of
+        (Byron, Byron) -> Just fx
+        (Shelley, Shelley) -> Just fx
+        (Allegra, Allegra) -> Just fx
+        (Mary, Mary) -> Just fx
+        (Alonzo, Alonzo) -> Just fx
+        (Babbage, Babbage) -> Just fx
+        (Conway, Conway) -> Just fx
+        _ -> Nothing
 
 {-# INLINABLE indexEraValue #-}
 indexEraValue :: EraValue f -> Int

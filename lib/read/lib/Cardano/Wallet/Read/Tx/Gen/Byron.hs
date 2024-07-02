@@ -33,9 +33,12 @@ import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( Address (..)
     , Index (..)
     , Lovelace (..)
-    , TxId (..)
     , TxParameters (..)
     , exampleTxParameters
+    )
+import Cardano.Wallet.Read.Tx.TxId
+    ( TxId
+    , hashFromTxId
     )
 import Data.ByteString
     ( ByteString
@@ -50,6 +53,7 @@ import GHC.Stack
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Byron
 import qualified Cardano.Crypto.Signing as Byron
+import qualified Cardano.Wallet.Read.Hash as Hash
 
 mkByronTx
     :: HasCallStack
@@ -64,8 +68,8 @@ mkByronTx TxParameters{txInputs, txOutputs} =
     outputs = txOutputs <&> mkByronTxOut
 
 mkByronInput :: (Index, TxId) -> TxIn
-mkByronInput (Index idx, TxId h) =
-    TxInUtxo (hashUnsafe h)
+mkByronInput (Index idx, txid) =
+    TxInUtxo (unsafeHashFromTxId txid)
         $ fromIntegral idx
 
 mkByronTxOut :: HasCallStack => (Address, Lovelace) -> Byron.TxOut
@@ -88,10 +92,11 @@ mkByronAddrFromXPub addr =
         (Byron.VerKeyASD $ Byron.VerificationKey $ XPub addr $ ChainCode mempty)
         $ Byron.AddrAttributes Nothing Byron.NetworkMainOrStage
 
-hashUnsafe :: ByteString -> Hash a
-hashUnsafe x = case hashFromBytes x of
-    Nothing -> error "hashUnsafe: failed to hash"
-    Just h -> h
+unsafeHashFromTxId :: TxId -> Hash a
+unsafeHashFromTxId txid =
+    case hashFromBytes (Hash.hashToBytes $ hashFromTxId txid) of
+        Nothing -> error "hashUnsafe: failed to hash"
+        Just h -> h
 
 exampleByronTx :: ATxAux ()
 exampleByronTx = mkByronTx exampleTxParameters

@@ -24,6 +24,7 @@ module Cardano.Wallet.Read.Eras
   , eraValue
   , eraValueSerialize
   , extractEraValue
+  , fromEraValue
   -- * Specials.
   , sequenceEraValue
   -- * Era polymorphic functions.
@@ -48,6 +49,7 @@ import Cardano.Wallet.Read.Eras.EraValue
     , eraValue
     , eraValueSerialize
     , extractEraValue
+    , fromEraValue
     , sequenceEraValue
     )
 import Cardano.Wallet.Read.Eras.KnownEras

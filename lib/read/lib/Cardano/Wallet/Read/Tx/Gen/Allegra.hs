@@ -38,9 +38,11 @@ import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( Address (..)
     , Index (..)
     , Lovelace (..)
-    , TxId (..)
     , TxParameters (..)
     , exampleTxParameters
+    )
+import Cardano.Wallet.Read.Tx.TxId
+    ( TxId
     )
 import Data.List.NonEmpty
     ( NonEmpty

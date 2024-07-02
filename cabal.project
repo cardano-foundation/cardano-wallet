@@ -295,6 +295,9 @@ package cardano-wallet-launcher
 package cardano-wallet-primitive
   tests: True
 
+package cardano-wallet-read
+  tests: True
+
 package cardano-wallet-text-class
   tests: True
 
