@@ -1,4 +1,4 @@
-#! /usr/bin/env -S nix shell --command bash
+#! /usr/bin/env bash
 # shellcheck shell=bash
 
 set -euox pipefail
@@ -9,4 +9,4 @@ git fetch --all
 git checkout "$RELEASE_CANDIDATE_BRANCH"
 
 rm -rf ./result/*
-nix build -o result/linux .#ci.artifacts.linux64.release
+nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
