@@ -45,9 +45,10 @@ export NODE_SOCKET_NAME
 COMPOSE_PROJECT_NAME="docker-smoke-test-$WALLET_PORT"
 export COMPOSE_PROJECT_NAME
 
-docker compose down || true
+dc="docker compose -f docker-compose-preprod.yml"
 
-docker-compose up -d
+${dc} down || true
+${dc} up -d
 
 n=0
 while :
@@ -62,15 +63,16 @@ do
             sleep 4
             n=$((n+1))
     fi
-    if [ "$n" -ge 30 ]
+    if [ "$n" -ge 10 ]
         then break
     fi
 done
 
 
 mkdir -p logs
-docker-compose logs > logs/docker-compose.log
-docker-compose down
+
+${dc} logs > logs/docker-compose.log
+${dc} down
 
 rm -rf "$tmpfile"
 
