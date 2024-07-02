@@ -10,7 +10,7 @@
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# OPTIONS_GHC -fno-warn-redundant-constraints #-}
 
-module Database.Schema (
+module Demo.TableOld (
     -- * Synopsis
     -- | Typed database tables and rows.
 
