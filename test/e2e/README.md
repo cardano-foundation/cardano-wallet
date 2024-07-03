@@ -20,7 +20,8 @@ bundle install
 export TESTS_E2E_FIXTURES=*******
 rake secrets_decode
 ```
-> :information_source:  **_TESTS_E2E_FIXTURES_** secret  is defined on https://github.com/cardano-foundation/cardano-wallet/settings/secrets and also used by GH actions. Note that this step is also executed on very first test run.
+> :information_source:  **_TESTS_E2E_FIXTURES_** secret
+Note that this step is also executed on very first test run.
 > :information_source:  **_TESTS_E2E_FIXTURES_** is also kept in the team's 1Password.
 
 #### Fixture wallets
@@ -158,24 +159,13 @@ it "Wallet can show utxo distribution" do
 end
 ```
 
-### Running tests from GH actions workflow
+### Running tests from CI
 
-There are several e2e workflows in GH actions for testing against different platforms (Docker, Linux, MacOS, Windows).
+There are several steps in the Buildkite pipeline for testing against different platforms (Linux, MacOS, Windows), which can be triggered manually if desired.
 
 #### Node DB cache
 
-For speeding up execution in wallet's full mode we use cardano-node DB from cache. Thanks to this we don't have to wait for hours on each execution until cardano-node is synced with the chain. On CI it is handled by [actions/cache](https://github.com/actions/cache).
-
-#### Test schedule
-
-All tests are scheduled to be executed on nightly basis against latest `master` version
-of cardano-wallet.
-
-It is also possible to trigger each workflow manually from [GH actions](https://github.com/cardano-foundation/cardano-wallet/actions). In particular:
- - workflows can be executed against the binaries of particular PR,
- - for full wallet mode one can choose whether to use Node DB cached from GH cache or AWS
-
-<img src="../../.github/images/e2e-workflow-form.png"/>
+For speeding up execution in wallet's full mode we use cardano-node DB from cache. Thanks to this we don't have to wait for hours on each execution until cardano-node is synced with the chain.
 
 ## Documentation
 
