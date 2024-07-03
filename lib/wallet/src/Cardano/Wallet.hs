@@ -107,6 +107,7 @@ module Cardano.Wallet
     , ErrReadPolicyPublicKey (..)
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
+    , ErrDecodeTx (..)
     , readWalletMeta
     , isStakeKeyRegistered
     , putDelegationCertificate
@@ -3763,6 +3764,14 @@ data ErrConstructTx
 data ErrGetPolicyId
     = ErrGetPolicyIdReadPolicyPubliKey ErrReadPolicyPublicKey
     | ErrGetPolicyIdWrongMintingBurningTemplate
+    deriving (Show, Eq)
+
+-- | Errors that can occur when decoding a transaction.
+data ErrDecodeTx
+    = ErrDecodeTxMissingMetadataKey
+    | ErrDecodeTxMissingEncryptionMethod
+    | ErrDecodeTxMissingValidEncryptionPayload
+    | ErrDecodeTxDecryptedPayload Text
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a transaction.

@@ -181,6 +181,7 @@ import Cardano.Wallet
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
+    , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
@@ -3014,6 +3015,15 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
 cip20MetadataKey :: Word64
 cip20MetadataKey = 674
 
+cip83EncryptMethodKey :: Text
+cip83EncryptMethodKey = "enc"
+
+cip83EncryptPayloadKey :: Text
+cip83EncryptPayloadKey = "msg"
+
+cip83EncryptPayloadValue :: Text
+cip83EncryptPayloadValue = "basic"
+
 -- When encryption is enabled we do the following:
 -- (a) find field `msg` in the object of "674" label
 -- (b) encrypt the 'msg' value if present, if there is neither "674" label
@@ -3047,7 +3057,11 @@ toMetadataEncrypted apiEncrypt payload saltM =
             Nothing
       where
         getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
-        getValue (TxMetaText "msg", v) = Just v
+        getValue (TxMetaText k, v) =
+            if k == cip83EncryptPayloadKey then
+                Just v
+            else
+                Nothing
         getValue _ = Nothing
 
     validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
@@ -3075,7 +3089,7 @@ toMetadataEncrypted apiEncrypt payload saltM =
             :: (TxMetadataValue, TxMetadataValue)
             -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
         encryptPairIfQualifies = \case
-            (TxMetaText "msg", m) ->
+            (TxMetaText "msg", m) -> do
                 bimap ErrConstructTxEncryptMetadata toPair (encryptValue m)
             pair ->
                 Right [pair]
@@ -3089,8 +3103,8 @@ toMetadataEncrypted apiEncrypt payload saltM =
 
         toPair :: ByteString -> [(TxMetadataValue, TxMetadataValue)]
         toPair encryptedMessage =
-            [ (TxMetaText "msg", TxMetaList (toChunks encryptedMessage))
-            , (TxMetaText "enc", TxMetaText "basic")
+            [ (TxMetaText cip83EncryptPayloadKey, TxMetaList (toChunks encryptedMessage))
+            , (TxMetaText cip83EncryptMethodKey, TxMetaText cip83EncryptPayloadValue)
             ]
 
         toChunks :: ByteString -> [TxMetadataValue]
@@ -3104,6 +3118,67 @@ toMetadataEncrypted apiEncrypt payload saltM =
     updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
       where
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
+
+-- When encryption is enabled we do the following:
+-- (a) retrieve list of TxMetaBytes under proper key, ie.674,
+--     cip20MetadataKey
+-- (b) recreate encrypted payload from chunks
+--     (0, TxMetaBytes chunk1)
+--     (1, TxMetaBytes chunk2)
+--     ....
+--     (N, TxMetaBytes chunkN)
+--     ie., payload=chunk1+chunk2+...+chunkN
+-- (c) decrypt payload
+-- (d) decode metadata
+fromMetadataEncrypted
+    :: ApiEncryptMetadata
+    -> Cardano.TxMetadata
+    -> Either ErrDecodeTx TxMetadataWithSchema
+fromMetadataEncrypted apiEncrypt metadata =
+   composePayload metadata >>=
+   decrypt >>=
+   decodeFromJSON
+  where
+    checkPresenceOfMethod value =
+        let presentPair (Cardano.TxMetaText k, Cardano.TxMetaText v) =
+                k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
+            presentPair _ = False
+        in case value of
+            Cardano.TxMetaMap list -> null $ filter presentPair list
+            _ -> True
+    getEncryptedPayload value =
+        let presentPair (Cardano.TxMetaText k, Cardano.TxMetaList _) =
+                k == cip83EncryptPayloadKey
+            presentPair _ = False
+        in case value of
+            Cardano.TxMetaMap list -> snd <$> filter presentPair list
+            _ -> []
+    extractTxt (Cardano.TxMetaText txt) = txt
+    extractTxt _ =
+        error "TxMetaText is expected"
+    extractPayload (Cardano.TxMetaList chunks)=
+        foldl T.append T.empty $ extractTxt <$> chunks
+    extractPayload _ = T.empty
+    composePayload (Cardano.TxMetadata themap) = do
+        validValue <- case Map.lookup cip20MetadataKey themap of
+            Nothing -> Left ErrDecodeTxMissingMetadataKey
+            Just v -> pure v
+        when (checkPresenceOfMethod validValue) $
+            Left ErrDecodeTxMissingEncryptionMethod
+        let payloads = getEncryptedPayload validValue
+        if length payloads == 0 then
+            Left ErrDecodeTxMissingValidEncryptionPayload
+        else do
+            let extracted = extractPayload <$> payloads
+            when (any (==T.empty) extracted) $
+                Left ErrDecodeTxMissingValidEncryptionPayload
+            Right extracted
+
+    decrypt _payload = undefined
+
+    decodeFromJSON =
+        first (ErrDecodeTxDecryptedPayload . T.pack) .
+        Aeson.eitherDecode . BL.fromStrict
 
 metadataPBKDF2Config :: PBKDF2Config SHA256
 metadataPBKDF2Config = PBKDF2Config
