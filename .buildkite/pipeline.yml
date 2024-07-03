@@ -387,6 +387,23 @@ steps:
         system: ${linux}
 
   - wait: ~
+
+  - block: "Push docker image"
+    if: build.branch !~ /^release-candidate/
+    key: docker-push-block
+
+  - label: 'Push Docker Image'
+    depends_on:
+      - linux-nix
+      - docker-push-block
+    key: build-docker
+    command:
+      - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+      - "./docker-build-push"
+    agents:
+      system: x86_64-linux
+
   - label: Tag this release candidate
     if: build.branch =~ /^release-candidate/
     command: scripts/buildkite/main/tag-release-candidate.sh
