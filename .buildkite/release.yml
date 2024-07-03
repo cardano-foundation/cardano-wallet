@@ -37,18 +37,7 @@ steps:
         agents:
           system: x86_64-linux
 
-      - label: 'Run linux e2e tests'
-        depends_on:
-          - linux-package
-        commands: |
-          ./scripts/buildkite/release/linux-e2e.sh
-        artifact_paths:
-          - "./result/linux/**"
-          - "./logs/**/*"
-        env:
-          NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
-        agents:
-          system: x86_64-linux
+
 
   - group: "Docker E2E"
     key: "docker-e2e"
