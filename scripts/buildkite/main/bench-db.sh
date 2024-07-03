@@ -1,5 +1,6 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash -p coreutils buildkite-agent
+# shellcheck shell=bash
 
 set -euo pipefail
 
@@ -19,7 +20,8 @@ echo "+++ Run benchmark"
     -o $bench_name.html \
     | tee $bench_name.txt
 
-printf 'Link to \033]1339;url=artifact://'$bench_name.html';content='"Benchmark Report"'\a\n'
+printf 'Link to \033]1339;url=artifact://'%s';content='"Benchmark Report"'\a\n' \
+    $bench_name.html
 
 echo "--- Upload report"
 

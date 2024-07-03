@@ -1,11 +1,13 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash -p coreutils gnugrep gawk time haskellPackages.hp2pretty buildkite-agent
 
+# shellcheck shell=bash
+
 set -euo pipefail
 echo "------------------------ Setup ------------------------------------------"
 TMPDIR="${TMPDIR:-/tmp}"
 export TMPDIR="/$TMPDIR/bench/memory"
-mkdir -p $TMPDIR
+mkdir -p "$TMPDIR"
 echo "TMPDIR: $TMPDIR"
 
 artifact_name=memory
@@ -39,11 +41,12 @@ if [ -n "${BUILDKITE:-}" ]; then
   buildkite-agent artifact upload $error_log
 
   echo "+++ Heap profile"
-  printf '\033]1338;url='"artifact://$artifact_name.svg"';alt='"Heap profile"'\a\n'
+  printf '\033]1338;url='"artifact://%s"';alt='"Heap profile"'\a\n' \
+    "$artifact_name.svg"
 
 fi
 echo "------------------------ Results done -----------------------------------"
 
 echo "------------------------ Cleanup ----------------------------------------"
-rm -rf $TMPDIR
+rm -rf "$TMPDIR"
 echo "------------------------ Cleanup done -----------------------------------"
