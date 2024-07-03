@@ -250,6 +250,7 @@ steps:
 
     - block: "Restoration benchmark"
       if: build.branch !~ /^release-candidate/
+      depends_on: linux-nix
       key: restore-block
 
     - label: 'Restore benchmark - cardano mainnet'
