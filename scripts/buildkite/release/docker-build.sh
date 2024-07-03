@@ -5,9 +5,9 @@ set -euox pipefail
 
 git fetch --all
 
-RELEASE_COMMIT=$(buildkite-agent meta-data get "release-commit")
+RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get "release-candidate-commit")
 
-git checkout "$RELEASE_COMMIT"
+git checkout "$RELEASE_CANDIDATE_COMMIT"
 
 mkdir -p result
 

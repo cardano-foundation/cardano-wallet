@@ -63,6 +63,6 @@ git remote get-url origin
 git push -f origin "$RELEASE_CANDIDATE_BRANCH"
 
 buildkite-agent meta-data set "release-version" "$NEW_GIT_TAG"
-buildkite-agent meta-data set "release-commit" "$RELEASE_COMMIT"
+buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
 buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
 buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
