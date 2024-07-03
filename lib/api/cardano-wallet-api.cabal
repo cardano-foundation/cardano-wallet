@@ -76,6 +76,7 @@ library
     , either
     , errors
     , extra
+    , file-embed
     , filepath
     , fmt
     , generic-lens
@@ -102,6 +103,7 @@ library
     , servant-client-core
     , servant-server
     , streaming-commons
+    , template-haskell
     , text
     , text-class
     , time
@@ -160,6 +162,10 @@ library
     Cardano.Wallet.Api.Types.WalletAssets
     Cardano.Wallet.Shelley
     Cardano.Wallet.Tracers
+    Cardano.Wallet.Version
+    Cardano.Wallet.Version.TH
+  other-modules:
+    Paths_cardano_wallet_api
 
 executable cardano-wallet
   import:         language, opts-exe
