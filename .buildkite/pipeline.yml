@@ -249,17 +249,16 @@ steps:
       artifact_paths: [ "./bench-results.csv" ]
 
     - block: "Restoration benchmark"
-      depends_on: placeholder
+      if: build.branch !~ /^release-candidate/
       key: restore-block
 
     - label: 'Restore benchmark - cardano mainnet'
       command: "./scripts/buildkite/main/bench-restore.sh mainnet"
-      if: build.branch !~ /^release-candidate/
+      depends_on: restore-block
       timeout_in_minutes: 1200
       agents:
         system: ${linux}
         queue: adrestia-bench
-      depends_on: restore-block
 
 
   - group: "MacOS Setup"
