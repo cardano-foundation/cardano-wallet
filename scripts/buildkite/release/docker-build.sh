@@ -1,12 +1,16 @@
-#! /usr/bin/env bash
+#! /usr/bin/env -S nix shell --command bash
 # shellcheck shell=bash
 
 set -euox pipefail
 
+git fetch --all
+
 RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get "release-candidate-commit")
 
-git fetch --all
 git checkout "$RELEASE_CANDIDATE_COMMIT"
 
-rm -rf ./result/*
-nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+mkdir -p result
+
+nix build .#dockerImage -o result/docker-image
+
+docker load < result/docker-image

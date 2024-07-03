@@ -32,7 +32,11 @@ OLD_CABAL_VERSION=$(tag_cabal_ver "$OLD_GIT_TAG")
 
 CARDANO_NODE_TAG=$(cardano-node version | head -n1 | awk '{print $2}')
 
-RELEASE_CANDIDATE_BRANCH="release-candidate-new/$NEW_GIT_TAG"
+if [ "$BUILDKITE_BRANCH" == "master" ]; then
+    RELEASE_CANDIDATE_BRANCH="release-candidate-new/$NEW_GIT_TAG"
+else
+    RELEASE_CANDIDATE_BRANCH="release-candidate-new/$BUILDKITE_BRANCH"
+fi
 
 git config --global user.email "gha@cardanofoundation.org"
 git config --global user.name "Github Action"
@@ -59,5 +63,6 @@ git remote get-url origin
 git push -f origin "$RELEASE_CANDIDATE_BRANCH"
 
 buildkite-agent meta-data set "release-version" "$NEW_GIT_TAG"
-buildkite-agent meta-data set "release-commit" "$RELEASE_COMMIT"
+buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
 buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
+buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
