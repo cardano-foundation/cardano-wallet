@@ -23,7 +23,6 @@ jobs:
       BRANCH: ${{ github.event.inputs.branch || 'rc-latest' }}
       TAGS: ${{ github.event.inputs.tags || 'all' }}
 
-
     steps:
     - name: Check space
       run: Get-PSDrive
@@ -46,6 +45,7 @@ jobs:
       with:
         ruby-version: 2.7.1
         bundler-cache: true
+        working-directory: C:/cardano-wallet/test/e2e
 
     - name: Install dependencies
       working-directory: C:/cardano-wallet/test/e2e
@@ -58,13 +58,9 @@ jobs:
         choco install nssm
         choco install archiver
 
-
     - name: 🕒 Get Date/Time
       working-directory: C:/cardano-wallet/test/e2e
-      id: date-time
-      shell: bash
-      run: |
-        echo "value=$(rake datetime)" >> $GITHUB_OUTPUT
+      run: bundle exec rake datetime
 
     - name: 💾 GH Cache node db
       id: cache-node
@@ -90,27 +86,27 @@ jobs:
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake setup[preprod,%BRANCH%]
+      run: bundle exec rake setup[preprod,%BRANCH%]
 
     - name: 🔍 Display versions
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake display_versions
+      run: bundle exec rake display_versions
 
     - name: 🚀 Start node and wallet
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake start_node_and_wallet[preprod]
+      run: bundle exec rake start_node_and_wallet[preprod]
 
     - name: ⏳ Wait until node is synced
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake wait_until_node_synced
+      run: bundle exec rake wait_until_node_synced
 
     - name: 🧪 Run all tests
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake spec SPEC_OPTS="-t %TAGS%"
+      run: bundle exec rake spec SPEC_OPTS="-t %TAGS%"
 
     - name: 🏁 Stop node and wallet
       working-directory: C:/cardano-wallet/test/e2e
-      run: rake stop_node_and_wallet[preprod]
+      run: bundle exec rake stop_node_and_wallet[preprod]
 
     - name: 💾 GH Save Cache of node db
       if: always()
