@@ -1,6 +1,8 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash -p coreutils gnugrep gawk buildkite-agent
 
+# shellcheck shell=bash
+
 set -euo pipefail
 
 # C.UTF-8 = UTF-8 based locale that is not associated with a natural language.
@@ -10,7 +12,7 @@ export LC_ALL=C.UTF-8
 
 
 export TMPDIR="/$TMPDIR/bench/read-blocks"
-mkdir -p $TMPDIR
+mkdir -p "$TMPDIR"
 
 log=read-blocks.log
 

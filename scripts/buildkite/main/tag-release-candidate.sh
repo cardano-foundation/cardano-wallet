@@ -8,5 +8,5 @@ DTAG="$TAG-$date"
 
 git remote set-url origin \
   "https://$GITHUB_TOKEN@github.com/cardano-foundation/cardano-wallet.git"
-git tag $DTAG $BUILDKITE_COMMIT
-git push origin $DTAG
+git tag "$DTAG" "$BUILDKITE_COMMIT"
+git push origin "$DTAG"

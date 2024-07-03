@@ -1,5 +1,6 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -i bash -p coreutils gnugrep gawk buildkite-agent
+# shellcheck shell=bash
 
 set -euo pipefail
 
@@ -9,12 +10,11 @@ set -euo pipefail
 export LC_ALL=C.UTF-8
 
 export TMPDIR="/$TMPDIR/bench/api"
-mkdir -p $TMPDIR
+mkdir -p "$TMPDIR"
 
 bench=api
 log=api.log
 results=api.txt
-total_time=api-time.txt
 
 echo "--- Build"
 nix --version
@@ -53,7 +53,7 @@ if [ -n "${BUILDKITE:-}" ]; then
   buildkite-agent artifact upload $results
 
   for file in *.json; do
-    buildkite-agent artifact upload $file
+    buildkite-agent artifact upload "$file"
   done
 fi
 
