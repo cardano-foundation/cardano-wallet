@@ -19,23 +19,14 @@
     <a href="https://buildkite.com/cardano-foundation/cardano-wallet-nightly">
         <img src="https://img.shields.io/buildkite/94de95cfe78b09c547cb109b0a44e6cd489341ea9e2c224ead/master?label=BENCHMARKS&style=for-the-badge"  />
     </a>
+    <a href="https://buildkite.com/cardano-foundation/cardano-wallet-release">
+        <img src="https://img.shields.io/buildkite/782570d86cfcb9cdc2f5fc5048a770777ec980bcfc135f5fe6/master?label=RELEASE-CANDIDATE&style=for-the-badge"  />
+    </a>
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/windows.yml?label=Windows unit tests&style=for-the-badge&branch=master"  />
     </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-docker.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-docker.yml?label=E2E Docker&style=for-the-badge&branch=master"  />
-    </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-linux.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-linux.yml?label=E2E Linux&style=for-the-badge&branch=master"  />
-    </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-macos.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-macos.yml?label=E2E MacOs&style=for-the-badge&branch=master"  />
-    </a>
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-windows.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-windows.yml?label=E2E Windows&style=for-the-badge&branch=master" />
-    </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/docker_linux.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/docker_linux.yml?label=Docker-compose Linux&style=for-the-badge&branch=master"  />
     </a>
 </p>
 
