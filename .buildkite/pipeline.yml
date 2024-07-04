@@ -265,39 +265,39 @@ steps:
   - group: "MacOS Setup"
     key: "macos-setup"
     steps:
-    - block: "macOS steps"
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-          && build.branch != "master"
-          && build.branch !~ /^release-candidate/
-      depends_on: linux-nix
-      key: trigger-macos
 
     - label: 'Check nix (macOS)'
-      depends_on: trigger-macos
       key: macos-nix
       commands:
         - 'nix flake info'
       agents:
         system: ${macos}
 
+    - block: "macOS steps"
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.branch !~ /^release-candidate/
+      depends_on: macos-nix
+      key: block-macos
+
     - label: 'Run unit tests (macOS, x86_64)'
       key: macos-intel-tests-run-unit
-      depends_on: macos-nix
+      depends_on: block-macos
       command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
       agents:
         system: ${macos}
 
     - label: 'Run unit tests (macOS, arm64)'
       key: macos-arm64-tests-run-unit
-      depends_on: macos-nix
+      depends_on: block-macos
       command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
       agents:
         system: ${macos}
 
     - label: 'Build integration tests (macOS, arm64)'
       key: macos-arm64-tests-build-integration
-      depends_on: macos-nix
+      depends_on: block-macos
       command: nix build -L .#packages.aarch64-darwin.integration-exe
       agents:
         system: ${macos}
@@ -305,7 +305,7 @@ steps:
 
     - label: 'Build package (macOS, x86_64)'
       key: macos-intel-package
-      depends_on: macos-nix
+      depends_on: block-macos
       command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
       artifact_paths: [ "./result/macos-intel/**" ]
       agents:
@@ -313,7 +313,7 @@ steps:
 
     - label: 'Build package (macOS, arm64)'
       key: macos-arm64-package
-      depends_on: macos-nix
+      depends_on: block-macos
       command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
       artifact_paths: [ "./result/macos-silicon/**" ]
       agents:
@@ -325,6 +325,7 @@ steps:
 
     - block: "MacOS integration tests"
       if: build.branch !~ /^release-candidate/
+      depends_on: macos-nix
       key: macos-integration-tests-block
 
     - label: 'Run integration tests on macOS'
