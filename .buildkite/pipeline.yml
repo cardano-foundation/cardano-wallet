@@ -24,7 +24,10 @@ steps:
         system: ${linux}
 
     - block: "Cabal release"
-      if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+            && build.branch != "master"
+            && build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: cabal-release-block
 
@@ -50,7 +53,7 @@ steps:
       key: linux-package
       depends_on:
         - linux-nix
-      command: nix build -o result/linux .#ci.artifacts.linux64.release
+      command: ./scripts/buildkite/main/linux-package.sh
       artifact_paths: [ "./result/linux/**" ]
       agents:
         system: ${linux}
@@ -120,7 +123,7 @@ steps:
         system: ${linux}
 
     - block: "Run ruby E2E tests"
-      if: build.branch !~ /^release-candidate/
+      if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: trigger-e2e-tests
 
@@ -195,7 +198,7 @@ steps:
     steps:
 
     - block: 'Run benchmarks'
-      if: build.branch !~ /^release-candidate/
+      if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: trigger-benchmarks
 
@@ -265,7 +268,7 @@ steps:
       concurrency_group: 'concurrent-benchmarks'
 
     - block: "Restoration benchmark"
-      if: build.branch !~ /^release-candidate/
+      if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: restore-block
 
@@ -295,7 +298,7 @@ steps:
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
-          && build.branch !~ /^release-candidate/
+          && build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: block-macos
 
@@ -342,7 +345,7 @@ steps:
     steps:
 
     - block: "MacOS integration tests"
-      if: build.branch !~ /^release-candidate/
+      if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-integration-tests-block
 
@@ -357,7 +360,7 @@ steps:
       concurrency_group: 'macos-integration-tests'
 
     - block: "MacOS E2E tests"
-      if: build.branch !~ /^release-candidate/
+      if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-e2e-tests-block
 
@@ -385,7 +388,7 @@ steps:
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
-          && build.branch !~ /^release-candidate/
+          && build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: trigger-build-windows-artifacts
 
@@ -409,10 +412,19 @@ steps:
       agents:
         system: ${linux}
 
+    - label: Tag this release candidate
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on:
+        - windows-package
+        - windows-testing-bundle
+      command: scripts/buildkite/main/tag-release-candidate.sh
+      agents:
+        system: ${linux}
+
   - wait: ~
 
   - block: "Push docker image"
-    if: build.branch !~ /^release-candidate/
+    if: build.env("RELEASE_CANDIDATE") == null
     key: docker-push-block
 
   - label: 'Push Docker Image'

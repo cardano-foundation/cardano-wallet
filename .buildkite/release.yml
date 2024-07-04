@@ -17,3 +17,8 @@ steps:
       ./scripts/buildkite/release/release-candidate.sh
     agents:
       system: x86_64-linux
+
+  - label: "Generate and upload trigger step to main pipeline"
+    depends_on: add-release-commits
+    commands:
+      - ./scripts/buildkite/release/generate-trigger.sh | buildkite-agent pipeline upload
