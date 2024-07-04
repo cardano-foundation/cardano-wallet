@@ -3122,22 +3122,23 @@ toMetadataEncrypted apiEncrypt payload saltM =
 -- When encryption is enabled we do the following:
 -- (a) retrieve list of TxMetaBytes under proper key, ie.674,
 --     cip20MetadataKey
--- (b) recreate encrypted payload from chunks
+-- (b) recreate each encrypted payload from chunks
 --     (0, TxMetaBytes chunk1)
 --     (1, TxMetaBytes chunk2)
 --     ....
 --     (N, TxMetaBytes chunkN)
 --     ie., payload=chunk1+chunk2+...+chunkN
--- (c) decrypt payload
--- (d) decode metadata
+-- (c) decrypt each payload
+-- (d) update structure
+-- (e) decode metadata
 fromMetadataEncrypted
     :: ApiEncryptMetadata
     -> Cardano.TxMetadata
     -> Either ErrDecodeTx TxMetadataWithSchema
 fromMetadataEncrypted apiEncrypt metadata =
    composePayload metadata >>=
-   decrypt >>=
-   decodeFromJSON
+   mapM decrypt >>=
+   adjust metadata
   where
     checkPresenceOfMethod value =
         let presentPair (Cardano.TxMetaText k, Cardano.TxMetaText v) =
@@ -3174,11 +3175,21 @@ fromMetadataEncrypted apiEncrypt metadata =
                 Left ErrDecodeTxMissingValidEncryptionPayload
             Right extracted
 
-    decrypt _payload = undefined
-
+    pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
     decodeFromJSON =
         first (ErrDecodeTxDecryptedPayload . T.pack) .
         Aeson.eitherDecode . BL.fromStrict
+    decrypt payload = case AES256CBC.getSaltFromEncrypted payloadBS of
+         Nothing -> Left ErrDecodeTxMissingSalt
+         Just salt ->
+             let (secretKey, iv) =
+                     PBKDF2.generateKey metadataPBKDF2Config pwd (Just salt)
+             in decodeFromJSON <$>
+                bimap ErrDecodeTxDecryptPayload fst
+                (AES256CBC.decrypt WithPadding secretKey iv payloadBS)
+      where
+        payloadBS = T.encodeUtf8 payload
+    adjust _metadata _ = undefined
 
 metadataPBKDF2Config :: PBKDF2Config SHA256
 metadataPBKDF2Config = PBKDF2Config
