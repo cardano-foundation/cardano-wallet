@@ -1,8 +1,10 @@
 name: Windows Unit Tests
 
 on:
-  schedule:
-  - cron:  "0 20 * * *"
+  push:
+    tags:
+      - release-candidate/*
+      - test-rc/*
 
   workflow_dispatch:
     inputs:
