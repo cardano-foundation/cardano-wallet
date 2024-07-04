@@ -79,7 +79,6 @@ library
     , exceptions
     , extra
     , fast-logger
-    , file-embed
     , filepath
     , fmt
     , foldl
@@ -250,8 +249,6 @@ library
     Cardano.Wallet.Transaction.Delegation
     Cardano.Wallet.Transaction.Voting
     Cardano.Wallet.TypeLevel
-    Cardano.Wallet.Version
-    Cardano.Wallet.Version.TH
     Control.Concurrent.Concierge
     Control.Monad.Exception.Unchecked
     Control.Monad.Fail.Extended
@@ -264,8 +261,6 @@ library
     Database.Persist.PersistValue.Extended
     Network.Ntp
     UnliftIO.Compat
-
-  other-modules:   Paths_cardano_wallet
 
 library mock-token-metadata
   import:          language, opts-lib
