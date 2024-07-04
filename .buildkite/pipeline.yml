@@ -96,6 +96,8 @@ steps:
       artifact_paths: [ "./integration-test-dir/**" ]
       agents:
         system: ${linux}
+      concurrency: 8
+      concurrency_group: 'linux-integration-tests'
 
     - label: "Conway integration tests (linux)"
       key: linux-tests-integration-conway
@@ -108,6 +110,8 @@ steps:
       artifact_paths: [ "./integration-test-dir/**" ]
       agents:
         system: ${linux}
+      concurrency: 8
+      concurrency_group: 'linux-integration-tests'
 
     - label: "Run haskell E2E tests"
       command: 'nix develop --command bash -c "just e2e-local"'
@@ -133,6 +137,8 @@ steps:
         NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
       agents:
         system: ${linux}
+      concurrency: 1
+      concurrency_group: 'linux-e2e-tests'
 
   - group: Code Quality
     key: "code-quality"
@@ -203,6 +209,8 @@ steps:
         system: x86_64-linux
         queue: adrestia-bench
       artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
     - label: 'Latency benchmark'
       command: |
@@ -214,6 +222,8 @@ steps:
         system: x86_64-linux
         queue: adrestia-bench
       artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
     - label: 'DB benchmark'
       command: |
@@ -225,6 +235,8 @@ steps:
         system: x86_64-linux
         queue: adrestia-bench
       artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
     - label: 'Read-blocks benchmark'
       command: |
@@ -236,6 +248,8 @@ steps:
         system: x86_64-linux
         queue: adrestia-bench
       artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
     - label: 'Memory Benchmark'
       command: |
@@ -247,6 +261,8 @@ steps:
         system: x86_64-linux
         queue: adrestia-bench
       artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
     - block: "Restoration benchmark"
       if: build.branch !~ /^release-candidate/
@@ -260,6 +276,8 @@ steps:
       agents:
         system: ${linux}
         queue: adrestia-bench
+      concurrency: 1
+      concurrency_group: 'restoration-benchmark'
 
 
   - group: "MacOS Setup"
@@ -335,6 +353,8 @@ steps:
       agents:
         system: ${macos}
         queue: "cardano-wallet"
+      concurrency: 3
+      concurrency_group: 'macos-integration-tests'
 
     - block: "MacOS E2E tests"
       if: build.branch !~ /^release-candidate/
@@ -347,13 +367,15 @@ steps:
         - macos-arm64-package
         - macos-e2e-tests-block
       command:
-        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/release/macos-silicon-e2e.sh
+        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
       artifact_paths:
         - "./logs/**/*"
       env:
         NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
       agents:
         system: ${macos}
+      concurrency: 1
+      concurrency_group: 'macos-e2e-tests'
 
 
   - group: "Windows Setup"
