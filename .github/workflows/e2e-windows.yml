@@ -3,8 +3,8 @@ name: E2E Windows
 on:
   push:
     tags:
-      - release-candidate/*
-      - test-rc/*
+      - release-candidate-tag/*
+
   workflow_dispatch:
     inputs:
       branch:
@@ -15,6 +15,9 @@ on:
         default: 'all'
 jobs:
   test:
+    concurrency:
+      group: windows-e2e-group
+      cancel-in-progress: false
 
     runs-on: windows-latest
 
