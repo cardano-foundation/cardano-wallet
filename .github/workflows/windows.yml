@@ -3,8 +3,7 @@ name: Windows Unit Tests
 on:
   push:
     tags:
-      - release-candidate/*
-      - test-rc/*
+      - release-candidate-tag/*
 
   workflow_dispatch:
     inputs:

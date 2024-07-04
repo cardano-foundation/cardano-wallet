@@ -413,7 +413,7 @@ steps:
         system: ${linux}
 
     - label: Tag this release candidate
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") != null
       depends_on:
         - windows-package
         - windows-testing-bundle
@@ -438,9 +438,3 @@ steps:
       - "./docker-build-push"
     agents:
       system: x86_64-linux
-
-  - label: Tag this release candidate
-    if: build.branch =~ /^release-candidate/
-    command: scripts/buildkite/main/tag-release-candidate.sh
-    agents:
-      system: ${linux}
