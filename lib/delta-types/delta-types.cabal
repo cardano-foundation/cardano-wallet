@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                delta-types
-version:             0.2024.5.5
+version:             0.2024.7.4
 synopsis:            Delta types, also known as change actions.
 description:
     A __delta type__ @da@ for a __base type__ @a@ is a collection
