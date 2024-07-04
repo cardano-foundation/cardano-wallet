@@ -13,7 +13,7 @@ network=$1
 artifact_name=restore-$network
 log=restore.log
 results=restore-$network.txt
-total_time=restore-time.txt
+#total_time=restore-time.txt
 
 export TMPDIR="/$TMPDIR/bench/restore"
 mkdir -p "$TMPDIR"
@@ -25,11 +25,12 @@ nix build .#ci.benchmarks.restore -o bench-restore
 
 CARDANO_NODE_CONFIGS=$(pwd)/configs/cardano
 
-bench="./bench-restore/bin/restore $network --node-db $node_db --cardano-node-configs $CARDANO_NODE_CONFIGS"
+# bench="./bench-restore/bin/restore $network --node-db $node_db --cardano-node-configs $CARDANO_NODE_CONFIGS"
 
 echo "--- Run benchmarks - $network"
 
-command time -o $total_time -v "$bench" +RTS -N2 -qg -A1m -I0 -T -M16G -h -RTS 2>&1 | tee $log
+./bench-restore/bin/restore "$network" --node-db "$node_db" --cardano-node-configs "$CARDANO_NODE_CONFIGS"
+# command time -o $total_time -v "$bench" +RTS -N2 -qg -A1m -I0 -T -M16G -h -RTS 2>&1 | tee $log
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' >"$results"
 
