@@ -359,7 +359,7 @@ steps:
       concurrency_group: 'macos-integration-tests'
 
     - block: MacOS E2E Tests
-      if: build.env("RELEASE_CANDIDATE") == null
+      # if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-e2e-tests-block
 
