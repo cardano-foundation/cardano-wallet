@@ -1,5 +1,4 @@
-#! /usr/bin/env nix-shell
-#! nix-shell -i bash -p coreutils gnugrep gawk time haskellPackages.hp2pretty buildkite-agent gnuplot
+#!/usr/bin/env bash
 # shellcheck shell=bash
 
 set -euo pipefail
@@ -13,9 +12,9 @@ network=$1
 artifact_name=restore-$network
 log=restore.log
 results=restore-$network.txt
-#total_time=restore-time.txt
+total_time=restore-time.txt
 
-export TMPDIR="/$TMPDIR/bench/restore"
+export TMPDIR="$TMPDIR/bench/restore"
 mkdir -p "$TMPDIR"
 
 : "${node_db:=$HOME/node-db-$network}"
@@ -23,14 +22,21 @@ mkdir -p "$TMPDIR"
 echo "--- Build"
 nix build .#ci.benchmarks.restore -o bench-restore
 
-CARDANO_NODE_CONFIGS=$(pwd)/configs/cardano
-
-# bench="./bench-restore/bin/restore $network --node-db $node_db --cardano-node-configs $CARDANO_NODE_CONFIGS"
-
 echo "--- Run benchmarks - $network"
 
-./bench-restore/bin/restore "$network" --node-db "$node_db" --cardano-node-configs "$CARDANO_NODE_CONFIGS"
-# command time -o $total_time -v "$bench" +RTS -N2 -qg -A1m -I0 -T -M16G -h -RTS 2>&1 | tee $log
+CARDANO_NODE_CONFIGS=$(pwd)/configs/cardano
+
+# shellcheck disable=SC2027
+BENCH_CMD="./bench-restore/bin/restore $network --node-db $node_db --cardano-node-configs $CARDANO_NODE_CONFIGS"
+BENCH_CMD="$BENCH_CMD +RTS -N2 -qg -A1m -I0 -T -M16G -hT -RTS"
+
+# When testing this script itself,
+# use the  timeout  command to cut short execution time
+# BENCH_CMD="timeout -s INT 6s "$BENCH_CMD""
+echo "$BENCH_CMD"
+
+# shellcheck disable=SC2086
+command time -o "$total_time" -v $BENCH_CMD 2>&1 | tee $log || true
 
 grep -v INFO $log | awk '/All results/,EOF { print $0 }' >"$results"
 

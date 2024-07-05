@@ -273,7 +273,9 @@ steps:
       key: restore-block
 
     - label: Restore benchmark (linux)
-      command: "./scripts/buildkite/main/bench-restore.sh mainnet"
+      command: |
+        nix develop path:./scripts/buildkite/main --command bash -c \
+          "./scripts/buildkite/main/bench-restore.sh mainnet"
       depends_on: restore-block
       timeout_in_minutes: 1200
       agents:
