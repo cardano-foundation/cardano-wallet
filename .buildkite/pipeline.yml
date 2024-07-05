@@ -4,375 +4,446 @@ agents:
 env:
   LC_ALL: "C.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
+  STATE_DIR: "/var/lib/buildkite-agent/cache"
+  STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
 
   # Per-host variables - shared across containers on host
   macos: "aarch64-darwin"
   linux: "x86_64-linux"
 
-
 steps:
+  - group: Linux Artifacts
+    key: linux-artifacts
+    steps:
+    - label: Check Nix (linux)
+      # Check whether regenerate.sh was applied when it had to be applied.
+      key: linux-nix
+      commands:
+        - './nix/regenerate.sh'
+      agents:
+        system: ${linux}
 
-  - label: 'Check nix (linux)'
-    # Check whether regenerate.sh was applied when it had to be applied.
-    key: linux-nix
-    commands:
-      - './nix/regenerate.sh'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - block: Cabal Build
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+            && build.branch != "master"
+            && build.env("RELEASE_CANDIDATE") == null
+      depends_on: linux-nix
+      key: cabal-release-block
 
-  - block: "Run cabal release"
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/)'
-    depends_on: linux-nix
-    key: cabal-release-block
+    - label: Cabal Build (linux)
+      key: cabal-release
+      depends_on: cabal-release-block
+      command: |
+        nix develop -c cabal update
+        nix develop -c cabal build all -frelease
+      agents:
+        system: ${linux}
 
-  - label: 'Cabal build all -frelease'
-    key: cabal-release
-    depends_on: cabal-release-block
-    command: |
-      nix develop -c cabal update
-      nix develop -c cabal build all -frelease
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Build benchmarks (linux)
+      key: build-benchmarks
+      depends_on: linux-nix
+      command: 'nix build .#ci.benchmarks.all'
+      agents:
+        system: ${linux}
+      env:
+        TMPDIR: "/cache"
 
-  - label: 'Run unit tests (linux)'
-    key: linux-tests-unit
-    depends_on: linux-nix
-    command: 'nix build -L .#ci.${linux}.tests.run.unit'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Build package (linux)
+      key: linux-package
+      depends_on:
+        - linux-nix
+      command: ./scripts/buildkite/main/linux-package.sh
+      artifact_paths: [ "./result/linux/**" ]
+      agents:
+        system: ${linux}
 
-  - label: Run local-cluster tests
-    key: local-cluster-tests
-    depends_on: linux-nix
-    command: |
-      mkdir local-cluster-logs
-      nix shell "nixpkgs#just" -c just test-local-cluster
-    agents:
-      system: ${linux}
-    artifact_paths: [ "./local-cluster-logs/**" ]
-    env:
-      TMPDIR: "/cache"
-      CLUSTER_LOGS_DIR_PATH: local-cluster-logs
+    - label: Check Cabal Configure
+      key: cabal-configure
+      depends_on: linux-nix
+      command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
+      agents:
+        system: ${linux}
 
-  - label: "Babbage integration tests (linux)"
-    key: linux-tests-integration-babbage
-    depends_on: linux-nix
-    command: |
-        mkdir integration-test-dir
-        export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
-        export INTEGRATION_TEST_DIR=integration-test-dir
-        nix shell 'nixpkgs#just' -c just babbage-integration-tests
-    artifact_paths: [ "./integration-test-dir/**" ]
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+  - group: Linux Checks
+    key: linux-tests
+    steps:
 
-  - label: "Conway integration tests (linux)"
-    key: linux-tests-integration-conway
-    depends_on: linux-nix
-    command: |
-        mkdir integration-test-dir
-        export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
-        export INTEGRATION_TEST_DIR=integration-test-dir
-        nix shell 'nixpkgs#just' -c just conway-integration-tests
-    artifact_paths: [ "./integration-test-dir/**" ]
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Run Local Cluster Tests (linux)
+      key: local-cluster-tests
+      depends_on: linux-nix
+      command: |
+        mkdir local-cluster-logs
+        nix shell "nixpkgs#just" -c just test-local-cluster
+      agents:
+        system: ${linux}
+      artifact_paths: [ "./local-cluster-logs/**" ]
+      env:
+        CLUSTER_LOGS_DIR_PATH: local-cluster-logs
 
-  - label: 'Build benchmarks (linux)'
-    key: build-benchmarks
-    depends_on: linux-nix
-    command: 'nix build .#ci.benchmarks.all'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Run Unit Tests (linux)
+      key: linux-tests-unit
+      depends_on: linux-nix
+      command: 'nix build -L .#ci.${linux}.tests.run.unit'
+      agents:
+        system: ${linux}
 
-  - label: 'Check Cabal Configure'
-    key: cabal-configure
-    depends_on: linux-nix
-    command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Babbage Integration Tests (linux)
+      key: linux-tests-integration-babbage
+      depends_on: linux-nix
+      command: |
+          mkdir integration-test-dir
+          export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
+          export INTEGRATION_TEST_DIR=integration-test-dir
+          nix shell 'nixpkgs#just' -c just babbage-integration-tests
+      artifact_paths: [ "./integration-test-dir/**" ]
+      agents:
+        system: ${linux}
+      concurrency: 8
+      concurrency_group: 'linux-integration-tests'
 
-  - label: 'Check code format'
-    key: code-format
-    depends_on: linux-nix
-    command: 'nix develop --command .buildkite/check-code-format.sh'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Conway Integration Tests (linux)
+      key: linux-tests-integration-conway
+      depends_on: linux-nix
+      command: |
+          mkdir integration-test-dir
+          export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
+          export INTEGRATION_TEST_DIR=integration-test-dir
+          nix shell 'nixpkgs#just' -c just conway-integration-tests
+      artifact_paths: [ "./integration-test-dir/**" ]
+      agents:
+        system: ${linux}
+      concurrency: 8
+      concurrency_group: 'linux-integration-tests'
 
-  - label: 'Check HLint'
-    key: hlint
-    depends_on: linux-nix
-    command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Run Haskell E2E Tests (linux)
+      command: 'nix develop --command bash -c "just e2e-local"'
+      depends_on: linux-nix
+      agents:
+        system: ${linux}
 
-  - label: 'Validate OpenAPI Specification'
-    key: openapi
-    depends_on: linux-nix
-    command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - block: Run Ruby E2E Tests (linux)
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: linux-nix
+      key: trigger-e2e-tests
 
-  - label: 'Print TODO list'
-    depends_on: linux-nix
-    command: 'nix develop --command scripts/todo-list.sh'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Run Ruby Linux E2E Tests (linux)
+      depends_on:
+        - linux-package
+        - trigger-e2e-tests
+      commands: |
+        ./scripts/buildkite/main/linux-e2e.sh
+      artifact_paths:
+        - "./result/linux/**"
+        - "./logs/**/*"
+      env:
+        NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+      agents:
+        system: ${linux}
+      concurrency: 1
+      concurrency_group: 'linux-e2e-tests'
 
-  - label: 'Lint bash shell scripts'
-    key: lint-bash
-    depends_on: linux-nix
-    commands:
-      - 'echo +++ Shellcheck'
-      - './scripts/shellcheck.sh'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+  - group: Code Quality Checks
+    key: code-quality
+    steps:
 
-  - label: 'Check HLS works'
-    key: hls
-    depends_on: linux-nix
-    command: |
-        nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Check Code Format
+      key: code-format
+      depends_on: linux-nix
+      command: 'nix develop --command scripts/buildkite/main/check-code-format.sh'
+      agents:
+        system: ${linux}
 
-  - block: 'Run benchmarks'
-    if: '(build.branch !~ /^gh-readonly-queue\/master/) && (build.branch != "master") && (build.branch !~ /^release-candidate/) && (build.branch != "rc-latest")'
-    depends_on: linux-nix
-    key: trigger-benchmarks
+    - label: Check HLint
+      key: hlint
+      depends_on: linux-nix
+      command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
+      agents:
+        system: ${linux}
 
-  - label: 'API benchmark'
-    command: |
-      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
-      "./.buildkite/bench-api.sh"
-    depends_on: trigger-benchmarks
-    timeout_in_minutes: 20
-    agents:
-      system: x86_64-linux
-    artifact_paths: [ "./bench-results.csv" ]
-    env:
-      TMPDIR: "/cache"
+    - label: Validate OpenAPI Specification
+      key: openapi
+      depends_on: linux-nix
+      command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
+      agents:
+        system: ${linux}
 
-  - label: 'Latency benchmark'
-    command: |
-      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
-      ./.buildkite/bench-latency.sh
-    depends_on: trigger-benchmarks
-    timeout_in_minutes: 20
-    agents:
-      system: x86_64-linux
-    artifact_paths: [ "./bench-results.csv" ]
-    env:
-      TMPDIR: "/cache"
+    - label: Print TODO List
+      depends_on: linux-nix
+      command: 'nix develop --command scripts/todo-list.sh'
+      agents:
+        system: ${linux}
 
-  - label: 'DB benchmark'
-    command: |
-      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
-      ./.buildkite/bench-db.sh
-    depends_on: trigger-benchmarks
-    timeout_in_minutes: 50
-    agents:
-      system: x86_64-linux
-    artifact_paths: [ "./bench-results.csv" ]
-    env:
-      TMPDIR: "/cache"
+    - label: Lint Bash Shell Scripts
+      key: lint-bash
+      depends_on: linux-nix
+      commands:
+        - 'echo +++ Shellcheck'
+        - './scripts/shellcheck.sh'
+      agents:
+        system: ${linux}
 
-  - label: 'Read-blocks benchmark'
-    command: |
-      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
-      ./.buildkite/bench-read-blocks.sh
-    depends_on: trigger-benchmarks
-    timeout_in_minutes: 20
-    agents:
-      system: x86_64-linux
-    artifact_paths: [ "./bench-results.csv" ]
-    env:
-      TMPDIR: "/cache"
+    - label: Check HLS Works
+      key: hls
+      depends_on: linux-nix
+      command:
+          nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
+      agents:
+        system: ${linux}
+      env:
+        TMPDIR: "/cache"
 
-  - label: 'memory benchmark'
-    command: |
-      export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
-      ./.buildkite/bench-memory.sh
-    depends_on: trigger-benchmarks
-    timeout_in_minutes: 20
-    agents:
-      system: x86_64-linux
-    artifact_paths: [ "./bench-results.csv" ]
-    env:
-      TMPDIR: "/cache"
+  - group: Linux Benchmarks
+    key: linux-benchmarks
+    steps:
 
-  - block: "macOS steps"
-    if: |
-      build.branch !~ /^gh-readonly-queue\/master/
-        && build.branch != "master"
-        && build.branch !~ /^release-candidate/
-        && build.branch != "rc-latest"
-    depends_on: linux-nix
-    key: trigger-macos
+    - block: Run Benchmarks
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: linux-nix
+      key: trigger-benchmarks
 
-  - label: 'Check nix (macOS)'
-    depends_on: trigger-macos
-    key: macos-nix
-    commands:
-      - 'nix flake info'
-    agents:
-      system: ${macos}
+    - label: API Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        "./scripts/buildkite/main/bench-api.sh"
+      depends_on: trigger-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
-  - label: 'Run unit tests (macOS, x86_64)'
-    key: macos-intel-tests-run-unit
-    depends_on: macos-nix
-    command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
-    agents:
-      system: ${macos}
+    - label: Latency Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-latency.sh
+      depends_on: trigger-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
-  - label: 'Run unit tests (macOS, arm64)'
-    key: macos-arm64-tests-run-unit
-    depends_on: macos-nix
-    command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
-    agents:
-      system: ${macos}
+    - label: DB Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-db.sh
+      depends_on: trigger-benchmarks
+      timeout_in_minutes: 50
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
-  - label: 'Build integration tests (macOS, arm64)'
-    key: macos-arm64-tests-build-integration
-    depends_on: macos-nix
-    command: nix build -L .#packages.aarch64-darwin.integration-exe
-    agents:
-      system: ${macos}
-      queue: "cardano-wallet"
+    - label: Read-blocks Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-read-blocks.sh
+      depends_on: trigger-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
-  - label: 'Build package (macOS, x86_64)'
-    key: macos-intel-package
-    depends_on: macos-nix
-    command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
-    artifact_paths: [ "./result/macos-intel/**" ]
-    agents:
-      system: ${macos}
+    - label: Memory Benchmark (linux)
+      command: |
+        export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
+        ./scripts/buildkite/main/bench-memory.sh
+      depends_on: trigger-benchmarks
+      timeout_in_minutes: 20
+      agents:
+        system: x86_64-linux
+        queue: adrestia-bench
+      artifact_paths: [ "./bench-results.csv" ]
+      concurrency: 4
+      concurrency_group: 'concurrent-benchmarks'
 
-  - label: 'Build package (macOS, arm64)'
-    key: macos-arm64-package
-    depends_on: macos-nix
-    command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
-    artifact_paths: [ "./result/macos-silicon/**" ]
-    agents:
-      system: ${macos}
+    - block: Restoration Benchmark (linux)
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: linux-nix
+      key: restore-block
 
-  - block: "Build package (linux)"
-    if: |
-      build.branch !~ /^gh-readonly-queue\/master/
-        && build.branch != "master"
-        && build.branch !~ /^release-candidate/
-        && build.branch != "rc-latest"
-    depends_on: linux-nix
-    key: trigger-build-linux-package
+    - label: Restore benchmark (linux)
+      command: |
+        nix develop path:./scripts/buildkite/main --command bash -c \
+          "./scripts/buildkite/main/bench-restore.sh mainnet"
+      depends_on: restore-block
+      timeout_in_minutes: 1200
+      agents:
+        system: ${linux}
+        queue: adrestia-bench
+      concurrency: 1
+      concurrency_group: 'restoration-benchmark'
 
-  - label: 'Build package (linux)'
-    key: linux-package
-    depends_on: [linux-nix, trigger-build-linux-package]
-    command: nix build -o result/linux .#ci.artifacts.linux64.release
-    artifact_paths: [ "./result/linux/**" ]
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+  - group: MacOS Artifacts
+    key: macos-artifacts
+    steps:
 
-  - block: "Build windows artifacts"
-    if: |
-      build.branch !~ /^gh-readonly-queue\/master/
-        && build.branch != "master"
-        && build.branch !~ /^release-candidate/
-        && build.branch != "rc-latest"
-    depends_on: linux-nix
-    key: trigger-build-windows-artifacts
+    - label: Check Nix (macOS)
+      key: macos-nix
+      commands:
+        - 'nix flake info'
+      agents:
+        system: ${macos}
 
-  - label: 'Build package (windows)'
-    key: windows-package
-    depends_on: [linux-nix, trigger-build-windows-artifacts]
-    command: nix build -o result/windows .#ci.artifacts.win64.release
-    artifact_paths: [ "./result/windows/**" ]
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - block: MacOS Steps
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.env("RELEASE_CANDIDATE") == null
+      depends_on: macos-nix
+      key: block-macos
 
-  - label: 'Build testing bundle (windows)'
-    key: windows-testing-bundle
-    depends_on: [linux-nix, trigger-build-windows-artifacts]
-    command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
-    artifact_paths: [ "./result/windows-tests/**" ]
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
 
-  - block: "Run E2E tests"
-    if: |
-      build.branch !~ /^gh-readonly-queue\/master/
-        && build.branch != "master"
-        && build.branch !~ /^release-candidate/
-        && build.branch != "rc-latest"
-    depends_on: linux-nix
-    key: trigger-e2e-tests
+    - label: Build Integration Tests (macOS, arm64)
+      key: macos-arm64-tests-build-integration
+      depends_on: block-macos
+      command: nix build -L .#packages.aarch64-darwin.integration-exe
+      agents:
+        system: ${macos}
+        queue: "cardano-wallet"
 
-  - label: "Run E2E tests"
-    key: e2e
-    depends_on: trigger-e2e-tests
-    command: 'nix develop --command bash -c "just e2e-local"'
-    agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+    - label: Build Package (macOS, x86_64)
+      key: macos-intel-package
+      depends_on: block-macos
+      command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
+      artifact_paths: [ "./result/macos-intel/**" ]
+      agents:
+        system: ${macos}
 
-  - label: Manage rc-latest tags
+    - label: Build Package (macOS, arm64)
+      key: macos-arm64-package
+      depends_on: block-macos
+      command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
+      artifact_paths: [ "./result/macos-silicon/**" ]
+      agents:
+        system: ${macos}
+
+  - group: MacOS Checks
+    key: "macos-checks"
+    steps:
+
+    - block: MacOS Unit Tests
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.env("RELEASE_CANDIDATE") == null
+      depends_on: macos-nix
+      key: macos-unit-tests-block
+
+    - label: Run Unit Tests (macOS, x86_64)
+      key: macos-intel-tests-run-unit
+      depends_on: macos-unit-tests-block
+      command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
+      agents:
+        system: ${macos}
+
+    - label: Run Unit Tests (macOS, arm64)
+      key: macos-arm64-tests-run-unit
+      depends_on: macos-unit-tests-block
+      command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
+      agents:
+        system: ${macos}
+
+    - block: MacOS Integration Tests
+      # if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: macos-nix
+      key: macos-integration-tests-block
+
+    - label: Run Integration Tests (macOS)
+      key: macos-tests-integration
+      depends_on: macos-integration-tests-block
+      command: nix shell 'nixpkgs#just' -c just babbage-integration-tests
+      agents:
+        system: ${macos}
+        queue: "cardano-wallet"
+      concurrency: 3
+      concurrency_group: 'macos-integration-tests'
+
+    - block: MacOS E2E Tests
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: macos-nix
+      key: macos-e2e-tests-block
+
+    - label: 'Run E2E Tests (macOS, arm64)'
+      key: macos-silicon-e2e
+      depends_on:
+        - macos-arm64-package
+        - macos-e2e-tests-block
+      command:
+        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
+      artifact_paths:
+        - "./logs/**/*"
+      env:
+        NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
+      agents:
+        system: ${macos}
+      concurrency: 1
+      concurrency_group: 'macos-e2e-tests'
+
+  - group: Windows Artifacts
+    key: windows-artifacts
+    steps:
+    - block: Build Windows Artifacts (windows)
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.env("RELEASE_CANDIDATE") == null
+      depends_on: linux-nix
+      key: trigger-build-windows-artifacts
+
+    - label: Build Package (windows)
+      key: windows-package
+      depends_on:
+        - linux-nix
+        - trigger-build-windows-artifacts
+      command: nix build -o result/windows .#ci.artifacts.win64.release
+      artifact_paths: [ "./result/windows/**" ]
+      agents:
+        system: ${linux}
+
+    - label: Build Testing Bundle (windows)
+      key: windows-testing-bundle
+      depends_on:
+        - linux-nix
+        - trigger-build-windows-artifacts
+      command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
+      artifact_paths: [ "./result/windows-tests/**" ]
+      agents:
+        system: ${linux}
+
+    - label: Tag as Release Candidate (windows)
+      if: build.env("RELEASE_CANDIDATE") != null
+      depends_on:
+        - windows-package
+        - windows-testing-bundle
+      command: scripts/buildkite/main/tag-release-candidate.sh
+      agents:
+        system: ${linux}
+
+  - wait: ~
+
+  - block: Push Docker Image
+    if: build.env("RELEASE_CANDIDATE") == null
+    key: docker-push-block
+
+  - label: Push Docker Image
     depends_on:
-      - cabal-release
-      - linux-tests-unit
-      - linux-tests-integration-babbage
-      - linux-tests-integration-conway
-      - macos-arm64-tests-run-unit
-      - macos-arm64-tests-build-integration
-      - macos-intel-tests-run-unit
-      - cabal-configure
-      - code-format
-      - hlint
-      - openapi
-      - lint-bash
-      - hls
-      - build-benchmarks
-      - macos-arm64-package
-      - macos-intel-package
-      - linux-package
-      - windows-package
-      - windows-testing-bundle
-      - e2e
-    if: build.branch =~ /^release-candidate/
-    command: .buildkite/retag-rc-latest.sh
+      - linux-nix
+      - docker-push-block
+    key: build-docker
+    command:
+      - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+      - "./docker-build-push"
     agents:
-      system: ${linux}
-    env:
-      TMPDIR: "/cache"
+      system: x86_64-linux

@@ -7,7 +7,8 @@ LANG=C.UTF-8
 
 echo "+++ Check code format: imports"
 
-stylish-haskell -v --config .stylish-haskell.yaml --inplace `git ls-files -- '*.hs'`
+# shellcheck disable=SC2046
+stylish-haskell -v --config .stylish-haskell.yaml --inplace $(git ls-files -- '*.hs')
 
 echo "+++ Check code format: no multiple consecutive blank lines"
 

@@ -1,8 +1,10 @@
 name: E2E Windows
 
 on:
-  schedule:
-  - cron:  "0 21 * * *"
+  push:
+    tags:
+      - release-candidate-tag/*
+
   workflow_dispatch:
     inputs:
       branch:
@@ -13,6 +15,9 @@ on:
         default: 'all'
 jobs:
   test:
+    concurrency:
+      group: windows-e2e-group
+      cancel-in-progress: false
 
     runs-on: windows-latest
 
