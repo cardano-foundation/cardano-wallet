@@ -179,7 +179,10 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
         Nothing -> do
             res <- try $ withNetworkConfiguration args $ \nodeConfig ->
                 withCardanoNode (trMessageText tr) nodeConfig
-                    $ \(JustK socket) -> action tr (networkConfig args) socket
+                    $ \(JustK socket) -> do
+                        -- macOS: wait 2 seconds for node to create socket
+                        threadDelay (2000*1000)
+                        action tr (networkConfig args) socket
             case res of
                 Left (exited :: ProcessHasExited) -> do
                     sayErr

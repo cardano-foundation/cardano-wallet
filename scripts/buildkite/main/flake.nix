@@ -31,6 +31,14 @@
             pkgs.rsync
             pkgs.gnutar
             pkgs.gnupg
+
+            # Restore benchmark
+            pkgs.buildkite-agent
+            pkgs.gawk
+            pkgs.gnuplot
+            pkgs.gnugrep
+            pkgs.haskellPackages.hp2pretty
+            pkgs.time
           ];
           shellHook = ''
             # use this hook to set up additional environment variables
