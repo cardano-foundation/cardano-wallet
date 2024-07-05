@@ -25,6 +25,10 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- TODO [ADP-3385] Stop using deprecated 'Cardano.ProtocolParameters'
+--https://cardanofoundation.atlassian.net/browse/ADP-3385
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+
 module Internal.Cardano.Write.Tx.BalanceSpec
     ( spec
     ) where
