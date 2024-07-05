@@ -301,19 +301,6 @@ steps:
       depends_on: macos-nix
       key: block-macos
 
-    - label: Run Unit Tests (macOS, x86_64)
-      key: macos-intel-tests-run-unit
-      depends_on: block-macos
-      command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
-      agents:
-        system: ${macos}
-
-    - label: Run Unit Tests (macOS, arm64)
-      key: macos-arm64-tests-run-unit
-      depends_on: block-macos
-      command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
-      agents:
-        system: ${macos}
 
     - label: Build Integration Tests (macOS, arm64)
       key: macos-arm64-tests-build-integration
@@ -343,8 +330,30 @@ steps:
     key: "macos-checks"
     steps:
 
+    - block: MacOS Unit Tests
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.env("RELEASE_CANDIDATE") == null
+      depends_on: macos-nix
+      key: macos-unit-tests-block
+
+    - label: Run Unit Tests (macOS, x86_64)
+      key: macos-intel-tests-run-unit
+      depends_on: macos-unit-tests-block
+      command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
+      agents:
+        system: ${macos}
+
+    - label: Run Unit Tests (macOS, arm64)
+      key: macos-arm64-tests-run-unit
+      depends_on: macos-unit-tests-block
+      command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
+      agents:
+        system: ${macos}
+
     - block: MacOS Integration Tests
-      if: build.env("RELEASE_CANDIDATE") == null
+      # if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-integration-tests-block
 
@@ -359,7 +368,7 @@ steps:
       concurrency_group: 'macos-integration-tests'
 
     - block: MacOS E2E Tests
-      # if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-e2e-tests-block
 
