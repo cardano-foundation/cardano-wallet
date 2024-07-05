@@ -12,10 +12,10 @@ env:
   linux: "x86_64-linux"
 
 steps:
-  - group: "Linux Setup"
-    key: "linux-setup"
+  - group: Linux Artifacts
+    key: linux-artifacts
     steps:
-    - label: 'Check nix (linux)'
+    - label: Check Nix (linux)
       # Check whether regenerate.sh was applied when it had to be applied.
       key: linux-nix
       commands:
@@ -23,7 +23,7 @@ steps:
       agents:
         system: ${linux}
 
-    - block: "Cabal release"
+    - block: Cabal Build
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
             && build.branch != "master"
@@ -31,7 +31,7 @@ steps:
       depends_on: linux-nix
       key: cabal-release-block
 
-    - label: 'Cabal build all -frelease'
+    - label: Cabal Build (linux)
       key: cabal-release
       depends_on: cabal-release-block
       command: |
@@ -40,7 +40,7 @@ steps:
       agents:
         system: ${linux}
 
-    - label: 'Build benchmarks (linux)'
+    - label: Build benchmarks (linux)
       key: build-benchmarks
       depends_on: linux-nix
       command: 'nix build .#ci.benchmarks.all'
@@ -49,7 +49,7 @@ steps:
       env:
         TMPDIR: "/cache"
 
-    - label: 'Build package (linux)'
+    - label: Build package (linux)
       key: linux-package
       depends_on:
         - linux-nix
@@ -58,18 +58,18 @@ steps:
       agents:
         system: ${linux}
 
-    - label: 'Check Cabal Configure'
+    - label: Check Cabal Configure
       key: cabal-configure
       depends_on: linux-nix
       command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
       agents:
         system: ${linux}
 
-  - group: "Linux Tests"
-    key: "linux-tests"
+  - group: Linux Checks
+    key: linux-tests
     steps:
 
-    - label: Run local-cluster tests
+    - label: Run Local Cluster Tests (linux)
       key: local-cluster-tests
       depends_on: linux-nix
       command: |
@@ -81,14 +81,14 @@ steps:
       env:
         CLUSTER_LOGS_DIR_PATH: local-cluster-logs
 
-    - label: 'Run unit tests (linux)'
+    - label: Run Unit Tests (linux)
       key: linux-tests-unit
       depends_on: linux-nix
       command: 'nix build -L .#ci.${linux}.tests.run.unit'
       agents:
         system: ${linux}
 
-    - label: "Babbage integration tests (linux)"
+    - label: Babbage Integration Tests (linux)
       key: linux-tests-integration-babbage
       depends_on: linux-nix
       command: |
@@ -102,7 +102,7 @@ steps:
       concurrency: 8
       concurrency_group: 'linux-integration-tests'
 
-    - label: "Conway integration tests (linux)"
+    - label: Conway Integration Tests (linux)
       key: linux-tests-integration-conway
       depends_on: linux-nix
       command: |
@@ -116,18 +116,18 @@ steps:
       concurrency: 8
       concurrency_group: 'linux-integration-tests'
 
-    - label: "Run haskell E2E tests"
+    - label: Run Haskell E2E Tests (linux)
       command: 'nix develop --command bash -c "just e2e-local"'
       depends_on: linux-nix
       agents:
         system: ${linux}
 
-    - block: "Run ruby E2E tests"
+    - block: Run Ruby E2E Tests (linux)
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: trigger-e2e-tests
 
-    - label: 'Run ruby linux e2e tests'
+    - label: Run Ruby Linux E2E Tests (linux)
       depends_on:
         - linux-package
         - trigger-e2e-tests
@@ -143,38 +143,38 @@ steps:
       concurrency: 1
       concurrency_group: 'linux-e2e-tests'
 
-  - group: Code Quality
-    key: "code-quality"
+  - group: Code Quality Checks
+    key: code-quality
     steps:
 
-    - label: 'Check code format'
+    - label: Check Code Format
       key: code-format
       depends_on: linux-nix
       command: 'nix develop --command scripts/buildkite/main/check-code-format.sh'
       agents:
         system: ${linux}
 
-    - label: 'Check HLint'
+    - label: Check HLint
       key: hlint
       depends_on: linux-nix
       command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
       agents:
         system: ${linux}
 
-    - label: 'Validate OpenAPI Specification'
+    - label: Validate OpenAPI Specification
       key: openapi
       depends_on: linux-nix
       command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
       agents:
         system: ${linux}
 
-    - label: 'Print TODO list'
+    - label: Print TODO List
       depends_on: linux-nix
       command: 'nix develop --command scripts/todo-list.sh'
       agents:
         system: ${linux}
 
-    - label: 'Lint bash shell scripts'
+    - label: Lint Bash Shell Scripts
       key: lint-bash
       depends_on: linux-nix
       commands:
@@ -183,7 +183,7 @@ steps:
       agents:
         system: ${linux}
 
-    - label: 'Check HLS works'
+    - label: Check HLS Works
       key: hls
       depends_on: linux-nix
       command:
@@ -193,16 +193,16 @@ steps:
       env:
         TMPDIR: "/cache"
 
-  - group: "Linux Benchmarks"
-    key: "linux-benchmarks"
+  - group: Linux Benchmarks
+    key: linux-benchmarks
     steps:
 
-    - block: 'Run benchmarks'
+    - block: Run Benchmarks
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: trigger-benchmarks
 
-    - label: 'API benchmark'
+    - label: API Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         "./scripts/buildkite/main/bench-api.sh"
@@ -215,7 +215,7 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
-    - label: 'Latency benchmark'
+    - label: Latency Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-latency.sh
@@ -228,7 +228,7 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
-    - label: 'DB benchmark'
+    - label: DB Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-db.sh
@@ -241,7 +241,7 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
-    - label: 'Read-blocks benchmark'
+    - label: Read-blocks Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-read-blocks.sh
@@ -254,7 +254,7 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
-    - label: 'Memory Benchmark'
+    - label: Memory Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-memory.sh
@@ -267,12 +267,12 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
-    - block: "Restoration benchmark"
+    - block: Restoration Benchmark (linux)
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
       key: restore-block
 
-    - label: 'Restore benchmark - cardano mainnet'
+    - label: Restore benchmark (linux)
       command: "./scripts/buildkite/main/bench-restore.sh mainnet"
       depends_on: restore-block
       timeout_in_minutes: 1200
@@ -282,19 +282,18 @@ steps:
       concurrency: 1
       concurrency_group: 'restoration-benchmark'
 
-
-  - group: "MacOS Setup"
-    key: "macos-setup"
+  - group: MacOS Artifacts
+    key: macos-artifacts
     steps:
 
-    - label: 'Check nix (macOS)'
+    - label: Check Nix (macOS)
       key: macos-nix
       commands:
         - 'nix flake info'
       agents:
         system: ${macos}
 
-    - block: "macOS steps"
+    - block: MacOS Steps
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
@@ -302,21 +301,21 @@ steps:
       depends_on: macos-nix
       key: block-macos
 
-    - label: 'Run unit tests (macOS, x86_64)'
+    - label: Run Unit Tests (macOS, x86_64)
       key: macos-intel-tests-run-unit
       depends_on: block-macos
       command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'
       agents:
         system: ${macos}
 
-    - label: 'Run unit tests (macOS, arm64)'
+    - label: Run Unit Tests (macOS, arm64)
       key: macos-arm64-tests-run-unit
       depends_on: block-macos
       command: 'nix build -L .#ci.aarch64-darwin.tests.run.unit'
       agents:
         system: ${macos}
 
-    - label: 'Build integration tests (macOS, arm64)'
+    - label: Build Integration Tests (macOS, arm64)
       key: macos-arm64-tests-build-integration
       depends_on: block-macos
       command: nix build -L .#packages.aarch64-darwin.integration-exe
@@ -324,7 +323,7 @@ steps:
         system: ${macos}
         queue: "cardano-wallet"
 
-    - label: 'Build package (macOS, x86_64)'
+    - label: Build Package (macOS, x86_64)
       key: macos-intel-package
       depends_on: block-macos
       command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
@@ -332,7 +331,7 @@ steps:
       agents:
         system: ${macos}
 
-    - label: 'Build package (macOS, arm64)'
+    - label: Build Package (macOS, arm64)
       key: macos-arm64-package
       depends_on: block-macos
       command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
@@ -340,16 +339,16 @@ steps:
       agents:
         system: ${macos}
 
-  - group: "MacOS Tests"
-    key: "macos-tests"
+  - group: MacOS Checks
+    key: "macos-checks"
     steps:
 
-    - block: "MacOS integration tests"
+    - block: MacOS Integration Tests
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-integration-tests-block
 
-    - label: 'Run integration tests on macOS'
+    - label: Run Integration Tests (macOS)
       key: macos-tests-integration
       depends_on: macos-integration-tests-block
       command: nix shell 'nixpkgs#just' -c just babbage-integration-tests
@@ -359,12 +358,12 @@ steps:
       concurrency: 3
       concurrency_group: 'macos-integration-tests'
 
-    - block: "MacOS E2E tests"
+    - block: MacOS E2E Tests
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: macos-nix
       key: macos-e2e-tests-block
 
-    - label: 'Run E2E tests (macOS, arm64)'
+    - label: 'Run E2E Tests (macOS, arm64)'
       key: macos-silicon-e2e
       depends_on:
         - macos-arm64-package
@@ -380,11 +379,10 @@ steps:
       concurrency: 1
       concurrency_group: 'macos-e2e-tests'
 
-
-  - group: "Windows Setup"
-    key: "windows-setup"
+  - group: Windows Artifacts
+    key: windows-artifacts
     steps:
-    - block: "Build windows artifacts"
+    - block: Build Windows Artifacts (windows)
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
@@ -392,7 +390,7 @@ steps:
       depends_on: linux-nix
       key: trigger-build-windows-artifacts
 
-    - label: 'Build package (windows)'
+    - label: Build Package (windows)
       key: windows-package
       depends_on:
         - linux-nix
@@ -402,7 +400,7 @@ steps:
       agents:
         system: ${linux}
 
-    - label: 'Build testing bundle (windows)'
+    - label: Build Testing Bundle (windows)
       key: windows-testing-bundle
       depends_on:
         - linux-nix
@@ -412,7 +410,7 @@ steps:
       agents:
         system: ${linux}
 
-    - label: Tag this release candidate
+    - label: Tag as Release Candidate (windows)
       if: build.env("RELEASE_CANDIDATE") != null
       depends_on:
         - windows-package
@@ -423,11 +421,11 @@ steps:
 
   - wait: ~
 
-  - block: "Push docker image"
+  - block: Push Docker Image
     if: build.env("RELEASE_CANDIDATE") == null
     key: docker-push-block
 
-  - label: 'Push Docker Image'
+  - label: Push Docker Image
     depends_on:
       - linux-nix
       - docker-push-block
