@@ -431,20 +431,64 @@ steps:
       agents:
         system: ${linux}
 
-  - wait: ~
+  - group: Docker Artifacts
+    key: docker-artifacts
+    steps:
+      - block: 'Docker build'
+        if: |
+          build.branch !~ /^gh-readonly-queue\/master/
+            && build.branch != "master"
+            && build.env("RELEASE_CANDIDATE") == null
+        key: docker-artifacts-block
 
-  - block: Push Docker Image
-    if: build.env("RELEASE_CANDIDATE") == null
-    key: docker-push-block
+      - label: 'Build Docker Image'
+        key: docker-build
+        depends_on:
+          - docker-artifacts-block
+          - linux-nix
+        commands:
+          ./scripts/buildkite/release/docker-build.sh
+        agents:
+          system: x86_64-linux
 
-  - label: Push Docker Image
-    depends_on:
-      - linux-nix
-      - docker-push-block
-    key: build-docker
-    command:
-      - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
-      - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
-      - "./docker-build-push"
-    agents:
-      system: x86_64-linux
+  - group: "Docker Checks"
+    key: "docker-e2e"
+    steps:
+
+      - block: 'Docker build and test'
+        key: docker-tests-block
+        if: |
+          build.branch !~ /^gh-readonly-queue\/master/
+            && build.branch != "master"
+            && build.env("RELEASE_CANDIDATE") == null
+
+      - label: 'Smoke test docker-compose'
+        depends_on:
+          - docker-tests-block
+          - docker-build
+        timeout_in_minutes: 2
+        commands:
+          - ./scripts/buildkite/release/docker-smoke-test.sh
+        artifact_paths:
+          - "./logs/*"
+        env:
+          NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        agents:
+          system: x86_64-linux
+
+      - block: Push Docker Image
+        if: build.env("RELEASE_CANDIDATE") == null
+        key: docker-push-block
+
+      - label: Push Docker Image
+        depends_on:
+          - linux-nix
+          - docker-build
+          - docker-push-block
+        key: build-docker
+        command:
+          - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+          - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+          - "./docker-build-push"
+        agents:
+          system: x86_64-linux
