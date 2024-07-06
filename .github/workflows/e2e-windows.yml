@@ -3,7 +3,7 @@ name: E2E Windows
 on:
   push:
     tags:
-      - release-candidate-tag/*
+      - rc-latest
 
   workflow_dispatch:
     inputs:
