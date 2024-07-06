@@ -422,7 +422,7 @@ steps:
         system: ${linux}
 
     - label: Tag as Release Candidate (windows)
-      if: build.env("RELEASE_CANDIDATE") != null
+      # if: build.env("RELEASE_CANDIDATE") != null
       depends_on:
         - windows-package
         - windows-testing-bundle
