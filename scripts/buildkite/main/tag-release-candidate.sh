@@ -23,3 +23,8 @@ git tag "$LATEST" "$BUILDKITE_COMMIT"
 
 git push origin "$DTAG"
 git push origin "$LATEST"
+
+# we wait 2 minutes to let buildite build the windows artifacts for the rc-latest tag
+# it will be fast as they are already built for the same commit, do cached by nix
+
+sleep 120
