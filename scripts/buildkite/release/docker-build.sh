@@ -5,7 +5,7 @@ set -euox pipefail
 
 git fetch --all
 
-RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get "release-candidate-commit")
+RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get "release-candidate-commit" --default="${BUILDKITE_COMMIT}")
 
 git checkout "$RELEASE_CANDIDATE_COMMIT"
 
