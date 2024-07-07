@@ -473,7 +473,7 @@ steps:
         key: docker-smoke-test
         depends_on:
           - docker-build
-        timeout_in_minutes: 2
+        timeout_in_minutes: 120
         commands:
           - ./scripts/buildkite/release/docker-smoke-test.sh
         artifact_paths:

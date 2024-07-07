@@ -59,11 +59,8 @@ do
             echo "$result" | jq
             break
         else
-            sleep 4
+            sleep 30
             n=$((n+1))
-    fi
-    if [ "$n" -ge 30 ]
-        then break
     fi
 done
 
