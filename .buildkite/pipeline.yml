@@ -439,7 +439,6 @@ steps:
           build.branch !~ /^gh-readonly-queue\/master/
             && build.branch != "master"
             && build.env("RELEASE_CANDIDATE") == null
-            && build.tag != "rc-latest"
         key: docker-artifacts-block
 
       - label: Build Docker Image
@@ -452,11 +451,15 @@ steps:
         agents:
           system: x86_64-linux
 
+      - block: Push Docker Image
+        if: build.env("RELEASE_CANDIDATE") == null
+        key: push-docker-block
+
       - label: Push Docker Image
-        if: build.tag == "rc-latest"
         depends_on:
           - linux-nix
           - docker-build
+          - push-docker-block
         key: build-docker
         command:
           - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
