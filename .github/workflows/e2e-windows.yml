@@ -117,7 +117,7 @@ jobs:
       if: always()
       uses: actions/cache/save@v3
       with:
-        path: test/e2e/state/node_db/preprod
+        path: C:/cardano-wallet/test/e2e/state/node_db/preprod
         key: node-db-e2e-windows-preprod
 
     - name: 📎 Upload state
