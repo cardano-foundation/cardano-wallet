@@ -451,15 +451,12 @@ steps:
         agents:
           system: x86_64-linux
 
-      - block: Push Docker Image
-        if: build.env("RELEASE_CANDIDATE") == null
-        key: push-docker-block
-
       - label: Push Docker Image
+        if: build.env("RELEASE_CANDIDATE") != null
         depends_on:
           - linux-nix
           - docker-build
-          - push-docker-block
+          - docker-smoke-test
         key: build-docker
         command:
           - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
@@ -471,17 +468,10 @@ steps:
   - group: Docker Checks
     key: docker-e2e
     steps:
-
-      - block: Run Docker Checks
-        key: docker-tests-block
-        if: |
-          build.branch !~ /^gh-readonly-queue\/master/
-            && build.branch != "master"
-            && build.env("RELEASE_CANDIDATE") == null
-
       - label: Smoke Test docker-compose
+        if: build.env("RELEASE_CANDIDATE") != null
+        key: docker-smoke-test
         depends_on:
-          - docker-tests-block
           - docker-build
         timeout_in_minutes: 2
         commands:
