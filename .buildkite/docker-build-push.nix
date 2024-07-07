@@ -71,16 +71,16 @@ in
 
     # Apply tagging scheme
     orig_tag="${image.imageName}:${image.imageTag}"
-    git_branch="''${BUILDKITE_BRANCH:-}"
     git_tag="''${BUILDKITE_TAG:-}"
+    git_branch="''${BUILDKITE_BRANCH:-}"
     tags=()
     if [[ "$git_tag" =~ ^v20 ]]; then
       tags+=( "${image.imageTag}" )
       tags+=( "latest" )
-    elif [[ "$git_tag" = "rc-latest" ]]; then
-      tags+=( "$git_tag")
+    elif [[ "$git_branch" =~ ^release-candidate ]]; then
+      tags+=( "release-candidate" )
     else
-      echo 'Not pushing docker image because this is neither a rc-latest nor a v20* tag build.'
+      tags+=( "test")
     fi
 
     echo
