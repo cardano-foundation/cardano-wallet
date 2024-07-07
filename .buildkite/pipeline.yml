@@ -398,6 +398,7 @@ steps:
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
           && build.env("RELEASE_CANDIDATE") == null
+          && build.branch != "rc-latest"
       depends_on: linux-nix
       key: trigger-build-windows-artifacts
 
