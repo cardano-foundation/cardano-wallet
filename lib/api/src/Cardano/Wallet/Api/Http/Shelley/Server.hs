@@ -122,6 +122,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , withWorkerCtx
     , getCurrentEpoch
     , toMetadataEncrypted
+    , fromMetadataEncrypted
     , metadataPBKDF2Config
 
     -- * Workers
@@ -3189,23 +3190,24 @@ fromMetadataEncrypted apiEncrypt metadata =
              decodeFromJSON decrypted
       where
         payloadBS = T.encodeUtf8 payload
-    adjust (Cardano.TxMetadata metadata) decodedElems =
-        pure $ Cardano.TxMetadata $ Map.adjust updateMetaMap cip20MetadataKey metadata
+    adjust (Cardano.TxMetadata metadata') decodedElems =
+        pure $ Cardano.TxMetadata $
+        Map.adjust updateMetaMap cip20MetadataKey metadata'
       where
-        updateElem acc@(decryptedList, list) elem = case elem of
+        updateElem acc@(decryptedList, list) elem' = case elem' of
             (Cardano.TxMetaText k, Cardano.TxMetaText v) ->
                 if k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue then
                     -- omiting this element
                     acc
                 else
-                    (decryptedList, list ++ [elem])
-            (Cardano.TxMetaText k, v) ->
-                -- it is secure to do it as we check it already in composePayload
-                let (toAdd : rest) = decryptedList
-                in if k == cip83EncryptPayloadKey then
-                    (rest, list ++ [(Cardano.TxMetaText k, toAdd)] )
-                else
-                    (decryptedList, list ++ [(Cardano.TxMetaText k, v)] )
+                    (decryptedList, list ++ [elem'])
+            (Cardano.TxMetaText k, v) -> case decryptedList of
+                toAdd : rest ->
+                    if k == cip83EncryptPayloadKey then
+                        (rest, list ++ [(Cardano.TxMetaText k, toAdd)] )
+                    else
+                        (decryptedList, list ++ [(Cardano.TxMetaText k, v)] )
+                _ -> error "we have checked already in composePayload that there is enough elements in decrypedList"
             _ -> error "we have checked already in composePayload that there is pair (TxMetaText, something)"
 
         updateMetaMap v = case v of
@@ -3671,8 +3673,8 @@ decodeTransaction
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
         let keyhash = KeyHash Policy (xpubToBytes k)
-        let TxExtended{..} = decodeTx tl era sealed
-        let Tx { txId
+            TxExtended{..} = decodeTx tl era sealed
+            Tx { txId
                , fee
                , resolvedInputs
                , resolvedCollateralInputs
@@ -3681,7 +3683,15 @@ decodeTransaction
                , metadata
                , scriptValidity
                } = walletTx
-        let db = wrk ^. dbLayer
+            db = wrk ^. dbLayer
+        metadata' <- case (decryptMetadata, metadata) of
+            (Just apiDecrypt, Just meta) ->
+                case fromMetadataEncrypted apiDecrypt meta of
+                    Left err ->
+                        liftHandler $ throwE err
+                    Right txmetadata ->
+                        pure . Just . ApiT $ txmetadata
+            _ -> pure $ ApiT <$> metadata
         (acct, _, acctPath) <-
             liftHandler $ W.shelleyOnlyReadRewardAccount @s db
         inputPaths <-
@@ -3714,7 +3724,7 @@ decodeTransaction
             , depositsReturned =
                 (ApiAmount.fromCoin . W.stakeKeyDeposit $ pp)
                     <$ filter ourRewardAccountDeregistration certs
-            , metadata = ApiTxMetadata $ ApiT <$> metadata
+            , metadata = ApiTxMetadata metadata'
             , scriptValidity = ApiT <$> scriptValidity
             , validityInterval = ApiValidityIntervalExplicit <$> validity
             , witnessCount = mkApiWitnessCount $ witnessCount

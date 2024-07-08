@@ -42,6 +42,7 @@ import Cardano.Wallet
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
     , ErrCreateRandomAddress (..)
+    , ErrDecodeTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetPolicyId (..)
@@ -492,6 +493,41 @@ instance IsServerError ErrConstructTx where
         ErrConstructTxNotImplemented ->
             apiError err501 NotImplemented
                 "This feature is not yet implemented."
+
+instance IsServerError ErrDecodeTx where
+    toServerError = \case
+        ErrDecodeTxMissingMetadataKey ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata has wrong structure. "
+            , "It is expected to be a map with key '674' - see CIP20."
+            ]
+        ErrDecodeTxMissingEncryptionMethod ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata has wrong structure. "
+            , "It is expected to have encryption method under 'enc' key - see CIP83."
+            ]
+        ErrDecodeTxMissingValidEncryptionPayload ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata has wrong structure. "
+            , "It is expected to have encryption payload under 'msg' key - see CIP83."
+            ]
+        ErrDecodeTxDecryptedPayload err ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the decrypted metadata cannot be decoded. "
+            , "The exact error is: "
+            , err
+            ]
+        ErrDecodeTxMissingSalt ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the decrypted metadata can be decoded, but "
+            , "misses salt."
+            ]
+        ErrDecodeTxDecryptPayload cryptoError ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata cannot be decrypted. "
+            , "The exact error is: "
+            , T.pack (show cryptoError)
+            ]
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case
