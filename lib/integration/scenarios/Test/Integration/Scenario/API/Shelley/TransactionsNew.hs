@@ -72,6 +72,7 @@ import Cardano.Wallet.Api.Hex
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( metadataPBKDF2Config
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
@@ -5534,6 +5535,30 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             ]
 
+        let decodePayloadEncrypted = Json (toJSON signedTx)
+        let (Right expMetadataEncrypted) =
+                ApiT <$> toMetadataEncrypted encryptMetadata metadataToBeEncrypted
+                (Just salt)
+        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
+        verify rDecodedTxEncrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted)))
+            ]
+{--
+        let decodePayloadDecrypted = Json [json|{
+                "decrypt_metadata": #{toJSON encryptMetadata},
+                "transaction": #{serialisedTxSealed signedTx}
+            }|]
+        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadDecrypted
+        verify rDecodedTxDecrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))))
+            ]
+--}
     burnAssetsCheck
         :: MonadUnliftIO m
         => Context
