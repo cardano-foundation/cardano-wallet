@@ -3173,7 +3173,7 @@ fromMetadataEncrypted apiEncrypt metadata =
             Left ErrDecodeTxMissingValidEncryptionPayload
         else do
             let extracted = extractPayload <$> payloads
-            when (elem T.empty extracted) $
+            when (T.empty `elem` extracted) $
                 Left ErrDecodeTxMissingValidEncryptionPayload
             Right extracted
 
