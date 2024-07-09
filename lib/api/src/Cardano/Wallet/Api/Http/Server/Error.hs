@@ -528,6 +528,10 @@ instance IsServerError ErrDecodeTx where
             , "The exact error is: "
             , T.pack (show cryptoError)
             ]
+        ErrDecodeTxEncryptedPayloadWrongBase ->
+            apiError err403 InvalidMetadataDecryption $ mconcat
+            [ "It looks like the encrypted metadata is not represented as Base64."
+            ]
 
 instance IsServerError ErrGetPolicyId where
     toServerError = \case

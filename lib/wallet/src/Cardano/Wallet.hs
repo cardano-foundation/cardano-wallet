@@ -3774,6 +3774,7 @@ data ErrDecodeTx
     | ErrDecodeTxDecryptedPayload Text
     | ErrDecodeTxMissingSalt
     | ErrDecodeTxDecryptPayload AES256CBC.CipherError
+    | ErrDecodeTxEncryptedPayloadWrongBase
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a transaction.

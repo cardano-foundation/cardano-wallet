@@ -742,6 +742,7 @@ import Data.Bifunctor
     )
 import Data.ByteArray.Encoding
     ( Base (..)
+    , convertFromBase
     , convertToBase
     )
 import Data.ByteString
@@ -3177,19 +3178,22 @@ fromMetadataEncrypted apiEncrypt metadata =
             Right extracted
 
     pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
-    decodeFromJSON = ---use metadataValueFromJsonNoSchema
+    decodeFromJSON = ---use metadataValueFromJsonNoSchema when available from cardano-api
         first (ErrDecodeTxDecryptedPayload . T.pack) .
         Aeson.eitherDecode . BL.fromStrict
-    decrypt payload = case AES256CBC.getSaltFromEncrypted payloadBS of
-         Nothing -> Left ErrDecodeTxMissingSalt
-         Just salt -> do
-             let (secretKey, iv) =
-                     PBKDF2.generateKey metadataPBKDF2Config pwd (Just salt)
-             decrypted <- bimap ErrDecodeTxDecryptPayload fst
-                 (AES256CBC.decrypt WithPadding secretKey iv payloadBS)
-             decodeFromJSON decrypted
-      where
-        payloadBS = T.encodeUtf8 payload
+    decrypt payload = case convertFromBase Base64 (T.encodeUtf8 payload) of
+        Right payloadBS ->
+            case AES256CBC.getSaltFromEncrypted payloadBS of
+                     Nothing -> Left ErrDecodeTxMissingSalt
+                     Just salt -> do
+                         let (secretKey, iv) =
+                                 PBKDF2.generateKey metadataPBKDF2Config pwd (Just salt)
+                         decrypted <- bimap ErrDecodeTxDecryptPayload fst
+                             (AES256CBC.decrypt WithPadding secretKey iv payloadBS)
+                         decodeFromJSON decrypted
+        Left _ ->
+            Left ErrDecodeTxEncryptedPayloadWrongBase
+
     adjust (Cardano.TxMetadata metadata') decodedElems =
         pure $ Cardano.TxMetadata $
         Map.adjust updateMetaMap cip20MetadataKey metadata'
@@ -3668,7 +3672,6 @@ decodeTransaction
 decodeTransaction
     ctx@ApiLayer{..} (ApiT wid) postData = do
     let ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata = postData
-    when (isJust decryptMetadata) $ error "not implemented"
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (k, _) <- liftHandler $ W.readPolicyPublicKey wrk

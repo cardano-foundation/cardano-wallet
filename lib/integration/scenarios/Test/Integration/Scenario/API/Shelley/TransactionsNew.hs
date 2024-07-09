@@ -570,7 +570,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
-    it "TRANS_NEW_CREATE_02c - \
+    it "TRANS_NEW_CREATE_02d - \
         \Correct metadata structure to be encrypted - short" $
         \ctx -> runResourceT $ do
             let toBeEncrypted = TxMetaText "world"
@@ -582,7 +582,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
-    it "TRANS_NEW_CREATE_02c - \
+    it "TRANS_NEW_CREATE_02e - \
         \Correct metadata structure to be encrypted - long" $
         \ctx -> runResourceT $ do
             let toBeEncrypted =
@@ -600,7 +600,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
-    it "TRANS_NEW_CREATE_02d - \
+    it "TRANS_NEW_CREATE_02f - \
         \Encrypt multiple metadata messages" $
         \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
@@ -5546,7 +5546,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #metadata
                 (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted)))
             ]
-{--
+
         let decodePayloadDecrypted = Json [json|{
                 "decrypt_metadata": #{toJSON encryptMetadata},
                 "transaction": #{serialisedTxSealed signedTx}
@@ -5558,7 +5558,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #metadata
                 (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))))
             ]
---}
+
     burnAssetsCheck
         :: MonadUnliftIO m
         => Context
