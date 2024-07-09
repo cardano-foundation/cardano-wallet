@@ -6,11 +6,16 @@ In addition "Transactions New > Decode" HTTP endpoint is described in the contex
 ## Metadata encryption
 
 Encryption of metadata is optional and when chosen the metadata in transaction is to be encrypted
-via AEAD scheme using ChaCha20 and Poly1305 (see [RFC 7539][ref]). PBKDF2 password stretching is used to get a 32-byte symmetric key
-that is required for the adopted encryption algorithm. In detail, PBKDF2 encryption uses HMAC with the hash algorithm SHA512.
+via AES256CBC according to [CIP-0020][ref1] and [CIP-0083][ref2].
+A PKCS#7 padding of payload is used before encryption as the required
+input length must be a multiple of block size, ie., 16 bytes.
+PBKDF2 password stretching is used to get a 32-byte symmetric key
+that is required for the adopted encryption algorithm. In detail, 
+PBKDF2 encryption uses HMAC with the hash algorithm SHA512.
 As a consequence the encrypted metadata, not its raw version, is going to be stored in blockchain.
 
-  [ref]: https://datatracker.ietf.org/doc/html/rfc7539
+  [ref1]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-0020
+  [ref2]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-0083
 
 The "Transactions New > Construct" HTTP endpoint allows the encryption of metadata.
 The "Transactions New > Decode" HTTP endpoint allows for decrypting of the encrypted metadata.
@@ -29,7 +34,11 @@ Specifically:
       "encrypt_metadata":
           { "passphrase": "my secret encryption password"
           },
-      "metadata": "raw metadata"
+      "metadata": 
+          { "674" : {
+                      "msg": "raw metadata ... "
+                    }
+          }
     ...
     }
     ```
@@ -38,13 +47,22 @@ Specifically:
     ```
     {
     ...
-      "metadata": "metadata encrypted"
+      "metadata": 
+          { "674":
+                   { 
+                     "enc": "basic",
+                     "msg": 
+                            [ 
+                              "base64-string 1", "base64-string 2", "base64-string 3" ...
+                            ]
+                   }      
+          }
     ...
     }
     ```
     The same is the case for `GET` transaction. `encrypt_metadata` is an object as we might want to introduce
     optional choice of encryption method in the future. In that case the new enhancement to api will be introduced in
-    nonintrusive way.
+    non-intrusive way.
 
     Metadata encryption can be used for shared wallet style when calling `/shared-wallets/{walletId}/transactions-construct` endpoint with the same `POST` payload.
 
@@ -55,15 +73,25 @@ Specifically:
       "encrypt_metadata":
           { "passphrase": "metadata-secret"
           },
-      "metadata": {"1":"hello"}
+      "metadata": 
+          { "674" : {
+                      "msg":"world"
+                    }
+          }
+          
     ...
     }
     ```
-    will return
+    will return (for salt "yoDCYXKaVhA=")
     ```
     {
     ...
-      "metadata": {"0":"0x0aa4f9a016215f71ef007b60601708dec0d10b4ade6071b387295f95b4"}
+      "metadata": 
+          { "674" : {
+                      "enc": "basic",
+                      "msg": [ "U2FsdGVkX1/KgMJhcppWEG6t0aUcMqdEJmnSHVOCgpw=" ]
+                    }
+          }
     ...
     }
     ```
@@ -75,24 +103,33 @@ Specifically:
       "encrypt_metadata":
           { "passphrase": "metadata-secret"
           },
-      "metadata":
-          { "1": "Hard times create strong men."
-          , "2": "Strong men create good times."
-          , "3": "Good times create weak men."
-          , "4": "And, weak men create hard times."
-          }
+      "metadata": 
+          { "674" : {
+                      "msg":
+                          [ "Hard times create strong men."
+                          , "Strong men create good times."
+                          , "Good times create weak men."
+                          , "And, weak men create hard times."
+                          ]                       
+                    }
+          }          
     ...
     }
     ```
-    will return
+    will return (for salt "XG1cgIw56q8=")
     ```
     {
     ...
-      "metadata":
-         { "0": "0x0aa4f9a016217f75f10834367493f6d7e74197417ca25c7615cae02bc345382906fb6990daf8f138b2d9192e057d0d0b555f9d5fb287abb1842928c90f26e597"
-         , "1": "0x559ee85f00f1588b3ee32e81dc4c84aee208a10c1eec97fffe6e0e66c69d4e0b1e3e22d7edc1618df3b20b484527d86bc3bebad4295a2ad888d034b5fec38077"
-         , "2": "0x8d42154f681230124c64630ea68b841aec22f0530ec830cb662d59ef423ef23d7ff3"
-         }
+          { "674" : {
+                      "enc": "basic",          
+                      "msg":
+                          [ "U2FsdGVkX19cbVyAjDnqr5eksQ9gnxJDz6dWhAaXvZGQl31HdEtTpBa91osBavdQ"
+                          , "xvOJpGuA8vQGJUgn9RVuqFbVxpggHGCspU6Z5BV5j1LlSqnp6GfHFvrTL3sZcZMq"
+                          , "MtOMZSx+d6nPRJL6453wC3rh0cny6SnrEUt9awwxx4PDZk7pDT85h3ygQf1I8fow"
+                          , "tYtj3GY0cBwIHfkRLrsxbg=="
+                          ]                       
+                    }
+          }          
     ...
     }
     ```
@@ -116,7 +153,11 @@ Specifically:
     ```
     {
     ...
-      "metadata": "raw metadata"
+      "metadata": 
+          { "674" : {
+                      "msg": "raw metadata ... "
+                    }
+          }
     ...
     }
     ```
