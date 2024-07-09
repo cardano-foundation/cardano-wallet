@@ -3147,7 +3147,7 @@ fromMetadataEncrypted apiEncrypt metadata =
                 k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
             presentPair _ = False
         in case value of
-            Cardano.TxMetaMap list -> null $ filter presentPair list
+            Cardano.TxMetaMap list -> not (any presentPair list)
             _ -> True
     getEncryptedPayload value =
         let presentPair (Cardano.TxMetaText k, Cardano.TxMetaList _) =
@@ -3169,11 +3169,11 @@ fromMetadataEncrypted apiEncrypt metadata =
         when (checkPresenceOfMethod validValue) $
             Left ErrDecodeTxMissingEncryptionMethod
         let payloads = getEncryptedPayload validValue
-        if length payloads == 0 then
+        if null payloads then
             Left ErrDecodeTxMissingValidEncryptionPayload
         else do
             let extracted = extractPayload <$> payloads
-            when (any (==T.empty) extracted) $
+            when (elem T.empty extracted) $
                 Left ErrDecodeTxMissingValidEncryptionPayload
             Right extracted
 

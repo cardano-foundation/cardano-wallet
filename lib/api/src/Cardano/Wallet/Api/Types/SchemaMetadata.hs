@@ -35,12 +35,12 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Control.Applicative
     ( (<|>)
     )
+import Control.DeepSeq
+    ( NFData
+    )
 import Control.Monad
     ( guard
     , when
-    )
-import Control.DeepSeq
-    ( NFData
     )
 import Data.Aeson
     ( FromJSON (parseJSON)
@@ -71,8 +71,8 @@ import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
 import qualified Data.Attoparsec.ByteString.Char8 as Atto
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Base16 as BS16
-import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Base16 as B16
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
@@ -161,8 +161,8 @@ metadataValueFromJsonNoSchema = conv
     conv (Aeson.String s)
       | Just s' <- T.stripPrefix bytesPrefix s
       , let bs' = T.encodeUtf8 s'
-      , Right bs <- BS16.decode bs'
-      , not (BS8.any (\c -> c >= 'A' && c <= 'F') bs')
+      , Right bs <- B16.decode bs'
+      , not (B8.any (\c -> c >= 'A' && c <= 'F') bs')
       = Right (TxMetaBytes bs)
 
     conv (Aeson.String s) = Right (TxMetaText s)
@@ -200,7 +200,7 @@ pUnsigned :: Atto.Parser Integer
 pUnsigned = do
     bs <- Atto.takeWhile1 Atto.isDigit
     -- no redundant leading 0s allowed, or we cannot round-trip properly
-    guard (not (BS.length bs > 1 && BS8.head bs == '0'))
+    guard (not (BS.length bs > 1 && B8.head bs == '0'))
     return $! BS.foldl' step 0 bs
   where
     step a w = a * 10 + fromIntegral (w - 48)
@@ -212,8 +212,8 @@ pBytes :: Atto.Parser ByteString
 pBytes = do
   _ <- Atto.string "0x"
   remaining <- Atto.takeByteString
-  when (BS8.any hexUpper remaining) $ fail ("Unexpected uppercase hex characters in " <> show remaining)
-  case BS16.decode remaining of
+  when (B8.any hexUpper remaining) $ fail ("Unexpected uppercase hex characters in " <> show remaining)
+  case B16.decode remaining of
     Right bs -> return bs
     _ -> fail ("Expecting base16 encoded string, found: " <> show remaining)
   where
