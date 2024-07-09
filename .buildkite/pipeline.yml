@@ -439,6 +439,7 @@ steps:
           build.branch !~ /^gh-readonly-queue\/master/
             && build.branch != "master"
             && build.env("RELEASE_CANDIDATE") == null
+            && build.tag !~ /^v20/
         key: docker-artifacts-block
 
       - label: Build Docker Image
@@ -452,7 +453,9 @@ steps:
           system: x86_64-linux
 
       - label: Push Docker Image
-        if: build.env("RELEASE_CANDIDATE") != null
+        if: |
+          build.env("RELEASE_CANDIDATE") != null
+            || build.tag =~ /^v20/
         depends_on:
           - linux-nix
           - docker-build
