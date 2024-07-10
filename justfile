@@ -5,7 +5,7 @@ default:
 
 # check that the code is formatted with stylish-haskell
 syntax:
-  ./.buildkite/check-code-format.sh
+  scripts/buildkite/main/check-code-format.sh
 
 hlint:
   nix develop --command bash -c 'hlint lib'
