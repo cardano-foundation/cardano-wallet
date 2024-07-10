@@ -75,7 +75,7 @@ export WALLET_DB=`pwd`/wallet-db
 
 # set the node tag and wallet tag to compatible versions
 export NODE_TAG=8.9.4
-export WALLET_TAG=2024.7.7
+export WALLET_TAG=2024.7.10
 
 # set a port for the wallet server
 export WALLET_PORT=8090
