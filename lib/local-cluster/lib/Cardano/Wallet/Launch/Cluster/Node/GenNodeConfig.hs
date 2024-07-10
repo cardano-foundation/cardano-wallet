@@ -126,7 +126,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
 
-        GenesisRecord byronFile shelleyFile alonzoFile conwayFile = genesisFiles
+        GenesisRecord byronFile shelleyFile alonzoFile mconwayFile = genesisFiles
 
         scribes =
             let
@@ -148,12 +148,16 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                             (T.pack $ toFilePath file, extraSev)
                         ]
 
+        setConwayFile = case mconwayFile of
+            Just conwayFile -> setFilePath "ConwayGenesisFile" conwayFile
+            Nothing -> key "ConwayGenesisFile" .~ Null
+
         patchConfig value =
             value
                 & setFilePath "ByronGenesisFile" byronFile
                 & setFilePath "ShelleyGenesisFile" shelleyFile
                 & setFilePath "AlonzoGenesisFile" alonzoFile
-                & setFilePath "ConwayGenesisFile" conwayFile
+                & setConwayFile
                 & removeGenesisHashes
                 & setHardFork "ShelleyHardFork"
                 & setHardFork "AllegraHardFork"
