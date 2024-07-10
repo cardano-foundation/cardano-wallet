@@ -28,7 +28,7 @@ import Data.Monoid.Monus
     ( Monus ((<\>))
     )
 import Data.Word
-    ( Word64
+    ( Word32
     )
 import Internal.Cardano.Write.Tx
     ( IsRecentEra (..)
@@ -299,7 +299,7 @@ instance Arbitrary PParamsInRecentEra where
                 [ fromIntegral . max 0 . (4000 +) <$> arbitrary @Int
 
                 -- Generate more extreme values (both small and large)
-                , fromIntegral <$> arbitrary @Word64
+                , fromIntegral <$> arbitrary @Word32
                 ]
 
 babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor

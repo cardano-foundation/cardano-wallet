@@ -154,7 +154,9 @@ import Cardano.Crypto.Hash
     ( Hash (UnsafeHash)
     )
 import Cardano.Ledger.Allegra.Scripts
-    ( translateTimelock
+    ( AllegraEraScript
+    , Timelock
+    , translateTimelock
     )
 import Cardano.Ledger.Alonzo.Plutus.Context
     ( EraPlutusContext
@@ -376,6 +378,8 @@ type RecentEraConstraints era =
     , Show (PParams era)
     , Show (Script era)
     , EraPlutusContext era
+    , AllegraEraScript era
+    , Core.NativeScript era ~ Timelock era
     )
 
 -- | Returns a proof that the given era is a recent era.

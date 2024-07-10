@@ -343,6 +343,7 @@ import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
+import qualified Ouroboros.Consensus.Shelley.Ledger.Query.Types as Consensus
 import qualified Ouroboros.Network.Block as O
 
 --------------------------------------------------------------------------------
@@ -730,12 +731,12 @@ fromPoolId (SL.KeyHash x) = PoolId $ hashToBytes x
 
 fromPoolDistr
     :: forall crypto. ()
-    => SL.PoolDistr crypto
+    => Consensus.PoolDistr crypto
     -> Map PoolId Percentage
 fromPoolDistr =
-    Map.map (unsafeMkPercentage . SL.individualPoolStake)
+    Map.map (unsafeMkPercentage . Consensus.individualPoolStake)
     . Map.mapKeys fromPoolId
-    . SL.unPoolDistr
+    . Consensus.unPoolDistr
 
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards

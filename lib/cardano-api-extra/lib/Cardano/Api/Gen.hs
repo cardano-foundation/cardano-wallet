@@ -137,7 +137,7 @@ import Cardano.Api
     , CostModel (..)
     , Eon (..)
     , EpochNo (EpochNo)
-    , ExecutionUnitPrices (ExecutionUnitPrices)
+    , ExecutionUnitPrices (..)
     , ExecutionUnits (ExecutionUnits)
     , Featured (..)
     , HasTypeProxy (AsType)
@@ -171,7 +171,7 @@ import Cardano.Api
     , ScriptWitnessInCtx (ScriptWitnessForSpending, ScriptWitnessForStakeAddr)
     , SerialiseAsCBOR (deserialiseFromCBOR, serialiseToCBOR)
     , ShelleyAddr
-    , ShelleyBasedEra
+    , ShelleyBasedEra (..)
     , ShelleyToBabbageEra (..)
     , ShelleyWitnessSigningKey (..)
     , SimpleScript (..)
@@ -253,11 +253,10 @@ import Cardano.Api.Byron
     )
 import Cardano.Api.Shelley
     ( Hash (..)
-    , LedgerProtocolParameters
+    , LedgerProtocolParameters (..)
     , PlutusScript (..)
     , PlutusScriptOrReferenceInput (..)
     , PoolId
-    , ProtocolParameters (..)
     , ReferenceScript (..)
     , SimpleScriptOrReferenceInput (..)
     , StakeCredential (..)
@@ -265,11 +264,11 @@ import Cardano.Api.Shelley
     , StakePoolMetadataReference (..)
     , StakePoolParameters (..)
     , StakePoolRelay (..)
-    , convertToLedgerProtocolParameters
     , toShelleyPoolParams
     )
 import Cardano.Ledger.Api
     ( StandardCrypto
+    , emptyPParams
     )
 import Cardano.Ledger.Credential.Safe
     ( Ptr
@@ -383,11 +382,6 @@ import Test.QuickCheck
     , sized
     , vector
     , vectorOf
-    )
-import Test.QuickCheck.Extra
-    ( GenSeed (..)
-    , genSizeDefault
-    , generateWith
     )
 import Test.QuickCheck.Hedgehog
     ( hedgehog
@@ -1295,52 +1289,19 @@ genExecutionUnitPrices = ExecutionUnitPrices <$> genRational <*> genRational
 protocolParametersForHashing
     :: ShelleyBasedEra era
     -> LedgerProtocolParameters era
-protocolParametersForHashing era =
-    either (error . show) id
-        $ convertToLedgerProtocolParameters era
-        $ generateWith
-            (GenSeed 0)
-            genSizeDefault
-            genRecentEraProtocolParameters
+protocolParametersForHashing = \case
+    ShelleyBasedEraShelley -> LedgerProtocolParameters emptyPParams
+    ShelleyBasedEraAllegra -> LedgerProtocolParameters emptyPParams
+    ShelleyBasedEraMary -> LedgerProtocolParameters emptyPParams
+    ShelleyBasedEraAlonzo -> LedgerProtocolParameters emptyPParams
+    ShelleyBasedEraBabbage -> LedgerProtocolParameters emptyPParams
+    ShelleyBasedEraConway -> LedgerProtocolParameters emptyPParams
 
 genValidProtocolVersion :: Gen (Natural, Natural)
 genValidProtocolVersion = do
     major <- fromIntegral @Int <$> choose (0, 9)
     minor <- genNat
     pure (major, minor)
-
--- | Generates a set of protocol parameters for a recent era.
---
--- Uses 'Just' as necessary to be convertible to @Ledger.PParams era@
--- for 'IsRecentEra' eras, and keep our tests from throwing exceptions.
-genRecentEraProtocolParameters :: Gen ProtocolParameters
-genRecentEraProtocolParameters =
-    ProtocolParameters
-        <$> genValidProtocolVersion
-        <*> (Just <$> genRational)
-        <*> liftArbitrary genPraosNonce
-        <*> genNat
-        <*> genNat
-        <*> genNat
-        <*> genCoin
-        <*> genCoin
-        <*> liftArbitrary genCoin
-        <*> genCoin
-        <*> genCoin
-        <*> genCoin
-        <*> genInterval
-        <*> genNat
-        <*> genRationalInt64
-        <*> genRational
-        <*> genRational
-        <*> genCostModels
-        <*> (Just <$> genExecutionUnitPrices)
-        <*> (Just <$> genExecutionUnits)
-        <*> (Just <$> genExecutionUnits)
-        <*> (Just <$> genNat)
-        <*> (Just <$> genNat)
-        <*> (Just <$> genNat)
-        <*> (Just <$> genCoin)
 
 genInterval :: Gen Ledger.EpochInterval
 genInterval = Ledger.EpochInterval <$> arbitrary
@@ -1819,6 +1780,8 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
     txValidityUpperBound <- genTxValidityUpperBound era
     txProposalProcedures <- genMaybeFeaturedInEra genProposals era
     txVotingProcedures <- genMaybeFeaturedInEra genVotingProcedures era
+    txCurrentTreasuryValue <- genMaybeFeaturedInEra (const genCoin) era
+    txTreasuryDonation <- genMaybeFeaturedInEra (const genCoin) era
 
     let
         txBody =
@@ -1849,6 +1812,8 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
                 , Api.txValidityUpperBound
                 , Api.txProposalProcedures
                 , Api.txVotingProcedures
+                , Api.txCurrentTreasuryValue
+                , Api.txTreasuryDonation
                 }
 
     let witnesses = collectTxBodyScriptWitnesses sbe txBody

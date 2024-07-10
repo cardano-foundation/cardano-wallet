@@ -25,6 +25,10 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- TODO [ADP-3385] Stop using deprecated 'Cardano.ProtocolParameters'
+--https://cardanofoundation.atlassian.net/browse/ADP-3385
+{-# OPTIONS_GHC -fno-warn-deprecations #-}
+
 module Internal.Cardano.Write.Tx.BalanceSpec
     ( spec
     ) where
@@ -55,6 +59,7 @@ import Cardano.Ledger.Api
     , EraTxWits (bootAddrTxWitsL, scriptTxWitsL)
     , MaryEraTxBody (..)
     , ShelleyEraTxBody (..)
+    , TransactionScriptFailure (..)
     , ValidityInterval (..)
     , addrTxWitsL
     , allInputsTxBodyF
@@ -712,10 +717,12 @@ spec_balanceTx = describe "balanceTx" $ do
                 case balance (withValidityBeyondHorizon pingPong_2) of
                     Left
                         (ErrBalanceTxAssignRedeemers
-                            (ErrAssignRedeemersTranslationError
+                            (ErrAssignRedeemersScriptFailure
+                                _redeemer
+                                (ContextError
                                 (AlonzoContextError
                                 (TimeTranslationPastHorizon
-                                    _pastHoriozon)))) -> return ()
+                                    _pastHoriozon))))) -> return ()
                     other -> expectationFailure $
                         "Expected pastHorizon failure; got " <> show other
 
@@ -1301,10 +1308,8 @@ prop_balanceTxValid
                     counterexample counterexampleText $ property False
             Left
                 (ErrBalanceTxAssignRedeemers
-                (ErrAssignRedeemersTranslationError x)) ->
-                    case recentEra @era of
-                        RecentEraBabbage -> prop_babbageContextError x
-                        RecentEraConway -> prop_conwayContextError x
+                (ErrAssignRedeemersScriptFailure _ e)) ->
+                prop_transactionScriptFailure e
             Left ErrBalanceTxUnableToCreateChange {} ->
                 label "unable to create change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
@@ -1316,38 +1321,61 @@ prop_balanceTxValid
         balanceTxArgs
     Wallet _ walletUTxO _ = wallet
 
-    prop_babbageContextError :: BabbageContextError era -> Property
-    prop_babbageContextError = \case
-        AlonzoContextError (TranslationLogicMissingInput _) ->
-            succeedWithLabel "TranslationLogicMissingInput"
-        AlonzoContextError (TimeTranslationPastHorizon _) ->
-            succeedWithLabel "TimeTranslationPastHorizon"
-        ByronTxOutInContext _ ->
-            succeedWithLabel "ByronTxOutInContext"
-        RedeemerPointerPointsToNothing _ ->
-            succeedWithLabel "RedeemerPointerPointsToNothing"
-        InlineDatumsNotSupported _ ->
-            succeedWithLabel "InlineDatumsNotSupported"
-        ReferenceScriptsNotSupported _ ->
-            succeedWithLabel "ReferenceScriptsNotSupported"
-        ReferenceInputsNotSupported _ ->
-            succeedWithLabel "ReferenceInputsNotSupported"
+    prop_transactionScriptFailure :: TransactionScriptFailure era -> Property
+    prop_transactionScriptFailure = \case
+        RedeemerPointsToUnknownScriptHash{}
+            -> succeedWithLabel "RedeemerPointsToUnknownScriptHash"
+        MissingScript{}
+            -> succeedWithLabel "MissingScript"
+        MissingDatum{}
+            -> succeedWithLabel "MissingDatum"
+        ValidationFailure{}
+            -> succeedWithLabel "ValidationFailure"
+        UnknownTxIn{}
+            -> succeedWithLabel "UnknownTxIn"
+        InvalidTxIn{}
+            -> succeedWithLabel "InvalidTxIn"
+        IncompatibleBudget{}
+            -> succeedWithLabel "IncompatibleBudget"
+        NoCostModelInLedgerState{}
+            -> succeedWithLabel "NoCostModelInLedgerState"
+        ContextError e
+            -> case recentEra @era of
+                    RecentEraBabbage -> prop_babbageContextError e
+                    RecentEraConway -> prop_conwayContextError e
+      where
+        prop_babbageContextError :: BabbageContextError era -> Property
+        prop_babbageContextError = \case
+            AlonzoContextError (TranslationLogicMissingInput _) ->
+                succeedWithLabel "TranslationLogicMissingInput"
+            AlonzoContextError (TimeTranslationPastHorizon _) ->
+                succeedWithLabel "TimeTranslationPastHorizon"
+            ByronTxOutInContext _ ->
+                succeedWithLabel "ByronTxOutInContext"
+            RedeemerPointerPointsToNothing _ ->
+                succeedWithLabel "RedeemerPointerPointsToNothing"
+            InlineDatumsNotSupported _ ->
+                succeedWithLabel "InlineDatumsNotSupported"
+            ReferenceScriptsNotSupported _ ->
+                succeedWithLabel "ReferenceScriptsNotSupported"
+            ReferenceInputsNotSupported _ ->
+                succeedWithLabel "ReferenceInputsNotSupported"
 
-    prop_conwayContextError :: ConwayContextError era -> Property
-    prop_conwayContextError = \case
-      BabbageContextError e -> prop_babbageContextError e
-      CertificateNotSupported _ ->
-        succeedWithLabel "CertificateNotSupported"
-      PlutusPurposeNotSupported _ ->
-        succeedWithLabel "PlutusPurposeNotSupported"
-      CurrentTreasuryFieldNotSupported _ ->
-        succeedWithLabel "CurrentTreasuryFieldNotSupported"
-      VotingProceduresFieldNotSupported _ ->
-        succeedWithLabel "VotingProceduresFieldNotSupported"
-      ProposalProceduresFieldNotSupported _ ->
-        succeedWithLabel "ProposalProceduresFieldNotSupported"
-      TreasuryDonationFieldNotSupported _ ->
-        succeedWithLabel "TreasuryDonationFieldNotSupported"
+        prop_conwayContextError :: ConwayContextError era -> Property
+        prop_conwayContextError = \case
+          BabbageContextError e -> prop_babbageContextError e
+          CertificateNotSupported _ ->
+            succeedWithLabel "CertificateNotSupported"
+          PlutusPurposeNotSupported _ ->
+            succeedWithLabel "PlutusPurposeNotSupported"
+          CurrentTreasuryFieldNotSupported _ ->
+            succeedWithLabel "CurrentTreasuryFieldNotSupported"
+          VotingProceduresFieldNotSupported _ ->
+            succeedWithLabel "VotingProceduresFieldNotSupported"
+          ProposalProceduresFieldNotSupported _ ->
+            succeedWithLabel "ProposalProceduresFieldNotSupported"
+          TreasuryDonationFieldNotSupported _ ->
+            succeedWithLabel "TreasuryDonationFieldNotSupported"
 
     succeedWithLabel l = label l $ property True
 

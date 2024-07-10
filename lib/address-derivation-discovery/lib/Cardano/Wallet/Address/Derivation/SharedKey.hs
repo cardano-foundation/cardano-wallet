@@ -147,6 +147,7 @@ constructAddressFromIx role pTemplate dTemplate ix =
         Nothing ->
             createEnterpriseAddress pScript
 
+-- | NOTE: The roles 'DRep', 'CCCold', 'CCHot' are not supported.
 replaceCosignersWithVerKeys
     :: CA.Role
     -> ScriptTemplate
@@ -180,10 +181,22 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         CA.UTxOExternal -> CA.Payment
         CA.UTxOInternal -> CA.Payment
         CA.Stake -> CA.Delegation
+        CA.DRep -> unsupportedRole
+        CA.CCCold -> unsupportedRole
+        CA.CCHot -> unsupportedRole
     deriveMultisigPublicKey accXPub = case role' of
         CA.UTxOExternal -> deriveAddressPublicKey accXPub role'
         CA.UTxOInternal -> deriveAddressPublicKey accXPub role'
         CA.Stake -> deriveDelegationPublicKey accXPub
+        CA.DRep -> unsupportedRole
+        CA.CCCold -> unsupportedRole
+        CA.CCHot -> unsupportedRole
+
+    unsupportedRole :: forall a. HasCallStack => a
+    unsupportedRole = error $ mconcat
+        [ "replaceCosignersWithVerKeys: unsupported role "
+        , show role'
+        ]
 
 -- | Convert 'NetworkDiscriminant type parameter to
 -- 'Cardano.Address.NetworkTag'.
