@@ -128,11 +128,6 @@ source-repository-package
 -- pragma are an exception to this rule.
 -- This is why we need to manually control options that are applied to the
 -- `cardano-addresses` package by declaring them explicitly here.
---
--- Cardano Addresses CLI uses an outdated version of the `optparse-applicative`
--- library. This causes a deprecation warning to be emitted when building.
--- We don't want to promote this warning to an error level as it break the
--- release build and cardano-addresses codebase is not under our control.
 package cardano-addresses-cli
     ghc-options:
         -Wwarn=deprecations
@@ -170,63 +165,30 @@ source-repository-package
 --------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section
 
--- cardano-addresses unit tests bring in some version constraint conflicts.
---
--- 1. hjsonschema and hjsonpointer deps have overly strict bounds.
--- 2. it has strict aeson < 1.5 dep - this will be fixed in the next release.
 allow-newer:
-    hjsonschema:*
-  , hjsonpointer:*
-  , *:aeson
-  , *:hashable
-  , async-timer:unliftio-core
-  , ekg:*
-  , ntp-client:*
-  , libsystemd-journal:base
-  , cardano-addresses-cli:mtl
+    async-timer:unliftio-core
   , servant-openapi3:*
-  , cardano-ledger-alonzo-test:base, plutus-ledger-api
   , katip:Win32
 
 constraints:
     base >= 4.18.2.0 && < 5
-  , bimap >= 0.4.0
   , openapi3 >= 3.2.0
-  , libsystemd-journal >= 1.4.4
-  , systemd >= 2.3.0
-  , singletons-th < 3.3
-  -- dependency of systemd-2.3.0
-  , network >= 3.1.1.1
-  -- choose versions that work with base >= 4.12
-  , hjsonpointer >= 1.5.0
-  , hjsonschema >= 1.10.0
-  , async-timer >= 0.2.0.0
-  , unliftio-core >= 0.2.0.1
-  , generic-arbitrary >= 0.2.2
+  , persistent ^>= 2.14.6.0
+
+  , bech32 >= 1.1.7
 
   -- lower versions of katip won't build with the Win32-2.12.0.1
   -- which is shipped with the ghc-9.2.8
   , katip >= 0.8.7.4
 
-  -- Cave: This version of `bech32`
-  -- does not work with optparse-applicative >= 0.18.1.0
-  , bech32 >= 1.1.7
 
   -- Cardano Node dependencies:
   , io-classes >= 1.4
   , io-classes -asserts
-  , optparse-applicative-fork >= 0.18.1
-
   , ouroboros-consensus-cardano ^>= 0.17
   , ouroboros-network ^>= 0.16.1
   , ouroboros-network-protocols ^>= 0.9
 
-  -- TH Name shadowing warnings need to be addressed when bumping to 2.13.3.5
-  , persistent ^>= 2.14.6.0
-
-  -- warp-tls specifies incorrect upper bound on tls
-  , any.warp-tls ==3.3.6
-  , any.tls ==1.6.0
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
 if impl(ghc == 8.10.7)
