@@ -1,7 +1,9 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -103,6 +105,7 @@ import Options.Applicative
     ( HasValue
     , Mod
     , Parser
+    , auto
     , eitherReader
     , execParser
     , help
@@ -162,7 +165,7 @@ import qualified Cardano.BM.Data.BackendKind as CM
 execBenchWithNode
     :: (RestoreBenchArgs -> cfg)
     -- ^ Get backend-specific network configuration from args
-    -> (Trace IO Text -> cfg -> CardanoNodeConn -> IO ())
+    -> (RestoreBenchArgs -> Trace IO Text -> cfg -> CardanoNodeConn -> IO ())
     -- ^ Action to run
     -> IO ExitCode
 execBenchWithNode networkConfig action = withNoBuffering $ do
@@ -174,7 +177,7 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
 
     case argUseAlreadyRunningNodeSocketPath args of
         Just conn -> do
-            action tr (networkConfig args) conn
+            action args tr (networkConfig args) conn
             pure ExitSuccess
         Nothing -> do
             res <- try $ withNetworkConfiguration args $ \nodeConfig ->
@@ -182,7 +185,7 @@ execBenchWithNode networkConfig action = withNoBuffering $ do
                     $ \(JustK socket) -> do
                         -- macOS: wait 2 seconds for node to create socket
                         threadDelay (2000*1000)
-                        action tr (networkConfig args) socket
+                        action args tr (networkConfig args) socket
             case res of
                 Left (exited :: ProcessHasExited) -> do
                     sayErr
@@ -238,6 +241,7 @@ data RestoreBenchArgs = RestoreBenchArgs
     , argNodeDatabaseDir :: Maybe FilePath
     , argUseAlreadyRunningNodeSocketPath :: Maybe CardanoNodeConn
     , argQuiet :: Bool
+    , argNodeSyncTimeout :: Maybe Int
     }
     deriving (Show, Eq)
 
@@ -247,14 +251,14 @@ restoreBenchArgsParser
     -> Maybe FilePath
     -> Maybe CardanoNodeConn
     -> Parser RestoreBenchArgs
-restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket =
-    RestoreBenchArgs
-        <$> strArgument
+restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket = do
+
+    argNetworkName <- strArgument
             ( metavar "NETWORK"
                 <> envDefault "NETWORK" envNetwork
                 <> help "Blockchain to use. Defaults to $NETWORK."
             )
-        <*> strOption
+    argConfigsDir <- strOption
             ( long "cardano-node-configs"
                 <> short 'c'
                 <> metavar "DIR"
@@ -264,32 +268,43 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket
                     \This must contain a subdirectory corresponding to NETWORK, \
                     \which has the files configuration.json and topology.json."
             )
-        <*> optional
-            ( strOption
-                ( long "node-db"
-                    <> metavar "DB"
-                    <> envDefault "NODE_DB" envNodeDatabaseDir
-                    <> help
-                        "Directory to put cardano-node state. Defaults to $NODE_DB, \
-                        \falls back to temporary directory"
-                )
+    argNodeDatabaseDir <- optional
+        ( strOption
+            ( long "node-db"
+                <> metavar "DB"
+                <> envDefault "NODE_DB" envNodeDatabaseDir
+                <> help
+                    "Directory to put cardano-node state. Defaults to $NODE_DB, \
+                    \falls back to temporary directory"
             )
-        <*> optional
-            ( option
-                (eitherReader cardanoNodeConn)
-                ( long "running-node"
-                    <> metavar "SOCKET"
-                    <> envDefault "CARDANO_NODE_SOCKET_PATH" envNodeSocket
-                    <> help
-                        "Path to the socket of an already running cardano-node. \
-                        \Also set by $CARDANO_NODE_SOCKET_PATH. If not set, cardano-node \
-                        \will automatically be started."
-                )
+        )
+    argUseAlreadyRunningNodeSocketPath <- optional
+        ( option
+            (eitherReader cardanoNodeConn)
+            ( long "running-node"
+                <> metavar "SOCKET"
+                <> envDefault "CARDANO_NODE_SOCKET_PATH" envNodeSocket
+                <> help
+                    "Path to the socket of an already running cardano-node. \
+                    \Also set by $CARDANO_NODE_SOCKET_PATH. If not set, cardano-node \
+                    \will automatically be started."
             )
-        <*> switch
-            ( long ("quiet")
-                <> help "Reduce unnecessary log output."
+        )
+    argQuiet <- switch
+        $ long "quiet"
+            <> help "Reduce unnecessary log output."
+    argNodeSyncTimeout <- optional
+        $ option
+            auto
+            ( long "to-tip-timeout"
+                <> metavar "INT"
+                <> help
+                    "Timeout in hours for waiting for the node to sync. \
+                    \The absence of this flag means the node will wait indefinitely."
+
             )
+    pure $ RestoreBenchArgs {..}
+
   where
     envDefault :: HasValue f => String -> Maybe a -> Mod f a
     envDefault name env =
