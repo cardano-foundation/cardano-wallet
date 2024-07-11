@@ -63,6 +63,7 @@ library
   other-modules:
       Database.Table.Schema
       Database.Table.SQL.Column
+      Database.Table.SQL.Expr
       Database.Table.SQL.Stmt
       Database.Table.SQL.Table
       Database.Table.SQL.Var
