@@ -145,7 +145,7 @@ node-8121:
   'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-cli'
 
 # start a shell with 9.0.0 in scope
-node-893:
+node-900:
   nix shell \
   --accept-flake-config \
   'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
