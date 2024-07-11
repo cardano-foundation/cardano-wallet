@@ -2,18 +2,15 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
-
--- TODO [ADP-3385] Stop using deprecated 'Cardano.ProtocolParameters'
---https://cardanofoundation.atlassian.net/browse/ADP-3385
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( -- * Dummy values
       block0
     , dummyNetworkParameters
     , dummyGenesisParameters
-    , dummyNodeProtocolParameters
     , dummyProtocolParameters
+    , dummyLedgerProtocolParameters
     , dummySlottingParameters
     , dummyTimeInterpreter
     , dummyGenesisHash
@@ -22,15 +19,15 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 
       -- * Mocks
     , dummyNetworkLayer
-
-      -- * Realistic values
-    , babbageMainnetProtocolParameters
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
+    )
+import Cardano.Wallet.Primitive.Ledger.Shelley
+    ( fromConwayPParams
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -42,19 +39,13 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , EpochLength (..)
-    , ExecutionUnitPrices (..)
-    , ExecutionUnits (..)
-    , FeePolicy (..)
     , GenesisParameters (..)
-    , LinearFunction (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
-    , TokenBundleMaxSize (..)
-    , TxParameters (..)
     , emptyEraInfo
     )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -71,9 +62,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     , TxMetadata (..)
     , TxScriptValidity (..)
-    )
-import Cardano.Wallet.Primitive.Types.Tx.Constraints
-    ( TxSize (..)
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxIn
     ( TxIn (..)
@@ -99,10 +87,12 @@ import Data.Time.Clock.POSIX
 import GHC.Stack
     ( HasCallStack
     )
+import Internal.Cardano.Write.Tx.Gen
+    ( mockPParams
+    )
 
-import qualified Cardano.Api.Ledger as C
-import qualified Cardano.Api.Shelley as C
 import qualified Data.ByteString.Char8 as B8
+import qualified Internal.Cardano.Write.Tx as Write
 
 {-----------------------------------------------------------------------------
     Dummy values
@@ -142,14 +132,6 @@ dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
         (getGenesisBlockDate dummyGenesisParameters)
         dummySlottingParameters
 
-dummyTxParameters :: TxParameters
-dummyTxParameters = TxParameters
-    { getFeePolicy = LinearFee $ LinearFunction { intercept = 14, slope = 42 }
-    , getTxMaxSize = Quantity 8_192
-    , getTokenBundleMaxSize = TokenBundleMaxSize (TxSize 2_000)
-    , getMaxExecutionUnits = ExecutionUnits 10 14
-    }
-
 dummyNetworkParameters :: NetworkParameters
 dummyNetworkParameters = NetworkParameters
     { genesisParameters = dummyGenesisParameters
@@ -158,62 +140,12 @@ dummyNetworkParameters = NetworkParameters
     }
 
 dummyProtocolParameters :: ProtocolParameters
-dummyProtocolParameters = ProtocolParameters
-    { decentralizationLevel = minBound
-    , txParameters = dummyTxParameters
-    , desiredNumberOfStakePools = 100
-    , stakeKeyDeposit = Coin 0
-    , eras = emptyEraInfo
-    , maximumCollateralInputCount = 3
-    , minimumCollateralPercentage = 150
-    , executionUnitPrices =
-        Just $ ExecutionUnitPrices
-            { pricePerStep = 7.21e-5
-            , pricePerMemoryUnit = 0.057_7
-            }
-    }
+dummyProtocolParameters = fromConwayPParams
+    emptyEraInfo
+    (mockPParams @Write.ConwayEra)
 
--- | Dummy parameters that are consistent with the @dummy*@ parameters.
-dummyNodeProtocolParameters :: C.ProtocolParameters
-dummyNodeProtocolParameters = C.ProtocolParameters
-    { C.protocolParamProtocolVersion = (8,0)
-    , C.protocolParamDecentralization =Just 1
-    , C.protocolParamExtraPraosEntropy = Nothing
-    , C.protocolParamMaxBlockHeaderSize = 1_100
-    , C.protocolParamMaxBlockBodySize = 90_112
-    , C.protocolParamMaxTxSize = 8_192
-    , C.protocolParamTxFeeFixed = 14 -- B
-    , C.protocolParamTxFeePerByte = 42 -- A
-    , C.protocolParamMinUTxOValue = Nothing
-    , C.protocolParamStakeAddressDeposit = C.Coin 0
-    , C.protocolParamStakePoolDeposit = C.Coin 500_000_000
-    , C.protocolParamMinPoolCost = C.Coin 340_000_000
-    , C.protocolParamPoolRetireMaxEpoch = C.EpochInterval 18
-    , C.protocolParamStakePoolTargetNum = 100
-    , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
-    , C.protocolParamMonetaryExpansion = 0.003 -- rho
-    , C.protocolParamTreasuryCut = 0.20 -- tau
-    , C.protocolParamUTxOCostPerByte = Just $ C.Coin 43_10
-    , C.protocolParamCostModels = mempty
-    , C.protocolParamPrices =
-        Just $ C.ExecutionUnitPrices
-            { C.priceExecutionSteps = 7.21e-5
-            , C.priceExecutionMemory = 0.057_7
-            }
-    , C.protocolParamMaxTxExUnits =
-        Just $ C.ExecutionUnits
-            { C.executionSteps = 10
-            , C.executionMemory = 14
-            }
-    , C.protocolParamMaxBlockExUnits =
-        Just $ C.ExecutionUnits
-            { C.executionSteps = 20
-            , C.executionMemory = 62
-            }
-    , C.protocolParamMaxValueSize = Just 2_000
-    , C.protocolParamCollateralPercent = Just 150
-    , C.protocolParamMaxCollateralInputs = Just 3
-    }
+dummyLedgerProtocolParameters :: Write.IsRecentEra era => Write.PParams era
+dummyLedgerProtocolParameters = mockPParams
 
 dummyNetworkLayer :: HasCallStack => NetworkLayer m a
 dummyNetworkLayer = NetworkLayer
@@ -274,51 +206,3 @@ mkTxId
     -> Map RewardAccount Coin
     -> Maybe TxMetadata -> Hash "Tx"
 mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
-
-{-----------------------------------------------------------------------------
-    Realistic values
-------------------------------------------------------------------------------}
--- | Data from mainnet on 2023-03-17.
--- NOTE: Does not include Plutus cost model (todo).
-babbageMainnetProtocolParameters :: C.ProtocolParameters
-babbageMainnetProtocolParameters = C.ProtocolParameters
-    { C.protocolParamProtocolVersion = (8,0)
-    , C.protocolParamDecentralization = Just 0
-    , C.protocolParamExtraPraosEntropy = Nothing
-    , C.protocolParamMaxBlockHeaderSize = 1_100
-    , C.protocolParamMaxBlockBodySize = 90_112
-    , C.protocolParamMaxTxSize = 16_384
-    , C.protocolParamTxFeeFixed = 155_381 -- B
-    , C.protocolParamTxFeePerByte = 44 -- A
-    , C.protocolParamMinUTxOValue = Just $ C.Coin 1_000_000
-    , C.protocolParamStakeAddressDeposit = C.Coin 2_000_000
-    , C.protocolParamStakePoolDeposit = C.Coin 500_000_000
-    , C.protocolParamMinPoolCost = C.Coin 340_000_000
-    , C.protocolParamPoolRetireMaxEpoch = C.EpochInterval 18
-    , C.protocolParamStakePoolTargetNum = 500
-    , C.protocolParamPoolPledgeInfluence = 0.3 -- a0
-    , C.protocolParamMonetaryExpansion = 0.003 -- rho
-    , C.protocolParamTreasuryCut = 0.20 -- tau
-    , C.protocolParamUTxOCostPerByte = Just $ C.Coin 4_310
-    , C.protocolParamCostModels =
-        mempty
-        -- TODO: Include a Plutus cost model here.
-    , C.protocolParamPrices =
-        Just $ C.ExecutionUnitPrices
-            { C.priceExecutionSteps = 7.21e-5
-            , C.priceExecutionMemory = 0.057_7
-            }
-    , C.protocolParamMaxTxExUnits =
-        Just $ C.ExecutionUnits
-            { C.executionSteps = 10_000_000_000
-            , C.executionMemory = 14_000_000
-            }
-    , C.protocolParamMaxBlockExUnits =
-        Just $ C.ExecutionUnits
-            { C.executionSteps = 20_000_000_000
-            , C.executionMemory = 62_000_000
-            }
-    , C.protocolParamMaxValueSize = Just 5_000
-    , C.protocolParamCollateralPercent = Just 150
-    , C.protocolParamMaxCollateralInputs = Just 3
-    }
