@@ -117,6 +117,7 @@ benchmark restore
     , fmt
     , iohk-monitoring
     , iohk-monitoring-extra
+    , optparse-applicative
     , say
     , text
     , text-class
