@@ -11,7 +11,7 @@ export TESTS_LOGDIR
 CARDANO_NODE_CONFIGS="$(pwd)/configs/cardano"
 export CARDANO_NODE_CONFIGS
 
-VERSION=$(buildkite-agent meta-data get "release-version")
+VERSION=$(buildkite-agent meta-data get "release-version" --default "v2024-07-07")
 echo "VERSION=$VERSION"
 
 buildkite-agent artifact \
