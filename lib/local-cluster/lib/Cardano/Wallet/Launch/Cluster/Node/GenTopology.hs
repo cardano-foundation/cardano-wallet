@@ -8,15 +8,9 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra (..)
-    )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     , askNodeDir
-    )
-import Cardano.Wallet.Launch.Cluster.Config
-    ( Config (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
@@ -25,7 +19,6 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     )
 import Control.Monad.Reader
     ( MonadIO (..)
-    , asks
     )
 import Data.Aeson
     ( ToJSON (..)
@@ -47,13 +40,10 @@ genTopology
     -> ClusterM (FileOf "topology")
 genTopology nodeSegment peers = do
     DirOf nodeDir <- askNodeDir nodeSegment
-    clusterEra <- asks cfgLastHardFork
     let file = nodeDir </> relFile "config" <.> "json"
     liftIO
         $ Aeson.encodeFile (toFilePath file)
-        $ case clusterEra of
-            BabbageHardFork -> encodeLegacyTopology peers
-            ConwayHardFork -> encodeP2PTopology peers
+        $ encodeP2PTopology peers
     pure $ FileOf @"topology" file
 
 encodeP2PTopology :: [Int] -> Aeson.Value
@@ -66,27 +56,16 @@ encodeP2PTopology peers = encodeTopology
             , "port" .= port
             ]
     encodePeers :: Aeson.Value
-    encodePeers = Aeson.object
-        [ "accessPoints" .= toJSON (encodePeer <$> peers)
-        , "valency" .= length peers
-        , "advertise" .= False
-        ]
-    encodeTopology ::  Aeson.Value
-    encodeTopology = Aeson.object
-        [ "localRoots" .= toJSON [encodePeers]
-        , "publicRoots" .= toJSON @[()] []
-        , "useLedgerAfterSlot" .= toJSON @Int (-1)
-        ]
-
-encodeLegacyTopology :: [Int] -> Aeson.Value
-encodeLegacyTopology peers = encodeTopology
-  where
-    encodeTopology = Aeson.object
-        ["Producers" .= map encodePeer peers]
-    encodePeer :: Int -> Aeson.Value
-    encodePeer port =
+    encodePeers =
         Aeson.object
-            [ "addr" .= ("127.0.0.1" :: String)
-            , "port" .= port
-            , "valency" .= (1 :: Int)
+            [ "accessPoints" .= toJSON (encodePeer <$> peers)
+            , "valency" .= length peers
+            , "advertise" .= False
+            ]
+    encodeTopology :: Aeson.Value
+    encodeTopology =
+        Aeson.object
+            [ "localRoots" .= toJSON [encodePeers]
+            , "publicRoots" .= toJSON @[()] []
+            , "useLedgerAfterSlot" .= toJSON @Int (-1)
             ]
