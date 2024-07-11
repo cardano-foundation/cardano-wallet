@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 LC_ALL := 'C.UTF-8'
 
 default:
@@ -25,7 +27,7 @@ wallet:
 
 # run a benchmark: api | latency | memory | db | restore
 bench target:
-  ./.buildkite/bench-{{target}}.sh
+  ./.buildkite/bench-"{{target}}".sh
 
 # run a local test cluster
 local-cluster:
@@ -61,7 +63,8 @@ unit-tests-cabal-match match:
 
 unit-tests-local-cluster-match match:
     nix shell '.#local-cluster' 'nixpkgs#just' \
-    -c just unit-tests-cabal-match {{match}}
+        -c just unit-tests-cabal-match "{{match}}"
+
 # run unit tests
 unit-tests-cabal:
     just unit-tests-cabal-match ""
