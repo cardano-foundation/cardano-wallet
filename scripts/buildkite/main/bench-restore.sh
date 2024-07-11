@@ -26,9 +26,19 @@ echo "--- Run benchmarks - $network"
 
 CARDANO_NODE_CONFIGS=$(pwd)/configs/cardano
 
-# shellcheck disable=SC2027
-BENCH_CMD="./bench-restore/bin/restore $network --node-db $node_db --cardano-node-configs $CARDANO_NODE_CONFIGS"
-BENCH_CMD="$BENCH_CMD +RTS -N2 -qg -A1m -I0 -T -M16G -hT -RTS"
+if [ -n "${BUILDKITE:-}" ]; then
+    TO_TIP_TIMEOUT=$(buildkite-agent meta-data get to-tip-timeout --default '4')
+else
+    TO_TIP_TIMEOUT=4
+fi
+
+BENCH_CMD="./bench-restore/bin/restore $network --node-db $node_db"
+BENCH_CMD+=" --cardano-node-configs $CARDANO_NODE_CONFIGS "
+BENCH_CMD+=" +RTS -N2 -qg -A1m -I0 -T -M16G -hT -RTS"
+
+if [ "$TO_TIP_TIMEOUT" != "infinite" ]; then
+    BENCH_CMD+=" --to-tip-timeout $TO_TIP_TIMEOUT"
+fi
 
 # When testing this script itself,
 # use the  timeout  command to cut short execution time
