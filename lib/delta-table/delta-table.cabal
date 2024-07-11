@@ -65,6 +65,7 @@ library
       Database.Table.SQL.Column
       Database.Table.SQL.Stmt
       Database.Table.SQL.Table
+      Database.Table.SQL.Var
       Database.Table.SQLite.Simple.Exec
 
 test-suite unit
