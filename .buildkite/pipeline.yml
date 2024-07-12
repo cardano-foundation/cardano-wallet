@@ -153,16 +153,18 @@ steps:
         - linux-nix
         - linux-sanchonet-full-sync-block
       timeout_in_minutes: 240
-      commands:
-        - mkdir -p logs
-        - cd run/sanchonet/nix && ./run.sh sync
+      command: |
+        rm -rf run/sanchonet/nix/logs
+        mkdir -p run/sanchonet/nix/logs
+        rm -rf run/sanchonet/nix/databases
+        cd run/sanchonet/nix && ./run.sh sync
       artifact_paths:
-        - "./logs/*"
-      env:
-        NODE_LOGS_FILE: ../../../logs/node.log
-        WALLET_LOGS_FILE: ../../../logs/wallet.log
+        - "./run/sanchonet/nix/logs/*"
       agents:
         system: x86_64-linux
+      env:
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
 
     - label: Private Network Full Sync
       depends_on: linux-nix
@@ -533,12 +535,13 @@ steps:
         depends_on:
           - docker-sanchonet-full-sync-block
         timeout_in_minutes: 240
-        commands:
-          - cd run/sanchonet/docker && ./run.sh sync
+        command: |
+          rm -rf run/sanchonet/docker/databases
+          cd run/sanchonet/docker && ./run.sh sync
         artifact_paths:
-          - "./logs/*"
+          - "./run/sanchonet/docker/logs/*"
         agents:
-          system: x86_64-linux
+          system: x85_64-linux
 
       - label: Private Network Full Sync
         depends_on: docker-build
