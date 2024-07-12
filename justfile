@@ -1,3 +1,5 @@
+# shellcheck shell=bash
+
 LC_ALL := 'C.UTF-8'
 
 default:
@@ -12,7 +14,8 @@ hlint:
 
 # build wallet
 build:
-  cabal build all  --enable-benchmarks --enable-tests --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
+  cabal build all  --enable-benchmarks --enable-tests \
+    --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
 
 # build after clean
 clean-build:
@@ -25,7 +28,7 @@ wallet:
 
 # run a benchmark: api | latency | memory | db | restore
 bench target:
-  ./.buildkite/bench-{{target}}.sh
+  ./.buildkite/bench-"{{target}}".sh
 
 # run a local test cluster
 local-cluster:
@@ -61,7 +64,8 @@ unit-tests-cabal-match match:
 
 unit-tests-local-cluster-match match:
     nix shell '.#local-cluster' 'nixpkgs#just' \
-    -c just unit-tests-cabal-match {{match}}
+        -c just unit-tests-cabal-match "{{match}}"
+
 # run unit tests
 unit-tests-cabal:
     just unit-tests-cabal-match ""
@@ -141,7 +145,7 @@ node-8121:
   'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-cli'
 
 # start a shell with 9.0.0 in scope
-node-893:
+node-900:
   nix shell \
   --accept-flake-config \
   'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
@@ -152,18 +156,18 @@ babbage-integration-tests-match match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=babbage \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-cli' \
+    '.#cardano-node' \
+    '.#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
 # run conway integration tests matching the given pattern via nix
 conway-integration-tests-match match:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs-sanchonet \
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-cli' \
+    '.#cardano-node' \
+    '.#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
