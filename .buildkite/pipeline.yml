@@ -161,9 +161,24 @@ steps:
       env:
         NODE_LOGS_FILE: ../../../logs/node.log
         WALLET_LOGS_FILE: ../../../logs/wallet.log
-
       agents:
         system: x86_64-linux
+
+    - label: Private Network Full Sync
+      depends_on: linux-nix
+      timeout: 20
+      command: |
+        rm -rf run/private/nix/logs
+        mkdir -p run/private/nix/logs
+        rm -rf run/private/nix/databases
+        cd run/private/nix && ./run.sh sync
+      artifact_paths:
+        - "./run/private/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
 
   - group: Code Quality Checks
     key: code-quality
@@ -522,5 +537,16 @@ steps:
           - cd run/sanchonet/docker && ./run.sh sync
         artifact_paths:
           - "./logs/*"
+        agents:
+          system: x86_64-linux
+
+      - label: Private Network Full Sync
+        depends_on: docker-build
+        timeout: 20
+        command: |
+          rm -rf run/private/docker/databases
+          cd run/private/docker && ./run.sh sync
+        artifact_paths:
+          - "./run/private/docker/logs/*"
         agents:
           system: x86_64-linux
