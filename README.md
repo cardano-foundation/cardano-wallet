@@ -48,100 +48,94 @@ start with Daedalus.
 ## Quickstart
 
 The `cardano-wallet` executable is an HTTP server that manages your wallet(s).
-Here is one way to start both node and wallet using Docker and running the nightly version of the wallet.
+
+
+
+### Docker
+
+Select the network you want to run the wallet on, `private`, `sanchonet`, `preprod` or `mainnet`
+by changing the working directory to `run/` + network + `/docker`.
+
+Then
+- start a wallet with `./run.sh start`
+- stop a wallet with `./run.sh stop`
+- inspect the logs with `./run.sh logs`
+- run a simple application that fully synchronize a node and then stop it with `./run.sh sync`
+
+### Variables
+Accepeted variables for the start command are:
+- `WALLET_PORT` (default 8090): the port the wallet will listen to on your host, in case of absence a random port will be used
+- `WALLET_DB` (default `./databases/wallet-db`): the directory where the wallet database will be stored
+- `NODE_DB` (default `./databases/node-db`): the directory where the node database will be stored
+- `NODE_SOCKET_DIR` (default `./.`): the directory where the node socket will be created
+- `NODE_CONFIGS` (default `./configs`): the directory where the node configuration files will be retrieved from
+- `WALLET_TAG` (default 2024.7.7): the tag of the wallet image to use, can be `release-candidate`
+
+For example, to start a wallet on `private` network:
 
 ```bash
+cd run/private/docker
+WALLET_PORT=8090 ./run.sh start
+curl http://localhost:8090/v2/network/information | jq
+```
 
-THE FOLLOWING EXPOSES THE WALLET PORT. DO NOT USE IT WITH mainnet !
-
-Prerequisites:
-    - 100GB of disk space
-    - 13GB of RAM
-
-Copy this script to a file, e.g. `start.sh` and make it executable with `chmod +x start.sh`
+Then you can inspect the logs with
 
 ```bash
-#! /bin/bash
-
-set -euo pipefail
-
-# set the network, mainnet or preprod or sanchonet
-export NETWORK=preprod
-
-# set a directory for the node-db
-export NODE_DB=`pwd`/node-db
-# set a directory for the wallet-db
-export WALLET_DB=`pwd`/wallet-db
-
-# set the node tag and wallet tag to compatible versions
-export NODE_TAG=9.0.0
-export WALLET_TAG=2024.7.7
-
-# set a port for the wallet server
-export WALLET_PORT=8090
-
-# set your user id
-export USER_ID=$(id -u)
-
-# set a node socket dir path
-export NODE_SOCKET_DIR=`pwd`/node_socket
-
-# set a node socket name
-export NODE_SOCKET_NAME=node.socket
-
-if [ "$(ls -A "${NODE_DB}")" ]
-then
-    echo "Node state is present, not downloading the snapshot."
-else
-    if [ $NETWORK == "mainnet" ]
-    then
-        # download the node-db snapshot, or wait for the node to sync for a long time
-        curl -o - https://downloads.csnapshots.io/mainnet/$(curl -s https://downloads.csnapshots.io/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
-        mv $NODE_DB/db/* $NODE_DB/
-        rm -rf $NODE_DB/db
-    elif [ $NETWORK == "preprod" ]
-    then
-        curl -o - https://downloads.csnapshots.io/testnet/$(curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json| jq -r .[].file_name ) | lz4 -c -d - | tar -x -C $NODE_DB
-        mv $NODE_DB/db/* $NODE_DB/
-        rm -rf $NODE_DB/db
-    elif [ $NETWORK == "sanchonet" ]
-    then echo "no cache for sancho";
-    else
-        echo "NETWORK must be mainnet or preprod or sanchonet"
-        exit 1
-    fi
-fi
-
-# start the services
-docker-compose up
+./run.sh logs
 ```
 
+And stop the services with
 
-
-Fantastic! server is up-and-running, waiting for HTTP requests on `localhost:8090`
-
+```bash
+./run.sh stop
 ```
-curl http://localhost:8090/v2/network/information
-```
-
-or to be accessed via CLI, e.g.:
-
-```
-docker run --network host --rm cardanofoundation/cardano-wallet network information
-```
-
-Icarus UI will be available at
-
-```
-http://localhost:4444
-```
-
-To stop the services, press `Ctrl+C`.
-
 
 See also [Docker](https://cardano-foundation.github.io/cardano-wallet/user-guide/installation/use-docker.html) for more information about using docker.
 
+### .env file
+
+You can set your variables populating the `.env` file in your working directory.
+
+```bash
+
+WALLET_PORT=8090
+WALLET_DB=./my-databases/wallet-db
+NODE_DB=./my-databases/node-db
+NODE_SOCKET_DIR=/tmp/cardano-node-socket
+NODE_CONFIGS=./my-configs-i-just-copied-from-a-malicious-site
+WALLET_TAG=2024.7.7
+
+```
+
+
+### Nix
+
+You can opt to **nix** by changing the working directory to `run/` + network + `/nix` .
+
+The nix script serve only as a template, you can modify it to suit your needs.
+It actually support one only command `sync` that starts a wallet and a node and
+use the wallet api to wait for the node to sync, then it stops the wallet and the node.
+
+For example, to sync a node on `private` using nix:
+
+```bash
+cd run/private/nix
+./run.sh sync
+```
+
+`WALLET_TAG` is not supported in the nix script. You will run the code that you just cloned.
+
 NixOS users can also use the [NixOS service](https://cardano-foundation.github.io/cardano-wallet/user-guide/installation/use-nixos.html).
+
+### Running on mainnet
+
+**Take care when running on mainnet, as the docker compose will expose the wallet port to the world**
+
+**Prerequisites**:
+    - 200GB of disk space: the history
+    - 24GB of RAM: the utx set in the node process heap
+
 
 ## Obtaining `cardano-wallet`
 
