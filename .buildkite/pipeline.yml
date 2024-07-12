@@ -473,18 +473,10 @@ steps:
   - group: Docker Artifacts
     key: docker-artifacts
     steps:
-      - block: Build Docker Artifacts
-        if: |
-          build.branch !~ /^gh-readonly-queue\/master/
-            && build.branch != "master"
-            && build.env("RELEASE_CANDIDATE") == null
-            && build.tag !~ /^v20/
-        key: docker-artifacts-block
 
       - label: Build Docker Image
         key: docker-build
         depends_on:
-          - docker-artifacts-block
           - linux-nix
         commands:
           ./scripts/buildkite/release/docker-build.sh
