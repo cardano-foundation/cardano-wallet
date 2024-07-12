@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-wget https://book.world.dev.cardano.org/environments/sanchonet/config.json
-wget https://book.world.dev.cardano.org/environments/sanchonet/topology.json
-wget https://book.world.dev.cardano.org/environments/sanchonet/byron-genesis.json
-wget https://book.world.dev.cardano.org/environments/sanchonet/shelley-genesis.json
-wget https://book.world.dev.cardano.org/environments/sanchonet/alonzo-genesis.json
-wget https://book.world.dev.cardano.org/environments/sanchonet/conway-genesis.json
+wget https://book.play.dev.cardano.org/environments-pre/sanchonet/config.json
+wget https://book.play.dev.cardano.org/environments-pre/sanchonet/topology.json
+wget https://book.play.dev.cardano.org/environments-pre/sanchonet/byron-genesis.json
+wget https://book.play.dev.cardano.org/environments-pre/sanchonet/shelley-genesis.json
+wget https://book.play.dev.cardano.org/environments-pre/sanchonet/alonzo-genesis.json
+wget https://book.play.dev.cardano.org/environments-pre/sanchonet/conway-genesis.json
