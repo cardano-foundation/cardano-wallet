@@ -482,6 +482,8 @@ steps:
           ./scripts/buildkite/release/docker-build.sh
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
       - label: Push Docker Image
         if: |
@@ -498,6 +500,8 @@ steps:
           - "./docker-build-push"
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
   - group: Docker Checks
     key: docker-e2e
@@ -516,6 +520,8 @@ steps:
           NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
       - block: Sanchonet Full Sync
         if: build.env("RELEASE_CANDIDATE") == null
@@ -534,6 +540,8 @@ steps:
           - "./run/sanchonet/docker/logs/*"
         agents:
           system: x85_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
       - label: Private Network Full Sync
         depends_on: docker-build
@@ -545,3 +553,5 @@ steps:
           - "./run/private/docker/logs/*"
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
