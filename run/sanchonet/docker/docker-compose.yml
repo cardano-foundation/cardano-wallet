@@ -1,0 +1,50 @@
+name: sanchonet
+services:
+  cardano-node:
+    image: ghcr.io/intersectmbo/cardano-node:${NODE_TAG}
+    environment:
+      CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME}
+    volumes:
+      - ${NODE_DB}:/data
+      - ${NODE_SOCKET_DIR}:/ipc
+      - ${NODE_CONFIGS}:/configs
+    restart: on-failure
+    user: ${USER_ID}
+    logging:
+      driver: "json-file"
+      options:
+        compress: "true"
+        max-file: "10"
+        max-size: "50m"
+    entrypoint: []
+    command: >
+      cardano-node run --topology /configs/topology.json
+        --database-path /data
+        --socket-path /ipc/node.socket
+        --config /configs/config.json
+        +RTS -N -A16m -qg -qb -RTS
+
+  cardano-wallet:
+    image: cardanofoundation/cardano-wallet:${WALLET_TAG}
+    volumes:
+      - ${WALLET_DB}:/wallet-db
+      - ${NODE_SOCKET_DIR}:/ipc
+      - ${NODE_CONFIGS}:/configs
+    ports:
+      - ${WALLET_PORT}:8090
+    entrypoint: []
+    command: >
+      cardano-wallet serve
+        --node-socket /ipc/${NODE_SOCKET_NAME}
+        --database /wallet-db
+        --listen-address 0.0.0.0
+        --testnet /configs/byron-genesis.json
+
+    user: ${USER_ID}
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        compress: "true"
+        max-file: "10"
+        max-size: "50m"

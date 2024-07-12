@@ -143,6 +143,28 @@ steps:
       concurrency: 1
       concurrency_group: 'linux-e2e-tests'
 
+    - block: Sanchonet Full Sync
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: linux-nix
+      key: linux-sanchonet-full-sync-block
+
+    - label: Sanchonet Full Sync
+      depends_on:
+        - linux-nix
+        - linux-sanchonet-full-sync-block
+      timeout_in_minutes: 240
+      commands:
+        - mkdir -p logs
+        - cd run/sanchonet/nix && ./run.sh sync
+      artifact_paths:
+        - "./logs/*"
+      env:
+        NODE_LOGS_FILE: ../../../logs/node.log
+        WALLET_LOGS_FILE: ../../../logs/wallet.log
+
+      agents:
+        system: x86_64-linux
+
   - group: Code Quality Checks
     key: code-quality
     steps:
@@ -497,5 +519,22 @@ steps:
           - "./logs/*"
         env:
           NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        agents:
+          system: x86_64-linux
+
+      - block: Sanchonet Full Sync
+        if: build.env("RELEASE_CANDIDATE") == null
+        depends_on: docker-build
+        key: docker-sanchonet-full-sync-block
+
+      - label: Sanchonet Full Sync
+        key: docker-smoke-test-full-sync
+        depends_on:
+          - docker-sanchonet-full-sync-block
+        timeout_in_minutes: 240
+        commands:
+          - cd run/sanchonet/docker && ./run.sh sync
+        artifact_paths:
+          - "./logs/*"
         agents:
           system: x86_64-linux
