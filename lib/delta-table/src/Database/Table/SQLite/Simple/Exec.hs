@@ -21,6 +21,7 @@ module Database.Table.SQLite.Simple.Exec
     , insertOne
     , insertMany
     , deleteAll
+    , deleteWhere
     ) where
 
 import Prelude
@@ -131,3 +132,6 @@ insertMany rows proxy = for_ rows (`insertOne` proxy)
 
 deleteAll :: IsTableSql t => proxy t -> SqlM ()
 deleteAll = execute_ . Stmt.deleteAll
+
+deleteWhere :: IsTableSql t => Expr.Expr Bool -> proxy t -> SqlM ()
+deleteWhere expr = executeNamed . Stmt.deleteWhere expr

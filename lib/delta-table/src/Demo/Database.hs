@@ -52,7 +52,7 @@ action :: Sql.SqlM [Row TablePerson]
 action = do
     Sql.createTable tablePerson
     Sql.insertOne ("Neko", 1603) tablePerson
-    Sql.deleteAll tablePerson
+    Sql.deleteWhere (colName Sql.==. "Neko") tablePerson
     Sql.insertOne ("Babbage", 1791) tablePerson
     Sql.insertOne ("William", 1805) tablePerson
     Sql.insertOne ("Ada", 1815) tablePerson

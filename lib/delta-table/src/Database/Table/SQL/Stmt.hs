@@ -20,6 +20,7 @@ module Database.Table.SQL.Stmt
     , selectWhere
     , insertOne
     , deleteAll
+    , deleteWhere
     ) where
 
 import Prelude
@@ -92,8 +93,10 @@ renderStmt (Select cols table (Where expr)) =
         <> Expr.text ";"
 renderStmt (Delete table All) = Expr.text
     $ "DELETE FROM " <> renderName table
-renderStmt (Delete _ (Where _)) =
-    error "DELERE FROM … WHERE not implemented yet."
+renderStmt (Delete table (Where expr)) =
+    Expr.text ("DELETE FROM " <> renderName table)
+        <> Expr.text " WHERE " <> Expr.renderExpr expr
+        <> Expr.text ";"
 
 -- | Escape a column or table name.
 renderName :: Text -> Text
@@ -135,3 +138,10 @@ insertOne proxy =
 deleteAll :: IsTableSql t => proxy t -> Stmt
 deleteAll proxy =
     Delete (getTableName proxy) All
+
+-- | Delete those rows from a database table that satisfy a condition.
+deleteWhere
+    :: IsTableSql t
+    => Expr.Expr Bool -> proxy t -> Stmt
+deleteWhere expr proxy =
+    Delete (getTableName proxy) (Where expr)
