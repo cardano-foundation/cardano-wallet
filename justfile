@@ -163,7 +163,7 @@ babbage-integration-tests-match match:
 
 # run conway integration tests matching the given pattern via nix
 conway-integration-tests-match match:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs-sanchonet \
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
     'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
