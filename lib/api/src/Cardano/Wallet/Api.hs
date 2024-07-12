@@ -76,6 +76,9 @@ module Cardano.Wallet.Api
         , PostPoolMaintenance
         , GetPoolMaintenance
 
+    , DReps
+        , JoinDRep
+
     , ShelleyMigrations
         , MigrateShelleyWallet
         , CreateShelleyWalletMigrationPlan
@@ -201,6 +204,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionT
     , ApiDecodeTransactionPostData
     , ApiDecodedTransactionT
+    , ApiDRepSpecifier
     , ApiFee
     , ApiHealthCheck
     , ApiMaintenanceAction
@@ -370,6 +374,7 @@ type Api n =
     :<|> ShelleyTransactions n
     :<|> ShelleyMigrations n
     :<|> StakePools n
+    :<|> DReps n
     :<|> ByronWallets
     :<|> ByronAssets
     :<|> ByronAddresses n
@@ -770,6 +775,21 @@ type PostPoolMaintenance =
 type GetPoolMaintenance =
     "stake-pools" :> "maintenance-actions"
     :> Get '[JSON] ApiMaintenanceAction
+
+{-------------------------------------------------------------------------------
+                                  DReps
+
+  See also: https://cardano-foundation.github.io/cardano-wallet/api/edge/#tag/DReps
+-------------------------------------------------------------------------------}
+
+type DReps n
+    =    JoinDRep n
+
+type JoinDRep n =
+    "dreps" :> Capture "drepId" ApiDRepSpecifier
+    :> "wallets" :> Capture "walletId" (ApiT WalletId)
+    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> PutAccepted '[JSON] (ApiTransactionT n)
 
 {-------------------------------------------------------------------------------
                                   Settings
