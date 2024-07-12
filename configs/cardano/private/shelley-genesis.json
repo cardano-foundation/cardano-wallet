@@ -1,0 +1,56 @@
+{
+    "activeSlotsCoeff": 5.0e-2,
+    "epochLength": 7200,
+    "genDelegs": {
+        "471f409d117e8f3d37c438335cdf94bdaefff11eee3c759dbfb6af7f": {
+            "delegate": "42f9ee159489401afe2bb62182d4716939a1d57cd15f5009d3c9813b",
+            "vrf": "18e5b4400c30259604e117bfcf34c37a9c079903376484fe80284d50fb27b50c"
+        },
+        "484e12a61f95d8387f4a088bc242a392ddcf064afc22e083a5c50bdd": {
+            "delegate": "a1da89322bff9befc4ac349e8f7c3f44d6790420c0e473607fc97e85",
+            "vrf": "222ab93c66b38279f7af5fa441b6a7a2f5035b9b622d49373f14d1e00f48693b"
+        },
+        "5937feb8c92733dcfd970986f00db2aad6df122b942ec66d12b1655f": {
+            "delegate": "b9a35b768d3c79b50d0a5f252960b6922ea50afacc5b255ca50ff98b",
+            "vrf": "1e9b132b2d310061fad60ca0284e54a9d3451a0ff9d2e181b2eaabec91f5fc5e"
+        }
+    },
+    "initialFunds": {},
+    "maxKESEvolutions": 62,
+    "maxLovelaceSupply": 45000000000000000,
+    "networkId": "Testnet",
+    "networkMagic": 5,
+    "protocolParams": {
+        "a0": 0.3,
+        "decentralisationParam": 1.0,
+        "eMax": 18,
+        "extraEntropy": {
+            "tag": "NeutralNonce"
+        },
+        "keyDeposit": 2000000,
+        "maxBlockBodySize": 65536,
+        "maxBlockHeaderSize": 1100,
+        "maxTxSize": 16384,
+        "minFeeA": 44,
+        "minFeeB": 155381,
+        "minPoolCost": 340000000,
+        "minUTxOValue": 1000000,
+        "nOpt": 150,
+        "poolDeposit": 500000000,
+        "protocolVersion": {
+            "major": 6,
+            "minor": 0
+        },
+        "rho": 3.0e-3,
+        "tau": 0.2
+    },
+    "securityParam": 36,
+    "slotLength": 1,
+    "slotsPerKESPeriod": 129600,
+    "staking": {
+        "pools": {},
+        "stake": {}
+    },
+    "systemStart": "2024-06-18T00:00:00Z",
+    "updateQuorum": 3
+}
