@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Types
     , ApiBalanceTransactionPostData
     , ApiBytesT (..)
     , ApiConstructTransactionData
+    , ApiDRepSpecifier
     , ApiDecodeTransactionPostData
     , ApiMaintenanceActionPostData
     , ApiPoolSpecifier
@@ -209,6 +210,25 @@ instance Malformed (PathParam ApiPoolSpecifier) where
         ]
       where
         msg = "Invalid stake pool id: expecting a Bech32 encoded value with human readable part of 'pool'."
+
+instance Wellformed (PathParam ApiDRepSpecifier) where
+    wellformed = PathParam <$>
+        [ "abstain"
+        , "no_confidence"
+        , "drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s"
+        , "drep_script1hwj9yuvzxc623w5lmwvp44md7qkdywz2fcd583qmyu62jvjnz69"
+        ]
+
+instance Malformed (PathParam ApiDRepSpecifier) where
+    malformed = first PathParam <$>
+        [ (T.replicate 64 "ś", msg)
+        , (T.replicate 63 "1", msg)
+        , (T.replicate 65 "1", msg)
+        , ("something", msg)
+        , ("no-confidence", msg)
+        ]
+      where
+        msg = "Invalid drep: expecting either 'abtain or 'no_confidence' or a Bech32 encoded value with human readable part of 'drep' or 'drep_script'."
 
 instance Wellformed (PathParam (ApiAddress ('Testnet 0))) where
     wellformed = [PathParam
