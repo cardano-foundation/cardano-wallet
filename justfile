@@ -156,8 +156,8 @@ babbage-integration-tests-match match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=babbage \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-cli' \
+    '.#cardano-node' \
+    '.#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
@@ -166,8 +166,8 @@ conway-integration-tests-match match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-node' \
-    'github:IntersectMBO/cardano-node?ref=9.0.0#cardano-cli' \
+    '.#cardano-node' \
+    '.#cardano-cli' \
     --accept-flake-config \
     -c just integration-tests "{{match}}"
 
