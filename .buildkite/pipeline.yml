@@ -254,11 +254,13 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
+
     - label: Memory Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-memory.sh
-      depends_on: trigger-benchmarks
+      depends_on:
+        - trigger-benchmarks
       timeout_in_minutes: 20
       agents:
         system: x86_64-linux
@@ -267,17 +269,29 @@ steps:
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
 
-    - block: Restoration Benchmark (linux)
+    - input: "Restoration Benchmark Parameters"
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
-      key: restore-block
+      depends_on: trigger-benchmarks
+      key: restoration-parameters
+      fields:
+        - select: "Node Sync Timeout"
+          hint: "Possible timeout in hours until node is synced"
+          key: "to-tip-timeout"
+          default: "4"
+          options:
+          - label: "Infinite"
+            value: "infinite"
+          - label: "4"
+            value: "4"
+          - label: "1"
+            value: "1"
 
     - label: Restore benchmark (linux)
       command: |
         nix develop path:./scripts/buildkite/main --command bash -c \
           "./scripts/buildkite/main/bench-restore.sh mainnet"
-      depends_on: restore-block
-      timeout_in_minutes: 1200
+      depends_on: restoration-parameters
+      timeout_in_minutes: 1380
       agents:
         system: ${linux}
         queue: adrestia-bench

@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -20,6 +21,8 @@
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Avoid NonEmpty.unzip" #-}
 
 {- HLINT ignore "Redundant pure" -}
 
@@ -245,6 +248,7 @@ import Control.Arrow
 import Control.Monad
     ( unless
     , void
+    , when
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -264,6 +268,9 @@ import Data.Aeson
     ( ToJSON (..)
     , genericToJSON
     , (.=)
+    )
+import Data.Functor
+    ( (<&>)
     )
 import Data.Functor.Contravariant
     ( contramap
@@ -378,8 +385,21 @@ import qualified Internal.Cardano.Write.Tx as Write
     ( PParamsInAnyRecentEra (PParamsInAnyRecentEra)
     )
 
+hoursToMicroseconds :: Int -> Int
+hoursToMicroseconds = (* 3_600) . (* 1_000_000)
+
+-- | Timeout to wait until the node has synchronized and returns a tip
+-- (in microseconds).
+newtype NodeSyncTimeout = NodeSyncTimeout (Maybe Int)
+
 main :: IO ()
-main = execBenchWithNode argsNetworkConfig cardanoRestoreBench >>= exitWith
+main = do
+    r <- execBenchWithNode argsNetworkConfig $ \args ->
+        cardanoRestoreBench
+            $ NodeSyncTimeout
+            $ argNodeSyncTimeout args
+            <&> hoursToMicroseconds
+    exitWith r
 
 {-------------------------------------------------------------------------------
                                 Shelley benchmarks
@@ -394,11 +414,12 @@ argsNetworkConfig args = case argNetworkName args of
 
 -- | Run all available benchmarks.
 cardanoRestoreBench
-    :: Trace IO Text
+    :: NodeSyncTimeout
+    -> Trace IO Text
     -> NetworkConfiguration
     -> CardanoNodeConn
     -> IO ()
-cardanoRestoreBench tr c socketFile = do
+cardanoRestoreBench ttr tr c socketFile = do
     (networkId, np, vData, _b) <- unsafeRunExceptT $ parseGenesisData c
     (_, walletTr) <- initBenchmarkLogging "wallet" Notice
 
@@ -406,7 +427,7 @@ cardanoRestoreBench tr c socketFile = do
         let network =  networkDiscriminantVal sNetwork
 
         sayErr $ "Network: " <> network
-        prepareNode (trMessageText tr) sNetwork socketFile np vData
+        prepareNode ttr (trMessageText tr) sNetwork socketFile np vData
 
         let benchRestoreRndWithOwnership p pipelinings = do
                 let benchname = showPercentFromPermyriad p <> "-percent-rnd"
@@ -623,7 +644,7 @@ benchmarksRnd network w wname
         runExceptT $ withExceptT show $
             W.importRandomAddresses w oneAddress
 
-    manyAddresses <- genAddresses 1000 cp
+    manyAddresses <- genAddresses 1_000 cp
     (_, importManyAddressesTime) <- bench "import many addresses" $ do
         runExceptT $ withExceptT show $
             W.importRandomAddresses w manyAddresses
@@ -986,13 +1007,14 @@ withBenchDBLayer tr ti wid wname np initialState action =
 
 prepareNode
     :: forall n. HasSNetworkId n
-    => Tracer IO (BenchmarkLog n)
+    => NodeSyncTimeout
+    -> Tracer IO (BenchmarkLog n)
     -> SNetworkId n
     -> CardanoNodeConn
     -> NetworkParameters
     -> NodeToClientVersionData
     -> IO ()
-prepareNode tr proxy socketPath np vData = do
+prepareNode ttr tr proxy socketPath np vData = do
     traceWith tr $ MsgSyncStart proxy
     let networkId = networkIdVal (sNetworkId @n)
     sl <- withNetworkLayer nullTracer
@@ -1001,7 +1023,7 @@ prepareNode tr proxy socketPath np vData = do
         let gp = genesisParameters np
         let convert = fromCardanoBlock (W.getGenesisBlockHash gp)
         let nw = fst . convert <$> nw'
-        waitForNodeSync tr nw
+        waitForNodeSync ttr tr nw
     traceWith tr $ MsgSyncCompleted proxy sl
 
 -- | Regularly poll the wallets to monitor syncing progress. Block until all
@@ -1022,7 +1044,7 @@ waitForWalletSyncTo targetSync tr proxy walletLayer wid gp vData = do
         w <- fst' <$> W.readWallet walletLayer
         syncProgress nl (slotNo $ currentTip w)
     traceWith tr $ MsgRestorationTick posixNow progress
-    threadDelay 1000000
+    threadDelay 1_000_000
     unless (progress > Syncing (Quantity targetSync))
         $ waitForWalletSyncTo targetSync tr proxy walletLayer wid gp vData
   where
@@ -1039,7 +1061,7 @@ reportProgress nw tr targetSync readSlot =  do
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
     progress <- readSlot >>= syncProgress nw
     traceWith tr $ MsgRestorationTick posixNow progress
-    threadDelay 1000000
+    threadDelay 1_000_000
     if progress > Syncing (Quantity targetSync)
         then return ()
         else reportProgress nw tr targetSync readSlot
@@ -1047,24 +1069,27 @@ reportProgress nw tr targetSync readSlot =  do
 -- | Poll the network tip until it reaches the slot corresponding to the current
 -- time.
 waitForNodeSync
-    :: forall n. Tracer IO (BenchmarkLog n)
+    :: NodeSyncTimeout
+    -> Tracer IO (BenchmarkLog n)
     -> NetworkLayer IO Block
     -> IO SlotNo
-waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip
+waitForNodeSync (NodeSyncTimeout mttr) tr nw = loop mttr
   where
-    loop :: Int -> IO SlotNo
-    loop retries = do
+    loop :: Maybe Int -> IO SlotNo
+    loop mtimeout = do
         nodeTip <- currentNodeTip nw
         case nodeTip of
             Read.GenesisTip ->
-                if retries > 0
-                then do
-                    let delay = 15000000
-                    traceWith tr $ MsgRetryShortly delay
-                    threadDelay delay
-                    loop (retries - 1)
-                else
-                    throwString "Gave up in waitForNodeSync, waiting a tip"
+                case mtimeout of
+                    Nothing -> loop Nothing
+                    Just timeout -> do
+                        when (timeout <= 0)
+                            $ throwString
+                                "Gave up in waitForNodeSync, waiting for a tip"
+                        let delay = 15_000_000
+                        traceWith tr $ MsgRetryShortly delay
+                        threadDelay delay
+                        loop $ Just (timeout - delay)
             Read.BlockTip{slotNo} -> do
                 let slot = SlotNo $ fromIntegral $ Read.unSlotNo slotNo
                 prog <- syncProgress nw slot
@@ -1072,9 +1097,8 @@ waitForNodeSync tr nw = loop 960 -- allow 240 minutes for first tip
                 if prog == Ready
                     then pure slot
                     else do
-                        -- 2 seconds poll interval
-                        threadDelay 2000000
-                        loop retries
+                        threadDelay 2_000_000
+                        loop mtimeout
 
 data BenchmarkLog (n :: NetworkDiscriminant)
     = MsgNodeTipTick Read.ChainTip SyncProgress
@@ -1110,7 +1134,7 @@ instance HasSNetworkId n => ToText (BenchmarkLog n) where
                 +| network |+ " up to " +|| tip ||+ ""
         MsgRetryShortly delay ->
             "Fetching tip failed, retrying in "
-                +|| (delay `div` 1000) ||+ "ms"
+                +|| (delay `div` 1_000) ||+ "ms"
         where network = networkDiscriminantVal $ sNetworkId @n
 
 -- | Format a type-level per-myriad number as percent
@@ -1138,7 +1162,7 @@ showPercentFromPermyriad =
     display x = showFFloat @Double (Just 2) (fromRat x) ""
 
 sTol :: SyncTolerance
-sTol = mkSyncTolerance 3600
+sTol = mkSyncTolerance 3_600
 
 withNonEmptyUTxO :: Wallet s -> Set Tx -> e -> IO a -> IO (Either e a)
 withNonEmptyUTxO wallet pendingTxs failure action
