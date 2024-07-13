@@ -37,8 +37,10 @@ import Database.Table.SQL.Table
     ( IsTableSql
     )
 
+import qualified Data.Map.Strict as Map
 import qualified Database.SQLite.Simple as Sqlite
 import qualified Database.Table.SQL.Stmt as Stmt
+import qualified Database.Table.SQL.Var as Var
 
 {-------------------------------------------------------------------------------
     SQL monad
@@ -65,20 +67,47 @@ runSqlM = runReaderT
 {-------------------------------------------------------------------------------
     Helpers
 -------------------------------------------------------------------------------}
-mkQuery :: Stmt.Stmt -> Sqlite.Query
-mkQuery = Sqlite.Query . Stmt.renderStmt
+renderStmt :: Stmt.Stmt -> (Sqlite.Query, [Sqlite.NamedParam])
+renderStmt stmt =
+    ( Sqlite.Query (Var.val rendered)
+    , toNamedParams (Var.bindings rendered)
+    )
+  where
+    rendered = Var.render $ Stmt.renderStmt stmt
 
+toNamedParams :: Var.Bindings -> [Sqlite.NamedParam]
+toNamedParams bindings = do
+    (k,v) <- Map.toList bindings
+    [Var.renderVarName k Sqlite.:= v]
+
+-- | Query that does not contain any variable bindings.
 query_ :: Sqlite.FromRow row => Stmt.Stmt -> SqlM [row]
 query_ stmt =
-    ReaderT $ \conn -> Sqlite.query_ conn (mkQuery stmt)
+    ReaderT $ \conn -> Sqlite.query_ conn (fst $ renderStmt stmt)
 
-executeOne :: Sqlite.ToRow row => Stmt.Stmt -> row -> SqlM ()
-executeOne stmt row =
-    ReaderT $ \conn -> Sqlite.execute conn (mkQuery stmt) row
+-- | Query with named variables.
+queryNamed :: Sqlite.FromRow row => Stmt.Stmt -> SqlM [row]
+queryNamed stmt =
+    ReaderT $ \conn ->
+        let (query, bindings) = renderStmt stmt
+        in  Sqlite.queryNamed conn query bindings
 
+-- | Execution that does not contain any variable bindings.
 execute_ :: Stmt.Stmt -> SqlM ()
 execute_ stmt =
-    ReaderT $ \conn -> Sqlite.execute_ conn (mkQuery stmt)
+    ReaderT $ \conn -> Sqlite.execute_ conn (fst $ renderStmt stmt)
+
+-- | FIXME: Execution with '?' parameters
+executeOne :: Sqlite.ToRow row => Stmt.Stmt -> row -> SqlM ()
+executeOne stmt row =
+    ReaderT $ \conn -> Sqlite.execute conn (fst $ renderStmt stmt) row
+
+-- | Execution with named variables.
+executeNamed :: Stmt.Stmt -> SqlM ()
+executeNamed stmt =
+    ReaderT $ \conn ->
+        let (query, bindings) = renderStmt stmt
+        in  Sqlite.executeNamed conn query bindings
 
 {-------------------------------------------------------------------------------
     SQL statements

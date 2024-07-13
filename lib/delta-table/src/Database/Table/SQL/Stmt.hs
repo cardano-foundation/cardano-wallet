@@ -41,6 +41,8 @@ import Database.Table.SQL.Table
     )
 
 import qualified Data.Text as T
+import qualified Database.Table.SQL.Expr as Expr
+import qualified Database.Table.SQL.Var as Var
 
 {-------------------------------------------------------------------------------
     SQL Statements
@@ -63,26 +65,26 @@ data Where where
     Rendering
 -------------------------------------------------------------------------------}
 -- | Render an statement as SQL source code.
-renderStmt :: Stmt -> Text
-renderStmt (CreateTable table cols) =
-    "CREATE TABLE IF NOT EXISTS "
+renderStmt :: Stmt -> Var.Lets Text
+renderStmt (CreateTable table cols) = Expr.text
+    $ "CREATE TABLE IF NOT EXISTS "
         <> renderName table
         <> " " <> renderTuple (map renderCol cols)
         <> ";"
   where
     renderCol (col, typ)= renderName col <> " " <> escapeSqlType typ
-renderStmt (Insert table cols) =
-    "INSERT INTO "
+renderStmt (Insert table cols) = Expr.text
+    $ "INSERT INTO "
         <> renderName table
         <> " " <> renderTuple (map renderName cols)
         <> " VALUES " <> renderTuple ("?" <$ cols)
         <> ";"
-renderStmt (Select cols table All) =
-    "SELECT " <> T.intercalate "," (map renderName cols)
+renderStmt (Select cols table All) = Expr.text
+    $ "SELECT " <> T.intercalate "," (map renderName cols)
         <> " FROM " <> renderName table
         <> ";"
-renderStmt (Delete table All) =
-    "DELETE FROM " <> renderName table
+renderStmt (Delete table All) = Expr.text
+    $ "DELETE FROM " <> renderName table
 
 -- | Escape a column or table name.
 renderName :: Text -> Text
