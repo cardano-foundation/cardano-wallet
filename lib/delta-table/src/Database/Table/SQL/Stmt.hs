@@ -17,6 +17,7 @@ module Database.Table.SQL.Stmt
     -- * Specific statements
     , createTable
     , selectAll
+    , selectWhere
     , insertOne
     , deleteAll
     ) where
@@ -60,6 +61,7 @@ data Stmt where
 -- | An SQL @WHERE@ clause.
 data Where where
     All :: Where
+    Where :: Expr.Expr Bool -> Where
 
 {-------------------------------------------------------------------------------
     Rendering
@@ -83,8 +85,15 @@ renderStmt (Select cols table All) = Expr.text
     $ "SELECT " <> T.intercalate "," (map renderName cols)
         <> " FROM " <> renderName table
         <> ";"
+renderStmt (Select cols table (Where expr)) =
+    Expr.text ("SELECT " <> T.intercalate "," (map renderName cols))
+        <> Expr.text (" FROM " <> renderName table)
+        <> Expr.text " WHERE " <> Expr.renderExpr expr
+        <> Expr.text ";"
 renderStmt (Delete table All) = Expr.text
     $ "DELETE FROM " <> renderName table
+renderStmt (Delete _ (Where _)) =
+    error "DELERE FROM … WHERE not implemented yet."
 
 -- | Escape a column or table name.
 renderName :: Text -> Text
@@ -109,6 +118,13 @@ createTable proxy =
 selectAll :: IsTableSql t => proxy t -> Stmt
 selectAll proxy =
     Select (getColNames proxy) (getTableName proxy) All
+
+-- | Select those rows from the table that satisfy a condition.
+selectWhere
+    :: IsTableSql t
+    => Expr.Expr Bool -> proxy t -> Stmt
+selectWhere expr proxy =
+    Select (getColNames proxy) (getTableName proxy) (Where expr)
 
 -- | Insert one row into the corresponding table.
 insertOne :: IsTableSql t => proxy t -> Stmt

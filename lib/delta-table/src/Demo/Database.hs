@@ -22,7 +22,7 @@ import Data.Text
     ( Text
     )
 import Database.Table
-    ( Col
+    ( Col (..)
     , Row
     , Table
     , (:.)
@@ -42,14 +42,23 @@ type TablePerson =
 tablePerson :: Proxy TablePerson
 tablePerson = Proxy
 
+colName :: Col "name" Text
+colName = Col
+
+colBirthYear :: Col "birthyear" Int
+colBirthYear = Col
+
 action :: Sql.SqlM [Row TablePerson]
 action = do
     Sql.createTable tablePerson
     Sql.insertOne ("Neko", 1603) tablePerson
     Sql.deleteAll tablePerson
+    Sql.insertOne ("Babbage", 1791) tablePerson
     Sql.insertOne ("William", 1805) tablePerson
     Sql.insertOne ("Ada", 1815) tablePerson
-    Sql.selectAll tablePerson
+    Sql.selectWhere
+        (colName Sql./=. "William" Sql.&&. colBirthYear Sql.<. 1800)
+        tablePerson
 
 main :: IO ()
 main = do

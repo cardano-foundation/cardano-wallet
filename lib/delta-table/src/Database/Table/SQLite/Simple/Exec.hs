@@ -17,6 +17,7 @@ module Database.Table.SQLite.Simple.Exec
     -- * SQL statements
     , createTable
     , selectAll
+    , selectWhere
     , insertOne
     , insertMany
     , deleteAll
@@ -39,6 +40,7 @@ import Database.Table.SQL.Table
 
 import qualified Data.Map.Strict as Map
 import qualified Database.SQLite.Simple as Sqlite
+import qualified Database.Table.SQL.Expr as Expr
 import qualified Database.Table.SQL.Stmt as Stmt
 import qualified Database.Table.SQL.Var as Var
 
@@ -117,6 +119,9 @@ createTable = execute_ . Stmt.createTable
 
 selectAll :: IsTableSql t => proxy t -> SqlM [Row t]
 selectAll = query_ . Stmt.selectAll
+
+selectWhere :: IsTableSql t => Expr.Expr Bool -> proxy t -> SqlM [Row t]
+selectWhere expr = queryNamed . Stmt.selectWhere expr
 
 insertOne :: IsTableSql t => Row t -> proxy t -> SqlM ()
 insertOne row proxy = executeOne (Stmt.insertOne proxy) row
