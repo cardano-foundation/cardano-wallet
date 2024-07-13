@@ -58,11 +58,14 @@ library
   exposed-modules:
       Data.Table
       Database.Table
+      Database.Table.SQLite.Simple
       Demo.Database
   other-modules:
       Database.Table.Schema
       Database.Table.SQL.Column
+      Database.Table.SQL.Stmt
       Database.Table.SQL.Table
+      Database.Table.SQLite.Simple.Exec
 
 test-suite unit
   import:             language, opts-exe
