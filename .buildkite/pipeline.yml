@@ -523,13 +523,27 @@ steps:
         concurrency: 1
         concurrency_group: 'docker'
 
+      - label: Private Network Full Sync
+        depends_on:
+          - docker-build
+        timeout: 20
+        command: |
+          rm -rf run/private/docker/databases
+          cd run/private/docker && ./run.sh sync
+        artifact_paths:
+          - "./run/private/docker/logs/*"
+        agents:
+          system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
+
       - block: Sanchonet Full Sync
         if: build.env("RELEASE_CANDIDATE") == null
-        depends_on: docker-build
+        depends_on:
+          - docker-build
         key: docker-sanchonet-full-sync-block
 
       - label: Sanchonet Full Sync
-        key: docker-smoke-test-full-sync
         depends_on:
           - docker-sanchonet-full-sync-block
         timeout_in_minutes: 240
@@ -539,18 +553,28 @@ steps:
         artifact_paths:
           - "./run/sanchonet/docker/logs/*"
         agents:
-          system: x85_64-linux
+          system: x86_64-linux
         concurrency: 1
         concurrency_group: 'docker'
 
-      - label: Private Network Full Sync
-        depends_on: docker-build
-        timeout: 20
+      - block: Preprod Full Sync
+        if: build.env("RELEASE_CANDIDATE") == null
+        depends_on:
+          - docker-build
+        key: docker-preprod-full-sync-block
+
+      - label: Preprod Full Sync
+        depends_on:
+          - docker-preprod-full-sync-block
+        timeout_in_minutes: 240
         command: |
-          rm -rf run/private/docker/databases
-          cd run/private/docker && ./run.sh sync
+          rm -rf run/preprod/docker/databases
+          cd run/preprod/docker
+          # necessary to avoid the broken network
+          ./snapshot.sh
+          ./run.sh sync
         artifact_paths:
-          - "./run/private/docker/logs/*"
+          - "./run/preprod/docker/logs/*"
         agents:
           system: x86_64-linux
         concurrency: 1
