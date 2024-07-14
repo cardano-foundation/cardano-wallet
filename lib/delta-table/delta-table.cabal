@@ -1,5 +1,5 @@
 name:                delta-table
-version:             0.2024.7.7
+version:             0.2024.7.14
 synopsis:            Work with database tables using delta encodings.
 homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              Cardano Foundation (High Assurance Lab)
