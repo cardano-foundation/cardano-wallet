@@ -1,4 +1,4 @@
-name: sanchonet
+name: ${NETWORK}
 services:
   cardano-node:
     image: ghcr.io/intersectmbo/cardano-node:${NODE_TAG}
