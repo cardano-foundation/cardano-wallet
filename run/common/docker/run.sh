@@ -43,6 +43,7 @@ if [[ -z "${WALLET_DB-}" ]]; then
     WALLET_DB=$LOCAL_WALLET_DB
     export WALLET_DB
 fi
+rm -rf "${WALLET_DB:?}/*"
 
 # Define a local db if NODE_DB is not set
 if [[ -z "${NODE_DB-}" ]]; then
@@ -51,6 +52,7 @@ if [[ -z "${NODE_DB-}" ]]; then
     NODE_DB=$LOCAL_NODE_DB
     export NODE_DB
 fi
+rm -rf "${NODE_DB:?}/*"
 
 # Get the current user's ID and export it
 USER_ID=$(id -u)
@@ -101,8 +103,8 @@ case "$1" in
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time
-        command="curl -s localhost:$WALLET_PORT/v2/network/information | jq -r"
-        query_status="$command .sync_progress.status"
+        command=$(printf "docker run --network %s_default alpine/curl curl -s --max-time 5 http://cardano-wallet:8090/v2/network/information | jq -r" "$NETWORK" )
+        query_status="$command  .sync_progress.status"
         query_time="$command .node_tip.time"
         query_progress="$command .sync_progress.progress.quantity"
 
