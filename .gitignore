@@ -84,4 +84,4 @@ test/e2e/.direnv/flake-profile*
 **/node-db
 **/wallet-db
 
-*.logs
+*.log

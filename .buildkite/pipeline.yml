@@ -153,17 +153,34 @@ steps:
         - linux-nix
         - linux-sanchonet-full-sync-block
       timeout_in_minutes: 240
-      commands:
-        - mkdir -p logs
-        - cd run/sanchonet/nix && ./run.sh sync
+      command: |
+        rm -rf run/sanchonet/nix/logs
+        mkdir -p run/sanchonet/nix/logs
+        rm -rf run/sanchonet/nix/databases
+        cd run/sanchonet/nix && ./run.sh sync
       artifact_paths:
-        - "./logs/*"
-      env:
-        NODE_LOGS_FILE: ../../../logs/node.log
-        WALLET_LOGS_FILE: ../../../logs/wallet.log
-
+        - "./run/sanchonet/nix/logs/*"
       agents:
         system: x86_64-linux
+      env:
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+
+    - label: Private Network Full Sync
+      depends_on: linux-nix
+      timeout: 20
+      command: |
+        rm -rf run/private/nix/logs
+        mkdir -p run/private/nix/logs
+        rm -rf run/private/nix/databases
+        cd run/private/nix && ./run.sh sync
+      artifact_paths:
+        - "./run/private/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
 
   - group: Code Quality Checks
     key: code-quality
@@ -470,23 +487,17 @@ steps:
   - group: Docker Artifacts
     key: docker-artifacts
     steps:
-      - block: Build Docker Artifacts
-        if: |
-          build.branch !~ /^gh-readonly-queue\/master/
-            && build.branch != "master"
-            && build.env("RELEASE_CANDIDATE") == null
-            && build.tag !~ /^v20/
-        key: docker-artifacts-block
 
       - label: Build Docker Image
         key: docker-build
         depends_on:
-          - docker-artifacts-block
           - linux-nix
         commands:
           ./scripts/buildkite/release/docker-build.sh
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
       - label: Push Docker Image
         if: |
@@ -503,6 +514,8 @@ steps:
           - "./docker-build-push"
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
   - group: Docker Checks
     key: docker-e2e
@@ -521,6 +534,8 @@ steps:
           NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
 
       - block: Sanchonet Full Sync
         if: build.env("RELEASE_CANDIDATE") == null
@@ -532,9 +547,25 @@ steps:
         depends_on:
           - docker-sanchonet-full-sync-block
         timeout_in_minutes: 240
-        commands:
-          - cd run/sanchonet/docker && ./run.sh sync
+        command: |
+          rm -rf run/sanchonet/docker/databases
+          cd run/sanchonet/docker && ./run.sh sync
         artifact_paths:
-          - "./logs/*"
+          - "./run/sanchonet/docker/logs/*"
+        agents:
+          system: x85_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
+
+      - label: Private Network Full Sync
+        depends_on: docker-build
+        timeout: 20
+        command: |
+          rm -rf run/private/docker/databases
+          cd run/private/docker && ./run.sh sync
+        artifact_paths:
+          - "./run/private/docker/logs/*"
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: 'docker'
