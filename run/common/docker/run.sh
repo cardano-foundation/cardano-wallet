@@ -104,13 +104,17 @@ case "$1" in
 
         # Execute and display the full query result
         trap cleanup ERR INT
+
+        # Define the wanted status and result, can be "syncing" or "ready"
+        SUCCESS_STATUS=${SUCCESS_STATUS:="ready"}
+
         while true; do
             # Check the sync status
             status=$(cat <(bash -c "$query_status")) || echo "failed"
             if [[ $(date +%s) -ge $((start_time + timeout)) ]]; then
                 result="timeout"
                 break
-            elif [[ "$status" == "ready" ]]; then
+            elif [[ "$status" == "$SUCCESS_STATUS" ]]; then
                 result="success"
                 printf "\n"
                 break

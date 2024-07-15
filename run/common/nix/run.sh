@@ -105,13 +105,14 @@ case "$1" in
         query_time="$command .node_tip.time"
         query_progress="$command .sync_progress.progress.quantity"
 
+        SUCCESS_STATUS=${SUCCESS_STATUS:="ready"}
         while true; do
             # Check the sync status
             status=$(cat <(bash -c "$query_status")) || echo "failed"
             if [[ $(date +%s) -ge $((start_time + timeout)) ]]; then
                 result="timeout"
                 break
-            elif [[ "$status" == "ready" ]]; then
+            elif [[ "$status" == "$SUCCESS_STATUS" ]]; then
                 result="success"
                 printf "\n"
                 break
