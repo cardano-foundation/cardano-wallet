@@ -143,9 +143,11 @@ On `mainnet`, the Minimum System Requirements for a `cardano-node` are high:
 - 200GB of disk space (for the history of blocks)
 - 24GB of RAM (for the current UTxO set)
 
-You can download a snapshot to speed up the synchronization process, but you will
-give up the trustless nature of the blockchain, as a malicious initial block producer
-could have been forging this. TO BE CONFIRMED!! @Heinrich
+To speed up the synchronization process,
+you can download a snapshot of the `cardano-node` state database,
+but you will have much less security than the full Ouroboros consensus protocol.
+In particular, the snapshot could be created by a malicious block producer and
+contain erroneous transactions that are not consensus on `mainnet`!
 
 ```bash
 cd run/mainnet/docker
@@ -154,7 +156,7 @@ cd run/mainnet/docker
 
 The snapshot.sh will try to use `NODE_DB` as the directory to store the snapshot.
 
-If you did it or not you can start the wallet with
+Wether you used a snapshot or not, you can now start the wallet with
 
 ```bash
 cd run/mainnet/docker
@@ -164,7 +166,7 @@ cd run/mainnet/docker
 Notice that the wallet port is not exposed.
 For security reasons **you should not expose** the wallet port to the internet.
 The cardano-wallet **is not designed to be exposed** to the internet.
-It's not different from exposing your bank account to the internet.
+It would be no different from exposing the keys to your bank account to the internet!
 
 You can connect to the wallet by attaching a container to the network and using the internal port.
 
