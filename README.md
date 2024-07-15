@@ -145,6 +145,18 @@ On `mainnet`, the Minimum System Requirements for a `cardano-node` are high:
 - 200GB of disk space (for the history of blocks)
 - 24GB of RAM (for the current UTxO set)
 
+### Running on preprod
+
+Preprod network is broken for node 9.0.0 at some block in the past.
+One way to overcome that limitation is to download a snapshot that used an old version node (1.35.2)
+to trespass that point.
+Use `snpashot.sh` to download the snapshot.
+
+```bash
+cd run/preprod/docker
+./snapshot.sh
+./run.sh sync
+```
 
 ## Obtaining `cardano-wallet`
 
