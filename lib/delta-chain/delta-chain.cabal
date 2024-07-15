@@ -1,8 +1,8 @@
 cabal-version:      3.6
 build-type:         Simple
-name:               delta-table
+name:               delta-chain
 version:            0.2024.5.5
-synopsis:           Work with database tables using delta types.
+synopsis:           Example for storing a chain in a database, using delta types.
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
 license:            Apache-2.0
@@ -44,6 +44,7 @@ library
   hs-source-dirs:  src
   build-depends:
       base
+    , conduit
     , containers
     , delta-store
     , delta-types
@@ -52,15 +53,21 @@ library
     , io-classes
     , monad-logger
     , persistent
+    , persistent-sqlite
+    , say
+    , semigroupoids
     , stm
     , text
     , transformers
   hs-source-dirs:
       src
   exposed-modules:
+      Data.Chain
       Data.Table
+      Database.Persist.Delta
+      Database.Schema
   other-modules:
-      Demo.TableOld
+      Demo.Database
 
 test-suite unit
   import:             language, opts-exe

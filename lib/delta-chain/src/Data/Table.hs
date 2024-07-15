@@ -2,12 +2,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-{- |
-Copyright: © 2021-2023 IOG, 2024 Cardano Foundation
-License: Apache-2.0
-
-NOTE: This module is PRELIMINARY and subject to change.
--}
 module Data.Table
     ( -- * Synopsis
 
