@@ -55,6 +55,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getUTxOsStatistics
     , getWalletUtxoSnapshot
     , getWallet
+    , joinDRep
     , joinStakePool
     , listAssets
     , getAsset
@@ -357,6 +358,7 @@ import Cardano.Wallet.Api.Types
     , ApiConstructTransactionData (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
+    , ApiDRepSpecifier (..)
     , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -3954,6 +3956,61 @@ joinStakePool
                 pools
                 poolId
                 poolStatus
+                (coerce $ getApiT $ body ^. #passphrase)
+        mkApiTransaction ti wrk #pendingSince
+            MkApiTransactionParams
+                { txId = builtTx ^. #txId
+                , txFee = builtTx ^. #fee
+                , txInputs = builtTx ^. #resolvedInputs
+                -- Joining a stake pool does not require collateral:
+                , txCollateralInputs = []
+                , txOutputs = builtTx ^. #outputs
+                , txCollateralOutput = builtTx ^. #collateralOutput
+                , txWithdrawals = builtTx ^. #withdrawals
+                , txMeta = builtTxMeta
+                , txMetadata = Nothing
+                , txTime
+                , txScriptValidity = builtTx ^. #scriptValidity
+                , txDeposit = W.stakeKeyDeposit pp
+                , txMetadataSchema = TxMetadataDetailedSchema
+                , txCBOR = builtTx ^. #txCBOR
+                }
+
+joinDRep
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , AddressIndexDerivationType k ~ 'Soft
+        , GenChange s
+        , IsOurs (SeqState n k) RewardAccount
+        , SoftDerivation k
+        , AddressBookIso s
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
+        , HasDelegation s
+        , NetworkDiscriminantCheck k
+        , AddressCredential k ~ 'CredFromKeyK
+        , HasSNetworkId n
+        , DelegationAddress k 'CredFromKeyK
+        )
+    => ApiLayer s
+    -> ApiDRepSpecifier
+    -> ApiT WalletId
+    -> ApiWalletPassphrase
+    -> Handler (ApiTransaction n)
+joinDRep
+    ctx@ApiLayer{..} apiDRep (ApiT walletId) body = do
+    pp <- liftIO $ NW.currentProtocolParameters netLayer
+    let ti = timeInterpreter netLayer
+
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        (BuiltTx{..}, txTime) <- liftIO
+            $ IODeleg.joinStakePool
+                wrk
+                walletId
+                undefined
+                undefined
+                undefined
                 (coerce $ getApiT $ body ^. #passphrase)
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
