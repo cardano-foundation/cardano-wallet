@@ -49,18 +49,24 @@ start with Daedalus.
 
 The `cardano-wallet` executable is an HTTP server that manages your wallet(s).
 
+In order to retrieve blockchain data and send transactions, the `cardano-wallet` executable must connect to a running [`cardano-node`](https://github.com/IntersectMBO/cardano-node) process. This QuickStart guide presents you several ways of doing that, which you can later customize to your needs.
+
 
 
 ### Docker
 
-Select the network you want to run the wallet on, `private`, `sanchonet`, `preprod` or `mainnet`
-by changing the working directory to `run/` + network + `/docker`.
+
+You can use Docker to download, configure and start the `cardano-wallet` and `cardano-node` executables.
+
+First you have to choose a Cardano network to connect to. The network `mainnet` keeps track of the real money. The networks `private`, `sanchonet`, and `preprod` are test networks.
+
+`cd` into the directory `./run/$NETWORK/docker` corresponding to your choice of NETWORK.
 
 Then
-- start a wallet with `./run.sh start`
-- stop a wallet with `./run.sh stop`
+- start a node and wallet with `./run.sh start`
+- stop the node and wallet with `./run.sh stop`
 - inspect the logs with `./run.sh logs`
-- run a simple application that fully synchronize a node and then stop it with `./run.sh sync`
+- start a node and wallet, wait until they are fully synchronized to the network, and stop again with `./run.sh sync`
 
 ### Variables
 Accepeted variables for the start command are:
@@ -111,7 +117,9 @@ WALLET_TAG=2024.7.7
 
 ### Nix
 
-You can opt to **nix** by changing the working directory to `run/` + network + `/nix` .
+You can use [Nix](https://nixos.org) to download the `cardano-wallet` and `cardano-node` executables.
+
+`cd` into the directory `./run/$NETWORK/nix` corresponding to your choice of NETWORK.
 
 The nix script serve only as a template, you can modify it to suit your needs.
 It actually support one only command `sync` that starts a wallet and a node and
@@ -130,11 +138,12 @@ NixOS users can also use the [NixOS service](https://cardano-foundation.github.i
 
 ### Running on mainnet
 
-**Take care when running on mainnet, as the docker compose will expose the wallet port to the world**
+**Take care when running on mainnet, as the docker compose will expose the wallet port to the host machine, allowing other applications or users to access wallet funds.**
 
-**Prerequisites**:
-    - 200GB of disk space: the history
-    - 24GB of RAM: the utx set in the node process heap
+On `mainnet`, the Minimum System Requirements for a `cardano-node` are high:
+
+- 200GB of disk space (for the history of blocks)
+- 24GB of RAM (for the current UTxO set)
 
 
 ## Obtaining `cardano-wallet`
