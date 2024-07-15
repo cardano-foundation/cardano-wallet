@@ -72,9 +72,9 @@ export NODE_CONFIGS
 
 startup() {
     # Pull the latest images
-    docker compose pull -q 2>/dev/null
+    docker compose pull -q
     # Start the service in detached mode
-    docker compose up -d 2>/dev/null
+    docker compose up -d
 }
 
 # Function to clean up the service

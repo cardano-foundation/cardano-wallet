@@ -532,18 +532,15 @@ steps:
   - group: Docker Checks
     key: docker-e2e
     steps:
-      - label: Smoke Test docker-compose
-        if: build.env("RELEASE_CANDIDATE") != null
-        key: docker-smoke-test
+      - label: Mainnet Boot Sync
         depends_on:
           - docker-build
-        timeout_in_minutes: 120
-        commands:
-          - ./scripts/buildkite/release/docker-smoke-test.sh
-        artifact_paths:
-          - "./logs/*"
-        env:
-          NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        timeout_in_minutes: 2
+        command: |
+          cd run/mainnet/docker
+          rm -rf databases
+          export SUCCESS_STATUS=syncing
+          ./run.sh sync
         agents:
           system: x86_64-linux
         concurrency: 1
