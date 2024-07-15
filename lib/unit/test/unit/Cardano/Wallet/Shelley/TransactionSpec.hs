@@ -20,10 +20,6 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
--- TODO [ADP-3385] Stop using deprecated 'Cardano.ProtocolParameters'
---https://cardanofoundation.atlassian.net/browse/ADP-3385
-{-# OPTIONS_GHC -fno-warn-deprecations #-}
-
 -- TODO: https://cardanofoundation.atlassian.net/browse/ADP-2841
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__ >= 902
@@ -253,9 +249,6 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..)
     )
-import Data.Ratio
-    ( (%)
-    )
 import Data.Semigroup
     ( mtimesDefault
     )
@@ -281,6 +274,9 @@ import Internal.Cardano.Write.Tx
     , RecentEra (..)
     , ShelleyLedgerEra
     , cardanoEraFromRecentEra
+    )
+import Internal.Cardano.Write.Tx.Gen
+    ( mockPParams
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
@@ -349,8 +345,6 @@ import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
-import qualified Cardano.Ledger.Babbage.Core as Babbage
-import qualified Cardano.Ledger.Babbage.Core as Ledger
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
@@ -371,10 +365,8 @@ import qualified Internal.Cardano.Write.Tx as Write
     ( BabbageEra
     , CardanoApiEra
     , IsRecentEra
-    , PParams
     , RecentEra (RecentEraBabbage, RecentEraConway)
     , cardanoEraFromRecentEra
-    , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     )
 
@@ -1393,55 +1385,8 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParamsForTxConstraints @Write.BabbageEra)
+        (mockPParams @Write.BabbageEra)
         TxWitnessShelleyUTxO
-  where
-    mockPParamsForTxConstraints
-        :: forall era . Write.IsRecentEra era => Write.PParams era
-    mockPParamsForTxConstraints = either (error . show) id $
-        Cardano.toLedgerPParams
-            Write.shelleyBasedEra
-            mockCardanoApiPParamsForTxConstraints
-
-    mockCardanoApiPParamsForTxConstraints :: Cardano.ProtocolParameters
-    mockCardanoApiPParamsForTxConstraints = Cardano.ProtocolParameters
-        { Cardano.protocolParamTxFeeFixed = 155_381
-        , Cardano.protocolParamTxFeePerByte = 44
-        , Cardano.protocolParamMaxTxSize = 16_384
-        , Cardano.protocolParamMinUTxOValue = Nothing
-        , Cardano.protocolParamMaxTxExUnits =
-            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
-        , Cardano.protocolParamMaxValueSize = Just 4_000
-        , Cardano.protocolParamProtocolVersion = (6, 0)
-        , Cardano.protocolParamDecentralization = Just 0
-        , Cardano.protocolParamExtraPraosEntropy = Nothing
-        , Cardano.protocolParamMaxBlockHeaderSize = 100_000 -- Dummy value
-        , Cardano.protocolParamMaxBlockBodySize = 100_000
-        , Cardano.protocolParamStakeAddressDeposit = L.Coin 2_000_000
-        , Cardano.protocolParamStakePoolDeposit = L.Coin 500_000_000
-        , Cardano.protocolParamMinPoolCost = L.Coin 32_000_000
-        , Cardano.protocolParamPoolRetireMaxEpoch = L.EpochInterval 2
-        , Cardano.protocolParamStakePoolTargetNum = 100
-        , Cardano.protocolParamPoolPledgeInfluence = 0
-        , Cardano.protocolParamMonetaryExpansion = 0
-        , Cardano.protocolParamTreasuryCut = 0
-        , Cardano.protocolParamUTxOCostPerByte =
-            Just $ Babbage.unCoinPerByte testParameter_coinsPerUTxOByte_Babbage
-        -- Note: since 'txConstraints' does not make use of cost models, here
-        -- we use the simplest possible value, which is 'mempty'.
-        , Cardano.protocolParamCostModels = mempty
-        , Cardano.protocolParamPrices =
-            Just $ Cardano.ExecutionUnitPrices (721 % 10_000_000) (577 % 10_000)
-        , Cardano.protocolParamMaxBlockExUnits =
-            Just $ Cardano.ExecutionUnits 10_000_000_000 14_000_000
-        , Cardano.protocolParamCollateralPercent = Just 150
-        , Cardano.protocolParamMaxCollateralInputs = Just 3
-        }
-
-    testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
-    testParameter_coinsPerUTxOByte_Babbage
-        = Ledger.CoinPerByte $ Ledger.Coin 4_310
-
 data MockSelection = MockSelection
     { txInputCount :: Int
     , txOutputs :: [TxOut]

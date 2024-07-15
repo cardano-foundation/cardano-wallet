@@ -49,6 +49,7 @@ library test-common
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-balance-tx:internal
     , containers
     , time
 
