@@ -556,8 +556,6 @@ steps:
         command: |
           rm -rf run/private/docker/databases
           cd run/private/docker && ./run.sh sync
-        artifact_paths:
-          - "./run/private/docker/logs/*"
         agents:
           system: x86_64-linux
         concurrency: 1
@@ -576,8 +574,6 @@ steps:
         command: |
           rm -rf run/sanchonet/docker/databases
           cd run/sanchonet/docker && ./run.sh sync
-        artifact_paths:
-          - "./run/sanchonet/docker/logs/*"
         agents:
           system: x86_64-linux
         concurrency: 1
@@ -599,8 +595,6 @@ steps:
           # necessary to avoid the broken network
           ./snapshot.sh
           ./run.sh sync
-        artifact_paths:
-          - "./run/preprod/docker/logs/*"
         agents:
           system: x86_64-linux
         concurrency: 1
