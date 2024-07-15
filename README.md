@@ -138,12 +138,44 @@ NixOS users can also use the [NixOS service](https://cardano-foundation.github.i
 
 ### Running on mainnet
 
-**Take care when running on mainnet, as the docker compose will expose the wallet port to the host machine, allowing other applications or users to access wallet funds.**
-
 On `mainnet`, the Minimum System Requirements for a `cardano-node` are high:
 
 - 200GB of disk space (for the history of blocks)
 - 24GB of RAM (for the current UTxO set)
+
+To speed up the synchronization process,
+you can download a snapshot of the `cardano-node` state database,
+but you will have much less security than the full Ouroboros consensus protocol.
+In particular, the snapshot could be created by a malicious block producer and
+contain erroneous transactions that are not consensus on `mainnet`!
+
+```bash
+cd run/mainnet/docker
+./snapshot.sh
+```
+
+The snapshot.sh will try to use `NODE_DB` as the directory to store the snapshot.
+
+Wether you used a snapshot or not, you can now start the wallet with
+
+```bash
+cd run/mainnet/docker
+./run.sh start
+```
+
+Notice that the wallet port is not exposed.
+For security reasons **you should not expose** the wallet port to the internet.
+The cardano-wallet **is not designed to be exposed** to the internet.
+It would be no different from exposing the keys to your bank account to the internet!
+
+You can connect to the wallet by attaching a container to the network and using the internal port.
+
+```bash
+docker run -it --network mainnet_default alpine/curl curl http://cardano-wallet:8090/v2/network/information | jq
+```
+
+Or modify the `docker-compose.yml` to host your client in the `mainnet_default` network.
+
 
 ### Running on preprod
 

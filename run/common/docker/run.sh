@@ -43,6 +43,7 @@ if [[ -z "${WALLET_DB-}" ]]; then
     WALLET_DB=$LOCAL_WALLET_DB
     export WALLET_DB
 fi
+rm -rf "${WALLET_DB:?}/*"
 
 # Define a local db if NODE_DB is not set
 if [[ -z "${NODE_DB-}" ]]; then
@@ -51,10 +52,15 @@ if [[ -z "${NODE_DB-}" ]]; then
     NODE_DB=$LOCAL_NODE_DB
     export NODE_DB
 fi
+rm -rf "${NODE_DB:?}/*"
 
 # Get the current user's ID and export it
 USER_ID=$(id -u)
 export USER_ID
+
+# Get the current user's group ID and export it
+GROUP_ID=$(id -g)
+export GROUP_ID
 
 # Define and export the node socket name
 NODE_SOCKET_NAME=node.socket
@@ -72,9 +78,9 @@ export NODE_CONFIGS
 
 startup() {
     # Pull the latest images
-    docker compose pull -q 2>/dev/null
+    docker compose pull -q
     # Start the service in detached mode
-    docker compose up -d 2>/dev/null
+    docker compose up -d
 }
 
 # Function to clean up the service
@@ -97,20 +103,24 @@ case "$1" in
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time
-        command="curl -s localhost:$WALLET_PORT/v2/network/information | jq -r"
-        query_status="$command .sync_progress.status"
+        command=$(printf "docker run --network %s_default alpine/curl curl -s --max-time 5 http://cardano-wallet:8090/v2/network/information | jq -r" "$NETWORK" )
+        query_status="$command  .sync_progress.status"
         query_time="$command .node_tip.time"
         query_progress="$command .sync_progress.progress.quantity"
 
         # Execute and display the full query result
         trap cleanup ERR INT
+
+        # Define the wanted status and result, can be "syncing" or "ready"
+        SUCCESS_STATUS=${SUCCESS_STATUS:="ready"}
+
         while true; do
             # Check the sync status
             status=$(cat <(bash -c "$query_status")) || echo "failed"
             if [[ $(date +%s) -ge $((start_time + timeout)) ]]; then
                 result="timeout"
                 break
-            elif [[ "$status" == "ready" ]]; then
+            elif [[ "$status" == "$SUCCESS_STATUS" ]]; then
                 result="success"
                 printf "\n"
                 break

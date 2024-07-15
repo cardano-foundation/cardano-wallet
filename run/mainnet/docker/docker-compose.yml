@@ -1,7 +1,7 @@
-name: ${NETWORK}
+name: mainnet
 services:
   cardano-node:
-    image: ghcr.io/intersectmbo/cardano-node:${NODE_TAG}
+    image: ghcr.io/intersectmbo/cardano-node:9.0.0
     environment:
       CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME}
     volumes:
@@ -25,20 +25,19 @@ services:
         +RTS -N -A16m -qg -qb -RTS
 
   cardano-wallet:
-    image: cardanofoundation/cardano-wallet:${WALLET_TAG}
+    image: cardanofoundation/cardano-wallet:2024.7.7
     volumes:
       - ${WALLET_DB}:/wallet-db
       - ${NODE_SOCKET_DIR}:/ipc
       - ${NODE_CONFIGS}:/configs
-    ports:
-      - ${WALLET_PORT}:8090
     entrypoint: []
     command: >
       cardano-wallet serve
         --node-socket /ipc/${NODE_SOCKET_NAME}
         --database /wallet-db
         --listen-address 0.0.0.0
-        --testnet /configs/byron-genesis.json
+        --mainnet
+        +RTS -N -A16m -qg -qb -RTS
 
     user: ${USER_ID}:${GROUP_ID}
     restart: on-failure

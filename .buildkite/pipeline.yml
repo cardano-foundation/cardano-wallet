@@ -159,6 +159,24 @@ steps:
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
 
+    - label: Mainnet Boot Sync
+      depends_on: linux-nix
+      timeout: 30
+      command: |
+        cd run/mainnet/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        export SUCCESS_STATUS=syncing
+        ./run.sh sync
+      artifact_paths:
+        - "./run/mainnet/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
@@ -546,18 +564,15 @@ steps:
   - group: Docker Checks
     key: docker-e2e
     steps:
-      - label: Smoke Test docker-compose
-        if: build.env("RELEASE_CANDIDATE") != null
-        key: docker-smoke-test
+      - label: Mainnet Boot Sync
         depends_on:
           - docker-build
-        timeout_in_minutes: 120
-        commands:
-          - ./scripts/buildkite/release/docker-smoke-test.sh
-        artifact_paths:
-          - "./logs/*"
-        env:
-          NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        timeout_in_minutes: 30
+        command: |
+          cd run/mainnet/docker
+          rm -rf databases
+          export SUCCESS_STATUS=syncing
+          ./run.sh sync
         agents:
           system: x86_64-linux
         concurrency: 1
@@ -613,3 +628,28 @@ steps:
           system: x86_64-linux
         concurrency: 1
         concurrency_group: 'docker'
+
+  - group: Links
+    key: links-validity
+    steps:
+      - block: Snapshot Links
+        depends_on: linux-nix
+        if: build.env("RELEASE_CANDIDATE") == null
+        key: snapshot-links
+
+      - label: Check Mainnet Snapshot Link
+        depends_on: snapshot-links
+        command: |
+          cd run/mainnet/docker
+          LINK_TEST=1 ./snapshot.sh
+        agents:
+          system: ${linux}
+
+      - label: Check Preprod Snapshot Link
+        depends_on: snapshot-links
+        command: |
+          cd run/preprod/docker
+          LINK_TEST=1 ./snapshot.sh
+        agents:
+          system: ${linux}
+          
