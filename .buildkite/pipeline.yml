@@ -159,6 +159,24 @@ steps:
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
 
+    - label: Mainnet Boot Sync
+      depends_on: linux-nix
+      timeout: 30
+      command: |
+        cd run/mainnet/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        export SUCCESS_STATUS=syncing
+        ./run.sh sync
+      artifact_paths:
+        - "./run/mainnet/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: linux-nix
@@ -535,7 +553,7 @@ steps:
       - label: Mainnet Boot Sync
         depends_on:
           - docker-build
-        timeout_in_minutes: 2
+        timeout_in_minutes: 30
         command: |
           cd run/mainnet/docker
           rm -rf databases
