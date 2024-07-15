@@ -596,3 +596,28 @@ steps:
           system: x86_64-linux
         concurrency: 1
         concurrency_group: 'docker'
+
+  - group: Links
+    key: links-validity
+    steps:
+      - block: Snapshot Links
+        depends_on: linux-nix
+        if: build.env("RELEASE_CANDIDATE") == null
+        key: snapshot-links
+
+      - label: Check Mainnet Snapshot Link
+        depends_on: snapshot-links
+        command: |
+          cd run/mainnet/docker
+          LINK_TEST=1 ./snapshot.sh
+        agents:
+          system: ${linux}
+
+      - label: Check Preprod Snapshot Link
+        depends_on: snapshot-links
+        command: |
+          cd run/preprod/docker
+          LINK_TEST=1 ./snapshot.sh
+        agents:
+          system: ${linux}
+          

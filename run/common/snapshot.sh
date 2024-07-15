@@ -37,6 +37,14 @@ esac
 
 echo "Downloading the snapshot..."
 
+if [ -n "${LINK_TEST:-}" ]; then
+    echo "Link test enabled"
+    echo "Snapshot URL: $SNAPSHOT_URL"
+    curl -f -LI "$SNAPSHOT_URL" > /dev/null
+    curl -r 0-1000000 -SL "$SNAPSHOT_URL" > /dev/null
+    exit 0
+fi
+
 curl -SL "$SNAPSHOT_URL" | lz4 -c -d - | tar -x -C "$NODE_DB"
 
 mv -f "$NODE_DB"/db/* "$NODE_DB"/
