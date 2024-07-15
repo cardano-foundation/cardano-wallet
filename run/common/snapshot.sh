@@ -24,6 +24,11 @@ case "$NETWORK" in
         echo "Snapshot name: $SNAPSHOT_NAME"
         SNAPSHOT_URL="https://downloads.csnapshots.io/testnet/$SNAPSHOT_NAME"
         ;;
+    mainnet)
+        SNAPSHOT_NAME=$(curl -s https://downloads.csnapshots.io/mainnet/mainnet-db-snapshot.json| jq -r .[].file_name )
+        echo "Snapshot name: $SNAPSHOT_NAME"
+        SNAPSHOT_URL="https://downloads.csnapshots.io/mainnet/$SNAPSHOT_NAME"
+        ;;
     *)
         echo "Error: Invalid network $NETWORK"
         exit 1
