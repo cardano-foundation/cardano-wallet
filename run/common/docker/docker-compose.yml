@@ -9,7 +9,7 @@ services:
       - ${NODE_SOCKET_DIR}:/ipc
       - ${NODE_CONFIGS}:/configs
     restart: on-failure
-    user: ${USER_ID}
+    user: ${USER_ID}:${GROUP_ID}
     logging:
       driver: "json-file"
       options:
@@ -40,7 +40,7 @@ services:
         --listen-address 0.0.0.0
         --testnet /configs/byron-genesis.json
 
-    user: ${USER_ID}
+    user: ${USER_ID}:${GROUP_ID}
     restart: on-failure
     logging:
       driver: "json-file"

@@ -9,7 +9,7 @@ services:
       - ${NODE_SOCKET_DIR}:/ipc
       - ${NODE_CONFIGS}:/configs
     restart: on-failure
-    user: ${USER_ID}
+    user: ${USER_ID}:${GROUP_ID}
     logging:
       driver: "json-file"
       options:
@@ -39,7 +39,7 @@ services:
         --mainnet
         +RTS -N -A16m -qg -qb -RTS
 
-    user: ${USER_ID}
+    user: ${USER_ID}:${GROUP_ID}
     restart: on-failure
     logging:
       driver: "json-file"

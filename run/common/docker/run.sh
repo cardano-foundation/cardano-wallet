@@ -56,6 +56,10 @@ fi
 USER_ID=$(id -u)
 export USER_ID
 
+# Get the current user's group ID and export it
+GROUP_ID=$(id -g)
+export GROUP_ID
+
 # Define and export the node socket name
 NODE_SOCKET_NAME=node.socket
 export NODE_SOCKET_NAME
