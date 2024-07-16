@@ -550,7 +550,6 @@ steps:
         depends_on:
           - linux-nix
           - docker-build
-          - docker-smoke-test
         key: build-docker
         command:
           - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
@@ -652,4 +651,3 @@ steps:
           LINK_TEST=1 ./snapshot.sh
         agents:
           system: ${linux}
-          
