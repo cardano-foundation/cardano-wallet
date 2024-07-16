@@ -1,0 +1,117 @@
+{ "bootStakeholders":
+    { "021e737009040bf7f1e7b1bcc148f29d748d4a6b561902c95e4a9f36": 1
+    , "0bc82ced9544980b9ffe7f64b1538bbda6804a5cc32c8035485e184b": 1
+    , "18ed9844deef98cf9ba8b39791dede0538d2d2fa79bf67ef37dcc826": 1
+    , "66cfa84ad0ee5ca8586244c8393007cf3d9622d77cfa03fd4f35065b": 1
+    , "76c4d6c68c0ef81ae364411a84e52ce66089ed006ca29adfc0227901": 1
+    , "8cc6b89fec65cc83d34b7bab2e6494db631d8476a86625767dd0c2a0": 1
+    , "e90060fdc085ac9f63cdb3b32ba1d84e0f7eb98561687b213b4c8770": 1
+    }
+, "heavyDelegation":
+    { "021e737009040bf7f1e7b1bcc148f29d748d4a6b561902c95e4a9f36":
+        { "omega": 0
+        , "issuerPk":
+            "6hSFCotivD08t02n43RMiaF9LzwtYVrFMu/WX6ShfEsxfdXFL5Y6c+DwHSZOCywU0RJz5er2icIO03UytC9NTg=="
+        , "delegatePk":
+            "JEnSVQTPGriTx1+lAMkKhCNsMBDNPGw+NiEvNPh4ui6IdvxrO+WkQPTy5U865XB4VFvi/zb7d+H1bilnztQNBg=="
+        , "cert":
+            "558952d17442e8cc73f0c7dd606e329b38ed2ec0c1f83fe2567d28b21ef2223d2d23640cd0531f75832b50e519631c48643fcfaa7168851645dce07b90d87f0e"
+        }
+    , "0bc82ced9544980b9ffe7f64b1538bbda6804a5cc32c8035485e184b":
+        { "omega": 0
+        , "issuerPk":
+            "MJ7IskKU8GKk0Eeg3zhfSOK1DDVXOMHD2V/zhEpODUtL9YB0Y7sXnbZfg3+Df05hskP5Jz+dZvdC6DH/dP9jmQ=="
+        , "delegatePk":
+            "hwO7NJL7LfAk5e/QG61FKcdORoK60tvprE3063Muh4EQKrWA6l7t23B2GziK8D0hRO0j5W1Gzpn8WW69XLIlKA=="
+        , "cert":
+            "2bccf50d0c3cbb03dd29cfba817e8ba615db3d7722b41b264ad08722e548cfe83d069b29d13e490823d7519ecdd9940ea49573f6027056c4bd58da1adf75020e"
+        }
+    , "18ed9844deef98cf9ba8b39791dede0538d2d2fa79bf67ef37dcc826":
+        { "omega": 0
+        , "issuerPk":
+            "pXbW4Jak8maeuWiosvrurykKnqDSHswUjroonSDS3fTnWS+BKe+vjT4zZJNKhQ33KbagiHVJ5CJUNggfsCtG2g=="
+        , "delegatePk":
+            "rbJAZp3kWCUvp8dnLR6qsgpGU+qKAFow4NHYKWiKCkfm1qFCFONob50N1IbNWCGWAhg38ZPTvBazTasjsfj6yQ=="
+        , "cert":
+            "89e1638e31fd3d402cecb897ba773d8c2c11c2d3cff2462b266e21461539b1a4fe8fb528e159b9af473799b51e49aa5b5816a88f10c484aa7cef7ad12850830a"
+        }
+    , "66cfa84ad0ee5ca8586244c8393007cf3d9622d77cfa03fd4f35065b":
+        { "omega": 0
+        , "issuerPk":
+            "/LGZjmmcAMRisP7Rf454GM2QUKgj2aAyqE+iQo2PIEhcistFOlT+idtbLTceZAnQcwwPJDtTcNi+EnPQyscZOg=="
+        , "delegatePk":
+            "rinFUiKKCPPFY0ULEKn1SPRgLVmOS3jdTXDtrxK6VI1I11G3uBS1Olxi0mQSN3kf+B3hm/xHkuUDVNaSXNiBeQ=="
+        , "cert":
+            "3e7f30bb68c5bc4d23c2a730ac154a188a1fd45aac3f438efd380303171443d2ca4f50e5a1ff66b40ae3da64697f2599956ae06c21b73fa828b8c0dc9fb27302"
+        }
+    , "76c4d6c68c0ef81ae364411a84e52ce66089ed006ca29adfc0227901":
+        { "omega": 0
+        , "issuerPk":
+            "9EE85tTLdSSR4T1Xoy6n9wr6jlbavCdfp9oQKusskO3DSSyNqRYS7QzYQ96j/WnphUey63082YkKijMfF9A4eA=="
+        , "delegatePk":
+            "dvyHDkXg8LFtb0K6Sitl8OGSEZPvfCVQYLDR6Au6t6/ROvlerMKQ8uri4fG7hQQzbHKtdKWgv94t+zuFJTQ1fw=="
+        , "cert":
+            "5ec0ed46ae7e575bdb089f1bceca3b2689b13a7162fe08578fe60ba64607fffaa507412a97652c3c81cc0ef93ff404cf809a628ae19faba1a035fca0505c1d04"
+        }
+    , "8cc6b89fec65cc83d34b7bab2e6494db631d8476a86625767dd0c2a0":
+        { "omega": 0
+        , "issuerPk":
+            "Hr5S5PAxf9HSB4FzmtZzaFcXrNrctrI5XUrDrnCkOUTX6rhbtOMkXU3sWVDOvU6LNSSr3/Ws2+iCYZIr7LmTWg=="
+        , "delegatePk":
+            "FaLH2b5H/XS31YRnm98N6fP4Etx6m+GbniVAXMwOp8KhYXPKBJBsX/EjIy3pSkvRBhGCjsycB0yrDxWMi5ZsIQ=="
+        , "cert":
+            "10f06304cceb42071605ebba67b308c7568e5e6fe0d773c58f7e8c13bc8d8a340f70a4fd5e1b4a1c1db1de5c7646802bbc929d6c82d7adb8a77cb6ad77eac50a"
+        }
+    , "e90060fdc085ac9f63cdb3b32ba1d84e0f7eb98561687b213b4c8770":
+        { "omega": 0
+        , "issuerPk":
+            "B2R+VXzy3c8bxncdOpQ2Z/tblxRNQO8AXQ0OsJDQvZYnLeGQcLD78kyYLpi3nfuS4SfnLar23NV4yiEVwaw+Yw=="
+        , "delegatePk":
+            "nACHGIBacymrKwn07iW/a5ZKJCPZ2cKQqeXw3ivR7WOYVUuufWhZlCoUTZ7rtBqoDaexblUQwkC7hA7AmNA3FA=="
+        , "cert":
+            "b5440daa05f7fae557df46e4f1b7c5802b86f465daad1137e315abf6e72f1c877207276abb8dcba86e18e42d39b34c2f0fa82ba2919944cdc8e2e5264baa450b"
+        }
+    }
+, "startTime": 1666656000
+, "nonAvvmBalances":
+    { "FHnt4NL7yPXjpZtYj1YUiX9QYYUZGXDT9gA2PJXQFkTSMx3EgawXK5BUrCHdhe2":
+        "0"
+    , "FHnt4NL7yPXk7D87qAWEmfnL7wSQ9AzBU2mjZt3eM48NSCbygxgzAU6vCGiRZEW":
+        "0"
+    , "FHnt4NL7yPXpazQsTdJ3Gp1twQUo4N5rrgGbRNSzchjchPiApc1k4CvqDMcdd7H":
+        "0"
+    , "FHnt4NL7yPXtNo1wLCLZyGTMfAvB14h8onafiYkM7B69ZwvGgXeUyQWfi7FPrif":
+        "0"
+    , "FHnt4NL7yPXtmi4mAjD43V3NB3shDs1gCuHNcMLPsRWjaw1b2yRV2xad8S8V6aq":
+        "0"
+    , "FHnt4NL7yPXvDWHa8bVs73UEUdJd64VxWXSFNqetECtYfTd9TtJguJ14Lu3feth":
+        "30000000000000000"
+    , "FHnt4NL7yPXvNSRpCYydjRr7koQCrsTtkovk5uYMimgqMJX2DyrEEBqiXaTd8rG":
+        "0"
+    , "FHnt4NL7yPY9rTvdsCeyRnsbzp4bN7XdmAZeU5PzA1qR2asYmN6CsdxJw4YoDjG":
+        "0"
+    }
+, "blockVersionData":
+    { "scriptVersion": 0
+    , "slotDuration": "20000"
+    , "maxBlockSize": "2000000"
+    , "maxHeaderSize": "2000000"
+    , "maxTxSize": "4096"
+    , "maxProposalSize": "700"
+    , "mpcThd": "20000000000000"
+    , "heavyDelThd": "300000000000"
+    , "updateVoteThd": "1000000000000"
+    , "updateProposalThd": "100000000000000"
+    , "updateImplicit": "10000"
+    , "softforkRule":
+        { "initThd": "900000000000000"
+        , "minThd": "600000000000000"
+        , "thdDecrement": "50000000000000"
+        }
+    , "txFeePolicy":
+        { "summand": "155381000000000" , "multiplier": "43946000000" }
+    , "unlockStakeEpoch": "18446744073709551615"
+    }
+, "protocolConsts": { "k": 432 , "protocolMagic": 2 }
+, "avvmDistr": {}
+}

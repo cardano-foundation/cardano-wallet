@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+rm ./*.json
 curl https://book.play.dev.cardano.org/environments-pre/mainnet/config.json > config.json
 curl https://book.play.dev.cardano.org/environments-pre/mainnet/conway-genesis.json  > conway-genesis.json
 curl https://book.play.dev.cardano.org/environments-pre/mainnet/topology.json  > topology.json
