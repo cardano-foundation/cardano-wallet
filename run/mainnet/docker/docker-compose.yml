@@ -1,7 +1,7 @@
 name: mainnet
 services:
   cardano-node:
-    image: ghcr.io/intersectmbo/cardano-node:9.0.0
+    image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     environment:
       CARDANO_NODE_SOCKET_PATH: /ipc/${NODE_SOCKET_NAME}
     volumes:
@@ -25,7 +25,7 @@ services:
         +RTS -N -A16m -qg -qb -RTS
 
   cardano-wallet:
-    image: cardanofoundation/cardano-wallet:2024.7.7
+    image: cardanofoundation/cardano-wallet:${WALLET_TAG}
     volumes:
       - ${WALLET_DB}:/wallet-db
       - ${NODE_SOCKET_DIR}:/ipc
