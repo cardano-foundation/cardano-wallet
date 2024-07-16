@@ -259,6 +259,9 @@ package cardano-wallet-cli
 package cardano-wallet-launcher
   tests: True
 
+package cardano-wallet-network-layer
+  tests: True
+
 package cardano-wallet-primitive
   tests: True
 
