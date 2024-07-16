@@ -4085,7 +4085,7 @@ components:
                 datum: *datum
                 assets: *walletAssets
         redeemers:
-            description: A list of redeemers data with their purpose.
+            description: A list of redeemers data with their purpose. The redeemers in the `transaction` binary will be overwritten by this value.
             type: array
             items: *ApiRedeemer
         encoding:
