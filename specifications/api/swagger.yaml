@@ -4060,7 +4060,12 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
         inputs:
-            description: A list of additional transaction inputs foreign to the wallet.
+            description: |
+                No longer required, except if the supplied `transaction` contains inputs not in the `cardano-node` UTxO.
+
+                Balancing a transaction requires knowing the full outputs (`amount`, `assets`, ...) of the inputs (`id`, `ix`) in the `transaction` binary.
+                The wallet will now automatically try to resolve inputs using the `cardano-node` UTxO. This `inputs` field is kept for backwards compatibility
+                and for cases where the inputs don't yet exist in the `cardano-node` UTxO.
             type: array
             items:
               type: object
