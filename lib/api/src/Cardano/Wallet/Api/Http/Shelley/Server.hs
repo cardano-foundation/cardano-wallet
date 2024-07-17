@@ -121,7 +121,6 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
-    , toMetadataEncrypted
     , fromMetadataEncrypted
 
     -- * Workers
@@ -154,8 +153,6 @@ import Cardano.Address.Script
 import Cardano.Api
     ( NetworkId
     , SerialiseAsCBOR (..)
-    , TxMetadata (TxMetadata)
-    , TxMetadataValue (TxMetaList, TxMetaMap, TxMetaText)
     , toNetworkMagic
     , unNetworkMagic
     )
@@ -486,6 +483,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     , cip83EncryptMethodKey
     , cip83EncryptPayloadKey
     , cip83EncryptPayloadValue
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -728,8 +726,7 @@ import Control.Tracer
     , contramap
     )
 import Cryptography.Cipher.AES256CBC
-    ( CipherError
-    , CipherMode (..)
+    ( CipherMode (..)
     )
 import Cryptography.Core
     ( genSalt
@@ -741,7 +738,6 @@ import Data.Bifunctor
 import Data.ByteArray.Encoding
     ( Base (..)
     , convertFromBase
-    , convertToBase
     )
 import Data.ByteString
     ( ByteString
@@ -823,7 +819,6 @@ import Data.Traversable
     )
 import Data.Word
     ( Word32
-    , Word64
     )
 import Fmt
     ( pretty
@@ -2608,7 +2603,10 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
     metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
         (Just apiEncrypt, Just metadataWithSchema) -> do
             salt <- liftIO $ genSalt 8
-            toMetadataEncrypted apiEncrypt metadataWithSchema (Just salt)
+            let pwd :: ByteString
+                pwd = BA.convert $ unPassphrase $ getApiT $
+                      apiEncrypt ^. #passphrase
+            toMetadataEncrypted pwd metadataWithSchema (Just salt)
                 & \case
                     Left err ->
                         liftHandler $ throwE err
@@ -3005,100 +3003,6 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
--- When encryption is enabled we do the following:
--- (a) find field `msg` in the object of "674" label
--- (b) encrypt the 'msg' value if present, if there is neither "674" label
---     nor 'msg' value inside object of it emit error
--- (c) update value of `msg` with the encrypted initial value(s) encoded in
---     base64:
---     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
--- (d) add `enc` field with encryption method value 'basic'
-toMetadataEncrypted
-    :: ApiEncryptMetadata
-    -> TxMetadataWithSchema
-    -> Maybe ByteString
-    -> Either ErrConstructTx TxMetadata
-toMetadataEncrypted apiEncrypt payload saltM =
-    fmap updateTxMetadata . encryptMessage =<< extractMessage
-  where
-    pwd :: ByteString
-    pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
-
-    secretKey, iv :: ByteString
-    (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
-
-    -- `msg` is embedded at the first level
-    parseMessage :: TxMetadataValue -> Maybe [TxMetadataValue]
-    parseMessage = \case
-        TxMetaMap kvs ->
-            case mapMaybe getValue kvs of
-                [ ] -> Nothing
-                vs -> Just vs
-        _ ->
-            Nothing
-      where
-        getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
-        getValue (TxMetaText k, v) =
-            if k == cip83EncryptPayloadKey then
-                Just v
-            else
-                Nothing
-        getValue _ = Nothing
-
-    validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
-    validKeyAndMessage k v = k == cip20MetadataKey && isJust (parseMessage v)
-
-    extractMessage :: Either ErrConstructTx TxMetadataValue
-    extractMessage
-        | [v] <- F.toList filteredMap =
-            Right v
-        | otherwise =
-            Left ErrConstructTxIncorrectRawMetadata
-      where
-        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
-        filteredMap = Map.filterWithKey validKeyAndMessage themap
-
-    encryptMessage :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
-    encryptMessage = \case
-        TxMetaMap pairs ->
-            TxMetaMap . reverse . L.nub . reverse . concat <$>
-            mapM encryptPairIfQualifies pairs
-        _ ->
-            error "encryptMessage should have TxMetaMap value"
-      where
-        encryptPairIfQualifies
-            :: (TxMetadataValue, TxMetadataValue)
-            -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
-        encryptPairIfQualifies = \case
-            (TxMetaText "msg", m) -> do
-                bimap ErrConstructTxEncryptMetadata toPair (encryptValue m)
-            pair ->
-                Right [pair]
-
-        encryptValue :: TxMetadataValue -> Either CipherError ByteString
-        encryptValue
-            = AES256CBC.encrypt WithPadding secretKey iv saltM
-            . BL.toStrict
-            . Aeson.encode
-            . Cardano.metadataValueToJsonNoSchema
-
-        toPair :: ByteString -> [(TxMetadataValue, TxMetadataValue)]
-        toPair encryptedMessage =
-            [ (TxMetaText cip83EncryptPayloadKey, TxMetaList (toChunks encryptedMessage))
-            , (TxMetaText cip83EncryptMethodKey, TxMetaText cip83EncryptPayloadValue)
-            ]
-
-        toChunks :: ByteString -> [TxMetadataValue]
-        toChunks
-            = fmap TxMetaText
-            . T.chunksOf 64
-            . T.decodeUtf8
-            . convertToBase Base64
-
-    updateTxMetadata :: TxMetadataValue -> W.TxMetadata
-    updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
-      where
-        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
 
 -- When decryption is enabled we do the following:
 -- (a) retrieve list of TxMetaBytes under proper key, ie.674,

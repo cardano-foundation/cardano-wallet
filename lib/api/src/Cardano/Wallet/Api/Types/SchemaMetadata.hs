@@ -6,6 +6,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StrictData #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -29,8 +30,11 @@ import Cardano.Api
 import Cardano.Api.Error
     ( displayError
     )
+import Cardano.Wallet
+    ( ErrConstructTx (..)
+    )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata
+    ( TxMetadata (..)
     )
 import Control.Applicative
     ( (<|>)
@@ -41,6 +45,10 @@ import Control.DeepSeq
 import Control.Monad
     ( guard
     , when
+    )
+import Cryptography.Cipher.AES256CBC
+    ( CipherError
+    , CipherMode (..)
     )
 import Cryptography.Hash.Core
     ( SHA256 (..)
@@ -53,14 +61,26 @@ import Data.Aeson
     , ToJSON (toJSON)
     )
 import Data.Bifunctor
-    ( first
+    ( bimap
+    , first
+    )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertToBase
     )
 import Data.ByteString
     ( ByteString
     )
 import Data.Maybe
-    ( fromMaybe
+    ( isJust
+    , fromMaybe
+    , mapMaybe
     )
+import Data.Generics.Internal.VL.Lens
+    ( (^.)
+    )
+import Data.Generics.Labels
+    ()
 import Data.Text
     ( Text
     )
@@ -75,6 +95,8 @@ import Prelude
 import qualified Cardano.Ledger.Binary as CBOR
 import qualified Cardano.Ledger.Shelley.TxAuxData as Ledger
 import qualified Codec.CBOR.Magic as CBOR
+import qualified Cryptography.Cipher.AES256CBC as AES256CBC
+import qualified Cryptography.KDF.PBKDF2 as PBKDF2
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Key as Aeson
 import qualified Data.Aeson.KeyMap as Aeson
@@ -82,6 +104,9 @@ import qualified Data.Attoparsec.ByteString.Char8 as Atto
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Foldable as F
+import qualified Data.Map.Strict as Map
 import qualified Data.List as L
 import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
@@ -275,3 +300,95 @@ cip83EncryptPayloadKey = "msg"
 
 cip83EncryptPayloadValue :: Text
 cip83EncryptPayloadValue = "basic"
+
+-- When encryption is enabled we do the following:
+-- (a) find field `msg` in the object of "674" label
+-- (b) encrypt the 'msg' value if present, if there is neither "674" label
+--     nor 'msg' value inside object of it emit error
+-- (c) update value of `msg` with the encrypted initial value(s) encoded in
+--     base64:
+--     [TxMetaText base64_1, TxMetaText base64_2, ..., TxMetaText base64_n]
+-- (d) add `enc` field with encryption method value 'basic'
+toMetadataEncrypted
+    :: ByteString
+    -> TxMetadataWithSchema
+    -> Maybe ByteString
+    -> Either ErrConstructTx TxMetadata
+toMetadataEncrypted pwd payload saltM =
+    fmap updateTxMetadata . encryptMessage =<< extractMessage
+  where
+    secretKey, iv :: ByteString
+    (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
+
+    -- `msg` is embedded at the first level
+    parseMessage :: TxMetadataValue -> Maybe [TxMetadataValue]
+    parseMessage = \case
+        TxMetaMap kvs ->
+            case mapMaybe getValue kvs of
+                [ ] -> Nothing
+                vs -> Just vs
+        _ ->
+            Nothing
+      where
+        getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
+        getValue (TxMetaText k, v) =
+            if k == cip83EncryptPayloadKey then
+                Just v
+            else
+                Nothing
+        getValue _ = Nothing
+
+    validKeyAndMessage :: Word64 -> TxMetadataValue -> Bool
+    validKeyAndMessage k v = k == cip20MetadataKey && isJust (parseMessage v)
+
+    extractMessage :: Either ErrConstructTx TxMetadataValue
+    extractMessage
+        | [v] <- F.toList filteredMap =
+            Right v
+        | otherwise =
+            Left ErrConstructTxIncorrectRawMetadata
+      where
+        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
+        filteredMap = Map.filterWithKey validKeyAndMessage themap
+
+    encryptMessage :: TxMetadataValue -> Either ErrConstructTx TxMetadataValue
+    encryptMessage = \case
+        TxMetaMap pairs ->
+            TxMetaMap . reverse . L.nub . reverse . concat <$>
+            mapM encryptPairIfQualifies pairs
+        _ ->
+            error "encryptMessage should have TxMetaMap value"
+      where
+        encryptPairIfQualifies
+            :: (TxMetadataValue, TxMetadataValue)
+            -> Either ErrConstructTx [(TxMetadataValue, TxMetadataValue)]
+        encryptPairIfQualifies = \case
+            (TxMetaText "msg", m) -> do
+                bimap ErrConstructTxEncryptMetadata toPair (encryptValue m)
+            pair ->
+                Right [pair]
+
+        encryptValue :: TxMetadataValue -> Either CipherError ByteString
+        encryptValue
+            = AES256CBC.encrypt WithPadding secretKey iv saltM
+            . BL.toStrict
+            . Aeson.encode
+            . metadataValueToJsonNoSchema
+
+        toPair :: ByteString -> [(TxMetadataValue, TxMetadataValue)]
+        toPair encryptedMessage =
+            [ (TxMetaText cip83EncryptPayloadKey, TxMetaList (toChunks encryptedMessage))
+            , (TxMetaText cip83EncryptMethodKey, TxMetaText cip83EncryptPayloadValue)
+            ]
+
+        toChunks :: ByteString -> [TxMetadataValue]
+        toChunks
+            = fmap TxMetaText
+            . T.chunksOf 64
+            . T.decodeUtf8
+            . convertToBase Base64
+
+    updateTxMetadata :: TxMetadataValue -> TxMetadata
+    updateTxMetadata v = TxMetadata (Map.insert cip20MetadataKey v themap)
+      where
+        TxMetadata themap = payload ^. #txMetadataWithSchema_metadata

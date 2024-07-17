@@ -70,9 +70,6 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api.Hex
     ( fromHexText
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( toMetadataEncrypted
-    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddressWithPath (..)
@@ -127,6 +124,7 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
     , metadataPBKDF2Config
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -5537,8 +5535,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let decodePayloadEncrypted = Json (toJSON signedTx)
         let (Right expMetadataEncrypted) =
-                ApiT <$> toMetadataEncrypted encryptMetadata metadataToBeEncrypted
-                (Just salt)
+                ApiT <$> toMetadataEncrypted pwd metadataToBeEncrypted (Just salt)
         rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
         verify rDecodedTxEncrypted

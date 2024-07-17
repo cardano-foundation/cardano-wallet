@@ -112,9 +112,6 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api
     ( Api
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( toMetadataEncrypted
-    )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
@@ -307,6 +304,7 @@ import Cardano.Wallet.Api.Types.RestorationMode
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -1225,11 +1223,7 @@ spec = do
         -- $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- vBSywXY+WGcrckHUCyjJcQ==
         it "short msg - no salt" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
@@ -1262,18 +1256,14 @@ spec = do
                         ]
                       )
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+            toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Right schemaAfter
 
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8
         -- ygjbu25gCdhJh7iEpAJVaA==
         it "long msg - no salt" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
@@ -1310,18 +1300,14 @@ spec = do
                         ]
                       )
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+            toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Right schemaAfter
 
         -- $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- IBcjjGQ7akr/CV2Zb0HtCvEPQNndZujCZ7iaFGMjOX3q3PJg5aRUvHgO3gPnDzYE
         -- 7jFsGUK1bCdwsrn8kqI92NccbG8oAtPJUktZTTcO/bg=
         it "cip msg - no salt" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
@@ -1360,17 +1346,13 @@ spec = do
                         ]
                       )
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+            toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Right schemaAfter
 
         -- $ $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600=
         it "short msg - salted" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $ Map.fromList
                     [ ( 674
@@ -1404,18 +1386,14 @@ spec = do
                       )
                     ]
                 saltM = fromHexToM "3030303030303030"
-            toMetadataEncrypted apiEncrypt schemaBefore saltM
+            toMetadataEncrypted "cardano" schemaBefore saltM
                 `shouldBe` Right schemaAfter
 
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh
         -- PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU=
         it "long msg - salted" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $ Map.fromList
                     [ ( 674
@@ -1450,18 +1428,14 @@ spec = do
                       )
                     ]
                 saltM = fromHexToM "3030303030303030"
-            toMetadataEncrypted apiEncrypt schemaBefore saltM
+            toMetadataEncrypted "cardano" schemaBefore saltM
                 `shouldBe` Right schemaAfter
 
         -- $ $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do
         -- +SIXXn04a9xkoFHk4ZH281nIfH5lpClsO16p2vRpSsdBDFO78aTPX3bsHsRE0L2A
         it "cip msg - salted" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
@@ -1501,15 +1475,11 @@ spec = do
                       )
                     ]
                 saltM = fromHexToM "3030303030303030"
-            toMetadataEncrypted apiEncrypt schemaBefore saltM
+            toMetadataEncrypted "cardano" schemaBefore saltM
                 `shouldBe` Right schemaAfter
 
         it "msg wrong label - no salt" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $ Map.fromList
                     [ ( 675
@@ -1527,15 +1497,11 @@ spec = do
                         ]
                       )
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+            toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Left ErrConstructTxIncorrectRawMetadata
 
         it "msg without 'msg field' - no salt" $ do
-            let apiEncrypt = ApiEncryptMetadata
-                    { passphrase = ApiT $ Passphrase "cardano"
-                    , method = Nothing
-                    }
-                schemaBefore =
+            let schemaBefore =
                     TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
@@ -1554,7 +1520,7 @@ spec = do
                         ]
                       )
                     ]
-            toMetadataEncrypted apiEncrypt schemaBefore Nothing
+            toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Left ErrConstructTxIncorrectRawMetadata
 
 fromHexToM :: Text -> Maybe ByteString
