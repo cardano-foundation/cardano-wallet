@@ -121,7 +121,6 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , rndStateChange
     , withWorkerCtx
     , getCurrentEpoch
-    , fromMetadataEncrypted
 
     -- * Workers
     , manageRewardBalance
@@ -178,7 +177,6 @@ import Cardano.Wallet
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
-    , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
@@ -357,7 +355,6 @@ import Cardano.Wallet.Api.Types
     , ApiDRepSpecifier (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
-    , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
     , ApiForeignStakeKey (..)
@@ -478,11 +475,7 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (TxMetadataWithSchema)
-    , metadataPBKDF2Config
-    , cip20MetadataKey
-    , cip83EncryptMethodKey
-    , cip83EncryptPayloadKey
-    , cip83EncryptPayloadValue
+    , fromMetadataEncrypted
     , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
@@ -725,19 +718,11 @@ import Control.Tracer
     ( Tracer
     , contramap
     )
-import Cryptography.Cipher.AES256CBC
-    ( CipherMode (..)
-    )
 import Cryptography.Core
     ( genSalt
     )
 import Data.Bifunctor
-    ( bimap
-    , first
-    )
-import Data.ByteArray.Encoding
-    ( Base (..)
-    , convertFromBase
+    ( first
     )
 import Data.ByteString
     ( ByteString
@@ -915,19 +900,14 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Control.Concurrent.Concierge as Concierge
-import qualified Cryptography.Cipher.AES256CBC as AES256CBC
-import qualified Cryptography.KDF.PBKDF2 as PBKDF2
-import qualified Data.Aeson as Aeson
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
     , IsRecentEra
@@ -3003,105 +2983,6 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
 
-
--- When decryption is enabled we do the following:
--- (a) retrieve list of TxMetaBytes under proper key, ie.674,
---     cip20MetadataKey
--- (b) recreate each encrypted payload from chunks
---     (0, TxMetaBytes chunk1)
---     (1, TxMetaBytes chunk2)
---     ....
---     (N, TxMetaBytes chunkN)
---     ie., payload=chunk1+chunk2+...+chunkN
--- (c) decrypt each payload
--- (d) update structure
--- (e) decode metadata
-fromMetadataEncrypted
-    :: ApiEncryptMetadata
-    -> Cardano.TxMetadata
-    -> Either ErrDecodeTx Cardano.TxMetadata
-fromMetadataEncrypted apiEncrypt metadata =
-   composePayload metadata >>=
-   mapM decrypt >>=
-   adjust metadata
-  where
-    checkPresenceOfMethod value =
-        let presentPair (Cardano.TxMetaText k, Cardano.TxMetaText v) =
-                k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
-            presentPair _ = False
-        in case value of
-            Cardano.TxMetaMap list -> not (any presentPair list)
-            _ -> True
-    getEncryptedPayload value =
-        let presentPair (Cardano.TxMetaText k, Cardano.TxMetaList _) =
-                k == cip83EncryptPayloadKey
-            presentPair _ = False
-        in case value of
-            Cardano.TxMetaMap list -> snd <$> filter presentPair list
-            _ -> []
-    extractTxt (Cardano.TxMetaText txt) = txt
-    extractTxt _ =
-        error "TxMetaText is expected"
-    extractPayload (Cardano.TxMetaList chunks)=
-        foldl T.append T.empty $ extractTxt <$> chunks
-    extractPayload _ = T.empty
-    composePayload (Cardano.TxMetadata themap) = do
-        validValue <- case Map.lookup cip20MetadataKey themap of
-            Nothing -> Left ErrDecodeTxMissingMetadataKey
-            Just v -> pure v
-        when (checkPresenceOfMethod validValue) $
-            Left ErrDecodeTxMissingEncryptionMethod
-        let payloads = getEncryptedPayload validValue
-        if null payloads then
-            Left ErrDecodeTxMissingValidEncryptionPayload
-        else do
-            let extracted = extractPayload <$> payloads
-            when (T.empty `elem` extracted) $
-                Left ErrDecodeTxMissingValidEncryptionPayload
-            Right extracted
-
-    pwd = BA.convert $ unPassphrase $ getApiT $ apiEncrypt ^. #passphrase
-    decodeFromJSON = ---use metadataValueFromJsonNoSchema when available from cardano-api
-        first (ErrDecodeTxDecryptedPayload . T.pack) .
-        Aeson.eitherDecode . BL.fromStrict
-    decrypt payload = case convertFromBase Base64 (T.encodeUtf8 payload) of
-        Right payloadBS ->
-            case AES256CBC.getSaltFromEncrypted payloadBS of
-                     Nothing -> Left ErrDecodeTxMissingSalt
-                     Just salt -> do
-                         let (secretKey, iv) =
-                                 PBKDF2.generateKey metadataPBKDF2Config pwd (Just salt)
-                         decrypted <- bimap ErrDecodeTxDecryptPayload fst
-                             (AES256CBC.decrypt WithPadding secretKey iv payloadBS)
-                         decodeFromJSON decrypted
-        Left _ ->
-            Left ErrDecodeTxEncryptedPayloadWrongBase
-
-    adjust (Cardano.TxMetadata metadata') decodedElems =
-        pure $ Cardano.TxMetadata $
-        Map.adjust updateMetaMap cip20MetadataKey metadata'
-      where
-        updateElem acc@(decryptedList, list) elem' = case elem' of
-            (Cardano.TxMetaText k, Cardano.TxMetaText v) ->
-                if k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue then
-                    -- omiting this element
-                    acc
-                else
-                    (decryptedList, list ++ [elem'])
-            (Cardano.TxMetaText k, v) -> case decryptedList of
-                toAdd : rest ->
-                    if k == cip83EncryptPayloadKey then
-                        (rest, list ++ [(Cardano.TxMetaText k, toAdd)] )
-                    else
-                        (decryptedList, list ++ [(Cardano.TxMetaText k, v)] )
-                _ -> error "we have checked already in composePayload that there is enough elements in decrypedList"
-            _ -> error "we have checked already in composePayload that there is pair (TxMetaText, something)"
-
-        updateMetaMap v = case v of
-            Cardano.TxMetaMap list ->
-                Cardano.TxMetaMap $ snd $ L.foldl updateElem (decodedElems,[]) list
-            _ -> error "we have checked already in composePayload that there is TxMetaMap"
-
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)
 toUsignedTxWdrl p = \case
@@ -3563,8 +3444,10 @@ decodeTransaction
                } = walletTx
             db = wrk ^. dbLayer
         metadata' <- case (decryptMetadata, metadata) of
-            (Just apiDecrypt, Just meta) ->
-                case fromMetadataEncrypted apiDecrypt meta of
+            (Just apiDecrypt, Just meta) -> do
+                let pwd = BA.convert $ unPassphrase $
+                          getApiT $ apiDecrypt ^. #passphrase
+                case fromMetadataEncrypted pwd meta of
                     Left err ->
                         liftHandler $ throwE err
                     Right txmetadata ->
