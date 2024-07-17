@@ -78,7 +78,7 @@ export NODE_CONFIGS
 
 startup() {
     # Pull the latest images
-    docker compose pull -q
+    docker compose pull -q || true
     # Start the service in detached mode
     docker compose up -d
 }

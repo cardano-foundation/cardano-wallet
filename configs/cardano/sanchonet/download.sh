@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+rm ./*.json
 wget https://book.play.dev.cardano.org/environments-pre/sanchonet/config.json
 wget https://book.play.dev.cardano.org/environments-pre/sanchonet/topology.json
 wget https://book.play.dev.cardano.org/environments-pre/sanchonet/byron-genesis.json
