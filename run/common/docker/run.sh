@@ -78,7 +78,9 @@ export NODE_CONFIGS
 
 startup() {
     # Pull the latest images
-    docker compose pull -q || true
+    if [ -z "${USE_LOCAL_IMAGE}" ]; then
+        docker compose pull -q
+    fi
     # Start the service in detached mode
     docker compose up -d
 }

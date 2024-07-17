@@ -74,7 +74,8 @@ Accepeted variables for the start command are:
 - `WALLET_DB` (default `./databases/wallet-db`): the directory where the wallet database will be stored
 - `NODE_DB` (default `./databases/node-db`): the directory where the node database will be stored
 - `NODE_SOCKET_DIR` (default `./.`): the directory where the node socket will be created
-- `NODE_CONFIGS` (default `./configs`): the directory where the node configuration files will be retrieved from
+- `NODE_CONFIGS`: the directory where the node configuration files will be retrieved from. In the absence of this variable, the node will use the configurations in the image.
+      You have to reflect the directory structure of the node configuration files in the image to use the docker-compose.yml file.
 - `WALLET_TAG` (default 2024.7.7): the tag of the wallet image to use, can be `release-candidate`
 
 For example, to start a wallet on `private` network:

@@ -10,19 +10,19 @@
 
 { lib, stdenv
 , runtimeShell, writeScriptBin, writeTextFile, dockerTools
+, buildEnv
 
 # The main contents of the image: cardano-wallet executables
 , exes
 # Executables to include in the image as a base layer: node and utilities
 , base ? []
 # Other things to include in the image.
-, iana-etc, cacert, bashInteractive, coreutils
+, iana-etc, cacert, bashInteractive, coreutils, gnugrep, findutils
 , glibcLocales ? null
 
 # Used to generate the docker image names
 , repoName ? "cardanofoundation/cardano-wallet"
 }:
-
 
 let
   version = (lib.head exes).version;
@@ -56,32 +56,47 @@ let
     destination = "/etc/nsswitch.conf";
   };
 
-  # System environment layer, which isn't going to change much between
-  # versions.
+  # Image containing a system environment.
+  # This image will not change much between versions.
   envImage = dockerTools.buildImage {
     name = "${repoName}-env";
-    contents = [
-      iana-etc cacert nsswitch-conf
-      bashInteractive coreutils
-    ] ++ lib.optional haveGlibcLocales glibcLocales;
-
+    copyToRoot = buildEnv {
+      name = "${repoName}-env-packages";
+      paths = [
+          iana-etc cacert nsswitch-conf
+          bashInteractive coreutils gnugrep findutils
+          ] ++ lib.optional haveGlibcLocales glibcLocales;
+    };
     # set up /tmp (override with TMPDIR variable)
     extraCommands = "mkdir -m 0777 tmp";
   };
 
-  # Layer containing cardano-node backend and Adrestia toolbelt.
-  baseImage = dockerTools.buildImage {
-    name = "${repoName}-base";
-    contents = base;
-    fromImage = envImage;
+  # Configuration files for cardano-node
+  nodeConfigs = lib.fileset.toSource {
+    root = ../.;
+    fileset = ../configs/cardano;
   };
 
-in
-  dockerTools.buildImage {
+  # Image containing basic Cardano tools, including cardano-node
+  baseImage = dockerTools.buildImage {
+    name = "${repoName}-base";
+    fromImage = envImage;
+    copyToRoot = buildEnv {
+      name = "${repoName}-base-packages";
+      paths = base ++ [ nodeConfigs ];
+    };
+  };
+
+  # Image containing the software of interest,
+  # here cardano-wallet.
+  mainImage = dockerTools.buildImage {
     name = repoName;
     tag = version;
     fromImage = baseImage;
-    contents = exes ++ [ startScript ];
+    copyToRoot = buildEnv {
+      name = "${repoName}-main-packages";
+      paths = exes ++ [ startScript ];
+    };
     config = {
       EntryPoint = [ "start-cardano-wallet" ];
       ExposedPorts = {
@@ -89,4 +104,7 @@ in
       };
       Volume = [ dataDir ];
     };
-  } // { inherit version; }
+  };
+in
+  mainImage
+    // { inherit version; }

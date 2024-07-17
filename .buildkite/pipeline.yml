@@ -573,6 +573,7 @@ steps:
           system: x86_64-linux
         env:
           SUCCESS_STATUS: syncing
+          USE_LOCAL_IMAGE: true
 
       - label: Private Network Full Sync
         timeout: 20
@@ -583,7 +584,8 @@ steps:
           ./run.sh sync
         agents:
           system: x86_64-linux
-
+        env:
+          USE_LOCAL_IMAGE: true
 
       - label: Sanchonet Full Sync
         timeout_in_minutes: 240
@@ -594,7 +596,8 @@ steps:
           ./run.sh sync
         agents:
           system: x86_64-linux
-
+        env:
+          USE_LOCAL_IMAGE: true
 
       - label: Preprod Full Sync
         timeout_in_minutes: 240
@@ -607,7 +610,8 @@ steps:
           ./run.sh sync
         agents:
           system: x86_64-linux
-
+        env:
+          USE_LOCAL_IMAGE: true
 
   - group: Links
     key: links-validity
