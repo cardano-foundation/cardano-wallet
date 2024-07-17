@@ -206,6 +206,10 @@
 
           nodePackages = cardano-node-runtime.packages.${system};
           nodeProject = cardano-node-runtime.project.${system};
+          nodeConfigs = lib.fileset.toSource {
+            root = ./configs;
+            fileset = ./configs;
+          };
 
           walletProject = (import ./nix/haskell.nix
               CHaP
@@ -319,7 +323,7 @@
             in lib.optionalAttrs buildPlatform.isLinux {
               linux64.release =
                 import ./nix/release-package.nix {
-                  inherit pkgs;
+                  inherit pkgs nodeConfigs;
                   walletLib = lib;
                   exes = linuxReleaseExes;
                   platform = "linux64";
@@ -337,7 +341,7 @@
                     };
                 in {
                   release = import ./nix/release-package.nix {
-                    inherit pkgs;
+                    inherit pkgs nodeConfigs;
                     walletLib = lib;
                     exes = [
                       windowsPackages.cardano-wallet
@@ -364,7 +368,7 @@
             // lib.optionalAttrs buildPlatform.isMacOS {
               macos-intel = lib.optionalAttrs buildPlatform.isx86_64 {
                 release = import ./nix/release-package.nix {
-                  inherit pkgs;
+                  inherit pkgs nodeConfigs;
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
@@ -379,7 +383,7 @@
               };
               macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
                 release = import ./nix/release-package.nix {
-                  inherit pkgs;
+                  inherit pkgs nodeConfigs;
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
