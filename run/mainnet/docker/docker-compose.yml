@@ -7,7 +7,6 @@ services:
     volumes:
       - ${NODE_DB}:/data
       - ${NODE_SOCKET_DIR}:/ipc
-      - ${NODE_CONFIGS}:/configs
     restart: on-failure
     user: ${USER_ID}:${GROUP_ID}
     logging:
@@ -18,10 +17,10 @@ services:
         max-size: "50m"
     entrypoint: []
     command: >
-      cardano-node run --topology /configs/topology.json
+      cardano-node run --topology /configs/cardano/mainnet/topology.json
         --database-path /data
         --socket-path /ipc/node.socket
-        --config /configs/config.json
+        --config /configs/cardano/mainnet/config.json
         +RTS -N -A16m -qg -qb -RTS
 
   cardano-wallet:
@@ -29,7 +28,6 @@ services:
     volumes:
       - ${WALLET_DB}:/wallet-db
       - ${NODE_SOCKET_DIR}:/ipc
-      - ${NODE_CONFIGS}:/configs
     entrypoint: []
     command: >
       cardano-wallet serve
