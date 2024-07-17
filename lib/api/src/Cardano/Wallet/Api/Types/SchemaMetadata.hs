@@ -42,6 +42,12 @@ import Control.Monad
     ( guard
     , when
     )
+import Cryptography.Hash.Core
+    ( SHA256 (..)
+    )
+import Cryptography.KDF.PBKDF2
+    ( PBKDF2Config (..)
+    )
 import Data.Aeson
     ( FromJSON (parseJSON)
     , ToJSON (toJSON)
@@ -238,3 +244,12 @@ toShelleyMetadatum (TxMetaMap   xs) =
     Ledger.Map [ (toShelleyMetadatum k,
                       toShelleyMetadatum v)
                 | (k,v) <- xs ]
+
+-- Metadata encryption/decryption
+metadataPBKDF2Config :: PBKDF2Config SHA256
+metadataPBKDF2Config = PBKDF2Config
+    { hash = SHA256
+    , iterations = 10000
+    , keyLength = 32
+    , ivLength = 16
+    }

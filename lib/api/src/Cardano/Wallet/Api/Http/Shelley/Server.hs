@@ -123,7 +123,6 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getCurrentEpoch
     , toMetadataEncrypted
     , fromMetadataEncrypted
-    , metadataPBKDF2Config
 
     -- * Workers
     , manageRewardBalance
@@ -482,6 +481,7 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (TxMetadataWithSchema)
+    , metadataPBKDF2Config
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -729,12 +729,6 @@ import Cryptography.Cipher.AES256CBC
     )
 import Cryptography.Core
     ( genSalt
-    )
-import Cryptography.Hash.Core
-    ( SHA256 (..)
-    )
-import Cryptography.KDF.PBKDF2
-    ( PBKDF2Config (..)
     )
 import Data.Bifunctor
     ( bimap
@@ -3121,7 +3115,7 @@ toMetadataEncrypted apiEncrypt payload saltM =
       where
         TxMetadata themap = payload ^. #txMetadataWithSchema_metadata
 
--- When encryption is enabled we do the following:
+-- When decryption is enabled we do the following:
 -- (a) retrieve list of TxMetaBytes under proper key, ie.674,
 --     cip20MetadataKey
 -- (b) recreate each encrypted payload from chunks
@@ -3218,14 +3212,6 @@ fromMetadataEncrypted apiEncrypt metadata =
             Cardano.TxMetaMap list ->
                 Cardano.TxMetaMap $ snd $ L.foldl updateElem (decodedElems,[]) list
             _ -> error "we have checked already in composePayload that there is TxMetaMap"
-
-metadataPBKDF2Config :: PBKDF2Config SHA256
-metadataPBKDF2Config = PBKDF2Config
-    { hash = SHA256
-    , iterations = 10000
-    , keyLength = 32
-    , ivLength = 16
-    }
 
 toUsignedTxWdrl
     :: c -> ApiWithdrawalGeneral n -> Maybe (RewardAccount, Coin, c)

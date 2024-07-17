@@ -71,8 +71,7 @@ import Cardano.Wallet.Api.Hex
     ( fromHexText
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( metadataPBKDF2Config
-    , toMetadataEncrypted
+    ( toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
@@ -127,6 +126,7 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
+    , metadataPBKDF2Config
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
