@@ -10,6 +10,7 @@
 , walletLib
 , platform
 , exes
+, nodeConfigs
 , format
 }:
 
@@ -71,6 +72,7 @@ pkgs.stdenv.mkDerivation {
     cp --no-preserve=timestamps --update=none --recursive \
       ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} \
       $name
+
     chmod -R +w $name
 
   '' + lib.optionalString isMacOS ''
@@ -79,6 +81,10 @@ pkgs.stdenv.mkDerivation {
       for a in *; do /usr/bin/codesign -f -s - $a; done
     )
 
+  '' + ''
+    # Add configuration files
+    mkdir -p $name/configs
+    cp  --recursive ${nodeConfigs}/cardano/* $name/configs
   '' + lib.optionalString (isLinux || isMacOS) ''
     mkdir -p $name/auto-completion/{bash,zsh,fish}
     cp ${exe}/share/bash-completion/completions/* $name/auto-completion/bash/$exeName.sh
