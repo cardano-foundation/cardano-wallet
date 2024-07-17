@@ -17,7 +17,7 @@
 # Executables to include in the image as a base layer: node and utilities
 , base ? []
 # Other things to include in the image.
-, iana-etc, cacert, bashInteractive, coreutils
+, iana-etc, cacert, bashInteractive, coreutils, gnugrep, findutils
 , glibcLocales ? null
 
 # Used to generate the docker image names
@@ -64,11 +64,17 @@ let
       name = "${repoName}-env-packages";
       paths = [
           iana-etc cacert nsswitch-conf
-          bashInteractive coreutils
+          bashInteractive coreutils gnugrep findutils
           ] ++ lib.optional haveGlibcLocales glibcLocales;
     };
     # set up /tmp (override with TMPDIR variable)
     extraCommands = "mkdir -m 0777 tmp";
+  };
+
+  # Configuration files for cardano-node
+  nodeConfigs = lib.fileset.toSource {
+    root = ../.;
+    fileset = ../configs/cardano;
   };
 
   # Image containing basic Cardano tools, including cardano-node
@@ -77,7 +83,7 @@ let
     fromImage = envImage;
     copyToRoot = buildEnv {
       name = "${repoName}-base-packages";
-      paths = base;
+      paths = base ++ [ nodeConfigs ];
     };
   };
 
@@ -100,4 +106,5 @@ let
     };
   };
 in
-  mainImage // { inherit version; }
+  mainImage
+    // { inherit version; }
