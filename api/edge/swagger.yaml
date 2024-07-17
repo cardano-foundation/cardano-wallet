@@ -4060,7 +4060,10 @@ components:
       properties:
         transaction: *serialisedTransactionEncoded
         inputs:
-            description: A list of additional transaction inputs foreign to the wallet.
+            description: |
+                Mapping from inputs (`id`, `ix`) in the supplied `transaction` binary to outputs (`amount`, `assets`, ...). It is not required to include inputs present in the `cardano-node` UTxO, as `cardano-wallet` will automatically query for them.
+
+                In other words, this field can be left empty unless the supplied `transaction` contains inputs referring to pending transactions.
             type: array
             items:
               type: object
@@ -4080,7 +4083,7 @@ components:
                 datum: *datum
                 assets: *walletAssets
         redeemers:
-            description: A list of redeemers data with their purpose.
+            description: A list of redeemers data with their purpose. The redeemers in the `transaction` binary will be overwritten by this value.
             type: array
             items: *ApiRedeemer
         encoding:
