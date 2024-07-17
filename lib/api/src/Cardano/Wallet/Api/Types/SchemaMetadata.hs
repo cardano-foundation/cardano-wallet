@@ -64,6 +64,9 @@ import Data.Maybe
 import Data.Text
     ( Text
     )
+import Data.Word
+    ( Word64
+    )
 import GHC.Generics
     ( Generic
     )
@@ -253,3 +256,22 @@ metadataPBKDF2Config = PBKDF2Config
     , keyLength = 32
     , ivLength = 16
     }
+
+-- A key that identifies transaction metadata, defined in CIP-20 and used by
+-- CIP-83.
+--
+-- See:
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0020
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0083
+--
+cip20MetadataKey :: Word64
+cip20MetadataKey = 674
+
+cip83EncryptMethodKey :: Text
+cip83EncryptMethodKey = "enc"
+
+cip83EncryptPayloadKey :: Text
+cip83EncryptPayloadKey = "msg"
+
+cip83EncryptPayloadValue :: Text
+cip83EncryptPayloadValue = "basic"

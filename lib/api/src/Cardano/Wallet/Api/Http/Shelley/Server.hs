@@ -482,6 +482,10 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (TxMetadataWithSchema)
     , metadataPBKDF2Config
+    , cip20MetadataKey
+    , cip83EncryptMethodKey
+    , cip83EncryptPayloadKey
+    , cip83EncryptPayloadValue
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -3000,25 +3004,6 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
         map toTxOut
             . Map.toList
             . foldr (uncurry (Map.insertWith (<>))) Map.empty
-
--- A key that identifies transaction metadata, defined in CIP-20 and used by
--- CIP-83.
---
--- See:
--- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0020
--- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0083
---
-cip20MetadataKey :: Word64
-cip20MetadataKey = 674
-
-cip83EncryptMethodKey :: Text
-cip83EncryptMethodKey = "enc"
-
-cip83EncryptPayloadKey :: Text
-cip83EncryptPayloadKey = "msg"
-
-cip83EncryptPayloadValue :: Text
-cip83EncryptPayloadValue = "basic"
 
 -- When encryption is enabled we do the following:
 -- (a) find field `msg` in the object of "674" label
