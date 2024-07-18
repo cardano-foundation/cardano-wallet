@@ -73,16 +73,16 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString
     )
-import Data.Maybe
-    ( isJust
-    , fromMaybe
-    , mapMaybe
-    )
 import Data.Generics.Internal.VL.Lens
     ( (^.)
     )
 import Data.Generics.Labels
     ()
+import Data.Maybe
+    ( isJust
+    , fromMaybe
+    , mapMaybe
+    )
 import Data.Text
     ( Text
     )
@@ -108,8 +108,8 @@ import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
-import qualified Data.Map.Strict as Map
 import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
