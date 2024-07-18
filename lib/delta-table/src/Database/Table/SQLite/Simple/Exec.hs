@@ -134,8 +134,22 @@ selectWhere expr = queryNamed . Stmt.selectWhere expr
 insertOne :: IsTableSql t => Row t -> proxy t -> SqlM ()
 insertOne row proxy = executeOne (Stmt.insertOne proxy) row
 
+-- | Insert many rows into a database table.
+--
+-- As an optimization, we use a single prepared SQL statement.
 insertMany :: IsTableSql t => [Row t] -> proxy t -> SqlM ()
-insertMany rows proxy = for_ rows (`insertOne` proxy)
+insertMany rows proxy =
+    ReaderT $ \conn -> do
+        -- The 'query' string contains '?' which will be substituted
+        -- for the values in the row, but no named params.
+        let (query, _noBindings) = renderStmt $ Stmt.insertOne proxy
+        Sqlite.withStatement conn query $ \stmt ->
+            for_ rows $ \row ->
+                -- From <https://www.sqlite.org/cintro.html>:
+                --   Each call to sqlite3_bind() overrides
+                --   prior bindings on the same parameter.
+                Sqlite.withBind stmt row (Sqlite.nextRow stmt)
+                    :: IO (Maybe [Bool]) -- dummy type, we expect 'Nothing'
 
 updateWhere
     :: IsTableSql t
