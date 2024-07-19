@@ -468,6 +468,9 @@ import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     , mkApiAnyCertificate
     )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
+    )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
@@ -4002,22 +4005,22 @@ joinDRep
     ctx@ApiLayer{..} apiDRep (ApiT walletId) body = do
     pp <- liftIO $ NW.currentProtocolParameters netLayer
     let ti = timeInterpreter netLayer
+    drep <- case apiDRep of
+        AllDReps -> liftE ErrUnexpectedPoolIdPlaceholder
+        SpecificDRep drep -> pure drep
 
     withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
         (BuiltTx{..}, txTime) <- liftIO
-            $ IODeleg.joinStakePool
+            $ IODeleg.joinDRep
                 wrk
                 walletId
-                undefined
-                undefined
-                undefined
+                drep
                 (coerce $ getApiT $ body ^. #passphrase)
         mkApiTransaction ti wrk #pendingSince
             MkApiTransactionParams
                 { txId = builtTx ^. #txId
                 , txFee = builtTx ^. #fee
                 , txInputs = builtTx ^. #resolvedInputs
-                -- Joining a stake pool does not require collateral:
                 , txCollateralInputs = []
                 , txOutputs = builtTx ^. #outputs
                 , txCollateralOutput = builtTx ^. #collateralOutput
@@ -5349,6 +5352,9 @@ atomicallyWithHandler c l = Handler . Concierge.atomicallyWith c l . runHandler'
 data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
     deriving (Eq, Show)
 
+data ErrUnexpectedDRepPlaceholder = ErrUnexpectedDRepPlaceholder
+    deriving (Eq, Show)
+
 data ErrCreateWallet
     = ErrCreateWalletAlreadyExists !ErrWalletAlreadyExists
         -- ^ Wallet already exists
@@ -5377,6 +5383,14 @@ instance IsServerError ErrUnexpectedPoolIdPlaceholder where
                 case fromText @PoolId "INVALID" of
                     Left msg -> pretty msg
                     Right _ -> "Invalid pool id placeholder"
+
+instance IsServerError ErrUnexpectedDRepPlaceholder where
+    toServerError = \case
+        ErrUnexpectedDRepPlaceholder ->
+            apiError err400 BadRequest $
+                case fromText @DRep "INVALID" of
+                    Left msg -> pretty msg
+                    Right _ -> "Invalid DRep placeholder"
 
 instance IsServerError ErrCreateWallet where
     toServerError = \case

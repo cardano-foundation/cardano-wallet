@@ -201,41 +201,6 @@ handleDelegationRequest
             currentEpochSlotting
             withdrawal
 
-voteAction
-    :: WalletLayer IO s
-    -> DRep
-    -> IO (Tx.VotingAction, VoteRequest)
-voteAction ctx action = do
-    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
-    (calculateWalletDelegations, stakeKeyIsRegistered) <-
-        db & \DBLayer{atomically,walletState} -> atomically $
-            (,) <$> readDelegation walletState
-                <*> W.isStakeKeyRegistered walletState
-    let dlg = calculateWalletDelegations currentEpochSlotting
-
-    traceWith tr $ W.MsgWallet $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
-
-    pure $
-        if stakeKeyIsRegistered
-        then (Tx.Vote action, sameWalletDelegation dlg)
-        else (Tx.VoteRegisteringKey action, sameWalletDelegation dlg)
-  where
-    db = ctx ^. dbLayer
-    tr = ctx ^. logger
-    netLayer = ctx ^. networkLayer
-
-    isDRepSame (Voting drep) = drep == action
-    isDRepSame (DelegatingVoting _ drep) = drep == action
-    isDRepSame _ = False
-
-    isSameNext (WalletDelegationNext _ deleg) = isDRepSame deleg
-
-    sameWalletDelegation (WalletDelegation current coming) =
-        if isDRepSame current || any isSameNext coming then
-            VotedSameAsBefore
-        else
-            VotedDifferently
-
 {-----------------------------------------------------------------------------
     Used by Daedalus
 ------------------------------------------------------------------------------}
@@ -530,6 +495,9 @@ quitStakePool ctx walletId passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
+{-----------------------------------------------------------------------------
+    Join DRep
+------------------------------------------------------------------------------}
 -- | Send a transaction to the network where we join drep.
 joinDRep
     :: forall s n k.
@@ -594,3 +562,38 @@ handleVoteRequest ctx drep = do
     toDrepEnriched NotVotedYet = Nothing
     toDrepEnriched VotedSameAsBefore = Just (True, drep)
     toDrepEnriched VotedDifferently = Just (False, drep)
+
+voteAction
+    :: WalletLayer IO s
+    -> DRep
+    -> IO (Tx.VotingAction, VoteRequest)
+voteAction ctx action = do
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    (calculateWalletDelegations, stakeKeyIsRegistered) <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            (,) <$> readDelegation walletState
+                <*> W.isStakeKeyRegistered walletState
+    let dlg = calculateWalletDelegations currentEpochSlotting
+
+    traceWith tr $ W.MsgWallet $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
+
+    pure $
+        if stakeKeyIsRegistered
+        then (Tx.Vote action, sameWalletDelegation dlg)
+        else (Tx.VoteRegisteringKey action, sameWalletDelegation dlg)
+  where
+    db = ctx ^. dbLayer
+    tr = ctx ^. logger
+    netLayer = ctx ^. networkLayer
+
+    isDRepSame (Voting drep) = drep == action
+    isDRepSame (DelegatingVoting _ drep) = drep == action
+    isDRepSame _ = False
+
+    isSameNext (WalletDelegationNext _ deleg) = isDRepSame deleg
+
+    sameWalletDelegation (WalletDelegation current coming) =
+        if isDRepSame current || any isSameNext coming then
+            VotedSameAsBefore
+        else
+            VotedDifferently
