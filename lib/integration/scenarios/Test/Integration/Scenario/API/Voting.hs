@@ -24,6 +24,7 @@ import Cardano.Wallet.Api.Types
     , ApiCertificate (..)
     , ApiConstructTransaction (..)
     , ApiDecodedTransaction
+    , ApiDRepSpecifier (..)
     , ApiPoolSpecifier (..)
     , ApiSerialisedTransaction (..)
     , ApiT (..)
@@ -34,6 +35,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Api.Types.Error
+    ( ApiErrorInfo (..)
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId
@@ -76,6 +80,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , counterexample
+    , decodeErrorInfo
     , delegating
     , emptyWallet
     , eventually
@@ -86,11 +91,13 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , getFromResponse
     , getResponse
+    , joinDRep
     , joinStakePool
     , json
     , listAddresses
     , minUTxOValue
     , noBabbage
+    , noConway
     , notDelegating
     , notRetiringPools
     , onlyVoting
@@ -790,6 +797,16 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         eventually "Wallet is neither delegating nor voting" $ do
             getSrcWallet ctx src >>= flip verify
                 [ expectField #delegation (`shouldBe` notDelegating []) ]
+
+    it "VOTING_01e - Cannot vote in Babbage"
+        $ \ctx -> runResourceT $ do
+            noConway ctx "voting outlawed before Conway"
+            w <- fixtureWallet ctx
+            rTx <- joinDRep @n ctx (SpecificDRep Abstain) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx `shouldBe` VotingInInvalidEra
   where
     stakeKeyDerPath = NE.fromList
        [ ApiT (DerivationIndex 2_147_485_500)

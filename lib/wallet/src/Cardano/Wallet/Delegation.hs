@@ -10,6 +10,7 @@ module Cardano.Wallet.Delegation
     , guardJoin
     , guardQuit
     , guardVoting
+    , guardOnlyVoting
     , quitStakePoolDelegationAction
     , DelegationRequest(..)
     , VoteRequest (..)
@@ -208,3 +209,18 @@ guardVoting
 guardVoting optionalDelegationAction votingSameAgainM = do
     when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
         Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)
+
+guardOnlyVoting
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> Maybe (Bool,DRep)
+    -> Either ErrCannotVote ()
+guardOnlyVoting era votingSameAgainM = do
+    when ( (fst <$> votingSameAgainM) == Just True ) $
+        Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)
+
+    case era of
+        Write.RecentEraBabbage ->
+            Left ErrWrongEra
+        Write.RecentEraConway ->
+            Right ()

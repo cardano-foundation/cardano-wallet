@@ -139,6 +139,7 @@ import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Internal.Cardano.Write.Tx as Write
 
+import qualified Debug.Trace as TR
 {-----------------------------------------------------------------------------
     Used by constructTransaction
 ------------------------------------------------------------------------------}
@@ -516,7 +517,7 @@ joinDRep
     -> DRep
     -> Passphrase "user"
     -> IO (W.BuiltTx, UTCTime)
-joinDRep ctx wid drep passphrase = do
+joinDRep ctx wid drep passphrase = TR.trace ("joinDRep") $ do
     pp <- currentProtocolParameters netLayer
     ttl <- W.transactionExpirySlot ti Nothing
 
@@ -548,20 +549,23 @@ joinDRep ctx wid drep passphrase = do
     txLayer = ctx ^. transactionLayer
 
 handleVoteRequest
-    :: forall s
-     . WalletLayer IO s
+    :: WalletLayer IO s
     -> DRep
     -> IO Tx.VotingAction
-handleVoteRequest ctx drep = do
-        (vAction, votingRequest) <- voteAction ctx drep
+handleVoteRequest ctx drep = TR.trace ("handleVoteRequest") $ do
+    (vAction, votingRequest) <- voteAction ctx drep
+    (Write.PParamsInAnyRecentEra era _, _)
+        <- W.readNodeTipStateForTxWrite netLayer
 
-        either (throwIO . ExceptionVoting) pure
-            (WD.guardVoting Nothing $ toDrepEnriched votingRequest)
-        pure vAction
+    either (throwIO . ExceptionVoting) pure
+        (WD.guardOnlyVoting era $ toDrepEnriched votingRequest)
+    pure vAction
   where
     toDrepEnriched NotVotedYet = Nothing
     toDrepEnriched VotedSameAsBefore = Just (True, drep)
     toDrepEnriched VotedDifferently = Just (False, drep)
+
+    netLayer = ctx ^. networkLayer
 
 voteAction
     :: WalletLayer IO s

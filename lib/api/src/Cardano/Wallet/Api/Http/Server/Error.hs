@@ -822,6 +822,11 @@ instance IsServerError ErrCannotVote where
                 , ". I have already voted like that;"
                 , " repeating this action would incur an unnecessary fee!"
                 ]
+        ErrWrongEra ->
+            apiError err403 VotingInInvalidEra $ mconcat
+                [ "I couldn't cast a vote. "
+                , "Voting is not available before the Conway era."
+                ]
 
 instance IsServerError ErrCannotQuit where
     toServerError = \case
