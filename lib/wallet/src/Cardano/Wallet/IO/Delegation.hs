@@ -19,6 +19,7 @@ module Cardano.Wallet.IO.Delegation
     , selectCoinsForQuit
     , joinStakePool
     , quitStakePool
+    , joinDRep
     )
     where
 
@@ -446,17 +447,17 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
-    votingWalletDelegation (WalletDelegation current coming) =
-        if isVoting current || any isVotingNext coming then
-            VotedSameAsBefore
-        else
-            VotedDifferently
-      where
-        isVoting (Voting _) = True
-        isVoting (DelegatingVoting _ _) = True
-        isVoting _ = False
+votingWalletDelegation (WalletDelegation current coming) =
+    if isVoting current || any isVotingNext coming then
+        VotedSameAsBefore
+    else
+        VotedDifferently
+  where
+    isVoting (Voting _) = True
+    isVoting (DelegatingVoting _ _) = True
+    isVoting _ = False
 
-        isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
+    isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
 
 {-----------------------------------------------------------------------------
     Quit stake pool
@@ -528,3 +529,102 @@ quitStakePool ctx walletId passphrase = do
     netLayer = ctx ^. networkLayer
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
+
+-- | Send a transaction to the network where we join drep.
+joinDRep
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , AddressIndexDerivationType k ~ 'Soft
+        , GenChange s
+        , IsOurs (SeqState n k) RewardAccount
+        , AddressBookIso s
+        , Seq.SupportsDiscovery n k
+        , DelegationAddress k 'CredFromKeyK
+        )
+    => WalletLayer IO s
+    -> WalletId
+    -> DRep
+    -> Passphrase "user"
+    -> IO (W.BuiltTx, UTCTime)
+joinDRep ctx wid drep passphrase = do
+    pp <- currentProtocolParameters netLayer
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    calculateWalletDelegations <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            readDelegation walletState
+    let dlg = calculateWalletDelegations currentEpochSlotting
+
+    voting <-
+        joinDRepDelegationAction
+            ctx
+            (votingWalletDelegation dlg)
+
+    ttl <- W.transactionExpirySlot ti Nothing
+    let transactionCtx =
+            defaultTransactionCtx
+                { txWithdrawal = NoWithdrawal
+                , txValidityInterval = (Nothing, ttl)
+                , txDelegationAction = Nothing
+                , txVotingAction = Just voting
+                , txDeposit = Just $ stakeKeyDeposit pp
+                }
+
+    let changeAddrGen = W.defaultChangeAddressGen @s (delegationAddressS @n)
+    W.buildSignSubmitTransaction @s
+        db
+        netLayer
+        txLayer
+        passphrase
+        wid
+        changeAddrGen
+        (PreSelection [])
+        transactionCtx
+  where
+    db = ctx ^. dbLayer
+    netLayer = ctx ^. networkLayer
+    ti = timeInterpreter netLayer
+    txLayer = ctx ^. transactionLayer
+
+handleVoteRequest
+    :: forall s
+     . WalletLayer IO s
+    -> DRep
+    -> IO Tx.VotingAction
+handleVoteRequest ctx drep = do
+        (vAction, votingRequest) <- voteAction ctx drep
+
+        either (throwIO . ExceptionVoting) pure
+            (WD.guardVoting Nothing $ toDrepEnriched votingRequest)
+        pure vAction
+  where
+    toDrepEnriched NotVotedYet = Nothing
+    toDrepEnriched VotedSameAsBefore = Just (True, drep)
+    toDrepEnriched VotedDifferently = Just (False, drep)
+
+joinDRepDelegationAction
+    :: WalletLayer IO s
+    -> VoteRequest
+    -> IO Tx.VotingAction
+joinDRepDelegationAction ctx votedRequest = do
+    (wallet, stakeKeyIsRegistered) <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            (,) <$> readDBVar walletState
+                <*> isStakeKeyRegistered walletState
+
+    traceWith tr
+        $ W.MsgWallet $ W.MsgIsStakeKeyRegistered stakeKeyIsRegistered
+
+    (Write.PParamsInAnyRecentEra era _, _)
+        <- W.readNodeTipStateForTxWrite netLayer
+
+    either (throwIO . ExceptionVoting) pure
+        $ WD.joinDRepDelegationAction
+            era
+            wallet
+            votedRequest
+  where
+    db = ctx ^. dbLayer
+    tr = ctx ^. logger
+    netLayer = ctx ^. networkLayer

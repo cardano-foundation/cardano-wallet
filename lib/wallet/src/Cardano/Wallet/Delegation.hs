@@ -11,6 +11,7 @@ module Cardano.Wallet.Delegation
     , guardQuit
     , guardVoting
     , quitStakePoolDelegationAction
+    , joinDRepDelegationAction
     , DelegationRequest(..)
     , VoteRequest (..)
     ) where
@@ -208,3 +209,16 @@ guardVoting
 guardVoting optionalDelegationAction votingSameAgainM = do
     when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
         Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)
+
+{-----------------------------------------------------------------------------
+    Join DRep
+------------------------------------------------------------------------------}
+joinDRepDelegationAction
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> WalletState.WalletState s
+    -> VoteRequest
+    -> Either
+        ErrCannotVote
+        Tx.VotingAction
+joinDRepDelegationAction era wallet votingRequest = undefined
