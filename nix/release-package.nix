@@ -85,6 +85,8 @@ pkgs.stdenv.mkDerivation {
     # Add configuration files
     mkdir -p $name/configs
     cp  --recursive ${nodeConfigs}/cardano/* $name/configs
+    chmod -R +w $name
+
   '' + lib.optionalString (isLinux || isMacOS) ''
     mkdir -p $name/auto-completion/{bash,zsh,fish}
     cp ${exe}/share/bash-completion/completions/* $name/auto-completion/bash/$exeName.sh
