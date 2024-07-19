@@ -139,7 +139,6 @@ import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Transaction as Tx
 import qualified Internal.Cardano.Write.Tx as Write
 
-import qualified Debug.Trace as TR
 {-----------------------------------------------------------------------------
     Used by constructTransaction
 ------------------------------------------------------------------------------}
@@ -517,7 +516,7 @@ joinDRep
     -> DRep
     -> Passphrase "user"
     -> IO (W.BuiltTx, UTCTime)
-joinDRep ctx wid drep passphrase = TR.trace ("joinDRep") $ do
+joinDRep ctx wid drep passphrase = do
     pp <- currentProtocolParameters netLayer
     ttl <- W.transactionExpirySlot ti Nothing
 
@@ -552,7 +551,7 @@ handleVoteRequest
     :: WalletLayer IO s
     -> DRep
     -> IO Tx.VotingAction
-handleVoteRequest ctx drep = TR.trace ("handleVoteRequest") $ do
+handleVoteRequest ctx drep = do
     (vAction, votingRequest) <- voteAction ctx drep
     (Write.PParamsInAnyRecentEra era _, _)
         <- W.readNodeTipStateForTxWrite netLayer

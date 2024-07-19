@@ -807,6 +807,47 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 [ expectResponseCode HTTP.status403
                 ]
             decodeErrorInfo rTx `shouldBe` VotingInInvalidEra
+
+    it "VOTING_01f - Voting works in Conway in absence of pool delegation"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            w <- fixtureWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            let voting1 = Abstain
+            rTx1 <- joinDRep @n ctx (SpecificDRep voting1) (w, fixturePassphrase)
+            verify rTx1
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting Abstain" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting (ApiT voting1) [])
+                    ]
+
+            let voting2 = NoConfidence
+            rTx2 <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx2
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting (ApiT voting2) [])
+                    ]
+
+            rTx3 <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx3
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx3 `shouldBe` SameVote
   where
     stakeKeyDerPath = NE.fromList
        [ ApiT (DerivationIndex 2_147_485_500)
