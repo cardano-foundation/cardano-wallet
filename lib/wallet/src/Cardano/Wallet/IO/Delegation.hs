@@ -447,17 +447,17 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
-votingWalletDelegation (WalletDelegation current coming) =
-    if isVoting current || any isVotingNext coming then
-        VotedSameAsBefore
-    else
-        VotedDifferently
-  where
-    isVoting (Voting _) = True
-    isVoting (DelegatingVoting _ _) = True
-    isVoting _ = False
+    votingWalletDelegation (WalletDelegation current coming) =
+        if isVoting current || any isVotingNext coming then
+            VotedSameAsBefore
+        else
+            VotedDifferently
+      where
+        isVoting (Voting _) = True
+        isVoting (DelegatingVoting _ _) = True
+        isVoting _ = False
 
-    isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
+        isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
 
 {-----------------------------------------------------------------------------
     Quit stake pool
@@ -550,18 +550,10 @@ joinDRep
     -> IO (W.BuiltTx, UTCTime)
 joinDRep ctx wid drep passphrase = do
     pp <- currentProtocolParameters netLayer
-    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
-    calculateWalletDelegations <-
-        db & \DBLayer{atomically,walletState} -> atomically $
-            readDelegation walletState
-    let dlg = calculateWalletDelegations currentEpochSlotting
-
-    voting <-
-        joinDRepDelegationAction
-            ctx
-            (votingWalletDelegation dlg)
-
     ttl <- W.transactionExpirySlot ti Nothing
+
+    voting <- handleVoteRequest ctx drep
+
     let transactionCtx =
             defaultTransactionCtx
                 { txWithdrawal = NoWithdrawal
@@ -602,29 +594,3 @@ handleVoteRequest ctx drep = do
     toDrepEnriched NotVotedYet = Nothing
     toDrepEnriched VotedSameAsBefore = Just (True, drep)
     toDrepEnriched VotedDifferently = Just (False, drep)
-
-joinDRepDelegationAction
-    :: WalletLayer IO s
-    -> VoteRequest
-    -> IO Tx.VotingAction
-joinDRepDelegationAction ctx votedRequest = do
-    (wallet, stakeKeyIsRegistered) <-
-        db & \DBLayer{atomically,walletState} -> atomically $
-            (,) <$> readDBVar walletState
-                <*> isStakeKeyRegistered walletState
-
-    traceWith tr
-        $ W.MsgWallet $ W.MsgIsStakeKeyRegistered stakeKeyIsRegistered
-
-    (Write.PParamsInAnyRecentEra era _, _)
-        <- W.readNodeTipStateForTxWrite netLayer
-
-    either (throwIO . ExceptionVoting) pure
-        $ WD.joinDRepDelegationAction
-            era
-            wallet
-            votedRequest
-  where
-    db = ctx ^. dbLayer
-    tr = ctx ^. logger
-    netLayer = ctx ^. networkLayer
