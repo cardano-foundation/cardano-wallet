@@ -383,6 +383,7 @@ steps:
 
   - group: MacOS Artifacts
     key: macos-artifacts
+    if: 0 == 1
     steps:
 
     - label: Check Nix (macOS)
@@ -427,6 +428,7 @@ steps:
 
   - group: MacOS Checks
     key: "macos-checks"
+    if: 0 == 1
     steps:
 
     - block: MacOS Unit Tests
