@@ -19,6 +19,7 @@ module Database.Table.SQLite.Simple.Monad
     , SqlM
     , runSqlM
     , rawSqlite
+    , SqlException (..)
     ) where
 
 import Prelude
@@ -27,6 +28,10 @@ import Control.Concurrent.MVar
     ( MVar
     , newMVar
     , withMVar
+    )
+import Control.Exception
+    ( Exception (..)
+    , SomeException (..)
     )
 import Control.Monad.Class.MonadThrow
     ( MonadCatch (..)
@@ -110,3 +115,30 @@ runSqlM (SqlM action) Connection{lock,connection} =
 -- | Wrap a function from "Database.SQLite.Simple" in 'SqlM'.
 rawSqlite :: (Sqlite.Connection -> IO a) -> SqlM a
 rawSqlite = SqlM . ReaderT
+
+-- | Union of exceptions that can occur with "Database.SQLite.Simple".
+data SqlException
+    = SqlFormatError Sqlite.FormatError
+    | SqlResultError Sqlite.ResultError
+    | SqlSQLError Sqlite.SQLError
+    deriving (Eq, Show)
+
+-- | When converting to and from 'SomeException',
+-- the constructors of the 'SqlException' type are stripped.
+-- In other words, the type 'SqlException' represents a structural union,
+-- not a nominal sum of the individual exceptions.
+-- This makes it easier to catch the individual exceptions as a union.
+--
+-- Example:
+--
+-- > throw (Sqlite.SQLError Sqlite.ErrorIOData "" "")
+-- >     `catch` \e -> print (e :: SqlException)
+instance Exception SqlException where
+    toException (SqlFormatError e) = SomeException e
+    toException (SqlResultError e) = SomeException e
+    toException (SqlSQLError e) = SomeException e
+    fromException e0
+        | Just e <- fromException e0 = Just $ SqlFormatError e
+        | Just e <- fromException e0 = Just $ SqlResultError e
+        | Just e <- fromException e0 = Just $ SqlSQLError e
+        | otherwise = Nothing
