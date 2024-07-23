@@ -89,6 +89,7 @@ withConnection s = bracket (open s) close
 -}
 newtype SqlM a = SqlM (ReaderT Sqlite.Connection IO a)
     deriving newtype (Functor, Applicative, Monad)
+    deriving newtype (MonadThrow, MonadCatch)
 
 {- | Atomically run a computation from the 'SqlM' monad.
 
