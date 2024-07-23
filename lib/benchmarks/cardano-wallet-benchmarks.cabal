@@ -86,10 +86,11 @@ library
     , with-utf8
 
   exposed-modules:
-    Cardano.Wallet.BenchShared
     Cardano.Wallet.Benchmarks.Collect
-    Cardano.Wallet.Benchmarks.Latency.Measure
+    Cardano.Wallet.Benchmarks.History
     Cardano.Wallet.Benchmarks.Latency.BenchM
+    Cardano.Wallet.Benchmarks.Latency.Measure
+    Cardano.Wallet.BenchShared
 
 benchmark restore
   import:         language, opts-exe
