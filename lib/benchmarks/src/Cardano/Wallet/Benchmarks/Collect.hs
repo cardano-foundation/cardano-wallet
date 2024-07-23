@@ -3,10 +3,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Functor law" #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.Wallet.Benchmarks.Collect
     ( -- * Benchmark
@@ -33,6 +34,8 @@ module Cardano.Wallet.Benchmarks.Collect
 
       -- * Collecting results from criterion benchmarks
     , runCriterionBenchmark
+    , convertUnits
+
     ) where
 
 import Prelude
@@ -94,6 +97,12 @@ import Data.Int
 import Data.Text
     ( Text
     )
+import Data.Text.Class
+    ( ToText
+    )
+import Data.Text.Class.Extended
+    ( ToText (..)
+    )
 import System.Environment
     ( lookupEnv
     )
@@ -109,16 +118,10 @@ import qualified Criterion.Measurement.Types as Cr
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text as T
-import Data.Text.Class
-    ( ToText
-    )
-import Data.Text.Class.Extended
-    ( ToText (..)
-    )
 
 -- | A semantic for a benchmark.
 newtype Semantic = Semantic [Text]
-    deriving newtype (Show, Semigroup)
+    deriving newtype (Show, Semigroup, Eq, Ord)
 
 -- | An empty semantic.
 noSemantic :: Semantic
@@ -179,6 +182,43 @@ showUnits KiloBytes = "KB"
 showUnits MegaBytes = "MB"
 showUnits GigaBytes = "GB"
 showUnits Count = "count"
+
+convertUnits :: Units -> Units -> Double -> Double
+convertUnits from to = case (from, to) of
+    (Seconds, Seconds) -> id
+    (Seconds, Milliseconds) -> (* 1_000)
+    (Seconds, Microseconds) -> (* 1_000_000)
+    (Seconds, Nanoseconds) -> (* 1_000_000_000)
+    (Milliseconds, Seconds) -> (/ 1_000)
+    (Milliseconds, Milliseconds) -> id
+    (Milliseconds, Microseconds) -> (* 1_000)
+    (Milliseconds, Nanoseconds) -> (* 1_000_000)
+    (Microseconds, Seconds) -> (/ 1_000_000)
+    (Microseconds, Milliseconds) -> (/ 1_000)
+    (Microseconds, Microseconds) -> id
+    (Microseconds, Nanoseconds) -> (* 1_000)
+    (Nanoseconds, Seconds) -> (/ 1_000_000_000)
+    (Nanoseconds, Milliseconds) -> (/ 1_000_000)
+    (Nanoseconds, Microseconds) -> (/ 1_000)
+    (Nanoseconds, Nanoseconds) -> id
+    (Bytes, Bytes) -> id
+    (Bytes, KiloBytes) -> (/ 1_024)
+    (Bytes, MegaBytes) -> (/ 1_024 ^ (2 :: Integer))
+    (Bytes, GigaBytes) -> (/ 1_024 ^ (3 :: Integer))
+    (KiloBytes, Bytes) -> (* 1_024)
+    (KiloBytes, KiloBytes) -> id
+    (KiloBytes, MegaBytes) -> (/ 1_024)
+    (KiloBytes, GigaBytes) -> (/ 1_024 ^ (2 :: Integer))
+    (MegaBytes, Bytes) -> (* 1_024 ^ (2 :: Integer))
+    (MegaBytes, KiloBytes) -> (* 1_024)
+    (MegaBytes, MegaBytes) -> id
+    (MegaBytes, GigaBytes) -> (/ 1_024)
+    (GigaBytes, Bytes) -> (* 1_024 ^ (3 :: Integer))
+    (GigaBytes, KiloBytes) -> (* 1_024 ^ (2 :: Integer))
+    (GigaBytes, MegaBytes) -> (* 1_024)
+    (GigaBytes, GigaBytes) -> id
+    (Count, Count) -> id
+    _ -> error "Invalid units"
 
 -- | A result with a value and units.
 data Result = Result
