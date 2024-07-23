@@ -10,12 +10,8 @@ Execute SQL statements for typed database tables.
 -}
 module Database.Table.SQLite.Simple.Exec
     (
-    -- * SQL monad
-    SqlM
-    , runSqlM
-
     -- * SQL statements
-    , createTable
+      createTable
     , selectAll
     , selectWhere
     , insertOne
@@ -29,9 +25,6 @@ module Database.Table.SQLite.Simple.Exec
 
 import Prelude
 
-import Control.Monad.Trans.Reader
-    ( ReaderT (..)
-    )
 import Data.Foldable
     ( for_
     )
@@ -45,34 +38,16 @@ import Database.Table.SQL.Stmt
 import Database.Table.SQL.Table
     ( IsTableSql
     )
+import Database.Table.SQLite.Simple.Monad
+    ( SqlM
+    , rawSqlite
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Database.SQLite.Simple as Sqlite
 import qualified Database.Table.SQL.Expr as Expr
 import qualified Database.Table.SQL.Stmt as Stmt
 import qualified Database.Table.SQL.Var as Var
-
-{-------------------------------------------------------------------------------
-    SQL monad
--------------------------------------------------------------------------------}
--- | Monad to run SQL queries in.
---
--- This monad includes effects such as
---
--- * mutable state
--- * exceptions
--- * concurrency
---
--- This type makes no attempt at handling these, you have to do that yourself.
--- For example, in order to handle exception, consider using
--- 'Sqlite.withTransaction'.
---
--- FIXME: No, we do have handle these types of things.
-type SqlM = ReaderT Sqlite.Connection IO
-
--- | Run a computation from the 'SqlM' monad.
-runSqlM :: SqlM a -> Sqlite.Connection -> IO a
-runSqlM = runReaderT
 
 {-------------------------------------------------------------------------------
     Helpers
@@ -93,29 +68,29 @@ toNamedParams bindings = do
 -- | Query that does not contain any variable bindings.
 query_ :: Sqlite.FromRow row => Stmt.Stmt -> SqlM [row]
 query_ stmt =
-    ReaderT $ \conn -> Sqlite.query_ conn (fst $ renderStmt stmt)
+    rawSqlite $ \conn -> Sqlite.query_ conn (fst $ renderStmt stmt)
 
 -- | Query with named variables.
 queryNamed :: Sqlite.FromRow row => Stmt.Stmt -> SqlM [row]
 queryNamed stmt =
-    ReaderT $ \conn ->
+    rawSqlite $ \conn ->
         let (query, bindings) = renderStmt stmt
         in  Sqlite.queryNamed conn query bindings
 
 -- | Execution that does not contain any variable bindings.
 execute_ :: Stmt.Stmt -> SqlM ()
 execute_ stmt =
-    ReaderT $ \conn -> Sqlite.execute_ conn (fst $ renderStmt stmt)
+    rawSqlite $ \conn -> Sqlite.execute_ conn (fst $ renderStmt stmt)
 
 -- | FIXME: Execution with '?' parameters
 executeOne :: Sqlite.ToRow row => Stmt.Stmt -> row -> SqlM ()
 executeOne stmt row =
-    ReaderT $ \conn -> Sqlite.execute conn (fst $ renderStmt stmt) row
+    rawSqlite $ \conn -> Sqlite.execute conn (fst $ renderStmt stmt) row
 
 -- | Execution with named variables.
 executeNamed :: Stmt.Stmt -> SqlM ()
 executeNamed stmt =
-    ReaderT $ \conn ->
+    rawSqlite $ \conn ->
         let (query, bindings) = renderStmt stmt
         in  Sqlite.executeNamed conn query bindings
 
@@ -139,7 +114,7 @@ insertOne row proxy = executeOne (Stmt.insertOne proxy) row
 -- As an optimization, we use a single prepared SQL statement.
 insertMany :: IsTableSql t => [Row t] -> proxy t -> SqlM ()
 insertMany rows proxy =
-    ReaderT $ \conn -> do
+    rawSqlite $ \conn -> do
         -- The 'query' string contains '?' which will be substituted
         -- for the values in the row, but no named params.
         let (query, _noBindings) = renderStmt $ Stmt.insertOne proxy
