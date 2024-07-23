@@ -41,23 +41,23 @@ library
     , aeson
     , base
     , bytestring
-    , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , cassava
     , comonad
     , containers
+    , diagrams-lib
+    , diagrams-rasterific
+    , Chart-diagrams
+    , Chart
     , criterion-measurement
     , deepseq
     , directory
     , extra
-    , faucet
     , filepath
     , fmt
     , foldl
@@ -67,7 +67,9 @@ library
     , http-types
     , iohk-monitoring
     , iohk-monitoring-extra
+    , JuicyPixels
     , local-cluster
+    , monoidal-containers
     , mtl
     , optparse-applicative
     , pathtype
@@ -88,6 +90,7 @@ library
   exposed-modules:
     Cardano.Wallet.Benchmarks.Collect
     Cardano.Wallet.Benchmarks.History
+    Cardano.Wallet.Benchmarks.Charting
     Cardano.Wallet.Benchmarks.Latency.BenchM
     Cardano.Wallet.Benchmarks.Latency.Measure
     Cardano.Wallet.BenchShared
