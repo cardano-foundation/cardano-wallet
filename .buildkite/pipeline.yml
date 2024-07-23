@@ -297,6 +297,7 @@ steps:
       artifact_paths: [ "./bench-results.csv" ]
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
+      key: api-benchmark
 
     - label: Latency Benchmark (linux)
       command: |
@@ -310,6 +311,7 @@ steps:
       artifact_paths: [ "./bench-results.csv" ]
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
+      key: latency-benchmark
 
     - label: DB Benchmark (linux)
       command: |
@@ -323,6 +325,7 @@ steps:
       artifact_paths: [ "./bench-results.csv" ]
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
+      key: db-benchmark
 
     - label: Read-blocks Benchmark (linux)
       command: |
@@ -336,7 +339,7 @@ steps:
       artifact_paths: [ "./bench-results.csv" ]
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
-
+      key: read-blocks-benchmark
 
     - label: Memory Benchmark (linux)
       command: |
@@ -351,6 +354,23 @@ steps:
       artifact_paths: [ "./bench-results.csv" ]
       concurrency: 4
       concurrency_group: 'concurrent-benchmarks'
+      key: memory-benchmark
+
+    - label: Benchmarks history
+      if: build.env("RELEASE_CANDIDATE") != null
+      depends_on:
+        - api-benchmark
+        - latency-benchmark
+        - db-benchmark
+        - read-blocks-benchmark
+        - memory-benchmark
+        - trigger-benchmarks
+      artifact_paths:
+        - ./benchmark-history*.tgz
+      command: |
+        ./scripts/buildkite/main/benchmark-history.sh
+      agents:
+        system: x86_64-linux
 
     - input: "Restoration Benchmark Parameters"
       if: build.env("RELEASE_CANDIDATE") == null
