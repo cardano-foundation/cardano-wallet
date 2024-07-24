@@ -24,6 +24,7 @@ module Cardano.Launcher.Node
 
       -- * Helpers
     , nodeSocketPath
+    , mkWindowsPipeName
     ) where
 
 import Prelude

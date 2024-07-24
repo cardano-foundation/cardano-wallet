@@ -18,6 +18,9 @@ import Cardano.Launcher.Node
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ClusterEra (BabbageHardFork)
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( OsNamedPipe
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf (..)
@@ -42,7 +45,7 @@ data NodeParams d = NodeParams
     -- config. This option can set the minimum severity and add another output
     -- file.
     , nodeParamsOutputFile :: Maybe (FileOf "node-output")
-    , nodeSocket :: MaybeK d (FileOf "node-to-client-socket")
+    , nodeSocket :: MaybeK d OsNamedPipe
     }
     deriving stock (Show)
 
@@ -51,7 +54,7 @@ singleNodeParams
     -> Severity
     -> Maybe (DirOf "node-logs", Severity)
     -> Maybe (FileOf "node-output")
-    -> MaybeK d (FileOf "node-to-client-socket")
+    -> MaybeK d OsNamedPipe
     -> NodeParams d
 singleNodeParams genesisFiles severity extraLogFile =
     NodeParams genesisFiles BabbageHardFork (0, []) LogFileConfig

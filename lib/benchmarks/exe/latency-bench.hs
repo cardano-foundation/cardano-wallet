@@ -104,6 +104,9 @@ import Cardano.Wallet.Launch.Cluster
 import Cardano.Wallet.Launch.Cluster.CommandLine
     ( clusterConfigsDirParser
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( OsNamedPipe (..)
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , FileOf (..)
@@ -717,7 +720,8 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                             , cfgNodeOutputFile = Nothing
                             , cfgRelayNodePath = mkRelDirOf "relay"
                             , cfgClusterLogFile = Nothing
-                            , cfgNodeToClientSocket = FileOf $ absFile socket
+                            , cfgNodeToClientSocket = UnixPipe
+                                $ FileOf $ absFile socket
                             }
                 withCluster
                     clusterConfig
