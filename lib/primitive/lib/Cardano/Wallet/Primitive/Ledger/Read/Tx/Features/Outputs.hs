@@ -30,6 +30,9 @@ import Cardano.Ledger.Alonzo
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing)
     )
+import Cardano.Read.Ledger.Tx.Outputs
+    ( Outputs (..)
+    )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletTokenBundle
     )
@@ -39,9 +42,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras
     ( IsEra
-    )
-import Cardano.Wallet.Read.Tx.Outputs
-    ( Outputs (..)
     )
 import Cardano.Wallet.Util
     ( internalError

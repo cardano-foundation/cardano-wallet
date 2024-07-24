@@ -16,6 +16,9 @@ import Prelude
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
     )
+import Cardano.Read.Ledger.Tx.Outputs
+    ( getEraOutputs
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
     ( getCollateralInputs
     )
@@ -64,9 +67,6 @@ import Cardano.Wallet.Read.Tx.Hash
     )
 import Cardano.Wallet.Read.Tx.Metadata
     ( getEraMetadata
-    )
-import Cardano.Wallet.Read.Tx.Outputs
-    ( getEraOutputs
     )
 import Cardano.Wallet.Read.Tx.ScriptValidity
     ( getEraScriptValidity

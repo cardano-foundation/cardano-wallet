@@ -1,9 +1,7 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -14,7 +12,7 @@
 -- Raw era-dependent tx outputs data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Outputs
+module Cardano.Read.Ledger.Tx.Outputs
     ( OutputsType
     , Outputs (..)
     , getEraOutputs
@@ -62,25 +60,17 @@ import Data.List.NonEmpty
 import Data.Sequence.Strict
     ( StrictSeq
     )
-import Ouroboros.Consensus.Cardano.Block
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
-    )
 
 import qualified Cardano.Chain.UTxO as BY
 
 type family OutputsType era where
     OutputsType Byron = NonEmpty BY.TxOut
-    OutputsType Shelley = StrictSeq (ShelleyTxOut StandardShelley)
-    OutputsType Allegra = StrictSeq (ShelleyTxOut StandardAllegra)
-    OutputsType Mary = StrictSeq (ShelleyTxOut StandardMary)
-    OutputsType Alonzo = StrictSeq (AlonzoTxOut StandardAlonzo)
-    OutputsType Babbage = StrictSeq (BabbageTxOut StandardBabbage)
-    OutputsType Conway = StrictSeq (BabbageTxOut StandardConway)
+    OutputsType Shelley = StrictSeq (ShelleyTxOut Shelley)
+    OutputsType Allegra = StrictSeq (ShelleyTxOut Allegra)
+    OutputsType Mary = StrictSeq (ShelleyTxOut Mary)
+    OutputsType Alonzo = StrictSeq (AlonzoTxOut Alonzo)
+    OutputsType Babbage = StrictSeq (BabbageTxOut Babbage)
+    OutputsType Conway = StrictSeq (BabbageTxOut Conway)
 
 newtype Outputs era = Outputs (OutputsType era)
 
@@ -89,7 +79,7 @@ deriving instance Eq (OutputsType era) => Eq (Outputs era)
 
 {-# INLINE getEraOutputs #-}
 getEraOutputs :: forall era . IsEra era => Tx era -> Outputs era
-getEraOutputs = case theEra @era of
+getEraOutputs = case theEra :: Era era of
     Byron -> onTx $ Outputs . BY.txOutputs . BY.taTx
     Shelley -> outputs
     Allegra -> outputs
