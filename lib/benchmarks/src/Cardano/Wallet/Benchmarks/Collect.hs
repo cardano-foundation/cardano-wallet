@@ -3,10 +3,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Functor law" #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.Wallet.Benchmarks.Collect
     ( -- * Benchmark
@@ -14,7 +15,7 @@ module Cardano.Wallet.Benchmarks.Collect
 
       -- * Result
     , Result (..)
-    , Units (..)
+    , Unit (..)
 
       -- * Semantic
     , Semantic
@@ -33,6 +34,8 @@ module Cardano.Wallet.Benchmarks.Collect
 
       -- * Collecting results from criterion benchmarks
     , runCriterionBenchmark
+    , convertUnit
+
     ) where
 
 import Prelude
@@ -94,6 +97,12 @@ import Data.Int
 import Data.Text
     ( Text
     )
+import Data.Text.Class
+    ( ToText
+    )
+import Data.Text.Class.Extended
+    ( ToText (..)
+    )
 import System.Environment
     ( lookupEnv
     )
@@ -109,16 +118,10 @@ import qualified Criterion.Measurement.Types as Cr
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text as T
-import Data.Text.Class
-    ( ToText
-    )
-import Data.Text.Class.Extended
-    ( ToText (..)
-    )
 
 -- | A semantic for a benchmark.
 newtype Semantic = Semantic [Text]
-    deriving newtype (Show, Semigroup)
+    deriving newtype (Show, Semigroup, Eq, Ord)
 
 -- | An empty semantic.
 noSemantic :: Semantic
@@ -139,8 +142,8 @@ mkSemantic = Semantic . filter (not . T.null) . fmap (T.replace " " "-")
 unMkSemantic :: Semantic -> [Text]
 unMkSemantic (Semantic xs) = toList xs
 
--- | Units for a result.
-data Units
+-- | Unit for a result.
+data Unit
     = Seconds
     | Milliseconds
     | Microseconds
@@ -151,10 +154,10 @@ data Units
     | GigaBytes
     | Count
 
-instance Show Units where
-    show = showUnits
+instance Show Unit where
+    show = showUnit
 
-instance FromField Units where
+instance FromField Unit where
     parseField "s" = pure Seconds
     parseField "ms" = pure Milliseconds
     parseField "us" = pure Microseconds
@@ -164,34 +167,71 @@ instance FromField Units where
     parseField "MB" = pure MegaBytes
     parseField "GB" = pure GigaBytes
     parseField "count" = pure Count
-    parseField _ = fail "Invalid units"
+    parseField _ = fail "Invalid unit"
 
-instance ToField Units where
-    toField = B8.pack . showUnits
+instance ToField Unit where
+    toField = B8.pack . showUnit
 
-showUnits :: Units -> String
-showUnits Seconds = "s"
-showUnits Milliseconds = "ms"
-showUnits Microseconds = "us"
-showUnits Nanoseconds = "ns"
-showUnits Bytes = "B"
-showUnits KiloBytes = "KB"
-showUnits MegaBytes = "MB"
-showUnits GigaBytes = "GB"
-showUnits Count = "count"
+showUnit :: Unit -> String
+showUnit Seconds = "s"
+showUnit Milliseconds = "ms"
+showUnit Microseconds = "us"
+showUnit Nanoseconds = "ns"
+showUnit Bytes = "B"
+showUnit KiloBytes = "KB"
+showUnit MegaBytes = "MB"
+showUnit GigaBytes = "GB"
+showUnit Count = "count"
 
--- | A result with a value and units.
+convertUnit :: Unit -> Unit -> Double -> Double
+convertUnit from to = case (from, to) of
+    (Seconds, Seconds) -> id
+    (Seconds, Milliseconds) -> (* 1_000)
+    (Seconds, Microseconds) -> (* 1_000_000)
+    (Seconds, Nanoseconds) -> (* 1_000_000_000)
+    (Milliseconds, Seconds) -> (/ 1_000)
+    (Milliseconds, Milliseconds) -> id
+    (Milliseconds, Microseconds) -> (* 1_000)
+    (Milliseconds, Nanoseconds) -> (* 1_000_000)
+    (Microseconds, Seconds) -> (/ 1_000_000)
+    (Microseconds, Milliseconds) -> (/ 1_000)
+    (Microseconds, Microseconds) -> id
+    (Microseconds, Nanoseconds) -> (* 1_000)
+    (Nanoseconds, Seconds) -> (/ 1_000_000_000)
+    (Nanoseconds, Milliseconds) -> (/ 1_000_000)
+    (Nanoseconds, Microseconds) -> (/ 1_000)
+    (Nanoseconds, Nanoseconds) -> id
+    (Bytes, Bytes) -> id
+    (Bytes, KiloBytes) -> (/ 1_024)
+    (Bytes, MegaBytes) -> (/ 1_024 ^ (2 :: Integer))
+    (Bytes, GigaBytes) -> (/ 1_024 ^ (3 :: Integer))
+    (KiloBytes, Bytes) -> (* 1_024)
+    (KiloBytes, KiloBytes) -> id
+    (KiloBytes, MegaBytes) -> (/ 1_024)
+    (KiloBytes, GigaBytes) -> (/ 1_024 ^ (2 :: Integer))
+    (MegaBytes, Bytes) -> (* 1_024 ^ (2 :: Integer))
+    (MegaBytes, KiloBytes) -> (* 1_024)
+    (MegaBytes, MegaBytes) -> id
+    (MegaBytes, GigaBytes) -> (/ 1_024)
+    (GigaBytes, Bytes) -> (* 1_024 ^ (3 :: Integer))
+    (GigaBytes, KiloBytes) -> (* 1_024 ^ (2 :: Integer))
+    (GigaBytes, MegaBytes) -> (* 1_024)
+    (GigaBytes, GigaBytes) -> id
+    (Count, Count) -> id
+    _ -> error "Invalid unit"
+
+-- | A result with a value and unit.
 data Result = Result
     { resultValue :: Double
-    , resultUnits :: Units
+    , resultUnit :: Unit
     , resultIterations :: Int
     }
 
 instance Show Result where
-    show (Result value units iterations) =
+    show (Result value unit iterations) =
         show value
             ++ " "
-            ++ show units
+            ++ show unit
             ++ " ("
             ++ show iterations
             ++ " iterations)"
@@ -214,11 +254,11 @@ instance ToText Benchmark where
             ]
 
 instance ToNamedRecord Benchmark where
-    toNamedRecord (Benchmark semantic (Result value units iterations)) =
+    toNamedRecord (Benchmark semantic (Result value unit iterations)) =
         namedRecord
             [ "semantic" .= toField semantic
             , "value" .= toField value
-            , "units" .= toField units
+            , "units" .= toField unit
             , "iterations" .= toField iterations
             ]
 
@@ -255,7 +295,7 @@ mkNullReport :: Applicative m => Reporter m
 mkNullReport = Reporter (const mkNullReport) noSemantic (const $ pure ())
 
 benchmarksHeader :: Header
-benchmarksHeader = header ["semantic", "value", "units", "iterations"]
+benchmarksHeader = header ["semantic", "value", "unit", "iterations"]
 
 -- | Create a new reporter from a file path in a 'ContT' context.
 newReporter
