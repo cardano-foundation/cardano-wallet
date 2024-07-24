@@ -106,6 +106,10 @@ import Servant.Client
     , mkClientEnv
     , runClientM
     )
+import Streaming
+    ( Of (..)
+    , Stream
+    )
 import System.Environment
     ( getEnv
     )
@@ -159,9 +163,9 @@ queryBuildkite q d0 =
             S.for
             ( \case
                 Right h -> S.yield h
-                Left _e -> pure ()
+                Left e -> error e
             )
-        $ S.map historyPoints
+        $ flip S.for historyPoints
         $ flip S.for (\(a, j) -> getArtifactsContent q fetchArtifactContent j a)
         $ S.chain
             ( \(_, b) ->
@@ -274,17 +278,17 @@ parseResults = fmap (fmap f . zip [0 ..] . toList . snd) . decodeByName
 
 historyPoints
     :: (BuildJobsMap, Artifact, BL8.ByteString)
-    -> Either String History
+    -> Stream (Of (Either String History)) IO ()
 historyPoints (b, a, r) =
     let
         rs = parseResults r
         t = finished_at =<< Map.lookup (job_id a) (jobs b)
     in
         case rs of
-            Left e -> Left e
+            Left e -> S.yield $ Left e
             Right rs' -> case t of
-                Nothing -> Left "No time"
-                Just (Time t') -> Right $ fold $ do
+                Nothing -> pure ()
+                Just (Time t') -> S.yield $ Right $ fold $ do
                     (i, r') <- rs'
                     pure
                         $ MMap.singleton i
