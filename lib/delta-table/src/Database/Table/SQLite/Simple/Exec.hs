@@ -22,6 +22,9 @@ module Database.Table.SQLite.Simple.Exec
     , insertMany
     , deleteAll
     , deleteWhere
+    , updateWhere
+    , Update
+    , (=.)
     ) where
 
 import Prelude
@@ -34,6 +37,10 @@ import Data.Foldable
     )
 import Database.Table
     ( Row
+    )
+import Database.Table.SQL.Stmt
+    ( Update
+    , (=.)
     )
 import Database.Table.SQL.Table
     ( IsTableSql
@@ -129,6 +136,11 @@ insertOne row proxy = executeOne (Stmt.insertOne proxy) row
 
 insertMany :: IsTableSql t => [Row t] -> proxy t -> SqlM ()
 insertMany rows proxy = for_ rows (`insertOne` proxy)
+
+updateWhere
+    :: IsTableSql t
+    => Expr.Expr Bool -> [Stmt.Update] -> proxy t -> SqlM ()
+updateWhere expr updates = executeNamed . Stmt.updateWhere expr updates
 
 deleteAll :: IsTableSql t => proxy t -> SqlM ()
 deleteAll = execute_ . Stmt.deleteAll

@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTSyntax #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {- |
@@ -19,6 +20,9 @@ module Database.Table.SQL.Stmt
     , selectAll
     , selectWhere
     , insertOne
+    , Update
+    , (=.)
+    , updateWhere
     , deleteAll
     , deleteWhere
     ) where
@@ -28,9 +32,15 @@ import Prelude
 import Data.Text
     ( Text
     )
+import Data.Traversable
+    ( for
+    )
 import Database.Table
-    ( IsTable (getTableName)
+    ( Col
+    , IsColumnName
+    , IsTable (getTableName)
     , getColNames
+    , getColumnName
     , getTableName
     )
 import Database.Table.SQL.Column
@@ -43,6 +53,7 @@ import Database.Table.SQL.Table
     )
 
 import qualified Data.Text as T
+import qualified Database.SQLite.Simple.ToField as Sqlite
 import qualified Database.Table.SQL.Expr as Expr
 import qualified Database.Table.SQL.Var as Var
 
@@ -57,6 +68,7 @@ data Stmt where
     CreateTable :: TableName -> [(ColumnName, SqlType)] -> Stmt
     Select :: [ColumnName] -> TableName -> Where -> Stmt
     Insert :: TableName -> [ColumnName] -> Stmt
+    UpdateWhere :: TableName -> [Update] -> Where -> Stmt
     Delete :: TableName -> Where -> Stmt
 
 -- | An SQL @WHERE@ clause.
@@ -97,6 +109,23 @@ renderStmt (Delete table (Where expr)) =
     Expr.text ("DELETE FROM " <> renderName table)
         <> Expr.text " WHERE " <> Expr.renderExpr expr
         <> Expr.text ";"
+renderStmt (UpdateWhere table updates whereClause) =
+    Expr.text ("UPDATE " <> renderName table)
+        <> Expr.text " SET "
+            <> (T.intercalate ", " <$> for updates renderUpdate)
+        <> renderWhereClause whereClause
+        <> Expr.text ";"
+  where
+    renderWhereClause All =
+        mempty
+    renderWhereClause (Where expr) =
+        Expr.text " WHERE " <> Expr.renderExpr expr
+
+renderUpdate :: Update -> Var.Lets Text
+renderUpdate (Update{lhs,rhs}) =
+    Expr.text (renderName lhs)
+        <> Expr.text " = "
+        <> (Var.bindValue rhs >>= Expr.var)
 
 -- | Escape a column or table name.
 renderName :: Text -> Text
@@ -133,6 +162,28 @@ selectWhere expr proxy =
 insertOne :: IsTableSql t => proxy t -> Stmt
 insertOne proxy =
     Insert (getTableName proxy) (getColNames proxy)
+
+-- | A column update.
+data Update = Update
+    { lhs :: ColumnName
+    , rhs :: Var.Value
+    }
+
+-- | Set the value of a given column.
+(=.)
+    :: forall n a. (IsColumnName n, Sqlite.ToField a)
+    => Col n a -> a -> Update
+(=.) col a = Update
+    { lhs = getColumnName col
+    , rhs = Sqlite.toField a
+    }
+
+-- | Update those rows in a database table that satisfy a condition.
+updateWhere
+    :: IsTableSql t
+    => Expr.Expr Bool -> [Update] -> proxy t -> Stmt
+updateWhere expr updates proxy =
+    UpdateWhere (getTableName proxy) updates (Where expr)
 
 -- | Delete all rows from a database table
 deleteAll :: IsTableSql t => proxy t -> Stmt

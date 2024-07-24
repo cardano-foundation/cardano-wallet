@@ -55,9 +55,13 @@ action = do
     Sql.deleteWhere (colName Sql.==. "Neko") tablePerson
     Sql.insertOne ("Babbage", 1791) tablePerson
     Sql.insertOne ("William", 1805) tablePerson
-    Sql.insertOne ("Ada", 1815) tablePerson
+    Sql.insertOne ("Bada", 1815) tablePerson
+    Sql.updateWhere
+        (colName Sql.==. "Bada")
+        [colName Sql.=. "Ada"]
+        tablePerson
     Sql.selectWhere
-        (colName Sql./=. "William" Sql.&&. colBirthYear Sql.<. 1800)
+        (colName Sql./=. "William" Sql.&&. colBirthYear Sql.>. 1800)
         tablePerson
 
 main :: IO ()
