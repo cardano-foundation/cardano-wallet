@@ -116,7 +116,7 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Benchmarks.Collect
     ( Reporter
     , Result (..)
-    , Units (Bytes)
+    , Unit (Bytes)
     , addSemantic
     , mkSemantic
     , newReporterFromEnv

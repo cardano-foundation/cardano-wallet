@@ -37,7 +37,7 @@ import Cardano.Wallet.Benchmark.Memory.Pmap
 import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)
     , Result (..)
-    , Units (..)
+    , Unit (..)
     , mkSemantic
     , newReporterFromEnv
     , noSemantic

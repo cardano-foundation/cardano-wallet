@@ -15,7 +15,7 @@ module Cardano.Wallet.Benchmarks.Collect
 
       -- * Result
     , Result (..)
-    , Units (..)
+    , Unit (..)
 
       -- * Semantic
     , Semantic
@@ -34,7 +34,7 @@ module Cardano.Wallet.Benchmarks.Collect
 
       -- * Collecting results from criterion benchmarks
     , runCriterionBenchmark
-    , convertUnits
+    , convertUnit
 
     ) where
 
@@ -142,8 +142,8 @@ mkSemantic = Semantic . filter (not . T.null) . fmap (T.replace " " "-")
 unMkSemantic :: Semantic -> [Text]
 unMkSemantic (Semantic xs) = toList xs
 
--- | Units for a result.
-data Units
+-- | Unit for a result.
+data Unit
     = Seconds
     | Milliseconds
     | Microseconds
@@ -154,10 +154,10 @@ data Units
     | GigaBytes
     | Count
 
-instance Show Units where
-    show = showUnits
+instance Show Unit where
+    show = showUnit
 
-instance FromField Units where
+instance FromField Unit where
     parseField "s" = pure Seconds
     parseField "ms" = pure Milliseconds
     parseField "us" = pure Microseconds
@@ -167,24 +167,24 @@ instance FromField Units where
     parseField "MB" = pure MegaBytes
     parseField "GB" = pure GigaBytes
     parseField "count" = pure Count
-    parseField _ = fail "Invalid units"
+    parseField _ = fail "Invalid unit"
 
-instance ToField Units where
-    toField = B8.pack . showUnits
+instance ToField Unit where
+    toField = B8.pack . showUnit
 
-showUnits :: Units -> String
-showUnits Seconds = "s"
-showUnits Milliseconds = "ms"
-showUnits Microseconds = "us"
-showUnits Nanoseconds = "ns"
-showUnits Bytes = "B"
-showUnits KiloBytes = "KB"
-showUnits MegaBytes = "MB"
-showUnits GigaBytes = "GB"
-showUnits Count = "count"
+showUnit :: Unit -> String
+showUnit Seconds = "s"
+showUnit Milliseconds = "ms"
+showUnit Microseconds = "us"
+showUnit Nanoseconds = "ns"
+showUnit Bytes = "B"
+showUnit KiloBytes = "KB"
+showUnit MegaBytes = "MB"
+showUnit GigaBytes = "GB"
+showUnit Count = "count"
 
-convertUnits :: Units -> Units -> Double -> Double
-convertUnits from to = case (from, to) of
+convertUnit :: Unit -> Unit -> Double -> Double
+convertUnit from to = case (from, to) of
     (Seconds, Seconds) -> id
     (Seconds, Milliseconds) -> (* 1_000)
     (Seconds, Microseconds) -> (* 1_000_000)
@@ -218,20 +218,20 @@ convertUnits from to = case (from, to) of
     (GigaBytes, MegaBytes) -> (* 1_024)
     (GigaBytes, GigaBytes) -> id
     (Count, Count) -> id
-    _ -> error "Invalid units"
+    _ -> error "Invalid unit"
 
--- | A result with a value and units.
+-- | A result with a value and unit.
 data Result = Result
     { resultValue :: Double
-    , resultUnits :: Units
+    , resultUnit :: Unit
     , resultIterations :: Int
     }
 
 instance Show Result where
-    show (Result value units iterations) =
+    show (Result value unit iterations) =
         show value
             ++ " "
-            ++ show units
+            ++ show unit
             ++ " ("
             ++ show iterations
             ++ " iterations)"
@@ -254,11 +254,11 @@ instance ToText Benchmark where
             ]
 
 instance ToNamedRecord Benchmark where
-    toNamedRecord (Benchmark semantic (Result value units iterations)) =
+    toNamedRecord (Benchmark semantic (Result value unit iterations)) =
         namedRecord
             [ "semantic" .= toField semantic
             , "value" .= toField value
-            , "units" .= toField units
+            , "units" .= toField unit
             , "iterations" .= toField iterations
             ]
 
@@ -295,7 +295,7 @@ mkNullReport :: Applicative m => Reporter m
 mkNullReport = Reporter (const mkNullReport) noSemantic (const $ pure ())
 
 benchmarksHeader :: Header
-benchmarksHeader = header ["semantic", "value", "units", "iterations"]
+benchmarksHeader = header ["semantic", "value", "unit", "iterations"]
 
 -- | Create a new reporter from a file path in a 'ContT' context.
 newReporter

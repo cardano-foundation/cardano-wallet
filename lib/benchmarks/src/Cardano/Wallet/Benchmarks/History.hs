@@ -14,10 +14,10 @@ where
 import Prelude
 
 import Cardano.Wallet.Benchmarks.Collect
-    ( Result (Result, resultUnits)
+    ( Result (Result, resultUnit)
     , Semantic
-    , Units (..)
-    , convertUnits
+    , Unit (..)
+    , convertUnit
     )
 import Data.Bifunctor
     ( second
@@ -73,15 +73,15 @@ type History = MonoidalMap IndexedSemantic (MonoidalMap Day (First Result))
 
 -- | A row of unit-harmonized data, indexed by day.
 data HarmonizedRow
-    = Harmonized (Map Day Double) Units
+    = Harmonized (Map Day Double) Unit
     deriving stock (Show)
 
 -- | Unit-harmonize a list of results, returning the harmonized row if all results
--- have the same units. Otherwise it fails with Nothing.
-harmonizeUnits :: [(Day, Result)] -> Maybe HarmonizedRow
-harmonizeUnits rs =
+-- have the same unit. Otherwise it fails with Nothing.
+harmonizeUnit :: [(Day, Result)] -> Maybe HarmonizedRow
+harmonizeUnit rs =
     let
-        u = biggestUnit $ fmap (resultUnits . snd) rs
+        u = biggestUnit $ fmap (resultUnit . snd) rs
     in
         u <&> \u' ->
             Harmonized
@@ -89,20 +89,20 @@ harmonizeUnits rs =
                 u'
 
 -- dropping the iteration count ... for now
-harmonizeResult :: Units -> Result -> Double
-harmonizeResult u (Result v u' _i) = convertUnits u' u v
+harmonizeResult :: Unit -> Result -> Double
+harmonizeResult u (Result v u' _i) = convertUnit u' u v
 
--- | Find the biggest unit in a list of units.
-biggestUnit :: [Units] -> Maybe Units
+-- | Find the biggest unit in a list of unit.
+biggestUnit :: [Unit] -> Maybe Unit
 biggestUnit = foldr go Nothing
   where
-    go :: Units -> Maybe Units -> Maybe Units
+    go :: Unit -> Maybe Unit -> Maybe Unit
     go u Nothing = Just u
-    go u (Just u') = compareUnits u u'
+    go u (Just u') = compareUnit u u'
 
--- | Compare two units and return the biggest one if they are compatible.
-compareUnits :: Units -> Units -> Maybe Units
-compareUnits u u' = case (u, u') of
+-- | Compare two unit and return the biggest one if they are compatible.
+compareUnit :: Unit -> Unit -> Maybe Unit
+compareUnit u u' = case (u, u') of
     (Seconds, Seconds) -> Just Seconds
     (Seconds, Milliseconds) -> Just Seconds
     (Seconds, Microseconds) -> Just Seconds
@@ -153,7 +153,7 @@ harmonizeDay
     -> Either [(Day, Result)] HarmonizedRow
 harmonizeDay = f . fmap (second getFirst) . assocs
   where
-    f rs = maybe (Left rs) Right $ harmonizeUnits rs
+    f rs = maybe (Left rs) Right $ harmonizeUnit rs
 
 -- | Harmonize a history of results, returning the unit-harmonized history if all
 -- rows are harmonizable. Otherwise it fails with the first unharmonizable row.
@@ -176,11 +176,11 @@ pastDays d = do
     today <- utctDay <$> getCurrentTime
     return $ reverse $ takeWhile (<= today) $ iterate (addDays 1) d
 
--- | A CSV row of data with semantic and units
+-- | A CSV row of data with semantic and unit
 data Row = Row
     { rowSemantic :: Semantic
     , rowIndex :: Int
-    , units :: Units
+    , unit :: Unit
     , values :: [(Day, Maybe Double)]
     }
     deriving stock (Show)
@@ -190,7 +190,7 @@ instance ToNamedRecord Row where
         namedRecord
             $ ("Semantic" .= s)
                 : ("Index" .= T.pack (show i))
-                : ("Units" .= u)
+                : ("Unit" .= u)
                 : fmap (\(d, v) -> (B8.pack . show $ d) .= v) vs
 
 -- | Render a harmonized history as a CSV file.
@@ -201,7 +201,7 @@ renderHarmonizedHistoryCsv (HarmonizedHistory h ds) = (header', rows)
         V.fromList
             $ "Semantic"
                 : "Index"
-                : "Units"
+                : "Unit"
                 : fmap (B8.pack . show) (toList ds)
     rows = do
         (IndexedSemantic s i, Harmonized m' u) <- MMap.assocs h

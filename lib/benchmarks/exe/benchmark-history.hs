@@ -171,6 +171,7 @@ queryBuildkite q d0 =
                         <> ", branch: "
                         <> T.unpack (branch b)
             )
+
         $ S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` filename a)
         $ S.map (\(b, a) -> (a, b))
         $ flip S.for (getArtifacts q)
@@ -232,6 +233,7 @@ main = do
     case eHarmonized of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
         Right harmonized -> do
+            putStrLn $ "Harmonized history: " <> show harmonized
             let csv = uncurry encodeByName $ renderHarmonizedHistoryCsv harmonized
             BL8.writeFile (outputDir </> "benchmark_history" <.> "csv") csv
             renderHarmonizedHistoryChartSVG outputDir harmonized

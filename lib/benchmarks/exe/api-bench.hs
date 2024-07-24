@@ -84,7 +84,7 @@ import Cardano.Wallet.Benchmarks.Collect
     , Reporter (addSemantic, report)
     , Result (Result)
     , Semantic
-    , Units (Seconds)
+    , Unit (Seconds)
     , mkSemantic
     , newReporterFromEnv
     )

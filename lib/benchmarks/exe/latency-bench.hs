@@ -70,7 +70,7 @@ import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)
     , Reporter (..)
     , Result (..)
-    , Units (Milliseconds)
+    , Unit (Milliseconds)
     , mkSemantic
     , newReporterResourceTFromEnv
     , report

@@ -7,7 +7,7 @@ where
 import Prelude
 
 import Cardano.Wallet.Benchmarks.Collect
-    ( Units
+    ( Unit
     )
 import Cardano.Wallet.Benchmarks.History
     ( HarmonizedHistory (..)
@@ -117,7 +117,7 @@ grid
     -> HarmonizedRow
     -> Grid (Renderable (LayoutPick Day Double Double))
 grid ds is mr =
-    let title :: Maybe Units -> Renderable b
+    let title :: Maybe Unit -> Renderable b
         title mu =
             setPickFn nullPickFn
                 $ label font HTA_Centre VTA_Centre
@@ -126,7 +126,7 @@ grid ds is mr =
                         Nothing -> ""
                         Just u ->
                             "( "
-                                <> B8.unpack (toField (u :: Units))
+                                <> B8.unpack (toField (u :: Unit))
                                 <> " )"
     in  case mr of
             Harmonized m u ->
