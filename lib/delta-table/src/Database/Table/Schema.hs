@@ -1,9 +1,9 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2024 Cardano Foundation
@@ -21,6 +21,9 @@ module Database.Table.Schema
     , Table (..)
     , Col (..)
     , (:.) (..)
+
+    , IsColumnName
+    , getColumnName
 
     -- * Rows
     , Row
@@ -80,6 +83,13 @@ infixl 3 :.
 -- | Named database column.
 data Col (name :: Symbol) a = Col
     deriving (Eq,Ord,Show)
+
+-- | Constraint synonym for 'getColName'.
+type IsColumnName (name :: Symbol) = KnownSymbol name
+
+-- | Get the name of a column from its type.
+getColumnName :: forall name a. IsColumnName name => Col name a -> Text
+getColumnName _ = T.pack $ symbolVal (Proxy :: Proxy name)
 
 -- | Named database table.
 data Table (name :: Symbol) = Table
