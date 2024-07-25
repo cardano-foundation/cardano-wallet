@@ -14,7 +14,7 @@
 -- Raw extra signers required data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.ExtraSigs where
+module Cardano.Read.Ledger.Tx.ExtraSigs where
 
 import Prelude
 

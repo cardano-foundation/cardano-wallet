@@ -27,12 +27,12 @@ import Cardano.Ledger.Keys
     ( KeyHash (..)
     , KeyRole (..)
     )
+import Cardano.Read.Ledger.Tx.ExtraSigs
+    ( ExtraSigs (..)
+    )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.ExtraSigs
-    ( ExtraSigs (..)
     )
 import Data.ByteString.Short
     ( fromShort
