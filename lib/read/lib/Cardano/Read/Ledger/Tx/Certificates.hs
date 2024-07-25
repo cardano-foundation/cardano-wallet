@@ -14,7 +14,7 @@
 -- Raw certificate data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Certificates
+module Cardano.Read.Ledger.Tx.Certificates
     ( CertificatesType
     , Certificates (..)
     , getEraCertificates

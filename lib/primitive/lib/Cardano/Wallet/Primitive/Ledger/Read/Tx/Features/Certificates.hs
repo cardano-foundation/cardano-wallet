@@ -34,6 +34,10 @@ import Cardano.Ledger.Shelley.API
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
     )
+import Cardano.Read.Ledger.Tx.Certificates
+    ( Certificates (..)
+    , CertificatesType
+    )
 import Cardano.Slotting.Slot
     ( EpochNo (..)
     )
@@ -63,10 +67,6 @@ import Cardano.Wallet.Read.Eras
     , Era (..)
     , IsEra
     , theEra
-    )
-import Cardano.Wallet.Read.Tx.Certificates
-    ( Certificates (..)
-    , CertificatesType
     )
 import Cardano.Wallet.Util
     ( internalError
