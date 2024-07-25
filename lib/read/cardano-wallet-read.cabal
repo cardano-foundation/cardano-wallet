@@ -54,6 +54,7 @@ library
     Cardano.Read.Ledger.Tx.CollateralOutputs
     Cardano.Read.Ledger.Tx.Eras
     Cardano.Read.Ledger.Tx.ExtraSigs
+    Cardano.Read.Ledger.Tx.Fee
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.BHeader
@@ -75,7 +76,6 @@ library
     Cardano.Wallet.Read.Eras.KnownEras
     Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.Tx
-    Cardano.Wallet.Read.Tx.Fee
     Cardano.Wallet.Read.Tx.Gen
     Cardano.Wallet.Read.Tx.Gen.Address
     Cardano.Wallet.Read.Tx.Gen.Allegra

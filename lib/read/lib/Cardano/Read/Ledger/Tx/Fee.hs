@@ -14,7 +14,7 @@
 -- Raw fee data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Fee
+module Cardano.Read.Ledger.Tx.Fee
     ( FeeType
     , Fee (..)
     , getEraFee
