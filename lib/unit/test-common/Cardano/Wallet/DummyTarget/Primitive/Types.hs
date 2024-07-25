@@ -23,6 +23,9 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( TxCBOR
+    )
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
@@ -68,9 +71,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR
     )
 import Data.Functor.Identity
     ( Identity (..)

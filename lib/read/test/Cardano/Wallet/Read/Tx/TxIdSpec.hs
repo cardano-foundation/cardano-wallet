@@ -8,6 +8,9 @@ module Cardano.Wallet.Read.Tx.TxIdSpec
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( deserializeTx
+    )
 import Cardano.Wallet.Read.Eras
     ( IsEra
     , K (..)
@@ -18,9 +21,6 @@ import Cardano.Wallet.Read.Hash
     )
 import Cardano.Wallet.Read.Tx
     ( Tx
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( deserializeTx
     )
 import Cardano.Wallet.Read.Tx.TxId
     ( TxId

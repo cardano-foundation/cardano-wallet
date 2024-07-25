@@ -13,6 +13,9 @@ where
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( renderTxToCBOR
+    )
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
     )
@@ -49,9 +52,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras
     ( eraValue
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR
     )
 import Cardano.Wallet.Read.Tx.CollateralInputs
     ( getEraCollateralInputs

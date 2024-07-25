@@ -14,6 +14,10 @@ import Prelude hiding
     ( (.)
     )
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( TxCBOR
+    , renderTxToCBOR
+    )
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
     )
@@ -90,10 +94,6 @@ import Cardano.Wallet.Read.Eras
     ( EraValue
     , IsEra
     , applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR
-    , renderTxToCBOR
     )
 import Cardano.Wallet.Read.Tx.CollateralInputs
     ( getEraCollateralInputs
