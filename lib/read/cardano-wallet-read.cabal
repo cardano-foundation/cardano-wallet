@@ -60,6 +60,7 @@ library
     Cardano.Read.Ledger.Tx.Integrity
     Cardano.Read.Ledger.Tx.Metadata
     Cardano.Read.Ledger.Tx.Mint
+    Cardano.Read.Ledger.Tx.Output
     Cardano.Read.Ledger.Tx.ReferenceInputs
     Cardano.Read.Ledger.Tx.ScriptValidity
     Cardano.Read.Ledger.Tx.Validity
