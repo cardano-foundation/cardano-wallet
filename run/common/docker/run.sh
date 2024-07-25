@@ -28,7 +28,7 @@ RELEASE_WALLET_TAG=2024.7.7
 WALLET_TAG=${WALLET_TAG:=$RELEASE_WALLET_TAG}
 export WALLET_TAG
 
-NODE_TAG=9.0.0
+NODE_TAG=9.1.0
 export NODE_TAG
 
 # Generate a random port for the wallet service and export it
