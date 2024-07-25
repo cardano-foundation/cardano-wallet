@@ -10,16 +10,16 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CollateralInputs
+    ( CollateralInputs (..)
+    , CollateralInputsType
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     ( fromShelleyTxIns
     )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.CollateralInputs
-    ( CollateralInputs (..)
-    , CollateralInputsType
     )
 
 import qualified Cardano.Ledger.Shelley.API as SH

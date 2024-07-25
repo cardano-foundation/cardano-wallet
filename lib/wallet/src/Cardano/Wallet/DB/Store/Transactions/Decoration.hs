@@ -33,6 +33,9 @@ import Prelude hiding
     ( (.)
     )
 
+import Cardano.Read.Ledger.Tx.CollateralInputs
+    ( getEraCollateralInputs
+    )
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
     )
@@ -60,9 +63,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.CollateralInputs
-    ( getEraCollateralInputs
     )
 import Control.Applicative
     ( (<|>)

@@ -49,6 +49,7 @@ library
     Cardano.Read.Ledger.Tx.TxId
     Cardano.Read.Ledger.Tx.Cardano
     Cardano.Read.Ledger.Tx.CBOR
+    Cardano.Read.Ledger.Tx.CollateralInputs
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.BHeader
@@ -71,7 +72,6 @@ library
     Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.Certificates
-    Cardano.Wallet.Read.Tx.CollateralInputs
     Cardano.Wallet.Read.Tx.CollateralOutputs
     Cardano.Wallet.Read.Tx.Eras
     Cardano.Wallet.Read.Tx.ExtraSigs

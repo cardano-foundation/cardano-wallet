@@ -14,7 +14,7 @@
 -- Raw collateral inputs data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.CollateralInputs
+module Cardano.Read.Ledger.Tx.CollateralInputs
     ( CollateralInputsType
     , CollateralInputs (..)
     , getEraCollateralInputs
