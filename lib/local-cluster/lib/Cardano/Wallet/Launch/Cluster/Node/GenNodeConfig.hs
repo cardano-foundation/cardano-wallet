@@ -193,8 +193,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
 controlExperimental :: ClusterEra -> ChangeValue
 controlExperimental = \case
-    BabbageHardFork -> setExperimental False
-    ConwayHardFork -> setExperimental True
+    _ -> setExperimental False
 
 setExperimental :: Bool -> ChangeValue
 setExperimental enabled value = value
