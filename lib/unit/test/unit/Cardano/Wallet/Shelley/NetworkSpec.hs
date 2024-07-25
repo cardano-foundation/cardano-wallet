@@ -16,6 +16,8 @@ import Cardano.BM.Trace
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
+    , isWindows
+    , mkWindowsPipeName
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterEra (..)
@@ -27,6 +29,9 @@ import Cardano.Wallet.Launch.Cluster
     , defaultPoolConfigs
     , localClusterConfigsFromEnv
     , withCluster
+    )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( OsNamedPipe (..)
     )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
@@ -54,6 +59,9 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( NetworkParameters (..)
     )
+import Control.Exception
+    ( finally
+    )
 import Control.Monad
     ( replicateM
     , unless
@@ -64,7 +72,8 @@ import Control.Monad.Cont
     , evalContT
     )
 import Control.Monad.Trans
-    ( lift
+    ( MonadIO
+    , lift
     )
 import Control.Tracer
     ( Tracer
@@ -84,6 +93,9 @@ import Fmt
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData
     )
+import System.Directory
+    ( removePathForcibly
+    )
 import System.Environment.Extended
     ( isEnvSet
     )
@@ -97,6 +109,9 @@ import System.IO.Temp.Extra
 import System.Path
     ( absDir
     , absFile
+    )
+import System.Random
+    ( randomIO
     )
 import Test.Hspec
     ( Spec
@@ -346,6 +361,11 @@ observerSpec = sequential $ describe "Observer" $ do
                     ]
         assert condition
 
+randomName :: MonadIO m => m String
+randomName = do
+    n :: Int  <- randomIO
+    pure $ "test-" <> show n
+
 withTestNode
     :: Tracer IO ClusterLog
     -> (NetworkParameters -> CardanoNodeConn -> NodeToClientVersionData -> IO a)
@@ -358,8 +378,16 @@ withTestNode tr action = evalContT $ do
                 (contramap MsgTempDir tr)
                 "network-spec"
                 skipCleanup
-    socket <- ContT withTempFile
-    let socketPath = absFile socket
+    socketPath <-
+        if isWindows
+            then ContT $ \k -> do
+                fp <- randomName
+                let pipeName = mkWindowsPipeName fp
+                k (WindowsPipe pipeName) `finally`
+                    removePathForcibly pipeName
+        else do
+            socket <- ContT withTempFile
+            pure $ UnixPipe $ FileOf $ absFile socket
     cfgClusterConfigs <- lift localClusterConfigsFromEnv
     let clusterConfig =
             Cluster.Config
@@ -374,7 +402,7 @@ withTestNode tr action = evalContT $ do
                 , cfgNodeOutputFile = Nothing
                 , cfgRelayNodePath = mkRelDirOf "relay"
                 , cfgClusterLogFile = Nothing
-                , cfgNodeToClientSocket = FileOf socketPath
+                , cfgNodeToClientSocket = socketPath
                 }
     RunningNode sock genesisData vData <-
         ContT $ withCluster clusterConfig (FaucetFunds [] [] [])

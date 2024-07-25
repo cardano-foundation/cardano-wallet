@@ -6,7 +6,8 @@ module Cardano.Wallet.Launch.Cluster.Config
     ( Config (..)
     , ShelleyGenesisModifier
     , TestnetMagic (..)
-
+    , OsNamedPipe (..)
+    , filePathOfOsNamedPipe
     )
 where
 
@@ -28,6 +29,8 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf
     , FileOf
     , RelDirOf
+    , absFileOf
+    , toFilePath
     )
 import Cardano.Wallet.Launch.Cluster.Logging
     ( ClusterLog (..)
@@ -48,6 +51,15 @@ newtype TestnetMagic = TestnetMagic {testnetMagicToNatural :: Natural}
 
 type ShelleyGenesisModifier =
     ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto
+
+data OsNamedPipe
+    = UnixPipe (FileOf "node-to-client-socket")
+    | WindowsPipe FilePath
+    deriving stock (Show)
+
+filePathOfOsNamedPipe :: OsNamedPipe -> FilePath
+filePathOfOsNamedPipe (UnixPipe f) = toFilePath $ absFileOf f
+filePathOfOsNamedPipe (WindowsPipe f) = f
 
 data Config = Config
     { cfgStakePools :: NonEmpty PoolRecipe
@@ -71,5 +83,5 @@ data Config = Config
     -- ^ Path segment for relay node.
     , cfgClusterLogFile :: Maybe (FileOf "cluster-logs")
     -- ^ File to write cluster logs to.
-    , cfgNodeToClientSocket :: FileOf "node-to-client-socket"
+    , cfgNodeToClientSocket :: OsNamedPipe
     }

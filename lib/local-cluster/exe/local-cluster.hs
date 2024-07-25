@@ -24,6 +24,9 @@ import Cardano.Wallet.Launch.Cluster.CommandLine
     , WalletPresence (..)
     , parseCommandLineOptions
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( OsNamedPipe (..)
+    )
 import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
     ( retrieveFunds
     )
@@ -271,9 +274,11 @@ main = withUtf8 $ do
 
         debug "Creating cluster configuration"
         clusterCfg <- do
-            socketPath <- case nodeToClientSocket of
+            -- ATM, only unix is supported
+            socketPath <- fmap UnixPipe $ case nodeToClientSocket of
                 Just path -> pure path
-                Nothing -> FileOf . absFile <$> ContT withTempFile
+                Nothing ->
+                    FileOf . absFile <$> ContT withTempFile
             clusterEra <- liftIO Cluster.clusterEraFromEnv
             cfgNodeLogging <-
                 liftIO

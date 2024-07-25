@@ -20,9 +20,11 @@ import Cardano.Wallet.Launch.Cluster.ClusterM
     , askNodeDir
     , bracketTracer'
     )
+import Cardano.Wallet.Launch.Cluster.Config
+    ( filePathOfOsNamedPipe
+    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
-    , FileOf (..)
     , RelDirOf (..)
     , absFilePathOf
     , toFilePath
@@ -116,7 +118,7 @@ withRelayNode params (RelDirOf nodeSegment) onClusterStart = do
                     , nodeExecutable = Nothing
                     , nodeOutputFile = absFilePathOf
                         <$> nodeParamsOutputFile params
-                    , nodeSocketPathFile = fmap (toFilePath . absFileOf) socket
+                    , nodeSocketPathFile = fmap filePathOfOsNamedPipe socket
                     }
 
         let onClusterStart' (JustK (socketPath)) = onClusterStart
