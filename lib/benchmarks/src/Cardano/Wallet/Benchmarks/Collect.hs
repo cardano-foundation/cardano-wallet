@@ -294,8 +294,9 @@ mkReport out sem =
 mkNullReport :: Applicative m => Reporter m
 mkNullReport = Reporter (const mkNullReport) noSemantic (const $ pure ())
 
+-- historical data use the 'units' (vs unit) column name
 benchmarksHeader :: Header
-benchmarksHeader = header ["semantic", "value", "unit", "iterations"]
+benchmarksHeader = header ["semantic", "value", "units", "iterations"]
 
 -- | Create a new reporter from a file path in a 'ContT' context.
 newReporter
