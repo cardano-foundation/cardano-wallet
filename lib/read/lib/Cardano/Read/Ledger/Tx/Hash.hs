@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Wallet.Read.Tx.Hash
+module Cardano.Read.Ledger.Tx.Hash
     ( byronTxHash
     , shelleyTxHash
     , fromShelleyTxId

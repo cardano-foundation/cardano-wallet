@@ -57,6 +57,9 @@ import Cardano.Ledger.Babbage
     ( AlonzoScript
     , BabbageTxOut
     )
+import Cardano.Read.Ledger.Tx.Hash
+    ( getEraTxHash
+    )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
     , toWalletScriptFromShelley
@@ -73,9 +76,6 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     , WitnessCountCtx
     , emptyWitnessCount
     , toKeyRole
-    )
-import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash
     )
 import Control.Lens
     ( folded
