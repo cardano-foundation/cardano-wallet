@@ -8,7 +8,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Tx.Cardano
+module Cardano.Read.Ledger.Tx.Cardano
     ( fromCardanoApiTx
     ) where
 

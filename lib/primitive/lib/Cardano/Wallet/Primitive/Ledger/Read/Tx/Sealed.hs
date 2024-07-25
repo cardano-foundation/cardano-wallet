@@ -16,6 +16,9 @@ import Prelude
 import Cardano.Api
     ( InAnyCardanoEra (..)
     )
+import Cardano.Read.Ledger.Tx.Cardano
+    ( fromCardanoApiTx
+    )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (unsafeCardanoTx)
     )
@@ -25,9 +28,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Cardano
-    ( fromCardanoApiTx
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W

@@ -57,6 +57,9 @@ import Cardano.Api.Gen
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
+import Cardano.Read.Ledger.Tx.Cardano
+    ( fromCardanoApiTx
+    )
 import Cardano.Wallet
     ( Fee (..)
     , Percentile (..)
@@ -170,9 +173,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut.Gen
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
-    )
-import Cardano.Wallet.Read.Tx.Cardano
-    ( fromCardanoApiTx
     )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTag (..)
