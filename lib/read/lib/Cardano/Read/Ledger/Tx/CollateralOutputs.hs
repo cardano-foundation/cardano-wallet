@@ -14,7 +14,7 @@
 -- Raw collateral output data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.CollateralOutputs
+module Cardano.Read.Ledger.Tx.CollateralOutputs
     ( CollateralOutputsType
     , CollateralOutputs (..)
     , getEraCollateralOutputs

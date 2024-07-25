@@ -9,6 +9,9 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CollateralOutputs
+    ( CollateralOutputs (..)
+    )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletTokenBundle
     )
@@ -18,9 +21,6 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.CollateralOutputs
-    ( CollateralOutputs (..)
     )
 import Data.Maybe.Strict
     ( strictMaybeToMaybe

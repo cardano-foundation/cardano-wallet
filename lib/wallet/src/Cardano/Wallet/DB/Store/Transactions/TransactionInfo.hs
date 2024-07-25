@@ -21,6 +21,9 @@ import Cardano.Read.Ledger.Tx.CBOR
 import Cardano.Read.Ledger.Tx.CollateralInputs
     ( getEraCollateralInputs
     )
+import Cardano.Read.Ledger.Tx.CollateralOutputs
+    ( getEraCollateralOutputs
+    )
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
     )
@@ -97,9 +100,6 @@ import Cardano.Wallet.Read.Eras
     ( EraValue
     , IsEra
     , applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.CollateralOutputs
-    ( getEraCollateralOutputs
     )
 import Cardano.Wallet.Read.Tx.Fee
     ( getEraFee
