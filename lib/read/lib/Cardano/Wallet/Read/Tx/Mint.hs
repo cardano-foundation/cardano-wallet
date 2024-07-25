@@ -35,6 +35,9 @@ import Cardano.Ledger.Mary.Core
 import Cardano.Ledger.Mary.Value
     ( MultiAsset
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -48,9 +51,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( view

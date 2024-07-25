@@ -5,7 +5,7 @@
 -- License: Apache-2.0
 --
 
-module Cardano.Wallet.Read.Tx.Eras
+module Cardano.Read.Ledger.Tx.Eras
     ( onTx
     )
     where

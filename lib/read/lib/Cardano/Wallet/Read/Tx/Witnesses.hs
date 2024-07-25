@@ -31,6 +31,9 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Shelley.TxWits
     ( ShelleyTxWits
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -46,9 +49,6 @@ import Cardano.Wallet.Read.Eras.KnownEras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( view
