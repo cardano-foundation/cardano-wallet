@@ -104,6 +104,7 @@ library
     Cardano.Wallet.Read.Tx.ScriptValidity
     Cardano.Wallet.Read.Tx.TxId
     Cardano.Wallet.Read.Tx.TxIn
+    Cardano.Wallet.Read.Tx.TxOut
     Cardano.Wallet.Read.Value
 
   build-depends:
@@ -160,6 +161,7 @@ test-suite test
     Cardano.Wallet.Read.EraValueSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Read.Tx.TxIdSpec
+    Cardano.Wallet.Read.Tx.TxOutSpec
     Test.Unit.Cardano.Read.Ledger.Tx
     Spec
     SpecHook
