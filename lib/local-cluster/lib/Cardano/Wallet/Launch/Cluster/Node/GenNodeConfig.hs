@@ -193,8 +193,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
 controlExperimental :: ClusterEra -> ChangeValue
 controlExperimental = \case
-    BabbageHardFork -> setExperimental False
-    ConwayHardFork -> setExperimental True
+    _ -> setExperimental True
 
 setExperimental :: Bool -> ChangeValue
 setExperimental enabled value = value
@@ -202,10 +201,7 @@ setExperimental enabled value = value
     & atKey "ExperimentalHardForksEnabled" ?~ Bool enabled
 
 setHardForksForLatestEras :: ClusterEra -> ChangeValue
-setHardForksForLatestEras clusterEra =
-    case clusterEra of
-        BabbageHardFork -> setHardFork (T.pack $ show BabbageHardFork)
-        ConwayHardFork ->
+setHardForksForLatestEras _clusterEra =
             setHardFork (T.pack $ show ConwayHardFork)
                 . setHardFork (T.pack $ show BabbageHardFork)
 
