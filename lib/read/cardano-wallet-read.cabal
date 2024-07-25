@@ -67,6 +67,7 @@ library
     Cardano.Read.Ledger.Tx.Integrity
     Cardano.Read.Ledger.Tx.Metadata
     Cardano.Read.Ledger.Tx.Mint
+    Cardano.Read.Ledger.Tx.Output
     Cardano.Read.Ledger.Tx.ReferenceInputs
     Cardano.Read.Ledger.Tx.ScriptValidity
     Cardano.Read.Ledger.Tx.Validity
@@ -155,6 +156,7 @@ test-suite test
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Cardano.Read.Ledger.OutputSpec
     Cardano.Wallet.Read.EraValueSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Read.Tx.TxIdSpec
@@ -168,6 +170,9 @@ test-suite test
   build-depends:
     , base
     , bytestring
+    , cardano-ledger-api
+    , cardano-ledger-core
+    , cardano-ledger-mary
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , hspec
