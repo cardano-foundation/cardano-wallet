@@ -54,9 +54,6 @@ import Cardano.Wallet.Launch.Cluster.Aeson
     ( ChangeValue
     , decodeFileThrow
     )
-import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra (..)
-    )
 import Cardano.Wallet.Launch.Cluster.ClusterM
     ( ClusterM
     )
@@ -140,7 +137,7 @@ data GenesisRecord f = GenesisRecord
     { byronGenesis :: f "genesis-byron"
     , shelleyGenesis :: f "genesis-shelley"
     , alonzoGenesis :: f "genesis-alonzo"
-    , conwayGenesis :: Maybe (f "genesis-conway")
+    , conwayGenesis :: f "genesis-conway"
     }
     deriving stock (Generic)
 
@@ -148,12 +145,11 @@ instance FFunctor GenesisRecord where ffmap = ffmapDefault
 instance FFoldable GenesisRecord where ffoldMap = ffoldMapDefault
 instance FTraversable GenesisRecord where
     ftraverse f (GenesisRecord a b c d) =
-        GenesisRecord <$> f a <*> f b <*> f c <*> traverse f d
+        GenesisRecord <$> f a <*> f b <*> f c <*> f d
 
 instance FZip GenesisRecord where
-    fzipWith f (GenesisRecord a b c md) (GenesisRecord a' b' c' md') =
-        GenesisRecord (f a a') (f b b') (f c c') $ do
-            f <$> md <*> md'
+    fzipWith f (GenesisRecord a b c d) (GenesisRecord a' b' c' d') =
+        GenesisRecord (f a a') (f b b') (f c c') (f d d')
 
 deriving stock instance Show (GenesisRecord FileOf)
 
@@ -183,18 +179,14 @@ writeGenesis fs vs =
             fs
             vs
 
-withConway :: ClusterEra -> a -> Maybe a
-withConway ConwayHardFork a = Just a
-withConway _ _ = Nothing
-
 -- | Create genesis absolute file paths from a directory
-mkGenesisFiles :: ClusterEra -> DirOf s -> GenesisFiles
-mkGenesisFiles wc (DirOf d) =
+mkGenesisFiles :: DirOf s -> GenesisFiles
+mkGenesisFiles (DirOf d) =
     GenesisRecord
         { byronGenesis = mkFile "byron"
         , shelleyGenesis = mkFile "shelley"
         , alonzoGenesis = mkFile "alonzo"
-        , conwayGenesis = withConway wc $ mkFile "conway"
+        , conwayGenesis = mkFile "conway"
         }
   where
     mkFile :: String -> FileOf x
@@ -203,24 +195,22 @@ mkGenesisFiles wc (DirOf d) =
 -- | Read genesis files from template directory, apply template modifications
 --   and write them back to the config directory
 produceGenesis
-    :: ClusterEra
-    -> DirOf template
+    :: DirOf template
     -> DirOf configs
     -> GenesisTemplateMods
     -> IO GenesisFiles
-produceGenesis wc templateDir configsDir mods = do
-    let templates = mkGenesisFiles wc templateDir
-    let configs = mkGenesisFiles wc configsDir
+produceGenesis templateDir configsDir mods = do
+    let templates = mkGenesisFiles templateDir
+    let configs = mkGenesisFiles configsDir
     readGenesis templates >>= writeGenesis configs . applyTemplateMods mods
     pure configs
 
 generateGenesis
     :: HasCallStack
-    => ClusterEra
-    -> [(Address, Coin)]
+    => [(Address, Coin)]
     -> [ShelleyGenesisModifier]
     -> ClusterM GenesisFiles
-generateGenesis wc initialFunds genesisMods = do
+generateGenesis initialFunds genesisMods = do
     Config{..} <- ask
     {- The timestamp of the 0-th slot.
 
@@ -319,15 +309,17 @@ generateGenesis wc initialFunds genesisMods = do
                         }
                     genesisMods
 
-        produceGenesis wc cfgClusterConfigs cfgClusterDir
+        produceGenesis cfgClusterConfigs cfgClusterDir
             $ GenesisRecord
                 { byronGenesis =
                     Const
                         $ key "startTime"
                             .~ toJSON
-                                (round @_ @Int $ utcTimeToPOSIXSeconds systemStart)
+                                ( round @_ @Int
+                                    $ utcTimeToPOSIXSeconds systemStart
+                                )
                 , shelleyGenesis = Const
                     $ \_ -> toJSON shelleyGenesisData
                 , alonzoGenesis = Const id
-                , conwayGenesis = withConway wc $ Const id
+                , conwayGenesis = Const id
                 }

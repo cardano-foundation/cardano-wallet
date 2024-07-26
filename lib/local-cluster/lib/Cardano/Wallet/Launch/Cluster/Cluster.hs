@@ -207,7 +207,6 @@ withCluster config@Config{..} faucetFunds onClusterStart = runClusterM config
                     map (,Coin 1_000_000_000_000_000)
                         <$> readFaucetAddresses
                 generateGenesis
-                    cfgLastHardFork
                     (pureAdaFunds <> faucetAddresses <> massiveWalletFunds)
                     (addGenesisPools : cfgShelleyGenesisMods)
 
