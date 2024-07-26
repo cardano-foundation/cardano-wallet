@@ -14,7 +14,7 @@
 -- Raw mint data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.ScriptValidity
+module Cardano.Read.Ledger.Tx.ScriptValidity
     ( ScriptValidityType
     , ScriptValidity (..)
     , getEraScriptValidity

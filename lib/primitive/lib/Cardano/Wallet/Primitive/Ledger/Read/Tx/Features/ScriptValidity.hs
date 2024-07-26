@@ -18,12 +18,12 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( IsValid (..)
     )
+import Cardano.Read.Ledger.Tx.ScriptValidity
+    ( ScriptValidity (..)
+    )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.ScriptValidity
-    ( ScriptValidity (..)
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.Tx as W
