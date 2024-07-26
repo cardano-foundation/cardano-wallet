@@ -14,7 +14,7 @@
 -- Reference input data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.ReferenceInputs
+module Cardano.Read.Ledger.Tx.ReferenceInputs
     ( ReferenceInputsType
     , ReferenceInputs (..)
     , getEraReferenceInputs
