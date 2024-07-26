@@ -281,6 +281,7 @@ executable benchmark-history
     , http-client
     , http-client-tls
     , http-media
+    , http-types
     , monoidal-containers
     , optparse-applicative
     , pretty-simple
