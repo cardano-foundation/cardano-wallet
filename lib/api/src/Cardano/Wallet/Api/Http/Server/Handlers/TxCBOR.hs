@@ -28,6 +28,9 @@ import Cardano.Read.Ledger.Tx.Certificates
 import Cardano.Read.Ledger.Tx.ExtraSigs
     ( getEraExtraSigs
     )
+import Cardano.Read.Ledger.Tx.Integrity
+    ( getEraIntegrity
+    )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..)
     , apiError
@@ -54,9 +57,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.Integrity
-    ( getEraIntegrity
     )
 import Cardano.Wallet.Read.Tx.Mint
     ( getEraMint

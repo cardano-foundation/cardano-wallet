@@ -14,7 +14,7 @@
 -- Raw script integrity data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Integrity
+module Cardano.Read.Ledger.Tx.Integrity
     ( IntegrityType
     , Integrity (..)
     , getEraIntegrity
