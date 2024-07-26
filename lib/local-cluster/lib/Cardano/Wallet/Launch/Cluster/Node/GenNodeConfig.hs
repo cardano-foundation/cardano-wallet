@@ -126,7 +126,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
     let LogFileConfig severity mExtraLogFile extraSev = logCfg
 
-        GenesisRecord byronFile shelleyFile alonzoFile mconwayFile = genesisFiles
+        GenesisRecord byronFile shelleyFile alonzoFile conwayFile = genesisFiles
 
         scribes =
             let
@@ -148,16 +148,12 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
                             (T.pack $ toFilePath file, extraSev)
                         ]
 
-        setConwayFile = case mconwayFile of
-            Just conwayFile -> setFilePath "ConwayGenesisFile" conwayFile
-            Nothing -> key "ConwayGenesisFile" .~ Null
-
         patchConfig value =
             value
                 & setFilePath "ByronGenesisFile" byronFile
                 & setFilePath "ShelleyGenesisFile" shelleyFile
                 & setFilePath "AlonzoGenesisFile" alonzoFile
-                & setConwayFile
+                & setFilePath "ConwayGenesisFile" conwayFile
                 & removeGenesisHashes
                 & setHardFork "ShelleyHardFork"
                 & setHardFork "AllegraHardFork"
@@ -193,8 +189,7 @@ genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do
 
 controlExperimental :: ClusterEra -> ChangeValue
 controlExperimental = \case
-    BabbageHardFork -> setExperimental False
-    ConwayHardFork -> setExperimental True
+    _ -> setExperimental False
 
 setExperimental :: Bool -> ChangeValue
 setExperimental enabled value = value

@@ -3,6 +3,8 @@
   "AlonzoGenesisHash": "7e94a15f55d1e82d10f09203fa1d40f8eede58fd8066542cf6566008068ed874",
   "ByronGenesisFile": "byron-genesis.json",
   "ByronGenesisHash": "83de1d7302569ad56cf9139a41e2e11346d4cb4a31c00142557b6ab3fa550761",
+  "ConwayGenesisFile": "conway-genesis.json",
+  "ConwayGenesisHash": "9cc5084f02e27210eacba47af0872e3dba8946ad9460b6072d793e1d2f3987ef",
   "EnableP2P": true,
   "ExperimentalHardForksEnabled": false,
   "ExperimentalProtocolsEnabled": false,

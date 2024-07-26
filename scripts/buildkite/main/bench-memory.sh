@@ -31,11 +31,18 @@ nix shell \
 echo "------------------------ Nix call done ----------------------------------"
 
 echo "------------------------ Results ----------------------------------------"
+
+if [ -n "${BUILDKITE:-}" ]; then
+  echo "--- Upload logs"
+  buildkite-agent artifact upload $log
+  buildkite-agent artifact upload $error_log
+fi
+
 mv cardano-wallet.hp $artifact_name.hp
 hp2pretty $artifact_name.hp
 
 if [ -n "${BUILDKITE:-}" ]; then
-  echo "--- Upload"
+  echo "--- Upload heap profile"
   buildkite-agent artifact upload $artifact_name.svg
   buildkite-agent artifact upload $log
   buildkite-agent artifact upload $error_log
@@ -45,6 +52,7 @@ if [ -n "${BUILDKITE:-}" ]; then
     "$artifact_name.svg"
 
 fi
+
 echo "------------------------ Results done -----------------------------------"
 
 echo "------------------------ Cleanup ----------------------------------------"
