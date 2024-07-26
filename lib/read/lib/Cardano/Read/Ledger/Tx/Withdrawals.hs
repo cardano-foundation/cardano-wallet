@@ -14,7 +14,7 @@
 -- Raw withdrawals data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Withdrawals
+module Cardano.Read.Ledger.Tx.Withdrawals
     ( WithdrawalsType
     , Withdrawals (..)
     , getEraWithdrawals

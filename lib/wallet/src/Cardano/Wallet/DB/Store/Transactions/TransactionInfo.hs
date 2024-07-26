@@ -45,6 +45,9 @@ import Cardano.Read.Ledger.Tx.ScriptValidity
 import Cardano.Read.Ledger.Tx.Validity
     ( getEraValidity
     )
+import Cardano.Read.Ledger.Tx.Withdrawals
+    ( getEraWithdrawals
+    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -115,9 +118,6 @@ import Cardano.Wallet.Read.Eras
     ( EraValue
     , IsEra
     , applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( getEraWithdrawals
     )
 import Cardano.Wallet.Transaction
     ( ValidityIntervalExplicit (invalidHereafter)

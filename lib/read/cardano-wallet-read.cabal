@@ -62,6 +62,7 @@ library
     Cardano.Read.Ledger.Tx.ReferenceInputs
     Cardano.Read.Ledger.Tx.ScriptValidity
     Cardano.Read.Ledger.Tx.Validity
+    Cardano.Read.Ledger.Tx.Withdrawals
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.BHeader
@@ -96,7 +97,6 @@ library
     Cardano.Wallet.Read.Tx.Inputs
     Cardano.Wallet.Read.Tx.TxId
     Cardano.Wallet.Read.Tx.TxIn
-    Cardano.Wallet.Read.Tx.Withdrawals
     Cardano.Wallet.Read.Tx.Witnesses
 
   build-depends:
