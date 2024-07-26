@@ -73,6 +73,9 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Media
     ( (//)
     )
+import Network.HTTP.Types.Status
+    ( status410
+    )
 import Options.Applicative
     ( Parser
     , ParserInfo
@@ -99,8 +102,9 @@ import Servant.API.ContentTypes
 import Servant.Client
     ( BaseUrl (..)
     , ClientEnv
-    , ClientError
+    , ClientError (FailureResponse)
     , ClientM
+    , ResponseF (..)
     , Scheme (..)
     , client
     , mkClientEnv
@@ -156,8 +160,13 @@ fetchArtifactContent
     :: WithAuthPipeline (Int -> Text -> Text -> ClientM BL8.ByteString)
 fetchArtifactContent = client (Proxy :: Proxy (GetArtifact CSV BL8.ByteString))
 
-queryBuildkite :: Query -> Day -> IO History
-queryBuildkite q d0 =
+queryBuildkite ::
+    (forall a . HandleClientError a -> ClientM a -> IO (Maybe a))
+    -> (forall a . WithAuthPipeline a -> a)
+    -> Day -> IO History
+queryBuildkite q w d0 = do
+    let skip410Q = Query (q skip410) w
+        bailoutQ = Query (q bailout) w
     S.foldMap_ Prelude.id
         $ flip
             S.for
@@ -166,7 +175,9 @@ queryBuildkite q d0 =
                 Left e -> error e
             )
         $ flip S.for historyPoints
-        $ flip S.for (\(a, j) -> getArtifactsContent q fetchArtifactContent j a)
+        $ flip S.for (\(a, j) -> getArtifactsContent
+            skip410Q
+            fetchArtifactContent j a)
         $ S.chain
             ( \(_, b) ->
                 putStrLn
@@ -178,8 +189,8 @@ queryBuildkite q d0 =
 
         $ S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` filename a)
         $ S.map (\(b, a) -> (a, b))
-        $ flip S.for (getArtifacts q)
-        $ getReleaseCandidateBuilds q d0
+        $ flip S.for (getArtifacts bailoutQ)
+        $ getReleaseCandidateBuilds bailoutQ d0
 
 mkReleaseCandidateName :: Day -> String
 mkReleaseCandidateName d = "release-candidate/v" ++ show d
@@ -224,15 +235,17 @@ optionsParser =
             <> header "benchmark-history - a tool for benchmark data analysis"
         )
 
+type HandleClientError a = IO (Either ClientError a) -> IO (Maybe a)
+
 main :: IO ()
 main = do
     bkToken <- getToken
     Options sinceDay outputDir <- execParser optionsParser
     manager <- newManager $ specialSettings False
     let env = buildkiteEnv manager
-        runQuery action = bailout $ runClientM action env
-        query = Query runQuery $ withAuthWallet bkToken
-    result <- queryBuildkite query sinceDay
+        runQuery :: HandleClientError a -> ClientM a -> IO (Maybe a)
+        runQuery f action = f $ runClientM action env
+    result <- queryBuildkite runQuery (withAuthWallet bkToken) sinceDay
     let eHarmonized = harmonizeHistory result
     case eHarmonized of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
@@ -242,12 +255,21 @@ main = do
             BL8.writeFile (outputDir </> "benchmark_history" <.> "csv") csv
             renderHarmonizedHistoryChartSVG outputDir harmonized
 
-bailout :: IO (Either ClientError a) -> IO a
-bailout f = do
+bailout :: HandleClientError a
+bailout = handle (error . show)
+
+handle :: (ClientError -> IO (Maybe a)) -> HandleClientError a
+handle g f = do
     res <- f
     case res of
-        Left e -> error $ show e
-        Right a -> pure a
+        Left e -> g e
+        Right a -> pure $ Just a
+
+skip410 :: HandleClientError a
+skip410 = handle $ \case
+    FailureResponse _ (Response s _ _ _)
+        | s == status410 -> pure Nothing
+    e -> error $ show e
 
 buildkiteEnv :: Manager -> ClientEnv
 buildkiteEnv manager =

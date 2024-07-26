@@ -64,8 +64,9 @@ import qualified Streaming.Prelude as S
 
 data Query
     = Query
-        (forall a. ClientM a -> IO a)
-        (forall a. WithAuthPipeline a -> a)
+        { query :: forall a. ClientM a -> IO (Maybe a)
+        , withAuth :: forall a. WithAuthPipeline a -> a
+        }
 
 type JobMap = Map Text Job
 
@@ -73,15 +74,20 @@ type BuildJobsMap = BKAPI.Build (Map Text)
 
 type BuildAPI = BKAPI.Build []
 
-paging :: Monad m => (Maybe Int -> m [a]) -> Stream (Of a) m ()
+paging :: Monad m => (Maybe Int -> m (Maybe [a]))
+    -> Stream (Of a) m ()
 paging f = go 1
   where
     go page = do
-        bs <- lift $ f $ Just page
-        S.each bs
-        case bs of
-            [] -> pure ()
-            _ -> go $ page + 1
+        mbs <- lift $ f $ Just page
+        case mbs of
+            Nothing ->
+                pure () -- arbitrary choice ?
+            Just bs -> do
+                S.each bs
+                case bs of
+                    [] -> pure ()
+                    _ -> go $ page + 1
 
 getBuilds :: Query -> Stream (Of BuildAPI) IO ()
 getBuilds (Query q w) = paging $ q . w fetchBuilds
@@ -110,7 +116,7 @@ getArtifactsContent
     -> Artifact
     -> Stream (Of (BuildJobsMap, Artifact, r)) IO ()
 getArtifactsContent (Query q w) getArtifact build artifact = do
-    benchResults <-
+    mBenchResults <- do
         lift
             $ q
             $ w
@@ -118,7 +124,9 @@ getArtifactsContent (Query q w) getArtifact build artifact = do
                 (number build)
                 (job_id artifact)
                 (BKAPI.artifactId artifact)
-    S.yield (build, artifact, benchResults)
+    case mBenchResults of
+        Nothing -> pure ()
+        Just benchResults -> S.yield (build, artifact, benchResults)
 
 downloadArtifact :: ArtifactURL -> Stream (Of BL.ByteString) IO ()
 downloadArtifact (ArtifactURL url') = do
