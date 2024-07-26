@@ -36,12 +36,12 @@ import Cardano.Ledger.Shelley.TxAuxData
     ( Metadatum
     , ShelleyTxAuxData (..)
     )
+import Cardano.Read.Ledger.Tx.Metadata
+    ( Metadata (..)
+    )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.Metadata
-    ( Metadata (..)
     )
 import Data.Map
     ( Map

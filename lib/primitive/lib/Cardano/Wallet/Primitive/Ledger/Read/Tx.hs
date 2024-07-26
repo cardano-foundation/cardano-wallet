@@ -31,6 +31,9 @@ import Cardano.Read.Ledger.Tx.Hash
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
     )
+import Cardano.Read.Ledger.Tx.Metadata
+    ( getEraMetadata
+    )
 import Cardano.Read.Ledger.Tx.Outputs
     ( getEraOutputs
     )
@@ -64,9 +67,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras
     ( eraValue
-    )
-import Cardano.Wallet.Read.Tx.Metadata
-    ( getEraMetadata
     )
 import Cardano.Wallet.Read.Tx.ScriptValidity
     ( getEraScriptValidity

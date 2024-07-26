@@ -14,7 +14,7 @@
 -- Raw mint data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Metadata
+module Cardano.Read.Ledger.Tx.Metadata
     ( MetadataType
     , Metadata (..)
     , getEraMetadata
