@@ -27,6 +27,9 @@ import Cardano.Read.Ledger.Tx.ReferenceInputs
 import Cardano.Read.Ledger.Tx.Validity
     ( getEraValidity
     )
+import Cardano.Read.Ledger.Tx.Witnesses
+    ( getEraWitnesses
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
@@ -55,9 +58,6 @@ import Cardano.Wallet.Read
     , Shelley
     , Tx (Tx)
     , (:*:) ((:*:))
-    )
-import Cardano.Wallet.Read.Tx.Witnesses
-    ( getEraWitnesses
     )
 
 import qualified Cardano.Api as Cardano

@@ -19,6 +19,10 @@ import Cardano.Read.Ledger.Tx.Outputs
     ( Outputs (..)
     , getEraOutputs
     )
+import Cardano.Read.Ledger.Tx.Witnesses
+    ( Witnesses (..)
+    , getEraWitnesses
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromBabbageTxOut
     , fromConwayTxOut
@@ -44,10 +48,6 @@ import Cardano.Wallet.Read
     , Mary
     , Shelley
     , Tx
-    )
-import Cardano.Wallet.Read.Tx.Witnesses
-    ( Witnesses (..)
-    , getEraWitnesses
     )
 
 import Cardano.Address.Script

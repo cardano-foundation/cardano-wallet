@@ -14,7 +14,7 @@
 -- Raw witnesses data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Witnesses
+module Cardano.Read.Ledger.Tx.Witnesses
     ( WitnessesType
     , Witnesses (..)
     , getEraWitnesses
