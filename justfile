@@ -138,15 +138,9 @@ integration-tests match:
     '.#integration-exe' \
     -c integration-exe -j 2 --match="{{match}}"
 
-#start a shell with 9.1.0 in scope
-node-8121:
-  nix shell \
-  --accept-flake-config \
-  'github:IntersectMBO/cardano-node?ref=9.1.0#cardano-node' \
-  'github:IntersectMBO/cardano-node?ref=9.1.0#cardano-cli'
 
 # start a shell with 9.1.0 in scope
-node-900:
+node-910:
   nix shell \
   --accept-flake-config \
   'github:IntersectMBO/cardano-node?ref=9.1.0#cardano-node' \
