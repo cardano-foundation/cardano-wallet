@@ -37,6 +37,9 @@ import Cardano.Read.Ledger.Tx.Mint
 import Cardano.Read.Ledger.Tx.ReferenceInputs
     ( getEraReferenceInputs
     )
+import Cardano.Read.Ledger.Tx.Validity
+    ( getEraValidity
+    )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..)
     , apiError
@@ -63,9 +66,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity
     )
 import Cardano.Wallet.Read.Tx.Witnesses
     ( getEraWitnesses

@@ -14,7 +14,7 @@
 -- Raw validity interval data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Validity
+module Cardano.Read.Ledger.Tx.Validity
     ( getEraValidity
     , ValidityType
     , Validity (..)
