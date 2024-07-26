@@ -18,6 +18,9 @@ import Prelude
 import Cardano.Read.Ledger.Tx.Certificates
     ( getEraCertificates
     )
+import Cardano.Read.Ledger.Tx.Mint
+    ( getEraMint
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
@@ -46,9 +49,6 @@ import Cardano.Wallet.Read
     , Shelley
     , Tx (Tx)
     , (:*:) ((:*:))
-    )
-import Cardano.Wallet.Read.Tx.Mint
-    ( getEraMint
     )
 import Cardano.Wallet.Read.Tx.ReferenceInputs
     ( getEraReferenceInputs

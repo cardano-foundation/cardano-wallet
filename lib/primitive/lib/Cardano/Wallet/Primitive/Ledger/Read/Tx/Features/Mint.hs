@@ -42,6 +42,9 @@ import Cardano.Ledger.Shelley.TxWits
     ( ShelleyTxWits
     , scriptWits
     )
+import Cardano.Read.Ledger.Tx.Mint
+    ( Mint (..)
+    )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toPlutusScriptInfo
     , toWalletAssetName
@@ -75,9 +78,6 @@ import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
     , (:*:) (..)
-    )
-import Cardano.Wallet.Read.Tx.Mint
-    ( Mint (..)
     )
 import Cardano.Wallet.Read.Tx.ReferenceInputs
     ( ReferenceInputs (..)
