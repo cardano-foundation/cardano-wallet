@@ -77,6 +77,8 @@ spec = do
                     ]
             toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Left ErrMissingSalt
 
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8
@@ -120,6 +122,8 @@ spec = do
                     ]
             toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Left ErrMissingSalt
 
         -- $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
         -- IBcjjGQ7akr/CV2Zb0HtCvEPQNndZujCZ7iaFGMjOX3q3PJg5aRUvHgO3gPnDzYE
@@ -165,6 +169,8 @@ spec = do
                     ]
             toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Left ErrMissingSalt
 
         -- $ $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600=
@@ -204,6 +210,8 @@ spec = do
                 saltM = fromHexToM "3030303030303030"
             toMetadataEncrypted "cardano" schemaBefore saltM
                 `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Right schemaBefore
 
         -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh
@@ -245,6 +253,8 @@ spec = do
                 saltM = fromHexToM "3030303030303030"
             toMetadataEncrypted "cardano" schemaBefore saltM
                 `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Right schemaBefore
 
         -- $ $ echo -n '["Invoice-No: 123456789","Order-No: 7654321","Email: john@doe.com"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
         -- U2FsdGVkX18wMDAwMDAwMFlOS4b0tXrZA7U5aQaHeI/sP74h84EPEjGv0wl4D8Do
@@ -291,6 +301,8 @@ spec = do
                 saltM = fromHexToM "3030303030303030"
             toMetadataEncrypted "cardano" schemaBefore saltM
                 `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Right schemaBefore
 
         it "msg wrong label - no salt" $ do
             let schemaBefore =
