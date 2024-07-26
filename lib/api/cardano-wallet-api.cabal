@@ -40,9 +40,7 @@ library
     , aeson
     , aeson-pretty
     , ansi-terminal
-    , attoparsec
     , base
-    , base16-bytestring
     , bech32
     , bech32-th
     , binary

@@ -304,7 +304,6 @@ import Cardano.Wallet.Api.Types.RestorationMode
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
-    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -402,6 +401,10 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.MetadataEncryption
+    ( ErrMetadataEncryption (..)
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -1224,7 +1227,6 @@ spec = do
         -- vBSywXY+WGcrckHUCyjJcQ==
         it "short msg - no salt" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
                     [ ( 674
@@ -1264,7 +1266,6 @@ spec = do
         -- ygjbu25gCdhJh7iEpAJVaA==
         it "long msg - no salt" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
                     [ ( 674
@@ -1308,7 +1309,6 @@ spec = do
         -- 7jFsGUK1bCdwsrn8kqI92NccbG8oAtPJUktZTTcO/bg=
         it "cip msg - no salt" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
                     [ ( 674
@@ -1353,7 +1353,6 @@ spec = do
         -- U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600=
         it "short msg - salted" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $ Map.fromList
                     [ ( 674
                       , Cardano.TxMetaMap
@@ -1394,7 +1393,6 @@ spec = do
         -- PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU=
         it "long msg - salted" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $ Map.fromList
                     [ ( 674
                       , Cardano.TxMetaMap
@@ -1436,7 +1434,6 @@ spec = do
         -- +SIXXn04a9xkoFHk4ZH281nIfH5lpClsO16p2vRpSsdBDFO78aTPX3bsHsRE0L2A
         it "cip msg - salted" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
                     [ ( 674
@@ -1480,7 +1477,6 @@ spec = do
 
         it "msg wrong label - no salt" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $ Map.fromList
                     [ ( 675
                       , Cardano.TxMetaMap
@@ -1498,11 +1494,10 @@ spec = do
                       )
                     ]
             toMetadataEncrypted "cardano" schemaBefore Nothing
-                `shouldBe` Left ErrConstructTxIncorrectRawMetadata
+                `shouldBe` Left ErrIncorrectRawMetadata
 
         it "msg without 'msg field' - no salt" $ do
             let schemaBefore =
-                    TxMetadataWithSchema TxMetadataNoSchema $
                     Cardano.TxMetadata $
                     Map.fromList
                     [ ( 674
@@ -1521,7 +1516,7 @@ spec = do
                       )
                     ]
             toMetadataEncrypted "cardano" schemaBefore Nothing
-                `shouldBe` Left ErrConstructTxIncorrectRawMetadata
+                `shouldBe` Left ErrIncorrectRawMetadata
 
 fromHexToM :: Text -> Maybe ByteString
 fromHexToM = rightToMaybe . convertFromBase Base16 . T.encodeUtf8

@@ -123,8 +123,6 @@ import Cardano.Wallet.Api.Types.Error
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (..)
-    , metadataPBKDF2Config
-    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -171,6 +169,10 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.MetadataEncryption
+    ( metadataPBKDF2Config
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -5535,7 +5537,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
 
         let decodePayloadEncrypted = Json (toJSON signedTx)
         let (Right expMetadataEncrypted) =
-                ApiT <$> toMetadataEncrypted pwd metadataToBeEncrypted (Just salt)
+                ApiT <$> toMetadataEncrypted pwd metadataRaw (Just salt)
         rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
         verify rDecodedTxEncrypted

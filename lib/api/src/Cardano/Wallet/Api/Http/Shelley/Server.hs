@@ -177,6 +177,7 @@ import Cardano.Wallet
     , ErrConstructSharedWallet (..)
     , ErrConstructTx (..)
     , ErrCreateMigrationPlan (..)
+    , ErrDecodeTx (..)
     , ErrGetPolicyId (..)
     , ErrNoSuchWallet (..)
     , ErrReadRewardAccount (..)
@@ -475,8 +476,6 @@ import Cardano.Wallet.Api.Types.MintBurn
 import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema (TxMetadataWithSchema)
-    , fromMetadataEncrypted
-    , toMetadataEncrypted
     )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiAddress (..)
@@ -607,6 +606,10 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.MetadataEncryption
+    ( fromMetadataEncrypted
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
@@ -2586,12 +2589,13 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             let pwd :: ByteString
                 pwd = BA.convert $ unPassphrase $ getApiT $
                       apiEncrypt ^. #passphrase
-            toMetadataEncrypted pwd metadataWithSchema (Just salt)
+                meta = metadataWithSchema ^. #txMetadataWithSchema_metadata
+            toMetadataEncrypted pwd meta (Just salt)
                 & \case
                     Left err ->
-                        liftHandler $ throwE err
-                    Right meta ->
-                        pure $ Just meta
+                        liftHandler $ throwE $ ErrConstructTxFromMetadataEncryption err
+                    Right meta' ->
+                        pure $ Just meta'
         _ ->
             pure $ body ^? #metadata . traverse . #txMetadataWithSchema_metadata
 
@@ -3449,7 +3453,7 @@ decodeTransaction
                           getApiT $ apiDecrypt ^. #passphrase
                 case fromMetadataEncrypted pwd meta of
                     Left err ->
-                        liftHandler $ throwE err
+                        liftHandler $ throwE $ ErrDecodeTxFromMetadataDecryption err
                     Right txmetadata ->
                         pure . Just . ApiT $ txmetadata
             _ -> pure $ ApiT <$> metadata

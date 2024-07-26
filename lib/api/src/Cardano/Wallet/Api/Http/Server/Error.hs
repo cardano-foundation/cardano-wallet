@@ -137,6 +137,10 @@ import Cardano.Wallet.Primitive.Ledger.Convert
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     )
+import Cardano.Wallet.Primitive.Types.MetadataEncryption
+    ( ErrMetadataDecryption (..)
+    , ErrMetadataEncryption (..)
+    )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (TokenBundle)
     )
@@ -479,12 +483,12 @@ instance IsServerError ErrConstructTx where
             , "Please delegate again (in that case, the wallet will automatically vote to abstain), "
             , "or make a vote transaction before the withdrawal transaction."
             ]
-        ErrConstructTxIncorrectRawMetadata ->
+        ErrConstructTxFromMetadataEncryption ErrIncorrectRawMetadata ->
             apiError err403 InvalidMetadataEncryption $ mconcat
             [ "It looks like the metadata does not "
             , "have `msg` field that is supposed to be encrypted."
             ]
-        ErrConstructTxEncryptMetadata cryptoError ->
+        ErrConstructTxFromMetadataEncryption (ErrCannotEncryptMetadata cryptoError) ->
             apiError err403 InvalidMetadataEncryption $ mconcat
             [ "It looks like the metadata cannot be encrypted. "
             , "The exact error is: "
@@ -496,41 +500,42 @@ instance IsServerError ErrConstructTx where
 
 instance IsServerError ErrDecodeTx where
     toServerError = \case
-        ErrDecodeTxMissingMetadataKey ->
+        ErrDecodeTxFromMetadataDecryption ErrMissingMetadataKey ->
             apiError err403 InvalidMetadataDecryption $ mconcat
             [ "It looks like the encrypted metadata has wrong structure. "
             , "It is expected to be a map with key '674' - see CIP20."
             ]
-        ErrDecodeTxMissingEncryptionMethod ->
+        ErrDecodeTxFromMetadataDecryption ErrMissingEncryptionMethod ->
             apiError err403 InvalidMetadataDecryption $ mconcat
             [ "It looks like the encrypted metadata has wrong structure. "
             , "It is expected to have encryption method under 'enc' key - see CIP83."
             ]
-        ErrDecodeTxMissingValidEncryptionPayload ->
+        ErrDecodeTxFromMetadataDecryption ErrMissingValidEncryptionPayload ->
             apiError err403 InvalidMetadataDecryption $ mconcat
             [ "It looks like the encrypted metadata has wrong structure. "
             , "It is expected to have encryption payload under 'msg' key - see CIP83."
             ]
-        ErrDecodeTxDecryptedPayload err ->
+        ErrDecodeTxFromMetadataDecryption (ErrCannotAesonDecodePayload err) ->
             apiError err403 InvalidMetadataDecryption $ mconcat
             [ "It looks like the decrypted metadata cannot be decoded. "
             , "The exact error is: "
             , err
             ]
-        ErrDecodeTxMissingSalt ->
+        ErrDecodeTxFromMetadataDecryption ErrMissingSalt ->
             apiError err403 InvalidMetadataDecryption $ mconcat
             [ "It looks like the decrypted metadata can be decoded, but "
             , "misses salt."
             ]
-        ErrDecodeTxDecryptPayload cryptoError ->
+        ErrDecodeTxFromMetadataDecryption (ErrCannotDecryptPayload cryptoError) ->
             apiError err403 InvalidMetadataDecryption $ mconcat
             [ "It looks like the encrypted metadata cannot be decrypted. "
             , "The exact error is: "
             , T.pack (show cryptoError)
             ]
-        ErrDecodeTxEncryptedPayloadWrongBase ->
+        ErrDecodeTxFromMetadataDecryption ErrEncryptedPayloadWrongBase ->
             apiError err403 InvalidMetadataDecryption $ mconcat
-            [ "It looks like the encrypted metadata is not represented as Base64."
+            [ "It looks like the encrypted metadata is not represented as a list of Base64 "
+            , "- see CIP83."
             ]
 
 instance IsServerError ErrGetPolicyId where
