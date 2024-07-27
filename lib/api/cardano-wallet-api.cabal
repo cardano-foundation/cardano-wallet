@@ -27,12 +27,6 @@ common opts-lib
   if flag(release)
     ghc-options: -O2 -Werror
 
-common opts-exe
-  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
-
-  if flag(release)
-    ghc-options: -O2 -Werror
-
 flag release
   description: Enable optimization and `-Werror`
   default:     False
