@@ -134,6 +134,7 @@ library scenarios
     , cardano-api
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-wallet-exe
     , cardano-ledger-alonzo
     , cardano-ledger-core
     , cardano-wallet

@@ -74,21 +74,42 @@ library
   hs-source-dirs:  lib
   build-depends:
     , address-derivation-discovery
+    , aeson
+    , aeson-pretty
+    , ansi-terminal
     , base
+    , bytestring
+    , cardano-addresses
+    , cardano-addresses-cli
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
+    , cardano-wallet-secrets
     , contra-tracer
+    , directory
     , extra
+    , filepath
+    , fmt
     , generic-lens
+    , http-client
+    , iohk-monitoring
     , network
     , network-uri
+    , optparse-applicative
+    , servant-client
+    , servant-client-core
     , servant-server
+    , text
+    , text-class
+    , time
     , transformers
+    , unliftio
     , warp
     , Win32-network
 
   exposed-modules:
 
     Cardano.Wallet.Application
+    Cardano.CLI

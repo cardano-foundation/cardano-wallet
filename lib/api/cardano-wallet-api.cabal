@@ -120,7 +120,6 @@ library
     , x509-validation
 
   exposed-modules:
-    Cardano.CLI
     Cardano.Wallet.Api
     Cardano.Wallet.Api.Aeson
     Cardano.Wallet.Api.Aeson.Variant
