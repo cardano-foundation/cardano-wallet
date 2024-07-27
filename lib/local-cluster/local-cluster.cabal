@@ -279,7 +279,7 @@ test-suite test-local-cluster
     SpecHook
 
   build-tool-depends:
-    , cardano-wallet-api:cardano-wallet
+    , cardano-wallet-exe:cardano-wallet
     , local-cluster:local-cluster
 
 executable test-local-cluster-exe

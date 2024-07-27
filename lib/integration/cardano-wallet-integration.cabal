@@ -219,4 +219,4 @@ test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
-  build-tool-depends: cardano-wallet-api:cardano-wallet
+  build-tool-depends: cardano-wallet-exe:cardano-wallet
