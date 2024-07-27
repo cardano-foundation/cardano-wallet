@@ -249,7 +249,7 @@ import Cardano.Address.Derivation
     , xpubFromBytes
     , xpubToBytes
     )
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     )
 import Cardano.Mnemonic

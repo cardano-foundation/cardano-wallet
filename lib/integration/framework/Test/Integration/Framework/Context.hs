@@ -15,7 +15,7 @@ import Prelude
 import Cardano.Address
     ( Address
     )
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     )
 import Cardano.Wallet.Api.Types.Era

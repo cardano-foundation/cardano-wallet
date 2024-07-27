@@ -34,9 +34,6 @@ import Cardano.BM.ToTextTracer
 import Cardano.BM.Trace
     ( traceInTVarIO
     )
-import Cardano.CLI
-    ( Port (..)
-    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -70,6 +67,9 @@ import Cardano.Wallet.Application
     ( Tracers
     , Tracers' (..)
     , serveWallet
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port (..)
     )
 import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)

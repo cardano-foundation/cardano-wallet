@@ -14,7 +14,7 @@ module Test.Integration.Scenario.CLI.Shelley.Wallets
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port
     )
 import Cardano.Wallet.Address.Discovery.Sequential

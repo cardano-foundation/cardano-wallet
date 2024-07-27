@@ -16,7 +16,7 @@ module Cardano.CLISpec
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     , TxId
     , cli

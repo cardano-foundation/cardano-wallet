@@ -28,7 +28,7 @@ import Cardano.BM.Plugin
 import Cardano.BM.Trace
     ( appendName
     )
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( LogOutput (..)
     , ekgEnabled
     , withLogging

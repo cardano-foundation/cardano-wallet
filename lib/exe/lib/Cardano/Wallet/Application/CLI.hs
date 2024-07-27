@@ -25,7 +25,7 @@
 --
 -- Shared types and helpers for CLI parsing
 
-module Cardano.CLI
+module Cardano.Wallet.Application.CLI
     (
     -- * CLI Execution
       cli

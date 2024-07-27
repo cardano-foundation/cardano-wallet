@@ -13,7 +13,7 @@ module Test.Integration.Scenario.CLI.Shelley.Transactions
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port
     )
 import Cardano.Wallet.Address.Encoding

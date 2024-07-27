@@ -28,7 +28,7 @@ import Cardano.BM.Extra
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     )
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     , getEKGURL
     , getPrometheusURL
@@ -226,7 +226,7 @@ import UnliftIO.MVar
     , withMVar
     )
 
-import qualified Cardano.CLI as CLI
+import qualified Cardano.Wallet.Application.CLI as CLI
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Link as Link

@@ -10,7 +10,7 @@ module Test.Integration.Scenario.CLI.Network
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     )
 import Cardano.Wallet.Api.Types

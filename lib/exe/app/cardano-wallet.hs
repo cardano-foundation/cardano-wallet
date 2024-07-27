@@ -43,7 +43,36 @@ import Cardano.BM.Trace
     , logInfo
     , logNotice
     )
-import Cardano.CLI
+import Cardano.Launcher.Node
+    ( CardanoNodeConn
+    )
+import Cardano.Startup
+    ( ShutdownHandlerLog
+    , installSignalHandlers
+    , withShutdownHandler
+    )
+import Cardano.Wallet.Api.Client
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
+    )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( HostPreference
+    , Listen (..)
+    , TlsConfiguration
+    )
+import Cardano.Wallet.Application
+    ( TracerSeverities
+    , Tracers
+    , Tracers' (..)
+    , serveWallet
+    , setupTracers
+    , tracerDescriptions
+    , tracerLabels
+    )
+import Cardano.Wallet.Application.CLI
     ( LogOutput (..)
     , LoggingOptions
     , Mode (..)
@@ -75,35 +104,6 @@ import Cardano.CLI
     , tlsOption
     , tokenMetadataSourceOption
     , withLogging
-    )
-import Cardano.Launcher.Node
-    ( CardanoNodeConn
-    )
-import Cardano.Startup
-    ( ShutdownHandlerLog
-    , installSignalHandlers
-    , withShutdownHandler
-    )
-import Cardano.Wallet.Api.Client
-    ( addressClient
-    , networkClient
-    , stakePoolClient
-    , transactionClient
-    , walletClient
-    )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
-    , TlsConfiguration
-    )
-import Cardano.Wallet.Application
-    ( TracerSeverities
-    , Tracers
-    , Tracers' (..)
-    , serveWallet
-    , setupTracers
-    , tracerDescriptions
-    , tracerLabels
     )
 import Cardano.Wallet.CLI
     ( networkConfigurationOption
