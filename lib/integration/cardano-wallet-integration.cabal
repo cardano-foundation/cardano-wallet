@@ -53,6 +53,7 @@ library framework
     , cardano-ledger-shelley
     , cardano-wallet-api
     , cardano-wallet-application-extras
+    , cardano-wallet-exe
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive

@@ -23,6 +23,15 @@ common language
     OverloadedStrings
 common opts-exe
   ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+      -Wunused-packages
+
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
+    -Wunused-packages
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -45,6 +54,7 @@ executable cardano-wallet
     , base
     , cardano-wallet
     , cardano-wallet-api
+    , cardano-wallet-exe
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
@@ -58,3 +68,27 @@ executable cardano-wallet
     , transformers
     , unliftio
     , with-utf8
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  build-depends:
+    , address-derivation-discovery
+    , base
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , contra-tracer
+    , extra
+    , generic-lens
+    , network
+    , network-uri
+    , servant-server
+    , transformers
+    , warp
+    , Win32-network
+
+  exposed-modules:
+
+    Cardano.Wallet.Shelley

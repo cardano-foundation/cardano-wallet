@@ -140,6 +140,7 @@ benchmark latency
     , cardano-addresses
     , cardano-wallet
     , cardano-wallet-api
+    , cardano-wallet-exe
     , cardano-wallet-application-extras
     , cardano-wallet-benchmarks
     , cardano-wallet-integration:framework
