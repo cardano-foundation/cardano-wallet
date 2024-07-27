@@ -53,6 +53,10 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     )
+import Cardano.Wallet.Application
+    ( Tracers
+    , serveWallet
+    )
 import Cardano.Wallet.Faucet
     ( FaucetM
     , runFaucetM
@@ -105,10 +109,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Shelley
-    ( Tracers
-    , serveWallet
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)

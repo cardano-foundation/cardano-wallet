@@ -21,7 +21,7 @@
 -- Functionality specific to this backend for creating transactions is in
 -- "Cardano.Wallet.Shelley.Transaction"
 
-module Cardano.Wallet.Shelley
+module Cardano.Wallet.Application
     ( serveWallet
     , module Tracers
     ) where

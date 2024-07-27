@@ -33,6 +33,11 @@ import Cardano.CLI
     , ekgEnabled
     , withLogging
     )
+import Cardano.Wallet.Application
+    ( Tracers
+    , setupTracers
+    , tracerSeverities
+    )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterLog
     , clusterEraFromEnv
@@ -45,11 +50,6 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , mkRelDirOf
     , toFilePath
-    )
-import Cardano.Wallet.Shelley
-    ( Tracers
-    , setupTracers
-    , tracerSeverities
     )
 import Control.Monad
     ( when

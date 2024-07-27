@@ -96,6 +96,15 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , Listen (..)
     , TlsConfiguration
     )
+import Cardano.Wallet.Application
+    ( TracerSeverities
+    , Tracers
+    , Tracers' (..)
+    , serveWallet
+    , setupTracers
+    , tracerDescriptions
+    , tracerLabels
+    )
 import Cardano.Wallet.CLI
     ( networkConfigurationOption
     , nodeSocketOption
@@ -111,15 +120,6 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..)
     , Settings (..)
     , TokenMetadataServer (..)
-    )
-import Cardano.Wallet.Shelley
-    ( TracerSeverities
-    , Tracers
-    , Tracers' (..)
-    , serveWallet
-    , setupTracers
-    , tracerDescriptions
-    , tracerLabels
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)

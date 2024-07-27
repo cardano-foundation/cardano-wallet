@@ -66,6 +66,11 @@ import Cardano.Wallet.Api.Types.Era
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
     )
+import Cardano.Wallet.Application
+    ( Tracers
+    , Tracers' (..)
+    , serveWallet
+    )
 import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)
     , Reporter (..)
@@ -134,11 +139,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Shelley
-    ( Tracers
-    , Tracers' (..)
-    , serveWallet
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)

@@ -91,4 +91,4 @@ library
 
   exposed-modules:
 
-    Cardano.Wallet.Shelley
+    Cardano.Wallet.Application
