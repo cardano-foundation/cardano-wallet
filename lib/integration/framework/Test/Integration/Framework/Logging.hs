@@ -28,15 +28,15 @@ import Cardano.BM.Plugin
 import Cardano.BM.Trace
     ( appendName
     )
-import Cardano.Wallet.Application.CLI
-    ( LogOutput (..)
-    , ekgEnabled
-    , withLogging
-    )
 import Cardano.Wallet.Application
     ( Tracers
     , setupTracers
     , tracerSeverities
+    )
+import Cardano.Wallet.Application.CLI
+    ( LogOutput (..)
+    , ekgEnabled
+    , withLogging
     )
 import Cardano.Wallet.Launch.Cluster
     ( ClusterLog

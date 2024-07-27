@@ -15,11 +15,11 @@ import Prelude
 import Cardano.Address
     ( Address
     )
-import Cardano.Wallet.Application.CLI
-    ( Port (..)
-    )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port (..)
     )
 import Cardano.Wallet.Faucet
     ( Faucet

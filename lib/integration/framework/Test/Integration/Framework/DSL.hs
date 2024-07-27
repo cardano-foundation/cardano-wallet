@@ -249,9 +249,6 @@ import Cardano.Address.Derivation
     , xpubFromBytes
     , xpubToBytes
     )
-import Cardano.Wallet.Application.CLI
-    ( Port (..)
-    )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , SomeMnemonic (..)
@@ -352,6 +349,9 @@ import Cardano.Wallet.Api.Types.WalletAsset
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port (..)
     )
 import Cardano.Wallet.Compat
     ( (^?)

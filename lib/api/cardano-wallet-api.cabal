@@ -159,7 +159,6 @@ library
     Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Api.Types.WalletAsset
     Cardano.Wallet.Api.Types.WalletAssets
-    Cardano.Wallet.Tracers
     Cardano.Wallet.Version
     Cardano.Wallet.Version.TH
   other-modules:

@@ -13,9 +13,6 @@ module Test.Integration.Scenario.CLI.Shelley.Transactions
 
 import Prelude
 
-import Cardano.Wallet.Application.CLI
-    ( Port
-    )
 import Cardano.Wallet.Address.Encoding
     ( encodeAddress
     )
@@ -32,6 +29,9 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , detailedMetadata
     , noSchemaMetadata
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)

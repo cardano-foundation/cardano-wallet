@@ -95,8 +95,10 @@ library
     , generic-lens
     , http-client
     , iohk-monitoring
+    , iohk-monitoring-extra
     , network
     , network-uri
+    , ntp-client
     , optparse-applicative
     , servant-client
     , servant-client-core
@@ -107,9 +109,11 @@ library
     , transformers
     , unliftio
     , warp
+    , wai-middleware-logging
     , Win32-network
 
   exposed-modules:
 
     Cardano.Wallet.Application
     Cardano.Wallet.Application.CLI
+    Cardano.Wallet.Tracers
