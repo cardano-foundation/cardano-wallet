@@ -8,7 +8,7 @@
 --
 -- Tracing functionality for the Shelley wallet
 --
-module Cardano.Wallet.Tracers
+module Cardano.Wallet.Application.Tracers
     ( Tracers' (..)
     , Tracers
     , TracerSeverities

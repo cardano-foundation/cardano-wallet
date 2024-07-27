@@ -72,6 +72,16 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , TlsConfiguration
     , toServerError
     )
+import Cardano.Wallet.Application.Tracers as Tracers
+    ( TracerSeverities
+    , Tracers
+    , Tracers' (..)
+    , nullTracers
+    , setupTracers
+    , tracerDescriptions
+    , tracerLabels
+    , tracerSeverities
+    )
 import Cardano.Wallet.DB.Layer
     ( PersistAddressBook
     )
@@ -146,16 +156,6 @@ import Cardano.Wallet.Shelley.Transaction
     )
 import Cardano.Wallet.TokenMetadata
     ( newMetadataClient
-    )
-import Cardano.Wallet.Tracers as Tracers
-    ( TracerSeverities
-    , Tracers
-    , Tracers' (..)
-    , nullTracers
-    , setupTracers
-    , tracerDescriptions
-    , tracerLabels
-    , tracerSeverities
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer
