@@ -99,17 +99,17 @@ import Cardano.Wallet.Api.Types
     ( ApiAssetMetadata (ApiAssetMetadata)
     , ApiT (..)
     )
+import Cardano.Wallet.Application.Version
+    ( gitRevision
+    , showFullVersion
+    , version
+    )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..)
     , TxMetadataValue (..)
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
-    )
-import Cardano.Wallet.Version
-    ( gitRevision
-    , showFullVersion
-    , version
     )
 import Data.Text
     ( Text

@@ -105,6 +105,11 @@ import Cardano.Wallet.Application.CLI
     , tokenMetadataSourceOption
     , withLogging
     )
+import Cardano.Wallet.Application.Version
+    ( GitRevision
+    , Version
+    , showFullVersion
+    )
 import Cardano.Wallet.CLI
     ( networkConfigurationOption
     , nodeSocketOption
@@ -123,11 +128,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Version
-    ( GitRevision
-    , Version
-    , showFullVersion
     )
 import Control.Applicative
     ( Const (..)
@@ -191,7 +191,7 @@ import UnliftIO.Exception
     )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
-import qualified Cardano.Wallet.Version as V
+import qualified Cardano.Wallet.Application.Version as V
 import qualified Data.Text as T
 import qualified System.Info as I
 

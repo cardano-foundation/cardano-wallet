@@ -119,6 +119,8 @@ library
     Cardano.Wallet.Application
     Cardano.Wallet.Application.CLI
     Cardano.Wallet.Application.Tracers
+    Cardano.Wallet.Application.Version
+    Cardano.Wallet.Application.Version.TH
 
   other-modules:
   

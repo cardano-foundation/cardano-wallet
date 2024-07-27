@@ -204,6 +204,11 @@ import Cardano.Wallet.Api.Types.SchemaMetadata
     ( TxMetadataSchema (..)
     , TxMetadataWithSchema
     )
+import Cardano.Wallet.Application.Version
+    ( gitRevision
+    , showFullVersion
+    , version
+    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Passphrase.Types
@@ -232,11 +237,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SerialisedTx (..)
-    )
-import Cardano.Wallet.Version
-    ( gitRevision
-    , showFullVersion
-    , version
     )
 import Control.Applicative
     ( optional

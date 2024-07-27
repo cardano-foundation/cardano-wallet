@@ -7,7 +7,7 @@
 -- Template Haskell function for getting the git revision from the local
 -- repo. This is a separate module due to the GHC stage restriction.
 
-module Cardano.Wallet.Version.TH
+module Cardano.Wallet.Application.Version.TH
     ( gitRevFromGit
     ) where
 
