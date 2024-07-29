@@ -17,6 +17,9 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.Withdrawals
+    ( Withdrawals (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin
     )
@@ -26,9 +29,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( Withdrawals (..)
     )
 import Data.Map.Strict
     ( Map

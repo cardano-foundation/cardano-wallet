@@ -15,6 +15,21 @@ where
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.Certificates
+    ( getEraCertificates
+    )
+import Cardano.Read.Ledger.Tx.Mint
+    ( getEraMint
+    )
+import Cardano.Read.Ledger.Tx.ReferenceInputs
+    ( getEraReferenceInputs
+    )
+import Cardano.Read.Ledger.Tx.Validity
+    ( getEraValidity
+    )
+import Cardano.Read.Ledger.Tx.Witnesses
+    ( getEraWitnesses
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx
     ( primitiveTx
     )
@@ -43,21 +58,6 @@ import Cardano.Wallet.Read
     , Shelley
     , Tx (Tx)
     , (:*:) ((:*:))
-    )
-import Cardano.Wallet.Read.Tx.Certificates
-    ( getEraCertificates
-    )
-import Cardano.Wallet.Read.Tx.Mint
-    ( getEraMint
-    )
-import Cardano.Wallet.Read.Tx.ReferenceInputs
-    ( getEraReferenceInputs
-    )
-import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity
-    )
-import Cardano.Wallet.Read.Tx.Witnesses
-    ( getEraWitnesses
     )
 
 import qualified Cardano.Api as Cardano

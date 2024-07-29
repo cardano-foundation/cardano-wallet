@@ -32,6 +32,10 @@ import Cardano.Ledger.Coin
 import Cardano.Ledger.Mary.Value
     ( MaryValue (..)
     )
+import Cardano.Read.Ledger.Tx.Outputs
+    ( Outputs (..)
+    , getEraOutputs
+    )
 import Cardano.Wallet.Faucet.Gen.Address
     ( NetworkTag (..)
     , genAddress
@@ -110,10 +114,6 @@ import Cardano.Wallet.Read
     , applyEraFunValue
     , extractEraValue
     , (:*:) (..)
-    )
-import Cardano.Wallet.Read.Tx.Outputs
-    ( Outputs (..)
-    , getEraOutputs
     )
 import Control.Monad
     ( join

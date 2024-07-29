@@ -29,6 +29,10 @@ import Cardano.Ledger.Crypto
 import Cardano.Ledger.SafeHash
     ( SafeToHash (originalBytes)
     )
+import Cardano.Read.Ledger.Tx.Integrity
+    ( Integrity (..)
+    , getEraIntegrity
+    )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , EraValue
@@ -37,10 +41,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx
-    )
-import Cardano.Wallet.Read.Tx.Integrity
-    ( Integrity (..)
-    , getEraIntegrity
     )
 import Control.Category
     ( (.)

@@ -15,6 +15,14 @@ import Cardano.Ledger.Api
     , hashScript
     , scriptTxWitsL
     )
+import Cardano.Read.Ledger.Tx.Outputs
+    ( Outputs (..)
+    , getEraOutputs
+    )
+import Cardano.Read.Ledger.Tx.Witnesses
+    ( Witnesses (..)
+    , getEraWitnesses
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Outputs
     ( fromBabbageTxOut
     , fromConwayTxOut
@@ -41,14 +49,6 @@ import Cardano.Wallet.Read
     , Shelley
     , Tx
     )
-import Cardano.Wallet.Read.Tx.Outputs
-    ( Outputs (..)
-    , getEraOutputs
-    )
-import Cardano.Wallet.Read.Tx.Witnesses
-    ( Witnesses (..)
-    , getEraWitnesses
-    )
 
 import Cardano.Address.Script
     ( KeyRole (..)
@@ -56,6 +56,9 @@ import Cardano.Address.Script
 import Cardano.Ledger.Babbage
     ( AlonzoScript
     , BabbageTxOut
+    )
+import Cardano.Read.Ledger.Tx.Hash
+    ( getEraTxHash
     )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( toWalletScript
@@ -73,9 +76,6 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     , WitnessCountCtx
     , emptyWitnessCount
     , toKeyRole
-    )
-import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash
     )
 import Control.Lens
     ( folded

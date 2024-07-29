@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Cardano.Wallet.Read.Tx.Hash
+module Cardano.Read.Ledger.Tx.Hash
     ( byronTxHash
     , shelleyTxHash
     , fromShelleyTxId
@@ -36,15 +36,15 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.TxIn
     ( TxId (..)
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read
     ( Tx
     )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( (^.)

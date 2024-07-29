@@ -14,7 +14,7 @@
 -- Raw certificate data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Certificates
+module Cardano.Read.Ledger.Tx.Certificates
     ( CertificatesType
     , Certificates (..)
     , getEraCertificates
@@ -36,6 +36,9 @@ import Cardano.Ledger.Crypto
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -49,9 +52,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( view

@@ -12,6 +12,9 @@ import Prelude hiding
     , (.)
     )
 
+import Cardano.Read.Ledger.Tx.Certificates
+    ( getEraCertificates
+    )
 import Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     ( primitiveBlockHeader
     )
@@ -32,9 +35,6 @@ import Cardano.Wallet.Read.Block.Txs
     )
 import Cardano.Wallet.Read.Eras
     ( applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.Certificates
-    ( getEraCertificates
     )
 import Control.Category
     ( Category (..)

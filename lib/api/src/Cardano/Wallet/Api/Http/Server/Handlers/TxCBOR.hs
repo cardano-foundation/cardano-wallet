@@ -18,6 +18,31 @@ import Prelude
 import Cardano.Binary
     ( DecoderError
     )
+import Cardano.Read.Ledger.Tx.CBOR
+    ( TxCBOR
+    , deserializeTx
+    )
+import Cardano.Read.Ledger.Tx.Certificates
+    ( getEraCertificates
+    )
+import Cardano.Read.Ledger.Tx.ExtraSigs
+    ( getEraExtraSigs
+    )
+import Cardano.Read.Ledger.Tx.Integrity
+    ( getEraIntegrity
+    )
+import Cardano.Read.Ledger.Tx.Mint
+    ( getEraMint
+    )
+import Cardano.Read.Ledger.Tx.ReferenceInputs
+    ( getEraReferenceInputs
+    )
+import Cardano.Read.Ledger.Tx.Validity
+    ( getEraValidity
+    )
+import Cardano.Read.Ledger.Tx.Witnesses
+    ( getEraWitnesses
+    )
 import Cardano.Wallet.Api.Http.Server.Error
     ( IsServerError (..)
     , apiError
@@ -44,31 +69,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR
-    , deserializeTx
-    )
-import Cardano.Wallet.Read.Tx.Certificates
-    ( getEraCertificates
-    )
-import Cardano.Wallet.Read.Tx.ExtraSigs
-    ( getEraExtraSigs
-    )
-import Cardano.Wallet.Read.Tx.Integrity
-    ( getEraIntegrity
-    )
-import Cardano.Wallet.Read.Tx.Mint
-    ( getEraMint
-    )
-import Cardano.Wallet.Read.Tx.ReferenceInputs
-    ( getEraReferenceInputs
-    )
-import Cardano.Wallet.Read.Tx.Validity
-    ( getEraValidity
-    )
-import Cardano.Wallet.Read.Tx.Witnesses
-    ( getEraWitnesses
     )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts

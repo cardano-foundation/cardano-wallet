@@ -14,7 +14,7 @@
 -- Raw mint data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.ScriptValidity
+module Cardano.Read.Ledger.Tx.ScriptValidity
     ( ScriptValidityType
     , ScriptValidity (..)
     , getEraScriptValidity
@@ -25,6 +25,9 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( IsValid
     , isValidTxL
+    )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
     )
 import Cardano.Wallet.Read.Eras
     ( Allegra
@@ -39,9 +42,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( (^.)

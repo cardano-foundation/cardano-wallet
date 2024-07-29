@@ -13,8 +13,35 @@ where
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( renderTxToCBOR
+    )
+import Cardano.Read.Ledger.Tx.CollateralInputs
+    ( getEraCollateralInputs
+    )
+import Cardano.Read.Ledger.Tx.CollateralOutputs
+    ( getEraCollateralOutputs
+    )
+import Cardano.Read.Ledger.Tx.Fee
+    ( getEraFee
+    )
+import Cardano.Read.Ledger.Tx.Hash
+    ( getEraTxHash
+    )
 import Cardano.Read.Ledger.Tx.Inputs
     ( getEraInputs
+    )
+import Cardano.Read.Ledger.Tx.Metadata
+    ( getEraMetadata
+    )
+import Cardano.Read.Ledger.Tx.Outputs
+    ( getEraOutputs
+    )
+import Cardano.Read.Ledger.Tx.ScriptValidity
+    ( getEraScriptValidity
+    )
+import Cardano.Read.Ledger.Tx.Withdrawals
+    ( getEraWithdrawals
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralInputs
     ( getCollateralInputs
@@ -46,33 +73,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras
     ( eraValue
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( renderTxToCBOR
-    )
-import Cardano.Wallet.Read.Tx.CollateralInputs
-    ( getEraCollateralInputs
-    )
-import Cardano.Wallet.Read.Tx.CollateralOutputs
-    ( getEraCollateralOutputs
-    )
-import Cardano.Wallet.Read.Tx.Fee
-    ( getEraFee
-    )
-import Cardano.Wallet.Read.Tx.Hash
-    ( getEraTxHash
-    )
-import Cardano.Wallet.Read.Tx.Metadata
-    ( getEraMetadata
-    )
-import Cardano.Wallet.Read.Tx.Outputs
-    ( getEraOutputs
-    )
-import Cardano.Wallet.Read.Tx.ScriptValidity
-    ( getEraScriptValidity
-    )
-import Cardano.Wallet.Read.Tx.Withdrawals
-    ( getEraWithdrawals
     )
 import Data.Foldable
     ( fold

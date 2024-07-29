@@ -14,7 +14,7 @@
 -- Raw collateral output data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.CollateralOutputs
+module Cardano.Read.Ledger.Tx.CollateralOutputs
     ( CollateralOutputsType
     , CollateralOutputs (..)
     , getEraCollateralOutputs
@@ -39,6 +39,9 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -52,9 +55,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( (^.)

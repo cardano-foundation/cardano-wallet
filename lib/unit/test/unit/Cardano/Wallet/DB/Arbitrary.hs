@@ -49,6 +49,9 @@ import Cardano.Mnemonic
 import Cardano.Pool.Types
     ( PoolId (..)
     )
+import Cardano.Read.Ledger.Tx.CBOR
+    ( TxCBOR
+    )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso (..)
     )
@@ -219,9 +222,6 @@ import Cardano.Wallet.Read.Eras.EraValue
     )
 import Cardano.Wallet.Read.Eras.KnownEras
     ( knownEraIndices
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR
     )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic

@@ -153,6 +153,9 @@ import Cardano.Ledger.PoolParams
 import Cardano.Ledger.Shelley.Genesis
     ( fromNominalDiffTimeMicro
     )
+import Cardano.Read.Ledger.Tx.Hash
+    ( fromShelleyTxId
+    )
 import Cardano.Slotting.Slot
     ( EpochNo (..)
     , EpochSize (..)
@@ -182,9 +185,6 @@ import Cardano.Wallet.Primitive.Types.Pool
 import Cardano.Wallet.Primitive.Types.StakePoolMetadata
     ( StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
-    )
-import Cardano.Wallet.Read.Tx.Hash
-    ( fromShelleyTxId
     )
 import Cardano.Wallet.Unsafe
     ( unsafeIntToWord

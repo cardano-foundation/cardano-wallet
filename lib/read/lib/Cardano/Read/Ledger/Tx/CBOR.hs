@@ -15,7 +15,7 @@
 -- CBOR operations for era dependent transactions.
 --
 
-module Cardano.Wallet.Read.Tx.CBOR
+module Cardano.Read.Ledger.Tx.CBOR
     ( TxCBOR
     , renderTxToCBOR
     , parseTxFromCBOR

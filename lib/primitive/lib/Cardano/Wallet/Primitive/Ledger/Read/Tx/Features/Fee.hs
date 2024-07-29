@@ -12,16 +12,16 @@ import Prelude
 import Cardano.Ledger.Coin
     ( Coin
     )
+import Cardano.Read.Ledger.Tx.Fee
+    ( Fee (..)
+    , FeeType
+    )
 import Cardano.Wallet.Read
     ( Era (..)
     , theEra
     )
 import Cardano.Wallet.Read.Eras
     ( IsEra
-    )
-import Cardano.Wallet.Read.Tx.Fee
-    ( Fee (..)
-    , FeeType
     )
 
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger

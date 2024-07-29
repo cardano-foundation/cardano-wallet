@@ -24,6 +24,9 @@ module Cardano.Wallet.Primitive.Types.Tx.TransactionInfo
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( TxCBOR
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
@@ -48,9 +51,6 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR
     )
 import Control.DeepSeq
     ( NFData (..)

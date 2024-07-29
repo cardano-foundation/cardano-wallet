@@ -7,16 +7,16 @@ module Cardano.Wallet.Read.Tx.CBORSpec
 
 import Prelude
 
+import Cardano.Read.Ledger.Tx.CBOR
+    ( TxCBOR
+    , parseTxFromCBOR
+    , renderTxToCBOR
+    )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , EraValue (..)
     , IsEra
     , K (..)
-    )
-import Cardano.Wallet.Read.Tx.CBOR
-    ( TxCBOR
-    , parseTxFromCBOR
-    , renderTxToCBOR
     )
 import Data.ByteArray.Encoding
     ( Base (..)
@@ -43,7 +43,7 @@ import Test.QuickCheck
 import qualified Data.ByteString.Lazy as BL
 
 spec :: Spec
-spec = describe "Cardano.Wallet.Read.Tx.CBOR" $ do
+spec = describe "Cardano.Read.Ledger.Tx.CBOR" $ do
     describe "TxCBOR encoding" $ do
 
         it "roundtrips byron tx properly" $ do

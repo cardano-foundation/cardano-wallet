@@ -14,7 +14,7 @@
 -- Raw extra signers required data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.ExtraSigs where
+module Cardano.Read.Ledger.Tx.ExtraSigs where
 
 import Prelude
 
@@ -31,6 +31,9 @@ import Cardano.Ledger.Keys
     ( KeyHash
     , KeyRole (..)
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -44,9 +47,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( (^.)

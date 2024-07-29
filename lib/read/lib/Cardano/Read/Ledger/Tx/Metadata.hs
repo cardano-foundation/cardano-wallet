@@ -14,7 +14,7 @@
 -- Raw mint data extraction from 'Tx'
 --
 
-module Cardano.Wallet.Read.Tx.Metadata
+module Cardano.Read.Ledger.Tx.Metadata
     ( MetadataType
     , Metadata (..)
     , getEraMetadata
@@ -34,6 +34,9 @@ import Cardano.Ledger.Core
 import Cardano.Ledger.Shelley.TxAuxData
     ( ShelleyTxAuxData
     )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -47,9 +50,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
-    )
-import Cardano.Wallet.Read.Tx.Eras
-    ( onTx
     )
 import Control.Lens
     ( view
