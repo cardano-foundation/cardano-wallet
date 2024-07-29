@@ -23,7 +23,7 @@ fi
 source .env
 
 # Define and export wallet and node version tags
-RELEASE_WALLET_TAG=2024.7.7
+RELEASE_WALLET_TAG=2024.7.27
 
 WALLET_TAG=${WALLET_TAG:=$RELEASE_WALLET_TAG}
 export WALLET_TAG
