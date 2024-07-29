@@ -159,4 +159,4 @@ withSNetworkId
        )
     -> a
 withSNetworkId NMainnet f = f SMainnet
-withSNetworkId (NTestnet i) f = withSNat i $  f . STestnet
+withSNetworkId (NTestnet i) f = withSNat i $ f . STestnet

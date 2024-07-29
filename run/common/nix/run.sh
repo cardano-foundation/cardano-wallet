@@ -129,7 +129,13 @@ case "$1" in
         echo "Result: $result"
         # Exit with 0 on success, 1 on failure or timeout
         if [[ "$result" == "success" ]]; then
-            exit 0
+            if [ -z "${KEEP_ON_RUNNING-}" ]; then
+                exit 0
+            else
+                echo "Service is ready and running..."
+                sleep infinity
+                exit 0
+            fi
         else
             exit 1
         fi

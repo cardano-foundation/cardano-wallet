@@ -12,13 +12,12 @@
 -- License: Apache-2.0
 --
 -- Representation of the API specification `walletAssets` type.
---
 module Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
     , fromTokenMap
     , toTokenMap
     )
-    where
+where
 
 import Prelude
 
@@ -62,10 +61,12 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
     ( TokenQuantity (TokenQuantity)
     )
 
-newtype ApiWalletAssets = ApiWalletAssets [ApiWalletAsset]
+newtype ApiWalletAssets = ApiWalletAssets
+    { getApiWalletAssets :: [ApiWalletAsset]
+    }
     deriving (Data, Eq, Generic, Ord, Show, Typeable)
     deriving newtype (Hashable, IsList, Semigroup, Monoid, FromJSON, ToJSON)
-    deriving anyclass NFData
+    deriving anyclass (NFData)
 
 fromTokenMap :: W.TokenMap -> ApiWalletAssets
 fromTokenMap = fromList . fmap f . W.TokenMap.toFlatList
