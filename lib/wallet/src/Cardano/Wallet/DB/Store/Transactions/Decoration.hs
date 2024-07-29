@@ -33,6 +33,9 @@ import Prelude hiding
     ( (.)
     )
 
+import Cardano.Read.Ledger.Tx.Inputs
+    ( getEraInputs
+    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( TxCollateral (..)
     , TxIn (..)
@@ -60,9 +63,6 @@ import Cardano.Wallet.Read.Eras.EraFun
     )
 import Cardano.Wallet.Read.Tx.CollateralInputs
     ( getEraCollateralInputs
-    )
-import Cardano.Wallet.Read.Tx.Inputs
-    ( getEraInputs
     )
 import Control.Applicative
     ( (<|>)
