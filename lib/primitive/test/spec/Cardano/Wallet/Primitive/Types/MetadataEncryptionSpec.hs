@@ -10,6 +10,10 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.MetadataEncryption
     ( ErrMetadataDecryption (..)
     , ErrMetadataEncryption (..)
+    , cip83EncryptMethodKey
+    , cip83EncryptPayloadKey
+    , cip83EncryptPayloadValue
+    , cip20MetadataKey
     , fromMetadataEncrypted
     , toMetadataEncrypted
     )
@@ -65,17 +69,74 @@ spec = do
                 (fromMetadataEncrypted pwd' (fromRight metadataNotValid encrypted))
                 === Right payload'
 
-        it "fromMetadataEncrypted fails for wrong passphrase" $ property $
+        it "fromMetadataEncrypted fails for different passphrase" $ property $
             \(TestingSetup payload' pwd1 pwd2 salt') -> do
             let encrypted = toMetadataEncrypted pwd1 payload' (Just salt')
             isRight encrypted ==>
                 fromMetadataEncrypted pwd2 (fromRight metadataNotValid encrypted)
                 `shouldSatisfy` isLeft
 
+        it "the valid result of toMetadataEncrypted exhibits the expected characteristics" $ property $
+            \(TestingSetup payload' pwd' _ salt') -> do
+            let encrypted = toMetadataEncrypted pwd' payload' (Just salt')
+            let hasMsgWithList (Cardano.TxMetaText k, Cardano.TxMetaList _) =
+                    k == cip83EncryptPayloadKey
+                hasMsgWithList _ = False
+                hasEncPair (Cardano.TxMetaText k, Cardano.TxMetaText v) =
+                    k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
+                hasEncPair _ = False
+            let hasCharacteristics (Cardano.TxMetadata themap) =
+                    case Map.lookup cip20MetadataKey themap of
+                        Just (Cardano.TxMetaMap kvs) ->
+                            any hasMsgWithList kvs && any hasEncPair kvs
+                        _ -> False
+            isRight encrypted ==>
+                fromRight metadataNotValid encrypted
+                `shouldSatisfy` hasCharacteristics
+
     describe "toMetadataEncrypted openssl goldens" $ do
-        -- $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
-        -- vBSywXY+WGcrckHUCyjJcQ==
+        -- echo -n '["secret data"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
+        -- Fm/+xoZBA24yp8Vz548NAg==
         it "short msg - no salt" $ do
+            let schemaBefore =
+                    Cardano.TxMetadata $
+                    Map.fromList
+                    [ ( 674
+                      , Cardano.TxMetaMap
+                        [ ( Cardano.TxMetaText "field"
+                          , Cardano.TxMetaNumber 123
+                          )
+                        , ( Cardano.TxMetaText "msg"
+                          , Cardano.TxMetaList
+                            [Cardano.TxMetaText "secret data"]
+                          )
+                        ]
+                      )
+                    ]
+                schemaAfter =
+                    Cardano.TxMetadata $
+                    Map.fromList
+                    [ ( 674
+                      , Cardano.TxMetaMap
+                        [ ( Cardano.TxMetaText "field"
+                          , Cardano.TxMetaNumber 123
+                          )
+                        , ( Cardano.TxMetaText "msg"
+                          , Cardano.TxMetaList
+                            [Cardano.TxMetaText "Fm/+xoZBA24yp8Vz548NAg=="]
+                          )
+                        , ( Cardano.TxMetaText "enc"
+                          , Cardano.TxMetaText "basic"
+                          )
+                        ]
+                      )
+                    ]
+            toMetadataEncrypted "cardano" schemaBefore Nothing
+                `shouldBe` Right schemaAfter
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Left ErrMissingSalt
+
+        it "short msg - no salt wrong value structure" $ do
             let schemaBefore =
                     Cardano.TxMetadata $
                     Map.fromList
@@ -90,32 +151,12 @@ spec = do
                         ]
                       )
                     ]
-                schemaAfter =
-                    Cardano.TxMetadata $
-                    Map.fromList
-                    [ ( 674
-                      , Cardano.TxMetaMap
-                        [ ( Cardano.TxMetaText "field"
-                          , Cardano.TxMetaNumber 123
-                          )
-                        , ( Cardano.TxMetaText "msg"
-                          , Cardano.TxMetaList
-                            [Cardano.TxMetaText "vBSywXY+WGcrckHUCyjJcQ=="]
-                          )
-                        , ( Cardano.TxMetaText "enc"
-                          , Cardano.TxMetaText "basic"
-                          )
-                        ]
-                      )
-                    ]
             toMetadataEncrypted "cardano" schemaBefore Nothing
-                `shouldBe` Right schemaAfter
-            fromMetadataEncrypted "cardano" schemaAfter
-                `shouldBe` Left ErrMissingSalt
+                `shouldBe` Left ErrIncorrectRawMetadata
 
-        -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
-        -- OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8
-        -- ygjbu25gCdhJh7iEpAJVaA==
+        -- $ echo -n '["secret data that is long enough to produce more than 64 bytes"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
+        -- +8ruwpQolMU4wznBR5LYQEyke/SlJ7mkU+1LEXs2vSC8gegvjWESqnWK1Tw59cFt
+        -- CKO3g/d6fGA2jOU7JDYlC1qf+mdDKlGHbPKCV41Fofs=
         it "long msg - no salt" $ do
             let schemaBefore =
                     Cardano.TxMetadata $
@@ -126,9 +167,10 @@ spec = do
                           , Cardano.TxMetaNumber 123
                           )
                         , ( Cardano.TxMetaText "msg"
-                          , Cardano.TxMetaText
-                            "secret data that is long enough to produce more \
-                            \than 64 bytes"
+                          , Cardano.TxMetaList
+                            [ Cardano.TxMetaText
+                              "secret data that is long enough to produce more \
+                              \than 64 bytes" ]
                           )
                         ]
                       )
@@ -143,8 +185,8 @@ spec = do
                           )
                         , ( Cardano.TxMetaText "msg"
                           , Cardano.TxMetaList
-                            [ Cardano.TxMetaText "OLSOdRF+P56rW9gUopHcs0HHcdmPP5ujhSuB+r84VJgvsMOsqmIZx2etosnkyOc8"
-                            , Cardano.TxMetaText "ygjbu25gCdhJh7iEpAJVaA=="
+                            [ Cardano.TxMetaText "+8ruwpQolMU4wznBR5LYQEyke/SlJ7mkU+1LEXs2vSC8gegvjWESqnWK1Tw59cFt"
+                            , Cardano.TxMetaText "CKO3g/d6fGA2jOU7JDYlC1qf+mdDKlGHbPKCV41Fofs="
                             ]
                           )
                         , ( Cardano.TxMetaText "enc"
@@ -205,8 +247,8 @@ spec = do
             fromMetadataEncrypted "cardano" schemaAfter
                 `shouldBe` Left ErrMissingSalt
 
-        -- $ $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
-        -- U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600=
+        -- $ echo -n '["secret data"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
+        -- U2FsdGVkX18wMDAwMDAwMKg9+BnuLSqx880pgF+owzo=
         it "short msg - salted" $ do
             let schemaBefore =
                     Cardano.TxMetadata $ Map.fromList
@@ -216,7 +258,8 @@ spec = do
                           , Cardano.TxMetaNumber 123
                           )
                         , ( Cardano.TxMetaText "msg"
-                          , Cardano.TxMetaText "secret data"
+                          , Cardano.TxMetaList
+                            [ Cardano.TxMetaText "secret data" ]
                           )
                         ]
                         )
@@ -231,8 +274,7 @@ spec = do
                           )
                         , ( Cardano.TxMetaText "msg"
                           , Cardano.TxMetaList
-                            [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMF0ea/2sHeptB3SvZtgc600="
-                            ]
+                            [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMKg9+BnuLSqx880pgF+owzo=" ]
                           )
                         , ( Cardano.TxMetaText "enc"
                           , Cardano.TxMetaText "basic"
@@ -246,9 +288,9 @@ spec = do
             fromMetadataEncrypted "cardano" schemaAfter
                 `shouldBe` Right schemaBefore
 
-        -- $ echo -n '"secret data that is long enough to produce more than 64 bytes"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
-        -- U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh
-        -- PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU=
+        -- $ echo -n '["secret data that is long enough to produce more than 64 bytes"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -S 3030303030303030
+        -- U2FsdGVkX18wMDAwMDAwMK3WTtGcfCw96FEEQJct+JQfvpq824MACKzRPNqul83i
+        -- Jxd3aOenCM/IBadPmEcDVPyg+f/tszUp0KO8uzRxKTnY1bO4rqEKEQfu1GkAz7wF
         it "long msg - salted" $ do
             let schemaBefore =
                     Cardano.TxMetadata $ Map.fromList
@@ -258,7 +300,8 @@ spec = do
                           , Cardano.TxMetaNumber 123
                           )
                         , ( Cardano.TxMetaText "msg"
-                          , Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes"
+                          , Cardano.TxMetaList
+                            [ Cardano.TxMetaText "secret data that is long enough to produce more than 64 bytes" ]
                           )
                         ]
                       )
@@ -273,8 +316,8 @@ spec = do
                           )
                         , ( Cardano.TxMetaText "msg"
                           , Cardano.TxMetaList
-                            [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMPNdhZQON/Hlwqvk4+sNRCa90QrAVpIGUlWgZhgNlwKh"
-                            , Cardano.TxMetaText "PbR/qyT2q0tejHQmsHdORif5rvZYTzJGsTutA0RIcFU="
+                            [ Cardano.TxMetaText "U2FsdGVkX18wMDAwMDAwMK3WTtGcfCw96FEEQJct+JQfvpq824MACKzRPNqul83i"
+                            , Cardano.TxMetaText "Jxd3aOenCM/IBadPmEcDVPyg+f/tszUp0KO8uzRxKTnY1bO4rqEKEQfu1GkAz7wF"
                             ]
                           )
                         , ( Cardano.TxMetaText "enc"

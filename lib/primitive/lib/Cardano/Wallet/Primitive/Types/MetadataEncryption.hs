@@ -147,7 +147,8 @@ toMetadataEncrypted pwd payload saltM =
     secretKey, iv :: ByteString
     (secretKey, iv) = PBKDF2.generateKey metadataPBKDF2Config pwd saltM
 
-    -- `msg` is embedded at the first level
+    -- `msg` is embedded at the first level with the exact following value structure
+    -- TxMetaList [TxMetaText txt1, ..., TxMetaText txtN]
     parseMessage :: TxMetadataValue -> Maybe [TxMetadataValue]
     parseMessage = \case
         TxMetaMap kvs ->
@@ -157,9 +158,16 @@ toMetadataEncrypted pwd payload saltM =
         _ ->
             Nothing
       where
+        isText (TxMetaText _ ) = True
+        isText _ = False
+
+        valueStructure (TxMetaList txts) =
+            all isText txts
+        valueStructure _ = False
+
         getValue :: (TxMetadataValue, TxMetadataValue) -> Maybe TxMetadataValue
         getValue (TxMetaText k, v) =
-            if k == cip83EncryptPayloadKey then
+            if k == cip83EncryptPayloadKey && valueStructure v then
                 Just v
             else
                 Nothing
