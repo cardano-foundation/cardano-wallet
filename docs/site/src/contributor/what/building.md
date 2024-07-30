@@ -41,12 +41,12 @@
    As an example, this will show the help page:
 
    ```console
-   > cabal run cardano-wallet-api:exe:cardano-wallet -- --help
+   > cabal run cardano-wallet-exe:exe:cardano-wallet -- --help
    ```
 
 4. Make a build with `-O2` level compiler optimizations:
    ```console
-   > cabal build cardano-wallet-api:exe:cardano-wallet -frelease
+   > cabal build cardano-wallet-exe:exe:cardano-wallet -frelease
    ```
 
 5. Build and run the test suites or benchmarks.

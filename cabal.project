@@ -71,6 +71,7 @@ packages:
   lib/delta-store/
   lib/delta-table/
   lib/delta-types/
+  lib/exe/
   lib/faucet/
   lib/iohk-monitoring-extra/
   lib/integration/

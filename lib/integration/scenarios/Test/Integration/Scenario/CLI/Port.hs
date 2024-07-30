@@ -12,7 +12,7 @@ module Test.Integration.Scenario.CLI.Port
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     , getPort
     )

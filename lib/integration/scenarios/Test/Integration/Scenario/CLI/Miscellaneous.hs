@@ -9,7 +9,7 @@ module Test.Integration.Scenario.CLI.Miscellaneous
 
 import Prelude
 
-import Cardano.Wallet.Version
+import Cardano.Wallet.Application.Version
     ( showVersionAsDate
     , version
     )

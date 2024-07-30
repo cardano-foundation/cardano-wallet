@@ -16,7 +16,18 @@ module Cardano.CLISpec
 
 import Prelude
 
-import Cardano.CLI
+import Cardano.Wallet.Api.Client
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
+    )
+import Cardano.Wallet.Api.Types.SchemaMetadata
+    ( detailedMetadata
+    , noSchemaMetadata
+    )
+import Cardano.Wallet.Application.CLI
     ( Port (..)
     , TxId
     , cli
@@ -33,17 +44,6 @@ import Cardano.CLI
     , metadataOption
     , poolMetadataSourceOption
     , timeToLiveOption
-    )
-import Cardano.Wallet.Api.Client
-    ( addressClient
-    , networkClient
-    , stakePoolClient
-    , transactionClient
-    , walletClient
-    )
-import Cardano.Wallet.Api.Types.SchemaMetadata
-    ( detailedMetadata
-    , noSchemaMetadata
     )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource

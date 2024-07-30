@@ -28,11 +28,6 @@ import Cardano.BM.Extra
 import Cardano.BM.ToTextTracer
     ( ToTextTracer (..)
     )
-import Cardano.CLI
-    ( Port (..)
-    , getEKGURL
-    , getPrometheusURL
-    )
 import Cardano.Launcher
     ( ProcessHasExited (..)
     )
@@ -52,6 +47,15 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
+    )
+import Cardano.Wallet.Application
+    ( Tracers
+    , serveWallet
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port (..)
+    , getEKGURL
+    , getPrometheusURL
     )
 import Cardano.Wallet.Faucet
     ( FaucetM
@@ -105,10 +109,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Shelley
-    ( Tracers
-    , serveWallet
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
@@ -226,10 +226,10 @@ import UnliftIO.MVar
     , withMVar
     )
 
-import qualified Cardano.CLI as CLI
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Application.CLI as CLI
 import qualified Cardano.Wallet.Faucet as Faucet
 import qualified Data.Text as T
 

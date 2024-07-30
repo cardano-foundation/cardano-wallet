@@ -53,6 +53,7 @@ library framework
     , cardano-ledger-shelley
     , cardano-wallet-api
     , cardano-wallet-application-extras
+    , cardano-wallet-exe
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -133,6 +134,7 @@ library scenarios
     , cardano-api
     , cardano-crypto
     , cardano-crypto-class
+    , cardano-wallet-exe
     , cardano-ledger-alonzo
     , cardano-ledger-core
     , cardano-wallet
@@ -219,4 +221,4 @@ test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
-  build-tool-depends: cardano-wallet-api:cardano-wallet
+  build-tool-depends: cardano-wallet-exe:cardano-wallet

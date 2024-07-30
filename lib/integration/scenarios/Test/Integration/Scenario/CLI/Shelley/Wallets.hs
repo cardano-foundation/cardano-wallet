@@ -14,9 +14,6 @@ module Test.Integration.Scenario.CLI.Shelley.Wallets
 
 import Prelude
 
-import Cardano.CLI
-    ( Port
-    )
 import Cardano.Wallet.Address.Discovery.Sequential
     ( AddressPoolGap (..)
     )
@@ -33,6 +30,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Api.Types.Amount
     ( ApiAmount (ApiAmount)
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)

@@ -1,6 +1,6 @@
 cabal-version:      3.6
 name:               cardano-wallet-api
-version:            2024.7.27
+version:            0.2024.7.27
 synopsis:           Cardano wallet http api.
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
@@ -22,13 +22,7 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints
-
-  if flag(release)
-    ghc-options: -O2 -Werror
-
-common opts-exe
-  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -44,22 +38,16 @@ library
   build-depends:
     , address-derivation-discovery
     , aeson
-    , aeson-pretty
-    , ansi-terminal
     , base
     , bech32
     , bech32-th
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-addresses-cli
     , cardano-api:{cardano-api, internal}
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
     , cardano-crypto
-    , cardano-ledger-alonzo
-    , cardano-ledger-babbage
-    , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-launcher
@@ -72,38 +60,29 @@ library
     , crypto-primitives
     , data-default
     , deepseq
-    , directory
     , either
     , errors
     , extra
-    , file-embed
-    , filepath
     , fmt
     , generic-lens
     , hashable
     , http-api-data
-    , http-client
     , http-media
     , http-types
     , int-cast
     , iohk-monitoring
-    , iohk-monitoring-extra
     , memory
     , mtl
     , network
     , network-uri
-    , ntp-client
     , OddWord
-    , optparse-applicative
     , quiet
     , random
     , safe
     , servant
     , servant-client
-    , servant-client-core
     , servant-server
     , streaming-commons
-    , template-haskell
     , text
     , text-class
     , time
@@ -114,13 +93,11 @@ library
     , wai-middleware-logging
     , warp
     , warp-tls
-    , Win32-network
     , x509
     , x509-store
     , x509-validation
 
   exposed-modules:
-    Cardano.CLI
     Cardano.Wallet.Api
     Cardano.Wallet.Api.Aeson
     Cardano.Wallet.Api.Aeson.Variant
@@ -160,31 +137,5 @@ library
     Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Api.Types.WalletAsset
     Cardano.Wallet.Api.Types.WalletAssets
-    Cardano.Wallet.Shelley
-    Cardano.Wallet.Tracers
-    Cardano.Wallet.Version
-    Cardano.Wallet.Version.TH
   other-modules:
     Paths_cardano_wallet_api
-
-executable cardano-wallet
-  import:         language, opts-exe
-  hs-source-dirs: exe
-  main-is:        cardano-wallet.hs
-  build-depends:
-    , base
-    , cardano-wallet
-    , cardano-wallet-api
-    , cardano-wallet-launcher
-    , cardano-wallet-network-layer
-    , contra-tracer
-    , iohk-monitoring
-    , iohk-monitoring-extra
-    , lobemo-backend-ekg
-    , network-uri
-    , optparse-applicative
-    , text
-    , text-class
-    , transformers
-    , unliftio
-    , with-utf8

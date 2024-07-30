@@ -10,14 +10,14 @@ module Test.Integration.Scenario.CLI.Network
 
 import Prelude
 
-import Cardano.CLI
-    ( Port (..)
-    )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters
     , NtpSyncingStatus (..)
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)

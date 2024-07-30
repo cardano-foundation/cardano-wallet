@@ -15,7 +15,7 @@
 -- not, then no haskell packages will be rebuilt, but the embedded git
 -- revision will be updated.
 
-module Cardano.Wallet.Version
+module Cardano.Wallet.Application.Version
     ( -- * Values computed at compile-time
       version
     , gitRevision
@@ -29,7 +29,7 @@ module Cardano.Wallet.Version
 
 import Prelude
 
-import Cardano.Wallet.Version.TH
+import Cardano.Wallet.Application.Version.TH
     ( gitRevFromGit
     )
 import Data.FileEmbed
@@ -53,7 +53,7 @@ import Fmt
     , fmt
     , padLeftF
     )
-import Paths_cardano_wallet_api
+import Paths_cardano_wallet_exe
     ( version
     )
 

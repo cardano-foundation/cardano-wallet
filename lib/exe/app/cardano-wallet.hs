@@ -43,7 +43,36 @@ import Cardano.BM.Trace
     , logInfo
     , logNotice
     )
-import Cardano.CLI
+import Cardano.Launcher.Node
+    ( CardanoNodeConn
+    )
+import Cardano.Startup
+    ( ShutdownHandlerLog
+    , installSignalHandlers
+    , withShutdownHandler
+    )
+import Cardano.Wallet.Api.Client
+    ( addressClient
+    , networkClient
+    , stakePoolClient
+    , transactionClient
+    , walletClient
+    )
+import Cardano.Wallet.Api.Http.Shelley.Server
+    ( HostPreference
+    , Listen (..)
+    , TlsConfiguration
+    )
+import Cardano.Wallet.Application
+    ( TracerSeverities
+    , Tracers
+    , Tracers' (..)
+    , serveWallet
+    , setupTracers
+    , tracerDescriptions
+    , tracerLabels
+    )
+import Cardano.Wallet.Application.CLI
     ( LogOutput (..)
     , LoggingOptions
     , Mode (..)
@@ -76,25 +105,10 @@ import Cardano.CLI
     , tokenMetadataSourceOption
     , withLogging
     )
-import Cardano.Launcher.Node
-    ( CardanoNodeConn
-    )
-import Cardano.Startup
-    ( ShutdownHandlerLog
-    , installSignalHandlers
-    , withShutdownHandler
-    )
-import Cardano.Wallet.Api.Client
-    ( addressClient
-    , networkClient
-    , stakePoolClient
-    , transactionClient
-    , walletClient
-    )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
-    , TlsConfiguration
+import Cardano.Wallet.Application.Version
+    ( GitRevision
+    , Version
+    , showFullVersion
     )
 import Cardano.Wallet.CLI
     ( networkConfigurationOption
@@ -112,22 +126,8 @@ import Cardano.Wallet.Primitive.Types
     , Settings (..)
     , TokenMetadataServer (..)
     )
-import Cardano.Wallet.Shelley
-    ( TracerSeverities
-    , Tracers
-    , Tracers' (..)
-    , serveWallet
-    , setupTracers
-    , tracerDescriptions
-    , tracerLabels
-    )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
-    )
-import Cardano.Wallet.Version
-    ( GitRevision
-    , Version
-    , showFullVersion
     )
 import Control.Applicative
     ( Const (..)
@@ -191,7 +191,7 @@ import UnliftIO.Exception
     )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
-import qualified Cardano.Wallet.Version as V
+import qualified Cardano.Wallet.Application.Version as V
 import qualified Data.Text as T
 import qualified System.Info as I
 

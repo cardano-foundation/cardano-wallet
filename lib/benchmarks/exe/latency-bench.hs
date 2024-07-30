@@ -34,9 +34,6 @@ import Cardano.BM.ToTextTracer
 import Cardano.BM.Trace
     ( traceInTVarIO
     )
-import Cardano.CLI
-    ( Port (..)
-    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -65,6 +62,14 @@ import Cardano.Wallet.Api.Types.Era
     )
 import Cardano.Wallet.Api.Types.WalletAssets
     ( ApiWalletAssets (..)
+    )
+import Cardano.Wallet.Application
+    ( Tracers
+    , Tracers' (..)
+    , serveWallet
+    )
+import Cardano.Wallet.Application.CLI
+    ( Port (..)
     )
 import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)
@@ -134,11 +139,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
-    )
-import Cardano.Wallet.Shelley
-    ( Tracers
-    , Tracers' (..)
-    , serveWallet
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)

@@ -28,7 +28,12 @@ import Cardano.BM.Plugin
 import Cardano.BM.Trace
     ( appendName
     )
-import Cardano.CLI
+import Cardano.Wallet.Application
+    ( Tracers
+    , setupTracers
+    , tracerSeverities
+    )
+import Cardano.Wallet.Application.CLI
     ( LogOutput (..)
     , ekgEnabled
     , withLogging
@@ -45,11 +50,6 @@ import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , mkRelDirOf
     , toFilePath
-    )
-import Cardano.Wallet.Shelley
-    ( Tracers
-    , setupTracers
-    , tracerSeverities
     )
 import Control.Monad
     ( when
