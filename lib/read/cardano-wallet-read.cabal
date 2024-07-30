@@ -75,6 +75,7 @@ library
     Cardano.Read.Ledger.Tx.Tx
     Cardano.Read.Ledger.Value
     Cardano.Wallet.Read
+    Cardano.Wallet.Read.Address
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.Gen
     Cardano.Wallet.Read.Block.Gen.Babbage
