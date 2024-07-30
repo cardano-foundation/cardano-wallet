@@ -77,9 +77,6 @@ import Cardano.Pool.Types
     , PoolOwner (..)
     , StakePoolTicker (..)
     )
-import Cardano.Wallet
-    ( ErrConstructTx (..)
-    )
 import Cardano.Wallet.Address.Derivation
     ( Depth (..)
     , DerivationIndex (..)
@@ -516,9 +513,6 @@ import Data.Aeson.QQ
 import Data.Bifunctor
     ( Bifunctor (..)
     )
-import Data.ByteArray.Encoding
-    ( convertFromBase
-    )
 import Data.ByteString
     ( ByteString
     )
@@ -532,7 +526,6 @@ import Data.Either
     )
 import Data.Either.Combinators
     ( fromRight'
-    , rightToMaybe
     )
 import Data.FileEmbed
     ( embedFile

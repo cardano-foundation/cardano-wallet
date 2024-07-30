@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.Primitive.Types.MetadataEncryptionSpec
     ( spec
@@ -10,10 +9,10 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.MetadataEncryption
     ( ErrMetadataDecryption (..)
     , ErrMetadataEncryption (..)
+    , cip20MetadataKey
     , cip83EncryptMethodKey
     , cip83EncryptPayloadKey
     , cip83EncryptPayloadValue
-    , cip20MetadataKey
     , fromMetadataEncrypted
     , toMetadataEncrypted
     )
@@ -25,9 +24,9 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Either
-    ( isLeft
+    ( fromRight
+    , isLeft
     , isRight
-    , fromRight
     )
 import Data.Either.Combinators
     ( rightToMaybe
@@ -433,7 +432,8 @@ data TestingSetup = TestingSetup
     , salt :: ByteString
     } deriving (Eq, Show)
 
-data Msg = Msg {getMsg :: Text}
+newtype Msg = Msg {getMsg :: Text}
+    deriving (Eq, Show)
 
 instance Arbitrary Msg where
     arbitrary = do

@@ -6,7 +6,6 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE StrictData #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}

@@ -21,9 +21,9 @@ where
 import Prelude
 
 import Cardano.Api
-    ( TxMetadataJsonSchemaError (..)
+    ( TxMetadata (..)
+    , TxMetadataJsonSchemaError (..)
     , TxMetadataValue (..)
-    , TxMetadata (..)
     , metadataValueToJsonNoSchema
     )
 import Cardano.Api.Error
@@ -63,8 +63,8 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Maybe
-    ( isJust
-    , fromMaybe
+    ( fromMaybe
+    , isJust
     , mapMaybe
     )
 import Data.Text
