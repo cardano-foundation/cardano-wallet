@@ -67,6 +67,7 @@ library
     Cardano.Read.Ledger.Tx.Witnesses
     Cardano.Read.Ledger.Value
     Cardano.Wallet.Read
+    Cardano.Wallet.Read.Address
     Cardano.Wallet.Read.Block
     Cardano.Wallet.Read.Block.BHeader
     Cardano.Wallet.Read.Block.Block
