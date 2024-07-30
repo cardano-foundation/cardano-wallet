@@ -21,7 +21,8 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Either
-    ( isRight
+    ( isLeft
+    , isRight
     , fromRight
     )
 import Data.Either.Combinators
@@ -35,6 +36,7 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    , shouldSatisfy
     )
 import Test.QuickCheck
     ( Arbitrary (..)
@@ -55,13 +57,20 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-    describe "metadata encrypt/decrypt roundtrip" $
+    describe "metadata encrypt/decrypt roundtrips" $ do
         it "fromMetadataEncrypted . toMetadataEncrypted $ payload == payload" $ property $
-        \(TestingSetup payload' pwd' _ salt') -> do
-            isRight (toMetadataEncrypted pwd' payload' (Just salt')) ==>
-                (fromMetadataEncrypted pwd'
-                 (fromRight metadataNotValid (toMetadataEncrypted pwd' payload' (Just salt'))))
+            \(TestingSetup payload' pwd' _ salt') -> do
+            let encrypted = toMetadataEncrypted pwd' payload' (Just salt')
+            isRight encrypted ==>
+                (fromMetadataEncrypted pwd' (fromRight metadataNotValid encrypted))
                 === Right payload'
+
+        it "fromMetadataEncrypted fails for wrong passphrase" $ property $
+            \(TestingSetup payload' pwd1 pwd2 salt') -> do
+            let encrypted = toMetadataEncrypted pwd1 payload' (Just salt')
+            isRight encrypted ==>
+                fromMetadataEncrypted pwd2 (fromRight metadataNotValid encrypted)
+                `shouldSatisfy` isLeft
 
     describe "toMetadataEncrypted openssl goldens" $ do
         -- $ echo -n '"secret data"' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt

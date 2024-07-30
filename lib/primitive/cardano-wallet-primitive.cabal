@@ -242,6 +242,7 @@ test-suite test
     , cardano-wallet-primitive:cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
+    , crypto-primitives
     , deepseq
     , delta-types
     , either
