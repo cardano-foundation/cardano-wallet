@@ -573,7 +573,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_02d - \
         \Correct metadata structure to be encrypted - short" $
         \ctx -> runResourceT $ do
-            let toBeEncrypted = TxMetaText "world"
+            let toBeEncrypted = TxMetaList [TxMetaText "world"]
             let metadataRaw =
                     TxMetadata $ Map.fromList
                     [ (0, TxMetaText "hello")
