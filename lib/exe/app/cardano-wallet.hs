@@ -91,7 +91,8 @@ import Cardano.Wallet.Application.CLI
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
-    , listenOption
+    , listenApiOption
+    , listenUiOption
     , loggingMinSeverity
     , loggingOptions
     , loggingSeverityOrOffReader
@@ -224,7 +225,8 @@ beforeMainLoop tr = logInfo tr . MsgListenAddress
 data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _mode :: Mode CardanoNodeConn
-    , _listen :: Listen
+    , _listenApi :: Listen
+    , _listenUi :: Maybe Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
@@ -243,7 +245,8 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
     cmd = fmap exec $ ServeArgs
         <$> hostPreferenceOption
         <*> modeOption nodeSocketOption
-        <*> listenOption
+        <*> listenApiOption
+        <*> listenUiOption
         <*> optional tlsOption
         <*> networkConfigurationOption
         <*> optional databaseOption
@@ -256,7 +259,8 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
     exec args@(ServeArgs
       host
       mode
-      listen
+      listenApi
+      listenUi
       tlsConfig
       networkConfig
       databaseDir
@@ -290,7 +294,8 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $
                 databaseDir
                 Nothing
                 host
-                listen
+                listenApi
+                listenUi
                 tlsConfig
                 (Settings <$> poolMetadataFetching)
                 tokenMetadataServerURI

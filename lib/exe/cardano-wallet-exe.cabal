@@ -87,6 +87,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
+    , cardano-wallet-ui
     , contra-tracer
     , directory
     , extra
@@ -123,5 +124,5 @@ library
     Cardano.Wallet.Application.Version.TH
 
   other-modules:
-  
+
     Paths_cardano_wallet_exe
