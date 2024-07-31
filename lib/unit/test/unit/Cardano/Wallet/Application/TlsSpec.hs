@@ -4,16 +4,18 @@
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
-module Cardano.Wallet.Api.Server.TlsSpec
+module Cardano.Wallet.Application.TlsSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Api.Http.Shelley.Server
+import Cardano.Wallet.Application.Server
     ( Listen (..)
-    , TlsConfiguration (..)
     , withListeningSocket
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration (..)
     )
 import Cardano.X509.Configuration
     ( CertDescription (..)
@@ -123,7 +125,7 @@ import UnliftIO.Exception
     ( fromException
     )
 
-import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
+import qualified Cardano.Wallet.Application.Server as Server
 import qualified Data.ByteString as BS
 import qualified Network.HTTP.Types.Status as Http
 import qualified Network.Wai as Wai
