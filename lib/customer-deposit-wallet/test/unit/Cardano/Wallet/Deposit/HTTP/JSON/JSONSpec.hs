@@ -14,6 +14,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( Address
     , ApiT (..)
     , Customer
+    , CustomerList
     )
 import Cardano.Wallet.Deposit.Read
     ( fromRawAddress
@@ -33,6 +34,7 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , chooseInt
     , property
     , vectorOf
     , (===)
@@ -47,7 +49,8 @@ spec =
             prop_jsonRoundtrip @(ApiT Address)
         it "ApiT Customer" $ property $
             prop_jsonRoundtrip @(ApiT Customer)
-
+        it "ApiT CustomerList" $ property $
+            prop_jsonRoundtrip @(ApiT CustomerList)
 
 prop_jsonRoundtrip :: (Eq a, Show a, FromJSON a, ToJSON a) => a -> Property
 prop_jsonRoundtrip val =
@@ -64,3 +67,9 @@ instance Arbitrary (ApiT Address) where
 instance Arbitrary (ApiT Customer) where
     arbitrary =
         ApiT . fromRawCustomer <$> arbitrary
+
+instance Arbitrary (ApiT CustomerList) where
+    arbitrary = do
+        listLen <- chooseInt (0, 100)
+        let genPair = (,) <$> (unApiT <$> arbitrary) <*> (unApiT <$> arbitrary)
+        ApiT <$> vectorOf listLen genPair
