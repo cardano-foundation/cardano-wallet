@@ -80,27 +80,6 @@ library
     Cardano.Wallet.Deposit.Read
     Cardano.Wallet.Deposit.Write
 
-test-suite unit
-  import:             language, opts-exe
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/unit
-  main-is:            test-suite-unit.hs
-  build-depends:
-    , base
-    , bytestring
-    , cardano-crypto
-    , cardano-wallet:cardano-wallet
-    , cardano-wallet-primitive
-    , cardano-wallet-test-utils
-    , customer-deposit-wallet
-    , hspec >=2.8.2
-    , QuickCheck
-    , with-utf8
-  build-tool-depends: hspec-discover:hspec-discover
-  other-modules:
-    Cardano.Wallet.Deposit.PureSpec
-    Spec
-
 test-suite scenario
   import:             language, opts-exe
   type:               exitcode-stdio-1.0
@@ -145,6 +124,29 @@ library customer-deposit-wallet-http
     Cardano.Wallet.Deposit.HTTP.Types.API
     Cardano.Wallet.Deposit.HTTP.Types.JSON
     Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
+
+test-suite unit
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            test-suite-unit.hs
+  build-depends:
+    , aeson
+    , base
+    , bytestring
+    , cardano-crypto
+    , cardano-wallet:cardano-wallet
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , customer-deposit-wallet:{customer-deposit-wallet, customer-deposit-wallet-http}
+    , hspec >=2.8.2
+    , QuickCheck
+    , with-utf8
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
+    Cardano.Wallet.Deposit.PureSpec
+    Spec
 
 executable customer-deposit-wallet
   import:         language, opts-exe
