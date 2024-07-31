@@ -13,9 +13,11 @@ import Prelude
 import Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( Address
     , ApiT (..)
+    , Customer
     )
 import Cardano.Wallet.Deposit.Read
     ( fromRawAddress
+    , fromRawCustomer
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -43,6 +45,9 @@ spec =
     describe "JSON serialization & deserialization" $ do
         it "ApiT Address" $ property $
             prop_jsonRoundtrip @(ApiT Address)
+        it "ApiT Customer" $ property $
+            prop_jsonRoundtrip @(ApiT Customer)
+
 
 prop_jsonRoundtrip :: (Eq a, Show a, FromJSON a, ToJSON a) => a -> Property
 prop_jsonRoundtrip val =
@@ -55,3 +60,7 @@ instance Arbitrary (ApiT Address) where
         let firstByte = 241
         keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
         pure $ ApiT $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
+
+instance Arbitrary (ApiT Customer) where
+    arbitrary =
+        ApiT . fromRawCustomer <$> arbitrary
