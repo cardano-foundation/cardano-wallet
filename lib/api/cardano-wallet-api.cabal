@@ -73,7 +73,6 @@ library
     , iohk-monitoring
     , memory
     , mtl
-    , network
     , network-uri
     , OddWord
     , quiet
@@ -82,7 +81,6 @@ library
     , servant
     , servant-client
     , servant-server
-    , streaming-commons
     , text
     , text-class
     , time
@@ -90,8 +88,6 @@ library
     , transformers
     , unliftio
     , wai
-    , wai-middleware-logging
-    , warp
     , warp-tls
     , x509
     , x509-store

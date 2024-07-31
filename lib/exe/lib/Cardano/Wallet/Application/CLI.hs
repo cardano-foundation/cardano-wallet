@@ -170,11 +170,7 @@ import Cardano.Wallet.Api.Client
     , TransactionClient (..)
     , WalletClient (..)
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
-    , TlsConfiguration (..)
-    )
+
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount
@@ -321,11 +317,20 @@ import Network.HTTP.Client
     , responseTimeoutNone
     )
 -- See ADP-1910
+import Cardano.Wallet.Api.Http.Server.Tls
+    ( TlsConfiguration (..)
+    )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..)
     )
+import Cardano.Wallet.Application.Server
+    ( Listen (..)
+    )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationMode (..)
+    )
+import Data.Streaming.Network
+    ( HostPreference
     )
 import GHC.Num
     ( Natural

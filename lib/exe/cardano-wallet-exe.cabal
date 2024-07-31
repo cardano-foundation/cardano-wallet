@@ -87,7 +87,6 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
-    , cardano-wallet-ui
     , contra-tracer
     , directory
     , extra
@@ -105,6 +104,7 @@ library
     , servant-client
     , servant-client-core
     , servant-server
+    , streaming-commons
     , template-haskell
     , text
     , text-class
@@ -112,6 +112,7 @@ library
     , transformers
     , unliftio
     , warp
+    , warp-tls
     , wai-middleware-logging
     , Win32-network
 
@@ -119,7 +120,9 @@ library
 
     Cardano.Wallet.Application
     Cardano.Wallet.Application.CLI
+    Cardano.Wallet.Application.Logging
     Cardano.Wallet.Application.Tracers
+    Cardano.Wallet.Application.Server
     Cardano.Wallet.Application.Version
     Cardano.Wallet.Application.Version.TH
 

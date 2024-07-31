@@ -10,7 +10,7 @@
 -- Logging functionality for the Shelley wallet
 --
 module Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog(..)
+    ( ApiApplicationLog(..)
     ) where
 
 import Prelude
@@ -25,9 +25,6 @@ import Cardano.BM.Tracing
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConn
-    )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( ListenError (..)
     )
 import Data.Text
     ( Text
@@ -46,35 +43,18 @@ import Network.URI
 import qualified Data.Text as T
 
 -- | Log messages related to application startup and shutdown.
-data ApplicationLog
+data ApiApplicationLog
     = MsgStartingNode CardanoNodeConn
     | MsgNetworkName Text
-    | MsgServerStartupError ListenError
     | MsgFailedConnectSMASH URI
     deriving (Generic, Show, Eq)
 
-instance ToText ApplicationLog where
+instance ToText ApiApplicationLog where
     toText = \case
         MsgStartingNode conn ->
             "Wallet backend server starting. Using " <> toText conn <> "."
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."
-        MsgServerStartupError startupErr -> case startupErr of
-            ListenErrorHostDoesNotExist host -> mempty
-                <> "Can't listen on "
-                <> T.pack (show host)
-                <> ". It does not exist."
-            ListenErrorInvalidAddress host -> mempty
-                <> "Can't listen on "
-                <> T.pack (show host)
-                <> ". Invalid address."
-            ListenErrorAddressAlreadyInUse mPort -> mempty
-                <> "The API server listen port "
-                <> maybe "(unknown)" (T.pack . show) mPort
-                <> " is already in use."
-            ListenErrorOperationNotPermitted -> mempty
-                <> "Cannot listen on the given port. "
-                <> "The operation is not permitted."
         MsgFailedConnectSMASH uri -> T.unwords
             [ "Failed connect to the given smash server\
               \ or validate a healthy status."
@@ -82,10 +62,9 @@ instance ToText ApplicationLog where
             , T.pack $ uriToString id uri ""
             ]
 
-instance HasPrivacyAnnotation ApplicationLog
-instance HasSeverityAnnotation ApplicationLog where
+instance HasPrivacyAnnotation ApiApplicationLog
+instance HasSeverityAnnotation ApiApplicationLog where
     getSeverityAnnotation = \case
         MsgStartingNode _ -> Info
         MsgNetworkName _ -> Info
-        MsgServerStartupError _ -> Alert
         MsgFailedConnectSMASH _ -> Warning

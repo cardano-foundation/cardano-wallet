@@ -39,11 +39,11 @@ import Cardano.BM.Tracing
 import Cardano.Pool.DB.Log
     ( PoolDbLog
     )
-import Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog
-    )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( WalletEngineLog
+    )
+import Cardano.Wallet.Application.Logging
+    ( ApplicationLog
     )
 import Cardano.Wallet.DB.Layer
     ( DBFactoryLog

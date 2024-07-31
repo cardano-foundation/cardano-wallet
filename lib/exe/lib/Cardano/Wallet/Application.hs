@@ -59,17 +59,25 @@ import Cardano.Wallet.Api
     , ApiV2
     )
 import Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog (..)
+    ( ApiApplicationLog (..)
     )
 import Cardano.Wallet.Api.Http.Server
     ( server
     )
+import Cardano.Wallet.Api.Http.Server.Tls
+    ( TlsConfiguration
+    )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
+    ( toServerError
+    )
+import Cardano.Wallet.Application.Logging
+    ( ApplicationLog (..)
+    )
+import Cardano.Wallet.Application.Server
+    ( Listen
     , ListenError (..)
-    , TlsConfiguration
-    , toServerError
+    , start
+    , withListeningSocket
     )
 import Cardano.Wallet.Application.Tracers as Tracers
     ( TracerSeverities
@@ -192,6 +200,9 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..)
     )
+import Data.Streaming.Network
+    ( HostPreference
+    )
 import Data.Typeable
     ( Typeable
     )
@@ -224,7 +235,6 @@ import UnliftIO
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.UI.API as Ui
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -285,11 +295,15 @@ serveWallet
     settings
     tokenMetaUri
     block0
-    beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT  $ do
+    beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
         let netId = networkIdVal sNetwork
         lift $ case blockchainSource of
-            NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
+            NodeSource nodeConn _ _ ->
+                trace
+                    $ ApiApplicationLog
+                    $ MsgStartingNode nodeConn
         lift . trace
+            $ ApiApplicationLog
             $ MsgNetworkName
             $ networkDiscriminantVal sNetwork
         netLayer <-
@@ -339,22 +353,23 @@ serveWallet
                     lift $ trace $ MsgServerStartupError err
                     exit $ ExitFailure $ exitCodeApiServer err
                 Right (_port, socket) -> do
-                    lift $ startApiServer
-                        sNetwork
-                        socket
-                        randomApi
-                        icarusApi
-                        shelleyApi
-                        multisigApi
-                        stakePoolLayer
-                        ntpClient
+                    lift
+                        $ startApiServer
+                            sNetwork
+                            socket
+                            randomApi
+                            icarusApi
+                            shelleyApi
+                            multisigApi
+                            stakePoolLayer
+                            ntpClient
                     exit ExitSuccess
       where
         trace :: ApplicationLog -> IO ()
         trace = traceWith applicationTracer
 
         bindApiSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
-        bindApiSocket = ContT $ Server.withListeningSocket hostPref listenApi
+        bindApiSocket = ContT $ withListeningSocket hostPref listenApi
 
         bindUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
         bindUiSocket = case mListenUi of
@@ -362,7 +377,7 @@ serveWallet
             Just listenUi -> do
                 fmap (fmap Just)
                     $ ContT
-                    $ Server.withListeningSocket hostPref listenUi
+                    $ withListeningSocket hostPref listenUi
 
         withRandomApi netId netLayer =
             lift
@@ -429,7 +444,7 @@ serveWallet
                             spl
                             ntp
                             blockchainSource
-            Server.start
+            start
                 serverSettings
                 apiServerTracer
                 tlsConfig
