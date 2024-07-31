@@ -57,9 +57,6 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
-import Cardano.Wallet.Api.Http.Server.Tls
-    ( TlsConfiguration
-    )
 import Cardano.Wallet.Application
     ( TracerSeverities
     , Tracers
@@ -106,6 +103,9 @@ import Cardano.Wallet.Application.CLI
 import Cardano.Wallet.Application.Server
     ( HostPreference
     , Listen
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration
     )
 import Cardano.Wallet.Application.Version
     ( GitRevision

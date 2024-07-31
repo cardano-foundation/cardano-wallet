@@ -21,17 +21,16 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
-common opts-exe
-  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
-      -Wunused-packages
 
+common opts-exe
+  ghc-options:
+    -threaded -rtsopts -Wall -Wredundant-constraints -Wunused-packages
 
   if flag(release)
     ghc-options: -O2 -Werror
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints
-    -Wunused-packages
+  ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -88,6 +87,7 @@ library
     , cardano-wallet-read
     , cardano-wallet-secrets
     , contra-tracer
+    , data-default
     , directory
     , extra
     , file-embed
@@ -109,23 +109,25 @@ library
     , text
     , text-class
     , time
+    , tls
     , transformers
     , unliftio
+    , wai-middleware-logging
     , warp
     , warp-tls
-    , wai-middleware-logging
     , Win32-network
+    , x509
+    , x509-store
+    , x509-validation
 
   exposed-modules:
-
     Cardano.Wallet.Application
     Cardano.Wallet.Application.CLI
     Cardano.Wallet.Application.Logging
-    Cardano.Wallet.Application.Tracers
     Cardano.Wallet.Application.Server
+    Cardano.Wallet.Application.Tls
+    Cardano.Wallet.Application.Tracers
     Cardano.Wallet.Application.Version
     Cardano.Wallet.Application.Version.TH
 
-  other-modules:
-
-    Paths_cardano_wallet_exe
+  other-modules:   Paths_cardano_wallet_exe

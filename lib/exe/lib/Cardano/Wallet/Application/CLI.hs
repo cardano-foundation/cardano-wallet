@@ -317,14 +317,14 @@ import Network.HTTP.Client
     , responseTimeoutNone
     )
 -- See ADP-1910
-import Cardano.Wallet.Api.Http.Server.Tls
-    ( TlsConfiguration (..)
-    )
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..)
     )
 import Cardano.Wallet.Application.Server
     ( Listen (..)
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration (..)
     )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationMode (..)

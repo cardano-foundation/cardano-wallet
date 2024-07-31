@@ -13,12 +13,12 @@ module Cardano.Wallet.Application.Server
 
 import Prelude
 
-import Cardano.Wallet.Api.Http.Server.Tls
-    ( TlsConfiguration (..)
-    , requireClientAuth
-    )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..)
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration (..)
+    , requireClientAuth
     )
 import Control.Exception
     ( IOException

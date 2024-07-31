@@ -58,7 +58,6 @@ library
     , containers
     , contra-tracer
     , crypto-primitives
-    , data-default
     , deepseq
     , either
     , errors
@@ -84,14 +83,9 @@ library
     , text
     , text-class
     , time
-    , tls
     , transformers
     , unliftio
     , wai
-    , warp-tls
-    , x509
-    , x509-store
-    , x509-validation
 
   exposed-modules:
     Cardano.Wallet.Api
@@ -112,7 +106,6 @@ library
     Cardano.Wallet.Api.Http.Server.Error.IsServerError
     Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
-    Cardano.Wallet.Api.Http.Server.Tls
     Cardano.Wallet.Api.Http.Shelley.Server
     Cardano.Wallet.Api.Lib.ApiAsArray
     Cardano.Wallet.Api.Lib.ApiT

@@ -7,7 +7,7 @@
 -- Optional TLS support for mutual client-server authentication on top of a Wai
 -- application.
 
-module Cardano.Wallet.Api.Http.Server.Tls
+module Cardano.Wallet.Application.Tls
     ( TlsConfiguration (..)
     , requireClientAuth
     ) where

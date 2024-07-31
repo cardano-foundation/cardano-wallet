@@ -64,9 +64,6 @@ import Cardano.Wallet.Api.Http.Logging
 import Cardano.Wallet.Api.Http.Server
     ( server
     )
-import Cardano.Wallet.Api.Http.Server.Tls
-    ( TlsConfiguration
-    )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( toServerError
     )
@@ -78,6 +75,9 @@ import Cardano.Wallet.Application.Server
     , ListenError (..)
     , start
     , withListeningSocket
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration
     )
 import Cardano.Wallet.Application.Tracers as Tracers
     ( TracerSeverities
