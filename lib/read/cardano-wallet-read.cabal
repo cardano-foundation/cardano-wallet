@@ -100,6 +100,7 @@ library
     Cardano.Wallet.Read.Tx.Gen.Shelley
     Cardano.Wallet.Read.Tx.Gen.TxParameters
     Cardano.Wallet.Read.Tx.Inputs
+    Cardano.Wallet.Read.Tx.ScriptValidity
     Cardano.Wallet.Read.Tx.TxId
     Cardano.Wallet.Read.Tx.TxIn
     Cardano.Wallet.Read.Value
