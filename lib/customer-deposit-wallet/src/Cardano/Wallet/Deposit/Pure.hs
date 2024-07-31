@@ -13,6 +13,7 @@ module Cardano.Wallet.Deposit.Pure
     , knownCustomer
     , knownCustomerAddress
     , isCustomerAddress
+    , fromRawCustomer
 
     -- ** Reading from the blockchain
     , fromXPubAndGenesis
@@ -134,6 +135,9 @@ knownCustomerAddress address =
 isCustomerAddress :: Address -> WalletState -> Bool
 isCustomerAddress address =
     flip Address.isCustomerAddress (Read.toRawAddress address) . addresses
+
+fromRawCustomer :: Word31 -> Customer
+fromRawCustomer = fromIntegral
 
 {-----------------------------------------------------------------------------
     Operations
