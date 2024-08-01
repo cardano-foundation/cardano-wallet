@@ -48,7 +48,7 @@ library
     , containers
     , delta-store
     , delta-types
-    , exceptions
+    , io-classes
     , Only == 0.1
     , sqlite-simple
     , text
@@ -68,6 +68,7 @@ library
       Database.Table.SQL.Table
       Database.Table.SQL.Var
       Database.Table.SQLite.Simple.Exec
+      Database.Table.SQLite.Simple.Monad
 
 test-suite unit
   import:             language, opts-exe

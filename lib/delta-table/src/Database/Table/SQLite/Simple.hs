@@ -14,6 +14,7 @@ module Database.Table.SQLite.Simple
     (
       module Database.Table.SQL.Table
     , module Database.Table.SQL.Expr
+    , module Database.Table.SQLite.Simple.Monad
     , module Database.Table.SQLite.Simple.Exec
     , module Database.Table.SQL.Column
     ) where
@@ -22,3 +23,4 @@ import Database.Table.SQL.Column
 import Database.Table.SQL.Expr
 import Database.Table.SQL.Table
 import Database.Table.SQLite.Simple.Exec
+import Database.Table.SQLite.Simple.Monad

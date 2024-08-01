@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 
 {- |
@@ -12,6 +13,10 @@ module Demo.Database where
 
 import Prelude
 
+import Control.Exception
+    ( SomeException
+    , catch
+    )
 import Data.Foldable
     ( for_
     )
@@ -28,7 +33,6 @@ import Database.Table
     , (:.)
     )
 
-import qualified Database.SQLite.Simple as Sqlite
 import qualified Database.Table.SQLite.Simple as Sql
 
 {-----------------------------------------------------------------------------
@@ -66,5 +70,22 @@ action = do
 
 main :: IO ()
 main = do
-    rows <- Sqlite.withConnection ":memory:" $ Sql.runSqlM action
+    rows <- Sql.withConnection ":memory:" $ Sql.runSqlM action
     for_ rows print
+
+testExceptions :: IO ()
+testExceptions = do
+    Sql.withConnection ":memory:" $ \conn -> do
+        _ <- Sql.runSqlM action conn
+        putStrLn "Before"
+        printTablePerson conn
+        Sql.runSqlM
+            ( do
+                Sql.deleteWhere (colBirthYear Sql.>. 1800) tablePerson
+                error "oops"
+            ) conn `catch` (\(_ :: SomeException) -> pure ())
+        putStrLn "After"
+        printTablePerson conn
+  where
+    printTablePerson conn =
+        mapM_ print =<< Sql.runSqlM (Sql.selectAll tablePerson) conn
