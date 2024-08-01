@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Block.Txs
+module Cardano.Read.Ledger.Block.Txs
     ( getEraTransactions
     ) where
 

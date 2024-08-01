@@ -12,6 +12,9 @@ import Prelude hiding
     , (.)
     )
 
+import Cardano.Read.Ledger.Block.Txs
+    ( getEraTransactions
+    )
 import Cardano.Read.Ledger.Tx.Certificates
     ( getEraCertificates
     )
@@ -29,9 +32,6 @@ import Cardano.Wallet.Read
     , ConsensusBlock
     , IsEra
     , fromConsensusBlock
-    )
-import Cardano.Wallet.Read.Block.Txs
-    ( getEraTransactions
     )
 import Cardano.Wallet.Read.Eras
     ( applyEraFun

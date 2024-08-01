@@ -11,7 +11,7 @@ module Cardano.Wallet.Read.Block
     , module Cardano.Read.Ledger.Block.BlockNo
     , module Cardano.Read.Ledger.Block.HeaderHash
     , module Cardano.Read.Ledger.Block.SlotNo
-    , module Cardano.Wallet.Read.Block.Txs
+    , module Cardano.Read.Ledger.Block.Txs
     ) where
 
 import Cardano.Read.Ledger.Block.BHeader
@@ -46,6 +46,6 @@ import Cardano.Read.Ledger.Block.SlotNo
     , getEraSlotNo
     , prettySlotNo
     )
-import Cardano.Wallet.Read.Block.Txs
+import Cardano.Read.Ledger.Block.Txs
     ( getEraTransactions
     )
