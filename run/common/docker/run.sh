@@ -34,6 +34,11 @@ export NODE_TAG
 # Generate a random port for the wallet service and export it
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
+RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
+
+export WALLET_UI_PORT
+
 export WALLET_PORT
 
 # Define a local db if WALLET_DB is not set
