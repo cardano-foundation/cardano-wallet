@@ -20,10 +20,10 @@ import Cardano.Ledger.Alonzo.TxAuxData
     )
 import Cardano.Ledger.Api
     ( Datum (NoDatum)
+    , StandardCrypto
     )
 import Cardano.Ledger.Api.Era
     ( BabbageEra
-    , StandardCrypto
     )
 import Cardano.Ledger.Babbage.Tx
     ( AlonzoTx (AlonzoTx)

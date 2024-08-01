@@ -24,12 +24,12 @@ where
 
 import Prelude
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Binary
     ( EncCBOR
     , EncCBORGroup
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Era
     ( EraSegWits (..)

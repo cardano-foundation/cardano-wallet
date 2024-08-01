@@ -23,11 +23,11 @@ module Cardano.Read.Ledger.Tx.Mint
 
 import Prelude
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Core
     ( bodyTxL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Mary.Core
     ( mintTxBodyL

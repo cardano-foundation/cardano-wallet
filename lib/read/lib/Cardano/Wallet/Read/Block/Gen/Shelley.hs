@@ -46,6 +46,9 @@ import Cardano.Crypto.VRF
 import Cardano.Crypto.VRF.Praos
     ( PraosVRF
     )
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     , Version
@@ -94,8 +97,7 @@ import Ouroboros.Consensus.Protocol.Praos.Header
     ( Header (..)
     )
 import Ouroboros.Consensus.Protocol.TPraos
-    ( StandardCrypto
-    , TPraos
+    ( TPraos
     )
 
 import qualified Cardano.Crypto.DSIGN as Crypto

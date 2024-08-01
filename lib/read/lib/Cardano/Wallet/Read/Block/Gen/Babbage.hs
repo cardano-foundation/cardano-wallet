@@ -21,6 +21,9 @@ import Cardano.Crypto.VRF
     ( CertifiedVRF (CertifiedVRF)
     , VRFAlgorithm (..)
     )
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     )
@@ -62,9 +65,6 @@ import Ouroboros.Consensus.Protocol.Praos
 import Ouroboros.Consensus.Protocol.Praos.Header
     ( Header (..)
     , HeaderBody (..)
-    )
-import Ouroboros.Consensus.Protocol.TPraos
-    ( StandardCrypto
     )
 
 import qualified Cardano.Ledger.Core as L

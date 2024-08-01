@@ -37,11 +37,11 @@ import Prelude hiding
     ( subtract
     )
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Coin
     ( Coin (unCoin)
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Val
     ( pointwise

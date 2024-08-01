@@ -23,6 +23,9 @@ module Cardano.Read.Ledger.Tx.CollateralOutputs
 
 import Prelude
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Babbage.Collateral
     ()
 import Cardano.Ledger.Babbage.Rules
@@ -35,9 +38,6 @@ import Cardano.Ledger.Babbage.TxBody
     )
 import Cardano.Ledger.Core
     ( bodyTxL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx

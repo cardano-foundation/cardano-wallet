@@ -23,14 +23,14 @@ module Cardano.Read.Ledger.Tx.ReferenceInputs
 
 import Prelude
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Babbage.TxBody
     ( referenceInputsTxBodyL
     )
 import Cardano.Ledger.Core
     ( bodyTxL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx

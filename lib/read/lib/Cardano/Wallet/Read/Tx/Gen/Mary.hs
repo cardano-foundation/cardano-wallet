@@ -15,7 +15,7 @@ import Cardano.Ledger.Allegra.Core
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData
     )
-import Cardano.Ledger.Api.Era
+import Cardano.Ledger.Api
     ( MaryEra
     , StandardCrypto
     )

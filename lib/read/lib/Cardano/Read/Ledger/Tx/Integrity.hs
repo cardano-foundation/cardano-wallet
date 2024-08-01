@@ -29,11 +29,11 @@ import Cardano.Ledger.Alonzo.Tx
 import Cardano.Ledger.Alonzo.TxBody
     ( scriptIntegrityHashTxBodyL
     )
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Core
     ( bodyTxL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx
