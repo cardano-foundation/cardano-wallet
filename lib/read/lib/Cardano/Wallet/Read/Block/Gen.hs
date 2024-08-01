@@ -3,8 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Read.Block.Gen
-where
+module Cardano.Wallet.Read.Block.Gen where
 
 import Prelude hiding
     ( (.)
@@ -13,7 +12,7 @@ import Prelude hiding
 import Cardano.Ledger.BaseTypes
     ( natVersion
     )
-import Cardano.Wallet.Read.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Block.Gen.Babbage
