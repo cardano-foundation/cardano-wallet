@@ -58,9 +58,9 @@ prop_jsonRoundtrip val =
 
 instance Arbitrary (ApiT Address) where
     arbitrary = do
-        --enterprise address type is 0b11110000, network (mainnet) is 1
-        --meaning first byte is 0b11110001 ie. 241
-        let firstByte = 241
+        --enterprise address type with key hash credential is 01100000, network (mainnet) is 1
+        --meaning first byte is 01100001 ie. 96+1=97
+        let firstByte = 97
         keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
         pure $ ApiT $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
 
