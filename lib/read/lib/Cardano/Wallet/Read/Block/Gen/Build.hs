@@ -36,12 +36,12 @@ import Cardano.Ledger.Binary
     ( byronProtVer
     , serialize
     )
+import Cardano.Read.Ledger.Block.BlockNo
+    ( BlockNo (..)
+    )
 import Cardano.Wallet.Read.Block
     ( ConsensusBlock
     , toConsensusBlock
-    )
-import Cardano.Read.Ledger.Block.BlockNo
-    ( BlockNo (..)
     )
 import Cardano.Wallet.Read.Block.Gen
     ( mkBlockEra

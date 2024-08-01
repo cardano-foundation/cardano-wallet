@@ -9,7 +9,7 @@ module Cardano.Wallet.Read.Block
     ( module Cardano.Read.Ledger.Block.BHeader
     , module Cardano.Read.Ledger.Block.Block
     , module Cardano.Read.Ledger.Block.BlockNo
-    , module Cardano.Wallet.Read.Block.HeaderHash
+    , module Cardano.Read.Ledger.Block.HeaderHash
     , module Cardano.Wallet.Read.Block.SlotNo
     , module Cardano.Wallet.Read.Block.Txs
     ) where
@@ -29,7 +29,7 @@ import Cardano.Read.Ledger.Block.BlockNo
     , getEraBlockNo
     , prettyBlockNo
     )
-import Cardano.Wallet.Read.Block.HeaderHash
+import Cardano.Read.Ledger.Block.HeaderHash
     ( EraIndependentBlockHeader
     , HeaderHash (..)
     , HeaderHashT

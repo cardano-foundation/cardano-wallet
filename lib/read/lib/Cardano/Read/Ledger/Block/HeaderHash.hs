@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Cardano.Wallet.Read.Block.HeaderHash
+module Cardano.Read.Ledger.Block.HeaderHash
     ( HeaderHash (..)
     , HeaderHashT
     , getEraHeaderHash

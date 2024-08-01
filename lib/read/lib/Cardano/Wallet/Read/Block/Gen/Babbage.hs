@@ -34,11 +34,11 @@ import Cardano.Ledger.Keys
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash (..)
     )
-import Cardano.Wallet.Read
-    ( TxT
-    )
 import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
+    )
+import Cardano.Wallet.Read
+    ( TxT
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
