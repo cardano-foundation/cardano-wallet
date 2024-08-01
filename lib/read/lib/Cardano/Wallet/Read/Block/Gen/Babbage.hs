@@ -37,7 +37,7 @@ import Cardano.Protocol.TPraos.BHeader
 import Cardano.Wallet.Read
     ( TxT
     )
-import Cardano.Wallet.Read.Block.BlockNo
+import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters

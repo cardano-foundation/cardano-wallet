@@ -40,7 +40,7 @@ import Cardano.Wallet.Read.Block
     ( ConsensusBlock
     , toConsensusBlock
     )
-import Cardano.Wallet.Read.Block.BlockNo
+import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
 import Cardano.Wallet.Read.Block.Gen

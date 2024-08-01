@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Read.Block.BlockNo
+module Cardano.Read.Ledger.Block.BlockNo
     ( getEraBlockNo
     , BlockNo (..)
     , prettyBlockNo
