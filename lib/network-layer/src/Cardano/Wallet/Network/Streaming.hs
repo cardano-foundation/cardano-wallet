@@ -24,6 +24,9 @@ import Prelude hiding
     ( take
     )
 
+import Cardano.Read.Ledger.Block.BHeader
+    ( getEraBHeader
+    )
 import Cardano.Wallet.Network
     ( ChainFollowLog
     , ChainFollower (..)
@@ -48,9 +51,6 @@ import Cardano.Wallet.Read
     , sequenceEraValue
     , (:*:) (..)
     , (:.:) (..)
-    )
-import Cardano.Wallet.Read.Block.BHeader
-    ( getEraBHeader
     )
 import Control.Monad.Fix
     ( fix

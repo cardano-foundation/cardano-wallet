@@ -22,6 +22,9 @@ import Cardano.Crypto.Hash.Class
 import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
+import Cardano.Read.Ledger.Block.BHeader
+    ( getEraBHeader
+    )
 import Cardano.Wallet.Read
     ( Block
     , ConsensusBlock
@@ -29,9 +32,6 @@ import Cardano.Wallet.Read
     , IsEra
     , fromConsensusBlock
     , theEra
-    )
-import Cardano.Wallet.Read.Block.BHeader
-    ( getEraBHeader
     )
 import Cardano.Wallet.Read.Block.BlockNo
     ( BlockNo (..)
