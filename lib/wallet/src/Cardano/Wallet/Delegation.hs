@@ -10,7 +10,6 @@ module Cardano.Wallet.Delegation
     , guardJoin
     , guardQuit
     , guardVoting
-    , guardOnlyVoting
     , quitStakePoolDelegationAction
     , joinDRepVotingAction
     , DelegationRequest(..)
@@ -87,7 +86,7 @@ data DelegationRequest
     -- ^ Stop delegating if the wallet is delegating.
     deriving (Eq, Show)
 
-data VoteRequest = NotVotedYet | VotedSameAsBefore | VotedDifferently
+data VoteRequest = NotVotedYet | VotedSameAsBefore | VotedDifferently | NotVotedThisTime
     deriving (Eq, Show)
 
 {-----------------------------------------------------------------------------
@@ -115,10 +114,12 @@ joinStakePoolDelegationAction
                 else Tx.JoinRegisteringKey poolId
             , case era of
                 Write.RecentEraBabbage -> Nothing
-                Write.RecentEraConway -> Just $
-                    if stakeKeyIsRegistered
-                    then Tx.Vote Abstain
-                    else Tx.VoteRegisteringKey Abstain
+                Write.RecentEraConway ->
+                    if not stakeKeyIsRegistered
+                    then Just $ Tx.VoteRegisteringKey Abstain
+                    else if votingRequest /= NotVotedThisTime then
+                        Just $ Tx.Vote Abstain
+                    else Nothing
             )
   where
     stakeKeyIsRegistered =
@@ -158,6 +159,8 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
         (Write.RecentEraBabbage,_) ->
             Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, NotVotedYet) ->
+            Left (ErrAlreadyDelegating pid)
+        (Write.RecentEraConway, NotVotedThisTime) ->
             Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, VotedSameAsBefore) ->
             Left (ErrAlreadyDelegatingVoting pid)
@@ -217,11 +220,11 @@ guardVoting optionalDelegationAction votingSameAgainM = do
 guardOnlyVoting
     :: Write.IsRecentEra era
     => Write.RecentEra era
-    -> Maybe (Bool,DRep)
+    -> (Bool,DRep)
     -> Either ErrCannotVote ()
-guardOnlyVoting era votingSameAgainM = do
-    when ( (fst <$> votingSameAgainM) == Just True ) $
-        Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)
+guardOnlyVoting era votingSameAgain = do
+    when (fst votingSameAgain) $
+        Left $ ErrAlreadyVoted $ snd votingSameAgain
 
     case era of
         Write.RecentEraBabbage ->
@@ -237,7 +240,7 @@ joinDRepVotingAction
     -> Bool
     -> Either ErrCannotVote Tx.VotingAction
 joinDRepVotingAction era action dlg stakeKeyIsRegistered =
-    second (const vAction) $ guardOnlyVoting era $ toDrepEnriched votingRequest
+    second (const vAction) $ guardOnlyVoting era votingRequest
   where
     isDRepSame (W.Voting drep) = drep == action
     isDRepSame (W.DelegatingVoting _ drep) = drep == action
@@ -246,16 +249,9 @@ joinDRepVotingAction era action dlg stakeKeyIsRegistered =
     isSameNext (W.WalletDelegationNext _ deleg) = isDRepSame deleg
 
     sameWalletDelegation (W.WalletDelegation current coming) =
-        if isDRepSame current || any isSameNext coming then
-            VotedSameAsBefore
-        else
-            VotedDifferently
+        isDRepSame current || any isSameNext coming
 
     (vAction, votingRequest) =
         if stakeKeyIsRegistered
-        then (Tx.Vote action, sameWalletDelegation dlg)
-        else (Tx.VoteRegisteringKey action, sameWalletDelegation dlg)
-
-    toDrepEnriched NotVotedYet = Nothing
-    toDrepEnriched VotedSameAsBefore = Just (True, action)
-    toDrepEnriched VotedDifferently = Just (False, action)
+        then (Tx.Vote action, (sameWalletDelegation dlg, action))
+        else (Tx.VoteRegisteringKey action, (sameWalletDelegation dlg,action))
