@@ -520,7 +520,7 @@ joinDRep ctx wid drep passphrase = do
     pp <- currentProtocolParameters netLayer
     ttl <- W.transactionExpirySlot ti Nothing
 
-    voting <- handleVoteRequest ctx drep
+    voting <- joinDRepVotingAction ctx drep
 
     let transactionCtx =
             defaultTransactionCtx
@@ -547,24 +547,28 @@ joinDRep ctx wid drep passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
-handleVoteRequest
+joinDRepVotingAction
     :: WalletLayer IO s
     -> DRep
     -> IO Tx.VotingAction
-handleVoteRequest ctx drep = do
-    (vAction, votingRequest) <- voteAction ctx drep
+joinDRepVotingAction ctx drep = do
     (Write.PParamsInAnyRecentEra era _, _)
         <- W.readNodeTipStateForTxWrite netLayer
+    currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    (calculateWalletDelegations, stakeKeyIsRegistered) <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            (,) <$> readDelegation walletState
+                <*> W.isStakeKeyRegistered walletState
+    let dlg = calculateWalletDelegations currentEpochSlotting
+
+    traceWith tr $ W.MsgWallet $ MsgIsStakeKeyRegistered stakeKeyIsRegistered
 
     either (throwIO . ExceptionVoting) pure
-        (WD.guardOnlyVoting era $ toDrepEnriched votingRequest)
-    pure vAction
+        (WD.joinDRepVotingAction era drep dlg stakeKeyIsRegistered)
   where
-    toDrepEnriched NotVotedYet = Nothing
-    toDrepEnriched VotedSameAsBefore = Just (True, drep)
-    toDrepEnriched VotedDifferently = Just (False, drep)
-
     netLayer = ctx ^. networkLayer
+    db = ctx ^. dbLayer
+    tr = ctx ^. logger
 
 voteAction
     :: WalletLayer IO s

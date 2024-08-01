@@ -12,6 +12,7 @@ module Cardano.Wallet.Delegation
     , guardVoting
     , guardOnlyVoting
     , quitStakePoolDelegationAction
+    , joinDRepVotingAction
     , DelegationRequest(..)
     , VoteRequest (..)
     ) where
@@ -51,6 +52,9 @@ import Control.Error
 import Control.Monad
     ( forM_
     , when
+    )
+import Data.Bifunctor
+    ( second
     )
 import Data.Generics.Internal.VL.Lens
     ( view
@@ -224,3 +228,34 @@ guardOnlyVoting era votingSameAgainM = do
             Left ErrWrongEra
         Write.RecentEraConway ->
             Right ()
+
+joinDRepVotingAction
+    :: Write.IsRecentEra era
+    => Write.RecentEra era
+    -> DRep
+    -> W.WalletDelegation
+    -> Bool
+    -> Either ErrCannotVote Tx.VotingAction
+joinDRepVotingAction era action dlg stakeKeyIsRegistered =
+    second (const vAction) $ guardOnlyVoting era $ toDrepEnriched votingRequest
+  where
+    isDRepSame (W.Voting drep) = drep == action
+    isDRepSame (W.DelegatingVoting _ drep) = drep == action
+    isDRepSame _ = False
+
+    isSameNext (W.WalletDelegationNext _ deleg) = isDRepSame deleg
+
+    sameWalletDelegation (W.WalletDelegation current coming) =
+        if isDRepSame current || any isSameNext coming then
+            VotedSameAsBefore
+        else
+            VotedDifferently
+
+    (vAction, votingRequest) =
+        if stakeKeyIsRegistered
+        then (Tx.Vote action, sameWalletDelegation dlg)
+        else (Tx.VoteRegisteringKey action, sameWalletDelegation dlg)
+
+    toDrepEnriched NotVotedYet = Nothing
+    toDrepEnriched VotedSameAsBefore = Just (True, action)
+    toDrepEnriched VotedDifferently = Just (False, action)
