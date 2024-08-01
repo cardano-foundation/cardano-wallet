@@ -13,7 +13,7 @@ where
 import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
-import Cardano.Wallet.Read.Block.SlotNo
+import Cardano.Read.Ledger.Block.SlotNo
     ( SlotNo (..)
     )
 import Cardano.Wallet.Read.Tx

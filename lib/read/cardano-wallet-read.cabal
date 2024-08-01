@@ -48,6 +48,7 @@ library
     Cardano.Read.Ledger.Block.BHeader
     Cardano.Read.Ledger.Block.BlockNo
     Cardano.Read.Ledger.Block.HeaderHash
+    Cardano.Read.Ledger.Block.SlotNo
     Cardano.Read.Ledger.Tx.Inputs
     Cardano.Read.Ledger.Tx.Outputs
     Cardano.Read.Ledger.Tx.TxId
@@ -77,7 +78,6 @@ library
     Cardano.Wallet.Read.Block.Gen.Build
     Cardano.Wallet.Read.Block.Gen.Byron
     Cardano.Wallet.Read.Block.Gen.Shelley
-    Cardano.Wallet.Read.Block.SlotNo
     Cardano.Wallet.Read.Block.Txs
     Cardano.Wallet.Read.Chain
     Cardano.Wallet.Read.Eras

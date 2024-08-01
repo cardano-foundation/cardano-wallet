@@ -73,6 +73,9 @@ import Cardano.Protocol.TPraos.OCert
 import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
+import Cardano.Read.Ledger.Block.SlotNo
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Read
     ( Tx
     , TxT
@@ -80,9 +83,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
-    )
-import Cardano.Wallet.Read.Block.SlotNo
-    ( SlotNo (..)
     )
 import Data.Proxy
     ( Proxy (..)

@@ -37,6 +37,10 @@ import Cardano.Read.Ledger.Block.HeaderHash
     , getEraHeaderHash
     , getEraPrevHeaderHash
     )
+import Cardano.Read.Ledger.Block.SlotNo
+    ( SlotNo (..)
+    , getEraSlotNo
+    )
 import Cardano.Wallet.Read
     ( Block
     , ConsensusBlock
@@ -44,10 +48,6 @@ import Cardano.Wallet.Read
     , IsEra
     , fromConsensusBlock
     , theEra
-    )
-import Cardano.Wallet.Read.Block.SlotNo
-    ( SlotNo (..)
-    , getEraSlotNo
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun

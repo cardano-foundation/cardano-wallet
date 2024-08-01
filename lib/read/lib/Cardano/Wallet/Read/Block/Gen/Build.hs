@@ -39,6 +39,9 @@ import Cardano.Ledger.Binary
 import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
+import Cardano.Read.Ledger.Block.SlotNo
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Read.Block
     ( ConsensusBlock
     , toConsensusBlock
@@ -49,9 +52,6 @@ import Cardano.Wallet.Read.Block.Gen
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
     , txsL
-    )
-import Cardano.Wallet.Read.Block.SlotNo
-    ( SlotNo (..)
     )
 import Cardano.Wallet.Read.Eras
     ( Era (..)

@@ -10,7 +10,7 @@ module Cardano.Wallet.Read.Block
     , module Cardano.Read.Ledger.Block.Block
     , module Cardano.Read.Ledger.Block.BlockNo
     , module Cardano.Read.Ledger.Block.HeaderHash
-    , module Cardano.Wallet.Read.Block.SlotNo
+    , module Cardano.Read.Ledger.Block.SlotNo
     , module Cardano.Wallet.Read.Block.Txs
     ) where
 
@@ -41,7 +41,7 @@ import Cardano.Read.Ledger.Block.HeaderHash
     , getRawHeaderHash
     , mockRawHeaderHash
     )
-import Cardano.Wallet.Read.Block.SlotNo
+import Cardano.Read.Ledger.Block.SlotNo
     ( SlotNo (..)
     , getEraSlotNo
     , prettySlotNo
