@@ -22,12 +22,10 @@ import Cardano.Read.Ledger.Tx.Cardano
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (unsafeCardanoTx)
     )
-import Cardano.Wallet.Read.Eras
+import Cardano.Wallet.Read
     ( EraValue
+    , Tx
     , applyEraFun
-    )
-import Cardano.Wallet.Read.Tx
-    ( Tx (..)
     )
 
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
