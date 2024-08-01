@@ -10,9 +10,7 @@ module Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     , mkTxCBOR
     ) where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Read.Ledger.Tx.CBOR
     ( TxCBOR
@@ -121,9 +119,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Transaction
     ( ValidityIntervalExplicit (invalidHereafter)
-    )
-import Control.Category
-    ( (.)
     )
 import Data.Foldable
     ( fold

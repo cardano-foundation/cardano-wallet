@@ -28,9 +28,7 @@ module Cardano.Wallet.DB.Store.Submissions.Layer
     )
     where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchTransaction (..)
@@ -75,9 +73,6 @@ import Cardano.Wallet.Submissions.TxStatus
     )
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
-    )
-import Control.Category
-    ( (.)
     )
 import Control.Lens
     ( has

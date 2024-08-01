@@ -5,9 +5,7 @@
 
 module Cardano.Wallet.Read.Block.Gen where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Ledger.BaseTypes
     ( natVersion
@@ -30,9 +28,6 @@ import Cardano.Wallet.Read.Block.Gen.Shelley
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Control.Category
-    ( (.)
     )
 
 {-# INLINABLE mkBlockEra #-}

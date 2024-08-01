@@ -29,9 +29,7 @@ module Cardano.Wallet.DB.Store.Transactions.Decoration
    , decorateTxInsForReadTxFromLookupTxOut
    ) where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Read.Ledger.Tx.CollateralInputs
     ( getEraCollateralInputs
@@ -66,9 +64,6 @@ import Cardano.Wallet.Read.Eras.EraFun
     )
 import Control.Applicative
     ( (<|>)
-    )
-import Control.Category
-    ( (.)
     )
 import Control.Monad
     ( guard

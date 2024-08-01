@@ -16,9 +16,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
     )
 where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
@@ -70,9 +68,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Util
     ( internalError
-    )
-import Control.Category
-    ( (.)
     )
 import Data.Foldable
     ( toList

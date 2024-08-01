@@ -12,9 +12,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Block.Header
     )
 where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
@@ -51,9 +49,6 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun
-    )
-import Control.Category
-    ( (.)
     )
 import Data.Coerce
     ( coerce

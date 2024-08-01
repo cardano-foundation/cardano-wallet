@@ -16,9 +16,7 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
 
  where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash
@@ -41,9 +39,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Cardano.Wallet.Read.Tx
     ( Tx
-    )
-import Control.Category
-    ( (.)
     )
 import Data.Maybe.Strict
     ( StrictMaybe
