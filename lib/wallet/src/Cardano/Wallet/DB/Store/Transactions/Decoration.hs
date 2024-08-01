@@ -58,9 +58,7 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Inputs
     )
 import Cardano.Wallet.Read.Eras
     ( EraValue
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( applyEraFun
+    , applyEraFun
     )
 import Control.Applicative
     ( (<|>)

@@ -42,18 +42,15 @@ import Cardano.Ledger.Binary.Decoding
     , shelleyProtVer
     )
 import Cardano.Wallet.Read.Eras
-    ( EraValue
-    , IsEra
+    ( Era (..)
+    , EraValue
+    , IsEra (..)
     , K (..)
     , applyEraFunValue
     , extractEraValue
     , sequenceEraValue
     , unK
     , (:.:) (..)
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
-    , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

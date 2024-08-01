@@ -34,12 +34,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
-    , IsEra (..)
     )
 import GHC.Generics
     ( Generic

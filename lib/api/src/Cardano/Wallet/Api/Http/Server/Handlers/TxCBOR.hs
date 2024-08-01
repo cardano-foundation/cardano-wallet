@@ -65,10 +65,8 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.Read.Eras
     ( K (..)
+    , applyEraFun
     , (:*:) (..)
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( applyEraFun
     )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts

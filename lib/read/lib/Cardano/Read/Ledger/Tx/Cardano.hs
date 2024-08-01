@@ -15,16 +15,14 @@ module Cardano.Read.Ledger.Tx.Cardano
 import Prelude
 
 import Cardano.Wallet.Read.Eras
-    ( EraValue
-    , eraValue
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
     ( Allegra
     , Alonzo
     , Babbage
     , Conway
+    , EraValue
     , Mary
     , Shelley
+    , eraValue
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

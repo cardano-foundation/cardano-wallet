@@ -49,13 +49,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
-    , IsEra
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
-    , IsEra (..)
     )
 import Cardano.Wallet.Read.Hash
     ( Blake2b_256

@@ -17,9 +17,7 @@ import Cardano.Read.Ledger.Block.Block
     )
 import Cardano.Wallet.Read.Eras
     ( Byron
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
+    , Era (..)
     , IsEra (..)
     )
 import Cardano.Wallet.Read.Tx
