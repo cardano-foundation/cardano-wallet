@@ -228,7 +228,7 @@ instance Malformed (PathParam ApiDRepSpecifier) where
         , ("no-confidence", msg)
         ]
       where
-        msg = "Invalid drep: expecting either 'abtain or 'no_confidence' or a Bech32 encoded value with human readable part of 'drep' or 'drep_script'."
+        msg = "I couldn't parse the given decentralized representative (DRep). I am expecting either 'abstain', 'no_confidence' or bech32 encoded drep having prefixes: 'drep' or 'drep_script'."
 
 instance Wellformed (PathParam (ApiAddress ('Testnet 0))) where
     wellformed = [PathParam
