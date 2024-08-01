@@ -356,9 +356,9 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDRepSpecifier (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
-    , ApiDRepSpecifier (..)
     , ApiEncryptMetadata (..)
     , ApiExternalInput (..)
     , ApiFee (..)
@@ -467,9 +467,6 @@ import Cardano.Wallet.Api.Types.BlockHeader
 import Cardano.Wallet.Api.Types.Certificate
     ( ApiRewardAccount (..)
     , mkApiAnyCertificate
-    )
-import Cardano.Wallet.Primitive.Types.DRep
-    ( DRep
     )
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
@@ -607,6 +604,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
