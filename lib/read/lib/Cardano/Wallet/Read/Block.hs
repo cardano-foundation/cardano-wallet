@@ -7,7 +7,7 @@ It is compatible with the types from @cardano-ledger@.
 -}
 module Cardano.Wallet.Read.Block
     ( module Cardano.Read.Ledger.Block.BHeader
-    , module Cardano.Wallet.Read.Block.Block
+    , module Cardano.Read.Ledger.Block.Block
     , module Cardano.Wallet.Read.Block.BlockNo
     , module Cardano.Wallet.Read.Block.HeaderHash
     , module Cardano.Wallet.Read.Block.SlotNo
@@ -18,7 +18,7 @@ import Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     , getEraBHeader
     )
-import Cardano.Wallet.Read.Block.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     , ConsensusBlock
     , fromConsensusBlock

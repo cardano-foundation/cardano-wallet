@@ -25,7 +25,7 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Block
     ( bheader
     )
-import Cardano.Wallet.Read.Block.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras

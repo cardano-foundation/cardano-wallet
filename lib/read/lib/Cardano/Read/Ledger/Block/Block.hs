@@ -12,7 +12,7 @@
 --
 -- The 'Block' type.
 --
-module Cardano.Wallet.Read.Block.Block
+module Cardano.Read.Ledger.Block.Block
     ( ConsensusBlock
     , Block (..)
     , fromConsensusBlock

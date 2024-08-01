@@ -12,7 +12,7 @@ import Prelude
 import Cardano.Ledger.Binary
     ( EncCBOR
     )
-import Cardano.Wallet.Read.Block.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras
