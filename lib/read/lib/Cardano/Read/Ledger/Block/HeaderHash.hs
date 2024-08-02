@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Cardano.Wallet.Read.Block.HeaderHash
+module Cardano.Read.Ledger.Block.HeaderHash
     ( HeaderHash (..)
     , HeaderHashT
     , getEraHeaderHash
@@ -40,7 +40,7 @@ import Cardano.Ledger.Hashes
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash
     )
-import Cardano.Wallet.Read.Block.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras

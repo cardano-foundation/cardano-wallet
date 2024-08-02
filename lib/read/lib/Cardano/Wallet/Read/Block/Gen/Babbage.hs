@@ -34,11 +34,14 @@ import Cardano.Ledger.Keys
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash (..)
     )
+import Cardano.Read.Ledger.Block.BlockNo
+    ( BlockNo (..)
+    )
+import Cardano.Read.Ledger.Block.SlotNo
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Read
     ( TxT
-    )
-import Cardano.Wallet.Read.Block.BlockNo
-    ( BlockNo (..)
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
@@ -52,9 +55,6 @@ import Cardano.Wallet.Read.Block.Gen.Shelley
     , mkKeyVRF'
     , mkSignedKES
     , oCertamente
-    )
-import Cardano.Wallet.Read.Block.SlotNo
-    ( SlotNo (..)
     )
 import Ouroboros.Consensus.Protocol.Praos
     ( Praos

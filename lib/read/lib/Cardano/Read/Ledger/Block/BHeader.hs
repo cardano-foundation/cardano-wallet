@@ -11,7 +11,7 @@ Copyright: © 2024 Cardano Foundation
 --
 -- The 'BHeader' type represents a block header.
 -}
-module Cardano.Wallet.Read.Block.BHeader
+module Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     , BHeaderT
     , getEraBHeader
@@ -25,7 +25,7 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Block
     ( bheader
     )
-import Cardano.Wallet.Read.Block.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras

@@ -22,22 +22,14 @@ import Cardano.Crypto.Hash.Class
 import Cardano.Ledger.Crypto
     ( StandardCrypto
     )
-import Cardano.Wallet.Read
-    ( Block
-    , ConsensusBlock
-    , Era (..)
-    , IsEra
-    , fromConsensusBlock
-    , theEra
-    )
-import Cardano.Wallet.Read.Block.BHeader
+import Cardano.Read.Ledger.Block.BHeader
     ( getEraBHeader
     )
-import Cardano.Wallet.Read.Block.BlockNo
+import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     , getEraBlockNo
     )
-import Cardano.Wallet.Read.Block.HeaderHash
+import Cardano.Read.Ledger.Block.HeaderHash
     ( HeaderHash (..)
     , HeaderHashT
     , PrevHeaderHash (..)
@@ -45,9 +37,17 @@ import Cardano.Wallet.Read.Block.HeaderHash
     , getEraHeaderHash
     , getEraPrevHeaderHash
     )
-import Cardano.Wallet.Read.Block.SlotNo
+import Cardano.Read.Ledger.Block.SlotNo
     ( SlotNo (..)
     , getEraSlotNo
+    )
+import Cardano.Wallet.Read
+    ( Block
+    , ConsensusBlock
+    , Era (..)
+    , IsEra
+    , fromConsensusBlock
+    , theEra
     )
 import Cardano.Wallet.Read.Eras.EraFun
     ( applyEraFun

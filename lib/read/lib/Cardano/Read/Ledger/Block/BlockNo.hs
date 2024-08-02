@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Read.Block.BlockNo
+module Cardano.Read.Ledger.Block.BlockNo
     ( getEraBlockNo
     , BlockNo (..)
     , prettyBlockNo
@@ -13,7 +13,7 @@ module Cardano.Wallet.Read.Block.BlockNo
 
 import Prelude
 
-import Cardano.Wallet.Read.Block.BHeader
+import Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     )
 import Cardano.Wallet.Read.Eras.KnownEras

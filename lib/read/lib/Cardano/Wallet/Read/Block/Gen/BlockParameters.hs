@@ -10,10 +10,10 @@ module Cardano.Wallet.Read.Block.Gen.BlockParameters
     )
 where
 
-import Cardano.Wallet.Read.Block.BlockNo
+import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
     )
-import Cardano.Wallet.Read.Block.SlotNo
+import Cardano.Read.Ledger.Block.SlotNo
     ( SlotNo (..)
     )
 import Cardano.Wallet.Read.Tx

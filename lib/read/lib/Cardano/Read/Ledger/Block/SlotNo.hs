@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Read.Block.SlotNo
+module Cardano.Read.Ledger.Block.SlotNo
     ( getEraSlotNo
     , SlotNo (..)
     , prettySlotNo
@@ -12,7 +12,7 @@ module Cardano.Wallet.Read.Block.SlotNo
 
 import Prelude
 
-import Cardano.Wallet.Read.Block.BHeader
+import Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     )
 import Cardano.Wallet.Read.Eras.KnownEras

@@ -70,19 +70,19 @@ import Cardano.Protocol.TPraos.OCert
     , OCert (..)
     , OCertSignable (OCertSignable)
     )
+import Cardano.Read.Ledger.Block.BlockNo
+    ( BlockNo (..)
+    )
+import Cardano.Read.Ledger.Block.SlotNo
+    ( SlotNo (..)
+    )
 import Cardano.Wallet.Read
     ( Tx
     , TxT
     , unTx
     )
-import Cardano.Wallet.Read.Block.BlockNo
-    ( BlockNo (..)
-    )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
-    )
-import Cardano.Wallet.Read.Block.SlotNo
-    ( SlotNo (..)
     )
 import Data.Proxy
     ( Proxy (..)

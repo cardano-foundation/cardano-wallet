@@ -25,14 +25,14 @@ import Cardano.Crypto.ProtocolMagic
 import Cardano.Crypto.Signing
     ( SigningKey (..)
     )
-import Cardano.Wallet.Read.Block.BlockNo
+import Cardano.Read.Ledger.Block.BlockNo
     ( BlockNo (..)
+    )
+import Cardano.Read.Ledger.Block.SlotNo
+    ( SlotNo (..)
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
-    )
-import Cardano.Wallet.Read.Block.SlotNo
-    ( SlotNo (..)
     )
 import Cardano.Wallet.Read.Eras
     ( Byron

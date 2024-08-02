@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.Read.Block.Txs
+module Cardano.Read.Ledger.Block.Txs
     ( getEraTransactions
     ) where
 
@@ -12,7 +12,7 @@ import Prelude
 import Cardano.Ledger.Binary
     ( EncCBOR
     )
-import Cardano.Wallet.Read.Block.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Eras
