@@ -50,9 +50,6 @@ import Prelude
 import Data.ByteString
     ( ByteString
     )
-import Data.Word
-    ( Word32
-    )
 import Numeric.Natural
     ( Natural
     )

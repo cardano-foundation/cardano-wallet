@@ -16,9 +16,12 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     , Customer
     , CustomerList
     )
+import Cardano.Wallet.Deposit.Pure
+    ( Word31
+    , fromRawCustomer
+    )
 import Cardano.Wallet.Deposit.Read
     ( fromRawAddress
-    , fromRawCustomer
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -34,8 +37,10 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , arbitrarySizedBoundedIntegral
     , chooseInt
     , property
+    , shrinkIntegral
     , vectorOf
     , (===)
     )
@@ -73,3 +78,7 @@ instance Arbitrary (ApiT CustomerList) where
         listLen <- chooseInt (0, 100)
         let genPair = (,) <$> (unApiT <$> arbitrary) <*> (unApiT <$> arbitrary)
         ApiT <$> vectorOf listLen genPair
+
+instance Arbitrary Word31 where
+    arbitrary = arbitrarySizedBoundedIntegral
+    shrink = shrinkIntegral
