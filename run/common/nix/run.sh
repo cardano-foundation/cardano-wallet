@@ -6,6 +6,7 @@ set -euo pipefail
 usage() {
     echo "Usage: $0 [sync]"
     echo "  sync: Sync the service and wait for it to be ready"
+    echo "  start: Start node and wallet services"
 }
 # Check if no arguments are provided and display usage if true
 if [ $# -eq 0 ]; then
@@ -45,6 +46,8 @@ fi
 if [[ -n "${CLEANUP_DB-}" ]]; then
     rm -rf "${NODE_DB:?}"/*
 fi
+
+NETWORK=${NETWORK:=testnet}
 
 # Define and export the node socket name
 NODE_SOCKET_NAME=node.socket
@@ -158,6 +161,13 @@ case "$1" in
         else
             exit 1
         fi
+        ;;
+    start)
+        echo "Wallet service port: $WALLET_PORT"
+        echo "Node socket path: $NODE_SOCKET_PATH"
+        echo "Wallet pid: $WALLET_ID"
+        echo "Node pid: $NODE_ID"
+        trap - ERR INT EXIT
         ;;
     *)
         echo "Error: Invalid option $1"
