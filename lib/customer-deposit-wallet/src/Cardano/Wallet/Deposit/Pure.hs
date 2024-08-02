@@ -137,7 +137,7 @@ isCustomerAddress address =
     flip Address.isCustomerAddress (Read.toRawAddress address) . addresses
 
 fromRawCustomer :: Word31 -> Customer
-fromRawCustomer = fromIntegral
+fromRawCustomer = id
 
 {-----------------------------------------------------------------------------
     Operations
