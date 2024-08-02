@@ -115,11 +115,12 @@ joinStakePoolDelegationAction
             , case era of
                 Write.RecentEraBabbage -> Nothing
                 Write.RecentEraConway ->
-                    if not stakeKeyIsRegistered
-                    then Just $ Tx.VoteRegisteringKey Abstain
+                    if not stakeKeyIsRegistered then
+                        Just $ Tx.VoteRegisteringKey Abstain
                     else if votingRequest /= NotVotedThisTime then
                         Just $ Tx.Vote Abstain
-                    else Nothing
+                    else
+                        Nothing
             )
   where
     stakeKeyIsRegistered =
@@ -159,7 +160,7 @@ guardJoin era knownPools delegation pid mRetirementEpochInfo votedTheSameM = do
         (Write.RecentEraBabbage,_) ->
             Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, NotVotedYet) ->
-            Left (ErrAlreadyDelegating pid)
+            pure ()
         (Write.RecentEraConway, NotVotedThisTime) ->
             Left (ErrAlreadyDelegating pid)
         (Write.RecentEraConway, VotedSameAsBefore) ->

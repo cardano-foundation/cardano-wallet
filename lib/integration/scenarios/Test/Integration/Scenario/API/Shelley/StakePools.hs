@@ -619,6 +619,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         $ \ctx -> runResourceT $ do
             noBabbage ctx "re-joining the same pool possible in Conway if no previous voting"
 
+            -- this is new tx workflow delegation only tx
             (w, pool) <- delegateToPool @n ctx
 
             let getSrcWallet =
@@ -639,12 +640,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                          (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
                     ]
 
-            -- joinStakePool would try once again joining pool and voting Abstain
+            -- joinStakePool would try once again joining the same pool but fails
             r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
             verify r
                 [ expectResponseCode HTTP.status403
                 ]
-            decodeErrorInfo r `shouldBe` PoolAlreadyJoinedSameVote
+            decodeErrorInfo r `shouldBe` PoolAlreadyJoined
 
     it "STAKE_POOLS_JOIN_02 - \
         \Can join the stake pool if voting was cast before in Conway"
@@ -654,7 +655,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             w <- fixtureWallet ctx
 
             let voteAbstain = Json [json|{
-                    "vote": "abstain"
+                    "vote": "no_confidence"
                 }|]
             rTx1 <- request @(ApiConstructTransaction n) ctx
                 (Link.createUnsignedTransaction @'Shelley w) Default voteAbstain
@@ -668,7 +669,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectSuccess
                 , expectResponseCode HTTP.status202
                 ]
-            let voting = ApiT Abstain
+            let voting = ApiT NoConfidence
             let getSrcWallet =
                     let endpoint = Link.getWallet @'Shelley w
                      in request @ApiWallet ctx endpoint Default Empty
@@ -680,23 +681,37 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [ expectField #delegation (`shouldBe` onlyVoting voting [])
                     ]
 
-            pool : _ <- map (view #id) <$> notRetiringPools ctx
+            pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
 
             waitForTxStatus ctx w InLedger . getResponse
-                =<< joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
+                =<< joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
 
-            eventually "Wallet is delegating to pool and voting abstain" $ do
+            eventually "Wallet is delegating to pool1 and voting" $ do
                 getSrcWallet >>= flip verify
                     [ expectField #delegation
-                         (`shouldBe` votingAndDelegating (ApiT pool) (ApiT Abstain) [])
+                         (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
                     ]
 
-            -- joinStakePool would try once again joining pool and voting Abstain
-            r <- joinStakePool @n ctx (SpecificPool pool) (w, fixturePassphrase)
-            verify r
+            -- joinStakePool would try once again joining pool and fail as we have already voted
+            -- and we do not aim to change voting
+            r1 <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
+            verify r1
                 [ expectResponseCode HTTP.status403
                 ]
-            decodeErrorInfo r `shouldBe` PoolAlreadyJoinedSameVote
+            decodeErrorInfo r1 `shouldBe` PoolAlreadyJoined
+
+            -- but we can join another pool and have initial voting
+            r2 <- joinStakePool @n ctx (SpecificPool pool2) (w, fixturePassphrase)
+            verify r2
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is delegating to pool2 and voting" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
+                    ]
 
     it "STAKE_POOLS_JOIN_03 - Cannot join a pool that has retired" $ \ctx -> runResourceT $ do
         waitForEpoch 3 ctx -- One pool retires at epoch 3
