@@ -224,6 +224,10 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
     (Write.PParamsInAnyRecentEra era pp, timeTranslation)
         <- W.readNodeTipStateForTxWrite netLayer
     currentEpochSlotting <- W.getCurrentEpochSlotting netLayer
+    calculateWalletDelegations <-
+        db & \DBLayer{atomically,walletState} -> atomically $
+            readDelegation walletState
+    let dlg = calculateWalletDelegations currentEpochSlotting
 
     (action, _) <- joinStakePoolDelegationAction
         ctx
@@ -231,7 +235,7 @@ selectCoinsForJoin ctx pools poolId poolStatus = do
         pools
         poolId
         poolStatus
-        NotVotedYet
+        (votingWalletDelegation dlg)
 
     let changeAddrGen = W.defaultChangeAddressGen (delegationAddressS @n)
 
@@ -413,17 +417,20 @@ joinStakePool ctx wid pools poolId poolStatus passphrase = do
     ti = timeInterpreter netLayer
     txLayer = ctx ^. transactionLayer
 
-    votingWalletDelegation (WalletDelegation current coming) =
-        if isVoting current || any isVotingNext coming then
-            NotVotedThisTime
-        else
-            NotVotedYet
-      where
-        isVoting (Voting _) = True
-        isVoting (DelegatingVoting _ _) = True
-        isVoting _ = False
+votingWalletDelegation
+    :: WalletDelegation
+    -> VoteRequest
+votingWalletDelegation (WalletDelegation current coming) =
+    if isVoting current || any isVotingNext coming then
+        NotVotedThisTime
+    else
+        NotVotedYet
+  where
+    isVoting (Voting _) = True
+    isVoting (DelegatingVoting _ _) = True
+    isVoting _ = False
 
-        isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
+    isVotingNext (WalletDelegationNext _ deleg) = isVoting deleg
 
 {-----------------------------------------------------------------------------
     Quit stake pool
