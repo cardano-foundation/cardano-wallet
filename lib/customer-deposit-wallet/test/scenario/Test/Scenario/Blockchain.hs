@@ -30,10 +30,6 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv
     )
-import Cardano.Wallet.Deposit.IO.DB
-    ( SqlContext (..)
-    , withSqlContextInMemory
-    )
 import Cardano.Wallet.Deposit.IO.Network.Mock
     ( newNetworkEnvMock
     )
@@ -92,18 +88,15 @@ withWalletEnvMock
     :: ScenarioEnv
     -> (Wallet.WalletEnv IO -> IO a)
     -> IO a
-withWalletEnvMock ScenarioEnv{..} action =
-    withSqlContextInMemory nullTracer
-        $ \SqlContext{runSqlM} -> do
-            database <- runSqlM newStore
-            let walletEnv = Wallet.WalletEnv
-                    { Wallet.logger = nullTracer
-                    , Wallet.genesisData = genesisData
-                    , Wallet.networkEnv = networkEnv
-                    , Wallet.database = database
-                    , Wallet.atomically = runSqlM
-                    }
-            action walletEnv
+withWalletEnvMock ScenarioEnv{..} action = do
+    database <- newStore
+    let walletEnv = Wallet.WalletEnv
+            { Wallet.logger = nullTracer
+            , Wallet.genesisData = genesisData
+            , Wallet.networkEnv = networkEnv
+            , Wallet.database = database
+            }
+    action walletEnv
 
 {-----------------------------------------------------------------------------
     Faucet

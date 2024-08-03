@@ -55,7 +55,6 @@ import Data.List.NonEmpty
     ( NonEmpty
     )
 
-import qualified Cardano.Wallet.Deposit.IO.DB as DB
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
 import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Read as Read
@@ -77,13 +76,12 @@ data WalletEnv m =
         { logger :: Tracer m WalletLog
         , genesisData :: Read.GenesisData
         , networkEnv :: Network.NetworkEnv m Read.Block
-        , database :: Store.UpdateStore DB.SqlM Wallet.DeltaWalletState
-        , atomically :: forall a. DB.SqlM a -> m a
+        , database :: Store.UpdateStore IO Wallet.DeltaWalletState
         }
 
 data WalletInstance = WalletInstance
     { env :: WalletEnv IO
-    , walletState :: DBVar.DBVar DB.SqlM Wallet.DeltaWalletState
+    , walletState :: DBVar.DBVar IO Wallet.DeltaWalletState
     }
 
 {-----------------------------------------------------------------------------
@@ -94,16 +92,16 @@ onWalletState
     :: WalletInstance
     -> Delta.Update Wallet.DeltaWalletState r
     -> IO r
-onWalletState WalletInstance{env,walletState} update' =
-    atomically env $ Delta.onDBVar walletState update'
+onWalletState WalletInstance{walletState} =
+    Delta.onDBVar walletState
     -- FIXME: Propagation of exceptions from Pure to IO.
 
 -- | Convenience to read the 'WalletState'.
 --
 -- Use 'onWalletState' if you want to use the result in an atomic update.
 readWalletState :: WalletInstance -> IO WalletState
-readWalletState WalletInstance{env,walletState} =
-    atomically env $ DBVar.readDBVar walletState
+readWalletState WalletInstance{walletState} =
+    DBVar.readDBVar walletState
 
 {-----------------------------------------------------------------------------
     Operations
@@ -117,8 +115,7 @@ withWalletInit
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletInit env@WalletEnv{..} xpub knownCustomerCount action = do
-    walletState <- atomically
-        $ DBVar.initDBVar database
+    walletState <- DBVar.initDBVar database
         $ Wallet.fromXPubAndGenesis xpub knownCustomerCount genesisData
     withWalletDBVar env walletState action
 
@@ -128,12 +125,12 @@ withWalletLoad
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletLoad env@WalletEnv{..} action = do
-    walletState <- atomically $ DBVar.loadDBVar database
+    walletState <- DBVar.loadDBVar database
     withWalletDBVar env walletState action
 
 withWalletDBVar
     :: WalletEnv IO
-    -> DBVar.DBVar DB.SqlM Wallet.DeltaWalletState
+    -> DBVar.DBVar IO Wallet.DeltaWalletState
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletDBVar env@WalletEnv{..} walletState action = do
