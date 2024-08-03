@@ -58,6 +58,7 @@ module Data.Store (
     , mkQueryStore
 
     -- ** Combinators
+    , hoistStore
     , embedStore
     , pairStores
     , newCachedStore
@@ -331,6 +332,9 @@ other "expected" rules such as
     and use @atomically@ in a scope where you want to use the 'Store'
     rather than implement it.
 
+    Use 'hoistStore'@ atomically@ to map a 'Store'@ MyMonad@
+    to a 'Store'@ IO@ where the monad has less atomicity.
+
 * __Non-determinism__ or other effects: Here be dragons.
 
 -}
@@ -575,6 +579,19 @@ embedStore' Embedding'{load,write,update} Store{loadS,writeS,updateS} =
                     Left  e -> throwIO e
                     Right a -> updateL (Just a) da
     in  mkUpdateStore loadL (writeS . write) updateL
+
+-- | Lift
+hoistStore
+    :: Monad m
+    => (forall a. m a -> n a)
+    -> Store m qa da
+    -> Store n qa da
+hoistStore f Store{loadS,writeS,updateS,queryS} = Store
+    { loadS = f loadS
+    , writeS = f . writeS
+    , updateS = \ma -> f . updateS ma
+    , queryS = f . queryS
+    }
 
 -- | Combine two 'Stores' into a 'Store' for pairs.
 --
