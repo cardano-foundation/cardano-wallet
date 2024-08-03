@@ -58,11 +58,11 @@ library
     , contra-tracer
     , customer-deposit-wallet-pure
     , delta-store
+    , delta-table
     , delta-types
     , io-classes
     , iohk-monitoring-extra
     , OddWord
-    , persistent
     , sqlite-simple
     , text
     , transformers
