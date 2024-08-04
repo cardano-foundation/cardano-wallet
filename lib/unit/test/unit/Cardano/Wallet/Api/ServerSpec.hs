@@ -25,16 +25,18 @@ import Cardano.Slotting.Slot
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
     ( IsServerError (..)
-    , Listen (..)
-    , ListenError (..)
     , getNetworkClock
     , getNetworkInformation
     , liftHandler
-    , withListeningSocket
     )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..)
     , ApiWalletMode (..)
+    )
+import Cardano.Wallet.Application.Server
+    ( Listen (..)
+    , ListenError (..)
+    , withListeningSocket
     )
 import Cardano.Wallet.DB.Errors
     ( ErrNoSuchWallet (..)

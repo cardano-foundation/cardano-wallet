@@ -38,9 +38,6 @@ import Cardano.Startup
     ( installSignalHandlersNoLogging
     , setDefaultFilePermissions
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( walletListenFromEnv
-    )
 import Cardano.Wallet.Api.Types
     ( ApiPoolSpecifier (..)
     , ApiT (..)
@@ -56,6 +53,9 @@ import Cardano.Wallet.Application.CLI
     ( Port (..)
     , getEKGURL
     , getPrometheusURL
+    )
+import Cardano.Wallet.Application.Server
+    ( walletListenFromEnv
     )
 import Cardano.Wallet.Faucet
     ( FaucetM
@@ -390,6 +390,7 @@ onClusterStart
                         (Just dbDecorator)
                         "127.0.0.1"
                         listen
+                        Nothing
                         Nothing
                         Nothing
                         (Just tokenMetaUrl)

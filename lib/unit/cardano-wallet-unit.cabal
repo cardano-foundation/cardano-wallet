@@ -45,11 +45,11 @@ library test-common
     , base
     , bytestring
     , cardano-api
+    , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
-    , cardano-balance-tx:internal
     , containers
     , time
 
@@ -73,18 +73,20 @@ test-suite unit
     , bech32-th
     , bytestring
     , cardano-addresses
+    , cardano-api
     , cardano-api-extra
-    , cardano-api:{cardano-api, internal}
-    , cardano-balance-tx:{cardano-balance-tx, internal}
+    , cardano-api:internal
+    , cardano-balance-tx
+    , cardano-balance-tx:internal
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-ledger-core
     , cardano-ledger-alonzo
     , cardano-ledger-babbage
     , cardano-ledger-core
     , cardano-ledger-shelley
     , cardano-sl-x509
     , cardano-slotting
+    , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-exe
@@ -95,7 +97,7 @@ test-suite unit
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cardano-wallet-unit:test-common
-    , cardano-wallet:{cardano-wallet, mock-token-metadata}
+    , cardano-wallet:mock-token-metadata
     , cborg
     , connection
     , containers
@@ -108,7 +110,7 @@ test-suite unit
     , delta-types
     , directory
     , either
-    , extra                                                 >=1.6.17
+    , extra                               >=1.6.17
     , file-embed
     , filepath
     , fmt
@@ -117,8 +119,8 @@ test-suite unit
     , generic-lens
     , generics-sop
     , hedgehog-corpus
-    , hspec                                                 >=2.8.2
-    , hspec-core                                            >=2.8.2
+    , hspec                               >=2.8.2
+    , hspec-core                          >=2.8.2
     , http-api-data
     , http-client
     , http-client-tls
@@ -153,7 +155,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
-    , quickcheck-state-machine                              >=0.6.0
+    , quickcheck-state-machine            >=0.6.0
     , random
     , regex-pcre-builtin
     , resourcet
@@ -205,10 +207,10 @@ test-suite unit
     Cardano.Wallet.Address.DiscoverySpec
     Cardano.Wallet.Address.PoolSpec
     Cardano.Wallet.Api.Malformed
-    Cardano.Wallet.Api.Server.TlsSpec
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
+    Cardano.Wallet.Application.TlsSpec
     Cardano.Wallet.Balance.Migration.PlanningSpec
     Cardano.Wallet.Balance.Migration.SelectionSpec
     Cardano.Wallet.Balance.MigrationSpec

@@ -37,9 +37,6 @@ import Cardano.BM.Trace
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( Listen (ListenOnPort)
-    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiMnemonicT (..)
@@ -70,6 +67,9 @@ import Cardano.Wallet.Application
     )
 import Cardano.Wallet.Application.CLI
     ( Port (..)
+    )
+import Cardano.Wallet.Application.Server
+    ( Listen (ListenOnPort)
     )
 import Cardano.Wallet.Benchmarks.Collect
     ( Benchmark (..)
@@ -742,6 +742,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             Nothing -- db decorator
             "127.0.0.1"
             (ListenOnPort 8_090)
+            Nothing
             Nothing -- tls configuration
             Nothing -- settings
             Nothing -- token metadata server

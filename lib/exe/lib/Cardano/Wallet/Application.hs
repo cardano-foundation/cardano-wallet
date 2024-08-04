@@ -59,17 +59,25 @@ import Cardano.Wallet.Api
     , ApiV2
     )
 import Cardano.Wallet.Api.Http.Logging
-    ( ApplicationLog (..)
+    ( ApiApplicationLog (..)
     )
 import Cardano.Wallet.Api.Http.Server
     ( server
     )
 import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
+    ( toServerError
+    )
+import Cardano.Wallet.Application.Logging
+    ( ApplicationLog (..)
+    )
+import Cardano.Wallet.Application.Server
+    ( Listen
     , ListenError (..)
-    , TlsConfiguration
-    , toServerError
+    , start
+    , withListeningSocket
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration
     )
 import Cardano.Wallet.Application.Tracers as Tracers
     ( TracerSeverities
@@ -166,7 +174,8 @@ import Control.Monad.Trans.Class
     ( lift
     )
 import Control.Monad.Trans.Cont
-    ( ContT (ContT)
+    ( ContT (..)
+    , callCC
     , evalContT
     )
 import Control.Monad.Trans.Except
@@ -190,6 +199,9 @@ import Data.Maybe
     )
 import Data.Proxy
     ( Proxy (..)
+    )
+import Data.Streaming.Network
+    ( HostPreference
     )
 import Data.Typeable
     ( Typeable
@@ -215,6 +227,9 @@ import System.Exit
     )
 import System.IOManager
     ( withIOManager
+    )
+import UnliftIO
+    ( withAsync
     )
 
 import qualified Cardano.Pool.DB.Layer as Pool
@@ -248,6 +263,8 @@ serveWallet
     -- ^ Which host to bind.
     -> Listen
     -- ^ HTTP API Server port.
+    -> Maybe Listen
+    -- ^ Optional HTTP UI Server port.
     -> Maybe TlsConfiguration
     -- ^ An optional TLS configuration
     -> Maybe Settings
@@ -272,7 +289,8 @@ serveWallet
     databaseDir
     mPoolDatabaseDecorator
     hostPref
-    listen
+    listenApi
+    mListenUi
     tlsConfig
     settings
     tokenMetaUri
@@ -280,8 +298,12 @@ serveWallet
     beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
         let netId = networkIdVal sNetwork
         lift $ case blockchainSource of
-            NodeSource nodeConn _ _ -> trace $ MsgStartingNode nodeConn
+            NodeSource nodeConn _ _ ->
+                trace
+                    $ ApiApplicationLog
+                    $ MsgStartingNode nodeConn
         lift . trace
+            $ ApiApplicationLog
             $ MsgNetworkName
             $ networkDiscriminantVal sNetwork
         netLayer <-
@@ -311,28 +333,51 @@ serveWallet
         shelleyApi <- withShelleyApi netId netLayer
         multisigApi <- withMultisigApi netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
-        eSocket <- bindSocket
-        lift $ case eSocket of
-            Left err -> do
-                trace $ MsgServerStartupError err
-                pure $ ExitFailure $ exitCodeApiServer err
-            Right (_port, socket) -> do
-                startServer
-                    sNetwork
-                    socket
-                    randomApi
-                    icarusApi
-                    shelleyApi
-                    multisigApi
-                    stakePoolLayer
-                    ntpClient
-                pure ExitSuccess
+        eUiSocket <- bindUiSocket
+        callCC $ \exit -> do
+            _ <- case eUiSocket of
+                Left err -> do
+                    lift $ trace $ MsgServerStartupError err
+                    exit $ ExitFailure $ exitCodeApiServer err
+                Right ms -> do
+                    case ms of
+                        Nothing -> pure ()
+                        Just (_port, socket) -> do
+                            ContT $ \k ->
+                                withAsync (startUiServer socket) $ \_ -> k ()
+                    pure ExitSuccess
+
+            eApiSocket <- bindApiSocket
+            case eApiSocket of
+                Left err -> do
+                    lift $ trace $ MsgServerStartupError err
+                    exit $ ExitFailure $ exitCodeApiServer err
+                Right (_port, socket) -> do
+                    lift
+                        $ startApiServer
+                            sNetwork
+                            socket
+                            randomApi
+                            icarusApi
+                            shelleyApi
+                            multisigApi
+                            stakePoolLayer
+                            ntpClient
+                    exit ExitSuccess
       where
         trace :: ApplicationLog -> IO ()
         trace = traceWith applicationTracer
 
-        bindSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
-        bindSocket = ContT $ Server.withListeningSocket hostPref listen
+        bindApiSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
+        bindApiSocket = ContT $ withListeningSocket hostPref listenApi
+
+        bindUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindUiSocket = case mListenUi of
+            Nothing -> pure $ Right Nothing
+            Just listenUi -> do
+                fmap (fmap Just)
+                    $ ContT
+                    $ withListeningSocket hostPref listenUi
 
         withRandomApi netId netLayer =
             lift
@@ -365,7 +410,10 @@ serveWallet
                     netLayer
                     Server.idleWorker
 
-        startServer
+        startUiServer :: Socket -> IO ()
+        startUiServer _socket = pure () -- TODO
+
+        startApiServer
             :: forall n
              . ( HasSNetworkId n
                , Typeable n
@@ -379,7 +427,7 @@ serveWallet
             -> StakePoolLayer
             -> NtpClient
             -> IO ()
-        startServer _proxy socket byron icarus shelley multisig spl ntp = do
+        startApiServer _proxy socket byron icarus shelley multisig spl ntp = do
             serverUrl <- getServerUrl tlsConfig socket
             let serverSettings =
                     Warp.defaultSettings
@@ -396,7 +444,7 @@ serveWallet
                             spl
                             ntp
                             blockchainSource
-            Server.start
+            start
                 serverSettings
                 apiServerTracer
                 tlsConfig

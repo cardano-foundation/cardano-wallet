@@ -37,16 +37,9 @@
 
 module Cardano.Wallet.Api.Http.Shelley.Server
     (
-    -- * Server Configuration
-      Listen (..)
-    , ListenError (..)
-    , HostPreference
-    , TlsConfiguration (..)
 
     -- * Server Setup
-    , start
-    , serve
-    , withListeningSocket
+    serve
 
     -- * ApiLayer
     , newApiLayer
@@ -136,7 +129,6 @@ module Cardano.Wallet.Api.Http.Shelley.Server
 
     -- * Logging
     , WalletEngineLog (..)
-    , walletListenFromEnv
     )
     where
 
@@ -335,10 +327,6 @@ import Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
 import Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     ( ParsedTxCBOR (..)
     , parseTxCBOR
-    )
-import Cardano.Wallet.Api.Http.Server.Tls
-    ( TlsConfiguration (..)
-    , requireClientAuth
     )
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
@@ -790,8 +778,7 @@ import Data.IntCast
     ( intCastMaybe
     )
 import Data.List
-    ( isInfixOf
-    , sortOn
+    ( sortOn
     , (\\)
     )
 import Data.List.NonEmpty
@@ -817,14 +804,6 @@ import Data.Quantity
     )
 import Data.Set
     ( Set
-    )
-import Data.Streaming.Network
-    ( HostPreference
-    , bindPortTCP
-    , bindRandomPortTCP
-    )
-import Data.Text
-    ( Text
     )
 import Data.Text.Class
     ( FromText (..)
@@ -863,22 +842,6 @@ import Network.Ntp
     ( NtpClient
     , getNtpStatus
     )
-import Network.Socket
-    ( Socket
-    , close
-    )
-import Network.Wai.Handler.Warp
-    ( Port
-    )
-import Network.Wai.Middleware.Logging
-    ( ApiLog (..)
-    , newApiLoggerSettings
-    , obfuscateKeys
-    , withApiLogger
-    )
-import Network.Wai.Middleware.ServerError
-    ( handleRawError
-    )
 import Numeric.Natural
     ( Natural
     )
@@ -886,8 +849,7 @@ import Safe
     ( fromJustNote
     )
 import Servant
-    ( Application
-    , NoContent (..)
+    ( NoContent (..)
     , err400
     , err404
     , err500
@@ -896,16 +858,6 @@ import Servant
 import Servant.Server
     ( Handler (..)
     , runHandler
-    )
-import System.Exit
-    ( die
-    )
-import System.IO.Error
-    ( ioeGetErrorType
-    , isAlreadyInUseError
-    , isDoesNotExistError
-    , isPermissionError
-    , isUserError
     )
 import System.Random
     ( getStdRandom
@@ -918,10 +870,7 @@ import UnliftIO.Concurrent
     ( threadDelay
     )
 import UnliftIO.Exception
-    ( IOException
-    , bracket
-    , tryAnyDeep
-    , tryJust
+    ( tryAnyDeep
     )
 
 import qualified Cardano.Address.Script as CA
@@ -1002,119 +951,6 @@ import qualified Internal.Cardano.Write.Tx.Sign as Write
     , estimateMinWitnessRequiredPerInput
     )
 import qualified Network.Ntp as Ntp
-import qualified Network.Wai.Handler.Warp as Warp
-import qualified Network.Wai.Handler.WarpTLS as Warp
-
--- | Allow configuring which port the wallet server listen to in an integration
--- setup. Crashes if the variable is not a number.
-walletListenFromEnv :: Show e
-    => (String -> IO (Maybe (Either e Port))) ->  IO Listen
-walletListenFromEnv envFromText = envFromText "CARDANO_WALLET_PORT" >>= \case
-    Nothing -> pure ListenOnRandomPort
-    Just (Right port) -> pure $ ListenOnPort port
-    Just (Left e) -> die $ show e
-
--- | How the server should listen for incoming requests.
-data Listen
-    = ListenOnPort Port
-      -- ^ Listen on given TCP port
-    | ListenOnRandomPort
-      -- ^ Listen on an unused TCP port, selected at random
-    deriving (Show, Eq)
-
--- | Start the application server, using the given settings and a bound socket.
-start
-    :: Warp.Settings
-    -> Tracer IO ApiLog
-    -> Maybe TlsConfiguration
-    -> Socket
-    -> Application
-    -> IO ()
-start settings tr tlsConfig socket application = do
-    logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
-    runSocket
-        $ handleRawError (curry toServerError)
-        $ withApiLogger tr logSettings
-        application
-  where
-    runSocket :: Application -> IO ()
-    runSocket = case tlsConfig of
-        Nothing  -> Warp.runSettingsSocket settings socket
-        Just tls -> Warp.runTLSSocket (requireClientAuth tls) settings socket
-
-    sensitive :: [Text]
-    sensitive =
-        [ "passphrase"
-        , "old_passphrase"
-        , "new_passphrase"
-        , "mnemonic_sentence"
-        , "mnemonic_second_factor"
-        ]
-
--- | Run an action with a TCP socket bound to a port specified by the `Listen`
--- parameter.
-withListeningSocket
-    :: HostPreference
-    -- ^ Which host to bind.
-    -> Listen
-    -- ^ Whether to listen on a given port, or random port.
-    -> (Either ListenError (Port, Socket) -> IO a)
-    -- ^ Action to run with listening socket.
-    -> IO a
-withListeningSocket hostPreference portOpt = bracket acquire release
-  where
-    acquire = tryJust handleErr bindAndListen
-    -- Note: These Data.Streaming.Network functions also listen on the socket,
-    -- even though their name just says "bind".
-    bindAndListen = case portOpt of
-        ListenOnPort port -> (port,) <$> bindPortTCP port hostPreference
-        ListenOnRandomPort -> bindRandomPortTCP hostPreference
-    release (Right (_, socket)) = liftIO $ close socket
-    release (Left _) = pure ()
-    handleErr = ioToListenError hostPreference portOpt
-
-data ListenError
-    = ListenErrorAddressAlreadyInUse (Maybe Port)
-    | ListenErrorOperationNotPermitted
-    | ListenErrorHostDoesNotExist HostPreference
-    | ListenErrorInvalidAddress HostPreference
-    deriving (Show, Eq)
-
-ioToListenError :: HostPreference -> Listen -> IOException -> Maybe ListenError
-ioToListenError hostPreference portOpt e
-    -- A socket is already listening on that address and port
-    | isAlreadyInUseError e =
-        Just (ListenErrorAddressAlreadyInUse (listenPort portOpt))
-    -- Usually caused by trying to listen on a privileged port
-    | isPermissionError e =
-        Just ListenErrorOperationNotPermitted
-    -- Bad hostname -- Linux and Darwin
-    | isDoesNotExistError e =
-        Just (ListenErrorHostDoesNotExist hostPreference)
-    -- Bad hostname -- Windows
-    -- WSAHOST_NOT_FOUND, WSATRY_AGAIN, or bind: WSAEOPNOTSUPP
-    | isUserError e && any hasDescription ["11001", "11002", "10045"] =
-        Just (ListenErrorHostDoesNotExist hostPreference)
-    -- Address is valid, but can't be used for listening -- Linux
-    | show (ioeGetErrorType e) == "invalid argument" =
-        Just (ListenErrorInvalidAddress hostPreference)
-    -- Address is valid, but can't be used for listening -- Darwin
-    | show (ioeGetErrorType e) == "unsupported operation" =
-        Just (ListenErrorInvalidAddress hostPreference)
-    -- Address is valid, but can't be used for listening -- Windows
-    | isOtherError e && any hasDescription ["WSAEINVAL", "WSAEADDRNOTAVAIL"] =
-        Just (ListenErrorInvalidAddress hostPreference)
-    -- Listening on an unavailable or privileged port -- Windows
-    | isOtherError e && hasDescription "WSAEACCESS" =
-        Just (ListenErrorAddressAlreadyInUse (listenPort portOpt))
-    | otherwise =
-        Nothing
-  where
-    listenPort (ListenOnPort port) = Just port
-    listenPort ListenOnRandomPort = Nothing
-
-    isOtherError ex = show (ioeGetErrorType ex) == "failed"
-    hasDescription text = text `isInfixOf` show e
 
 {-------------------------------------------------------------------------------
                               Wallet Constructors

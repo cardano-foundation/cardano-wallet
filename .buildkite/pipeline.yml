@@ -143,9 +143,16 @@ steps:
       concurrency: 1
       concurrency_group: 'linux-e2e-tests'
 
-    - label: Private Network Full Sync
+    - label: Build .#cardano-wallet (linux)
+      key: cardano-wallet
       depends_on: linux-nix
-      timeout: 20
+      command: 'nix build .#cardano-wallet'
+      agents:
+        system: ${linux}
+
+    - label: Private Network Full Sync
+      depends_on: cardano-wallet
+      timeout: 10
       command: |
         rm -rf run/private/nix/logs
         mkdir -p run/private/nix/logs
@@ -158,10 +165,12 @@ steps:
       env:
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: testnet
 
     - label: Mainnet Boot Sync
-      depends_on: linux-nix
-      timeout: 30
+      depends_on: cardano-wallet
+      timeout: 2
       command: |
         cd run/mainnet/nix
         rm -rf logs
@@ -176,17 +185,19 @@ steps:
         SUCCESS_STATUS: syncing
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: mainnet
 
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
+      depends_on: cardano-wallet
       key: linux-sanchonet-full-sync-block
 
     - label: Sanchonet Full Sync
       depends_on:
-        - linux-nix
+        - cardano-wallet
         - linux-sanchonet-full-sync-block
-      timeout_in_minutes: 240
+      timeout_in_minutes: 30
       command: |
         rm -rf run/sanchonet/nix/logs
         mkdir -p run/sanchonet/nix/logs
@@ -199,6 +210,8 @@ steps:
       env:
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: testnet
 
     - block: Preprod Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
@@ -207,9 +220,9 @@ steps:
 
     - label: Preprod Full Sync
       depends_on:
-        - linux-nix
+        - cardano-wallet
         - linux-preprod-full-sync-block
-      timeout_in_minutes: 240
+      timeout_in_minutes: 30
       command: |
         cd run/preprod/nix
         rm -rf logs
@@ -224,6 +237,8 @@ steps:
       env:
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: testnet
 
 
   - group: Code Quality Checks

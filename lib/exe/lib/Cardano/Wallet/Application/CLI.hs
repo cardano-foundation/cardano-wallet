@@ -48,7 +48,7 @@ module Cardano.Wallet.Application.CLI
     , argumentT
     , databaseOption
     , hostPreferenceOption
-    , listenOption
+    , listenApiOption
     , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
@@ -98,6 +98,7 @@ module Cardano.Wallet.Application.CLI
     , getPrometheusURL
     , getEKGURL
     , ekgEnabled
+    , listenUiOption
     ) where
 
 import Prelude hiding
@@ -169,11 +170,7 @@ import Cardano.Wallet.Api.Client
     , TransactionClient (..)
     , WalletClient (..)
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( HostPreference
-    , Listen (..)
-    , TlsConfiguration (..)
-    )
+
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount
@@ -323,8 +320,17 @@ import Network.HTTP.Client
 import Cardano.Wallet.Api.Types.Transaction
     ( ApiLimit (..)
     )
+import Cardano.Wallet.Application.Server
+    ( Listen (..)
+    )
+import Cardano.Wallet.Application.Tls
+    ( TlsConfiguration (..)
+    )
 import Cardano.Wallet.Network.RestorationMode
     ( RestorationMode (..)
+    )
+import Data.Streaming.Network
+    ( HostPreference
     )
 import GHC.Num
     ( Natural
@@ -1419,11 +1425,34 @@ hostPreferenceOption = option str $ mempty
     <> showDefaultWith (const "127.0.0.1")
 
 -- | [--random-port|--port=INT]
-listenOption :: Parser Listen
-listenOption =
+listenApiOption :: Parser Listen
+listenApiOption =
     (ListenOnRandomPort <$ randomPortOption)
     <|>
     (ListenOnPort . getPort <$> portOption)
+
+-- | [--ui-random-port|--ui-port=INT]
+listenUiOption :: Parser (Maybe Listen)
+listenUiOption =
+    (Just ListenOnRandomPort <$ uiRandomPortOption)
+    <|>
+    (Just . ListenOnPort . getPort <$> uiPortOption)
+    <|>
+    pure Nothing
+
+-- | [--ui-random-port]
+uiRandomPortOption :: Parser Bool
+uiRandomPortOption = flag' False $ mempty
+    <> long "ui-random-port"
+    <> help "serve the wallet UI on any available port (conflicts with --ui-port)"
+
+-- | [--ui-port=INT]
+uiPortOption :: Parser (Port "Wallet UI")
+uiPortOption = optionT $ mempty
+    <> long "ui-port"
+    <> metavar "INT"
+    <> help "port used for serving the wallet UI."
+    <> showDefaultWith showT
 
 -- | [--random-port]
 randomPortOption :: Parser Bool

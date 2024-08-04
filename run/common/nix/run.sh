@@ -1,4 +1,4 @@
-#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' --command bash
+#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli' --command bash
 # shellcheck shell=bash
 
 set -euo pipefail
@@ -6,6 +6,7 @@ set -euo pipefail
 usage() {
     echo "Usage: $0 [sync]"
     echo "  sync: Sync the service and wait for it to be ready"
+    echo "  start: Start node and wallet services"
 }
 # Check if no arguments are provided and display usage if true
 if [ $# -eq 0 ]; then
@@ -20,12 +21,18 @@ source .env
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 
+mkdir -p ./databases
+
 # Define a local db if WALLET_DB is not set
 if [[ -z "${WALLET_DB-}" ]]; then
     LOCAL_WALLET_DB=./databases/wallet-db
     mkdir -p $LOCAL_WALLET_DB
     WALLET_DB=$LOCAL_WALLET_DB
     export WALLET_DB
+fi
+
+if [[ -n "${CLEANUP_DB-}" ]]; then
+    rm -rf "${WALLET_DB:?}"/*
 fi
 
 # Define a local db if NODE_DB is not set
@@ -36,11 +43,17 @@ if [[ -z "${NODE_DB-}" ]]; then
     export NODE_DB
 fi
 
+if [[ -n "${CLEANUP_DB-}" ]]; then
+    rm -rf "${NODE_DB:?}"/*
+fi
+
+NETWORK=${NETWORK:=testnet}
+
 # Define and export the node socket name
 NODE_SOCKET_NAME=node.socket
 
 # Define and export the local and actual directory for the node socket
-LOCAL_NODE_SOCKET_DIR=./.
+LOCAL_NODE_SOCKET_DIR=./databases
 NODE_SOCKET_DIR=${NODE_SOCKET_DIR:=$LOCAL_NODE_SOCKET_DIR}
 
 NODE_SOCKET_PATH=${NODE_SOCKET_DIR}/${NODE_SOCKET_NAME}
@@ -64,20 +77,35 @@ cardano-node run \
     +RTS -N -A16m -qg -qb -RTS 1>$NODE_LOGS_FILE 2>$NODE_LOGS_FILE &
 NODE_ID=$!
 
+sleep 3
+
+cardano-cli ping -u "${NODE_SOCKET_PATH}"
+
+echo "Node id: $NODE_ID"
+
 # Define the wallet logs file
 LOCAL_WALLET_LOGS_FILE=./wallet.log
 WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
 
-# Start the wallet with logs redirected to a file if WALLET_LOGS_FILE is set
-# shellcheck disable=SC2086
-cardano-wallet serve \
-    --port "${WALLET_PORT}" \
-    --database "${WALLET_DB}" \
-    --node-socket "${NODE_SOCKET_PATH}" \
-    --testnet "${NODE_CONFIGS}"/byron-genesis.json \
-    --listen-address 0.0.0.0  1>$WALLET_LOGS_FILE 2>$WALLET_LOGS_FILE &
-WALLET_ID=$!
-
+if [[ "${NETWORK}" == "mainnet" ]]; then
+    # shellcheck disable=SC2086
+    cardano-wallet serve \
+        --port "${WALLET_PORT}" \
+        --database "${WALLET_DB}" \
+        --node-socket "${NODE_SOCKET_PATH}" \
+        --mainnet \
+        --listen-address 0.0.0.0  1>$WALLET_LOGS_FILE 2>$WALLET_LOGS_FILE &
+    WALLET_ID=$!
+else
+    # shellcheck disable=SC2086
+    cardano-wallet serve \
+        --port "${WALLET_PORT}" \
+        --database "${WALLET_DB}" \
+        --node-socket "${NODE_SOCKET_PATH}" \
+        --testnet "${NODE_CONFIGS}"/byron-genesis.json \
+        --listen-address 0.0.0.0  1>$WALLET_LOGS_FILE 2>$WALLET_LOGS_FILE &
+    WALLET_ID=$!
+fi
 
 cleanup() {
     echo "Cleaning up..."
@@ -133,6 +161,13 @@ case "$1" in
         else
             exit 1
         fi
+        ;;
+    start)
+        echo "Wallet service port: $WALLET_PORT"
+        echo "Node socket path: $NODE_SOCKET_PATH"
+        echo "Wallet pid: $WALLET_ID"
+        echo "Node pid: $NODE_ID"
+        trap - ERR INT EXIT
         ;;
     *)
         echo "Error: Invalid option $1"
