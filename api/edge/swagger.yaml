@@ -4307,6 +4307,12 @@ x-parametersAssetName: &parametersAssetName
     format: hex
     maxLength: 64
 
+x-parametersDRepId: &parametersDRepId
+  in: path
+  name: drepId
+  required: true
+  schema: *ApiDRep
+
 #############################################################################
 #                                                                           #
 #                                RESPONSES                                  #
@@ -6520,6 +6526,36 @@ x-responsesJoinStakePool: &responsesJoinStakePool
       application/json:
         schema: *ApiTransaction
 
+x-responsesJoinDRep: &responsesJoinDRep
+  <<: *responsesErr400
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errCannotCoverFee
+            - <<: *errNoRootKey
+            - <<: *errNoUtxosAvailable
+            - <<: *errWrongEncryptionPassphrase
+            - <<: *errSameVote
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoSuchWallet
+            - <<: *errWalletNotInitialized
+            - <<: *errNoSuchPool
+  <<: *responsesErr406
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiTransaction
+
 x-responsesQuitStakePool: &responsesQuitStakePool
   <<: *responsesErr400
   403:
@@ -7360,6 +7396,27 @@ paths:
           application/json:
             schema: *ApiWalletPassphrase
       responses: *responsesJoinStakePool
+
+  /dreps/{drepId}/wallets/{walletId}:
+    put:
+      operationId: joinDRep
+      tags: ["DReps"]
+      summary: Join
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Delegate all votes from the given wallet to the given DRep or
+        case abstain or no-confidence
+
+      parameters:
+        - *parametersDRepId
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiWalletPassphrase
+      responses: *responsesJoinDRep
 
   /wallets/{walletId}/coin-selections/random:
     post:
