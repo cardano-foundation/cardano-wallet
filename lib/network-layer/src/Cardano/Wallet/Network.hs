@@ -156,6 +156,9 @@ data NetworkLayer m block = NetworkLayer
     , getUTxOByTxIn
         :: Set Write.TxIn
         -> m (MaybeInRecentEra Write.UTxO)
+    , getStakeDelegDeposits
+        :: Set Write.StakeCredential
+        -> m (Map Write.StakeCredential Write.Coin)
     , getCachedRewardAccountBalance
         :: RewardAccount
         -- Either reward account from key hash or script hash
