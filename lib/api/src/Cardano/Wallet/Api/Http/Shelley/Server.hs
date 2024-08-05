@@ -55,6 +55,7 @@ module Cardano.Wallet.Api.Http.Shelley.Server
     , getUTxOsStatistics
     , getWalletUtxoSnapshot
     , getWallet
+    , joinDRep
     , joinStakePool
     , listAssets
     , getAsset
@@ -355,6 +356,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
+    , ApiDRepSpecifier (..)
     , ApiDecodeTransactionPostData (..)
     , ApiDecodedTransaction (..)
     , ApiEncryptMetadata (..)
@@ -602,6 +604,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Credentials
     ( ClearCredentials
     , RootCredentials (..)
+    )
+import Cardano.Wallet.Primitive.Types.DRep
+    ( DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -3974,6 +3979,61 @@ joinStakePool
                 , txCBOR = builtTx ^. #txCBOR
                 }
 
+joinDRep
+    :: forall s n k.
+        ( s ~ SeqState n k
+        , WalletFlavor s
+        , Excluding '[SharedKey] k
+        , AddressIndexDerivationType k ~ 'Soft
+        , GenChange s
+        , IsOurs (SeqState n k) RewardAccount
+        , SoftDerivation k
+        , AddressBookIso s
+        , MkKeyFingerprint k (Proxy n, k 'CredFromKeyK XPub)
+        , HasDelegation s
+        , NetworkDiscriminantCheck k
+        , AddressCredential k ~ 'CredFromKeyK
+        , HasSNetworkId n
+        , DelegationAddress k 'CredFromKeyK
+        )
+    => ApiLayer s
+    -> ApiDRepSpecifier
+    -> ApiT WalletId
+    -> ApiWalletPassphrase
+    -> Handler (ApiTransaction n)
+joinDRep
+    ctx@ApiLayer{..} apiDRep (ApiT walletId) body = do
+    pp <- liftIO $ NW.currentProtocolParameters netLayer
+    let ti = timeInterpreter netLayer
+    drep <- case apiDRep of
+        AllDReps -> liftE ErrUnexpectedPoolIdPlaceholder
+        SpecificDRep drep -> pure drep
+
+    withWorkerCtx ctx walletId liftE liftE $ \wrk -> do
+        (BuiltTx{..}, txTime) <- liftIO
+            $ IODeleg.joinDRep
+                wrk
+                walletId
+                drep
+                (coerce $ getApiT $ body ^. #passphrase)
+        mkApiTransaction ti wrk #pendingSince
+            MkApiTransactionParams
+                { txId = builtTx ^. #txId
+                , txFee = builtTx ^. #fee
+                , txInputs = builtTx ^. #resolvedInputs
+                , txCollateralInputs = []
+                , txOutputs = builtTx ^. #outputs
+                , txCollateralOutput = builtTx ^. #collateralOutput
+                , txWithdrawals = builtTx ^. #withdrawals
+                , txMeta = builtTxMeta
+                , txMetadata = Nothing
+                , txTime
+                , txScriptValidity = builtTx ^. #scriptValidity
+                , txDeposit = W.stakeKeyDeposit pp
+                , txMetadataSchema = TxMetadataDetailedSchema
+                , txCBOR = builtTx ^. #txCBOR
+                }
+
 delegationFee
     :: forall s n k
      . ( GenChange s
@@ -5292,6 +5352,9 @@ atomicallyWithHandler c l = Handler . Concierge.atomicallyWith c l . runHandler'
 data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
     deriving (Eq, Show)
 
+data ErrUnexpectedDRepPlaceholder = ErrUnexpectedDRepPlaceholder
+    deriving (Eq, Show)
+
 data ErrCreateWallet
     = ErrCreateWalletAlreadyExists !ErrWalletAlreadyExists
         -- ^ Wallet already exists
@@ -5320,6 +5383,14 @@ instance IsServerError ErrUnexpectedPoolIdPlaceholder where
                 case fromText @PoolId "INVALID" of
                     Left msg -> pretty msg
                     Right _ -> "Invalid pool id placeholder"
+
+instance IsServerError ErrUnexpectedDRepPlaceholder where
+    toServerError = \case
+        ErrUnexpectedDRepPlaceholder ->
+            apiError err400 BadRequest $
+                case fromText @DRep "INVALID" of
+                    Left msg -> pretty msg
+                    Right _ -> "Invalid DRep placeholder"
 
 instance IsServerError ErrCreateWallet where
     toServerError = \case

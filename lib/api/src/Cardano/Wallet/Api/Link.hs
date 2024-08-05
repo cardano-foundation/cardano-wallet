@@ -97,6 +97,9 @@ module Cardano.Wallet.Api.Link
     , postPoolMaintenance
     , getPoolMaintenance
 
+      -- * DReps
+    , joinDRep
+
       -- * Network
     , getNetworkInfo
     , getNetworkParams
@@ -133,6 +136,7 @@ import Cardano.Wallet.Address.Discovery.Shared
 import Cardano.Wallet.Api.Types
     ( ApiAddress (..)
     , ApiAddressInspectData (..)
+    , ApiDRepSpecifier
     , ApiPoolSpecifier
     , ApiT (..)
     , ApiTxId (ApiTxId)
@@ -856,6 +860,19 @@ quitStakePool w = endpoint @(Api.QuitStakePool Net) (wid &)
 getDelegationFee :: forall w. HasType (ApiT WalletId) w => w -> (Method, Text)
 getDelegationFee w = endpoint @Api.DelegationFee (wid &)
   where
+    wid = w ^. typed @(ApiT WalletId)
+
+joinDRep
+    :: forall s w.
+        ( HasType ApiDRepSpecifier s
+        , HasType (ApiT WalletId) w
+        )
+    => s
+    -> w
+    -> (Method, Text)
+joinDRep s w = endpoint @(Api.JoinDRep Net) (\mk -> mk sid wid)
+  where
+    sid = s ^. typed @ApiDRepSpecifier
     wid = w ^. typed @(ApiT WalletId)
 
 --

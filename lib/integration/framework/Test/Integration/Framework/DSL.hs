@@ -117,6 +117,7 @@ module Test.Integration.Framework.DSL
     , getFromResponse
     , getFromResponseList
     , json
+    , joinDRep
     , joinStakePool
     , joinStakePoolUnsigned
     , delegationFee
@@ -304,6 +305,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiConstructTransaction
+    , ApiDRepSpecifier
     , ApiFee (..)
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
@@ -2642,6 +2644,21 @@ quitStakePoolUnsigned ctx w = liftIO $ do
     let payload = Json [aesonQQ|{ "delegation_action": { "action": "quit" } }|]
     request @(ApiCoinSelection n) ctx
         (Link.selectCoins @style w) Default payload
+
+joinDRep
+    :: forall n w m.
+        ( HasType (ApiT WalletId) w
+        , HasSNetworkId n
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiDRepSpecifier
+    -> (w, Text)
+    -> m (HTTP.Status, Either RequestException (ApiTransaction n))
+joinDRep ctx p (w, pass) = do
+    let payload = Json [aesonQQ| { "passphrase": #{pass} } |]
+    request @(ApiTransaction n) ctx
+        (Link.joinDRep (Identity p) w) Default payload
 
 selectCoins
     :: forall n style w m.

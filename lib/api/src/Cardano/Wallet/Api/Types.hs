@@ -89,6 +89,7 @@ module Cardano.Wallet.Api.Types
     , ApiDecodedTransaction (..)
     , ApiDelegationAction (..)
     , ApiDeregisterPool (..)
+    , ApiDRepSpecifier (..)
     , ApiEraInfo (..)
     , ApiExternalCertificate (..)
     , ApiExternalInput (..)
@@ -1492,6 +1493,24 @@ instance ToHttpApiData ApiPoolSpecifier where
     toUrlPiece = \case
         AllPools -> "*"
         SpecificPool poolId -> encodePoolIdBech32 poolId
+
+-- | This type is used in URLs where there is a '*' in place of a drep id,
+-- which means "for all dreps"
+-- This is a hack to work around Servant's problem with capturing path params.
+data ApiDRepSpecifier = AllDReps | SpecificDRep DRep
+
+instance FromHttpApiData ApiDRepSpecifier where
+    parseUrlPiece t
+        | t == "*" = Right AllDReps
+        | otherwise =
+            SpecificDRep <$> case fromText t of
+                Left err -> left (T.pack . show . ShowFmt) $ Left err
+                Right r -> Right r
+
+instance ToHttpApiData ApiDRepSpecifier where
+    toUrlPiece = \case
+        AllDReps -> "*"
+        SpecificDRep drep -> toText drep
 
 newtype ApiTxId = ApiTxId { id :: ApiT (Hash "Tx") }
     deriving (Eq, Generic)

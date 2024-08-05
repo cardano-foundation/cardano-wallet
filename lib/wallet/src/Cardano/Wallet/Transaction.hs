@@ -395,8 +395,9 @@ data ErrCannotJoin
     | ErrNoSuchPool PoolId
     deriving (Generic, Eq, Show)
 
-newtype ErrCannotVote
+data ErrCannotVote
     = ErrAlreadyVoted DRep
+    | ErrWrongEra
     deriving (Generic, Eq, Show)
 
 data ErrCannotQuit

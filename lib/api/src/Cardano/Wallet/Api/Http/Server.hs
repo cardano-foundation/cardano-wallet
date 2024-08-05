@@ -82,6 +82,7 @@ import Cardano.Wallet.Api
     , ByronTransactions
     , ByronWallets
     , CoinSelections
+    , DReps
     , Network
     , Proxy_
     , SMASH
@@ -122,6 +123,7 @@ import Cardano.Wallet.Api.Http.Shelley.Server
     , getWallet
     , getWalletUtxoSnapshot
     , idleWorker
+    , joinDRep
     , joinStakePool
     , liftHandler
     , listAddresses
@@ -292,6 +294,7 @@ server byron icarus shelley multisig spl ntp blockchainSource =
     :<|> shelleyTransactions
     :<|> shelleyMigrations
     :<|> stakePools
+    :<|> dreps
     :<|> byronWallets
     :<|> byronAssets
     :<|> byronAddresses
@@ -421,6 +424,9 @@ server byron icarus shelley multisig spl ntp blockchainSource =
 
         getPoolMaintenance =
             liftIO (ApiMaintenanceAction . ApiT <$> getGCMetadataStatus spl)
+
+    dreps :: Server (DReps n)
+    dreps = joinDRep shelley
 
     byronWallets :: Server ByronWallets
     byronWallets =
