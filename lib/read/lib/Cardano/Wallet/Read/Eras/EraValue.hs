@@ -25,7 +25,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Read.Eras.KnownEras
+import Cardano.Read.Ledger.Eras.KnownEras
     ( Allegra
     , Alonzo
     , Babbage

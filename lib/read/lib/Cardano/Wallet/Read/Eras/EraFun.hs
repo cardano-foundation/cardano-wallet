@@ -28,11 +28,11 @@ module Cardano.Wallet.Read.Eras.EraFun
     )
 where
 
+import Cardano.Read.Ledger.Eras.KnownEras
+    ( IsEra (..)
+    )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( IsEra (..)
     )
 import Prelude hiding
     ( id

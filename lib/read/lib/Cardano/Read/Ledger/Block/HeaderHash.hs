@@ -43,7 +43,7 @@ import Cardano.Protocol.TPraos.BHeader
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage

@@ -50,6 +50,8 @@ library
     Cardano.Read.Ledger.Block.HeaderHash
     Cardano.Read.Ledger.Block.SlotNo
     Cardano.Read.Ledger.Block.Txs
+    Cardano.Read.Ledger.Eras
+    Cardano.Read.Ledger.Eras.KnownEras
     Cardano.Read.Ledger.Tx.Inputs
     Cardano.Read.Ledger.Tx.Outputs
     Cardano.Read.Ledger.Tx.TxId
@@ -83,7 +85,6 @@ library
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Eras.EraFun
     Cardano.Wallet.Read.Eras.EraValue
-    Cardano.Wallet.Read.Eras.KnownEras
     Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.Gen

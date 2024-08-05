@@ -41,10 +41,12 @@ import Cardano.Ledger.Binary.Decoding
     , decodeFullAnnotator
     , shelleyProtVer
     )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Era (..)
-    , EraValue
     , IsEra (..)
+    )
+import Cardano.Wallet.Read.Eras
+    ( EraValue
     , K (..)
     , applyEraFunValue
     , extractEraValue

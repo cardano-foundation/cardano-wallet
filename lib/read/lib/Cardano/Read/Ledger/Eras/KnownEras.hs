@@ -1,21 +1,23 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- A type list of known eras, useful for indexed-by-era operations.
+{- |
+Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
+License: Apache-2.0
 
-module Cardano.Wallet.Read.Eras.KnownEras
-    ( KnownEras
-    , knownEraIndices
-    , Era (..)
+A type list of known eras, useful for indexing types by era.
+-}
+module Cardano.Read.Ledger.Eras.KnownEras
+    ( Era (..)
     , IsEra (..)
+
+    , KnownEras
+    , knownEraIndices
+    , indexOfEra
+
     , Allegra
     , Alonzo
     , Babbage
@@ -70,10 +72,21 @@ instance IsEra Alonzo where theEra = Alonzo
 instance IsEra Babbage where theEra = Babbage
 instance IsEra Conway where theEra = Conway
 
--- | Type-level list of known eras.
+-- | Type-level list of known eras, in chronological order.
 type KnownEras =
     '[Byron, Shelley, Allegra, Mary, Alonzo, Babbage, Conway]
 
--- | Official numbering of the KnownEras.
+-- | Official numbering of the 'KnownEras'.
 knownEraIndices :: [Int]
 knownEraIndices = [0 .. lengthSList (Proxy :: Proxy KnownEras) - 1]
+
+-- | Official number of the member of 'KnownEras'.
+indexOfEra :: Era era -> Int
+indexOfEra e = case e of
+    Byron -> 0
+    Shelley -> 1
+    Allegra -> 2
+    Mary -> 3
+    Alonzo -> 4
+    Babbage -> 5
+    Conway -> 6

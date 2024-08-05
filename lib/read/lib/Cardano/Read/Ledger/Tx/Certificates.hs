@@ -34,10 +34,7 @@ import Cardano.Ledger.Conway.TxCert
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert
     )
-import Cardano.Read.Ledger.Tx.Eras
-    ( onTx
-    )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage
@@ -47,6 +44,9 @@ import Cardano.Wallet.Read.Eras
     , IsEra (..)
     , Mary
     , Shelley
+    )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)

@@ -23,7 +23,7 @@ import Prelude
 import Cardano.Ledger.Api
     ( StandardCrypto
     )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage

@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     )
-import Cardano.Wallet.Read.Eras.KnownEras
+import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
     )
