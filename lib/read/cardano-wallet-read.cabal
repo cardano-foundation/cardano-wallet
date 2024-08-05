@@ -50,6 +50,7 @@ library
     Cardano.Read.Ledger.Block.HeaderHash
     Cardano.Read.Ledger.Block.SlotNo
     Cardano.Read.Ledger.Block.Txs
+    Cardano.Read.Ledger.Eras
     Cardano.Read.Ledger.Eras.KnownEras
     Cardano.Read.Ledger.Tx.Inputs
     Cardano.Read.Ledger.Tx.Outputs
