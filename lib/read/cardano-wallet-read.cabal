@@ -55,7 +55,6 @@ library
     Cardano.Read.Ledger.Tx.Inputs
     Cardano.Read.Ledger.Tx.Outputs
     Cardano.Read.Ledger.Tx.TxId
-    Cardano.Read.Ledger.Tx.Cardano
     Cardano.Read.Ledger.Tx.Certificates
     Cardano.Read.Ledger.Tx.CBOR
     Cardano.Read.Ledger.Tx.CollateralInputs
@@ -106,7 +105,6 @@ library
   build-depends:
     , base
     , bytestring
-    , cardano-api
     , cardano-crypto
     , cardano-crypto-class
     , cardano-crypto-praos
