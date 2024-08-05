@@ -19,8 +19,7 @@ import Cardano.Binary
     ( DecoderError
     )
 import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    , deserializeTx
+    ( deserializeTx
     )
 import Cardano.Read.Ledger.Tx.Certificates
     ( getEraCertificates
@@ -67,6 +66,9 @@ import Cardano.Wallet.Read.Eras
     ( K (..)
     , applyEraFun
     , (:*:) (..)
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
     )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts

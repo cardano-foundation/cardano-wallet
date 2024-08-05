@@ -58,9 +58,6 @@ import Cardano.Address.Script
 import Cardano.Pool.Types
     ( PoolId (..)
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    )
 import Cardano.Wallet.Address.Book
     ( AddressBookIso
     )
@@ -224,6 +221,9 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
     )
 import Control.DeepSeq
     ( NFData

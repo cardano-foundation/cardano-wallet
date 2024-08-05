@@ -1,0 +1,78 @@
+{-# LANGUAGE FlexibleInstances #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
+{- |
+Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
+License: Apache-2.0
+
+Binary serialization of transactions.
+-}
+module Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
+    , renderTxToCBOR
+    , parseTxFromCBOR
+    , roundTripTxCBor
+    )
+    where
+
+import Prelude
+
+import Cardano.Ledger.Binary.Decoding
+    ( DecoderError
+    )
+import Cardano.Read.Ledger.Tx.CBOR
+    ( deserializeTx
+    , serializeTx
+    )
+import Cardano.Wallet.Read.Eras
+    ( EraValue
+    , K (..)
+    , applyEraFunValue
+    , extractEraValue
+    , sequenceEraValue
+    )
+import Cardano.Wallet.Read.Tx
+    ( Tx (..)
+    )
+import Data.ByteArray.Encoding
+    ( Base (Base16)
+    , convertToBase
+    )
+import Data.ByteString.Lazy
+    ( toStrict
+    )
+import Data.Text.Class
+    ( ToText
+    )
+import Data.Text.Encoding
+    ( decodeUtf8
+    )
+import Fmt
+    ( Buildable (..)
+    )
+
+import qualified Data.ByteString.Lazy as BL
+
+-- | Serialized version of a transaction. Deserializing should at least expose
+-- enough information to compute the 'TxId'.
+type TxCBOR = EraValue (K BL.ByteString)
+
+instance Buildable TxCBOR where
+    build =
+        build . decodeUtf8 . convertToBase Base16 . toStrict . extractEraValue
+
+instance ToText TxCBOR
+
+-- | Render a tx into its cbor, it just applies 'serializeTx'.
+renderTxToCBOR :: EraValue Tx -> EraValue (K BL.ByteString)
+renderTxToCBOR = applyEraFunValue serializeTx
+
+-- | Parse CBOR into a transaction in any eras
+-- , smart application  of `deserializeTx`.
+parseTxFromCBOR :: TxCBOR -> Either DecoderError (EraValue Tx)
+parseTxFromCBOR = sequenceEraValue
+    . applyEraFunValue deserializeTx
+
+roundTripTxCBor :: TxCBOR -> Either DecoderError TxCBOR
+roundTripTxCBor = fmap renderTxToCBOR . parseTxFromCBOR

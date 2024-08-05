@@ -280,9 +280,6 @@ import Cardano.Ledger.Api
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
@@ -597,6 +594,9 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Cardano.Wallet.Primitive.Types.UTxOStatistics
     ( UTxOStatistics
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
     ( _txRewardWithdrawalCost
