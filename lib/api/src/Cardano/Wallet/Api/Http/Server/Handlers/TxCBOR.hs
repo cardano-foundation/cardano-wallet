@@ -18,9 +18,6 @@ import Prelude
 import Cardano.Binary
     ( DecoderError
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( deserializeTx
-    )
 import Cardano.Read.Ledger.Tx.Certificates
     ( getEraCertificates
     )
@@ -60,15 +57,14 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Read
     ( IsEra
     , Tx (..)
-    , unComp
     )
 import Cardano.Wallet.Read.Eras
-    ( K (..)
-    , applyEraFun
+    ( applyEraFun
     , (:*:) (..)
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
+    , parseTxFromCBOR
     )
 import Cardano.Wallet.Transaction
     ( TokenMapWithScripts
@@ -87,7 +83,6 @@ import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.ExtraSigs as F
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity as Feature
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint as Feature
 import qualified Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Validity as Feature
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 newtype ErrParseCBOR = ErrParseCBOR DecoderError
@@ -122,14 +117,8 @@ parser = do
     extraSignatures <- Feature.extraSigs . getEraExtraSigs
     pure $ ParsedTxCBOR{..}
 
-txCBORParser
-    :: IsEra era
-    => K BL.ByteString era
-    -> Either DecoderError ParsedTxCBOR
-txCBORParser = fmap parser . unComp . deserializeTx
-
 -- | Parse CBOR to some values and throw a server deserialize error if failing.
 parseTxCBOR :: TxCBOR -> Handler ParsedTxCBOR
-parseTxCBOR cbor =
-    either (liftE . ErrParseCBOR) pure
-        $ applyEraFun txCBORParser cbor
+parseTxCBOR =
+    either (liftE . ErrParseCBOR) (pure . applyEraFun parser)
+        . parseTxFromCBOR
