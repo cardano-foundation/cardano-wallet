@@ -84,7 +84,7 @@ newNetworkEnvMock = do
             (block, tip) <- forgeBlock tx
             broadcast block tip
             -- brief delay to account for asynchronous chain followers
-            threadDelay 10
+            threadDelay 100
             pure $ Right ()
         }
 
