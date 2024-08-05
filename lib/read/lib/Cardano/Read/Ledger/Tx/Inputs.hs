@@ -21,12 +21,12 @@ module Cardano.Read.Ledger.Tx.Inputs
 
 import Prelude
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Core
     ( bodyTxL
     , inputsTxBodyL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx

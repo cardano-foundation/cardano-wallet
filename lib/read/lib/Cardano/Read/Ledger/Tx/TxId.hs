@@ -20,12 +20,12 @@ import Cardano.Chain.UTxO
 import Cardano.Crypto.Hashing
     ( serializeCborHash
     )
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx

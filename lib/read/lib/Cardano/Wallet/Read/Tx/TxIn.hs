@@ -21,7 +21,7 @@ module Cardano.Wallet.Read.Tx.TxIn
 
 import Prelude
 
-import Cardano.Ledger.Crypto
+import Cardano.Ledger.Api
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Tx.TxId

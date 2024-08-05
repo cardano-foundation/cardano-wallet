@@ -21,11 +21,11 @@ import Prelude
 import Cardano.Ledger.Alonzo.TxBody
     ( reqSignerHashesTxBodyL
     )
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Core
     ( bodyTxL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Keys
     ( KeyHash

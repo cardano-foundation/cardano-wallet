@@ -3,17 +3,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Read.Block.Gen
-where
+module Cardano.Wallet.Read.Block.Gen where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Ledger.BaseTypes
     ( natVersion
     )
-import Cardano.Wallet.Read.Block
+import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
 import Cardano.Wallet.Read.Block.Gen.Babbage
@@ -31,9 +28,6 @@ import Cardano.Wallet.Read.Block.Gen.Shelley
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , IsEra (..)
-    )
-import Control.Category
-    ( (.)
     )
 
 {-# INLINABLE mkBlockEra #-}

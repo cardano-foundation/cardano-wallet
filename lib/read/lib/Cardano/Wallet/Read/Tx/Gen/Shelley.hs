@@ -25,7 +25,7 @@ import Cardano.Crypto.Hash
 import Cardano.Ledger.Address
     ( Addr (..)
     )
-import Cardano.Ledger.Api.Era
+import Cardano.Ledger.Api
     ( Era
     , ShelleyEra
     , StandardCrypto

@@ -24,14 +24,12 @@ module Cardano.Read.Ledger.Tx.Certificates
 import Prelude
 
 import Cardano.Ledger.Api
-    ( bodyTxL
+    ( StandardCrypto
+    , bodyTxL
     , certsTxBodyL
     )
 import Cardano.Ledger.Conway.TxCert
     ( ConwayTxCert
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert

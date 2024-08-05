@@ -24,12 +24,12 @@ where
 
 import Prelude
 
+import Cardano.Ledger.Api
+    ( StandardCrypto
+    )
 import Cardano.Ledger.Binary
     ( EncCBOR
     , EncCBORGroup
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Era
     ( EraSegWits (..)
@@ -49,13 +49,10 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
-    , IsEra
+    , Era (..)
+    , IsEra (..)
     , Mary
     , Shelley
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
-    , IsEra (..)
     )
 import Cardano.Wallet.Read.Hash
     ( Blake2b_256

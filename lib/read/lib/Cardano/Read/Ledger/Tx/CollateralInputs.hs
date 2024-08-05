@@ -24,13 +24,11 @@ module Cardano.Read.Ledger.Tx.CollateralInputs
 import Prelude
 
 import Cardano.Ledger.Api
-    ( collateralInputsTxBodyL
+    ( StandardCrypto
+    , collateralInputsTxBodyL
     )
 import Cardano.Ledger.Core
     ( bodyTxL
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx

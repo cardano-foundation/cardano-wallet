@@ -17,7 +17,7 @@ import Cardano.Ledger.Allegra.TxBody
     , StrictMaybe (..)
     , ValidityInterval (..)
     )
-import Cardano.Ledger.Api.Era
+import Cardano.Ledger.Api
     ( AllegraEra
     , StandardCrypto
     )

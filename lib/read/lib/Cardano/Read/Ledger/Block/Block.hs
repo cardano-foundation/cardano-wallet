@@ -30,15 +30,12 @@ import Cardano.Wallet.Read.Eras
     , Babbage
     , Byron
     , Conway
+    , Era (..)
     , EraValue (..)
-    , IsEra
+    , IsEra (..)
     , Mary
     , Shelley
     , eraValue
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
-    ( Era (..)
-    , IsEra (..)
     )
 import Ouroboros.Consensus.Protocol.Praos
     ( Praos

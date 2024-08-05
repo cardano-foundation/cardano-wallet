@@ -25,9 +25,7 @@ module Cardano.Wallet.Read.Block.Gen.Build
     )
 where
 
-import Prelude hiding
-    ( (.)
-    )
+import Prelude
 
 import Cardano.Ledger.Address
     ( serialiseAddr
@@ -79,9 +77,6 @@ import Cardano.Wallet.Read.Tx.TxId
     ( TxId
     , getTxId
     , txIdFromHash
-    )
-import Control.Category
-    ( (.)
     )
 import Control.Lens
     ( over

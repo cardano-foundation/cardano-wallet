@@ -15,11 +15,11 @@ module Cardano.Wallet.Read.Block
     ) where
 
 import Cardano.Read.Ledger.Block.BHeader
-    ( BHeader (..)
+    ( BHeader
     , getEraBHeader
     )
 import Cardano.Read.Ledger.Block.Block
-    ( Block (..)
+    ( Block
     , ConsensusBlock
     , fromConsensusBlock
     , toConsensusBlock
@@ -31,10 +31,8 @@ import Cardano.Read.Ledger.Block.BlockNo
     )
 import Cardano.Read.Ledger.Block.HeaderHash
     ( EraIndependentBlockHeader
-    , HeaderHash (..)
-    , HeaderHashT
-    , PrevHeaderHash (..)
-    , PrevHeaderHashT
+    , HeaderHash
+    , PrevHeaderHash
     , RawHeaderHash
     , getEraHeaderHash
     , getEraPrevHeaderHash

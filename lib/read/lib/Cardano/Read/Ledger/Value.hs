@@ -20,7 +20,7 @@ module Cardano.Read.Ledger.Value
 
 import Prelude
 
-import Cardano.Ledger.Crypto
+import Cardano.Ledger.Api
     ( StandardCrypto
     )
 import Cardano.Wallet.Read.Eras
