@@ -243,6 +243,7 @@ data ApiErrorInfo
     | UnableToDetermineCurrentEpoch
     | UnexpectedError
     | UnresolvedInputs
+    | UnresolvedRefunds
     | UnsupportedMediaType
     | UtxoTooSmall
         !ApiErrorTxOutputLovelaceInsufficient

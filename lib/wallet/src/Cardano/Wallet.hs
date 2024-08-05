@@ -893,6 +893,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
     ( PartialTx
+    , StakeKeyDepositLookup (StakeKeyDepositAssumeCurrent, StakeKeyDepositMap)
     , UTxOIndex
     , balanceTx
     , constructUTxOIndex
@@ -2545,6 +2546,7 @@ buildTransactionPure
                 , extraUTxO = Write.UTxO mempty
                 , redeemers = []
                 , timelockKeyWitnessCounts = mempty
+                , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
                 }
 
 -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
@@ -3239,6 +3241,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 , extraUTxO = Write.UTxO mempty
                 , redeemers = []
                 , timelockKeyWitnessCounts = mempty
+                , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
                 }
 
         wrapErrBalanceTx $ calculateFeePercentiles $ do

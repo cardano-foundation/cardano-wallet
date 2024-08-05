@@ -636,6 +636,12 @@ instance (Write.IsRecentEra era, IsServerError (ErrAssignRedeemers era))
                 , "outputs could not be found:\n"
                 , pretty $ show <$> F.toList ins
                 ]
+        ErrBalanceTxUnresolvedRefunds creds ->
+            apiError err500 UnresolvedRefunds $ T.unwords
+                [ "There are refunds in the transaction whose amounts for some"
+                , "reason weren't determined:\n"
+                , pretty $ show <$> F.toList creds
+                ]
         ErrBalanceTxInputResolutionConflicts conflicts -> do
             let conflictF (a, b) = build (show a) <> "\nvs\n" <> build (show b)
             apiError err400 InputResolutionConflicts $ mconcat

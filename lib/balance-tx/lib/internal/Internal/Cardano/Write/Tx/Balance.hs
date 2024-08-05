@@ -38,6 +38,10 @@ module Internal.Cardano.Write.Tx.Balance
     , PartialTx (..)
     , Redeemer (..)
 
+    -- ** Deposit lookup
+    , StakeKeyDepositLookup (..)
+    , lookupStakeKeyDeposit
+
     -- * UTxO assumptions
     , UTxOAssumptions (..)
 
@@ -50,6 +54,7 @@ module Internal.Cardano.Write.Tx.Balance
     , toWalletUTxO
     , splitSignedValue
     , mergeSignedValue
+    , stakeCredentialsWithRefunds
 
     -- ** updateTx
     , TxUpdate (..)
@@ -81,16 +86,20 @@ import Cardano.Ledger.Api
     , Script
     , ScriptHash
     , StandardCrypto
+    , TxCert
     , addrTxWitsL
     , bodyTxL
     , bootAddrTxWitsL
+    , certsTxBodyL
     , coinTxOutL
     , collateralInputsTxBodyL
     , collateralReturnTxBodyL
     , feeTxBodyL
     , hashScript
     , inputsTxBodyL
+    , lookupUnRegStakeTxCert
     , outputsTxBodyL
+    , ppKeyDepositL
     , ppMaxTxSizeL
     , scriptTxWitsL
     , witsTxL
@@ -191,6 +200,7 @@ import Internal.Cardano.Write.Tx
     , PParams
     , PolicyId
     , RecentEra (..)
+    , StakeCredential
     , Tx
     , TxBody
     , TxIn
@@ -389,6 +399,7 @@ data ErrBalanceTx era
     | ErrBalanceTxInputResolutionConflicts
         (NonEmpty (TxOut era, TxOut era))
     | ErrBalanceTxUnresolvedInputs (NESet TxIn)
+    | ErrBalanceTxUnresolvedRefunds (NESet StakeCredential)
     | ErrBalanceTxOutputError ErrBalanceTxOutputError
     | ErrBalanceTxUnableToCreateChange ErrBalanceTxUnableToCreateChangeError
     | ErrBalanceTxUnableToCreateInput
@@ -419,6 +430,9 @@ data PartialTx era = PartialTx
     { tx :: Tx era
     , extraUTxO :: UTxO era
     , redeemers :: [Redeemer]
+    , stakeKeyDeposits :: StakeKeyDepositLookup
+    -- ^ Deposit lookup. Must contain values for all stake credentials
+    -- deregistered in the transaction.
     , timelockKeyWitnessCounts :: TimelockKeyWitnessCounts
       -- ^ Specifying the intended number of timelock script key witnesses may
       -- save space and fees when constructing a transaction.
@@ -450,6 +464,43 @@ instance IsRecentEra era => Buildable (PartialTx era)
 
         txF :: Tx era -> Builder
         txF tx' = pretty $ pShow tx'
+
+-- | Lookup for stake key deposit amounts.
+--
+-- The 'Semigroup' instance makes 'StakeKeyDepositMap' always override
+-- 'StakeKeyDepositAssumeCurrent'.
+--
+-- No 'Monoid' instance is provided, as the identity laws would require 'mempty'
+-- to be 'StakeKeyDepositAssumeCurrent' rather than @StakeKeyDepositMap mempty@,
+-- and we don't want to risk encouraging usage of
+-- 'StakeKeyDepositAssumeCurrent'.
+data StakeKeyDepositLookup
+    = StakeKeyDepositMap (Map StakeCredential Coin)
+    | StakeKeyDepositAssumeCurrent
+    -- ^ Provided for compatibility with cardano-wallet. May be removed in the
+    -- future.
+    deriving (Eq, Show, Generic)
+
+instance Semigroup StakeKeyDepositLookup where
+    StakeKeyDepositMap m1 <> StakeKeyDepositMap m2
+        = StakeKeyDepositMap (m1 <> m2)
+    StakeKeyDepositMap m <> StakeKeyDepositAssumeCurrent
+        = StakeKeyDepositMap m
+    StakeKeyDepositAssumeCurrent <> StakeKeyDepositMap m
+        = StakeKeyDepositMap m
+    StakeKeyDepositAssumeCurrent <> StakeKeyDepositAssumeCurrent
+        = StakeKeyDepositAssumeCurrent
+
+lookupStakeKeyDeposit
+    :: IsRecentEra era
+    => StakeKeyDepositLookup
+    -> PParams era
+    -> StakeCredential
+    -> Maybe Coin
+lookupStakeKeyDeposit (StakeKeyDepositMap m) _pp
+    = flip Map.lookup m
+lookupStakeKeyDeposit (StakeKeyDepositAssumeCurrent) pp
+    = const $ Just $ pp ^. ppKeyDepositL
 
 data UTxOIndex era = UTxOIndex
     { availableUTxO :: !(UTxO era)
@@ -520,11 +571,18 @@ balanceTx
     UTxOIndex {availableUTxO, availableUTxOIndex}
     genChange
     changeState
-    PartialTx {extraUTxO, tx, redeemers, timelockKeyWitnessCounts}
+    PartialTx
+        { extraUTxO
+        , tx
+        , redeemers
+        , timelockKeyWitnessCounts
+        , stakeKeyDeposits
+        }
     = do
     guardExistingCollateral
     guardExistingReturnCollateral
     guardExistingTotalCollateral
+    guardRefundsResolvable
 
     guardUTxOConsistency
     preselectedUTxOIndex <- indexPreselectedUTxO
@@ -547,6 +605,7 @@ balanceTx
                 strategy
                 redeemers
                 timelockKeyWitnessCounts
+                stakeKeyDeposits
                 adjustedPartialTx
     balanceWith SelectionStrategyOptimal
         `catchE` \e ->
@@ -628,6 +687,17 @@ balanceTx
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
         conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
+
+    guardRefundsResolvable :: ExceptT (ErrBalanceTx era) m ()
+    guardRefundsResolvable = case stakeKeyDeposits of
+        StakeKeyDepositAssumeCurrent -> return ()
+        StakeKeyDepositMap deposits -> do
+            let refunds = stakeCredentialsWithRefunds tx
+            let unresolvedRefunds = refunds <\> Set.fromList (Map.keys deposits)
+            maybe
+                (return ())
+                (throwE . ErrBalanceTxUnresolvedRefunds)
+                (NESet.nonEmptySet unresolvedRefunds)
 
     -- Determines whether or not the minimal selection strategy is worth trying.
     -- This depends upon the way in which the optimal selection strategy failed.
@@ -715,6 +785,7 @@ balanceTxInner
     -> SelectionStrategy
     -> [Redeemer]
     -> TimelockKeyWitnessCounts
+    -> StakeKeyDepositLookup
     -> Tx era
     -> ExceptT (ErrBalanceTx era) m (Tx era, changeState)
 balanceTxInner
@@ -728,6 +799,7 @@ balanceTxInner
     selectionStrategy
     redeemers
     timelockKeyWitnessCounts
+    keyDeposits
     partialTx
     = do
     (balance0, minfee0, _) <- balanceAfterSettingMinFee partialTx
@@ -854,7 +926,10 @@ balanceTxInner
 
     txBalance :: Tx era -> Value
     txBalance
-        = evaluateTransactionBalance pp utxoReference
+        = evaluateTransactionBalance
+            pp
+            (lookupStakeKeyDeposit keyDeposits pp)
+            utxoReference
         . view bodyTxL
 
     balanceAfterSettingMinFee
@@ -1466,3 +1541,19 @@ validateTxOutputAdaQuantity constraints output@(address, bundle)
         (constraints ^. #computeMinimumAdaQuantity)
         (fst output)
         (snd output ^. #tokens)
+
+--------------------------------------------------------------------------------
+-- Helpers for local state queries
+--------------------------------------------------------------------------------
+
+-- FIXME: credentials registered and unregistered in the same tx would not need
+-- to be returned here.
+stakeCredentialsWithRefunds
+    :: forall era. IsRecentEra era
+    => Tx era
+    -> Set StakeCredential
+stakeCredentialsWithRefunds tx =
+     Set.fromList $ mapMaybe lookupUnRegStakeTxCert (certs tx)
+  where
+    certs :: Tx era -> [TxCert era]
+    certs = F.toList . view (bodyTxL . certsTxBodyL)
