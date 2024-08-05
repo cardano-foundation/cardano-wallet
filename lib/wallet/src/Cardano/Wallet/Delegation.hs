@@ -218,41 +218,35 @@ guardVoting optionalDelegationAction votingSameAgainM = do
     when (isNothing optionalDelegationAction && (fst <$> votingSameAgainM) == Just True ) $
         Left $ ErrAlreadyVoted $ snd (fromJust votingSameAgainM)
 
-guardOnlyVoting
-    :: Write.IsRecentEra era
-    => Write.RecentEra era
-    -> (Bool,DRep)
-    -> Either ErrCannotVote ()
-guardOnlyVoting era votingSameAgain = do
-    when (fst votingSameAgain) $
-        Left $ ErrAlreadyVoted $ snd votingSameAgain
-
-    case era of
-        Write.RecentEraBabbage ->
-            Left ErrWrongEra
-        Write.RecentEraConway ->
-            Right ()
-
 joinDRepVotingAction
-    :: Write.IsRecentEra era
+    :: forall era . Write.IsRecentEra era
     => Write.RecentEra era
     -> DRep
     -> W.WalletDelegation
     -> Bool
     -> Either ErrCannotVote Tx.VotingAction
-joinDRepVotingAction era action dlg stakeKeyIsRegistered =
-    second (const vAction) $ guardOnlyVoting era votingRequest
+joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
+    when (sameWalletDelegation dlg) $
+        Left $ ErrAlreadyVoted $ targetDRep
+    second (const votingAction) $ guardEraIsConway era
   where
-    isDRepSame (W.Voting drep) = drep == action
-    isDRepSame (W.DelegatingVoting _ drep) = drep == action
+    isDRepSame (W.Voting drep) = drep == targetDRep
+    isDRepSame (W.DelegatingVoting _ drep) = drep == targetDRep
     isDRepSame _ = False
-
     isSameNext (W.WalletDelegationNext _ deleg) = isDRepSame deleg
-
     sameWalletDelegation (W.WalletDelegation current coming) =
         isDRepSame current || any isSameNext coming
 
-    (vAction, votingRequest) =
+    guardEraIsConway
+        :: Write.IsRecentEra era
+        => Write.RecentEra era
+        -> Either ErrCannotVote ()
+    guardEraIsConway Write.RecentEraBabbage =
+        Left ErrWrongEra
+    guardEraIsConway Write.RecentEraConway =
+        Right ()
+
+    votingAction =
         if stakeKeyIsRegistered
-        then (Tx.Vote action, (sameWalletDelegation dlg, action))
-        else (Tx.VoteRegisteringKey action, (sameWalletDelegation dlg,action))
+        then Tx.Vote targetDRep
+        else Tx.VoteRegisteringKey targetDRep
