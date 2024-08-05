@@ -227,7 +227,7 @@ joinDRepVotingAction
     -> Either ErrCannotVote Tx.VotingAction
 joinDRepVotingAction era targetDRep dlg stakeKeyIsRegistered = do
     when (sameWalletDelegation dlg) $
-        Left $ ErrAlreadyVoted $ targetDRep
+        Left $ ErrAlreadyVoted targetDRep
     second (const votingAction) $ guardEraIsConway era
   where
     isDRepSame (W.Voting drep) = drep == targetDRep
