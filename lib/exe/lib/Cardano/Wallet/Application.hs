@@ -192,7 +192,7 @@ import Control.Monad.Trans.Except
     ( ExceptT (ExceptT)
     )
 import Control.Tracer
-    ( Tracer
+    ( Tracer (..)
     , traceWith
     )
 import Data.Function
@@ -499,29 +499,37 @@ serveWallet
             -> StakePoolLayer
             -> NtpClient
             -> IO ()
-        startApiServer _proxy socket byron icarus shelley multisig spl ntp = do
-            serverUrl <- getServerUrl tlsConfig socket
-            let serverSettings =
-                    Warp.defaultSettings
-                        & setBeforeMainLoop (beforeMainLoop serverUrl)
-                api = Proxy @(ApiV2 n)
-                application =
-                    Server.serve api
-                        $ Servant.hoistServer api handleWalletExceptions
-                        $ server
-                            byron
-                            icarus
-                            shelley
-                            multisig
-                            spl
-                            ntp
-                            blockchainSource
-            start
-                serverSettings
-                apiServerTracer
-                tlsConfig
-                socket
-                application
+        startApiServer
+            _proxy
+            socket
+            byron
+            icarus
+            shelley
+            multisig
+            spl
+            ntp = do
+                serverUrl <- getServerUrl tlsConfig socket
+                let serverSettings =
+                        Warp.defaultSettings
+                            & setBeforeMainLoop (beforeMainLoop serverUrl)
+                    api = Proxy @(ApiV2 n)
+                    application =
+                        Server.serve api
+                            $ Servant.hoistServer api handleWalletExceptions
+                            $ server
+                                byron
+                                icarus
+                                shelley
+                                multisig
+                                spl
+                                ntp
+                                blockchainSource
+                start
+                    serverSettings
+                    apiServerTracer
+                    tlsConfig
+                    socket
+                    application
 
         apiLayer
             :: forall s k
