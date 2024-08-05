@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -26,11 +27,10 @@ import Cardano.Read.Ledger.Tx.CBOR
     , serializeTx
     )
 import Cardano.Wallet.Read.Eras
-    ( EraValue
+    ( EraValue (..)
     , K (..)
     , applyEraFunValue
     , extractEraValue
-    , sequenceEraValue
     )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
@@ -65,14 +65,14 @@ instance Buildable TxCBOR where
 instance ToText TxCBOR
 
 -- | Render a tx into its cbor, it just applies 'serializeTx'.
-renderTxToCBOR :: EraValue Tx -> EraValue (K BL.ByteString)
-renderTxToCBOR = applyEraFunValue serializeTx
+renderTxToCBOR :: EraValue Tx -> TxCBOR
+renderTxToCBOR = applyEraFunValue (K . serializeTx)
 
 -- | Parse CBOR into a transaction in any eras
 -- , smart application  of `deserializeTx`.
 parseTxFromCBOR :: TxCBOR -> Either DecoderError (EraValue Tx)
-parseTxFromCBOR = sequenceEraValue
-    . applyEraFunValue deserializeTx
+parseTxFromCBOR (EraValue (K bytes :: K BL.ByteString era)) =
+    EraValue <$> (deserializeTx bytes :: Either DecoderError (Tx era))
 
 roundTripTxCBor :: TxCBOR -> Either DecoderError TxCBOR
 roundTripTxCBor = fmap renderTxToCBOR . parseTxFromCBOR

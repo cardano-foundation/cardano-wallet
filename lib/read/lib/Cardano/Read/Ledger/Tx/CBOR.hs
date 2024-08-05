@@ -21,36 +21,20 @@ import Cardano.Ledger.Api
     ( eraProtVerLow
     )
 import Cardano.Ledger.Binary
-    ( EncCBOR
-    )
-import Cardano.Ledger.Binary.Decoding
     ( DecCBOR (decCBOR)
     , DecoderError
+    , EncCBOR
     , byronProtVer
     , decodeFull
     , decodeFullAnnotator
-    , shelleyProtVer
     )
 import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
     )
-import Cardano.Wallet.Read.Eras
-    ( K (..)
-    , unK
-    , (:.:) (..)
-    )
 import Cardano.Wallet.Read.Tx
     ( Tx (..)
     , TxT
-    )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
     )
 
 import qualified Cardano.Ledger.Binary.Encoding as Ledger
@@ -58,33 +42,47 @@ import qualified Data.ByteString.Lazy as BL
 
 {-# INLINABLE serializeTx #-}
 -- | CBOR serialization of a tx in any era.
-serializeTx :: forall era . IsEra era => Tx era -> K BL.ByteString era
-serializeTx = case theEra @era of
-    Byron -> f byronProtVer
-    Shelley -> f (eraProtVerLow @StandardShelley)
-    Allegra -> f (eraProtVerLow @StandardAllegra)
-    Mary -> f (eraProtVerLow @StandardMary)
-    Alonzo -> f (eraProtVerLow @StandardAlonzo)
-    Babbage -> f (eraProtVerLow @StandardBabbage)
-    Conway -> f (eraProtVerLow @StandardConway)
+serializeTx :: forall era . IsEra era => Tx era -> BL.ByteString
+serializeTx = case era of
+    Byron -> f (versionForEra era)
+    Shelley -> f (versionForEra era)
+    Allegra -> f (versionForEra era)
+    Mary -> f (versionForEra era)
+    Alonzo -> f (versionForEra era)
+    Babbage -> f (versionForEra era)
+    Conway -> f (versionForEra era)
   where
-    f :: EncCBOR (TxT era) => Ledger.Version -> Tx era -> K BL.ByteString era
-    f protVer = K . Ledger.serialize protVer . unTx
+    era = theEra :: Era era
+
+    f :: EncCBOR (TxT era) => Ledger.Version -> Tx era -> BL.ByteString
+    f protVer = Ledger.serialize protVer . unTx
 
 {-# INLINABLE deserializeTx #-}
 -- | CBOR deserialization of a tx in any era.
 deserializeTx
     :: forall era . IsEra era
-    => K BL.ByteString era -> (Either DecoderError :.: Tx) era
-deserializeTx = case theEra @era of
-    Byron -> \txCBOR ->
-        Comp $ Tx <$> decodeFull byronProtVer (unK txCBOR)
-    Shelley -> decodeTx shelleyProtVer "ShelleyTx"
-    Allegra -> decodeTx (eraProtVerLow @StandardAllegra) "AllegraTx"
-    Mary -> decodeTx (eraProtVerLow @StandardMary) "MaryTx"
-    Alonzo -> decodeTx (eraProtVerLow @StandardAlonzo) "AlonzoTx"
-    Babbage -> decodeTx (eraProtVerLow @StandardBabbage) "BabbageTx"
-    Conway -> decodeTx (eraProtVerLow @StandardConway) "ConwayTx"
+    => BL.ByteString -> Either DecoderError (Tx era)
+deserializeTx = case era of
+    Byron -> fmap Tx . decodeFull (versionForEra era)
+    Shelley -> decodeTx (versionForEra era) "ShelleyTx"
+    Allegra -> decodeTx (versionForEra era) "AllegraTx"
+    Mary -> decodeTx (versionForEra era) "MaryTx"
+    Alonzo -> decodeTx (versionForEra era) "AlonzoTx"
+    Babbage -> decodeTx (versionForEra era) "BabbageTx"
+    Conway -> decodeTx (versionForEra era) "ConwayTx"
   where
-    decodeTx protVer label (K txCBOR) =
-        Comp $ Tx <$> decodeFullAnnotator protVer label decCBOR txCBOR
+    era = theEra :: Era era
+    decodeTx protVer label =
+        fmap Tx . decodeFullAnnotator protVer label decCBOR
+
+{-# INLINE versionForEra #-}
+-- | Protocol version that we use for encoding and decoding.
+versionForEra :: forall era. Era era -> Ledger.Version
+versionForEra era = case era of
+    Byron -> byronProtVer
+    Shelley -> eraProtVerLow @era
+    Allegra -> eraProtVerLow @era
+    Mary -> eraProtVerLow @era
+    Alonzo -> eraProtVerLow @era
+    Babbage -> eraProtVerLow @era
+    Conway -> eraProtVerLow @era
