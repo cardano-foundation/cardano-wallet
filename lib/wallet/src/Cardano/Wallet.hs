@@ -810,6 +810,7 @@ import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
+    , stakeCredentialsWithRefunds
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..)
@@ -2195,6 +2196,12 @@ balanceTx wrk pp timeTranslation partialTx = do
     lookedUpUTxO <- liftIO $
         forceUTxOToEra =<< getUTxOByTxIn netLayer inputsToLookup
 
+    -- Look up key deposits of refunds
+    let deregCreds = stakeCredentialsWithRefunds $ view #tx partialTx
+    lookedUpDeposits <-
+        fmap Write.StakeKeyDepositMap
+        . liftIO $ getStakeDelegDeposits netLayer deregCreds
+
     let utxoAssumptions = case walletFlavor @s of
             ShelleyWallet -> AllKeyPaymentCredentials
             SharedWallet -> AllScriptPaymentCredentialsFrom
@@ -2210,8 +2217,10 @@ balanceTx wrk pp timeTranslation partialTx = do
         utxoIndex
         (defaultChangeAddressGen argGenChange)
         changeState
-        -- In case of conflicts, the UTxO looked up from the node will win.
-        (over #extraUTxO (lookedUpUTxO <>) partialTx)
+        -- In case of conflicts, the data looked up from the node will win.
+        (partialTx
+            & over #extraUTxO (lookedUpUTxO <>)
+            & over #stakeKeyDeposits (lookedUpDeposits <>))
 
     return tx
   where
