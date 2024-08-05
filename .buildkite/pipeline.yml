@@ -197,7 +197,7 @@ steps:
       depends_on:
         - cardano-wallet
         - linux-sanchonet-full-sync-block
-      timeout_in_minutes: 30
+      timeout_in_minutes: 120
       command: |
         rm -rf run/sanchonet/nix/logs
         mkdir -p run/sanchonet/nix/logs
@@ -222,7 +222,7 @@ steps:
       depends_on:
         - cardano-wallet
         - linux-preprod-full-sync-block
-      timeout_in_minutes: 30
+      timeout_in_minutes: 120
       command: |
         cd run/preprod/nix
         rm -rf logs
