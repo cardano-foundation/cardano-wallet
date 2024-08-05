@@ -479,16 +479,18 @@ instance Arbitrary TestingSetup where
 
 prop_roundtrip :: TestingSetup -> Property
 prop_roundtrip (TestingSetup payload' pwd' _ salt') = do
-    ((mapLeft (const ErrMissingValidEncryptionPayload) $
-      toMetadataEncrypted pwd' payload' (Just salt')) >>=
-        fromMetadataEncrypted pwd')
+    (mapLeft
+     (const ErrMissingValidEncryptionPayload)
+     (toMetadataEncrypted pwd' payload' (Just salt'))
+     >>= fromMetadataEncrypted pwd')
         === Right payload'
 
 prop_passphrase :: TestingSetup -> Expectation
 prop_passphrase (TestingSetup payload' pwd1 pwd2 salt') = do
-    ((mapLeft (const ErrMissingValidEncryptionPayload) $
-      toMetadataEncrypted pwd1 payload' (Just salt')) >>=
-        fromMetadataEncrypted pwd2)
+    (mapLeft
+     (const ErrMissingValidEncryptionPayload)
+     (toMetadataEncrypted pwd1 payload' (Just salt'))
+     >>= fromMetadataEncrypted pwd2)
         `shouldSatisfy` isLeft
 
 prop_structure_after_enc :: TestingSetup -> Expectation

@@ -63,10 +63,10 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Maybe
-    ( fromMaybe
+    ( fromJust
+    , fromMaybe
     , isJust
     , isNothing
-    , fromJust
     , mapMaybe
     )
 import Data.Text
