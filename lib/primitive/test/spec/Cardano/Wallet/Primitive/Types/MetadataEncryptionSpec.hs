@@ -24,18 +24,21 @@ import Data.ByteString
     ( ByteString
     )
 import Data.Either
-    ( fromRight
-    , isLeft
-    , isRight
+    ( isLeft
     )
 import Data.Either.Combinators
-    ( rightToMaybe
+    ( mapLeft
+    , rightToMaybe
+    )
+import Data.Function
+    ( (&)
     )
 import Data.Text
     ( Text
     )
 import Test.Hspec
-    ( Spec
+    ( Expectation
+    , Spec
     , describe
     , it
     , shouldBe
@@ -43,13 +46,13 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Property
     , UnicodeString (..)
     , chooseInt
     , property
     , suchThat
     , vectorOf
     , (===)
-    , (==>)
     )
 
 import qualified Cardano.Api as Cardano
@@ -61,37 +64,17 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = do
     describe "metadata encrypt/decrypt roundtrips" $ do
-        it "fromMetadataEncrypted . toMetadataEncrypted $ payload == payload" $ property $
-            \(TestingSetup payload' pwd' _ salt') -> do
-            let encrypted = toMetadataEncrypted pwd' payload' (Just salt')
-            isRight encrypted ==>
-                (fromMetadataEncrypted pwd' (fromRight metadataNotValid encrypted))
-                === Right payload'
+        it "fromMetadataEncrypted . toMetadataEncrypted $ payload == payload" $
+            prop_roundtrip
+                & property
 
-        it "fromMetadataEncrypted fails for different passphrase" $ property $
-            \(TestingSetup payload' pwd1 pwd2 salt') -> do
-            let encrypted = toMetadataEncrypted pwd1 payload' (Just salt')
-            isRight encrypted ==>
-                fromMetadataEncrypted pwd2 (fromRight metadataNotValid encrypted)
-                `shouldSatisfy` isLeft
+        it "fromMetadataEncrypted fails for different passphrase" $
+            prop_passphrase
+                & property
 
-        it "the valid result of toMetadataEncrypted exhibits the expected characteristics" $ property $
-            \(TestingSetup payload' pwd' _ salt') -> do
-            let encrypted = toMetadataEncrypted pwd' payload' (Just salt')
-            let hasMsgWithList (Cardano.TxMetaText k, Cardano.TxMetaList _) =
-                    k == cip83EncryptPayloadKey
-                hasMsgWithList _ = False
-                hasEncPair (Cardano.TxMetaText k, Cardano.TxMetaText v) =
-                    k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
-                hasEncPair _ = False
-            let hasCharacteristics (Cardano.TxMetadata themap) =
-                    case Map.lookup cip20MetadataKey themap of
-                        Just (Cardano.TxMetaMap kvs) ->
-                            any hasMsgWithList kvs && any hasEncPair kvs
-                        _ -> False
-            isRight encrypted ==>
-                fromRight metadataNotValid encrypted
-                `shouldSatisfy` hasCharacteristics
+        it "the valid result of toMetadataEncrypted exhibits the expected characteristics" $
+            prop_structure_after_enc
+                & property
 
     describe "toMetadataEncrypted openssl goldens" $ do
         -- echo -n '["secret data"]' | openssl enc -e -aes-256-cbc -pbkdf2 -iter 10000 -a -k "cardano" -nosalt
@@ -422,6 +405,31 @@ spec = do
             toMetadataEncrypted "cardano" schemaBefore Nothing
                 `shouldBe` Left ErrIncorrectRawMetadata
 
+    describe "fromMetadataEncrypted incorrect payload" $ do
+        it "expecting only TxMetaText in TxMetaList of 'msg'" $ do
+            let schemaAfter =
+                    Cardano.TxMetadata $
+                    Map.fromList
+                    [ ( 674
+                      , Cardano.TxMetaMap
+                        [ ( Cardano.TxMetaText "field"
+                          , Cardano.TxMetaNumber 123
+                          )
+                        , ( Cardano.TxMetaText "msg"
+                          , Cardano.TxMetaList
+                            [ Cardano.TxMetaText "Fm/+xoZBA24yp8Vz548NAg=="
+                            , Cardano.TxMetaNumber 123
+                            ]
+                          )
+                        , ( Cardano.TxMetaText "enc"
+                          , Cardano.TxMetaText "basic"
+                          )
+                        ]
+                      )
+                    ]
+            fromMetadataEncrypted "cardano" schemaAfter
+                `shouldBe` Left ErrMissingValidEncryptionPayload
+
 fromHexToM :: Text -> Maybe ByteString
 fromHexToM = rightToMaybe . convertFromBase Base16 . T.encodeUtf8
 
@@ -469,22 +477,33 @@ instance Arbitrary TestingSetup where
             , salt = salt'
             }
 
-metadataNotValid :: Cardano.TxMetadata
-metadataNotValid =
-    Cardano.TxMetadata $
-    Map.fromList
-    [ ( 674
-      , Cardano.TxMetaMap
-        [ ( Cardano.TxMetaText "field"
-          , Cardano.TxMetaNumber 123
-          )
-        , ( Cardano.TxMetaText "msgs"
-          , Cardano.TxMetaList
-            [ Cardano.TxMetaText "Invoice-No: 123456789"
-            , Cardano.TxMetaText "Order-No: 7654321"
-            , Cardano.TxMetaText "Email: john@doe.com"
-            ]
-          )
-        ]
-      )
-    ]
+prop_roundtrip :: TestingSetup -> Property
+prop_roundtrip (TestingSetup payload' pwd' _ salt') = do
+    ((mapLeft (const ErrMissingValidEncryptionPayload) $
+      toMetadataEncrypted pwd' payload' (Just salt')) >>=
+        fromMetadataEncrypted pwd')
+        === Right payload'
+
+prop_passphrase :: TestingSetup -> Expectation
+prop_passphrase (TestingSetup payload' pwd1 pwd2 salt') = do
+    ((mapLeft (const ErrMissingValidEncryptionPayload) $
+      toMetadataEncrypted pwd1 payload' (Just salt')) >>=
+        fromMetadataEncrypted pwd2)
+        `shouldSatisfy` isLeft
+
+prop_structure_after_enc :: TestingSetup -> Expectation
+prop_structure_after_enc (TestingSetup payload' pwd' _ salt') = do
+    let hasMsgWithList (Cardano.TxMetaText k, Cardano.TxMetaList _) =
+            k == cip83EncryptPayloadKey
+        hasMsgWithList _ = False
+        hasEncPair (Cardano.TxMetaText k, Cardano.TxMetaText v) =
+            k == cip83EncryptMethodKey && v == cip83EncryptPayloadValue
+        hasEncPair _ = False
+    let hasCharacteristics (Cardano.TxMetadata themap) =
+            case Map.lookup cip20MetadataKey themap of
+                Just (Cardano.TxMetaMap kvs) ->
+                    any hasMsgWithList kvs && any hasEncPair kvs
+                _ -> False
+
+    (hasCharacteristics <$> toMetadataEncrypted pwd' payload' (Just salt'))
+        `shouldBe` Right True

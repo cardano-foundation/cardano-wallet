@@ -65,6 +65,8 @@ import Data.ByteString
 import Data.Maybe
     ( fromMaybe
     , isJust
+    , isNothing
+    , fromJust
     , mapMaybe
     )
 import Data.Text
@@ -271,11 +273,15 @@ fromMetadataEncrypted pwd metadata =
         in case value of
             TxMetaMap list -> snd <$> filter presentPair list
             _ -> []
-    extractTxt (TxMetaText txt) = txt
-    extractTxt _ =
-        error "TxMetaText is expected"
+    extractTxt (TxMetaText txt) = Just txt
+    extractTxt _ = Nothing
     extractPayload (TxMetaList chunks)=
-        foldl T.append T.empty $ extractTxt <$> chunks
+        let extractedTxts = extractTxt <$> chunks
+        in if any isNothing extractedTxts then
+            T.empty
+        else
+            -- we are sure there is not Nothing in the extractedTxts
+            foldl T.append T.empty $ fromJust <$> extractedTxts
     extractPayload _ = T.empty
     composePayload (TxMetadata themap) = do
         validValue <- case Map.lookup cip20MetadataKey themap of
