@@ -359,12 +359,10 @@ type RecentEraConstraints era =
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.Value era ~ Value
     , Core.TxWits era ~ AlonzoTxWits era
-    -- , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
     , AlonzoEraScript era
-    -- , EraPlutusContext 'PlutusV1 era
     , Eq (TxOut era)
     , Ledger.Crypto (Core.EraCrypto era)
     , Show (TxOut era)
