@@ -39,18 +39,7 @@ module Cardano.Wallet.Read.Eras
   )
   where
 
-import Cardano.Wallet.Read.Eras.EraFun
-    ( applyEraFun
-    , applyEraFunValue
-    )
-import Cardano.Wallet.Read.Eras.EraValue
-    ( EraValue (..)
-    , eraValue
-    , eraValueSerialize
-    , extractEraValue
-    , sequenceEraValue
-    )
-import Cardano.Wallet.Read.Eras.KnownEras
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage
@@ -62,6 +51,17 @@ import Cardano.Wallet.Read.Eras.KnownEras
     , Mary
     , Shelley
     , knownEraIndices
+    )
+import Cardano.Wallet.Read.Eras.EraFun
+    ( applyEraFun
+    , applyEraFunValue
+    )
+import Cardano.Wallet.Read.Eras.EraValue
+    ( EraValue (..)
+    , eraValue
+    , eraValueSerialize
+    , extractEraValue
+    , sequenceEraValue
     )
 import Generics.SOP
     ( K (..)

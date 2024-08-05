@@ -15,7 +15,7 @@ import Cardano.Ledger.Binary
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Byron
     , Era (..)
     , IsEra (..)

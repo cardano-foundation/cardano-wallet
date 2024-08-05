@@ -27,13 +27,7 @@ import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
     )
-import Cardano.Read.Ledger.Tx.Eras
-    ( onTx
-    )
-import Cardano.Wallet.Read
-    ( Tx
-    )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage
@@ -43,6 +37,12 @@ import Cardano.Wallet.Read.Eras
     , IsEra (..)
     , Mary
     , Shelley
+    )
+import Cardano.Read.Ledger.Tx.Eras
+    ( onTx
+    )
+import Cardano.Wallet.Read
+    ( Tx
     )
 import Control.Lens
     ( (^.)
