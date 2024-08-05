@@ -8,10 +8,7 @@
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
-    , anythingFromSealedTx
     ) where
-
-import Prelude
 
 import Cardano.Api
     ( InAnyCardanoEra (..)
@@ -20,10 +17,8 @@ import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (unsafeCardanoTx)
     )
 import Cardano.Wallet.Read
-    ( Era (..)
-    , EraValue (..)
+    ( EraValue (..)
     , Tx (..)
-    , applyEraFun
     )
 import Cardano.Wallet.Read.Eras
     ( Allegra
@@ -42,9 +37,6 @@ fromSealedTx:: W.SealedTx -> EraValue Tx
 fromSealedTx sealed =
     case unsafeCardanoTx sealed of
         InAnyCardanoEra _ce tx -> fromCardanoApiTx tx
-
-anythingFromSealedTx :: (forall era . Tx era -> a) -> SealedTx -> a
-anythingFromSealedTx f = applyEraFun f . fromSealedTx
 
 fromCardanoApiTx :: Cardano.Tx era -> EraValue Tx
 fromCardanoApiTx tx0 = case tx0 of
