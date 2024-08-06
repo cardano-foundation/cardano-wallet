@@ -41,7 +41,7 @@ import Cardano.Read.Ledger.Eras
 import Cardano.Read.Ledger.Tx.Eras
     ( onTx
     )
-import Cardano.Wallet.Read
+import Cardano.Read.Ledger.Tx.Tx
     ( Tx
     )
 import Control.Lens

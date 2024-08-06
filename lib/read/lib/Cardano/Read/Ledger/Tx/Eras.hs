@@ -10,7 +10,7 @@ module Cardano.Read.Ledger.Tx.Eras
     )
     where
 
-import Cardano.Wallet.Read.Tx
+import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )
