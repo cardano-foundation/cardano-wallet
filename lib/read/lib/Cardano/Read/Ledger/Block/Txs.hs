@@ -20,7 +20,7 @@ import Cardano.Read.Ledger.Eras
     , Era (..)
     , IsEra (..)
     )
-import Cardano.Wallet.Read.Tx
+import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )
@@ -31,6 +31,8 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyProtocolHeader
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
+    ()
+import Ouroboros.Consensus.Shelley.Protocol.TPraos
     ()
 
 import qualified Cardano.Chain.Block as Byron
