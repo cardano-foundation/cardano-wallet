@@ -107,6 +107,7 @@ module Cardano.Wallet
     , ErrReadPolicyPublicKey (..)
     , ErrWritePolicyPublicKey (..)
     , ErrGetPolicyId (..)
+    , ErrDecodeTx (..)
     , readWalletMeta
     , isStakeKeyRegistered
     , putDelegationCertificate
@@ -550,6 +551,10 @@ import Cardano.Wallet.Primitive.Types.DRep
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
     )
+import Cardano.Wallet.Primitive.Types.MetadataEncryption
+    ( ErrMetadataDecryption
+    , ErrMetadataEncryption
+    )
 import Cardano.Wallet.Primitive.Types.Range
     ( Range (..)
     )
@@ -858,7 +863,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
-import qualified Cryptography.Cipher.AES256CBC as AES256CBC
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -3754,8 +3758,7 @@ data ErrConstructTx
     | ErrConstructTxDelegationInvalid
     | ErrConstructTxVotingInWrongEra
     | ErrConstructTxWithdrawalWithoutVoting
-    | ErrConstructTxIncorrectRawMetadata
-    | ErrConstructTxEncryptMetadata AES256CBC.CipherError
+    | ErrConstructTxFromMetadataEncryption ErrMetadataEncryption
     | ErrConstructTxNotImplemented
     deriving (Show, Eq)
 
@@ -3763,6 +3766,11 @@ data ErrConstructTx
 data ErrGetPolicyId
     = ErrGetPolicyIdReadPolicyPubliKey ErrReadPolicyPublicKey
     | ErrGetPolicyIdWrongMintingBurningTemplate
+    deriving (Show, Eq)
+
+-- | Errors that can occur when decoding a transaction.
+newtype ErrDecodeTx
+    = ErrDecodeTxFromMetadataDecryption ErrMetadataDecryption
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a transaction.

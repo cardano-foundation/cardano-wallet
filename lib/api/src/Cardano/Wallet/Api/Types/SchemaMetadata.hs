@@ -8,6 +8,8 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE StrictData #-}
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 -- |
 -- Copyright: © 2018-2022 IOHK, 2023 Cardano Foundation
 -- License: Apache-2.0
@@ -25,7 +27,7 @@ import Cardano.Api.Error
     ( displayError
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata
+    ( TxMetadata (..)
     )
 import Control.Applicative
     ( (<|>)
@@ -40,6 +42,7 @@ import Data.Aeson
 import GHC.Generics
     ( Generic
     )
+
 import Prelude
 
 -- | A tag to select the json codec

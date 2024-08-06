@@ -4766,6 +4766,19 @@ x-errInvalidMetadataEncryption: &errInvalidMetadataEncryption
       type: string
       enum: ['invalid_metadata_encryption']
 
+x-errInvalidMetadataDecryption: &errInvalidMetadataDecryption
+  <<: *responsesErr
+  title: invalid_metadata_decryption
+  properties:
+    message:
+      type: string
+      description: |
+          The supplied encrypted metadata object is not compatible with standard
+          specified by CIP-83 (https://cips.cardano.org/cip/CIP-83).
+    code:
+      type: string
+      enum: ['invalid_metadata_decryption']
+
 x-errInputsDepleted: &errInputsDepleted
   <<: *responsesErr
   title: inputs_depleted
@@ -6241,6 +6254,13 @@ x-responsesDecodedTransaction: &responsesDecodedTransaction
   <<: *responsesErr404WalletNotInitialized
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidMetadataDecryption
   202:
     description: Accepted
     content:

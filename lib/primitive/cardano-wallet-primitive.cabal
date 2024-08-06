@@ -40,13 +40,15 @@ library
   build-depends:
     , aeson
     , array
+    , attoparsec
     , base
+    , base16-bytestring
     , bech32
     , bech32-th
     , binary
     , bytestring
     , cardano-addresses
-    , cardano-api
+    , cardano-api:{cardano-api, internal}
     , cardano-binary
     , cardano-crypto
     , cardano-crypto-class
@@ -112,6 +114,7 @@ library
     , unliftio
     , unliftio-core
     , unordered-containers
+    , vector
 
   exposed-modules:
     Cardano.Wallet.Orphans
@@ -165,6 +168,7 @@ library
     Cardano.Wallet.Primitive.Types.FeePolicy
     Cardano.Wallet.Primitive.Types.GenesisParameters
     Cardano.Wallet.Primitive.Types.Hash
+    Cardano.Wallet.Primitive.Types.MetadataEncryption
     Cardano.Wallet.Primitive.Types.NetworkParameters
     Cardano.Wallet.Primitive.Types.Pool
     Cardano.Wallet.Primitive.Types.ProtocolMagic
@@ -238,8 +242,10 @@ test-suite test
     , cardano-wallet-primitive:cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
+    , crypto-primitives
     , deepseq
     , delta-types
+    , either
     , filepath
     , fmt
     , generic-arbitrary
@@ -248,6 +254,7 @@ test-suite test
     , hspec-core
     , iohk-monitoring
     , lens
+    , memory
     , ouroboros-consensus
     , ouroboros-consensus-cardano
     , ouroboros-network-api
@@ -276,6 +283,7 @@ test-suite test
     Cardano.Wallet.Primitive.Types.BlockSummarySpec
     Cardano.Wallet.Primitive.Types.CoinSpec
     Cardano.Wallet.Primitive.Types.HashSpec
+    Cardano.Wallet.Primitive.Types.MetadataEncryptionSpec
     Cardano.Wallet.Primitive.Types.PoolSpec
     Cardano.Wallet.Primitive.Types.RangeSpec
     Cardano.Wallet.Primitive.Types.TokenBundleSpec

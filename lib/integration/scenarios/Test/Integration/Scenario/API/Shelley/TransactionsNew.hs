@@ -70,9 +70,6 @@ import Cardano.Wallet.Address.Keys.WalletKey
 import Cardano.Wallet.Api.Hex
     ( fromHexText
     )
-import Cardano.Wallet.Api.Http.Shelley.Server
-    ( metadataPBKDF2Config
-    )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddressWithPath (..)
@@ -172,6 +169,10 @@ import Cardano.Wallet.Primitive.Types.DRep
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
+    )
+import Cardano.Wallet.Primitive.Types.MetadataEncryption
+    ( metadataPBKDF2Config
+    , toMetadataEncrypted
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -569,10 +570,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 ]
             decodeErrorInfo rTx `shouldBe` InvalidMetadataEncryption
 
-    it "TRANS_NEW_CREATE_02c - \
+    it "TRANS_NEW_CREATE_02d - \
         \Correct metadata structure to be encrypted - short" $
         \ctx -> runResourceT $ do
-            let toBeEncrypted = TxMetaText "world"
+            let toBeEncrypted = TxMetaList [TxMetaText "world"]
             let metadataRaw =
                     TxMetadata $ Map.fromList
                     [ (0, TxMetaText "hello")
@@ -581,7 +582,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
-    it "TRANS_NEW_CREATE_02c - \
+    it "TRANS_NEW_CREATE_02e - \
         \Correct metadata structure to be encrypted - long" $
         \ctx -> runResourceT $ do
             let toBeEncrypted =
@@ -599,7 +600,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     ]
             checkMetadataEncryption ctx toBeEncrypted metadataRaw
 
-    it "TRANS_NEW_CREATE_02d - \
+    it "TRANS_NEW_CREATE_02f - \
         \Encrypt multiple metadata messages" $
         \ctx -> runResourceT $ do
             wa <- fixtureWallet ctx
@@ -5532,6 +5533,29 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         verify submittedTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
+            ]
+
+        let decodePayloadEncrypted = Json (toJSON signedTx)
+        let (Right expMetadataEncrypted) =
+                ApiT <$> toMetadataEncrypted pwd metadataRaw (Just salt)
+        rDecodedTxEncrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadEncrypted
+        verify rDecodedTxEncrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just expMetadataEncrypted)))
+            ]
+
+        let decodePayloadDecrypted = Json [json|{
+                "decrypt_metadata": #{toJSON encryptMetadata},
+                "transaction": #{serialisedTxSealed signedTx}
+            }|]
+        rDecodedTxDecrypted <- request @(ApiDecodedTransaction n) ctx
+            (Link.decodeTransaction @'Shelley wa) Default decodePayloadDecrypted
+        verify rDecodedTxDecrypted
+            [ expectResponseCode HTTP.status202
+            , expectField #metadata
+                (`shouldBe` (ApiTxMetadata (Just (ApiT metadataRaw))))
             ]
 
     burnAssetsCheck
