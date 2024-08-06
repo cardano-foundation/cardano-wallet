@@ -61,7 +61,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
     )
 import Cardano.Wallet.Read.Tx.CBOR
-    ( roundTripTxCBor
+    ( roundTripTxCBOR
     )
 import Control.Monad
     ( forM_
@@ -168,7 +168,7 @@ spec = do
                         runQuery db $ loadS mkStoreTransactions
                     let cbors =
                             mapMaybe (cbor >=> mkTxCBOR) $ toList txSet
-                        Right cbors' = mapM roundTripTxCBor cbors
+                        Right cbors' = mapM roundTripTxCBOR cbors
                     cbors `shouldBe` cbors'
 
 withinCopiedFile

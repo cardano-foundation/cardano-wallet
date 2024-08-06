@@ -13,7 +13,7 @@ module Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
     , renderTxToCBOR
     , parseTxFromCBOR
-    , roundTripTxCBor
+    , roundTripTxCBOR
     )
     where
 
@@ -74,5 +74,5 @@ parseTxFromCBOR :: TxCBOR -> Either DecoderError (EraValue Tx)
 parseTxFromCBOR (EraValue (K bytes :: K BL.ByteString era)) =
     EraValue <$> (deserializeTx bytes :: Either DecoderError (Tx era))
 
-roundTripTxCBor :: TxCBOR -> Either DecoderError TxCBOR
-roundTripTxCBor = fmap renderTxToCBOR . parseTxFromCBOR
+roundTripTxCBOR :: TxCBOR -> Either DecoderError TxCBOR
+roundTripTxCBOR = fmap renderTxToCBOR . parseTxFromCBOR
