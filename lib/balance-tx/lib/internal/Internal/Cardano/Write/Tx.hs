@@ -890,9 +890,9 @@ evaluateTransactionBalance pp depositLookup =
   where
     -- Deposit lookup for `UnRegDRep` certificates in the TxBody
     --
-    -- TODO [ADP-3270] Query actual value of deposit
+    -- TODO [ADP-3404] Query actual value of deposit
     --
-    -- https://cardanofoundation.atlassian.net/browse/ADP-3270
+    -- https://cardanofoundation.atlassian.net/browse/ADP-3404
     dRepDepositAssumeCurrent
         :: Core.Credential 'Ledger.DRepRole StandardCrypto
         -> Maybe Coin
