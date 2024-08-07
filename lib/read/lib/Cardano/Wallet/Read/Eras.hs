@@ -22,7 +22,6 @@ module Cardano.Wallet.Read.Eras
 
     -- * Era-existential values
   , EraValue (..)
-  , eraValue
   , eraValueSerialize
 
   -- * Specials
@@ -61,7 +60,6 @@ import Cardano.Wallet.Read.Eras.EraFun
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
-    , eraValue
     , eraValueSerialize
     , sequenceEraValue
     )

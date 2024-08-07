@@ -19,7 +19,6 @@ module Cardano.Wallet.Read.Eras.EraValue
     , eraValueSerialize
     , extractEraValue
     , sequenceEraValue
-    , eraValue
     )
 where
 
@@ -53,9 +52,6 @@ import Generics.SOP
 
 -- | A value which is in one era.
 data EraValue f = forall era. IsEra era => EraValue (f era)
-
-eraValue :: IsEra era => f era -> EraValue f
-eraValue = EraValue
 
 instance (All (Compose Show f) KnownEras) => Show (EraValue f) where
     show (EraValue (x :: f era)) = case theEra @era of

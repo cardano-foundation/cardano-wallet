@@ -2,7 +2,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -37,7 +36,6 @@ import Cardano.Read.Ledger.Eras
     )
 import Cardano.Wallet.Read.Eras
     ( EraValue (..)
-    , eraValue
     )
 import Ouroboros.Consensus.Protocol.Praos
     ( Praos
@@ -82,17 +80,17 @@ deriving instance Eq (BlockT era) => Eq (Block era)
 -- via Haskell library of mini-protocol.
 fromConsensusBlock :: ConsensusBlock -> EraValue Block
 fromConsensusBlock = \case
-    O.BlockByron b -> eraValue @Byron $ Block b
-    O.BlockShelley block -> eraValue @Shelley $ Block block
-    O.BlockAllegra block -> eraValue @Allegra $ Block block
-    O.BlockMary block -> eraValue @Mary $ Block block
-    O.BlockAlonzo block -> eraValue @Alonzo $ Block block
-    O.BlockBabbage block -> eraValue @Babbage $ Block block
-    O.BlockConway block -> eraValue @Conway $ Block block
+    O.BlockByron b -> EraValue (Block b :: Block Byron)
+    O.BlockShelley block -> EraValue (Block block :: Block Shelley)
+    O.BlockAllegra block -> EraValue (Block block :: Block Allegra)
+    O.BlockMary block -> EraValue (Block block :: Block Mary)
+    O.BlockAlonzo block -> EraValue (Block block :: Block Alonzo)
+    O.BlockBabbage block -> EraValue (Block block :: Block Babbage)
+    O.BlockConway block -> EraValue (Block block :: Block Conway)
 
 {-# INLINABLE toConsensusBlock #-}
 toConsensusBlock :: forall era . IsEra era => Block era -> ConsensusBlock
-toConsensusBlock = case theEra @era of
+toConsensusBlock = case theEra :: Era era of
     Byron -> O.BlockByron . unBlock
     Shelley -> O.BlockShelley . unBlock
     Allegra -> O.BlockAllegra . unBlock

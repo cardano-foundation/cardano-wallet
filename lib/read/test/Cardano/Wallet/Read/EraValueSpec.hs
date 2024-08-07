@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Read.EraValueSpec (spec) where
@@ -6,16 +7,10 @@ module Cardano.Wallet.Read.EraValueSpec (spec) where
 import Prelude
 
 import Cardano.Wallet.Read.Eras
-    ( Allegra
-    , Alonzo
-    , Babbage
-    , Byron
-    , Conway
+    ( Era (..)
     , EraValue (..)
+    , IsEra
     , K (..)
-    , Mary
-    , Shelley
-    , eraValue
     , eraValueSerialize
     )
 import Control.Lens
@@ -33,47 +28,42 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Gen
+    ( Gen
     , Testable (..)
     , elements
     , forAll
     )
 
-k :: Int -> K Int era
-k = K
-
 generate :: Gen (EraValue (K Int))
 generate = do
     era <- elements [0 :: Int .. 6]
     case era of
-        0 -> eraValue @Byron . k <$> arbitrary
-        1 -> eraValue @Shelley . k <$> arbitrary
-        2 -> eraValue @Allegra . k <$> arbitrary
-        3 -> eraValue @Mary . k <$> arbitrary
-        4 -> eraValue @Alonzo . k <$> arbitrary
-        5 -> eraValue @Babbage . k <$> arbitrary
-        6 -> eraValue @Conway . k <$> arbitrary
-        _ -> error "impossible"
+        _ -> error "todo"
+
+inject :: forall era a. IsEra era => Era era -> a -> EraValue (K a)
+inject _ x = EraValue (K x :: K a era)
+
+injectInt :: forall era. IsEra era => Era era -> Int -> EraValue (K Int)
+injectInt = inject
 
 spec :: Spec
 spec =
     describe "EraValue" $ do
         it "respects equality" $ do
-            eraValue @Byron (k 1) `shouldBe` eraValue @Byron (k 1)
-            eraValue @Byron (k 1) `shouldNotBe` eraValue @Byron (k 2)
-            eraValue @Byron (k 1) `shouldNotBe` eraValue @Shelley (k 1)
+            injectInt Byron 1 `shouldBe` injectInt Byron 1
+            injectInt Byron 1 `shouldNotBe` injectInt Byron 2
+            injectInt Byron 1 `shouldNotBe` injectInt Shelley 1
         it "respects ord" $ do
-            eraValue @Byron (k 1) `shouldSatisfy` (< eraValue @Byron (k 2))
-            eraValue @Byron (k 1) `shouldSatisfy` (<= eraValue @Byron (k 1))
-            eraValue @Byron (k 1) `shouldSatisfy` (>= eraValue @Byron (k 1))
-            eraValue @Byron (k 1) `shouldSatisfy` (> eraValue @Byron (k 0))
-            eraValue @Byron (k 1) `shouldSatisfy` (< eraValue @Shelley (k 1))
-            eraValue @Shelley (k 1) `shouldSatisfy` (< eraValue @Allegra (k 1))
-            eraValue @Allegra (k 1) `shouldSatisfy` (< eraValue @Mary (k 1))
-            eraValue @Mary (k 1) `shouldSatisfy` (< eraValue @Alonzo (k 1))
-            eraValue @Alonzo (k 1) `shouldSatisfy` (< eraValue @Babbage (k 1))
-            eraValue @Babbage (k 1) `shouldSatisfy` (< eraValue @Conway (k 1))
+            injectInt Byron 1 `shouldSatisfy` (< injectInt Byron 2)
+            injectInt Byron 1 `shouldSatisfy` (<= injectInt Byron 1)
+            injectInt Byron 1 `shouldSatisfy` (>= injectInt Byron 1)
+            injectInt Byron 1 `shouldSatisfy` (> injectInt Byron 0)
+            injectInt Byron 1 `shouldSatisfy` (< injectInt Shelley 1)
+            injectInt Shelley 1 `shouldSatisfy` (< injectInt Allegra 1)
+            injectInt Allegra 1 `shouldSatisfy` (< injectInt Mary 1)
+            injectInt Mary 1 `shouldSatisfy` (< injectInt Alonzo 1)
+            injectInt Alonzo 1 `shouldSatisfy` (< injectInt Babbage 1)
+            injectInt Babbage 1 `shouldSatisfy` (< injectInt Conway 1)
         it "roundrips serialization" $ do
             property $ forAll generate $ prismLaw eraValueSerialize
 
