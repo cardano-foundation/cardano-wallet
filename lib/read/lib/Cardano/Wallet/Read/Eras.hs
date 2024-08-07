@@ -6,10 +6,8 @@
 --
 
 module Cardano.Wallet.Read.Eras
-  ( -- * Eras.
-    KnownEras
-  , knownEraIndices
-  , Era (..)
+  ( -- * Eras
+    Era (..)
   , IsEra (..)
   , Allegra
   , Alonzo
@@ -19,21 +17,27 @@ module Cardano.Wallet.Read.Eras
   , Mary
   , Shelley
 
-    -- * Era bounded values.
+  , KnownEras
+  , knownEraIndices
+
+    -- * Era-existential values
   , EraValue (..)
   , eraValue
   , eraValueSerialize
   , extractEraValue
-  -- * Specials.
+
+  -- * Specials
   , sequenceEraValue
+
   -- * Era polymorphic functions.
   -- * Applying era functions.
   , applyEraFun
   , applyEraFunValue
-  -- * Reexports from elsewhere.
+
+  -- * Re-export structure combinators
   , (:.:)(..)
   , K (..)
-  ,  unK
+  , unK
   , (:*:)(..)
   , unComp
   )
