@@ -690,12 +690,12 @@ balanceTx
 
     guardRefundsResolvable :: ExceptT (ErrBalanceTx era) m ()
     guardRefundsResolvable = case stakeKeyDeposits of
-        StakeKeyDepositAssumeCurrent -> return ()
+        StakeKeyDepositAssumeCurrent -> pure ()
         StakeKeyDepositMap deposits -> do
             let refunds = stakeCredentialsWithRefunds tx
             let unresolvedRefunds = refunds <\> Set.fromList (Map.keys deposits)
             maybe
-                (return ())
+                (pure ())
                 (throwE . ErrBalanceTxUnresolvedRefunds)
                 (NESet.nonEmptySet unresolvedRefunds)
 
