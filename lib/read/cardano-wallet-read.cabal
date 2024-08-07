@@ -156,6 +156,7 @@ test-suite test
     Cardano.Wallet.Read.EraValueSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Read.Tx.TxIdSpec
+    Test.Unit.Cardano.Read.Ledger.Tx
     Spec
     SpecHook
 
