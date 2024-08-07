@@ -87,6 +87,7 @@ library
     Cardano.Wallet.Read.Eras.EraValue
     Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.Tx
+    Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Gen
     Cardano.Wallet.Read.Tx.Gen.Address
     Cardano.Wallet.Read.Tx.Gen.Allegra

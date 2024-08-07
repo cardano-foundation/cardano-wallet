@@ -1,6 +1,5 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Read.Tx.TxIdSpec
     ( spec
@@ -13,8 +12,6 @@ import Cardano.Read.Ledger.Tx.CBOR
     )
 import Cardano.Wallet.Read.Eras
     ( IsEra
-    , K (..)
-    , (:.:) (Comp)
     )
 import Cardano.Wallet.Read.Hash
     ( hashFromBytesAsHex
@@ -234,12 +231,7 @@ unsafeParseEraTxFromHex
     -> Tx era
 unsafeParseEraTxFromHex bytes =
     either (error . show) id
-    . unComp
-    $ deserializeTx
-        (K (unsafeReadBase16 bytes) :: K BL.ByteString era)
-  where
-    unComp :: (f :.: g) era -> f (g era)
-    unComp (Comp fg) = fg
+    $ deserializeTx (unsafeReadBase16 bytes :: BL.ByteString)
 
 unsafeTxIdFromHex :: ByteString -> TxId
 unsafeTxIdFromHex =

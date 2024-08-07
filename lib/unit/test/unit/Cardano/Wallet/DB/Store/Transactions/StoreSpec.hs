@@ -21,9 +21,6 @@ import Cardano.DB.Sqlite
     ( ForeignKeysSetting (..)
     , runQuery
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( roundTripTxCBor
-    )
 import Cardano.Wallet.DB.Arbitrary
     ()
 import Cardano.Wallet.DB.Fixtures
@@ -62,6 +59,9 @@ import Cardano.Wallet.DB.Store.Transactions.TransactionInfo
     )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..)
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( roundTripTxCBOR
     )
 import Control.Monad
     ( forM_
@@ -168,7 +168,7 @@ spec = do
                         runQuery db $ loadS mkStoreTransactions
                     let cbors =
                             mapMaybe (cbor >=> mkTxCBOR) $ toList txSet
-                        Right cbors' = mapM roundTripTxCBor cbors
+                        Right cbors' = mapM roundTripTxCBOR cbors
                     cbors `shouldBe` cbors'
 
 withinCopiedFile

@@ -168,9 +168,6 @@ import Cardano.Mnemonic
 import Cardano.Pool.Types
     ( PoolId
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    )
 import Cardano.Wallet
     ( BuiltTx (..)
     , DelegationFee (feePercentiles)
@@ -648,6 +645,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)

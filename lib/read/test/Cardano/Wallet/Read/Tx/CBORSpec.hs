@@ -7,16 +7,16 @@ module Cardano.Wallet.Read.Tx.CBORSpec
 
 import Prelude
 
-import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    , parseTxFromCBOR
-    , renderTxToCBOR
-    )
 import Cardano.Wallet.Read.Eras
     ( Era (..)
     , EraValue (..)
     , IsEra
     , K (..)
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
+    , parseTxFromCBOR
+    , renderTxToCBOR
     )
 import Data.ByteArray.Encoding
     ( Base (..)

@@ -37,9 +37,6 @@ module Cardano.Wallet.DB.Store.Transactions.Model
 
 import Prelude
 
-import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    )
 import Cardano.Wallet.DB.Sqlite.Schema
     ( CBOR (..)
     , TxCollateral (..)
@@ -73,6 +70,9 @@ import Cardano.Wallet.Primitive.Types.Tx.Tx
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( eraValueSerialize
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
     )
 import Control.Arrow
     ( (&&&)

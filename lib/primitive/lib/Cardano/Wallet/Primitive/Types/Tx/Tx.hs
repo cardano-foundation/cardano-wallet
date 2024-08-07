@@ -47,9 +47,6 @@ import Cardano.Api
     , TxMetadata (..)
     , TxMetadataValue (..)
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( TxCBOR
-    )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.AssetId
@@ -67,6 +64,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( TxCBOR
     )
 import Control.DeepSeq
     ( NFData (..)

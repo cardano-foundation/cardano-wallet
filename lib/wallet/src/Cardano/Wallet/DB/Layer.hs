@@ -76,9 +76,6 @@ import Cardano.DB.Sqlite.Migration.Old
     ( ManualMigration (..)
     , MigrationError
     )
-import Cardano.Read.Ledger.Tx.CBOR
-    ( parseTxFromCBOR
-    )
 import Cardano.Slotting.Slot
     ( WithOrigin (..)
     )
@@ -189,6 +186,9 @@ import Cardano.Wallet.Primitive.Types.Coin
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue
+    )
+import Cardano.Wallet.Read.Tx.CBOR
+    ( parseTxFromCBOR
     )
 import Control.DeepSeq
     ( force
