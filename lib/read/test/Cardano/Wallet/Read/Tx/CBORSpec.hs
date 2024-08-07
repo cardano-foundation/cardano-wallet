@@ -8,8 +8,11 @@ module Cardano.Wallet.Read.Tx.CBORSpec
 import Prelude
 
 import Cardano.Wallet.Read.Eras
-    ( EraValue (..)
+    ( Babbage
+    , Conway
+    , EraValue (..)
     , IsEra
+    , K (..)
     )
 import Cardano.Wallet.Read.Tx
     ( Tx
@@ -17,6 +20,9 @@ import Cardano.Wallet.Read.Tx
 import Cardano.Wallet.Read.Tx.CBOR
     ( parseTxFromCBOR
     , renderTxToCBOR
+    )
+import Data.Either
+    ( isLeft
     )
 import Test.Hspec
     ( Spec
@@ -29,6 +35,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Data.ByteString.Lazy as BL
 import qualified Test.Unit.Cardano.Read.Ledger.Tx as Txs
 
 spec :: Spec
@@ -49,7 +56,18 @@ spec = describe "Cardano.Read.Ledger.Tx.CBOR" $ do
         it "conway tx" $ do
             property $ prop_roundtrip Txs.conwayTx
 
+    describe "TxCBOR depends on era" $ do
+        it "fail downgrading Conway to Babbage" $ do
+            property $ prop_failDowngradeConway Txs.conwayTx
+
 prop_roundtrip :: forall era. IsEra era => Tx era -> Property
 prop_roundtrip tx =
     parseTxFromCBOR (renderTxToCBOR (EraValue tx))
         === Right (EraValue tx)
+
+prop_failDowngradeConway :: Tx Conway -> Bool
+prop_failDowngradeConway tx =
+    isLeft $ parseTxFromCBOR $ EraValue kBabbage
+  where
+    EraValue (K bytes) = renderTxToCBOR (EraValue tx)
+    kBabbage = K bytes :: K BL.ByteString Babbage
