@@ -24,7 +24,6 @@ module Cardano.Wallet.Read.Eras
   , EraValue (..)
   , eraValue
   , eraValueSerialize
-  , extractEraValue
 
   -- * Specials
   , sequenceEraValue
@@ -64,7 +63,6 @@ import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
     , eraValue
     , eraValueSerialize
-    , extractEraValue
     , sequenceEraValue
     )
 import Generics.SOP
