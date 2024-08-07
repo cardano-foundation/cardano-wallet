@@ -2193,14 +2193,12 @@ balanceTx wrk pp timeTranslation partialTx = do
     -- the user when calling transactions-construct, or in transactions-balance.
     let netLayer = wrk ^. networkLayer
     let inputsToLookup = partialTx ^. #tx . bodyTxL . allInputsTxBodyF
-    lookedUpUTxO <- liftIO $
-        forceUTxOToEra =<< getUTxOByTxIn netLayer inputsToLookup
+    lookedUpUTxO <- forceUTxOToEra =<< getUTxOByTxIn netLayer inputsToLookup
 
     -- Look up key deposits of refunds
     let deregCreds = stakeCredentialsWithRefunds $ view #tx partialTx
-    lookedUpDeposits <-
-        fmap Write.StakeKeyDepositMap
-        . liftIO $ getStakeDelegDeposits netLayer deregCreds
+    lookedUpDeposits <- Write.StakeKeyDepositMap
+        <$> getStakeDelegDeposits netLayer deregCreds
 
     let utxoAssumptions = case walletFlavor @s of
             ShelleyWallet -> AllKeyPaymentCredentials
