@@ -5609,6 +5609,19 @@ x-errUnresolvedInputs: &errUnresolvedInputs
       type: string
       enum: ['unknown_inputs']
 
+x-errUnresolvedRefunds: &errUnresolvedRefunds
+  <<: *responsesErr
+  title: unresolved_refunds
+  properties:
+    message:
+      type: string
+      description: |
+        There are stake key deregistration certificates in the transaction for which corresponding
+        deposit amounts could not be found.
+    code:
+      type: string
+      enum: ['unresolved_refunds']
+
 x-errRedeemerInvalidData: &errRedeemerInvalidData
   <<: *responsesErr
   title: redeemer_invalid_data
