@@ -109,9 +109,14 @@ library customer-deposit-wallet-http
   hs-source-dirs:  http
   build-depends:
     , aeson
+    , aeson-pretty
     , base
+    , bytestring
     , customer-deposit-wallet
+    , insert-ordered-containers
+    , lens
     , memory
+    , openapi3
     , servant
     , servant-server
     , text
@@ -124,6 +129,7 @@ library customer-deposit-wallet-http
     Cardano.Wallet.Deposit.HTTP.Types.API
     Cardano.Wallet.Deposit.HTTP.Types.JSON
     Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
+    Cardano.Wallet.Deposit.HTTP.OpenAPI
 
 test-suite unit
   import:             language, opts-exe
