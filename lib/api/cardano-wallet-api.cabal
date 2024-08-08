@@ -105,6 +105,7 @@ library
     Cardano.Wallet.Api.Http.Server.Error.AssignReedemers
     Cardano.Wallet.Api.Http.Server.Error.IsServerError
     Cardano.Wallet.Api.Http.Server.Handlers.MintBurn
+    Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     Cardano.Wallet.Api.Http.Server.Handlers.TxCBOR
     Cardano.Wallet.Api.Http.Shelley.Server
     Cardano.Wallet.Api.Lib.ApiAsArray

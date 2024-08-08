@@ -86,6 +86,7 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
+    , cardano-wallet-ui
     , contra-tracer
     , data-default
     , directory

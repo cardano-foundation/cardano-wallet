@@ -1,4 +1,4 @@
-cabal-version:   3.4
+cabal-version:   3.6
 name:            cardano-wallet-ui
 version:         0.2024.7.27
 synopsis:        web ui for the cardano-wallet
@@ -9,26 +9,91 @@ maintainer:      hal@cardanofoundation.org
 category:        Web
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
+data-files:
+    data/images/*.png
+    data/english.txt
 
-common warnings
-  ghc-options: -Wall
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 library
-  import:           warnings
-  exposed-modules:  MyLib
-  build-depends:    base ^>=4.18.2.0
-  hs-source-dirs:   src
-  default-language: GHC2021
-
-test-suite cardano-wallet-ui-test
-  import:           warnings
-  default-language: GHC2021
-
-  -- other-modules:
-  -- other-extensions:
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test
-  main-is:          Main.hs
+  import:           language, opts-lib
+  exposed-modules:
+    Cardano.Wallet.UI.API
+    Cardano.Wallet.UI.Cookies
+    Cardano.Wallet.UI.Handlers.Addresses
+    Cardano.Wallet.UI.Handlers.Lib
+    Cardano.Wallet.UI.Handlers.Settings
+    Cardano.Wallet.UI.Handlers.SSE
+    Cardano.Wallet.UI.Handlers.State
+    Cardano.Wallet.UI.Handlers.Wallet
+    Cardano.Wallet.UI.Handlers.Wallets
+    Cardano.Wallet.UI.Html.Html
+    Cardano.Wallet.UI.Html.Htmx
+    Cardano.Wallet.UI.Html.Lib
+    Cardano.Wallet.UI.Html.Pages.About
+    Cardano.Wallet.UI.Html.Pages.Addresses
+    Cardano.Wallet.UI.Html.Pages.Lib
+    Cardano.Wallet.UI.Html.Pages.Network
+    Cardano.Wallet.UI.Html.Pages.Page
+    Cardano.Wallet.UI.Html.Pages.Settings
+    Cardano.Wallet.UI.Html.Pages.Template.Footer
+    Cardano.Wallet.UI.Html.Pages.Template.Head
+    Cardano.Wallet.UI.Html.Pages.Template.Navigation
+    Cardano.Wallet.UI.Html.Pages.Wallet
+    Cardano.Wallet.UI.Html.Pages.Wallets
+    Cardano.Wallet.UI.Html.Pages.Wallets.NewWallet
+    Cardano.Wallet.UI.Layer
+    Cardano.Wallet.UI.Lib.ListOf
+    Cardano.Wallet.UI.Server
+    Cardano.Wallet.UI.Signal
+  other-modules:
+    Paths_cardano_wallet_ui
   build-depends:
-    , base               ^>=4.18.2.0
-    , cardano-wallet-ui
+    , address-derivation-discovery
+    , aeson
+    , aeson-pretty
+    , base
+    , bytestring
+    , cardano-addresses
+    , cardano-slotting
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , containers
+    , contra-tracer
+    , cookie
+    , exceptions
+    , generic-lens
+    , http-media
+    , lens
+    , lucid
+    , mtl
+    , ntp-client
+    , operational
+    , random
+    , servant
+    , servant-server
+    , string-interpolate
+    , text
+    , text-class
+    , time
+    , unliftio
+
+  hs-source-dirs:   src
+  default-language: Haskell2010
