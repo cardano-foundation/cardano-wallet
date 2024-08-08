@@ -129,7 +129,7 @@ library customer-deposit-wallet-http
     Cardano.Wallet.Deposit.HTTP.Types.API
     Cardano.Wallet.Deposit.HTTP.Types.JSON
     Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
-    Cardano.Wallet.Deposit.HTTP.OpenAPI
+    Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
 
 test-suite unit
   import:             language, opts-exe

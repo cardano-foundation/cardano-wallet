@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.Deposit.HTTP.OpenAPI
+module Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( generateOpenapi3
     , apiSchema
     , definitions
