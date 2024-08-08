@@ -167,6 +167,16 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( TransactionLayer
     )
+import Cardano.Wallet.UI.Html.Pages.Page
+    ( PageConfig (..)
+    )
+import Cardano.Wallet.UI.Html.Pages.Template.Head
+    ( HeadConfig (..)
+    )
+import Cardano.Wallet.UI.Layer
+    ( UILayer
+    , sourceOfNewTip
+    )
 import Control.Exception.Extra
     ( handle
     )
@@ -182,7 +192,7 @@ import Control.Monad.Trans.Except
     ( ExceptT (ExceptT)
     )
 import Control.Tracer
-    ( Tracer
+    ( Tracer (..)
     , traceWith
     )
 import Data.Function
@@ -235,6 +245,10 @@ import UnliftIO
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
+import qualified Cardano.Wallet.UI.API as Ui
+
+import qualified Cardano.Wallet.UI.Layer as Ui
+import qualified Cardano.Wallet.UI.Server as Ui
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -343,8 +357,22 @@ serveWallet
                     case ms of
                         Nothing -> pure ()
                         Just (_port, socket) -> do
+                            ui <- Ui.withUILayer 1
+                            sourceOfNewTip netLayer ui
+                            let uiService =
+                                    startUiServer
+                                        ui
+                                        sNetwork
+                                        socket
+                                        randomApi
+                                        icarusApi
+                                        shelleyApi
+                                        multisigApi
+                                        stakePoolLayer
+                                        ntpClient
+                                        blockchainSource
                             ContT $ \k ->
-                                withAsync (startUiServer socket) $ \_ -> k ()
+                                withAsync uiService $ \_ -> k ()
                     pure ExitSuccess
 
             eApiSocket <- bindApiSocket
@@ -409,9 +437,53 @@ serveWallet
                     (newTransactionLayer SharedKeyS netId)
                     netLayer
                     Server.idleWorker
-
-        startUiServer :: Socket -> IO ()
-        startUiServer _socket = pure () -- TODO
+        startUiServer
+            :: forall n
+             . ( HasSNetworkId n
+               )
+            => UILayer
+            -> SNetworkId n
+            -> Socket
+            -> ApiLayer (RndState n)
+            -> ApiLayer (SeqState n IcarusKey)
+            -> ApiLayer (SeqState n ShelleyKey)
+            -> ApiLayer (SharedState n SharedKey)
+            -> StakePoolLayer
+            -> NtpClient
+            -> BlockchainSource
+            -> IO ()
+        startUiServer
+            ui
+            _proxy
+            socket
+            randomApi
+            icarusApi
+            shelleyApi
+            multisigApi
+            spl
+            ntp
+            bs = do
+                let serverSettings = Warp.defaultSettings
+                    api = Proxy @Ui.UI
+                    application =
+                        Server.serve api
+                            $ Ui.serveUI
+                                ui
+                                (PageConfig "" $ HeadConfig "Shelley Cardano Wallet")
+                                _proxy
+                                randomApi
+                                icarusApi
+                                shelleyApi
+                                multisigApi
+                                spl
+                                ntp
+                                bs
+                start
+                    serverSettings
+                    apiServerTracer
+                    tlsConfig
+                    socket
+                    application
 
         startApiServer
             :: forall n
@@ -427,29 +499,37 @@ serveWallet
             -> StakePoolLayer
             -> NtpClient
             -> IO ()
-        startApiServer _proxy socket byron icarus shelley multisig spl ntp = do
-            serverUrl <- getServerUrl tlsConfig socket
-            let serverSettings =
-                    Warp.defaultSettings
-                        & setBeforeMainLoop (beforeMainLoop serverUrl)
-                api = Proxy @(ApiV2 n)
-                application =
-                    Server.serve api
-                        $ Servant.hoistServer api handleWalletExceptions
-                        $ server
-                            byron
-                            icarus
-                            shelley
-                            multisig
-                            spl
-                            ntp
-                            blockchainSource
-            start
-                serverSettings
-                apiServerTracer
-                tlsConfig
-                socket
-                application
+        startApiServer
+            _proxy
+            socket
+            byron
+            icarus
+            shelley
+            multisig
+            spl
+            ntp = do
+                serverUrl <- getServerUrl tlsConfig socket
+                let serverSettings =
+                        Warp.defaultSettings
+                            & setBeforeMainLoop (beforeMainLoop serverUrl)
+                    api = Proxy @(ApiV2 n)
+                    application =
+                        Server.serve api
+                            $ Servant.hoistServer api handleWalletExceptions
+                            $ server
+                                byron
+                                icarus
+                                shelley
+                                multisig
+                                spl
+                                ntp
+                                blockchainSource
+                start
+                    serverSettings
+                    apiServerTracer
+                    tlsConfig
+                    socket
+                    application
 
         apiLayer
             :: forall s k

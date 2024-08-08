@@ -30,6 +30,7 @@ services:
       - ${NODE_SOCKET_DIR}:/ipc
     ports:
       - ${WALLET_PORT}:8090
+      - ${WALLET_UI_PORT}:8091
     entrypoint: []
     command: >
       cardano-wallet serve

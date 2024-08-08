@@ -1,6 +1,7 @@
 #! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli' --command bash
 # shellcheck shell=bash
 
+# set -euox pipefail
 set -euo pipefail
 
 usage() {
@@ -20,6 +21,9 @@ source .env
 # Generate a random port for the wallet service and export it
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
+
+RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
 
 mkdir -p ./databases
 
@@ -67,6 +71,19 @@ NODE_CONFIGS=${NODE_CONFIGS:=$LOCAL_NODE_CONFIGS}
 LOCAL_NODE_LOGS_FILE=./node.log
 NODE_LOGS_FILE="${NODE_LOGS_FILE:=$LOCAL_NODE_LOGS_FILE}"
 
+cleanup() {
+    # shellcheck disable=SC2317
+    echo "Cleaning up..."
+    # shellcheck disable=SC2317
+    kill "${NODE_ID}" || echo "Failed to kill node"
+    # shellcheck disable=SC2317
+    kill "${WALLET_ID}" || echo "Failed to kill wallet"
+}
+
+# Trap the cleanup function on exit
+trap cleanup ERR INT EXIT
+
+
 # Start the node with logs redirected to a file if NODE_LOGS_FILE is set
 # shellcheck disable=SC2086
 cardano-node run \
@@ -77,9 +94,40 @@ cardano-node run \
     +RTS -N -A16m -qg -qb -RTS 1>$NODE_LOGS_FILE 2>$NODE_LOGS_FILE &
 NODE_ID=$!
 
-sleep 3
+sleep 5
 
-cardano-cli ping -u "${NODE_SOCKET_PATH}"
+##### Wait until the node is ready #####
+
+# Capture the start time
+start_time=$(date +%s)
+
+# Define the timeout duration in seconds
+timeout_duration=3600
+
+# Repeat the command until it succeeds or 10 seconds elapse
+while true; do
+    # Execute the command
+    failure_status=0
+    cardano-cli ping -u "${NODE_SOCKET_PATH}" 2>/dev/null || failure_status=1
+    # Check if the command succeeded
+    # shellcheck disable=SC2181
+    if [[ "$failure_status" -eq 0 ]]; then
+        break
+    fi
+
+    # Calculate the elapsed time
+    current_time=$(date +%s)
+    elapsed_time=$((current_time - start_time))
+
+    # Check if the timeout duration has been reached
+    if [[ $elapsed_time -ge $timeout_duration ]]; then
+        echo "Cannot  ping the node after $timeout_duration seconds"
+        exit 1
+    fi
+
+    # Sleep for a short interval before retrying
+    sleep 1
+done
 
 echo "Node id: $NODE_ID"
 
@@ -91,6 +139,7 @@ if [[ "${NETWORK}" == "mainnet" ]]; then
     # shellcheck disable=SC2086
     cardano-wallet serve \
         --port "${WALLET_PORT}" \
+        --ui-port "${WALLET_UI_PORT}" \
         --database "${WALLET_DB}" \
         --node-socket "${NODE_SOCKET_PATH}" \
         --mainnet \
@@ -100,6 +149,7 @@ else
     # shellcheck disable=SC2086
     cardano-wallet serve \
         --port "${WALLET_PORT}" \
+        --ui-port "${WALLET_UI_PORT}" \
         --database "${WALLET_DB}" \
         --node-socket "${NODE_SOCKET_PATH}" \
         --testnet "${NODE_CONFIGS}"/byron-genesis.json \
@@ -164,10 +214,10 @@ case "$1" in
         ;;
     start)
         echo "Wallet service port: $WALLET_PORT"
+        echo "Wallet UI port: $WALLET_UI_PORT"
         echo "Node socket path: $NODE_SOCKET_PATH"
-        echo "Wallet pid: $WALLET_ID"
-        echo "Node pid: $NODE_ID"
-        trap - ERR INT EXIT
+        echo "Ctrl-C to stop"
+        sleep infinity
         ;;
     *)
         echo "Error: Invalid option $1"

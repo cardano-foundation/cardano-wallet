@@ -81,6 +81,7 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionWithdrawal (..)
     , ApiEncryptMetadata (..)
     , ApiEncryptMetadataMethod (..)
+    , ApiEra (..)
     , ApiConstructTransaction (..)
     , ApiConstructTransactionData (..)
     , ApiCosignerIndex (..)
@@ -2869,7 +2870,7 @@ instance FromJSON ApiScriptTemplateEntry where
     parseJSON = withObject "ApiScriptTemplateEntry" $ \o -> do
         template' <- parseJSON <$> o .: "template"
         cosigners' <- parseCosignerPairs <$> o .: "cosigners"
-        ApiScriptTemplateEntry <$> (Map.fromList <$> cosigners') <*> template'
+        (ApiScriptTemplateEntry . Map.fromList <$> cosigners') <*> template'
       where
         parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
             case Aeson.toList o of
@@ -2909,8 +2910,7 @@ instance FromJSON ApiScriptTemplate where
     parseJSON = withObject "ApiScriptTemplate" $ \o -> do
         template' <- parseJSON <$> o .: "template"
         cosigners' <- parseCosignerPairs <$> o .: "cosigners"
-        scriptTemplate <- CA.ScriptTemplate
-            <$> (Map.fromList <$> cosigners')
+        scriptTemplate <- (CA.ScriptTemplate . Map.fromList <$> cosigners')
             <*> template'
         pure $ ApiScriptTemplate scriptTemplate
       where
