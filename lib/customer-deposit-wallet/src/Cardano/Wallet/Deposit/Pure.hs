@@ -34,6 +34,7 @@ module Cardano.Wallet.Deposit.Pure
     , BIP32Path (..)
     , DerivationType (..)
     , getBIP32PathsForOwnedInputs
+    , signTxBody
 
     , addTxSubmission
     , listTxsInSubmission
@@ -244,6 +245,9 @@ getBIP32PathsForOwnedInputs txbody w =
 getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
 getBIP32Paths w =
     mapMaybe $ Address.getBIP32Path (addresses w) . Read.toRawAddress
+
+signTxBody :: Write.TxBody -> WalletState -> Maybe Write.Tx
+signTxBody _txbody _w = undefined
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined
