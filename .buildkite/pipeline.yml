@@ -1,5 +1,5 @@
 agents:
-  queue: "cardano-wallet"
+  queue: cardano-wallet
 
 env:
   LC_ALL: "C.UTF-8"
@@ -20,6 +20,7 @@ steps:
       key: linux-nix
       commands:
         - './nix/regenerate.sh'
+        - nix build
       agents:
         system: ${linux}
 
@@ -143,15 +144,8 @@ steps:
       concurrency: 1
       concurrency_group: 'linux-e2e-tests'
 
-    - label: Build .#cardano-wallet (linux)
-      key: cardano-wallet
-      depends_on: linux-nix
-      command: 'nix build .#cardano-wallet'
-      agents:
-        system: ${linux}
-
     - label: Private Network Full Sync
-      depends_on: cardano-wallet
+      depends_on: linux-nix
       timeout: 10
       command: |
         rm -rf run/private/nix/logs
@@ -169,7 +163,7 @@ steps:
         NETWORK: testnet
 
     - label: Mainnet Boot Sync
-      depends_on: cardano-wallet
+      depends_on: linux-nix
       timeout: 2
       command: |
         cd run/mainnet/nix
@@ -190,12 +184,11 @@ steps:
 
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: cardano-wallet
+      depends_on: linux-nix
       key: linux-sanchonet-full-sync-block
 
     - label: Sanchonet Full Sync
       depends_on:
-        - cardano-wallet
         - linux-sanchonet-full-sync-block
       timeout_in_minutes: 120
       command: |
@@ -220,7 +213,6 @@ steps:
 
     - label: Preprod Full Sync
       depends_on:
-        - cardano-wallet
         - linux-preprod-full-sync-block
       timeout_in_minutes: 240
       command: |
