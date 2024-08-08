@@ -34,6 +34,7 @@ module Cardano.Wallet.Deposit.Pure
     , BIP32Path (..)
     , DerivationType (..)
     , getBIP32PathsForOwnedInputs
+    , signTxBody
 
     , addTxSubmission
     , listTxsInSubmission
@@ -42,7 +43,8 @@ module Cardano.Wallet.Deposit.Pure
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub
+    ( XPrv
+    , XPub
     )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
@@ -95,7 +97,7 @@ data WalletState = WalletState
     , utxoHistory :: !UTxOHistory.UTxOHistory
     -- , txHistory :: [Read.Tx]
     , submissions :: Sbm.TxSubmissions
-    -- , credentials :: Maybe (HashedCredentials (KeyOf s))
+    , rootXSignKey :: Maybe XPrv
     -- , info :: !WalletInfo
     }
 
@@ -151,6 +153,7 @@ fromXPubAndGenesis xpub knownCustomerCount _ =
             Address.fromXPubAndCount xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
         , submissions = Sbm.empty
+        , rootXSignKey = Nothing
         }
   where
     initialUTxO = mempty
@@ -244,6 +247,9 @@ getBIP32PathsForOwnedInputs txbody w =
 getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
 getBIP32Paths w =
     mapMaybe $ Address.getBIP32Path (addresses w) . Read.toRawAddress
+
+signTxBody :: Write.TxBody -> WalletState -> Maybe Write.Tx
+signTxBody _txbody _w = undefined
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined
