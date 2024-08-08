@@ -18,10 +18,13 @@ module Cardano.Wallet.Read.Eras
   , Shelley
 
   , KnownEras
-  , knownEraIndices
+  , knownEras
+  , indexOfEra
+  , parseEraIndex
 
     -- * Era-existential values
   , EraValue (..)
+  , getEra
   , eraValueSerialize
 
   -- * Specials
@@ -52,15 +55,16 @@ import Cardano.Read.Ledger.Eras
     , KnownEras
     , Mary
     , Shelley
-    , knownEraIndices
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( applyEraFun
-    , applyEraFunValue
+    , indexOfEra
     )
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
+    , applyEraFun
+    , applyEraFunValue
     , eraValueSerialize
+    , getEra
+    , knownEras
+    , parseEraIndex
     , sequenceEraValue
     )
 import Generics.SOP

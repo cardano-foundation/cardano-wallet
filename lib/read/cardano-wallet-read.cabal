@@ -83,7 +83,6 @@ library
     Cardano.Wallet.Read.Block.Gen.Shelley
     Cardano.Wallet.Read.Chain
     Cardano.Wallet.Read.Eras
-    Cardano.Wallet.Read.Eras.EraFun
     Cardano.Wallet.Read.Eras.EraValue
     Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.Tx

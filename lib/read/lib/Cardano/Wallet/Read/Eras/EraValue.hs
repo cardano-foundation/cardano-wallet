@@ -14,27 +14,28 @@
 --
 -- A datatype that represents values that can be different in any known eras.
 module Cardano.Wallet.Read.Eras.EraValue
-    ( -- * Era bounded values
+    ( -- * Era-existential values
       EraValue (..)
-    , eraValueSerialize
+    , getEra
+    , knownEras
+
+    , applyEraFun
+    , applyEraFunValue
     , extractEraValue
     , sequenceEraValue
+
+    , parseEraIndex
+    , eraValueSerialize
     )
 where
 
 import Prelude
 
 import Cardano.Read.Ledger.Eras.KnownEras
-    ( Allegra
-    , Alonzo
-    , Babbage
-    , Byron
-    , Conway
-    , Era (..)
+    ( Era (..)
     , IsEra (..)
     , KnownEras
-    , Mary
-    , Shelley
+    , indexOfEra
     )
 import Control.DeepSeq
     ( NFData (..)
@@ -43,6 +44,9 @@ import Control.Lens
     ( Prism'
     , prism
     )
+import Data.Kind
+    ( Type
+    )
 import Generics.SOP
     ( All
     , Compose
@@ -50,8 +54,25 @@ import Generics.SOP
     , (:.:) (..)
     )
 
--- | A value which is in one era.
-data EraValue f = forall era. IsEra era => EraValue (f era)
+-- | A value which is in one particular 'Era'.
+data EraValue f = forall (era :: Type). IsEra era => EraValue (f era)
+
+{-# INLINABLE getEra #-}
+-- | Get the 'Era' that the value is in.
+getEra :: EraValue f -> EraValue Era
+getEra (EraValue (_ :: f era)) = EraValue (theEra :: Era era)
+
+-- | Value-level list of known 'Era'.
+knownEras :: [EraValue Era]
+knownEras =
+    [ EraValue Byron
+    , EraValue Shelley
+    , EraValue Allegra
+    , EraValue Mary
+    , EraValue Alonzo
+    , EraValue Babbage
+    , EraValue Conway
+    ]
 
 instance (All (Compose Show f) KnownEras) => Show (EraValue f) where
     show (EraValue (x :: f era)) = case theEra @era of
@@ -100,20 +121,31 @@ instance (All (Compose NFData f) KnownEras) => NFData (EraValue f) where
         Babbage -> rnf x
         Conway -> rnf x
 
+-- | Apply an 'EraFun' to an 'EraValue'.
+applyEraFun :: (forall era. IsEra era => f era -> g) -> EraValue f -> g
+applyEraFun f (EraValue x) = f x
+
+applyEraFunValue
+    :: (forall era. IsEra era => f era -> g era)
+    -> EraValue f
+    -> EraValue g
+applyEraFunValue f (EraValue x) = EraValue (f x)
+
 -- | Extract an era indipendent value.
 extractEraValue :: EraValue (K a) -> a
 extractEraValue (EraValue (K x)) = x
 
-{-# INLINABLE indexEraValue #-}
-indexEraValue :: EraValue f -> Int
-indexEraValue (EraValue (_ :: f era)) = case theEra @era of
-    Byron -> 0
-    Shelley -> 1
-    Allegra -> 2
-    Mary -> 3
-    Alonzo -> 4
-    Babbage -> 5
-    Conway -> 6
+{-# INLINABLE parseEraIndex #-}
+parseEraIndex :: Int -> Maybe (EraValue Era)
+parseEraIndex ix = case ix of
+    0 -> Just $ EraValue Byron
+    1 -> Just $ EraValue Shelley
+    2 -> Just $ EraValue Allegra
+    3 -> Just $ EraValue Mary
+    4 -> Just $ EraValue Alonzo
+    5 -> Just $ EraValue Babbage
+    6 -> Just $ EraValue Conway
+    _ -> Nothing
 
 -- | Sequence one applicative functor level out.
 sequenceEraValue :: Applicative f => EraValue (f :.: g) -> f (EraValue g)
@@ -123,20 +155,15 @@ sequenceEraValue (EraValue (Comp fg)) = EraValue <$> fg
     Serialization
 ------------------------------------------------------------------------------}
 
-parseEraValue
-    :: forall a n
-     . (Eq n, Num n)
-    => (a, n)
-    -> Either (a, n) (EraValue (K a))
-parseEraValue (x, era) = case era of
-    0 -> Right $ EraValue (K x :: K a Byron)
-    1 -> Right $ EraValue (K x :: K a Shelley)
-    2 -> Right $ EraValue (K x :: K a Allegra)
-    3 -> Right $ EraValue (K x :: K a Mary)
-    4 -> Right $ EraValue (K x :: K a Alonzo)
-    5 -> Right $ EraValue (K x :: K a Babbage)
-    6 -> Right $ EraValue (K x :: K a Conway)
-    _ -> Left (x, era)
+parseEraValue :: forall a. (a, Int) -> Either (a, Int) (EraValue (K a))
+parseEraValue (x, ix) =
+    case parseEraIndex ix of
+        Just (EraValue (_ :: Era era)) -> Right $ EraValue (K x :: K a era)
+        Nothing -> Left (x, ix)
+
+{-# INLINABLE indexEraValue #-}
+indexEraValue :: EraValue f -> Int
+indexEraValue = applyEraFun indexOfEra . getEra
 
 renderEraValue :: EraValue (K a) -> (a, Int)
 renderEraValue e = (extractEraValue e, indexEraValue e)
