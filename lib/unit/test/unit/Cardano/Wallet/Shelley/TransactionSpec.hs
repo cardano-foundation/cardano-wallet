@@ -57,9 +57,6 @@ import Cardano.Api.Gen
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
-import Cardano.Read.Ledger.Tx.Cardano
-    ( fromCardanoApiTx
-    )
 import Cardano.Wallet
     ( Fee (..)
     , Percentile (..)
@@ -92,6 +89,9 @@ import Cardano.Wallet.Primitive.Ledger.Convert
     )
 import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Integrity
     ( txIntegrity
+    )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
+    ( fromSealedTx
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( toCardanoTxIn
@@ -926,18 +926,14 @@ prop_signTransaction_preservesScriptIntegrity
                 Nothing
                 sealedTx
 
-            txIntegrityCardanoApi = txIntegrity . fromCardanoApiTx
-
-            getScriptIntegrityHashInAnyCardanoEra
-                :: InAnyCardanoEra Cardano.Tx
-                -> Maybe ByteString
-            getScriptIntegrityHashInAnyCardanoEra (InAnyCardanoEra _ tx') =
-                getHash <$> txIntegrityCardanoApi tx'
+            getScriptIntegrityHash :: SealedTx -> Maybe ByteString
+            getScriptIntegrityHash =
+                fmap getHash . txIntegrity . fromSealedTx
 
             scriptIntegrityHashBefore =
-                getScriptIntegrityHashInAnyCardanoEra $ cardanoTx sealedTx
+                getScriptIntegrityHash sealedTx
             scriptIntegrityHashAfter =
-                getScriptIntegrityHashInAnyCardanoEra $ cardanoTx sealedTx'
+                getScriptIntegrityHash sealedTx'
 
         checkCoverage
             $ cover 30 (isJust scriptIntegrityHashBefore)

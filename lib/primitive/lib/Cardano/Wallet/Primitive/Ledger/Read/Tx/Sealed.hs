@@ -8,26 +8,29 @@
 
 module Cardano.Wallet.Primitive.Ledger.Read.Tx.Sealed
     ( fromSealedTx
-    , anythingFromSealedTx
     ) where
-
-import Prelude
 
 import Cardano.Api
     ( InAnyCardanoEra (..)
-    )
-import Cardano.Read.Ledger.Tx.Cardano
-    ( fromCardanoApiTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx (unsafeCardanoTx)
     )
 import Cardano.Wallet.Read
-    ( EraValue
-    , Tx
-    , applyEraFun
+    ( EraValue (..)
+    , Tx (..)
+    )
+import Cardano.Wallet.Read.Eras
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Conway
+    , Mary
+    , Shelley
     )
 
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Wallet.Primitive.Types.Tx.SealedTx as W
 
 fromSealedTx:: W.SealedTx -> EraValue Tx
@@ -35,5 +38,12 @@ fromSealedTx sealed =
     case unsafeCardanoTx sealed of
         InAnyCardanoEra _ce tx -> fromCardanoApiTx tx
 
-anythingFromSealedTx :: (forall era . Tx era -> a) -> SealedTx -> a
-anythingFromSealedTx f = applyEraFun f . fromSealedTx
+fromCardanoApiTx :: Cardano.Tx era -> EraValue Tx
+fromCardanoApiTx tx0 = case tx0 of
+    Cardano.ShelleyTx era tx -> case era of
+        Cardano.ShelleyBasedEraShelley -> EraValue (Tx tx :: Tx Shelley)
+        Cardano.ShelleyBasedEraAllegra -> EraValue (Tx tx :: Tx Allegra)
+        Cardano.ShelleyBasedEraMary -> EraValue (Tx tx :: Tx Mary)
+        Cardano.ShelleyBasedEraAlonzo -> EraValue (Tx tx :: Tx Alonzo)
+        Cardano.ShelleyBasedEraBabbage -> EraValue (Tx tx :: Tx Babbage)
+        Cardano.ShelleyBasedEraConway -> EraValue (Tx tx :: Tx Conway)

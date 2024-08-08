@@ -276,6 +276,9 @@ package cardano-wallet-read
 package cardano-wallet-text-class
   tests: True
 
+package cardano-wallet-unit
+  tests: True
+
 package cardano-numeric
   tests: True
 
