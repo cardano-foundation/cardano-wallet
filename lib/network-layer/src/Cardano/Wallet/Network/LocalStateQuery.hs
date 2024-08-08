@@ -22,6 +22,7 @@ import Cardano.Wallet.Network.LocalStateQuery.PParams
     )
 import Cardano.Wallet.Network.LocalStateQuery.RewardAccount
     ( fetchRewardAccounts
+    , getStakeDelegDeposits
     )
 import Cardano.Wallet.Network.LocalStateQuery.StakeDistribution
     ( stakeDistribution

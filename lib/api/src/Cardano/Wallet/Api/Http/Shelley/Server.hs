@@ -928,8 +928,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , utxoFromTxOutsInRecentEra
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
-    ( PartialTx (PartialTx)
-    )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
     ( TimelockKeyWitnessCounts (..)
     , estimateMinWitnessRequiredPerInput
@@ -2784,6 +2782,8 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                     { tx = Write.fromCardanoApiTx $ Cardano.Tx unbalancedTx []
                     , extraUTxO = mempty
                     , redeemers = mempty
+                    , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
+                    -- Stake key deposits will be queried by W.balanceTx
                     , timelockKeyWitnessCounts = mintBurnTimelockKeyWitCounts
                     }
 
@@ -3208,6 +3208,8 @@ constructSharedTransaction
                              $ Cardano.Tx unbalancedTx []
                         , extraUTxO = mempty
                         , redeemers = mempty
+                        , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
+                        -- Stake key deposits will be queried by W.balanceTx
                         , timelockKeyWitnessCounts = mempty
                         }
 
@@ -3416,6 +3418,8 @@ balanceTransaction ctx (ApiT wid) body = do
                 (Write.fromCardanoApiTx tx)
                 externalUTxO
                 (fromApiRedeemer <$> body ^. #redeemers)
+                (Write.StakeKeyDepositMap mempty)
+                -- Stake key deposits will be queried by W.balanceTx
                 (mempty :: TimelockKeyWitnessCounts)
             Left e -> liftHandler $ throwE e
 

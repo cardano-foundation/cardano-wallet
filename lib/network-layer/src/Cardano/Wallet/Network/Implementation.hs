@@ -520,6 +520,8 @@ withNodeNetworkLayerBase
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
                     _getUTxOByTxIn queryRewardQ readCurrentNodeEra
+                , getStakeDelegDeposits =
+                    _getStakeDelegDeposits queryRewardQ
                 , getCachedRewardAccountBalance =
                     _getCachedRewardAccountBalance rewardsObserver
                 , fetchRewardAccountBalances =
@@ -674,6 +676,11 @@ withNodeNetworkLayerBase
             | otherwise
                 = bracketQuery "getUTxOByTxIn" tr
                 $ queue `send` SomeLSQ (LSQ.getUTxOByTxIn ins)
+        _getStakeDelegDeposits queue creds
+            | creds == mempty = mempty
+            | otherwise
+                = bracketQuery "getStakeDelegDeposits" tr
+                $ queue `send` SomeLSQ (LSQ.getStakeDelegDeposits creds)
 
         _watchNodeTip readTip callback = do
             observeForever readTip $ \tip -> do

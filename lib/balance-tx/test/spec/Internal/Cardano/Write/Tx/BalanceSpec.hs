@@ -31,6 +31,9 @@ module Internal.Cardano.Write.Tx.BalanceSpec
 
 import Prelude
 
+import Cardano.Api.Ledger
+    ( mkUnRegTxCert
+    )
 import Cardano.Binary
     ( ToCBOR
     , serialize'
@@ -66,6 +69,9 @@ import Cardano.Ledger.Api
     , serialiseAddr
     , totalCollateralTxBodyL
     )
+import Cardano.Ledger.Api.UTxO
+    ( EraUTxO (getProducedValue)
+    )
 import Cardano.Ledger.Babbage.TxInfo
     ( BabbageContextError (..)
     )
@@ -89,7 +95,8 @@ import Cardano.Ledger.Shelley.TxCert
     ( ShelleyTxCert (..)
     )
 import Cardano.Ledger.Val
-    ( (<->)
+    ( coin
+    , (<->)
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -272,15 +279,18 @@ import Internal.Cardano.Write.Tx.Balance
     , ErrUpdateTx (..)
     , PartialTx (..)
     , Redeemer (..)
+    , StakeKeyDepositLookup (StakeKeyDepositAssumeCurrent, StakeKeyDepositMap)
     , TxFeeUpdate (UseNewTxFee)
     , TxUpdate (..)
     , UTxOAssumptions (..)
     , balanceTx
     , constructUTxOIndex
     , fromWalletUTxO
+    , lookupStakeKeyDeposit
     , mergeSignedValue
     , noTxUpdate
     , splitSignedValue
+    , stakeCredentialsWithRefunds
     , toWalletUTxO
     , updateTx
     )
@@ -354,10 +364,12 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , Args (..)
+    , NonNegative (..)
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedNatural
     , checkCoverage
+    , choose
     , classify
     , conjoin
     , counterexample
@@ -636,11 +648,6 @@ spec_balanceTx = describe "balanceTx" $ do
                 dummyTimeTranslation
                 testStdGenSeed
 
-        let totalOutput :: Tx BabbageEra -> Coin
-            totalOutput tx =
-                F.foldMap (view coinTxOutL) (view (bodyTxL . outputsTxBodyL) tx)
-                <> tx ^. bodyTxL . feeTxBodyL
-
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
                     [ W.TxOut dummyAddr
@@ -661,6 +668,66 @@ spec_balanceTx = describe "balanceTx" $ do
                         (W.TokenBundle.fromCoin (W.Coin 200_000_000))
                     ]
             tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
+
+    describe "stake key deposit lookup" $ do
+        let stakeCred = KeyHashObj $ KeyHash
+                "00000000000000000000000000000000000000000000000000000000"
+        let partialTxWithRefund :: Coin -> PartialTx BabbageEra
+            partialTxWithRefund r = PartialTx
+                { tx = mkBasicTx $ mkBasicTxBody
+                    & certsTxBodyL .~ StrictSeq.fromList
+                        [ mkUnRegTxCert stakeCred
+                        ]
+                , stakeKeyDeposits =
+                    StakeKeyDepositMap $ Map.singleton stakeCred r
+                , extraUTxO = mempty
+                , redeemers = mempty
+                , timelockKeyWitnessCounts = mempty
+                }
+        let adaProduced r =
+                coin
+                . getProducedValue mockPParams (error "no pool regs")
+                . view bodyTxL
+                . either (error . show) id
+                . balance
+                $ partialTxWithRefund r
+
+        it "affects the tx balance" $ property $ \(refund :: Coin) -> do
+            -- The smallest refund
+            let noRefund = Coin 0
+
+            -- All else equal, increasing the value of the refund should
+            -- increase the change, and thus the produced ada value of the
+            -- balanced tx.
+            (adaProduced refund <-> adaProduced noRefund)
+                `shouldBe` (refund <-> noRefund)
+
+        describe "if missing" $ do
+            describe "using StakeKeyDepositMap mempty"
+                $ it "fails" $ do
+                let partialTx = (partialTxWithRefund (Coin 1_000_000))
+                        { stakeKeyDeposits = StakeKeyDepositMap mempty }
+                case balance partialTx of
+                    Left ErrBalanceTxUnresolvedRefunds{} -> return ()
+                    Right tx -> expectationFailure $
+                        "Expected ErrBalanceTxUnresolvedRefunds; got "
+                        <> show tx
+                    Left otherErr -> expectationFailure $
+                        "Expected ErrBalanceTxUnresolvedRefunds; got "
+                        <> show otherErr
+
+            describe "using StakeKeyDepositAssumeCurrent"
+                $ it "succeeds (but may be wrong)" $ do
+                    let partialTx = (partialTxWithRefund (Coin 1_000_000))
+                            { stakeKeyDeposits = StakeKeyDepositAssumeCurrent }
+                    case balance partialTx of
+                        Right tx -> do
+                            (coin
+                                . getProducedValue mockPParams (error "no pool regs")
+                                . view bodyTxL
+                                $ tx)
+                                `shouldBe` (adaProduced (Coin 2_000_000))
+                        Left _ -> return ()
 
     describe "when passed unresolved inputs" $ do
         it "fails with ErrBalanceTxUnresolvedInputs" $ do
@@ -813,6 +880,11 @@ spec_balanceTx = describe "balanceTx" $ do
     dummyAddr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
+    totalOutput :: IsRecentEra era => Tx era -> Coin
+    totalOutput tx =
+        F.foldMap (view coinTxOutL) (view (bodyTxL . outputsTxBodyL) tx)
+        <> tx ^. bodyTxL . feeTxBodyL
+
 balanceTxGoldenSpec :: Spec
 balanceTxGoldenSpec = describe "balance goldens" $ do
     it "testPParams" $
@@ -931,7 +1003,12 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
         ]
 
     delegate :: PartialTx BabbageEra
-    delegate = PartialTx (mkBasicTx body) mempty [] mempty
+    delegate = PartialTx
+        (mkBasicTx body)
+        mempty
+        mempty
+        (StakeKeyDepositMap mempty)
+        mempty
       where
         body :: TxBody BabbageEra
         body =
@@ -1299,6 +1376,8 @@ prop_balanceTxValid
                 label "unable to create change" $ property True
             Left ErrBalanceTxInputResolutionConflicts{} ->
                 label "input resolution conflicts" $ property True
+            Left ErrBalanceTxUnresolvedRefunds{} ->
+                label "unresolved refunds" $ property True
             Left err -> label "other error" $
                 counterexample ("balanceTx failed: " <> show err) False
   where
@@ -1469,6 +1548,9 @@ prop_balanceTxValid
     txBalance tx u =
         Write.evaluateTransactionBalance
             protocolParams
+            (lookupStakeKeyDeposit
+                (view #stakeKeyDeposits partialTx)
+                protocolParams)
             u
             (tx ^. bodyTxL)
 
@@ -1858,7 +1940,7 @@ mkTestWallet walletUTxO =
 
 paymentPartialTx :: [W.TxOut] -> PartialTx Write.BabbageEra
 paymentPartialTx txouts =
-    PartialTx (mkBasicTx body) mempty [] mempty
+    PartialTx (mkBasicTx body) mempty mempty (StakeKeyDepositMap mempty) mempty
   where
     body = mkBasicTxBody
         & outputsTxBodyL .~
@@ -2019,7 +2101,7 @@ mainnetFeePerByte :: FeePerByte
 mainnetFeePerByte = FeePerByte 44
 
 pingPong_1 :: PartialTx BabbageEra
-pingPong_1 = PartialTx tx mempty [] mempty
+pingPong_1 = PartialTx tx mempty mempty (StakeKeyDepositMap mempty) mempty
   where
     tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
         [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
@@ -2055,6 +2137,7 @@ pingPong_2 = PartialTx
               Nothing
           )
         ]
+    , stakeKeyDeposits = StakeKeyDepositMap mempty
     , redeemers =
         [ RedeemerSpending
             (unsafeFromHex "D87A80")
@@ -2155,7 +2238,29 @@ instance Arbitrary (MixedSign Value) where
     shrink (MixedSign v) = MixedSign <$> shrink v
 
 instance IsRecentEra era => Arbitrary (PartialTx era) where
-    arbitrary = partialTxFromTxWithUTxO <$> genTxWithUTxO
+    arbitrary = do
+        (ptx :: PartialTx era) <- partialTxFromTxWithUTxO <$> genTxWithUTxO
+        let deregCerts = F.toList $ stakeCredentialsWithRefunds $ view #tx ptx
+        keyDeposits
+            <- (StakeKeyDepositMap . Map.fromList)
+            <$> (occasionallyDropElems =<< mapM (\x -> (x,) <$> genDeposit) deregCerts)
+        return $ ptx { stakeKeyDeposits =  keyDeposits }
+      where
+        genDeposit :: Gen Coin
+        genDeposit = oneof
+            [ Coin . (1_000_000 *) . intCast . getNonNegative
+                <$> arbitrary @(NonNegative Int)
+            , CardanoApi.genCoin
+            ]
+        occasionallyDropElems :: forall a. [a] -> Gen [a]
+        occasionallyDropElems l = do
+            -- Probability of dropping an element ≈ 1/50 or 2%
+            ixToDrop <- choose (0, 50 * length l)
+            return $ filterByIx (/= ixToDrop) l
+
+        filterByIx :: forall a. (Int -> Bool) -> [a] -> [a]
+        filterByIx f = map snd . filter (\(ix,_) -> f ix) . zip [0..]
+
     shrink = shrinkMapBy
         partialTxFromTxWithUTxO
         txWithUTxOFromPartialTx
@@ -2163,11 +2268,12 @@ instance IsRecentEra era => Arbitrary (PartialTx era) where
 
 partialTxFromTxWithUTxO :: IsRecentEra era => TxWithUTxO era -> PartialTx era
 partialTxFromTxWithUTxO (TxWithUTxO tx extraUTxO) =
-    PartialTx {tx, extraUTxO, redeemers, timelockKeyWitnessCounts}
+    PartialTx{tx,extraUTxO,redeemers,timelockKeyWitnessCounts,stakeKeyDeposits}
   where
     -- This embedding uses the following constants:
     redeemers = []
     timelockKeyWitnessCounts = mempty
+    stakeKeyDeposits = StakeKeyDepositAssumeCurrent
 
 txWithUTxOFromPartialTx :: IsRecentEra era => PartialTx era -> TxWithUTxO era
 txWithUTxOFromPartialTx PartialTx {tx, extraUTxO} =

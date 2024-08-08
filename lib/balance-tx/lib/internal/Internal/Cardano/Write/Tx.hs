@@ -122,6 +122,7 @@ module Internal.Cardano.Write.Tx
 
     -- ** Rewards
     , RewardAccount
+    , StakeCredential
 
     -- ** Script
     , Script
@@ -173,7 +174,6 @@ import Cardano.Ledger.Alonzo.UTxO
     )
 import Cardano.Ledger.Api
     ( coinTxOutL
-    , ppKeyDepositL
     , upgradeTxOut
     )
 import Cardano.Ledger.Api.UTxO
@@ -357,14 +357,13 @@ type RecentEraConstraints era =
     , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
+    , Core.EraTxCert era
     , Core.Value era ~ Value
     , Core.TxWits era ~ AlonzoTxWits era
-    -- , ExtendedUTxO era
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
     , AlonzoEraScript era
-    -- , EraPlutusContext 'PlutusV1 era
     , Eq (TxOut era)
     , Ledger.Crypto (Core.EraCrypto era)
     , Show (TxOut era)
@@ -878,30 +877,22 @@ stakeKeyDeposit pp = pp ^. Core.ppKeyDepositL
 evaluateTransactionBalance
     :: forall era. IsRecentEra era
     => PParams era
+    -> (StakeCredential -> Maybe Coin)
     -> Shelley.UTxO era
     -> Core.TxBody era
     -> Core.Value era
-evaluateTransactionBalance pp =
+evaluateTransactionBalance pp depositLookup =
     Ledger.evalBalanceTxBody
         pp
-        keyDepositAssumeCurrent
+        depositLookup
         dRepDepositAssumeCurrent
         assumePoolIsReg
   where
-    -- Deposit lookup for 'DeRegKey' delegation certificates in the TxBody
-    --
-    -- TODO [ADP-3270] Query actual value of deposit
-    --
-    -- https://cardanofoundation.atlassian.net/browse/ADP-3270
-    keyDepositAssumeCurrent
-        :: Core.StakeCredential StandardCrypto -> Maybe Coin
-    keyDepositAssumeCurrent _stakeCred = Just $ pp ^. ppKeyDepositL
-
     -- Deposit lookup for `UnRegDRep` certificates in the TxBody
     --
-    -- TODO [ADP-3270] Query actual value of deposit
+    -- TODO [ADP-3404] Query actual value of deposit
     --
-    -- https://cardanofoundation.atlassian.net/browse/ADP-3270
+    -- https://cardanofoundation.atlassian.net/browse/ADP-3404
     dRepDepositAssumeCurrent
         :: Core.Credential 'Ledger.DRepRole StandardCrypto
         -> Maybe Coin
@@ -934,3 +925,9 @@ pattern PolicyId
     :: Core.ScriptHash StandardCrypto
     -> Value.PolicyID StandardCrypto
 pattern PolicyId h = Value.PolicyID h
+
+--------------------------------------------------------------------------------
+-- Stake Credential
+--------------------------------------------------------------------------------
+
+type StakeCredential = Core.StakeCredential StandardCrypto

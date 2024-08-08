@@ -810,6 +810,7 @@ import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
     , PartialTx (..)
     , UTxOAssumptions (..)
+    , stakeCredentialsWithRefunds
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..)
@@ -893,6 +894,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
     ( PartialTx
+    , StakeKeyDepositLookup (StakeKeyDepositAssumeCurrent, StakeKeyDepositMap)
     , UTxOIndex
     , balanceTx
     , constructUTxOIndex
@@ -2191,8 +2193,12 @@ balanceTx wrk pp timeTranslation partialTx = do
     -- the user when calling transactions-construct, or in transactions-balance.
     let netLayer = wrk ^. networkLayer
     let inputsToLookup = partialTx ^. #tx . bodyTxL . allInputsTxBodyF
-    lookedUpUTxO <- liftIO $
-        forceUTxOToEra =<< getUTxOByTxIn netLayer inputsToLookup
+    lookedUpUTxO <- forceUTxOToEra =<< getUTxOByTxIn netLayer inputsToLookup
+
+    -- Look up key deposits of refunds
+    let deregCreds = stakeCredentialsWithRefunds $ view #tx partialTx
+    lookedUpDeposits <- Write.StakeKeyDepositMap
+        <$> getStakeDelegDeposits netLayer deregCreds
 
     let utxoAssumptions = case walletFlavor @s of
             ShelleyWallet -> AllKeyPaymentCredentials
@@ -2209,8 +2215,10 @@ balanceTx wrk pp timeTranslation partialTx = do
         utxoIndex
         (defaultChangeAddressGen argGenChange)
         changeState
-        -- In case of conflicts, the UTxO looked up from the node will win.
-        (over #extraUTxO (lookedUpUTxO <>) partialTx)
+        -- In case of conflicts, the data looked up from the node will win.
+        (partialTx
+            & over #extraUTxO (lookedUpUTxO <>)
+            & over #stakeKeyDeposits (lookedUpDeposits <>))
 
     return tx
   where
@@ -2545,6 +2553,7 @@ buildTransactionPure
                 , extraUTxO = Write.UTxO mempty
                 , redeemers = []
                 , timelockKeyWitnessCounts = mempty
+                , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
                 }
 
 -- HACK: 'mkUnsignedTransaction' takes a reward account 'XPub' even when the
@@ -3239,6 +3248,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 , extraUTxO = Write.UTxO mempty
                 , redeemers = []
                 , timelockKeyWitnessCounts = mempty
+                , stakeKeyDeposits = Write.StakeKeyDepositAssumeCurrent
                 }
 
         wrapErrBalanceTx $ calculateFeePercentiles $ do
