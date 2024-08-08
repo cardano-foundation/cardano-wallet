@@ -43,7 +43,8 @@ module Cardano.Wallet.Deposit.Pure
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub
+    ( XPrv
+    , XPub
     )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
@@ -96,7 +97,7 @@ data WalletState = WalletState
     , utxoHistory :: !UTxOHistory.UTxOHistory
     -- , txHistory :: [Read.Tx]
     , submissions :: Sbm.TxSubmissions
-    -- , credentials :: Maybe (HashedCredentials (KeyOf s))
+    , rootXSignKey :: Maybe XPrv
     -- , info :: !WalletInfo
     }
 
@@ -152,6 +153,7 @@ fromXPubAndGenesis xpub knownCustomerCount _ =
             Address.fromXPubAndCount xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
         , submissions = Sbm.empty
+        , rootXSignKey = Nothing
         }
   where
     initialUTxO = mempty
