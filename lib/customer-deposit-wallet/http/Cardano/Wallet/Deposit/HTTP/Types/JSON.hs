@@ -24,6 +24,11 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     ( ViaText (..)
     , customOptions
     )
+import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
+    ( addressSchema
+    , customerListSchema
+    , customerSchema
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
@@ -35,6 +40,10 @@ import Data.Aeson
     , ToJSON (..)
     , genericParseJSON
     , genericToJSON
+    )
+import Data.OpenApi
+    ( NamedSchema (..)
+    , ToSchema (..)
     )
 import Data.Bifunctor
     ( bimap
@@ -74,6 +83,13 @@ newtype ApiT a = ApiT {unApiT :: a}
 deriving via ViaText Address instance FromJSON (ApiT Address)
 deriving via ViaText Address instance ToJSON (ApiT Address)
 
+instance ToSchema (ApiT Address) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT Address")
+                addressSchema
+
 -- Customer
 instance FromHttpApiData (ApiT Customer) where
     parseUrlPiece = fmap (ApiT . toEnum) . fromText'
@@ -83,6 +99,13 @@ instance FromJSON (ApiT Customer) where
 
 instance ToJSON (ApiT Customer) where
     toJSON = toJSON . fromEnum . unApiT
+
+instance ToSchema (ApiT Customer) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT Customer")
+                customerSchema
 
 -- | 'fromText' but with a simpler error type.
 fromText' :: FromText a => Text -> Either Text a
@@ -102,3 +125,10 @@ instance FromJSON (ApiT CustomerList) where
 
 instance ToJSON (ApiT CustomerList) where
     toJSON = genericToJSON customOptions . toApiCustomerList
+
+instance ToSchema (ApiT CustomerList) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT CustomerList")
+                customerListSchema
