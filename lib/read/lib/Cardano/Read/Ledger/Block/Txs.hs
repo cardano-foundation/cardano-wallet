@@ -32,6 +32,8 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
     ()
+import Ouroboros.Consensus.Shelley.Protocol.TPraos
+    ()
 
 import qualified Cardano.Chain.Block as Byron
 import qualified Cardano.Chain.UTxO as Byron
