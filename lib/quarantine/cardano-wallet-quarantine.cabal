@@ -1,0 +1,78 @@
+cabal-version:   3.6
+name:            cardano-wallet-quarantine
+version:         0.2024.7.27
+synopsis:
+  Package for isolating a compiler bug in GHC 9.6.4 to 9.6.6
+
+-- description:
+homepage:        https://github.com/cardano-foundation/cardano-wallet
+license:         Apache-2.0
+license-file:    LICENSE
+author:          Cardano Foundation (High Assurance Lab)
+maintainer:      hal@cardanofoundation.org
+copyright:       2024 Cardano Foundation
+category:        Cardano
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-lib
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+    -Werror
+
+library
+  import:           opts-lib, language
+  exposed-modules:
+    Quarantine.Cardano.Block
+    Quarantine.Cardano.Eras
+    Quarantine.Cardano.Tx
+    Quarantine.Cardano.Txs
+
+  build-depends:
+    , base
+    , bytestring
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-praos
+    , cardano-crypto-test
+    , cardano-crypto-wrapper
+    , cardano-data
+    , cardano-ledger-allegra
+    , cardano-ledger-alonzo
+    , cardano-ledger-alonzo-test
+    , cardano-ledger-api
+    , cardano-ledger-babbage
+    , cardano-ledger-binary
+    , cardano-ledger-byron
+    , cardano-ledger-conway
+    , cardano-ledger-core
+    , cardano-ledger-mary
+    , cardano-ledger-shelley
+    , cardano-protocol-tpraos
+    , cardano-strict-containers
+    , containers
+    , deepseq
+    , extra
+    , fmt
+    , generic-lens
+    , generics-sop
+    , lens
+    , memory
+    , nothunks
+    , ouroboros-consensus
+    , ouroboros-consensus-cardano
+    , ouroboros-consensus-protocol
+    , ouroboros-network-api
+    , QuickCheck
+    , text
+    , transformers
+
+  hs-source-dirs:   lib
+  default-language: Haskell2010
