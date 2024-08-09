@@ -7,7 +7,7 @@
 -- Servant Type for our HTTP API.
 --
 module Cardano.Wallet.Deposit.HTTP.Types.API
-    ( API
+    ( CustomerAPI
     )
     where
 
@@ -30,7 +30,7 @@ import Servant.API
     API
 ------------------------------------------------------------------------------}
 
-type API =
+type CustomerAPI =
         "customers"
             :> Verb 'GET 200 '[JSON] (ApiT CustomerList)
     :<|>
