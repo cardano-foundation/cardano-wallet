@@ -32,7 +32,7 @@ import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
     )
-import Cardano.Wallet.Read.Tx
+import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )

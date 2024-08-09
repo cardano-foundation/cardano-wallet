@@ -71,6 +71,7 @@ library
     Cardano.Read.Ledger.Tx.Validity
     Cardano.Read.Ledger.Tx.Withdrawals
     Cardano.Read.Ledger.Tx.Witnesses
+    Cardano.Read.Ledger.Tx.Tx
     Cardano.Read.Ledger.Value
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Block

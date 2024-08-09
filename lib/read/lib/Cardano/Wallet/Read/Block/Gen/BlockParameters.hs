@@ -16,7 +16,7 @@ import Cardano.Read.Ledger.Block.BlockNo
 import Cardano.Read.Ledger.Block.SlotNo
     ( SlotNo (..)
     )
-import Cardano.Wallet.Read.Tx
+import Cardano.Read.Ledger.Tx.Tx
     ( Tx
     )
 import Control.Lens.TH
