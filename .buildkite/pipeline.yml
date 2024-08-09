@@ -541,20 +541,20 @@ steps:
 
   - group: Windows Artifacts
     key: windows-artifacts
+    depends_on: linux-nix
     steps:
     - block: Build Windows Artifacts (windows)
+      depends_on: []
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
           && build.env("RELEASE_CANDIDATE") == null
           && build.branch != "rc-latest"
-      depends_on: linux-nix
       key: trigger-build-windows-artifacts
 
     - label: Build Package (windows)
       key: windows-package
       depends_on:
-        - linux-nix
         - trigger-build-windows-artifacts
       command: nix build -o result/windows .#ci.artifacts.win64.release
       artifact_paths: [ "./result/windows/**" ]
@@ -564,7 +564,6 @@ steps:
     - label: Build Testing Bundle (windows)
       key: windows-testing-bundle
       depends_on:
-        - linux-nix
         - trigger-build-windows-artifacts
       command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
       artifact_paths: [ "./result/windows-tests/**" ]
