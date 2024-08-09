@@ -96,7 +96,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         filter = lib.cleanSourceFilter;
       };
 
-      indexState = "2024-05-29T00:00:00Z";
+      indexState = "2024-08-08T00:00:00Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
