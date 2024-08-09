@@ -285,6 +285,7 @@ steps:
 
   - group: Linux Benchmarks
     key: linux-benchmarks
+    depends_on: linux-nix
     steps:
 
     - block: Run Benchmarks
@@ -454,6 +455,8 @@ steps:
 
   - group: MacOS Checks
     key: "macos-checks"
+    depends_on:
+      - macos-artifacts
     steps:
 
     - block: MacOS Unit Tests
@@ -461,7 +464,7 @@ steps:
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
           && build.env("RELEASE_CANDIDATE") == null
-      depends_on: macos-nix
+      depends_on: []
       key: macos-unit-tests-block
 
     - label: Run Unit Tests (macOS, x86_64)
@@ -480,7 +483,7 @@ steps:
 
     - block: MacOS Integration Tests
       # if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: macos-nix
+      depends_on: []
       key: macos-integration-tests-block
 
     - label: Run Integration Tests (macOS)
@@ -495,13 +498,12 @@ steps:
 
     - block: MacOS E2E Tests
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: macos-nix
+      depends_on: []
       key: macos-e2e-tests-block
 
     - label: 'Run E2E Tests (macOS, arm64)'
       key: macos-silicon-e2e
       depends_on:
-        - macos-arm64-package
         - macos-e2e-tests-block
       command:
         - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
@@ -644,7 +646,6 @@ steps:
     key: links-validity
     steps:
       - block: Snapshot Links
-        depends_on: linux-nix
         if: build.env("RELEASE_CANDIDATE") == null
         key: snapshot-links
 
