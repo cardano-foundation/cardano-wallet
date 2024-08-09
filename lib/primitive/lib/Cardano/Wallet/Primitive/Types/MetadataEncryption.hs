@@ -376,12 +376,12 @@ metadataValueFromJsonNoSchema = conv
 
     conv (Aeson.Object kvs) =
         fmap
-        ( TxMetaMap
-        . sortCanonicalForCbor
-        )
-      . traverse (\(k,v) -> (,) (convKey k) <$> conv v)
-      . fmap (first Aeson.toText)
-      $ Aeson.toList kvs
+            ( TxMetaMap
+                . sortCanonicalForCbor
+            )
+            . traverse
+                ((\(k, v) -> (,) (convKey k) <$> conv v) . first Aeson.toText)
+            $ Aeson.toList kvs
 
     convKey :: Text -> TxMetadataValue
     convKey s =
