@@ -579,20 +579,18 @@ steps:
       agents:
         system: ${linux}
 
-  - group: Docker Artifacts
+  - group: Docker
     key: docker-artifacts
-    depends_on:
-      - linux-nix
     if: build.env("RELEASE_CANDIDATE") != null || build.tag =~ /^v20/
+    depends_on:
+      - linux-artifacts
     steps:
-
       - label: Build Docker Image
         key: docker-build
         commands:
           ./scripts/buildkite/release/docker-build.sh
         agents:
           system: x86_64-linux
-
 
       - label: Push Docker Image
         depends_on:
@@ -608,11 +606,10 @@ steps:
 
   - group: Docker Checks
     depends_on:
-        - docker-artifacts
+      - docker-artifacts
     key: docker-e2e
-    if: build.env("RELEASE_CANDIDATE") != null
+    if: build.env("RELEASE_CANDIDATE") != null || build.tag =~ /^v20/
     steps:
-
       - label: Mainnet Boot Sync
         timeout_in_minutes: 30
         command: |
