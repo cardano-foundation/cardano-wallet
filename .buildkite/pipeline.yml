@@ -12,67 +12,45 @@ env:
   linux: "x86_64-linux"
 
 steps:
+
+  - label: Check Nix (linux)
+    # Check whether regenerate.sh was applied when it had to be applied.
+    key: linux-nix
+    commands:
+      - nix/regenerate.sh
+    agents:
+      system: ${linux}
+
   - group: Linux Artifacts
     key: linux-artifacts
+    depends_on:
+      - linux-nix
     steps:
-    - label: Check Nix (linux)
+    - label: Nix Build (linux)
       # Check whether regenerate.sh was applied when it had to be applied.
-      key: linux-nix
       commands:
-        - './nix/regenerate.sh'
-        - nix build
+        - nix build .#cardano-wallet
       agents:
         system: ${linux}
-
-    - block: Cabal Build
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-            && build.branch != "master"
-            && build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
-      key: cabal-release-block
-
-    - label: Cabal Build (linux)
-      key: cabal-release
-      depends_on: cabal-release-block
-      command: |
-        nix develop -c cabal update
-        nix develop -c cabal build all -frelease
-      agents:
-        system: ${linux}
-
-    - label: Build benchmarks (linux)
-      key: build-benchmarks
-      depends_on: linux-nix
-      command: 'nix build .#ci.benchmarks.all'
-      agents:
-        system: ${linux}
-      env:
-        TMPDIR: "/cache"
 
     - label: Build package (linux)
       key: linux-package
       depends_on:
-        - linux-nix
       command: ./scripts/buildkite/main/linux-package.sh
       artifact_paths: [ "./result/linux/**" ]
       agents:
         system: ${linux}
 
-    - label: Check Cabal Configure
-      key: cabal-configure
-      depends_on: linux-nix
-      command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
-      agents:
-        system: ${linux}
 
   - group: Linux Checks
     key: linux-tests
+    depends_on:
+      - linux-artifacts
     steps:
 
     - label: Run Local Cluster Tests (linux)
       key: local-cluster-tests
-      depends_on: linux-nix
+      depends_on: []
       command: |
         mkdir local-cluster-logs
         nix shell "nixpkgs#just" -c just test-local-cluster
@@ -84,14 +62,14 @@ steps:
 
     - label: Run Unit Tests (linux)
       key: linux-tests-unit
-      depends_on: linux-nix
+      depends_on: []
       command: 'nix build -L .#ci.${linux}.tests.run.unit'
       agents:
         system: ${linux}
 
     - label: Babbage Integration Tests (linux)
       key: linux-tests-integration-babbage
-      depends_on: linux-nix
+      depends_on: []
       command: |
           mkdir integration-test-dir
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
@@ -105,7 +83,7 @@ steps:
 
     - label: Conway Integration Tests (linux)
       key: linux-tests-integration-conway
-      depends_on: linux-nix
+      depends_on: []
       command: |
           mkdir integration-test-dir
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
@@ -119,18 +97,16 @@ steps:
 
     - label: Run Haskell E2E Tests (linux)
       command: 'nix develop --command bash -c "just e2e-local"'
-      depends_on: linux-nix
       agents:
         system: ${linux}
 
     - block: Run Ruby E2E Tests (linux)
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
+      depends_on: []
       key: trigger-e2e-tests
 
     - label: Run Ruby Linux E2E Tests (linux)
       depends_on:
-        - linux-package
         - trigger-e2e-tests
       commands: |
         ./scripts/buildkite/main/linux-e2e.sh
@@ -145,8 +121,8 @@ steps:
       concurrency_group: 'linux-e2e-tests'
 
     - label: Private Network Full Sync
-      depends_on: linux-nix
       timeout: 10
+      depends_on: []
       command: |
         rm -rf run/private/nix/logs
         mkdir -p run/private/nix/logs
@@ -163,8 +139,8 @@ steps:
         NETWORK: testnet
 
     - label: Mainnet Boot Sync
-      depends_on: linux-nix
       timeout: 2
+      depends_on: []
       command: |
         cd run/mainnet/nix
         rm -rf logs
@@ -184,7 +160,7 @@ steps:
 
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
+      depends_on: []
       key: linux-sanchonet-full-sync-block
 
     - label: Sanchonet Full Sync
@@ -208,7 +184,7 @@ steps:
 
     - block: Preprod Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
+      depends_on: []
       key: linux-preprod-full-sync-block
 
     - label: Preprod Full Sync
@@ -235,38 +211,47 @@ steps:
 
   - group: Code Quality Checks
     key: code-quality
+    depends_on:
+      - linux-nix
     steps:
+
+    - label: Check Cabal Configure
+      key: cabal-configure
+      depends_on: []
+      command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
+      agents:
+        system: ${linux}
 
     - label: Check Code Format
       key: code-format
-      depends_on: linux-nix
+      depends_on: []
       command: 'nix develop --command scripts/buildkite/main/check-code-format.sh'
       agents:
         system: ${linux}
 
     - label: Check HLint
       key: hlint
-      depends_on: linux-nix
+      depends_on: []
       command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
       agents:
         system: ${linux}
 
     - label: Validate OpenAPI Specification
       key: openapi
-      depends_on: linux-nix
+      depends_on: []
       command: 'nix develop --command bash -c "echo +++ openapi-spec-validator ; openapi-spec-validator --schema 3.0.0 specifications/api/swagger.yaml"'
       agents:
         system: ${linux}
 
     - label: Print TODO List
-      depends_on: linux-nix
       command: 'nix develop --command scripts/todo-list.sh'
+      depends_on: []
       agents:
         system: ${linux}
 
     - label: Lint Bash Shell Scripts
       key: lint-bash
-      depends_on: linux-nix
+      depends_on: []
       commands:
         - 'echo +++ Shellcheck'
         - './scripts/shellcheck.sh'
@@ -275,7 +260,7 @@ steps:
 
     - label: Check HLS Works
       key: hls
-      depends_on: linux-nix
+      depends_on: []
       command:
           nix develop --command bash -c "haskell-language-server lib/wallet/src/Cardano/Wallet.hs"
       agents:
@@ -283,20 +268,56 @@ steps:
       env:
         TMPDIR: "/cache"
 
+    - block: Cabal Build
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+            && build.branch != "master"
+            && build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: cabal-release-block
+
+    - label: Cabal Build (linux)
+      key: cabal-release
+      depends_on: cabal-release-block
+      command: |
+        nix develop -c cabal update
+        nix develop -c cabal build all -frelease
+      agents:
+        system: ${linux}
+
+
   - group: Linux Benchmarks
     key: linux-benchmarks
+    depends_on: linux-nix
     steps:
+
+    - label: Build Benchmarks (linux)
+      command:
+        - nix build .#ci.benchmarks.all
+      agents:
+        system: ${linux}
 
     - block: Run Benchmarks
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: linux-nix
+      depends_on: []
       key: trigger-benchmarks
+
+    - label: Nix build on benchmark queue (linux)
+      key: nix-build-benchmarks
+      depends_on: trigger-benchmarks
+      command:
+        - nix build
+        - nix build .#ci.benchmarks.all
+      agents:
+        system: ${linux}
+        queue: adrestia-bench
 
     - label: API Benchmark (linux)
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         "./scripts/buildkite/main/bench-api.sh"
-      depends_on: trigger-benchmarks
+      depends_on:
+        - nix-build-benchmarks
       timeout_in_minutes: 20
       agents:
         system: x86_64-linux
@@ -310,7 +331,8 @@ steps:
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-latency.sh
-      depends_on: trigger-benchmarks
+      depends_on:
+        - nix-build-benchmarks
       timeout_in_minutes: 30
       agents:
         system: x86_64-linux
@@ -324,7 +346,8 @@ steps:
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-db.sh
-      depends_on: trigger-benchmarks
+      depends_on:
+        - nix-build-benchmarks
       timeout_in_minutes: 50
       agents:
         system: x86_64-linux
@@ -338,7 +361,8 @@ steps:
       command: |
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-read-blocks.sh
-      depends_on: trigger-benchmarks
+      depends_on:
+        - nix-build-benchmarks
       timeout_in_minutes: 20
       agents:
         system: x86_64-linux
@@ -353,7 +377,7 @@ steps:
         export BENCHMARK_CSV_FILE="`pwd`/bench-results.csv"
         ./scripts/buildkite/main/bench-memory.sh
       depends_on:
-        - trigger-benchmarks
+        - nix-build-benchmarks
       timeout_in_minutes: 20
       agents:
         system: x86_64-linux
@@ -379,9 +403,10 @@ steps:
       agents:
         system: x86_64-linux
 
-    - input: "Restoration Benchmark Parameters"
+    - input: Restoration Benchmark
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: trigger-benchmarks
+      depends_on:
+        - nix-build-benchmarks
       key: restoration-parameters
       fields:
         - select: "Node Sync Timeout"
@@ -427,7 +452,6 @@ steps:
       depends_on: macos-nix
       key: block-macos
 
-
     - label: Build Integration Tests (macOS, arm64)
       key: macos-arm64-tests-build-integration
       depends_on: block-macos
@@ -454,6 +478,8 @@ steps:
 
   - group: MacOS Checks
     key: "macos-checks"
+    depends_on:
+      - macos-artifacts
     steps:
 
     - block: MacOS Unit Tests
@@ -461,7 +487,7 @@ steps:
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
           && build.env("RELEASE_CANDIDATE") == null
-      depends_on: macos-nix
+      depends_on: []
       key: macos-unit-tests-block
 
     - label: Run Unit Tests (macOS, x86_64)
@@ -480,7 +506,7 @@ steps:
 
     - block: MacOS Integration Tests
       # if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: macos-nix
+      depends_on: []
       key: macos-integration-tests-block
 
     - label: Run Integration Tests (macOS)
@@ -495,13 +521,12 @@ steps:
 
     - block: MacOS E2E Tests
       if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: macos-nix
+      depends_on: []
       key: macos-e2e-tests-block
 
     - label: 'Run E2E Tests (macOS, arm64)'
       key: macos-silicon-e2e
       depends_on:
-        - macos-arm64-package
         - macos-e2e-tests-block
       command:
         - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
@@ -516,20 +541,20 @@ steps:
 
   - group: Windows Artifacts
     key: windows-artifacts
+    depends_on: linux-nix
     steps:
     - block: Build Windows Artifacts (windows)
+      depends_on: []
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
           && build.env("RELEASE_CANDIDATE") == null
           && build.branch != "rc-latest"
-      depends_on: linux-nix
       key: trigger-build-windows-artifacts
 
     - label: Build Package (windows)
       key: windows-package
       depends_on:
-        - linux-nix
         - trigger-build-windows-artifacts
       command: nix build -o result/windows .#ci.artifacts.win64.release
       artifact_paths: [ "./result/windows/**" ]
@@ -539,7 +564,6 @@ steps:
     - label: Build Testing Bundle (windows)
       key: windows-testing-bundle
       depends_on:
-        - linux-nix
         - trigger-build-windows-artifacts
       command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
       artifact_paths: [ "./result/windows-tests/**" ]
@@ -555,20 +579,18 @@ steps:
       agents:
         system: ${linux}
 
-  - group: Docker Artifacts
+  - group: Docker
     key: docker-artifacts
-    depends_on:
-      - linux-nix
     if: build.env("RELEASE_CANDIDATE") != null || build.tag =~ /^v20/
+    depends_on:
+      - linux-artifacts
     steps:
-
       - label: Build Docker Image
         key: docker-build
         commands:
           ./scripts/buildkite/release/docker-build.sh
         agents:
           system: x86_64-linux
-
 
       - label: Push Docker Image
         depends_on:
@@ -584,11 +606,10 @@ steps:
 
   - group: Docker Checks
     depends_on:
-        - docker-artifacts
+      - docker-artifacts
     key: docker-e2e
-    if: build.env("RELEASE_CANDIDATE") != null
+    if: build.env("RELEASE_CANDIDATE") != null || build.tag =~ /^v20/
     steps:
-
       - label: Mainnet Boot Sync
         timeout_in_minutes: 30
         command: |
@@ -644,7 +665,6 @@ steps:
     key: links-validity
     steps:
       - block: Snapshot Links
-        depends_on: linux-nix
         if: build.env("RELEASE_CANDIDATE") == null
         key: snapshot-links
 
