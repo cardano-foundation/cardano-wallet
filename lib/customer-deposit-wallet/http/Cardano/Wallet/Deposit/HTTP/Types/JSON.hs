@@ -41,13 +41,13 @@ import Data.Aeson
     , genericParseJSON
     , genericToJSON
     )
-import Data.OpenApi
-    ( NamedSchema (..)
-    , ToSchema (..)
-    )
 import Data.Bifunctor
     ( bimap
     , first
+    )
+import Data.OpenApi
+    ( NamedSchema (..)
+    , ToSchema (..)
     )
 import Data.Text
     ( Text
