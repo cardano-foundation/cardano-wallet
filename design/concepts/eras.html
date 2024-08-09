@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="light" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -10,7 +10,7 @@
         
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
         <link rel="icon" href="../../favicon.svg">
         <link rel="shortcut icon" href="../../favicon.png">
@@ -34,7 +34,7 @@
         <!-- MathJax -->
         <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
@@ -64,31 +64,38 @@
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('light')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var html = document.querySelector('html');
+            var body = document.querySelector('body');
             var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/when.html"><strong aria-hidden="true">2.1.</strong> When to use</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases.html"><strong aria-hidden="true">2.2.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.2.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.2.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.2.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.2.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.2.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/assets.html"><strong aria-hidden="true">2.2.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/delegation.html"><strong aria-hidden="true">2.2.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.2.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.2.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/installation.html"><strong aria-hidden="true">2.3.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/installation/use-docker.html"><strong aria-hidden="true">2.3.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user/installation/use-nixos.html"><strong aria-hidden="true">2.3.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/cli.html"><strong aria-hidden="true">2.4.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user/http-api.html"><strong aria-hidden="true">2.5.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user/hardware-recommendations.html"><strong aria-hidden="true">2.6.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user/security.html"><strong aria-hidden="true">2.7.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user/integrations.html"><strong aria-hidden="true">2.8.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user/ekg-and-prometheus.html"><strong aria-hidden="true">2.9.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.10.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user/faq.html"><strong aria-hidden="true">2.11.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">3.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../design/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../design/links.html"><strong aria-hidden="true">3.3.</strong> Links</a></li><li class="chapter-item expanded "><a href="../../design/concepts.html"><strong aria-hidden="true">3.4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/concepts/eras.html" class="active"><strong aria-hidden="true">3.4.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/concepts/recovery-phrases.html"><strong aria-hidden="true">3.4.2.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../design/concepts/master-key-generation.html"><strong aria-hidden="true">3.4.3.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/Notes-about-BIP-44.html"><strong aria-hidden="true">3.4.4.</strong> Notes about BIP 44</a></li><li class="chapter-item expanded "><a href="../../design/concepts/address-derivation.html"><strong aria-hidden="true">3.4.5.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/byron-address-format.html"><strong aria-hidden="true">3.4.6.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../design/concepts/coin-selection.html"><strong aria-hidden="true">3.4.7.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../design/concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">3.4.8.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../design/concepts/transaction-lifecycle.html"><strong aria-hidden="true">3.4.9.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../design/concepts/utxo.html"><strong aria-hidden="true">3.4.10.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">3.5.</strong> Specifications</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/wallet-id.html"><strong aria-hidden="true">3.5.1.</strong> Wallet ID</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/prototypes.html"><strong aria-hidden="true">3.6.</strong> Prototypes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/prototypes/light-mode.html"><strong aria-hidden="true">3.6.1.</strong> Light Mode</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributor.html"><strong aria-hidden="true">4.</strong> Contributor Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what.html"><strong aria-hidden="true">4.1.</strong> What – Code and Languages</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what/building.html"><strong aria-hidden="true">4.1.1.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../contributor/what/coding-standards.html"><strong aria-hidden="true">4.1.2.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../contributor/what/logging-guidelines.html"><strong aria-hidden="true">4.1.3.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributor/what/swagger-development.html"><strong aria-hidden="true">4.1.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributor/what/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">4.1.5.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix.html"><strong aria-hidden="true">4.1.6.</strong> Nix build language</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix-flake.html"><strong aria-hidden="true">4.1.7.</strong> Nix flake</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how.html"><strong aria-hidden="true">4.2.</strong> How – Processes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/testing.html"><strong aria-hidden="true">4.2.1.</strong> Testing</a></li><li class="chapter-item expanded "><a href="../../contributor/how/continuous-integration.html"><strong aria-hidden="true">4.2.2.</strong> Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/how/release-process.html"><strong aria-hidden="true">4.2.3.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/release-checklist.html"><strong aria-hidden="true">4.2.3.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how/code-review-guidelines.html"><strong aria-hidden="true">4.2.4.</strong> Code Review Guidelines</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/notes.html"><strong aria-hidden="true">4.3.</strong> Notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/notes/updating-dependencies.html"><strong aria-hidden="true">4.3.1.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributor/notes/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">4.3.2.</strong> Notes from upgrading GHC version</a></li></ol></li></ol></li></ol>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
         </nav>
 
         <!-- Track and set sidebar scroll position -->
@@ -119,9 +126,9 @@
                                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
@@ -170,14 +177,14 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="cardano-eras"><a class="header" href="#cardano-eras">Cardano Eras</a></h1>
-<p>A blockchain &quot;hard fork&quot; is a change to the block producing software such that any new blocks produced would be invalid according to the old unchanged software. Therefore, the unchanged software would not accept these blocks into its chain. If nodes running the new and modified software continue to produce blocks on top of their chain, a &quot;fork&quot; will result, starting at the parent block of the first incompatible block.</p>
-<p>Cardano manages hard forks by gating the new block generation code behind a feature flag. The network agrees upon a slot at which all nodes will enable the new block generation code. After that slot, the network is said to be operating in a new &quot;era.&quot;</p>
+<p>A blockchain "hard fork" is a change to the block producing software such that any new blocks produced would be invalid according to the old unchanged software. Therefore, the unchanged software would not accept these blocks into its chain. If nodes running the new and modified software continue to produce blocks on top of their chain, a "fork" will result, starting at the parent block of the first incompatible block.</p>
+<p>Cardano manages hard forks by gating the new block generation code behind a feature flag. The network agrees upon a slot at which all nodes will enable the new block generation code. After that slot, the network is said to be operating in a new "era."</p>
 <p>Agreement on the slot number (epoch really) to switch to the new era happens by an on-chain voting protocol. If the voting proposal is carried, operators of nodes must ensure that their software version will be compatible with the new era, before the hard fork occurs.</p>
 <h4 id="terminology"><a class="header" href="#terminology">Terminology</a></h4>
 <p>One might ask why the eras listed in <a href="https://input-output-hk.github.io/cardano-node/cardano-api/lib/Cardano-Api.html">Cardano.Api</a> don't all appear in the <a href="https://roadmap.cardano.org/en/">Cardano Roadmap</a>.</p>
 <p>The roadmap is actually divided into <em>phases</em>, under which one or more eras (hard forks) may occur.</p>
 <h2 id="the-hard-fork-combinator"><a class="header" href="#the-hard-fork-combinator">The Hard Fork Combinator</a></h2>
-<p>The mechanism whereby the Cardano Node operates in different modes - depending on which slot it is up to - is called the &quot;Hard Fork Combinator&quot;.</p>
+<p>The mechanism whereby the Cardano Node operates in different modes - depending on which slot it is up to - is called the "Hard Fork Combinator".</p>
 <p>The following <a href="https://input-output.atlassian.net/wiki/spaces/EN/pages/718962750/IOHK+Research+Engineering+Seminar">seminars</a> (company internal use only) are a good introduction:</p>
 <div class="table-wrapper"><table><thead><tr><th>Date</th><th>Title</th><th>Description</th></tr></thead><tbody>
 <tr><td>2020/05/15</td><td><a href="https://drive.google.com/file/d/1m_jKQM_gxBm0ctLqIq9NGj5_nXPI66Su/view">Hardfork Combinator I: Reconciling The Eras</a></td><td>This session will explain the technology behind the fabled hardfork combinator for Cardano. As this is quite a bit of machinery, and central to Shelley, we will take the time to talk about it in two sessions, to give enough background that everyone can follow along. This first session will focus on the combinator itself, and how advanced Haskell features allow us to travel from one typed world to another. In a future session, which yet needs to be scheduled, he will present on the subtleties of treating time in the presence of a hardfork.</td></tr>
@@ -193,8 +200,8 @@
 <p>When <code>cardano-wallet</code> connects to its local <code>cardano-node</code>, it must provide the Byron genesis config hash. Hashes for subsequent genesis configs are contained on-chain within the voting system update proposals.</p>
 <p>For <em>mainnet</em>, we have hardcoded the genesis hash. It will never change. For <em>testnet</em>, users must supply a genesis config to the <a href="../user-guide/cli.html">cli</a> , so that its hash may be used when connecting to the local node.</p>
 <h4 id="epoch-boundary-blocks"><a class="header" href="#epoch-boundary-blocks">Epoch Boundary Blocks</a></h4>
-<p>Epoch Boundary Blocks (EBBs) only existed in the Byron era, prior to their abolition with the Shelley hard fork. Confusingly, they were also referred to as &quot;genesis&quot; blocks. The EBB is the previous block of the first block in a Byron epoch. EBBs were calculated locally on each full node of mainnet, and were never transmitted across the network between nodes.</p>
-<h3 id="_instafork_-technology"><a class="header" href="#_instafork_-technology">_Instafork_™ Technology</a></h3>
+<p>Epoch Boundary Blocks (EBBs) only existed in the Byron era, prior to their abolition with the Shelley hard fork. Confusingly, they were also referred to as "genesis" blocks. The EBB is the previous block of the first block in a Byron epoch. EBBs were calculated locally on each full node of mainnet, and were never transmitted across the network between nodes.</p>
+<h3 id="instafork-technology"><a class="header" href="#instafork-technology"><em>Instafork</em>™ Technology</a></h3>
 <p>Hard forking to Alonzo (the latest era, at the time of writing) by natural methods requires several epochs' worth of network operation time to take effect. For disposable local testnets, this would delay startup and make our integration tests slower.</p>
 <p>Therefore, <code>cardano-node</code> can be configured to hard fork itself at the start of any given epoch number, without an update proposal. It's also possible to hard fork directly into all the eras at epoch 0. This is what we use for the integration tests <code>local-cluster</code>. The <code>cardano-node</code> configuration for this is:</p>
 <pre><code class="language-yaml">TestShelleyHardForkAtEpoch: 0
@@ -202,8 +209,8 @@ TestAllegraHardForkAtEpoch: 0
 TestMaryHardForkAtEpoch: 0
 TestAlonzoHardForkAtEpoch: 0
 </code></pre>
-<h3 id="historical-note-cardano-mode"><a class="header" href="#historical-note-cardano-mode">Historical note: &quot;Cardano Mode&quot;</a></h3>
-<p>In theory, it is possible to run <code>cardano-node</code> in a single-era mode, where the Hard Fork Combinator is completely disabled. This is called running in Byron-only or Shelley-only mode. Then there is full &quot;Cardano Mode&quot;, which enables the Hard Fork Combinator, thereby allowing the software to pass through eras.</p>
+<h3 id="historical-note-cardano-mode"><a class="header" href="#historical-note-cardano-mode">Historical note: "Cardano Mode"</a></h3>
+<p>In theory, it is possible to run <code>cardano-node</code> in a single-era mode, where the Hard Fork Combinator is completely disabled. This is called running in Byron-only or Shelley-only mode. Then there is full "Cardano Mode", which enables the Hard Fork Combinator, thereby allowing the software to pass through eras.</p>
 <p>For <code>cardano-cli</code>, there are <code>--byron-mode</code>, <code>--shelley-mode</code>, and <code>--cardano-mode</code> switches, to tell the network client which mode the local node is using.</p>
 <p>Cardano Mode is the default. I'm not aware of too many people using single-era modes for anything much.</p>
 <h2 id="specifications"><a class="header" href="#specifications">Specifications</a></h2>
@@ -219,7 +226,7 @@ TestAlonzoHardForkAtEpoch: 0
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="../../design/concepts/recovery-phrases.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../design/concepts/recovery-phrases.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -233,7 +240,7 @@ TestAlonzoHardForkAtEpoch: 0
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="../../design/concepts/recovery-phrases.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../design/concepts/recovery-phrases.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

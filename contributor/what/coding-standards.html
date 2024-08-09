@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="light" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -10,7 +10,7 @@
         
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
         <link rel="icon" href="../../favicon.svg">
         <link rel="shortcut icon" href="../../favicon.png">
@@ -34,7 +34,7 @@
         <!-- MathJax -->
         <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
@@ -64,31 +64,38 @@
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('light')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var html = document.querySelector('html');
+            var body = document.querySelector('body');
             var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/when.html"><strong aria-hidden="true">2.1.</strong> When to use</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases.html"><strong aria-hidden="true">2.2.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.2.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.2.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.2.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.2.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.2.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/assets.html"><strong aria-hidden="true">2.2.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/delegation.html"><strong aria-hidden="true">2.2.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.2.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.2.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/installation.html"><strong aria-hidden="true">2.3.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/installation/use-docker.html"><strong aria-hidden="true">2.3.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user/installation/use-nixos.html"><strong aria-hidden="true">2.3.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/cli.html"><strong aria-hidden="true">2.4.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user/http-api.html"><strong aria-hidden="true">2.5.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user/hardware-recommendations.html"><strong aria-hidden="true">2.6.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user/security.html"><strong aria-hidden="true">2.7.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user/integrations.html"><strong aria-hidden="true">2.8.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user/ekg-and-prometheus.html"><strong aria-hidden="true">2.9.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.10.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user/faq.html"><strong aria-hidden="true">2.11.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">3.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../design/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../design/links.html"><strong aria-hidden="true">3.3.</strong> Links</a></li><li class="chapter-item expanded "><a href="../../design/concepts.html"><strong aria-hidden="true">3.4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/concepts/eras.html"><strong aria-hidden="true">3.4.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/concepts/recovery-phrases.html"><strong aria-hidden="true">3.4.2.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../design/concepts/master-key-generation.html"><strong aria-hidden="true">3.4.3.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/Notes-about-BIP-44.html"><strong aria-hidden="true">3.4.4.</strong> Notes about BIP 44</a></li><li class="chapter-item expanded "><a href="../../design/concepts/address-derivation.html"><strong aria-hidden="true">3.4.5.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/byron-address-format.html"><strong aria-hidden="true">3.4.6.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../design/concepts/coin-selection.html"><strong aria-hidden="true">3.4.7.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../design/concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">3.4.8.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../design/concepts/transaction-lifecycle.html"><strong aria-hidden="true">3.4.9.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../design/concepts/utxo.html"><strong aria-hidden="true">3.4.10.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">3.5.</strong> Specifications</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/wallet-id.html"><strong aria-hidden="true">3.5.1.</strong> Wallet ID</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/prototypes.html"><strong aria-hidden="true">3.6.</strong> Prototypes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/prototypes/light-mode.html"><strong aria-hidden="true">3.6.1.</strong> Light Mode</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributor.html"><strong aria-hidden="true">4.</strong> Contributor Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what.html"><strong aria-hidden="true">4.1.</strong> What – Code and Languages</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what/building.html"><strong aria-hidden="true">4.1.1.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../contributor/what/coding-standards.html" class="active"><strong aria-hidden="true">4.1.2.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../contributor/what/logging-guidelines.html"><strong aria-hidden="true">4.1.3.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributor/what/swagger-development.html"><strong aria-hidden="true">4.1.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributor/what/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">4.1.5.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix.html"><strong aria-hidden="true">4.1.6.</strong> Nix build language</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix-flake.html"><strong aria-hidden="true">4.1.7.</strong> Nix flake</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how.html"><strong aria-hidden="true">4.2.</strong> How – Processes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/testing.html"><strong aria-hidden="true">4.2.1.</strong> Testing</a></li><li class="chapter-item expanded "><a href="../../contributor/how/continuous-integration.html"><strong aria-hidden="true">4.2.2.</strong> Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/how/release-process.html"><strong aria-hidden="true">4.2.3.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/release-checklist.html"><strong aria-hidden="true">4.2.3.1.</strong> Release checklist</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how/code-review-guidelines.html"><strong aria-hidden="true">4.2.4.</strong> Code Review Guidelines</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/notes.html"><strong aria-hidden="true">4.3.</strong> Notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/notes/updating-dependencies.html"><strong aria-hidden="true">4.3.1.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributor/notes/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">4.3.2.</strong> Notes from upgrading GHC version</a></li></ol></li></ol></li></ol>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
         </nav>
 
         <!-- Track and set sidebar scroll position -->
@@ -119,9 +126,9 @@
                                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
@@ -285,15 +292,15 @@ instance Bi Block where
 </code></pre>
 <p>Another example of wrapping:</p>
 <pre><code class="language-hs">-- BAD:
-describe &quot;Lemma 2.6 - Properties of balance&quot; $ do
-    it &quot;2.6.1) dom u ⋂ dom v ==&gt; balance (u ⋃ v) = balance u + balance v&quot; (checkCoverage prop_2_6_1)
-    it &quot;2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)&quot; (checkCoverage prop_2_6_2)
+describe "Lemma 2.6 - Properties of balance" $ do
+    it "2.6.1) dom u ⋂ dom v ==&gt; balance (u ⋃ v) = balance u + balance v" (checkCoverage prop_2_6_1)
+    it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)" (checkCoverage prop_2_6_2)
 </code></pre>
 <pre><code class="language-hs">-- GOOD:
-describe &quot;Lemma 2.6 - Properties of balance&quot; $ do
-    it &quot;2.6.1) dom u ⋂ dom v ==&gt; balance (u ⋃ v) = balance u + balance v&quot;
+describe "Lemma 2.6 - Properties of balance" $ do
+    it "2.6.1) dom u ⋂ dom v ==&gt; balance (u ⋃ v) = balance u + balance v"
         (checkCoverage prop_2_6_1)
-    it &quot;2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)&quot;
+    it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)"
         (checkCoverage prop_2_6_2)
 </code></pre>
 <h5 id="strategy-2-place-comments-on-their-own-line-instead-of-attempting-to-align-them-vertically"><a class="header" href="#strategy-2-place-comments-on-their-own-line-instead-of-attempting-to-align-them-vertically">Strategy 2: Place comments on their own line instead of attempting to align them vertically</a></h5>
@@ -321,24 +328,24 @@ mkMagicalBlock
 <h5 id="strategy-3-break-up-long-string-literals"><a class="header" href="#strategy-3-break-up-long-string-literals">Strategy 3: Break up long string literals</a></h5>
 <p>Haskell provides convenient support for multi-line string literals:</p>
 <pre><code class="language-Haskell">-- BAD
-errorAccountFundsCompletelyExhausted = &quot;The funds in this account have been completely spent, and its balance is now zero. Either add more funds to this account or use a different account for this transaction.&quot;
+errorAccountFundsCompletelyExhausted = "The funds in this account have been completely spent, and its balance is now zero. Either add more funds to this account or use a different account for this transaction."
 </code></pre>
 <pre><code class="language-Haskell">-- GOOD
 errorAccountFundsCompletelyExhausted =
-    &quot;The funds in this account have been completely spent, and its balance \
+    "The funds in this account have been completely spent, and its balance \
     \is now zero. Either add more funds to this account or use a different \
-    \account for this transaction.&quot;
+    \account for this transaction."
 </code></pre>
 <pre><code class="language-Haskell">-- BAD:
 spec = do
-    scenario &quot;Only this account's balance can be retrieved while standing on one leg on the side of an extremely tall mountain, and breathing thin air with only very limited amounts of oxygen.&quot; $ do
+    scenario "Only this account's balance can be retrieved while standing on one leg on the side of an extremely tall mountain, and breathing thin air with only very limited amounts of oxygen." $ do
 </code></pre>
 <pre><code class="language-Haskell">-- GOOD:
 spec = do
     scenario
-        &quot;Only this account's balance can be retrieved while standing on one \
+        "Only this account's balance can be retrieved while standing on one \
         \leg on the side of an extremely tall mountain, and breathing thin \
-        \air with only very limited amounts of oxygen.&quot; $ do
+        \air with only very limited amounts of oxygen." $ do
 </code></pre>
 <h5 id="strategy-4-reduce-nesting"><a class="header" href="#strategy-4-reduce-nesting">Strategy 4: Reduce nesting</a></h5>
 <p>If your function contains so many levels of nesting that it's hard to keep things within 80 characters (even with careful use of wrapping), consider breaking your function up into smaller parts.</p>
@@ -611,7 +618,7 @@ deriveAccount :: Word32 -&gt; Key 'Seq -&gt; Key 'Seq
 
 -- GOOD
 newtype Tagged (* :: Symbol) = Tagged { getTagged :: String }
-startNode :: Tagged &quot;nodeId&quot; -&gt; IO ()
+startNode :: Tagged "nodeId" -&gt; IO ()
 
 -- BAD
 type HardenedIndex = Word32
@@ -656,7 +663,7 @@ many developers. Hlint is de de-facto linter in Haskell and comes with a lot of 
 are <em>most of the time</em> rather relevant and convey good practices, agreed upon and shared across the team.</p>
 </blockquote>
 <p>e.g.</p>
-<pre><code class="language-hs">{-# ANN decodeBlock (&quot;HLint: ignore Use &lt;$&gt;&quot; :: String) #-}
+<pre><code class="language-hs">{-# ANN decodeBlock ("HLint: ignore Use &lt;$&gt;" :: String) #-}
 </code></pre>
 <p>As a start, we'll use the following built-in rules from <code>hlint</code> with the following configuration, and refine this as we move forward:</p>
 <pre><code class="language-yaml">- modules:
@@ -677,9 +684,9 @@ are <em>most of the time</em> rather relevant and convey good practices, agreed 
   - {name: [Data.Vector], as: V}
 
 # Ignore some build-in rules
-- ignore: {name: &quot;Reduce duplication&quot;} # This is a decision left to developers and reviewers
-- ignore: {name: &quot;Redundant bracket&quot;} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
-- ignore: {name: &quot;Redundant do&quot;} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
+- ignore: {name: "Reduce duplication"} # This is a decision left to developers and reviewers
+- ignore: {name: "Redundant bracket"} # Not everyone knows precedences of every operators in Haskell. Brackets help readability.
+- ignore: {name: "Redundant do"} # Just an annoying hlint built-in, GHC may remove redundant do if he wants
 </code></pre>
 <h3 id="we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions"><a class="header" href="#we-use-explicit-imports-by-default-and-favor-qualified-imports-for-ambiguous-functions">We use explicit imports by default, and favor qualified imports for ambiguous functions</a></h3>
 <p>Apart from the chosen prelude, there should be no implicit imports. Instead,
@@ -781,7 +788,7 @@ generated <a href="https://cardano-foundation.github.io/cardano-wallet/haddock/"
 -- License: MIT
 --
 -- Provides the wallet layer functions that are used by API layer and uses both
--- &quot;Cardano.DBLayer&quot; and &quot;Cardano.NetworkLayer&quot; to realize its role as being
+-- "Cardano.DBLayer" and "Cardano.NetworkLayer" to realize its role as being
 -- intermediary between the three.
 </code></pre>
 <p>(https://cardano-foundation.github.io/cardano-wallet/haddock/cardano-wallet-2.0.0/Cardano-WalletLayer.html)</p>
@@ -804,7 +811,7 @@ bech32CharSet =
     Set.filter (not . isUpper) $
         Set.fromList [chr 33 .. chr 126]
             `Set.union` (Set.singleton '1')
-            `Set.union` (Set.fromList &quot;qpzry9x8gf2tvdw0s3jn54khce6mua7l&quot;)
+            `Set.union` (Set.fromList "qpzry9x8gf2tvdw0s3jn54khce6mua7l")
 
 instance Arbitrary HumanReadableChar where
     arbitrary = HumanReadableChar &lt;$&gt;
@@ -829,7 +836,7 @@ separatorChar = '1'
 -- | A list of all characters that are permitted to appear within the data part
 --   of a Bech32 string.
 dataCharList :: String
-dataCharList = &quot;qpzry9x8gf2tvdw0s3jn54khce6mua7l&quot;
+dataCharList = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
 humanReadableCharIsValid :: Char -&gt; Bool
 humanReadableCharIsValid c =
@@ -926,21 +933,21 @@ sortWithOrder order = f . sort
   <summary>See examples</summary>
 <pre><code class="language-hs">-- BAD
 err =
-    &quot;Invalid value: &quot; &lt;&gt; show v &lt;&gt; &quot;. Please provide a valid value.&quot;
+    "Invalid value: " &lt;&gt; show v &lt;&gt; ". Please provide a valid value."
 
 -- GOOD
 err =
-    &quot;EpochNo value is out of bounds (&quot; &lt;&gt;
+    "EpochNo value is out of bounds (" &lt;&gt;
     show (minBound @Word31) &lt;&gt;
-    &quot;, &quot; &lt;&gt;
+    ", " &lt;&gt;
     show (maxBound @Word31) &lt;&gt;
-    &quot;).&quot;
+    ")."
 
 -- GOOD
 err =
-    &quot;Unable to decode FeePolicy: \
+    "Unable to decode FeePolicy: \
     \Linear equation not in expected format: a + bx + cy \
-    \where 'a', 'b', and 'c' are numbers&quot;
+    \where 'a', 'b', and 'c' are numbers"
 </code></pre>
 </details>
 <h2 id="quickcheck"><a class="header" href="#quickcheck">QuickCheck</a></h2>
@@ -973,12 +980,12 @@ yielded by QuickCheck as arguments!</p>
 <details>
   <summary>See examples</summary>
 <pre><code class="language-hs">-- GOOD
-describe &quot;selectCoinsForMigration properties&quot; $ do
-    it &quot;Total input UTxO value &gt;= sum of selection change coins&quot; $
+describe "selectCoinsForMigration properties" $ do
+    it "Total input UTxO value &gt;= sum of selection change coins" $
         property $ withMaxSuccess 1000 prop_inputsGreaterThanOutputs
 
-describe &quot;selectCoinsForMigration regressions&quot; $ do
-    it &quot;regression #1&quot; $ do
+describe "selectCoinsForMigration regressions" $ do
+    it "regression #1" $ do
         let feeOpts = FeeOptions
                 { dustThreshold = Coin 9
                 , estimateFee = \s -&gt; Fee
@@ -987,8 +994,8 @@ describe &quot;selectCoinsForMigration regressions&quot; $ do
                 }
         let batchSize = 1
         let utxo = UTxO $ Map.fromList
-                [ ( TxIn { inputId = Hash &quot;|\243^\SUBg\242\231\&amp;1\213\203&quot;, inputIx = 2 }
-                  , TxOut { address = Address &quot;ADDR03&quot;, coin = Coin 2 }
+                [ ( TxIn { inputId = Hash "|\243^\SUBg\242\231\&amp;1\213\203", inputIx = 2 }
+                  , TxOut { address = Address "ADDR03", coin = Coin 2 }
                   )
                 ]
         property $ prop_inputsGreaterThanOutputs feeOpts batchSize utxo
@@ -1004,7 +1011,7 @@ prop_inputsGreaterThanOutputs feeOpts batchSize utxo = {- ... -}
 
 
 -- BAD
-it &quot;Eventually converge for decreasing functions&quot; $ do
+it "Eventually converge for decreasing functions" $ do
     property $ \coinselOpts -&gt; do
         let batchSize = idealBatchSize coinselOpts
         label (show batchSize) True
@@ -1026,22 +1033,22 @@ display counter examples on failures to ease debbugging.</p>
   <summary>See examples</summary>
 <pre><code class="language-hs">property (Bech32.decode corruptedString `shouldSatisfy` isLeft)
     &amp; counterexample $ unlines
-        [ &quot;index of char #1: &quot; &lt;&gt; show index
-        , &quot;index of char #2: &quot; &lt;&gt; show (index + 1)
-        , &quot;         char #1: &quot; &lt;&gt; show char1
-        , &quot;         char #2: &quot; &lt;&gt; show char2
-        , &quot; original string: &quot; &lt;&gt; show originalString
-        , &quot;corrupted string: &quot; &lt;&gt; show corruptedString
+        [ "index of char #1: " &lt;&gt; show index
+        , "index of char #2: " &lt;&gt; show (index + 1)
+        , "         char #1: " &lt;&gt; show char1
+        , "         char #2: " &lt;&gt; show char2
+        , " original string: " &lt;&gt; show originalString
+        , "corrupted string: " &lt;&gt; show corruptedString
         ]
 
 property (bs' === Just expected)
     &amp; counterexamples $ unlines
-        [ &quot;k = &quot; ++ show k
-        , &quot;Local chain: &quot; ++ showChain localChain
-        , &quot;Node chain:  &quot; ++ showChain nodeChain
-        , &quot;Intersects:  &quot; ++ maybe &quot;-&quot; showSlot isect
-        , &quot;Expected:    &quot; ++ showBlockHeaders expected
-        , &quot;Actual:      &quot; ++ maybe &quot;-&quot; showBlockHeaders bs'
+        [ "k = " ++ show k
+        , "Local chain: " ++ showChain localChain
+        , "Node chain:  " ++ showChain nodeChain
+        , "Intersects:  " ++ maybe "-" showSlot isect
+        , "Expected:    " ++ showBlockHeaders expected
+        , "Actual:      " ++ maybe "-" showBlockHeaders bs'
         ]
 </code></pre>
 </details>
@@ -1062,15 +1069,15 @@ necessary to instrument properties so that they can mesure how often certain cas
 prop_sync s0 = monadicIO $ do
     {- ... -}
     monitor (label (intersectionHitRate consumer))
-    monitor (classify (initialChainLength (const (== 1))) &quot;started with an empty chain&quot;)
-    monitor (classify (initialChainLength (\k -&gt; (&gt; k))) &quot;started with more than k blocks&quot;)
-    monitor (classify addMoreThanK &quot;advanced more than k blocks&quot;)
-    monitor (classify rollbackK &quot;rolled back full k&quot;)
-    monitor (classify (switchChain (&lt;)) &quot;switched to a longer chain&quot;)
-    monitor (classify (switchChain (&gt;)) &quot;switched to a shorter chain&quot;)
-    monitor (classify (switchChain (const (== 0))) &quot;rewinded without switch&quot;)
-    monitor (classify (recoveredFromGenesis s) &quot;recovered from genesis&quot;)
-    monitor (classify (startedFromScratch c0Cps) &quot;started from scratch&quot;)
+    monitor (classify (initialChainLength (const (== 1))) "started with an empty chain")
+    monitor (classify (initialChainLength (\k -&gt; (&gt; k))) "started with more than k blocks")
+    monitor (classify addMoreThanK "advanced more than k blocks")
+    monitor (classify rollbackK "rolled back full k")
+    monitor (classify (switchChain (&lt;)) "switched to a longer chain")
+    monitor (classify (switchChain (&gt;)) "switched to a shorter chain")
+    monitor (classify (switchChain (const (== 0))) "rewinded without switch")
+    monitor (classify (recoveredFromGenesis s) "recovered from genesis")
+    monitor (classify (startedFromScratch c0Cps) "started from scratch")
     {- ... -}
 
 -- Syncs with mock node
@@ -1091,8 +1098,8 @@ prop_sync s0 = monadicIO $ do
 
 prop_rollbackPools db pairs = monadicIO $ do
     {- ... -}
-    Monitor $ classify (any (&gt; sl) beforeRollback) &quot;something to roll back&quot;
-    Monitor $ classify (all (&lt;= sl) beforeRollback) &quot;nothing to roll back&quot;
+    Monitor $ classify (any (&gt; sl) beforeRollback) "something to roll back"
+    Monitor $ classify (all (&lt;= sl) beforeRollback) "nothing to roll back"
     {- ... -}
 
 -- Rollback of stake pool production
@@ -1106,11 +1113,11 @@ prop_accuracy r = withMaxSuccess 1000 $ monadicIO $ do
     accuracy :: Coin -&gt; Natural -&gt; Natural -&gt; String
     accuracy (Coin dust) sup real
         | a &gt;= 1.0 =
-            &quot;PERFECT  (== 100%)&quot;
+            "PERFECT  (== 100%)"
         | a &gt; 0.99 || (sup - real) &lt; fromIntegral dust =
-            &quot;OKAY     (&gt;   99%)&quot;
+            "OKAY     (&gt;   99%)"
         | otherwise =
-            &quot;MEDIOCRE (&lt;=  99%)&quot;
+            "MEDIOCRE (&lt;=  99%)"
       where
         a = double real / double sup
 
@@ -1159,7 +1166,7 @@ prop_MockNodeGenerator (S n0 ops _ _) =
     prop_uniqueIds :: Property
     prop_uniqueIds =
         length (nub bids) === length bids
-            &amp; counterexample (&quot;Non-unique ID: &quot; ++ show bids)
+            &amp; counterexample ("Non-unique ID: " ++ show bids)
       where
         bids = concat [map mockBlockId bs | NodeAddBlocks bs &lt;- concat ops]
 
@@ -1192,17 +1199,17 @@ list are not empty.</p>
 <pre><code class="language-hs">prop_rangeIsValid :: Property
 prop_rangeIsValid = property $ \(r :: Range Integer) -&gt;
     rangeIsValid r .&amp;&amp;.  all rangeIsValid (shrink r)
-        &amp; cover 10 (rangeIsFinite r) &quot;finite range&quot; $
+        &amp; cover 10 (rangeIsFinite r) "finite range" $
         &amp; checkCoverage
 
 spec :: Spec
 spec = do
-    describe &quot;Coin selection properties : shuffle&quot; $ do
-        it &quot;every non-empty list can be shuffled, ultimately&quot; $
+    describe "Coin selection properties : shuffle" $ do
+        it "every non-empty list can be shuffled, ultimately" $
             checkCoverageWith lowerConfidence prop_shuffleCanShuffle
-        it &quot;shuffle is non-deterministic&quot; $
+        it "shuffle is non-deterministic" $
             checkCoverageWith lowerConfidence prop_shuffleNotDeterministic
-        it &quot;sort (shuffled xs) == sort xs&quot; $
+        it "sort (shuffled xs) == sort xs" $
             checkCoverageWith lowerConfidence prop_shufflePreserveElements
   where
     lowerConfidence :: Confidence
@@ -1233,7 +1240,7 @@ setup wid meta = run $ do
 prop wid point = do
     run $ unsafeRunExceptT $ rollbackTo db wid point
     txs &lt;- run $ readTxHistory db wid Descending wholeRange Nothing
-    monitor $ counterexample $ &quot;\nTx history after rollback: \n&quot; &lt;&gt; fmt txs
+    monitor $ counterexample $ "\nTx history after rollback: \n" &lt;&gt; fmt txs
     {- ... -}
 
 -- BAD
@@ -1320,7 +1327,7 @@ test/unit/
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next" href="../../contributor/what/logging-guidelines.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../../contributor/what/logging-guidelines.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -1334,7 +1341,7 @@ test/unit/
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next" href="../../contributor/what/logging-guidelines.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../../contributor/what/logging-guidelines.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
