@@ -33,13 +33,17 @@ import Data.OpenApi
     , HasDescription (..)
     , HasFormat (..)
     , HasGet (..)
+    , HasIn (..)
     , HasInfo (..)
     , HasItems (..)
     , HasLicense (license)
     , HasMaximum (..)
     , HasMinimum (..)
+    , HasName (..)
+    , HasParameters (..)
     , HasPaths (..)
     , HasProperties (..)
+    , HasPut (..)
     , HasSchema (..)
     , HasSchemas (..)
     , HasSummary (..)
@@ -52,6 +56,7 @@ import Data.OpenApi
     , OpenApiItems (..)
     , OpenApiType (..)
     , Operation
+    , ParamLocation (..)
     , PathItem
     , Reference (..)
     , Referenced (..)
@@ -86,6 +91,7 @@ license' =
 depositPaths :: InsOrdHashMap FilePath PathItem
 depositPaths =
     [ getCustomersListPath
+    , putCustomerPath
     ]
 
 depositDefinitions :: Definitions Schema
@@ -95,6 +101,7 @@ depositDefinitions =
     , ("ApiT CustomerList", customerListSchema)
     ]
 
+-- | Paths
 jsonMediaType :: MediaType
 jsonMediaType = "application/json"
 
@@ -114,6 +121,32 @@ getCustomersListPath = ("/customers", pathItem)
             & _Inline . content . at jsonMediaType
                 ?~ (mempty & schema ?~ Ref (Reference "ApiT CustomerList"))
 
+putCustomerPath :: (FilePath, PathItem)
+putCustomerPath = ("/customers", pathItem)
+  where
+    pathItem :: PathItem
+    pathItem =
+        mempty
+            & put ?~ operation
+            & parameters
+                .~ [ Inline
+                        $ mempty
+                        & in_ .~ ParamPath
+                        & name .~ "customerId"
+                        & schema ?~ Ref (Reference "ApiT Customer")
+                   ]
+    operation :: Operation
+    operation =
+        mempty
+            & summary ?~ summary'
+            & at 200 ?~ at200
+    summary' = "Add customer"
+    at200 =
+        "Ok"
+            & _Inline . content . at jsonMediaType
+                ?~ (mempty & schema ?~ Ref (Reference "ApiT Address"))
+
+-- | Input/Output type schemas
 customerSchema :: Schema
 customerSchema =
     mempty
