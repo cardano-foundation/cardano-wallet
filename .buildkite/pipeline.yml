@@ -31,6 +31,25 @@ steps:
     env:
       system: ${linux}
 
+
+  - label: Check Nix (macOS)
+    key: macos-nix
+    commands:
+      - 'nix flake info'
+    agents:
+      system: ${macos}
+
+
+  - label: Dev Shell Attic Cache (macos)
+    depends_on:
+      - macos-nix
+    commands:
+      - scripts/buildkite/main/attic-cache.sh
+    agents:
+      system: ${macos}
+    env:
+      system: ${macos}
+
   - group: Linux Artifacts
     key: linux-artifacts
     depends_on:
@@ -445,14 +464,8 @@ steps:
 
   - group: MacOS Artifacts
     key: macos-artifacts
+    depends_on: macos-nix
     steps:
-
-    - label: Check Nix (macOS)
-      key: macos-nix
-      commands:
-        - 'nix flake info'
-      agents:
-        system: ${macos}
 
     - block: MacOS Steps
       if: |
