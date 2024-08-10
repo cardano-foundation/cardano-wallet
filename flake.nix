@@ -361,7 +361,7 @@
                     cardano-cli = windowsPackages.cardano-cli;
                     cardano-node = windowsPackages.cardano-node;
                     tests = lib.collect lib.isDerivation windowsPackages.tests;
-                    benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
+                    # benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
                   };
                 };
             }
