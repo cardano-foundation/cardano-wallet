@@ -22,7 +22,6 @@ import Prelude
 
 import Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     ( ViaText (..)
-    , customOptions
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
@@ -38,12 +37,16 @@ import Cardano.Wallet.Deposit.Read
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
-    , genericParseJSON
-    , genericToJSON
+    , object
+    , withObject
+    , (.:)
+    , (.=)
+    )
+import Data.Aeson.Types
+    ( Parser
     )
 import Data.Bifunctor
-    ( bimap
-    , first
+    ( first
     )
 import Data.OpenApi
     ( NamedSchema (..)
@@ -111,20 +114,25 @@ instance ToSchema (ApiT Customer) where
 fromText' :: FromText a => Text -> Either Text a
 fromText' = first (T.pack . getTextDecodingError) . fromText
 
--- CustomerList
-type ApiCustomerList = [(ApiT Customer, ApiT Address)]
+instance ToJSON (ApiT (Customer, Address)) where
+    toJSON (ApiT (c, a)) = object
+        [ "customer" .= toJSON (ApiT c)
+        , "address" .= toJSON (ApiT a)
+        ]
 
-toApiCustomerList :: ApiT CustomerList -> ApiCustomerList
-toApiCustomerList = fmap (bimap ApiT ApiT) . unApiT
-
-fromApiCustomerList :: ApiCustomerList -> ApiT CustomerList
-fromApiCustomerList = ApiT . fmap (bimap unApiT unApiT)
+instance FromJSON (ApiT (Customer, Address)) where
+    parseJSON = withObject "ApiT (Customer, Address)" $ \obj -> do
+        customerApiT <- obj .: "customer"
+        addressApiT <- obj .: "address"
+        pure $ ApiT (unApiT customerApiT, unApiT addressApiT)
 
 instance FromJSON (ApiT CustomerList) where
-    parseJSON = fmap fromApiCustomerList . genericParseJSON customOptions
+    parseJSON l = do
+        custoList <- (parseJSON l :: Parser [ApiT (Customer, Address)])
+        pure $ ApiT (unApiT <$> custoList)
 
 instance ToJSON (ApiT CustomerList) where
-    toJSON = genericToJSON customOptions . toApiCustomerList
+    toJSON (ApiT cl)= toJSON (toJSON . ApiT <$> cl)
 
 instance ToSchema (ApiT CustomerList) where
     declareNamedSchema _ = do

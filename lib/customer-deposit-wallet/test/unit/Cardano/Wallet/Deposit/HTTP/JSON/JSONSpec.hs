@@ -18,6 +18,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
+    , customerListSchema
     , customerSchema
     , depositDefinitions
     )
@@ -67,6 +68,7 @@ import Test.QuickCheck
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.List as L
 
 spec :: Spec
 spec = do
@@ -86,6 +88,10 @@ spec = do
             $ forAll genApiCustomer
             $ counterExampleJSON "validate"
             $ validateInstance depositDefinitions customerSchema
+        it "ApiT CustomerList"
+            $ forAll genApiCustomerList
+            $ counterExampleJSON "validate"
+            $ validateInstance depositDefinitions customerListSchema
 
 validate :: Definitions Schema -> Schema -> Value -> Expectation
 validate defs sch x = validateJSON defs sch x `shouldBe` []
@@ -120,6 +126,15 @@ genApiCustomer :: Gen (ApiT Customer)
 genApiCustomer =
     ApiT . fromRawCustomer <$> arbitrary
 
+genApiCustomerList :: Gen (ApiT CustomerList)
+genApiCustomerList = do
+    listLen <- chooseInt (0, 100)
+    let genPair = (,) <$> (unApiT <$> arbitrary) <*> (unApiT <$> arbitrary)
+    vectors <- vectorOf listLen genPair
+    let uniqueCustomer = L.nubBy (\a b -> fst a == fst b)
+    let uniqueAddr = L.nubBy (\a b -> snd a == snd b)
+    pure $ ApiT $ uniqueAddr $ uniqueCustomer vectors
+
 instance Arbitrary (ApiT Address) where
     arbitrary = genApiAddress
 
@@ -127,10 +142,7 @@ instance Arbitrary (ApiT Customer) where
     arbitrary = genApiCustomer
 
 instance Arbitrary (ApiT CustomerList) where
-    arbitrary = do
-        listLen <- chooseInt (0, 100)
-        let genPair = (,) <$> (unApiT <$> arbitrary) <*> (unApiT <$> arbitrary)
-        ApiT <$> vectorOf listLen genPair
+    arbitrary = genApiCustomerList
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
