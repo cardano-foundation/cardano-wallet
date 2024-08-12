@@ -4,7 +4,10 @@
  - Provisioning dependencies in [Buildkite CI](https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite).
  - Reproducible development environments ([nix develop][flake.nix]).
 
-Nix is not required for `cardano-wallet` development, but it can help you a lot if you try it.
+Nix is required for `cardano-wallet`
+    - development
+    - building of executables
+    - building of the docker image
 
 [flake.nix]: https://github.com/cardano-foundation/cardano-wallet/blob/master/flake.nix
 
