@@ -18,6 +18,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
+    , customerSchema
     , depositDefinitions
     )
 import Cardano.Wallet.Deposit.Pure
@@ -81,6 +82,10 @@ spec = do
             $ forAll genApiAddress
             $ counterExampleJSON "validate"
             $ validateInstance depositDefinitions addressSchema
+        it "ApiT Customer"
+            $ forAll genApiCustomer
+            $ counterExampleJSON "validate"
+            $ validateInstance depositDefinitions customerSchema
 
 validate :: Definitions Schema -> Schema -> Value -> Expectation
 validate defs sch x = validateJSON defs sch x `shouldBe` []
@@ -111,12 +116,15 @@ genApiAddress = do
     keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
     pure $ ApiT $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
 
+genApiCustomer :: Gen (ApiT Customer)
+genApiCustomer =
+    ApiT . fromRawCustomer <$> arbitrary
+
 instance Arbitrary (ApiT Address) where
     arbitrary = genApiAddress
 
 instance Arbitrary (ApiT Customer) where
-    arbitrary =
-        ApiT . fromRawCustomer <$> arbitrary
+    arbitrary = genApiCustomer
 
 instance Arbitrary (ApiT CustomerList) where
     arbitrary = do
