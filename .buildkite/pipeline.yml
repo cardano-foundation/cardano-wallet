@@ -21,6 +21,16 @@ steps:
     agents:
       system: ${linux}
 
+  - label: Dev Shell Attic Cache (linux)
+    depends_on:
+      - linux-nix
+    commands:
+      - scripts/buildkite/main/attic-cache.sh
+    agents:
+      system: ${linux}
+    env:
+      system: ${linux}
+
   - group: Linux Artifacts
     key: linux-artifacts
     depends_on:
