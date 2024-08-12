@@ -1,4 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Cardano.Wallet.CheckpointsSpec
     ( spec
     ) where

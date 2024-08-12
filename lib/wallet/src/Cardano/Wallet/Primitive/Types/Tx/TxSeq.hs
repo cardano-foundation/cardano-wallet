@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
 -- |
 -- Copyright: © 2022 IOHK
 -- License: Apache-2.0
