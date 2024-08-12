@@ -2,92 +2,13 @@
 
 ## Prerequisites
 
-`cardano-wallet` uses the following Haskell build tool versions.
+`cardano-wallet` needs `nix` to build.
+
 
 |                               | **Supported version** | **Dependency?** |
 | ----------------------------- | --------------------- | --------------- |
-| [ghc][]                       | == 9.2.8              | Required        |
-| [cabal][]                     | >= 3.4.0.0            | Required        |
-| [Nix][]                       | >= 2.5.1              | Optional        |
+| [Nix][]                       | >= 2.5.1              | Required        |
 
-[cabal]: https://www.haskell.org/cabal/download.html
-[ghc]: https://www.haskell.org/downloads/
-[nix]: https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html
-
-## Cabal
-
-**Note:** the Cabal build is checked by [Buildkite](https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite/nightly.yml).
-
-1. Update your Hackage index (this may take a while):
-
-   ```console
-   > cabal update
-   ```
-
-   ```admonish warning
-   Don't skip this, otherwise there may be
-   warnings from Cabal about index states, or some packages will
-   fail to build.
-   ```
-
-2. Build the project packages:
-
-   ```console
-   > cabal build all
-   ```
-
-3. Run the freshly-built `cardano-wallet` executable.
-
-   As an example, this will show the help page:
-
-   ```console
-   > cabal run cardano-wallet-exe:exe:cardano-wallet -- --help
-   ```
-
-4. Make a build with `-O2` level compiler optimizations:
-   ```console
-   > cabal build cardano-wallet-exe:exe:cardano-wallet -frelease
-   ```
-
-5. Build and run the test suites or benchmarks.
-
-   First, enable tests and benchmarks:
-
-   ```console
-   > cabal configure --enable-tests --enable-benchmarks
-   ```
-
-   To run one of the unit test suites:
-   ```console
-   > cabal run cardano-wallet-unit:test:unit
-   ```
-
-   To run the DB benchmark:
-   ```console
-   > cabal run cardano-wallet-benchmarks:bench:db
-   ```
-
-   To run the integration test suite:
-   ```console
-   > cabal run cardano-wallet-integration:test:integration
-   ```
-
-6. Install binaries from `./dist-newstyle/` into a system location:
-
-   ```console
-   > cabal install --install-method=copy --installdir=/usr/local/bin
-   ```
-
-## Nix
-
-Use the [Nix][] build if:
-
-1. You don't have Haskell development tools installed, but you do have
-   Nix installed.
-2. You would like to cross-compile a build for Windows, or run the
-   tests under Wine.
-3. You would like to quickly grab a build of another branch from the
-   Hydra cache, without needing to build it yourself.
 
 Follow the instructions on the [Nix][] page to install and configure Nix.
 
@@ -97,11 +18,8 @@ Make sure that you have set up the **binary cache for Haskell.nix**,
 or you **will** wait a long time building multiple copies of GHC.
 If Nix builds GHC, this is an indication that the cache
 has not been set up correctly.
-```
 
-  [haskell-nix-cache]: https://input-output-hk.github.io/haskell.nix/tutorials/getting-started#setting-up-the-binary-cache
-
-To build the wallet for your current platform:
+## Commands
 
 ```
 > nix build
@@ -110,7 +28,8 @@ To build the wallet for your current platform:
 The resulting executable will appear at `./result/bin/cardano-wallet`.
 
 Unless you have local changes in your git repo, Nix will download the
-build from a nix cache rather than building locally.
+build from a nix cache rather than building locally. At the moment the cache is
+available only for developers at CF.
 
 You may also run the executable directly with:
 
