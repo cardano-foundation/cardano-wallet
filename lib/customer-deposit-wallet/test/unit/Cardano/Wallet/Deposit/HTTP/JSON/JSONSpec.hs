@@ -26,19 +26,32 @@ import Cardano.Wallet.Deposit.Read
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
+    , Value
     , decode
     , encode
     )
+import Data.Aeson.Encode.Pretty
+    ( encodePretty
+    )
+import Data.OpenApi
+    ( Definitions
+    , Schema
+    , validateJSON
+    )
 import Test.Hspec
-    ( Spec
+    ( Expectation
+    , Spec
     , describe
     , it
+    , shouldBe
     )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
+    , Testable
     , arbitrarySizedBoundedIntegral
     , chooseInt
+    , counterexample
     , property
     , shrinkIntegral
     , vectorOf
@@ -46,6 +59,7 @@ import Test.QuickCheck
     )
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy.Char8 as BL
 
 spec :: Spec
 spec =
@@ -56,6 +70,23 @@ spec =
             prop_jsonRoundtrip @(ApiT Customer)
         it "ApiT CustomerList" $ property $
             prop_jsonRoundtrip @(ApiT CustomerList)
+
+validate :: Definitions Schema -> Schema -> Value -> Expectation
+validate defs sch x = validateJSON defs sch x `shouldBe` []
+
+validateInstance :: ToJSON a => Definitions Schema -> Schema -> a -> Expectation
+validateInstance defs sch = validate defs sch . toJSON
+
+counterExampleJSON
+    :: (Testable prop, ToJSON a)
+    => String
+    -> (a -> prop)
+    -> a
+    -> Property
+counterExampleJSON t f x =
+    counterexample
+        ("Failed to " <> t <> ":\n" <> BL.unpack (encodePretty $ toJSON x))
+        $ f x
 
 prop_jsonRoundtrip :: (Eq a, Show a, FromJSON a, ToJSON a) => a -> Property
 prop_jsonRoundtrip val =
