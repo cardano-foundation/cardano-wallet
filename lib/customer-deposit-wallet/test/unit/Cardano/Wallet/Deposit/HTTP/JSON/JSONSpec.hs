@@ -16,6 +16,10 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     , Customer
     , CustomerList
     )
+import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
+    ( addressSchema
+    , depositDefinitions
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Word31
     , fromRawCustomer
@@ -47,11 +51,13 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , Property
     , Testable
     , arbitrarySizedBoundedIntegral
     , chooseInt
     , counterexample
+    , forAll
     , property
     , shrinkIntegral
     , vectorOf
@@ -62,7 +68,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL
 
 spec :: Spec
-spec =
+spec = do
     describe "JSON serialization & deserialization" $ do
         it "ApiT Address" $ property $
             prop_jsonRoundtrip @(ApiT Address)
@@ -70,6 +76,11 @@ spec =
             prop_jsonRoundtrip @(ApiT Customer)
         it "ApiT CustomerList" $ property $
             prop_jsonRoundtrip @(ApiT CustomerList)
+    describe "schema checks" $ do
+        it "ApiT Address"
+            $ forAll genApiAddress
+            $ counterExampleJSON "validate"
+            $ validateInstance depositDefinitions addressSchema
 
 validate :: Definitions Schema -> Schema -> Value -> Expectation
 validate defs sch x = validateJSON defs sch x `shouldBe` []
@@ -92,13 +103,16 @@ prop_jsonRoundtrip :: (Eq a, Show a, FromJSON a, ToJSON a) => a -> Property
 prop_jsonRoundtrip val =
     decode (encode val) === Just val
 
+genApiAddress :: Gen (ApiT Address)
+genApiAddress = do
+    --enterprise address type with key hash credential is 01100000, network (mainnet) is 1
+    --meaning first byte is 01100001 ie. 96+1=97
+    let firstByte = 97
+    keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
+    pure $ ApiT $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
+
 instance Arbitrary (ApiT Address) where
-    arbitrary = do
-        --enterprise address type with key hash credential is 01100000, network (mainnet) is 1
-        --meaning first byte is 01100001 ie. 96+1=97
-        let firstByte = 97
-        keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
-        pure $ ApiT $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
+    arbitrary = genApiAddress
 
 instance Arbitrary (ApiT Customer) where
     arbitrary =
