@@ -1,0 +1,70 @@
+{
+    "components": {
+        "schemas": {
+            "ApiT Address": {
+                "format": "hex",
+                "type": "string"
+            },
+            "ApiT Customer": {
+                "maximum": 2147483647,
+                "minimum": 0,
+                "type": "integer"
+            },
+            "ApiT CustomerList": {
+                "items": {
+                    "properties": {
+                        "address": {
+                            "format": "hex",
+                            "type": "string"
+                        },
+                        "customer": {
+                            "maximum": 2147483647,
+                            "minimum": 0,
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                },
+                "type": "array"
+            }
+        }
+    },
+    "info": {
+        "description": "This is the API for the deposit wallet",
+        "license": {
+            "name": "Apache 2",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "title": "Cardano Deposit Wallet API",
+        "version": "0.0.0.1"
+    },
+    "openapi": "3.0.0",
+    "paths": {
+        "/customers": {
+            "parameters": [
+                {
+                    "in": "path",
+                    "name": "customerId",
+                    "schema": {
+                        "$ref": "#/components/schemas/ApiT Customer"
+                    }
+                }
+            ],
+            "put": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiT Address"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Add customer"
+            }
+        }
+    }
+}

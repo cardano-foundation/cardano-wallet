@@ -11,6 +11,7 @@ author:             Cardano Foundation (High Assurance Lab)
 maintainer:         hal@cardanofoundation.org
 copyright:          2023 Cardano Foundation
 category:           Web
+data-files:         data/swagger.json
 
 extra-source-files:
   spec/**/*.lagda.md
@@ -147,12 +148,16 @@ test-suite unit
     , cardano-wallet-test-utils
     , customer-deposit-wallet:{customer-deposit-wallet, customer-deposit-wallet-http}
     , hspec >=2.8.2
+    , hspec-golden
     , QuickCheck
     , with-utf8
+    , unliftio
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
+    Cardano.Wallet.Deposit.HTTP.OpenAPISpec
     Cardano.Wallet.Deposit.PureSpec
+    Paths_customer_deposit_wallet
     Spec
 
 executable customer-deposit-wallet
