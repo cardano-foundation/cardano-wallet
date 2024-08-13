@@ -4134,12 +4134,20 @@ This mode aims to make synchronisation to the blockchain faster by trusting an o
 <div style="break-before: page; page-break-before: always;"></div><h1 id="what--code-and-languages"><a class="header" href="#what--code-and-languages">What – Code and Languages</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="building"><a class="header" href="#building">Building</a></h1>
 <h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
-<p><code>cardano-wallet</code> needs <code>nix</code> to build.</p>
+<p><code>cardano-wallet</code> uses the following Haskell build tool versions.</p>
 <div class="table-wrapper"><table><thead><tr><th></th><th><strong>Supported version</strong></th><th><strong>Dependency?</strong></th></tr></thead><tbody>
-<tr><td>[Nix][]</td><td>&gt;= 2.5.1</td><td>Required</td></tr>
+<tr><td><a href="https://www.haskell.org/downloads/">ghc</a></td><td>== 9.2.8</td><td>Required</td></tr>
+<tr><td><a href="https://www.haskell.org/cabal/download.html">cabal</a></td><td>&gt;= 3.4.0.0</td><td>Required</td></tr>
+<tr><td><a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a></td><td>&gt;= 2.5.1</td><td>Optional</td></tr>
 </tbody></table>
 </div>
-<p>Follow the instructions on the [Nix][] page to install and configure Nix.</p>
+<h2 id="cabal"><a class="header" href="#cabal">Cabal</a></h2>
+<p><strong>Note:</strong> the Cabal build is checked by <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite/nightly.yml">Buildkite</a>.</p>
+<ol>
+<li>
+<p>Update your Hackage index (this may take a while):</p>
+<pre><code class="language-console">&gt; cabal update
+</code></pre>
 <div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
 <div class="admonition-title">
 <div id="admonition-warning-title">
@@ -4148,20 +4156,81 @@ This mode aims to make synchronisation to the blockchain faster by trusting an o
 <a class="admonition-anchor-link" href="contributor/what/building.html#admonition-warning"></a>
 </div>
 <div>
+<p>Don't skip this, otherwise there may be
+warnings from Cabal about index states, or some packages will
+fail to build.</p>
+</div>
+</div>
+</li>
+<li>
+<p>Build the project packages:</p>
+<pre><code class="language-console">&gt; cabal build all
+</code></pre>
+</li>
+<li>
+<p>Run the freshly-built <code>cardano-wallet</code> executable.</p>
+<p>As an example, this will show the help page:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet-exe:exe:cardano-wallet -- --help
+</code></pre>
+</li>
+<li>
+<p>Make a build with <code>-O2</code> level compiler optimizations:</p>
+<pre><code class="language-console">&gt; cabal build cardano-wallet-exe:exe:cardano-wallet -frelease
+</code></pre>
+</li>
+<li>
+<p>Build and run the test suites or benchmarks.</p>
+<p>First, enable tests and benchmarks:</p>
+<pre><code class="language-console">&gt; cabal configure --enable-tests --enable-benchmarks
+</code></pre>
+<p>To run one of the unit test suites:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet-unit:test:unit
+</code></pre>
+<p>To run the DB benchmark:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet-benchmarks:bench:db
+</code></pre>
+<p>To run the integration test suite:</p>
+<pre><code class="language-console">&gt; cabal run cardano-wallet-integration:test:integration
+</code></pre>
+</li>
+<li>
+<p>Install binaries from <code>./dist-newstyle/</code> into a system location:</p>
+<pre><code class="language-console">&gt; cabal install --install-method=copy --installdir=/usr/local/bin
+</code></pre>
+</li>
+</ol>
+<h2 id="nix"><a class="header" href="#nix">Nix</a></h2>
+<p>Use the <a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a> build if:</p>
+<ol>
+<li>You don't have Haskell development tools installed, but you do have
+Nix installed.</li>
+<li>You would like to cross-compile a build for Windows, or run the
+tests under Wine.</li>
+<li>You would like to quickly grab a build of another branch from the
+Hydra cache, without needing to build it yourself.</li>
+</ol>
+<p>Follow the instructions on the <a href="https://cardano-foundation.github.io/cardano-wallet/contributor/what/nix.html">Nix</a> page to install and configure Nix.</p>
+<div id="admonition-warning-1" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-1-title">
+<div class="admonition-title">
+<div id="admonition-warning-1-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="contributor/what/building.html#admonition-warning-1"></a>
+</div>
+<div>
 <p>Make sure that you have set up the <strong>binary cache for Haskell.nix</strong>,
-[according to the instructions][haskell-nix-cache],
+<a href="https://input-output-hk.github.io/haskell.nix/tutorials/getting-started#setting-up-the-binary-cache">according to the instructions</a>,
 or you <strong>will</strong> wait a long time building multiple copies of GHC.
 If Nix builds GHC, this is an indication that the cache
 has not been set up correctly.</p>
-<h2 id="commands-1"><a class="header" href="#commands-1">Commands</a></h2>
 </div>
 </div>
-> nix build
-```
+<p>To build the wallet for your current platform:</p>
+<pre><code>&gt; nix build
+</code></pre>
 <p>The resulting executable will appear at <code>./result/bin/cardano-wallet</code>.</p>
 <p>Unless you have local changes in your git repo, Nix will download the
-build from a nix cache rather than building locally. At the moment the cache is
-available only for developers at CF.</p>
+build from a nix cache rather than building locally.</p>
 <p>You may also run the executable directly with:</p>
 <pre><code class="language-console">&gt; nix run . -- &lt;cardano wallet arguments&gt;
 </code></pre>
@@ -5967,16 +6036,13 @@ instance (IsErr err, HasSwagger sub) =&gt; HasSwagger (Throws err :&gt; sub)
 <p>See the following example project for a complete working example:</p>
 <p>https://github.com/jonathanknowles/servant-checked-exceptions-example</p>
 <p>Note that the above example also uses a <strong>patched</strong> version of <code>servant-client</code>, to allow pattern matching on error responses with the <code>catchesEnvelope</code> function.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="nix"><a class="header" href="#nix">Nix</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="nix-1"><a class="header" href="#nix-1">Nix</a></h1>
 <p><a href="https://nixos.org">Nix</a> is a package manager and build tool. It is used in <code>cardano-wallet</code> for:</p>
 <ul>
 <li>Provisioning dependencies in <a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/.buildkite">Buildkite CI</a>.</li>
 <li>Reproducible development environments (<a href="https://github.com/cardano-foundation/cardano-wallet/blob/master/flake.nix">nix develop</a>).</li>
 </ul>
-<p>Nix is required for <code>cardano-wallet</code>
-- development
-- building of executables
-- building of the docker image</p>
+<p>Nix is not required for <code>cardano-wallet</code> development, but it can help you a lot if you try it.</p>
 <h2 id="installingupgrading-nix"><a class="header" href="#installingupgrading-nix">Installing/Upgrading Nix</a></h2>
 <p>The minimum required version of Nix is 2.5.</p>
 <ul>
