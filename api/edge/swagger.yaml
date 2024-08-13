@@ -6769,6 +6769,7 @@ x-tagGroups:
     - Transactions New
     - Migrations
     - Stake Pools
+    - DReps
     - Keys
 
   - name: Shelley (Shared Wallets)
@@ -7436,7 +7437,7 @@ paths:
       tags: ["DReps"]
       summary: Join
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Delegate all votes from the given wallet to the given DRep or
         case abstain or no-confidence
