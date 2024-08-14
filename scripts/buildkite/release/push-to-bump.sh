@@ -2,13 +2,16 @@
 
 set -euox pipefail
 
-if [[ -n "${BUILDKITE:-}" ]]; then
-    RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get release-candidate-commit)
+
+if [[ -n "${BUILDKITE-}" ]]; then
+    RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get release-candidate-commit --default "")
+    if [[ "${RELEASE_CANDIDATE_COMMIT}" != "" ]]; then
+        git checkout -b "$RELEASE_CANDIDATE_COMMIT" || true
+    fi
 else
-    RELEASE_CANDIDATE_COMMIT=$(git rev-parse HEAD)
+    RELEASE_CANDIDATE_COMMIT=""
 fi
 
-git checkout -b "$RELEASE_CANDIDATE_COMMIT" || true
 
 npm install bump-cli@2.8.2
 
@@ -31,7 +34,9 @@ bump diff \
         --token "$TOKEN" \
         specifications/api/swagger.yaml > artifacts/api-diffs.md;
 
-bump deploy \
+if [[ "${RELEASE_CANDIDATE_COMMIT}" != "" ]]; then
+    bump deploy \
         --doc "$REPO" \
         --token "$TOKEN" \
         specifications/api/swagger.yaml
+fi
