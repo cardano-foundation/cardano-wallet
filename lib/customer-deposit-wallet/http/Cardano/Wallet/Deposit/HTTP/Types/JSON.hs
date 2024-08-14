@@ -22,7 +22,11 @@ import Prelude
 
 import Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     ( ViaText (..)
-    , customOptions
+    )
+import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
+    ( addressSchema
+    , customerListSchema
+    , customerSchema
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
@@ -33,12 +37,20 @@ import Cardano.Wallet.Deposit.Read
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
-    , genericParseJSON
-    , genericToJSON
+    , object
+    , withObject
+    , (.:)
+    , (.=)
+    )
+import Data.Aeson.Types
+    ( Parser
     )
 import Data.Bifunctor
-    ( bimap
-    , first
+    ( first
+    )
+import Data.OpenApi
+    ( NamedSchema (..)
+    , ToSchema (..)
     )
 import Data.Text
     ( Text
@@ -74,6 +86,13 @@ newtype ApiT a = ApiT {unApiT :: a}
 deriving via ViaText Address instance FromJSON (ApiT Address)
 deriving via ViaText Address instance ToJSON (ApiT Address)
 
+instance ToSchema (ApiT Address) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT Address")
+                addressSchema
+
 -- Customer
 instance FromHttpApiData (ApiT Customer) where
     parseUrlPiece = fmap (ApiT . toEnum) . fromText'
@@ -84,21 +103,40 @@ instance FromJSON (ApiT Customer) where
 instance ToJSON (ApiT Customer) where
     toJSON = toJSON . fromEnum . unApiT
 
+instance ToSchema (ApiT Customer) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT Customer")
+                customerSchema
+
 -- | 'fromText' but with a simpler error type.
 fromText' :: FromText a => Text -> Either Text a
 fromText' = first (T.pack . getTextDecodingError) . fromText
 
--- CustomerList
-type ApiCustomerList = [(ApiT Customer, ApiT Address)]
+instance ToJSON (ApiT (Customer, Address)) where
+    toJSON (ApiT (c, a)) = object
+        [ "customer" .= toJSON (ApiT c)
+        , "address" .= toJSON (ApiT a)
+        ]
 
-toApiCustomerList :: ApiT CustomerList -> ApiCustomerList
-toApiCustomerList = fmap (bimap ApiT ApiT) . unApiT
-
-fromApiCustomerList :: ApiCustomerList -> ApiT CustomerList
-fromApiCustomerList = ApiT . fmap (bimap unApiT unApiT)
+instance FromJSON (ApiT (Customer, Address)) where
+    parseJSON = withObject "ApiT (Customer, Address)" $ \obj -> do
+        customerApiT <- obj .: "customer"
+        addressApiT <- obj .: "address"
+        pure $ ApiT (unApiT customerApiT, unApiT addressApiT)
 
 instance FromJSON (ApiT CustomerList) where
-    parseJSON = fmap fromApiCustomerList . genericParseJSON customOptions
+    parseJSON l = do
+        custoList <- (parseJSON l :: Parser [ApiT (Customer, Address)])
+        pure $ ApiT (unApiT <$> custoList)
 
 instance ToJSON (ApiT CustomerList) where
-    toJSON = genericToJSON customOptions . toApiCustomerList
+    toJSON (ApiT cl)= toJSON (toJSON . ApiT <$> cl)
+
+instance ToSchema (ApiT CustomerList) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT CustomerList")
+                customerListSchema

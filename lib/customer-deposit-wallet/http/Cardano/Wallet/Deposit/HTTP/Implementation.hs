@@ -11,7 +11,7 @@ module Cardano.Wallet.Deposit.HTTP.Implementation
     where
 
 import Cardano.Wallet.Deposit.HTTP.Types.API
-    ( API
+    ( CustomerAPI
     )
 import Data.Proxy
     ( Proxy (..)
@@ -29,10 +29,10 @@ import qualified Cardano.Wallet.Deposit.IO as Wallet
 {-----------------------------------------------------------------------------
     Types
 ------------------------------------------------------------------------------}
-api :: Proxy API
+api :: Proxy CustomerAPI
 api = Proxy
 
-implementation :: Wallet.WalletInstance -> Server API
+implementation :: Wallet.WalletInstance -> Server CustomerAPI
 implementation w =
     HTTP.listCustomers w
     :<|> HTTP.createAddress w
