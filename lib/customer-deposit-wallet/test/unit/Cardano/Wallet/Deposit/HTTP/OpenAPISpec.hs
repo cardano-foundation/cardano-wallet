@@ -11,6 +11,10 @@ import Paths_customer_deposit_wallet
     ( getDataDir
     , getDataFileName
     )
+import System.Directory
+    ( doesDirectoryExist
+    , doesFileExist
+    )
 import Test.Hspec
     ( Spec
     , describe
@@ -19,10 +23,6 @@ import Test.Hspec
     )
 import Test.Hspec.Golden
     ( Golden (..)
-    )
-import System.Directory
-    ( doesDirectoryExist
-    , doesFileExist
     )
 
 import qualified Data.ByteString.Lazy.Char8 as BL
