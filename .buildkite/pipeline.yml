@@ -191,6 +191,33 @@ steps:
         CLEANUP_DB: true
         NETWORK: mainnet
 
+    - block: Mainnet Boot Sync with Mithril
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: linux-mainnet-full-sync-block
+
+    - label: Mainnet Boot Sync with Mithril
+      timeout: 120
+      depends_on:
+        - linux-mainnet-full-sync-block
+      command: |
+        cd run/mainnet/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        ./run.sh sync
+      artifact_paths:
+        - "./run/mainnet/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        SUCCESS_STATUS: syncing
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: mainnet
+        USE_MITHRIL: true
+
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: []
