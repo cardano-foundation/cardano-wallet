@@ -1,4 +1,4 @@
-#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli' --command bash
+#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli' 'github:input-output-hk/mithril' --command bash
 # shellcheck shell=bash
 
 # set -euox pipefail
@@ -47,10 +47,6 @@ if [[ -z "${NODE_DB-}" ]]; then
     export NODE_DB
 fi
 
-if [[ -n "${CLEANUP_DB-}" ]]; then
-    rm -rf "${NODE_DB:?}"/*
-fi
-
 NETWORK=${NETWORK:=testnet}
 
 # Define and export the node socket name
@@ -72,17 +68,34 @@ LOCAL_NODE_LOGS_FILE=./node.log
 NODE_LOGS_FILE="${NODE_LOGS_FILE:=$LOCAL_NODE_LOGS_FILE}"
 
 cleanup() {
-    # shellcheck disable=SC2317
     echo "Cleaning up..."
-    # shellcheck disable=SC2317
-    kill "${NODE_ID}" || echo "Failed to kill node"
-    # shellcheck disable=SC2317
-    kill "${WALLET_ID}" || echo "Failed to kill wallet"
+    kill "${NODE_ID-}" || echo "Failed to kill node"
+    kill "${WALLET_ID-}" || echo "Failed to kill wallet"
+    sleep 5
+    if [[ -n "${CLEANUP_DB-}" ]]; then
+        echo "Cleaning up databases..."
+        rm -rf "${NODE_DB:?}"/* || echo "Failed to clean node db"
+        rm -rf "${WALLET_DB:?}"/* || echo "Failed to clean wallet db"
+    fi
 }
 
 # Trap the cleanup function on exit
 trap cleanup ERR INT EXIT
 
+if [[ -n "${USE_MITHRIL-}" ]];
+    then
+        if [ "$NETWORK" != "mainnet" ]; then
+            echo "Error: This option is only available for the mainnet network"
+            exit 1
+        fi
+        echo "Starting the mithril service..."
+        rm -rf "${NODE_DB:?}"/*
+        export AGGREGATOR_ENDPOINT
+        export GENESIS_VERIFICATION_KEY
+        digest=$(mithril-client cdb  snapshot list --json | jq -r .[0].digest)
+        (cd "${NODE_DB}" && mithril-client cdb download "$digest")
+        (cd "${NODE_DB}" && mv db/* . && rmdir db)
+fi
 
 # Start the node with logs redirected to a file if NODE_LOGS_FILE is set
 # shellcheck disable=SC2086
@@ -157,18 +170,11 @@ else
     WALLET_ID=$!
 fi
 
-cleanup() {
-    echo "Cleaning up..."
-    kill "${NODE_ID}" || echo "Failed to kill node"
-    kill "${WALLET_ID}" || echo "Failed to kill wallet"
-}
-
-# Trap the cleanup function on exit
-trap cleanup ERR INT EXIT
 
 # Case statement to handle different command-line arguments
 case "$1" in
     sync)
+
         echo "Wallet service port: $WALLET_PORT"
         echo "Syncing the service..."
         sleep 10
