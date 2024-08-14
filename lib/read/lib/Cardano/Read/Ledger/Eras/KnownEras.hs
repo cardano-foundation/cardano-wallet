@@ -15,7 +15,6 @@ module Cardano.Read.Ledger.Eras.KnownEras
     , IsEra (..)
 
     , KnownEras
-    , knownEraIndices
     , indexOfEra
 
     , Allegra
@@ -39,10 +38,6 @@ import Cardano.Ledger.Api
     , Shelley
     , StandardCrypto
     )
-import Generics.SOP
-    ( Proxy (..)
-    , lengthSList
-    )
 
 type Byron = ByronEra StandardCrypto
 
@@ -58,6 +53,7 @@ data Era era where
     Babbage :: Era Babbage
     Conway :: Era Conway
 
+deriving instance Eq (Era era)
 deriving instance Show (Era era)
 
 -- | Singleton class for eras.
@@ -76,11 +72,7 @@ instance IsEra Conway where theEra = Conway
 type KnownEras =
     '[Byron, Shelley, Allegra, Mary, Alonzo, Babbage, Conway]
 
--- | Official numbering of the 'KnownEras'.
-knownEraIndices :: [Int]
-knownEraIndices = [0 .. lengthSList (Proxy :: Proxy KnownEras) - 1]
-
--- | Official number of the member of 'KnownEras'.
+-- | Official numbering of the members of 'KnownEras'.
 indexOfEra :: Era era -> Int
 indexOfEra e = case e of
     Byron -> 0

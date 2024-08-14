@@ -4,7 +4,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -109,10 +108,8 @@ import Cardano.Wallet.Read
     ( Era (..)
     , EraValue
     , IsEra (..)
-    , K (..)
     , Tx
-    , applyEraFunValue
-    , extractEraValue
+    , applyEraFun
     , (:*:) (..)
     )
 import Control.Monad
@@ -430,9 +427,9 @@ outputs
     :: Monad m
     => ChainStream (EraValue (ctx :*: Tx)) m r
     -> ChainStream TxOut m r
-outputs = forChainStream $ S.each . extractEraValue . applyEraFunValue f
+outputs = forChainStream $ S.each . applyEraFun f
   where
-    f :: IsEra era => (ctx :*: Tx) era -> K [TxOut] era
+    f :: IsEra era => (ctx :*: Tx) era -> [TxOut]
     f (_bh :*: tx) = txOutFromOutput $ getEraOutputs tx
 
 -- a bit of a hack to drop the first element of a stream
@@ -453,15 +450,15 @@ balance =
         (\m (TxOut addr val) -> Map.insertWith (+) addr val m)
         $ oneHistory Map.empty
 
-txOutFromOutput :: forall era. IsEra era => Outputs era -> K [TxOut] era
-txOutFromOutput = case theEra @era of
-    Byron -> \(Outputs os) -> K $ fromByronTxOut <$> toList os
-    Shelley -> \(Outputs os) -> K $ fromShelleyTxOut <$> toList os
-    Allegra -> \(Outputs os) -> K $ fromAllegraTxOut <$> toList os
-    Mary -> \(Outputs os) -> K $ fromMaryTxOut <$> toList os
-    Alonzo -> \(Outputs os) -> K $ fromAlonzoTxOut <$> toList os
-    Babbage -> \(Outputs os) -> K $ fromBabbageTxOut <$> toList os
-    Conway -> \(Outputs os) -> K $ fromConwayTxOut <$> toList os
+txOutFromOutput :: forall era. IsEra era => Outputs era -> [TxOut]
+txOutFromOutput = case theEra :: Era era of
+    Byron -> \(Outputs os) -> fromByronTxOut <$> toList os
+    Shelley -> \(Outputs os) -> fromShelleyTxOut <$> toList os
+    Allegra -> \(Outputs os) -> fromAllegraTxOut <$> toList os
+    Mary -> \(Outputs os) -> fromMaryTxOut <$> toList os
+    Alonzo -> \(Outputs os) -> fromAlonzoTxOut <$> toList os
+    Babbage -> \(Outputs os) -> fromBabbageTxOut <$> toList os
+    Conway -> \(Outputs os) -> fromConwayTxOut <$> toList os
   where
     fromByronTxOut :: Byron.TxOut -> TxOut
     fromByronTxOut (Byron.TxOut addr amount) =

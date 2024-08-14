@@ -44,11 +44,9 @@ import Cardano.Wallet.Read
     , ConsensusBlock
     , Era (..)
     , IsEra
+    , applyEraFun
     , fromConsensusBlock
     , theEra
-    )
-import Cardano.Wallet.Read.Eras.EraFun
-    ( applyEraFun
     )
 import Data.Coerce
     ( coerce

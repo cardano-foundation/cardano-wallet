@@ -33,7 +33,6 @@ import Cardano.Wallet.Read.Eras
     ( EraValue (..)
     , K (..)
     , applyEraFunValue
-    , extractEraValue
     )
 import Data.ByteArray.Encoding
     ( Base (Base16)
@@ -59,8 +58,8 @@ import qualified Data.ByteString.Lazy as BL
 type TxCBOR = EraValue (K BL.ByteString)
 
 instance Buildable TxCBOR where
-    build =
-        build . decodeUtf8 . convertToBase Base16 . toStrict . extractEraValue
+    build (EraValue (K bytes)) =
+        build . decodeUtf8 . convertToBase Base16 $ toStrict bytes
 
 instance ToText TxCBOR
 

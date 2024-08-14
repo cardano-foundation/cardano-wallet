@@ -65,11 +65,9 @@ import Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Withdrawals
     ( getWithdrawals
     )
 import Cardano.Wallet.Read
-    ( IsEra (..)
+    ( EraValue (..)
+    , IsEra (..)
     , Tx (..)
-    )
-import Cardano.Wallet.Read.Eras
-    ( eraValue
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( renderTxToCBOR
@@ -87,7 +85,7 @@ primitiveTx
     -> W.Tx
 primitiveTx = do
     txId <- W.Hash . getEraTxHash
-    txCBOR <- Just . renderTxToCBOR . eraValue
+    txCBOR <- Just . renderTxToCBOR . EraValue
     fee <- getFee . getEraFee
     resolvedInputs <- fmap (,Nothing) . getInputs . getEraInputs
     resolvedCollateralInputs <-
