@@ -72,6 +72,7 @@ steps:
 
 
   - group: Linux Checks
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     key: linux-tests
     depends_on:
       - linux-artifacts
@@ -240,6 +241,7 @@ steps:
 
   - group: Code Quality Checks
     key: code-quality
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     depends_on:
       - linux-nix
     steps:
@@ -327,7 +329,7 @@ steps:
         system: ${linux}
 
     - block: Run Benchmarks
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       depends_on: []
       key: trigger-benchmarks
 
@@ -433,7 +435,7 @@ steps:
         system: x86_64-linux
 
     - input: Restoration Benchmark
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       depends_on:
         - nix-build-benchmarks
       key: restoration-parameters
@@ -471,7 +473,7 @@ steps:
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
-          && build.env("RELEASE_CANDIDATE") == null
+          && ( build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE" )
       depends_on: macos-nix
       key: block-macos
 
@@ -501,6 +503,7 @@ steps:
 
   - group: MacOS Checks
     key: "macos-checks"
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     depends_on:
       - macos-artifacts
     steps:
@@ -543,7 +546,7 @@ steps:
       concurrency_group: 'macos-integration-tests'
 
     - block: MacOS E2E Tests
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       depends_on: []
       key: macos-e2e-tests-block
 
@@ -571,7 +574,9 @@ steps:
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
-          && build.env("RELEASE_CANDIDATE") == null
+          && (build.env("RELEASE_CANDIDATE") == null
+              || build.env("TEST_RC") == "TRUE"
+              )
           && build.branch != "rc-latest"
       key: trigger-build-windows-artifacts
 
@@ -608,8 +613,15 @@ steps:
     depends_on:
       - linux-artifacts
     steps:
+
+      - block: Docker Build
+        depends_on: []
+        if: build.env("TEST_RC") == "TRUE"
+        key: docker-build-block
+
       - label: Build Docker Image
         key: docker-build
+        depends_on: docker-build-block
         commands:
           ./scripts/buildkite/release/docker-build.sh
         agents:
@@ -631,7 +643,7 @@ steps:
     depends_on:
       - docker-artifacts
     key: docker-e2e
-    if: build.env("RELEASE_CANDIDATE") != null || build.tag =~ /^v20/
+    if: (build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE") || build.tag =~ /^v20/
     steps:
       - label: Mainnet Boot Sync
         timeout_in_minutes: 30
@@ -688,7 +700,7 @@ steps:
     key: links-validity
     steps:
       - block: Snapshot Links
-        if: build.env("RELEASE_CANDIDATE") == null
+        if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
         key: snapshot-links
 
       - label: Check Mainnet Snapshot Link

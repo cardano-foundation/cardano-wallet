@@ -34,8 +34,10 @@ CARDANO_NODE_TAG=$(cardano-node version | head -n1 | awk '{print $2}')
 
 if [ "$BUILDKITE_BRANCH" == "master" ]; then
     RELEASE_CANDIDATE_BRANCH="release-candidate/$NEW_GIT_TAG"
+    TEST_RC="FALSE"
 else
     RELEASE_CANDIDATE_BRANCH="test-rc/$BUILDKITE_BRANCH"
+    TEST_RC="TRUE"
 fi
 
 git config --global user.email "gha@cardanofoundation.org"
@@ -66,3 +68,4 @@ buildkite-agent meta-data set "release-version" "$NEW_GIT_TAG"
 buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
 buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
 buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
+buildkite-agent meta-data set "test-rc" "$TEST_RC"
