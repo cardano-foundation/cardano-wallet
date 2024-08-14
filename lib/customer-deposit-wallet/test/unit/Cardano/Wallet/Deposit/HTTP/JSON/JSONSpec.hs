@@ -81,34 +81,39 @@ spec = do
             prop_jsonRoundtrip @(ApiT CustomerList)
     describe "schema checks" $ do
         it "ApiT Address"
-            $ forAll genApiAddress
-            $ counterExampleJSON "validate"
-            $ validateInstance depositDefinitions addressSchema
+            $ jsonMatchesSchema genApiAddress depositDefinitions addressSchema
         it "ApiT Customer"
-            $ forAll genApiCustomer
-            $ counterExampleJSON "validate"
-            $ validateInstance depositDefinitions customerSchema
+            $ jsonMatchesSchema genApiCustomer depositDefinitions customerSchema
         it "ApiT CustomerList"
-            $ forAll genApiCustomerList
-            $ counterExampleJSON "validate"
-            $ validateInstance depositDefinitions customerListSchema
+            $ jsonMatchesSchema genApiCustomerList depositDefinitions customerListSchema
 
-validate :: Definitions Schema -> Schema -> Value -> Expectation
-validate defs sch x = validateJSON defs sch x `shouldBe` []
-
-validateInstance :: ToJSON a => Definitions Schema -> Schema -> a -> Expectation
-validateInstance defs sch = validate defs sch . toJSON
-
-counterExampleJSON
-    :: (Testable prop, ToJSON a)
-    => String
-    -> (a -> prop)
-    -> a
+jsonMatchesSchema
+    :: (ToJSON a, FromJSON a)
+    => Gen a
+    -> Definitions Schema
+    -> Schema
     -> Property
-counterExampleJSON t f x =
-    counterexample
-        ("Failed to " <> t <> ":\n" <> BL.unpack (encodePretty $ toJSON x))
-        $ f x
+jsonMatchesSchema gen defs schema =
+    forAll gen
+        $ counterExampleJSON "validate"
+        $ validateInstance defs schema
+  where
+    validate :: Definitions Schema -> Schema -> Value -> Expectation
+    validate defs' sch' x = validateJSON defs' sch' x `shouldBe` []
+
+    validateInstance :: ToJSON a => Definitions Schema -> Schema -> a -> Expectation
+    validateInstance defs' sch' = validate defs' sch' . toJSON
+
+    counterExampleJSON
+        :: (Testable prop, ToJSON a)
+        => String
+        -> (a -> prop)
+        -> a
+        -> Property
+    counterExampleJSON t f x =
+        counterexample
+            ("Failed to " <> t <> ":\n" <> BL.unpack (encodePretty $ toJSON x))
+            $ f x
 
 prop_jsonRoundtrip :: (Eq a, Show a, FromJSON a, ToJSON a) => a -> Property
 prop_jsonRoundtrip val =

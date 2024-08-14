@@ -148,12 +148,12 @@ test-suite unit
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , customer-deposit-wallet:{customer-deposit-wallet, customer-deposit-wallet-http}
+    , directory
     , hspec >=2.8.2
     , hspec-golden
     , openapi3
     , QuickCheck
     , with-utf8
-    , unliftio
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec

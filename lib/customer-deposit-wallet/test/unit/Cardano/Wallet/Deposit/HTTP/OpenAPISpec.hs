@@ -20,7 +20,7 @@ import Test.Hspec
 import Test.Hspec.Golden
     ( Golden (..)
     )
-import UnliftIO.Directory
+import System.Directory
     ( doesDirectoryExist
     , doesFileExist
     )
