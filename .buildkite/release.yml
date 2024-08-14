@@ -6,6 +6,7 @@ env:
   NIX_PATH: "channel:nixos-21.11"
   STATE_DIR: "/var/lib/buildkite-agent/cache"
   STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
+  RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"
 
   linux: "x86_64-linux"
   macos: "aarch64-darwin"
@@ -22,3 +23,32 @@ steps:
     depends_on: add-release-commits
     commands:
       - ./scripts/buildkite/release/generate-trigger.sh | buildkite-agent pipeline upload
+
+  - label: Push swagger daily
+    depends_on: main-pipeline-build
+    commands:
+      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
+    artifacts:
+      - artifacts/api-diffs.md
+    env:
+      RELEASE: false
+    agents:
+      system: x86_64-linux
+
+  - group: Release
+    if: build.branch =~ /^release-candidate/
+    steps:
+      - block: Create a release
+        depends_on: main-pipeline-build
+        key: create-release
+
+      - label: Push swagger release
+        depends_on: create-release
+        commands:
+          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
+        artifacts:
+          - artifacts/api-diffs.md
+        env:
+          RELEASE: true
+        agents:
+          system: x86_64-linux

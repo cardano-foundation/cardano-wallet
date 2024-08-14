@@ -31,6 +31,7 @@
             pkgs.rsync
             pkgs.gnutar
             pkgs.gnupg
+            pkgs.nodejs_22
           ];
           shellHook = ''
             # use this hook to set up additional environment variables

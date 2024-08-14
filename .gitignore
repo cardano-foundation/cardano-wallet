@@ -85,3 +85,6 @@ test/e2e/.direnv/flake-profile*
 **/wallet-db
 
 *.log
+node_modules
+package-lock.json
+package.json
