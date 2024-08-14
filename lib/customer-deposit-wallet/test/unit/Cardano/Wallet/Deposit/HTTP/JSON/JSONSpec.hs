@@ -81,14 +81,14 @@ spec = do
             prop_jsonRoundtrip @(ApiT CustomerList)
     describe "schema checks" $ do
         it "ApiT Address"
-            $ jsonMatchesSchema genApiAddress depositDefinitions addressSchema
+            $ jsonMatchesSchema genApiTAddress depositDefinitions addressSchema
         it "ApiT Customer"
-            $ jsonMatchesSchema genApiCustomer depositDefinitions customerSchema
+            $ jsonMatchesSchema genApiTCustomer depositDefinitions customerSchema
         it "ApiT CustomerList"
-            $ jsonMatchesSchema genApiCustomerList depositDefinitions customerListSchema
+            $ jsonMatchesSchema genApiTCustomerList depositDefinitions customerListSchema
 
 jsonMatchesSchema
-    :: (ToJSON a, FromJSON a)
+    :: (ToJSON a, Show a)
     => Gen a
     -> Definitions Schema
     -> Schema
@@ -119,20 +119,23 @@ prop_jsonRoundtrip :: (Eq a, Show a, FromJSON a, ToJSON a) => a -> Property
 prop_jsonRoundtrip val =
     decode (encode val) === Just val
 
-genApiAddress :: Gen (ApiT Address)
-genApiAddress = do
+genAddress :: Gen Address
+genAddress = do
     --enterprise address type with key hash credential is 01100000, network (mainnet) is 1
     --meaning first byte is 01100001 ie. 96+1=97
     let firstByte = 97
     keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
-    pure $ ApiT $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
+    pure $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
 
-genApiCustomer :: Gen (ApiT Customer)
-genApiCustomer =
+genApiTAddress :: Gen (ApiT Address)
+genApiTAddress = ApiT <$> genAddress
+
+genApiTCustomer :: Gen (ApiT Customer)
+genApiTCustomer =
     ApiT . fromRawCustomer <$> arbitrary
 
-genApiCustomerList :: Gen (ApiT CustomerList)
-genApiCustomerList = do
+genApiTCustomerList :: Gen (ApiT CustomerList)
+genApiTCustomerList = do
     listLen <- chooseInt (0, 100)
     let genPair = (,) <$> (unApiT <$> arbitrary) <*> (unApiT <$> arbitrary)
     vectors <- vectorOf listLen genPair
@@ -141,13 +144,13 @@ genApiCustomerList = do
     pure $ ApiT $ uniqueAddr $ uniqueCustomer vectors
 
 instance Arbitrary (ApiT Address) where
-    arbitrary = genApiAddress
+    arbitrary = genApiTAddress
 
 instance Arbitrary (ApiT Customer) where
-    arbitrary = genApiCustomer
+    arbitrary = genApiTCustomer
 
 instance Arbitrary (ApiT CustomerList) where
-    arbitrary = genApiCustomerList
+    arbitrary = genApiTCustomerList
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
