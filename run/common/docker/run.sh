@@ -1,13 +1,14 @@
 #! /bin/bash
 
 # Enforce strict script execution modes
-set -euo pipefail
+set -euox pipefail
 
 # Function to display usage information
 usage() {
     echo "Usage: $0 [sync|start|stop|logs|help]"
     echo "  sync: Sync the service and wait for it to be ready"
     echo "  start: Start the service"
+    echo "  start-with-mithril: Start the service with mithril boostrap"
     echo "  stop: Stop the service"
     echo "  logs: Show the service logs"
     echo "  help: Show this help message"
@@ -53,11 +54,10 @@ rm -rf "${WALLET_DB:?}/*"
 # Define a local db if NODE_DB is not set
 if [[ -z "${NODE_DB-}" ]]; then
     LOCAL_NODE_DB=./databases/node-db
-    mkdir -p $LOCAL_NODE_DB
     NODE_DB=$LOCAL_NODE_DB
     export NODE_DB
 fi
-rm -rf "${NODE_DB:?}/*"
+mkdir -p "${NODE_DB:?}"
 
 # Get the current user's ID and export it
 USER_ID=$(id -u)
@@ -94,8 +94,20 @@ startup() {
 cleanup() {
     echo "Cleaning up..."
     docker compose down 2>/dev/null
+    sleep  3
+    docker compose kill 2>/dev/null
 }
 
+node-db-with-mithril() {
+    if [ "$NETWORK" != "mainnet" ]; then
+        echo "Error: This option is only available for the mainnet network"
+        exit 1
+    fi
+    echo "Starting the mithril service..."
+    digest=$(docker compose -p mithril run --rm mithril cdb  snapshot list --json | jq -r .[0].digest)
+    rm -rf "${NODE_DB:?}"/*
+    docker compose -p mithril run --rm mithril cdb download "$digest"
+}
 
 # Case statement to handle different command-line arguments
 case "$1" in
@@ -163,6 +175,9 @@ case "$1" in
     logs)
         echo "Showing logs..."
         docker compose logs -f  # Follow the service logs
+        ;;
+    node-db-with-mithril)
+        node-db-with-mithril
         ;;
     help)
         usage  # Display usage information
