@@ -7,6 +7,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
     flake-utils.url = "github:hamishmack/flake-utils/hkm/nested-hydraJobs";
+    attic.url = "github:zhaofengli/attic";
   };
 
   outputs = inputs:
@@ -21,6 +22,7 @@
       let
         # Imports
         pkgs = inputs.nixpkgs.legacyPackages.${system};
+        attic = inputs.attic.packages.${system}.default;
       in {
         packages = { };
 
@@ -39,6 +41,9 @@
             pkgs.gnugrep
             pkgs.haskellPackages.hp2pretty
             pkgs.time
+
+            # Nix Caching
+            attic
           ];
           shellHook = ''
             # use this hook to set up additional environment variables
