@@ -5841,8 +5841,9 @@ x-responsesListAssets: &responsesListAssets
           items: *ApiAsset
 
 x-responsesGetAsset: &responsesGetAsset
-  <<: *responsesErr404AssetNotPresent
-  <<: *responsesErr406
+  <<:
+    - *responsesErr404AssetNotPresent
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -5860,9 +5861,10 @@ x-responsesListByronWallets: &responsesListByronWallets
           items: *ApiByronWallet
 
 x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -5870,9 +5872,10 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
         schema: *ApiWalletUTxOsStatistics
 
 x-responsesGetWalletUtxoSnapshot: &responsesGetWalletUtxoSnapshot
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -5880,10 +5883,11 @@ x-responsesGetWalletUtxoSnapshot: &responsesGetWalletUtxoSnapshot
         schema: *ApiWalletUtxoSnapshot
 
 x-responsesPostWallet: &responsesPostWallet
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr409WalletAlreadyExists
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr409WalletAlreadyExists
+    - *responsesErr415UnsupportedMediaType
   201:
     description: Created
     content:
@@ -5891,10 +5895,11 @@ x-responsesPostWallet: &responsesPostWallet
         schema: *ApiWallet
 
 x-responsesPostSharedWallet: &responsesPostSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr409WalletAlreadyExists
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr409WalletAlreadyExists
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -5916,10 +5921,11 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
         schema: *ApiSharedWallet
 
 x-responsesPostByronWallet: &responsesPostByronWallet
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr409
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr409
+    - *responsesErr415
   201:
     description: Created
     content:
@@ -5927,10 +5933,11 @@ x-responsesPostByronWallet: &responsesPostByronWallet
         schema: *ApiByronWallet
 
 x-responsesGetWallet: &responsesGetWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -5938,8 +5945,9 @@ x-responsesGetWallet: &responsesGetWallet
         schema: *ApiWallet
 
 x-responsesGetByronWallet: &responsesGetByronWallet
-  <<: *responsesErr404
-  <<: *responsesErr406
+  <<:
+    - *responsesErr404
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -5947,10 +5955,11 @@ x-responsesGetByronWallet: &responsesGetByronWallet
         schema: *ApiByronWallet
 
 x-responsesGetSharedWallet: &responsesGetSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -5958,11 +5967,12 @@ x-responsesGetSharedWallet: &responsesGetSharedWallet
         schema: *ApiSharedWallet
 
 x-responsesPatchSharedWallet: &responsesPatchSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr503WalletMetadataNotFound
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr503WalletMetadataNotFound
   403:
     description: Forbidden
     content:
@@ -5981,14 +5991,15 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
         schema: *ApiSharedWallet
 
 x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   403:
     description: Forbidden
     content:
       application/json:
         schema: *errNothingToMigrate
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
   202:
     description: Accepted
     content:
@@ -5996,6 +6007,11 @@ x-responsesCreateWalletMigrationPlan: &responsesCreateWalletMigrationPlan
         schema: *ApiWalletMigrationPlan
 
 x-responsesMigrateWallet: &responsesMigrateWallet
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6005,10 +6021,6 @@ x-responsesMigrateWallet: &responsesMigrateWallet
             - <<: *errNothingToMigrate
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6019,28 +6031,31 @@ x-responsesMigrateWallet: &responsesMigrateWallet
           minItems: 1
 
 x-responsesDeleteWallet: &responsesDeleteWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   204:
     description: No Content
 
 x-responsesForceResyncWallet: &responsesForceResyncWallet
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr406
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr403
+    - *responsesErr404
+    - *responsesErr406
+    - *responsesErr415
   204:
     description: No Content
 
 x-responsesPutWallet: &responsesPutWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   200:
     description: Ok
     content:
@@ -6048,11 +6063,12 @@ x-responsesPutWallet: &responsesPutWallet
         schema: *ApiWallet
 
 x-responsesPutSharedWallet: &responsesPutSharedWallet
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   200:
     description: Ok
     content:
@@ -6060,7 +6076,12 @@ x-responsesPutSharedWallet: &responsesPutSharedWallet
         schema: *ApiSharedWallet
 
 x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6070,15 +6091,16 @@ x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
             - <<: *errWrongMnemonic
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   204:
     description: No Content
 
 x-responsesSelectCoins: &responsesSelectCoins
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6095,10 +6117,6 @@ x-responsesSelectCoins: &responsesSelectCoins
             - <<: *errInvalidCoinSelection
             - <<: *errOutputTokenQuantityExceedsLimit
             - <<: *errOutputTokenBundleSizeExceedsLimit
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   200:
     description: OK
     content:
@@ -6106,6 +6124,8 @@ x-responsesSelectCoins: &responsesSelectCoins
         schema: *ApiCoinSelection
 
 x-responsesDeleteTransaction: &responsesDeleteTransaction
+  <<:
+    - *responsesErr406
   403:
     description: Forbidden
     content:
@@ -6120,11 +6140,14 @@ x-responsesDeleteTransaction: &responsesDeleteTransaction
             - <<: *errNoSuchWallet
             - <<: *errWalletNotInitialized
             - <<: *errNoSuchTransaction
-  <<: *responsesErr406
   204:
     description: No Content
 
 x-responsesListTransactions: &responsesListTransactions
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   400:
     description: Bad Request
     content:
@@ -6133,9 +6156,6 @@ x-responsesListTransactions: &responsesListTransactions
           oneOf:
             - <<: *errMinWithdrawalWrong
             - <<: *errStartTimeLaterThanEndTime
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
   200:
     description: Ok
     headers:
@@ -6148,7 +6168,6 @@ x-responsesListTransactions: &responsesListTransactions
         schema:
           type: array
           items: *ApiTransaction
-
 x-responsesGetTransaction: &responsesGetTransaction
   404:
     description: Not Found
@@ -6168,7 +6187,13 @@ x-responsesGetTransaction: &responsesGetTransaction
 
 # ADP-908 Deprecated
 x-responsesPostTransaction: &responsesPostTransaction
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
+    - *responsesErr425MempoolIsFull
   403:
     description: Forbidden
     content:
@@ -6186,11 +6211,6 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
             - <<: *errUnsupportedEra
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  <<: *responsesErr425MempoolIsFull
   202:
     description: Accepted
     content:
@@ -6198,6 +6218,11 @@ x-responsesPostTransaction: &responsesPostTransaction
         schema: *ApiTransaction
 
 x-responsesConstructTransaction: &responsesConstructTransaction
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   400:
     description: Bad Request
     content:
@@ -6231,10 +6256,6 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errVotingInInvalidEra
             - <<: *errWithdrawalNotPossibleWithoutVote
             - <<: *errInvalidMetadataEncryption
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6242,7 +6263,12 @@ x-responsesConstructTransaction: &responsesConstructTransaction
         schema: *ApiConstructTransaction
 
 x-responsesSignTransaction: &responsesSignTransaction
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6251,10 +6277,6 @@ x-responsesSignTransaction: &responsesSignTransaction
           oneOf:
             - <<: *errNoRootKey
             - <<: *errWrongEncryptionPassphrase
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6262,11 +6284,12 @@ x-responsesSignTransaction: &responsesSignTransaction
         schema: *ApiSignedTransaction
 
 x-responsesDecodedTransaction: &responsesDecodedTransaction
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6281,11 +6304,12 @@ x-responsesDecodedTransaction: &responsesDecodedTransaction
         schema: *ApiDecodedTransaction
 
 x-responsesSubmitTransaction: &responsesSubmitTransaction
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6302,10 +6326,11 @@ x-responsesSubmitTransaction: &responsesSubmitTransaction
             - <<: *errCreatedMultidelegationTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
-  <<: *responsesErr425MempoolIsFull
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
+    - *responsesErr425MempoolIsFull
   202:
     description: Accepted
     content:
@@ -6313,9 +6338,10 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
         schema: *ApiTxId
 
 x-responsesPostAnyAddress: &responsesPostAnyAddress
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415
   202:
     description: Accepted
     content:
@@ -6323,6 +6349,11 @@ x-responsesPostAnyAddress: &responsesPostAnyAddress
         schema: *AnyAddress
 
 x-responsesPostTransactionFee: &responsesPostTransactionFee
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   400:
     description: Bad Request
     content:
@@ -6348,10 +6379,6 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
             - <<: *errOutputTokenQuantityExceedsLimit
             - <<: *errOutputTokenBundleSizeExceedsLimit
             - <<: *errTransactionIsTooBig
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6359,14 +6386,15 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
         schema: *ApiFee
 
 x-responsesGetDelegationFee: &responsesGetDelegationFee
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   403:
     description: Forbidden
     content:
       application/json:
         schema: *errCannotCoverFee
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
   200:
     description: Ok
     content:
@@ -6374,10 +6402,11 @@ x-responsesGetDelegationFee: &responsesGetDelegationFee
         schema: *ApiFee
 
 x-responsesListAddresses: &responsesListAddresses
-  <<: *responsesErr400
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6387,9 +6416,10 @@ x-responsesListAddresses: &responsesListAddresses
           items: *ApiAddressWithPath
 
 x-responsesGetShelleyKey: &responsesGetShelleyKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6397,9 +6427,10 @@ x-responsesGetShelleyKey: &responsesGetShelleyKey
         schema: *ApiVerificationKeyShelley
 
 x-responsesPostPolicyKey: &responsesPostPolicyKey
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415
   202:
     description: Accepted
     content:
@@ -6407,7 +6438,10 @@ x-responsesPostPolicyKey: &responsesPostPolicyKey
         schema: *ApiPolicyKey
 
 x-responsesPostPolicyId: &responsesPostPolicyId
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415
   403:
     description: Forbidden
     content:
@@ -6417,8 +6451,6 @@ x-responsesPostPolicyId: &responsesPostPolicyId
             - <<: *errInvalidWalletType
             - <<: *errMissingPolicyPublicKey
             - <<: *errCreatedWrongPolicyScriptTemplate
-  <<: *responsesErr406
-  <<: *responsesErr415
   202:
     description: Accepted
     content:
@@ -6426,7 +6458,10 @@ x-responsesPostPolicyId: &responsesPostPolicyId
         schema: *ApiPolicyId
 
 x-responsesGetPolicyKey: &responsesGetPolicyKey
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr404
+    - *responsesErr406
   403:
     description: Forbidden
     content:
@@ -6435,8 +6470,6 @@ x-responsesGetPolicyKey: &responsesGetPolicyKey
           oneOf:
             - <<: *errInvalidWalletType
             - <<: *errMissingPolicyPublicKey
-  <<: *responsesErr404
-  <<: *responsesErr406
   200:
     description: Ok
     content:
@@ -6444,9 +6477,10 @@ x-responsesGetPolicyKey: &responsesGetPolicyKey
         schema: *ApiPolicyKey
 
 x-responsesGetSharedKey: &responsesGetSharedKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6454,9 +6488,10 @@ x-responsesGetSharedKey: &responsesGetSharedKey
         schema: *ApiVerificationKeyShared
 
 x-responsesGetAccountSharedKey: &responsesGetAccountSharedKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6464,9 +6499,10 @@ x-responsesGetAccountSharedKey: &responsesGetAccountSharedKey
         schema: *ApiAccountKeyShared
 
 x-responsesPostAccountKey: &responsesPostAccountKey
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415
   202:
     description: Accepted
     content:
@@ -6474,9 +6510,10 @@ x-responsesPostAccountKey: &responsesPostAccountKey
         schema: *ApiAccountKey
 
 x-responsesGetAccountKey: &responsesGetAccountKey
-  <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr404
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6484,9 +6521,10 @@ x-responsesGetAccountKey: &responsesGetAccountKey
         schema: *ApiAccountKey
 
 x-responsesPostAccountKeyShared: &responsesPostAccountKeyShared
-  <<: *responsesErr400
-  <<: *responsesErr406
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415
   202:
     description: Accepted
     content:
@@ -6515,7 +6553,8 @@ x-responsesListStakeKeys: &responsesListStakeKeys
         schema: *ApiStakeKeys
 
 x-responsesPostMaintenanceAction: &responsesPostMaintenanceAction
-  <<: *responsesErr404
+  <<:
+    - *responsesErr404
   204:
     description: No Content
 
@@ -6528,7 +6567,10 @@ x-responsesGetMaintenanceAction: &responsesGetMaintenanceAction
           <<: *ApiMaintenanceAction
 
 x-responsesJoinStakePool: &responsesJoinStakePool
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6551,8 +6593,6 @@ x-responsesJoinStakePool: &responsesJoinStakePool
             - <<: *errNoSuchWallet
             - <<: *errWalletNotInitialized
             - <<: *errNoSuchPool
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6560,7 +6600,10 @@ x-responsesJoinStakePool: &responsesJoinStakePool
         schema: *ApiTransaction
 
 x-responsesJoinDRep: &responsesJoinDRep
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6581,8 +6624,6 @@ x-responsesJoinDRep: &responsesJoinDRep
             - <<: *errNoSuchWallet
             - <<: *errWalletNotInitialized
             - <<: *errNoSuchPool
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6590,7 +6631,12 @@ x-responsesJoinDRep: &responsesJoinDRep
         schema: *ApiTransaction
 
 x-responsesQuitStakePool: &responsesQuitStakePool
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   403:
     description: Forbidden
     content:
@@ -6603,10 +6649,6 @@ x-responsesQuitStakePool: &responsesQuitStakePool
             - <<: *errWrongEncryptionPassphrase
             - <<: *errNotDelegatingTo
             - <<: *errNonNullRewards
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -6614,7 +6656,8 @@ x-responsesQuitStakePool: &responsesQuitStakePool
         schema: *ApiTransaction
 
 x-responsesGetNetworkInformation: &responsesGetNetworkInformation
-  <<: *responsesErr406
+  <<:
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6622,7 +6665,8 @@ x-responsesGetNetworkInformation: &responsesGetNetworkInformation
         schema: *ApiNetworkInformation
 
 x-responsesGetNetworkClock: &responsesGetNetworkClock
-  <<: *responsesErr406
+  <<:
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6630,7 +6674,8 @@ x-responsesGetNetworkClock: &responsesGetNetworkClock
         schema: *ApiNetworkClock
 
 x-responsesGetNetworkParameters: &responsesGetNetworkParameters
-  <<: *responsesErr406
+  <<:
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6638,10 +6683,11 @@ x-responsesGetNetworkParameters: &responsesGetNetworkParameters
         schema: *ApiNetworkParameters
 
 x-responsesPostRandomAddress: &responsesPostRandomAddress
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr406
-  <<: *responsesErr415
+  <<:
+    - *responsesErr400
+    - *responsesErr403
+    - *responsesErr406
+    - *responsesErr415
   201:
     description: Created
     content:
@@ -6649,19 +6695,22 @@ x-responsesPostRandomAddress: &responsesPostRandomAddress
         schema: *ApiAddressWithPath
 
 x-responsesPutRandomAddress: &responsesPutRandomAddress
-  <<: *responsesErr400
-  <<: *responsesErr403
+  <<:
+    - *responsesErr400
+    - *responsesErr403
   204:
     description: No Content
 
 x-responsesPutRandomAddresses: &responsesPutRandomAddresses
-  <<: *responsesErr400
-  <<: *responsesErr403
+  <<:
+    - *responsesErr400
+    - *responsesErr403
   204:
     description: No Content
 
 x-responsesInspectAddress: &responsesInspectAddress
-  <<: *responsesErr400
+  <<:
+    - *responsesErr400
   200:
     description: Ok
     content:
@@ -6669,8 +6718,9 @@ x-responsesInspectAddress: &responsesInspectAddress
         schema: *ApiAddressInspect
 
 x-responsesPutSettings: &responsesPutSettings
-  <<: *responsesErr400
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr400
+    - *responsesErr415UnsupportedMediaType
   204:
     description: No Content
 
@@ -6682,20 +6732,22 @@ x-responsesGetSettings: &responsesGetSettings
         schema: *ApiGetSettings
 
 x-responsesPostSignatures: &responsesPostSignatures
-    <<: *responsesErr400
-    <<: *responsesErr406
-    <<: *responsesErr415
-    200:
-      description: OK
-      content:
-        application/octet-stream:
-          schema:
-            type: string
-            format: binary
+  <<:
+    - *responsesErr400
+    - *responsesErr406
+    - *responsesErr415
+  200:
+    description: OK
+    content:
+      application/octet-stream:
+        schema:
+          type: string
+          format: binary
 
 x-responsesGetSmashHealth: &responsesGetSmashHealth
-  <<: *responsesErr400
-  <<: *responsesErr406
+  <<:
+    - *responsesErr400
+    - *responsesErr406
   200:
     description: Ok
     content:
@@ -6741,11 +6793,11 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
             - <<: *errTxNotInNodeEra
             - <<: *errBalanceTxInlinePlutusV3ScriptNotSupportedInBabbage
             - <<: *errTranslationByronTxOutInContext
-
-  <<: *responsesErr404WalletNotFound
-  <<: *responsesErr404WalletNotInitialized
-  <<: *responsesErr406
-  <<: *responsesErr415UnsupportedMediaType
+  <<:
+    - *responsesErr404WalletNotFound
+    - *responsesErr404WalletNotInitialized
+    - *responsesErr406
+    - *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
