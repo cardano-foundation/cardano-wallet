@@ -616,7 +616,7 @@ steps:
 
   - group: Docker
     key: docker-artifacts
-    if: build.env("RELEASE_CANDIDATE") != null || build.tag =~ /^v20/
+    if: build.env("RELEASE_CANDIDATE") != null
     depends_on:
       - linux-artifacts
     steps:
@@ -630,7 +630,9 @@ steps:
         key: docker-build
         depends_on: docker-build-block
         commands:
-          ./scripts/buildkite/release/docker-build.sh
+          ./scripts/buildkite/main/docker-build.sh
+        artifact_paths:
+          - ./artifacts/*.tgz
         agents:
           system: x86_64-linux
 
