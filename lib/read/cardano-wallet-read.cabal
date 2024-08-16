@@ -1,6 +1,6 @@
 cabal-version:   3.6
 name:            cardano-wallet-read
-version:         0.2024.8.11
+version:         0.2024.8.16
 synopsis:
   Primitive era-dependent operations to read the cardano blocks and transactions
 
