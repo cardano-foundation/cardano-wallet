@@ -19,6 +19,7 @@ steps:
     # Check whether regenerate.sh was applied when it had to be applied.
     key: linux-nix
     commands:
+      - nix --version
       - nix/regenerate.sh
     agents:
       system: ${linux}
@@ -37,10 +38,10 @@ steps:
   - label: Check Nix (macOS)
     key: macos-nix
     commands:
-      - 'nix flake info'
+        - nix --version
+        - nix flake info
     agents:
       system: ${macos}
-
 
   - label: Dev Shell Attic Cache (macos)
     depends_on:
@@ -189,6 +190,33 @@ steps:
         WALLET_LOGS_FILE: ./logs/wallet.log
         CLEANUP_DB: true
         NETWORK: mainnet
+
+    - block: Mainnet Boot Sync with Mithril
+      if: build.env("RELEASE_CANDIDATE") == null
+      depends_on: []
+      key: linux-mainnet-full-sync-block
+
+    - label: Mainnet Boot Sync with Mithril
+      timeout: 120
+      depends_on:
+        - linux-mainnet-full-sync-block
+      command: |
+        cd run/mainnet/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        ./run.sh sync
+      artifact_paths:
+        - "./run/mainnet/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        SUCCESS_STATUS: syncing
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: mainnet
+        USE_MITHRIL: true
 
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
@@ -481,7 +509,6 @@ steps:
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
           && ( build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE" )
-      depends_on: macos-nix
       key: block-macos
 
     - label: Build Integration Tests (macOS, arm64)
@@ -660,6 +687,20 @@ steps:
           cd run/mainnet/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
           rm -rf databases
+          ./run.sh sync
+        agents:
+          system: x86_64-linux
+        env:
+          SUCCESS_STATUS: syncing
+          USE_LOCAL_IMAGE: true
+
+      - label: Mainnet Boot Sync via Mithril
+        timeout_in_minutes: 120
+        command: |
+          cd run/mainnet/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          rm -rf databases
+          ./run.sh node-db-with-mithril
           ./run.sh sync
         agents:
           system: x86_64-linux
