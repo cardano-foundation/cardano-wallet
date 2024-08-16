@@ -630,6 +630,8 @@ steps:
         depends_on: docker-build-block
         commands:
           ./scripts/buildkite/release/docker-build.sh
+        artifact_paths:
+          - ./artifacts/*.tgz
         agents:
           system: x86_64-linux
 
