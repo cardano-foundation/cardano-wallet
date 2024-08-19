@@ -154,7 +154,7 @@ steps:
       concurrency_group: 'linux-e2e-tests'
 
     - label: Private Network Full Sync
-      timeout: 10
+      timeout: 30
       depends_on: []
       command: |
         rm -rf run/private/nix/logs
@@ -709,7 +709,7 @@ steps:
           USE_LOCAL_IMAGE: true
 
       - label: Private Network Full Sync
-        timeout: 20
+        timeout: 30
         command: |
           cd run/private/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
