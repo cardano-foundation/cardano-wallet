@@ -60,15 +60,47 @@ EOF
 }
 
 
-byrons="linux.fixture.icarus.mnemonics \
-    linux.fixture.random.mnemonics \
-    macos.fixture.icarus.mnemonics \
+byrons="linux.fixture.random.mnemonics \
     macos.fixture.random.mnemonics \
-    windows.fixture.icarus.mnemonics \
     windows.fixture.random.mnemonics"
 
 for name in $byrons; do
     load_byron "$name"
+done
+
+load_icarus() {
+    local name=$1
+    mnemonics=$(jq -r ".$name" fixture_wallets.json)
+
+    json_data=$(
+        cat <<EOF
+{
+  "name": "$name",
+  "mnemonic_sentence": $mnemonics,
+  "account_index": "2147483648",
+  "passphrase": "Secure Passphrase",
+  "address_pool_gap": 20,
+  "one_change_address_mode": false,
+  "restoration_mode": "from_seed",
+  "style": "icarus"
+
+}
+EOF
+    )
+
+    curl \
+        -X POST http://localhost:8090/v2/byron-wallets \
+        -H "Content-Type: application/json" \
+        -d "$json_data"
+}
+
+
+icaruses="linux.fixture.icarus.mnemonics \
+    macos.fixture.icarus.mnemonics \
+    windows.fixture.icarus.mnemonics"
+
+for name in $icaruses; do
+    load_icarus "$name"
 done
 
 # load_shared() {
