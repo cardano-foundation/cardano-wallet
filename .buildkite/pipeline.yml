@@ -674,7 +674,6 @@ steps:
         agents:
           system: x86_64-linux
 
-
   - group: Docker Checks
     depends_on:
       - docker-artifacts
@@ -700,12 +699,12 @@ steps:
           cd run/mainnet/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
           rm -rf databases
-          ./run.sh node-db-with-mithril
           ./run.sh sync
         agents:
           system: x86_64-linux
         env:
-          SUCCESS_STATUS: syncing
+          SUCCESS_STATUS: ready
+          USE_MITHRIL: true
           USE_LOCAL_IMAGE: true
 
       - label: Private Network Full Sync

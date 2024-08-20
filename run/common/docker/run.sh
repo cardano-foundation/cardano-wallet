@@ -83,7 +83,7 @@ export NODE_CONFIGS
 
 startup() {
     # Pull the latest images
-    if [ -z "${USE_LOCAL_IMAGE}" ]; then
+    if [ -z "${USE_LOCAL_IMAGE-}" ]; then
         docker compose pull -q
     fi
     # Start the service in detached mode
@@ -112,6 +112,9 @@ node-db-with-mithril() {
 # Case statement to handle different command-line arguments
 case "$1" in
     sync)
+        if [[ -n "${USE_MITHRIL-}" ]]; then
+            node-db-with-mithril
+        fi
         echo "Wallet service port: $WALLET_PORT"
         echo "Wallet service tag: $WALLET_TAG"
         echo "Syncing the service..."
