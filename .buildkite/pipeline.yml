@@ -211,7 +211,7 @@ steps:
       agents:
         system: x86_64-linux
       env:
-        SUCCESS_STATUS: syncing
+        SUCCESS_STATUS: ready
         NODE_LOGS_FILE: ./logs/node.log
         WALLET_LOGS_FILE: ./logs/wallet.log
         CLEANUP_DB: true
