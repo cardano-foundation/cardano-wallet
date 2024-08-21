@@ -71,6 +71,7 @@ library
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
+    Cardano.Wallet.Deposit.IO.DB.Store.UTxO.UTxOHistory
     Cardano.Wallet.Deposit.IO.Network.Mock
     Cardano.Wallet.Deposit.IO.Network.Type
     Cardano.Wallet.Deposit.Pure
