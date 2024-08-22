@@ -14,7 +14,8 @@ tag_cabal_ver() {
   tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
 }
 
-git fetch --tags --force
+git tag -l | xargs git tag -d
+git fetch --tags
 
 BASE_COMMIT=$(git rev-parse HEAD)
 
