@@ -41,9 +41,11 @@ steps:
       - label: Push nightly release tag
         key: push-nightly-tag
         commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-nightly-tag.sh
+          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
         agents:
           system: x86_64-linux
+        env:
+          RELEASE: false
 
       - label: Push nightly release
         depends_on: push-nightly-tag
@@ -77,3 +79,13 @@ steps:
           RELEASE: true
         agents:
           system: x86_64-linux
+
+      - label: Push release tag
+        key: push-release-tag
+        depends_on: create-release
+        commands:
+          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
+        agents:
+          system: x86_64-linux
+        env:
+          RELEASE: true

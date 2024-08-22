@@ -8,7 +8,7 @@ unset GITHUB_TOKEN
 unset GH_TOKEN
 echo "$PUSH_ARTIFACTS_TOKEN" | gh auth login --with-token
 
-gh release delete nightly --yes || true
+gh release delete "$TAG" --yes || true
 gh release create \
     -d \
     -F "$RELEASE_SCRIPTS_DIR/release-template.md" \
