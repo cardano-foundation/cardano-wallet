@@ -10,7 +10,7 @@ License: Apache-2.0
 -}
 module Cardano.Wallet.Read.Value
     ( -- * Coin
-      Coin (unCoin)
+      Coin (CoinC, unCoin)
 
     -- * MultiAsset
     , MultiAsset
@@ -41,7 +41,7 @@ import Cardano.Ledger.Api
     ( StandardCrypto
     )
 import Cardano.Ledger.Coin
-    ( Coin (unCoin)
+    ( Coin
     )
 import Cardano.Ledger.Val
     ( pointwise
@@ -49,7 +49,15 @@ import Cardano.Ledger.Val
     )
 
 import qualified Cardano.Ledger.BaseTypes as SH
+import qualified Cardano.Ledger.Coin as L
 import qualified Cardano.Ledger.Mary.Value as MA
+
+{-----------------------------------------------------------------------------
+    Coin
+------------------------------------------------------------------------------}
+{-# COMPLETE CoinC #-}
+pattern CoinC :: Integer -> Coin
+pattern CoinC{unCoin} = L.Coin unCoin
 
 {-----------------------------------------------------------------------------
     MultiAssets
