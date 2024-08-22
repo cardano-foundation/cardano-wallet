@@ -37,13 +37,20 @@ steps:
 
   - label: Push nightly release tag
     depends_on: main-pipeline-build
+    key: push-nightly-tag
     commands:
       - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-nightly-tag.sh
     agents:
       system: x86_64-linux
+
+  - label: Push nightly release
+    depends_on: push-nightly-tag
+    commands:
+      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-nightly-release.sh
+    agents:
+      system: x86_64-linux
     env:
-      RELEASE: false
-      RELEASE_SCRIPTS_DIR: $RELEASE_SCRIPTS_DIR
+      GITHUB_TOKEN: $$PUSH_ARTIFACTS_TOKEN
 
   - group: Release
     if: build.branch =~ /^release-candidate/
