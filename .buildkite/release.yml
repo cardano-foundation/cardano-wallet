@@ -35,6 +35,16 @@ steps:
     agents:
       system: x86_64-linux
 
+  - label: Push nightly release tag
+    depends_on: main-pipeline-build
+    commands:
+      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-nightly-tag.sh
+    agents:
+      system: x86_64-linux
+    env:
+      RELEASE: false
+      RELEASE_SCRIPTS_DIR: $RELEASE_SCRIPTS_DIR
+
   - group: Release
     if: build.branch =~ /^release-candidate/
     steps:
