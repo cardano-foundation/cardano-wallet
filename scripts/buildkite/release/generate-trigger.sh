@@ -7,6 +7,7 @@ VERSION=$(buildkite-agent meta-data get "release-version")
 BRANCH=$(buildkite-agent meta-data get "release-candidate-branch")
 CABAL=$(buildkite-agent meta-data get "release-cabal-version")
 TEST_RC=$(buildkite-agent meta-data get "test-rc")
+BASE_BUILD=$(buildkite-agent meta-data get "base-build")
 
 cat << YAML
 steps:
@@ -26,5 +27,6 @@ steps:
             release-candidate-commit: "$COMMIT"
             release-candidate-branch: "$BRANCH"
             release-cabal-version: "$CABAL"
+            triggered-by: "$BASE_BUILD"
 
 YAML
