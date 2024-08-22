@@ -45,8 +45,18 @@ steps:
 
   - label: Push nightly release
     depends_on: push-nightly-tag
+    key: push-nightly-release
     commands:
       - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-nightly-release.sh
+    agents:
+      system: x86_64-linux
+    env:
+      GITHUB_TOKEN: $$PUSH_ARTIFACTS_TOKEN
+
+  - label: Push nightly release artifacts
+    depends_on: push-nightly-release
+    commands:
+      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-nightly-artifacts.sh
     agents:
       system: x86_64-linux
     env:
