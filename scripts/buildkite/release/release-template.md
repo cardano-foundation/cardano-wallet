@@ -1,12 +1,15 @@
 ## Node Compatibility
 
-Compatible with [`xxx`](https://github.com/input-output-hk/cardano-node/releases/tag/xxx).
+Compatible with [`cardano-node@$NODE_TAG`](https://github.com/input-output-hk/cardano-node/releases/tag/$NODE_TAG).
 
 ## Docker Image
 
-[Image](https://hub.docker.com/layers/cardanofoundation/cardano-wallet/2024.8.11/images/xxx)
+FIX THIS LINK BY INSPECTING DOCKERHUB !
+[Image](https://hub.docker.com/layers/cardanofoundation/cardano-wallet/$CABAL-VERSION/images/$DOCKER_SHA)
 
 ## Changes
+
+${CHANGES}
 
 ### Fixed
 
@@ -18,7 +21,8 @@ Compatible with [`xxx`](https://github.com/input-output-hk/cardano-node/releases
 
 ## API changes
 
-[bump.hs](https://bump.sh/hal-cardano-foundation/doc/cardano-wallet-backend/changes/xxx)
+FIX THIS LINK BY INSPECTING BUMP SH !
+[bump.hs](https://bump.sh/hal-cardano-foundation/doc/cardano-wallet-backend/changes/$BUMP_CHANGES_ID)
 
 ## Known Issues
 

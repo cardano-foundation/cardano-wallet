@@ -36,6 +36,6 @@ fi
 
 gh release create \
     -d \
-    -F "$RELEASE_SCRIPTS_DIR/release-template.md" \
+    -F "$RELEASE_SCRIPTS_DIR/release-template-final.md" \
     -t "$title" \
     "$TAG"
