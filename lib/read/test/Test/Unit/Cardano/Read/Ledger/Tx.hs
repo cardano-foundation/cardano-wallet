@@ -12,6 +12,7 @@ module Test.Unit.Cardano.Read.Ledger.Tx
     , shelleyTx
     , allegraTx
     , maryTx
+    , maryTxLongOutput
     , alonzoTx
     , babbageTx
     , conwayTx
@@ -141,6 +142,42 @@ maryTx = unsafeParseEraTxFromHex
     \81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c13\
     \f79d4c93f29871fc51b78aeba80e58200000000000000000000000\
     \00000000000000000000000000000000000000000044a1024100f6"
+
+{- Interesting example of a transaction on Mainnet in the Mary era.
+
+The address of the first output of this transaction
+has more bytes than are parsed by the ledger
+— the ledger silently discards extra bytes at the end of the address.
+In other words, serializing the address after parsing
+will give a different result than the bytes recorded here.
+
+See also
+https://github.com/IntersectMBO/cardano-ledger/commit/ca351b80a7977a45cf4bcb9028b0a87436d2f448
+-}
+maryTxLongOutput :: Tx Mary
+maryTxLongOutput = unsafeParseEraTxFromHex
+    "83a40083825820bf4f8f6287993e17f785c949ef287416ba784198\
+    \bb0ee12b2c7720cbffecd26f0082582052cf971bee4ba1b4e3b32b\
+    \762e0bc3f7af83700bc8897eddbd77bd425dd28e8300825820bf4f\
+    \8f6287993e17f785c949ef287416ba784198bb0ee12b2c7720cbff\
+    \ecd26f01018282584e015bad085057ac10ecc7060f7ac41edd6f63\
+    \068d8963ef7d86ca58669e5ecf2d283418a60be5a848a2380eb721\
+    \000da1e0bbf39733134beca4cb57afb0b35fc89c63061c9914e055\
+    \001a518c75161a035377d082583901f4e9e89cc628b9204fd6e2f4\
+    \ae3e875aa0591fc2eb45b721520d2d22f4e9e89cc628b9204fd6e2\
+    \f4ae3e875aa0591fc2eb45b721520d2d221a2c651d70021a000315\
+    \70031a05f5e100a10083825820ec791e29bdb3157589872d3678db\
+    \93f661d72ac18204759fa5e8d630eee1e66a58408944366b1015ee\
+    \38809356ec48a59277701d40772a232c7cbb1e9510f2c632537d16\
+    \318ba30a06953401dc2bfd693a34dc73d482050e6ccdea5811d0e1\
+    \e32507825820ec791e29bdb3157589872d3678db93f661d72ac182\
+    \04759fa5e8d630eee1e66a58408944366b1015ee38809356ec48a5\
+    \9277701d40772a232c7cbb1e9510f2c632537d16318ba30a069534\
+    \01dc2bfd693a34dc73d482050e6ccdea5811d0e1e32507825820ec\
+    \791e29bdb3157589872d3678db93f661d72ac18204759fa5e8d630\
+    \eee1e66a58408944366b1015ee38809356ec48a59277701d40772a\
+    \232c7cbb1e9510f2c632537d16318ba30a06953401dc2bfd693a34\
+    \dc73d482050e6ccdea5811d0e1e32507f6"
 
 alonzoTx :: Tx Alonzo
 alonzoTx = unsafeParseEraTxFromHex

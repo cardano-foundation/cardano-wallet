@@ -50,6 +50,8 @@ spec =
             prop_matches_TxId Txs.allegraTx allegraTxId
         it "mary tx" $
             prop_matches_TxId Txs.maryTx maryTxId
+        it "mary tx, long output" $
+            prop_matches_TxId Txs.maryTxLongOutput maryTxLongOutputId
         it "alonzo tx" $
             prop_matches_TxId Txs.alonzoTx alonzoTxId
         it "babbage tx" $
@@ -75,6 +77,10 @@ allegraTxId = unsafeTxIdFromHex
 maryTxId :: TxId
 maryTxId = unsafeTxIdFromHex
     "ca011f22d07b97ee17f6f2e2ef568b9521791608169425e92993c8c6e5541d79"
+
+maryTxLongOutputId :: TxId
+maryTxLongOutputId = unsafeTxIdFromHex
+    "369826b2f60b443d27966d222fa5bedc6b900326b77a09f15473d77f5ef2871c"
 
 alonzoTxId :: TxId
 alonzoTxId = unsafeTxIdFromHex
