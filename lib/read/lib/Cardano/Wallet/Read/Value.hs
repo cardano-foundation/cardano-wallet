@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
 {- |
@@ -10,7 +12,7 @@ License: Apache-2.0
 -}
 module Cardano.Wallet.Read.Value
     ( -- * Coin
-      Coin (unCoin)
+      Coin (CoinC, unCoin)
 
     -- * MultiAsset
     , MultiAsset
@@ -29,7 +31,7 @@ module Cardano.Wallet.Read.Value
     , lessOrEqual
 
     -- * Internal
-    , fromMaryValue
+    , fromEraValue
     , toMaryValue
     ) where
 
@@ -41,15 +43,28 @@ import Cardano.Ledger.Api
     ( StandardCrypto
     )
 import Cardano.Ledger.Coin
-    ( Coin (unCoin)
+    ( Coin
     )
 import Cardano.Ledger.Val
     ( pointwise
     , (<->)
     )
+import Cardano.Read.Ledger.Eras
+    ( Era (..)
+    , IsEra (..)
+    )
 
 import qualified Cardano.Ledger.BaseTypes as SH
+import qualified Cardano.Ledger.Coin as L
 import qualified Cardano.Ledger.Mary.Value as MA
+import qualified Cardano.Read.Ledger.Value as L
+
+{-----------------------------------------------------------------------------
+    Coin
+------------------------------------------------------------------------------}
+{-# COMPLETE CoinC #-}
+pattern CoinC :: Integer -> Coin
+pattern CoinC{unCoin} = L.Coin unCoin
 
 {-----------------------------------------------------------------------------
     MultiAssets
@@ -76,14 +91,6 @@ type MultiAsset = MA.MultiAsset StandardCrypto
 ------------------------------------------------------------------------------}
 -- | Monetary values, representing both ADA and native assets/tokens.
 newtype Value = Value (MA.MaryValue StandardCrypto)
-
--- | Internal: Convert from ledger 'MaryValue'.
-fromMaryValue :: MA.MaryValue StandardCrypto -> Value
-fromMaryValue = Value
-
--- | Internal: Convert to ledger 'MaryValue'.
-toMaryValue :: Value -> MA.MaryValue StandardCrypto
-toMaryValue (Value v) = v
 
 instance Eq Value where
     (Value x) == (Value y) = x == y
@@ -137,3 +144,29 @@ subtract (Value x) (Value y) = Value (x <-> y)
 lessOrEqual :: Value -> Value -> Bool
 lessOrEqual (Value value1) (Value value2) =
     pointwise (<=) value1 value2
+
+{-----------------------------------------------------------------------------
+    Conversions from Eras
+------------------------------------------------------------------------------}
+-- | Internal: Convert from ledger 'MaryValue'.
+fromMaryValue :: MA.MaryValue StandardCrypto -> Value
+fromMaryValue = Value
+
+-- | Internal: Convert to ledger 'MaryValue'.
+toMaryValue :: Value -> MA.MaryValue StandardCrypto
+toMaryValue (Value v) = v
+
+-- | Internal: Convert from era-indexed 'L.Value'.
+fromEraValue :: forall era. IsEra era => L.Value era -> Value
+fromEraValue = fromMaryValue . case theEra :: Era era of
+    Byron -> onValue L.maryValueFromByronValue
+    Shelley -> onValue L.maryValueFromShelleyValue
+    Allegra -> onValue L.maryValueFromShelleyValue
+    Mary -> onValue id
+    Alonzo -> onValue id
+    Babbage -> onValue id
+    Conway -> onValue id
+
+-- Helper function for type inference.
+onValue :: (L.ValueType era -> t) -> L.Value era -> t
+onValue f (L.Value x) = f x
