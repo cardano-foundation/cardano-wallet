@@ -24,6 +24,16 @@ steps:
     commands:
       - ./scripts/buildkite/release/generate-trigger.sh | buildkite-agent pipeline upload
 
+  - label: Collect changes
+    key: collect-changes
+    depends_on: add-release-commits
+    commands:
+      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/make_changelog.sh
+    agents:
+      system: x86_64-linux
+    artifacts:
+      - artifacts/changes.md
+
   - group : Nightly
     key: nightly
     depends_on: main-pipeline-build
