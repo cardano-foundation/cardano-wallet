@@ -275,6 +275,7 @@ executable benchmark-history
     , cardano-wallet-buildkite
     , cassava
     , containers
+    , contra-tracer
     , directory
     , filepath
     , exceptions

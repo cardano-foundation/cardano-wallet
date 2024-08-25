@@ -8,12 +8,15 @@
 import Prelude
 
 import Buildkite.API
-    ( Artifact (filename, job_id)
+    ( Artifact (job_id, path)
     , Build (branch, jobs, number)
     , GetArtifact
     , Job (finished_at)
+    , LimitsLock
     , Time (Time)
     , WithAuthPipeline
+    , newLimitsLock
+    , withLimitsLock
     )
 import Buildkite.Client
     ( BuildAPI
@@ -40,6 +43,9 @@ import Cardano.Wallet.Benchmarks.History
 import Control.Monad
     ( when
     )
+import Control.Tracer
+    ( stdoutTracer
+    )
 import Data.Csv
     ( decodeByName
     , encodeByName
@@ -49,6 +55,9 @@ import Data.Data
     )
 import Data.Foldable
     ( Foldable (..)
+    )
+import Data.Functor.Contravariant
+    ( (>$<)
     )
 import Data.Semigroup
     ( First (..)
@@ -152,18 +161,21 @@ buildkiteDomain = "api.buildkite.com"
 buildkitePort :: Int
 buildkitePort = 443
 
-withAuthWallet :: String -> WithAuthPipeline a -> a
-withAuthWallet apiToken f =
-    f (Just $ T.pack apiToken) organizationSlug pipelineSlug
+withAuthWallet :: LimitsLock -> String -> WithAuthPipeline a -> a
+withAuthWallet l apiToken f =
+    f l (Just $ T.pack apiToken) organizationSlug pipelineSlug
 
 fetchArtifactContent
     :: WithAuthPipeline (Int -> Text -> Text -> ClientM BL8.ByteString)
-fetchArtifactContent = client (Proxy :: Proxy (GetArtifact CSV BL8.ByteString))
+fetchArtifactContent l ma o r a b c =
+    withLimitsLock l
+        $ client (Proxy :: Proxy (GetArtifact CSV BL8.ByteString)) ma o r a b c
 
-queryBuildkite ::
-    (forall a . HandleClientError a -> ClientM a -> IO (Maybe a))
-    -> (forall a . WithAuthPipeline a -> a)
-    -> Day -> IO History
+queryBuildkite
+    :: (forall a. HandleClientError a -> ClientM a -> IO (Maybe a))
+    -> (forall a. WithAuthPipeline a -> a)
+    -> Day
+    -> IO History
 queryBuildkite q w d0 = do
     let skip410Q = Query (q skip410) w
         bailoutQ = Query (q bailout) w
@@ -175,9 +187,15 @@ queryBuildkite q w d0 = do
                 Left e -> error e
             )
         $ flip S.for historyPoints
-        $ flip S.for (\(a, j) -> getArtifactsContent
-            skip410Q
-            fetchArtifactContent j a)
+        $ flip
+            S.for
+            ( \(a, j) ->
+                getArtifactsContent
+                    skip410Q
+                    fetchArtifactContent
+                    j
+                    a
+            )
         $ S.chain
             ( \(_, b) ->
                 putStrLn
@@ -186,8 +204,7 @@ queryBuildkite q w d0 = do
                         <> ", branch: "
                         <> T.unpack (branch b)
             )
-
-        $ S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` filename a)
+        $ S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` path a)
         $ S.map (\(b, a) -> (a, b))
         $ flip S.for (getArtifacts bailoutQ)
         $ getReleaseCandidateBuilds bailoutQ d0
@@ -245,7 +262,8 @@ main = do
     let env = buildkiteEnv manager
         runQuery :: HandleClientError a -> ClientM a -> IO (Maybe a)
         runQuery f action = f $ runClientM action env
-    result <- queryBuildkite runQuery (withAuthWallet bkToken) sinceDay
+    limitsLock <- newLimitsLock (show >$< stdoutTracer) 10
+    result <- queryBuildkite runQuery (withAuthWallet limitsLock bkToken) sinceDay
     let eHarmonized = harmonizeHistory result
     case eHarmonized of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
