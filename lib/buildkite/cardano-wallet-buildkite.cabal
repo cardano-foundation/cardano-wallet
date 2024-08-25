@@ -39,6 +39,7 @@ library
     , base
     , bytestring
     , containers
+    , contra-tracer
     , exceptions
     , http-client
     , http-client-tls
@@ -48,6 +49,7 @@ library
     , servant-client
     , streaming
     , text
+    , stm
     , time
 
   if flag(release)
@@ -57,3 +59,4 @@ library
   exposed-modules:
     Buildkite.API
     Buildkite.Client
+    Buildkite.LimitsLock
