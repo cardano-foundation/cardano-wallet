@@ -31,13 +31,13 @@ common opts-lib
     -fwarn-unused-do-bind -fwarn-incomplete-uni-patterns
     -freverse-errors
 
-
 library
-  import:           language, opts-lib
+  import:          language, opts-lib
   build-depends:
     , aeson
     , base
     , bytestring
+    , cassava
     , containers
     , contra-tracer
     , exceptions
@@ -48,17 +48,18 @@ library
     , pretty-simple
     , servant
     , servant-client
+    , stm
     , streaming
     , text
-    , stm
     , time
 
   if flag(release)
     ghc-options: -O2 -Werror
-  hs-source-dirs:   src
 
+  hs-source-dirs:  src
   exposed-modules:
     Buildkite.API
+    Buildkite.Artifacts
     Buildkite.Artifacts.CSV
     Buildkite.Client
     Buildkite.Connection
