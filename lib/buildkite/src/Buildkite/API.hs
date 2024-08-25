@@ -14,6 +14,8 @@ module Buildkite.API
     , Build (..)
     , Job (..)
     , Time (..)
+    , renderDate
+    , parseDate
     , fetchBuilds
     , fetchBuildsOfBranch
     , fetchArtifacts
@@ -42,9 +44,7 @@ import Control.Monad.IO.Class
     )
 import Data.Aeson
     ( FromJSON (..)
-    )
-import Data.Aeson.Types
-    ( Parser
+    , ToJSON (..)
     )
 import Data.Data
     ( Proxy (..)
@@ -52,9 +52,11 @@ import Data.Data
 import Data.Text
     ( Text
     )
+import qualified Data.Text as T
 import Data.Time
     ( UTCTime
     , defaultTimeLocale
+    , formatTime
     , parseTimeM
     )
 import GHC.Generics
@@ -81,26 +83,31 @@ newtype Time = Time
     }
     deriving (Show)
 
-parseDate :: String -> Parser UTCTime
-parseDate dateString =
-    maybe mzero pure
-        $ parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%S%QZ" dateString
+parseDate :: MonadFail m => [Char] -> m UTCTime
+parseDate = parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%S%QZ"
+
+renderDate :: UTCTime -> Text
+renderDate = T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S%QZ"
 
 instance FromJSON Time where
     parseJSON = parseJSON >=> parseDate >=> pure . Time
+instance ToJSON Time where
+    toJSON = toJSON . renderDate . time
 
 data Job = Job
     { id :: Text
     , name :: Maybe Text
     , step_key :: Maybe Text
     , finished_at :: Maybe Time
+    , created_at :: Maybe Time
     }
     deriving (Show, Generic)
 
 instance FromJSON Job
+instance ToJSON Job
 
 jobId :: Job -> Text
-jobId (Job i _ _ _) = i
+jobId (Job i _ _ _ _) = i
 
 data Build l = Build
     { number :: Int
@@ -119,19 +126,25 @@ data Artifact = Artifact
     , id :: Text
     , job_id :: Text
     , state :: Text
+    , file_size :: Int
+    , path :: Text
     }
     deriving (Show, Generic)
 
 artifactId :: Artifact -> Text
-artifactId (Artifact _ i _ _) = i
+artifactId (Artifact _ i _ _ _ _) = i
 
 newtype ArtifactURL = ArtifactURL
     { url :: Text
     }
     deriving (Show, Generic)
 
-instance FromJSON (Build [])
+instance FromJSON (l Job) => FromJSON (Build l)
+instance ToJSON (l Job) => ToJSON (Build l)
+
 instance FromJSON Artifact
+instance ToJSON Artifact
+
 instance FromJSON ArtifactURL
 
 type PreamblePipeline a =
