@@ -1,5 +1,5 @@
 {
-    "transaction": "84A600800D80018002000E8005A1581DF0{{scriptHash}}00A10381590853{{script}}F5F6",
+    "transaction": "84A400800180020005A1581DF0{{scriptHash}}00A10381590853{{script}}F5F6",
     "inputs": [],
     "redeemers": [
         {
