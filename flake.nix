@@ -237,6 +237,7 @@
                 # Local test cluster and mock metadata server
                 inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
                 inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
+                inherit (project.hsPkgs.cardano-wallet-buildkite.components.exes) artifacts-csv;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
                 inherit (project.hsPkgs.cardano-wallet-integration.components.exes) integration-exe;
                 inherit (project.hsPkgs.local-cluster.components.exes) test-local-cluster-exe;
