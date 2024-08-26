@@ -10,13 +10,11 @@ import Prelude
 import Buildkite.API
     ( Artifact (job_id, path)
     , Build (branch, jobs, number)
-    , GetArtifact
     , Job (finished_at)
-    , LimitsLock
     , Time (Time)
-    , WithAuthPipeline
-    , newLimitsLock
-    , withLimitsLock
+    )
+import Buildkite.Artifacts.CSV
+    ( fetchCSVArtifactContent
     )
 import Buildkite.Client
     ( BuildAPI
@@ -25,6 +23,14 @@ import Buildkite.Client
     , getArtifacts
     , getArtifactsContent
     , getBuildsOfBranch
+    )
+import Buildkite.Connection
+    ( Connector
+    , OrganizationName (..)
+    , PipelineName (..)
+    , bailout
+    , newConnector
+    , skip410
     )
 import Cardano.Wallet.Benchmarks.Charting
     ( renderHarmonizedHistoryChartSVG
@@ -40,18 +46,12 @@ import Cardano.Wallet.Benchmarks.History
     , pastDays
     , renderHarmonizedHistoryCsv
     )
-import Control.Monad
-    ( when
-    )
 import Control.Tracer
     ( stdoutTracer
     )
 import Data.Csv
     ( decodeByName
     , encodeByName
-    )
-import Data.Data
-    ( Proxy (..)
     )
 import Data.Foldable
     ( Foldable (..)
@@ -63,27 +63,11 @@ import Data.Semigroup
     ( First (..)
     )
 import Data.Text
-    ( Text
-    , isSuffixOf
+    ( isSuffixOf
     )
 import Data.Time
     ( Day
     , UTCTime (utctDay)
-    )
-import Network.HTTP.Client
-    ( Manager
-    , ManagerSettings (managerModifyRequest)
-    , Request (shouldStripHeaderOnRedirect)
-    , newManager
-    )
-import Network.HTTP.Client.TLS
-    ( tlsManagerSettings
-    )
-import Network.HTTP.Media
-    ( (//)
-    )
-import Network.HTTP.Types.Status
-    ( status410
     )
 import Options.Applicative
     ( Parser
@@ -100,31 +84,9 @@ import Options.Applicative
     , progDesc
     , strOption
     )
-import Servant.API
-    ( Accept (..)
-    , MimeUnrender
-    )
-import Servant.API.ContentTypes
-    ( MimeRender (..)
-    , MimeUnrender (..)
-    )
-import Servant.Client
-    ( BaseUrl (..)
-    , ClientEnv
-    , ClientError (FailureResponse)
-    , ClientM
-    , ResponseF (..)
-    , Scheme (..)
-    , client
-    , mkClientEnv
-    , runClientM
-    )
 import Streaming
     ( Of (..)
     , Stream
-    )
-import System.Environment
-    ( getEnv
     )
 import System.FilePath
     ( (<.>)
@@ -138,47 +100,20 @@ import qualified Data.Text as T
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
-data CSV
+cardanoFoundationName :: OrganizationName
+cardanoFoundationName = OrganizationName "cardano-foundation"
 
-instance Accept CSV where
-    contentType _ = "text" // "csv"
-
-instance Show a => MimeRender CSV a where
-    mimeRender _ val = BL8.pack $ show val
-
-instance MimeUnrender CSV BL8.ByteString where
-    mimeUnrender _ = Right
-
-organizationSlug :: Text
-organizationSlug = "cardano-foundation"
-
-pipelineSlug :: Text
-pipelineSlug = "cardano-wallet"
-
-buildkiteDomain :: String
-buildkiteDomain = "api.buildkite.com"
-
-buildkitePort :: Int
-buildkitePort = 443
-
-withAuthWallet :: LimitsLock -> String -> WithAuthPipeline a -> a
-withAuthWallet l apiToken f =
-    f l (Just $ T.pack apiToken) organizationSlug pipelineSlug
-
-fetchArtifactContent
-    :: WithAuthPipeline (Int -> Text -> Text -> ClientM BL8.ByteString)
-fetchArtifactContent l ma o r a b c =
-    withLimitsLock l
-        $ client (Proxy :: Proxy (GetArtifact CSV BL8.ByteString)) ma o r a b c
+mainPipeline :: PipelineName
+mainPipeline = PipelineName "cardano-wallet"
 
 queryBuildkite
-    :: (forall a. HandleClientError a -> ClientM a -> IO (Maybe a))
-    -> (forall a. WithAuthPipeline a -> a)
+    :: Connector
     -> Day
     -> IO History
-queryBuildkite q w d0 = do
-    let skip410Q = Query (q skip410) w
-        bailoutQ = Query (q bailout) w
+queryBuildkite q d0 = do
+    let q' = q cardanoFoundationName mainPipeline
+        skip410Q = q' skip410
+        bailoutQ = q' bailout
     S.foldMap_ Prelude.id
         $ flip
             S.for
@@ -190,11 +125,7 @@ queryBuildkite q w d0 = do
         $ flip
             S.for
             ( \(a, j) ->
-                getArtifactsContent
-                    skip410Q
-                    fetchArtifactContent
-                    j
-                    a
+                getArtifactsContent skip410Q fetchCSVArtifactContent j a
             )
         $ S.chain
             ( \(_, b) ->
@@ -218,11 +149,6 @@ getReleaseCandidateBuilds q d = S.effect $ do
     pure
         $ flip S.for (getBuildsOfBranch q . mkReleaseCandidateName)
         $ S.each ds
-
-getToken :: IO String
-getToken = do
-    token <- getEnv "BUILDKITE_API_TOKEN"
-    pure $ "Bearer " ++ token
 
 data Options = Options
     { _optSinceDate :: Day
@@ -252,18 +178,11 @@ optionsParser =
             <> header "benchmark-history - a tool for benchmark data analysis"
         )
 
-type HandleClientError a = IO (Either ClientError a) -> IO (Maybe a)
-
 main :: IO ()
 main = do
-    bkToken <- getToken
     Options sinceDay outputDir <- execParser optionsParser
-    manager <- newManager $ specialSettings False
-    let env = buildkiteEnv manager
-        runQuery :: HandleClientError a -> ClientM a -> IO (Maybe a)
-        runQuery f action = f $ runClientM action env
-    limitsLock <- newLimitsLock (show >$< stdoutTracer) 10
-    result <- queryBuildkite runQuery (withAuthWallet limitsLock bkToken) sinceDay
+    connector <- newConnector "BUILDKITE_API_TOKEN" 10 $ show >$< stdoutTracer
+    result <- queryBuildkite connector sinceDay
     let eHarmonized = harmonizeHistory result
     case eHarmonized of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
@@ -272,44 +191,6 @@ main = do
             let csv = uncurry encodeByName $ renderHarmonizedHistoryCsv harmonized
             BL8.writeFile (outputDir </> "benchmark_history" <.> "csv") csv
             renderHarmonizedHistoryChartSVG outputDir harmonized
-
-bailout :: HandleClientError a
-bailout = handle (error . show)
-
-handle :: (ClientError -> IO (Maybe a)) -> HandleClientError a
-handle g f = do
-    res <- f
-    case res of
-        Left e -> g e
-        Right a -> pure $ Just a
-
-skip410 :: HandleClientError a
-skip410 = handle $ \case
-    FailureResponse _ (Response s _ _ _)
-        | s == status410 -> pure Nothing
-    e -> error $ show e
-
-buildkiteEnv :: Manager -> ClientEnv
-buildkiteEnv manager =
-    mkClientEnv manager
-        $ BaseUrl Https buildkiteDomain buildkitePort ""
-
-specialSettings :: Bool -> ManagerSettings
-specialSettings logs =
-    tlsManagerSettings
-        { managerModifyRequest = \req -> do
-            let req' =
-                    req
-                        { shouldStripHeaderOnRedirect =
-                            \case
-                                "Authorization" -> True
-                                _ -> False
-                        }
-            when logs
-                $ putStrLn
-                $ "Querying: " ++ show req'
-            pure req'
-        }
 
 parseResults :: BL8.ByteString -> Either String ([(IndexedSemantic, Result)])
 parseResults = fmap (fmap f . zip [0 ..] . toList . snd) . decodeByName
