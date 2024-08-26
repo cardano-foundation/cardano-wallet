@@ -31,6 +31,43 @@ common opts-lib
     -fwarn-unused-do-bind -fwarn-incomplete-uni-patterns
     -freverse-errors
 
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+executable artifacts-csv
+  import:         language, opts-exe
+  hs-source-dirs: exe
+  main-is:        artifacts-csv.hs
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , base
+    , bytestring
+    , cardano-wallet-buildkite
+    , cassava
+    , containers
+    , contra-tracer
+    , directory
+    , filepath
+    , exceptions
+    , foldl
+    , http-client
+    , http-client-tls
+    , http-media
+    , http-types
+    , monoidal-containers
+    , optparse-applicative
+    , pretty-simple
+    , servant
+    , servant-client
+    , streaming
+    , text
+    , time
+    , vector
+
 library
   import:          language, opts-lib
   build-depends:
