@@ -44,6 +44,7 @@ library
     , http-client
     , http-client-tls
     , http-media
+    , http-types
     , pretty-simple
     , servant
     , servant-client
@@ -58,5 +59,7 @@ library
 
   exposed-modules:
     Buildkite.API
+    Buildkite.Artifacts.CSV
     Buildkite.Client
+    Buildkite.Connection
     Buildkite.LimitsLock

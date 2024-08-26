@@ -8,7 +8,6 @@ module Buildkite.Client
     , JobMap
     , BuildJobsMap
     , BuildAPI
-    , paging
     , getBuilds
     , getBuildsOfBranch
     , getArtifacts
@@ -62,11 +61,12 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Map as Map
 import qualified Streaming.Prelude as S
 
+-- | An opaque containg a handle to the Buildkite API
 data Query
     = Query
-        { query :: forall a. ClientM a -> IO (Maybe a)
-        , withAuth :: forall a. WithAuthPipeline a -> a
-        }
+    { _query :: forall a. ClientM a -> IO (Maybe a)
+    , _withAuth :: forall a. WithAuthPipeline a -> a
+    }
 
 type JobMap = Map Text Job
 
@@ -74,7 +74,9 @@ type BuildJobsMap = BKAPI.Build (Map Text)
 
 type BuildAPI = BKAPI.Build []
 
-paging :: Monad m => (Maybe Int -> m (Maybe [a]))
+paging
+    :: Monad m
+    => (Maybe Int -> m (Maybe [a]))
     -> Stream (Of a) m ()
 paging f = go 1
   where
