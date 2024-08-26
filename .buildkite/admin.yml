@@ -33,3 +33,16 @@ steps:
       NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
     agents:
       system: aarch64-darwin
+
+  - block: Update artifacts history
+    key: update-artifacts-csv-block
+    depends_on: []
+
+  - label: Update artifacts.csv
+    depends_on: update-artifacts-csv-block
+    command: |
+        ./scripts/buildkite/admin/update-artifacts-csv.sh
+    agents:
+      system: x86_64-linux
+    artifact_paths:
+      - artifacts-history/artifacts.csv
