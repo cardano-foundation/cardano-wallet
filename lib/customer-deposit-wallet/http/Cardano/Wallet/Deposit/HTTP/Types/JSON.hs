@@ -34,7 +34,7 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
-    , ChainPoint
+    , ChainPoint (..)
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -176,3 +176,9 @@ instance ToSchema (ApiT CustomerList) where
             $ NamedSchema
                 (Just "ApiT CustomerList")
                 customerListSchema
+
+instance ToJSON (ApiT ChainPoint) where
+    toJSON (ApiT Origin) = "origin"
+    toJSON (ApiT (At sl)) = object
+        [ "at_slot" .= toJSON sl
+        ]

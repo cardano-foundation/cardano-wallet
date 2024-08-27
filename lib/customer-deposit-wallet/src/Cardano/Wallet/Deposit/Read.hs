@@ -8,6 +8,7 @@
 module Cardano.Wallet.Deposit.Read
     ( Network (..)
     , Slot
+    , toSlot
     , Read.SlotNo
     , ChainPoint (..)
 
@@ -59,6 +60,7 @@ import Data.Maybe
     )
 import Data.Word
     ( Word8
+    , Word64
     )
 import Numeric.Natural
     ( Natural
@@ -79,6 +81,9 @@ data Network = Testnet | Mainnet
 
 -- Spec: type Slot = Natural
 type Slot = Read.SlotNo
+
+toSlot :: Word64 -> Slot
+toSlot = W.SlotNo
 
 data ChainPoint
     = Origin
