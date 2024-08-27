@@ -1,3 +1,5 @@
+{-# LANGUAGE BinaryLiterals #-}
+
 -- | Indirection module that re-exports types
 -- used for reading data from the blockchain,
 -- from all eras.
@@ -12,6 +14,8 @@ module Cardano.Wallet.Deposit.Read
     , Address
     , fromRawAddress
     , toRawAddress
+    , KeyHash
+    , mkEnterpriseAddress
     , mockAddress
 
     , Ix
@@ -50,6 +54,12 @@ import Prelude
 import Data.ByteString
     ( ByteString
     )
+import Data.Maybe
+    ( fromJust
+    )
+import Data.Word
+    ( Word8
+    )
 import Numeric.Natural
     ( Natural
     )
@@ -63,8 +73,10 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Short as SBS
 -- import qualified Ouroboros.Consensus.Cardano.Block as O
 
 {-----------------------------------------------------------------------------
@@ -90,17 +102,29 @@ type Addr = W.Address
 -- Byron addresses are represented by @Addr_bootstrap@.
 type Address = Addr
 
-fromRawAddress :: BS.ByteString -> Address
-fromRawAddress = W.Address
+fromRawAddress :: Read.CompactAddr -> Address
+fromRawAddress = W.Address . SBS.fromShort . Read.toShortByteString
 
-toRawAddress :: Address -> BS.ByteString
-toRawAddress (W.Address a) = a
+toRawAddress :: Address -> Read.CompactAddr
+toRawAddress (W.Address a) =
+    fromJust . Read.fromShortByteString $ SBS.toShort a
 
 mockAddress :: Show a => a -> Address
-mockAddress = W.Address . B8.pack . show
+mockAddress = mkEnterpriseAddress . B8.pack . show
+
+-- 28 Bytes.
+type KeyHash = ByteString
+
+mkEnterpriseAddress :: KeyHash -> Address
+mkEnterpriseAddress keyHash =
+    W.Address . BS.pack
+        $ [tagEnterprise] <> take 28 (BS.unpack keyHash <> repeat 0)
+
+tagEnterprise :: Word8
+tagEnterprise = 0b01100001
 
 dummyAddress :: Address
-dummyAddress = W.Address . BS.pack $ replicate 32 0
+dummyAddress = mockAddress (0 :: Int)
 
 type Ix = Natural
 

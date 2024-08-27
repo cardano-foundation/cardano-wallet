@@ -27,7 +27,7 @@ import Cardano.Wallet.Deposit.Pure
     , fromRawCustomer
     )
 import Cardano.Wallet.Deposit.Read
-    ( fromRawAddress
+    ( mkEnterpriseAddress
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -121,11 +121,8 @@ prop_jsonRoundtrip val =
 
 genAddress :: Gen Address
 genAddress = do
-    --enterprise address type with key hash credential is 01100000, network (mainnet) is 1
-    --meaning first byte is 01100001 ie. 96+1=97
-    let firstByte = 97
     keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
-    pure $ fromRawAddress $ BS.append (BS.singleton firstByte) keyhashCred
+    pure $ mkEnterpriseAddress keyhashCred
 
 genApiTAddress :: Gen (ApiT Address)
 genApiTAddress = ApiT <$> genAddress
