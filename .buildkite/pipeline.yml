@@ -464,6 +464,7 @@ steps:
         - trigger-benchmarks
       artifact_paths:
         - ./benchmark-history*.tgz
+        - ./benchmark-history.csv
       command: |
         ./scripts/buildkite/main/benchmark-history.sh
       agents:
