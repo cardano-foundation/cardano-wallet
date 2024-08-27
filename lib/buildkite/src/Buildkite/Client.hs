@@ -32,7 +32,8 @@ import Buildkite.API
     , overJobs
     )
 import Control.Monad.IO.Class
-    ( liftIO
+    ( MonadIO
+    , liftIO
     )
 import Data.Map
     ( Map
@@ -109,7 +110,8 @@ getArtifacts (Query q w _) build =
         pure (jobId jobV, jobV)
 
 getArtifactsContent
-    :: Query
+    :: MonadIO m
+    => Query
     -> WithAuthPipeline
         ( Int
           -> Text
@@ -118,19 +120,19 @@ getArtifactsContent
         )
     -> BuildJobsMap
     -> Artifact
-    -> Stream (Of (BuildJobsMap, Artifact, r)) IO ()
+    -> m (Maybe (BuildJobsMap, Artifact, r))
 getArtifactsContent (Query q _ w) getArtifact build artifact = do
     mBenchResults <- do
-        lift
+        liftIO
             $ q
             $ w
                 getArtifact
                 (number build)
                 (job_id artifact)
                 (BKAPI.artifactId artifact)
-    case mBenchResults of
-        Nothing -> pure ()
-        Just benchResults -> S.yield (build, artifact, benchResults)
+    pure $ case mBenchResults of
+        Nothing -> Nothing
+        Just benchResults -> Just (build, artifact, benchResults)
 
 downloadArtifact :: ArtifactURL -> Stream (Of BL.ByteString) IO ()
 downloadArtifact (ArtifactURL url') = do

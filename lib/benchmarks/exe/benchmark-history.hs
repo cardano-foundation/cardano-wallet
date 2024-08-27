@@ -46,6 +46,7 @@ import Cardano.Wallet.Benchmarks.History
     ( History
     , IndexedSemantic (IndexedSemantic)
     , harmonizeHistory
+    , parseHistory
     , pastDays
     , renderHarmonizedHistoryCsv
     )
@@ -94,7 +95,8 @@ import Options.Applicative
     , strOption
     )
 import Streaming
-    ( Of (..)
+    ( MonadIO (..)
+    , Of (..)
     , Stream
     )
 import System.FilePath
@@ -122,30 +124,64 @@ bind
     -> Stream (Of b) m r
 bind = flip S.for
 
-data Progress = ProgressBuild Int Text
+data Progress
+    = ProgressBuild Int Text
+    | FoundCheckpoint Artifact
+
+type Checkpoint = Maybe (BuildJobsMap, Artifact, BL8.ByteString)
+
+exitOnCheckpoint
+    :: Tracer IO Progress
+    -> ((BuildJobsMap, Artifact) -> IO Checkpoint)
+    -> Stream (Of (BuildJobsMap, Artifact)) IO ()
+    -> Stream (Of (BuildJobsMap, Artifact)) IO Checkpoint
+exitOnCheckpoint t f s = S.effect $ do
+    m <- S.next s
+    case m of
+        Left () -> pure $ pure Nothing
+        Right ((b, a), s') -> do
+            let run = do
+                    S.yield (b, a)
+                    exitOnCheckpoint t f s'
+            if path a == "benchmark-history.csv"
+                then do
+                    r <- f (b, a)
+                    pure $ case r of
+                        Nothing -> run
+                        Just x -> do
+                            liftIO $ traceWith t $ FoundCheckpoint a
+                            pure $ Just x
+                else pure run
 
 getHistory
     :: Tracer IO Progress
     -> Connector
     -> Day
-    -> IO History
-getHistory connectorTracer mkQuery d0 = do
+    -> IO (Of History Checkpoint)
+getHistory progressTracer mkQuery d0 = do
     let queryPipeline = mkQuery cardanoFoundationName mainPipeline
         skip410Q = queryPipeline skip410
         bailoutQ = queryPipeline bailout
-    S.foldMap_ Prelude.id
+        getAnyCSVArtifact
+            :: MonadIO m
+            => (BuildJobsMap, Artifact)
+            -> m (Maybe (BuildJobsMap, Artifact, BL8.ByteString))
+        getAnyCSVArtifact =
+            uncurry
+                $ getArtifactsContent skip410Q fetchCSVArtifactContent
+    S.foldMap Prelude.id
         $ getReleaseCandidateBuilds bailoutQ d0
         & bind (getArtifacts bailoutQ)
-        & S.map (\(b, a) -> (a, b))
-        & S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` path a)
+        & exitOnCheckpoint progressTracer getAnyCSVArtifact
+        & S.filter (\(_, a) -> "bench-results.csv" `isSuffixOf` path a)
         & S.chain
-            ( \(_, b) -> traceWith connectorTracer
-                $ ProgressBuild (number b) (branch b)
+            ( \(b, _) ->
+                liftIO
+                    $ traceWith progressTracer
+                    $ ProgressBuild (number b) (branch b)
             )
-        & bind
-            ( \(a, j) ->
-                getArtifactsContent skip410Q fetchCSVArtifactContent j a
-            )
+        & S.mapM getAnyCSVArtifact
+        & S.concat
         & bind historyPoints
         & bind
             ( \case
@@ -197,6 +233,8 @@ renderLogs :: Logs -> String
 renderLogs = \case
     ProgressLogs (ProgressBuild n b) ->
         "Processing build " <> show n <> " on branch " <> T.unpack b
+    ProgressLogs (FoundCheckpoint a) ->
+        "Found chain point: " <> T.unpack (path a)
     ConnectorLogs (RateLimitReached s) ->
         "Rate limit reached. Waiting for " <> show s <> " seconds."
 
@@ -208,13 +246,20 @@ main = do
     Options sinceDay outputDir <- execParser optionsParser
     connector <-
         newConnector "BUILDKITE_API_TOKEN" 10 $ ConnectorLogs >$< tracer
-    result <- getHistory (ProgressLogs >$< tracer) connector sinceDay
-    case harmonizeHistory result of
+    result :> mCheckpoint <-
+        getHistory (ProgressLogs >$< tracer) connector sinceDay
+    old <- case mCheckpoint of
+        Nothing -> pure mempty
+        Just (_, _, b) -> case parseHistory b of
+            Left e -> error e
+            Right h -> pure h
+    case harmonizeHistory $ result <> old of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
         Right harmonized -> do
-            putStrLn $ "Harmonized history: " <> show harmonized
-            let csv = uncurry encodeByName $ renderHarmonizedHistoryCsv harmonized
-            BL8.writeFile (outputDir </> "benchmark_history" <.> "csv") csv
+            let csv =
+                    uncurry encodeByName
+                        $ renderHarmonizedHistoryCsv harmonized
+            BL8.writeFile (outputDir </> "benchmark-history" <.> "csv") csv
             renderHarmonizedHistoryChartSVG outputDir harmonized
 
 parseResults :: BL8.ByteString -> Either String ([(IndexedSemantic, Result)])
@@ -223,8 +268,9 @@ parseResults = fmap (fmap f . zip [0 ..] . toList . snd) . decodeByName
     f (i, (Benchmark s r)) = (IndexedSemantic s i, r)
 
 historyPoints
-    :: (BuildJobsMap, Artifact, BL8.ByteString)
-    -> Stream (Of (Either String History)) IO ()
+    :: Monad m
+    => (BuildJobsMap, Artifact, BL8.ByteString)
+    -> Stream (Of (Either String History)) m ()
 historyPoints (b, a, r) =
     let
         rs = parseResults r
