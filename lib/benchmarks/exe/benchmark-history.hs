@@ -32,6 +32,9 @@ import Buildkite.Connection
     , newConnector
     , skip410
     )
+import Buildkite.LimitsLock
+    ( LimitsLockLog (..)
+    )
 import Cardano.Wallet.Benchmarks.Charting
     ( renderHarmonizedHistoryChartSVG
     )
@@ -47,7 +50,9 @@ import Cardano.Wallet.Benchmarks.History
     , renderHarmonizedHistoryCsv
     )
 import Control.Tracer
-    ( stdoutTracer
+    ( Tracer
+    , stdoutTracer
+    , traceWith
     )
 import Data.Csv
     ( decodeByName
@@ -56,6 +61,9 @@ import Data.Csv
 import Data.Foldable
     ( Foldable (..)
     )
+import Data.Function
+    ( (&)
+    )
 import Data.Functor.Contravariant
     ( (>$<)
     )
@@ -63,7 +71,8 @@ import Data.Semigroup
     ( First (..)
     )
 import Data.Text
-    ( isSuffixOf
+    ( Text
+    , isSuffixOf
     )
 import Data.Time
     ( Day
@@ -106,39 +115,43 @@ cardanoFoundationName = OrganizationName "cardano-foundation"
 mainPipeline :: PipelineName
 mainPipeline = PipelineName "cardano-wallet"
 
-queryBuildkite
-    :: Connector
+bind
+    :: Monad m
+    => (a -> Stream (Of b) m x)
+    -> Stream (Of a) m r
+    -> Stream (Of b) m r
+bind = flip S.for
+
+data Progress = ProgressBuild Int Text
+
+getHistory
+    :: Tracer IO Progress
+    -> Connector
     -> Day
     -> IO History
-queryBuildkite q d0 = do
-    let q' = q cardanoFoundationName mainPipeline
-        skip410Q = q' skip410
-        bailoutQ = q' bailout
+getHistory connectorTracer mkQuery d0 = do
+    let queryPipeline = mkQuery cardanoFoundationName mainPipeline
+        skip410Q = queryPipeline skip410
+        bailoutQ = queryPipeline bailout
     S.foldMap_ Prelude.id
-        $ flip
-            S.for
+        $ getReleaseCandidateBuilds bailoutQ d0
+        & bind (getArtifacts bailoutQ)
+        & S.map (\(b, a) -> (a, b))
+        & S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` path a)
+        & S.chain
+            ( \(_, b) -> traceWith connectorTracer
+                $ ProgressBuild (number b) (branch b)
+            )
+        & bind
+            ( \(a, j) ->
+                getArtifactsContent skip410Q fetchCSVArtifactContent j a
+            )
+        & bind historyPoints
+        & bind
             ( \case
                 Right h -> S.yield h
                 Left e -> error e
             )
-        $ flip S.for historyPoints
-        $ flip
-            S.for
-            ( \(a, j) ->
-                getArtifactsContent skip410Q fetchCSVArtifactContent j a
-            )
-        $ S.chain
-            ( \(_, b) ->
-                putStrLn
-                    $ "Build number: "
-                        <> show (number b)
-                        <> ", branch: "
-                        <> T.unpack (branch b)
-            )
-        $ S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` path a)
-        $ S.map (\(b, a) -> (a, b))
-        $ flip S.for (getArtifacts bailoutQ)
-        $ getReleaseCandidateBuilds bailoutQ d0
 
 mkReleaseCandidateName :: Day -> String
 mkReleaseCandidateName d = "release-candidate/v" ++ show d
@@ -178,13 +191,25 @@ optionsParser =
             <> header "benchmark-history - a tool for benchmark data analysis"
         )
 
+data Logs = ProgressLogs Progress | ConnectorLogs LimitsLockLog
+
+renderLogs :: Logs -> String
+renderLogs = \case
+    ProgressLogs (ProgressBuild n b) ->
+        "Processing build " <> show n <> " on branch " <> T.unpack b
+    ConnectorLogs (RateLimitReached s) ->
+        "Rate limit reached. Waiting for " <> show s <> " seconds."
+
+tracer :: Tracer IO Logs
+tracer = renderLogs >$< stdoutTracer
+
 main :: IO ()
 main = do
     Options sinceDay outputDir <- execParser optionsParser
-    connector <- newConnector "BUILDKITE_API_TOKEN" 10 $ show >$< stdoutTracer
-    result <- queryBuildkite connector sinceDay
-    let eHarmonized = harmonizeHistory result
-    case eHarmonized of
+    connector <-
+        newConnector "BUILDKITE_API_TOKEN" 10 $ ConnectorLogs >$< tracer
+    result <- getHistory (ProgressLogs >$< tracer) connector sinceDay
+    case harmonizeHistory result of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
         Right harmonized -> do
             putStrLn $ "Harmonized history: " <> show harmonized

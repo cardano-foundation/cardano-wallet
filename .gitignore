@@ -88,3 +88,6 @@ test/e2e/.direnv/flake-profile*
 node_modules
 package-lock.json
 package.json
+
+# buildkite artifacts testing
+artifacts
