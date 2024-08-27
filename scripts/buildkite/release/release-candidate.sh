@@ -14,7 +14,8 @@ tag_cabal_ver() {
   tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
 }
 
-git fetch --tags --force
+git tag -l | xargs git tag -d
+git fetch --tags
 
 BASE_COMMIT=$(git rev-parse HEAD)
 
@@ -27,6 +28,8 @@ NEW_GIT_TAG=v$today
 NEW_CABAL_VERSION=$(tag_cabal_ver "$NEW_GIT_TAG")
 
 OLD_GIT_TAG=$( git tag -l "v2*-*-*" | sort | tail -n1)
+
+LAST_RELEASE_DATE=$(tag_date "$OLD_GIT_TAG")
 
 OLD_CABAL_VERSION=$(tag_cabal_ver "$OLD_GIT_TAG")
 
@@ -72,3 +75,6 @@ buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
 buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
 buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
 buildkite-agent meta-data set "test-rc" "$TEST_RC"
+buildkite-agent meta-data set "base-build" "$BUILDKITE_BUILD_ID"
+buildkite-agent meta-data set "node-tag" "$CARDANO_NODE_TAG"
+buildkite-agent meta-data set "last-release-date" "$LAST_RELEASE_DATE"

@@ -32,6 +32,8 @@
             pkgs.gnutar
             pkgs.gnupg
             pkgs.nodejs_22
+            pkgs.gh
+            pkgs.gettext
           ];
           shellHook = ''
             # use this hook to set up additional environment variables

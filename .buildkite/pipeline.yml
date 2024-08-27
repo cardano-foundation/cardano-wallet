@@ -510,11 +510,12 @@ steps:
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
-          && ( build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE" )
+          && build.env("RELEASE_CANDIDATE") == null
       key: block-macos
 
     - label: Build Integration Tests (macOS, arm64)
       key: macos-arm64-tests-build-integration
+      if: build.env("TEST_RC") == null || build.env("TEST_RC") == "FALSE"
       depends_on: block-macos
       command: nix build -L .#packages.aarch64-darwin.integration-exe
       agents:
@@ -610,10 +611,8 @@ steps:
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
-          && (build.env("RELEASE_CANDIDATE") == null
-              || build.env("TEST_RC") == "TRUE"
-              )
           && build.branch != "rc-latest"
+          && build.env("RELEASE_CANDIDATE") == null
       key: trigger-build-windows-artifacts
 
     - label: Build Package (windows)
@@ -635,7 +634,7 @@ steps:
         system: ${linux}
 
     - label: Tag as Release Candidate (windows)
-      if: build.env("RELEASE_CANDIDATE") != null
+      if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
       depends_on:
         - windows-package
         - windows-testing-bundle
@@ -650,20 +649,19 @@ steps:
       - linux-artifacts
     steps:
 
-      - block: Docker Build
-        depends_on: []
-        if: build.env("TEST_RC") == "TRUE"
-        key: docker-build-block
-
       - label: Build Docker Image
         key: docker-build
-        depends_on: docker-build-block
         commands:
           ./scripts/buildkite/main/docker-build.sh
         artifact_paths:
           - ./artifacts/*.tgz
         agents:
           system: x86_64-linux
+
+      - block: Docker Build
+        depends_on: []
+        if: build.env("TEST_RC") == "TRUE"
+        key: docker-build-block
 
       - label: Push Docker Image
         depends_on:
