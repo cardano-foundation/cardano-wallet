@@ -15,6 +15,7 @@ module Cardano.Wallet.Deposit.HTTP.Types.JSON
     , Address
     , Customer
     , CustomerList
+    , ChainPoint
     )
     where
 
@@ -33,6 +34,7 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , ChainPoint
     )
 import Data.Aeson
     ( FromJSON (..)
