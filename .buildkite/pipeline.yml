@@ -84,6 +84,7 @@ steps:
     - label: Run Local Cluster Tests (linux)
       key: local-cluster-tests
       depends_on: []
+      timeout_in_minutes: 10
       command: |
         mkdir local-cluster-logs
         nix shell "nixpkgs#just" -c just test-local-cluster
@@ -130,6 +131,7 @@ steps:
 
     - label: Run Haskell E2E Tests (linux)
       command: 'nix develop --command bash -c "just e2e-local"'
+      timeout_in_minutes: 5
       agents:
         system: ${linux}
 
@@ -154,7 +156,7 @@ steps:
       concurrency_group: 'linux-e2e-tests'
 
     - label: Private Network Full Sync
-      timeout: 30
+      timeout_in_minutes: 30
       depends_on: []
       command: |
         rm -rf run/private/nix/logs
@@ -172,7 +174,7 @@ steps:
         NETWORK: testnet
 
     - label: Mainnet Boot Sync
-      timeout: 2
+      timeout_in_minutes: 2
       depends_on: []
       command: |
         cd run/mainnet/nix
@@ -197,7 +199,7 @@ steps:
       key: linux-mainnet-full-sync-block
 
     - label: Mainnet Boot Sync with Mithril
-      timeout: 120
+      timeout_in_minutes: 120
       depends_on:
         - linux-mainnet-full-sync-block
       command: |
@@ -708,7 +710,7 @@ steps:
           USE_LOCAL_IMAGE: true
 
       - label: Private Network Full Sync
-        timeout: 30
+        timeout_in_minutes: 30
         command: |
           cd run/private/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
