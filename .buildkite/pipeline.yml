@@ -131,6 +131,7 @@ steps:
 
     - label: Run Haskell E2E Tests (linux)
       command: 'nix develop --command bash -c "just e2e-local"'
+      timeout: 5
       agents:
         system: ${linux}
 
