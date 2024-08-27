@@ -67,9 +67,9 @@ prop_rollForwardOne_UTxO =
     (addr1, w1) = Wallet.createAddress 1 w0
     genAddress :: Gen Read.Address
     genAddress = elements
-        [ Read.fromRawAddress $ B8.pack "this is not a real address"
-        , Read.fromRawAddress $ B8.pack "also not a real address"
-        , Read.fromRawAddress $ B8.pack "this is a mock address"
+        [ Read.mockAddress ("this is not a real address" :: String)
+        , Read.mockAddress ("also not a real address" :: String)
+        , Read.mockAddress ("this is a mock address" :: String)
         , addr1
         ]
 

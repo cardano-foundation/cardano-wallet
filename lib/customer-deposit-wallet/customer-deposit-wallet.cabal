@@ -54,6 +54,7 @@ library
     , cardano-wallet:cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read == 0.2024.8.27
     , cardano-ledger-byron
     , containers
     , contra-tracer

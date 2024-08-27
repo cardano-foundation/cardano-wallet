@@ -597,6 +597,7 @@ import Cardano.Wallet.Primitive.Types.UTxOStatistics
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
+    , prettyTxCBOR
     )
 import Cardano.Wallet.Shelley.Transaction
     ( _txRewardWithdrawalCost
@@ -4035,7 +4036,7 @@ instance ToText WalletFollowLog where
             "transactions: " <> pretty (blockListF (snd <$> txs))
         MsgStoringCBOR txCBOR ->
             "store new cbor for "
-                <> toText txCBOR
+                <> prettyTxCBOR txCBOR
 
 instance ToText WalletLog where
     toText = \case
