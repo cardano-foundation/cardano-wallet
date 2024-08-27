@@ -78,13 +78,14 @@ steps:
 
   - group: Release
     depends_on: nightly
-    if: build.branch == "master"
+    # if: build.branch == "master"
     steps:
       - block: Create a release
         key: create-release
 
       - label: Push swagger release
         depends_on: create-release
+        if: build.branch == "master"
         commands:
           - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
         artifacts:
