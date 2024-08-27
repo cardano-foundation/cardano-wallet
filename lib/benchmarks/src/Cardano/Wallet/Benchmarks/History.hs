@@ -8,6 +8,7 @@ module Cardano.Wallet.Benchmarks.History
     , harmonizeHistory
     , pastDays
     , renderHarmonizedHistoryCsv
+    , parseHistory
     )
 where
 
@@ -19,13 +20,22 @@ import Cardano.Wallet.Benchmarks.Collect
     , Unit (..)
     , convertUnit
     )
+import Control.Monad
+    ( forM
+    )
 import Data.Bifunctor
     ( second
     )
 import Data.Csv
-    ( Header
+    ( FromField (..)
+    , FromNamedRecord (..)
+    , Header
+    , NamedRecord
+    , Parser
     , ToNamedRecord (..)
+    , decodeByName
     , namedRecord
+    , (.:)
     , (.=)
     )
 import Data.Foldable
@@ -41,6 +51,9 @@ import Data.Map.Monoidal.Strict
     ( MonoidalMap (..)
     , assocs
     )
+import Data.Maybe
+    ( maybeToList
+    )
 import Data.Semigroup
     ( First (..)
     )
@@ -51,10 +64,14 @@ import Data.Time
     ( Day
     , UTCTime (..)
     , addDays
+    , defaultTimeLocale
     , getCurrentTime
+    , parseTimeM
     )
 
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.HashMap.Strict as HMap
 import qualified Data.Map as Map
 import qualified Data.Map.Monoidal.Strict as MMap
 import qualified Data.Text as T
@@ -185,6 +202,15 @@ data Row = Row
     }
     deriving stock (Show)
 
+rowToHarmonizedRow :: Row -> History
+rowToHarmonizedRow (Row s i u vs) =
+    MMap.singleton (IndexedSemantic s i)
+        $ fold
+        $ do
+            (d, mv) <- vs
+            v <- maybeToList mv
+            pure $ MMap.singleton d $ First $ Result v u 1
+
 instance ToNamedRecord Row where
     toNamedRecord (Row s i u vs) =
         namedRecord
@@ -192,6 +218,31 @@ instance ToNamedRecord Row where
                 : ("Index" .= T.pack (show i))
                 : ("Unit" .= u)
                 : fmap (\(d, v) -> (B8.pack . show $ d) .= v) vs
+
+instance FromNamedRecord Row where
+    parseNamedRecord r =
+        Row
+            <$> r .: "Semantic"
+            <*> r .: "Index"
+            <*> r .: "Unit"
+            <*> parseDays r
+
+parseDays :: NamedRecord -> Parser [(Day, Maybe Double)]
+parseDays hm =
+    let
+        hm' =
+            HMap.delete "Semantic"
+                $ HMap.delete "Index"
+                $ HMap.delete "Unit" hm
+        fields = HMap.toList hm'
+    in
+        forM fields $ \(k, v) -> do
+            d <- parseTimeM True defaultTimeLocale "%Y-%m-%d" (B8.unpack k)
+            v' <- parseField v
+            return (d, v')
+
+parseHistory :: BL8.ByteString -> Either String History
+parseHistory r = foldMap rowToHarmonizedRow . toList . snd <$> decodeByName r
 
 -- | Render a harmonized history as a CSV file.
 renderHarmonizedHistoryCsv :: HarmonizedHistory -> (Header, [Row])

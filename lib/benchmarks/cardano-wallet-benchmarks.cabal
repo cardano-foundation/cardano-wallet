@@ -39,6 +39,7 @@ library
   hs-source-dirs:  src
   build-depends:
     , aeson
+    , attoparsec
     , base
     , bytestring
     , cardano-wallet
@@ -83,6 +84,7 @@ library
     , time
     , unliftio
     , unliftio-core
+    , unordered-containers
     , vector
     , wai-middleware-logging
     , with-utf8
