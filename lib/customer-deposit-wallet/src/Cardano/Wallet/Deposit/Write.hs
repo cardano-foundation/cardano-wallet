@@ -29,6 +29,7 @@ import Prelude
 
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , Ix
     , TxId
     , TxIn
     , TxOut
@@ -42,7 +43,7 @@ import Data.Set
     ( Set
     )
 
-import qualified Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Read
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
@@ -65,7 +66,7 @@ data Tx = Tx
 data TxBody = TxBody
     { spendInputs :: Set TxIn
     , collInputs :: Set TxIn
-    , txouts :: Map Read.Ix TxOut
+    , txouts :: Map Ix TxOut
     , collRet :: Maybe TxOut
     }
     deriving (Eq, Ord, Show)
@@ -76,7 +77,7 @@ mkAda = W.fromCoin . W.unsafeFromIntegral
 mkTxOut :: Address -> Value -> TxOut
 mkTxOut = W.TxOut
 
-toReadTx :: TxId -> Tx -> Read.Tx
+toReadTx :: TxId -> Tx -> Cardano.Wallet.Deposit.Read.Tx
 toReadTx txid Tx{txbody=TxBody{..}} =
     W.Tx
         { W.txId =
