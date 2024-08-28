@@ -10,8 +10,8 @@
 --
 module Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     ( Custom (..)
-    , ViaText (..)
     , customOptions
+    , ViaText (..)
     ) where
 
 import Prelude

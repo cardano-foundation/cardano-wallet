@@ -14,12 +14,6 @@ import Cardano.Wallet.Deposit.Pure.UTxO
     , balance
     , excluding
     )
-import Cardano.Wallet.Primitive.Ledger.Read.Tx
-    ( primitiveTx
-    )
-import Cardano.Wallet.Primitive.Model
-    ( utxoFromTx
-    )
 import Data.Foldable
     ( foldMap'
     )
@@ -27,10 +21,11 @@ import Data.Set
     ( Set
     )
 
-import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
+import qualified Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO as DeltaUTxO
+import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
-import qualified Data.Set as Set
+import qualified Cardano.Wallet.Read.Tx as Tx
 
 {-----------------------------------------------------------------------------
     Wallet Balance
@@ -65,7 +60,6 @@ applyBlock isOurs block u0 =
  where
     (dus, u1) =
         mapAccumL' (applyTx isOurs) u0
-            . map primitiveTx
             $ Read.transactions block
 
 -- | Apply a transactions to the 'UTxO'.
@@ -81,8 +75,8 @@ applyTx isOurs tx u0 =
     (du, u) = (du21 <> du10, u2)
 
     (du10, u1)   = spendTxD tx u0
-    receivedUTxO = UTxO.filterByAddress isOurs (utxoFromTx tx)
-    (du21, u2)   = UTxO.receiveD u1 receivedUTxO
+    receivedUTxO = UTxO.filterByAddress isOurs (Read.utxoFromEraTx tx)
+    (du21, u2)   = DeltaUTxO.receiveD u1 receivedUTxO
 
     -- NOTE: Performance.
     -- 'applyTx' is part of a tight loop that inspects all transactions
@@ -90,7 +84,7 @@ applyTx isOurs tx u0 =
     -- Thus, we make a small performance optimization here.
     -- Specifically, we want to reject a transaction as soon as possible
     -- if it does not change the 'UTxO' set. The test
-    isUnchangedUTxO = UTxO.null receivedUTxO && mempty == du10
+    isUnchangedUTxO = UTxO.null receivedUTxO && DeltaUTxO.null du10
     -- allocates slightly fewer new Set/Map than the definition
     --   isUnchangedUTxO =  mempty == du
 
@@ -100,12 +94,12 @@ applyTx isOurs tx u0 =
 -- | Remove unspent outputs that are consumed by the given transaction.
 spendTxD :: Read.Tx -> UTxO -> (DeltaUTxO, UTxO)
 spendTxD tx !u =
-    u `UTxO.excludingD` Set.fromList inputsToExclude
+    u `DeltaUTxO.excludingD` inputsToExclude
   where
     inputsToExclude =
-        if Read.txScriptInvalid tx
-        then Read.collateralInputs tx
-        else Read.inputs tx
+        case Tx.getScriptValidity tx of
+            Tx.IsValid True -> Tx.getInputs tx
+            Tx.IsValid False -> Tx.getCollateralInputs tx
 
 {-----------------------------------------------------------------------------
     Helpers
