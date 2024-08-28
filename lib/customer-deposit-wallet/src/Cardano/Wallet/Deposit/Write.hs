@@ -1,5 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- | Indirection module that re-exports types
 -- used for writing transactions to the blockchain,
@@ -22,6 +21,7 @@ module Cardano.Wallet.Deposit.Write
     , mkAda
     , mkTxOut
     , mockTxId
+    , toConwayTx
     , toReadTx
     ) where
 
@@ -36,19 +36,38 @@ import Cardano.Wallet.Deposit.Read
     , TxWitness
     , Value
     )
+import Cardano.Wallet.Primitive.Ledger.Convert
+    ( toConwayTxOut
+    , toLedger
+    )
 import Data.Map
     ( Map
+    )
+import Data.Maybe.Strict
+    ( StrictMaybe
+    , maybeToStrictMaybe
+    )
+import Data.Sequence.Strict
+    ( StrictSeq
+    , fromList
     )
 import Data.Set
     ( Set
     )
+import Lens.Micro
+    ( (&)
+    , (.~)
+    )
 
+import qualified Cardano.Ledger.Api as L
+import qualified Cardano.Ledger.Api.Tx.In as L
 import qualified Cardano.Wallet.Deposit.Read
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -76,6 +95,30 @@ mkAda = W.fromCoin . W.unsafeFromIntegral
 
 mkTxOut :: Address -> Value -> TxOut
 mkTxOut = W.TxOut
+
+toConwayTx :: TxId -> Tx -> Read.Tx Read.Conway
+toConwayTx _ Tx{txbody} = Read.Tx $ L.mkBasicTx txBody
+  where
+    txBody :: L.TxBody L.Conway
+    txBody =
+        L.mkBasicTxBody
+            & (L.inputsTxBodyL .~ Set.map toLedgerTxIn (spendInputs txbody))
+            & (L.collateralInputsTxBodyL
+                .~ Set.map toLedgerTxIn (collInputs txbody)
+                )
+            & (L.outputsTxBodyL .~ toLedgerTxOuts (txouts txbody))
+            & (L.collateralReturnTxBodyL
+                .~ toLedgerMaybeTxOut (collRet txbody)
+                )
+
+toLedgerTxIn :: TxIn -> L.TxIn L.StandardCrypto
+toLedgerTxIn = toLedger
+
+toLedgerTxOuts :: Map Ix TxOut -> StrictSeq (L.TxOut L.Conway)
+toLedgerTxOuts = fromList . map (toConwayTxOut . snd) . Map.toAscList
+
+toLedgerMaybeTxOut :: Maybe TxOut -> StrictMaybe (L.TxOut L.Conway)
+toLedgerMaybeTxOut = fmap toConwayTxOut . maybeToStrictMaybe
 
 toReadTx :: TxId -> Tx -> Cardano.Wallet.Deposit.Read.Tx
 toReadTx txid Tx{txbody=TxBody{..}} =
