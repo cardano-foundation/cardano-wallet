@@ -22,7 +22,6 @@ module Cardano.Wallet.Deposit.Write
     , mkTxOut
     , mockTxId
     , toConwayTx
-    , toReadTx
     ) where
 
 import Prelude
@@ -61,11 +60,8 @@ import Lens.Micro
 
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
-import qualified Cardano.Wallet.Deposit.Read
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Char8 as B8
@@ -119,31 +115,6 @@ toLedgerTxOuts = fromList . map (toConwayTxOut . snd) . Map.toAscList
 
 toLedgerMaybeTxOut :: Maybe TxOut -> StrictMaybe (L.TxOut L.Conway)
 toLedgerMaybeTxOut = fmap toConwayTxOut . maybeToStrictMaybe
-
-toReadTx :: TxId -> Tx -> Cardano.Wallet.Deposit.Read.Tx
-toReadTx txid Tx{txbody=TxBody{..}} =
-    W.Tx
-        { W.txId =
-            W.Hash txid
-        , W.txCBOR =
-            Nothing
-        , W.fee =
-            Nothing
-        , W.resolvedInputs =
-            map (,Nothing) $ Set.toList spendInputs
-        , W.resolvedCollateralInputs =
-            map (,Nothing) $ Set.toList collInputs
-        , W.outputs =
-            map snd $ Map.toAscList txouts
-        , W.collateralOutput =
-            collRet
-        , W.withdrawals =
-            mempty
-        , W.metadata =
-            Nothing
-        , W.scriptValidity =
-            Nothing
-        }
 
 mockTxId :: Show a => a -> TxId
 mockTxId = B8.pack . show
