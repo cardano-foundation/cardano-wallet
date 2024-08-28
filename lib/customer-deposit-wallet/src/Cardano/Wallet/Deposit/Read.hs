@@ -155,9 +155,9 @@ type BlockNo = Natural
 -- type Block = O.CardanoBlock O.StandardCrypto
 data Block = Block
     { blockHeader :: BHeader
-    , transactions :: [Tx]
+    , transactions :: [Read.Tx Read.Conway]
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 data BHeader = BHeader
     { blockHeaderBody :: BHBody

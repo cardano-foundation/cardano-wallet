@@ -16,6 +16,10 @@ import Cardano.Wallet.Deposit.IO.Network.Type
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     )
+import Cardano.Wallet.Read
+    ( Conway
+    , Tx
+    )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , atomically
@@ -64,7 +68,7 @@ newNetworkEnvMock = do
 
     let forgeBlock tx = atomically $ do
             tipOld <- readTVar mtip
-            let txRead = Write.toReadTx (Write.mockTxId tipOld) tx
+            let txRead = Write.toConwayTx (Write.mockTxId tipOld) tx
                 blockNew = mkNextBlock tipOld [txRead]
                 tipNew = getBlockPoint blockNew
             writeTVar mtip tipNew
@@ -94,7 +98,7 @@ genesis = Read.Origin
 getBlockPoint :: Read.Block -> Read.ChainPoint
 getBlockPoint = Read.At . Read.slot . Read.blockHeaderBody . Read.blockHeader
 
-mkNextBlock :: Read.ChainPoint -> [Read.Tx] -> Read.Block
+mkNextBlock :: Read.ChainPoint -> [Tx Conway] -> Read.Block
 mkNextBlock tipOld txs =
     Read.Block
         { Read.blockHeader = Read.BHeader
