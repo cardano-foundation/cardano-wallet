@@ -59,7 +59,7 @@ type IsOurs addr = addr -> Bool
 --
 -- Returns both a delta and the new value.
 applyBlock
-    :: IsOurs Read.Addr -> Read.Block -> UTxO -> (DeltaUTxO, UTxO)
+    :: IsOurs Read.Address -> Read.Block -> UTxO -> (DeltaUTxO, UTxO)
 applyBlock isOurs block u0 =
     (mconcat $ reverse dus, u1)
  where
@@ -72,7 +72,7 @@ applyBlock isOurs block u0 =
 --
 -- Returns both a delta and the new value.
 applyTx
-    :: IsOurs Read.Addr -> Read.Tx -> UTxO -> (DeltaUTxO, UTxO)
+    :: IsOurs Read.Address -> Read.Tx -> UTxO -> (DeltaUTxO, UTxO)
 applyTx isOurs tx u0 =
     if isUnchangedUTxO
         then (mempty, u0)

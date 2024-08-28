@@ -10,7 +10,6 @@ module Cardano.Wallet.Deposit.Read
     , Slot
     , ChainPoint (..)
 
-    , Addr
     , Address
     , fromRawAddress
     , toRawAddress
@@ -93,14 +92,10 @@ data ChainPoint
     | At Slot
     deriving (Eq, Ord, Show)
 
--- newtype Addr = Addr { getAddressBytes :: ByteString }
---    deriving (Eq, Show)
-type Addr = W.Address
-
 -- | Synonym for readability.
 -- The ledger specifications define @Addr@.
 -- Byron addresses are represented by @Addr_bootstrap@.
-type Address = Addr
+type Address = W.Address
 
 fromRawAddress :: Read.CompactAddr -> Address
 fromRawAddress = W.Address . SBS.fromShort . Read.toShortByteString
