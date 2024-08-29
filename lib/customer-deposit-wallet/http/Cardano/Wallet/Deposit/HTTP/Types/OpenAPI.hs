@@ -92,6 +92,7 @@ depositPaths :: InsOrdHashMap FilePath PathItem
 depositPaths =
     [ getCustomersListPath
     , putCustomerPath
+    , getNetworkTipPath
     ]
 
 depositDefinitions :: Definitions Schema
@@ -176,3 +177,19 @@ customerListSchema =
         & items
             ?~ OpenApiItemsObject
                 (Inline customerListItemSchema)
+
+getNetworkTipPath :: (FilePath, PathItem)
+getNetworkTipPath = ("/network/tip", pathItem)
+  where
+    pathItem :: PathItem
+    pathItem = mempty & get ?~ operation
+    operation :: Operation
+    operation =
+        mempty
+            & summary ?~ summary'
+            & at 200 ?~ at200
+    summary' = "Obtain the tip of the network"
+    at200 =
+        "Ok"
+            & _Inline . content . at jsonMediaType
+                ?~ (mempty & schema ?~ Ref (Reference "ApiT ChainPoint"))
