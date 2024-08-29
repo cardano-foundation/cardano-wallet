@@ -19,6 +19,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
+    , chainPointSchema
     , customerListSchema
     , customerSchema
     , depositDefinitions
@@ -91,6 +92,8 @@ spec = do
             $ jsonMatchesSchema genApiTCustomer depositDefinitions customerSchema
         it "ApiT CustomerList"
             $ jsonMatchesSchema genApiTCustomerList depositDefinitions customerListSchema
+        it "ApiT ChainPoint"
+            $ jsonMatchesSchema genApiTChainPoint depositDefinitions chainPointSchema
 
 jsonMatchesSchema
     :: (ToJSON a, Show a)
@@ -145,6 +148,12 @@ genApiTCustomerList = do
     let uniqueAddr = L.nubBy (\a b -> snd a == snd b)
     pure $ ApiT $ uniqueAddr $ uniqueCustomer vectors
 
+genApiTChainPoint :: Gen (ApiT ChainPoint)
+genApiTChainPoint = oneof
+        [ pure . ApiT $ Origin
+        , ApiT . At . toSlot <$> arbitrary
+        ]
+
 instance Arbitrary (ApiT Address) where
     arbitrary = genApiTAddress
 
@@ -155,10 +164,7 @@ instance Arbitrary (ApiT CustomerList) where
     arbitrary = genApiTCustomerList
 
 instance Arbitrary (ApiT ChainPoint) where
-    arbitrary = oneof
-        [ pure . ApiT $ Origin
-        , ApiT . At . toSlot <$> arbitrary
-        ]
+    arbitrary = genApiTChainPoint
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral

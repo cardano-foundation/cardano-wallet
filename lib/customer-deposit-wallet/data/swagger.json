@@ -5,6 +5,26 @@
                 "format": "hex",
                 "type": "string"
             },
+            "ApiT ChainPoint": {
+                "oneOf": [
+                    {
+                        "enum": [
+                            "origin"
+                        ],
+                        "type": "string"
+                    },
+                    {
+                        "properties": {
+                            "at_slot": {
+                                "maximum": 1.8446744073709551615e19,
+                                "minimum": 0,
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiT Customer": {
                 "maximum": 2147483647,
                 "minimum": 0,
@@ -64,6 +84,23 @@
                     }
                 },
                 "summary": "Add customer"
+            }
+        },
+        "/network/tip": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiT ChainPoint"
+                                }
+                            }
+                        },
+                        "description": "Ok"
+                    }
+                },
+                "summary": "Obtain the tip of the network"
             }
         }
     }
