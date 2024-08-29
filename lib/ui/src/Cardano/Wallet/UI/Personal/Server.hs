@@ -72,6 +72,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkInfoH
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Settings
+    ( settingsStateH
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -86,6 +89,7 @@ import Cardano.Wallet.UI.Cookies
     )
 import Cardano.Wallet.UI.Personal.API
     ( UI
+    , settingsSseToggleLink
     )
 import Cardano.Wallet.UI.Personal.Handlers.Addresses
     ( listAddresses
@@ -107,9 +111,6 @@ import Cardano.Wallet.UI.Personal.Html.Pages.Page
     ( Page (..)
     , PageConfig
     , page
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Settings
-    ( settingsStateH
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( WalletPresent (..)
@@ -200,7 +201,7 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         :<|> wsl (\l -> getWallet l alShelley alert (renderHtml . walletElementH showTime))
         :<|> wsl (\l -> listAddresses l alShelley alert (renderHtml . addressesH))
         :<|> wsl (\l -> deleteWallet l alShelley alert ok)
-        :<|> wsl (\l -> getState l (renderHtml . settingsStateH))
+        :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> (\w -> wsl (\l -> selectWallet l w $> RawHtml ""))
         :<|> withSessionLayerRead (sse . sseConfig)

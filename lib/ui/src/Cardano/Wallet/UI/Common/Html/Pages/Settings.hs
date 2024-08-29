@@ -1,4 +1,4 @@
-module Cardano.Wallet.UI.Personal.Html.Pages.Settings where
+module Cardano.Wallet.UI.Common.Html.Pages.Settings where
 
 import Prelude hiding
     ( id
@@ -29,20 +29,19 @@ import Cardano.Wallet.UI.Common.Layer
     ( State
     , sseEnabled
     )
-import Cardano.Wallet.UI.Personal.API
-    ( settingsGetLink
-    , settingsSseToggleLink
-    , sseLink
-    )
 import Control.Lens
     ( view
     )
+import Servant.Links
+    ( Link
+    )
 
-settingsPageH :: Html ()
-settingsPageH = sseH sseLink settingsGetLink "content" ["settings"]
+settingsPageH :: Link -> Link -> Html ()
+settingsPageH sseLink settingsGetLink =
+    sseH sseLink settingsGetLink "content" ["settings"]
 
-settingsStateH :: State s -> Html ()
-settingsStateH state =
+settingsStateH :: Link -> State s -> Html ()
+settingsStateH settingsSseToggleLink state =
     record $ do
         simpleField "Enable SSE" $ do
             input_

@@ -18,6 +18,9 @@ import Cardano.Wallet.UI.Common.Html.Html
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkH
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Settings
+    ( settingsPageH
+    )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
     ( footerH
     )
@@ -34,6 +37,7 @@ import Cardano.Wallet.UI.Personal.API
     , faviconLink
     , networkInfoLink
     , networkPageLink
+    , settingsGetLink
     , settingsPageLink
     , sseLink
     , walletPageLink
@@ -44,9 +48,6 @@ import Cardano.Wallet.UI.Personal.Html.Pages.About
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     ( addressesPageH
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Settings
-    ( settingsPageH
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( WalletPresent
@@ -106,7 +107,7 @@ page PageConfig{..} p wp = RawHtml
         Wallets -> walletsH
         Wallet -> walletH wp
         Addresses -> addressesPageH
-        Settings -> settingsPageH
+        Settings -> settingsPageH sseLink settingsGetLink
 
 bodyH
     :: Text
