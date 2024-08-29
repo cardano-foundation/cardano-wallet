@@ -29,6 +29,14 @@ where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( hxExt_
+    , hxGet_
+    , hxSse_
+    , hxSwap_
+    , hxTarget_
+    , hxTrigger_
+    )
 import Cardano.Wallet.UI.Lib.ListOf
     ( Cons (..)
     , ListOf
@@ -36,14 +44,6 @@ import Cardano.Wallet.UI.Lib.ListOf
     )
 import Cardano.Wallet.UI.Personal.API
     ( linkText
-    )
-import Cardano.Wallet.UI.Personal.Html.Htmx
-    ( hxExt_
-    , hxGet_
-    , hxSse_
-    , hxSwap_
-    , hxTarget_
-    , hxTrigger_
     )
 import Control.Monad.Operational
     ( singleton

@@ -7,12 +7,12 @@ where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( useHtmxVersion
+    )
 import Cardano.Wallet.UI.Personal.API
     ( faviconLink
     , linkText
-    )
-import Cardano.Wallet.UI.Personal.Html.Htmx
-    ( useHtmxVersion
     )
 import qualified Data.Text as T
 import Lucid

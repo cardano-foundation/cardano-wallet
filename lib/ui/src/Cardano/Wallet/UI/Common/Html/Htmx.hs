@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Cardano.Wallet.UI.Personal.Html.Htmx
+module Cardano.Wallet.UI.Common.Html.Htmx
     ( hxBoost_
     , hxConfirm_
     , hxEncoding_

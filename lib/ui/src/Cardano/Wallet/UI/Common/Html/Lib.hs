@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Cardano.Wallet.UI.Personal.Html.Lib
+module Cardano.Wallet.UI.Common.Html.Lib
     ( showPercentage
     , showLocalTime
     , ShowTime

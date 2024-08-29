@@ -23,7 +23,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.UI.Cookies
     ( SessionKey
     )
-import Cardano.Wallet.UI.Personal.Handlers.SSE
+import Cardano.Wallet.UI.Common.Handlers.SSE
     ( Message (..)
     )
 import Cardano.Wallet.UI.Signal

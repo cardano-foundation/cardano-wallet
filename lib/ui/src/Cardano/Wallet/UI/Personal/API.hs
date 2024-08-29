@@ -18,16 +18,16 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
     )
+import Cardano.Wallet.UI.Common.Html.Html
+    ( HTML
+    , RawHtml (..)
+    )
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
     , Cookied
     )
-import Cardano.Wallet.UI.Personal.Handlers.SSE
+import Cardano.Wallet.UI.Common.Handlers.SSE
     ( SSE
-    )
-import Cardano.Wallet.UI.Personal.Html.Html
-    ( HTML
-    , RawHtml (..)
     )
 import Data.Aeson
     ( Value

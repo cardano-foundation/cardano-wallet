@@ -12,6 +12,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Html
+    ( RawHtml (..)
+    )
 import Cardano.Wallet.UI.Personal.API
     ( aboutPageLink
     , addressesPageLink
@@ -19,9 +22,6 @@ import Cardano.Wallet.UI.Personal.API
     , settingsPageLink
     , walletPageLink
     , walletsPageLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Html
-    ( RawHtml (..)
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.About
     ( aboutH

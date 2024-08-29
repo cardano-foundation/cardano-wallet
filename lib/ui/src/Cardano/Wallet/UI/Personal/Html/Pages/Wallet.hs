@@ -31,19 +31,19 @@ import Cardano.Wallet.Api.Types.WalletAssets
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( hxPost_
+    , hxTarget_
+    )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( ShowTime
+    , showPercentage
+    )
 import Cardano.Wallet.UI.Personal.API
     ( linkText
     , sseLink
     , walletDeleteLink
     , walletLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Htmx
-    ( hxPost_
-    , hxTarget_
-    )
-import Cardano.Wallet.UI.Personal.Html.Lib
-    ( ShowTime
-    , showPercentage
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( fieldHtml

@@ -26,13 +26,13 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo (..)
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( ShowTime
+    , showPercentage
+    )
 import Cardano.Wallet.UI.Personal.API
     ( networkInfoLink
     , sseLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Lib
-    ( ShowTime
-    , showPercentage
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( fieldShow

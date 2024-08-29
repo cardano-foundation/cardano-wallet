@@ -14,6 +14,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( hxPost_
+    , hxSwap_
+    , hxTrigger_
+    )
 import Cardano.Wallet.UI.Lib.ListOf
     ( ListOf
     )
@@ -22,11 +27,6 @@ import Cardano.Wallet.UI.Personal.API
     , settingsWalletSelectLink
     , sseLink
     , walletsListLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Htmx
-    ( hxPost_
-    , hxSwap_
-    , hxTrigger_
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( AssocRow

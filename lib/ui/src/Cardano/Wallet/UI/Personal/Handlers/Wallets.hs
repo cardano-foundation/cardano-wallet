@@ -19,7 +19,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
-import Cardano.Wallet.UI.Personal.Html.Html
+import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
 import Control.Monad.Catch

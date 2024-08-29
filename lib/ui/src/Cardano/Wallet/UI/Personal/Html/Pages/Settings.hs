@@ -4,7 +4,7 @@ import Prelude hiding
     ( id
     )
 
-import Cardano.Wallet.UI.Personal.Html.Htmx
+import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxPost_
     , hxSwap_
     , hxTrigger_

@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Cardano.Wallet.UI.Personal.Html.Html where
+module Cardano.Wallet.UI.Common.Html.Html where
 
 import Prelude
 

@@ -6,7 +6,7 @@ module Cardano.Wallet.UI.Personal.Handlers.State
 
 import Prelude
 
-import Cardano.Wallet.UI.Personal.Html.Html
+import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
 import Cardano.Wallet.UI.Personal.Layer
