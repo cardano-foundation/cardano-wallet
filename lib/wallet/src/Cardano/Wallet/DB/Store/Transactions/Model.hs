@@ -68,7 +68,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.Tx.Tx
     ( Tx (txCBOR)
     )
-import Cardano.Wallet.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras
     ( eraValueSerialize
     )
 import Cardano.Wallet.Read.Tx.CBOR

@@ -184,7 +184,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
     )
-import Cardano.Wallet.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras
     ( EraValue
     )
 import Cardano.Wallet.Read.Tx.CBOR
