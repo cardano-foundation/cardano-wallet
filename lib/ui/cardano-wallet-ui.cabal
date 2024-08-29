@@ -40,6 +40,9 @@ library
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Head
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Lib.ListOf
@@ -53,9 +56,6 @@ library
     Cardano.Wallet.UI.Personal.Html.Pages.Network
     Cardano.Wallet.UI.Personal.Html.Pages.Page
     Cardano.Wallet.UI.Personal.Html.Pages.Settings
-    Cardano.Wallet.UI.Personal.Html.Pages.Template.Footer
-    Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
-    Cardano.Wallet.UI.Personal.Html.Pages.Template.Navigation
     Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     Cardano.Wallet.UI.Personal.Html.Pages.Wallets
     Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet

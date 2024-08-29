@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
-module Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
+
+module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( pageFromBodyH
     , HeadConfig (..)
     )
@@ -13,10 +14,6 @@ import Cardano.Wallet.UI.Common.Html.Htmx
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
-import Cardano.Wallet.UI.Personal.API
-    ( faviconLink
-    )
-import qualified Data.Text as T
 import Lucid
     ( Html
     , ToHtml (..)
@@ -39,6 +36,8 @@ import Lucid
 import Servant
     ( Link
     )
+
+import qualified Data.Text as T
 
 bootstrapLink :: Html ()
 bootstrapLink =
@@ -95,8 +94,8 @@ newtype HeadConfig = HeadConfig
     { title :: T.Text
     }
 
-pageFromBodyH :: HeadConfig -> Html () -> Html ()
-pageFromBodyH HeadConfig{..} body = html_ [term "data-bs-theme" "dark"]
+pageFromBodyH :: Link -> HeadConfig -> Html () -> Html ()
+pageFromBodyH faviconLink HeadConfig{..} body = html_ [term "data-bs-theme" "dark"]
     $ do
         head_ $ do
             title_ $ toHtml title

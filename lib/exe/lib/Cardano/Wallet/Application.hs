@@ -167,15 +167,15 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( TransactionLayer
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
+    ( HeadConfig (..)
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( UILayer
     , sourceOfNewTip
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Page
     ( PageConfig (..)
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
-    ( HeadConfig (..)
     )
 import Control.Exception.Extra
     ( handle

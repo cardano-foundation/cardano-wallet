@@ -1,4 +1,4 @@
-module Cardano.Wallet.UI.Personal.Html.Pages.Template.Navigation
+module Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     ( navigationH
     )
 where

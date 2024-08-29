@@ -15,9 +15,20 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
+    ( footerH
+    )
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
+    ( HeadConfig
+    , pageFromBodyH
+    )
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
+    ( navigationH
+    )
 import Cardano.Wallet.UI.Personal.API
     ( aboutPageLink
     , addressesPageLink
+    , faviconLink
     , networkPageLink
     , settingsPageLink
     , walletPageLink
@@ -34,16 +45,6 @@ import Cardano.Wallet.UI.Personal.Html.Pages.Network
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Settings
     ( settingsPageH
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Template.Footer
-    ( footerH
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
-    ( HeadConfig
-    , pageFromBodyH
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Template.Navigation
-    ( navigationH
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( WalletPresent
@@ -95,7 +96,7 @@ page
     -> RawHtml
 page PageConfig{..} p wp = RawHtml
     $ renderBS
-    $ pageFromBodyH headConfig
+    $ pageFromBodyH faviconLink headConfig
     $ bodyH prefix p
     $ case p of
         About -> aboutH
