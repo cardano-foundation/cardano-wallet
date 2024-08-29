@@ -10,6 +10,7 @@ module Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     , customerSchema
     , addressSchema
     , customerListSchema
+    , chainPointSchema
     ) where
 
 import Prelude
@@ -31,6 +32,7 @@ import Data.OpenApi
     , HasComponents (..)
     , HasContent (..)
     , HasDescription (..)
+    , HasEnum (..)
     , HasFormat (..)
     , HasGet (..)
     , HasIn (..)
@@ -40,6 +42,7 @@ import Data.OpenApi
     , HasMaximum (..)
     , HasMinimum (..)
     , HasName (..)
+    , HasOneOf (..)
     , HasParameters (..)
     , HasPaths (..)
     , HasProperties (..)
@@ -63,6 +66,9 @@ import Data.OpenApi
     , Schema
     , URL (..)
     , _Inline
+    )
+import Data.Word
+    ( Word64
     )
 import Network.HTTP.Media
     ( MediaType
@@ -100,6 +106,7 @@ depositDefinitions =
     [ ("ApiT Customer", customerSchema)
     , ("ApiT Address", addressSchema)
     , ("ApiT CustomerList", customerListSchema)
+    , ("ApiT ChainPoint", chainPointSchema)
     ]
 
 -- | Paths
@@ -193,3 +200,29 @@ getNetworkTipPath = ("/network/tip", pathItem)
         "Ok"
             & _Inline . content . at jsonMediaType
                 ?~ (mempty & schema ?~ Ref (Reference "ApiT ChainPoint"))
+
+chainPointSchema :: Schema
+chainPointSchema =
+    mempty
+       & oneOf ?~ [Inline chainPointOriginSchema, Inline chainPointAtSlotSchema]
+
+chainPointOriginSchema :: Schema
+chainPointOriginSchema =
+    mempty
+        & type_ ?~ OpenApiString
+        & enum_ ?~ ["origin"]
+
+chainPointAtSlotSchema :: Schema
+chainPointAtSlotSchema =
+    mempty
+        & type_ ?~ OpenApiObject
+        & properties
+            .~ [ ("at_slot", Inline slotSchema)
+               ]
+
+slotSchema :: Schema
+slotSchema =
+    mempty
+        & type_ ?~ OpenApiInteger
+        & minimum_ ?~ 0
+        & maximum_ ?~ fromIntegral (maxBound :: Word64)
