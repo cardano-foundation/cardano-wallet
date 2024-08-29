@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Html.Pages.Addresses
+module Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     ( addressesPageH
     , addressesH
     )
@@ -27,11 +27,11 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( sseLink
     , walletAddressesLink
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( copyButton
     , fieldHtml
     , record

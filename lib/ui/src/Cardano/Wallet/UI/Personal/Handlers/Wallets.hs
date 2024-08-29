@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Handlers.Wallets where
+module Cardano.Wallet.UI.Personal.Handlers.Wallets where
 
 import Prelude
 
@@ -19,7 +19,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
-import Cardano.Wallet.UI.Html.Html
+import Cardano.Wallet.UI.Personal.Html.Html
     ( RawHtml (..)
     )
 import Control.Monad.Catch
@@ -45,7 +45,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
     , walletId
     )

@@ -6,7 +6,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Html.Pages.Lib
+module Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( PrintHtml
     , alertH
     , rogerH
@@ -29,21 +29,21 @@ where
 
 import Prelude
 
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Lib.ListOf
+    ( Cons (..)
+    , ListOf
+    , listOf
+    )
+import Cardano.Wallet.UI.Personal.API
     ( linkText
     )
-import Cardano.Wallet.UI.Html.Htmx
+import Cardano.Wallet.UI.Personal.Html.Htmx
     ( hxExt_
     , hxGet_
     , hxSse_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
-    )
-import Cardano.Wallet.UI.Lib.ListOf
-    ( Cons (..)
-    , ListOf
-    , listOf
     )
 import Control.Monad.Operational
     ( singleton

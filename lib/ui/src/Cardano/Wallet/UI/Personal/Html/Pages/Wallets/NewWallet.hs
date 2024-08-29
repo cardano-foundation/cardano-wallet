@@ -1,10 +1,10 @@
-module Cardano.Wallet.UI.Html.Pages.Wallets.NewWallet where
+module Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet where
 
 import Prelude hiding
     ( id
     )
 
-import Cardano.Wallet.UI.Html.Htmx
+import Cardano.Wallet.UI.Personal.Html.Htmx
     ( hxExt_
     , hxGet_
     , hxPost_
@@ -27,13 +27,13 @@ import Lucid
     , type_
     )
 
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( Visible (..)
     , linkText
     , walletLink
     , walletMnemonicLink
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( copyButton
     )
 import Data.Text

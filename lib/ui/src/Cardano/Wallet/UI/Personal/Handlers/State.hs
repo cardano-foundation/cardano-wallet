@@ -1,15 +1,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.UI.Handlers.State
+module Cardano.Wallet.UI.Personal.Handlers.State
     ( getState
     ) where
 
 import Prelude
 
-import Cardano.Wallet.UI.Html.Html
+import Cardano.Wallet.UI.Personal.Html.Html
     ( RawHtml (..)
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
     , State
     )

@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Cardano.Wallet.UI.Html.Pages.Page
+module Cardano.Wallet.UI.Personal.Html.Pages.Page
     ( Page (..)
     , page
     , PageConfig (..)
@@ -12,7 +12,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( aboutPageLink
     , addressesPageLink
     , networkPageLink
@@ -20,36 +20,36 @@ import Cardano.Wallet.UI.API
     , walletPageLink
     , walletsPageLink
     )
-import Cardano.Wallet.UI.Html.Html
+import Cardano.Wallet.UI.Personal.Html.Html
     ( RawHtml (..)
     )
-import Cardano.Wallet.UI.Html.Pages.About
+import Cardano.Wallet.UI.Personal.Html.Pages.About
     ( aboutH
     )
-import Cardano.Wallet.UI.Html.Pages.Addresses
+import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     ( addressesPageH
     )
-import Cardano.Wallet.UI.Html.Pages.Network
+import Cardano.Wallet.UI.Personal.Html.Pages.Network
     ( networkH
     )
-import Cardano.Wallet.UI.Html.Pages.Settings
+import Cardano.Wallet.UI.Personal.Html.Pages.Settings
     ( settingsPageH
     )
-import Cardano.Wallet.UI.Html.Pages.Template.Footer
+import Cardano.Wallet.UI.Personal.Html.Pages.Template.Footer
     ( footerH
     )
-import Cardano.Wallet.UI.Html.Pages.Template.Head
+import Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
     ( HeadConfig
     , pageFromBodyH
     )
-import Cardano.Wallet.UI.Html.Pages.Template.Navigation
+import Cardano.Wallet.UI.Personal.Html.Pages.Template.Navigation
     ( navigationH
     )
-import Cardano.Wallet.UI.Html.Pages.Wallet
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( WalletPresent
     , walletH
     )
-import Cardano.Wallet.UI.Html.Pages.Wallets
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallets
     ( walletsH
     )
 import Control.Lens.Extras

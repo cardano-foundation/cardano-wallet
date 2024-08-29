@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Cardano.Wallet.UI.Html.Pages.Template.Head
+module Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
     ( pageFromBodyH
     , HeadConfig (..)
     )
@@ -7,11 +7,11 @@ where
 
 import Prelude
 
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( faviconLink
     , linkText
     )
-import Cardano.Wallet.UI.Html.Htmx
+import Cardano.Wallet.UI.Personal.Html.Htmx
     ( useHtmxVersion
     )
 import qualified Data.Text as T

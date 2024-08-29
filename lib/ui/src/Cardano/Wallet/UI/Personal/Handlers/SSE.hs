@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Handlers.SSE
+module Cardano.Wallet.UI.Personal.Handlers.SSE
     ( Message (..)
     , SSE
     , sse

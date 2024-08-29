@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Html.Pages.Wallet where
+module Cardano.Wallet.UI.Personal.Html.Pages.Wallet where
 
 import Prelude hiding
     ( id
@@ -31,28 +31,28 @@ import Cardano.Wallet.Api.Types.WalletAssets
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( linkText
     , sseLink
     , walletDeleteLink
     , walletLink
     )
-import Cardano.Wallet.UI.Html.Htmx
+import Cardano.Wallet.UI.Personal.Html.Htmx
     ( hxPost_
     , hxTarget_
     )
-import Cardano.Wallet.UI.Html.Lib
+import Cardano.Wallet.UI.Personal.Html.Lib
     ( ShowTime
     , showPercentage
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( fieldHtml
     , record
     , showThousandDots
     , simpleField
     , sseH
     )
-import Cardano.Wallet.UI.Html.Pages.Network
+import Cardano.Wallet.UI.Personal.Html.Pages.Network
     ( blockReferenceH
     )
 import Control.Monad

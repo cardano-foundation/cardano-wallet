@@ -1,4 +1,4 @@
-module Cardano.Wallet.UI.Html.Pages.Template.Footer
+module Cardano.Wallet.UI.Personal.Html.Pages.Template.Footer
     ( footerH
     )
 where

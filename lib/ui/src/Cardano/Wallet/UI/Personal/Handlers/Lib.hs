@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Handlers.Lib
+module Cardano.Wallet.UI.Personal.Handlers.Lib
     ( handleParseRequestError
     , alertOnServerError
     , catching
@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
     , walletId
     )

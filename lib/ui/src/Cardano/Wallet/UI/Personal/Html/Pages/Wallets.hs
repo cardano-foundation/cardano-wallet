@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Html.Pages.Wallets where
+module Cardano.Wallet.UI.Personal.Html.Pages.Wallets where
 
 import Prelude hiding
     ( id
@@ -14,32 +14,32 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Lib.ListOf
+    ( ListOf
+    )
+import Cardano.Wallet.UI.Personal.API
     ( linkText
     , settingsWalletSelectLink
     , sseLink
     , walletsListLink
     )
-import Cardano.Wallet.UI.Html.Htmx
+import Cardano.Wallet.UI.Personal.Html.Htmx
     ( hxPost_
     , hxSwap_
     , hxTrigger_
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( AssocRow
     , field
     , record
     , simpleField
     , sseH
     )
-import Cardano.Wallet.UI.Html.Pages.Wallet
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( renderState
     )
-import Cardano.Wallet.UI.Html.Pages.Wallets.NewWallet
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
     ( newWalletH
-    )
-import Cardano.Wallet.UI.Lib.ListOf
-    ( ListOf
     )
 import Control.Monad
     ( forM_

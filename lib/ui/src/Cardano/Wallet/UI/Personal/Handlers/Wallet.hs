@@ -9,7 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Handlers.Wallet where
+module Cardano.Wallet.UI.Personal.Handlers.Wallet where
 
 import Prelude hiding
     ( lookup
@@ -43,12 +43,12 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.Handlers.Lib
+import Cardano.Wallet.UI.Personal.Handlers.Lib
     ( evenWithNoWallet
     , handleParseRequestError
     , withWallet
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( Push (..)
     , SessionLayer (..)
     , walletId

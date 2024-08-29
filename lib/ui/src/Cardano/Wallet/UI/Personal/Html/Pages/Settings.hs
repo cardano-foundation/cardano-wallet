@@ -1,10 +1,10 @@
-module Cardano.Wallet.UI.Html.Pages.Settings where
+module Cardano.Wallet.UI.Personal.Html.Pages.Settings where
 
 import Prelude hiding
     ( id
     )
 
-import Cardano.Wallet.UI.Html.Htmx
+import Cardano.Wallet.UI.Personal.Html.Htmx
     ( hxPost_
     , hxSwap_
     , hxTrigger_
@@ -17,18 +17,18 @@ import Lucid
     , type_
     )
 
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( linkText
     , settingsGetLink
     , settingsSseToggleLink
     , sseLink
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( record
     , simpleField
     , sseH
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( State
     , sseEnabled
     )

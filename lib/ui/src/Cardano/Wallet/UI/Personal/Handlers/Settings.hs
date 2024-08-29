@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.UI.Handlers.Settings
+module Cardano.Wallet.UI.Personal.Handlers.Settings
     ( toggleSSE
     ) where
 
 import Prelude
 
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( Push (..)
     , SessionLayer (..)
     , sseEnabled

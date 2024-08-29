@@ -6,7 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Server where
+module Cardano.Wallet.UI.Personal.Server where
 
 import Prelude
 
@@ -49,9 +49,6 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.Wallet.UI.API
-    ( UI
-    )
 import Cardano.Wallet.UI.Cookies
     ( CookieResponse
     , RequestCookies
@@ -59,62 +56,65 @@ import Cardano.Wallet.UI.Cookies
     , withSession
     , withSessionRead
     )
-import Cardano.Wallet.UI.Handlers.Addresses
+import Cardano.Wallet.UI.Personal.API
+    ( UI
+    )
+import Cardano.Wallet.UI.Personal.Handlers.Addresses
     ( listAddresses
     )
-import Cardano.Wallet.UI.Handlers.Settings
+import Cardano.Wallet.UI.Personal.Handlers.Settings
     ( toggleSSE
     )
-import Cardano.Wallet.UI.Handlers.SSE
+import Cardano.Wallet.UI.Personal.Handlers.SSE
     ( sse
     )
-import Cardano.Wallet.UI.Handlers.State
+import Cardano.Wallet.UI.Personal.Handlers.State
     ( getState
     )
-import Cardano.Wallet.UI.Handlers.Wallet
+import Cardano.Wallet.UI.Personal.Handlers.Wallet
     ( deleteWallet
     , getWallet
     , pickMnemonic
     , postWallet
     , selectWallet
     )
-import Cardano.Wallet.UI.Handlers.Wallets
+import Cardano.Wallet.UI.Personal.Handlers.Wallets
     ( listWallets
     )
-import Cardano.Wallet.UI.Html.Html
+import Cardano.Wallet.UI.Personal.Html.Html
     ( RawHtml (..)
     , renderHtml
     )
-import Cardano.Wallet.UI.Html.Pages.Addresses
+import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     ( addressesH
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( alertH
     , rogerH
     )
-import Cardano.Wallet.UI.Html.Pages.Network
+import Cardano.Wallet.UI.Personal.Html.Pages.Network
     ( networkInfoH
     )
-import Cardano.Wallet.UI.Html.Pages.Page
+import Cardano.Wallet.UI.Personal.Html.Pages.Page
     ( Page (..)
     , PageConfig
     , page
     )
-import Cardano.Wallet.UI.Html.Pages.Settings
+import Cardano.Wallet.UI.Personal.Html.Pages.Settings
     ( settingsStateH
     )
-import Cardano.Wallet.UI.Html.Pages.Wallet
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( WalletPresent (..)
     , walletElementH
     )
-import Cardano.Wallet.UI.Html.Pages.Wallets
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallets
     ( walletListH
     )
-import Cardano.Wallet.UI.Html.Pages.Wallets.NewWallet
+import Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
     ( mnemonicH
     , postWalletForm
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
     , UILayer (..)
     , walletId

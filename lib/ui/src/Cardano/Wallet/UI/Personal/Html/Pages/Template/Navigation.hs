@@ -1,11 +1,11 @@
-module Cardano.Wallet.UI.Html.Pages.Template.Navigation
+module Cardano.Wallet.UI.Personal.Html.Pages.Template.Navigation
     ( navigationH
     )
 where
 
 import Prelude
 
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( linkText
     )
 import Control.Monad

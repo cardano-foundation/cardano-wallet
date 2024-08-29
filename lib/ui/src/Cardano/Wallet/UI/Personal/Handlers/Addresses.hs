@@ -8,7 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Handlers.Addresses
+module Cardano.Wallet.UI.Personal.Handlers.Addresses
     ( listAddresses
     )
 where
@@ -36,14 +36,14 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
-import Cardano.Wallet.UI.Handlers.Lib
+import Cardano.Wallet.UI.Personal.Handlers.Lib
     ( alertOnServerError
     , catching
     )
-import Cardano.Wallet.UI.Html.Html
+import Cardano.Wallet.UI.Personal.Html.Html
     ( RawHtml (..)
     )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
     , walletId
     )

@@ -1,4 +1,4 @@
-module Cardano.Wallet.UI.Html.Pages.About where
+module Cardano.Wallet.UI.Personal.Html.Pages.About where
 
 import Lucid
     ( Html

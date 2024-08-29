@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Html.Pages.Network where
+module Cardano.Wallet.UI.Personal.Html.Pages.Network where
 
 import Prelude
 
@@ -26,15 +26,15 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types.EpochNo
     ( EpochNo (..)
     )
-import Cardano.Wallet.UI.API
+import Cardano.Wallet.UI.Personal.API
     ( networkInfoLink
     , sseLink
     )
-import Cardano.Wallet.UI.Html.Lib
+import Cardano.Wallet.UI.Personal.Html.Lib
     ( ShowTime
     , showPercentage
     )
-import Cardano.Wallet.UI.Html.Pages.Lib
+import Cardano.Wallet.UI.Personal.Html.Pages.Lib
     ( fieldShow
     , record
     , showThousandDots

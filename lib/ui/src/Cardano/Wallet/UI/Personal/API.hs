@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.UI.API where
+module Cardano.Wallet.UI.Personal.API where
 
 import Prelude
 
@@ -22,10 +22,10 @@ import Cardano.Wallet.UI.Cookies
     ( CookieRequest
     , Cookied
     )
-import Cardano.Wallet.UI.Handlers.SSE
+import Cardano.Wallet.UI.Personal.Handlers.SSE
     ( SSE
     )
-import Cardano.Wallet.UI.Html.Html
+import Cardano.Wallet.UI.Personal.Html.Html
     ( HTML
     , RawHtml (..)
     )

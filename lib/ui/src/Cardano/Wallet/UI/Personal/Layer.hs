@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.UI.Layer
+module Cardano.Wallet.UI.Personal.Layer
     ( UILayer (..)
     , withUILayer
     , SessionLayer (..)
@@ -23,7 +23,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.UI.Cookies
     ( SessionKey
     )
-import Cardano.Wallet.UI.Handlers.SSE
+import Cardano.Wallet.UI.Personal.Handlers.SSE
     ( Message (..)
     )
 import Cardano.Wallet.UI.Signal
