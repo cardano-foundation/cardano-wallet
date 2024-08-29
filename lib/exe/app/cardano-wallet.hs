@@ -86,7 +86,8 @@ import Cardano.Wallet.Application.CLI
     , helperTracing
     , hostPreferenceOption
     , listenApiOption
-    , listenUiOption
+    , listenDepositUiOption
+    , listenPersonalUiOption
     , loggingMinSeverity
     , loggingOptions
     , loggingSeverityOrOffReader
@@ -229,7 +230,8 @@ data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _mode :: Mode CardanoNodeConn
     , _listenApi :: Listen
-    , _listenUi :: Maybe Listen
+    , _listenPersonalUi :: Maybe Listen
+    , _listenDepositUi :: Maybe Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
@@ -254,7 +256,8 @@ cmdServe =
                 <$> hostPreferenceOption
                 <*> modeOption nodeSocketOption
                 <*> listenApiOption
-                <*> listenUiOption
+                <*> listenPersonalUiOption
+                <*> listenDepositUiOption
                 <*> optional tlsOption
                 <*> networkConfigurationOption
                 <*> optional databaseOption
@@ -269,7 +272,8 @@ cmdServe =
                     host
                     mode
                     listenApi
-                    listenUi
+                    listenPersonalUi
+                    listenDepositUi
                     tlsConfig
                     networkConfig
                     databaseDir
@@ -306,7 +310,8 @@ cmdServe =
                         Nothing
                         host
                         listenApi
-                        listenUi
+                        listenPersonalUi
+                        listenDepositUi
                         tlsConfig
                         (Settings <$> poolMetadataFetching)
                         tokenMetadataServerURI

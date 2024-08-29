@@ -98,7 +98,8 @@ module Cardano.Wallet.Application.CLI
     , getPrometheusURL
     , getEKGURL
     , ekgEnabled
-    , listenUiOption
+    , listenPersonalUiOption
+    , listenDepositUiOption
     ) where
 
 import Prelude hiding
@@ -1432,11 +1433,20 @@ listenApiOption =
     (ListenOnPort . getPort <$> portOption)
 
 -- | [--ui-random-port|--ui-port=INT]
-listenUiOption :: Parser (Maybe Listen)
-listenUiOption =
+listenPersonalUiOption :: Parser (Maybe Listen)
+listenPersonalUiOption =
     (Just ListenOnRandomPort <$ uiRandomPortOption)
     <|>
     (Just . ListenOnPort . getPort <$> uiPortOption)
+    <|>
+    pure Nothing
+
+-- | [--ui-random-port|--ui-port=INT]
+listenDepositUiOption :: Parser (Maybe Listen)
+listenDepositUiOption =
+    (Just ListenOnRandomPort <$ uiDepositRandomPortOption)
+    <|>
+    (Just . ListenOnPort . getPort <$> uiDepositPortOption)
     <|>
     pure Nothing
 
@@ -1444,14 +1454,28 @@ listenUiOption =
 uiRandomPortOption :: Parser Bool
 uiRandomPortOption = flag' False $ mempty
     <> long "ui-random-port"
-    <> help "serve the wallet UI on any available port (conflicts with --ui-port)"
+    <> help "serve the personal wallet UI on any available port (conflicts with --ui-port)"
+
+-- | [--ui-deposit-random-port]
+uiDepositRandomPortOption :: Parser Bool
+uiDepositRandomPortOption = flag' False $ mempty
+    <> long "ui-deposit-random-port"
+    <> help "serve the deposit wallet UI on any available port (conflicts with --ui-deposit-port)"
 
 -- | [--ui-port=INT]
 uiPortOption :: Parser (Port "Wallet UI")
 uiPortOption = optionT $ mempty
     <> long "ui-port"
     <> metavar "INT"
-    <> help "port used for serving the wallet UI."
+    <> help "port used for serving the personal wallet UI."
+    <> showDefaultWith showT
+
+-- | [--ui-deposit-port=INT]
+uiDepositPortOption :: Parser (Port "Wallet UI")
+uiDepositPortOption = optionT $ mempty
+    <> long "ui-deposit-port"
+    <> metavar "INT"
+    <> help "port used for serving the deposit wallet UI."
     <> showDefaultWith showT
 
 -- | [--random-port]
