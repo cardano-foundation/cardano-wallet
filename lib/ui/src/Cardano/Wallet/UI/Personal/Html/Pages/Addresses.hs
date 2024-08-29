@@ -27,16 +27,16 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
-import Cardano.Wallet.UI.Personal.API
-    ( sseLink
-    , walletAddressesLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Lib
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
     , fieldHtml
     , record
     , simpleField
     , sseH
+    )
+import Cardano.Wallet.UI.Personal.API
+    ( sseLink
+    , walletAddressesLink
     )
 import Control.Monad
     ( forM_

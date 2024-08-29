@@ -40,17 +40,17 @@ import Cardano.Wallet.UI.Common.Html.Lib
     , linkText
     , showPercentage
     )
-import Cardano.Wallet.UI.Personal.API
-    ( sseLink
-    , walletDeleteLink
-    , walletLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Lib
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( fieldHtml
     , record
     , showThousandDots
     , simpleField
     , sseH
+    )
+import Cardano.Wallet.UI.Personal.API
+    ( sseLink
+    , walletDeleteLink
+    , walletLink
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Network
     ( blockReferenceH

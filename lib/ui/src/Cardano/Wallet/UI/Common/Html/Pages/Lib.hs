@@ -6,7 +6,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Html.Pages.Lib
+module Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( PrintHtml
     , alertH
     , rogerH

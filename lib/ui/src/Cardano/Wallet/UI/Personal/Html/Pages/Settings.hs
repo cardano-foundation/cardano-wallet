@@ -20,6 +20,11 @@ import Lucid
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( record
+    , simpleField
+    , sseH
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( State
     , sseEnabled
@@ -28,11 +33,6 @@ import Cardano.Wallet.UI.Personal.API
     ( settingsGetLink
     , settingsSseToggleLink
     , sseLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Lib
-    ( record
-    , simpleField
-    , sseH
     )
 import Control.Lens
     ( view

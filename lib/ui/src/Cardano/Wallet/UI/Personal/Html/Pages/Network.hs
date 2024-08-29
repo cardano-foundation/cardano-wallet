@@ -30,16 +30,16 @@ import Cardano.Wallet.UI.Common.Html.Lib
     ( ShowTime
     , showPercentage
     )
-import Cardano.Wallet.UI.Personal.API
-    ( networkInfoLink
-    , sseLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Lib
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( fieldShow
     , record
     , showThousandDots
     , simpleField
     , sseH
+    )
+import Cardano.Wallet.UI.Personal.API
+    ( networkInfoLink
+    , sseLink
     )
 import Data.Quantity
     ( Quantity (..)

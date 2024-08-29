@@ -65,6 +65,10 @@ import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( alertH
+    , rogerH
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -95,10 +99,6 @@ import Cardano.Wallet.UI.Personal.Handlers.Wallets
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     ( addressesH
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Lib
-    ( alertH
-    , rogerH
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Network
     ( networkInfoH

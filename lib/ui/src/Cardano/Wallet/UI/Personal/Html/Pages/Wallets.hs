@@ -22,6 +22,13 @@ import Cardano.Wallet.UI.Common.Html.Htmx
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( AssocRow
+    , field
+    , record
+    , simpleField
+    , sseH
+    )
 import Cardano.Wallet.UI.Lib.ListOf
     ( ListOf
     )
@@ -29,13 +36,6 @@ import Cardano.Wallet.UI.Personal.API
     ( settingsWalletSelectLink
     , sseLink
     , walletsListLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Lib
-    ( AssocRow
-    , field
-    , record
-    , simpleField
-    , sseH
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     ( renderState
