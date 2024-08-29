@@ -169,13 +169,11 @@ import Cardano.Wallet.Transaction
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( HeadConfig (..)
+    , PageConfig (..)
     )
 import Cardano.Wallet.UI.Common.Layer
     ( UILayer
     , sourceOfNewTip
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Page
-    ( PageConfig (..)
     )
 import Control.Exception.Extra
     ( handle
@@ -246,6 +244,8 @@ import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
+import qualified Cardano.Wallet.UI.Deposit.API as DepositUi
+import qualified Cardano.Wallet.UI.Deposit.Server as DepositUi
 import qualified Cardano.Wallet.UI.Personal.API as PersonalUi
 import qualified Cardano.Wallet.UI.Personal.Server as PersonalUi
 import qualified Network.Wai.Handler.Warp as Warp
@@ -277,7 +277,9 @@ serveWallet
     -> Listen
     -- ^ HTTP API Server port.
     -> Maybe Listen
-    -- ^ Optional HTTP UI Server port.
+    -- ^ Optional HTTP UI Server port for the personal wallet.
+    -> Maybe Listen
+    -- ^ Optional HTTP UI Server port for the deposit wallet.
     -> Maybe TlsConfiguration
     -- ^ An optional TLS configuration
     -> Maybe Settings
@@ -304,6 +306,7 @@ serveWallet
     hostPref
     listenApi
     mListenPersonalUi
+    mListenDepositUi
     tlsConfig
     settings
     tokenMetaUri
@@ -347,6 +350,7 @@ serveWallet
         multisigApi <- withMultisigApi netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
         ePersonalUiSocket <- bindPersonalUiSocket
+        eDepositUiSocket <- bindDepositUiSocket
         callCC $ \exit -> do
             _ <- case ePersonalUiSocket of
                 Left err -> do
@@ -369,6 +373,26 @@ serveWallet
                                         multisigApi
                                         stakePoolLayer
                                         ntpClient
+                                        blockchainSource
+                            ContT $ \k ->
+                                withAsync uiService $ \_ -> k ()
+                    pure ExitSuccess
+            _ <- case eDepositUiSocket of
+                Left err -> do
+                    lift $ trace $ MsgServerStartupError err
+                    exit $ ExitFailure $ exitCodeApiServer err
+                Right ms -> do
+                    case ms of
+                        Nothing -> pure ()
+                        Just (_port, socket) -> do
+                            ui <- Ui.withUILayer 1 ()
+                            sourceOfNewTip netLayer ui
+                            let uiService =
+                                    startDepositUiServer
+                                        ui
+                                        socket
+                                        sNetwork
+                                        netLayer
                                         blockchainSource
                             ContT $ \k ->
                                 withAsync uiService $ \_ -> k ()
@@ -400,6 +424,14 @@ serveWallet
 
         bindPersonalUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
         bindPersonalUiSocket = case mListenPersonalUi of
+            Nothing -> pure $ Right Nothing
+            Just listenUi -> do
+                fmap (fmap Just)
+                    $ ContT
+                    $ withListeningSocket hostPref listenUi
+
+        bindDepositUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindDepositUiSocket = case mListenDepositUi of
             Nothing -> pure $ Right Nothing
             Just listenUi -> do
                 fmap (fmap Just)
@@ -468,7 +500,7 @@ serveWallet
                         Server.serve api
                             $ PersonalUi.serveUI
                                 ui
-                                (PageConfig "" $ HeadConfig "Shelley Cardano Wallet")
+                                (PageConfig "" $ HeadConfig "Personal Cardano Wallet")
                                 _proxy
                                 randomApi
                                 icarusApi
@@ -484,6 +516,38 @@ serveWallet
                     socket
                     application
 
+        startDepositUiServer
+            :: forall n
+             . ( HasSNetworkId n
+               )
+            => UILayer ()
+            -> Socket
+            -> SNetworkId n
+            -> NetworkLayer IO (CardanoBlock StandardCrypto)
+            -> BlockchainSource
+            -> IO ()
+        startDepositUiServer
+            ui
+            socket
+            _proxy
+            nl
+            bs = do
+                let serverSettings = Warp.defaultSettings
+                    api = Proxy @DepositUi.UI
+                    application =
+                        Server.serve api
+                            $ DepositUi.serveUI
+                                ui
+                                (PageConfig "" $ HeadConfig "Deposit Cardano Wallet")
+                                _proxy
+                                nl
+                                bs
+                start
+                    serverSettings
+                    apiServerTracer
+                    tlsConfig
+                    socket
+                    application
         startApiServer
             :: forall n
              . ( HasSNetworkId n
