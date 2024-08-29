@@ -1,6 +1,6 @@
 cabal-version:      3.6
 name:               cardano-wallet-api
-version:            0.2024.8.11
+version:            0.2024.8.29
 synopsis:           Cardano wallet http api.
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
