@@ -20,11 +20,11 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.Cookies
-    ( SessionKey
-    )
 import Cardano.Wallet.UI.Common.Handlers.SSE
     ( Message (..)
+    )
+import Cardano.Wallet.UI.Cookies
+    ( SessionKey
     )
 import Cardano.Wallet.UI.Signal
     ( Signal (..)

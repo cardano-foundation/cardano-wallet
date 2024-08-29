@@ -18,6 +18,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.SSE
+    ( SSE
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( HTML
     , RawHtml (..)
@@ -25,9 +28,6 @@ import Cardano.Wallet.UI.Common.Html.Html
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
     , Cookied
-    )
-import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( SSE
     )
 import Data.Aeson
     ( Value
