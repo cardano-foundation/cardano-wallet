@@ -13,9 +13,9 @@ import Prelude
 import Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( Address
     , ApiT (..)
+    , ChainPoint (..)
     , Customer
     , CustomerList
-    , ChainPoint (..)
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema

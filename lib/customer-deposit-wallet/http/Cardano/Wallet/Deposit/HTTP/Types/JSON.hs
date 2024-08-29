@@ -26,6 +26,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
+    , chainPointSchema
     , customerListSchema
     , customerSchema
     )
@@ -197,3 +198,10 @@ instance FromJSON (ApiT ChainPoint) where
                 fail "'origin' is expected."
           parseSlot = withObject "at slot" $ \obj ->
               ApiT . At <$>  obj .: "at_slot"
+
+instance ToSchema (ApiT ChainPoint) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT ChainPoint")
+                chainPointSchema

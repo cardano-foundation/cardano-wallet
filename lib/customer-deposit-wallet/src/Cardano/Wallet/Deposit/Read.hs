@@ -59,8 +59,8 @@ import Data.Maybe
     ( fromJust
     )
 import Data.Word
-    ( Word8
-    , Word64
+    ( Word64
+    , Word8
     )
 import Numeric.Natural
     ( Natural
