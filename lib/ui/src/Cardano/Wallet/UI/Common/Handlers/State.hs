@@ -1,6 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.UI.Personal.Handlers.State
+module Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     ) where
 

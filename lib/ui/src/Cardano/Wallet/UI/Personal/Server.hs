@@ -58,6 +58,9 @@ import Cardano.Wallet.UI.Common.Handlers.Settings
 import Cardano.Wallet.UI.Common.Handlers.SSE
     ( sse
     )
+import Cardano.Wallet.UI.Common.Handlers.State
+    ( getState
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
@@ -79,9 +82,6 @@ import Cardano.Wallet.UI.Personal.API
     )
 import Cardano.Wallet.UI.Personal.Handlers.Addresses
     ( listAddresses
-    )
-import Cardano.Wallet.UI.Personal.Handlers.State
-    ( getState
     )
 import Cardano.Wallet.UI.Personal.Handlers.Wallet
     ( deleteWallet

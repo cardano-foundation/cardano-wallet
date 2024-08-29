@@ -35,6 +35,7 @@ library
   exposed-modules:
     Cardano.Wallet.UI.Common.Handlers.Settings
     Cardano.Wallet.UI.Common.Handlers.SSE
+    Cardano.Wallet.UI.Common.Handlers.State
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib
@@ -44,7 +45,6 @@ library
     Cardano.Wallet.UI.Personal.API
     Cardano.Wallet.UI.Personal.Handlers.Addresses
     Cardano.Wallet.UI.Personal.Handlers.Lib
-    Cardano.Wallet.UI.Personal.Handlers.State
     Cardano.Wallet.UI.Personal.Handlers.Wallet
     Cardano.Wallet.UI.Personal.Handlers.Wallets
     Cardano.Wallet.UI.Personal.Html.Pages.About
