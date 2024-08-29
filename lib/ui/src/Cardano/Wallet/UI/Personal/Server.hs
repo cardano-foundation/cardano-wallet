@@ -75,6 +75,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Network
 import Cardano.Wallet.UI.Common.Html.Pages.Settings
     ( settingsStateH
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
+    ( PageConfig
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -109,7 +112,6 @@ import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Page
     ( Page (..)
-    , PageConfig
     , page
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Wallet

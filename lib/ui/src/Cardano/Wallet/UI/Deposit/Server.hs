@@ -50,6 +50,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Network
 import Cardano.Wallet.UI.Common.Html.Pages.Settings
     ( settingsStateH
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
+    ( PageConfig
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -67,7 +70,6 @@ import Cardano.Wallet.UI.Deposit.API
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
-    , PageConfig
     , page
     )
 import Control.Monad.Trans

@@ -6,7 +6,6 @@
 module Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , page
-    , PageConfig (..)
     )
 where
 
@@ -21,11 +20,11 @@ import Cardano.Wallet.UI.Common.Html.Pages.Network
 import Cardano.Wallet.UI.Common.Html.Pages.Settings
     ( settingsPageH
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
-    ( footerH
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Body
+    ( bodyH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
-    ( HeadConfig
+    ( PageConfig (..)
     , pageFromBodyH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
@@ -54,8 +53,6 @@ import Data.Text
     )
 import Lucid
     ( Html
-    , class_
-    , div_
     , renderBS
     )
 
@@ -66,13 +63,6 @@ data Page
 
 makePrisms ''Page
 
-data PageConfig = PageConfig
-    { prefix :: Text
-    -- ^ Prefix to prepend to all links
-    , headConfig :: HeadConfig
-    -- ^ Head configuration
-    }
-
 page
     :: PageConfig
     -- ^ Page configuration
@@ -82,27 +72,11 @@ page
 page PageConfig{..} p  = RawHtml
     $ renderBS
     $ pageFromBodyH faviconLink headConfig
-    $ bodyH prefix p
+    $ bodyH (headerH prefix p)
     $ case p of
         About -> aboutH
         Network -> networkH sseLink networkInfoLink
         Settings -> settingsPageH sseLink settingsGetLink
-
-bodyH
-    :: Text
-    -- ^ Prefix
-    -> Page
-    -- ^ Current page
-    -> Html ()
-    -- ^ Body content
-    -> Html ()
-bodyH prefix p body = do
-    headerH prefix p
-    div_ [class_ "container-fluid"] $ do
-        div_ [class_ "main"] body
-        div_
-            [class_ "footer"]
-            footerH
 
 headerH :: Text -> Page -> Html ()
 headerH prefix p =

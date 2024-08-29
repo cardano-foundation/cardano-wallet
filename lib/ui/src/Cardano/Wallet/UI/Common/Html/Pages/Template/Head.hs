@@ -3,6 +3,7 @@
 module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( pageFromBodyH
     , HeadConfig (..)
+    , PageConfig(..)
     )
 where
 
@@ -13,6 +14,9 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
+    )
+import Data.Text
+    ( Text
     )
 import Lucid
     ( Html
@@ -108,3 +112,10 @@ pageFromBodyH faviconLink HeadConfig{..} body = html_ [term "data-bs-theme" "dar
             favicon faviconLink
             useHtmxVersion (1,9,12)
         body_ body
+
+data PageConfig = PageConfig
+    { prefix :: Text
+    -- ^ Prefix to prepend to all links
+    , headConfig :: HeadConfig
+    -- ^ Head configuration
+    }
