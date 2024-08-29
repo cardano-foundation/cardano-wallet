@@ -14,6 +14,9 @@ import Cardano.Wallet.Deposit.Pure.UTxO
     , balance
     , excluding
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Tx
+    ( primitiveTx
+    )
 import Cardano.Wallet.Primitive.Model
     ( utxoFromTx
     )
@@ -60,7 +63,10 @@ applyBlock
 applyBlock isOurs block u0 =
     (mconcat $ reverse dus, u1)
  where
-    (dus, u1) = mapAccumL' (applyTx isOurs) u0 $ Read.transactions block
+    (dus, u1) =
+        mapAccumL' (applyTx isOurs) u0
+            . map primitiveTx
+            $ Read.transactions block
 
 -- | Apply a transactions to the 'UTxO'.
 --
