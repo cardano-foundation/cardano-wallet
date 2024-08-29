@@ -47,13 +47,13 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     , sseH
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Network
+    ( blockReferenceH
+    )
 import Cardano.Wallet.UI.Personal.API
     ( sseLink
     , walletDeleteLink
     , walletLink
-    )
-import Cardano.Wallet.UI.Personal.Html.Pages.Network
-    ( blockReferenceH
     )
 import Control.Monad
     ( forM_

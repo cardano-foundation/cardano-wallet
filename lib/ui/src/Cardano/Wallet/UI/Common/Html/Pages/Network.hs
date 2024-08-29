@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Personal.Html.Pages.Network where
+module Cardano.Wallet.UI.Common.Html.Pages.Network where
 
 import Prelude
 
@@ -37,10 +37,6 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     , sseH
     )
-import Cardano.Wallet.UI.Personal.API
-    ( networkInfoLink
-    , sseLink
-    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -49,11 +45,15 @@ import Lucid
     , ToHtml (..)
     , p_
     )
+import Servant.Links
+    ( Link
+    )
 
 import qualified Data.Percentage as Percentage
 
-networkH :: Html ()
-networkH = sseH sseLink networkInfoLink "content" ["tip"]
+networkH :: Link -> Link -> Html ()
+networkH sseLink networkInfoLink
+    = sseH sseLink networkInfoLink "content" ["tip"]
 
 networkInfoH :: ShowTime -> ApiNetworkInformation -> Html ()
 networkInfoH showTime ApiNetworkInformation{..} = record $ do
