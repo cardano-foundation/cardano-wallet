@@ -43,18 +43,19 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.UI.Common.Handlers.Lib
+    ( alertOnServerError
+    , catching
+    , handleParseRequestError
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( Push (..)
     , SessionLayer (..)
     , stateL
     )
-import Cardano.Wallet.UI.Personal.Handlers.Lib
-    ( evenWithNoWallet
-    , handleParseRequestError
-    , withWallet
-    )
 import Control.Lens
     ( set
+    , view
     , (^.)
     )
 import Control.Monad
@@ -83,6 +84,7 @@ import Paths_cardano_wallet_ui
 import Servant
     ( Handler
     , NoContent
+    , runHandler
     )
 import System.Random.Stateful
     ( randomRIO
@@ -124,7 +126,8 @@ postWallet SessionLayer{..} ctx alert render v = do
             $ parsePostWalletRequest v
     liftIO $ do
         evenWithNoWallet alert render $ do
-            r <- Server.postWallet ctx Shelley.generateKeyFromSeed ShelleyKey
+            r <-
+                Server.postWallet ctx Shelley.generateKeyFromSeed ShelleyKey
                     $ newWallet mnemonic name' password
             liftIO $ do
                 sendSSE $ Push "wallets"
@@ -193,3 +196,32 @@ selectWallet SessionLayer{..} wid = liftIO $ do
     sendSSE $ Push "wallet"
     sendSSE $ Push "wallets"
     sendSSE $ Push "settings"
+
+-- | Run a handler with the current wallet, if any, or return an error message.
+withWallet
+    :: SessionLayer (Maybe WalletId)
+    -> (BL.ByteString -> html)
+    -- ^ Alert renderer
+    -> (a -> html)
+    -- ^ Result renderer
+    -> (WalletId -> Handler a)
+    -- ^ Action to run with the wallet
+    -> IO html
+withWallet SessionLayer{..} alert render action = catching alert $ do
+    mwid <- view stateL <$> state
+    case mwid of
+        Nothing -> do
+            pure $ alert "No wallet selected"
+        Just wid -> do
+            result <- runHandler $ action wid
+            pure $ alertOnServerError alert render result
+
+evenWithNoWallet
+    :: (BL.ByteString -> html)
+    -> (a -> html)
+    -> (Handler a)
+    -> IO html
+evenWithNoWallet alert render action =
+    catching alert $ do
+        result <- runHandler action
+        pure $ alertOnServerError alert render result

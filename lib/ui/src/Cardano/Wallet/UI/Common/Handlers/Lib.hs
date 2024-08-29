@@ -2,27 +2,15 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Handlers.Lib
+module Cardano.Wallet.UI.Common.Handlers.Lib
     ( handleParseRequestError
     , alertOnServerError
     , catching
-    , withWallet
-    , evenWithNoWallet
     )
 where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( WalletId
-    )
-import Cardano.Wallet.UI.Common.Layer
-    ( SessionLayer (..)
-    , stateL
-    )
-import Control.Lens
-    ( view
-    )
 import Control.Monad.Catch
     ( MonadCatch (..)
     , SomeException (..)
@@ -36,9 +24,6 @@ import Servant
     , ServerError (..)
     , err400
     , throwError
-    )
-import Servant.Server
-    ( runHandler
     )
 
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -66,32 +51,3 @@ alertOnServerError alert render =  \case
 catching :: MonadCatch m => (BL.ByteString -> html) -> m html -> m html
 catching alert f = catch f
     $ \(SomeException e) -> pure . alert . BL.pack . show $ e
-
--- | Run a handler with the current wallet, if any, or return an error message.
-withWallet
-    :: SessionLayer (Maybe WalletId)
-    -> (BL.ByteString -> html)
-    -- ^ Alert renderer
-    -> (a -> html)
-    -- ^ Result renderer
-    -> (WalletId -> Handler a)
-    -- ^ Action to run with the wallet
-    -> IO html
-withWallet SessionLayer{..} alert render action = catching alert $ do
-    mwid <- view stateL <$> state
-    case mwid of
-        Nothing -> do
-            pure $ alert "No wallet selected"
-        Just wid -> do
-            result <- runHandler $ action wid
-            pure $ alertOnServerError alert render result
-
-evenWithNoWallet
-    :: (BL.ByteString -> html)
-    -> (a -> html)
-    -> (Handler a)
-    -> IO html
-evenWithNoWallet alert render action =
-    catching alert $ do
-        result <- runHandler action
-        pure $ alertOnServerError alert render result

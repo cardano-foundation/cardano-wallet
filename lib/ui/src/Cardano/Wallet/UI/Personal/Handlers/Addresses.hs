@@ -39,16 +39,16 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.UI.Common.Handlers.Lib
+    ( alertOnServerError
+    , catching
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , stateL
-    )
-import Cardano.Wallet.UI.Personal.Handlers.Lib
-    ( alertOnServerError
-    , catching
     )
 import Control.Lens
     ( view
