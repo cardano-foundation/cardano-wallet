@@ -49,6 +49,7 @@ library
     Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
+    Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Personal.API
     Cardano.Wallet.UI.Personal.Handlers.Addresses
