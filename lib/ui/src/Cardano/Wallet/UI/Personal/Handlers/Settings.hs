@@ -22,7 +22,7 @@ import Servant
     ( Handler
     )
 
-toggleSSE :: SessionLayer -> Handler ()
+toggleSSE :: SessionLayer s -> Handler ()
 toggleSSE SessionLayer{..} = liftIO $ do
     update $ over sseEnabled not
     sendSSE $ Push "settings"

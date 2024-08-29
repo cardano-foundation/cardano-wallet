@@ -357,7 +357,7 @@ serveWallet
                     case ms of
                         Nothing -> pure ()
                         Just (_port, socket) -> do
-                            ui <- Ui.withUILayer 1
+                            ui <- Ui.withUILayer 1 Nothing
                             sourceOfNewTip netLayer ui
                             let uiService =
                                     startUiServer
@@ -441,7 +441,7 @@ serveWallet
             :: forall n
              . ( HasSNetworkId n
                )
-            => UILayer
+            => UILayer (Maybe WalletId)
             -> SNetworkId n
             -> Socket
             -> ApiLayer (RndState n)

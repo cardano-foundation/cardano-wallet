@@ -36,6 +36,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
@@ -64,7 +67,7 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 listAddresses
     :: forall n
      . HasSNetworkId n
-    => SessionLayer
+    => SessionLayer (Maybe WalletId)
     -> ApiLayer (SeqState n ShelleyKey)
     -> (BL.ByteString -> RawHtml)
     -> ([ApiAddressWithPath n] -> RawHtml)

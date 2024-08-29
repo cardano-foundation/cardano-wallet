@@ -62,7 +62,7 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 
 listWallets
     :: HasSNetworkId n
-    => SessionLayer
+    => SessionLayer (Maybe WalletId)
     -> ApiLayer (SeqState n ShelleyKey)
     -> (Maybe WalletId -> [(ApiWallet, UTCTime)] -> RawHtml)
     -> Handler RawHtml

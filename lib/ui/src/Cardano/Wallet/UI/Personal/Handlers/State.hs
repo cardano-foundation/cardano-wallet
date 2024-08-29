@@ -21,7 +21,7 @@ import Servant
     )
 
 getState
-    :: SessionLayer
-    -> (State -> RawHtml)
+    :: SessionLayer s
+    -> (State s -> RawHtml)
     -> Handler RawHtml
 getState uiLayer render = fmap render . liftIO $ state uiLayer

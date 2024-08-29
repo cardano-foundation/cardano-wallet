@@ -112,7 +112,7 @@ newWallet xs name' passphrase' =
 
 postWallet
     :: HasSNetworkId n
-    => SessionLayer
+    => SessionLayer (Maybe WalletId)
     -> ApiLayer (SeqState n ShelleyKey)
     -> (BL.ByteString -> html) -- problem report
     -> (ApiWallet -> html) -- success report
@@ -163,7 +163,7 @@ data UIWallet = UIWallet {id :: WalletId, name :: Text}
 
 getWallet
     :: HasSNetworkId n
-    => SessionLayer -- session provider
+    => SessionLayer (Maybe WalletId)
     -> ApiLayer (SeqState n ShelleyKey) -- api provider
     -> (BL.ByteString -> html) -- problem report
     -> (ApiWallet -> html) -- success report
@@ -173,7 +173,7 @@ getWallet layer ctx alert render = liftIO $ do
         fmap fst $ Server.getWallet ctx Server.mkShelleyWallet $ ApiT wid
 
 deleteWallet
-    :: SessionLayer
+    :: SessionLayer (Maybe WalletId)
     -> ApiLayer (SeqState n ShelleyKey)
     -> (BL.ByteString -> html)
     -> (NoContent -> html)
@@ -187,7 +187,7 @@ deleteWallet layer ctx alert render = liftIO $ do
             sendSSE layer $ Push "wallet"
         pure r
 
-selectWallet :: SessionLayer -> WalletId -> Handler ()
+selectWallet :: SessionLayer (Maybe WalletId) -> WalletId -> Handler ()
 selectWallet SessionLayer{..} wid = liftIO $ do
     update $ set walletId $ Just wid
     sendSSE $ Push "wallet"

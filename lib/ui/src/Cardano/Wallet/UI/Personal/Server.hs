@@ -46,6 +46,9 @@ import Cardano.Wallet.Primitive.NetworkId
     , SNetworkId
     , networkIdVal
     )
+import Cardano.Wallet.Primitive.Types
+    ( WalletId
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
@@ -151,7 +154,7 @@ import Servant
 import qualified Data.ByteString.Lazy as BL
 
 pageHandler
-    :: UILayer
+    :: UILayer (Maybe WalletId)
     -> PageConfig
     -> Page
     -> Maybe RequestCookies
@@ -170,7 +173,7 @@ showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 serveUI
     :: forall n
      . HasSNetworkId n
-    => UILayer
+    => UILayer (Maybe WalletId)
     -> PageConfig
     -> SNetworkId n
     -> ApiLayer (RndState n)
@@ -212,12 +215,19 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
-    withSessionLayerRead :: (SessionLayer -> Handler a) -> Maybe RequestCookies -> Handler a
+    withSessionLayerRead
+        :: (SessionLayer (Maybe WalletId) -> Handler a)
+        -> Maybe RequestCookies
+        -> Handler a
     withSessionLayerRead f = withSessionRead $ \k -> do
         s <- liftIO $ sessions ul k
         f s
 
-withSessionLayer :: UILayer -> (SessionLayer -> Handler a) -> Maybe RequestCookies -> Handler (CookieResponse a)
+withSessionLayer
+    :: UILayer (Maybe WalletId)
+    -> (SessionLayer (Maybe WalletId) -> Handler a)
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse a)
 withSessionLayer ulayer f = withSession $ \k -> do
     s <- liftIO $ sessions ulayer k
     f s

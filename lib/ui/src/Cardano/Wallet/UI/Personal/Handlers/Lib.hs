@@ -69,7 +69,7 @@ catching alert f = catch f
 
 -- | Run a handler with the current wallet, if any, or return an error message.
 withWallet
-    :: SessionLayer
+    :: SessionLayer (Maybe WalletId)
     -> (BL.ByteString -> html)
     -- ^ Alert renderer
     -> (a -> html)

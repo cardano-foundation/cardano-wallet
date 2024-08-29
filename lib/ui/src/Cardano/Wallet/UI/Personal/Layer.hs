@@ -17,9 +17,6 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( WalletId
-    )
 import Cardano.Wallet.UI.Common.Handlers.SSE
     ( Message (..)
     )
@@ -81,39 +78,39 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 
 -- | The state of the UI.
-data State = State
-    { _walletId :: Maybe WalletId
+data State s = State
+    { _state :: s
     -- ^ The selected wallet id, if any.
     , _sseEnabled :: Bool
     -- ^ Whether server-sent events are enabled.
     }
     deriving (Eq, Show)
 
-bootState :: State
-bootState = State Nothing True
+bootState :: s -> State s
+bootState s = State s True
 
-walletId :: Lens' State (Maybe WalletId)
-walletId = lens _walletId (\s a -> s{_walletId = a})
+walletId :: Lens' (State s) s
+walletId = lens _state (\s a -> s{_state = a})
 
-sseEnabled :: Lens' State Bool
+sseEnabled :: Lens' (State s) Bool
 sseEnabled = lens _sseEnabled (\s a -> s{_sseEnabled = a})
 
 -- | A push message.
 newtype Push = Push BL.ByteString
 
 -- | The UI layer.
-data UILayer = UILayer
-    { sessions :: SessionKey -> IO SessionLayer
+data UILayer s = UILayer
+    { sessions :: SessionKey -> IO (SessionLayer s)
     -- ^ Get the session layer for a given session key. Always succeed
     , signals :: Tracer IO Signal
     -- ^ A tracer for signals.
     }
 
 -- | The session layer.
-data SessionLayer = SessionLayer
-    { state :: IO State
+data SessionLayer s = SessionLayer
+    { state :: IO (State s)
     -- ^ Get the state.
-    , update :: (State -> State) -> IO ()
+    , update :: (State s -> State s) -> IO ()
     -- ^ Update the state.
     , sendSSE :: Push -> IO ()
     -- ^ Send a server-sent event.
@@ -122,7 +119,7 @@ data SessionLayer = SessionLayer
     }
 
 -- | Create a session layer giver the state and the server-sent events channel.
-mkSession :: TVar State -> TChan Message -> SessionLayer
+mkSession :: TVar (State s) -> TChan Message -> SessionLayer s
 mkSession var sseChan =
     SessionLayer
         { state = readTVarIO var
@@ -151,8 +148,12 @@ throttler freq = do
         when run action
 
 -- | Create a UI layer given the sessions map.
-mkUILayer :: Throttling -> TVar (Map.Map SessionKey SessionLayer) -> UILayer
-mkUILayer throttling sessions' = UILayer{..}
+mkUILayer
+    :: Throttling
+    -> TVar (Map.Map SessionKey (SessionLayer s))
+    -> s
+    -> UILayer s
+mkUILayer throttling sessions' s0 = UILayer{..}
   where
     sessions sid = do
         sids <- readTVarIO sessions'
@@ -160,7 +161,7 @@ mkUILayer throttling sessions' = UILayer{..}
             Just session -> pure session
             Nothing -> atomically $ do
                 sseChan <- newBroadcastTChan
-                var <- newTVar bootState
+                var <- newTVar $ bootState s0
                 let session = mkSession var sseChan
                 modifyTVar sessions' $ Map.insert sid session
                 pure session
@@ -174,14 +175,14 @@ mkUILayer throttling sessions' = UILayer{..}
                 sendSSE s $ Push "wallet"
 
 -- | Run an action with a UI layer.
-withUILayer :: Int -> ContT r IO UILayer
-withUILayer freq = do
+withUILayer :: Int -> s -> ContT r IO (UILayer s)
+withUILayer freq s0 = do
     sessions' <- liftIO $ newTVarIO mempty
     throttled <- throttler freq
-    pure $ mkUILayer throttled sessions'
+    pure $ mkUILayer throttled sessions' s0
 
 -- | Collect NewTip signals
-sourceOfNewTip :: NetworkLayer IO block -> UILayer -> ContT r IO ()
+sourceOfNewTip :: NetworkLayer IO block -> UILayer s -> ContT r IO ()
 sourceOfNewTip netLayer ui = do
     void
         $ ContT

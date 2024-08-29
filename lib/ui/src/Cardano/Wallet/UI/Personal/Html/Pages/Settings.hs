@@ -39,7 +39,7 @@ import Control.Lens
 settingsPageH :: Html ()
 settingsPageH = sseH sseLink settingsGetLink "content" ["settings"]
 
-settingsStateH :: State -> Html ()
+settingsStateH :: State s -> Html ()
 settingsStateH state =
     record $ do
         simpleField "Enable SSE" $ do
