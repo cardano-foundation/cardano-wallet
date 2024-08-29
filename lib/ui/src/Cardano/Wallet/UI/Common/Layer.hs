@@ -45,7 +45,6 @@ import UnliftIO
     ( MonadIO (..)
     , newEmptyTMVarIO
     , putTMVar
-    , readTMVar
     , withAsync
     , writeTChan
     )
@@ -59,6 +58,7 @@ import UnliftIO.STM
     , newTVarIO
     , orElse
     , readTVarIO
+    , takeTMVar
     )
 
 import Cardano.Wallet.Network
@@ -135,16 +135,23 @@ mkSession var sseChan =
     write :: Message -> IO ()
     write = atomically . writeTChan sseChan
 
+-- | A throttling mechanism. When you call it, it will run the action or ignore
+-- it if it's too soon.
 type Throttling = IO () -> IO ()
 
-throttler :: Int -> ContT r IO Throttling
-throttler freq = do
+-- | Create a throtting mechanism based on frequency. Will run the action at
+-- most once every 1/freq seconds.
+freqThrottle
+    :: Int
+    -- ^ The frequency in Hz.
+    -> ContT r IO Throttling
+freqThrottle freq = do
     t <- liftIO newEmptyTMVarIO
     _ <- ContT $ withAsync $ forever $ do
         atomically $ putTMVar t ()
         threadDelay $ 1_000_000 `div` freq
     pure $ \action -> do
-        run <- atomically $ (readTMVar t $> True) `orElse` pure False
+        run <- atomically $ (takeTMVar t $> True) `orElse` pure False
         when run action
 
 -- | Create a UI layer given the sessions map.
@@ -178,7 +185,7 @@ mkUILayer throttling sessions' s0 = UILayer{..}
 withUILayer :: Int -> s -> ContT r IO (UILayer s)
 withUILayer freq s0 = do
     sessions' <- liftIO $ newTVarIO mempty
-    throttled <- throttler freq
+    throttled <- freqThrottle freq
     pure $ mkUILayer throttled sessions' s0
 
 -- | Collect NewTip signals
