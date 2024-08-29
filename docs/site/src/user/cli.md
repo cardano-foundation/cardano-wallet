@@ -49,12 +49,13 @@ The CLI commands for `wallet`, `transaction` and `address` only output valid JSO
 Serve API that listens for commands/actions. Before launching user should start [`cardano-node`](https://github.com/IntersectMBO/cardano-node).
 
 ```console
-Usage: cardano-wallet serve [--listen-address HOST]
-                            (--node-socket FILE [--sync-tolerance DURATION])
+Usage: cardano-wallet serve [--listen-address HOST] --node-socket FILE
+                            [--sync-tolerance DURATION]
                             [--random-port | --port INT]
+                            [--ui-random-port | --ui-port INT]
+                            [--ui-deposit-random-port | --ui-deposit-port INT]
                             [--tls-ca-cert FILE --tls-sv-cert FILE
-                              --tls-sv-key FILE]
-                            (--mainnet | --testnet FILE )
+                              --tls-sv-key FILE] (--mainnet | --testnet FILE)
                             [--database DIR] [--shutdown-handler]
                             [--pool-metadata-fetching ( none | direct | SMASH-URL )]
                             [--token-metadata-server URL]
@@ -79,6 +80,12 @@ Available options:
   --random-port            serve wallet API on any available port (conflicts
                            with --port)
   --port INT               port used for serving the wallet API. (default: 8090)
+  --ui-random-port         serve the personal wallet UI on any available port
+                           (conflicts with --ui-port)
+  --ui-port INT            port used for serving the personal wallet UI.
+  --ui-deposit-random-port serve the deposit wallet UI on any available port
+                           (conflicts with --ui-deposit-port)
+  --ui-deposit-port INT    port used for serving the deposit wallet UI.
   --tls-ca-cert FILE       A x.509 Certificate Authority (CA) certificate.
   --tls-sv-cert FILE       A x.509 Server (SV) certificate.
   --tls-sv-key FILE        The RSA Server key which signed the x.509 server
