@@ -52,6 +52,7 @@ library
     Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Deposit.Html.Pages.About
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
+    Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Personal.API
     Cardano.Wallet.UI.Personal.Handlers.Addresses
@@ -79,6 +80,7 @@ library
     , cardano-wallet-api
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , containers
     , contra-tracer
     , cookie
