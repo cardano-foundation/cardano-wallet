@@ -48,7 +48,7 @@ import Cardano.Wallet.UI.Personal.Handlers.Lib
     )
 import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
-    , walletId
+    , stateL
     )
 import Control.Lens
     ( view
@@ -74,7 +74,7 @@ listAddresses
     -> Handler RawHtml
 listAddresses SessionLayer{..} ctx alert render = catching alert $ do
     liftIO $ do
-        mwid <- view walletId <$> state
+        mwid <- view stateL <$> state
         case mwid of
             Nothing -> pure $ alert "No wallet selected"
             Just wid -> do

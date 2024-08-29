@@ -120,7 +120,7 @@ import Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
 import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
     , UILayer (..)
-    , walletId
+    , stateL
     )
 import Control.Lens
     ( view
@@ -162,7 +162,7 @@ pageHandler
 pageHandler uiLayer config x =
     withSessionLayer uiLayer $ \session -> do
         state' <- liftIO $ state session
-        let walletPresent = case view walletId state' of
+        let walletPresent = case view stateL state' of
                 Just _ -> WalletPresent
                 Nothing -> WalletAbsent
         pure $ page config x walletPresent

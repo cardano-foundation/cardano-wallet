@@ -18,7 +18,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
-    , walletId
+    , stateL
     )
 import Control.Lens
     ( view
@@ -78,7 +78,7 @@ withWallet
     -- ^ Action to run with the wallet
     -> IO html
 withWallet SessionLayer{..} alert render action = catching alert $ do
-    mwid <- view walletId <$> state
+    mwid <- view stateL <$> state
     case mwid of
         Nothing -> do
             pure $ alert "No wallet selected"

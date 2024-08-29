@@ -47,7 +47,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.UI.Personal.Layer
     ( SessionLayer (..)
-    , walletId
+    , stateL
     )
 import Control.Lens
     ( view
@@ -79,6 +79,6 @@ listWallets SessionLayer{..} ctx render = do
                         Nothing -> pure . RawHtml $ errBody
                         Just je -> pure . RawHtml . Aeson.encodePretty @Value $ je
                 Right ls -> do
-                    wid <- liftIO $ view walletId <$> state
+                    wid <- liftIO $ view stateL <$> state
                     pure $ render wid ls
         do \(SomeException e) -> pure . RawHtml . BL.pack . show $ e

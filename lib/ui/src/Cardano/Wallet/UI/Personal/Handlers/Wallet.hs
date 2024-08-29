@@ -51,7 +51,7 @@ import Cardano.Wallet.UI.Personal.Handlers.Lib
 import Cardano.Wallet.UI.Personal.Layer
     ( Push (..)
     , SessionLayer (..)
-    , walletId
+    , stateL
     )
 import Control.Lens
     ( set
@@ -128,7 +128,7 @@ postWallet SessionLayer{..} ctx alert render v = do
                     $ newWallet mnemonic name' password
             liftIO $ do
                 sendSSE $ Push "wallets"
-                update $ set walletId $ Just $ r ^. #id . #getApiT
+                update $ set stateL $ Just $ r ^. #id . #getApiT
             pure r
 
 parsePostWalletRequest :: Value -> Either String (Text, Text, Text)
@@ -182,14 +182,14 @@ deleteWallet layer ctx alert render = liftIO $ do
     withWallet layer alert render $ \wid -> do
         r <- Server.deleteWallet ctx $ ApiT wid
         liftIO $ do
-            update layer $ set walletId Nothing
+            update layer $ set stateL Nothing
             sendSSE layer $ Push "wallets"
             sendSSE layer $ Push "wallet"
         pure r
 
 selectWallet :: SessionLayer (Maybe WalletId) -> WalletId -> Handler ()
 selectWallet SessionLayer{..} wid = liftIO $ do
-    update $ set walletId $ Just wid
+    update $ set stateL $ Just wid
     sendSSE $ Push "wallet"
     sendSSE $ Push "wallets"
     sendSSE $ Push "settings"

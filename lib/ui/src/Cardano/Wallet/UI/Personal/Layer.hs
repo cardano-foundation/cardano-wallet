@@ -9,7 +9,7 @@ module Cardano.Wallet.UI.Personal.Layer
     , SessionLayer (..)
     , Push (..)
     , State (..)
-    , walletId
+    , stateL
     , sseEnabled
     , sourceOfNewTip
     )
@@ -89,8 +89,8 @@ data State s = State
 bootState :: s -> State s
 bootState s = State s True
 
-walletId :: Lens' (State s) s
-walletId = lens _state (\s a -> s{_state = a})
+stateL :: Lens' (State s) s
+stateL = lens _state (\s a -> s{_state = a})
 
 sseEnabled :: Lens' (State s) Bool
 sseEnabled = lens _sseEnabled (\s a -> s{_sseEnabled = a})
