@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.UI.Personal.Handlers.Settings
+module Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
     ) where
 

@@ -52,6 +52,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.Settings
+    ( toggleSSE
+    )
 import Cardano.Wallet.UI.Common.Handlers.SSE
     ( sse
     )
@@ -76,9 +79,6 @@ import Cardano.Wallet.UI.Personal.API
     )
 import Cardano.Wallet.UI.Personal.Handlers.Addresses
     ( listAddresses
-    )
-import Cardano.Wallet.UI.Personal.Handlers.Settings
-    ( toggleSSE
     )
 import Cardano.Wallet.UI.Personal.Handlers.State
     ( getState
