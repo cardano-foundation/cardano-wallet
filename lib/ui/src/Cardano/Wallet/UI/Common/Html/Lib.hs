@@ -7,7 +7,7 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , showLocalTime
     , ShowTime
     , justifyRight
-
+    , linkText
     )
 where
 
@@ -15,6 +15,9 @@ import Prelude
 
 import Data.Generics.Product
     ()
+import Data.Text
+    ( Text
+    )
 import Data.Time
     ( UTCTime
     , defaultTimeLocale
@@ -28,6 +31,12 @@ import Lucid
     , class_
     , div_
     )
+import Servant.Links
+    ( Link
+    , linkURI
+    )
+
+import qualified Data.Text as T
 
 showPercentage :: Rational -> String
 showPercentage p =
@@ -48,3 +57,6 @@ showLocalTime = do
 
 justifyRight :: ToHtml b => b -> Html ()
 justifyRight = div_ [class_ "d-flex justify-content-end"] . toHtml
+
+linkText :: Link -> Text
+linkText = T.pack . ('/' :) . show . linkURI

@@ -32,9 +32,6 @@ import Cardano.Wallet.UI.Cookies
 import Data.Aeson
     ( Value
     )
-import Data.Text
-    ( Text
-    )
 import Data.Text.Class
     ( ToText (..)
     )
@@ -55,13 +52,11 @@ import Servant
     , ReqBody
     , ToHttpApiData (..)
     , allLinks
-    , linkURI
     , (:<|>) (..)
     , (:>)
     )
 
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
 
 data Visible = Visible | Hidden
 
@@ -189,6 +184,3 @@ homePageLink
     :<|> sseLink
     :<|> faviconLink =
         allLinks (Proxy @UI)
-
-linkText :: Link -> Text
-linkText = T.pack . ('/' :) . show . linkURI

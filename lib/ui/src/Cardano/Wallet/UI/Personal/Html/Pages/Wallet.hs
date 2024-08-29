@@ -37,11 +37,11 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( ShowTime
+    , linkText
     , showPercentage
     )
 import Cardano.Wallet.UI.Personal.API
-    ( linkText
-    , sseLink
+    ( sseLink
     , walletDeleteLink
     , walletLink
     )

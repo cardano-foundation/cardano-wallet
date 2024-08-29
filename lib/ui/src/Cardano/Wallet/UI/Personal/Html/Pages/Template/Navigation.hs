@@ -5,7 +5,7 @@ where
 
 import Prelude
 
-import Cardano.Wallet.UI.Personal.API
+import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
 import Control.Monad

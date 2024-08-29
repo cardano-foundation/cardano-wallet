@@ -37,13 +37,13 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxTarget_
     , hxTrigger_
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( linkText
+    )
 import Cardano.Wallet.UI.Lib.ListOf
     ( Cons (..)
     , ListOf
     , listOf
-    )
-import Cardano.Wallet.UI.Personal.API
-    ( linkText
     )
 import Control.Monad.Operational
     ( singleton

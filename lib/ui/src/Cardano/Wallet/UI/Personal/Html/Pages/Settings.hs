@@ -17,13 +17,15 @@ import Lucid
     , type_
     )
 
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( linkText
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( State
     , sseEnabled
     )
 import Cardano.Wallet.UI.Personal.API
-    ( linkText
-    , settingsGetLink
+    ( settingsGetLink
     , settingsSseToggleLink
     , sseLink
     )

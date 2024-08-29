@@ -19,12 +19,14 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxSwap_
     , hxTrigger_
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( linkText
+    )
 import Cardano.Wallet.UI.Lib.ListOf
     ( ListOf
     )
 import Cardano.Wallet.UI.Personal.API
-    ( linkText
-    , settingsWalletSelectLink
+    ( settingsWalletSelectLink
     , sseLink
     , walletsListLink
     )
