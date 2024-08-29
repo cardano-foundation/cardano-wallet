@@ -15,7 +15,7 @@ module Cardano.Wallet.Deposit.HTTP.Types.JSON
     , Address
     , Customer
     , CustomerList
-    , ChainPoint
+    , ChainPoint (..)
     )
     where
 
@@ -36,11 +36,15 @@ import Cardano.Wallet.Deposit.Read
     ( Address
     , ChainPoint (..)
     )
+import Control.Applicative
+    ( (<|>)
+    )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
     , object
     , withObject
+    , withText
     , (.:)
     , (.=)
     )
@@ -182,3 +186,14 @@ instance ToJSON (ApiT ChainPoint) where
     toJSON (ApiT (At sl)) = object
         [ "at_slot" .= toJSON sl
         ]
+
+instance FromJSON (ApiT ChainPoint) where
+    parseJSON payload = parseOrigin payload <|> parseSlot payload
+      where
+          parseOrigin = withText "origin" $ \txt ->
+            if txt == "origin" then
+                pure $ ApiT Origin
+            else
+                fail "'origin' is expected."
+          parseSlot = withObject "at slot" $ \obj ->
+              ApiT . At <$>  obj .: "at_slot"

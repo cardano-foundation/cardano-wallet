@@ -15,6 +15,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     , ApiT (..)
     , Customer
     , CustomerList
+    , ChainPoint (..)
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
@@ -28,6 +29,7 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Read
     ( mkEnterpriseAddress
+    , toSlot
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -60,6 +62,7 @@ import Test.QuickCheck
     , chooseInt
     , counterexample
     , forAll
+    , oneof
     , property
     , shrinkIntegral
     , vectorOf
@@ -79,6 +82,8 @@ spec = do
             prop_jsonRoundtrip @(ApiT Customer)
         it "ApiT CustomerList" $ property $
             prop_jsonRoundtrip @(ApiT CustomerList)
+        it "ApiT ChainPoint" $ property $
+            prop_jsonRoundtrip @(ApiT ChainPoint)
     describe "schema checks" $ do
         it "ApiT Address"
             $ jsonMatchesSchema genApiTAddress depositDefinitions addressSchema
@@ -148,6 +153,12 @@ instance Arbitrary (ApiT Customer) where
 
 instance Arbitrary (ApiT CustomerList) where
     arbitrary = genApiTCustomerList
+
+instance Arbitrary (ApiT ChainPoint) where
+    arbitrary = oneof
+        [ pure . ApiT $ Origin
+        , ApiT . At . toSlot <$> arbitrary
+        ]
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
