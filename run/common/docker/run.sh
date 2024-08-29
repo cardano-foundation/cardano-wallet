@@ -37,6 +37,8 @@ RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
+RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
 
 export WALLET_UI_PORT
 
@@ -168,6 +170,8 @@ case "$1" in
     start)
         echo "Starting the service..."
         echo "Wallet service port: $WALLET_PORT"
+        echo "Wallet service ui port: $WALLET_UI_PORT"
+        echo "Deposit wallet ui port: $DEPOSIT_WALLET_UI_PORT"
         echo "Wallet service tag: $WALLET_TAG"
         startup
         ;;
