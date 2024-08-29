@@ -7,7 +7,7 @@ module Cardano.Wallet.UI.Personal.Handlers.Settings
 
 import Prelude
 
-import Cardano.Wallet.UI.Personal.Layer
+import Cardano.Wallet.UI.Common.Layer
     ( Push (..)
     , SessionLayer (..)
     , sseEnabled

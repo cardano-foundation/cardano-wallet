@@ -9,7 +9,7 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
-import Cardano.Wallet.UI.Personal.Layer
+import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , State
     )

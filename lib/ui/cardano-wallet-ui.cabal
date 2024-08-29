@@ -37,6 +37,7 @@ library
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib
+    Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Personal.API
@@ -58,7 +59,6 @@ library
     Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     Cardano.Wallet.UI.Personal.Html.Pages.Wallets
     Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
-    Cardano.Wallet.UI.Personal.Layer
     Cardano.Wallet.UI.Personal.Server
     Cardano.Wallet.UI.Signal
 

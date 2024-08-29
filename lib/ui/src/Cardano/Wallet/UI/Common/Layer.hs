@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Cardano.Wallet.UI.Personal.Layer
+module Cardano.Wallet.UI.Common.Layer
     ( UILayer (..)
     , withUILayer
     , SessionLayer (..)

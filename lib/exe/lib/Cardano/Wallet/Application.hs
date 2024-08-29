@@ -167,15 +167,15 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( TransactionLayer
     )
+import Cardano.Wallet.UI.Common.Layer
+    ( UILayer
+    , sourceOfNewTip
+    )
 import Cardano.Wallet.UI.Personal.Html.Pages.Page
     ( PageConfig (..)
     )
 import Cardano.Wallet.UI.Personal.Html.Pages.Template.Head
     ( HeadConfig (..)
-    )
-import Cardano.Wallet.UI.Personal.Layer
-    ( UILayer
-    , sourceOfNewTip
     )
 import Control.Exception.Extra
     ( handle
@@ -247,7 +247,7 @@ import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.UI.Personal.API as Ui
 
-import qualified Cardano.Wallet.UI.Personal.Layer as Ui
+import qualified Cardano.Wallet.UI.Common.Layer as Ui
 import qualified Cardano.Wallet.UI.Personal.Server as Ui
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant

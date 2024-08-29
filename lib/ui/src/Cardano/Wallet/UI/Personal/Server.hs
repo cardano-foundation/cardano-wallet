@@ -59,6 +59,11 @@ import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
     )
+import Cardano.Wallet.UI.Common.Layer
+    ( SessionLayer (..)
+    , UILayer (..)
+    , stateL
+    )
 import Cardano.Wallet.UI.Cookies
     ( CookieResponse
     , RequestCookies
@@ -116,11 +121,6 @@ import Cardano.Wallet.UI.Personal.Html.Pages.Wallets
 import Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
     ( mnemonicH
     , postWalletForm
-    )
-import Cardano.Wallet.UI.Personal.Layer
-    ( SessionLayer (..)
-    , UILayer (..)
-    , stateL
     )
 import Control.Lens
     ( view

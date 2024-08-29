@@ -45,7 +45,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.Personal.Layer
+import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , stateL
     )

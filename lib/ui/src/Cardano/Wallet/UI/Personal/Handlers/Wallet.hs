@@ -43,15 +43,15 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.UI.Common.Layer
+    ( Push (..)
+    , SessionLayer (..)
+    , stateL
+    )
 import Cardano.Wallet.UI.Personal.Handlers.Lib
     ( evenWithNoWallet
     , handleParseRequestError
     , withWallet
-    )
-import Cardano.Wallet.UI.Personal.Layer
-    ( Push (..)
-    , SessionLayer (..)
-    , stateL
     )
 import Control.Lens
     ( set

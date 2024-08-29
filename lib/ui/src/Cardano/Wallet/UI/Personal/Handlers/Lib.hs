@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
-import Cardano.Wallet.UI.Personal.Layer
+import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , stateL
     )

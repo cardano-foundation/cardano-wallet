@@ -42,13 +42,13 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
+import Cardano.Wallet.UI.Common.Layer
+    ( SessionLayer (..)
+    , stateL
+    )
 import Cardano.Wallet.UI.Personal.Handlers.Lib
     ( alertOnServerError
     , catching
-    )
-import Cardano.Wallet.UI.Personal.Layer
-    ( SessionLayer (..)
-    , stateL
     )
 import Control.Lens
     ( view
