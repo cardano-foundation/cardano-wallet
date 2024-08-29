@@ -18,75 +18,37 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( WalletId (..)
     )
+import Cardano.Wallet.UI.Common.API
+    ( Image
+    , SessionedHtml
+    , Visible
+    , type (|>)
+    , type (|>>)
+    )
 import Cardano.Wallet.UI.Common.Handlers.SSE
     ( SSE
     )
-import Cardano.Wallet.UI.Common.Html.Html
-    ( HTML
-    , RawHtml (..)
-    )
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
-    , Cookied
     )
 import Data.Aeson
     ( Value
     )
-import Data.Text.Class
-    ( ToText (..)
-    )
-import Network.HTTP.Media
-    ( (//)
-    )
 import Servant
-    ( Accept (..)
-    , Capture
-    , FromHttpApiData (..)
+    ( Capture
     , Get
     , JSON
     , Link
-    , MimeRender (..)
     , Post
     , Proxy (..)
     , QueryParam
     , ReqBody
-    , ToHttpApiData (..)
     , allLinks
     , (:<|>) (..)
     , (:>)
     )
 
 import qualified Data.ByteString.Lazy as BL
-
-data Visible = Visible | Hidden
-
-instance FromHttpApiData Visible where
-    parseQueryParam "visible" = Right Visible
-    parseQueryParam "hidden" = Right Hidden
-    parseQueryParam _ = Left "Invalid value for visibility"
-
-instance ToHttpApiData Visible where
-    toQueryParam Visible = "visible"
-    toQueryParam Hidden = "hidden"
-
-instance ToHttpApiData WalletId where
-    toQueryParam = toText
-
-type SessionedHtml b = Cookied (b '[HTML]) RawHtml
-
-infixr 5 |>
-
--- | Prepend a path segment to every path
-type family f |> xs where
-    q |> (f :<|> g) = (q :> f) :<|> q |> g
-    q |> f = q :> f
-
-infixr 4 |>>
-
--- | Append a paths
-type family xs |>> ys where
-    (x :<|> xs) |>> ys = x :<|> xs |>> ys
-    x |>> ys = x :<|> ys
 
 -- | Pages endpoints
 type Pages =
@@ -96,16 +58,6 @@ type Pages =
         :<|> "wallets" :> SessionedHtml Get
         :<|> "addresses" :> SessionedHtml Get
         :<|> "settings" :> SessionedHtml Get
-
--- | Image mime type
-data Image
-
-instance Accept Image where
-    contentType _ = "image" // "png"
-
-instance MimeRender Image BL.ByteString where
-    mimeRender _ = id
-
 -- | Data endpoints
 type Data =
     "network" :> "info" :> SessionedHtml Get

@@ -33,6 +33,7 @@ flag release
 library
   import:           language, opts-lib
   exposed-modules:
+    Cardano.Wallet.UI.Common.API
     Cardano.Wallet.UI.Common.Handlers.Lib
     Cardano.Wallet.UI.Common.Handlers.Settings
     Cardano.Wallet.UI.Common.Handlers.SSE
@@ -42,6 +43,7 @@ library
     Cardano.Wallet.UI.Common.Html.Lib
     Cardano.Wallet.UI.Common.Html.Pages.Lib
     Cardano.Wallet.UI.Common.Html.Pages.Network
+    Cardano.Wallet.UI.Common.Html.Pages.Settings
     Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
     Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
@@ -55,7 +57,6 @@ library
     Cardano.Wallet.UI.Personal.Html.Pages.About
     Cardano.Wallet.UI.Personal.Html.Pages.Addresses
     Cardano.Wallet.UI.Personal.Html.Pages.Page
-    Cardano.Wallet.UI.Common.Html.Pages.Settings
     Cardano.Wallet.UI.Personal.Html.Pages.Wallet
     Cardano.Wallet.UI.Personal.Html.Pages.Wallets
     Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet

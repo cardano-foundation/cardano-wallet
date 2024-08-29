@@ -27,6 +27,9 @@ import Lucid
     , type_
     )
 
+import Cardano.Wallet.UI.Common.API
+    ( Visible (..)
+    )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
@@ -34,8 +37,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
     )
 import Cardano.Wallet.UI.Personal.API
-    ( Visible (..)
-    , walletLink
+    ( walletLink
     , walletMnemonicLink
     )
 import Data.Text
