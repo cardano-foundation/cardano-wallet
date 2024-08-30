@@ -96,7 +96,7 @@ genesis :: Read.ChainPoint
 genesis = Read.Origin
 
 getBlockPoint :: Read.Block -> Read.ChainPoint
-getBlockPoint = Read.At . Read.slot . Read.blockHeaderBody . Read.blockHeader
+getBlockPoint = Read.At . Read.slotNo . Read.blockHeaderBody . Read.blockHeader
 
 mkNextBlock :: Read.ChainPoint -> [Tx Conway] -> Read.Block
 mkNextBlock tipOld txs =
@@ -105,7 +105,7 @@ mkNextBlock tipOld txs =
             { Read.blockHeaderBody = Read.BHBody
                 { Read.prev = Nothing
                 , Read.blockno = toEnum $ fromEnum slotNext
-                , Read.slot = slotNext
+                , Read.slotNo = slotNext
                 , Read.bhash = ()
                 }
             , Read.blockHeaderSignature = ()

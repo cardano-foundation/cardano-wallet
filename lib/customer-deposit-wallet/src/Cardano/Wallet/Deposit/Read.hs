@@ -7,7 +7,6 @@
 -- TODO: Match this up with the @Read@ hierarchy.
 module Cardano.Wallet.Deposit.Read
     ( Network (..)
-    , Slot
     , Read.SlotNo
     , toSlot
     , fromSlot
@@ -79,18 +78,9 @@ import qualified Data.ByteString.Short as SBS
 ------------------------------------------------------------------------------}
 data Network = Testnet | Mainnet
 
--- Spec: type Slot = Natural
-type Slot = Read.SlotNo
-
-toSlot :: Natural -> Slot
-toSlot = Read.SlotNo
-
-fromSlot :: Slot -> Natural
-fromSlot (Read.SlotNo sl) = sl
-
 data ChainPoint
     = Origin
-    | At Slot
+    | At Read.SlotNo
     deriving (Eq, Ord, Show)
 
 -- | Synonym for readability.
@@ -154,7 +144,7 @@ type Sig = ()
 data BHBody = BHBody
     { prev :: Maybe HashHeader
     , blockno :: BlockNo
-    , slot :: Slot
+    , slotNo :: Read.SlotNo
     , bhash :: HashBBody
     }
     deriving (Eq, Ord, Show)
@@ -166,7 +156,7 @@ dummyBHBody :: BHBody
 dummyBHBody = BHBody
     { prev = Nothing
     , blockno = 128
-    , slot = Read.SlotNo 42
+    , slotNo = Read.SlotNo 42
     , bhash = ()
     }
 
