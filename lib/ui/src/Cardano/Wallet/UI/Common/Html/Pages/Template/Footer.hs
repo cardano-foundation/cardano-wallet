@@ -17,12 +17,14 @@ import Lucid
     , ul_
     )
 
+-- | A link to the GitHub repository of the project.
 githubLinkH :: Html ()
 githubLinkH =
     a_
         [href_ "https://github.com/cardano-foundation/cardano-wallet"]
         "GitHub"
 
+-- | The footer of a page.
 footerH :: Html ()
 footerH =
     term

@@ -2,7 +2,6 @@
 
 module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( pageFromBodyH
-    , HeadConfig (..)
     , PageConfig(..)
     )
 where
@@ -40,8 +39,6 @@ import Lucid
 import Servant
     ( Link
     )
-
-import qualified Data.Text as T
 
 bootstrapLink :: Html ()
 bootstrapLink =
@@ -87,6 +84,7 @@ popperScript =
         ]
         $ pure ()
 
+-- | Render a favicon link.
 favicon :: Link -> Html ()
 favicon path =
     link_

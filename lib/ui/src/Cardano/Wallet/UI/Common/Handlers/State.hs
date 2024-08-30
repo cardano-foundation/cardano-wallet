@@ -20,6 +20,7 @@ import Servant
     ( Handler
     )
 
+-- | Get the current state and render it using the provided function.
 getState
     :: SessionLayer s
     -> (State s -> RawHtml)

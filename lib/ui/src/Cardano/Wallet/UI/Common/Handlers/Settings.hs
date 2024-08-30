@@ -22,6 +22,7 @@ import Servant
     ( Handler
     )
 
+-- | Toggles the Server-Sent Events (SSE) feature on and off.
 toggleSSE :: SessionLayer s -> Handler ()
 toggleSSE SessionLayer{..} = liftIO $ do
     update $ over sseEnabled not

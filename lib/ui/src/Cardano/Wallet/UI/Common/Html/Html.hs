@@ -19,8 +19,10 @@ import Servant
 
 import qualified Data.ByteString.Lazy as BL
 
-data HTML = HTML
+-- | HTML content type for servant endpoints.
+data HTML
 
+-- | Raw HTML content.
 newtype RawHtml = RawHtml {unRaw :: BL.ByteString}
 
 instance Accept HTML where
@@ -29,5 +31,6 @@ instance Accept HTML where
 instance MimeRender HTML RawHtml where
     mimeRender _ = unRaw
 
+-- | Render lucid HTML content to raw HTML to be served by servant.
 renderHtml :: Html () -> RawHtml
 renderHtml = RawHtml . renderBS

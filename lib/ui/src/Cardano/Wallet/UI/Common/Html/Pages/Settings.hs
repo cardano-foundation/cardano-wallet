@@ -36,10 +36,12 @@ import Servant.Links
     ( Link
     )
 
+-- | Settings page
 settingsPageH :: Link -> Link -> Html ()
 settingsPageH sseLink settingsGetLink =
     sseH sseLink settingsGetLink "content" ["settings"]
 
+-- | Settings state
 settingsStateH :: Link -> State s -> Html ()
 settingsStateH settingsSseToggleLink state =
     record $ do

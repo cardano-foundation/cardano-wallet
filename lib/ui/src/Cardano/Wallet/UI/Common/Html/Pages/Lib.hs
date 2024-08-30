@@ -81,6 +81,7 @@ import Servant
 
 import qualified Data.Text as T
 
+-- | A simple alert message around any html content.
 alertH :: ToHtml a => a -> Html ()
 alertH =
     div_
@@ -90,6 +91,7 @@ alertH =
         ]
         . toHtml
 
+-- | A simple OK message around any html content.
 rogerH :: ToHtml a => a -> Html ()
 rogerH =
     div_
@@ -99,40 +101,53 @@ rogerH =
         ]
         . toHtml
 
-data AssocRow = forall b k .
-      (ToHtml b, ToHtml k)  =>
+-- | A simple table row with two columns.
+data AssocRow
+    = forall b k.
+      (ToHtml b, ToHtml k) =>
     AssocRow
     { rowAttributes :: [Attribute]
     , key :: k
     , val :: b
     }
 
+-- | Render an 'AssocRow' as a table row.
 assocRowH :: AssocRow -> Html ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
     td_ [scope_ "col"] $ b_ $ toHtml key
     td_ [scope_ "col"] $ toHtml val
 
+-- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
+-- in the definition of the rows
 record :: ListOf AssocRow -> Html ()
 record xs =
     table_ [class_ "table table-hover table-striped"]
         $ mapM_ assocRowH
         $ listOf xs
 
-field :: (ToHtml b, ToHtml k)  => [Attribute] -> k -> b -> ListOf AssocRow
+-- | Create an 'AssocRow' from a key and a value.
+field :: (ToHtml b, ToHtml k) => [Attribute] -> k -> b -> ListOf AssocRow
 field attrs key val = singleton $ Elem $ AssocRow attrs key val
 
+-- | Create a simple 'AssocRow' from a key and a value. where the key is a 'Text'.
 simpleField :: ToHtml b => Text -> b -> ListOf AssocRow
 simpleField = field []
 
+-- | Create an 'AssocRow' from a key and a value where the value is an 'Html'.
 fieldHtml :: [Attribute] -> Text -> Html () -> ListOf AssocRow
 fieldHtml = field @(Html ())
 
+-- | Create an 'AssocRow' from a key and a value where the value is a 'Show' instance.
 fieldShow :: Show a => [Attribute] -> Text -> a -> ListOf AssocRow
 fieldShow attrs key val = field attrs key (show val)
 
+-- | A value attribute to use to connect to an SSE endpoint.
 sseConnectFromLink :: Link -> Text
 sseConnectFromLink sse = "connect:" <> linkText sse
 
+-- | A tag that can self populate with data that is fetched as GET from a link
+-- whenever some specific events are received from an SSE endpoint.
+-- It also self populate on load.
 sseH
     :: Link
     -- ^ SSE link
@@ -160,13 +175,13 @@ sseH sseLink link target events = do
   where
     triggered = T.intercalate "," $ ("sse:" <>) <$> events
 
+-- | A tag that can self populate with data directly received in the SSE event.
 sseInH :: Link -> Text -> [Text] -> Html ()
 sseInH sseLink target events =
     div_
         [ hxSse_ $ sseConnectFromLink sseLink
         , hxExt_ "sse"
         ]
-
         $ div_
             [ hxTarget_ $ "#" <> target
             , hxSwap_ "innerHTML"
@@ -176,6 +191,7 @@ sseInH sseLink target events =
   where
     triggered = T.intercalate "," events
 
+-- | Convert a number of lovelace to ADA and lovelace.
 adaOfLovelace :: Natural -> (Natural, Natural)
 adaOfLovelace x =
     let
@@ -183,14 +199,22 @@ adaOfLovelace x =
     in
         (ada, floor $ lovelace * 1_000_000)
 
+-- | Show ADA and lovelace.
 showAda :: (Natural, Natural) -> Text
-showAda (ada, lovelace) = T.pack $ showThousandDots ada <> ", " <> pad 6 (show lovelace) <> " ADA"
+showAda (ada, lovelace) =
+    T.pack
+        $ showThousandDots ada
+            <> ", "
+            <> pad 6 (show lovelace)
+            <> " ADA"
   where
     pad n s = replicate (n - length s) '0' <> s
 
+-- | Show ADA and lovelace from lovelace.
 showAdaOfLoveLace :: Natural -> Text
 showAdaOfLoveLace = showAda . adaOfLovelace
 
+-- | Show a number with thousand dots.
 showThousandDots :: Show a => a -> String
 showThousandDots = reverse . showThousandDots' . reverse . show
   where
@@ -202,7 +226,10 @@ showThousandDots = reverse . showThousandDots' . reverse . show
         in
             a <> if null b then [] else "." <> showThousandDots' b
 
-copyButton :: Text -> Html ()
+-- | A button that copies the content of a field to the clipboard.
+copyButton
+    :: Text -- ^ Field id
+    -> Html ()
 copyButton field' = do
     script_
         [i|

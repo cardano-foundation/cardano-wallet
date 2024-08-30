@@ -47,12 +47,13 @@ import Lucid
 import qualified Data.ByteString.Lazy as BL
 import qualified Network.HTTP.Media as M
 
--- imitate the Servant JSON and OctetStream implementations
+-- | Imitate the Servant JSON and OctetStream implementations
 data EventStream deriving (Typeable)
 
 instance Accept EventStream where
     contentType _ = "text" M.// "event-stream"
 
+-- | A message to be sent over the Server-Sent Events (SSE) connection.
 data Message = Message
     { event :: BL.ByteString
     , data_ :: Html ()
@@ -67,8 +68,10 @@ instance MimeRender EventStream Message where
             <> renderBS data_
             <> "\n\n"
 
+-- | A Server-Sent Events (SSE) stream to use as an endpoint type.
 type SSE = StreamGet NoFraming EventStream (SourceIO Message)
 
+-- | Create a Server-Sent Events (SSE) stream from a 'TChan' of 'Message's.
 sse :: TChan Message -> Server SSE
 sse sseConfigSource = do
     duplicate <- atomically $ dupTChan sseConfigSource

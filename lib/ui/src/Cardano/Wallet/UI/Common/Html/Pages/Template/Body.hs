@@ -14,6 +14,7 @@ import Lucid
     , div_
     )
 
+-- | The body of a page.
 bodyH
     :: Html ()
     -- ^ Header

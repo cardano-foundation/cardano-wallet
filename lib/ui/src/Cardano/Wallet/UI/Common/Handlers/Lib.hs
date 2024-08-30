@@ -35,7 +35,9 @@ handleParseRequestError = \case
     Left e -> throwError $ err400{errBody = BL.pack e}
     Right a -> pure a
 
---
+-- | Render an Either ServerError b as HTML, using the first argument to render
+-- the error message in case of a server error, and the second argument to render
+-- the value in case of success.
 alertOnServerError
     :: (BL.ByteString -> html)
     -> (b -> html)
@@ -48,6 +50,7 @@ alertOnServerError alert render =  \case
             Just je -> alert $ Aeson.encodePretty @Value je
     Right ws -> render ws
 
+-- | Catch exceptions and render them as HTML using the provided function.
 catching :: MonadCatch m => (BL.ByteString -> html) -> m html -> m html
 catching alert f = catch f
     $ \(SomeException e) -> pure . alert . BL.pack . show $ e

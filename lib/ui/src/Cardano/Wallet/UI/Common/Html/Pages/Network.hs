@@ -51,21 +51,32 @@ import Servant.Links
 
 import qualified Data.Percentage as Percentage
 
-networkH :: Link -> Link -> Html ()
-networkH sseLink networkInfoLink
-    = sseH sseLink networkInfoLink "content" ["tip"]
+-- | Network information tag
+networkH
+    :: Link
+    -- ^ Link to the SSE endpoint
+    -> Link
+    -- ^ Link to the network information endpoint
+    -> Html ()
+networkH sseLink networkInfoLink =
+    sseH sseLink networkInfoLink "content" ["tip"]
 
-networkInfoH :: ShowTime -> ApiNetworkInformation -> Html ()
+-- | Render the network information as a record
+networkInfoH
+    :: ShowTime -- ^ how to show time
+    -> ApiNetworkInformation -- ^ network information
+    -> Html ()
 networkInfoH showTime ApiNetworkInformation{..} = record $ do
     simpleField "Sync progress" $ syncProgressH progress
     simpleField "Next epoch" $ nextEpochH nextEpoch
     simpleField "Node tip" $ blockReferenceH showTime nodeTip
     simpleField "Node era" $ nodeEraH nodeEra
     simpleField "Network tip" $ networkTipH showTime networkTip
-    simpleField "Network info" $ networkInfoH' networkInfo
+    simpleField "Network info" $ networkIdH networkInfo
   where
     ApiT progress = syncProgress
 
+-- | Render the next epoch information as a record
 nextEpochH :: Maybe EpochInfo -> Html ()
 nextEpochH Nothing = p_ "Unknown"
 nextEpochH (Just EpochInfo{..}) = do
@@ -75,12 +86,14 @@ nextEpochH (Just EpochInfo{..}) = do
   where
     EpochNo epochNumber' = epochNumber
 
+-- | Render the sync progress
 syncProgressH :: SyncProgress -> Html ()
 syncProgressH Ready = "Ready"
 syncProgressH (Syncing (Quantity percentage)) =
     "Syncing " <> toHtml (showPercentage $ Percentage.toRational percentage)
 syncProgressH (NotResponding) = "Not Responding"
 
+-- | Render a block reference as a record
 blockReferenceH :: ShowTime -> ApiBlockReference -> Html ()
 blockReferenceH showTime ApiBlockReference{..} =
     record $ do
@@ -90,10 +103,12 @@ blockReferenceH showTime ApiBlockReference{..} =
   where
     ApiT (SlotNo slot) = absoluteSlotNumber
 
+-- | Render a block info
 blockInfoH :: ApiBlockInfo -> Html ()
 blockInfoH (ApiBlockInfo (Quantity height)) = toHtml (showThousandDots height)
 
-networkTipH :: ShowTime ->  Maybe ApiSlotReference -> Html ()
+-- | Render a network tip as a record
+networkTipH :: ShowTime -> Maybe ApiSlotReference -> Html ()
 networkTipH _ Nothing = "Unknown"
 networkTipH showTime (Just ApiSlotReference{..}) = do
     record $ do
@@ -102,6 +117,7 @@ networkTipH showTime (Just ApiSlotReference{..}) = do
   where
     ApiT (SlotNo slot) = absoluteSlotNumber
 
+-- | Render a node era
 nodeEraH :: ApiEra -> Html ()
 nodeEraH ApiByron = "Byron"
 nodeEraH ApiShelley = "Shelley"
@@ -111,8 +127,9 @@ nodeEraH ApiAlonzo = "Alonzo"
 nodeEraH ApiBabbage = "Babbage"
 nodeEraH ApiConway = "Conway"
 
-networkInfoH' :: ApiNetworkInfo -> Html ()
-networkInfoH' ApiNetworkInfo{..} = do
+-- | Render the network id and protocol magic as a record
+networkIdH :: ApiNetworkInfo -> Html ()
+networkIdH ApiNetworkInfo{..} = do
     record $ do
         simpleField "Network ID" networkId
         fieldShow [] "Protocol Magic" protocolMagic
