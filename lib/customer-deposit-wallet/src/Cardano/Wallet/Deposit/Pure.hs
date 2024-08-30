@@ -56,9 +56,6 @@ import Cardano.Wallet.Deposit.Pure.UTxOHistory
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
-import Data.Bifunctor
-    ( second
-    )
 import Data.Foldable
     ( foldl'
     )
@@ -86,6 +83,7 @@ import qualified Cardano.Wallet.Deposit.Pure.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
+import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
     Types
@@ -110,20 +108,18 @@ type DeltaWalletState = Delta.Replace WalletState
 
 listCustomers :: WalletState -> [(Customer, Address)]
 listCustomers =
-    map (second Read.fromRawAddress)
-    . Address.listCustomers . addresses
+    Address.listCustomers . addresses
 
 createAddress :: Customer -> WalletState -> (Address, WalletState)
 createAddress customer w0 =
-    (Read.fromRawAddress address, w0{addresses = s1})
+    (address, w0{addresses = s1})
   where
     (address, s1) = Address.createAddress customer (addresses w0)
 
 -- depend on the private key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
 deriveAddress w =
-    Read.fromRawAddress
-    . Address.deriveAddress (Address.getXPub (addresses w))
+    Address.deriveAddress (Address.getXPub (addresses w))
     . Address.DerivationCustomer
 
 -- FIXME: More performant with a double index.
@@ -132,11 +128,11 @@ knownCustomer c = (c `elem`) . map fst . listCustomers
 
 knownCustomerAddress :: Address -> WalletState -> Bool
 knownCustomerAddress address =
-    Address.knownCustomerAddress (Read.toRawAddress address) . addresses
+    Address.knownCustomerAddress address . addresses
 
 isCustomerAddress :: Address -> WalletState -> Bool
 isCustomerAddress address =
-    flip Address.isCustomerAddress (Read.toRawAddress address) . addresses
+    flip Address.isCustomerAddress address . addresses
 
 fromRawCustomer :: Word31 -> Customer
 fromRawCustomer = id
@@ -172,12 +168,12 @@ rollForwardOne block w =
         }
   where
     isOurs :: Address -> Bool
-    isOurs = Address.isOurs (addresses w) . Read.toRawAddress
+    isOurs = Address.isOurs (addresses w)
 
 rollForwardUTxO
     :: (Address -> Bool) -> Read.Block -> UTxOHistory -> UTxOHistory
 rollForwardUTxO isOurs block u =
-    Delta.apply (UTxOHistory.AppendBlock slot deltaUTxO) u
+    UTxOHistory.appendBlock slot deltaUTxO u
   where
     (deltaUTxO,_) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
     slot = Read.slot . Read.blockHeaderBody $ Read.blockHeader block
@@ -203,13 +199,13 @@ data TxSummary = TxSummary
     , blockHeaderBody :: Read.BHBody
     , transfer :: ValueTransfer
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 data ValueTransfer = ValueTransfer
     { spent :: Read.Value
     , received :: Read.Value
     }
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Show)
 
 getCustomerHistory :: Customer -> WalletState -> [TxSummary]
 getCustomerHistory = undefined
@@ -246,7 +242,7 @@ getBIP32PathsForOwnedInputs txbody w =
 
 getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
 getBIP32Paths w =
-    mapMaybe $ Address.getBIP32Path (addresses w) . Read.toRawAddress
+    mapMaybe $ Address.getBIP32Path (addresses w)
 
 signTxBody :: Write.TxBody -> WalletState -> Maybe Write.Tx
 signTxBody _txbody _w = undefined
@@ -256,4 +252,4 @@ addTxSubmission _tx _w = undefined
 
 listTxsInSubmission :: WalletState -> Set Write.Tx
 -- listTxsInSubmission = Sbm.listInSubmission . submissions
-listTxsInSubmission _ = mempty
+listTxsInSubmission _ = Set.empty

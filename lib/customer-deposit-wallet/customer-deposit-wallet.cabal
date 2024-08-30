@@ -53,7 +53,6 @@ library
     , cardano-crypto
     , cardano-wallet:cardano-wallet
     , cardano-wallet-network-layer
-    , cardano-wallet-primitive
     , cardano-wallet-read == 0.2024.8.27
     , cardano-ledger-byron
     , containers
@@ -117,6 +116,7 @@ library customer-deposit-wallet-http
     , aeson-pretty
     , base
     , bytestring
+    , cardano-wallet-read
     , customer-deposit-wallet
     , http-media
     , insert-ordered-containers
@@ -148,8 +148,6 @@ test-suite unit
     , base
     , bytestring
     , cardano-crypto
-    , cardano-wallet:cardano-wallet
-    , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , customer-deposit-wallet:{customer-deposit-wallet, customer-deposit-wallet-http}
     , directory

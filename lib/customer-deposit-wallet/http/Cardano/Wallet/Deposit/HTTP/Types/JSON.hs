@@ -48,6 +48,15 @@ import Data.Aeson.Types
 import Data.Bifunctor
     ( first
     )
+import Data.ByteArray.Encoding
+    ( Base (Base16)
+    , convertFromBase
+    , convertToBase
+    )
+import Data.ByteString.Short
+    ( fromShort
+    , toShort
+    )
 import Data.OpenApi
     ( NamedSchema (..)
     , ToSchema (..)
@@ -57,13 +66,17 @@ import Data.Text
     )
 import Data.Text.Class
     ( FromText (..)
+    , TextDecodingError (..)
+    , ToText (..)
     , getTextDecodingError
     )
 import Servant
     ( FromHttpApiData (..)
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-----------------------------------------------------------------------------
     Additional type definitions
@@ -83,8 +96,29 @@ newtype ApiT a = ApiT {unApiT :: a}
 ------------------------------------------------------------------------------}
 
 -- Address
-deriving via ViaText Address instance FromJSON (ApiT Address)
-deriving via ViaText Address instance ToJSON (ApiT Address)
+instance ToText (ApiT Address) where
+    toText = T.decodeUtf8
+        . convertToBase Base16
+        . fromShort
+        . Read.toShortByteString
+        . unApiT
+
+instance FromText (ApiT Address) where
+    fromText t = do
+        bytes <-
+            first textDecodingError
+                . convertFromBase Base16
+                $ T.encodeUtf8 t
+        maybe (Left errInvalidAddress) (Right . ApiT)
+            . Read.fromShortByteString
+            $ toShort bytes
+      where
+        errInvalidAddress = TextDecodingError $ "Invalid address: " <> show t
+        textDecodingError = TextDecodingError . show
+
+-- FIXME: Bech32 encodings
+deriving via ViaText (ApiT Address) instance FromJSON (ApiT Address)
+deriving via ViaText (ApiT Address) instance ToJSON (ApiT Address)
 
 instance ToSchema (ApiT Address) where
     declareNamedSchema _ = do

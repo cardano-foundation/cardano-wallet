@@ -219,7 +219,7 @@ import Cardano.Wallet.Primitive.Types.Tx.TxOut
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..)
     )
-import Cardano.Wallet.Read.Eras.EraValue
+import Cardano.Wallet.Read.Eras
     ( eraValueSerialize
     )
 import Cardano.Wallet.Read.Tx.CBOR
