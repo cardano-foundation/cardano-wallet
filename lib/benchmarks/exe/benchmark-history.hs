@@ -8,12 +8,13 @@
 import Prelude
 
 import Buildkite.API
-    ( Artifact (filename, job_id)
+    ( Artifact (job_id, path)
     , Build (branch, jobs, number)
-    , GetArtifact
     , Job (finished_at)
     , Time (Time)
-    , WithAuthPipeline
+    )
+import Buildkite.Artifacts.CSV
+    ( fetchCSVArtifactContent
     )
 import Buildkite.Client
     ( BuildAPI
@@ -22,6 +23,17 @@ import Buildkite.Client
     , getArtifacts
     , getArtifactsContent
     , getBuildsOfBranch
+    )
+import Buildkite.Connection
+    ( Connector
+    , OrganizationName (..)
+    , PipelineName (..)
+    , bailout
+    , newConnector
+    , skip410
+    )
+import Buildkite.LimitsLock
+    ( LimitsLockLog (..)
     )
 import Cardano.Wallet.Benchmarks.Charting
     ( renderHarmonizedHistoryChartSVG
@@ -34,21 +46,27 @@ import Cardano.Wallet.Benchmarks.History
     ( History
     , IndexedSemantic (IndexedSemantic)
     , harmonizeHistory
+    , parseHistory
     , pastDays
     , renderHarmonizedHistoryCsv
     )
-import Control.Monad
-    ( when
+import Control.Tracer
+    ( Tracer
+    , stdoutTracer
+    , traceWith
     )
 import Data.Csv
     ( decodeByName
     , encodeByName
     )
-import Data.Data
-    ( Proxy (..)
-    )
 import Data.Foldable
     ( Foldable (..)
+    )
+import Data.Function
+    ( (&)
+    )
+import Data.Functor.Contravariant
+    ( (>$<)
     )
 import Data.Semigroup
     ( First (..)
@@ -60,21 +78,6 @@ import Data.Text
 import Data.Time
     ( Day
     , UTCTime (utctDay)
-    )
-import Network.HTTP.Client
-    ( Manager
-    , ManagerSettings (managerModifyRequest)
-    , Request (shouldStripHeaderOnRedirect)
-    , newManager
-    )
-import Network.HTTP.Client.TLS
-    ( tlsManagerSettings
-    )
-import Network.HTTP.Media
-    ( (//)
-    )
-import Network.HTTP.Types.Status
-    ( status410
     )
 import Options.Applicative
     ( Parser
@@ -91,31 +94,10 @@ import Options.Applicative
     , progDesc
     , strOption
     )
-import Servant.API
-    ( Accept (..)
-    , MimeUnrender
-    )
-import Servant.API.ContentTypes
-    ( MimeRender (..)
-    , MimeUnrender (..)
-    )
-import Servant.Client
-    ( BaseUrl (..)
-    , ClientEnv
-    , ClientError (FailureResponse)
-    , ClientM
-    , ResponseF (..)
-    , Scheme (..)
-    , client
-    , mkClientEnv
-    , runClientM
-    )
 import Streaming
-    ( Of (..)
+    ( MonadIO (..)
+    , Of (..)
     , Stream
-    )
-import System.Environment
-    ( getEnv
     )
 import System.FilePath
     ( (<.>)
@@ -129,68 +111,83 @@ import qualified Data.Text as T
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
-data CSV
+cardanoFoundationName :: OrganizationName
+cardanoFoundationName = OrganizationName "cardano-foundation"
 
-instance Accept CSV where
-    contentType _ = "text" // "csv"
+mainPipeline :: PipelineName
+mainPipeline = PipelineName "cardano-wallet"
 
-instance Show a => MimeRender CSV a where
-    mimeRender _ val = BL8.pack $ show val
+bind
+    :: Monad m
+    => (a -> Stream (Of b) m x)
+    -> Stream (Of a) m r
+    -> Stream (Of b) m r
+bind = flip S.for
 
-instance MimeUnrender CSV BL8.ByteString where
-    mimeUnrender _ = Right
+data Progress
+    = ProgressBuild Int Text
+    | FoundCheckpoint Artifact
 
-organizationSlug :: Text
-organizationSlug = "cardano-foundation"
+type Checkpoint = Maybe (BuildJobsMap, Artifact, BL8.ByteString)
 
-pipelineSlug :: Text
-pipelineSlug = "cardano-wallet"
+exitOnCheckpoint
+    :: Tracer IO Progress
+    -> ((BuildJobsMap, Artifact) -> IO Checkpoint)
+    -> Stream (Of (BuildJobsMap, Artifact)) IO ()
+    -> Stream (Of (BuildJobsMap, Artifact)) IO Checkpoint
+exitOnCheckpoint t f s = S.effect $ do
+    m <- S.next s
+    case m of
+        Left () -> pure $ pure Nothing
+        Right ((b, a), s') -> do
+            let run = do
+                    S.yield (b, a)
+                    exitOnCheckpoint t f s'
+            if path a == "benchmark-history.csv"
+                then do
+                    r <- f (b, a)
+                    pure $ case r of
+                        Nothing -> run
+                        Just x -> do
+                            liftIO $ traceWith t $ FoundCheckpoint a
+                            pure $ Just x
+                else pure run
 
-buildkiteDomain :: String
-buildkiteDomain = "api.buildkite.com"
-
-buildkitePort :: Int
-buildkitePort = 443
-
-withAuthWallet :: String -> WithAuthPipeline a -> a
-withAuthWallet apiToken f =
-    f (Just $ T.pack apiToken) organizationSlug pipelineSlug
-
-fetchArtifactContent
-    :: WithAuthPipeline (Int -> Text -> Text -> ClientM BL8.ByteString)
-fetchArtifactContent = client (Proxy :: Proxy (GetArtifact CSV BL8.ByteString))
-
-queryBuildkite ::
-    (forall a . HandleClientError a -> ClientM a -> IO (Maybe a))
-    -> (forall a . WithAuthPipeline a -> a)
-    -> Day -> IO History
-queryBuildkite q w d0 = do
-    let skip410Q = Query (q skip410) w
-        bailoutQ = Query (q bailout) w
-    S.foldMap_ Prelude.id
-        $ flip
-            S.for
+getHistory
+    :: Tracer IO Progress
+    -> Connector
+    -> Day
+    -> IO (Of History Checkpoint)
+getHistory progressTracer mkQuery d0 = do
+    let queryPipeline = mkQuery cardanoFoundationName mainPipeline
+        skip410Q = queryPipeline skip410
+        bailoutQ = queryPipeline bailout
+        getAnyCSVArtifact
+            :: MonadIO m
+            => (BuildJobsMap, Artifact)
+            -> m (Maybe (BuildJobsMap, Artifact, BL8.ByteString))
+        getAnyCSVArtifact =
+            uncurry
+                $ getArtifactsContent skip410Q fetchCSVArtifactContent
+    S.foldMap Prelude.id
+        $ getReleaseCandidateBuilds bailoutQ d0
+        & bind (getArtifacts bailoutQ)
+        & exitOnCheckpoint progressTracer getAnyCSVArtifact
+        & S.filter (\(_, a) -> "bench-results.csv" `isSuffixOf` path a)
+        & S.chain
+            ( \(b, _) ->
+                liftIO
+                    $ traceWith progressTracer
+                    $ ProgressBuild (number b) (branch b)
+            )
+        & S.mapM getAnyCSVArtifact
+        & S.concat
+        & bind historyPoints
+        & bind
             ( \case
                 Right h -> S.yield h
                 Left e -> error e
             )
-        $ flip S.for historyPoints
-        $ flip S.for (\(a, j) -> getArtifactsContent
-            skip410Q
-            fetchArtifactContent j a)
-        $ S.chain
-            ( \(_, b) ->
-                putStrLn
-                    $ "Build number: "
-                        <> show (number b)
-                        <> ", branch: "
-                        <> T.unpack (branch b)
-            )
-
-        $ S.filter (\(a, _) -> "bench-results.csv" `isSuffixOf` filename a)
-        $ S.map (\(b, a) -> (a, b))
-        $ flip S.for (getArtifacts bailoutQ)
-        $ getReleaseCandidateBuilds bailoutQ d0
 
 mkReleaseCandidateName :: Day -> String
 mkReleaseCandidateName d = "release-candidate/v" ++ show d
@@ -201,11 +198,6 @@ getReleaseCandidateBuilds q d = S.effect $ do
     pure
         $ flip S.for (getBuildsOfBranch q . mkReleaseCandidateName)
         $ S.each ds
-
-getToken :: IO String
-getToken = do
-    token <- getEnv "BUILDKITE_API_TOKEN"
-    pure $ "Bearer " ++ token
 
 data Options = Options
     { _optSinceDate :: Day
@@ -235,63 +227,40 @@ optionsParser =
             <> header "benchmark-history - a tool for benchmark data analysis"
         )
 
-type HandleClientError a = IO (Either ClientError a) -> IO (Maybe a)
+data Logs = ProgressLogs Progress | ConnectorLogs LimitsLockLog
+
+renderLogs :: Logs -> String
+renderLogs = \case
+    ProgressLogs (ProgressBuild n b) ->
+        "Processing build " <> show n <> " on branch " <> T.unpack b
+    ProgressLogs (FoundCheckpoint a) ->
+        "Found chain point: " <> T.unpack (path a)
+    ConnectorLogs (RateLimitReached s) ->
+        "Rate limit reached. Waiting for " <> show s <> " seconds."
+
+tracer :: Tracer IO Logs
+tracer = renderLogs >$< stdoutTracer
 
 main :: IO ()
 main = do
-    bkToken <- getToken
     Options sinceDay outputDir <- execParser optionsParser
-    manager <- newManager $ specialSettings False
-    let env = buildkiteEnv manager
-        runQuery :: HandleClientError a -> ClientM a -> IO (Maybe a)
-        runQuery f action = f $ runClientM action env
-    result <- queryBuildkite runQuery (withAuthWallet bkToken) sinceDay
-    let eHarmonized = harmonizeHistory result
-    case eHarmonized of
+    connector <-
+        newConnector "BUILDKITE_API_TOKEN" 10 $ ConnectorLogs >$< tracer
+    result :> mCheckpoint <-
+        getHistory (ProgressLogs >$< tracer) connector sinceDay
+    old <- case mCheckpoint of
+        Nothing -> pure mempty
+        Just (_, _, b) -> case parseHistory b of
+            Left e -> error e
+            Right h -> pure h
+    case harmonizeHistory $ result <> old of
         Left rs -> error $ "Failed to harmonize history: " ++ show rs
         Right harmonized -> do
-            putStrLn $ "Harmonized history: " <> show harmonized
-            let csv = uncurry encodeByName $ renderHarmonizedHistoryCsv harmonized
-            BL8.writeFile (outputDir </> "benchmark_history" <.> "csv") csv
+            let csv =
+                    uncurry encodeByName
+                        $ renderHarmonizedHistoryCsv harmonized
+            BL8.writeFile (outputDir </> "benchmark-history" <.> "csv") csv
             renderHarmonizedHistoryChartSVG outputDir harmonized
-
-bailout :: HandleClientError a
-bailout = handle (error . show)
-
-handle :: (ClientError -> IO (Maybe a)) -> HandleClientError a
-handle g f = do
-    res <- f
-    case res of
-        Left e -> g e
-        Right a -> pure $ Just a
-
-skip410 :: HandleClientError a
-skip410 = handle $ \case
-    FailureResponse _ (Response s _ _ _)
-        | s == status410 -> pure Nothing
-    e -> error $ show e
-
-buildkiteEnv :: Manager -> ClientEnv
-buildkiteEnv manager =
-    mkClientEnv manager
-        $ BaseUrl Https buildkiteDomain buildkitePort ""
-
-specialSettings :: Bool -> ManagerSettings
-specialSettings logs =
-    tlsManagerSettings
-        { managerModifyRequest = \req -> do
-            let req' =
-                    req
-                        { shouldStripHeaderOnRedirect =
-                            \case
-                                "Authorization" -> True
-                                _ -> False
-                        }
-            when logs
-                $ putStrLn
-                $ "Querying: " ++ show req'
-            pure req'
-        }
 
 parseResults :: BL8.ByteString -> Either String ([(IndexedSemantic, Result)])
 parseResults = fmap (fmap f . zip [0 ..] . toList . snd) . decodeByName
@@ -299,8 +268,9 @@ parseResults = fmap (fmap f . zip [0 ..] . toList . snd) . decodeByName
     f (i, (Benchmark s r)) = (IndexedSemantic s i, r)
 
 historyPoints
-    :: (BuildJobsMap, Artifact, BL8.ByteString)
-    -> Stream (Of (Either String History)) IO ()
+    :: Monad m
+    => (BuildJobsMap, Artifact, BL8.ByteString)
+    -> Stream (Of (Either String History)) m ()
 historyPoints (b, a, r) =
     let
         rs = parseResults r

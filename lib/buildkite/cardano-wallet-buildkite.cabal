@@ -39,15 +39,18 @@ library
     , base
     , bytestring
     , containers
+    , contra-tracer
     , exceptions
     , http-client
     , http-client-tls
     , http-media
+    , http-types
     , pretty-simple
     , servant
     , servant-client
     , streaming
     , text
+    , stm
     , time
 
   if flag(release)
@@ -56,4 +59,7 @@ library
 
   exposed-modules:
     Buildkite.API
+    Buildkite.Artifacts.CSV
     Buildkite.Client
+    Buildkite.Connection
+    Buildkite.LimitsLock

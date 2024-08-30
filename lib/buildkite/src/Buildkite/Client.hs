@@ -8,7 +8,6 @@ module Buildkite.Client
     , JobMap
     , BuildJobsMap
     , BuildAPI
-    , paging
     , getBuilds
     , getBuildsOfBranch
     , getArtifacts
@@ -24,6 +23,7 @@ import Buildkite.API
     , ArtifactURL (..)
     , Job
     , WithAuthPipeline
+    , WithLockingAuthPipeline
     , fetchArtifacts
     , fetchBuilds
     , fetchBuildsOfBranch
@@ -32,7 +32,8 @@ import Buildkite.API
     , overJobs
     )
 import Control.Monad.IO.Class
-    ( liftIO
+    ( MonadIO
+    , liftIO
     )
 import Data.Map
     ( Map
@@ -62,11 +63,13 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Map as Map
 import qualified Streaming.Prelude as S
 
+-- | An opaque containg a handle to the Buildkite API
 data Query
     = Query
-        { query :: forall a. ClientM a -> IO (Maybe a)
-        , withAuth :: forall a. WithAuthPipeline a -> a
-        }
+    { _query :: forall a. ClientM a -> IO (Maybe a)
+    , _withLockAuth :: forall a. WithLockingAuthPipeline a -> a
+    , _withAuth :: forall a. WithAuthPipeline a -> a
+    }
 
 type JobMap = Map Text Job
 
@@ -74,7 +77,9 @@ type BuildJobsMap = BKAPI.Build (Map Text)
 
 type BuildAPI = BKAPI.Build []
 
-paging :: Monad m => (Maybe Int -> m (Maybe [a]))
+paging
+    :: Monad m
+    => (Maybe Int -> m (Maybe [a]))
     -> Stream (Of a) m ()
 paging f = go 1
   where
@@ -90,14 +95,14 @@ paging f = go 1
                     _ -> go $ page + 1
 
 getBuilds :: Query -> Stream (Of BuildAPI) IO ()
-getBuilds (Query q w) = paging $ q . w fetchBuilds
+getBuilds (Query q w _) = paging $ q . w fetchBuilds
 
 getBuildsOfBranch :: Query -> String -> Stream (Of BuildAPI) IO ()
-getBuildsOfBranch (Query q w) branch =
+getBuildsOfBranch (Query q w _) branch =
     paging $ q . w fetchBuildsOfBranch (Just branch)
 
 getArtifacts :: Query -> BuildAPI -> Stream (Of (BuildJobsMap, Artifact)) IO ()
-getArtifacts (Query q w) build =
+getArtifacts (Query q w _) build =
     S.map (build',) $ paging $ q . w fetchArtifacts (number build)
   where
     build' = overJobs build $ \job' -> Map.fromList $ do
@@ -105,7 +110,8 @@ getArtifacts (Query q w) build =
         pure (jobId jobV, jobV)
 
 getArtifactsContent
-    :: Query
+    :: MonadIO m
+    => Query
     -> WithAuthPipeline
         ( Int
           -> Text
@@ -114,19 +120,19 @@ getArtifactsContent
         )
     -> BuildJobsMap
     -> Artifact
-    -> Stream (Of (BuildJobsMap, Artifact, r)) IO ()
-getArtifactsContent (Query q w) getArtifact build artifact = do
+    -> m (Maybe (BuildJobsMap, Artifact, r))
+getArtifactsContent (Query q _ w) getArtifact build artifact = do
     mBenchResults <- do
-        lift
+        liftIO
             $ q
             $ w
                 getArtifact
                 (number build)
                 (job_id artifact)
                 (BKAPI.artifactId artifact)
-    case mBenchResults of
-        Nothing -> pure ()
-        Just benchResults -> S.yield (build, artifact, benchResults)
+    pure $ case mBenchResults of
+        Nothing -> Nothing
+        Just benchResults -> Just (build, artifact, benchResults)
 
 downloadArtifact :: ArtifactURL -> Stream (Of BL.ByteString) IO ()
 downloadArtifact (ArtifactURL url') = do
