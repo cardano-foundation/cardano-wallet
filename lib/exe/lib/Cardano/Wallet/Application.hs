@@ -168,8 +168,7 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
-    ( HeadConfig (..)
-    , PageConfig (..)
+    ( PageConfig (..)
     )
 import Cardano.Wallet.UI.Common.Layer
     ( UILayer
@@ -500,7 +499,7 @@ serveWallet
                         Server.serve api
                             $ PersonalUi.serveUI
                                 ui
-                                (PageConfig "" $ HeadConfig "Personal Cardano Wallet")
+                                (PageConfig "" "Personal Cardano Wallet")
                                 _proxy
                                 randomApi
                                 icarusApi
@@ -538,7 +537,7 @@ serveWallet
                         Server.serve api
                             $ DepositUi.serveUI
                                 ui
-                                (PageConfig "" $ HeadConfig "Deposit Cardano Wallet")
+                                (PageConfig "" "Deposit Cardano Wallet")
                                 _proxy
                                 nl
                                 bs

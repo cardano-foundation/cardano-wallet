@@ -69,9 +69,9 @@ page
     -> Page
     -- ^ If a wallet was selected
     -> RawHtml
-page PageConfig{..} p  = RawHtml
+page c@PageConfig{..} p  = RawHtml
     $ renderBS
-    $ pageFromBodyH faviconLink headConfig
+    $ pageFromBodyH faviconLink c
     $ bodyH (headerH prefix p)
     $ case p of
         About -> aboutH

@@ -94,12 +94,9 @@ favicon path =
         , href_ $ linkText path
         ]
 
-newtype HeadConfig = HeadConfig
-    { title :: T.Text
-    }
-
-pageFromBodyH :: Link -> HeadConfig -> Html () -> Html ()
-pageFromBodyH faviconLink HeadConfig{..} body = html_ [term "data-bs-theme" "dark"]
+pageFromBodyH :: Link -> PageConfig -> Html () -> Html ()
+pageFromBodyH faviconLink PageConfig{..} body
+    = html_ [term "data-bs-theme" "dark"]
     $ do
         head_ $ do
             title_ $ toHtml title
@@ -116,6 +113,6 @@ pageFromBodyH faviconLink HeadConfig{..} body = html_ [term "data-bs-theme" "dar
 data PageConfig = PageConfig
     { prefix :: Text
     -- ^ Prefix to prepend to all links
-    , headConfig :: HeadConfig
-    -- ^ Head configuration
+    , title :: Text
+    -- ^ Title of the page
     }
