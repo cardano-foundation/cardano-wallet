@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( PrintHtml
-    , alertH
+    ( alertH
     , rogerH
     , AssocRow (..)
     , assocRowH
@@ -48,9 +47,6 @@ import Cardano.Wallet.UI.Lib.ListOf
 import Control.Monad.Operational
     ( singleton
     )
-import Data.ByteString.Lazy.Char8
-    ( ByteString
-    )
 import Data.String.Interpolate
     ( i
     )
@@ -84,8 +80,6 @@ import Servant
     )
 
 import qualified Data.Text as T
-
-type PrintHtml = forall a. ToHtml a => a -> ByteString
 
 alertH :: ToHtml a => a -> Html ()
 alertH =
