@@ -8,9 +8,7 @@
 module Cardano.Wallet.Deposit.Read
     ( Network (..)
     , Read.SlotNo
-    , toSlot
-    , fromSlot
-    , ChainPoint (..)
+    , Read.ChainPoint (..)
 
     , Address
     , KeyHash
@@ -34,6 +32,7 @@ module Cardano.Wallet.Deposit.Read
     , BlockNo
     , Block (..)
     , BHeader (..)
+    , Read.mockRawHeaderHash
     , BHBody (..)
 
     , GenesisData
@@ -77,11 +76,6 @@ import qualified Data.ByteString.Short as SBS
     with dummies
 ------------------------------------------------------------------------------}
 data Network = Testnet | Mainnet
-
-data ChainPoint
-    = Origin
-    | At Read.SlotNo
-    deriving (Eq, Ord, Show)
 
 -- | Synonym for readability.
 -- The ledger specifications define @Addr@.

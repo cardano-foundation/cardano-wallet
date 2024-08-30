@@ -30,7 +30,6 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Read
     ( mkEnterpriseAddress
-    , toSlot
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -50,9 +49,6 @@ import Data.OpenApi
 import Data.Word
     ( Word64
     )
-import Numeric.Natural
-    ( Natural
-    )
 import Test.Hspec
     ( Expectation
     , Spec
@@ -68,14 +64,16 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , chooseInt
     , counterexample
+    , elements
     , forAll
-    , oneof
+    , frequency
     , property
     , shrinkIntegral
     , vectorOf
     , (===)
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.List as L
@@ -155,10 +153,19 @@ genApiTCustomerList = do
     pure $ ApiT $ uniqueAddr $ uniqueCustomer vectors
 
 genApiTChainPoint :: Gen (ApiT ChainPoint)
-genApiTChainPoint = oneof
-        [ pure . ApiT $ Origin
-        , ApiT . At . toSlot . fromIntegral @Word64 @Natural <$> arbitrary
-        ]
+genApiTChainPoint = ApiT <$> genChainPoint
+
+genChainPoint :: Gen Read.ChainPoint
+genChainPoint = frequency
+    [ ( 1, pure Read.GenesisPoint)
+    , (40, Read.BlockPoint <$> genReadSlotNo <*> genHeaderHash)
+    ]
+  where
+    genReadSlotNo = Read.SlotNo . fromIntegral <$> (arbitrary :: Gen Word64)
+    genHeaderHash = elements mockHashes
+
+mockHashes :: [Read.RawHeaderHash]
+mockHashes = map Read.mockRawHeaderHash [0..2]
 
 instance Arbitrary (ApiT Address) where
     arbitrary = genApiTAddress

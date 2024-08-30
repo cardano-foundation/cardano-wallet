@@ -39,7 +39,9 @@ import Data.OpenApi
     , HasInfo (..)
     , HasItems (..)
     , HasLicense (license)
+    , HasMaxLength (..)
     , HasMaximum (..)
+    , HasMinLength (..)
     , HasMinimum (..)
     , HasName (..)
     , HasOneOf (..)
@@ -217,8 +219,9 @@ chainPointAtSlotSchema =
     mempty
         & type_ ?~ OpenApiObject
         & properties
-            .~ [ ("slot_no", Inline slotSchema)
-               ]
+            .~  [ ("slot_no", Inline slotSchema)
+                , ("header_hash", Inline headerHashSchema)
+                ]
 
 slotSchema :: Schema
 slotSchema =
@@ -226,3 +229,19 @@ slotSchema =
         & type_ ?~ OpenApiInteger
         & minimum_ ?~ 0
         & maximum_ ?~ fromIntegral (maxBound :: Word64)
+
+headerHashSchema :: Schema
+headerHashSchema =
+    blake2b_256Schema
+        & description ?~ "Hash (Blake2b_256) of a block header."
+
+blake2b_256Schema :: Schema
+blake2b_256Schema =
+    mempty
+        & type_ ?~ OpenApiString
+        & format ?~ "hex"
+        & minLength ?~ (32 * hexCharactersPerByte)
+        & maxLength ?~ (32 * hexCharactersPerByte)
+
+hexCharactersPerByte :: Integer
+hexCharactersPerByte = 2
