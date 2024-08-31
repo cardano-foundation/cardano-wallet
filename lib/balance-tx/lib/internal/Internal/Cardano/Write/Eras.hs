@@ -197,6 +197,7 @@ type RecentEraConstraints era =
     , Babbage.BabbageEraTxBody era
     , Alonzo.AlonzoEraTxBody era
     , Shelley.EraUTxO era
+    , Ledger.ShelleyEraTxCert era
     , Show (Core.TxOut era)
     , Show (Core.Tx era)
     , Show (Core.PParams era)
