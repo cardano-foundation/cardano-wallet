@@ -186,7 +186,8 @@ constraints:
   -- Cardano Node dependencies:
   , io-classes >= 1.4
   , io-classes -asserts
-  , ouroboros-consensus-cardano ^>= 0.17
+
+  , ouroboros-consensus-cardano ^>= 0.18
   , ouroboros-network ^>= 0.16.1
   , ouroboros-network-protocols ^>= 0.9
 
