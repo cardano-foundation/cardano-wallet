@@ -117,7 +117,7 @@ task :wait_until_node_synced do
 
   network = CardanoWallet.new.misc.network
   # allow 180 mins for connecting to the node in case it needs to replay ledger
-  timeout = 180*60
+  timeout = 180 * 60
   current_time = Time.now
   timeout_treshold = current_time + timeout
   log "Timeout: #{timeout}s"
