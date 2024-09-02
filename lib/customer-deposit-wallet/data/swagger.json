@@ -9,13 +9,13 @@
                 "oneOf": [
                     {
                         "enum": [
-                            "origin"
+                            "genesis"
                         ],
                         "type": "string"
                     },
                     {
                         "properties": {
-                            "at_slot": {
+                            "slot_no": {
                                 "maximum": 1.8446744073709551615e19,
                                 "minimum": 0,
                                 "type": "integer"

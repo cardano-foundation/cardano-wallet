@@ -210,14 +210,14 @@ chainPointOriginSchema :: Schema
 chainPointOriginSchema =
     mempty
         & type_ ?~ OpenApiString
-        & enum_ ?~ ["origin"]
+        & enum_ ?~ ["genesis"]
 
 chainPointAtSlotSchema :: Schema
 chainPointAtSlotSchema =
     mempty
         & type_ ?~ OpenApiObject
         & properties
-            .~ [ ("at_slot", Inline slotSchema)
+            .~ [ ("slot_no", Inline slotSchema)
                ]
 
 slotSchema :: Schema

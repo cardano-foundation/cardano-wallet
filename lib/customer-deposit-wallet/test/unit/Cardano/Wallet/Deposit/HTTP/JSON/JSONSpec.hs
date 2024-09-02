@@ -47,6 +47,12 @@ import Data.OpenApi
     , Schema
     , validateJSON
     )
+import Data.Word
+    ( Word64
+    )
+import Numeric.Natural
+    ( Natural
+    )
 import Test.Hspec
     ( Expectation
     , Spec
@@ -151,7 +157,7 @@ genApiTCustomerList = do
 genApiTChainPoint :: Gen (ApiT ChainPoint)
 genApiTChainPoint = oneof
         [ pure . ApiT $ Origin
-        , ApiT . At . toSlot <$> arbitrary
+        , ApiT . At . toSlot . fromIntegral @Word64 @Natural <$> arbitrary
         ]
 
 instance Arbitrary (ApiT Address) where
