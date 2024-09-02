@@ -86,7 +86,7 @@
                 "summary": "Add customer"
             }
         },
-        "/network/synchronization-point": {
+        "/network/local-tip": {
             "get": {
                 "responses": {
                     "200": {

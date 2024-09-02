@@ -98,7 +98,7 @@ depositPaths :: InsOrdHashMap FilePath PathItem
 depositPaths =
     [ getCustomersListPath
     , putCustomerPath
-    , getNetworkTipPath
+    , getLocalTipPath
     ]
 
 depositDefinitions :: Definitions Schema
@@ -185,8 +185,8 @@ customerListSchema =
             ?~ OpenApiItemsObject
                 (Inline customerListItemSchema)
 
-getNetworkTipPath :: (FilePath, PathItem)
-getNetworkTipPath = ("/network/synchronization-point", pathItem)
+getLocalTipPath :: (FilePath, PathItem)
+getLocalTipPath = ("/network/local-tip", pathItem)
   where
     pathItem :: PathItem
     pathItem = mempty & get ?~ operation
