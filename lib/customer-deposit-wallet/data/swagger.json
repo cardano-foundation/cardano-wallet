@@ -86,7 +86,7 @@
                 "summary": "Add customer"
             }
         },
-        "/network/tip": {
+        "/network/synchronization-point": {
             "get": {
                 "responses": {
                     "200": {
@@ -100,7 +100,7 @@
                         "description": "Ok"
                     }
                 },
-                "summary": "Obtain the tip of the network"
+                "summary": "Obtain the chain point until which the wallet is synchronized against the network"
             }
         }
     }

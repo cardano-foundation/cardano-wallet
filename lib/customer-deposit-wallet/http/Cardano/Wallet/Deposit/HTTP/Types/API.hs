@@ -41,5 +41,5 @@ type CustomerAPI =
             :> Verb 'PUT 200 '[JSON] (ApiT Address)
 
 type NetworkAPI =
-        "network" :> "tip"
+        "network" :> "synchronization-point"
             :> Verb 'GET 200 '[JSON] (ApiT ChainPoint)

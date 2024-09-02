@@ -186,7 +186,7 @@ customerListSchema =
                 (Inline customerListItemSchema)
 
 getNetworkTipPath :: (FilePath, PathItem)
-getNetworkTipPath = ("/network/tip", pathItem)
+getNetworkTipPath = ("/network/synchronization-point", pathItem)
   where
     pathItem :: PathItem
     pathItem = mempty & get ?~ operation
@@ -195,7 +195,7 @@ getNetworkTipPath = ("/network/tip", pathItem)
         mempty
             & summary ?~ summary'
             & at 200 ?~ at200
-    summary' = "Obtain the tip of the network"
+    summary' = "Obtain the chain point until which the wallet is synchronized against the network"
     at200 =
         "Ok"
             & _Inline . content . at jsonMediaType
