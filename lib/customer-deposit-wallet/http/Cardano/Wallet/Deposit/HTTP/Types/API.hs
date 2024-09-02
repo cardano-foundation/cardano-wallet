@@ -8,12 +8,14 @@
 --
 module Cardano.Wallet.Deposit.HTTP.Types.API
     ( CustomerAPI
+    , NetworkAPI
     )
     where
 
 import Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( Address
     , ApiT
+    , ChainPoint
     , Customer
     , CustomerList
     )
@@ -37,3 +39,7 @@ type CustomerAPI =
         "customers"
             :> Capture "customerId" (ApiT Customer)
             :> Verb 'PUT 200 '[JSON] (ApiT Address)
+
+type NetworkAPI =
+        "network" :> "local-tip"
+            :> Verb 'GET 200 '[JSON] (ApiT ChainPoint)

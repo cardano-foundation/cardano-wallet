@@ -10,6 +10,7 @@ module Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     , customerSchema
     , addressSchema
     , customerListSchema
+    , chainPointSchema
     ) where
 
 import Prelude
@@ -31,6 +32,7 @@ import Data.OpenApi
     , HasComponents (..)
     , HasContent (..)
     , HasDescription (..)
+    , HasEnum (..)
     , HasFormat (..)
     , HasGet (..)
     , HasIn (..)
@@ -40,6 +42,7 @@ import Data.OpenApi
     , HasMaximum (..)
     , HasMinimum (..)
     , HasName (..)
+    , HasOneOf (..)
     , HasParameters (..)
     , HasPaths (..)
     , HasProperties (..)
@@ -63,6 +66,9 @@ import Data.OpenApi
     , Schema
     , URL (..)
     , _Inline
+    )
+import Data.Word
+    ( Word64
     )
 import Network.HTTP.Media
     ( MediaType
@@ -92,6 +98,7 @@ depositPaths :: InsOrdHashMap FilePath PathItem
 depositPaths =
     [ getCustomersListPath
     , putCustomerPath
+    , getLocalTipPath
     ]
 
 depositDefinitions :: Definitions Schema
@@ -99,6 +106,7 @@ depositDefinitions =
     [ ("ApiT Customer", customerSchema)
     , ("ApiT Address", addressSchema)
     , ("ApiT CustomerList", customerListSchema)
+    , ("ApiT ChainPoint", chainPointSchema)
     ]
 
 -- | Paths
@@ -176,3 +184,45 @@ customerListSchema =
         & items
             ?~ OpenApiItemsObject
                 (Inline customerListItemSchema)
+
+getLocalTipPath :: (FilePath, PathItem)
+getLocalTipPath = ("/network/local-tip", pathItem)
+  where
+    pathItem :: PathItem
+    pathItem = mempty & get ?~ operation
+    operation :: Operation
+    operation =
+        mempty
+            & summary ?~ summary'
+            & at 200 ?~ at200
+    summary' = "Obtain the chain point until which the wallet is synchronized against the network"
+    at200 =
+        "Ok"
+            & _Inline . content . at jsonMediaType
+                ?~ (mempty & schema ?~ Ref (Reference "ApiT ChainPoint"))
+
+chainPointSchema :: Schema
+chainPointSchema =
+    mempty
+       & oneOf ?~ [Inline chainPointOriginSchema, Inline chainPointAtSlotSchema]
+
+chainPointOriginSchema :: Schema
+chainPointOriginSchema =
+    mempty
+        & type_ ?~ OpenApiString
+        & enum_ ?~ ["genesis"]
+
+chainPointAtSlotSchema :: Schema
+chainPointAtSlotSchema =
+    mempty
+        & type_ ?~ OpenApiObject
+        & properties
+            .~ [ ("slot_no", Inline slotSchema)
+               ]
+
+slotSchema :: Schema
+slotSchema =
+    mempty
+        & type_ ?~ OpenApiInteger
+        & minimum_ ?~ 0
+        & maximum_ ?~ fromIntegral (maxBound :: Word64)

@@ -1,6 +1,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -15,6 +16,7 @@ module Cardano.Wallet.Deposit.HTTP.Types.JSON
     , Address
     , Customer
     , CustomerList
+    , ChainPoint (..)
     )
     where
 
@@ -25,6 +27,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     )
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( addressSchema
+    , chainPointSchema
     , customerListSchema
     , customerSchema
     )
@@ -33,12 +36,19 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , ChainPoint (..)
+    , fromSlot
+    , toSlot
+    )
+import Control.Applicative
+    ( (<|>)
     )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
     , object
     , withObject
+    , withText
     , (.:)
     , (.=)
     )
@@ -69,6 +79,12 @@ import Data.Text.Class
     , TextDecodingError (..)
     , ToText (..)
     , getTextDecodingError
+    )
+import Data.Word
+    ( Word64
+    )
+import Numeric.Natural
+    ( Natural
     )
 import Servant
     ( FromHttpApiData (..)
@@ -174,3 +190,27 @@ instance ToSchema (ApiT CustomerList) where
             $ NamedSchema
                 (Just "ApiT CustomerList")
                 customerListSchema
+
+instance ToJSON (ApiT ChainPoint) where
+    toJSON (ApiT Origin) = "genesis"
+    toJSON (ApiT (At sl)) = object
+        [ "slot_no" .= toJSON (fromIntegral @Natural @Word64 $ fromSlot sl)
+        ]
+
+instance FromJSON (ApiT ChainPoint) where
+    parseJSON payload = parseOrigin payload <|> parseSlot payload
+      where
+          parseOrigin = withText "genesis" $ \txt ->
+            if txt == "genesis" then
+                pure $ ApiT Origin
+            else
+                fail "'origin' is expected."
+          parseSlot = withObject "slot no" $ \obj ->
+              ApiT . At . toSlot <$>  obj .: "slot_no"
+
+instance ToSchema (ApiT ChainPoint) where
+    declareNamedSchema _ = do
+        pure
+            $ NamedSchema
+                (Just "ApiT ChainPoint")
+                chainPointSchema

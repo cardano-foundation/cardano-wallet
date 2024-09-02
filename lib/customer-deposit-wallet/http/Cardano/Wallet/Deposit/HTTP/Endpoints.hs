@@ -10,6 +10,8 @@
 module Cardano.Wallet.Deposit.HTTP.Endpoints
     ( listCustomers
     , createAddress
+
+    , getNetworkTip
     ) where
 
 import Prelude
@@ -17,6 +19,7 @@ import Prelude
 import Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( Address
     , ApiT (..)
+    , ChainPoint
     , Customer
     , CustomerList
     )
@@ -64,3 +67,9 @@ createAddress
     -> Handler (ApiT Address)
 createAddress w a =
     liftIO $ ApiT <$> Wallet.createAddress (unApiT a) w
+
+getNetworkTip
+    :: Wallet.WalletInstance
+    -> Handler (ApiT ChainPoint)
+getNetworkTip w =
+    liftIO $ ApiT <$> Wallet.getWalletTip w
