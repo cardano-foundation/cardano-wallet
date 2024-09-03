@@ -200,6 +200,7 @@ steps:
 
     - label: Mainnet Boot Sync with Mithril
       timeout_in_minutes: 120
+      if: 0 == 1 # Disabled until new mihtril snapshots
       depends_on:
         - linux-mainnet-full-sync-block
       command: |
@@ -698,6 +699,7 @@ steps:
 
       - label: Mainnet Boot Sync via Mithril
         timeout_in_minutes: 120
+        if: 0 == 1 # Disabled until new mihtril snapshots
         command: |
           cd run/mainnet/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
