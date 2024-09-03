@@ -219,6 +219,8 @@ steps:
         CLEANUP_DB: true
         NETWORK: mainnet
         USE_MITHRIL: true
+      concurrency: 1
+      concurrency_group: 'mithril-mainnet-full-sync'
 
     - block: Sanchonet Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
@@ -707,6 +709,8 @@ steps:
           SUCCESS_STATUS: ready
           USE_MITHRIL: true
           USE_LOCAL_IMAGE: true
+        concurrency: 1
+        concurrency_group: 'mithril-mainnet-full-sync'
 
       - label: Private Network Full Sync
         timeout_in_minutes: 30
