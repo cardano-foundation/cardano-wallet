@@ -337,7 +337,7 @@ RSpec.describe 'Cardano Wallet E2E tests - Shared wallets', :all, :e2e, :shared 
 
       it 'Multi-assets transaction - two cosigners, all' do
         # TODO: [ADP-3419] https://cardanofoundation.atlassian.net/browse/ADP-3419
-        pending 'wallet has run out of HappyCoin and SadCoin'
+        skip 'wallet has run out of HappyCoin and SadCoin'
         amt = 1
         amt_ada = 1_600_000
         src_wid = @wid_sha_cos0_all
