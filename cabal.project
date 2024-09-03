@@ -54,7 +54,7 @@ index-state: 2024-08-08T00:00:00Z
 
 index-state:
   , hackage.haskell.org 2024-08-08T00:00:00Z
-  , cardano-haskell-packages 2024-06-29T00:00:00Z
+  , cardano-haskell-packages 2024-09-01T03:50:08Z
 
 packages:
   lib/address-derivation-discovery
@@ -157,8 +157,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/cardano-foundation/cardano-wallet-agda
-    tag: 525eb93be15a8c1ea6198e472f401ea0f9a985cd
-    --sha256: 1mw98kdqhafdq89ry3yxwd1xwjd7g69fs5pd1p2np8sdrpxh3n8g
+    tag: 552c184523a815931b96f55292a54aab8aa8bde3
+    --sha256: 1a241r0xd2102kvyanlpb5xyrn22i3f9vzx9667l5xik9qgrjzxv
     subdir:
       lib/customer-deposit-wallet-pure
       lib/cardano-wallet-read
@@ -186,7 +186,8 @@ constraints:
   -- Cardano Node dependencies:
   , io-classes >= 1.4
   , io-classes -asserts
-  , ouroboros-consensus-cardano ^>= 0.17
+
+  , ouroboros-consensus-cardano ^>= 0.18
   , ouroboros-network ^>= 0.16.1
   , ouroboros-network-protocols ^>= 0.9
 

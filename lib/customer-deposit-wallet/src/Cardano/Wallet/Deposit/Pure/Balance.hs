@@ -98,8 +98,8 @@ spendTxD tx !u =
   where
     inputsToExclude =
         case Tx.getScriptValidity tx of
-            Tx.IsValid True -> Tx.getInputs tx
-            Tx.IsValid False -> Tx.getCollateralInputs tx
+            Tx.IsValidC True -> Tx.getInputs tx
+            Tx.IsValidC False -> Tx.getCollateralInputs tx
 
 {-----------------------------------------------------------------------------
     Helpers

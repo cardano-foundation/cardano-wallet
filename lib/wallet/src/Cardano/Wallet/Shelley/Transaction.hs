@@ -892,8 +892,8 @@ mkUnsignedTx
     , Cardano.txCertificates = case stakingScriptM of
         Nothing ->
             let
-                witMap = Map.empty
-                ctx = Cardano.BuildTxWith witMap
+                witPair = []
+                ctx = Cardano.BuildTxWith witPair
             in
                 Cardano.TxCertificates shelleyEra certs ctx
         Just stakingScript ->
@@ -907,8 +907,8 @@ mkUnsignedTx
                     Cardano.ScriptWitness
                         Cardano.ScriptWitnessForStakeAddr
                         (toScriptWitness stakingScript)
-                witMap = Map.fromList [(buildKey, buildVal)]
-                ctx = Cardano.BuildTxWith witMap
+                witPair = [(buildKey, buildVal)]
+                ctx = Cardano.BuildTxWith witPair
             in
             Cardano.TxCertificates shelleyEra certs ctx
 
