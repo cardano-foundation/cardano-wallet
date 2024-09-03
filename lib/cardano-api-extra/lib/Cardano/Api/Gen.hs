@@ -1012,7 +1012,7 @@ genScriptWitnessSpend langEra =
         (PlutusScriptLanguage ver) ->
             PlutusScriptWitness langEra ver
                 <$> genPlutusScriptOrReferenceInput ver
-                <*> (ScriptDatumForTxIn <$> genHashableScriptData)
+                <*> (ScriptDatumForTxIn . Just <$> genHashableScriptData)
                 <*> genHashableScriptData
                 <*> genExecutionUnits
 
@@ -1604,7 +1604,7 @@ genTxCertificates era = withEraWitness era $ \sbe ->
         [ pure TxCertificatesNone
         , TxCertificates sbe
             <$> scale (`div` 3) (listOf (genTxCertificate era))
-            <*> ( (BuildTxWith . Map.fromList)
+            <*> ( BuildTxWith
                     <$> scale
                         (`div` 3)
                         ( listOf
@@ -1780,7 +1780,7 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
     txValidityUpperBound <- genTxValidityUpperBound era
     txProposalProcedures <- genMaybeFeaturedInEra genProposals era
     txVotingProcedures <- genMaybeFeaturedInEra genVotingProcedures era
-    txCurrentTreasuryValue <- genMaybeFeaturedInEra (const genCoin) era
+    txCurrentTreasuryValue <- genMaybeFeaturedInEra (const (pure <$> genCoin)) era
     txTreasuryDonation <- genMaybeFeaturedInEra (const genCoin) era
 
     let

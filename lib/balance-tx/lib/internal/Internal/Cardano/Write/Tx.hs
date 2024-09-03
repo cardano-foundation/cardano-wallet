@@ -410,9 +410,10 @@ instance IsRecentEra ConwayEra where
 cardanoEraFromRecentEra
     :: RecentEra era
     -> CardanoApi.CardanoEra (CardanoApiEra era)
-cardanoEraFromRecentEra =
-    CardanoApi.shelleyBasedToCardanoEra
-    . shelleyBasedEraFromRecentEra
+cardanoEraFromRecentEra era = case shelleyBasedEraFromRecentEra era of
+    CardanoApi.ShelleyBasedEraBabbage -> CardanoApi.toCardanoEra CardanoApi.BabbageEra
+    CardanoApi.ShelleyBasedEraConway -> CardanoApi.toCardanoEra CardanoApi.ConwayEra
+    _ -> error "we are expecting only Babbage and Conway"
 
 shelleyBasedEraFromRecentEra
     :: RecentEra era
