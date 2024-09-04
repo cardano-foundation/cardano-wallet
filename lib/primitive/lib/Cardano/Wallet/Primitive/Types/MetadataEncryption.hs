@@ -22,19 +22,15 @@ import Prelude
 
 import Cardano.Api
     ( TxMetadata (..)
-    , TxMetadataJsonSchemaError (..)
     , TxMetadataValue (..)
+    , metadataValueFromJsonNoSchema
     , metadataValueToJsonNoSchema
     )
 import Cardano.Api.Error
     ( displayError
     )
-import Control.Applicative
-    ( (<|>)
-    )
 import Control.Monad
-    ( guard
-    , when
+    ( when
     )
 import Cryptography.Cipher.AES256CBC
     ( CipherError
@@ -64,7 +60,6 @@ import Data.ByteString
     )
 import Data.Maybe
     ( fromJust
-    , fromMaybe
     , isJust
     , isNothing
     , mapMaybe
@@ -76,26 +71,15 @@ import Data.Word
     ( Word64
     )
 
-import qualified Cardano.Ledger.Binary as CBOR
-import qualified Cardano.Ledger.Shelley.TxAuxData as Ledger
-import qualified Codec.CBOR.Magic as CBOR
 import qualified Cryptography.Cipher.AES256CBC as AES256CBC
 import qualified Cryptography.KDF.PBKDF2 as PBKDF2
 import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Key as Aeson
-import qualified Data.Aeson.KeyMap as Aeson
-import qualified Data.Attoparsec.ByteString.Char8 as Atto
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Base16 as B16
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Scientific as Scientific
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Vector as V
 
 -- CIP references:
 -- https://github.com/cardano-foundation/CIPs/tree/master/CIP-0020
@@ -344,99 +328,3 @@ instance ToJSON TxMetadataValue where
 
 instance FromJSON TxMetadataValue where
     parseJSON = either (fail . displayError) pure . metadataValueFromJsonNoSchema
-
--- when cardano-api exports metadataValueFromJsonNoSchema the below could be removed (together with cabal dependencies)
-metadataValueFromJsonNoSchema
-    :: Aeson.Value
-    -> Either TxMetadataJsonSchemaError TxMetadataValue
-metadataValueFromJsonNoSchema = conv
-  where
-    conv :: Aeson.Value -> Either TxMetadataJsonSchemaError TxMetadataValue
-    conv Aeson.Null   = Left TxMetadataJsonNullNotAllowed
-    conv Aeson.Bool{} = Left TxMetadataJsonBoolNotAllowed
-
-    conv (Aeson.Number d) =
-      case Scientific.floatingOrInteger d :: Either Double Integer of
-        Left  n -> Left (TxMetadataJsonNumberNotInteger n)
-        Right n -> Right (TxMetaNumber n)
-
-    conv (Aeson.String s)
-      | Just s' <- T.stripPrefix bytesPrefix s
-      , let bs' = T.encodeUtf8 s'
-      , Right bs <- B16.decode bs'
-      , not (B8.any (\c -> c >= 'A' && c <= 'F') bs')
-      = Right (TxMetaBytes bs)
-
-    conv (Aeson.String s) = Right (TxMetaText s)
-
-    conv (Aeson.Array vs) =
-        fmap TxMetaList
-      . traverse conv
-      $ V.toList vs
-
-    conv (Aeson.Object kvs) =
-        fmap
-            ( TxMetaMap
-                . sortCanonicalForCbor
-            )
-            . traverse
-                ((\(k, v) -> (,) (convKey k) <$> conv v) . first Aeson.toText)
-            $ Aeson.toList kvs
-
-    convKey :: Text -> TxMetadataValue
-    convKey s =
-      fromMaybe (TxMetaText s) $
-      parseAll ((fmap TxMetaNumber pSigned <* Atto.endOfInput)
-            <|> (fmap TxMetaBytes  pBytes  <* Atto.endOfInput)) s
-
-bytesPrefix :: Text
-bytesPrefix = "0x"
-
-parseAll :: Atto.Parser a -> Text -> Maybe a
-parseAll p =
-    either (const Nothing) Just
-    . Atto.parseOnly p
-    . T.encodeUtf8
-
-pUnsigned :: Atto.Parser Integer
-pUnsigned = do
-    bs <- Atto.takeWhile1 Atto.isDigit
-    -- no redundant leading 0s allowed, or we cannot round-trip properly
-    guard (not (BS.length bs > 1 && B8.head bs == '0'))
-    return $! BS.foldl' step 0 bs
-  where
-    step a w = a * 10 + fromIntegral (w - 48)
-
-pSigned :: Atto.Parser Integer
-pSigned = Atto.signed pUnsigned
-
-pBytes :: Atto.Parser ByteString
-pBytes = do
-  _ <- Atto.string "0x"
-  remaining <- Atto.takeByteString
-  when (B8.any hexUpper remaining) $ fail ("Unexpected uppercase hex characters in " <> show remaining)
-  case B16.decode remaining of
-    Right bs -> return bs
-    _ -> fail ("Expecting base16 encoded string, found: " <> show remaining)
-  where
-    hexUpper c = c >= 'A' && c <= 'F'
-
-sortCanonicalForCbor
-    :: [(TxMetadataValue, TxMetadataValue)] -> [(TxMetadataValue, TxMetadataValue)]
-sortCanonicalForCbor =
-  map snd
-  . L.sortOn fst
-  . map (\e@(k, _) -> (CBOR.uintegerFromBytes $ serialiseKey k, e))
-    where
-      serialiseKey = CBOR.serialize' CBOR.shelleyProtVer . toShelleyMetadatum
-
-toShelleyMetadatum :: TxMetadataValue -> Ledger.Metadatum
-toShelleyMetadatum (TxMetaNumber x) = Ledger.I x
-toShelleyMetadatum (TxMetaBytes  x) = Ledger.B x
-toShelleyMetadatum (TxMetaText   x) = Ledger.S x
-toShelleyMetadatum (TxMetaList  xs) =
-    Ledger.List [ toShelleyMetadatum x | x <- xs ]
-toShelleyMetadatum (TxMetaMap   xs) =
-    Ledger.Map [ (toShelleyMetadatum k,
-                      toShelleyMetadatum v)
-                | (k,v) <- xs ]
