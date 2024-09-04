@@ -76,6 +76,7 @@ library
     Cardano.Wallet.Deposit.IO.DB
     Cardano.Wallet.Deposit.IO.Network.Mock
     Cardano.Wallet.Deposit.IO.Network.Type
+    Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.UTxO
