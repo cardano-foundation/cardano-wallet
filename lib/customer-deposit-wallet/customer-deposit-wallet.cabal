@@ -12,24 +12,21 @@ maintainer:         hal@cardanofoundation.org
 copyright:          2023 Cardano Foundation
 category:           Web
 data-files:         data/swagger.json
-
 extra-source-files:
   spec/**/*.lagda.md
   spec/**/*.lhs.md
   spec/**/*.openapi.yaml
 
 common language
-  default-language:
-    Haskell2010
+  default-language:   Haskell2010
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
 
 common opts-lib
   ghc-options:
-    -Wall -Wcompat
-    -Wredundant-constraints
-    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -50,27 +47,36 @@ library
     , async
     , base
     , bytestring
+    , cardano-addresses
+    , cardano-binary
     , cardano-crypto
-    , cardano-wallet:cardano-wallet
-    , cardano-wallet-network-layer
-    , cardano-wallet-read == 0.2024.8.27
+    , cardano-ledger-api
+    , cardano-ledger-binary
     , cardano-ledger-byron
+    , cardano-strict-containers
+    , cardano-wallet
+    , cardano-wallet-network-layer
+    , cardano-wallet-read           ==0.2024.8.27
     , containers
     , contra-tracer
+    , crypto-primitives
     , customer-deposit-wallet-pure
     , delta-store
     , delta-table
     , delta-types
+    , directory
+    , filepath
     , io-classes
     , iohk-monitoring-extra
+    , memory
+    , microlens
     , OddWord
     , sqlite-simple
+    , serialise
     , text
-    , transformers
     , time
-    , cardano-ledger-api
-    , cardano-strict-containers
-    , microlens
+    , transformers
+
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
@@ -79,10 +85,11 @@ library
     Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.Balance
+    Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
     Cardano.Wallet.Deposit.Pure.UTxOHistory
-    Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Read
+    Cardano.Wallet.Deposit.REST
     Cardano.Wallet.Deposit.Write
 
 test-suite scenario
@@ -90,10 +97,8 @@ test-suite scenario
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/scenario
   main-is:            test-suite-scenario.hs
-  build-tool-depends:
-    markdown-unlit:markdown-unlit
-  ghc-options:
-    -pgmL markdown-unlit
+  build-tool-depends: markdown-unlit:markdown-unlit
+  ghc-options:        -pgmL markdown-unlit
   build-depends:
     , base
     , bytestring
@@ -103,7 +108,8 @@ test-suite scenario
     , contra-tracer
     , customer-deposit-wallet
     , delta-store
-    , hspec >=2.8.2
+    , hspec                      >=2.8.2
+
   other-modules:
     Test.Scenario.Blockchain
     Test.Scenario.Wallet.Deposit.Exchanges
@@ -129,6 +135,7 @@ library customer-deposit-wallet-http
     , text
     , text-class
     , warp
+
   exposed-modules:
     Cardano.Wallet.Deposit.HTTP
     Cardano.Wallet.Deposit.HTTP.Endpoints
@@ -150,13 +157,16 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-test-utils
-    , customer-deposit-wallet:{customer-deposit-wallet, customer-deposit-wallet-http}
+    , customer-deposit-wallet
+    , customer-deposit-wallet:customer-deposit-wallet-http
     , directory
-    , hspec >=2.8.2
+    , hspec
     , hspec-golden
     , openapi3
     , QuickCheck
+    , temporary
     , with-utf8
+
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
@@ -167,7 +177,5 @@ test-suite unit
 executable customer-deposit-wallet
   import:         language, opts-exe
   hs-source-dirs: exe
-  build-depends:
-    , base
-  main-is:
-    customer-deposit-wallet.hs
+  build-depends:  base
+  main-is:        customer-deposit-wallet.hs
