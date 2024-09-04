@@ -122,3 +122,13 @@ steps:
           system: x86_64-linux
         env:
           RELEASE: true
+
+      - label: Push Docker Image
+        depends_on:
+          - create-release
+        command:
+          - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+          - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+          - "./docker-build-push"
+        agents:
+          system: x86_64-linux
