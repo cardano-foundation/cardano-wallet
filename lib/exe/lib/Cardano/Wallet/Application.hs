@@ -167,13 +167,10 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( TransactionLayer
     )
-import Cardano.Wallet.UI.Html.Pages.Page
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig (..)
     )
-import Cardano.Wallet.UI.Html.Pages.Template.Head
-    ( HeadConfig (..)
-    )
-import Cardano.Wallet.UI.Layer
+import Cardano.Wallet.UI.Common.Layer
     ( UILayer
     , sourceOfNewTip
     )
@@ -245,10 +242,11 @@ import UnliftIO
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.UI.API as Ui
-
-import qualified Cardano.Wallet.UI.Layer as Ui
-import qualified Cardano.Wallet.UI.Server as Ui
+import qualified Cardano.Wallet.UI.Common.Layer as Ui
+import qualified Cardano.Wallet.UI.Deposit.API as DepositUi
+import qualified Cardano.Wallet.UI.Deposit.Server as DepositUi
+import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi
+import qualified Cardano.Wallet.UI.Shelley.Server as ShelleyUi
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -278,7 +276,9 @@ serveWallet
     -> Listen
     -- ^ HTTP API Server port.
     -> Maybe Listen
-    -- ^ Optional HTTP UI Server port.
+    -- ^ Optional HTTP UI Server port for the personal wallet.
+    -> Maybe Listen
+    -- ^ Optional HTTP UI Server port for the deposit wallet.
     -> Maybe TlsConfiguration
     -- ^ An optional TLS configuration
     -> Maybe Settings
@@ -304,7 +304,8 @@ serveWallet
     mPoolDatabaseDecorator
     hostPref
     listenApi
-    mListenUi
+    mListenShelleyUi
+    mListenDepositUi
     tlsConfig
     settings
     tokenMetaUri
@@ -347,9 +348,10 @@ serveWallet
         shelleyApi <- withShelleyApi netId netLayer
         multisigApi <- withMultisigApi netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
-        eUiSocket <- bindUiSocket
+        eShelleyUiSocket <- bindShelleyUiSocket
+        eDepositUiSocket <- bindDepositUiSocket
         callCC $ \exit -> do
-            _ <- case eUiSocket of
+            _ <- case eShelleyUiSocket of
                 Left err -> do
                     lift $ trace $ MsgServerStartupError err
                     exit $ ExitFailure $ exitCodeApiServer err
@@ -357,10 +359,10 @@ serveWallet
                     case ms of
                         Nothing -> pure ()
                         Just (_port, socket) -> do
-                            ui <- Ui.withUILayer 1
+                            ui <- Ui.withUILayer 1 Nothing
                             sourceOfNewTip netLayer ui
                             let uiService =
-                                    startUiServer
+                                    startShelleyUiServer
                                         ui
                                         sNetwork
                                         socket
@@ -370,6 +372,26 @@ serveWallet
                                         multisigApi
                                         stakePoolLayer
                                         ntpClient
+                                        blockchainSource
+                            ContT $ \k ->
+                                withAsync uiService $ \_ -> k ()
+                    pure ExitSuccess
+            _ <- case eDepositUiSocket of
+                Left err -> do
+                    lift $ trace $ MsgServerStartupError err
+                    exit $ ExitFailure $ exitCodeApiServer err
+                Right ms -> do
+                    case ms of
+                        Nothing -> pure ()
+                        Just (_port, socket) -> do
+                            ui <- Ui.withUILayer 1 ()
+                            sourceOfNewTip netLayer ui
+                            let uiService =
+                                    startDepositUiServer
+                                        ui
+                                        socket
+                                        sNetwork
+                                        netLayer
                                         blockchainSource
                             ContT $ \k ->
                                 withAsync uiService $ \_ -> k ()
@@ -399,8 +421,16 @@ serveWallet
         bindApiSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
         bindApiSocket = ContT $ withListeningSocket hostPref listenApi
 
-        bindUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
-        bindUiSocket = case mListenUi of
+        bindShelleyUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindShelleyUiSocket = case mListenShelleyUi of
+            Nothing -> pure $ Right Nothing
+            Just listenUi -> do
+                fmap (fmap Just)
+                    $ ContT
+                    $ withListeningSocket hostPref listenUi
+
+        bindDepositUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindDepositUiSocket = case mListenDepositUi of
             Nothing -> pure $ Right Nothing
             Just listenUi -> do
                 fmap (fmap Just)
@@ -437,11 +467,11 @@ serveWallet
                     (newTransactionLayer SharedKeyS netId)
                     netLayer
                     Server.idleWorker
-        startUiServer
+        startShelleyUiServer
             :: forall n
              . ( HasSNetworkId n
                )
-            => UILayer
+            => UILayer (Maybe WalletId)
             -> SNetworkId n
             -> Socket
             -> ApiLayer (RndState n)
@@ -452,7 +482,7 @@ serveWallet
             -> NtpClient
             -> BlockchainSource
             -> IO ()
-        startUiServer
+        startShelleyUiServer
             ui
             _proxy
             socket
@@ -464,12 +494,12 @@ serveWallet
             ntp
             bs = do
                 let serverSettings = Warp.defaultSettings
-                    api = Proxy @Ui.UI
+                    api = Proxy @ShelleyUi.UI
                     application =
                         Server.serve api
-                            $ Ui.serveUI
+                            $ ShelleyUi.serveUI
                                 ui
-                                (PageConfig "" $ HeadConfig "Shelley Cardano Wallet")
+                                (PageConfig "" "Shelley Cardano Wallet")
                                 _proxy
                                 randomApi
                                 icarusApi
@@ -485,6 +515,38 @@ serveWallet
                     socket
                     application
 
+        startDepositUiServer
+            :: forall n
+             . ( HasSNetworkId n
+               )
+            => UILayer ()
+            -> Socket
+            -> SNetworkId n
+            -> NetworkLayer IO (CardanoBlock StandardCrypto)
+            -> BlockchainSource
+            -> IO ()
+        startDepositUiServer
+            ui
+            socket
+            _proxy
+            nl
+            bs = do
+                let serverSettings = Warp.defaultSettings
+                    api = Proxy @DepositUi.UI
+                    application =
+                        Server.serve api
+                            $ DepositUi.serveUI
+                                ui
+                                (PageConfig "" "Deposit Cardano Wallet")
+                                _proxy
+                                nl
+                                bs
+                start
+                    serverSettings
+                    apiServerTracer
+                    tlsConfig
+                    socket
+                    application
         startApiServer
             :: forall n
              . ( HasSNetworkId n

@@ -10,8 +10,8 @@ category:        Web
 build-type:      Simple
 extra-doc-files: CHANGELOG.md
 data-files:
-    data/images/*.png
-    data/english.txt
+  data/english.txt
+  data/images/*.png
 
 common language
   default-language:   Haskell2010
@@ -33,36 +33,42 @@ flag release
 library
   import:           language, opts-lib
   exposed-modules:
-    Cardano.Wallet.UI.API
+    Cardano.Wallet.UI.Common.API
+    Cardano.Wallet.UI.Common.Handlers.Lib
+    Cardano.Wallet.UI.Common.Handlers.Settings
+    Cardano.Wallet.UI.Common.Handlers.SSE
+    Cardano.Wallet.UI.Common.Handlers.State
+    Cardano.Wallet.UI.Common.Html.Html
+    Cardano.Wallet.UI.Common.Html.Htmx
+    Cardano.Wallet.UI.Common.Html.Lib
+    Cardano.Wallet.UI.Common.Html.Pages.Lib
+    Cardano.Wallet.UI.Common.Html.Pages.Network
+    Cardano.Wallet.UI.Common.Html.Pages.Settings
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Body
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Head
+    Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
+    Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
-    Cardano.Wallet.UI.Handlers.Addresses
-    Cardano.Wallet.UI.Handlers.Lib
-    Cardano.Wallet.UI.Handlers.Settings
-    Cardano.Wallet.UI.Handlers.SSE
-    Cardano.Wallet.UI.Handlers.State
-    Cardano.Wallet.UI.Handlers.Wallet
-    Cardano.Wallet.UI.Handlers.Wallets
-    Cardano.Wallet.UI.Html.Html
-    Cardano.Wallet.UI.Html.Htmx
-    Cardano.Wallet.UI.Html.Lib
-    Cardano.Wallet.UI.Html.Pages.About
-    Cardano.Wallet.UI.Html.Pages.Addresses
-    Cardano.Wallet.UI.Html.Pages.Lib
-    Cardano.Wallet.UI.Html.Pages.Network
-    Cardano.Wallet.UI.Html.Pages.Page
-    Cardano.Wallet.UI.Html.Pages.Settings
-    Cardano.Wallet.UI.Html.Pages.Template.Footer
-    Cardano.Wallet.UI.Html.Pages.Template.Head
-    Cardano.Wallet.UI.Html.Pages.Template.Navigation
-    Cardano.Wallet.UI.Html.Pages.Wallet
-    Cardano.Wallet.UI.Html.Pages.Wallets
-    Cardano.Wallet.UI.Html.Pages.Wallets.NewWallet
-    Cardano.Wallet.UI.Layer
+    Cardano.Wallet.UI.Deposit.API
+    Cardano.Wallet.UI.Deposit.Html.Pages.About
+    Cardano.Wallet.UI.Deposit.Html.Pages.Page
+    Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.ListOf
-    Cardano.Wallet.UI.Server
+    Cardano.Wallet.UI.Shelley.API
+    Cardano.Wallet.UI.Shelley.Handlers.Addresses
+    Cardano.Wallet.UI.Shelley.Handlers.Wallet
+    Cardano.Wallet.UI.Shelley.Handlers.Wallets
+    Cardano.Wallet.UI.Shelley.Html.Pages.About
+    Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
+    Cardano.Wallet.UI.Shelley.Html.Pages.Page
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
+    Cardano.Wallet.UI.Shelley.Server
     Cardano.Wallet.UI.Signal
-  other-modules:
-    Paths_cardano_wallet_ui
+
+  other-modules:    Paths_cardano_wallet_ui
   build-depends:
     , address-derivation-discovery
     , aeson
@@ -75,6 +81,7 @@ library
     , cardano-wallet-api
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
+    , cardano-wallet-read
     , containers
     , contra-tracer
     , cookie

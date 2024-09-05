@@ -25,6 +25,9 @@ WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
 
+RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
+
 mkdir -p ./databases
 
 # Define a local db if WALLET_DB is not set
@@ -153,6 +156,7 @@ if [[ "${NETWORK}" == "mainnet" ]]; then
     cardano-wallet serve \
         --port "${WALLET_PORT}" \
         --ui-port "${WALLET_UI_PORT}" \
+        --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
         --database "${WALLET_DB}" \
         --node-socket "${NODE_SOCKET_PATH}" \
         --mainnet \
@@ -163,6 +167,7 @@ else
     cardano-wallet serve \
         --port "${WALLET_PORT}" \
         --ui-port "${WALLET_UI_PORT}" \
+        --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
         --database "${WALLET_DB}" \
         --node-socket "${NODE_SOCKET_PATH}" \
         --testnet "${NODE_CONFIGS}"/byron-genesis.json \
@@ -221,6 +226,7 @@ case "$1" in
     start)
         echo "Wallet service port: $WALLET_PORT"
         echo "Wallet UI port: $WALLET_UI_PORT"
+        echo "Deposit wallet UI port: $DEPOSIT_WALLET_UI_PORT"
         echo "Node socket path: $NODE_SOCKET_PATH"
         echo "Ctrl-C to stop"
         sleep infinity
