@@ -1,0 +1,94 @@
+### Haskell ###
+*.o
+*.hi
+*.hie
+*.chi
+*.chs.h
+*.dyn_o
+*.dump-hi
+*.dyn_hi
+*.tix
+.hpc
+.hsenv
+*.prof
+*.aux
+*.hp
+*.eventlog
+
+### Cabal ###
+dist
+dist-*
+.ghc.environment.*
+cabal*.project.local*
+
+### Stack ###
+.stack-work/
+/stack.yaml.lock
+.HTF/
+
+### Local configs ###
+.ghci
+
+### Nix ###
+/result*
+/.nix-shell-cabal.project*
+cabal.project.old
+check-cabal-project.sh
+cabal.project.diff
+
+### Direnv ###
+.envrc-local
+.envrc-override
+.direnv/flake-profile*
+
+### auto-generated faulty JSON golden tests ###
+*.faulty.json
+*.faulty.reencoded.json
+lib/balance-tx/test/data/balanceTx/**/actual
+
+### Release scripts output
+/GENERATED_*.md
+
+### Docs build
+/_build/
+.vscode/settings.json
+
+## local ignored space
+ignore-me
+floskell.json
+Makefile
+
+## Lean
+*.olean
+leanpkg.path
+
+## Artifacts
+bench-wallet
+memory-time.txt
+memory.log
+memory
+memory.svg
+bench-restore
+restore-time.txt
+restore.log
+test-output
+
+## Membench uncompressed data
+lib/wallet-benchmarks/data/membench-snapshot
+
+## Local cluster swagger golden actual
+lib/local-cluster/data/swagger.json.actual
+test/e2e/.direnv/flake-profile*
+
+## Ignore database directories
+**/node-db
+**/wallet-db
+
+*.log
+node_modules
+package-lock.json
+package.json
+
+# buildkite artifacts testing
+artifacts
+test/e2e/fixtures/fixture_wallets.json
