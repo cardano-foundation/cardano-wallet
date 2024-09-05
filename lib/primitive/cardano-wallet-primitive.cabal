@@ -40,9 +40,7 @@ library
   build-depends:
     , aeson
     , array
-    , attoparsec
     , base
-    , base16-bytestring
     , bech32
     , bech32-th
     , binary
@@ -114,7 +112,6 @@ library
     , unliftio
     , unliftio-core
     , unordered-containers
-    , vector
 
   exposed-modules:
     Cardano.Wallet.Orphans
