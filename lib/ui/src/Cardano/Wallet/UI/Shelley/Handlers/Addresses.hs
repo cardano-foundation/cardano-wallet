@@ -8,7 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Handlers.Addresses
+module Cardano.Wallet.UI.Shelley.Handlers.Addresses
     ( listAddresses
     )
 where

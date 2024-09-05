@@ -245,8 +245,8 @@ import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
 import qualified Cardano.Wallet.UI.Deposit.API as DepositUi
 import qualified Cardano.Wallet.UI.Deposit.Server as DepositUi
-import qualified Cardano.Wallet.UI.Personal.API as PersonalUi
-import qualified Cardano.Wallet.UI.Personal.Server as PersonalUi
+import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi
+import qualified Cardano.Wallet.UI.Shelley.Server as ShelleyUi
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
 
@@ -304,7 +304,7 @@ serveWallet
     mPoolDatabaseDecorator
     hostPref
     listenApi
-    mListenPersonalUi
+    mListenShelleyUi
     mListenDepositUi
     tlsConfig
     settings
@@ -348,10 +348,10 @@ serveWallet
         shelleyApi <- withShelleyApi netId netLayer
         multisigApi <- withMultisigApi netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
-        ePersonalUiSocket <- bindPersonalUiSocket
+        eShelleyUiSocket <- bindShelleyUiSocket
         eDepositUiSocket <- bindDepositUiSocket
         callCC $ \exit -> do
-            _ <- case ePersonalUiSocket of
+            _ <- case eShelleyUiSocket of
                 Left err -> do
                     lift $ trace $ MsgServerStartupError err
                     exit $ ExitFailure $ exitCodeApiServer err
@@ -362,7 +362,7 @@ serveWallet
                             ui <- Ui.withUILayer 1 Nothing
                             sourceOfNewTip netLayer ui
                             let uiService =
-                                    startPersonalUiServer
+                                    startShelleyUiServer
                                         ui
                                         sNetwork
                                         socket
@@ -421,8 +421,8 @@ serveWallet
         bindApiSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
         bindApiSocket = ContT $ withListeningSocket hostPref listenApi
 
-        bindPersonalUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
-        bindPersonalUiSocket = case mListenPersonalUi of
+        bindShelleyUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindShelleyUiSocket = case mListenShelleyUi of
             Nothing -> pure $ Right Nothing
             Just listenUi -> do
                 fmap (fmap Just)
@@ -467,7 +467,7 @@ serveWallet
                     (newTransactionLayer SharedKeyS netId)
                     netLayer
                     Server.idleWorker
-        startPersonalUiServer
+        startShelleyUiServer
             :: forall n
              . ( HasSNetworkId n
                )
@@ -482,7 +482,7 @@ serveWallet
             -> NtpClient
             -> BlockchainSource
             -> IO ()
-        startPersonalUiServer
+        startShelleyUiServer
             ui
             _proxy
             socket
@@ -494,12 +494,12 @@ serveWallet
             ntp
             bs = do
                 let serverSettings = Warp.defaultSettings
-                    api = Proxy @PersonalUi.UI
+                    api = Proxy @ShelleyUi.UI
                     application =
                         Server.serve api
-                            $ PersonalUi.serveUI
+                            $ ShelleyUi.serveUI
                                 ui
-                                (PageConfig "" "Personal Cardano Wallet")
+                                (PageConfig "" "Shelley Cardano Wallet")
                                 _proxy
                                 randomApi
                                 icarusApi

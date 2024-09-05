@@ -9,7 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Handlers.Wallet where
+module Cardano.Wallet.UI.Shelley.Handlers.Wallet where
 
 import Prelude hiding
     ( lookup

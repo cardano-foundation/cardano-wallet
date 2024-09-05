@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Personal.Html.Pages.Wallet where
+module Cardano.Wallet.UI.Shelley.Html.Pages.Wallet where
 
 import Prelude hiding
     ( id
@@ -50,7 +50,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( blockReferenceH
     )
-import Cardano.Wallet.UI.Personal.API
+import Cardano.Wallet.UI.Shelley.API
     ( sseLink
     , walletDeleteLink
     , walletLink

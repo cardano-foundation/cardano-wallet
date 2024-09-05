@@ -1,4 +1,4 @@
-module Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet where
+module Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet where
 
 import Prelude hiding
     ( id
@@ -36,7 +36,7 @@ import Cardano.Wallet.UI.Common.Html.Lib
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
     )
-import Cardano.Wallet.UI.Personal.API
+import Cardano.Wallet.UI.Shelley.API
     ( walletLink
     , walletMnemonicLink
     )

@@ -6,7 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Server where
+module Cardano.Wallet.UI.Shelley.Server where
 
 import Prelude
 
@@ -90,38 +90,38 @@ import Cardano.Wallet.UI.Cookies
     , withSession
     , withSessionRead
     )
-import Cardano.Wallet.UI.Personal.API
+import Cardano.Wallet.UI.Shelley.API
     ( UI
     , settingsSseToggleLink
     )
-import Cardano.Wallet.UI.Personal.Handlers.Addresses
+import Cardano.Wallet.UI.Shelley.Handlers.Addresses
     ( listAddresses
     )
-import Cardano.Wallet.UI.Personal.Handlers.Wallet
+import Cardano.Wallet.UI.Shelley.Handlers.Wallet
     ( deleteWallet
     , getWallet
     , pickMnemonic
     , postWallet
     , selectWallet
     )
-import Cardano.Wallet.UI.Personal.Handlers.Wallets
+import Cardano.Wallet.UI.Shelley.Handlers.Wallets
     ( listWallets
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
+import Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
     ( addressesH
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Page
+import Cardano.Wallet.UI.Shelley.Html.Pages.Page
     ( Page (..)
     , page
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
+import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     ( WalletPresent (..)
     , walletElementH
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Wallets
+import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletListH
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
+import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
     ( mnemonicH
     , postWalletForm
     )

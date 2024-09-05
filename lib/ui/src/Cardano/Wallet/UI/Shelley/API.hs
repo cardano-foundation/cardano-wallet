@@ -11,7 +11,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Cardano.Wallet.UI.Personal.API where
+module Cardano.Wallet.UI.Shelley.API where
 
 import Prelude
 

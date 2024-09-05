@@ -87,7 +87,7 @@ import Cardano.Wallet.Application.CLI
     , hostPreferenceOption
     , listenApiOption
     , listenDepositUiOption
-    , listenPersonalUiOption
+    , listenShelleyUiOption
     , loggingMinSeverity
     , loggingOptions
     , loggingSeverityOrOffReader
@@ -230,7 +230,7 @@ data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _mode :: Mode CardanoNodeConn
     , _listenApi :: Listen
-    , _listenPersonalUi :: Maybe Listen
+    , _listenShelleyUi :: Maybe Listen
     , _listenDepositUi :: Maybe Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
@@ -256,7 +256,7 @@ cmdServe =
                 <$> hostPreferenceOption
                 <*> modeOption nodeSocketOption
                 <*> listenApiOption
-                <*> listenPersonalUiOption
+                <*> listenShelleyUiOption
                 <*> listenDepositUiOption
                 <*> optional tlsOption
                 <*> networkConfigurationOption
@@ -272,7 +272,7 @@ cmdServe =
                     host
                     mode
                     listenApi
-                    listenPersonalUi
+                    listenShelleyUi
                     listenDepositUi
                     tlsConfig
                     networkConfig
@@ -310,7 +310,7 @@ cmdServe =
                         Nothing
                         host
                         listenApi
-                        listenPersonalUi
+                        listenShelleyUi
                         listenDepositUi
                         tlsConfig
                         (Settings <$> poolMetadataFetching)

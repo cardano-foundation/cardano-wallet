@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Cardano.Wallet.UI.Personal.Html.Pages.Page
+module Cardano.Wallet.UI.Shelley.Html.Pages.Page
     ( Page (..)
     , page
     )
@@ -30,7 +30,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     ( navigationH
     )
-import Cardano.Wallet.UI.Personal.API
+import Cardano.Wallet.UI.Shelley.API
     ( aboutPageLink
     , addressesPageLink
     , faviconLink
@@ -42,17 +42,17 @@ import Cardano.Wallet.UI.Personal.API
     , walletPageLink
     , walletsPageLink
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.About
+import Cardano.Wallet.UI.Shelley.Html.Pages.About
     ( aboutH
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Addresses
+import Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
     ( addressesPageH
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Wallet
+import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     ( WalletPresent
     , walletH
     )
-import Cardano.Wallet.UI.Personal.Html.Pages.Wallets
+import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletsH
     )
 import Control.Lens.Extras

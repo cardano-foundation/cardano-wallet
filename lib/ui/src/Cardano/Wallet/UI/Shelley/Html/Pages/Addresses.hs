@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Html.Pages.Addresses
+module Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
     ( addressesPageH
     , addressesH
     )
@@ -34,7 +34,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     , sseH
     )
-import Cardano.Wallet.UI.Personal.API
+import Cardano.Wallet.UI.Shelley.API
     ( sseLink
     , walletAddressesLink
     )

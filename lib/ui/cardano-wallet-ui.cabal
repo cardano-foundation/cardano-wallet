@@ -55,17 +55,17 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.ListOf
-    Cardano.Wallet.UI.Personal.API
-    Cardano.Wallet.UI.Personal.Handlers.Addresses
-    Cardano.Wallet.UI.Personal.Handlers.Wallet
-    Cardano.Wallet.UI.Personal.Handlers.Wallets
-    Cardano.Wallet.UI.Personal.Html.Pages.About
-    Cardano.Wallet.UI.Personal.Html.Pages.Addresses
-    Cardano.Wallet.UI.Personal.Html.Pages.Page
-    Cardano.Wallet.UI.Personal.Html.Pages.Wallet
-    Cardano.Wallet.UI.Personal.Html.Pages.Wallets
-    Cardano.Wallet.UI.Personal.Html.Pages.Wallets.NewWallet
-    Cardano.Wallet.UI.Personal.Server
+    Cardano.Wallet.UI.Shelley.API
+    Cardano.Wallet.UI.Shelley.Handlers.Addresses
+    Cardano.Wallet.UI.Shelley.Handlers.Wallet
+    Cardano.Wallet.UI.Shelley.Handlers.Wallets
+    Cardano.Wallet.UI.Shelley.Html.Pages.About
+    Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
+    Cardano.Wallet.UI.Shelley.Html.Pages.Page
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
+    Cardano.Wallet.UI.Shelley.Server
     Cardano.Wallet.UI.Signal
 
   other-modules:    Paths_cardano_wallet_ui

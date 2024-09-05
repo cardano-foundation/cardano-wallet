@@ -98,7 +98,7 @@ module Cardano.Wallet.Application.CLI
     , getPrometheusURL
     , getEKGURL
     , ekgEnabled
-    , listenPersonalUiOption
+    , listenShelleyUiOption
     , listenDepositUiOption
     ) where
 
@@ -1433,8 +1433,8 @@ listenApiOption =
     (ListenOnPort . getPort <$> portOption)
 
 -- | [--ui-random-port|--ui-port=INT]
-listenPersonalUiOption :: Parser (Maybe Listen)
-listenPersonalUiOption =
+listenShelleyUiOption :: Parser (Maybe Listen)
+listenShelleyUiOption =
     (Just ListenOnRandomPort <$ uiRandomPortOption)
     <|>
     (Just . ListenOnPort . getPort <$> uiPortOption)

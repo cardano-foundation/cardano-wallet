@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Personal.Handlers.Wallets where
+module Cardano.Wallet.UI.Shelley.Handlers.Wallets where
 
 import Prelude
 
