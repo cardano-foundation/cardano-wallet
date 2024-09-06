@@ -91,11 +91,12 @@ withWalletEnvMock
 withWalletEnvMock ScenarioEnv{..} action = do
     database <- newStore
     let walletEnv = Wallet.WalletEnv
-            { Wallet.logger = nullTracer
-            , Wallet.genesisData = genesisData
-            , Wallet.networkEnv = networkEnv
-            , Wallet.database = database
-            }
+            Wallet.WalletBootEnv
+                { Wallet.logger = nullTracer
+                , Wallet.genesisData = genesisData
+                , Wallet.networkEnv = networkEnv
+                }
+            database
     action walletEnv
 
 {-----------------------------------------------------------------------------

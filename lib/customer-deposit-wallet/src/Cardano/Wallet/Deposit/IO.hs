@@ -5,6 +5,7 @@ module Cardano.Wallet.Deposit.IO
     (
     -- * Types
       WalletEnv (..)
+    , WalletBootEnv (..)
     , WalletInstance
 
     -- * Operations
@@ -27,6 +28,7 @@ module Cardano.Wallet.Deposit.IO
     , createPayment
     , getBIP32PathsForOwnedInputs
     , signTxBody
+    , WalletStore
     ) where
 
 import Prelude
@@ -72,12 +74,28 @@ import qualified Data.Store as Store
 {-----------------------------------------------------------------------------
     Types
 ------------------------------------------------------------------------------}
+
+-- | The environment needed to initialize a wallet, before a database is
+-- connected.
+data WalletBootEnv m = WalletBootEnv
+        { logger :: Tracer m WalletLog
+        -- ^ Logger for the wallet.
+        , genesisData :: Read.GenesisData
+        -- ^ Genesis data for the wallet.
+        , networkEnv :: Network.NetworkEnv m Read.Block
+        -- ^ Network environment for the wallet.
+    }
+
+-- | The wallet store type.
+type WalletStore = Store.UpdateStore IO Wallet.DeltaWalletState
+
+-- | The full environment needed to run a wallet.
 data WalletEnv m =
     WalletEnv
-        { logger :: Tracer m WalletLog
-        , genesisData :: Read.GenesisData
-        , networkEnv :: Network.NetworkEnv m Read.Block
-        , database :: Store.UpdateStore IO Wallet.DeltaWalletState
+        { bootEnv :: WalletBootEnv m
+        -- ^ The boot environment.
+        , store :: WalletStore
+        -- ^ The store for the wallet.
         }
 
 data WalletInstance = WalletInstance
@@ -108,6 +126,7 @@ readWalletState WalletInstance{walletState} =
     Operations
     Initialization
 ------------------------------------------------------------------------------}
+
 -- | Initialize a new wallet in the given environment.
 withWalletInit
     :: WalletEnv IO
@@ -115,10 +134,18 @@ withWalletInit
     -> Word31
     -> (WalletInstance -> IO a)
     -> IO a
-withWalletInit env@WalletEnv{..} xpub knownCustomerCount action = do
-    walletState <- DBVar.initDBVar database
-        $ Wallet.fromXPubAndGenesis xpub knownCustomerCount genesisData
-    withWalletDBVar env walletState action
+withWalletInit
+    env@WalletEnv
+        { bootEnv = WalletBootEnv{genesisData}
+        , ..
+        }
+    xpub
+    knownCustomerCount
+    action = do
+        walletState <-
+            DBVar.initDBVar store
+                $ Wallet.fromXPubAndGenesis xpub knownCustomerCount genesisData
+        withWalletDBVar env walletState action
 
 -- | Load an existing wallet from the given environment.
 withWalletLoad
@@ -126,7 +153,7 @@ withWalletLoad
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletLoad env@WalletEnv{..} action = do
-    walletState <- DBVar.loadDBVar database
+    walletState <- DBVar.loadDBVar store
     withWalletDBVar env walletState action
 
 withWalletDBVar
@@ -134,18 +161,22 @@ withWalletDBVar
     -> DBVar.DBVar IO Wallet.DeltaWalletState
     -> (WalletInstance -> IO a)
     -> IO a
-withWalletDBVar env@WalletEnv{..} walletState action = do
-    let w = WalletInstance{env,walletState}
-    Async.withAsync (doChainSync w) $ \_ -> action w
-  where
-    doChainSync = Network.chainSync networkEnv trChainSync . chainFollower
-    trChainSync = contramap (\_ -> WalletLogDummy) logger
-    chainFollower w = Network.ChainFollower
-        { checkpointPolicy = undefined
-        , readChainPoints = undefined
-        , rollForward = rollForward w
-        , rollBackward = rollBackward w
-        }
+withWalletDBVar
+    env@WalletEnv{bootEnv = WalletBootEnv{logger, networkEnv}}
+    walletState
+    action = do
+        let w = WalletInstance{env, walletState}
+        Async.withAsync (doChainSync w) $ \_ -> action w
+      where
+        doChainSync = Network.chainSync networkEnv trChainSync . chainFollower
+        trChainSync = contramap (\_ -> WalletLogDummy) logger
+        chainFollower w =
+            Network.ChainFollower
+                { checkpointPolicy = undefined
+                , readChainPoints = undefined
+                , rollForward = rollForward w
+                , rollBackward = rollBackward w
+                }
 
 {-----------------------------------------------------------------------------
     Operations
