@@ -171,6 +171,7 @@ test-suite unit
   other-modules:
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
     Cardano.Wallet.Deposit.HTTP.OpenAPISpec
+    Cardano.Wallet.Deposit.RESTSpec
     Paths_customer_deposit_wallet
     Spec
 
