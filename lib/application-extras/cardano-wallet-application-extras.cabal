@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            cardano-wallet-application-extras
-version:         0.2024.9.3
+version:         0.2024.9.8
 synopsis:        modules to support applications for the cardano wallet
 license:         Apache-2.0
 license-file:    LICENSE
