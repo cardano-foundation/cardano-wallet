@@ -1,5 +1,5 @@
 name:                cardano-wallet-launcher
-version:             0.2024.9.3
+version:             0.2024.9.9
 synopsis:            Utilities for a building commands launcher
 homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              Cardano Foundation (High Assurance Lab)
