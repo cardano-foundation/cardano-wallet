@@ -647,18 +647,84 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
             decodeErrorInfo r `shouldBe` PoolAlreadyJoined
 
-    it "STAKE_POOLS_JOIN_02 - \
+    it "STAKE_POOLS_JOIN_02a - \
         \Can join the stake pool if voting was cast before in Conway"
         $ \ctx -> runResourceT $ do
             noBabbage ctx "joining the pool possible in Conway if voting was previously cast"
 
             w <- fixtureWallet ctx
 
-            let voteAbstain = Json [json|{
+            let voteNoConfidence = Json [json|{
                     "vote": "no_confidence"
                 }|]
             rTx1 <- request @(ApiConstructTransaction n) ctx
-                (Link.createUnsignedTransaction @'Shelley w) Default voteAbstain
+                (Link.createUnsignedTransaction @'Shelley w) Default voteNoConfidence
+            verify rTx1
+                [ expectResponseCode HTTP.status202
+                ]
+            let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
+            signedTx1 <- signTx ctx w apiTx1 [ expectResponseCode HTTP.status202 ]
+            submittedTx1 <- submitTxWithWid ctx w signedTx1
+            verify submittedTx1
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+            let voting = ApiT NoConfidence
+            let getSrcWallet =
+                    let endpoint = Link.getWallet @'Shelley w
+                     in request @ApiWallet ctx endpoint Default Empty
+
+            waitNumberOfEpochBoundaries 2 ctx
+
+            eventually "Wallet is voting abstain" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation (`shouldBe` onlyVoting voting [])
+                    ]
+
+            pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
+
+            waitForTxStatus ctx w InLedger . getResponse
+                =<< joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
+
+            eventually "Wallet is delegating to pool1 and voting" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) voting [])
+                    ]
+
+            -- joinStakePool would try once again joining pool and fail as we have already voted
+            -- and we do not aim to change voting
+            r1 <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
+            verify r1
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo r1 `shouldBe` PoolAlreadyJoined
+
+            -- but we can join another pool and have initial voting
+            r2 <- joinStakePool @n ctx (SpecificPool pool2) (w, fixturePassphrase)
+            verify r2
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is delegating to pool2 and voting" $ do
+                getSrcWallet >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool2) voting [])
+                    ]
+
+    it "STAKE_POOLS_JOIN_02b - \
+        \Can join the stake pool if voting was cast before in Conway"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "joining the pool possible in Conway if voting was previously cast"
+
+            w <- fixtureWallet ctx
+
+            let voteNoConfidence = Json [json|{
+                    "vote": "no_confidence"
+                }|]
+            rTx1 <- request @(ApiConstructTransaction n) ctx
+                (Link.createUnsignedTransaction @'Shelley w) Default voteNoConfidence
             verify rTx1
                 [ expectResponseCode HTTP.status202
                 ]
