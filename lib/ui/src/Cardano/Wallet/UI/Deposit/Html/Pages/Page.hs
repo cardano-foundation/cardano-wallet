@@ -44,7 +44,8 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( walletH
+    ( WalletPresent
+    , walletH
     )
 import Control.Lens.Extras
     ( is
@@ -72,9 +73,11 @@ page
     :: PageConfig
     -- ^ Page configuration
     -> Page
-    -- ^ If a wallet was selected
+    -- ^ Current page
+    -> WalletPresent
+    -- ^ If a wallet is present
     -> RawHtml
-page c@PageConfig{..} p = RawHtml
+page c@PageConfig{..} p wp = RawHtml
     $ renderBS
     $ pageFromBodyH faviconLink c
     $ bodyH (headerH prefix p)
@@ -82,7 +85,7 @@ page c@PageConfig{..} p = RawHtml
         About -> aboutH
         Network -> networkH sseLink networkInfoLink
         Settings -> settingsPageH sseLink settingsGetLink
-        Wallet -> walletH
+        Wallet -> walletH wp
 
 headerH :: Text -> Page -> Html ()
 headerH prefix p =

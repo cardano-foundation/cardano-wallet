@@ -6,7 +6,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Deposit.Server where
+module Cardano.Wallet.UI.Deposit.Server
+    ( serveUI
+    ) where
 
 import Prelude
 
@@ -29,6 +31,10 @@ import Cardano.Wallet.Primitive.NetworkId
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
+    )
+import Cardano.Wallet.UI.Common.Handlers.Session
+    ( withSessionLayer
+    , withSessionLayerRead
     )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
@@ -67,22 +73,20 @@ import Cardano.Wallet.UI.Common.Layer
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( CookieResponse
-    , RequestCookies
-    , sessioning
-    , withSession
-    , withSessionRead
+    ( sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Page
+    ( pageHandler
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( getWallet
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
-    , page
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( walletElementH
@@ -113,16 +117,6 @@ import Servant
 import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Data.ByteString.Lazy as BL
 
-pageHandler
-    :: UILayer a
-    -> PageConfig
-    -> Page
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse RawHtml)
-pageHandler uiLayer config x =
-    withSessionLayer uiLayer $ \_session -> do
-        pure $ page config x
-
 showTime :: UTCTime -> String
 showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 
@@ -130,12 +124,13 @@ serveUI
     :: forall n
      . HasSNetworkId n
     => UILayer WalletResource
+    -> FilePath
     -> PageConfig
     -> SNetworkId n
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI ul config _ nl bs =
+serveUI ul dbDir config _ nl bs =
     ph About
         :<|> ph About
         :<|> ph Network
@@ -144,12 +139,12 @@ serveUI ul config _ nl bs =
         :<|> sessioning (renderHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
-        :<|> withSessionLayerRead (sse . sseConfig)
+        :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
         :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l alert (renderHtml . walletElementH))
   where
-    ph = pageHandler ul config
+    ph = pageHandler ul dbDir config
     _ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
@@ -157,22 +152,6 @@ serveUI ul config _ nl bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
-    withSessionLayerRead
-        :: (SessionLayer WalletResource -> Handler a)
-        -> Maybe RequestCookies
-        -> Handler a
-    withSessionLayerRead f = withSessionRead $ \k -> do
-        s <- liftIO $ sessions ul k
-        f s
-
-withSessionLayer
-    :: UILayer s
-    -> (SessionLayer s -> Handler a)
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse a)
-withSessionLayer ulayer f = withSession $ \k -> do
-    s <- liftIO $ sessions ulayer k
-    f s
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do

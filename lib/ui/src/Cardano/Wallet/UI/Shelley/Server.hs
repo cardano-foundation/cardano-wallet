@@ -94,8 +94,6 @@ import Cardano.Wallet.UI.Cookies
     ( CookieResponse
     , RequestCookies
     , sessioning
-    , withSession
-    , withSessionRead
     )
 import Cardano.Wallet.UI.Shelley.API
     ( UI

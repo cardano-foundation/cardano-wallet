@@ -40,21 +40,23 @@ import Data.Text.Class
     )
 import Lucid
     ( Html
-    , p_
     )
 
 import qualified Data.Text.Encoding as T
 
-walletH :: Html ()
-walletH = do
+data WalletPresent = WalletPresent WalletPublicIdentity | WalletAbsent
+
+walletH :: WalletPresent -> Html ()
+walletH walletPresent = do
     -- sseH sseLink walletLink "wallet" ["wallet"]
-    p_
-        "You have no wallet. Pls initialize it"
-    newWalletH walletMnemonicLink $ PostWalletConfig
-        { walletDataLink = walletLink
-        , passwordVisibility = Just Hidden
-        , namePresence = False
-        }
+    case walletPresent of
+        WalletPresent wallet -> walletElementH wallet
+        WalletAbsent ->
+            newWalletH walletMnemonicLink $ PostWalletConfig
+                { walletDataLink = walletLink
+                , passwordVisibility = Just Hidden
+                , namePresence = False
+                }
 
 base16 :: ByteString -> Text
 base16 = T.decodeUtf8 . encode EBase16

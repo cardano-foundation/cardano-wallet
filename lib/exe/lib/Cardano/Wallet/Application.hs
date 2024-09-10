@@ -243,6 +243,7 @@ import System.IOManager
     )
 import UnliftIO
     ( withAsync
+    , withSystemTempDirectory
     )
 
 import qualified Cardano.Pool.DB.Layer as Pool
@@ -390,12 +391,17 @@ serveWallet
                     case ms of
                         Nothing -> pure ()
                         Just (_port, socket) -> do
+                            databaseDir' <- case databaseDir of
+                                Nothing -> ContT
+                                    $ withSystemTempDirectory "deposit-wallet"
+                                Just databaseDir' -> pure databaseDir'
                             r <- ContT withResource
                             ui <- Ui.withUILayer 1 r
                             sourceOfNewTip netLayer ui
                             let uiService =
                                     startDepositUiServer
                                         ui
+                                        databaseDir'
                                         socket
                                         sNetwork
                                         netLayer
@@ -527,6 +533,7 @@ serveWallet
              . ( HasSNetworkId n
                )
             => UILayer WalletResource
+            -> FilePath
             -> Socket
             -> SNetworkId n
             -> NetworkLayer IO (CardanoBlock StandardCrypto)
@@ -534,6 +541,7 @@ serveWallet
             -> IO ()
         startDepositUiServer
             ui
+            databaseDir'
             socket
             _proxy
             nl
@@ -544,6 +552,7 @@ serveWallet
                         Server.serve api
                             $ DepositUi.serveUI
                                 ui
+                                databaseDir'
                                 (PageConfig "" "Deposit Cardano Wallet")
                                 _proxy
                                 nl
