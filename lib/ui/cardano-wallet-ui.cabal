@@ -21,6 +21,7 @@ common language
 
 common opts-lib
   ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+   -Wunused-imports -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -36,8 +37,10 @@ library
     Cardano.Wallet.UI.Common.API
     Cardano.Wallet.UI.Common.Handlers.Lib
     Cardano.Wallet.UI.Common.Handlers.Settings
+    Cardano.Wallet.UI.Common.Handlers.Session
     Cardano.Wallet.UI.Common.Handlers.SSE
     Cardano.Wallet.UI.Common.Handlers.State
+    Cardano.Wallet.UI.Common.Handlers.Wallet
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib
@@ -48,6 +51,7 @@ library
     Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
     Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
+    Cardano.Wallet.UI.Common.Html.Pages.Wallet
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API

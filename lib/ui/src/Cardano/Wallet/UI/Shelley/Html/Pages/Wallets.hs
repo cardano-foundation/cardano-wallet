@@ -14,6 +14,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( WalletId
     )
+import Cardano.Wallet.UI.Common.API
+    ( Visible (..)
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxPost_
     , hxSwap_
@@ -29,19 +32,22 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     , sseH
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Wallet
+    ( PostWalletConfig (..)
+    , newWalletH
+    )
 import Cardano.Wallet.UI.Lib.ListOf
     ( ListOf
     )
 import Cardano.Wallet.UI.Shelley.API
     ( settingsWalletSelectLink
     , sseLink
+    , walletLink
+    , walletMnemonicLink
     , walletsListLink
     )
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     ( renderState
-    )
-import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
-    ( newWalletH
     )
 import Control.Monad
     ( forM_
@@ -69,7 +75,11 @@ data Selected = Selected | NotSelected
 walletsH :: Html ()
 walletsH = do
     sseH sseLink walletsListLink "content" ["wallets"]
-    newWalletH
+    newWalletH walletMnemonicLink $ PostWalletConfig
+        { walletDataLink = walletLink
+        , passwordVisibility = Just Hidden
+        , namePresence = True
+        }
 
 walletListH :: Maybe WalletId -> [(ApiWallet, UTCTime)] -> Html ()
 walletListH mwid wallets = record

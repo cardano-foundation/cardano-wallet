@@ -21,7 +21,6 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.UI.Common.API
     ( Image
     , SessionedHtml
-    , Visible
     , type (|>)
     , type (|>>)
     )
@@ -66,11 +65,6 @@ type Data =
             :> "mnemonic"
             :> QueryParam "clean" Bool
             :> SessionedHtml Get
-        :<|> "wallet"
-            :> "post"
-            :> "form"
-            :> QueryParam "visible" Visible
-            :> SessionedHtml Get
         :<|> "wallets" :> "list" :> SessionedHtml Get
         :<|> "wallet" :> SessionedHtml Get
         :<|> "wallet" :> "addresses" :> SessionedHtml Get
@@ -104,7 +98,6 @@ settingsPageLink :: Link
 networkInfoLink :: Link
 walletPostLink :: Link
 walletMnemonicLink :: Maybe Bool -> Link
-walletPostFormLink :: Maybe Visible -> Link
 walletsListLink :: Link
 walletLink :: Link
 walletAddressesLink :: Link
@@ -125,7 +118,6 @@ homePageLink
     :<|> networkInfoLink
     :<|> walletPostLink
     :<|> walletMnemonicLink
-    :<|> walletPostFormLink
     :<|> walletsListLink
     :<|> walletLink
     :<|> walletAddressesLink

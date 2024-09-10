@@ -52,6 +52,10 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.Session
+    ( withSessionLayer
+    , withSessionLayerRead
+    )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
     )
@@ -77,6 +81,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Settings
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig
+    )
+import Cardano.Wallet.UI.Common.Html.Pages.Wallet
+    ( mnemonicH
     )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
@@ -120,10 +127,6 @@ import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     )
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletListH
-    )
-import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
-    ( mnemonicH
-    , postWalletForm
     )
 import Control.Lens
     ( view
@@ -198,7 +201,6 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         :<|> sessioning (renderHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> (\v -> wsl (\l -> postWallet l alShelley alert ok v))
         :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
-        :<|> sessioning . pure . renderHtml . postWalletForm
         :<|> wsl (\l -> listWallets l alShelley (fmap renderHtml . walletListH))
         :<|> wsl (\l -> getWallet l alShelley alert (renderHtml . walletElementH showTime))
         :<|> wsl (\l -> listAddresses l alShelley alert (renderHtml . addressesH))
@@ -206,7 +208,7 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> (\w -> wsl (\l -> selectWallet l w $> RawHtml ""))
-        :<|> withSessionLayerRead (sse . sseConfig)
+        :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
   where
     ph = pageHandler ul config
@@ -218,22 +220,6 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
-    withSessionLayerRead
-        :: (SessionLayer (Maybe WalletId) -> Handler a)
-        -> Maybe RequestCookies
-        -> Handler a
-    withSessionLayerRead f = withSessionRead $ \k -> do
-        s <- liftIO $ sessions ul k
-        f s
-
-withSessionLayer
-    :: UILayer (Maybe WalletId)
-    -> (SessionLayer (Maybe WalletId) -> Handler a)
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse a)
-withSessionLayer ulayer f = withSession $ \k -> do
-    s <- liftIO $ sessions ulayer k
-    f s
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
