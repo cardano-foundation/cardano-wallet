@@ -6,6 +6,7 @@ module Cardano.Wallet.Deposit.IO
     -- * Types
       WalletEnv (..)
     , WalletBootEnv (..)
+    , WalletPublicIdentity (..)
     , WalletInstance
 
     -- * Operations
@@ -29,6 +30,7 @@ module Cardano.Wallet.Deposit.IO
     , getBIP32PathsForOwnedInputs
     , signTxBody
     , WalletStore
+    , walletPublicIdentity
     ) where
 
 import Prelude
@@ -193,6 +195,18 @@ createAddress c w =
             let (r,s1) = Wallet.createAddress c s0
             in  (Delta.Replace s1, r)
 
+data WalletPublicIdentity = WalletPublicIdentity
+    { pubXpub :: XPub
+    , pubNextUser :: Word31
+    }
+
+walletPublicIdentity :: WalletInstance -> IO WalletPublicIdentity
+walletPublicIdentity w = do
+    state <- readWalletState w
+    pure $ WalletPublicIdentity
+        { pubXpub = Wallet.walletXPub state
+        , pubNextUser = Wallet.nextCustomer state
+        }
 {-----------------------------------------------------------------------------
     Operations
     Reading from the blockchain

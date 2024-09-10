@@ -43,6 +43,7 @@ module Cardano.Wallet.Deposit.REST
     , getBIP32PathsForOwnedInputs
     , signTxBody
     , walletExists
+    , walletPublicIdentity
     ) where
 
 import Prelude
@@ -56,6 +57,9 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path
+    )
+import Cardano.Wallet.Deposit.IO
+    ( WalletPublicIdentity
     )
 import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceExists (..)
@@ -314,6 +318,9 @@ walletExists :: FilePath -> WalletResourceM Bool
 walletExists fp = liftIO $ findTheDepositWalletOnDisk fp $ \case
     Right _ -> pure True
     Left _ -> pure False
+
+walletPublicIdentity :: WalletResourceM WalletPublicIdentity
+walletPublicIdentity = onWalletInstance  WalletIO.walletPublicIdentity
 
 {-----------------------------------------------------------------------------
     Operations

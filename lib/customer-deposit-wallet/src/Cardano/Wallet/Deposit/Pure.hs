@@ -38,6 +38,8 @@ module Cardano.Wallet.Deposit.Pure
 
     , addTxSubmission
     , listTxsInSubmission
+    , nextCustomer
+    , walletXPub
     ) where
 
 import Prelude
@@ -136,6 +138,12 @@ isCustomerAddress address =
 
 fromRawCustomer :: Word31 -> Customer
 fromRawCustomer = id
+
+nextCustomer :: WalletState -> Customer
+nextCustomer = fromIntegral . length . Address.addresses . addresses
+
+walletXPub :: WalletState -> XPub
+walletXPub  = Address.getXPub . addresses
 
 {-----------------------------------------------------------------------------
     Operations
