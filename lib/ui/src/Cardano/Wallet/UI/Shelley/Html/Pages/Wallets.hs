@@ -49,6 +49,9 @@ import Cardano.Wallet.UI.Shelley.API
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     ( renderState
     )
+import Cardano.Wallet.UI.Type
+    ( WHtml
+    )
 import Control.Monad
     ( forM_
     )
@@ -72,13 +75,12 @@ import Lucid
 
 data Selected = Selected | NotSelected
 
-walletsH :: Html ()
+walletsH :: WHtml ()
 walletsH = do
     sseH sseLink walletsListLink "content" ["wallets"]
     newWalletH walletMnemonicLink $ PostWalletConfig
         { walletDataLink = walletLink
         , passwordVisibility = Just Hidden
-        , namePresence = True
         }
 
 walletListH :: Maybe WalletId -> [(ApiWallet, UTCTime)] -> Html ()

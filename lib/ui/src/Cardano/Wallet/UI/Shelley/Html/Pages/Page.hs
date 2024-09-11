@@ -55,6 +55,10 @@ import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletsH
     )
+import Cardano.Wallet.UI.Type
+    ( WalletType (..)
+    , runWHtml
+    )
 import Control.Lens.Extras
     ( is
     )
@@ -89,6 +93,7 @@ page
     -> RawHtml
 page c@PageConfig{..} p wp = RawHtml
     $ renderBS
+    $ runWHtml Shelley
     $ pageFromBodyH faviconLink c
     $ bodyH (headerH prefix p)
     $ case p of

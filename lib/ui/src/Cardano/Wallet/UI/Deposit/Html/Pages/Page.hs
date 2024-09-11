@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -47,6 +48,10 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
     , walletH
     )
+import Cardano.Wallet.UI.Type
+    ( WalletType (..)
+    , runWHtml
+    )
 import Control.Lens.Extras
     ( is
     )
@@ -79,6 +84,7 @@ page
     -> RawHtml
 page c@PageConfig{..} p wp = RawHtml
     $ renderBS
+    $ runWHtml Deposit
     $ pageFromBodyH faviconLink c
     $ bodyH (headerH prefix p)
     $ case p of

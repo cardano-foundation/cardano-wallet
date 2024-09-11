@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
 where
 
@@ -25,6 +26,9 @@ import Cardano.Wallet.UI.Deposit.API
     ( walletLink
     , walletMnemonicLink
     )
+import Cardano.Wallet.UI.Type
+    ( WHtml
+    )
 import Codec.Binary.Encoding
     ( AbstractEncoding (..)
     , encode
@@ -46,7 +50,7 @@ import qualified Data.Text.Encoding as T
 
 data WalletPresent = WalletPresent WalletPublicIdentity | WalletAbsent
 
-walletH :: WalletPresent -> Html ()
+walletH :: WalletPresent -> WHtml ()
 walletH walletPresent = do
     -- sseH sseLink walletLink "wallet" ["wallet"]
     case walletPresent of
@@ -55,7 +59,6 @@ walletH walletPresent = do
             newWalletH walletMnemonicLink $ PostWalletConfig
                 { walletDataLink = walletLink
                 , passwordVisibility = Just Hidden
-                , namePresence = False
                 }
 
 base16 :: ByteString -> Text

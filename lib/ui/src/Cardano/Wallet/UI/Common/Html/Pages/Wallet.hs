@@ -21,8 +21,9 @@ import Cardano.Wallet.UI.Common.Html.Lib
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
     )
-import Control.Monad
-    ( when
+import Cardano.Wallet.UI.Type
+    ( WHtml
+    , onShelley
     )
 import Data.Text
     ( Text
@@ -60,7 +61,7 @@ mnemonicH (Just mnemonic) = do
             $ T.intercalate " " mnemonic
         copyButton "copy-mnemonic"
 
-newWalletH :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
+newWalletH :: (Maybe Bool -> Link) -> PostWalletConfig -> WHtml ()
 newWalletH walletMnemonicLink config = do
     useHtmxExtension "json-enc"
     div_ [class_ "btn-group mb-3", role_ "group"] $ do
@@ -88,11 +89,10 @@ newWalletH walletMnemonicLink config = do
 
 data PostWalletConfig = PostWalletConfig
     { passwordVisibility :: Maybe Visible
-    , namePresence :: Bool
     , walletDataLink :: Link
     }
 
-postWalletForm :: PostWalletConfig -> Html ()
+postWalletForm :: PostWalletConfig -> WHtml ()
 postWalletForm PostWalletConfig{..} = form_
     [ hxPost_ $ linkText walletDataLink
     , hxExt_ "json-enc"
@@ -106,19 +106,20 @@ postWalletForm PostWalletConfig{..} = form_
             , name_ "mnemonicSentence"
             , placeholder_ "Mnemonic Sentence"
             ]
-        when namePresence $
-            input_
+        onShelley
+            $ input_
                 [ class_ "form-control form-control-lg mb-3"
                 , type_ "text"
                 , name_ "name"
                 , placeholder_ "Wallet Name"
                 ]
-        input_
-            [ class_ "form-control form-control-lg mb-3"
-            , visibility
-            , name_ "passphrase"
-            , placeholder_ "Passphrase"
-            ]
+        onShelley
+            $ input_
+                [ class_ "form-control form-control-lg mb-3"
+                , visibility
+                , name_ "passphrase"
+                , placeholder_ "Passphrase"
+                ]
         button_
             [ class_ "btn btn-primary btn-block mb-3"
             , type_ "submit"
