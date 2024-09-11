@@ -88,6 +88,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , fixturePassphrase
+    , fixtureShelleyWallet
     , fixtureWallet
     , getFromResponse
     , getResponse
@@ -101,6 +102,7 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , notRetiringPools
     , onlyVoting
+    , postWallet
     , quitStakePool
     , request
     , signTx
@@ -111,6 +113,9 @@ import Test.Integration.Framework.DSL
     , waitNumberOfEpochBoundaries
     , (.<)
     , (.>)
+    )
+import Test.Integration.Framework.TestData
+    ( payloadWith
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -985,6 +990,33 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     [ expectField #delegation
                          (`shouldBe` votingAndDelegating (ApiT pool2) (ApiT voting2) [])
                     ]
+
+    it "VOTING_01j - Delegation works in Conway in presence of voting after wallet delations and restoration"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            (w, mnemonic) <- fixtureShelleyWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            let voting = NoConfidence
+            rTx <- joinDRep @n ctx (SpecificDRep voting) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting(ApiT voting) [])
+                    ]
+
+            -- delete the wallet
+            rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode HTTP.status204 rDel
 
   where
     stakeKeyDerPath = NE.fromList
