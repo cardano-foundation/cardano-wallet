@@ -75,6 +75,7 @@ library
     Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
     Cardano.Wallet.UI.Shelley.Server
     Cardano.Wallet.UI.Signal
+    Cardano.Wallet.UI.Type
 
   other-modules:    Paths_cardano_wallet_ui
   build-depends:
@@ -99,6 +100,7 @@ library
     , http-media
     , lens
     , lucid
+    , mmorph
     , mtl
     , ntp-client
     , operational
