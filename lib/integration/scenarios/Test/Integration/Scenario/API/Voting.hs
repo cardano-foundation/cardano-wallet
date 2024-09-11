@@ -114,6 +114,8 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
+import Control.Monad.IO.Class (MonadIO(..))
+import Control.Monad (replicateM_)
 
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "VOTING_TRANSACTIONS" $ do
@@ -1032,6 +1034,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             verify rJoin
                 [ expectResponseCode HTTP.status202
                 ]
+            waitForNextEpoch ctx
             eventually "Wallet is voting NoConfidence and delegating to pool1" $ do
                 getSrcWallet ctx w' >>= flip verify
                     [ expectField #delegation
@@ -1049,6 +1052,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 ]
 
             let w'' = getFromResponse Prelude.id rRestore2
+            replicateM_ 100 $ liftIO $ print w''
             eventually "Wallet is voting NoConfidence and deleagting to pool1 after restoration" $ do
                 getSrcWallet ctx w'' >>= flip verify
                     [ expectField #delegation
