@@ -1653,8 +1653,8 @@ postWallet' ctx headers payload = snd <$> allocate create (free . snd)
     create =
         request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
 
-    free (Right w) = void $ request @Aeson.Value ctx
-        (Link.deleteWallet @'Shelley w) Default Empty
+    free (Right _w) = pure ()
+    -- void $ request @Aeson.Value ctx (Link.deleteWallet @'Shelley w) Default Empty
     free (Left _) = return ()
 
 postWallet
