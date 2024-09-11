@@ -1018,6 +1018,32 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 rDel
 
+            -- restoring the wallet
+            let payldCrt = payloadWith "Faucet Wallet" mnemonic
+            rRestore <- postWallet ctx payldCrt
+            verify rRestore
+                [ expectResponseCode HTTP.status201
+                ]
+
+            let w' = getFromResponse Prelude.id rRestore
+            eventually "Wallet is voting NoConfidence after restoration" $ do
+                getSrcWallet ctx w' >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting(ApiT voting) [])
+                    ]
+
+            pool1 : _ : _ <- map (view #id) <$> notRetiringPools ctx
+
+            -- Join Pool
+            rJoin <- joinStakePool @n ctx (SpecificPool pool1) (w', fixturePassphrase)
+            verify rJoin
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is voting NoConfidence and delegating to pool" $ do
+                getSrcWallet ctx w' >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
+                    ]
   where
     stakeKeyDerPath = NE.fromList
        [ ApiT (DerivationIndex 2_147_485_500)
