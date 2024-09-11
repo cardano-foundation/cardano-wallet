@@ -56,6 +56,7 @@ import Data.Text
 import Lucid
     ( Attribute
     , Html
+    , HtmlT
     , ToHtml (..)
     , b_
     , button_
@@ -112,14 +113,14 @@ data AssocRow
     }
 
 -- | Render an 'AssocRow' as a table row.
-assocRowH :: AssocRow -> Html ()
+assocRowH :: AssocRow -> Monad m => HtmlT m ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
     td_ [scope_ "col"] $ b_ $ toHtml key
     td_ [scope_ "col"] $ toHtml val
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
-record :: ListOf AssocRow -> Html ()
+record :: ListOf AssocRow -> Monad m => HtmlT m ()
 record xs =
     table_ [class_ "table table-hover table-striped"]
         $ mapM_ assocRowH
@@ -157,7 +158,7 @@ sseH
     -- ^ Target element
     -> [Text]
     -- ^ Events to trigger onto
-    -> Html ()
+    -> Monad m => HtmlT m ()
 sseH sseLink link target events = do
     div_ [hxSse_ $ sseConnectFromLink sseLink] $ do
         div_

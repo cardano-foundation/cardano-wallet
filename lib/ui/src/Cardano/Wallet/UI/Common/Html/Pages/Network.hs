@@ -42,6 +42,7 @@ import Data.Quantity
     )
 import Lucid
     ( Html
+    , HtmlT
     , ToHtml (..)
     , p_
     )
@@ -53,18 +54,21 @@ import qualified Data.Percentage as Percentage
 
 -- | Network information tag
 networkH
-    :: Link
+    :: Monad m
+    => Link
     -- ^ Link to the SSE endpoint
     -> Link
     -- ^ Link to the network information endpoint
-    -> Html ()
+    -> HtmlT m ()
 networkH sseLink networkInfoLink =
     sseH sseLink networkInfoLink "content" ["tip"]
 
 -- | Render the network information as a record
 networkInfoH
-    :: ShowTime -- ^ how to show time
-    -> ApiNetworkInformation -- ^ network information
+    :: ShowTime
+    -- ^ how to show time
+    -> ApiNetworkInformation
+    -- ^ network information
     -> Html ()
 networkInfoH showTime ApiNetworkInformation{..} = record $ do
     simpleField "Sync progress" $ syncProgressH progress

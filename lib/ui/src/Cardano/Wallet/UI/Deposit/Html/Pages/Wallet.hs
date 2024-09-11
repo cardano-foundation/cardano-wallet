@@ -39,7 +39,7 @@ import Data.Text.Class
     ( ToText (..)
     )
 import Lucid
-    ( Html
+    ( HtmlT
     )
 
 import qualified Data.Text.Encoding as T
@@ -61,7 +61,7 @@ walletH walletPresent = do
 base16 :: ByteString -> Text
 base16 = T.decodeUtf8 . encode EBase16
 
-walletElementH :: WalletPublicIdentity -> Html ()
+walletElementH :: WalletPublicIdentity -> Monad m => HtmlT m ()
 walletElementH (WalletPublicIdentity xpub customers) = do
     record $ do
         simpleField "XPub" $ record $ do

@@ -48,7 +48,7 @@ import Data.Text.Class
     ( ToText (..)
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , ToHtml (toHtml)
     , class_
     , div_
@@ -57,11 +57,15 @@ import Lucid
     , ul_
     )
 
-addressesPageH :: Html ()
+addressesPageH :: Monad m => HtmlT m ()
 addressesPageH =
     sseH sseLink walletAddressesLink "addresses" ["wallet"]
 
-addressesH :: forall n. HasSNetworkId n => [ApiAddressWithPath n] -> Html ()
+addressesH
+    :: forall n m
+     . (HasSNetworkId n, Monad m)
+    => [ApiAddressWithPath n]
+    -> HtmlT m ()
 addressesH addresses = record $ do
     forM_ (zip [0 :: Int ..] addresses) $ \(j, ApiAddressWithPath{..}) -> do
         fieldHtml [] "id" $ do
@@ -80,5 +84,10 @@ addressesH addresses = record $ do
                 . toText
                 . getApiT
 
-addressH :: forall n. HasSNetworkId n => Proxy n -> Address -> Html ()
+addressH
+    :: forall n m
+     . (HasSNetworkId n, Monad m)
+    => Proxy n
+    -> Address
+    -> HtmlT m ()
 addressH _ a = toHtml $ encodeAddress (sNetworkId @n) a

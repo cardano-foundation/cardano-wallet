@@ -57,7 +57,7 @@ import Data.Text
     ( Text
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , renderBS
     )
 
@@ -87,7 +87,7 @@ page c@PageConfig{..} p wp = RawHtml
         Settings -> settingsPageH sseLink settingsGetLink
         Wallet -> walletH wp
 
-headerH :: Text -> Page -> Html ()
+headerH :: Text -> Page -> Monad m => HtmlT m ()
 headerH prefix p =
     navigationH
         prefix

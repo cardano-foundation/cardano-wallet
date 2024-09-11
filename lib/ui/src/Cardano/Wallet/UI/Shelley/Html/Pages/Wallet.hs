@@ -68,7 +68,7 @@ import Data.Text.Class
     ( ToText (..)
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , ToHtml (toHtml)
     , button_
     , class_
@@ -82,14 +82,14 @@ import qualified Data.Percentage as Percentage
 
 data WalletPresent = WalletPresent | WalletAbsent
 
-walletH :: WalletPresent -> Html ()
+walletH :: Monad m => WalletPresent -> HtmlT m  ()
 walletH wp = do
     sseH sseLink walletLink "wallet" ["wallet"]
     case wp of
         WalletPresent -> walletActionsH
         WalletAbsent -> mempty
 
-walletActionsH :: Html ()
+walletActionsH :: Monad m => HtmlT m  ()
 walletActionsH = do
     div_ [class_ "mt-3"] $ do
         button_
@@ -104,7 +104,7 @@ walletActionsH = do
             mempty
         mempty
 
-walletElementH :: ShowTime -> ApiWallet -> Html ()
+walletElementH :: Monad m => ShowTime -> ApiWallet -> HtmlT m  ()
 walletElementH showTime ApiWallet{..} = do
     record $ do
         simpleField "name" $ toText $ getApiT name
@@ -117,21 +117,22 @@ walletElementH showTime ApiWallet{..} = do
         simpleField "delegation" $ renderDelegation delegation
         simpleField "passphrase" $ renderPassphrase showTime passphrase
 
-renderPassphrase :: ShowTime -> Maybe ApiWalletPassphraseInfo -> Html ()
+renderPassphrase :: Monad m => ShowTime
+    -> Maybe ApiWalletPassphraseInfo -> HtmlT m  ()
 renderPassphrase _ Nothing = ""
 renderPassphrase showTime (Just ApiWalletPassphraseInfo{..}) =
     toHtml $ showTime lastUpdatedAt
 
-renderPoolGap :: ApiT AddressPoolGap -> Html ()
+renderPoolGap :: Monad m => ApiT AddressPoolGap -> HtmlT m  ()
 renderPoolGap = toHtml . show . getAddressPoolGap . getApiT
 
-renderDelegation :: ApiWalletDelegation -> Html ()
+renderDelegation :: Monad m => ApiWalletDelegation -> HtmlT m  ()
 renderDelegation ApiWalletDelegation{..} = record
     $ do
         simpleField "active" $ renderActive active
         fieldHtml [] "next" $ ul_ $ forM_ next $ li_ . renderActive
 
-renderActive :: ApiWalletDelegationNext -> Html ()
+renderActive :: Monad m => ApiWalletDelegationNext -> HtmlT m  ()
 renderActive (ApiWalletDelegationNext status target voting _changesAt) =
     record $ do
         case status of
@@ -142,13 +143,13 @@ renderActive (ApiWalletDelegationNext status target voting _changesAt) =
                 simpleField "delegating to" $ foldMap (show . getApiT) target
                 simpleField "voting through" $ foldMap (show . getApiT) voting
 
-renderAsset :: ApiWalletAsset -> Html ()
+renderAsset :: Monad m => ApiWalletAsset -> HtmlT m  ()
 renderAsset ApiWalletAsset{..} = record $ do
     simpleField "policy id" $ toText $ getApiT policyId
     simpleField "asset name" $ toText $ getApiT assetName
     simpleField "quantity" $ toHtml $ showThousandDots quantity
 
-renderAssets :: ApiWalletAssetsBalance -> Html ()
+renderAssets :: Monad m => ApiWalletAssetsBalance -> HtmlT m  ()
 renderAssets ApiWalletAssetsBalance{..} =
     record $ do
         fieldHtml [] "available"
@@ -161,7 +162,7 @@ renderAssets ApiWalletAssetsBalance{..} =
             $ forM_ (getApiWalletAssets total)
             $ li_ . renderAsset
 
-renderBalance :: ApiWalletBalance -> Html ()
+renderBalance :: Monad m => ApiWalletBalance -> HtmlT m  ()
 renderBalance ApiWalletBalance{..} =
     record $ do
         simpleField "available" $ toHtml $ showAmount available

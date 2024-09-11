@@ -6,7 +6,7 @@ where
 import Prelude
 
 import Lucid
-    ( Html
+    ( HtmlT
     , a_
     , class_
     , div_
@@ -18,14 +18,14 @@ import Lucid
     )
 
 -- | A link to the GitHub repository of the project.
-githubLinkH :: Html ()
+githubLinkH :: Monad m => HtmlT m ()
 githubLinkH =
     a_
         [href_ "https://github.com/cardano-foundation/cardano-wallet"]
         "GitHub"
 
 -- | The footer of a page.
-footerH :: Html ()
+footerH :: Monad m => HtmlT m ()
 footerH =
     term
         "footer_"

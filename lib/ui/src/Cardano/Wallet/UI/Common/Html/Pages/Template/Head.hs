@@ -1,8 +1,9 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( pageFromBodyH
-    , PageConfig(..)
+    , PageConfig (..)
     )
 where
 
@@ -18,7 +19,7 @@ import Data.Text
     ( Text
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , ToHtml (..)
     , body_
     , charset_
@@ -40,7 +41,7 @@ import Servant
     ( Link
     )
 
-bootstrapLink :: Html ()
+bootstrapLink :: Monad m => HtmlT m ()
 bootstrapLink =
     link_
         [ rel_ "stylesheet"
@@ -50,7 +51,7 @@ bootstrapLink =
         , crossorigin_ "anonymous"
         ]
 
-bootstrapScript :: Html ()
+bootstrapScript :: Monad m => HtmlT m ()
 bootstrapScript =
     term
         "script"
@@ -62,7 +63,7 @@ bootstrapScript =
         ]
         $ pure ()
 
-bootstrapIcons :: Html ()
+bootstrapIcons :: Monad m => HtmlT m ()
 bootstrapIcons =
     link_
         [ rel_ "stylesheet"
@@ -72,7 +73,7 @@ bootstrapIcons =
         , crossorigin_ "anonymous"
         ]
 
-popperScript :: Html ()
+popperScript :: Monad m => HtmlT m ()
 popperScript =
     term
         "script"
@@ -85,28 +86,28 @@ popperScript =
         $ pure ()
 
 -- | Render a favicon link.
-favicon :: Link -> Html ()
+favicon :: Link -> Monad m => HtmlT m ()
 favicon path =
     link_
         [ rel_ "icon"
         , href_ $ linkText path
         ]
 
-pageFromBodyH :: Link -> PageConfig -> Html () -> Html ()
-pageFromBodyH faviconLink PageConfig{..} body
-    = html_ [term "data-bs-theme" "dark"]
-    $ do
-        head_ $ do
-            title_ $ toHtml title
-            meta_ [charset_ "utf-8"]
-            meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
-            bootstrapLink
-            bootstrapScript
-            bootstrapIcons
-            popperScript
-            favicon faviconLink
-            useHtmxVersion (1,9,12)
-        body_ body
+pageFromBodyH :: Monad m => Link -> PageConfig ->  HtmlT m () -> HtmlT m ()
+pageFromBodyH faviconLink PageConfig{..} body =
+    html_ [term "data-bs-theme" "dark"]
+        $ do
+            head_ $ do
+                title_ $ toHtml title
+                meta_ [charset_ "utf-8"]
+                meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
+                bootstrapLink
+                bootstrapScript
+                bootstrapIcons
+                popperScript
+                favicon faviconLink
+                useHtmxVersion (1, 9, 12)
+            body_ body
 
 data PageConfig = PageConfig
     { prefix :: Text

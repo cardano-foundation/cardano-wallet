@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Cardano.Wallet.UI.Common.Html.Pages.Template.Body
     ( bodyH
     )
@@ -9,18 +11,19 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
     ( footerH
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , class_
     , div_
     )
 
 -- | The body of a page.
 bodyH
-    :: Html ()
+    :: Monad m
+    => HtmlT m ()
     -- ^ Header
-    -> Html ()
+    -> HtmlT m ()
     -- ^ Body content
-    -> Html ()
+    -> HtmlT m ()
 bodyH header body = do
     header
     div_ [class_ "container-fluid"] $ do
