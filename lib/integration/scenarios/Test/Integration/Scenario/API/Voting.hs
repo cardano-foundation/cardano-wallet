@@ -83,6 +83,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , fixturePassphrase
+    , fixtureShelleyWallet
     , fixtureWallet
     , getFromResponse
     , getResponse
@@ -94,6 +95,7 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , notRetiringPools
     , onlyVoting
+    , postWallet
     , quitStakePool
     , request
     , signTx
@@ -104,6 +106,9 @@ import Test.Integration.Framework.DSL
     , waitNumberOfEpochBoundaries
     , (.<)
     , (.>)
+    )
+import Test.Integration.Framework.TestData
+    ( payloadWith
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -790,6 +795,222 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         eventually "Wallet is neither delegating nor voting" $ do
             getSrcWallet ctx src >>= flip verify
                 [ expectField #delegation (`shouldBe` notDelegating []) ]
+
+    it "VOTING_01e - Cannot vote in Babbage"
+        $ \ctx -> runResourceT $ do
+            noConway ctx "voting outlawed before Conway"
+            w <- fixtureWallet ctx
+            rTx <- joinDRep @n ctx (SpecificDRep Abstain) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx `shouldBe` VotingInInvalidEra
+
+    it "VOTING_01f - Voting works in Conway in absence of pool delegation"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            w <- fixtureWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            let voting1 = Abstain
+            rTx1 <- joinDRep @n ctx (SpecificDRep voting1) (w, fixturePassphrase)
+            verify rTx1
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting Abstain" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting (ApiT voting1) [])
+                    ]
+
+            let voting2 = NoConfidence
+            rTx2 <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx2
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting (ApiT voting2) [])
+                    ]
+
+            rTx3 <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx3
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx3 `shouldBe` SameVote
+
+    it "VOTING_01g - Voting works in Conway in presence of pool delegation"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            w <- fixtureWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            pool1 : _pool2 : _ <- map (view #id) <$> notRetiringPools ctx
+
+            -- Join Pool
+            rJoin <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
+            verify rJoin
+                [ expectResponseCode HTTP.status202
+                ]
+            let voting1 = Abstain
+            eventually "Wallet is voting Abstain" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting1) [])
+                    ]
+
+            let voting2 = NoConfidence
+            rTx2 <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx2
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting2) [])
+                    ]
+
+            rTx3 <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx3
+                [ expectResponseCode HTTP.status403
+                ]
+            decodeErrorInfo rTx3 `shouldBe` SameVote
+
+    it "VOTING_01h - Delegation works in Conway in presence of voting and does not change it"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            w <- fixtureWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
+
+            let voting = NoConfidence
+            rTx <- joinDRep @n ctx (SpecificDRep voting) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting (ApiT voting) [])
+                    ]
+
+            -- Join Pool
+            rJoin1 <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
+            verify rJoin1
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is voting NoConfidence and delegating to pool1" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
+                    ]
+            rJoin2 <- joinStakePool @n ctx (SpecificPool pool2) (w, fixturePassphrase)
+            verify rJoin2
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is voting NoConfidence and delegating to pool2" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool2) (ApiT voting) [])
+                    ]
+
+    it "VOTING_01i - Delegation works in Conway in presence of voting and does not change it"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            w <- fixtureWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            pool1 : pool2 : _ <- map (view #id) <$> notRetiringPools ctx
+
+            let voting1 = Abstain
+
+            -- Join Pool
+            rJoin1 <- joinStakePool @n ctx (SpecificPool pool1) (w, fixturePassphrase)
+            verify rJoin1
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is voting Abstain and delegating to pool1" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting1) [])
+                    ]
+
+            let voting2 = NoConfidence
+            rTx <- joinDRep @n ctx (SpecificDRep voting2) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence and delegating to pool1" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting2) [])
+                    ]
+
+            -- Rejoin Pool
+            rJoin2 <- joinStakePool @n ctx (SpecificPool pool2) (w, fixturePassphrase)
+            verify rJoin2
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is voting NoConfidence and delegating to pool2" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool2) (ApiT voting2) [])
+                    ]
+
+    it "VOTING_01j - Delegation works in Conway in presence of voting after wallet delations and restoration"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            (w, mnemonic) <- fixtureShelleyWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            let voting = NoConfidence
+            rTx <- joinDRep @n ctx (SpecificDRep voting) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting(ApiT voting) [])
+                    ]
+
+            -- delete the wallet
+            rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode HTTP.status204 rDel
+
   where
     stakeKeyDerPath = NE.fromList
        [ ApiT (DerivationIndex 2_147_485_500)

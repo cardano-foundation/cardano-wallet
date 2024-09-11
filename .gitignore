@@ -79,3 +79,9 @@ lib/wallet-benchmarks/data/membench-snapshot
 ## Local cluster swagger golden actual
 lib/local-cluster/data/swagger.json.actual
 test/e2e/.direnv/flake-profile*
+
+node_modules
+*-db
+*.log
+package-lock.json
+package.json
