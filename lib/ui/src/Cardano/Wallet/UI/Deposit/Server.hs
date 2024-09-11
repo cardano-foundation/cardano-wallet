@@ -18,8 +18,12 @@ import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 import Cardano.Wallet.Api.Types
     ( ApiWalletMode (..)
     )
+import Cardano.Wallet.Deposit.IO
+    ( WalletBootEnv
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
+    , initXPubWallet
     )
 import Cardano.Wallet.Network
     ( NetworkLayer
@@ -84,6 +88,8 @@ import Cardano.Wallet.UI.Deposit.Handlers.Page
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( getWallet
+    , postMnemonicWallet
+    , postXPubWallet
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -93,6 +99,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     )
 import Control.Monad.Trans
     ( MonadIO (..)
+    )
+import Control.Tracer
+    ( Tracer
     )
 import Data.Functor
     ( ($>)
@@ -123,14 +132,16 @@ showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 serveUI
     :: forall n
      . HasSNetworkId n
-    => UILayer WalletResource
+    => Tracer IO String
+    -> UILayer WalletResource
+    -> WalletBootEnv IO
     -> FilePath
     -> PageConfig
     -> SNetworkId n
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI ul dbDir config _ nl bs =
+serveUI tr ul env dbDir config _ nl bs =
     ph About
         :<|> ph About
         :<|> ph Network
@@ -143,15 +154,18 @@ serveUI ul dbDir config _ nl bs =
         :<|> serveFavicon
         :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l alert (renderHtml . walletElementH))
+        :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
+        :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
   where
-    ph = pageHandler ul dbDir config
-    _ok _ = renderHtml . rogerH @Text $ "ok"
+    ph p = pageHandler tr ul env dbDir config p alertH
+    ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
+    initWallet xpub = initXPubWallet env dbDir xpub 100000
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do

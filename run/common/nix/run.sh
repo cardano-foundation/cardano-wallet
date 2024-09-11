@@ -3,7 +3,7 @@
 
 # set -euox pipefail
 set -euo pipefail
-
+cardano-wallet serve --help-tracing
 usage() {
     echo "Usage: $0 [sync]"
     echo "  sync: Sync the service and wait for it to be ready"
@@ -72,6 +72,7 @@ cleanup() {
         rm -rf "${NODE_DB:?}"/* || echo "Failed to clean node db"
         rm -rf "${WALLET_DB:?}"/* || echo "Failed to clean wallet db"
     fi
+    trap - ERR INT EXIT
 }
 
 # Trap the cleanup function on exit

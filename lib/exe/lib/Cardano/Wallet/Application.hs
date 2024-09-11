@@ -95,6 +95,9 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     )
+import Cardano.Wallet.Deposit.IO
+    ( WalletBootEnv (..)
+    )
 import Cardano.Wallet.Deposit.IO.Resource
     ( withResource
     )
@@ -200,6 +203,9 @@ import Control.Tracer
     )
 import Data.Function
     ( (&)
+    )
+import Data.Functor.Contravariant
+    ( (>$<)
     )
 import Data.Generics.Internal.VL
     ( view
@@ -551,7 +557,13 @@ serveWallet
                     application =
                         Server.serve api
                             $ DepositUi.serveUI
+                                (UIApplicationLog >$< applicationTracer)
                                 ui
+                                ( WalletBootEnv
+                                    (error "Not defined")
+                                    (error "Not defined")
+                                    (error "Not defined")
+                                )
                                 databaseDir'
                                 (PageConfig "" "Deposit Cardano Wallet")
                                 _proxy

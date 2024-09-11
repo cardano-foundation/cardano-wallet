@@ -27,12 +27,17 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
     )
+import Data.Aeson
+    ( Value
+    )
 import Servant
     ( Get
+    , JSON
     , Link
     , Post
     , Proxy (..)
     , QueryParam
+    , ReqBody
     , allLinks
     , (:<|>) (..)
     , (:>)
@@ -59,6 +64,14 @@ type Data =
             :> QueryParam "clean" Bool
             :> SessionedHtml Get
         :<|> "wallet" :> SessionedHtml Get
+        :<|> "wallet"
+            :> "mnemonic"
+            :> ReqBody '[JSON] Value
+            :> SessionedHtml Post
+        :<|> "wallet"
+            :> "xpub"
+            :> ReqBody '[JSON] Value
+            :> SessionedHtml Post
 
 type Home = SessionedHtml Get
 
@@ -82,6 +95,8 @@ faviconLink :: Link
 walletMnemonicLink :: Maybe Bool -> Link
 walletPageLink :: Link
 walletLink :: Link
+walletPostMnemonicLink :: Link
+walletPostXPubLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -93,5 +108,7 @@ homePageLink
     :<|> sseLink
     :<|> faviconLink
     :<|> walletMnemonicLink
-    :<|> walletLink =
+    :<|> walletLink
+    :<|> walletPostMnemonicLink
+    :<|> walletPostXPubLink =
         allLinks (Proxy @UI)

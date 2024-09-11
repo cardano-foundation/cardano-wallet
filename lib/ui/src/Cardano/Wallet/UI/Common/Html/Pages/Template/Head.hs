@@ -10,7 +10,7 @@ where
 import Prelude
 
 import Cardano.Wallet.UI.Common.Html.Htmx
-    ( useHtmxVersion
+    ( useHtmxVersion, useHtmxExtension
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
@@ -107,6 +107,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 popperScript
                 favicon faviconLink
                 useHtmxVersion (1, 9, 12)
+                useHtmxExtension "json-enc"
             body_ body
 
 data PageConfig = PageConfig

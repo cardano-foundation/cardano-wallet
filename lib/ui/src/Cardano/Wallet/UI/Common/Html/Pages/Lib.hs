@@ -83,7 +83,7 @@ import Servant
 import qualified Data.Text as T
 
 -- | A simple alert message around any html content.
-alertH :: ToHtml a => a -> Html ()
+alertH :: (ToHtml a, Monad m) => a -> HtmlT m ()
 alertH =
     div_
         [ id_ "result"

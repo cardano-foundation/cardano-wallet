@@ -13,7 +13,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxGet_
     , hxPost_
     , hxTarget_
-    , useHtmxExtension
+    
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
@@ -49,25 +49,44 @@ import Servant
 
 import qualified Data.Text as T
 
-mnemonicH :: Maybe [Text] -> Html ()
-mnemonicH Nothing = ""
-mnemonicH (Just mnemonic) = do
-    div_ [class_ "card"] $ do
-        div_
-            [ class_ "card-body text-muted small"
-            , id_ "copy-mnemonic"
-            ]
-            $ toHtml
-            $ T.intercalate " " mnemonic
-        copyButton "copy-mnemonic"
+--------------------------------------------------------------------------------
+-- Configuration
+--------------------------------------------------------------------------------
 
-newWalletH :: (Maybe Bool -> Link) -> PostWalletConfig -> WHtml ()
-newWalletH walletMnemonicLink config = do
-    useHtmxExtension "json-enc"
+-- | Configuration for the wallet creation form
+data PostWalletConfig = PostWalletConfig
+    { passwordVisibility :: Maybe Visible
+    -- ^ Whether the password should be visible
+    , walletDataLink :: Link
+    -- ^ Link to post the form data to
+    , responseTarget :: Text
+    }
+
+--------------------------------------------------------------------------------
+-- Library
+--------------------------------------------------------------------------------
+
+-- | Add a form tag with the appropriate attributes for a POST request
+postWalletFormTagH :: PostWalletConfig -> WHtml () -> WHtml ()
+postWalletFormTagH PostWalletConfig{..} =
+    form_
+        [ hxPost_ $ linkText walletDataLink
+        , hxExt_ "json-enc"
+        , hxTarget_ responseTarget
+        , autocomplete_ "off"
+        ]
+
+--------------------------------------------------------------------------------
+-- Wallet creation forms
+--------------------------------------------------------------------------------
+
+-- | Widget to create a new wallet from a mnemonic
+newWalletFromMnemonicH :: (Maybe Bool -> Link) -> PostWalletConfig -> WHtml ()
+newWalletFromMnemonicH walletMnemonicLink config = do
     div_ [class_ "btn-group mb-3", role_ "group"] $ do
         button_
             [ class_ "btn btn-outline-secondary"
-            , hxGet_ $ linkText $ walletMnemonicLink Nothing
+            , hxGet_ $ linkText $ walletMnemonicLink $ Just False
             , hxTarget_ "#menmonic"
             ]
             "Hint a mnemonic"
@@ -80,53 +99,70 @@ newWalletH walletMnemonicLink config = do
 
     div_ [id_ "menmonic", class_ "mb-3"] ""
 
-    postWalletForm config
+    postWalletFormTagH config $ mnemonicSetupFieldsH config
 
-    div_
-        [ id_ "new_wallet"
+-- | Display a mnemonic
+mnemonicH :: Maybe [Text] -> Html ()
+mnemonicH Nothing = ""
+mnemonicH (Just mnemonic) = do
+    div_ [class_ "card"] $ do
+        div_
+            [ class_ "card-body text-muted small"
+            , id_ "copy-mnemonic"
+            ]
+            $ toHtml
+            $ T.intercalate " " mnemonic
+        copyButton "copy-mnemonic"
+
+-- | Form fields for restoring a wallet from a mnemonic
+mnemonicSetupFieldsH :: PostWalletConfig -> WHtml ()
+mnemonicSetupFieldsH PostWalletConfig{..} = do
+    input_
+        [ class_ "form-control form-control-lg mb-3"
+        , visibility
+        , name_ "mnemonicSentence"
+        , placeholder_ "Mnemonic Sentence"
         ]
-        mempty
-
-data PostWalletConfig = PostWalletConfig
-    { passwordVisibility :: Maybe Visible
-    , walletDataLink :: Link
-    }
-
-postWalletForm :: PostWalletConfig -> WHtml ()
-postWalletForm PostWalletConfig{..} = form_
-    [ hxPost_ $ linkText walletDataLink
-    , hxExt_ "json-enc"
-    , hxTarget_ "#new_wallet"
-    , autocomplete_ "off"
-    ]
-    $ do
-        input_
+    onShelley
+        $ input_
             [ class_ "form-control form-control-lg mb-3"
-            , visibility
-            , name_ "mnemonicSentence"
-            , placeholder_ "Mnemonic Sentence"
+            , type_ "text"
+            , name_ "name"
+            , placeholder_ "Wallet Name"
             ]
-        onShelley
-            $ input_
-                [ class_ "form-control form-control-lg mb-3"
-                , type_ "text"
-                , name_ "name"
-                , placeholder_ "Wallet Name"
-                ]
-        onShelley
-            $ input_
-                [ class_ "form-control form-control-lg mb-3"
-                , visibility
-                , name_ "passphrase"
-                , placeholder_ "Passphrase"
-                ]
-        button_
-            [ class_ "btn btn-primary btn-block mb-3"
-            , type_ "submit"
+    onShelley
+        $ input_
+            [ class_ "form-control form-control-lg mb-3"
+            , type_ "password"
+            , name_ "password"
+            , placeholder_ "Wallet Password"
             ]
-            "Restore wallet"
+    button_
+        [ class_ "btn btn-primary btn-block mb-3"
+        , type_ "submit"
+        ]
+        "Restore wallet from mnemonic"
   where
     visibility = type_ $ case passwordVisibility of
         Just Visible -> "text"
         Just Hidden -> "password"
         Nothing -> "password"
+
+--------------------------------------------------------------------------------
+-- Wallet restoration from public key
+--------------------------------------------------------------------------------
+
+newWalletFromXPubH :: PostWalletConfig -> WHtml ()
+newWalletFromXPubH config = do
+    postWalletFormTagH config $ do
+        input_
+            [ class_ "form-control form-control-lg mb-3"
+            , type_ "text"
+            , name_ "xpub"
+            , placeholder_ "Extended Public Key"
+            ]
+        button_
+            [ class_ "btn btn-primary btn-block mb-3"
+            , type_ "submit"
+            ]
+            "Restore wallet from public key"

@@ -91,3 +91,4 @@ package.json
 
 # buildkite artifacts testing
 artifacts
+deposit-*

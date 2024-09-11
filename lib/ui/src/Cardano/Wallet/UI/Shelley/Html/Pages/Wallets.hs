@@ -34,7 +34,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     ( PostWalletConfig (..)
-    , newWalletH
+    , newWalletFromMnemonicH
     )
 import Cardano.Wallet.UI.Lib.ListOf
     ( ListOf
@@ -69,7 +69,9 @@ import Lucid
     , Html
     , ToHtml (..)
     , class_
+    , div_
     , i_
+    , id_
     , scope_
     )
 
@@ -77,11 +79,13 @@ data Selected = Selected | NotSelected
 
 walletsH :: WHtml ()
 walletsH = do
-    sseH sseLink walletsListLink "content" ["wallets"]
-    newWalletH walletMnemonicLink $ PostWalletConfig
+    -- sseH sseLink walletsListLink "content" ["wallets"]
+    newWalletFromMnemonicH walletMnemonicLink $ PostWalletConfig
         { walletDataLink = walletLink
         , passwordVisibility = Just Hidden
+        , responseTarget = "#post-response"
         }
+    div_ [ id_ "#post-response" ] mempty
 
 walletListH :: Maybe WalletId -> [(ApiWallet, UTCTime)] -> Html ()
 walletListH mwid wallets = record
