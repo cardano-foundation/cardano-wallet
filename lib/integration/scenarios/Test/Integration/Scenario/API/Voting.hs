@@ -1015,17 +1015,17 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     ]
 
             -- delete the wallet
-            rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode HTTP.status204 rDel
+            rDel1 <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode HTTP.status204 rDel1
 
             -- restoring the wallet
             let payldCrt = payloadWith "Faucet Wallet" mnemonic
-            rRestore <- postWallet ctx payldCrt
-            verify rRestore
+            rRestore1 <- postWallet ctx payldCrt
+            verify rRestore1
                 [ expectResponseCode HTTP.status201
                 ]
 
-            let w' = getFromResponse Prelude.id rRestore
+            let w' = getFromResponse Prelude.id rRestore1
             eventually "Wallet is voting NoConfidence after restoration" $ do
                 getSrcWallet ctx w' >>= flip verify
                     [ expectField #delegation
@@ -1039,11 +1039,29 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             verify rJoin
                 [ expectResponseCode HTTP.status202
                 ]
-            eventually "Wallet is voting NoConfidence and delegating to pool" $ do
+            eventually "Wallet is voting NoConfidence and delegating to pool1" $ do
                 getSrcWallet ctx w' >>= flip verify
                     [ expectField #delegation
                          (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
                     ]
+
+            -- delete the wallet once again
+            rDel2 <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w') Default Empty
+            expectResponseCode HTTP.status204 rDel2
+
+            -- restoring the wallet once again
+            rRestore2 <- postWallet ctx payldCrt
+            verify rRestore2
+                [ expectResponseCode HTTP.status201
+                ]
+
+            let w'' = getFromResponse Prelude.id rRestore2
+            eventually "Wallet is voting NoConfidence and deleagting to pool1 after restoration" $ do
+                getSrcWallet ctx w'' >>= flip verify
+                    [ expectField #delegation
+                          (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
+                    ]
+
   where
     stakeKeyDerPath = NE.fromList
        [ ApiT (DerivationIndex 2_147_485_500)
