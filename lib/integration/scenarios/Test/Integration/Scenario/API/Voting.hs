@@ -88,6 +88,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , fixturePassphrase
+    , fixtureShelleyWallet
     , fixtureWallet
     , getFromResponse
     , getResponse
@@ -101,6 +102,7 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , notRetiringPools
     , onlyVoting
+    , postWallet
     , quitStakePool
     , request
     , signTx
@@ -111,6 +113,9 @@ import Test.Integration.Framework.DSL
     , waitNumberOfEpochBoundaries
     , (.<)
     , (.>)
+    )
+import Test.Integration.Framework.TestData
+    ( payloadWith
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -984,6 +989,77 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 getSrcWallet ctx w >>= flip verify
                     [ expectField #delegation
                          (`shouldBe` votingAndDelegating (ApiT pool2) (ApiT voting2) [])
+                    ]
+
+    it "VOTING_01j - Delegation works in Conway in presence of voting after wallet delations and restoration"
+        $ \ctx -> runResourceT $ do
+            noBabbage ctx "voting can be checked only in Conway onwards"
+            (w, mnemonic) <- fixtureShelleyWallet ctx
+
+            eventually "Initially wallet is neither delegating nor voting" $ do
+                getSrcWallet ctx w  >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` notDelegating [])
+                    ]
+
+            let voting = NoConfidence
+            rTx <- joinDRep @n ctx (SpecificDRep voting) (w, fixturePassphrase)
+            verify rTx
+                [ expectResponseCode HTTP.status202
+                ]
+
+            eventually "Wallet is voting NoConfidence" $ do
+                getSrcWallet ctx w >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting(ApiT voting) [])
+                    ]
+
+            -- delete the wallet
+            rDel1 <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            expectResponseCode HTTP.status204 rDel1
+
+            -- restoring the wallet
+            let payldCrt = payloadWith "Faucet Wallet" mnemonic
+            rRestore1 <- postWallet ctx payldCrt
+            verify rRestore1
+                [ expectResponseCode HTTP.status201
+                ]
+
+            let w' = getFromResponse Prelude.id rRestore1
+            eventually "Wallet is voting NoConfidence after restoration" $ do
+                getSrcWallet ctx w' >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` onlyVoting(ApiT voting) [])
+                    ]
+
+            pool1 : _ : _ <- map (view #id) <$> notRetiringPools ctx
+
+            -- Join Pool
+            rJoin <- joinStakePool @n ctx (SpecificPool pool1) (w', fixturePassphrase)
+            verify rJoin
+                [ expectResponseCode HTTP.status202
+                ]
+            eventually "Wallet is voting NoConfidence and delegating to pool1" $ do
+                getSrcWallet ctx w' >>= flip verify
+                    [ expectField #delegation
+                         (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
+                    ]
+
+            -- delete the wallet once again
+            rDel2 <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w') Default Empty
+            expectResponseCode HTTP.status204 rDel2
+
+            -- restoring the wallet once again
+            rRestore2 <- postWallet ctx payldCrt
+            verify rRestore2
+                [ expectResponseCode HTTP.status201
+                ]
+
+            let w'' = getFromResponse Prelude.id rRestore2
+            eventually "Wallet is voting NoConfidence and deleagting to pool1 after restoration" $ do
+                getSrcWallet ctx w'' >>= flip verify
+                    [ expectField #delegation
+                          (`shouldBe` votingAndDelegating (ApiT pool1) (ApiT voting) [])
                     ]
 
   where
