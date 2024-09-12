@@ -18,15 +18,7 @@ fi
 # shellcheck disable=SC1091
 source .env
 
-# Generate a random port for the wallet service and export it
-RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
-WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 
-RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
-WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
-
-RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
-DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
 
 mkdir -p ./databases
 
@@ -84,33 +76,43 @@ cleanup() {
 
 # Trap the cleanup function on exit
 trap cleanup ERR INT EXIT
+if [[ -z ${NO_NODE-} ]]; then
 
-if [[ -n "${USE_MITHRIL-}" ]];
-    then
-        if [ "$NETWORK" != "mainnet" ]; then
-            echo "Error: This option is only available for the mainnet network"
-            exit 1
-        fi
-        echo "Starting the mithril service..."
-        rm -rf "${NODE_DB:?}"/*
-        export AGGREGATOR_ENDPOINT
-        export GENESIS_VERIFICATION_KEY
-        digest=$(mithril-client cdb  snapshot list --json | jq -r .[0].digest)
-        (cd "${NODE_DB}" && mithril-client cdb download "$digest")
-        (cd "${NODE_DB}" && mv db/* . && rmdir db)
+    if [[ -n "${USE_MITHRIL-}" ]];
+        then
+            if [ "$NETWORK" != "mainnet" ]; then
+                echo "Error: This option is only available for the mainnet network"
+                exit 1
+            fi
+            echo "Starting the mithril service..."
+            rm -rf "${NODE_DB:?}"/*
+            export AGGREGATOR_ENDPOINT
+            export GENESIS_VERIFICATION_KEY
+            digest=$(mithril-client cdb  snapshot list --json | jq -r .[0].digest)
+            (cd "${NODE_DB}" && mithril-client cdb download "$digest")
+            (cd "${NODE_DB}" && mv db/* . && rmdir db)
+    fi
+
+    # Start the node with logs redirected to a file if NODE_LOGS_FILE is set
+    # shellcheck disable=SC2086
+    cardano-node run \
+        --topology "${NODE_CONFIGS}"/topology.json \
+        --database-path "${NODE_DB}"\
+        --socket-path "${NODE_SOCKET_PATH}" \
+        --config "${NODE_CONFIGS}"/config.json \
+        +RTS -N -A16m -qg -qb -RTS 1>$NODE_LOGS_FILE 2>$NODE_LOGS_FILE &
+    NODE_ID=$!
+    echo "Node id: $NODE_ID"
+    echo "Node socket path: $NODE_SOCKET_PATH"
+
+    sleep 5
+
+
+
+else
+    echo "Skipping node service..."
 fi
 
-# Start the node with logs redirected to a file if NODE_LOGS_FILE is set
-# shellcheck disable=SC2086
-cardano-node run \
-    --topology "${NODE_CONFIGS}"/topology.json \
-    --database-path "${NODE_DB}"\
-    --socket-path "${NODE_SOCKET_PATH}" \
-    --config "${NODE_CONFIGS}"/config.json \
-    +RTS -N -A16m -qg -qb -RTS 1>$NODE_LOGS_FILE 2>$NODE_LOGS_FILE &
-NODE_ID=$!
-
-sleep 5
 
 ##### Wait until the node is ready #####
 
@@ -145,34 +147,55 @@ while true; do
     sleep 1
 done
 
-echo "Node id: $NODE_ID"
+if [[ -z ${NO_WALLET-} ]]; then
+    echo "Starting the wallet service..."
 
-# Define the wallet logs file
-LOCAL_WALLET_LOGS_FILE=./wallet.log
-WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
+    # Generate a random port for the wallet service and export it
+    RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+    WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 
-if [[ "${NETWORK}" == "mainnet" ]]; then
-    # shellcheck disable=SC2086
-    cardano-wallet serve \
-        --port "${WALLET_PORT}" \
-        --ui-port "${WALLET_UI_PORT}" \
-        --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
-        --database "${WALLET_DB}" \
-        --node-socket "${NODE_SOCKET_PATH}" \
-        --mainnet \
-        --listen-address 0.0.0.0  1>$WALLET_LOGS_FILE 2>$WALLET_LOGS_FILE &
-    WALLET_ID=$!
+    RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+    WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
+
+    RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+    DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
+    # Define the wallet logs file
+    LOCAL_WALLET_LOGS_FILE=./wallet.log
+    WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
+
+    if [[ "${NETWORK}" == "mainnet" ]]; then
+        # shellcheck disable=SC2086
+        cardano-wallet serve \
+            --port "${WALLET_PORT}" \
+            --ui-port "${WALLET_UI_PORT}" \
+            --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
+            --database "${WALLET_DB}" \
+            --node-socket "${NODE_SOCKET_PATH}" \
+            --mainnet \
+            --listen-address 0.0.0.0  >$WALLET_LOGS_FILE 2>&1 &
+        WALLET_ID=$!
+    else
+        # shellcheck disable=SC2086
+        # ["--log-level", "DEBUG", "--trace-application", "DEBUG", "--port", "8090", "--ui-port", "8091", "--ui-deposit-port", "8092", "--database", "wallet-db", "--node-socket", "node.socket", "--testnet", "byron-genesis.json", "--listen-address", "0.0.0.0"]
+        cardano-wallet serve \
+            --log-level DEBUG \
+            --trace-application DEBUG \
+            --port "${WALLET_PORT}" \
+            --ui-port "${WALLET_UI_PORT}" \
+            --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
+            --database "${WALLET_DB}" \
+            --node-socket "${NODE_SOCKET_PATH}" \
+            --testnet "${NODE_CONFIGS}"/byron-genesis.json \
+            --listen-address 0.0.0.0 >$WALLET_LOGS_FILE 2>&1 &
+        WALLET_ID=$!
+    fi
+    echo "Wallet id: $WALLET_ID"
+    echo "Wallet service port: $WALLET_PORT"
+    echo "Wallet UI port: $WALLET_UI_PORT"
+    echo "Deposit wallet UI port: $DEPOSIT_WALLET_UI_PORT"
+
 else
-    # shellcheck disable=SC2086
-    cardano-wallet serve \
-        --port "${WALLET_PORT}" \
-        --ui-port "${WALLET_UI_PORT}" \
-        --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
-        --database "${WALLET_DB}" \
-        --node-socket "${NODE_SOCKET_PATH}" \
-        --testnet "${NODE_CONFIGS}"/byron-genesis.json \
-        --listen-address 0.0.0.0  1>$WALLET_LOGS_FILE 2>$WALLET_LOGS_FILE &
-    WALLET_ID=$!
+    echo "Skipping wallet service..."
 fi
 
 
@@ -180,7 +203,6 @@ fi
 case "$1" in
     sync)
 
-        echo "Wallet service port: $WALLET_PORT"
         echo "Syncing the service..."
         sleep 10
 
@@ -224,10 +246,6 @@ case "$1" in
         fi
         ;;
     start)
-        echo "Wallet service port: $WALLET_PORT"
-        echo "Wallet UI port: $WALLET_UI_PORT"
-        echo "Deposit wallet UI port: $DEPOSIT_WALLET_UI_PORT"
-        echo "Node socket path: $NODE_SOCKET_PATH"
         echo "Ctrl-C to stop"
         sleep infinity
         ;;
