@@ -8,10 +8,6 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
-import Cardano.Wallet.Deposit.IO.Resource
-    ( ResourceStatus (..)
-    , readStatus
-    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , loadWallet
@@ -36,6 +32,7 @@ import Cardano.Wallet.UI.Cookies
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceM
+    , walletPresent
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -44,14 +41,8 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
     )
-import Cardano.Wallet.UI.Type
-    ( WHtml
-    )
 import Control.Monad.IO.Class
     ( MonadIO (..)
-    )
-import Control.Monad.Reader.Class
-    ( ask
     )
 import Control.Tracer
     ( Tracer
@@ -60,8 +51,6 @@ import Control.Tracer
 import Servant
     ( Handler
     )
-
-import qualified Data.ByteString.Lazy.Char8 as BL
 
 lg :: (MonadIO m, Show a) => Tracer IO String -> String -> a -> m ()
 lg tr p x = liftIO $ traceWith tr $ p <> ": " <> show x
@@ -76,17 +65,16 @@ pageHandler
     -> PageConfig
     -- ^ The page configuration
     -> Page
-    -- ^ The page to render
-    -> (BL.ByteString -> WHtml ())
+    -- ^ How to alert
     -> Maybe RequestCookies
     -- ^ The request cookies
     -> Handler (CookieResponse RawHtml)
-pageHandler tr layer env dir config x alert =
+pageHandler tr layer env dir config x =
     withSessionLayer layer $ \session -> do
-        w <- catchRunWalletResourceM session $ do
-            s <- ask >>= liftIO . readStatus
-            case s of
-                NotInitialized -> do
+        wp <- walletPresent session
+        wp' <- catchRunWalletResourceM session $ do
+            case wp of
+                WalletAbsent -> do
                     test <- walletExists dir
                     if test
                         then do
@@ -96,9 +84,7 @@ pageHandler tr layer env dir config x alert =
                             WalletPresent <$> walletPublicIdentity
                         else
                             pure WalletAbsent
-                Initialized _ -> WalletPresent <$> walletPublicIdentity
-                Vanished e -> pure $ WalletVanished e
-                FailedToInitialize e -> pure $ WalletFailedToInitialize e
-                Initializing -> pure WalletInitializing
-        lg tr "Rendering page" w
-        pure $ page config x alert w
+                wp'' -> pure wp''
+
+        lg tr "Rendering page" wp'
+        pure $ page config x

@@ -1,3 +1,5 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Cardano.Wallet.UI.Deposit.Handlers.Wallet
 where
 
@@ -6,22 +8,25 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub
     )
-import Cardano.Wallet.Deposit.IO
-    ( WalletPublicIdentity
-    )
 import Cardano.Wallet.Deposit.REST
     ( ErrWalletResource
     , WalletResource
     , WalletResourceM
     , runWalletResourceM
-    , walletPublicIdentity
     )
 import Cardano.Wallet.UI.Common.Handlers.Lib
     ( handleParseRequestError
     )
 import Cardano.Wallet.UI.Common.Layer
-    ( SessionLayer (..)
+    ( Push (Push)
+    , SessionLayer (..)
     , stateL
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Lib
+    ( walletPresent
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
+    ( WalletPresent
     )
 import Control.Lens
     ( view
@@ -78,11 +83,9 @@ catchRunWalletResourceHtml layer alert render f = liftIO $ do
 
 getWallet
     :: SessionLayer WalletResource
-    -> (BL.ByteString -> html) -- problem report
-    -> (WalletPublicIdentity -> html) -- success report
+    -> (WalletPresent -> html) -- success report
     -> Handler html
-getWallet layer alert render =
-    catchRunWalletResourceHtml layer alert render walletPublicIdentity
+getWallet layer render = render <$> walletPresent layer
 
 initWalletWithXPub
     :: SessionLayer WalletResource
@@ -91,11 +94,13 @@ initWalletWithXPub
     -> (XPub -> WalletResourceM a)
     -> XPub
     -> Handler html
-initWalletWithXPub l alert render initWallet xpub = do
+initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet xpub = do
     r <- liftIO $ catchRunWalletResourceM l (initWallet xpub)
-    pure $ case r of
-        Left e -> alert $ BL.pack $ show e
-        Right _ -> render ()
+    case r of
+        Left e -> pure $ alert $ BL.pack $ show e
+        Right _ -> do
+            liftIO $ sendSSE $ Push "wallet"
+            pure $ render ()
 
 postMnemonicWallet
     :: SessionLayer WalletResource
@@ -147,3 +152,16 @@ parsePostXPubRequest :: Value -> Either String Text
 parsePostXPubRequest = parseEither
     . withObject "create wallet from xpub request"
     $ \o -> o .: "xpub"
+
+-- deleteWalletHandler
+--     :: SessionLayer WalletResource
+--     -> (BL.ByteString -> html)
+--     -> (() -> html)
+--     -> Handler html
+-- deleteWalletHandler layer alert render = do
+--     r <- liftIO $ catchRunWalletResourceM layer deleteWallet
+--     case r of
+--         Left e -> pure $ alert $ BL.pack $ show e
+--         Right _ -> do
+--             liftIO $ sendSSE layer $ Push "wallet"
+--             pure $ render ()

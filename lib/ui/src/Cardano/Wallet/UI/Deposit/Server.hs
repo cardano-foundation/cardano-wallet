@@ -153,11 +153,11 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
         :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
-        :<|> wsl (\l -> getWallet l alert (renderHtml . walletElementH))
+        :<|> wsl (\l -> getWallet l (renderHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
         :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
   where
-    ph p = pageHandler tr ul env dbDir config p alertH
+    ph = pageHandler tr ul env dbDir config
     ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)

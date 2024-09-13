@@ -45,12 +45,10 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( WalletPresent
-    , walletH
+    ( walletH
     )
 import Cardano.Wallet.UI.Type
-    ( WHtml
-    , WalletType (..)
+    ( WalletType (..)
     , runWHtml
     )
 import Control.Lens.Extras
@@ -67,8 +65,6 @@ import Lucid
     , renderBS
     )
 
-import qualified Data.ByteString.Lazy.Char8 as BL
-
 data Page
     = About
     | Network
@@ -82,11 +78,8 @@ page
     -- ^ Page configuration
     -> Page
     -- ^ Current page
-    -> (BL.ByteString -> WHtml ())
-    -> WalletPresent
-    -- ^ If a wallet is present
     -> RawHtml
-page c@PageConfig{..} p alert wp = RawHtml
+page c@PageConfig{..} p = RawHtml
     $ renderBS
     $ runWHtml Deposit
     $ pageFromBodyH faviconLink c
@@ -95,7 +88,7 @@ page c@PageConfig{..} p alert wp = RawHtml
         About -> aboutH
         Network -> networkH sseLink networkInfoLink
         Settings -> settingsPageH sseLink settingsGetLink
-        Wallet -> walletH alert wp
+        Wallet -> walletH
 
 headerH :: Text -> Page -> Monad m => HtmlT m ()
 headerH prefix p =
