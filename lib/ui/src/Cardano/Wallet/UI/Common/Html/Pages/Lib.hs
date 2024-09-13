@@ -103,44 +103,43 @@ rogerH =
         . toHtml
 
 -- | A simple table row with two columns.
-data AssocRow
-    = forall b k.
-      (ToHtml b, ToHtml k) =>
+data AssocRow m
+    =
     AssocRow
     { rowAttributes :: [Attribute]
-    , key :: k
-    , val :: b
+    , key :: HtmlT m ()
+    , val :: HtmlT m ()
     }
 
 -- | Render an 'AssocRow' as a table row.
-assocRowH :: AssocRow -> Monad m => HtmlT m ()
+assocRowH :: AssocRow m -> Monad m => HtmlT m ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
-    td_ [scope_ "col"] $ b_ $ toHtml key
-    td_ [scope_ "col"] $ toHtml val
+    td_ [scope_ "col"] $ b_ key
+    td_ [scope_ "col"] val
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
-record :: ListOf AssocRow -> Monad m => HtmlT m ()
+record :: ListOf (AssocRow m) -> Monad m => HtmlT m ()
 record xs =
     table_ [class_ "table table-hover table-striped"]
         $ mapM_ assocRowH
         $ listOf xs
 
 -- | Create an 'AssocRow' from a key and a value.
-field :: (ToHtml b, ToHtml k) => [Attribute] -> k -> b -> ListOf AssocRow
+field :: [Attribute] -> HtmlT m () -> HtmlT m () -> ListOf (AssocRow m)
 field attrs key val = singleton $ Elem $ AssocRow attrs key val
 
 -- | Create a simple 'AssocRow' from a key and a value. where the key is a 'Text'.
-simpleField :: ToHtml b => Text -> b -> ListOf AssocRow
-simpleField = field []
+simpleField :: Monad m => Text -> HtmlT m () -> ListOf (AssocRow m)
+simpleField = field [] . toHtml
 
 -- | Create an 'AssocRow' from a key and a value where the value is an 'Html'.
-fieldHtml :: [Attribute] -> Text -> Html () -> ListOf AssocRow
-fieldHtml = field @(Html ())
+fieldHtml :: Monad m => [Attribute] -> Text -> HtmlT m () -> ListOf (AssocRow m)
+fieldHtml as = field as . toHtml
 
 -- | Create an 'AssocRow' from a key and a value where the value is a 'Show' instance.
-fieldShow :: Show a => [Attribute] -> Text -> a -> ListOf AssocRow
-fieldShow attrs key val = field attrs key (show val)
+fieldShow :: (Show a, Monad m) => [Attribute] -> Text -> a -> ListOf (AssocRow m)
+fieldShow attrs key val = field attrs (toHtml key) (toHtml $ show val)
 
 -- | A value attribute to use to connect to an SSE endpoint.
 sseConnectFromLink :: Link -> Text

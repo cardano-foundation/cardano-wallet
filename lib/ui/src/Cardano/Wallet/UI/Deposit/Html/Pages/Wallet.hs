@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
 where
@@ -20,7 +20,6 @@ import Cardano.Wallet.UI.Common.API
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( record
     , simpleField
-    
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     ( PostWalletConfig (..)
@@ -50,6 +49,7 @@ import Data.Text.Class
     )
 import Lucid
     ( HtmlT
+    , ToHtml (..)
     , div_
     , id_
     )
@@ -99,8 +99,8 @@ walletH alert walletPresent = do
 base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
-walletElementH :: WalletPublicIdentity -> Monad m => HtmlT m ()
+walletElementH :: Monad m => WalletPublicIdentity -> HtmlT m ()
 walletElementH (WalletPublicIdentity xpub customers) = do
     record $ do
-        simpleField "Public Key" $ base64 $ xpubToBytes xpub
-        simpleField "Customer Discovery" $ toText customers
+        simpleField "Public Key" $ toHtml $ base64 $ xpubToBytes xpub
+        simpleField "Customer Discovery" $ toHtml $ toText customers

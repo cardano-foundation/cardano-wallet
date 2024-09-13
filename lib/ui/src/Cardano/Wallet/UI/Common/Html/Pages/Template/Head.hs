@@ -10,7 +10,8 @@ where
 import Prelude
 
 import Cardano.Wallet.UI.Common.Html.Htmx
-    ( useHtmxVersion, useHtmxExtension
+    ( useHtmxExtension
+    , useHtmxVersion
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText

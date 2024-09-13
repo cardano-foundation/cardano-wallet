@@ -13,7 +13,6 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxGet_
     , hxPost_
     , hxTarget_
-    
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText

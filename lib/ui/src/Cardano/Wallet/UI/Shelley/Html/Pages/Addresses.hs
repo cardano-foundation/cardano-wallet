@@ -72,10 +72,11 @@ addressesH addresses = record $ do
             let identifier = "address-" <> toText j
             div_ [class_ "row"] $ do
                 div_ [class_ "text-break col-sm-10", id_ identifier]
+                    $ toHtml
                     $ addressH (Proxy @n)
                     $ apiAddress id
-                div_ [class_ "col-sm-2"] $ copyButton identifier
-        simpleField "state" $ toText $ getApiT state
+                div_ [class_ "col-sm-2"] $ toHtml $ copyButton identifier
+        simpleField "state" $ toHtml $ toText $ getApiT state
         fieldHtml [] "derivation path"
             $ ul_ [class_ "list-inline"]
             $ forM_ derivationPath
