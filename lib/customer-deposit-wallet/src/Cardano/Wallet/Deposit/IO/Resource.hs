@@ -39,11 +39,16 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Monad
-    ( void
+    ( join
+    , void
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow (..)
     , SomeException
+    )
+import Control.Tracer
+    ( Tracer
+    , traceWith
     )
 
 {-----------------------------------------------------------------------------
@@ -146,10 +151,11 @@ data ErrResourceExists e a
 putResource
     :: (forall b. (a -> IO b) -> IO (Either e b))
     -- ^ Function to initialize the resource 'a'
+    -> Tracer IO (ResourceStatus e a)
     -> Resource e a
     -- ^ The 'Resource' to initialize.
     -> IO (Either (ErrResourceExists e a) ())
-putResource start resource = do
+putResource start trs resource = do
     forking <- atomically $ do
         ca :: ResourceStatus e a <- readTVar (content resource)
         case ca of
@@ -159,23 +165,27 @@ putResource start resource = do
             Initialized a -> pure $ Left $ ErrAlreadyInitialized a
             NotInitialized -> do
                 writeTVar (content resource) Initializing
-                pure $ Right forkInitialization
+                pure $ Right (forkInitialization >> traceWith trs Initializing)
     case forking of
         Left e -> pure $ Left e
         Right action -> Right <$> action
   where
     controlInitialization = do
         r <- start run
-        atomically $ case r of
-            Left e -> writeTVar (content resource) (FailedToInitialize e)
-            Right () -> pure ()
+        join $ atomically $ case r of
+            Left e -> do
+                writeTVar (content resource) (FailedToInitialize e)
+                pure $ traceWith trs (FailedToInitialize e)
+            Right () -> pure (pure ())
     forkInitialization = void $ forkFinally controlInitialization vanish
 
     run a = do
         atomically $ writeTVar (content resource) (Initialized a)
+        traceWith trs (Initialized a)
         waitForEndOfLife resource
 
-    vanish (Left e) =
+    vanish (Left e) = do
         atomically $ writeTVar (content resource) (Vanished e)
+        traceWith trs (Vanished e)
     vanish (Right _) =
         pure () -- waitForEndOfLife has succeeded

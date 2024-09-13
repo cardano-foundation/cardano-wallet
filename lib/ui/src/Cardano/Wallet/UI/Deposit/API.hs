@@ -110,5 +110,6 @@ homePageLink
     :<|> walletMnemonicLink
     :<|> walletLink
     :<|> walletPostMnemonicLink
-    :<|> walletPostXPubLink =
+    :<|> walletPostXPubLink
+    =
         allLinks (Proxy @UI)

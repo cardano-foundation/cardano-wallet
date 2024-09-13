@@ -38,9 +38,9 @@ import Servant.Links
     )
 
 -- | Settings page
-settingsPageH :: Monad m => Link -> Link -> HtmlT m ()
-settingsPageH sseLink settingsGetLink =
-    sseH sseLink settingsGetLink "content" ["settings"]
+settingsPageH :: Monad m => Link -> HtmlT m ()
+settingsPageH settingsGetLink =
+    sseH settingsGetLink "content" ["settings"]
 
 -- | Settings state
 settingsStateH :: Link -> State s -> Html ()

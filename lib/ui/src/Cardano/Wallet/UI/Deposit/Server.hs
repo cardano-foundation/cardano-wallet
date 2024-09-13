@@ -20,9 +20,11 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
+    , WalletInstance
     )
 import Cardano.Wallet.Deposit.REST
-    ( WalletResource
+    ( ErrDatabase
+    , WalletResource
     , initXPubWallet
     )
 import Cardano.Wallet.Network
@@ -73,7 +75,8 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     ( mnemonicH
     )
 import Cardano.Wallet.UI.Common.Layer
-    ( SessionLayer (..)
+    ( Push (..)
+    , SessionLayer (..)
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
@@ -101,7 +104,8 @@ import Control.Monad.Trans
     ( MonadIO (..)
     )
 import Control.Tracer
-    ( Tracer
+    ( Tracer (..)
+    , traceWith
     )
 import Data.Functor
     ( ($>)
@@ -124,6 +128,9 @@ import Servant
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
+import Cardano.Wallet.Deposit.IO.Resource
+    ( ResourceStatus
+    )
 import qualified Data.ByteString.Lazy as BL
 
 showTime :: UTCTime -> String
@@ -154,8 +161,8 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> serveFavicon
         :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l (renderHtml . walletElementH alertH))
-        :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
-        :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
+        :<|> (\v -> wsl (\l -> postMnemonicWallet l (initWallet l) alert ok v))
+        :<|> (\v -> wsl (\l -> postXPubWallet l (initWallet l) alert ok v))
   where
     ph = pageHandler tr ul env dbDir config
     ok _ = renderHtml . rogerH @Text $ "ok"
@@ -164,8 +171,13 @@ serveUI tr ul env dbDir config _ nl bs =
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
-    wsl = withSessionLayer ul
-    initWallet xpub = initXPubWallet env dbDir xpub 100000
+    wsl f = withSessionLayer ul $ \l -> f l
+    initWallet l xpub = initXPubWallet env dbDir trs xpub 500000
+      where
+        trs :: Tracer IO (ResourceStatus ErrDatabase WalletInstance)
+        trs = Tracer $ \_e -> do
+            sendSSE l $ Push "wallet"
+            traceWith tr "message"
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do

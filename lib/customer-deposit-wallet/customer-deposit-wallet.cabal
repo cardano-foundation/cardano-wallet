@@ -157,6 +157,7 @@ test-suite unit
     , bytestring
     , cardano-crypto
     , cardano-wallet-test-utils
+    , contra-tracer
     , customer-deposit-wallet
     , customer-deposit-wallet:customer-deposit-wallet-http
     , directory

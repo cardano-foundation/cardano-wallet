@@ -95,14 +95,14 @@ page c@PageConfig{..} p wp = RawHtml
     $ renderBS
     $ runWHtml Shelley
     $ pageFromBodyH faviconLink c
-    $ bodyH (headerH prefix p)
+    $ bodyH sseLink (headerH prefix p)
     $ case p of
         About -> aboutH
-        Network -> networkH sseLink networkInfoLink
+        Network -> networkH networkInfoLink
         Wallets -> walletsH
         Wallet -> walletH wp
         Addresses -> addressesPageH
-        Settings -> settingsPageH sseLink settingsGetLink
+        Settings -> settingsPageH settingsGetLink
 
 headerH :: Monad m => Text -> Page -> HtmlT m ()
 headerH prefix p =

@@ -57,12 +57,10 @@ import qualified Data.Percentage as Percentage
 networkH
     :: Monad m
     => Link
-    -- ^ Link to the SSE endpoint
-    -> Link
     -- ^ Link to the network information endpoint
     -> HtmlT m ()
-networkH sseLink networkInfoLink =
-    sseH sseLink networkInfoLink "content" ["tip"]
+networkH networkInfoLink =
+    sseH networkInfoLink "content" ["tip"]
 
 -- | Render the network information as a record
 networkInfoH

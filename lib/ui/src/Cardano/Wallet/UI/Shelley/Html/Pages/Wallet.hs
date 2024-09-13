@@ -53,8 +53,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( blockReferenceH
     )
 import Cardano.Wallet.UI.Shelley.API
-    ( sseLink
-    , walletDeleteLink
+    ( walletDeleteLink
     , walletLink
     )
 import Control.Monad
@@ -83,7 +82,7 @@ data WalletPresent = WalletPresent | WalletAbsent
 
 walletH :: Monad m => WalletPresent -> HtmlT m ()
 walletH wp = do
-    sseH sseLink walletLink "wallet" ["wallet"]
+    sseH walletLink "wallet" ["wallet"]
     case wp of
         WalletPresent -> walletActionsH
         WalletAbsent -> mempty

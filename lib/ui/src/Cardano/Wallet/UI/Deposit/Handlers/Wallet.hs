@@ -95,6 +95,7 @@ initWalletWithXPub
     -> XPub
     -> Handler html
 initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet xpub = do
+    liftIO $ sendSSE $ Push "wallet"
     r <- liftIO $ catchRunWalletResourceM l (initWallet xpub)
     case r of
         Left e -> pure $ alert $ BL.pack $ show e
@@ -153,15 +154,8 @@ parsePostXPubRequest = parseEither
     . withObject "create wallet from xpub request"
     $ \o -> o .: "xpub"
 
--- deleteWalletHandler
---     :: SessionLayer WalletResource
---     -> (BL.ByteString -> html)
---     -> (() -> html)
---     -> Handler html
--- deleteWalletHandler layer alert render = do
---     r <- liftIO $ catchRunWalletResourceM layer deleteWallet
---     case r of
---         Left e -> pure $ alert $ BL.pack $ show e
---         Right _ -> do
---             liftIO $ sendSSE layer $ Push "wallet"
---             pure $ render ()
+walletIsLoading
+    :: SessionLayer WalletResource
+    -> (WalletPresent -> html)
+    -> Handler html
+walletIsLoading layer render = render <$> walletPresent layer

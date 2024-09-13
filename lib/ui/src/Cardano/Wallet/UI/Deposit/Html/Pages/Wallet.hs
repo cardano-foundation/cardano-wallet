@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
 where
@@ -51,6 +52,9 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString
     )
+import Data.Text
+    ( Text
+    )
 import Data.Text.Class
     ( ToText (..)
     )
@@ -64,9 +68,6 @@ import Lucid
     , id_
     )
 
-import Cardano.Wallet.UI.Shelley.API
-    ( sseLink
-    )
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
 
@@ -85,7 +86,7 @@ instance Show WalletPresent where
     show WalletInitializing = "WalletInitializing"
 
 walletH :: WHtml ()
-walletH = sseH sseLink walletLink "wallet" ["wallet"]
+walletH = sseH walletLink "wallet" ["wallet"]
 
 base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
@@ -108,14 +109,6 @@ walletElementH alert = \case
         record $ do
             simpleField "Public Key" $ pubKeyH xpub
             simpleField "Customer Discovery" $ toHtml $ toText customers
-        -- div_ [class_ "row"] $ do
-            -- button_
-            --     [ class_ "btn btn-danger"
-            --     , hxDelete_ $ linkText walletDeleteLink
-            --     , hxTarget_ "#delete-result"
-            --     ]
-            --     "Delete Wallet"
-            -- div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
         newWalletFromMnemonicH walletMnemonicLink
             $ PostWalletConfig
@@ -136,3 +129,24 @@ walletElementH alert = \case
                 <> BL.pack (show err)
     WalletVanished e -> alert $ "Wallet vanished " <> BL.pack (show e)
     WalletInitializing -> alert "Wallet is initializing"
+
+data BadgeStyle
+    = Primary
+    | Secondary
+    | Success
+    | Danger
+    | Warning
+    | Info
+    | Light
+    | Dark
+
+renderBadgeStyle :: BadgeStyle -> Text
+renderBadgeStyle = \case
+    Primary -> "primary"
+    Secondary -> "secondary"
+    Success -> "success"
+    Danger -> "danger"
+    Warning -> "warning"
+    Info -> "info"
+    Light -> "light"
+    Dark -> "dark"

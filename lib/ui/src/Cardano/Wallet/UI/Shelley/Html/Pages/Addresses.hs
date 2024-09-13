@@ -35,8 +35,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , sseH
     )
 import Cardano.Wallet.UI.Shelley.API
-    ( sseLink
-    , walletAddressesLink
+    ( walletAddressesLink
     )
 import Control.Monad
     ( forM_
@@ -59,7 +58,7 @@ import Lucid
 
 addressesPageH :: Monad m => HtmlT m ()
 addressesPageH =
-    sseH sseLink walletAddressesLink "addresses" ["wallet"]
+    sseH walletAddressesLink "addresses" ["wallet"]
 
 addressesH
     :: forall n m

@@ -64,6 +64,7 @@ import Cardano.Wallet.Deposit.IO
 import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceExists (..)
     , ErrResourceMissing (..)
+    , ResourceStatus
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
@@ -90,6 +91,9 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
     ( ReaderT (..)
     , ask
+    )
+import Control.Tracer
+    ( Tracer (..)
     )
 import Cryptography.Hash.Blake
     ( blake2b160
@@ -266,8 +270,9 @@ loadWallet
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
+    -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> WalletResourceM ()
-loadWallet bootEnv fp = do
+loadWallet bootEnv fp trs = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk fp $ \case
             Right wallet ->
@@ -280,7 +285,7 @@ loadWallet bootEnv fp = do
     lift
         $ ExceptT
         $ first ErrWalletPresent
-            <$> Resource.putResource action resource
+            <$> Resource.putResource action trs resource
 
 -- | Initialize a new wallet from an 'XPub'.
 initXPubWallet
@@ -288,21 +293,24 @@ initXPubWallet
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
+    -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> XPub
     -- ^ Id of the wallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initXPubWallet bootEnv fp xpub users = do
+initXPubWallet bootEnv fp trs xpub users = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = createTheDepositWalletOnDisk fp xpub users $ \case
-            Just wallet ->
-                Right
-                    <$> WalletIO.withWalletInit
+            Just wallet -> do
+                fmap Right
+                    $ WalletIO.withWalletInit
                         (WalletIO.WalletEnv bootEnv wallet)
                         xpub
                         users
-                        f
+                        $ \i -> do
+                            ls <- WalletIO.listCustomers i
+                            last ls `seq` f i
             Nothing ->
                 pure
                     $ Left
@@ -312,7 +320,7 @@ initXPubWallet bootEnv fp xpub users = do
     lift
         $ ExceptT
         $ first ErrWalletPresent
-            <$> Resource.putResource action resource
+            <$> Resource.putResource action trs resource
 
 walletExists :: FilePath -> WalletResourceM Bool
 walletExists fp = liftIO $ findTheDepositWalletOnDisk fp $ \case
@@ -320,7 +328,7 @@ walletExists fp = liftIO $ findTheDepositWalletOnDisk fp $ \case
     Left _ -> pure False
 
 walletPublicIdentity :: WalletResourceM WalletPublicIdentity
-walletPublicIdentity = onWalletInstance  WalletIO.walletPublicIdentity
+walletPublicIdentity = onWalletInstance WalletIO.walletPublicIdentity
 
 {-----------------------------------------------------------------------------
     Operations

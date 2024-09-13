@@ -31,7 +31,6 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxExt_
     , hxGet_
-    , hxSse_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
@@ -140,17 +139,11 @@ fieldHtml as = field as . toHtml
 fieldShow :: (Show a, Monad m) => [Attribute] -> Text -> a -> ListOf (AssocRow m)
 fieldShow attrs key val = field attrs (toHtml key) (toHtml $ show val)
 
--- | A value attribute to use to connect to an SSE endpoint.
-sseConnectFromLink :: Link -> Text
-sseConnectFromLink sse = "connect:" <> linkText sse
-
 -- | A tag that can self populate with data that is fetched as GET from a link
 -- whenever some specific events are received from an SSE endpoint.
 -- It also self populate on load.
 sseH
     :: Link
-    -- ^ SSE link
-    -> Link
     -- ^ Link to fetch data from
     -> Text
     -- ^ Target element
@@ -158,8 +151,8 @@ sseH
     -- ^ Events to trigger onto
     -> Monad m
     => HtmlT m ()
-sseH sseLink link target events = do
-    div_ [hxSse_ $ sseConnectFromLink sseLink] $ do
+sseH link target events = do
+     do
         div_
             [ hxTrigger_ triggered
             , hxGet_ $ linkText link
@@ -176,11 +169,10 @@ sseH sseLink link target events = do
     triggered = T.intercalate "," $ ("sse:" <>) <$> events
 
 -- | A tag that can self populate with data directly received in the SSE event.
-sseInH :: Link -> Text -> [Text] -> Html ()
-sseInH sseLink target events =
+sseInH :: Text -> [Text] -> Html ()
+sseInH target events =
     div_
-        [ hxSse_ $ sseConnectFromLink sseLink
-        , hxExt_ "sse"
+        [hxExt_ "sse"
         ]
         $ div_
             [ hxTarget_ $ "#" <> target

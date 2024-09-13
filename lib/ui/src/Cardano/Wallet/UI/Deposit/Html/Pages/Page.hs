@@ -83,12 +83,13 @@ page c@PageConfig{..} p = RawHtml
     $ renderBS
     $ runWHtml Deposit
     $ pageFromBodyH faviconLink c
-    $ bodyH (headerH prefix p)
-    $ case p of
-        About -> aboutH
-        Network -> networkH sseLink networkInfoLink
-        Settings -> settingsPageH sseLink settingsGetLink
-        Wallet -> walletH
+    $ bodyH sseLink (headerH prefix p)
+    $ do
+        case p of
+            About -> aboutH
+            Network -> networkH networkInfoLink
+            Settings -> settingsPageH settingsGetLink
+            Wallet -> walletH
 
 headerH :: Text -> Page -> Monad m => HtmlT m ()
 headerH prefix p =

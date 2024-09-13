@@ -24,7 +24,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig
     )
 import Cardano.Wallet.UI.Common.Layer
-    ( UILayer (..)
+    ( Push (..)
+    , UILayer (..)
+    , sendSSE
     )
 import Cardano.Wallet.UI.Cookies
     ( CookieResponse
@@ -45,7 +47,7 @@ import Control.Monad.IO.Class
     ( MonadIO (..)
     )
 import Control.Tracer
-    ( Tracer
+    ( Tracer (..)
     , traceWith
     )
 import Servant
@@ -80,6 +82,8 @@ pageHandler tr layer env dir config x =
                         then do
                             lg tr "Loading wallet from" dir
                             loadWallet env dir
+                                $ Tracer
+                                $ \_ -> sendSSE session $ Push "wallet-present"
                             lg tr "Wallet loaded from" dir
                             WalletPresent <$> walletPublicIdentity
                         else
