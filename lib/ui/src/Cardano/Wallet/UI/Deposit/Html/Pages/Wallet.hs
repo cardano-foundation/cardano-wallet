@@ -6,7 +6,8 @@ where
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubToBytes
+    ( XPub
+    , xpubToBytes
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
@@ -18,7 +19,8 @@ import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( copyButton
+    , record
     , simpleField
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Wallet
@@ -50,10 +52,13 @@ import Data.Text.Class
 import Lucid
     ( HtmlT
     , ToHtml (..)
+    , class_
     , div_
+    , hidden_
     , id_
     )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
 
 data WalletPresent
@@ -99,8 +104,20 @@ walletH alert walletPresent = do
 base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
+pubKeyH :: Monad m => XPub -> HtmlT m ()
+pubKeyH xpub = div_ [class_ "row"]   $ do
+    div_ [id_ "public_key", hidden_ "false"] $ toHtml xpubByteString
+    div_ [class_ "col-6"] $ toHtml $ headAndTail 4 $ B8.dropEnd 2 xpubByteString
+    div_ [class_ "col-6"]
+        $ copyButton "public_key"
+
+    where xpubByteString = base64 $ xpubToBytes xpub
+
+headAndTail :: Int -> ByteString -> ByteString
+headAndTail n t = B8.take n t <> ".." <> B8.takeEnd n t
+
 walletElementH :: Monad m => WalletPublicIdentity -> HtmlT m ()
 walletElementH (WalletPublicIdentity xpub customers) = do
     record $ do
-        simpleField "Public Key" $ toHtml $ base64 $ xpubToBytes xpub
+        simpleField "Public Key" $ pubKeyH xpub
         simpleField "Customer Discovery" $ toHtml $ toText customers

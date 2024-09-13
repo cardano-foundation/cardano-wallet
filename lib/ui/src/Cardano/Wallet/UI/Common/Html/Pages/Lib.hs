@@ -104,8 +104,7 @@ rogerH =
 
 -- | A simple table row with two columns.
 data AssocRow m
-    =
-    AssocRow
+    = AssocRow
     { rowAttributes :: [Attribute]
     , key :: HtmlT m ()
     , val :: HtmlT m ()
@@ -157,7 +156,8 @@ sseH
     -- ^ Target element
     -> [Text]
     -- ^ Events to trigger onto
-    -> Monad m => HtmlT m ()
+    -> Monad m
+    => HtmlT m ()
 sseH sseLink link target events = do
     div_ [hxSse_ $ sseConnectFromLink sseLink] $ do
         div_
@@ -228,16 +228,21 @@ showThousandDots = reverse . showThousandDots' . reverse . show
 
 -- | A button that copies the content of a field to the clipboard.
 copyButton
-    :: Text -- ^ Field id
-    -> Html ()
+    :: Monad m
+    => Text
+    -- ^ Field id
+    -> HtmlT m ()
 copyButton field' = do
-    script_
-        [i|
-            document.getElementById('#{button}').addEventListener('click', function() {
-                var mnemonic = document.getElementById('#{field'}').innerText;
-                navigator.clipboard.writeText(mnemonic);
-            });
-        |]
     button_ [class_ "btn btn-outline-secondary", id_ button] "Copy"
+    script_ $ copyButtonScript button field'
   where
     button = field' <> "-copy-button"
+
+copyButtonScript :: Text -> Text -> Text
+copyButtonScript button field' =
+    [i|
+    document.getElementById('#{button}').addEventListener('click', function() {
+        var mnemonic = document.getElementById('#{field'}').innerText;
+        navigator.clipboard.writeText(mnemonic);
+    });
+    |]
