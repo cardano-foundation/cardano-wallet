@@ -1,7 +1,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -37,8 +37,6 @@ import Cardano.Wallet.Deposit.Pure
 import Cardano.Wallet.Deposit.Read
     ( Address
     , ChainPoint (..)
-    , fromSlot
-    , toSlot
     )
 import Control.Applicative
     ( (<|>)
@@ -80,17 +78,12 @@ import Data.Text.Class
     , ToText (..)
     , getTextDecodingError
     )
-import Data.Word
-    ( Word64
-    )
-import Numeric.Natural
-    ( Natural
-    )
 import Servant
     ( FromHttpApiData (..)
     )
 
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -192,21 +185,29 @@ instance ToSchema (ApiT CustomerList) where
                 customerListSchema
 
 instance ToJSON (ApiT ChainPoint) where
-    toJSON (ApiT Origin) = "genesis"
-    toJSON (ApiT (At sl)) = object
-        [ "slot_no" .= toJSON (fromIntegral @Natural @Word64 $ fromSlot sl)
+    toJSON (ApiT Read.GenesisPoint) = "genesis"
+    toJSON (ApiT (Read.BlockPoint{slotNo,headerHash})) = object
+        [ "slot_no" .=
+            Read.unSlotNo slotNo
+        , "header_hash" .=
+            Hash.hashToTextAsHex headerHash
         ]
 
 instance FromJSON (ApiT ChainPoint) where
     parseJSON payload = parseOrigin payload <|> parseSlot payload
       where
-          parseOrigin = withText "genesis" $ \txt ->
-            if txt == "genesis" then
-                pure $ ApiT Origin
-            else
-                fail "'origin' is expected."
-          parseSlot = withObject "slot no" $ \obj ->
-              ApiT . At . toSlot <$>  obj .: "slot_no"
+        parseOrigin = withText "genesis" $ \txt ->
+            if txt == "genesis"
+            then pure $ ApiT Read.GenesisPoint
+            else fail "'genesis' is expected."
+        parseSlot = withObject "slot_no" $ \obj -> do
+            slotNo <- Read.SlotNo <$> obj .: "slot_no"
+            headerHashText <- obj .: "header_hash"
+            headerHash <-
+                case Hash.hashFromTextAsHex headerHashText of
+                    Nothing -> fail "invalid 'header_hash'"
+                    Just hash -> pure hash
+            pure $ ApiT Read.BlockPoint{slotNo,headerHash}
 
 instance ToSchema (ApiT ChainPoint) where
     declareNamedSchema _ = do

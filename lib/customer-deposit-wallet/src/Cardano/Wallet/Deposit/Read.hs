@@ -7,11 +7,8 @@
 -- TODO: Match this up with the @Read@ hierarchy.
 module Cardano.Wallet.Deposit.Read
     ( Network (..)
-    , Slot
     , Read.SlotNo
-    , toSlot
-    , fromSlot
-    , ChainPoint (..)
+    , Read.ChainPoint (..)
 
     , Address
     , KeyHash
@@ -35,6 +32,7 @@ module Cardano.Wallet.Deposit.Read
     , BlockNo
     , Block (..)
     , BHeader (..)
+    , Read.mockRawHeaderHash
     , BHBody (..)
 
     , GenesisData
@@ -78,20 +76,6 @@ import qualified Data.ByteString.Short as SBS
     with dummies
 ------------------------------------------------------------------------------}
 data Network = Testnet | Mainnet
-
--- Spec: type Slot = Natural
-type Slot = Read.SlotNo
-
-toSlot :: Natural -> Slot
-toSlot = Read.SlotNo
-
-fromSlot :: Slot -> Natural
-fromSlot (Read.SlotNo sl) = sl
-
-data ChainPoint
-    = Origin
-    | At Slot
-    deriving (Eq, Ord, Show)
 
 -- | Synonym for readability.
 -- The ledger specifications define @Addr@.
@@ -154,7 +138,7 @@ type Sig = ()
 data BHBody = BHBody
     { prev :: Maybe HashHeader
     , blockno :: BlockNo
-    , slot :: Slot
+    , slotNo :: Read.SlotNo
     , bhash :: HashBBody
     }
     deriving (Eq, Ord, Show)
@@ -166,7 +150,7 @@ dummyBHBody :: BHBody
 dummyBHBody = BHBody
     { prev = Nothing
     , blockno = 128
-    , slot = Read.SlotNo 42
+    , slotNo = Read.SlotNo 42
     , bhash = ()
     }
 

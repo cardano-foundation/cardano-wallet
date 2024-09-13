@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-|
 Copyright: © 2024 Cardano Foundation
 License: Apache-2.0
@@ -93,10 +94,19 @@ newNetworkEnvMock = do
         }
 
 genesis :: Read.ChainPoint
-genesis = Read.Origin
+genesis = Read.GenesisPoint
 
 getBlockPoint :: Read.Block -> Read.ChainPoint
-getBlockPoint = Read.At . Read.slot . Read.blockHeaderBody . Read.blockHeader
+getBlockPoint block =
+    Read.BlockPoint
+        { Read.slotNo = slot
+        , Read.headerHash =
+            Read.mockRawHeaderHash
+            $ fromIntegral $ fromEnum slot
+        }
+  where
+    bhBody = Read.blockHeaderBody $ Read.blockHeader block
+    slot = Read.slotNo bhBody
 
 mkNextBlock :: Read.ChainPoint -> [Tx Conway] -> Read.Block
 mkNextBlock tipOld txs =
@@ -105,7 +115,7 @@ mkNextBlock tipOld txs =
             { Read.blockHeaderBody = Read.BHBody
                 { Read.prev = Nothing
                 , Read.blockno = toEnum $ fromEnum slotNext
-                , Read.slot = slotNext
+                , Read.slotNo = slotNext
                 , Read.bhash = ()
                 }
             , Read.blockHeaderSignature = ()
@@ -114,5 +124,5 @@ mkNextBlock tipOld txs =
         }
  where
     slotNext = case tipOld of
-        Read.Origin -> 1
-        Read.At n -> succ n
+        Read.GenesisPoint -> 1
+        Read.BlockPoint{slotNo = n} -> succ n

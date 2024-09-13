@@ -176,7 +176,7 @@ rollForwardUTxO isOurs block u =
     UTxOHistory.appendBlock slot deltaUTxO u
   where
     (deltaUTxO,_) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
-    slot = Read.slot . Read.blockHeaderBody $ Read.blockHeader block
+    slot = Read.slotNo . Read.blockHeaderBody $ Read.blockHeader block
 
 rollBackward
     :: Read.ChainPoint

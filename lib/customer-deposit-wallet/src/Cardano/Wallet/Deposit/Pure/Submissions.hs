@@ -31,11 +31,11 @@ import qualified Data.Delta as Delta
     Types
 ------------------------------------------------------------------------------}
 type TxSubmissions
-    = Sbm.Submissions () Read.Slot (Read.TxId, Read.Tx)
+    = Sbm.Submissions () Read.SlotNo (Read.TxId, Read.Tx)
 type TxSubmissionsStatus
-    = Sbm.TxStatusMeta () Read.Slot (Read.TxId, Read.Tx)
+    = Sbm.TxStatusMeta () Read.SlotNo (Read.TxId, Read.Tx)
 type DeltaTxSubmissions1
-    = Sbm.Operation () Read.Slot (Read.TxId, Read.Tx)
+    = Sbm.Operation () Read.SlotNo (Read.TxId, Read.Tx)
 type DeltaTxSubmissions
     = [DeltaTxSubmissions1]
 
@@ -56,7 +56,7 @@ empty = Sbm.mkEmpty 0
 
 -- | Add a /new/ transaction to the local submission pool
 -- with the most recent submission slot.
-add :: Read.Tx -> Read.Slot -> DeltaTxSubmissions
+add :: Read.Tx -> Read.SlotNo -> DeltaTxSubmissions
 add = undefined
 
 listInSubmission :: TxSubmissions -> Set Read.Tx
@@ -69,5 +69,5 @@ rollForward block = [ Sbm.RollForward tip txs ]
     txids = undefined block
     txs = map (tip,) txids
 
-rollBackward :: Read.Slot -> DeltaTxSubmissions
+rollBackward :: Read.SlotNo -> DeltaTxSubmissions
 rollBackward = undefined
