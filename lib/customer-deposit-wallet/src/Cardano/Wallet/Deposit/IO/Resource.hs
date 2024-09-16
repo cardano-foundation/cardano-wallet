@@ -65,19 +65,19 @@ data Resource e a = Resource
 
 -- | Possible status of the content of a 'Resource'.
 data ResourceStatus e a
-    = NotInitialized
-    | Initializing
-    | Initialized a
-    | FailedToInitialize e
+    = Closed
+    | Opening
+    | Open a
+    | FailedToOpen e
     | Vanished SomeException
     deriving (Show)
 
 instance Functor (ResourceStatus e) where
-    fmap _ NotInitialized = NotInitialized
-    fmap _ Initializing = Initializing
-    fmap f (Initialized a) = Initialized (f a)
+    fmap _ Closed = Closed
+    fmap _ Opening = Opening
+    fmap f (Open a) = Open (f a)
     fmap _ (Vanished e) = Vanished e
-    fmap _ (FailedToInitialize e) = FailedToInitialize e
+    fmap _ (FailedToOpen e) = FailedToOpen e
 
 -- | Read the status of a 'Resource'.
 readStatus :: Resource e a -> IO (ResourceStatus e ())
@@ -97,7 +97,7 @@ withResource
     -> IO b
     -- ^ Result of the action.
 withResource action = do
-    content <- newTVarIO NotInitialized
+    content <- newTVarIO Closed
     finished <- newEmptyMVar
     let waitForEndOfLife = takeMVar finished
         resource = Resource{content, waitForEndOfLife}
@@ -125,11 +125,11 @@ onResource
 onResource action resource = do
     eContent <- readTVarIO $ content resource
     case eContent of
-        NotInitialized -> pure $ Left ErrNotInitialized
-        Initializing -> pure $ Left ErrStillInitializing
-        Initialized a -> Right <$> action a
+        Closed -> pure $ Left ErrNotInitialized
+        Opening -> pure $ Left ErrStillInitializing
+        Open a -> Right <$> action a
         Vanished e -> pure $ Left $ ErrVanished e
-        FailedToInitialize e -> pure $ Left $ ErrFailedToInitialize e
+        FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
 
 -- | Error condition for 'putResource'.
 data ErrResourceExists e a
@@ -159,13 +159,13 @@ putResource start trs resource = do
     forking <- atomically $ do
         ca :: ResourceStatus e a <- readTVar (content resource)
         case ca of
-            FailedToInitialize e -> pure $ Left $ ErrAlreadyFailedToInitialize e
+            FailedToOpen e -> pure $ Left $ ErrAlreadyFailedToInitialize e
             Vanished e -> pure $ Left $ ErrAlreadyVanished e
-            Initializing -> pure $ Left ErrAlreadyInitializing
-            Initialized a -> pure $ Left $ ErrAlreadyInitialized a
-            NotInitialized -> do
-                writeTVar (content resource) Initializing
-                pure $ Right (forkInitialization >> traceWith trs Initializing)
+            Opening -> pure $ Left ErrAlreadyInitializing
+            Open a -> pure $ Left $ ErrAlreadyInitialized a
+            Closed -> do
+                writeTVar (content resource) Opening
+                pure $ Right (forkInitialization >> traceWith trs Opening)
     case forking of
         Left e -> pure $ Left e
         Right action -> Right <$> action
@@ -174,14 +174,14 @@ putResource start trs resource = do
         r <- start run
         join $ atomically $ case r of
             Left e -> do
-                writeTVar (content resource) (FailedToInitialize e)
-                pure $ traceWith trs (FailedToInitialize e)
+                writeTVar (content resource) (FailedToOpen e)
+                pure $ traceWith trs (FailedToOpen e)
             Right () -> pure (pure ())
     forkInitialization = void $ forkFinally controlInitialization vanish
 
     run a = do
-        atomically $ writeTVar (content resource) (Initialized a)
-        traceWith trs (Initialized a)
+        atomically $ writeTVar (content resource) (Open a)
+        traceWith trs (Open a)
         waitForEndOfLife resource
 
     vanish (Left e) = do
