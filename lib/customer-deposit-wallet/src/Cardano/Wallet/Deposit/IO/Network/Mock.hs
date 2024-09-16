@@ -55,11 +55,11 @@ newNetworkEnvMock
     => m (NetworkEnv m Read.Block)
 newNetworkEnvMock = do
     mchain <- newTVarIO []
-    mtip <- newTVarIO genesis
+    mtip <- newTVarIO Read.GenesisPoint
     mfollowers <- newTVarIO []
 
     let registerAndUpdate follower = do
-            _ <- rollBackward follower genesis
+            _ <- rollBackward follower Read.GenesisPoint
             (chain, tip) <- atomically $ do
                 modifyTVar mfollowers (follower:)
                 (,) <$> readTVar mchain <*> readTVar mtip
@@ -92,9 +92,6 @@ newNetworkEnvMock = do
             threadDelay 100
             pure $ Right ()
         }
-
-genesis :: Read.ChainPoint
-genesis = Read.GenesisPoint
 
 mkNextBlock :: Read.ChainPoint -> [Tx Conway] -> Read.Block
 mkNextBlock tipOld txs =
