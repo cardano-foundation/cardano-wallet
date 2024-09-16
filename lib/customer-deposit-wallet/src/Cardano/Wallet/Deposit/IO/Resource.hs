@@ -26,11 +26,6 @@ import Prelude
 import Control.Concurrent
     ( forkFinally
     )
-import Control.Concurrent.Class.MonadMVar
-    ( MonadMVar (..)
-    , putMVar
-    , takeMVar
-    )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM (..)
     , TVar
@@ -59,7 +54,7 @@ import Control.Tracer
 -- that has to be initialized with a 'with…' function.
 data Resource e a = Resource
     { content :: TVar IO (ResourceStatus e a)
-    , waitForEndOfLife :: IO ()
+    , waitForEndOfLife :: IO (Either (Either SomeException e) ())
     -- ^ Wait until the 'Resource' is out of scope.
     }
 
@@ -100,10 +95,15 @@ withResource
     -- ^ Result of the action.
 withResource action = do
     content <- newTVarIO Closed
-    finished <- newEmptyMVar
-    let waitForEndOfLife = takeMVar finished
+    let waitForEndOfLife = atomically $ do
+            state <- readTVar content
+            case state of
+                Closing -> pure $ Right ()
+                Vanished e -> pure $ Left $ Left e
+                FailedToOpen e -> pure $ Left $ Right e
+                _ -> retry
         resource = Resource{content, waitForEndOfLife}
-    action resource `finally` putMVar finished ()
+    action resource `finally` atomically (writeTVar content Closed)
 
 -- | Error condition for 'onResource'.
 data ErrResourceMissing e
@@ -182,10 +182,16 @@ putResource start trs resource = do
     controlInitialization = do
         r <- start run
         join $ atomically $ case r of
+            Right (Right ()) -> pure (pure ())
+            Right (Left (Left e)) -> do
+                writeTVar (content resource) (Vanished e)
+                pure $ traceWith trs (Vanished e)
+            Right (Left (Right e)) -> do
+                writeTVar (content resource) (FailedToOpen e)
+                pure $ traceWith trs (FailedToOpen e)
             Left e -> do
                 writeTVar (content resource) (FailedToOpen e)
                 pure $ traceWith trs (FailedToOpen e)
-            Right () -> pure (pure ())
     forkInitialization = void $ forkFinally controlInitialization vanish
 
     run a = do
