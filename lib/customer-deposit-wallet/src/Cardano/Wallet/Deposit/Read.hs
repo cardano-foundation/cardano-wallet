@@ -34,6 +34,7 @@ module Cardano.Wallet.Deposit.Read
     , BlockNo
     , Block (..)
     , getChainPoint
+    , mockNextBlock
     , BHeader (..)
     , Read.mockRawHeaderHash
     , BHBody (..)
@@ -43,7 +44,6 @@ module Cardano.Wallet.Deposit.Read
 
     -- * Dummy Values useful for testing
     , dummyAddress
-    , dummyBHeader
     ) where
 
 import Prelude
@@ -143,7 +143,7 @@ data BHBody = BHBody
     }
     deriving (Eq, Ord, Show)
 
-type HashHeader = ()
+type HashHeader = Read.RawHeaderHash
 type HashBBody = ()
 
 getChainPoint :: Block -> Read.ChainPoint
@@ -158,19 +158,29 @@ getChainPoint block =
     bhBody = blockHeaderBody $ blockHeader block
     slot = slotNo bhBody
 
-dummyBHeader :: BHeader
-dummyBHeader = BHeader
-    { blockHeaderBody = dummyBHBody
-    , blockHeaderSignature = ()
-    }
-
-dummyBHBody :: BHBody
-dummyBHBody = BHBody
-    { prev = Nothing
-    , blockno = 128
-    , slotNo = Read.SlotNo 42
-    , bhash = ()
-    }
+-- | Create a new block from a sequence of transaction.
+mockNextBlock :: Read.ChainPoint -> [Read.Tx Read.Conway] -> Block
+mockNextBlock old txs =
+    Block
+        { blockHeader = BHeader
+            { blockHeaderBody = BHBody
+                { prev
+                , blockno
+                , slotNo
+                , bhash = ()
+                }
+            , blockHeaderSignature = ()
+            }
+        , transactions = txs
+        }
+  where
+    blockno = toEnum $ fromEnum slotNo
+    slotNo = case old of
+        Read.GenesisPoint -> 0
+        Read.BlockPoint{slotNo = n} -> succ n
+    prev = case old of
+        Read.GenesisPoint -> Nothing
+        Read.BlockPoint{headerHash} -> Just headerHash
 
 {-----------------------------------------------------------------------------
     Genesis
