@@ -169,6 +169,7 @@ instance Show ErrWalletResource where
             ErrFailedToInitialize e' ->
                 "Wallet failed to initialize (no wallet): "
                     <> show e'
+            ErrClosing -> "Wallet is closing"
         ErrWalletPresent e -> case e of
             ErrAlreadyInitializing -> "Wallet is already initializing"
             ErrAlreadyInitialized _ -> "Wallet is already initialized"
@@ -176,6 +177,7 @@ instance Show ErrWalletResource where
             ErrAlreadyFailedToInitialize e' ->
                 "Wallet failed to initialize (wallet present): "
                     <> show e'
+            ErrAlreadyClosing -> "Wallet is already closing"
 
 -- | Monad for acting on a 'WalletResource'.
 type WalletResourceM = ReaderT WalletResource (ExceptT ErrWalletResource IO)

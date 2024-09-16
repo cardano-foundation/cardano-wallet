@@ -74,3 +74,4 @@ walletPresent session = catchRunWalletResourceM session $ do
         Vanished e -> pure $ WalletVanished e
         FailedToOpen e -> pure $ WalletFailedToInitialize e
         Opening -> pure WalletInitializing
+        Closing -> pure WalletClosing

@@ -79,6 +79,7 @@ data WalletPresent
     | WalletFailedToInitialize ErrDatabase
     | WalletVanished SomeException
     | WalletInitializing
+    | WalletClosing
 
 instance Show WalletPresent where
     show (WalletPresent x) = "WalletPresent: " <> show x
@@ -86,6 +87,7 @@ instance Show WalletPresent where
     show (WalletFailedToInitialize _) = "WalletFailedToInitialize"
     show (WalletVanished _) = "WalletVanished"
     show WalletInitializing = "WalletInitializing"
+    show WalletClosing = "WalletClosing"
 
 walletH :: WHtml ()
 walletH = sseH walletLink "wallet" ["wallet"]
@@ -134,6 +136,7 @@ walletElementH alert = \case
                 <> BL.pack (show err)
     WalletVanished e -> alert $ "Wallet vanished " <> BL.pack (show e)
     WalletInitializing -> alert "Wallet is initializing"
+    WalletClosing -> alert "Wallet is closing"
 
 data BadgeStyle
     = Primary

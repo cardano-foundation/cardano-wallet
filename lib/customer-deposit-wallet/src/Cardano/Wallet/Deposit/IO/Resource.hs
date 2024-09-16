@@ -70,6 +70,7 @@ data ResourceStatus e a
     | Open a
     | FailedToOpen e
     | Vanished SomeException
+    | Closing
     deriving (Show)
 
 instance Functor (ResourceStatus e) where
@@ -78,6 +79,7 @@ instance Functor (ResourceStatus e) where
     fmap f (Open a) = Open (f a)
     fmap _ (Vanished e) = Vanished e
     fmap _ (FailedToOpen e) = FailedToOpen e
+    fmap _ Closing = Closing
 
 -- | Read the status of a 'Resource'.
 readStatus :: Resource e a -> IO (ResourceStatus e ())
@@ -111,8 +113,11 @@ data ErrResourceMissing e
       ErrStillInitializing
     | -- | The 'Resource' has not been initialized yet.
       ErrVanished SomeException
-    | -- ErrFailedToInitialize
+    | -- | The 'Resource' has vanished due to an unhandled exception.
       ErrFailedToInitialize e
+    -- | The 'Resource' has failed to initialize.
+    | ErrClosing
+    -- | The 'Resource is currently being closed.
     deriving (Show)
 
 -- | Perform an action on a 'Resource' if it is initialized.
@@ -130,6 +135,7 @@ onResource action resource = do
         Open a -> Right <$> action a
         Vanished e -> pure $ Left $ ErrVanished e
         FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
+        Closing -> pure $ Left ErrClosing
 
 -- | Error condition for 'putResource'.
 data ErrResourceExists e a
@@ -141,6 +147,8 @@ data ErrResourceExists e a
       ErrAlreadyVanished SomeException
     | -- | The resource 'a' has failed to initialize.
       ErrAlreadyFailedToInitialize e
+    | -- | The resource 'a' is currently being closed.
+        ErrAlreadyClosing
     deriving (Show)
 
 -- | Initialize a 'Resource' using a @with…@ function.
@@ -166,6 +174,7 @@ putResource start trs resource = do
             Closed -> do
                 writeTVar (content resource) Opening
                 pure $ Right (forkInitialization >> traceWith trs Opening)
+            Closing -> pure $ Left ErrAlreadyClosing
     case forking of
         Left e -> pure $ Left e
         Right action -> Right <$> action
