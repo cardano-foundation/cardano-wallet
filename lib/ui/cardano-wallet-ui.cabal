@@ -55,8 +55,10 @@ library
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API
+    Cardano.Wallet.UI.Deposit.Handlers.Wallet
     Cardano.Wallet.UI.Deposit.Html.Pages.About
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
+    Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Shelley.API
@@ -89,6 +91,7 @@ library
     , containers
     , contra-tracer
     , cookie
+    , customer-deposit-wallet
     , exceptions
     , generic-lens
     , http-media

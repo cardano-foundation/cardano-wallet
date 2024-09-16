@@ -3,6 +3,7 @@ module Cardano.Wallet.Deposit.Pure
     -- * Types
       WalletState
     , DeltaWalletState
+    , WalletPublicIdentity (..)
 
     -- * Operations
     -- ** Mapping between customers and addresses
@@ -102,6 +103,12 @@ data WalletState = WalletState
     }
 
 type DeltaWalletState = Delta.Replace WalletState
+
+data WalletPublicIdentity = WalletPublicIdentity
+    { pubXpub :: XPub
+    , pubNextUser :: Word31
+    }
+    deriving Show
 
 {-----------------------------------------------------------------------------
     Operations

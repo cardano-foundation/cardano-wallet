@@ -13,6 +13,8 @@
 
 module Cardano.Wallet.UI.Deposit.API where
 
+import Prelude
+
 import Cardano.Wallet.UI.Common.API
     ( Image
     , SessionedHtml
@@ -30,6 +32,7 @@ import Servant
     , Link
     , Post
     , Proxy (..)
+    , QueryParam
     , allLinks
     , (:<|>) (..)
     , (:>)
@@ -42,6 +45,8 @@ type Pages =
     "about" :> SessionedHtml Get
         :<|> "network" :> SessionedHtml Get
         :<|> "settings" :> SessionedHtml Get
+        :<|> "wallet" :> SessionedHtml Get
+
 -- | Data endpoints
 type Data =
     "network" :> "info" :> SessionedHtml Get
@@ -49,6 +54,11 @@ type Data =
         :<|> "settings" :> "sse" :> "toggle" :> SessionedHtml Post
         :<|> "sse" :> (CookieRequest :> SSE)
         :<|> "favicon.ico" :> Get '[Image] BL.ByteString
+        :<|> "wallet"
+            :> "mnemonic"
+            :> QueryParam "clean" Bool
+            :> SessionedHtml Get
+        :<|> "wallet" :> SessionedHtml Get
 
 type Home = SessionedHtml Get
 
@@ -69,14 +79,19 @@ settingsGetLink :: Link
 settingsSseToggleLink :: Link
 sseLink :: Link
 faviconLink :: Link
-
+walletMnemonicLink :: Maybe Bool -> Link
+walletPageLink :: Link
+walletLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
     :<|> settingsPageLink
+    :<|> walletPageLink
     :<|> networkInfoLink
     :<|> settingsGetLink
     :<|> settingsSseToggleLink
     :<|> sseLink
-    :<|> faviconLink =
+    :<|> faviconLink
+    :<|> walletMnemonicLink
+    :<|> walletLink =
         allLinks (Proxy @UI)

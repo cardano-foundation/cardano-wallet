@@ -95,6 +95,12 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     )
+import Cardano.Wallet.Deposit.IO.Resource
+    ( withResource
+    )
+import Cardano.Wallet.Deposit.REST
+    ( WalletResource
+    )
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyFlavorS (..)
@@ -384,7 +390,8 @@ serveWallet
                     case ms of
                         Nothing -> pure ()
                         Just (_port, socket) -> do
-                            ui <- Ui.withUILayer 1 ()
+                            r <- ContT withResource
+                            ui <- Ui.withUILayer 1 r
                             sourceOfNewTip netLayer ui
                             let uiService =
                                     startDepositUiServer
@@ -519,7 +526,7 @@ serveWallet
             :: forall n
              . ( HasSNetworkId n
                )
-            => UILayer ()
+            => UILayer WalletResource
             -> Socket
             -> SNetworkId n
             -> NetworkLayer IO (CardanoBlock StandardCrypto)

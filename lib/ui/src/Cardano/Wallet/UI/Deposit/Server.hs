@@ -16,6 +16,9 @@ import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
 import Cardano.Wallet.Api.Types
     ( ApiWalletMode (..)
     )
+import Cardano.Wallet.Deposit.REST
+    ( WalletResource
+    )
 import Cardano.Wallet.Network
     ( NetworkLayer
     )
@@ -36,6 +39,9 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     )
+import Cardano.Wallet.UI.Common.Handlers.Wallet
+    ( pickMnemonic
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
@@ -53,6 +59,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Settings
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Wallet
+    ( mnemonicH
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -68,9 +77,15 @@ import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Wallet
+    ( getWallet
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , page
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
+    ( walletElementH
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -99,7 +114,7 @@ import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Data.ByteString.Lazy as BL
 
 pageHandler
-    :: UILayer ()
+    :: UILayer a
     -> PageConfig
     -> Page
     -> Maybe RequestCookies
@@ -114,37 +129,47 @@ showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 serveUI
     :: forall n
      . HasSNetworkId n
-    => UILayer ()
+    => UILayer WalletResource
     -> PageConfig
     -> SNetworkId n
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI ul config _ nl  bs =
+serveUI ul config _ nl bs =
     ph About
         :<|> ph About
         :<|> ph Network
         :<|> ph Settings
+        :<|> ph Wallet
         :<|> sessioning (renderHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead (sse . sseConfig)
         :<|> serveFavicon
+        :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
+        :<|> wsl (\l -> getWallet l alert (renderHtml . walletElementH))
   where
     ph = pageHandler ul config
     _ok _ = renderHtml . rogerH @Text $ "ok"
-    _alert = renderHtml . alertH
+    alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
-    withSessionLayerRead :: (SessionLayer () -> Handler a) -> Maybe RequestCookies -> Handler a
+    withSessionLayerRead
+        :: (SessionLayer WalletResource -> Handler a)
+        -> Maybe RequestCookies
+        -> Handler a
     withSessionLayerRead f = withSessionRead $ \k -> do
         s <- liftIO $ sessions ul k
         f s
 
-withSessionLayer :: UILayer () -> (SessionLayer () -> Handler a) -> Maybe RequestCookies -> Handler (CookieResponse a)
+withSessionLayer
+    :: UILayer s
+    -> (SessionLayer s -> Handler a)
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse a)
 withSessionLayer ulayer f = withSession $ \k -> do
     s <- liftIO $ sessions ulayer k
     f s

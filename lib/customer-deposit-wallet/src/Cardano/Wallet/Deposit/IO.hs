@@ -43,6 +43,7 @@ import Cardano.Wallet.Address.BIP32
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    , WalletPublicIdentity (..)
     , WalletState
     , Word31
     )
@@ -194,11 +195,6 @@ createAddress c w =
         $ \s0 ->
             let (r,s1) = Wallet.createAddress c s0
             in  (Delta.Replace s1, r)
-
-data WalletPublicIdentity = WalletPublicIdentity
-    { pubXpub :: XPub
-    , pubNextUser :: Word31
-    }
 
 walletPublicIdentity :: WalletInstance -> IO WalletPublicIdentity
 walletPublicIdentity w = do
