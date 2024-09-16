@@ -1,5 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -27,12 +29,15 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
     )
-import Data.Aeson
-    ( Value
+import Data.Text
+    ( Text
+    )
+import GHC.Generics
+    ( Generic
     )
 import Servant
-    ( Get
-    , JSON
+    ( FormUrlEncoded
+    , Get
     , Link
     , Post
     , Proxy (..)
@@ -42,8 +47,27 @@ import Servant
     , (:<|>) (..)
     , (:>)
     )
+import Web.FormUrlEncoded
+    ( FromForm
+    )
 
 import qualified Data.ByteString.Lazy as BL
+
+data PostWalletViaMenmonic = PostWalletViaMenmonic
+    { mnemonics :: Text
+    , users :: Int
+    }
+    deriving (Generic)
+
+instance FromForm PostWalletViaMenmonic
+
+data PostWalletViaXPub = PostWalletViaXPub
+    { xpub :: Text
+    , users :: Int
+    }
+    deriving (Generic)
+
+instance FromForm PostWalletViaXPub
 
 -- | Pages endpoints
 type Pages =
@@ -66,11 +90,11 @@ type Data =
         :<|> "wallet" :> SessionedHtml Get
         :<|> "wallet"
             :> "mnemonic"
-            :> ReqBody '[JSON] Value
+            :> ReqBody '[FormUrlEncoded] PostWalletViaMenmonic
             :> SessionedHtml Post
         :<|> "wallet"
             :> "xpub"
-            :> ReqBody '[JSON] Value
+            :> ReqBody '[FormUrlEncoded] PostWalletViaXPub
             :> SessionedHtml Post
 
 type Home = SessionedHtml Get
@@ -110,6 +134,5 @@ homePageLink
     :<|> walletMnemonicLink
     :<|> walletLink
     :<|> walletPostMnemonicLink
-    :<|> walletPostXPubLink
-    =
+    :<|> walletPostXPubLink =
         allLinks (Proxy @UI)

@@ -97,6 +97,7 @@ library
     , customer-deposit-wallet
     , exceptions
     , generic-lens
+    , http-api-data
     , http-media
     , lens
     , lucid

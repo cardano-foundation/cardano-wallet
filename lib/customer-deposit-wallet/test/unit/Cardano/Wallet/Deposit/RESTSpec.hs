@@ -77,7 +77,7 @@ withInitializedWallet
     -> WalletResourceM a
     -> IO (Either ErrWalletResource a)
 withInitializedWallet dir f = withWallet $ do
-    initXPubWallet fakeBootEnv dir nullTracer xpub 0
+    initXPubWallet nullTracer fakeBootEnv dir nullTracer xpub 0
     letItInitialize
     f
 

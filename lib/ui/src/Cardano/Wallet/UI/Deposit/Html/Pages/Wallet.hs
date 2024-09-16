@@ -65,7 +65,9 @@ import Lucid
     , class_
     , div_
     , hidden_
+    , hr_
     , id_
+    , section_
     )
 
 import qualified Data.ByteString.Char8 as B8
@@ -110,13 +112,16 @@ walletElementH alert = \case
             simpleField "Public Key" $ pubKeyH xpub
             simpleField "Customer Discovery" $ toHtml $ toText customers
     WalletAbsent -> runWHtml Deposit $ do
-        newWalletFromMnemonicH walletMnemonicLink
+        section_
+            $ newWalletFromMnemonicH walletMnemonicLink
             $ PostWalletConfig
                 { walletDataLink = walletPostMnemonicLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        newWalletFromXPubH
+        hr_ mempty
+        section_
+            $ newWalletFromXPubH
             $ PostWalletConfig
                 { walletDataLink = walletPostXPubLink
                 , passwordVisibility = Just Hidden

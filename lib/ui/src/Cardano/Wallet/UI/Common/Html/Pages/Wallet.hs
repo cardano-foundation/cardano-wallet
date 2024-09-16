@@ -9,8 +9,7 @@ import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
-    ( hxExt_
-    , hxGet_
+    ( hxGet_
     , hxPost_
     , hxTarget_
     )
@@ -22,6 +21,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 import Cardano.Wallet.UI.Type
     ( WHtml
+    , onDeposit
     , onShelley
     )
 import Data.Text
@@ -70,7 +70,6 @@ postWalletFormTagH :: PostWalletConfig -> WHtml () -> WHtml ()
 postWalletFormTagH PostWalletConfig{..} =
     form_
         [ hxPost_ $ linkText walletDataLink
-        , hxExt_ "json-enc"
         , hxTarget_ responseTarget
         , autocomplete_ "off"
         ]
@@ -119,9 +118,16 @@ mnemonicSetupFieldsH PostWalletConfig{..} = do
     input_
         [ class_ "form-control form-control-lg mb-3"
         , visibility
-        , name_ "mnemonicSentence"
+        , name_ "mnemonics"
         , placeholder_ "Mnemonic Sentence"
         ]
+    onDeposit
+        $ input_
+            [ class_ "form-control form-control-lg mb-3"
+            , type_ "number"
+            , name_ "users"
+            , placeholder_ "Customer Discovery"
+            ]
     onShelley
         $ input_
             [ class_ "form-control form-control-lg mb-3"
@@ -160,6 +166,13 @@ newWalletFromXPubH config = do
             , name_ "xpub"
             , placeholder_ "Extended Public Key"
             ]
+        onDeposit
+            $ input_
+                [ class_ "form-control form-control-lg mb-3"
+                , type_ "number"
+                , name_ "users"
+                , placeholder_ "Customer Discovery"
+                ]
         button_
             [ class_ "btn btn-primary btn-block mb-3"
             , type_ "submit"

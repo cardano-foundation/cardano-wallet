@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -237,7 +238,9 @@ findTheDepositWalletOnDisk fp action = do
 
 -- | Try to create a new wallet
 createTheDepositWalletOnDisk
-    :: FilePath
+    :: Tracer IO String
+    -- ^ Tracer for logging
+    -> FilePath
     -- ^ Path to the wallet database directory
     -> XPub
     -- ^ Id of the wallet
@@ -246,7 +249,7 @@ createTheDepositWalletOnDisk
     -> (Maybe WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is created
     -> IO a
-createTheDepositWalletOnDisk fp identity users action = do
+createTheDepositWalletOnDisk _tr fp identity users action = do
     ds <- scanDirectoryForDepositPrefix fp
     case ds of
         [] -> do
@@ -260,7 +263,7 @@ createTheDepositWalletOnDisk fp identity users action = do
     hashWalletId :: XPub -> String
     hashWalletId =
         B8.unpack
-            . convertToBase Base64
+            . convertToBase Base16
             . blake2b160
             . xpubPublicKey
 
@@ -289,7 +292,9 @@ loadWallet bootEnv fp trs = do
 
 -- | Initialize a new wallet from an 'XPub'.
 initXPubWallet
-    :: WalletIO.WalletBootEnv IO
+    :: Tracer IO String
+    -- ^ Tracer for logging
+    -> WalletIO.WalletBootEnv IO
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
@@ -299,9 +304,9 @@ initXPubWallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initXPubWallet bootEnv fp trs xpub users = do
+initXPubWallet tr bootEnv fp trs xpub users = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
-        action f = createTheDepositWalletOnDisk fp xpub users $ \case
+        action f = createTheDepositWalletOnDisk tr fp xpub users $ \case
             Just wallet -> do
                 fmap Right
                     $ WalletIO.withWalletInit

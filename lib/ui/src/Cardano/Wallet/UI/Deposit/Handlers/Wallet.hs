@@ -8,19 +8,23 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub
     )
+import Cardano.Wallet.Deposit.Pure
+    ( Customer
+    )
 import Cardano.Wallet.Deposit.REST
     ( ErrWalletResource
     , WalletResource
     , WalletResourceM
     , runWalletResourceM
     )
-import Cardano.Wallet.UI.Common.Handlers.Lib
-    ( handleParseRequestError
-    )
 import Cardano.Wallet.UI.Common.Layer
     ( Push (Push)
     , SessionLayer (..)
     , stateL
+    )
+import Cardano.Wallet.UI.Deposit.API
+    ( PostWalletViaMenmonic (..)
+    , PostWalletViaXPub (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresent
@@ -34,23 +38,12 @@ import Control.Lens
 import Control.Monad.Trans
     ( MonadIO (..)
     )
-import Data.Aeson
-    ( Value
-    , withObject
-    , (.:)
-    )
-import Data.Aeson.Types
-    ( parseEither
-    )
 import Data.ByteArray.Encoding
     ( Base (..)
     , convertFromBase
     )
 import Data.ByteString
     ( ByteString
-    )
-import Data.Text
-    ( Text
     )
 import Servant
     ( Handler
@@ -91,12 +84,11 @@ initWalletWithXPub
     :: SessionLayer WalletResource
     -> (BL.ByteString -> html)
     -> (() -> html)
-    -> (XPub -> WalletResourceM a)
-    -> XPub
+    -> (WalletResourceM a)
     -> Handler html
-initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet xpub = do
+initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet = do
     liftIO $ sendSSE $ Push "wallet"
-    r <- liftIO $ catchRunWalletResourceM l (initWallet xpub)
+    r <- liftIO $ catchRunWalletResourceM l initWallet
     case r of
         Left e -> pure $ alert $ BL.pack $ show e
         Right _ -> do
@@ -105,39 +97,33 @@ initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet xpub = do
 
 postMnemonicWallet
     :: SessionLayer WalletResource
-    -> (XPub -> WalletResourceM a)
+    -> (XPub -> Customer -> WalletResourceM a)
     -> (BL.ByteString -> html)
     -> (() -> html)
-    -> Value
+    -> PostWalletViaMenmonic
     -> Handler html
-postMnemonicWallet l initWallet alert render v = do
-    mnemonic <-
-        handleParseRequestError
-            $ parsePostWalletRequest v
-    let xpub =
-            Addresses.toXPub
-                $ Addresses.generate (T.encodeUtf8 mnemonic)
-    initWalletWithXPub l alert render initWallet xpub
-
-parsePostWalletRequest :: Value -> Either String Text
-parsePostWalletRequest = parseEither
-    . withObject "create wallet request"
-    $ \o -> o .: "mnemonicSentence"
+postMnemonicWallet
+    l
+    initWallet
+    alert
+    render
+    (PostWalletViaMenmonic mnemonic users) = do
+        let xpub =
+                Addresses.toXPub
+                    $ Addresses.generate (T.encodeUtf8 mnemonic)
+        initWalletWithXPub l alert render $ initWallet xpub $ fromIntegral users
 
 unBase64 :: ByteString -> Either String ByteString
 unBase64 = convertFromBase Base64
 
 postXPubWallet
     :: SessionLayer WalletResource
-    -> (XPub -> WalletResourceM a)
+    -> (XPub -> Customer -> WalletResourceM a)
     -> (BL.ByteString -> html)
     -> (() -> html)
-    -> Value
+    -> PostWalletViaXPub
     -> Handler html
-postXPubWallet l initWallet alert render v = do
-    xpubText <-
-        handleParseRequestError
-            $ parsePostXPubRequest v
+postXPubWallet l initWallet alert render (PostWalletViaXPub xpubText users) = do
     case T.encodeUtf8 xpubText of
         xpubByteString -> case unBase64 xpubByteString of
             Left e -> pure $ alert $ BL.pack $ "Invalid base64: " <> e
@@ -147,12 +133,10 @@ postXPubWallet l initWallet alert render v = do
                         $ alert
                         $ BL.pack
                         $ "Invalid xpub: " <> show xpubText
-                Just xpub -> initWalletWithXPub l alert render initWallet xpub
-
-parsePostXPubRequest :: Value -> Either String Text
-parsePostXPubRequest = parseEither
-    . withObject "create wallet from xpub request"
-    $ \o -> o .: "xpub"
+                Just xpub ->
+                    initWalletWithXPub l alert render
+                        $ initWallet xpub
+                        $ fromIntegral users
 
 walletIsLoading
     :: SessionLayer WalletResource

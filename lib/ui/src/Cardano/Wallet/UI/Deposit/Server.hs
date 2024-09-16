@@ -172,7 +172,7 @@ serveUI tr ul env dbDir config _ nl bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
-    initWallet l xpub = initXPubWallet env dbDir trs xpub 500000
+    initWallet l = initXPubWallet tr env dbDir trs
       where
         trs :: Tracer IO (ResourceStatus ErrDatabase WalletInstance)
         trs = Tracer $ \_e -> do
