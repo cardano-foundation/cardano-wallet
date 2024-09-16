@@ -1,5 +1,5 @@
 name:                cardano-wallet-test-utils
-version:             0.2024.9.3
+version:             0.2024.9.16
 synopsis:            Shared utilities for writing unit and property tests.
 description:         Shared utilities for writing unit and property tests.
 homepage:            https://github.com/cardano-foundation/cardano-wallet
