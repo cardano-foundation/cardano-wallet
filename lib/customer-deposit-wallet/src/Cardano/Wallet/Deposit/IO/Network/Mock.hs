@@ -71,7 +71,7 @@ newNetworkEnvMock = do
             tipOld <- readTVar mtip
             let txRead = Write.toConwayTx (Write.mockTxId tipOld) tx
                 blockNew = mkNextBlock tipOld [txRead]
-                tipNew = getBlockPoint blockNew
+                tipNew = Read.getChainPoint blockNew
             writeTVar mtip tipNew
             modifyTVar mchain (blockNew:)
             pure (blockNew, tipNew)
@@ -95,18 +95,6 @@ newNetworkEnvMock = do
 
 genesis :: Read.ChainPoint
 genesis = Read.GenesisPoint
-
-getBlockPoint :: Read.Block -> Read.ChainPoint
-getBlockPoint block =
-    Read.BlockPoint
-        { Read.slotNo = slot
-        , Read.headerHash =
-            Read.mockRawHeaderHash
-            $ fromIntegral $ fromEnum slot
-        }
-  where
-    bhBody = Read.blockHeaderBody $ Read.blockHeader block
-    slot = Read.slotNo bhBody
 
 mkNextBlock :: Read.ChainPoint -> [Tx Conway] -> Read.Block
 mkNextBlock tipOld txs =

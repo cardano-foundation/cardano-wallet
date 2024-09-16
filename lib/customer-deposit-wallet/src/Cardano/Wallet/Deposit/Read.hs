@@ -1,4 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- | Indirection module that re-exports types
 -- used for reading data from the blockchain,
@@ -31,6 +33,7 @@ module Cardano.Wallet.Deposit.Read
 
     , BlockNo
     , Block (..)
+    , getChainPoint
     , BHeader (..)
     , Read.mockRawHeaderHash
     , BHBody (..)
@@ -112,6 +115,9 @@ type TxBody = ()
 
 type TxWitness = ()
 
+{-----------------------------------------------------------------------------
+    Block
+------------------------------------------------------------------------------}
 type BlockNo = Natural
 
 -- type Block = O.CardanoBlock O.StandardCrypto
@@ -127,12 +133,6 @@ data BHeader = BHeader
     }
     deriving (Eq, Ord, Show)
 
-dummyBHeader :: BHeader
-dummyBHeader = BHeader
-    { blockHeaderBody = dummyBHBody
-    , blockHeaderSignature = ()
-    }
-
 type Sig = ()
 
 data BHBody = BHBody
@@ -146,6 +146,24 @@ data BHBody = BHBody
 type HashHeader = ()
 type HashBBody = ()
 
+getChainPoint :: Block -> Read.ChainPoint
+getChainPoint block =
+    Read.BlockPoint
+        { Read.slotNo = slot
+        , Read.headerHash =
+            Read.mockRawHeaderHash
+            $ fromIntegral $ fromEnum slot
+        }
+  where
+    bhBody = blockHeaderBody $ blockHeader block
+    slot = slotNo bhBody
+
+dummyBHeader :: BHeader
+dummyBHeader = BHeader
+    { blockHeaderBody = dummyBHBody
+    , blockHeaderSignature = ()
+    }
+
 dummyBHBody :: BHBody
 dummyBHBody = BHBody
     { prev = Nothing
@@ -153,6 +171,10 @@ dummyBHBody = BHBody
     , slotNo = Read.SlotNo 42
     , bhash = ()
     }
+
+{-----------------------------------------------------------------------------
+    Genesis
+------------------------------------------------------------------------------}
 
 -- GenesisData is not part of the ledger specification proper
 type GenesisData = Byron.GenesisData
