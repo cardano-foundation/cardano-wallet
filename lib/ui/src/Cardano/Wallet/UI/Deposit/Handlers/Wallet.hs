@@ -143,3 +143,16 @@ walletIsLoading
     -> (WalletPresent -> html)
     -> Handler html
 walletIsLoading layer render = render <$> walletPresent layer
+
+deleteWalletHandler
+    :: SessionLayer WalletResource
+    -> WalletResourceM ()
+    -- ^ deleteWallet
+    -> (BL.ByteString -> html)
+    -> (() -> html)
+    -> Handler html
+deleteWalletHandler layer deleteWallet alert render = do
+    r <- liftIO $ catchRunWalletResourceM layer deleteWallet
+    pure $ case r of
+        Left e -> alert $ BL.pack $ show e
+        Right _ -> render ()
