@@ -42,6 +42,9 @@ module Cardano.Wallet.Deposit.Pure
 
     , addTxSubmission
     , listTxsInSubmission
+
+    -- * Internal, for testing
+    , availableUTxO
     ) where
 
 import Prelude
