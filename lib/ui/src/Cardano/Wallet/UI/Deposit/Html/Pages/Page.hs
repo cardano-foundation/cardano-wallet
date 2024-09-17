@@ -15,6 +15,9 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
+import Cardano.Wallet.UI.Common.Html.Modal
+    ( modalsH
+    )
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkH
     )
@@ -83,13 +86,15 @@ page c@PageConfig{..} p = RawHtml
     $ renderBS
     $ runWHtml Deposit
     $ pageFromBodyH faviconLink c
-    $ bodyH sseLink (headerH prefix p)
     $ do
-        case p of
-            About -> aboutH
-            Network -> networkH networkInfoLink
-            Settings -> settingsPageH settingsGetLink
-            Wallet -> walletH
+        bodyH sseLink (headerH prefix p)
+            $ do
+                modalsH
+                case p of
+                    About -> aboutH
+                    Network -> networkH networkInfoLink
+                    Settings -> settingsPageH settingsGetLink
+                    Wallet -> walletH
 
 headerH :: Text -> Page -> Monad m => HtmlT m ()
 headerH prefix p =

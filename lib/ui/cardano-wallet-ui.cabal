@@ -44,6 +44,7 @@ library
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib
+    Cardano.Wallet.UI.Common.Html.Modal
     Cardano.Wallet.UI.Common.Html.Pages.Lib
     Cardano.Wallet.UI.Common.Html.Pages.Network
     Cardano.Wallet.UI.Common.Html.Pages.Settings
