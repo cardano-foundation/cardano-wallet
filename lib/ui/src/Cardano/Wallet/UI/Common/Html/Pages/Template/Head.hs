@@ -70,7 +70,7 @@ bootstrapIcons =
         [ rel_ "stylesheet"
         , href_ "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
         , integrity_
-            "sha384-XI+Zz5ooq0QtjZVWisDbzKhZHpDvojmuW5fxM3Z1NY3VHU2hlI7c1o4TmYH72yK"
+            "sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
         , crossorigin_ "anonymous"
         ]
 
