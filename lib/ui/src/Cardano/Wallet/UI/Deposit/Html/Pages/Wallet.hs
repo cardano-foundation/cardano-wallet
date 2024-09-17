@@ -22,10 +22,16 @@ import Cardano.Wallet.UI.Common.API
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
-    , hxTarget_
+    , hxSwap_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
-    ( linkText
+    ( dataBsDismiss_
+    , linkText
+    )
+import Cardano.Wallet.UI.Common.Html.Modal
+    ( ModalData (..)
+    , mkModal
+    , mkModalButton
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
@@ -40,6 +46,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     )
 import Cardano.Wallet.UI.Deposit.API
     ( walletDeleteLink
+    , walletDeleteModalLink
     , walletLink
     , walletMnemonicLink
     , walletPostMnemonicLink
@@ -76,6 +83,7 @@ import Lucid
     , hidden_
     , hr_
     , id_
+    , p_
     , section_
     )
 
@@ -116,19 +124,43 @@ pubKeyH xpub = div_ [class_ "row"] $ do
 headAndTail :: Int -> ByteString -> ByteString
 headAndTail n t = B8.take n t <> ".." <> B8.takeEnd n t
 
+deleteWalletButtonH :: Html ()
+deleteWalletButtonH =
+    mkModalButton
+        walletDeleteModalLink
+        [class_ "btn btn-danger"]
+        "Delete Wallet"
+
+deleteWalletModalH :: Html ()
+deleteWalletModalH =
+    mkModal
+        $ ModalData
+            { modalTitle = "Delete Wallet"
+            , modalBody = p_ "Are you sure you want to delete this wallet?"
+            , modalFooter = do
+                button_
+                    [ class_ "btn btn-danger"
+                    , hxDelete_ $ linkText walletDeleteLink
+                    , dataBsDismiss_ "modal"
+                    , hxSwap_ "none"
+                    ]
+                    "Delete Wallet"
+                button_
+                    [ class_ "btn btn-secondary"
+                    , dataBsDismiss_ "modal"
+                    ]
+                    "Close"
+            }
+
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
-    (WalletPresent (WalletPublicIdentity xpub customers)) -> do
+    WalletPresent (WalletPublicIdentity xpub customers) -> do
         record $ do
             simpleField "Public Key" $ pubKeyH xpub
             simpleField "Customer Discovery" $ toHtml $ toText customers
         div_ [class_ "row"] $ do
-            button_
-                [ class_ "btn btn-danger"
-                , hxDelete_ $ linkText walletDeleteLink
-                , hxTarget_ "#delete-result"
-                ]
-                "Delete Wallet"
+            div_ [class_ "col"] $ do
+                deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
         section_

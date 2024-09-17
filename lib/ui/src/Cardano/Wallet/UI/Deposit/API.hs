@@ -98,6 +98,7 @@ type Data =
             :> ReqBody '[FormUrlEncoded] PostWalletViaXPub
             :> SessionedHtml Post
         :<|> "wallet" :> SessionedHtml Delete
+        :<|> "wallet" :> "delete" :> "modal" :> SessionedHtml Get
 
 type Home = SessionedHtml Get
 
@@ -124,6 +125,7 @@ walletLink :: Link
 walletPostMnemonicLink :: Link
 walletPostXPubLink :: Link
 walletDeleteLink :: Link
+walletDeleteModalLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -139,5 +141,6 @@ homePageLink
     :<|> walletPostMnemonicLink
     :<|> walletPostXPubLink
     :<|> walletDeleteLink
+    :<|> walletDeleteModalLink
     =
         allLinks (Proxy @UI)

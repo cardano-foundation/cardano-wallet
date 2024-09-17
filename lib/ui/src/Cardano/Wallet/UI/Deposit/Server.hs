@@ -103,7 +103,8 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( walletElementH
+    ( deleteWalletModalH
+    , walletElementH
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -166,6 +167,7 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> (\v -> wsl (\l -> postMnemonicWallet l (initWallet l) alert ok v))
         :<|> (\v -> wsl (\l -> postXPubWallet l (initWallet l) alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
+        :<|> wsl (\_l -> pure $ renderHtml deleteWalletModalH)
   where
     ph = pageHandler tr ul env dbDir config
     ok _ = renderHtml . rogerH @Text $ "ok"
