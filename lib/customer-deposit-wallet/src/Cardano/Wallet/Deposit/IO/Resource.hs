@@ -19,6 +19,7 @@ module Cardano.Wallet.Deposit.IO.Resource
     , putResource
     , ResourceStatus (..)
     , readStatus
+    , closeResource
     ) where
 
 import Prelude
@@ -103,7 +104,7 @@ withResource action = do
                 FailedToOpen e -> pure $ Left $ Right e
                 _ -> retry
         resource = Resource{content, waitForEndOfLife}
-    action resource `finally` atomically (writeTVar content Closed)
+    action resource `finally` closeResource resource
 
 -- | Error condition for 'onResource'.
 data ErrResourceMissing e
@@ -136,6 +137,36 @@ onResource action resource = do
         Vanished e -> pure $ Left $ ErrVanished e
         FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
         Closing -> pure $ Left ErrClosing
+
+closeResource :: Resource e a -> IO (Either (ErrResourceMissing e) ())
+closeResource resource = do
+    r <- atomically $ do
+        status <- readTVar $ content resource
+        case status of
+            Closed -> pure $ Right ()
+            Opening -> pure $ Left ErrStillInitializing
+            Open _ -> do
+                writeTVar (content resource) Closing
+                pure $ Right ()
+            Vanished e -> pure $ Left $ ErrVanished e
+            FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
+            Closing -> pure $ Left ErrClosing
+    case r of
+        Right () -> waitForClose resource
+        Left e' -> pure $ Left e'
+
+waitForClose :: Resource e a -> IO (Either (ErrResourceMissing e) ())
+waitForClose resource = do
+    e <- atomically $ do
+        status <- readTVar (content resource)
+        case status of
+            Closed -> pure $ Right ()
+            Vanished e -> pure $ Left $ ErrVanished e
+            FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
+            _ -> retry
+    case e of
+        Right () -> pure $ Right ()
+        Left e' -> pure $ Left e'
 
 -- | Error condition for 'putResource'.
 data ErrResourceExists e a
@@ -182,7 +213,9 @@ putResource start trs resource = do
     controlInitialization = do
         r <- start run
         join $ atomically $ case r of
-            Right (Right ()) -> pure (pure ())
+            Right (Right ()) -> do
+                writeTVar (content resource) Closed
+                pure $ traceWith trs Closed
             Right (Left (Left e)) -> do
                 writeTVar (content resource) (Vanished e)
                 pure $ traceWith trs (Vanished e)
@@ -192,6 +225,7 @@ putResource start trs resource = do
             Left e -> do
                 writeTVar (content resource) (FailedToOpen e)
                 pure $ traceWith trs (FailedToOpen e)
+
     forkInitialization = void $ forkFinally controlInitialization vanish
 
     run a = do
