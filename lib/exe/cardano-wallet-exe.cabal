@@ -30,7 +30,7 @@ common opts-exe
     ghc-options: -O2 -Werror
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+  ghc-options: -Wall -Wcompat -Wredundant-constraints
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -88,6 +88,9 @@ library
     , cardano-wallet-secrets
     , cardano-wallet-ui
     , contra-tracer
+    -- , customer-deposit-wallet
+    , sqlite-simple
+    , persistent-sqlite
     , data-default
     , directory
     , extra
