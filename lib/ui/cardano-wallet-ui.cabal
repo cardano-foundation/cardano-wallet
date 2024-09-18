@@ -20,8 +20,10 @@ common language
     OverloadedStrings
 
 common opts-lib
-  ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
-   -Wunused-imports -Wincomplete-uni-patterns -Wincomplete-record-updates
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+    -Wunused-imports -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -36,8 +38,8 @@ library
   exposed-modules:
     Cardano.Wallet.UI.Common.API
     Cardano.Wallet.UI.Common.Handlers.Lib
-    Cardano.Wallet.UI.Common.Handlers.Settings
     Cardano.Wallet.UI.Common.Handlers.Session
+    Cardano.Wallet.UI.Common.Handlers.Settings
     Cardano.Wallet.UI.Common.Handlers.SSE
     Cardano.Wallet.UI.Common.Handlers.State
     Cardano.Wallet.UI.Common.Handlers.Wallet
@@ -63,6 +65,7 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
+    Cardano.Wallet.UI.Lib.Address
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Shelley.API
     Cardano.Wallet.UI.Shelley.Handlers.Addresses
@@ -84,6 +87,8 @@ library
     , aeson
     , aeson-pretty
     , base
+    , bech32
+    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-slotting

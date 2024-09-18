@@ -11,9 +11,6 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubToBytes
     )
-import Cardano.Ledger.Address
-    ( unCompactAddr
-    )
 import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
     )
@@ -62,6 +59,9 @@ import Cardano.Wallet.UI.Deposit.API
     , walletPostMnemonicLink
     , walletPostXPubLink
     )
+import Cardano.Wallet.UI.Lib.Address
+    ( encodeMainnetAddress
+    )
 import Cardano.Wallet.UI.Type
     ( WHtml
     , WalletType (..)
@@ -108,7 +108,7 @@ import Lucid.Html5
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
-import qualified Data.ByteString.Short as B
+import qualified Data.Text as T
 
 data WalletPresent
     = WalletPresent WalletPublicIdentity
@@ -134,23 +134,27 @@ base64 = convertToBase Base64
 
 customerAddressH :: Monad m => Address -> HtmlT m ()
 customerAddressH addr = div_ [class_ "row"] $ do
-    div_ [id_ "address", hidden_ "false"] $ toHtml addr'
-    div_ [class_ "col-6"] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 addr'
-    div_ [class_ "col-6"]
-        $ copyButton "address"
-    where addr' = base64 $ B.fromShort $ unCompactAddr addr
+    div_ [id_ "address", hidden_ "true"] $ toHtml encodedAddr
+    div_ [class_ "col-8"] $ toHtml addrShortened
+    div_ [class_ "col-4"] $ copyButton "address"
+  where
+    encodedAddr = encodeMainnetAddress addr
+    addrShortened =
+        T.take 10 (T.drop 5 encodedAddr)
+            <> " .. "
+            <> T.takeEnd 10 encodedAddr
 
 pubKeyH :: Monad m => XPub -> HtmlT m ()
 pubKeyH xpub = div_ [class_ "row"] $ do
-    div_ [id_ "public_key", hidden_ "false"] $ toHtml xpubByteString
-    div_ [class_ "col-6"] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
-    div_ [class_ "col-6"]
+    div_ [id_ "public_key", hidden_ "true"] $ toHtml xpubByteString
+    div_ [class_ "col-8"] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
+    div_ [class_ "col-4"]
         $ copyButton "public_key"
   where
     xpubByteString = base64 $ xpubToBytes xpub
 
 headAndTail :: Int -> ByteString -> ByteString
-headAndTail n t = B8.take n t <> ".." <> B8.takeEnd n t
+headAndTail n t = B8.take n t <> " .. " <> B8.takeEnd n t
 
 deleteWalletButtonH :: Html ()
 deleteWalletButtonH =
@@ -183,10 +187,29 @@ deleteWalletModalH =
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        record $ do
-            simpleField "Public Key" $ pubKeyH xpub
-            simpleField "Customer Discovery" $ toHtml $ toText customers
-        div_ [class_ "row"] $ do
+        div_ [class_ "row mt-5 "] $ do
+            h5_ [class_ "text-center"] "Wallet Details"
+            div_ [class_ "col"] $ record $ do
+                simpleField "Public Key" $ pubKeyH xpub
+                simpleField "Customer Discovery" $ toHtml $ toText customers
+        div_ [class_ "row mt-5"] $ do
+            h5_ [class_ "text-center"] "Query Address"
+            div_ [class_ "col"] $ record $ do
+                simpleField "Customer number"
+                    $ input_
+                        [ type_ "number"
+                        , hxTarget_ "#customer-address"
+                        , class_ "form-control"
+                        , hxTrigger_ "change"
+                        , hxPost_ $ linkText customerAddressLink
+                        , min_ "0"
+                        , max_ $ toText $ customers - 1
+                        , step_ "1"
+                        , name_ "customer"
+                        ]
+                simpleField "Address" $ div_ [id_ "customer-address"] mempty
+        div_ [class_ "row mt-5"] $ do
+            h5_ [class_ "text-center"] "Actions"
             div_ [class_ "col"] $ do
                 deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
