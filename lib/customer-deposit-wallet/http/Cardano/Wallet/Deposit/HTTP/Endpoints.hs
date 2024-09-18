@@ -6,11 +6,9 @@
 --
 -- Each HTTP endpoint corresponds to a single function from the
 -- "Cardano.Wallet.Deposit.IO" module.
---
 module Cardano.Wallet.Deposit.HTTP.Endpoints
     ( listCustomers
-    , createAddress
-
+    , customerAddress
     , getNetworkTip
     ) where
 
@@ -61,12 +59,15 @@ listCustomers
 listCustomers w =
     liftIO $ ApiT <$> Wallet.listCustomers w
 
-createAddress
+customerAddress
     :: Wallet.WalletInstance
     -> ApiT Customer
     -> Handler (ApiT Address)
-createAddress w a =
-    liftIO $ ApiT <$> Wallet.createAddress (unApiT a) w
+customerAddress w a = do
+    mAddr <- liftIO $ Wallet.customerAddress (unApiT a) w
+    case mAddr of
+        Nothing -> fail "customerAddress: customer not found"
+        Just addr -> pure $ ApiT addr
 
 getNetworkTip
     :: Wallet.WalletInstance

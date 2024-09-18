@@ -90,7 +90,7 @@ scenarioStart env =
 ## 1. Assign an address to a customer ID
 
 A `Customer` is represented by a numeric customer ID.
-Given such a customer ID, the function `createAddress` will create an address and add the association between the customer and this address to the wallet state.
+Given such a customer ID, the function `customerAddress` will create an address and add the association between the customer and this address to the wallet state.
 
 (The mapping from customer ID to address is deterministic and based on the [BIP-32][] address derivation scheme.)
 
@@ -104,14 +104,14 @@ scenarioCreateAddressList
     :: WalletInstance -> IO ()
 scenarioCreateAddressList w = do
     let customer = 31
-    address <- Wallet.createAddress customer w
+    Just address <- Wallet.customerAddress customer w
     customers <- Wallet.listCustomers w
     assert $ (customer, address) `elem` customers
 ```
 
 ## 2. Track deposits at this address
 
-As soon as an association between customer and address has been added to the wallet state using `createAddress`, the wallet will track deposits sent to this address.
+As soon as an association between customer and address has been added to the wallet state using `customerAddress`, the wallet will track deposits sent to this address.
 
 The function `getCustomerHistory` returns a `TxSummary` for each transaction that is related to this customer. For every `TxSummary`, the `received` field records the total deposit made by the customer at this address in this transaction.
 
@@ -123,7 +123,7 @@ The following scenario illustrates how `getCustomerHistory` records deposits:
 scenarioTrackDepositOne
     :: ScenarioEnv -> WalletInstance -> IO ()
 scenarioTrackDepositOne env w = do
-    address <- Wallet.createAddress customer w
+    Just address <- Wallet.customerAddress customer w
 
     -- no deposits
     txsummaries0<- Wallet.getCustomerHistory customer w
@@ -158,8 +158,8 @@ The wallet is synchronized to a particular point on the blockchain — use `getW
 scenarioTrackDepositAll
     :: ScenarioEnv -> WalletInstance -> IO ()
 scenarioTrackDepositAll env w = do
-    address1 <- Wallet.createAddress customer1 w
-    address2 <- Wallet.createAddress customer2 w
+    Just address1 <- Wallet.customerAddress customer1 w
+    Just address2 <- Wallet.customerAddress customer2 w
 
     from <- Wallet.getWalletTip w
     depositFundsAt env address1 coin
@@ -193,7 +193,7 @@ scenarioCreatePayment
     :: XPrv -> ScenarioEnv -> Address -> WalletInstance -> IO ()
 scenarioCreatePayment xprv env destination w = do
     -- deposit some funds at customer address
-    address1 <- Wallet.createAddress customer w
+    Just address1 <- Wallet.customerAddress customer w
     depositFundsAt env address1 (coin <> coin)
     value1 <- Wallet.availableBalance w
     assert $ value1 == (coin <> coin)

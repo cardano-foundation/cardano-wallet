@@ -56,13 +56,13 @@ scenarios = do
 
         it "Assign an address to a customer ID" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
-                Wallet.withWalletInit walletEnv xpub 1
+                Wallet.withWalletInit walletEnv xpub 32
                     Exchanges.scenarioCreateAddressList
 
     describe "Temporary tests" $ do
         it "Wallet receives funds that are sent to customer address" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
-                Wallet.withWalletInit walletEnv xpub 1 $
+                Wallet.withWalletInit walletEnv xpub 8 $
                     testBalance env
 
 xpub :: XPub
@@ -73,7 +73,7 @@ xpub =
 testBalance
     :: ScenarioEnv -> Wallet.WalletInstance -> IO ()
 testBalance env w = do
-    address <- Wallet.createAddress customer w
+    Just address <- Wallet.customerAddress customer w
     payFromFaucet env [(address, coin)]
     value <- Wallet.availableBalance w
     assert $ coin == value

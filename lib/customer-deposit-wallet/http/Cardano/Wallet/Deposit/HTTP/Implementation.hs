@@ -35,4 +35,4 @@ api = Proxy
 implementation :: Wallet.WalletInstance -> Server CustomerAPI
 implementation w =
     HTTP.listCustomers w
-    :<|> HTTP.createAddress w
+    :<|> HTTP.customerAddress w

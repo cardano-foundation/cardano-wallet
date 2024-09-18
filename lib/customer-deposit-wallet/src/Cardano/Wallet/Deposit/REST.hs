@@ -31,7 +31,6 @@ module Cardano.Wallet.Deposit.REST
 
       -- ** Mapping between customers and addresses
     , listCustomers
-    , createAddress
 
       -- ** Reading from the blockchain
     , getWalletTip
@@ -47,6 +46,7 @@ module Cardano.Wallet.Deposit.REST
     , walletPublicIdentity
     , deleteWallet
     , deleteTheDepositWalletOnDisk
+    , customerAddress
     ) where
 
 import Prelude
@@ -360,14 +360,14 @@ walletPublicIdentity = onWalletInstance WalletIO.walletPublicIdentity
 {-----------------------------------------------------------------------------
     Operations
 ------------------------------------------------------------------------------}
-listCustomers
-    :: WalletResourceM [(Customer, Address)]
+-- | List all tracked customers addresses.
+listCustomers :: WalletResourceM [(Customer, Address)]
 listCustomers = onWalletInstance WalletIO.listCustomers
 
-createAddress
-    :: Customer
-    -> WalletResourceM Address
-createAddress = onWalletInstance . WalletIO.createAddress
+-- | Retrieve the address for a customer if it's tracked by the wallet.
+
+customerAddress :: Customer -> WalletResourceM (Maybe Address)
+customerAddress = onWalletInstance . WalletIO.customerAddress
 
 {-----------------------------------------------------------------------------
     Operations
