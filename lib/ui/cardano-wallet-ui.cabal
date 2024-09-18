@@ -21,6 +21,7 @@ common language
 
 common opts-lib
   ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+   -Wunused-imports -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -36,8 +37,10 @@ library
     Cardano.Wallet.UI.Common.API
     Cardano.Wallet.UI.Common.Handlers.Lib
     Cardano.Wallet.UI.Common.Handlers.Settings
+    Cardano.Wallet.UI.Common.Handlers.Session
     Cardano.Wallet.UI.Common.Handlers.SSE
     Cardano.Wallet.UI.Common.Handlers.State
+    Cardano.Wallet.UI.Common.Handlers.Wallet
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib
@@ -48,11 +51,16 @@ library
     Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
     Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
+    Cardano.Wallet.UI.Common.Html.Pages.Wallet
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API
+    Cardano.Wallet.UI.Deposit.Handlers.Lib
+    Cardano.Wallet.UI.Deposit.Handlers.Page
+    Cardano.Wallet.UI.Deposit.Handlers.Wallet
     Cardano.Wallet.UI.Deposit.Html.Pages.About
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
+    Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Shelley.API
@@ -67,6 +75,7 @@ library
     Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
     Cardano.Wallet.UI.Shelley.Server
     Cardano.Wallet.UI.Signal
+    Cardano.Wallet.UI.Type
 
   other-modules:    Paths_cardano_wallet_ui
   build-depends:
@@ -85,11 +94,15 @@ library
     , containers
     , contra-tracer
     , cookie
+    , customer-deposit-wallet
     , exceptions
     , generic-lens
+    , http-api-data
     , http-media
     , lens
     , lucid
+    , memory
+    , mmorph
     , mtl
     , ntp-client
     , operational
@@ -100,6 +113,7 @@ library
     , text
     , text-class
     , time
+    , transformers
     , unliftio
 
   hs-source-dirs:   src

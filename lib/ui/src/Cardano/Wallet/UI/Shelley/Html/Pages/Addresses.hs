@@ -35,8 +35,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , sseH
     )
 import Cardano.Wallet.UI.Shelley.API
-    ( sseLink
-    , walletAddressesLink
+    ( walletAddressesLink
     )
 import Control.Monad
     ( forM_
@@ -48,7 +47,7 @@ import Data.Text.Class
     ( ToText (..)
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , ToHtml (toHtml)
     , class_
     , div_
@@ -57,21 +56,26 @@ import Lucid
     , ul_
     )
 
-addressesPageH :: Html ()
+addressesPageH :: Monad m => HtmlT m ()
 addressesPageH =
-    sseH sseLink walletAddressesLink "addresses" ["wallet"]
+    sseH walletAddressesLink "addresses" ["wallet"]
 
-addressesH :: forall n. HasSNetworkId n => [ApiAddressWithPath n] -> Html ()
+addressesH
+    :: forall n m
+     . (HasSNetworkId n, Monad m)
+    => [ApiAddressWithPath n]
+    -> HtmlT m ()
 addressesH addresses = record $ do
     forM_ (zip [0 :: Int ..] addresses) $ \(j, ApiAddressWithPath{..}) -> do
         fieldHtml [] "id" $ do
             let identifier = "address-" <> toText j
             div_ [class_ "row"] $ do
                 div_ [class_ "text-break col-sm-10", id_ identifier]
+                    $ toHtml
                     $ addressH (Proxy @n)
                     $ apiAddress id
-                div_ [class_ "col-sm-2"] $ copyButton identifier
-        simpleField "state" $ toText $ getApiT state
+                div_ [class_ "col-sm-2"] $ toHtml $ copyButton identifier
+        simpleField "state" $ toHtml $ toText $ getApiT state
         fieldHtml [] "derivation path"
             $ ul_ [class_ "list-inline"]
             $ forM_ derivationPath
@@ -80,5 +84,10 @@ addressesH addresses = record $ do
                 . toText
                 . getApiT
 
-addressH :: forall n. HasSNetworkId n => Proxy n -> Address -> Html ()
+addressH
+    :: forall n m
+     . (HasSNetworkId n, Monad m)
+    => Proxy n
+    -> Address
+    -> HtmlT m ()
 addressH _ a = toHtml $ encodeAddress (sNetworkId @n) a

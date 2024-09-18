@@ -7,9 +7,12 @@ module Cardano.Wallet.Application.Logging
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..)
+    )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation
-    , HasSeverityAnnotation
+    , HasSeverityAnnotation (..)
     )
 import Cardano.Wallet.Api.Http.Logging
     ( ApiApplicationLog
@@ -27,13 +30,19 @@ import GHC.Generics
 data ApplicationLog
     = ApiApplicationLog ApiApplicationLog
     | MsgServerStartupError ListenError
+    | UIApplicationLog String
     deriving (Generic, Show, Eq)
 
 instance ToText ApplicationLog where
     toText = \case
         ApiApplicationLog msg -> toText msg
         MsgServerStartupError err -> toText err
+        UIApplicationLog msg -> toText msg
 
 instance HasPrivacyAnnotation ApplicationLog
 
-instance HasSeverityAnnotation ApplicationLog
+instance HasSeverityAnnotation ApplicationLog where
+    getSeverityAnnotation = \case
+        ApiApplicationLog msg -> getSeverityAnnotation msg
+        MsgServerStartupError _ -> Error
+        UIApplicationLog _ -> Warning

@@ -178,8 +178,6 @@ mkUILayer throttling sessions' s0 = UILayer{..}
             sessions'' <- readTVarIO sessions'
             forM_ (Map.elems sessions'') $ \s -> do
                 sendSSE s $ Push "tip"
-                sendSSE s $ Push "wallets"
-                sendSSE s $ Push "wallet"
 
 -- | Run an action with a UI layer.
 withUILayer :: Int -> s -> ContT r IO (UILayer s)

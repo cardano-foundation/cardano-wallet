@@ -55,6 +55,10 @@ import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletsH
     )
+import Cardano.Wallet.UI.Type
+    ( WalletType (..)
+    , runWHtml
+    )
 import Control.Lens.Extras
     ( is
     )
@@ -65,7 +69,7 @@ import Data.Text
     ( Text
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , renderBS
     )
 
@@ -89,17 +93,18 @@ page
     -> RawHtml
 page c@PageConfig{..} p wp = RawHtml
     $ renderBS
+    $ runWHtml Shelley
     $ pageFromBodyH faviconLink c
-    $ bodyH (headerH prefix p)
+    $ bodyH sseLink (headerH prefix p)
     $ case p of
         About -> aboutH
-        Network -> networkH sseLink networkInfoLink
+        Network -> networkH networkInfoLink
         Wallets -> walletsH
         Wallet -> walletH wp
         Addresses -> addressesPageH
-        Settings -> settingsPageH sseLink settingsGetLink
+        Settings -> settingsPageH settingsGetLink
 
-headerH :: Text -> Page -> Html ()
+headerH :: Monad m => Text -> Page -> HtmlT m ()
 headerH prefix p =
     navigationH
         prefix

@@ -31,7 +31,6 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxExt_
     , hxGet_
-    , hxSse_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
@@ -56,6 +55,7 @@ import Data.Text
 import Lucid
     ( Attribute
     , Html
+    , HtmlT
     , ToHtml (..)
     , b_
     , button_
@@ -82,7 +82,7 @@ import Servant
 import qualified Data.Text as T
 
 -- | A simple alert message around any html content.
-alertH :: ToHtml a => a -> Html ()
+alertH :: (ToHtml a, Monad m) => a -> HtmlT m ()
 alertH =
     div_
         [ id_ "result"
@@ -102,64 +102,57 @@ rogerH =
         . toHtml
 
 -- | A simple table row with two columns.
-data AssocRow
-    = forall b k.
-      (ToHtml b, ToHtml k) =>
-    AssocRow
+data AssocRow m
+    = AssocRow
     { rowAttributes :: [Attribute]
-    , key :: k
-    , val :: b
+    , key :: HtmlT m ()
+    , val :: HtmlT m ()
     }
 
 -- | Render an 'AssocRow' as a table row.
-assocRowH :: AssocRow -> Html ()
+assocRowH :: AssocRow m -> Monad m => HtmlT m ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
-    td_ [scope_ "col"] $ b_ $ toHtml key
-    td_ [scope_ "col"] $ toHtml val
+    td_ [scope_ "col"] $ b_ key
+    td_ [scope_ "col"] val
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
-record :: ListOf AssocRow -> Html ()
+record :: ListOf (AssocRow m) -> Monad m => HtmlT m ()
 record xs =
     table_ [class_ "table table-hover table-striped"]
         $ mapM_ assocRowH
         $ listOf xs
 
 -- | Create an 'AssocRow' from a key and a value.
-field :: (ToHtml b, ToHtml k) => [Attribute] -> k -> b -> ListOf AssocRow
+field :: [Attribute] -> HtmlT m () -> HtmlT m () -> ListOf (AssocRow m)
 field attrs key val = singleton $ Elem $ AssocRow attrs key val
 
 -- | Create a simple 'AssocRow' from a key and a value. where the key is a 'Text'.
-simpleField :: ToHtml b => Text -> b -> ListOf AssocRow
-simpleField = field []
+simpleField :: Monad m => Text -> HtmlT m () -> ListOf (AssocRow m)
+simpleField = field [] . toHtml
 
 -- | Create an 'AssocRow' from a key and a value where the value is an 'Html'.
-fieldHtml :: [Attribute] -> Text -> Html () -> ListOf AssocRow
-fieldHtml = field @(Html ())
+fieldHtml :: Monad m => [Attribute] -> Text -> HtmlT m () -> ListOf (AssocRow m)
+fieldHtml as = field as . toHtml
 
 -- | Create an 'AssocRow' from a key and a value where the value is a 'Show' instance.
-fieldShow :: Show a => [Attribute] -> Text -> a -> ListOf AssocRow
-fieldShow attrs key val = field attrs key (show val)
-
--- | A value attribute to use to connect to an SSE endpoint.
-sseConnectFromLink :: Link -> Text
-sseConnectFromLink sse = "connect:" <> linkText sse
+fieldShow :: (Show a, Monad m) => [Attribute] -> Text -> a -> ListOf (AssocRow m)
+fieldShow attrs key val = field attrs (toHtml key) (toHtml $ show val)
 
 -- | A tag that can self populate with data that is fetched as GET from a link
 -- whenever some specific events are received from an SSE endpoint.
 -- It also self populate on load.
 sseH
     :: Link
-    -- ^ SSE link
-    -> Link
     -- ^ Link to fetch data from
     -> Text
     -- ^ Target element
     -> [Text]
     -- ^ Events to trigger onto
-    -> Html ()
-sseH sseLink link target events = do
-    div_ [hxSse_ $ sseConnectFromLink sseLink] $ do
+    -> Monad m
+    => HtmlT m ()
+sseH link target events = do
+     do
         div_
             [ hxTrigger_ triggered
             , hxGet_ $ linkText link
@@ -176,11 +169,10 @@ sseH sseLink link target events = do
     triggered = T.intercalate "," $ ("sse:" <>) <$> events
 
 -- | A tag that can self populate with data directly received in the SSE event.
-sseInH :: Link -> Text -> [Text] -> Html ()
-sseInH sseLink target events =
+sseInH :: Text -> [Text] -> Html ()
+sseInH target events =
     div_
-        [ hxSse_ $ sseConnectFromLink sseLink
-        , hxExt_ "sse"
+        [hxExt_ "sse"
         ]
         $ div_
             [ hxTarget_ $ "#" <> target
@@ -228,16 +220,21 @@ showThousandDots = reverse . showThousandDots' . reverse . show
 
 -- | A button that copies the content of a field to the clipboard.
 copyButton
-    :: Text -- ^ Field id
-    -> Html ()
+    :: Monad m
+    => Text
+    -- ^ Field id
+    -> HtmlT m ()
 copyButton field' = do
-    script_
-        [i|
-            document.getElementById('#{button}').addEventListener('click', function() {
-                var mnemonic = document.getElementById('#{field'}').innerText;
-                navigator.clipboard.writeText(mnemonic);
-            });
-        |]
     button_ [class_ "btn btn-outline-secondary", id_ button] "Copy"
+    script_ $ copyButtonScript button field'
   where
     button = field' <> "-copy-button"
+
+copyButtonScript :: Text -> Text -> Text
+copyButtonScript button field' =
+    [i|
+    document.getElementById('#{button}').addEventListener('click', function() {
+        var mnemonic = document.getElementById('#{field'}').innerText;
+        navigator.clipboard.writeText(mnemonic);
+    });
+    |]

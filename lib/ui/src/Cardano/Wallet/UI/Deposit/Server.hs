@@ -6,7 +6,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Deposit.Server where
+module Cardano.Wallet.UI.Deposit.Server
+    ( serveUI
+    ) where
 
 import Prelude
 
@@ -15,6 +17,15 @@ import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     )
 import Cardano.Wallet.Api.Types
     ( ApiWalletMode (..)
+    )
+import Cardano.Wallet.Deposit.IO
+    ( WalletBootEnv
+    , WalletInstance
+    )
+import Cardano.Wallet.Deposit.REST
+    ( ErrDatabase
+    , WalletResource
+    , initXPubWallet
     )
 import Cardano.Wallet.Network
     ( NetworkLayer
@@ -27,6 +38,10 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.Session
+    ( withSessionLayer
+    , withSessionLayerRead
+    )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
     )
@@ -35,6 +50,9 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
     )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
+    )
+import Cardano.Wallet.UI.Common.Handlers.Wallet
+    ( pickMnemonic
     )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
@@ -53,27 +71,41 @@ import Cardano.Wallet.UI.Common.Html.Pages.Settings
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Wallet
+    ( mnemonicH
+    )
 import Cardano.Wallet.UI.Common.Layer
-    ( SessionLayer (..)
+    ( Push (..)
+    , SessionLayer (..)
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( CookieResponse
-    , RequestCookies
-    , sessioning
-    , withSession
-    , withSessionRead
+    ( sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Page
+    ( pageHandler
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Wallet
+    ( getWallet
+    , postMnemonicWallet
+    , postXPubWallet
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
-    , page
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
+    ( walletElementH
     )
 import Control.Monad.Trans
     ( MonadIO (..)
+    )
+import Control.Tracer
+    ( Tracer (..)
+    , traceWith
     )
 import Data.Functor
     ( ($>)
@@ -96,17 +128,10 @@ import Servant
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
+import Cardano.Wallet.Deposit.IO.Resource
+    ( ResourceStatus
+    )
 import qualified Data.ByteString.Lazy as BL
-
-pageHandler
-    :: UILayer ()
-    -> PageConfig
-    -> Page
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse RawHtml)
-pageHandler uiLayer config x =
-    withSessionLayer uiLayer $ \_session -> do
-        pure $ page config x
 
 showTime :: UTCTime -> String
 showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
@@ -114,40 +139,45 @@ showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 serveUI
     :: forall n
      . HasSNetworkId n
-    => UILayer ()
+    => Tracer IO String
+    -> UILayer WalletResource
+    -> WalletBootEnv IO
+    -> FilePath
     -> PageConfig
     -> SNetworkId n
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI ul config _ nl  bs =
+serveUI tr ul env dbDir config _ nl bs =
     ph About
         :<|> ph About
         :<|> ph Network
         :<|> ph Settings
+        :<|> ph Wallet
         :<|> sessioning (renderHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
-        :<|> withSessionLayerRead (sse . sseConfig)
+        :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
+        :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
+        :<|> wsl (\l -> getWallet l (renderHtml . walletElementH alertH))
+        :<|> (\v -> wsl (\l -> postMnemonicWallet l (initWallet l) alert ok v))
+        :<|> (\v -> wsl (\l -> postXPubWallet l (initWallet l) alert ok v))
   where
-    ph = pageHandler ul config
-    _ok _ = renderHtml . rogerH @Text $ "ok"
-    _alert = renderHtml . alertH
+    ph = pageHandler tr ul env dbDir config
+    ok _ = renderHtml . rogerH @Text $ "ok"
+    alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
-    wsl = withSessionLayer ul
-    withSessionLayerRead :: (SessionLayer () -> Handler a) -> Maybe RequestCookies -> Handler a
-    withSessionLayerRead f = withSessionRead $ \k -> do
-        s <- liftIO $ sessions ul k
-        f s
-
-withSessionLayer :: UILayer () -> (SessionLayer () -> Handler a) -> Maybe RequestCookies -> Handler (CookieResponse a)
-withSessionLayer ulayer f = withSession $ \k -> do
-    s <- liftIO $ sessions ulayer k
-    f s
+    wsl f = withSessionLayer ul $ \l -> f l
+    initWallet l = initXPubWallet tr env dbDir trs
+      where
+        trs :: Tracer IO (ResourceStatus ErrDatabase WalletInstance)
+        trs = Tracer $ \_e -> do
+            sendSSE l $ Push "wallet"
+            traceWith tr "message"
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do

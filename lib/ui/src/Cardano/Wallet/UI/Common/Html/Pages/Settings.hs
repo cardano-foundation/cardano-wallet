@@ -11,6 +11,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Lucid
     ( Html
+    , HtmlT
     , checked_
     , class_
     , input_
@@ -37,9 +38,9 @@ import Servant.Links
     )
 
 -- | Settings page
-settingsPageH :: Link -> Link -> Html ()
-settingsPageH sseLink settingsGetLink =
-    sseH sseLink settingsGetLink "content" ["settings"]
+settingsPageH :: Monad m => Link -> HtmlT m ()
+settingsPageH settingsGetLink =
+    sseH settingsGetLink "content" ["settings"]
 
 -- | Settings state
 settingsStateH :: Link -> State s -> Html ()

@@ -3,6 +3,7 @@ module Cardano.Wallet.Deposit.Pure
     -- * Types
       WalletState
     , DeltaWalletState
+    , WalletPublicIdentity (..)
 
     -- * Operations
     -- ** Mapping between customers and addresses
@@ -38,6 +39,8 @@ module Cardano.Wallet.Deposit.Pure
 
     , addTxSubmission
     , listTxsInSubmission
+    , nextCustomer
+    , walletXPub
     ) where
 
 import Prelude
@@ -101,6 +104,12 @@ data WalletState = WalletState
 
 type DeltaWalletState = Delta.Replace WalletState
 
+data WalletPublicIdentity = WalletPublicIdentity
+    { pubXpub :: XPub
+    , pubNextUser :: Word31
+    }
+    deriving Show
+
 {-----------------------------------------------------------------------------
     Operations
     Mapping between customers and addresses
@@ -136,6 +145,12 @@ isCustomerAddress address =
 
 fromRawCustomer :: Word31 -> Customer
 fromRawCustomer = id
+
+nextCustomer :: WalletState -> Customer
+nextCustomer = fromIntegral . length . Address.addresses . addresses
+
+walletXPub :: WalletState -> XPub
+walletXPub  = Address.getXPub . addresses
 
 {-----------------------------------------------------------------------------
     Operations

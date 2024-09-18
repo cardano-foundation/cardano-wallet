@@ -8,6 +8,8 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , ShowTime
     , justifyRight
     , linkText
+    , showHtml
+    , toTextHtml
     )
 where
 
@@ -18,6 +20,9 @@ import Data.Generics.Product
 import Data.Text
     ( Text
     )
+import Data.Text.Class
+    ( ToText (..)
+    )
 import Data.Time
     ( UTCTime
     , defaultTimeLocale
@@ -27,6 +32,7 @@ import Data.Time
     )
 import Lucid
     ( Html
+    , HtmlT
     , ToHtml (..)
     , class_
     , div_
@@ -60,3 +66,9 @@ justifyRight = div_ [class_ "d-flex justify-content-end"] . toHtml
 
 linkText :: Link -> Text
 linkText = T.pack . ('/' :) . show . linkURI
+
+showHtml :: (Show a, Monad m) => a -> HtmlT m ()
+showHtml = toHtml . show
+
+toTextHtml :: (Monad m, ToText a) => a -> HtmlT m ()
+toTextHtml = toHtml . toText

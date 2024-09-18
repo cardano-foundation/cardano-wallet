@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -43,6 +44,7 @@ module Cardano.Wallet.Deposit.REST
     , getBIP32PathsForOwnedInputs
     , signTxBody
     , walletExists
+    , walletPublicIdentity
     ) where
 
 import Prelude
@@ -57,9 +59,13 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path
     )
+import Cardano.Wallet.Deposit.IO
+    ( WalletPublicIdentity
+    )
 import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceExists (..)
     , ErrResourceMissing (..)
+    , ResourceStatus
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
@@ -86,6 +92,9 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
     ( ReaderT (..)
     , ask
+    )
+import Control.Tracer
+    ( Tracer (..)
     )
 import Cryptography.Hash.Blake
     ( blake2b160
@@ -229,7 +238,9 @@ findTheDepositWalletOnDisk fp action = do
 
 -- | Try to create a new wallet
 createTheDepositWalletOnDisk
-    :: FilePath
+    :: Tracer IO String
+    -- ^ Tracer for logging
+    -> FilePath
     -- ^ Path to the wallet database directory
     -> XPub
     -- ^ Id of the wallet
@@ -238,7 +249,7 @@ createTheDepositWalletOnDisk
     -> (Maybe WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is created
     -> IO a
-createTheDepositWalletOnDisk fp identity users action = do
+createTheDepositWalletOnDisk _tr fp identity users action = do
     ds <- scanDirectoryForDepositPrefix fp
     case ds of
         [] -> do
@@ -252,7 +263,7 @@ createTheDepositWalletOnDisk fp identity users action = do
     hashWalletId :: XPub -> String
     hashWalletId =
         B8.unpack
-            . convertToBase Base64
+            . convertToBase Base16
             . blake2b160
             . xpubPublicKey
 
@@ -262,8 +273,9 @@ loadWallet
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
+    -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> WalletResourceM ()
-loadWallet bootEnv fp = do
+loadWallet bootEnv fp trs = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk fp $ \case
             Right wallet ->
@@ -276,29 +288,34 @@ loadWallet bootEnv fp = do
     lift
         $ ExceptT
         $ first ErrWalletPresent
-            <$> Resource.putResource action resource
+            <$> Resource.putResource action trs resource
 
 -- | Initialize a new wallet from an 'XPub'.
 initXPubWallet
-    :: WalletIO.WalletBootEnv IO
+    :: Tracer IO String
+    -- ^ Tracer for logging
+    -> WalletIO.WalletBootEnv IO
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
+    -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> XPub
     -- ^ Id of the wallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initXPubWallet bootEnv fp xpub users = do
+initXPubWallet tr bootEnv fp trs xpub users = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
-        action f = createTheDepositWalletOnDisk fp xpub users $ \case
-            Just wallet ->
-                Right
-                    <$> WalletIO.withWalletInit
+        action f = createTheDepositWalletOnDisk tr fp xpub users $ \case
+            Just wallet -> do
+                fmap Right
+                    $ WalletIO.withWalletInit
                         (WalletIO.WalletEnv bootEnv wallet)
                         xpub
                         users
-                        f
+                        $ \i -> do
+                            ls <- WalletIO.listCustomers i
+                            last ls `seq` f i
             Nothing ->
                 pure
                     $ Left
@@ -308,12 +325,15 @@ initXPubWallet bootEnv fp xpub users = do
     lift
         $ ExceptT
         $ first ErrWalletPresent
-            <$> Resource.putResource action resource
+            <$> Resource.putResource action trs resource
 
 walletExists :: FilePath -> WalletResourceM Bool
 walletExists fp = liftIO $ findTheDepositWalletOnDisk fp $ \case
     Right _ -> pure True
     Left _ -> pure False
+
+walletPublicIdentity :: WalletResourceM WalletPublicIdentity
+walletPublicIdentity = onWalletInstance WalletIO.walletPublicIdentity
 
 {-----------------------------------------------------------------------------
     Operations

@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.Types.EpochNo
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( ShowTime
+    , showHtml
     , showPercentage
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
@@ -42,6 +43,7 @@ import Data.Quantity
     )
 import Lucid
     ( Html
+    , HtmlT
     , ToHtml (..)
     , p_
     )
@@ -53,18 +55,19 @@ import qualified Data.Percentage as Percentage
 
 -- | Network information tag
 networkH
-    :: Link
-    -- ^ Link to the SSE endpoint
-    -> Link
+    :: Monad m
+    => Link
     -- ^ Link to the network information endpoint
-    -> Html ()
-networkH sseLink networkInfoLink =
-    sseH sseLink networkInfoLink "content" ["tip"]
+    -> HtmlT m ()
+networkH networkInfoLink =
+    sseH networkInfoLink "content" ["tip"]
 
 -- | Render the network information as a record
 networkInfoH
-    :: ShowTime -- ^ how to show time
-    -> ApiNetworkInformation -- ^ network information
+    :: ShowTime
+    -- ^ how to show time
+    -> ApiNetworkInformation
+    -- ^ network information
     -> Html ()
 networkInfoH showTime ApiNetworkInformation{..} = record $ do
     simpleField "Sync progress" $ syncProgressH progress
@@ -81,8 +84,8 @@ nextEpochH :: Maybe EpochInfo -> Html ()
 nextEpochH Nothing = p_ "Unknown"
 nextEpochH (Just EpochInfo{..}) = do
     record $ do
-        simpleField "Epoch start" $ show epochStartTime
-        simpleField "Epoch number" $ showThousandDots epochNumber'
+        simpleField "Epoch start" $ showHtml epochStartTime
+        simpleField "Epoch number" $ toHtml $ showThousandDots epochNumber'
   where
     EpochNo epochNumber' = epochNumber
 
@@ -97,8 +100,8 @@ syncProgressH (NotResponding) = "Not Responding"
 blockReferenceH :: ShowTime -> ApiBlockReference -> Html ()
 blockReferenceH showTime ApiBlockReference{..} =
     record $ do
-        simpleField "Slot" $ showThousandDots slot
-        simpleField "Time" $ showTime time
+        simpleField "Slot" $ toHtml $ showThousandDots slot
+        simpleField "Time" $ toHtml $ showTime time
         simpleField "Block" $ blockInfoH block
   where
     ApiT (SlotNo slot) = absoluteSlotNumber
@@ -112,8 +115,8 @@ networkTipH :: ShowTime -> Maybe ApiSlotReference -> Html ()
 networkTipH _ Nothing = "Unknown"
 networkTipH showTime (Just ApiSlotReference{..}) = do
     record $ do
-        simpleField "Slot" $ showThousandDots slot
-        simpleField "Time" $ showTime time
+        simpleField "Slot" $ toHtml $ showThousandDots slot
+        simpleField "Time" $ toHtml $ showTime time
   where
     ApiT (SlotNo slot) = absoluteSlotNumber
 
@@ -131,5 +134,5 @@ nodeEraH ApiConway = "Conway"
 networkIdH :: ApiNetworkInfo -> Html ()
 networkIdH ApiNetworkInfo{..} = do
     record $ do
-        simpleField "Network ID" networkId
+        simpleField "Network ID" $ toHtml networkId
         fieldShow [] "Protocol Magic" protocolMagic

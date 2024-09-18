@@ -1,15 +1,17 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( pageFromBodyH
-    , PageConfig(..)
+    , PageConfig (..)
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.UI.Common.Html.Htmx
-    ( useHtmxVersion
+    ( useHtmxExtension
+    , useHtmxVersion
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
@@ -18,7 +20,7 @@ import Data.Text
     ( Text
     )
 import Lucid
-    ( Html
+    ( HtmlT
     , ToHtml (..)
     , body_
     , charset_
@@ -40,29 +42,29 @@ import Servant
     ( Link
     )
 
-bootstrapLink :: Html ()
+bootstrapLink :: Monad m => HtmlT m ()
 bootstrapLink =
     link_
         [ rel_ "stylesheet"
-        , href_ "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+        , href_ "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
         , integrity_
-            "sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
+            "sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
         , crossorigin_ "anonymous"
         ]
 
-bootstrapScript :: Html ()
+bootstrapScript :: Monad m => HtmlT m ()
 bootstrapScript =
     term
         "script"
         [ src_
-            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+            "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         , integrity_
-            "sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
+            "sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         , crossorigin_ "anonymous"
         ]
         $ pure ()
 
-bootstrapIcons :: Html ()
+bootstrapIcons :: Monad m => HtmlT m ()
 bootstrapIcons =
     link_
         [ rel_ "stylesheet"
@@ -72,41 +74,42 @@ bootstrapIcons =
         , crossorigin_ "anonymous"
         ]
 
-popperScript :: Html ()
+popperScript :: Monad m => HtmlT m ()
 popperScript =
     term
         "script"
         [ src_
-            "https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"
+            "https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
         , integrity_
-            "sha384-UOdGjl+2WYrdV0fJ9xJJ4TLEkH4WcJs1SXmeaZ7uwy/ZPwmYupt0VyrKjqqhd8q8"
+            "sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
         , crossorigin_ "anonymous"
         ]
         $ pure ()
 
 -- | Render a favicon link.
-favicon :: Link -> Html ()
+favicon :: Link -> Monad m => HtmlT m ()
 favicon path =
     link_
         [ rel_ "icon"
         , href_ $ linkText path
         ]
 
-pageFromBodyH :: Link -> PageConfig -> Html () -> Html ()
-pageFromBodyH faviconLink PageConfig{..} body
-    = html_ [term "data-bs-theme" "dark"]
-    $ do
-        head_ $ do
-            title_ $ toHtml title
-            meta_ [charset_ "utf-8"]
-            meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
-            bootstrapLink
-            bootstrapScript
-            bootstrapIcons
-            popperScript
-            favicon faviconLink
-            useHtmxVersion (1,9,12)
-        body_ body
+pageFromBodyH :: Monad m => Link -> PageConfig ->  HtmlT m () -> HtmlT m ()
+pageFromBodyH faviconLink PageConfig{..} body =
+    html_ [term "data-bs-theme" "dark"]
+        $ do
+            head_ $ do
+                title_ $ toHtml title
+                meta_ [charset_ "utf-8"]
+                meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
+                popperScript
+                bootstrapLink
+                bootstrapScript
+                bootstrapIcons
+                favicon faviconLink
+                useHtmxVersion (1, 9, 12)
+                useHtmxExtension "json-enc"
+            body_ body
 
 data PageConfig = PageConfig
     { prefix :: Text

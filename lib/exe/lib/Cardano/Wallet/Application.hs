@@ -95,6 +95,15 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     )
+import Cardano.Wallet.Deposit.IO
+    ( WalletBootEnv (..)
+    )
+import Cardano.Wallet.Deposit.IO.Resource
+    ( withResource
+    )
+import Cardano.Wallet.Deposit.REST
+    ( WalletResource
+    )
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyFlavorS (..)
@@ -195,6 +204,9 @@ import Control.Tracer
 import Data.Function
     ( (&)
     )
+import Data.Functor.Contravariant
+    ( (>$<)
+    )
 import Data.Generics.Internal.VL
     ( view
     )
@@ -237,6 +249,7 @@ import System.IOManager
     )
 import UnliftIO
     ( withAsync
+    , withSystemTempDirectory
     )
 
 import qualified Cardano.Pool.DB.Layer as Pool
@@ -384,11 +397,17 @@ serveWallet
                     case ms of
                         Nothing -> pure ()
                         Just (_port, socket) -> do
-                            ui <- Ui.withUILayer 1 ()
+                            databaseDir' <- case databaseDir of
+                                Nothing -> ContT
+                                    $ withSystemTempDirectory "deposit-wallet"
+                                Just databaseDir' -> pure databaseDir'
+                            r <- ContT withResource
+                            ui <- Ui.withUILayer 1 r
                             sourceOfNewTip netLayer ui
                             let uiService =
                                     startDepositUiServer
                                         ui
+                                        databaseDir'
                                         socket
                                         sNetwork
                                         netLayer
@@ -519,7 +538,8 @@ serveWallet
             :: forall n
              . ( HasSNetworkId n
                )
-            => UILayer ()
+            => UILayer WalletResource
+            -> FilePath
             -> Socket
             -> SNetworkId n
             -> NetworkLayer IO (CardanoBlock StandardCrypto)
@@ -527,6 +547,7 @@ serveWallet
             -> IO ()
         startDepositUiServer
             ui
+            databaseDir'
             socket
             _proxy
             nl
@@ -536,7 +557,14 @@ serveWallet
                     application =
                         Server.serve api
                             $ DepositUi.serveUI
+                                (UIApplicationLog >$< applicationTracer)
                                 ui
+                                ( WalletBootEnv
+                                    (error "Not defined")
+                                    (error "Not defined")
+                                    (error "Not defined")
+                                )
+                                databaseDir'
                                 (PageConfig "" "Deposit Cardano Wallet")
                                 _proxy
                                 nl

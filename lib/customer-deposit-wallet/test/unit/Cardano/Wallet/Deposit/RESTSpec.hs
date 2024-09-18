@@ -35,6 +35,9 @@ import Control.Concurrent
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
+import Control.Tracer
+    ( nullTracer
+    )
 import System.IO.Temp
     ( withSystemTempDirectory
     )
@@ -74,7 +77,7 @@ withInitializedWallet
     -> WalletResourceM a
     -> IO (Either ErrWalletResource a)
 withInitializedWallet dir f = withWallet $ do
-    initXPubWallet fakeBootEnv dir xpub 0
+    initXPubWallet nullTracer fakeBootEnv dir nullTracer xpub 0
     letItInitialize
     f
 
@@ -83,7 +86,7 @@ withLoadedWallet
     -> WalletResourceM a
     -> IO (Either ErrWalletResource a)
 withLoadedWallet dir f = withWallet $ do
-    loadWallet fakeBootEnv dir
+    loadWallet fakeBootEnv dir nullTracer
     letItInitialize
     f
 
