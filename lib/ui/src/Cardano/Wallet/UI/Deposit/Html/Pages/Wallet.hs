@@ -11,8 +11,14 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubToBytes
     )
+import Cardano.Ledger.Address
+    ( unCompactAddr
+    )
 import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
+    )
+import Cardano.Wallet.Deposit.Read
+    ( Address
     )
 import Cardano.Wallet.Deposit.REST
     ( ErrDatabase
@@ -22,7 +28,10 @@ import Cardano.Wallet.UI.Common.API
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
+    , hxPost_
     , hxSwap_
+    , hxTarget_
+    , hxTrigger_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( dataBsDismiss_
@@ -45,7 +54,8 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     , newWalletFromXPubH
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( walletDeleteLink
+    ( customerAddressLink
+    , walletDeleteLink
     , walletDeleteModalLink
     , walletLink
     , walletMnemonicLink
@@ -80,15 +90,25 @@ import Lucid
     , button_
     , class_
     , div_
+    , h5_
     , hidden_
     , hr_
     , id_
+    , input_
+    , min_
+    , name_
     , p_
     , section_
+    , type_
+    )
+import Lucid.Html5
+    ( max_
+    , step_
     )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString.Short as B
 
 data WalletPresent
     = WalletPresent WalletPublicIdentity
@@ -112,10 +132,18 @@ walletH = sseH walletLink "wallet" ["wallet"]
 base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
+customerAddressH :: Monad m => Address -> HtmlT m ()
+customerAddressH addr = div_ [class_ "row"] $ do
+    div_ [id_ "address", hidden_ "false"] $ toHtml addr'
+    div_ [class_ "col-6"] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 addr'
+    div_ [class_ "col-6"]
+        $ copyButton "address"
+    where addr' = base64 $ B.fromShort $ unCompactAddr addr
+
 pubKeyH :: Monad m => XPub -> HtmlT m ()
 pubKeyH xpub = div_ [class_ "row"] $ do
     div_ [id_ "public_key", hidden_ "false"] $ toHtml xpubByteString
-    div_ [class_ "col-6"] $ toHtml $ headAndTail 4 $ B8.dropEnd 2 xpubByteString
+    div_ [class_ "col-6"] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
     div_ [class_ "col-6"]
         $ copyButton "public_key"
   where
