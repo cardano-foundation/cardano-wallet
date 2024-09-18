@@ -11,10 +11,14 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
+import Cardano.Wallet.Deposit.Read
+    ( Address
+    )
 import Cardano.Wallet.Deposit.REST
     ( ErrWalletResource
     , WalletResource
     , WalletResourceM
+    , customerAddress
     , runWalletResourceM
     )
 import Cardano.Wallet.UI.Common.Layer
@@ -156,3 +160,17 @@ deleteWalletHandler layer deleteWallet alert render = do
     pure $ case r of
         Left e -> alert $ BL.pack $ show e
         Right _ -> render ()
+
+getCustomerAddress
+    :: SessionLayer WalletResource
+    -> (Address -> html)
+    -> (BL.ByteString -> html)
+    -> Customer
+    -> Handler html
+getCustomerAddress layer render alert customer = do
+    r <- liftIO $ catchRunWalletResourceM layer $ do
+        customerAddress customer
+    case r of
+        Left e -> pure $ alert $ BL.pack $ show e
+        Right (Just a) -> pure $ render a
+        Right Nothing -> pure $ alert "Address not discovered"
