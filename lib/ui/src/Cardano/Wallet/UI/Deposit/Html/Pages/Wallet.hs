@@ -20,6 +20,13 @@ import Cardano.Wallet.Deposit.REST
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( hxDelete_
+    , hxTarget_
+    )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( linkText
+    )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
     , record
@@ -32,7 +39,8 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     , newWalletFromXPubH
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( walletLink
+    ( walletDeleteLink
+    , walletLink
     , walletMnemonicLink
     , walletPostMnemonicLink
     , walletPostXPubLink
@@ -62,6 +70,7 @@ import Lucid
     ( Html
     , HtmlT
     , ToHtml (..)
+    , button_
     , class_
     , div_
     , hidden_
@@ -113,6 +122,14 @@ walletElementH alert = \case
         record $ do
             simpleField "Public Key" $ pubKeyH xpub
             simpleField "Customer Discovery" $ toHtml $ toText customers
+        div_ [class_ "row"] $ do
+            button_
+                [ class_ "btn btn-danger"
+                , hxDelete_ $ linkText walletDeleteLink
+                , hxTarget_ "#delete-result"
+                ]
+                "Delete Wallet"
+            div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
         section_
             $ newWalletFromMnemonicH walletMnemonicLink
