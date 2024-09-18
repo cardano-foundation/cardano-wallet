@@ -154,7 +154,7 @@ serveUI
     -> BlockchainSource
     -> Server UI
 serveUI tr ul env dbDir config _ nl bs =
-    ph About
+    ph Wallet
         :<|> ph About
         :<|> ph Network
         :<|> ph Settings

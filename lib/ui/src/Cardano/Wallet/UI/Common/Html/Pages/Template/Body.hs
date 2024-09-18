@@ -46,5 +46,5 @@ bodyH sseLink header body = do
         div_ [class_ "container-fluid"] $ do
             div_ [class_ "main"] body
             div_
-                [class_ "footer"]
+                [class_ "footer mt-5"]
                 footerH

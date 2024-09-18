@@ -30,7 +30,7 @@ footerH =
     term
         "footer_"
         [ class_
-            "text-center text-muted bg-secondary"
+            "text-center text-muted bg-secondary fs-6"
         ]
         $ do
             div_ [class_ "row d-md-flex align-items-center"]

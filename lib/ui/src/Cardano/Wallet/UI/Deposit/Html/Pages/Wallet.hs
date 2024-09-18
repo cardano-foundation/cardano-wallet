@@ -100,6 +100,7 @@ import Lucid
     , p_
     , section_
     , type_
+    , value_
     )
 import Lucid.Html5
     ( max_
@@ -187,29 +188,30 @@ deleteWalletModalH =
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
+        div_ [class_ "row mt-5"] $ do
+            h5_ [class_ "text-center"] "Query Address"
+            div_ [class_ "col"] $ record $ do
+                simpleField "Customer Number"
+                    $ input_
+                        [ type_ "number"
+                        , hxTarget_ "#customer-address"
+                        , class_ "form-control"
+                        , hxTrigger_ "load, change"
+                        , hxPost_ $ linkText customerAddressLink
+                        , min_ "0"
+                        , max_ $ toText $ customers - 1
+                        , step_ "1"
+                        , name_ "customer"
+                        , value_ "0"
+                        ]
+                simpleField "Address" $ div_ [id_ "customer-address"] mempty
         div_ [class_ "row mt-5 "] $ do
             h5_ [class_ "text-center"] "Wallet Details"
             div_ [class_ "col"] $ record $ do
                 simpleField "Public Key" $ pubKeyH xpub
                 simpleField "Customer Discovery" $ toHtml $ toText customers
         div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Query Address"
-            div_ [class_ "col"] $ record $ do
-                simpleField "Customer number"
-                    $ input_
-                        [ type_ "number"
-                        , hxTarget_ "#customer-address"
-                        , class_ "form-control"
-                        , hxTrigger_ "change"
-                        , hxPost_ $ linkText customerAddressLink
-                        , min_ "0"
-                        , max_ $ toText $ customers - 1
-                        , step_ "1"
-                        , name_ "customer"
-                        ]
-                simpleField "Address" $ div_ [id_ "customer-address"] mempty
-        div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Actions"
+            h5_ [class_ "text-center"] "Administration"
             div_ [class_ "col"] $ do
                 deleteWalletButtonH
             div_ [id_ "delete-result"] mempty

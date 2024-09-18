@@ -100,8 +100,8 @@ headerH :: Text -> Page -> Monad m => HtmlT m ()
 headerH prefix p =
     navigationH
         prefix
-        [ (is _About p, aboutPageLink, "About")
+        [ (is _Wallet p, walletPageLink, "Wallet")
         , (is _Network p, networkPageLink, "Network")
         , (is _Settings p, settingsPageLink, "Settings")
-        , (is _Wallet p, walletPageLink, "Wallet")
+        , (is _About p, aboutPageLink, "About")
         ]
