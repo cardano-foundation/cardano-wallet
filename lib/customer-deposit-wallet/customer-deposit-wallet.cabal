@@ -35,13 +35,25 @@ common opts-exe
   import:      opts-lib
   ghc-options: -threaded -rtsopts
 
+
+common no-delta-table-on-windows
+  if !os(windows)
+    build-depends:
+        , delta-table
+        , sqlite-simple
+    other-modules:
+        Cardano.Wallet.Deposit.IO.DB.Real
+  else
+    other-modules:
+        Cardano.Wallet.Deposit.IO.DB.Stub
+
 flag release
   description: Enable optimization and `-Werror`
   default:     False
   manual:      True
 
 library
-  import:          language, opts-lib
+  import:          language, opts-lib, no-delta-table-on-windows
   hs-source-dirs:  src
   build-depends:
     , async
@@ -62,7 +74,6 @@ library
     , crypto-primitives
     , customer-deposit-wallet-pure
     , delta-store
-    , delta-table
     , delta-types
     , directory
     , filepath
@@ -71,7 +82,6 @@ library
     , memory
     , microlens
     , OddWord
-    , sqlite-simple
     , serialise
     , text
     , time
