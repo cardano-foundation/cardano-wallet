@@ -17,10 +17,6 @@ import Cardano.Wallet.Deposit.IO.Network.Type
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     )
-import Cardano.Wallet.Read
-    ( Conway
-    , Tx
-    )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
     , atomically
@@ -55,11 +51,11 @@ newNetworkEnvMock
     => m (NetworkEnv m Read.Block)
 newNetworkEnvMock = do
     mchain <- newTVarIO []
-    mtip <- newTVarIO genesis
+    mtip <- newTVarIO Read.GenesisPoint
     mfollowers <- newTVarIO []
 
     let registerAndUpdate follower = do
-            _ <- rollBackward follower genesis
+            _ <- rollBackward follower Read.GenesisPoint
             (chain, tip) <- atomically $ do
                 modifyTVar mfollowers (follower:)
                 (,) <$> readTVar mchain <*> readTVar mtip
@@ -70,8 +66,8 @@ newNetworkEnvMock = do
     let forgeBlock tx = atomically $ do
             tipOld <- readTVar mtip
             let txRead = Write.toConwayTx (Write.mockTxId tipOld) tx
-                blockNew = mkNextBlock tipOld [txRead]
-                tipNew = getBlockPoint blockNew
+                blockNew = Read.mockNextBlock tipOld [txRead]
+                tipNew = Read.getChainPoint blockNew
             writeTVar mtip tipNew
             modifyTVar mchain (blockNew:)
             pure (blockNew, tipNew)
@@ -92,37 +88,3 @@ newNetworkEnvMock = do
             threadDelay 100
             pure $ Right ()
         }
-
-genesis :: Read.ChainPoint
-genesis = Read.GenesisPoint
-
-getBlockPoint :: Read.Block -> Read.ChainPoint
-getBlockPoint block =
-    Read.BlockPoint
-        { Read.slotNo = slot
-        , Read.headerHash =
-            Read.mockRawHeaderHash
-            $ fromIntegral $ fromEnum slot
-        }
-  where
-    bhBody = Read.blockHeaderBody $ Read.blockHeader block
-    slot = Read.slotNo bhBody
-
-mkNextBlock :: Read.ChainPoint -> [Tx Conway] -> Read.Block
-mkNextBlock tipOld txs =
-    Read.Block
-        { Read.blockHeader = Read.BHeader
-            { Read.blockHeaderBody = Read.BHBody
-                { Read.prev = Nothing
-                , Read.blockno = toEnum $ fromEnum slotNext
-                , Read.slotNo = slotNext
-                , Read.bhash = ()
-                }
-            , Read.blockHeaderSignature = ()
-            }
-        , Read.transactions = txs
-        }
- where
-    slotNext = case tipOld of
-        Read.GenesisPoint -> 1
-        Read.BlockPoint{slotNo = n} -> succ n

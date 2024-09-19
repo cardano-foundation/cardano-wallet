@@ -1,4 +1,6 @@
 {-# LANGUAGE BinaryLiterals #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 -- | Indirection module that re-exports types
 -- used for reading data from the blockchain,
@@ -31,6 +33,8 @@ module Cardano.Wallet.Deposit.Read
 
     , BlockNo
     , Block (..)
+    , getChainPoint
+    , mockNextBlock
     , BHeader (..)
     , Read.mockRawHeaderHash
     , BHBody (..)
@@ -40,7 +44,6 @@ module Cardano.Wallet.Deposit.Read
 
     -- * Dummy Values useful for testing
     , dummyAddress
-    , dummyBHeader
     ) where
 
 import Prelude
@@ -112,6 +115,9 @@ type TxBody = ()
 
 type TxWitness = ()
 
+{-----------------------------------------------------------------------------
+    Block
+------------------------------------------------------------------------------}
 type BlockNo = Natural
 
 -- type Block = O.CardanoBlock O.StandardCrypto
@@ -127,12 +133,6 @@ data BHeader = BHeader
     }
     deriving (Eq, Ord, Show)
 
-dummyBHeader :: BHeader
-dummyBHeader = BHeader
-    { blockHeaderBody = dummyBHBody
-    , blockHeaderSignature = ()
-    }
-
 type Sig = ()
 
 data BHBody = BHBody
@@ -143,16 +143,48 @@ data BHBody = BHBody
     }
     deriving (Eq, Ord, Show)
 
-type HashHeader = ()
+type HashHeader = Read.RawHeaderHash
 type HashBBody = ()
 
-dummyBHBody :: BHBody
-dummyBHBody = BHBody
-    { prev = Nothing
-    , blockno = 128
-    , slotNo = Read.SlotNo 42
-    , bhash = ()
-    }
+getChainPoint :: Block -> Read.ChainPoint
+getChainPoint block =
+    Read.BlockPoint
+        { Read.slotNo = slot
+        , Read.headerHash =
+            Read.mockRawHeaderHash
+            $ fromIntegral $ fromEnum slot
+        }
+  where
+    bhBody = blockHeaderBody $ blockHeader block
+    slot = slotNo bhBody
+
+-- | Create a new block from a sequence of transaction.
+mockNextBlock :: Read.ChainPoint -> [Read.Tx Read.Conway] -> Block
+mockNextBlock old txs =
+    Block
+        { blockHeader = BHeader
+            { blockHeaderBody = BHBody
+                { prev
+                , blockno
+                , slotNo
+                , bhash = ()
+                }
+            , blockHeaderSignature = ()
+            }
+        , transactions = txs
+        }
+  where
+    blockno = toEnum $ fromEnum slotNo
+    slotNo = case old of
+        Read.GenesisPoint -> 0
+        Read.BlockPoint{slotNo = n} -> succ n
+    prev = case old of
+        Read.GenesisPoint -> Nothing
+        Read.BlockPoint{headerHash} -> Just headerHash
+
+{-----------------------------------------------------------------------------
+    Genesis
+------------------------------------------------------------------------------}
 
 -- GenesisData is not part of the ledger specification proper
 type GenesisData = Byron.GenesisData
