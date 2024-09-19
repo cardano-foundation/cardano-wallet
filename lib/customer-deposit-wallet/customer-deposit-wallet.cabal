@@ -112,6 +112,7 @@ test-suite scenario
 
 library http
   import:          language, opts-lib
+  visibility:      public
   hs-source-dirs:  http
   build-depends:
     , aeson
@@ -164,6 +165,7 @@ library rest
   exposed-modules:
     Cardano.Wallet.Deposit.REST
     Cardano.Wallet.Deposit.REST.Catch
+    Cardano.Wallet.Deposit.REST.Start
     Cardano.Wallet.Deposit.REST.Wallet.Create
 
 test-suite unit

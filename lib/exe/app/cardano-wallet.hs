@@ -276,7 +276,7 @@ cmdServe =
                     mode
                     listenShelley
                     listenShelleyUi
-                    _listenDeposit
+                    listenDeposit
                     listenDepositUi
                     tlsConfig
                     networkConfig
@@ -315,6 +315,7 @@ cmdServe =
                         host
                         listenShelley
                         listenShelleyUi
+                        listenDeposit
                         listenDepositUi
                         tlsConfig
                         (Settings <$> poolMetadataFetching)

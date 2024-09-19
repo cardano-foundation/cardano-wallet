@@ -30,14 +30,16 @@ import GHC.Generics
 data ApplicationLog
     = ApiApplicationLog ApiApplicationLog
     | MsgServerStartupError ListenError
-    | UIApplicationLog String
+    | DepositUIApplicationLog String
+    | DepositApplicationLog String
     deriving (Generic, Show, Eq)
 
 instance ToText ApplicationLog where
     toText = \case
         ApiApplicationLog msg -> toText msg
         MsgServerStartupError err -> toText err
-        UIApplicationLog msg -> toText msg
+        DepositUIApplicationLog msg -> toText msg
+        DepositApplicationLog msg -> toText msg
 
 instance HasPrivacyAnnotation ApplicationLog
 
@@ -45,4 +47,5 @@ instance HasSeverityAnnotation ApplicationLog where
     getSeverityAnnotation = \case
         ApiApplicationLog msg -> getSeverityAnnotation msg
         MsgServerStartupError _ -> Error
-        UIApplicationLog _ -> Warning
+        DepositUIApplicationLog _ -> Info
+        DepositApplicationLog _ -> Info
