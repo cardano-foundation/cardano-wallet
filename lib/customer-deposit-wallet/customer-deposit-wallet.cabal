@@ -129,10 +129,8 @@ library http
     , servant-server
     , text
     , text-class
-    , warp
 
   exposed-modules:
-    Cardano.Wallet.Deposit.HTTP
     Cardano.Wallet.Deposit.HTTP.Endpoints
     Cardano.Wallet.Deposit.HTTP.Implementation
     Cardano.Wallet.Deposit.HTTP.Types.API
