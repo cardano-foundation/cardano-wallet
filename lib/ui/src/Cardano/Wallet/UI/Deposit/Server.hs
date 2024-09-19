@@ -22,9 +22,13 @@ import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     , WalletInstance
     )
+import Cardano.Wallet.Deposit.IO.Resource
+    ( ResourceStatus
+    )
 import Cardano.Wallet.Deposit.REST
     ( ErrDatabase
     , WalletResource
+    , deleteWallet
     , initXPubWallet
     )
 import Cardano.Wallet.Network
@@ -90,7 +94,8 @@ import Cardano.Wallet.UI.Deposit.Handlers.Page
     ( pageHandler
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
-    ( getWallet
+    ( deleteWalletHandler
+    , getWallet
     , postMnemonicWallet
     , postXPubWallet
     )
@@ -98,7 +103,8 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( walletElementH
+    ( deleteWalletModalH
+    , walletElementH
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -128,9 +134,6 @@ import Servant
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
-import Cardano.Wallet.Deposit.IO.Resource
-    ( ResourceStatus
-    )
 import qualified Data.ByteString.Lazy as BL
 
 showTime :: UTCTime -> String
@@ -163,6 +166,8 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\l -> getWallet l (renderHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l (initWallet l) alert ok v))
         :<|> (\v -> wsl (\l -> postXPubWallet l (initWallet l) alert ok v))
+        :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
+        :<|> wsl (\_l -> pure $ renderHtml deleteWalletModalH)
   where
     ph = pageHandler tr ul env dbDir config
     ok _ = renderHtml . rogerH @Text $ "ok"

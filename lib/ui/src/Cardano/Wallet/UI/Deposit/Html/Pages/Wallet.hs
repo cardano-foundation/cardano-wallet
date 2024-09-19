@@ -20,6 +20,19 @@ import Cardano.Wallet.Deposit.REST
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( hxDelete_
+    , hxSwap_
+    )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( dataBsDismiss_
+    , linkText
+    )
+import Cardano.Wallet.UI.Common.Html.Modal
+    ( ModalData (..)
+    , mkModal
+    , mkModalButton
+    )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( copyButton
     , record
@@ -32,7 +45,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     , newWalletFromXPubH
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( walletLink
+    ( walletDeleteLink
+    , walletDeleteModalLink
+    , walletLink
     , walletMnemonicLink
     , walletPostMnemonicLink
     , walletPostXPubLink
@@ -62,11 +77,13 @@ import Lucid
     ( Html
     , HtmlT
     , ToHtml (..)
+    , button_
     , class_
     , div_
     , hidden_
     , hr_
     , id_
+    , p_
     , section_
     )
 
@@ -79,6 +96,7 @@ data WalletPresent
     | WalletFailedToInitialize ErrDatabase
     | WalletVanished SomeException
     | WalletInitializing
+    | WalletClosing
 
 instance Show WalletPresent where
     show (WalletPresent x) = "WalletPresent: " <> show x
@@ -86,6 +104,7 @@ instance Show WalletPresent where
     show (WalletFailedToInitialize _) = "WalletFailedToInitialize"
     show (WalletVanished _) = "WalletVanished"
     show WalletInitializing = "WalletInitializing"
+    show WalletClosing = "WalletClosing"
 
 walletH :: WHtml ()
 walletH = sseH walletLink "wallet" ["wallet"]
@@ -105,12 +124,44 @@ pubKeyH xpub = div_ [class_ "row"] $ do
 headAndTail :: Int -> ByteString -> ByteString
 headAndTail n t = B8.take n t <> ".." <> B8.takeEnd n t
 
+deleteWalletButtonH :: Html ()
+deleteWalletButtonH =
+    mkModalButton
+        walletDeleteModalLink
+        [class_ "btn btn-danger"]
+        "Delete Wallet"
+
+deleteWalletModalH :: Html ()
+deleteWalletModalH =
+    mkModal
+        $ ModalData
+            { modalTitle = "Delete Wallet"
+            , modalBody = p_ "Are you sure you want to delete this wallet?"
+            , modalFooter = do
+                button_
+                    [ class_ "btn btn-danger"
+                    , hxDelete_ $ linkText walletDeleteLink
+                    , dataBsDismiss_ "modal"
+                    , hxSwap_ "none"
+                    ]
+                    "Delete Wallet"
+                button_
+                    [ class_ "btn btn-secondary"
+                    , dataBsDismiss_ "modal"
+                    ]
+                    "Close"
+            }
+
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
-    (WalletPresent (WalletPublicIdentity xpub customers)) -> do
+    WalletPresent (WalletPublicIdentity xpub customers) -> do
         record $ do
             simpleField "Public Key" $ pubKeyH xpub
             simpleField "Customer Discovery" $ toHtml $ toText customers
+        div_ [class_ "row"] $ do
+            div_ [class_ "col"] $ do
+                deleteWalletButtonH
+            div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
         section_
             $ newWalletFromMnemonicH walletMnemonicLink
@@ -134,6 +185,7 @@ walletElementH alert = \case
                 <> BL.pack (show err)
     WalletVanished e -> alert $ "Wallet vanished " <> BL.pack (show e)
     WalletInitializing -> alert "Wallet is initializing"
+    WalletClosing -> alert "Wallet is closing"
 
 data BadgeStyle
     = Primary

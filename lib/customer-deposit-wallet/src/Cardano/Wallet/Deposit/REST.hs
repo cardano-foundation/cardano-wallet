@@ -45,6 +45,8 @@ module Cardano.Wallet.Deposit.REST
     , signTxBody
     , walletExists
     , walletPublicIdentity
+    , deleteWallet
+    , deleteTheDepositWalletOnDisk
     ) where
 
 import Prelude
@@ -115,6 +117,7 @@ import Data.Store
     )
 import System.Directory
     ( listDirectory
+    , removeFile
     )
 import System.FilePath
     ( (</>)
@@ -169,6 +172,7 @@ instance Show ErrWalletResource where
             ErrFailedToInitialize e' ->
                 "Wallet failed to initialize (no wallet): "
                     <> show e'
+            ErrClosing -> "Wallet is closing"
         ErrWalletPresent e -> case e of
             ErrAlreadyInitializing -> "Wallet is already initializing"
             ErrAlreadyInitialized _ -> "Wallet is already initialized"
@@ -176,6 +180,7 @@ instance Show ErrWalletResource where
             ErrAlreadyFailedToInitialize e' ->
                 "Wallet failed to initialize (wallet present): "
                     <> show e'
+            ErrAlreadyClosing -> "Wallet is already closing"
 
 -- | Monad for acting on a 'WalletResource'.
 type WalletResourceM = ReaderT WalletResource (ExceptT ErrWalletResource IO)
@@ -206,9 +211,16 @@ depositPrefix = "deposit-"
 
 -- | Scan a directory for deposit wallets.
 scanDirectoryForDepositPrefix :: FilePath -> IO [FilePath]
-scanDirectoryForDepositPrefix fp = do
-    files <- listDirectory fp
+scanDirectoryForDepositPrefix dir = do
+    files <- listDirectory dir
     pure $ filter (depositPrefix `isPrefixOf`) files
+
+deleteTheDepositWalletOnDisk :: FilePath -> IO ()
+deleteTheDepositWalletOnDisk dir = do
+    ds <- scanDirectoryForDepositPrefix dir
+    case ds of
+        [d] -> removeFile (dir </> d)
+        _ -> pure ()
 
 -- | Try to open an existing wallet
 findTheDepositWalletOnDisk
@@ -217,13 +229,13 @@ findTheDepositWalletOnDisk
     -> (Either ErrLoadingDatabase WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is found
     -> IO a
-findTheDepositWalletOnDisk fp action = do
-    ds <- scanDirectoryForDepositPrefix fp
+findTheDepositWalletOnDisk dir action = do
+    ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [d] -> do
-            (xpub, users) <- deserialise <$> BL.readFile (fp </> d)
+            (xpub, users) <- deserialise <$> BL.readFile (dir </> d)
             case xpubFromBytes xpub of
-                Nothing -> action $ Left $ ErrDatabaseCorrupted (fp </> d)
+                Nothing -> action $ Left $ ErrDatabaseCorrupted (dir </> d)
                 Just identity -> do
                     let state =
                             fromXPubAndGenesis
@@ -233,8 +245,8 @@ findTheDepositWalletOnDisk fp action = do
                     store <- newStore
                     writeS store state
                     action $ Right store
-        [] -> action $ Left $ ErrDatabaseNotFound fp
-        ds' -> action $ Left $ ErrMultipleDatabases ((fp </>) <$> ds')
+        [] -> action $ Left $ ErrDatabaseNotFound dir
+        ds' -> action $ Left $ ErrMultipleDatabases ((dir </>) <$> ds')
 
 -- | Try to create a new wallet
 createTheDepositWalletOnDisk
@@ -249,11 +261,12 @@ createTheDepositWalletOnDisk
     -> (Maybe WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is created
     -> IO a
-createTheDepositWalletOnDisk _tr fp identity users action = do
-    ds <- scanDirectoryForDepositPrefix fp
+createTheDepositWalletOnDisk _tr dir identity users action = do
+    ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [] -> do
-            BL.writeFile (fp </> depositPrefix <> hashWalletId identity)
+            let fp = dir </> depositPrefix <> hashWalletId identity
+            BL.writeFile fp
                 $ serialise (xpubToBytes identity, fromIntegral users :: Int)
             store <- newStore
             action $ Just store
@@ -275,14 +288,14 @@ loadWallet
     -- ^ Path to the wallet database directory
     -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> WalletResourceM ()
-loadWallet bootEnv fp trs = do
+loadWallet bootEnv dir trs = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
-        action f = findTheDepositWalletOnDisk fp $ \case
+        action f = findTheDepositWalletOnDisk dir $ \case
             Right wallet ->
-                Right <$> do
+                Right <$>
                     WalletIO.withWalletLoad
                         (WalletIO.WalletEnv bootEnv wallet)
-                        f
+                     f
             Left e -> pure $ Left $ ErrLoadingDatabase e
     resource <- ask
     lift
@@ -304,9 +317,9 @@ initXPubWallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initXPubWallet tr bootEnv fp trs xpub users = do
+initXPubWallet tr bootEnv dir trs xpub users = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
-        action f = createTheDepositWalletOnDisk tr fp xpub users $ \case
+        action f = createTheDepositWalletOnDisk tr dir xpub users $ \case
             Just wallet -> do
                 fmap Right
                     $ WalletIO.withWalletInit
@@ -320,15 +333,24 @@ initXPubWallet tr bootEnv fp trs xpub users = do
                 pure
                     $ Left
                     $ ErrCreatingDatabase
-                    $ ErrDatabaseAlreadyExists fp
+                    $ ErrDatabaseAlreadyExists dir
     resource <- ask
     lift
         $ ExceptT
         $ first ErrWalletPresent
             <$> Resource.putResource action trs resource
 
+deleteWallet :: FilePath -> WalletResourceM ()
+deleteWallet dir = do
+    resource <- ask
+    lift
+        $ ExceptT
+        $ first ErrNoWallet
+            <$> Resource.closeResource resource
+    liftIO $ deleteTheDepositWalletOnDisk dir
+
 walletExists :: FilePath -> WalletResourceM Bool
-walletExists fp = liftIO $ findTheDepositWalletOnDisk fp $ \case
+walletExists dir = liftIO $ findTheDepositWalletOnDisk dir $ \case
     Right _ -> pure True
     Left _ -> pure False
 

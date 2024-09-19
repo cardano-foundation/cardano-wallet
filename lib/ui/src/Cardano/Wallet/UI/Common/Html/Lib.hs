@@ -10,6 +10,11 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , linkText
     , showHtml
     , toTextHtml
+    , dataBsToggle_
+    , dataBsTarget_
+    , dataBsDismiss_
+    , ariaHidden_
+    , ariaLabel_
     )
 where
 
@@ -31,11 +36,15 @@ import Data.Time
     , utcToLocalTime
     )
 import Lucid
-    ( Html
+    ( Attribute
+    , Html
     , HtmlT
     , ToHtml (..)
     , class_
     , div_
+    )
+import Lucid.Base
+    ( makeAttribute
     )
 import Servant.Links
     ( Link
@@ -72,3 +81,18 @@ showHtml = toHtml . show
 
 toTextHtml :: (Monad m, ToText a) => a -> HtmlT m ()
 toTextHtml = toHtml . toText
+
+dataBsToggle_ :: Text -> Attribute
+dataBsToggle_ = makeAttribute "data-bs-toggle"
+
+dataBsTarget_ :: Text -> Attribute
+dataBsTarget_ = makeAttribute "data-bs-target"
+
+dataBsDismiss_ :: Text -> Attribute
+dataBsDismiss_ = makeAttribute "data-bs-dismiss"
+
+ariaHidden_ :: Text -> Attribute
+ariaHidden_ = makeAttribute "aria-hidden"
+
+ariaLabel_ :: Text -> Attribute
+ariaLabel_ = makeAttribute "aria-label"

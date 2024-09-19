@@ -36,7 +36,8 @@ import GHC.Generics
     ( Generic
     )
 import Servant
-    ( FormUrlEncoded
+    ( Delete
+    , FormUrlEncoded
     , Get
     , Link
     , Post
@@ -96,6 +97,8 @@ type Data =
             :> "xpub"
             :> ReqBody '[FormUrlEncoded] PostWalletViaXPub
             :> SessionedHtml Post
+        :<|> "wallet" :> SessionedHtml Delete
+        :<|> "wallet" :> "delete" :> "modal" :> SessionedHtml Get
 
 type Home = SessionedHtml Get
 
@@ -121,6 +124,8 @@ walletPageLink :: Link
 walletLink :: Link
 walletPostMnemonicLink :: Link
 walletPostXPubLink :: Link
+walletDeleteLink :: Link
+walletDeleteModalLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -134,5 +139,8 @@ homePageLink
     :<|> walletMnemonicLink
     :<|> walletLink
     :<|> walletPostMnemonicLink
-    :<|> walletPostXPubLink =
+    :<|> walletPostXPubLink
+    :<|> walletDeleteLink
+    :<|> walletDeleteModalLink
+    =
         allLinks (Proxy @UI)

@@ -19,17 +19,13 @@ module Cardano.Wallet.Deposit.IO.Resource
     , putResource
     , ResourceStatus (..)
     , readStatus
+    , closeResource
     ) where
 
 import Prelude
 
 import Control.Concurrent
     ( forkFinally
-    )
-import Control.Concurrent.Class.MonadMVar
-    ( MonadMVar (..)
-    , putMVar
-    , takeMVar
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM (..)
@@ -59,25 +55,27 @@ import Control.Tracer
 -- that has to be initialized with a 'with…' function.
 data Resource e a = Resource
     { content :: TVar IO (ResourceStatus e a)
-    , waitForEndOfLife :: IO ()
+    , waitForEndOfLife :: IO (Either (Either SomeException e) ())
     -- ^ Wait until the 'Resource' is out of scope.
     }
 
 -- | Possible status of the content of a 'Resource'.
 data ResourceStatus e a
-    = NotInitialized
-    | Initializing
-    | Initialized a
-    | FailedToInitialize e
+    = Closed
+    | Opening
+    | Open a
+    | FailedToOpen e
     | Vanished SomeException
+    | Closing
     deriving (Show)
 
 instance Functor (ResourceStatus e) where
-    fmap _ NotInitialized = NotInitialized
-    fmap _ Initializing = Initializing
-    fmap f (Initialized a) = Initialized (f a)
+    fmap _ Closed = Closed
+    fmap _ Opening = Opening
+    fmap f (Open a) = Open (f a)
     fmap _ (Vanished e) = Vanished e
-    fmap _ (FailedToInitialize e) = FailedToInitialize e
+    fmap _ (FailedToOpen e) = FailedToOpen e
+    fmap _ Closing = Closing
 
 -- | Read the status of a 'Resource'.
 readStatus :: Resource e a -> IO (ResourceStatus e ())
@@ -97,11 +95,16 @@ withResource
     -> IO b
     -- ^ Result of the action.
 withResource action = do
-    content <- newTVarIO NotInitialized
-    finished <- newEmptyMVar
-    let waitForEndOfLife = takeMVar finished
+    content <- newTVarIO Closed
+    let waitForEndOfLife = atomically $ do
+            state <- readTVar content
+            case state of
+                Closing -> pure $ Right ()
+                Vanished e -> pure $ Left $ Left e
+                FailedToOpen e -> pure $ Left $ Right e
+                _ -> retry
         resource = Resource{content, waitForEndOfLife}
-    action resource `finally` putMVar finished ()
+    action resource `finally` closeResource resource
 
 -- | Error condition for 'onResource'.
 data ErrResourceMissing e
@@ -111,8 +114,11 @@ data ErrResourceMissing e
       ErrStillInitializing
     | -- | The 'Resource' has not been initialized yet.
       ErrVanished SomeException
-    | -- ErrFailedToInitialize
+    | -- | The 'Resource' has vanished due to an unhandled exception.
       ErrFailedToInitialize e
+    -- | The 'Resource' has failed to initialize.
+    | ErrClosing
+    -- | The 'Resource is currently being closed.
     deriving (Show)
 
 -- | Perform an action on a 'Resource' if it is initialized.
@@ -125,11 +131,42 @@ onResource
 onResource action resource = do
     eContent <- readTVarIO $ content resource
     case eContent of
-        NotInitialized -> pure $ Left ErrNotInitialized
-        Initializing -> pure $ Left ErrStillInitializing
-        Initialized a -> Right <$> action a
+        Closed -> pure $ Left ErrNotInitialized
+        Opening -> pure $ Left ErrStillInitializing
+        Open a -> Right <$> action a
         Vanished e -> pure $ Left $ ErrVanished e
-        FailedToInitialize e -> pure $ Left $ ErrFailedToInitialize e
+        FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
+        Closing -> pure $ Left ErrClosing
+
+closeResource :: Resource e a -> IO (Either (ErrResourceMissing e) ())
+closeResource resource = do
+    r <- atomically $ do
+        status <- readTVar $ content resource
+        case status of
+            Closed -> pure $ Right ()
+            Opening -> pure $ Left ErrStillInitializing
+            Open _ -> do
+                writeTVar (content resource) Closing
+                pure $ Right ()
+            Vanished e -> pure $ Left $ ErrVanished e
+            FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
+            Closing -> pure $ Left ErrClosing
+    case r of
+        Right () -> waitForClose resource
+        Left e' -> pure $ Left e'
+
+waitForClose :: Resource e a -> IO (Either (ErrResourceMissing e) ())
+waitForClose resource = do
+    e <- atomically $ do
+        status <- readTVar (content resource)
+        case status of
+            Closed -> pure $ Right ()
+            Vanished e -> pure $ Left $ ErrVanished e
+            FailedToOpen e -> pure $ Left $ ErrFailedToInitialize e
+            _ -> retry
+    case e of
+        Right () -> pure $ Right ()
+        Left e' -> pure $ Left e'
 
 -- | Error condition for 'putResource'.
 data ErrResourceExists e a
@@ -141,6 +178,8 @@ data ErrResourceExists e a
       ErrAlreadyVanished SomeException
     | -- | The resource 'a' has failed to initialize.
       ErrAlreadyFailedToInitialize e
+    | -- | The resource 'a' is currently being closed.
+        ErrAlreadyClosing
     deriving (Show)
 
 -- | Initialize a 'Resource' using a @with…@ function.
@@ -159,13 +198,14 @@ putResource start trs resource = do
     forking <- atomically $ do
         ca :: ResourceStatus e a <- readTVar (content resource)
         case ca of
-            FailedToInitialize e -> pure $ Left $ ErrAlreadyFailedToInitialize e
+            FailedToOpen e -> pure $ Left $ ErrAlreadyFailedToInitialize e
             Vanished e -> pure $ Left $ ErrAlreadyVanished e
-            Initializing -> pure $ Left ErrAlreadyInitializing
-            Initialized a -> pure $ Left $ ErrAlreadyInitialized a
-            NotInitialized -> do
-                writeTVar (content resource) Initializing
-                pure $ Right (forkInitialization >> traceWith trs Initializing)
+            Opening -> pure $ Left ErrAlreadyInitializing
+            Open a -> pure $ Left $ ErrAlreadyInitialized a
+            Closed -> do
+                writeTVar (content resource) Opening
+                pure $ Right (forkInitialization >> traceWith trs Opening)
+            Closing -> pure $ Left ErrAlreadyClosing
     case forking of
         Left e -> pure $ Left e
         Right action -> Right <$> action
@@ -173,15 +213,24 @@ putResource start trs resource = do
     controlInitialization = do
         r <- start run
         join $ atomically $ case r of
+            Right (Right ()) -> do
+                writeTVar (content resource) Closed
+                pure $ traceWith trs Closed
+            Right (Left (Left e)) -> do
+                writeTVar (content resource) (Vanished e)
+                pure $ traceWith trs (Vanished e)
+            Right (Left (Right e)) -> do
+                writeTVar (content resource) (FailedToOpen e)
+                pure $ traceWith trs (FailedToOpen e)
             Left e -> do
-                writeTVar (content resource) (FailedToInitialize e)
-                pure $ traceWith trs (FailedToInitialize e)
-            Right () -> pure (pure ())
+                writeTVar (content resource) (FailedToOpen e)
+                pure $ traceWith trs (FailedToOpen e)
+
     forkInitialization = void $ forkFinally controlInitialization vanish
 
     run a = do
-        atomically $ writeTVar (content resource) (Initialized a)
-        traceWith trs (Initialized a)
+        atomically $ writeTVar (content resource) (Open a)
+        traceWith trs (Open a)
         waitForEndOfLife resource
 
     vanish (Left e) = do

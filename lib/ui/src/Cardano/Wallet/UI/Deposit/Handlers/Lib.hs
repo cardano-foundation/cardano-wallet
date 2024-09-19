@@ -69,8 +69,9 @@ walletPresent :: SessionLayer WalletResource -> Handler WalletPresent
 walletPresent session = catchRunWalletResourceM session $ do
     s <- ask >>= liftIO . readStatus
     case s of
-        NotInitialized -> pure WalletAbsent
-        Initialized _ -> WalletPresent <$> walletPublicIdentity
+        Closed -> pure WalletAbsent
+        Open _ -> WalletPresent <$> walletPublicIdentity
         Vanished e -> pure $ WalletVanished e
-        FailedToInitialize e -> pure $ WalletFailedToInitialize e
-        Initializing -> pure WalletInitializing
+        FailedToOpen e -> pure $ WalletFailedToInitialize e
+        Opening -> pure WalletInitializing
+        Closing -> pure WalletClosing
