@@ -3,7 +3,7 @@
 -- License: Apache-2.0
 --
 -- Implementation of our HTTP API.
-module Cardano.Wallet.Deposit.HTTP.Implementation
+module Cardano.Wallet.Deposit.HTTP.Server
     ( api
     , server
     )

@@ -133,7 +133,7 @@ library http
     , text-class
 
   exposed-modules:
-    Cardano.Wallet.Deposit.HTTP.Implementation
+    Cardano.Wallet.Deposit.HTTP.Server
     Cardano.Wallet.Deposit.HTTP.Types.API
     Cardano.Wallet.Deposit.HTTP.Types.JSON
     Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
