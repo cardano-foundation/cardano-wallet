@@ -12,7 +12,7 @@ where
 import Prelude
 
 import Cardano.Wallet.Deposit.HTTP.Types.API
-    ( CustomerAPI
+    ( API
     )
 import Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( Address
@@ -62,7 +62,7 @@ import qualified Cardano.Wallet.Deposit.REST as REST
 {-----------------------------------------------------------------------------
     Types
 ------------------------------------------------------------------------------}
-api :: Proxy CustomerAPI
+api :: Proxy API
 api = Proxy
 
 server
@@ -70,7 +70,7 @@ server
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
-    -> Server CustomerAPI
+    -> Server API
 server tr dbDir wb r =
     listCustomerH r
         :<|> queryAddressH r
