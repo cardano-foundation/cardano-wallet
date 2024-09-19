@@ -85,8 +85,9 @@ import Cardano.Wallet.Application.CLI
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
-    , listenApiOption
+    , listenDepositOption
     , listenDepositUiOption
+    , listenShelleyOption
     , listenShelleyUiOption
     , loggingMinSeverity
     , loggingOptions
@@ -229,8 +230,9 @@ beforeMainLoop tr = logInfo tr . MsgListenAddress
 data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _mode :: Mode CardanoNodeConn
-    , _listenApi :: Listen
+    , _listenShelley :: Listen
     , _listenShelleyUi :: Maybe Listen
+    , _listenDeposit :: Maybe Listen
     , _listenDepositUi :: Maybe Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
@@ -255,8 +257,9 @@ cmdServe =
             $ ServeArgs
                 <$> hostPreferenceOption
                 <*> modeOption nodeSocketOption
-                <*> listenApiOption
+                <*> listenShelleyOption
                 <*> listenShelleyUiOption
+                <*> listenDepositOption
                 <*> listenDepositUiOption
                 <*> optional tlsOption
                 <*> networkConfigurationOption
@@ -271,8 +274,9 @@ cmdServe =
         args@( ServeArgs
                     host
                     mode
-                    listenApi
+                    listenShelley
                     listenShelleyUi
+                    _listenDeposit
                     listenDepositUi
                     tlsConfig
                     networkConfig
@@ -309,7 +313,7 @@ cmdServe =
                         databaseDir
                         Nothing
                         host
-                        listenApi
+                        listenShelley
                         listenShelleyUi
                         listenDepositUi
                         tlsConfig

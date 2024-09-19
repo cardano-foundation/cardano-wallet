@@ -48,7 +48,7 @@ module Cardano.Wallet.Application.CLI
     , argumentT
     , databaseOption
     , hostPreferenceOption
-    , listenApiOption
+    , listenShelleyOption
     , shutdownHandlerFlag
     , stateDirOption
     , syncToleranceOption
@@ -100,6 +100,7 @@ module Cardano.Wallet.Application.CLI
     , ekgEnabled
     , listenShelleyUiOption
     , listenDepositUiOption
+    , listenDepositOption
     ) where
 
 import Prelude hiding
@@ -1426,8 +1427,8 @@ hostPreferenceOption = option str $ mempty
     <> showDefaultWith (const "127.0.0.1")
 
 -- | [--random-port|--port=INT]
-listenApiOption :: Parser Listen
-listenApiOption =
+listenShelleyOption :: Parser Listen
+listenShelleyOption =
     (ListenOnRandomPort <$ randomPortOption)
     <|>
     (ListenOnPort . getPort <$> portOption)
@@ -1441,7 +1442,16 @@ listenShelleyUiOption =
     <|>
     pure Nothing
 
--- | [--ui-random-port|--ui-port=INT]
+-- | [--deposit-random-port|--deposit-port=INT]
+listenDepositOption :: Parser (Maybe Listen)
+listenDepositOption =
+    (Just ListenOnRandomPort <$ depositRandomPortOption)
+    <|>
+    (Just . ListenOnPort . getPort <$> depositPortOption)
+    <|>
+    pure Nothing
+
+-- | [--ui-deposit-random-port|--ui-deposit-port=INT]
 listenDepositUiOption :: Parser (Maybe Listen)
 listenDepositUiOption =
     (Just ListenOnRandomPort <$ uiDepositRandomPortOption)
@@ -1484,6 +1494,12 @@ randomPortOption = flag' False $ mempty
     <> long "random-port"
     <> help "serve wallet API on any available port (conflicts with --port)"
 
+-- | [--deposit-random-port]
+depositRandomPortOption :: Parser Bool
+depositRandomPortOption = flag' False $ mempty
+    <> long "deposit-random-port"
+    <> help "serve deposit wallet API on any available port (conflicts with --deposit-port)"
+
 -- | --payment=PAYMENT
 paymentOption :: Parser Text
 paymentOption = optionT $ mempty
@@ -1509,6 +1525,15 @@ portOption = optionT $ mempty
     <> metavar "INT"
     <> help "port used for serving the wallet API."
     <> value (Port 8_090)
+    <> showDefaultWith showT
+
+-- | [--deposit-port=INT], default: 8093
+depositPortOption :: Parser (Port "Deposit Wallet")
+depositPortOption = optionT $ mempty
+    <> long "deposit-port"
+    <> metavar "INT"
+    <> help "port used for serving the deposit wallet JSON API."
+    <> value (Port 8_093)
     <> showDefaultWith showT
 
 -- | [--shutdown-handler]
