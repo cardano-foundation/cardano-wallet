@@ -28,6 +28,7 @@ import Data.Set
     ( Set
     )
 
+import qualified Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO as DeltaUTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 
@@ -58,7 +59,7 @@ availableUTxO u pending =
 applyBlock
     :: IsOurs Read.Address -> Read.Block -> UTxO -> (DeltaUTxO, UTxO)
 applyBlock isOurs block u0 =
-    (mconcat $ reverse dus, u1)
+    (DeltaUTxO.concat $ reverse dus, u1)
   where
     (dus, u1) =
         mapAccumL' (applyTx isOurs) u0
