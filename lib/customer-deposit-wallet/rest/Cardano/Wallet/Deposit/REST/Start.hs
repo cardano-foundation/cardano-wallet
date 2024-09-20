@@ -8,14 +8,9 @@ import Prelude
 
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (..)
-    , WalletInstance
-    )
-import Cardano.Wallet.Deposit.IO.Resource
-    ( ResourceStatus
     )
 import Cardano.Wallet.Deposit.REST
-    ( ErrDatabase
-    , WalletResource
+    ( WalletResource
     , loadWallet
     , runWalletResourceM
     , walletExists
@@ -36,17 +31,16 @@ lg tr p x = liftIO $ traceWith tr $ p <> ": " <> show x
 
 loadDepositWalletFromDisk
     :: Tracer IO String
-    -> Tracer IO (ResourceStatus ErrDatabase WalletInstance)
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
     -> IO ()
-loadDepositWalletFromDisk tr sttr dir env resource = do
+loadDepositWalletFromDisk tr dir env resource = do
     result <- flip runWalletResourceM resource $ do
         test <- walletExists dir
         when test $ do
             lg tr "Loading wallet from" dir
-            loadWallet env dir sttr
+            loadWallet env dir
             lg tr "Wallet loaded from" dir
     case result of
         Left e -> error $ show e

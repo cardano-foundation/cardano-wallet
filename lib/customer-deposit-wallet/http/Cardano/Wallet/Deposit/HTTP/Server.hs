@@ -39,7 +39,6 @@ import Cardano.Wallet.Deposit.REST.Wallet.Create
     )
 import Control.Tracer
     ( Tracer
-    , nullTracer
     )
 import Data.Functor
     ( ($>)
@@ -98,7 +97,6 @@ createWalletViaMnemonic
                 tracer
                 boot
                 dir
-                nullTracer
                 (xpubFromMnemonics mnemonics')
                 (fromIntegral users')
 
@@ -129,7 +127,6 @@ createWalletViaXPub
                         tracer
                         boot
                         dir
-                        nullTracer
                         xpub'
                         (fromIntegral users')
             Right Nothing -> pure $ Left "Invalid XPub"

@@ -67,7 +67,6 @@ import Cardano.Wallet.Deposit.IO
 import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceExists (..)
     , ErrResourceMissing (..)
-    , ResourceStatus
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
@@ -286,9 +285,8 @@ loadWallet
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
-    -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> WalletResourceM ()
-loadWallet bootEnv dir trs = do
+loadWallet bootEnv dir = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk dir $ \case
             Right wallet ->
@@ -301,7 +299,7 @@ loadWallet bootEnv dir trs = do
     lift
         $ ExceptT
         $ first ErrWalletPresent
-            <$> Resource.putResource action trs resource
+            <$> Resource.putResource action resource
 
 -- | Initialize a new wallet from an 'XPub'.
 initXPubWallet
@@ -311,13 +309,12 @@ initXPubWallet
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
-    -> Tracer IO (ResourceStatus ErrDatabase WalletIO.WalletInstance)
     -> XPub
     -- ^ Id of the wallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initXPubWallet tr bootEnv dir trs xpub users = do
+initXPubWallet tr bootEnv dir xpub users = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = createTheDepositWalletOnDisk tr dir xpub users $ \case
             Just wallet -> do
@@ -338,7 +335,7 @@ initXPubWallet tr bootEnv dir trs xpub users = do
     lift
         $ ExceptT
         $ first ErrWalletPresent
-            <$> Resource.putResource action trs resource
+            <$> Resource.putResource action resource
 
 deleteWallet :: FilePath -> WalletResourceM ()
 deleteWallet dir = do

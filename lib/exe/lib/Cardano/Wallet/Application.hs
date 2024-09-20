@@ -205,7 +205,6 @@ import Control.Monad.Trans.Except
     )
 import Control.Tracer
     ( Tracer (..)
-    , nullTracer
     , traceWith
     )
 import Data.Function
@@ -425,7 +424,6 @@ serveWallet
                                     ( DepositApplicationLog
                                         >$< applicationTracer
                                     )
-                                    nullTracer
                                     databaseDir'
                                     fakeBootEnv
                                     resource
@@ -469,7 +467,6 @@ serveWallet
                                                 ( DepositApplicationLog
                                                     >$< applicationTracer
                                                 )
-                                                nullTracer
                                                 databaseDir'
                                                 fakeBootEnv
                                                 resource
