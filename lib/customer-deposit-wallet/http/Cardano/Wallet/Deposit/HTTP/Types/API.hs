@@ -27,8 +27,8 @@ import Servant.API
     ( Capture
     , Get
     , JSON
-    , NoContent
     , Put
+    , PutNoContent
     , ReqBody
     , StdMethod (..)
     , Verb
@@ -48,10 +48,10 @@ type CustomerAPI =
             :> Put '[JSON] (ApiT Address)
         :<|> "mnemonics"
             :> ReqBody '[JSON] PostWalletViaMenmonic
-            :> Put '[JSON] NoContent
+            :> PutNoContent
         :<|> "xpub"
             :> ReqBody '[JSON] PostWalletViaXPub
-            :> Put '[JSON] NoContent
+            :> PutNoContent
 
 type NetworkAPI =
     "network"
