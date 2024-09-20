@@ -43,6 +43,7 @@ library
     Cardano.Wallet.UI.Common.Handlers.SSE
     Cardano.Wallet.UI.Common.Handlers.State
     Cardano.Wallet.UI.Common.Handlers.Wallet
+    Cardano.Wallet.UI.Common.Html.Copy
     Cardano.Wallet.UI.Common.Html.Html
     Cardano.Wallet.UI.Common.Html.Htmx
     Cardano.Wallet.UI.Common.Html.Lib

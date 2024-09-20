@@ -8,6 +8,9 @@ import Prelude
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxGet_
     , hxPost_
@@ -15,9 +18,6 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( copyButton
     )
 import Cardano.Wallet.UI.Type
     ( WHtml

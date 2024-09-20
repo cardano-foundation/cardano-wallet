@@ -27,9 +27,11 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Primitive.Types.Address
     ( Address
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
+import Cardano.Wallet.UI.Common.Html.Copy
     ( copyButton
-    , fieldHtml
+    )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( fieldHtml
     , record
     , simpleField
     , sseH

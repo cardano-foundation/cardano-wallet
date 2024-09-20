@@ -23,6 +23,9 @@ import Cardano.Wallet.Deposit.REST
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
     , hxPost_
@@ -40,8 +43,7 @@ import Cardano.Wallet.UI.Common.Html.Modal
     , mkModalButton
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( copyButton
-    , record
+    ( record
     , simpleField
     , sseH
     )
@@ -134,10 +136,10 @@ base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
 customerAddressH :: Monad m => Address -> HtmlT m ()
-customerAddressH addr = div_ [class_ "row"] $ do
+customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
     div_ [id_ "address", hidden_ "true"] $ toHtml encodedAddr
-    div_ [class_ "col-8"] $ toHtml addrShortened
-    div_ [class_ "col-4"] $ copyButton "address"
+    div_ [class_ ""] $ toHtml addrShortened
+    div_ [class_ "ms-1"] $ copyButton "address"
   where
     encodedAddr = encodeMainnetAddress addr
     addrShortened =
@@ -146,10 +148,10 @@ customerAddressH addr = div_ [class_ "row"] $ do
             <> T.takeEnd 10 encodedAddr
 
 pubKeyH :: Monad m => XPub -> HtmlT m ()
-pubKeyH xpub = div_ [class_ "row"] $ do
+pubKeyH xpub = div_ [class_ "d-flex justify-content-end"] $ do
     div_ [id_ "public_key", hidden_ "true"] $ toHtml xpubByteString
-    div_ [class_ "col-8"] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
-    div_ [class_ "col-4"]
+    div_ [class_ ""] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
+    div_ [class_ "ms-1"]
         $ copyButton "public_key"
   where
     xpubByteString = base64 $ xpubToBytes xpub
@@ -189,7 +191,7 @@ walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
         div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Query Address"
+            h5_ [class_ "text-center"] "Addresses"
             div_ [class_ "col"] $ record $ do
                 simpleField "Customer Number"
                     $ input_
@@ -206,10 +208,10 @@ walletElementH alert = \case
                         ]
                 simpleField "Address" $ div_ [id_ "customer-address"] mempty
         div_ [class_ "row mt-5 "] $ do
-            h5_ [class_ "text-center"] "Wallet Details"
+            h5_ [class_ "text-center"] "Details"
             div_ [class_ "col"] $ record $ do
                 simpleField "Public Key" $ pubKeyH xpub
-                simpleField "Customer Discovery" $ toHtml $ toText customers
+                simpleField "Tracked Addresses" $ toHtml $ toText customers
         div_ [class_ "row mt-5"] $ do
             h5_ [class_ "text-center"] "Administration"
             div_ [class_ "col"] $ do

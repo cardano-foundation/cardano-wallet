@@ -1,7 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
@@ -22,7 +21,6 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , showAda
     , showAdaOfLoveLace
     , showThousandDots
-    , copyButton
     , fadeInId
     )
 where
@@ -47,9 +45,6 @@ import Cardano.Wallet.UI.Lib.ListOf
 import Control.Monad.Operational
     ( singleton
     )
-import Data.String.Interpolate
-    ( i
-    )
 import Data.Text
     ( Text
     )
@@ -59,13 +54,11 @@ import Lucid
     , HtmlT
     , ToHtml (..)
     , b_
-    , button_
     , class_
     , div_
     , id_
     , role_
     , scope_
-    , script_
     , style_
     , table_
     , td_
@@ -161,7 +154,7 @@ sseH
     -> Monad m
     => HtmlT m ()
 sseH link target events = do
-     do
+    do
         div_
             [ hxTrigger_ triggered
             , hxGet_ $ linkText link
@@ -182,7 +175,7 @@ sseH link target events = do
 sseInH :: Text -> [Text] -> Html ()
 sseInH target events =
     div_
-        [hxExt_ "sse"
+        [ hxExt_ "sse"
         ]
         $ div_
             [ hxTarget_ $ "#" <> target
@@ -227,24 +220,3 @@ showThousandDots = reverse . showThousandDots' . reverse . show
             (a, b) = splitAt 3 xs
         in
             a <> if null b then [] else "." <> showThousandDots' b
-
--- | A button that copies the content of a field to the clipboard.
-copyButton
-    :: Monad m
-    => Text
-    -- ^ Field id
-    -> HtmlT m ()
-copyButton field' = do
-    button_ [class_ "btn btn-outline-secondary", id_ button] "Copy"
-    script_ $ copyButtonScript button field'
-  where
-    button = field' <> "-copy-button"
-
-copyButtonScript :: Text -> Text -> Text
-copyButtonScript button field' =
-    [i|
-    document.getElementById('#{button}').addEventListener('click', function() {
-        var mnemonic = document.getElementById('#{field'}').innerText;
-        navigator.clipboard.writeText(mnemonic);
-    });
-    |]
