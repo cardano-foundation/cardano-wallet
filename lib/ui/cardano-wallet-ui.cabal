@@ -115,6 +115,7 @@ library
     , random
     , servant
     , servant-server
+    , stm
     , string-interpolate
     , text
     , text-class

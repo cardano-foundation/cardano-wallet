@@ -78,8 +78,8 @@ instance Functor (ResourceStatus e) where
     fmap _ Closing = Closing
 
 -- | Read the status of a 'Resource'.
-readStatus :: Resource e a -> IO (ResourceStatus e ())
-readStatus resource = void <$> readTVarIO (content resource)
+readStatus :: Resource e a -> STM IO (ResourceStatus e a)
+readStatus resource = readTVar (content resource)
 
 -- | Make a 'Resource' that can be initialized later.
 --
