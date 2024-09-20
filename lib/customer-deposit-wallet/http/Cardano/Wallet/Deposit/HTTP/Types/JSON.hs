@@ -2,23 +2,23 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- Data types with a JSON schema.
---
 module Cardano.Wallet.Deposit.HTTP.Types.JSON
     ( ApiT (..)
 
-    -- * Re-exports
+      -- * Re-exports
     , Address
     , Customer
     , CustomerList
     , ChainPoint (..)
     )
-    where
+where
 
 import Prelude
 
@@ -37,6 +37,10 @@ import Cardano.Wallet.Deposit.Pure
 import Cardano.Wallet.Deposit.Read
     ( Address
     , ChainPoint (..)
+    )
+import Cardano.Wallet.Deposit.REST.Wallet.Create
+    ( PostWalletViaMenmonic
+    , PostWalletViaXPub
     )
 import Control.Applicative
     ( (<|>)
@@ -106,11 +110,12 @@ newtype ApiT a = ApiT {unApiT :: a}
 
 -- Address
 instance ToText (ApiT Address) where
-    toText = T.decodeUtf8
-        . convertToBase Base16
-        . fromShort
-        . Read.toShortByteString
-        . unApiT
+    toText =
+        T.decodeUtf8
+            . convertToBase Base16
+            . fromShort
+            . Read.toShortByteString
+            . unApiT
 
 instance FromText (ApiT Address) where
     fromText t = do
@@ -158,10 +163,11 @@ fromText' :: FromText a => Text -> Either Text a
 fromText' = first (T.pack . getTextDecodingError) . fromText
 
 instance ToJSON (ApiT (Customer, Address)) where
-    toJSON (ApiT (c, a)) = object
-        [ "customer" .= toJSON (ApiT c)
-        , "address" .= toJSON (ApiT a)
-        ]
+    toJSON (ApiT (c, a)) =
+        object
+            [ "customer" .= toJSON (ApiT c)
+            , "address" .= toJSON (ApiT a)
+            ]
 
 instance FromJSON (ApiT (Customer, Address)) where
     parseJSON = withObject "ApiT (Customer, Address)" $ \obj -> do
@@ -175,7 +181,7 @@ instance FromJSON (ApiT CustomerList) where
         pure $ ApiT (unApiT <$> custoList)
 
 instance ToJSON (ApiT CustomerList) where
-    toJSON (ApiT cl)= toJSON (toJSON . ApiT <$> cl)
+    toJSON (ApiT cl) = toJSON (toJSON . ApiT <$> cl)
 
 instance ToSchema (ApiT CustomerList) where
     declareNamedSchema _ = do
@@ -186,20 +192,21 @@ instance ToSchema (ApiT CustomerList) where
 
 instance ToJSON (ApiT ChainPoint) where
     toJSON (ApiT Read.GenesisPoint) = "genesis"
-    toJSON (ApiT (Read.BlockPoint{slotNo,headerHash})) = object
-        [ "slot_no" .=
-            Read.unSlotNo slotNo
-        , "header_hash" .=
-            Hash.hashToTextAsHex headerHash
-        ]
+    toJSON (ApiT (Read.BlockPoint{slotNo, headerHash})) =
+        object
+            [ "slot_no"
+                .= Read.unSlotNo slotNo
+            , "header_hash"
+                .= Hash.hashToTextAsHex headerHash
+            ]
 
 instance FromJSON (ApiT ChainPoint) where
     parseJSON payload = parseOrigin payload <|> parseSlot payload
       where
         parseOrigin = withText "genesis" $ \txt ->
             if txt == "genesis"
-            then pure $ ApiT Read.GenesisPoint
-            else fail "'genesis' is expected."
+                then pure $ ApiT Read.GenesisPoint
+                else fail "'genesis' is expected."
         parseSlot = withObject "slot_no" $ \obj -> do
             slotNo <- Read.SlotNo <$> obj .: "slot_no"
             headerHashText <- obj .: "header_hash"
@@ -207,7 +214,7 @@ instance FromJSON (ApiT ChainPoint) where
                 case Hash.hashFromTextAsHex headerHashText of
                     Nothing -> fail "invalid 'header_hash'"
                     Just hash -> pure hash
-            pure $ ApiT Read.BlockPoint{slotNo,headerHash}
+            pure $ ApiT Read.BlockPoint{slotNo, headerHash}
 
 instance ToSchema (ApiT ChainPoint) where
     declareNamedSchema _ = do
@@ -215,3 +222,7 @@ instance ToSchema (ApiT ChainPoint) where
             $ NamedSchema
                 (Just "ApiT ChainPoint")
                 chainPointSchema
+
+instance FromJSON PostWalletViaMenmonic
+
+instance FromJSON PostWalletViaXPub
