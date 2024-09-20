@@ -13,8 +13,9 @@ hlint:
   nix develop --command bash -c 'hlint lib'
 
 # build wallet
-build:
-  cabal build all  --enable-benchmarks --enable-tests \
+build target='all':
+  # shellcheck disable=SC1083
+  cabal build {{target}} --enable-benchmarks --enable-tests \
     --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
 
 # build after clean
