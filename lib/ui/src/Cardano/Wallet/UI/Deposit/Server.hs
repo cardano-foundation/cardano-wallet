@@ -90,9 +90,6 @@ import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Page
-    ( pageHandler
-    )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
     , getCustomerAddress
@@ -102,6 +99,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
+    , page
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( customerAddressH
@@ -172,7 +170,7 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\_l -> pure $ renderHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderHtml . customerAddressH) alert c))
   where
-    ph = pageHandler tr ul env dbDir config
+    ph p = wsl $ \_ -> pure $ page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
