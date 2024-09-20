@@ -119,7 +119,9 @@ library http
     , base
     , bytestring
     , cardano-wallet-read
+    , contra-tracer
     , customer-deposit-wallet
+    , customer-deposit-wallet:rest
     , http-media
     , insert-ordered-containers
     , lens
