@@ -34,7 +34,7 @@ import Cardano.Wallet.UI.Cookies
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceM
-    , walletPresent
+    , walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -73,22 +73,22 @@ pageHandler
     -> Handler (CookieResponse RawHtml)
 pageHandler tr layer env dir config x =
     withSessionLayer layer $ \session -> do
-        wp <- walletPresent session
-        wp' <- catchRunWalletResourceM session $ do
-            case wp of
+        wp <- walletPresence session
+        wp' <-    case wp of
                 WalletAbsent -> do
-                    test <- walletExists dir
-                    if test
-                        then do
-                            lg tr "Loading wallet from" dir
-                            loadWallet env dir
-                                $ Tracer
-                                $ \_ -> sendSSE session $ Push "wallet-present"
-                            lg tr "Wallet loaded from" dir
-                            WalletPresent <$> walletPublicIdentity
-                        else
-                            pure WalletAbsent
-                wp'' -> pure wp''
+                    catchRunWalletResourceM session $ do
+                        test <- walletExists dir
+                        if test
+                            then do
+                                lg tr "Loading wallet from" dir
+                                loadWallet env dir
+                                    $ Tracer
+                                    $ \_ -> sendSSE session $ Push "wallet-present"
+                                lg tr "Wallet loaded from" dir
+                                WalletPresent <$> walletPublicIdentity
+                            else
+                                pure WalletAbsent
+                anyState -> pure anyState
 
         lg tr "Rendering page" wp'
         pure $ page config x

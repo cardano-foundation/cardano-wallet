@@ -32,7 +32,7 @@ import Cardano.Wallet.UI.Common.Layer
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
-    , walletPresent
+    , walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
@@ -50,7 +50,7 @@ getWallet
     :: SessionLayer WalletResource
     -> (WalletPresent -> html) -- success report
     -> Handler html
-getWallet layer render = render <$> walletPresent layer
+getWallet layer render = render <$> walletPresence layer
 
 initWalletWithXPub
     :: SessionLayer WalletResource
@@ -111,7 +111,7 @@ walletIsLoading
     :: SessionLayer WalletResource
     -> (WalletPresent -> html)
     -> Handler html
-walletIsLoading layer render = render <$> walletPresent layer
+walletIsLoading layer render = render <$> walletPresence layer
 
 deleteWalletHandler
     :: SessionLayer WalletResource

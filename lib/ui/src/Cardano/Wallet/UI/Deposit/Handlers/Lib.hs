@@ -58,8 +58,8 @@ catchRunWalletResourceHtml layer alert render f = liftIO $ do
         Left e -> alert $ BL.pack $ show e
         Right a -> render a
 
-walletPresent :: SessionLayer WalletResource -> Handler WalletPresent
-walletPresent session = catchRunWalletResourceM session $ do
+walletPresence :: SessionLayer WalletResource -> Handler WalletPresent
+walletPresence session = catchRunWalletResourceM session $ do
     s <- ask >>= liftIO . readStatus
     case s of
         Closed -> pure WalletAbsent
