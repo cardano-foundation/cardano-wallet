@@ -29,10 +29,7 @@ import Cardano.Wallet.UI.Common.Html.Copy
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
-    , hxPost_
     , hxSwap_
-    , hxTarget_
-    , hxTrigger_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( dataBsDismiss_
@@ -54,8 +51,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     , newWalletFromXPubH
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( customerAddressLink
-    , walletDeleteLink
+    ( walletDeleteLink
     , walletDeleteModalLink
     , walletLink
     , walletMnemonicLink
@@ -96,17 +92,8 @@ import Lucid
     , h5_
     , hr_
     , id_
-    , input_
-    , min_
-    , name_
     , p_
     , section_
-    , type_
-    , value_
-    )
-import Lucid.Html5
-    ( max_
-    , step_
     )
 
 import qualified Data.ByteString.Char8 as B8
@@ -121,6 +108,10 @@ data WalletPresent
     | WalletInitializing
     | WalletClosing
 
+isPresent :: WalletPresent -> Bool
+isPresent = \case
+    WalletPresent _ -> True
+    _ -> False
 instance Show WalletPresent where
     show (WalletPresent x) = "WalletPresent: " <> show x
     show WalletAbsent = "WalletAbsent"
@@ -190,23 +181,6 @@ deleteWalletModalH =
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Addresses"
-            div_ [class_ "col"] $ record $ do
-                simpleField "Customer Number"
-                    $ input_
-                        [ type_ "number"
-                        , hxTarget_ "#customer-address"
-                        , class_ "form-control"
-                        , hxTrigger_ "load, change"
-                        , hxPost_ $ linkText customerAddressLink
-                        , min_ "0"
-                        , max_ $ toText $ customers - 1
-                        , step_ "1"
-                        , name_ "customer"
-                        , value_ "0"
-                        ]
-                simpleField "Address" $ div_ [id_ "customer-address"] mempty
         div_ [class_ "row mt-5 "] $ do
             h5_ [class_ "text-center"] "Details"
             div_ [class_ "col"] $ record $ do

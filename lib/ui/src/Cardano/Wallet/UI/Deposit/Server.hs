@@ -84,12 +84,21 @@ import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Addresses
+    ( getAddresses
+    , getCustomerAddress
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Lib
+    ( walletPresence
+    )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
-    , getCustomerAddress
     , getWallet
     , postMnemonicWallet
     , postXPubWallet
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
+    ( addressElementH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -99,6 +108,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( customerAddressH
     , deleteWalletModalH
     , walletElementH
+    )
+import Control.Monad
+    ( (>=>)
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -154,6 +166,7 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> ph Network
         :<|> ph Settings
         :<|> ph Wallet
+        :<|> ph Addresses
         :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
@@ -166,8 +179,9 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
+        :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
   where
-    ph p = wsl $ \_ -> pure $ page config p
+    ph p = wsl $ walletPresence >=> pure . page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)

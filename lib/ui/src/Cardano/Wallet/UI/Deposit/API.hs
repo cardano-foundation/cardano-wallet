@@ -66,6 +66,7 @@ type Pages =
         :<|> "network" :> SessionedHtml Get
         :<|> "settings" :> SessionedHtml Get
         :<|> "wallet" :> SessionedHtml Get
+        :<|> "addresses" :> SessionedHtml Get
 
 -- | Data endpoints
 type Data =
@@ -91,6 +92,7 @@ type Data =
         :<|> "wallet" :> "delete" :> "modal" :> SessionedHtml Get
         :<|> "customer" :> "address" :> ReqBody '[FormUrlEncoded] Customer
             :> SessionedHtml Post
+        :<|> "addresses" :> SessionedHtml Get
 
 instance FromForm Customer where
     fromForm form = fromIntegral @Int <$> parseUnique "customer" form
@@ -109,6 +111,7 @@ homePageLink :: Link
 aboutPageLink :: Link
 networkPageLink :: Link
 settingsPageLink :: Link
+addressesPageLink :: Link
 networkInfoLink :: Link
 settingsGetLink :: Link
 settingsSseToggleLink :: Link
@@ -122,11 +125,13 @@ walletPostXPubLink :: Link
 walletDeleteLink :: Link
 walletDeleteModalLink :: Link
 customerAddressLink :: Link
+addressesLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
     :<|> settingsPageLink
     :<|> walletPageLink
+    :<|> addressesPageLink
     :<|> networkInfoLink
     :<|> settingsGetLink
     :<|> settingsSseToggleLink
@@ -139,5 +144,6 @@ homePageLink
     :<|> walletDeleteLink
     :<|> walletDeleteModalLink
     :<|> customerAddressLink
+    :<|> addressesLink
     =
         allLinks (Proxy @UI)

@@ -36,6 +36,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     )
 import Cardano.Wallet.UI.Deposit.API
     ( aboutPageLink
+    , addressesPageLink
     , faviconLink
     , networkInfoLink
     , networkPageLink
@@ -47,8 +48,13 @@ import Cardano.Wallet.UI.Deposit.API
 import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
     )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
+    ( addressesH
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( walletH
+    ( WalletPresent
+    , isPresent
+    , walletH
     )
 import Cardano.Wallet.UI.Type
     ( WalletType (..)
@@ -73,6 +79,7 @@ data Page
     | Network
     | Settings
     | Wallet
+    | Addresses
 
 makePrisms ''Page
 
@@ -81,13 +88,15 @@ page
     -- ^ Page configuration
     -> Page
     -- ^ Current page
+    -> WalletPresent
+    -- ^ Wallet present
     -> RawHtml
-page c@PageConfig{..} p = RawHtml
+page c@PageConfig{..} p wp = RawHtml
     $ renderBS
     $ runWHtml Deposit
     $ pageFromBodyH faviconLink c
     $ do
-        bodyH sseLink (headerH prefix p)
+        bodyH sseLink (headerH prefix p wp)
             $ do
                 modalsH
                 case p of
@@ -95,13 +104,18 @@ page c@PageConfig{..} p = RawHtml
                     Network -> networkH networkInfoLink
                     Settings -> settingsPageH settingsGetLink
                     Wallet -> walletH
+                    Addresses -> addressesH
 
-headerH :: Text -> Page -> Monad m => HtmlT m ()
-headerH prefix p =
+headerH :: Text -> Page -> WalletPresent -> Monad m => HtmlT m ()
+headerH prefix p wp =
     navigationH
-        prefix
+        prefix $
         [ (is _Wallet p, walletPageLink, "Wallet")
-        , (is _Network p, networkPageLink, "Network")
+        ]
+        <>
+        [(is _Addresses p, addressesPageLink, "Addresses") | isPresent wp]
+        <>
+        [ (is _Network p, networkPageLink, "Network")
         , (is _Settings p, settingsPageLink, "Settings")
         , (is _About p, aboutPageLink, "About")
         ]
