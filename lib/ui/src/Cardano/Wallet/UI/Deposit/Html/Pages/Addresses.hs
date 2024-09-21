@@ -74,7 +74,8 @@ addressesH = do
 customerAddressH :: Monad m => Address -> HtmlT m ()
 customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
     div_ (copyableHidden "address") $ toHtml encodedAddr
-    div_ [class_ ""] $ toHtml addrShortened
+    div_ [class_ "d-block d-md-none"] $ toHtml addrShortened
+    div_ [class_ "d-none d-md-block"] $ toHtml encodedAddr
     div_ [class_ "ms-1"] $ copyButton "address"
   where
     encodedAddr = encodeMainnetAddress addr

@@ -14,9 +14,6 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
     )
-import Cardano.Wallet.Deposit.Read
-    ( Address
-    )
 import Cardano.Wallet.Deposit.REST
     ( ErrDatabase
     )
@@ -58,9 +55,6 @@ import Cardano.Wallet.UI.Deposit.API
     , walletPostMnemonicLink
     , walletPostXPubLink
     )
-import Cardano.Wallet.UI.Lib.Address
-    ( encodeMainnetAddress
-    )
 import Cardano.Wallet.UI.Type
     ( WHtml
     , WalletType (..)
@@ -97,7 +91,6 @@ import Lucid
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
-import qualified Data.Text as T
 
 data WalletPresent
     = WalletPresent WalletPublicIdentity
@@ -125,24 +118,15 @@ walletH = sseH walletLink "wallet" ["wallet"]
 base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
-customerAddressH :: Monad m => Address -> HtmlT m ()
-customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
-    div_ (copyableHidden "address") $ toHtml encodedAddr
-    div_ [class_ ""] $ toHtml addrShortened
-    div_ [class_ "ms-1"] $ copyButton "address"
-  where
-    encodedAddr = encodeMainnetAddress addr
-    addrShortened =
-        T.take 10 (T.drop 5 encodedAddr)
-            <> " .. "
-            <> T.takeEnd 10 encodedAddr
-
 pubKeyH :: Monad m => XPub -> HtmlT m ()
 pubKeyH xpub = div_ [class_ "d-flex justify-content-end"] $ do
     div_ (copyableHidden "public_key") $ toHtml xpubByteString
-    div_ [class_ ""] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
-    div_ [class_ "ms-1"]
-        $ copyButton "public_key"
+    div_ [class_ "d-block d-lg-none"]
+        $ toHtml
+        $ headAndTail 5
+        $ B8.dropEnd 1 xpubByteString
+    div_ [class_ "d-none d-lg-block"] $ toHtml xpubByteString
+    div_ [class_ "ms-1"] $ copyButton "public_key"
   where
     xpubByteString = base64 $ xpubToBytes xpub
 
