@@ -37,13 +37,13 @@ footerH =
                 $ do
                     ul_ [class_ "nav flex-column"] $ do
                         li_
-                            [class_ "nav-item mb-2"]
+                            [class_ "nav-item"]
                             "© 2024 Cardano Foundation, HAL team"
-                        li_ [class_ "nav-item mb-2"] $ do
+                        li_ [class_ "nav-item"] $ do
                             span_ "Source code on "
                             githubLinkH
 
             div_ [class_ "row d-md-flex align-items-center"]
                 $ div_
-                    [class_ "mb-3 mb-md-0 text-body-secondary"]
+                    [class_ "mb-md-0 text-body-secondary"]
                     "Powered by Haskell, Htmx, Servant, Lucid, Bootstrap"
