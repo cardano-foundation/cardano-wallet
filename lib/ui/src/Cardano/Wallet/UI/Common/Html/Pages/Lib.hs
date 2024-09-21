@@ -23,6 +23,7 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , showAdaOfLoveLace
     , showThousandDots
     , copyButton
+    , fadeInId
     )
 where
 
@@ -65,6 +66,7 @@ import Lucid
     , role_
     , scope_
     , script_
+    , style_
     , table_
     , td_
     , tr_
@@ -139,6 +141,11 @@ fieldHtml as = field as . toHtml
 fieldShow :: (Show a, Monad m) => [Attribute] -> Text -> a -> ListOf (AssocRow m)
 fieldShow attrs key val = field attrs (toHtml key) (toHtml $ show val)
 
+fadeInId :: Monad m => HtmlT m ()
+fadeInId = style_ [] $ toHtml @Text
+    ".smooth.htmx-added { transition: opacity: 0.1s ease-in; opacity: 0} \
+    \.smooth { opacity: 1; transition: opacity 0.1s ease-out; }"
+
 -- | A tag that can self populate with data that is fetched as GET from a link
 -- whenever some specific events are received from an SSE endpoint.
 -- It also self populate on load.
@@ -163,6 +170,7 @@ sseH link target events = do
                 [ id_ target
                 , hxGet_ $ linkText link
                 , hxTrigger_ "load"
+                , class_ "smooth"
                 ]
                 ""
   where

@@ -16,6 +16,9 @@ import Cardano.Wallet.UI.Common.Html.Htmx
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( fadeInId
+    )
 import Data.Text
     ( Text
     )
@@ -109,7 +112,9 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 favicon faviconLink
                 useHtmxVersion (1, 9, 12)
                 useHtmxExtension "json-enc"
-            body_ body
+            body_ $ do
+                fadeInId
+                body
 
 data PageConfig = PageConfig
     { prefix :: Text
