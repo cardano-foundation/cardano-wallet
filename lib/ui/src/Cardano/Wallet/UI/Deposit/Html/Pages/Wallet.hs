@@ -89,7 +89,6 @@ import Lucid
     , button_
     , class_
     , div_
-    , h5_
     , hr_
     , id_
     , p_
@@ -182,12 +181,10 @@ walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
         div_ [class_ "row mt-5 "] $ do
-            h5_ [class_ "text-center"] "Details"
             div_ [class_ "col"] $ record $ do
                 simpleField "Public Key" $ pubKeyH xpub
                 simpleField "Tracked Addresses" $ toHtml $ toText customers
         div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Administration"
             div_ [class_ "col"] $ do
                 deleteWalletButtonH
             div_ [id_ "delete-result"] mempty

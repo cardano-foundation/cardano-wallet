@@ -52,7 +52,6 @@ import Lucid
     , ToHtml (..)
     , class_
     , div_
-    , h5_
     , id_
     , input_
     , min_
@@ -88,7 +87,6 @@ addressElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 addressElementH alert = \case
     WalletPresent (WalletPublicIdentity _xpub customers) -> do
         div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Addresses"
             div_ [class_ "col"] $ record $ do
                 simpleField "Customer Number"
                     $ input_
