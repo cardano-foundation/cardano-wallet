@@ -102,15 +102,13 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
+    , headerElementH
     , page
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( customerAddressH
     , deleteWalletModalH
     , walletElementH
-    )
-import Control.Monad
-    ( (>=>)
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -180,8 +178,13 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
         :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
+        :<|> serveNavigation -- (\l -> getAddresses l (renderSmoothHtml . headerElementH _ _ _))
   where
-    ph p = wsl $ walletPresence >=> pure . page config p
+    serveNavigation mp = wsl $ \l -> do
+        wp <- walletPresence l
+
+        pure $ renderSmoothHtml $ headerElementH mp wp
+    ph p = wsl $ \_ -> pure $ page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
