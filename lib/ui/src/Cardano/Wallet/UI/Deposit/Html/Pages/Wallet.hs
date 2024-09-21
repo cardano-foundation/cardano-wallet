@@ -25,6 +25,7 @@ import Cardano.Wallet.UI.Common.API
     )
 import Cardano.Wallet.UI.Common.Html.Copy
     ( copyButton
+    , copyableHidden
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
@@ -93,7 +94,6 @@ import Lucid
     , class_
     , div_
     , h5_
-    , hidden_
     , hr_
     , id_
     , input_
@@ -137,7 +137,7 @@ base64 = convertToBase Base64
 
 customerAddressH :: Monad m => Address -> HtmlT m ()
 customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
-    div_ [id_ "address", hidden_ "true"] $ toHtml encodedAddr
+    div_ (copyableHidden "address") $ toHtml encodedAddr
     div_ [class_ ""] $ toHtml addrShortened
     div_ [class_ "ms-1"] $ copyButton "address"
   where
@@ -149,7 +149,7 @@ customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
 
 pubKeyH :: Monad m => XPub -> HtmlT m ()
 pubKeyH xpub = div_ [class_ "d-flex justify-content-end"] $ do
-    div_ [id_ "public_key", hidden_ "true"] $ toHtml xpubByteString
+    div_ (copyableHidden "public_key") $ toHtml xpubByteString
     div_ [class_ ""] $ toHtml $ headAndTail 4 $ B8.dropEnd 1 xpubByteString
     div_ [class_ "ms-1"]
         $ copyButton "public_key"

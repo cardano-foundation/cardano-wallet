@@ -8,6 +8,9 @@
 
 module Cardano.Wallet.UI.Common.Html.Copy
     ( copyButton
+    , initClipboardScript
+    , copyableHidden
+    , offscreenCss
     )
 where
 
@@ -23,11 +26,13 @@ import Lucid
     ( Attribute
     , HtmlT
     , Term (..)
+    , ToHtml (..)
     , button_
     , class_
     , height_
     , id_
     , script_
+    , style_
     , svg_
     , width_
     )
@@ -42,9 +47,14 @@ copyButton
     -- ^ Field id
     -> HtmlT m ()
 copyButton field' = do
-    button_ [class_ "btn", id_ button] buttonImage
-    script_ $ copyButtonScript button field'
+    button_
+        [ class_ "btn copy-button"
+        , id_ button
+        , makeAttribute "data-clipboard-target" fieldId
+        ]
+        buttonImage
   where
+    fieldId = "#" <> field'
     button = field' <> "-copy-button"
 
 buttonImage :: Monad m => HtmlT m ()
@@ -80,11 +90,27 @@ fillRule_ = makeAttribute "fill-rule"
 path_ :: Term arg result => arg -> result
 path_ = term "path"
 
-copyButtonScript :: Text -> Text -> Text
-copyButtonScript button field' =
-    [i|
-    document.getElementById('#{button}').addEventListener('click', function() {
-        var mnemonic = document.getElementById('#{field'}').innerText;
-        navigator.clipboard.writeText(mnemonic);
-    });
-    |]
+initClipboardScript :: Monad m => HtmlT m ()
+initClipboardScript = script_ "var clipboard = new ClipboardJS('.copy-button');"
+
+copyableHidden :: Text -> [Attribute]
+copyableHidden identity =
+    [ class_ "offscreen"
+    , makeAttribute "aria-hidden" "true"
+    , id_ identity
+    ]
+
+offscreenCss :: Monad m => HtmlT m ()
+offscreenCss =
+    style_ []
+        $ toHtml @Text
+            [i|
+    .offscreen {
+        position: absolute;
+        left: -9999px;
+        top: auto;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+    }
+|]
