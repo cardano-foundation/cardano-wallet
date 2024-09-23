@@ -422,7 +422,7 @@ showTransactionBody
     -> String
 showTransactionBody recentEra =
     either Cardano.displayError show
-        . Cardano.createAndValidateTransactionBody
+        . Cardano.createTransactionBody
             (Write.shelleyBasedEraFromRecentEra recentEra)
 
 unsafeMakeTransactionBody
@@ -431,7 +431,7 @@ unsafeMakeTransactionBody
     -> Cardano.TxBody (Write.CardanoApiEra era)
 unsafeMakeTransactionBody recentEra =
     either (error . Cardano.displayError) id
-        . Cardano.createAndValidateTransactionBody
+        . Cardano.createTransactionBody
             (Write.shelleyBasedEraFromRecentEra recentEra)
 
 stakeAddressForKey
