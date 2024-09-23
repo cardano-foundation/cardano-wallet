@@ -99,8 +99,22 @@ favicon path =
         , href_ $ linkText path
         ]
 
+-- make the body centered and have a max-width
 bodyCss :: Monad m => HtmlT m ()
-bodyCss = style_ [] $ toHtml @Text "html {max-width:1200px; margin: 0 auto;}"
+bodyCss =
+    style_ []
+        $ toHtml @Text
+            "html {max-width:1200px; margin: 0 auto;};"
+
+-- https://stackoverflow.com/questions/11088938/is-this-the-best-way-to-make-the-body-max-width-and-centered
+-- this is for modals to appear at the center of the screen even on big screens
+-- where the body is centered and has a max-width
+modalCssWorkaround :: Monad m => HtmlT m ()
+modalCssWorkaround =
+    style_ []
+        $ toHtml @Text
+            ".modal {padding-right: 0px!important;}\
+            \.modal-open {padding-right: 0px!important;}"
 
 pageFromBodyH :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
 pageFromBodyH faviconLink PageConfig{..} body =
@@ -109,7 +123,10 @@ pageFromBodyH faviconLink PageConfig{..} body =
             head_ $ do
                 title_ $ toHtml title
                 meta_ [charset_ "utf-8"]
-                meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
+                meta_
+                    [ name_ "viewport"
+                    , content_ "width=device-width, initial-scale=1.0"
+                    ]
                 popperScript
                 bootstrapLink
                 bootstrapScript
@@ -118,6 +135,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 useHtmxVersion (1, 9, 12)
                 useHtmxExtension "json-enc"
                 bodyCss
+                modalCssWorkaround
             body_ $ do
                 fadeInId
                 body
