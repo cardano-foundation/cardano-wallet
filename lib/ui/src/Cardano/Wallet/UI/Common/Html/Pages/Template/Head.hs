@@ -1,5 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( pageFromBodyH
@@ -38,6 +39,7 @@ import Lucid
     , name_
     , rel_
     , src_
+    , style_
     , term
     , title_
     )
@@ -97,7 +99,10 @@ favicon path =
         , href_ $ linkText path
         ]
 
-pageFromBodyH :: Monad m => Link -> PageConfig ->  HtmlT m () -> HtmlT m ()
+bodyCss :: Monad m => HtmlT m ()
+bodyCss = style_ [] $ toHtml @Text "html {max-width:1200px; margin: 0 auto;}"
+
+pageFromBodyH :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
 pageFromBodyH faviconLink PageConfig{..} body =
     html_ [term "data-bs-theme" "dark"]
         $ do
@@ -112,6 +117,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 favicon faviconLink
                 useHtmxVersion (1, 9, 12)
                 useHtmxExtension "json-enc"
+                bodyCss
             body_ $ do
                 fadeInId
                 body
