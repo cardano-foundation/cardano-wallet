@@ -225,7 +225,7 @@ import Cardano.Api
     , Witness (..)
     , byronAddressInEra
     , collectTxBodyScriptWitnesses
-    , createAndValidateTransactionBody
+    , createTransactionBody
     , forEraMaybeEon
     , hashScript
     , languageOfScriptLanguageInEra
@@ -245,7 +245,6 @@ import Cardano.Api
     , scriptLanguageSupportedInEra
     , shelleyAddressInEra
     , validateAndHashStakePoolMetadata
-    , valueFromList
     )
 import Cardano.Api.Byron
     ( KeyWitness (ByronKeyWitness)
@@ -339,6 +338,9 @@ import Data.Word
     ( Word16
     , Word32
     , Word64
+    )
+import GHC.IsList
+    ( fromList
     )
 import Network.Socket
     ( PortNumber
@@ -760,7 +762,7 @@ genValueForTxOut = do
             ]
     assetQuantities <- infiniteListOf genUnsignedQuantity
     ada <- fromIntegral <$> genCoinForTxOutAdaValue
-    return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
+    return $ fromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
 
 -- | Generate a 'Value' which could represent the balance of a partial
 -- transaction, where both ada and other assets can be included, and quantities
@@ -779,13 +781,13 @@ genSignedValue = do
                 [ genCoin
                 , negate <$> genCoin
                 ]
-    return $ valueFromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
+    return $ fromList $ (AdaAssetId, ada) : zip assetIds assetQuantities
 
 -- | Generate a 'Value' suitable for minting, i.e. non-ADA asset ID and a
 -- positive or negative quantity.
 genValueForMinting :: Gen Value
 genValueForMinting =
-    valueFromList <$> listOf ((,) <$> genAssetIdNoAda <*> genSignedQuantity)
+    fromList <$> listOf ((,) <$> genAssetIdNoAda <*> genSignedQuantity)
 
 genTxMintValue :: forall era. CardanoEra era -> Gen (TxMintValue BuildTx era)
 genTxMintValue era = withEraWitness era $ \supported ->
@@ -1852,7 +1854,7 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
 
 genTxBody :: CardanoEra era -> Gen (TxBody era)
 genTxBody era = withEraWitness era $ \se -> do
-    res <- createAndValidateTransactionBody se <$> genTxBodyContent era
+    res <- createTransactionBody se <$> genTxBodyContent era
     case res of
         Left err -> error (displayError err)
         Right txBody -> pure txBody
@@ -1864,7 +1866,7 @@ displayError = show
 -- balancing.
 genTxBodyForBalancing :: CardanoEra era -> Gen (TxBody era)
 genTxBodyForBalancing era = withEraWitness era $ \se -> do
-    res <- createAndValidateTransactionBody se <$> genStrippedContent
+    res <- createTransactionBody se <$> genStrippedContent
     case res of
         Left err -> error (displayError err)
         Right txBody -> pure txBody

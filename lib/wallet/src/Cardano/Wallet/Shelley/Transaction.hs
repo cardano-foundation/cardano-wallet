@@ -826,7 +826,7 @@ mkUnsignedTx
   = extractValidatedOutputs cs >>= \outs ->
     left toErrMkTx
     $ fmap removeDummyInput
-    $ Cardano.createAndValidateTransactionBody shelleyEra
+    $ Cardano.createTransactionBody shelleyEra
     Cardano.TxBodyContent
     { Cardano.txIns = inputWits
 

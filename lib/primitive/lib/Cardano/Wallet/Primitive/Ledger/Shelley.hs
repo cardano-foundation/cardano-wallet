@@ -339,6 +339,7 @@ import qualified Data.ListMap as ListMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
+import qualified GHC.IsList as GHC
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
@@ -935,7 +936,7 @@ toCardanoTxOut era refScriptM = case era of
             ]
 
 toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
-toCardanoValue tb = Cardano.valueFromList $
+toCardanoValue tb = GHC.fromList $
     (Cardano.AdaAssetId, coinToQuantity coin) :
     map (bimap toCardanoAssetId toQuantity) bundle
   where

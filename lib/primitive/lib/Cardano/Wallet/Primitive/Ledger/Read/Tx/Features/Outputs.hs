@@ -82,6 +82,9 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicyId as W
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
+import qualified GHC.IsList as GHC
+    ( toList
+    )
 
 {-# INLINABLE getOutputs #-}
 getOutputs :: forall era . IsEra era => Outputs era -> [W.TxOut]
@@ -149,7 +152,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
   where
     extract value =
         ( fromCardanoLovelace $ Cardano.selectLovelace value
-        , mkBundle $ Cardano.valueToList value
+        , mkBundle $ GHC.toList value
         )
 
     -- Do Integer to Natural conversion. Quantities from ledger TxOuts can

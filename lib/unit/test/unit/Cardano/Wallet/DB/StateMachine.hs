@@ -327,8 +327,8 @@ import Test.StateMachine
     , Reference
     , StateMachine
     , Symbolic
+    , forAll
     , forAllCommands
-    , forall
     , member
     , prettyCommands
     , runCommands
@@ -684,7 +684,7 @@ transition m c = after . lockstep m c
 
 precondition :: Model s Symbolic -> Cmd s :@ Symbolic -> Logic
 precondition (Model _ wids) (At c) =
-    forall (toList c) (`member` map fst wids)
+    forAll (toList c) (`member` map fst wids)
 
 postcondition
     :: (Eq s, Show s)
