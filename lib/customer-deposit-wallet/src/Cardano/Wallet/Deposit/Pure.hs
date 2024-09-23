@@ -9,12 +9,14 @@ module Cardano.Wallet.Deposit.Pure
     -- ** Mapping between customers and addresses
     , Customer
     , listCustomers
-    , createAddress
     , deriveAddress
     , knownCustomer
     , knownCustomerAddress
     , isCustomerAddress
     , fromRawCustomer
+    , customerAddress
+    , trackedCustomers
+    , walletXPub
 
     -- ** Reading from the blockchain
     , fromXPubAndGenesis
@@ -39,8 +41,6 @@ module Cardano.Wallet.Deposit.Pure
 
     , addTxSubmission
     , listTxsInSubmission
-    , nextCustomer
-    , walletXPub
     ) where
 
 import Prelude
@@ -119,11 +119,8 @@ listCustomers :: WalletState -> [(Customer, Address)]
 listCustomers =
     Address.listCustomers . addresses
 
-createAddress :: Customer -> WalletState -> (Address, WalletState)
-createAddress customer w0 =
-    (address, w0{addresses = s1})
-  where
-    (address, s1) = Address.createAddress customer (addresses w0)
+customerAddress :: Customer -> WalletState -> Maybe Address
+customerAddress c = lookup c . listCustomers
 
 -- depend on the private key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
@@ -146,8 +143,8 @@ isCustomerAddress address =
 fromRawCustomer :: Word31 -> Customer
 fromRawCustomer = id
 
-nextCustomer :: WalletState -> Customer
-nextCustomer = fromIntegral . length . Address.addresses . addresses
+trackedCustomers :: WalletState -> Customer
+trackedCustomers = fromIntegral . length . Address.addresses . addresses
 
 walletXPub :: WalletState -> XPub
 walletXPub  = Address.getXPub . addresses

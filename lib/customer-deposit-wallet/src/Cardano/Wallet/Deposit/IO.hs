@@ -17,7 +17,7 @@ module Cardano.Wallet.Deposit.IO
 
     -- ** Mapping between customers and addresses
     , listCustomers
-    , createAddress
+    , customerAddress
 
     -- ** Reading from the blockchain
     , getWalletTip
@@ -188,20 +188,15 @@ listCustomers :: WalletInstance -> IO [(Customer, Address)]
 listCustomers w =
     Wallet.listCustomers <$> readWalletState w
 
-createAddress :: Customer -> WalletInstance -> IO Address
-createAddress c w =
-    onWalletState w
-        $ Delta.updateWithResult
-        $ \s0 ->
-            let (r,s1) = Wallet.createAddress c s0
-            in  (Delta.Replace s1, r)
+customerAddress :: Customer -> WalletInstance -> IO (Maybe Address)
+customerAddress c w = Wallet.customerAddress c <$> readWalletState w
 
 walletPublicIdentity :: WalletInstance -> IO WalletPublicIdentity
 walletPublicIdentity w = do
     state <- readWalletState w
     pure $ WalletPublicIdentity
         { pubXpub = Wallet.walletXPub state
-        , pubNextUser = Wallet.nextCustomer state
+        , pubNextUser = Wallet.trackedCustomers state
         }
 {-----------------------------------------------------------------------------
     Operations

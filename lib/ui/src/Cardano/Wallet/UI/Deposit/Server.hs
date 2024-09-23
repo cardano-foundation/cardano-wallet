@@ -95,6 +95,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Page
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
+    , getCustomerAddress
     , getWallet
     , postMnemonicWallet
     , postXPubWallet
@@ -103,7 +104,8 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( deleteWalletModalH
+    ( customerAddressH
+    , deleteWalletModalH
     , walletElementH
     )
 import Control.Monad.Trans
@@ -152,7 +154,7 @@ serveUI
     -> BlockchainSource
     -> Server UI
 serveUI tr ul env dbDir config _ nl bs =
-    ph About
+    ph Wallet
         :<|> ph About
         :<|> ph Network
         :<|> ph Settings
@@ -168,6 +170,7 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> (\v -> wsl (\l -> postXPubWallet l (initWallet l) alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderHtml deleteWalletModalH)
+        :<|> (\c -> wsl (\l -> getCustomerAddress l (renderHtml . customerAddressH) alert c))
   where
     ph = pageHandler tr ul env dbDir config
     ok _ = renderHtml . rogerH @Text $ "ok"

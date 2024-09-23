@@ -12,11 +12,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Cardano.Wallet.UI.Deposit.API where
 
 import Prelude
 
+import Cardano.Wallet.Deposit.Pure
+    ( Customer
+    )
 import Cardano.Wallet.UI.Common.API
     ( Image
     , SessionedHtml
@@ -49,7 +53,8 @@ import Servant
     , (:>)
     )
 import Web.FormUrlEncoded
-    ( FromForm
+    ( FromForm (..)
+    , parseUnique
     )
 
 import qualified Data.ByteString.Lazy as BL
@@ -99,6 +104,11 @@ type Data =
             :> SessionedHtml Post
         :<|> "wallet" :> SessionedHtml Delete
         :<|> "wallet" :> "delete" :> "modal" :> SessionedHtml Get
+        :<|> "customer" :> "address" :> ReqBody '[FormUrlEncoded] Customer
+            :> SessionedHtml Post
+
+instance FromForm Customer where
+    fromForm form = fromIntegral @Int <$> parseUnique "customer" form
 
 type Home = SessionedHtml Get
 
@@ -126,6 +136,7 @@ walletPostMnemonicLink :: Link
 walletPostXPubLink :: Link
 walletDeleteLink :: Link
 walletDeleteModalLink :: Link
+customerAddressLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -142,5 +153,6 @@ homePageLink
     :<|> walletPostXPubLink
     :<|> walletDeleteLink
     :<|> walletDeleteModalLink
+    :<|> customerAddressLink
     =
         allLinks (Proxy @UI)
