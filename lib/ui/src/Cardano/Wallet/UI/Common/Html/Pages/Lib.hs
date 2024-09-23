@@ -115,7 +115,7 @@ data AssocRow m
 assocRowH :: AssocRow m -> Monad m => HtmlT m ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
     td_ [scope_ "col"] $ b_ key
-    td_ [scope_ "col"] val
+    td_ [scope_ "col", class_ "d-flex justify-content-end"] val
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
@@ -142,9 +142,11 @@ fieldShow :: (Show a, Monad m) => [Attribute] -> Text -> a -> ListOf (AssocRow m
 fieldShow attrs key val = field attrs (toHtml key) (toHtml $ show val)
 
 fadeInId :: Monad m => HtmlT m ()
-fadeInId = style_ [] $ toHtml @Text
-    ".smooth.htmx-added { transition: opacity: 0.1s ease-in; opacity: 0} \
-    \.smooth { opacity: 1; transition: opacity 0.1s ease-out; }"
+fadeInId =
+    style_ []
+        $ toHtml @Text
+            ".smooth.htmx-added { transition: opacity: 0.1s ease-in; opacity: 0} \
+            \.smooth { opacity: 1; transition: opacity 0.1s ease-out; }"
 
 -- | A tag that can self populate with data that is fetched as GET from a link
 -- whenever some specific events are received from an SSE endpoint.
