@@ -50,11 +50,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2024-08-08T00:00:00Z
+index-state: 2024-09-23T00:00:00Z
 
 index-state:
-  , hackage.haskell.org 2024-08-08T00:00:00Z
-  , cardano-haskell-packages 2024-09-01T03:50:08Z
+  , hackage.haskell.org 2024-09-23T00:00:00Z
+  , cardano-haskell-packages 2024-09-20T19:39:13Z
 
 packages:
   lib/address-derivation-discovery
@@ -187,9 +187,7 @@ constraints:
   , io-classes >= 1.4
   , io-classes -asserts
 
-  , ouroboros-consensus-cardano ^>= 0.18
-  , ouroboros-network ^>= 0.16.1
-  , ouroboros-network-protocols ^>= 0.9
+  , ouroboros-network ^>= 0.17
 
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
