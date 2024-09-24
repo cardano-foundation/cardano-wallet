@@ -10,7 +10,7 @@ fi
 
 network=$1
 bench=$2
-node_db=$2
+node_db=$3
 artifact_name=restore-$network
 log=restore.log
 results=restore-$network.txt
