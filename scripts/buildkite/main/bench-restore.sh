@@ -3,12 +3,14 @@
 
 set -euo pipefail
 
-if [ "$#" -lt 1 ]; then
-  echo "usage: $0 NETWORK"
+if [ "$#" -lt 3 ]; then
+  echo "usage: $0 NETWORK BENCH NODE_DB"
   exit 1
 fi
 
 network=$1
+bench=$2
+node_db=$2
 artifact_name=restore-$network
 log=restore.log
 results=restore-$network.txt
@@ -16,8 +18,6 @@ total_time=restore-time.txt
 
 export TMPDIR="$TMPDIR/bench/restore"
 mkdir -p "$TMPDIR"
-
-: "${node_db:=$HOME/node-db-$network}"
 
 echo "--- Build"
 nix build .#ci.benchmarks.restore -o bench-restore
@@ -32,9 +32,9 @@ else
     TO_TIP_TIMEOUT=4
 fi
 
-BENCH_CMD="./bench-restore/bin/restore $network --node-db $node_db"
+BENCH_CMD="./bench-restore/bin/restore $network --node-db $node_db --bench-name $bench"
 BENCH_CMD+=" --cardano-node-configs $CARDANO_NODE_CONFIGS "
-BENCH_CMD+=" +RTS -N2 -qg -A1m -I0 -T -M16G -hT -RTS"
+BENCH_CMD+=" +RTS -N -qg -A1m -I0 -T -M16G -hT -RTS"
 
 if [ "$TO_TIP_TIMEOUT" != "infinite" ]; then
     BENCH_CMD+=" --to-tip-timeout $TO_TIP_TIMEOUT"
