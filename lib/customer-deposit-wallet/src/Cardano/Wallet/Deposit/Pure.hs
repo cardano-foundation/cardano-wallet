@@ -53,6 +53,9 @@ import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
     , DerivationType (..)
     )
+import Cardano.Wallet.Deposit.Pure.TxSummary
+    ( TxSummary (..)
+    )
 import Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
     )
@@ -208,13 +211,6 @@ availableUTxO w =
   where
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
-
-data TxSummary = TxSummary
-    { txid :: Read.TxId
-    , blockHeaderBody :: Read.BHBody
-    , transfer :: ValueTransfer
-    }
-    deriving (Eq, Show)
 
 getCustomerHistory :: Customer -> WalletState -> [TxSummary]
 getCustomerHistory = undefined
