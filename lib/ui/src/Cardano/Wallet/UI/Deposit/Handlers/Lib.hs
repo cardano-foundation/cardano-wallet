@@ -20,6 +20,9 @@ import Cardano.Wallet.UI.Common.Layer
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
     )
+import Control.Concurrent.STM
+    ( atomically
+    )
 import Control.Lens
     ( view
     )
@@ -60,7 +63,7 @@ catchRunWalletResourceHtml layer alert render f = liftIO $ do
 
 walletPresence :: SessionLayer WalletResource -> Handler WalletPresent
 walletPresence session = catchRunWalletResourceM session $ do
-    s <- ask >>= liftIO . readStatus
+    s <- ask >>= liftIO . atomically . readStatus
     case s of
         Closed -> pure WalletAbsent
         Open _ -> WalletPresent <$> walletPublicIdentity

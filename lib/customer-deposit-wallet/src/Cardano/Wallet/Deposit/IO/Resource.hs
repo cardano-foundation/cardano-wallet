@@ -35,16 +35,11 @@ import Control.Concurrent.Class.MonadSTM
     , writeTVar
     )
 import Control.Monad
-    ( join
-    , void
+    ( void
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow (..)
     , SomeException
-    )
-import Control.Tracer
-    ( Tracer
-    , traceWith
     )
 
 {-----------------------------------------------------------------------------
@@ -78,8 +73,8 @@ instance Functor (ResourceStatus e) where
     fmap _ Closing = Closing
 
 -- | Read the status of a 'Resource'.
-readStatus :: Resource e a -> IO (ResourceStatus e ())
-readStatus resource = void <$> readTVarIO (content resource)
+readStatus :: Resource e a -> STM IO (ResourceStatus e a)
+readStatus resource = readTVar (content resource)
 
 -- | Make a 'Resource' that can be initialized later.
 --
@@ -190,11 +185,10 @@ data ErrResourceExists e a
 putResource
     :: (forall b. (a -> IO b) -> IO (Either e b))
     -- ^ Function to initialize the resource 'a'
-    -> Tracer IO (ResourceStatus e a)
     -> Resource e a
     -- ^ The 'Resource' to initialize.
     -> IO (Either (ErrResourceExists e a) ())
-putResource start trs resource = do
+putResource start resource = do
     forking <- atomically $ do
         ca :: ResourceStatus e a <- readTVar (content resource)
         case ca of
@@ -204,7 +198,7 @@ putResource start trs resource = do
             Open a -> pure $ Left $ ErrAlreadyInitialized a
             Closed -> do
                 writeTVar (content resource) Opening
-                pure $ Right (forkInitialization >> traceWith trs Opening)
+                pure $ Right forkInitialization
             Closing -> pure $ Left ErrAlreadyClosing
     case forking of
         Left e -> pure $ Left e
@@ -212,29 +206,23 @@ putResource start trs resource = do
   where
     controlInitialization = do
         r <- start run
-        join $ atomically $ case r of
+        atomically $ case r of
             Right (Right ()) -> do
                 writeTVar (content resource) Closed
-                pure $ traceWith trs Closed
             Right (Left (Left e)) -> do
                 writeTVar (content resource) (Vanished e)
-                pure $ traceWith trs (Vanished e)
             Right (Left (Right e)) -> do
                 writeTVar (content resource) (FailedToOpen e)
-                pure $ traceWith trs (FailedToOpen e)
             Left e -> do
                 writeTVar (content resource) (FailedToOpen e)
-                pure $ traceWith trs (FailedToOpen e)
 
     forkInitialization = void $ forkFinally controlInitialization vanish
 
     run a = do
         atomically $ writeTVar (content resource) (Open a)
-        traceWith trs (Open a)
         waitForEndOfLife resource
 
     vanish (Left e) = do
         atomically $ writeTVar (content resource) (Vanished e)
-        traceWith trs (Vanished e)
     vanish (Right _) =
         pure () -- waitForEndOfLife has succeeded

@@ -20,14 +20,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
-    , WalletInstance
-    )
-import Cardano.Wallet.Deposit.IO.Resource
-    ( ResourceStatus
     )
 import Cardano.Wallet.Deposit.REST
-    ( ErrDatabase
-    , WalletResource
+    ( WalletResource
     , deleteWallet
     , initXPubWallet
     )
@@ -79,8 +74,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     ( mnemonicH
     )
 import Cardano.Wallet.UI.Common.Layer
-    ( Push (..)
-    , SessionLayer (..)
+    ( SessionLayer (..)
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
@@ -111,7 +105,6 @@ import Control.Monad.Trans
     )
 import Control.Tracer
     ( Tracer (..)
-    , traceWith
     )
 import Data.Functor
     ( ($>)
@@ -164,8 +157,8 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> serveFavicon
         :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l (renderHtml . walletElementH alertH))
-        :<|> (\v -> wsl (\l -> postMnemonicWallet l (initWallet l) alert ok v))
-        :<|> (\v -> wsl (\l -> postXPubWallet l (initWallet l) alert ok v))
+        :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
+        :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderHtml . customerAddressH) alert c))
@@ -178,12 +171,7 @@ serveUI tr ul env dbDir config _ nl bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
-    initWallet l = initXPubWallet tr env dbDir trs
-      where
-        trs :: Tracer IO (ResourceStatus ErrDatabase WalletInstance)
-        trs = Tracer $ \_e -> do
-            sendSSE l $ Push "wallet"
-            traceWith tr "message"
+    initWallet = initXPubWallet tr env dbDir
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do

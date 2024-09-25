@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -43,6 +44,8 @@ import Control.Tracer
     )
 import UnliftIO
     ( MonadIO (..)
+    , dupTChan
+    , newBroadcastTChanIO
     , newEmptyTMVarIO
     , putTMVar
     , withAsync
@@ -53,7 +56,6 @@ import UnliftIO.STM
     , TVar
     , atomically
     , modifyTVar
-    , newBroadcastTChan
     , newTVar
     , newTVarIO
     , orElse
@@ -104,6 +106,7 @@ data UILayer s = UILayer
     -- ^ Get the session layer for a given session key. Always succeed
     , signals :: Tracer IO Signal
     -- ^ A tracer for signals.
+    , oobMessages :: Tracer IO Push
     }
 
 -- | The session layer.
@@ -118,6 +121,9 @@ data SessionLayer s = SessionLayer
     -- ^ The server-sent events configuration.
     }
 
+messageOfPush :: Push -> Message
+messageOfPush (Push x) = Message x mempty
+
 -- | Create a session layer giver the state and the server-sent events channel.
 mkSession :: TVar (State s) -> TChan Message -> SessionLayer s
 mkSession var sseChan =
@@ -127,7 +133,7 @@ mkSession var sseChan =
         , sendSSE = \x -> do
             s <- readTVarIO var
             case (view sseEnabled s, x) of
-                (True, Push m) -> write $ Message m mempty
+                (True, m) -> write $ messageOfPush m
                 _ -> pure ()
         , sseConfig = sseChan
         }
@@ -157,17 +163,20 @@ freqThrottle freq = do
 -- | Create a UI layer given the sessions map.
 mkUILayer
     :: Throttling
+    -> TChan Message
+    -- ^ Out of band messages.
     -> TVar (Map.Map SessionKey (SessionLayer s))
     -> s
     -> UILayer s
-mkUILayer throttling sessions' s0 = UILayer{..}
+mkUILayer throttling oobChan sessions' s0 = UILayer{..}
   where
+    oobMessages = Tracer $ atomically . writeTChan oobChan . messageOfPush
     sessions sid = do
         sids <- readTVarIO sessions'
         case Map.lookup sid sids of
             Just session -> pure session
             Nothing -> atomically $ do
-                sseChan <- newBroadcastTChan
+                sseChan <- dupTChan oobChan
                 var <- newTVar $ bootState s0
                 let session = mkSession var sseChan
                 modifyTVar sessions' $ Map.insert sid session
@@ -184,7 +193,8 @@ withUILayer :: Int -> s -> ContT r IO (UILayer s)
 withUILayer freq s0 = do
     sessions' <- liftIO $ newTVarIO mempty
     throttled <- freqThrottle freq
-    pure $ mkUILayer throttled sessions' s0
+    oobChan <- liftIO newBroadcastTChanIO
+    pure $ mkUILayer throttled oobChan sessions' s0
 
 -- | Collect NewTip signals
 sourceOfNewTip :: NetworkLayer IO block -> UILayer s -> ContT r IO ()

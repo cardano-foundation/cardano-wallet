@@ -181,7 +181,9 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig (..)
     )
 import Cardano.Wallet.UI.Common.Layer
-    ( UILayer
+    ( Push (..)
+    , UILayer
+    , oobMessages
     , sourceOfNewTip
     )
 import Control.Exception.Extra
@@ -203,7 +205,6 @@ import Control.Monad.Trans.Except
     )
 import Control.Tracer
     ( Tracer (..)
-    , nullTracer
     , traceWith
     )
 import Data.Function
@@ -263,6 +264,7 @@ import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Deposit.HTTP.Server as Deposit
 import qualified Cardano.Wallet.Deposit.HTTP.Types.API as Deposit
+import qualified Cardano.Wallet.Deposit.IO.Resource.Event as REST
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
 import qualified Cardano.Wallet.UI.Deposit.API as DepositUi
 import qualified Cardano.Wallet.UI.Deposit.Server as DepositUi
@@ -419,13 +421,19 @@ serveWallet
                             resource <- ContT withResource
                             liftIO
                                 $ loadDepositWalletFromDisk
-                                    (DepositApplicationLog
-                                        >$< applicationTracer)
-                                    nullTracer
+                                    ( DepositApplicationLog
+                                        >$< applicationTracer
+                                    )
                                     databaseDir'
                                     fakeBootEnv
                                     resource
                             ui <- Ui.withUILayer 1 resource
+                            REST.onResourceChange
+                                ( \_ -> do
+                                    traceWith (oobMessages ui)
+                                        $ Push "wallet"
+                                )
+                                resource
                             sourceOfNewTip netLayer ui
                             let uiService =
                                     startDepositUiServer
@@ -456,9 +464,9 @@ serveWallet
                                         resource <- ContT withResource
                                         liftIO
                                             $ loadDepositWalletFromDisk
-                                                (DepositApplicationLog
-                                                    >$< applicationTracer)
-                                                nullTracer
+                                                ( DepositApplicationLog
+                                                    >$< applicationTracer
+                                                )
                                                 databaseDir'
                                                 fakeBootEnv
                                                 resource
