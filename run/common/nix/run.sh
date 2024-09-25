@@ -122,6 +122,7 @@ else
 fi
 
 
+magic=$(jq .networkMagic $LOCAL_NODE_CONFIGS/shelley-genesis.json)
 ##### Wait until the node is ready #####
 
 # Capture the start time
@@ -134,7 +135,7 @@ timeout_duration=3600
 while true; do
     # Execute the command
     failure_status=0
-    cardano-cli ping -u "${NODE_SOCKET_PATH}" 2>/dev/null || failure_status=1
+    cardano-cli ping -m "${magic}" -u "${NODE_SOCKET_PATH}" 2>/dev/null || failure_status=1
     # Check if the command succeeded
     # shellcheck disable=SC2181
     if [[ "$failure_status" -eq 0 ]]; then
