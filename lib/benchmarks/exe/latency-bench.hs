@@ -744,6 +744,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             (ListenOnPort 8_090)
             Nothing
             Nothing
+            Nothing
             Nothing -- tls configuration
             Nothing -- settings
             Nothing -- token metadata server

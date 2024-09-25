@@ -394,6 +394,7 @@ onClusterStart
                         Nothing
                         Nothing
                         Nothing
+                        Nothing
                         (Just tokenMetaUrl)
                         block0
                         (\uri -> k (networkParameters, uri))

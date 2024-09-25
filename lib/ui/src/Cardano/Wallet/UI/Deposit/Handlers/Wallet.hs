@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Wallet
@@ -15,93 +16,57 @@ import Cardano.Wallet.Deposit.Read
     ( Address
     )
 import Cardano.Wallet.Deposit.REST
-    ( ErrWalletResource
-    , WalletResource
+    ( WalletResource
     , WalletResourceM
     , customerAddress
-    , runWalletResourceM
+    )
+import Cardano.Wallet.Deposit.REST.Wallet.Create
+    ( PostWalletViaMenmonic (..)
+    , PostWalletViaXPub (..)
+    , decodeXPub
+    , xpubFromMnemonics
     )
 import Cardano.Wallet.UI.Common.Layer
     ( Push (Push)
     , SessionLayer (..)
-    , stateL
-    )
-import Cardano.Wallet.UI.Deposit.API
-    ( PostWalletViaMenmonic (..)
-    , PostWalletViaXPub (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
-    ( walletPresent
+    ( catchRunWalletResourceHtml
+    , walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
     )
-import Control.Lens
-    ( view
-    )
 import Control.Monad.Trans
     ( MonadIO (..)
-    )
-import Data.ByteArray.Encoding
-    ( Base (..)
-    , convertFromBase
-    )
-import Data.ByteString
-    ( ByteString
     )
 import Servant
     ( Handler
     )
 
-import qualified Cardano.Address.Derivation as Addresses
 import qualified Data.ByteString.Lazy.Char8 as BL
-import qualified Data.Text.Encoding as T
-
-catchRunWalletResourceM
-    :: SessionLayer WalletResource
-    -> WalletResourceM a
-    -> IO (Either ErrWalletResource a)
-catchRunWalletResourceM layer f = liftIO $ do
-    s <- view stateL <$> state layer
-    runWalletResourceM f s
-
-catchRunWalletResourceHtml
-    :: SessionLayer WalletResource
-    -> (BL.ByteString -> html)
-    -> (a -> html)
-    -> WalletResourceM a
-    -> Handler html
-catchRunWalletResourceHtml layer alert render f = liftIO $ do
-    s <- view stateL <$> state layer
-    r <- runWalletResourceM f s
-    pure $ case r of
-        Left e -> alert $ BL.pack $ show e
-        Right a -> render a
 
 getWallet
     :: SessionLayer WalletResource
     -> (WalletPresent -> html) -- success report
     -> Handler html
-getWallet layer render = render <$> walletPresent layer
+getWallet layer render = render <$> walletPresence layer
 
 initWalletWithXPub
     :: SessionLayer WalletResource
     -> (BL.ByteString -> html)
     -> (() -> html)
-    -> (WalletResourceM a)
+    -> (WalletResourceM ())
     -> Handler html
 initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet = do
     liftIO $ sendSSE $ Push "wallet"
-    r <- liftIO $ catchRunWalletResourceM l initWallet
-    case r of
-        Left e -> pure $ alert $ BL.pack $ show e
-        Right _ -> do
-            liftIO $ sendSSE $ Push "wallet"
-            pure $ render ()
+    r <- catchRunWalletResourceHtml l alert render initWallet
+    liftIO $ sendSSE $ Push "wallet"
+    pure r
 
 postMnemonicWallet
     :: SessionLayer WalletResource
-    -> (XPub -> Customer -> WalletResourceM a)
+    -> (XPub -> Customer -> WalletResourceM ())
     -> (BL.ByteString -> html)
     -> (() -> html)
     -> PostWalletViaMenmonic
@@ -111,42 +76,42 @@ postMnemonicWallet
     initWallet
     alert
     render
-    (PostWalletViaMenmonic mnemonic users) = do
-        let xpub =
-                Addresses.toXPub
-                    $ Addresses.generate (T.encodeUtf8 mnemonic)
-        initWalletWithXPub l alert render $ initWallet xpub $ fromIntegral users
-
-unBase64 :: ByteString -> Either String ByteString
-unBase64 = convertFromBase Base64
+    (PostWalletViaMenmonic mnemonic customers) = do
+        let xpub = xpubFromMnemonics mnemonic
+        initWalletWithXPub l alert render
+            $ initWallet xpub
+            $ fromIntegral customers
 
 postXPubWallet
     :: SessionLayer WalletResource
-    -> (XPub -> Customer -> WalletResourceM a)
+    -> (XPub -> Customer -> WalletResourceM ())
     -> (BL.ByteString -> html)
     -> (() -> html)
     -> PostWalletViaXPub
     -> Handler html
-postXPubWallet l initWallet alert render (PostWalletViaXPub xpubText users) = do
-    case T.encodeUtf8 xpubText of
-        xpubByteString -> case unBase64 xpubByteString of
+postXPubWallet
+    l
+    initWallet
+    alert
+    render
+    (PostWalletViaXPub xpubText customers) =
+        case decodeXPub xpubText of
             Left e -> pure $ alert $ BL.pack $ "Invalid base64: " <> e
-            Right xpubBytes -> case Addresses.xpubFromBytes xpubBytes of
-                Nothing ->
-                    pure
-                        $ alert
-                        $ BL.pack
-                        $ "Invalid xpub: " <> show xpubText
-                Just xpub ->
-                    initWalletWithXPub l alert render
-                        $ initWallet xpub
-                        $ fromIntegral users
+            Right Nothing ->
+                pure
+                    $ alert
+                    $ BL.pack
+                    $ "Invalid xpub: " <> show xpubText
+            Right (Just xpub) ->
+                initWalletWithXPub l alert render
+                    $ initWallet xpub
+                    $ fromIntegral customers
 
 walletIsLoading
     :: SessionLayer WalletResource
     -> (WalletPresent -> html)
     -> Handler html
-walletIsLoading layer render = render <$> walletPresent layer
+walletIsLoading layer render = render <$> walletPresence layer
 
 deleteWalletHandler
     :: SessionLayer WalletResource
@@ -155,11 +120,8 @@ deleteWalletHandler
     -> (BL.ByteString -> html)
     -> (() -> html)
     -> Handler html
-deleteWalletHandler layer deleteWallet alert render = do
-    r <- liftIO $ catchRunWalletResourceM layer deleteWallet
-    pure $ case r of
-        Left e -> alert $ BL.pack $ show e
-        Right _ -> render ()
+deleteWalletHandler layer deleteWallet alert render =
+    catchRunWalletResourceHtml layer alert render deleteWallet
 
 getCustomerAddress
     :: SessionLayer WalletResource
@@ -168,9 +130,9 @@ getCustomerAddress
     -> Customer
     -> Handler html
 getCustomerAddress layer render alert customer = do
-    r <- liftIO $ catchRunWalletResourceM layer $ do
-        customerAddress customer
-    case r of
-        Left e -> pure $ alert $ BL.pack $ show e
-        Right (Just a) -> pure $ render a
-        Right Nothing -> pure $ alert "Address not discovered"
+    catchRunWalletResourceHtml layer alert render'
+        $ customerAddress customer
+  where
+    render' = \case
+        Just a -> render a
+        Nothing -> alert "Address not discovered"
