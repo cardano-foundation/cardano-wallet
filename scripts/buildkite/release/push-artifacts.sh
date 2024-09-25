@@ -22,7 +22,7 @@ artifact() {
     local artifact_name=$1
     # shellcheck disable=SC2155
     local artifact_value=$(curl -H "Authorization: Bearer $BUILDKITE_API_TOKEN" \
-        -X GET "https://api.buildkite.com/v2/organizations/cardano-foundation/pipelines/cardano-wallet/builds/$main_build/artifacts" \
+        -X GET "https://api.buildkite.com/v2/organizations/cardano-foundation/pipelines/cardano-wallet/builds/$main_build/artifacts?per_page=100" \
         | jq -r ".[] | select(.filename == \"$artifact_name\") \
         | .download_url")
     curl -H "Authorization: Bearer $BUILDKITE_API_TOKEN" -L \
