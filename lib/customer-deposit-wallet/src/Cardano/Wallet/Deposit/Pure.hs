@@ -56,6 +56,9 @@ import Cardano.Wallet.Address.BIP32
 import Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
     )
+import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
+    ( ValueTransfer (..)
+    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
@@ -210,12 +213,6 @@ data TxSummary = TxSummary
     { txid :: Read.TxId
     , blockHeaderBody :: Read.BHBody
     , transfer :: ValueTransfer
-    }
-    deriving (Eq, Show)
-
-data ValueTransfer = ValueTransfer
-    { spent :: Read.Value
-    , received :: Read.Value
     }
     deriving (Eq, Show)
 
