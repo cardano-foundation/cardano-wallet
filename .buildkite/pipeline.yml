@@ -246,7 +246,8 @@ steps:
       depends_on:
         - linux-preprod-full-sync-block
       timeout_in_minutes: 240
-      if: 0 == 1 # Disabled until mithril builds again
+      soft_fail:
+        - exit_status: 45
       command: |
         cd run/preprod/nix
         rm -rf logs
