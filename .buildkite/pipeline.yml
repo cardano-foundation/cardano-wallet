@@ -161,6 +161,26 @@ steps:
         CLEANUP_DB: true
         NETWORK: testnet
 
+    - label: Preview Network Boot Sync
+      timeout_in_minutes: 2
+      depends_on: []
+      command: |
+        cd run/preview/nix
+        rm -rf logs
+        mkdir -p logs
+        rm -rf databases
+        ./run.sh sync
+      artifact_paths:
+        - "./run/private/nix/logs/*"
+      agents:
+        system: x86_64-linux
+      env:
+        SUCCESS_STATUS: syncing
+        NODE_LOGS_FILE: ./logs/node.log
+        WALLET_LOGS_FILE: ./logs/wallet.log
+        CLEANUP_DB: true
+        NETWORK: testnet
+
     - label: Mainnet Boot Sync
       timeout_in_minutes: 2
       depends_on: []
