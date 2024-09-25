@@ -11,6 +11,9 @@ module Cardano.Wallet.Deposit.Read
     ( Network (..)
     , Read.SlotNo
     , Read.ChainPoint (..)
+    , Slot
+    , WithOrigin (..)
+    , slotFromChainPoint
 
     , Address
     , KeyHash
@@ -48,6 +51,11 @@ module Cardano.Wallet.Deposit.Read
 
 import Prelude
 
+import Cardano.Wallet.Read.Chain
+    ( Slot
+    , WithOrigin (..)
+    , slotFromChainPoint
+    )
 import Cardano.Wallet.Read.Tx
     ( TxIx
     )

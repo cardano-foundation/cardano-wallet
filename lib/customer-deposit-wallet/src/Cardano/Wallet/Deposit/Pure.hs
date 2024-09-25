@@ -53,8 +53,14 @@ import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
     , DerivationType (..)
     )
-import Cardano.Wallet.Deposit.Pure.UTxOHistory
+import Cardano.Wallet.Deposit.Pure.TxSummary
+    ( TxSummary (..)
+    )
+import Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
+    )
+import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
+    ( ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -82,7 +88,7 @@ import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
-import qualified Cardano.Wallet.Deposit.Pure.UTxOHistory as UTxOHistory
+import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
@@ -205,19 +211,6 @@ availableUTxO w =
   where
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
-
-data TxSummary = TxSummary
-    { txid :: Read.TxId
-    , blockHeaderBody :: Read.BHBody
-    , transfer :: ValueTransfer
-    }
-    deriving (Eq, Show)
-
-data ValueTransfer = ValueTransfer
-    { spent :: Read.Value
-    , received :: Read.Value
-    }
-    deriving (Eq, Show)
 
 getCustomerHistory :: Customer -> WalletState -> [TxSummary]
 getCustomerHistory = undefined

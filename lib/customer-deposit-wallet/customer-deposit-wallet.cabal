@@ -85,7 +85,6 @@ library
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
-    Cardano.Wallet.Deposit.Pure.UTxOHistory
     Cardano.Wallet.Deposit.Read
     Cardano.Wallet.Deposit.Write
 

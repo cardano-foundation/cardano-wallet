@@ -127,17 +127,17 @@ scenarioTrackDepositOne env w = do
 
     -- no deposits
     txsummaries0<- Wallet.getCustomerHistory customer w
-    assert $ txsummaries0 == []
+    assert $ null txsummaries0
 
     -- first deposit
     depositFundsAt env address coin
     txsummaries1 <- Wallet.getCustomerHistory customer w
-    assert $ map (received . transfer) txsummaries1 == [coin]
+    assert $ map (received . txTransfer) txsummaries1 == [coin]
 
     -- second deposit
     depositFundsAt env address coin
     txsummaries2 <- Wallet.getCustomerHistory customer w
-    assert $ map (received . transfer) txsummaries2 == [coin, coin]
+    assert $ map (received . txTransfer) txsummaries2 == [coin, coin]
   where
     customer = 7 :: Customer
     coin = ada 12
@@ -210,7 +210,7 @@ scenarioCreatePayment xprv env destination w = do
 
     -- but the original deposit amount is still recorded
     txsummaries <- Wallet.getCustomerHistory customer w
-    assert $ value1 `elem` map (received . transfer) txsummaries
+    assert $ value1 `elem` map (received . txTransfer) txsummaries
   where
     customer :: Customer
     customer = 17
