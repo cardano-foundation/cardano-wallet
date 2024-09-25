@@ -145,7 +145,6 @@ steps:
 
     - label: Private Network Full Sync
       timeout_in_minutes: 30
-      if: 0 == 1 # Disabled until new mihtril snapshots
       depends_on: []
       command: |
         rm -rf run/private/nix/logs
@@ -164,7 +163,6 @@ steps:
 
     - label: Mainnet Boot Sync
       timeout_in_minutes: 2
-      if: 0 == 1 # Disabled until mithril builds again
       depends_on: []
       command: |
         cd run/mainnet/nix
@@ -190,7 +188,9 @@ steps:
 
     - label: Mainnet Boot Sync with Mithril
       timeout_in_minutes: 120
-      if: 0 == 1 # Disabled until new mihtril snapshots
+      # mithril is not compiling with nix ATM
+      soft_fail :
+        - exit_status: 44
       depends_on:
         - linux-mainnet-full-sync-block
       command: |
@@ -222,7 +222,6 @@ steps:
       depends_on:
         - linux-sanchonet-full-sync-block
       timeout_in_minutes: 120
-      if: 0 == 1 # Disabled until mithril builds again
       command: |
         rm -rf run/sanchonet/nix/logs
         mkdir -p run/sanchonet/nix/logs
