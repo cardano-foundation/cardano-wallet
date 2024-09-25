@@ -1,8 +1,9 @@
-#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli' 'github:input-output-hk/mithril' --command bash
+#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli'  --command bash
 # shellcheck shell=bash
 
 # set -euox pipefail
 set -euo pipefail
+
 cardano-wallet serve --help-tracing
 usage() {
     echo "Usage: $0 [sync]"
@@ -17,8 +18,6 @@ fi
 
 # shellcheck disable=SC1091
 source .env
-
-
 
 mkdir -p ./databases
 
@@ -63,6 +62,7 @@ LOCAL_NODE_LOGS_FILE=./node.log
 NODE_LOGS_FILE="${NODE_LOGS_FILE:=$LOCAL_NODE_LOGS_FILE}"
 
 cleanup() {
+    exit_status=$?
     echo "Cleaning up..."
     kill "${NODE_ID-}" || echo "Failed to kill node"
     kill "${WALLET_ID-}" || echo "Failed to kill wallet"
@@ -73,6 +73,11 @@ cleanup() {
         rm -rf "${WALLET_DB:?}"/* || echo "Failed to clean wallet db"
     fi
     trap - ERR INT EXIT
+    exit $exit_status
+}
+
+mithril() {
+    nix shell "github:input-output-hk/mithril" -c "$*"
 }
 
 # Trap the cleanup function on exit
@@ -89,8 +94,9 @@ if [[ -z ${NO_NODE-} ]]; then
             rm -rf "${NODE_DB:?}"/*
             export AGGREGATOR_ENDPOINT
             export GENESIS_VERIFICATION_KEY
-            digest=$(mithril-client cdb  snapshot list --json | jq -r .[0].digest)
-            (cd "${NODE_DB}" && mithril-client cdb download "$digest")
+            mithril echo "mithril" || exit 44
+            digest=$(mithril mithril-client cdb  snapshot list --json | jq -r .[0].digest)
+            (cd "${NODE_DB}" && mithril mithril-client cdb download "$digest")
             (cd "${NODE_DB}" && mv db/* . && rmdir db)
     fi
 
