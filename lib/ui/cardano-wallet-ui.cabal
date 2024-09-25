@@ -101,6 +101,7 @@ library
     , contra-tracer
     , cookie
     , customer-deposit-wallet
+    , customer-deposit-wallet:rest
     , exceptions
     , generic-lens
     , http-api-data
@@ -119,7 +120,6 @@ library
     , text
     , text-class
     , time
-    , transformers
     , unliftio
 
   hs-source-dirs:   src

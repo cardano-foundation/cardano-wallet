@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -21,6 +20,10 @@ import Prelude
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
+import Cardano.Wallet.Deposit.REST.Wallet.Create
+    ( PostWalletViaMenmonic
+    , PostWalletViaXPub
+    )
 import Cardano.Wallet.UI.Common.API
     ( Image
     , SessionedHtml
@@ -32,12 +35,6 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
     )
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
-    )
-import Data.Text
-    ( Text
-    )
-import GHC.Generics
-    ( Generic
     )
 import Servant
     ( Delete
@@ -59,19 +56,7 @@ import Web.FormUrlEncoded
 
 import qualified Data.ByteString.Lazy as BL
 
-data PostWalletViaMenmonic = PostWalletViaMenmonic
-    { mnemonics :: Text
-    , users :: Int
-    }
-    deriving (Generic)
-
 instance FromForm PostWalletViaMenmonic
-
-data PostWalletViaXPub = PostWalletViaXPub
-    { xpub :: Text
-    , users :: Int
-    }
-    deriving (Generic)
 
 instance FromForm PostWalletViaXPub
 

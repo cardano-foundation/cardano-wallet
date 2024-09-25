@@ -89,6 +89,7 @@ library
     , cardano-wallet-ui
     , contra-tracer
     , customer-deposit-wallet
+    , customer-deposit-wallet:rest
     , data-default
     , directory
     , extra

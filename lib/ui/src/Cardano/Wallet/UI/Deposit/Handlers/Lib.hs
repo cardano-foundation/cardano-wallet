@@ -29,15 +29,12 @@ import Control.Monad.Reader
 import Control.Monad.Trans
     ( MonadIO (..)
     )
-import Control.Monad.Trans.Except
-    ( throwE
-    )
 import Servant
     ( Handler (..)
-    , ServerError (..)
     , err500
     )
 
+import qualified Cardano.Wallet.Deposit.REST.Catch as REST
 import qualified Data.ByteString.Lazy.Char8 as BL
 
 catchRunWalletResourceM
@@ -45,12 +42,8 @@ catchRunWalletResourceM
     -> WalletResourceM a
     -> Handler a
 catchRunWalletResourceM layer f = do
-    r <- liftIO $ do
-        s <- view stateL <$> state layer
-        runWalletResourceM f s
-    case r of
-        Right a -> pure a
-        Left e -> Handler $ throwE $ err500{errBody = BL.pack $ show e}
+    r <- liftIO $ view stateL <$> state layer
+    REST.catchRunWalletResourceM r err500 f
 
 catchRunWalletResourceHtml
     :: SessionLayer WalletResource

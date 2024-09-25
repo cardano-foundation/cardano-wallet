@@ -26,7 +26,7 @@ common language
 common opts-lib
   ghc-options:
     -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
-    -Wincomplete-record-updates
+    -Wincomplete-record-updates -Wunused-imports -Wunused-packages
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -35,17 +35,13 @@ common opts-exe
   import:      opts-lib
   ghc-options: -threaded -rtsopts
 
-
 common no-delta-table-on-windows
   if !os(windows)
-    build-depends:
-        , delta-table
-        , sqlite-simple
-    other-modules:
-        Cardano.Wallet.Deposit.IO.DB.Real
+    build-depends: delta-table
+    other-modules: Cardano.Wallet.Deposit.IO.DB.Real
+
   else
-    other-modules:
-        Cardano.Wallet.Deposit.IO.DB.Stub
+    other-modules: Cardano.Wallet.Deposit.IO.DB.Stub
 
 flag release
   description: Enable optimization and `-Werror`
@@ -53,17 +49,14 @@ flag release
   manual:      True
 
 library
-  import:          language, opts-lib, no-delta-table-on-windows
-  hs-source-dirs:  src
+  import:             language, opts-lib, no-delta-table-on-windows
+  hs-source-dirs:     src
   build-depends:
     , async
     , base
     , bytestring
-    , cardano-addresses
-    , cardano-binary
     , cardano-crypto
     , cardano-ledger-api
-    , cardano-ledger-binary
     , cardano-ledger-byron
     , cardano-strict-containers
     , cardano-wallet
@@ -71,22 +64,15 @@ library
     , cardano-wallet-read           ==0.2024.8.27
     , containers
     , contra-tracer
-    , crypto-primitives
     , customer-deposit-wallet-pure
     , delta-store
     , delta-types
-    , directory
-    , filepath
     , io-classes
-    , iohk-monitoring-extra
-    , memory
     , microlens
     , OddWord
-    , serialise
     , text
-    , time
-    , transformers
 
+  reexported-modules: Cardano.Wallet.Address.BIP32
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
@@ -99,7 +85,6 @@ library
     Cardano.Wallet.Deposit.Pure.UTxO
     Cardano.Wallet.Deposit.Pure.UTxOHistory
     Cardano.Wallet.Deposit.Read
-    Cardano.Wallet.Deposit.REST
     Cardano.Wallet.Deposit.Write
 
 test-suite scenario
@@ -125,7 +110,7 @@ test-suite scenario
     Test.Scenario.Wallet.Deposit.Exchanges
     Test.Scenario.Wallet.Deposit.Run
 
-library customer-deposit-wallet-http
+library http
   import:          language, opts-lib
   hs-source-dirs:  http
   build-depends:
@@ -155,6 +140,33 @@ library customer-deposit-wallet-http
     Cardano.Wallet.Deposit.HTTP.Types.JSON.Encoding
     Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
 
+library rest
+  import:          language, opts-lib
+  visibility:      public
+  hs-source-dirs:  rest
+  build-depends:
+    , base
+    , bytestring
+    , cardano-addresses
+    , cardano-crypto
+    , containers
+    , contra-tracer
+    , crypto-primitives
+    , customer-deposit-wallet
+    , delta-store
+    , directory
+    , filepath
+    , memory
+    , serialise
+    , servant-server
+    , text
+    , transformers
+
+  exposed-modules:
+    Cardano.Wallet.Deposit.REST
+    Cardano.Wallet.Deposit.REST.Catch
+    Cardano.Wallet.Deposit.REST.Wallet.Create
+
 test-suite unit
   import:             language, opts-exe
   type:               exitcode-stdio-1.0
@@ -170,7 +182,8 @@ test-suite unit
     , cardano-wallet-test-utils
     , contra-tracer
     , customer-deposit-wallet
-    , customer-deposit-wallet:customer-deposit-wallet-http
+    , customer-deposit-wallet:http
+    , customer-deposit-wallet:rest
     , directory
     , hspec
     , hspec-golden
