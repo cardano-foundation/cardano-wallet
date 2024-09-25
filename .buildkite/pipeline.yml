@@ -772,6 +772,18 @@ steps:
           system: x86_64-linux
         env:
           USE_LOCAL_IMAGE: true
+        
+      - label: Preview Network Full Sync
+        timeout_in_minutes: 60
+        command: |
+          cd run/preview/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          rm -rf databases
+          ./run.sh sync
+        agents:
+          system: x86_64-linux
+        env:
+          USE_LOCAL_IMAGE: true
 
       - label: Sanchonet Full Sync
         timeout_in_minutes: 240
