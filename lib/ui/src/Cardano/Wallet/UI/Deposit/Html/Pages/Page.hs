@@ -1,12 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , page
+    , headerElementH
     )
 where
 
@@ -17,6 +16,9 @@ import Cardano.Wallet.UI.Common.Html.Html
     )
 import Cardano.Wallet.UI.Common.Html.Modal
     ( modalsH
+    )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( sseH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkH
@@ -35,8 +37,16 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     ( navigationH
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( aboutPageLink
+    ( Page (..)
+    , _About
+    , _Addresses
+    , _Network
+    , _Settings
+    , _Wallet
+    , aboutPageLink
+    , addressesPageLink
     , faviconLink
+    , navigationLink
     , networkInfoLink
     , networkPageLink
     , settingsGetLink
@@ -47,34 +57,28 @@ import Cardano.Wallet.UI.Deposit.API
 import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
     )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
+    ( addressesH
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( walletH
+    ( WalletPresent
+    , isPresent
+    , walletH
     )
 import Cardano.Wallet.UI.Type
     ( WalletType (..)
     , runWHtml
     )
+import Control.Lens
+    ( _Just
+    )
 import Control.Lens.Extras
     ( is
-    )
-import Control.Lens.TH
-    ( makePrisms
-    )
-import Data.Text
-    ( Text
     )
 import Lucid
     ( HtmlT
     , renderBS
     )
-
-data Page
-    = About
-    | Network
-    | Settings
-    | Wallet
-
-makePrisms ''Page
 
 page
     :: PageConfig
@@ -82,12 +86,12 @@ page
     -> Page
     -- ^ Current page
     -> RawHtml
-page c@PageConfig{..} p = RawHtml
+page c p = RawHtml
     $ renderBS
     $ runWHtml Deposit
     $ pageFromBodyH faviconLink c
     $ do
-        bodyH sseLink (headerH prefix p)
+        bodyH sseLink (headerH p)
             $ do
                 modalsH
                 case p of
@@ -95,13 +99,22 @@ page c@PageConfig{..} p = RawHtml
                     Network -> networkH networkInfoLink
                     Settings -> settingsPageH settingsGetLink
                     Wallet -> walletH
+                    Addresses -> addressesH
 
-headerH :: Text -> Page -> Monad m => HtmlT m ()
-headerH prefix p =
+headerH :: Monad m => Page -> HtmlT m ()
+headerH p = sseH (navigationLink $ Just p) "header" ["wallet"]
+
+headerElementH :: Maybe Page -> WalletPresent -> Monad m => HtmlT m ()
+headerElementH p wp =
     navigationH
-        prefix
-        [ (is _Wallet p, walletPageLink, "Wallet")
-        , (is _Network p, networkPageLink, "Network")
-        , (is _Settings p, settingsPageLink, "Settings")
-        , (is _About p, aboutPageLink, "About")
-        ]
+        mempty
+        $ [(is' _Wallet, walletPageLink, "Wallet")]
+            <> [ (is' _Addresses, addressesPageLink, "Addresses")
+               | isPresent wp
+               ]
+            <> [ (is' _Network, networkPageLink, "Network")
+               , (is' _Settings, settingsPageLink, "Settings")
+               , (is' _About, aboutPageLink, "About")
+               ]
+  where
+    is' l = is (_Just . l) p

@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Wallet
@@ -12,13 +11,9 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
-import Cardano.Wallet.Deposit.Read
-    ( Address
-    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
-    , customerAddress
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMenmonic (..)
@@ -122,17 +117,3 @@ deleteWalletHandler
     -> Handler html
 deleteWalletHandler layer deleteWallet alert render =
     catchRunWalletResourceHtml layer alert render deleteWallet
-
-getCustomerAddress
-    :: SessionLayer WalletResource
-    -> (Address -> html)
-    -> (BL.ByteString -> html)
-    -> Customer
-    -> Handler html
-getCustomerAddress layer render alert customer = do
-    catchRunWalletResourceHtml layer alert render'
-        $ customerAddress customer
-  where
-    render' = \case
-        Just a -> render a
-        Nothing -> alert "Address not discovered"

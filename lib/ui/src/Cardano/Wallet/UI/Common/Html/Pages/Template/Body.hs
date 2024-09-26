@@ -41,8 +41,8 @@ bodyH
     -- ^ Body content
     -> HtmlT m ()
 bodyH sseLink header body = do
-    header
-    div_ [hxSse_ $ sseConnectFromLink sseLink] $
+    div_ [hxSse_ $ sseConnectFromLink sseLink] $ do
+        header
         div_ [class_ "container-fluid"] $ do
             div_ [class_ "main"] body
     initClipboardScript

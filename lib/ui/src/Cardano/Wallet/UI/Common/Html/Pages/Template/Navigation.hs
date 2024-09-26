@@ -10,6 +10,7 @@ import Cardano.Wallet.UI.Common.Html.Lib
     )
 import Cardano.Wallet.UI.Deposit.API
     ( faviconLink
+    , homePageLink
     )
 import Control.Monad
     ( forM_
@@ -54,7 +55,7 @@ navElem
 navElem prefix c p = a_ ([href_ $ prefix <> linkText p, class_ class'])
   where
     class' = baseClass <> " " <> if c then "active" else ""
-    baseClass = "nav-link ms-auto fs-3"
+    baseClass = "nav-link ms-auto fs-4 fs-5-md"
 
 -- | Navigation bar definition.
 
@@ -70,7 +71,7 @@ navigationH prefix pages = do
     nav_ [class_ "navbar navbar-expand-lg bg-body-tertiary mb-2"]
         $ div_ [class_ "container-fluid"]
         $ do
-            a_ [class_ "navbar-brand", href_ "/"]
+            a_ [class_ "navbar-brand", href_ $ linkText homePageLink]
                 $ img_ [src_ $ linkText faviconLink
                     , alt_ "Cardano Deposit Wallet"
                     , class_ "img-fluid"
