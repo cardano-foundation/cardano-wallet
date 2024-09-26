@@ -767,6 +767,8 @@ steps:
 
       - label: Preprod Full Sync
         timeout_in_minutes: 240
+        soft_fail:
+          - exit_status: 45
         command: |
           cd run/preprod/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
