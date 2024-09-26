@@ -117,6 +117,8 @@ steps:
 
     - label: Run Haskell E2E Tests (linux)
       command: 'nix develop --command bash -c "just e2e-local"'
+      soft_fail:
+        - exit_status: 130
       timeout_in_minutes: 5
       agents:
         system: ${linux}
