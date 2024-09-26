@@ -2,6 +2,9 @@ module Cardano.Wallet.UI.Deposit.Html.Pages.About where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
+    ( footerH
+    )
 import Lucid
     ( HtmlT
     , p_
@@ -9,5 +12,5 @@ import Lucid
 
 aboutH :: Monad m => HtmlT m ()
 aboutH = do
-    p_
-        "This is the new builtin Cardano Deposit Wallet web UI, pre-alpha version"
+    p_ "Cardano Deposit Wallet web UI, pre-alpha version"
+    footerH
