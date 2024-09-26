@@ -8,6 +8,9 @@ import Prelude
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxGet_
     , hxPost_
@@ -15,9 +18,6 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( copyButton
     )
 import Cardano.Wallet.UI.Type
     ( WHtml
@@ -103,9 +103,9 @@ newWalletFromMnemonicH walletMnemonicLink config = do
 mnemonicH :: Maybe [Text] -> Html ()
 mnemonicH Nothing = ""
 mnemonicH (Just mnemonic) = do
-    div_ [class_ "card"] $ do
+    div_  [class_ "d-flex justify-content-end"] $ do
         div_
-            [ class_ "card-body text-muted small"
+            [ class_ ""
             , id_ "copy-mnemonic"
             ]
             $ toHtml

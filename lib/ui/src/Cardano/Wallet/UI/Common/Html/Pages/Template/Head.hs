@@ -10,6 +10,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( offscreenCss
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( useHtmxExtension
     , useHtmxVersion
@@ -91,6 +94,18 @@ popperScript =
         ]
         $ pure ()
 
+clipboardScript :: Monad m => HtmlT m ()
+clipboardScript =
+    term
+        "script"
+        [ src_
+            "https://cdn.jsdelivr.net/npm/clipboard@2.0.11/dist/clipboard.min.js"
+        , integrity_
+            "sha384-J08i8An/QeARD9ExYpvphB8BsyOj3Gh2TSh1aLINKO3L0cMSH2dN3E22zFoXEi0Q"
+        , crossorigin_ "anonymous"
+        ]
+        $ pure ()
+
 -- | Render a favicon link.
 favicon :: Link -> Monad m => HtmlT m ()
 favicon path =
@@ -131,11 +146,13 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 bootstrapLink
                 bootstrapScript
                 bootstrapIcons
+                clipboardScript
                 favicon faviconLink
                 useHtmxVersion (1, 9, 12)
                 useHtmxExtension "json-enc"
                 bodyCss
                 modalCssWorkaround
+                offscreenCss
             body_ $ do
                 fadeInId
                 body

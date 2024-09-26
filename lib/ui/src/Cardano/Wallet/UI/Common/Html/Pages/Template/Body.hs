@@ -7,6 +7,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( initClipboardScript
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxSse_
     )
@@ -42,3 +45,4 @@ bodyH sseLink header body = do
     div_ [hxSse_ $ sseConnectFromLink sseLink] $
         div_ [class_ "container-fluid"] $ do
             div_ [class_ "main"] body
+    initClipboardScript
