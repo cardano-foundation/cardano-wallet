@@ -8,6 +8,9 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
+import Cardano.Wallet.UI.Deposit.API
+    ( faviconLink
+    )
 import Control.Monad
     ( forM_
     )
@@ -15,29 +18,28 @@ import Data.Text
     ( Text
     )
 import Lucid
-    ( Attribute
-    , HtmlT
+    ( HtmlT
     , a_
+    , alt_
+    , button_
     , class_
-    , header_
+    , div_
     , href_
-    , li_
+    , id_
+    , img_
+    , nav_
+    , span_
+    , src_
+    , style_
     , term
-    , ul_
+    , type_
     )
 import Servant
     ( Link
     )
 
--- | Add attributes for the active page.
-activePageH :: Bool -> [Attribute] -> [Attribute]
-activePageH c =
-    if c
-        then (<> [class_ "nav-link active", term "aria-current" "page"])
-        else (<> [class_ "nav-link"])
-
 -- | Wrap a content as link tab.
-tabOf
+navElem
     :: Monad m
     => Text
     -- ^ Link prefix
@@ -49,9 +51,10 @@ tabOf
     -- ^ Tab content
     -> HtmlT m ()
     -- ^ Tab
-tabOf prefix c p t =
-    li_ [class_ "nav-item"]
-        $ a_ (activePageH c [href_ $ prefix <> linkText p]) t
+navElem prefix c p = a_ ([href_ $ prefix <> linkText p, class_ class'])
+  where
+    class' = baseClass <> " " <> if c then "active" else ""
+    baseClass = "nav-link ms-auto fs-3"
 
 -- | Navigation bar definition.
 
@@ -64,6 +67,30 @@ navigationH
     -- ^ Pages
     -> HtmlT m ()
 navigationH prefix pages = do
-    header_ [class_ "d-flex justify-content-center py-3"] $ do
-        ul_ [class_ "nav nav-pills"] $ do
-            forM_ pages $ \(c, p, t) -> tabOf prefix c p t
+    nav_ [class_ "navbar navbar-expand-lg bg-body-tertiary mb-2"]
+        $ div_ [class_ "container-fluid"]
+        $ do
+            a_ [class_ "navbar-brand", href_ "/"]
+                $ img_ [src_ $ linkText faviconLink
+                    , alt_ "Cardano Deposit Wallet"
+                    , class_ "img-fluid"
+                    , style_ "height: 2em;"
+                    ]
+            button_
+                [ class_ "navbar-toggler"
+                , type_ "button"
+                , term "data-bs-toggle" "collapse"
+                , term "data-bs-target" "#navbar"
+                , term "aria-controls" "navbar"
+                , term "aria-expanded" "false"
+                , term "aria-label" "Toggle navigation"
+                ]
+                $ do
+                    span_ [class_ "navbar-toggler-icon"] ""
+            div_
+                [ class_ "collapse navbar-collapse"
+                , id_ "navbar"
+                ]
+                $ div_ [class_ "navbar-nav"]
+                $ forM_ pages
+                $ \(c, p, t) -> navElem prefix c p t

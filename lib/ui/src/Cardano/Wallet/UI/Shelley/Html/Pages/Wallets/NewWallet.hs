@@ -30,11 +30,11 @@ import Lucid
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( copyButton
     )
 import Cardano.Wallet.UI.Shelley.API
     ( walletLink

@@ -1,7 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
@@ -22,7 +21,7 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , showAda
     , showAdaOfLoveLace
     , showThousandDots
-    , copyButton
+    , fadeInId
     )
 where
 
@@ -46,9 +45,6 @@ import Cardano.Wallet.UI.Lib.ListOf
 import Control.Monad.Operational
     ( singleton
     )
-import Data.String.Interpolate
-    ( i
-    )
 import Data.Text
     ( Text
     )
@@ -58,13 +54,12 @@ import Lucid
     , HtmlT
     , ToHtml (..)
     , b_
-    , button_
     , class_
     , div_
     , id_
     , role_
     , scope_
-    , script_
+    , style_
     , table_
     , td_
     , tr_
@@ -113,7 +108,7 @@ data AssocRow m
 assocRowH :: AssocRow m -> Monad m => HtmlT m ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
     td_ [scope_ "col"] $ b_ key
-    td_ [scope_ "col"] val
+    td_ [scope_ "col", class_ "d-flex justify-content-end"] val
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
@@ -139,6 +134,13 @@ fieldHtml as = field as . toHtml
 fieldShow :: (Show a, Monad m) => [Attribute] -> Text -> a -> ListOf (AssocRow m)
 fieldShow attrs key val = field attrs (toHtml key) (toHtml $ show val)
 
+fadeInId :: Monad m => HtmlT m ()
+fadeInId =
+    style_ []
+        $ toHtml @Text
+            ".smooth.htmx-added { transition: opacity: 0.1s ease-in; opacity: 0} \
+            \.smooth { opacity: 1; transition: opacity 0.1s ease-out; }"
+
 -- | A tag that can self populate with data that is fetched as GET from a link
 -- whenever some specific events are received from an SSE endpoint.
 -- It also self populate on load.
@@ -152,7 +154,7 @@ sseH
     -> Monad m
     => HtmlT m ()
 sseH link target events = do
-     do
+    do
         div_
             [ hxTrigger_ triggered
             , hxGet_ $ linkText link
@@ -163,6 +165,7 @@ sseH link target events = do
                 [ id_ target
                 , hxGet_ $ linkText link
                 , hxTrigger_ "load"
+                , class_ "smooth"
                 ]
                 ""
   where
@@ -172,7 +175,7 @@ sseH link target events = do
 sseInH :: Text -> [Text] -> Html ()
 sseInH target events =
     div_
-        [hxExt_ "sse"
+        [ hxExt_ "sse"
         ]
         $ div_
             [ hxTarget_ $ "#" <> target
@@ -217,24 +220,3 @@ showThousandDots = reverse . showThousandDots' . reverse . show
             (a, b) = splitAt 3 xs
         in
             a <> if null b then [] else "." <> showThousandDots' b
-
--- | A button that copies the content of a field to the clipboard.
-copyButton
-    :: Monad m
-    => Text
-    -- ^ Field id
-    -> HtmlT m ()
-copyButton field' = do
-    button_ [class_ "btn btn-outline-secondary", id_ button] "Copy"
-    script_ $ copyButtonScript button field'
-  where
-    button = field' <> "-copy-button"
-
-copyButtonScript :: Text -> Text -> Text
-copyButtonScript button field' =
-    [i|
-    document.getElementById('#{button}').addEventListener('click', function() {
-        var mnemonic = document.getElementById('#{field'}').innerText;
-        navigator.clipboard.writeText(mnemonic);
-    });
-    |]

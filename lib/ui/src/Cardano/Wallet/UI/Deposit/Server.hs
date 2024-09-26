@@ -117,6 +117,10 @@ import Data.Time
     , defaultTimeLocale
     , formatTime
     )
+import Lucid
+    ( class_
+    , div_
+    )
 import Paths_cardano_wallet_ui
     ( getDataFileName
     )
@@ -150,18 +154,18 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> ph Network
         :<|> ph Settings
         :<|> ph Wallet
-        :<|> sessioning (renderHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
-        :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
+        :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
+        :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
-        :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
-        :<|> wsl (\l -> getWallet l (renderHtml . walletElementH alertH))
+        :<|> (\c -> sessioning $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
+        :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
         :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
-        :<|> wsl (\_l -> pure $ renderHtml deleteWalletModalH)
-        :<|> (\c -> wsl (\l -> getCustomerAddress l (renderHtml . customerAddressH) alert c))
+        :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
+        :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
   where
     ph p = wsl $ \_ -> pure $ page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
@@ -172,6 +176,7 @@ serveUI tr ul env dbDir config _ nl bs =
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
     initWallet = initXPubWallet tr env dbDir
+    renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] response
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do

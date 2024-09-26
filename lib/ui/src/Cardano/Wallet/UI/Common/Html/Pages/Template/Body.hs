@@ -7,14 +7,14 @@ where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( initClipboardScript
+    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxSse_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
-    ( footerH
     )
 import Data.Text
     ( Text
@@ -45,6 +45,4 @@ bodyH sseLink header body = do
     div_ [hxSse_ $ sseConnectFromLink sseLink] $
         div_ [class_ "container-fluid"] $ do
             div_ [class_ "main"] body
-            div_
-                [class_ "footer mt-5"]
-                footerH
+    initClipboardScript
