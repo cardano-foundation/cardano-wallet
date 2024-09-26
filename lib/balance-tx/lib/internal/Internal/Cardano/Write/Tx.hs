@@ -312,16 +312,39 @@ type LatestLedgerEra = StandardConway
 -- RecentEra
 --------------------------------------------------------------------------------
 
--- | 'RecentEra' respresents the eras we care about constructing transactions
--- for.
+-- | We define the term "recent era" to mean one of the /two most recent eras/.
+-- This represents eras we care constructing transactions for.
+--
+-- === Why /two/ eras?
 --
 -- To have the same software constructing transactions just before and just
--- after a hard-fork, we need to, at that time, support the two latest eras. We
--- could get away with just supporting one era at other times, but for
--- simplicity we stick with always supporting the two latest eras for now.
+-- after a hard-fork, we need to, for a time, support two eras.
 --
--- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
--- cardano-api.
+-- === 'RecentEra' the value value vs 'IsRecentEra' the class
+--
+-- DO:
+--
+-- @@
+-- myTx :: IsRecentEra era => Tx era
+-- signByAlice :: IsRecentEra era => Tx era -> Tx era
+-- renderCliTx :: IsRecentEra era -> Tx era -> Text
+-- myCardanoApiTx :: IsRecentEra era -> RecentEra -> CardanoApi.Tx (CardanoApiEra era)
+-- @@
+--
+-- DON'T:
+--
+-- @@
+-- signByAlice :: RecentEra era -> Tx era -> Tx era
+--
+-- -- 'RecentEra era' adds boilerplate without improving type inference
+-- signByAlice :: IsRecentEra era => RecentEra era -> Tx era -> Tx era
+--
+-- -- Will always require '@era' type application to disambiguate the type when
+-- called:
+-- myCardanoApiTx :: IsRecentEra era => CardanoApi.Tx (CardanoApiEra era)
+-- @@
+--
+--
 data RecentEra era where
     RecentEraBabbage :: RecentEra BabbageEra
     RecentEraConway :: RecentEra ConwayEra
@@ -335,6 +358,7 @@ instance TestEquality RecentEra where
     testEquality RecentEraBabbage RecentEraConway = Nothing
     testEquality RecentEraConway RecentEraBabbage = Nothing
 
+-- | C.f. 'RecentEra'
 class
     ( CardanoApi.IsShelleyBasedEra (CardanoApiEra era)
     , CardanoApi.ShelleyLedgerEra (CardanoApiEra era) ~ era
