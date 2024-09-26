@@ -52,7 +52,6 @@ import Lucid
     , ToHtml (..)
     , class_
     , div_
-    , h5_
     , id_
     , input_
     , min_
@@ -75,7 +74,8 @@ addressesH = do
 customerAddressH :: Monad m => Address -> HtmlT m ()
 customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
     div_ (copyableHidden "address") $ toHtml encodedAddr
-    div_ [class_ ""] $ toHtml addrShortened
+    div_ [class_ "d-block d-md-none"] $ toHtml addrShortened
+    div_ [class_ "d-none d-md-block"] $ toHtml encodedAddr
     div_ [class_ "ms-1"] $ copyButton "address"
   where
     encodedAddr = encodeMainnetAddress addr
@@ -88,7 +88,6 @@ addressElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 addressElementH alert = \case
     WalletPresent (WalletPublicIdentity _xpub customers) -> do
         div_ [class_ "row mt-5"] $ do
-            h5_ [class_ "text-center"] "Addresses"
             div_ [class_ "col"] $ record $ do
                 simpleField "Customer Number"
                     $ input_

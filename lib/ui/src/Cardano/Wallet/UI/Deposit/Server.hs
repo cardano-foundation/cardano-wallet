@@ -99,6 +99,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
+    , customerAddressH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -106,8 +107,7 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     , page
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( customerAddressH
-    , deleteWalletModalH
+    ( deleteWalletModalH
     , walletElementH
     )
 import Control.Monad.Trans
