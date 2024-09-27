@@ -1527,13 +1527,12 @@ portOption = optionT $ mempty
     <> value (Port 8_090)
     <> showDefaultWith showT
 
--- | [--deposit-port=INT], default: 8093
+-- | [--deposit-port=INT]
 depositPortOption :: Parser (Port "Deposit Wallet")
 depositPortOption = optionT $ mempty
     <> long "deposit-port"
     <> metavar "INT"
     <> help "port used for serving the deposit wallet JSON API."
-    <> value (Port 8_093)
     <> showDefaultWith showT
 
 -- | [--shutdown-handler]

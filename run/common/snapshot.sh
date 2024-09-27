@@ -45,7 +45,7 @@ if [ -n "${LINK_TEST:-}" ]; then
     exit 0
 fi
 
-curl -SL "$SNAPSHOT_URL" | lz4 -c -d - | tar -x -C "$NODE_DB"
+curl -SL "$SNAPSHOT_URL"  | lz4 -c -d - | tar -x -C "$NODE_DB" || exit 45
 
 mv -f "$NODE_DB"/db/* "$NODE_DB"/
 rm -rf "$NODE_DB"/db
