@@ -22,6 +22,7 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+    PackageImports
 
 common opts-lib
   ghc-options:
@@ -72,7 +73,6 @@ library
     , OddWord
     , text
 
-  reexported-modules: Cardano.Wallet.Address.BIP32
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
@@ -153,6 +153,7 @@ library rest
     , contra-tracer
     , crypto-primitives
     , customer-deposit-wallet
+    , customer-deposit-wallet-pure
     , delta-store
     , directory
     , filepath

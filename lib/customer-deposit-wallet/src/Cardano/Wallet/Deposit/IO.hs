@@ -43,6 +43,7 @@ import Cardano.Wallet.Address.BIP32
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    , TxSummary
     , WalletPublicIdentity (..)
     , WalletState
     , Word31
@@ -62,6 +63,9 @@ import Data.Bifunctor
     )
 import Data.List.NonEmpty
     ( NonEmpty
+    )
+import Data.Map.Strict
+    ( Map
     )
 
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
@@ -218,7 +222,7 @@ availableBalance :: WalletInstance -> IO Read.Value
 availableBalance w =
     Wallet.availableBalance <$> readWalletState w
 
-getCustomerHistory :: Customer -> WalletInstance -> IO [Wallet.TxSummary]
+getCustomerHistory :: Customer -> WalletInstance -> IO (Map Read.TxId TxSummary)
 getCustomerHistory c w =
     Wallet.getCustomerHistory c <$> readWalletState w
 
