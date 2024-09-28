@@ -108,7 +108,7 @@ data AssocRow m
 assocRowH :: AssocRow m -> Monad m => HtmlT m ()
 assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
     td_ [scope_ "col"] $ b_ key
-    td_ [scope_ "col", class_ "d-flex justify-content-end"] val
+    td_ [scope_ "col", class_ "flex-full"] val
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows

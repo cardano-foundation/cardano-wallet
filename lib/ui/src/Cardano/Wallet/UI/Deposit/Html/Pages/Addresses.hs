@@ -13,10 +13,6 @@ import Cardano.Wallet.Deposit.IO
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
-import Cardano.Wallet.UI.Common.Html.Copy
-    ( copyButton
-    , copyableHidden
-    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxPost_
     , hxTarget_
@@ -24,6 +20,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
+    , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( record
@@ -65,24 +62,15 @@ import Lucid.Html5
     )
 
 import qualified Data.ByteString.Lazy.Char8 as BL
-import qualified Data.Text as T
 
 addressesH :: WHtml ()
 addressesH = do
     sseH addressesLink "addresses" ["wallet"]
 
 customerAddressH :: Monad m => Address -> HtmlT m ()
-customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
-    div_ (copyableHidden "address") $ toHtml encodedAddr
-    div_ [class_ "d-block d-md-none"] $ toHtml addrShortened
-    div_ [class_ "d-none d-md-block"] $ toHtml encodedAddr
-    div_ [class_ "ms-1"] $ copyButton "address"
+customerAddressH addr = truncatableText "address-text" $ toHtml encodedAddr
   where
     encodedAddr = encodeMainnetAddress addr
-    addrShortened =
-        T.take 10 (T.drop 5 encodedAddr)
-            <> " .. "
-            <> T.takeEnd 10 encodedAddr
 
 addressElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 addressElementH alert = \case
@@ -90,6 +78,7 @@ addressElementH alert = \case
         div_ [class_ "row mt-5"] $ do
             div_ [class_ "col"] $ record $ do
                 simpleField "Customer Number"
+                    $ div_ [class_ "d-flex justify-content-end"]
                     $ input_
                         [ type_ "number"
                         , hxTarget_ "#customer-address"
@@ -103,7 +92,11 @@ addressElementH alert = \case
                         , value_ "0"
                         , class_ "w-3"
                         ]
-                simpleField "Address" $ div_ [id_ "customer-address"] mempty
+                simpleField "Address"
+                    $ div_
+                        [ id_ "customer-address"
+                        ]
+                        mempty
     WalletAbsent -> alert "Wallet is absent"
     WalletFailedToInitialize err ->
         alert

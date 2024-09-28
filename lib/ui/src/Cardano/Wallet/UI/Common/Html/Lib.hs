@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -15,11 +16,17 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , dataBsDismiss_
     , ariaHidden_
     , ariaLabel_
+    , AlertH
+    , monospaced
+    , truncatableText
     )
 where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Data.Generics.Product
     ()
 import Data.Text
@@ -42,6 +49,8 @@ import Lucid
     , ToHtml (..)
     , class_
     , div_
+    , id_
+    , style_
     )
 import Lucid.Base
     ( makeAttribute
@@ -50,7 +59,11 @@ import Servant.Links
     ( Link
     , linkURI
     )
+import Text.Printf
+    ( printf
+    )
 
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 showPercentage :: Rational -> String
@@ -96,3 +109,23 @@ ariaHidden_ = makeAttribute "aria-hidden"
 
 ariaLabel_ :: Text -> Attribute
 ariaLabel_ = makeAttribute "aria-label"
+
+type AlertH = BL.ByteString -> Html ()
+
+monospaced :: Monad m => Text -> HtmlT m ()
+monospaced identitifier =
+    style_
+        $ T.pack
+        $ printf
+            "#%s {font-family: \"Courier New\",monospace !important;}"
+            identitifier
+
+truncatableText :: Monad m => Text -> HtmlT m () -> HtmlT m ()
+truncatableText identifier h = div_ [class_ "d-flex justify-content-end"] $ do
+    monospaced identifier
+    div_
+        [ id_ identifier
+        , class_ "text-truncate text-end"
+        ]
+        h
+    copyButton identifier
