@@ -88,7 +88,7 @@ walletsH = do
     div_ [id_ "#post-response"] mempty
 
 walletListH :: Maybe WalletId -> [(ApiWallet, UTCTime)] -> Html ()
-walletListH mwid wallets = record
+walletListH mwid wallets = record Nothing
     $ forM_ wallets
     $ \(w, _) -> do
         let wid' = getApiT $ id w
@@ -124,7 +124,7 @@ walletElementH
     -> ListOf (AssocRow m)
 walletElementH selected ApiWallet{..} attrs =
     field attrs (selectedName selected $ toText $ getApiT name) $ do
-        record $ do
+        record Nothing $ do
             simpleField "id" $ toTextHtml $ getApiT id
             simpleField "state" $ toHtml $ renderState state
             simpleField "balance" $ renderBalance balance

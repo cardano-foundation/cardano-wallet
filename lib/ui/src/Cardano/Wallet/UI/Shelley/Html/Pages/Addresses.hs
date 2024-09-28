@@ -67,7 +67,7 @@ addressesH
      . (HasSNetworkId n, Monad m)
     => [ApiAddressWithPath n]
     -> HtmlT m ()
-addressesH addresses = record $ do
+addressesH addresses = record Nothing $ do
     forM_ (zip [0 :: Int ..] addresses) $ \(j, ApiAddressWithPath{..}) -> do
         fieldHtml [] "id" $ do
             let identifier = "address-" <> toText j
