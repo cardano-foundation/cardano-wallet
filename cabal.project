@@ -54,7 +54,7 @@ index-state: 2024-09-23T00:00:00Z
 
 index-state:
   , hackage.haskell.org 2024-09-23T00:00:00Z
-  , cardano-haskell-packages 2024-09-20T19:39:13Z
+  , cardano-haskell-packages 2024-09-23T21:46:49Z
 
 packages:
   lib/address-derivation-discovery
@@ -187,7 +187,7 @@ constraints:
   , io-classes >= 1.4
   , io-classes -asserts
 
-  , ouroboros-network ^>= 0.17
+  , ouroboros-network ^>= 0.17.1.1
 
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
