@@ -191,6 +191,22 @@ walletElementH alert = \case
     WalletInitializing -> alert "Wallet is initializing"
     WalletClosing -> alert "Wallet is closing"
 
+onWalletPresentH
+    :: (WalletPublicIdentity -> Html ())
+    -> (BL.ByteString -> Html ())
+    -> WalletPresent
+    -> Html ()
+onWalletPresentH f alert = \case
+    WalletPresent wpi -> f wpi
+    WalletAbsent -> alert "Wallet is absent"
+    WalletFailedToInitialize err ->
+        alert
+            $ "Failed to initialize wallet"
+                <> BL.pack (show err)
+    WalletVanished e -> alert $ "Wallet vanished " <> BL.pack (show e)
+    WalletInitializing -> alert "Wallet is initializing"
+    WalletClosing -> alert "Wallet is closing"
+
 data BadgeStyle
     = Primary
     | Secondary

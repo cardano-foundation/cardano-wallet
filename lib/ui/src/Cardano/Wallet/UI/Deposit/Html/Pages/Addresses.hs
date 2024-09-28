@@ -33,6 +33,7 @@ import Cardano.Wallet.UI.Deposit.API
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
+    , onWalletPresentH
     )
 import Cardano.Wallet.UI.Lib.Address
     ( encodeMainnetAddress
@@ -75,8 +76,8 @@ customerAddressH addr = truncatableText "address-text" $ toHtml encodedAddr
     encodedAddr = encodeMainnetAddress addr
 
 addressElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
-addressElementH alert = \case
-    WalletPresent (WalletPublicIdentity _xpub customers) -> do
+addressElementH = onWalletPresentH $ \case
+    (WalletPublicIdentity _xpub customers) -> do
         div_ [class_ "row mt-5"] $ do
             div_ [class_ "col"] $ record (Just 11) $ do
                 simpleField "Customer Number"
@@ -100,11 +101,3 @@ addressElementH alert = \case
                         [ id_ "customer-address"
                         ]
                         mempty
-    WalletAbsent -> alert "Wallet is absent"
-    WalletFailedToInitialize err ->
-        alert
-            $ "Failed to initialize wallet"
-                <> BL.pack (show err)
-    WalletVanished e -> alert $ "Wallet vanished " <> BL.pack (show e)
-    WalletInitializing -> alert "Wallet is initializing"
-    WalletClosing -> alert "Wallet is closing"
