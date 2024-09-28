@@ -187,7 +187,7 @@ constraints:
   , io-classes >= 1.4
   , io-classes -asserts
 
-  , ouroboros-network ^>= 0.17.1.1
+  , ouroboros-network == 0.17.1.1
 
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
