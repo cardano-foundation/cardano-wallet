@@ -73,6 +73,9 @@ import Numeric.Natural
 import Servant
     ( Link
     )
+import Text.Printf
+    ( printf
+    )
 
 import qualified Data.Text as T
 
@@ -105,17 +108,22 @@ data AssocRow m
     }
 
 -- | Render an 'AssocRow' as a table row.
-assocRowH :: AssocRow m -> Monad m => HtmlT m ()
-assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
-    td_ [scope_ "col"] $ b_ key
-    td_ [scope_ "col", class_ "flex-full"] val
+assocRowH :: Maybe Int -> AssocRow m -> Monad m => HtmlT m ()
+assocRowH mn AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
+    td_ [scope_ "col", style_ width] $ b_ key
+    td_ [scope_ "col", class_ "flex-fill"] val
+  where
+    width = T.pack
+        $ case mn of
+            Just n -> printf "width: %dem" n
+            Nothing -> "width: auto"
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
-record :: ListOf (AssocRow m) -> Monad m => HtmlT m ()
-record xs =
+record :: Maybe Int -> ListOf (AssocRow m) -> Monad m => HtmlT m ()
+record n xs =
     table_ [class_ "table table-hover table-striped"]
-        $ mapM_ assocRowH
+        $ mapM_ (assocRowH n)
         $ listOf xs
 
 -- | Create an 'AssocRow' from a key and a value.

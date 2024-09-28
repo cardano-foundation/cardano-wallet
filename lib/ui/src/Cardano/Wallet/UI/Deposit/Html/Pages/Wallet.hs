@@ -157,7 +157,7 @@ walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
         div_ [class_ "row mt-5 "] $ do
-            div_ [class_ "col"] $ record $ do
+            div_ [class_ "col"] $ record (Just 11) $ do
                 simpleField "Public Key" $ pubKeyH xpub
                 simpleField "Tracked Addresses"
                     $ div_ [class_ "d-flex justify-content-end"]

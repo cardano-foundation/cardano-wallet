@@ -45,7 +45,7 @@ settingsPageH settingsGetLink =
 -- | Settings state
 settingsStateH :: Link -> State s -> Html ()
 settingsStateH settingsSseToggleLink state =
-    record $ do
+    record Nothing $ do
         simpleField "Enable SSE" $ do
             input_
                 $ [ hxTrigger_ "click"

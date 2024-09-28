@@ -53,11 +53,13 @@ import Lucid
     , input_
     , min_
     , name_
+    , style_
     , type_
     , value_
     )
 import Lucid.Html5
     ( max_
+    , size_
     , step_
     )
 
@@ -76,7 +78,7 @@ addressElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 addressElementH alert = \case
     WalletPresent (WalletPublicIdentity _xpub customers) -> do
         div_ [class_ "row mt-5"] $ do
-            div_ [class_ "col"] $ record $ do
+            div_ [class_ "col"] $ record (Just 11) $ do
                 simpleField "Customer Number"
                     $ div_ [class_ "d-flex justify-content-end"]
                     $ input_
@@ -90,7 +92,8 @@ addressElementH alert = \case
                         , step_ "1"
                         , name_ "customer"
                         , value_ "0"
-                        , class_ "w-3"
+                        , size_ "5"
+                        , style_ "width: 7em"
                         ]
                 simpleField "Address"
                     $ div_
