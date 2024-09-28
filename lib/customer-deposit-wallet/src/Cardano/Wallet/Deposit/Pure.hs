@@ -1,13 +1,13 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module Cardano.Wallet.Deposit.Pure
-    (
-    -- * Types
+    ( -- * Types
       WalletState
     , DeltaWalletState
     , WalletPublicIdentity (..)
 
-    -- * Operations
-    -- ** Mapping between customers and addresses
+      -- * Operations
+
+      -- ** Mapping between customers and addresses
     , Customer
     , listCustomers
     , deriveAddress
@@ -19,7 +19,7 @@ module Cardano.Wallet.Deposit.Pure
     , trackedCustomers
     , walletXPub
 
-    -- ** Reading from the blockchain
+      -- ** Reading from the blockchain
     , fromXPubAndGenesis
     , Word31
     , getWalletTip
@@ -27,19 +27,17 @@ module Cardano.Wallet.Deposit.Pure
     , rollForwardMany
     , rollForwardOne
     , rollBackward
-
     , TxSummary (..)
     , ValueTransfer (..)
     , getCustomerHistory
     , getCustomerHistories
 
-    -- ** Writing to the blockchain
+      -- ** Writing to the blockchain
     , createPayment
     , BIP32Path (..)
     , DerivationType (..)
     , getBIP32PathsForOwnedInputs
     , signTxBody
-
     , addTxSubmission
     , listTxsInSubmission
 
@@ -92,6 +90,7 @@ import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.RollbackWindow as Rollback
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
+import qualified Cardano.Wallet.Deposit.Pure.TxHistory as TxHistory
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
@@ -108,7 +107,7 @@ data WalletState = WalletState
     { walletTip :: Read.ChainPoint
     , addresses :: !Address.AddressState
     , utxoHistory :: !UTxOHistory.UTxOHistory
-    -- , txHistory :: [Read.Tx]
+    , txHistory :: !TxHistory.TxHistory
     , submissions :: Sbm.TxSubmissions
     , rootXSignKey :: Maybe XPrv
     -- , info :: !WalletInfo
@@ -120,7 +119,7 @@ data WalletPublicIdentity = WalletPublicIdentity
     { pubXpub :: XPub
     , pubNextUser :: Word31
     }
-    deriving Show
+    deriving (Show)
 
 {-----------------------------------------------------------------------------
     Operations
@@ -178,6 +177,7 @@ fromXPubAndGenesis xpub knownCustomerCount genesisData =
         , addresses =
             Address.fromXPubAndCount network xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
+        , txHistory = TxHistory.empty
         , submissions = Sbm.empty
         , rootXSignKey = Nothing
         }
@@ -252,8 +252,11 @@ availableUTxO w =
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
 
-getCustomerHistory :: Customer -> WalletState -> [TxSummary]
-getCustomerHistory = undefined
+getCustomerHistory :: Customer -> WalletState -> Map Read.TxId TxSummary
+getCustomerHistory c state =
+    case customerAddress c state of
+        Nothing -> mempty
+        Just addr -> TxHistory.getAddressHistory addr (txHistory state)
 
 -- TODO: Return an error if any of the `ChainPoint` are no longer
 -- part of the consensus chain?
@@ -270,20 +273,21 @@ getCustomerHistories = undefined
 
 createPayment :: [(Address, Write.Value)] -> WalletState -> Maybe Write.TxBody
 createPayment = undefined
-    -- needs balanceTx
-    -- needs to sign the transaction
+
+-- needs balanceTx
+-- needs to sign the transaction
 
 getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [BIP32Path]
 getBIP32PathsForOwnedInputs txbody w =
     getBIP32Paths w
-    . resolveInputAddresses
-    $ Write.spendInputs txbody <> Write.collInputs txbody
+        . resolveInputAddresses
+        $ Write.spendInputs txbody <> Write.collInputs txbody
   where
     resolveInputAddresses :: Set Read.TxIn -> [Read.Address]
     resolveInputAddresses ins =
         map (Read.address . snd)
-        . UTxO.toList
-        $ UTxO.restrictedBy (availableUTxO w) ins
+            . UTxO.toList
+            $ UTxO.restrictedBy (availableUTxO w) ins
 
 getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
 getBIP32Paths w =
