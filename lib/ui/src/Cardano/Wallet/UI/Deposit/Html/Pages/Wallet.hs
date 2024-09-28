@@ -20,10 +20,6 @@ import Cardano.Wallet.Deposit.REST
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
-import Cardano.Wallet.UI.Common.Html.Copy
-    ( copyButton
-    , copyableHidden
-    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
     , hxSwap_
@@ -31,6 +27,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
 import Cardano.Wallet.UI.Common.Html.Lib
     ( dataBsDismiss_
     , linkText
+    , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Modal
     ( ModalData (..)
@@ -119,16 +116,11 @@ base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
 pubKeyH :: Monad m => XPub -> HtmlT m ()
-pubKeyH xpub = div_ [class_ "d-flex justify-content-end"] $ do
-    div_ (copyableHidden "public_key") $ toHtml xpubByteString
-    div_ [class_ "d-block d-lg-none"]
+pubKeyH xpub =
+    truncatableText "public_key"
         $ toHtml
-        $ headAndTail 5
-        $ B8.dropEnd 1 xpubByteString
-    div_ [class_ "d-none d-lg-block"] $ toHtml xpubByteString
-    div_ [class_ "ms-1"] $ copyButton "public_key"
-  where
-    xpubByteString = base64 $ xpubToBytes xpub
+        $ base64
+        $ xpubToBytes xpub
 
 headAndTail :: Int -> ByteString -> ByteString
 headAndTail n t = B8.take n t <> " .. " <> B8.takeEnd n t
@@ -167,7 +159,9 @@ walletElementH alert = \case
         div_ [class_ "row mt-5 "] $ do
             div_ [class_ "col"] $ record $ do
                 simpleField "Public Key" $ pubKeyH xpub
-                simpleField "Tracked Addresses" $ toHtml $ toText customers
+                simpleField "Tracked Addresses"
+                    $ div_ [class_ "d-flex justify-content-end"]
+                    $ toHtml $ toText customers
         div_ [class_ "row mt-5"] $ do
             div_ [class_ "col"] $ do
                 deleteWalletButtonH

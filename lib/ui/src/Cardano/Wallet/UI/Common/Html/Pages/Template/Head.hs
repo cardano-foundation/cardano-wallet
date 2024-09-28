@@ -131,6 +131,12 @@ modalCssWorkaround =
             ".modal {padding-right: 0px!important;}\
             \.modal-open {padding-right: 0px!important;}"
 
+truncatedTdTextWorkaround :: Monad m => HtmlT m ()
+truncatedTdTextWorkaround =
+    style_ []
+        $ toHtml @Text
+            ".table { table-layout: fixed; }"
+
 pageFromBodyH :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
 pageFromBodyH faviconLink PageConfig{..} body =
     html_ [term "data-bs-theme" "dark"]
@@ -152,6 +158,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 useHtmxExtension "json-enc"
                 bodyCss
                 modalCssWorkaround
+                truncatedTdTextWorkaround
                 offscreenCss
             body_ $ do
                 fadeInId
