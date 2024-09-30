@@ -48,7 +48,7 @@ import qualified Cardano.Wallet.Deposit.Write as Write
 ------------------------------------------------------------------------------}
 newNetworkEnvMock
     :: (MonadDelay m, MonadSTM m)
-    => m (NetworkEnv m Read.Block)
+    => m (NetworkEnv m (Read.Block Read.Conway))
 newNetworkEnvMock = do
     mchain <- newTVarIO []
     mtip <- newTVarIO Read.GenesisPoint

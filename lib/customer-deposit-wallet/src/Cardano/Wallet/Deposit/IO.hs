@@ -85,7 +85,7 @@ data WalletBootEnv m = WalletBootEnv
         -- ^ Logger for the wallet.
         , genesisData :: Read.GenesisData
         -- ^ Genesis data for the wallet.
-        , networkEnv :: Network.NetworkEnv m Read.Block
+        , networkEnv :: Network.NetworkEnv m (Read.EraValue Read.Block)
         -- ^ Network environment for the wallet.
     }
 
@@ -221,7 +221,8 @@ getCustomerHistories
 getCustomerHistories a w =
     Wallet.getCustomerHistories a <$> readWalletState w
 
-rollForward :: WalletInstance -> NonEmpty Read.Block -> tip -> IO ()
+rollForward
+    :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()
 rollForward w blocks _nodeTip =
     onWalletState w
         $ Delta.update

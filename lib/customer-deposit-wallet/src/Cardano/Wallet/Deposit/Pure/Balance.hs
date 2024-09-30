@@ -57,7 +57,8 @@ availableUTxO u pending =
 --
 -- Returns both a delta and the new value.
 applyBlock
-    :: IsOurs Read.Address -> Read.Block -> UTxO -> (DeltaUTxO, UTxO)
+    :: Read.IsEra era
+    => IsOurs Read.Address -> Read.Block era -> UTxO -> (DeltaUTxO, UTxO)
 applyBlock isOurs block u0 =
     (DeltaUTxO.concat $ reverse dus, u1)
   where

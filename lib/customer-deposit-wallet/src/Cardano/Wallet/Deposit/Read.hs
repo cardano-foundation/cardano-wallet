@@ -8,7 +8,11 @@
 --
 -- TODO: Match this up with the @Read@ hierarchy.
 module Cardano.Wallet.Deposit.Read
-    ( Network (..)
+    ( Read.IsEra
+    , Read.EraValue (..)
+    , Read.Conway
+
+    , Network (..)
     , Read.SlotNo
     , Read.ChainPoint (..)
     , Slot
@@ -129,11 +133,10 @@ type TxWitness = ()
 type BlockNo = Natural
 
 -- type Block = O.CardanoBlock O.StandardCrypto
-data Block = Block
+data Block era = Block
     { blockHeader :: BHeader
-    , transactions :: [Read.Tx Read.Conway]
+    , transactions :: [Read.Tx era]
     }
-    deriving (Eq, Show)
 
 data BHeader = BHeader
     { blockHeaderBody :: BHBody
@@ -154,7 +157,7 @@ data BHBody = BHBody
 type HashHeader = Read.RawHeaderHash
 type HashBBody = ()
 
-getChainPoint :: Block -> Read.ChainPoint
+getChainPoint :: Read.IsEra era => Block era -> Read.ChainPoint
 getChainPoint block =
     Read.BlockPoint
         { Read.slotNo = slot
@@ -167,7 +170,7 @@ getChainPoint block =
     slot = slotNo bhBody
 
 -- | Create a new block from a sequence of transaction.
-mockNextBlock :: Read.ChainPoint -> [Read.Tx Read.Conway] -> Block
+mockNextBlock :: Read.ChainPoint -> [Read.Tx Read.Conway] -> Block Read.Conway
 mockNextBlock old txs =
     Block
         { blockHeader = BHeader

@@ -35,6 +35,7 @@ import Cardano.Wallet.Deposit.IO.Network.Mock
     )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
+    , mapBlock
     )
 import Cardano.Wallet.Deposit.Pure
     ( BIP32Path
@@ -68,14 +69,14 @@ assert False = error "Assertion failed!"
 -- | Environment for scenarios.
 data ScenarioEnv = ScenarioEnv
     { genesisData :: Read.GenesisData
-    , networkEnv :: NetworkEnv IO Read.Block
+    , networkEnv :: NetworkEnv IO (Read.EraValue Read.Block)
     , faucet :: Faucet
     }
 
 -- | Acquire and release a mock environment for a blockchain
 withScenarioEnvMock :: (ScenarioEnv -> IO a) -> IO a
 withScenarioEnvMock action = do
-    networkEnv <- newNetworkEnvMock
+    networkEnv <- mapBlock Read.EraValue <$> newNetworkEnvMock
     action
         $ ScenarioEnv
             { genesisData = error "TODO: Mock Genesis Data"

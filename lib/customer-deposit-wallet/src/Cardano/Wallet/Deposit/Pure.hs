@@ -175,11 +175,13 @@ fromXPubAndGenesis xpub knownCustomerCount _ =
 getWalletTip :: WalletState -> Read.ChainPoint
 getWalletTip = error "getWalletTip"
 
-rollForwardMany :: NonEmpty Read.Block -> WalletState -> WalletState
+rollForwardMany
+    :: NonEmpty (Read.EraValue Read.Block) -> WalletState -> WalletState
 rollForwardMany blocks w = foldl' (flip rollForwardOne) w blocks
 
-rollForwardOne :: Read.Block -> WalletState -> WalletState
-rollForwardOne block w =
+rollForwardOne
+    :: Read.EraValue Read.Block -> WalletState -> WalletState
+rollForwardOne (Read.EraValue block) w =
     w
         { utxoHistory = rollForwardUTxO isOurs block (utxoHistory w)
         , submissions = Delta.apply (Sbm.rollForward block) (submissions w)
@@ -189,7 +191,8 @@ rollForwardOne block w =
     isOurs = Address.isOurs (addresses w)
 
 rollForwardUTxO
-    :: (Address -> Bool) -> Read.Block -> UTxOHistory -> UTxOHistory
+    :: Read.IsEra era
+    => (Address -> Bool) -> Read.Block era -> UTxOHistory -> UTxOHistory
 rollForwardUTxO isOurs block u =
     UTxOHistory.appendBlock slot deltaUTxO u
   where
