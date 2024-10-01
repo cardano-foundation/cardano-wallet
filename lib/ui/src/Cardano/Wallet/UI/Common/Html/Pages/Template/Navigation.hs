@@ -15,6 +15,9 @@ import Cardano.Wallet.UI.Deposit.API
 import Control.Monad
     ( forM_
     )
+import Data.List
+    ( find
+    )
 import Data.Text
     ( Text
     )
@@ -25,6 +28,7 @@ import Lucid
     , button_
     , class_
     , div_
+    , h3_
     , href_
     , id_
     , img_
@@ -72,11 +76,16 @@ navigationH prefix pages = do
         $ div_ [class_ "container-fluid"]
         $ do
             a_ [class_ "navbar-brand", href_ $ linkText homePageLink]
-                $ img_ [src_ $ linkText faviconLink
+                $ img_
+                    [ src_ $ linkText faviconLink
                     , alt_ "Cardano Deposit Wallet"
                     , class_ "img-fluid"
                     , style_ "height: 2em;"
                     ]
+            h3_ [class_ "d-block d-lg-none"]
+                $ case find (\(c, _, _) -> c) pages of
+                    Just (_, _, t) -> t
+                    Nothing -> "Deposit wallet"
             button_
                 [ class_ "navbar-toggler"
                 , type_ "button"
