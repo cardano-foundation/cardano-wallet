@@ -54,6 +54,9 @@ import Cardano.Wallet.UI.Deposit.API
     , sseLink
     , walletPageLink
     )
+import Cardano.Wallet.UI.Deposit.Html.Lib
+    ( imageOverlay
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
     )
@@ -94,6 +97,7 @@ page c p = RawHtml
         bodyH sseLink (headerH p)
             $ do
                 modalsH
+                imageOverlay
                 case p of
                     About -> aboutH
                     Network -> networkH networkInfoLink
