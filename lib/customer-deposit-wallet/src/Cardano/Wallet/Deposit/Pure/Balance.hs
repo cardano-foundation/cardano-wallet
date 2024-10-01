@@ -64,7 +64,7 @@ applyBlock isOurs block u0 =
   where
     (dus, u1) =
         mapAccumL' (applyTx isOurs) u0
-            $ Read.transactions block
+            $ Read.getEraTransactions block
 
 {-----------------------------------------------------------------------------
     Helpers
