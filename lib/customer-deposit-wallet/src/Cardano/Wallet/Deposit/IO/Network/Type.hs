@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
+    , mapBlock
     , ChainFollower (..)
     ) where
 
@@ -8,6 +10,7 @@ import Prelude
 
 import Cardano.Wallet.Network
     ( ChainFollower (..)
+    , mapChainFollower
     )
 import Control.Tracer
     ( Tracer
@@ -43,6 +46,17 @@ data NetworkEnv m block = NetworkEnv
         :: Write.Tx -> m (Either ErrPostTx ())
         -- ^ Post a transaction to the Cardano network.
 
+    }
+
+mapBlock
+    :: Functor m
+    => (block1 -> block2)
+    -> NetworkEnv m block1
+    -> NetworkEnv m block2
+mapBlock f NetworkEnv{chainSync,postTx} = NetworkEnv
+    { chainSync = \tr follower ->
+        chainSync tr (mapChainFollower id id id (fmap f) follower)
+    , postTx = postTx
     }
 
 {-------------------------------------------------------------------------------

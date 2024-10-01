@@ -62,7 +62,7 @@ add = undefined
 listInSubmission :: TxSubmissions -> Set Read.Tx
 listInSubmission = undefined
 
-rollForward :: Read.Block -> DeltaTxSubmissions
+rollForward :: Read.Block era -> DeltaTxSubmissions
 rollForward block = [ Sbm.RollForward tip txs ]
   where
     tip = undefined block

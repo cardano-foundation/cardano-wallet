@@ -8,7 +8,11 @@
 --
 -- TODO: Match this up with the @Read@ hierarchy.
 module Cardano.Wallet.Deposit.Read
-    ( Network (..)
+    ( Read.IsEra
+    , Read.EraValue (..)
+    , Read.Conway
+
+    , Network (..)
     , Read.SlotNo
     , Read.ChainPoint (..)
     , Slot
@@ -34,13 +38,13 @@ module Cardano.Wallet.Deposit.Read
     , TxBody
     , TxWitness
 
-    , BlockNo
-    , Block (..)
-    , getChainPoint
+    , Read.Block
+    , Read.getChainPoint
+    , Read.getEraBHeader
+    , Read.getEraSlotNo
+    , Read.getEraTransactions
     , mockNextBlock
-    , BHeader (..)
     , Read.mockRawHeaderHash
-    , BHBody (..)
 
     , GenesisData
     , GenesisHash
@@ -51,6 +55,12 @@ module Cardano.Wallet.Deposit.Read
 
 import Prelude
 
+import Cardano.Wallet.Read.Block.Gen
+    ( mkBlockEra
+    )
+import Cardano.Wallet.Read.Block.Gen.BlockParameters
+    ( BlockParameters (..)
+    )
 import Cardano.Wallet.Read.Chain
     ( Slot
     , WithOrigin (..)
@@ -71,16 +81,12 @@ import Data.Maybe
 import Data.Word
     ( Word8
     )
-import Numeric.Natural
-    ( Natural
-    )
 
 import qualified Cardano.Chain.Genesis as Byron
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Short as SBS
--- import qualified Ouroboros.Consensus.Cardano.Block as O
 
 {-----------------------------------------------------------------------------
     Type definitions
@@ -126,69 +132,16 @@ type TxWitness = ()
 {-----------------------------------------------------------------------------
     Block
 ------------------------------------------------------------------------------}
-type BlockNo = Natural
-
--- type Block = O.CardanoBlock O.StandardCrypto
-data Block = Block
-    { blockHeader :: BHeader
-    , transactions :: [Read.Tx Read.Conway]
-    }
-    deriving (Eq, Show)
-
-data BHeader = BHeader
-    { blockHeaderBody :: BHBody
-    , blockHeaderSignature :: Sig
-    }
-    deriving (Eq, Ord, Show)
-
-type Sig = ()
-
-data BHBody = BHBody
-    { prev :: Maybe HashHeader
-    , blockno :: BlockNo
-    , slotNo :: Read.SlotNo
-    , bhash :: HashBBody
-    }
-    deriving (Eq, Ord, Show)
-
-type HashHeader = Read.RawHeaderHash
-type HashBBody = ()
-
-getChainPoint :: Block -> Read.ChainPoint
-getChainPoint block =
-    Read.BlockPoint
-        { Read.slotNo = slot
-        , Read.headerHash =
-            Read.mockRawHeaderHash
-            $ fromIntegral $ fromEnum slot
-        }
-  where
-    bhBody = blockHeaderBody $ blockHeader block
-    slot = slotNo bhBody
-
 -- | Create a new block from a sequence of transaction.
-mockNextBlock :: Read.ChainPoint -> [Read.Tx Read.Conway] -> Block
+mockNextBlock
+    :: Read.ChainPoint -> [Read.Tx Read.Conway] -> Read.Block Read.Conway
 mockNextBlock old txs =
-    Block
-        { blockHeader = BHeader
-            { blockHeaderBody = BHBody
-                { prev
-                , blockno
-                , slotNo
-                , bhash = ()
-                }
-            , blockHeaderSignature = ()
-            }
-        , transactions = txs
-        }
+    mkBlockEra BlockParameters{slotNumber,blockNumber,txs}
   where
-    blockno = toEnum $ fromEnum slotNo
-    slotNo = case old of
-        Read.GenesisPoint -> 0
+    blockNumber = Read.BlockNo $ Read.unSlotNo slotNumber
+    slotNumber = case old of
+        Read.GenesisPoint -> Read.SlotNo 0
         Read.BlockPoint{slotNo = n} -> succ n
-    prev = case old of
-        Read.GenesisPoint -> Nothing
-        Read.BlockPoint{headerHash} -> Just headerHash
 
 {-----------------------------------------------------------------------------
     Genesis
