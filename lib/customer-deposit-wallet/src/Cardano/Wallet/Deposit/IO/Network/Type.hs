@@ -8,15 +8,27 @@ module Cardano.Wallet.Deposit.IO.Network.Type
 
 import Prelude
 
+import Cardano.Wallet.Deposit.Read
+    ( Slot
+    )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     , mapChainFollower
+    )
+import Control.Monad.Class.MonadTime
+    ( UTCTime
     )
 import Control.Tracer
     ( Tracer
     )
 import Data.List.NonEmpty
     ( NonEmpty
+    )
+import Data.Map.Strict
+    ( Map
+    )
+import Data.Set
+    ( Set
     )
 import Data.Text
     ( Text
@@ -45,7 +57,9 @@ data NetworkEnv m block = NetworkEnv
     , postTx
         :: Write.Tx -> m (Either ErrPostTx ())
         -- ^ Post a transaction to the Cardano network.
-
+    , slotsToUTCTimes
+        :: Set Slot -> m (Map Slot UTCTime)
+        -- ^ Try to convert a set of slots to their UTCTimes counterparts
     }
 
 mapBlock
