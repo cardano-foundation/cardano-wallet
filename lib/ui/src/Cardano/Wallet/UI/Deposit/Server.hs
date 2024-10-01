@@ -21,6 +21,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , deleteWallet
@@ -78,15 +81,21 @@ import Cardano.Wallet.UI.Common.Layer
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( sessioning
+    ( CookieResponse
+    , RequestCookies
+    , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( UI
+    ( TransactionHistoryParams
+    , UI
     , settingsSseToggleLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses
     ( getAddresses
     , getCustomerAddress
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
+    ( getCustomerHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
@@ -100,6 +109,10 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
     , customerAddressH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
+    ( customerHistoryH
+    , transactionsElementH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -128,7 +141,9 @@ import Data.Time
     , formatTime
     )
 import Lucid
-    ( class_
+    ( Html
+    , ToHtml (..)
+    , class_
     , div_
     )
 import Paths_cardano_wallet_ui
@@ -147,9 +162,10 @@ showTime :: UTCTime -> String
 showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 
 serveUI
-    :: forall n
+    :: forall n x
      . HasSNetworkId n
     => Tracer IO String
+    -> NetworkEnv IO x
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -158,7 +174,7 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr ul env dbDir config _ nl bs =
+serveUI tr network ul env dbDir config _ nl bs =
     ph Wallet
         :<|> ph About
         :<|> ph Network
@@ -170,6 +186,7 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
+        :<|> serveFakeDataBackground
         :<|> (\c -> sessioning $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
@@ -178,7 +195,9 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
         :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
-        :<|> serveNavigation -- (\l -> getAddresses l (renderSmoothHtml . headerElementH _ _ _))
+        :<|> serveNavigation
+        :<|> serveTransactions ul
+        :<|> serveCustomerHistory network ul
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
@@ -193,9 +212,40 @@ serveUI tr ul env dbDir config _ nl bs =
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
     initWallet = initXPubWallet tr env dbDir
-    renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] response
+
+serveFakeDataBackground :: Handler BL.ByteString
+serveFakeDataBackground = do
+    file <- liftIO $ getDataFileName "data/images/fake-data.png"
+    liftIO $ BL.readFile file
+
+serveCustomerHistory
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> TransactionHistoryParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveCustomerHistory network ul params = do
+    withSessionLayer ul $ \layer ->
+        renderSmoothHtml
+            <$> getCustomerHistory
+                network
+                layer
+                customerHistoryH
+                alertH
+                params
+
+renderSmoothHtml :: Html () -> RawHtml
+renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] $ toHtml response
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
     file <- liftIO $ getDataFileName "data/images/icon.png"
     liftIO $ BL.readFile file
+
+serveTransactions
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveTransactions ul =
+    withSessionLayer ul
+        $ \_ -> pure $ renderSmoothHtml transactionsElementH

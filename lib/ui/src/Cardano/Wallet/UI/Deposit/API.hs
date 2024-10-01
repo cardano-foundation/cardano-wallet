@@ -39,6 +39,9 @@ import Cardano.Wallet.UI.Cookies
 import Control.Lens
     ( makePrisms
     )
+import Data.Maybe
+    ( isJust
+    )
 import Servant
     ( Delete
     , FormUrlEncoded
@@ -56,6 +59,7 @@ import Servant
     )
 import Web.FormUrlEncoded
     ( FromForm (..)
+    , lookupMaybe
     , parseUnique
     )
 
@@ -104,6 +108,9 @@ type Data =
         :<|> "settings" :> "sse" :> "toggle" :> SessionedHtml Post
         :<|> "sse" :> (CookieRequest :> SSE)
         :<|> "favicon.ico" :> Get '[Image] BL.ByteString
+        :<|> "images"
+            :> "fake-data.png"
+            :> Get '[Image] BL.ByteString
         :<|> "wallet"
             :> "mnemonic"
             :> QueryParam "clean" Bool
@@ -125,9 +132,28 @@ type Data =
             :> SessionedHtml Post
         :<|> "addresses" :> SessionedHtml Get
         :<|> "navigation" :> QueryParam "page" Page :> SessionedHtml Get
+        :<|> "transactions" :> SessionedHtml Get
+        :<|> "customer"
+            :> "transactions"
+            :> "history"
+            :> ReqBody '[FormUrlEncoded] TransactionHistoryParams
+            :> SessionedHtml Post
+
+data TransactionHistoryParams = TransactionHistoryParams
+    { txHistoryCustomer :: Customer
+    , txHistoryUTC :: Bool
+    , txHistorySlot :: Bool
+    }
 
 instance FromForm Customer where
     fromForm form = fromIntegral @Int <$> parseUnique "customer" form
+
+instance FromForm TransactionHistoryParams where
+    fromForm form = do
+        utc <- isJust <$> lookupMaybe "utc" form
+        customer <- fromIntegral @Int <$> parseUnique "customer" form
+        slot <- isJust <$> lookupMaybe "slot" form
+        pure $ TransactionHistoryParams customer utc slot
 
 type Home = SessionedHtml Get
 
@@ -149,6 +175,7 @@ settingsGetLink :: Link
 settingsSseToggleLink :: Link
 sseLink :: Link
 faviconLink :: Link
+fakeDataBackgroundLink :: Link
 walletMnemonicLink :: Maybe Bool -> Link
 walletPageLink :: Link
 walletLink :: Link
@@ -159,6 +186,8 @@ walletDeleteModalLink :: Link
 customerAddressLink :: Link
 addressesLink :: Link
 navigationLink :: Maybe Page -> Link
+transactionsLink :: Link
+customerHistoryLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -170,6 +199,7 @@ homePageLink
     :<|> settingsSseToggleLink
     :<|> sseLink
     :<|> faviconLink
+    :<|> fakeDataBackgroundLink
     :<|> walletMnemonicLink
     :<|> walletLink
     :<|> walletPostMnemonicLink
@@ -178,5 +208,7 @@ homePageLink
     :<|> walletDeleteModalLink
     :<|> customerAddressLink
     :<|> addressesLink
-    :<|> navigationLink =
+    :<|> navigationLink
+    :<|> transactionsLink
+    :<|> customerHistoryLink =
         allLinks (Proxy @UI)
