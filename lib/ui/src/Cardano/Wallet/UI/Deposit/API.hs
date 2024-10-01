@@ -143,6 +143,8 @@ data TransactionHistoryParams = TransactionHistoryParams
     { txHistoryCustomer :: Customer
     , txHistoryUTC :: Bool
     , txHistorySlot :: Bool
+    , txHistorySpent :: Bool
+    , txHistoryReceived :: Bool
     }
 
 instance FromForm Customer where
@@ -153,7 +155,9 @@ instance FromForm TransactionHistoryParams where
         utc <- isJust <$> lookupMaybe "utc" form
         customer <- fromIntegral @Int <$> parseUnique "customer" form
         slot <- isJust <$> lookupMaybe "slot" form
-        pure $ TransactionHistoryParams customer utc slot
+        spent <- isJust <$> lookupMaybe "spent" form
+        received <- isJust <$> lookupMaybe "received" form
+        pure $ TransactionHistoryParams customer utc slot spent received
 
 type Home = SessionedHtml Get
 

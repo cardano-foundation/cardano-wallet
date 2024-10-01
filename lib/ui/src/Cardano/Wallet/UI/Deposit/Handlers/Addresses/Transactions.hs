@@ -34,7 +34,7 @@ import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( TransactionHistoryParams (TransactionHistoryParams, txHistoryCustomer)
+    ( TransactionHistoryParams (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
@@ -67,7 +67,8 @@ import Servant
     ( Handler
     )
 import System.Random.Stateful
-    ( UniformRange (..)
+    ( StatefulGen
+    , UniformRange (..)
     , mkStdGen
     , runStateGen_
     )
@@ -97,9 +98,21 @@ getCustomerHistory
                 Nothing -> pure $ alert "Address not discovered"
                 Just _ -> do
                     let (b, ss) = fakeData txHistoryCustomer . toList $ h
-                        slots = Set.fromList $ slotFromChainPoint . txChainPoint <$> ss
+                        slots =
+                            Set.fromList
+                                $ slotFromChainPoint . txChainPoint <$> ss
+                        filtered = case (txHistoryReceived, txHistorySpent) of
+                            (True, False) -> filter
+                                (\TxSummaryC{txTransfer = ValueTransfer _ received}
+                                    -> received /= mempty)
+                                ss
+                            (False, True) -> filter
+                                (\TxSummaryC{txTransfer = ValueTransfer spent _}
+                                    -> spent /= mempty) ss
+                            _ -> ss
+
                     times <- liftIO $ slotsToUTCTimes network slots
-                    pure $ render b params ss times
+                    pure $ render b params filtered times
 
 -- fake data generation until DB is implemented
 
@@ -117,14 +130,29 @@ unsafeMkTxId = txIdFromHash . fromJust . hashFromStringAsHex
 hexOfInt :: Int -> Char
 hexOfInt n = "0123456789abcdef" !! (n `mod` 16)
 
+randomValue :: StatefulGen g f => g -> Read.Coin -> f Read.Value
+randomValue g l = Read.ValueC <$> uniformRM (0, l) g <*> pure mempty
+
+createSpent :: StatefulGen g f => g -> Int -> f Read.Value
+createSpent g r = randomValue g l
+  where
+    l = if r >= 0 && r < 5 || r == 11 then 1000 else 0
+
+createReceived :: StatefulGen g f => g -> Int -> f Read.Value
+createReceived g r = randomValue g l
+  where
+    l = if r >= 5 && r <= 11 then 1000 else 0
+
 txSummaryG :: Int -> [TxSummary]
 txSummaryG c = runStateGen_ pureGen $ \g -> do
     ns <- uniformRM (1, 10) g
     replicateM ns $ do
         txId <- txIdR g
         cp <- chainPointR g
-        spent <- Read.ValueC <$> uniformRM (0, 1000) g <*> pure mempty
-        received <- Read.ValueC <$> uniformRM (0, 1000) g <*> pure mempty
+        spentOrReceived <- uniformRM (0, 11) g
+        spent <- createSpent g spentOrReceived
+        received <- createReceived g spentOrReceived
+
         pure $ TxSummaryC txId cp $ ValueTransfer spent received
   where
     pureGen = mkStdGen c

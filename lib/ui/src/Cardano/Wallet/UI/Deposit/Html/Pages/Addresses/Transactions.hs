@@ -108,11 +108,8 @@ chainPointToSlotH cp = case cp of
     Read.GenesisPoint -> toHtml ("Genesis" :: Text)
     Read.BlockPoint (Read.SlotNo n) _ -> toHtml $ show n
 
-valueH :: Bool -> Read.Value -> Html ()
-valueH b (Read.ValueC (Read.CoinC c) _) = toHtml $ sign b $ show c
-  where
-    sign True = ("+" ++)
-    sign False = ("-" ++)
+valueH :: Read.Value -> Html ()
+valueH (Read.ValueC (Read.CoinC c) _) = toHtml $ show c
 
 txSummaryH
     :: TransactionHistoryParams
@@ -130,11 +127,13 @@ txSummaryH
             when txHistoryUTC
                 $ td_ [scope_ "col", class_ "text-end"]
                 $ chainPointToUTCH times txChainPoint
-            td_ [scope_ "col", class_ "text-end"]
-                $ valueH True
+            when txHistoryReceived
+                $ td_ [scope_ "col", class_ "text-end"]
+                $ valueH
                 $ received txTransfer
-            td_ [scope_ "col", class_ "text-end"]
-                $ valueH False
+            when txHistorySpent
+                $ td_ [scope_ "col", class_ "text-end"]
+                $ valueH
                 $ spent txTransfer
             td_ [scope_ "col", class_ "flex-fill"]
                 $ truncatableText ("tx-id-text-" <> toText index)
@@ -152,7 +151,7 @@ customerHistoryH fake params@TransactionHistoryParams{..} txs times =
     fakeOverlay $ do
         table_
             [ class_
-                $ "table table-striped"
+                $ "table table-striped table-bordered table-hover"
                     <> if fake then " fake" else ""
             ]
             $ do
@@ -171,18 +170,20 @@ customerHistoryH fake params@TransactionHistoryParams{..} txs times =
                             , style_ "width: 7em"
                             ]
                             "Time"
-                    th_
-                        [ scope_ "col"
-                        , class_ "text-end"
-                        , style_ "width: 5em"
-                        ]
-                        "Received"
-                    th_
-                        [ scope_ "col"
-                        , class_ "text-end"
-                        , style_ "width: 4em"
-                        ]
-                        "Spent"
+                    when txHistoryReceived
+                        $ th_
+                            [ scope_ "col"
+                            , class_ "text-end"
+                            , style_ "width: 6em"
+                            ]
+                            "Received"
+                    when txHistorySpent
+                        $ th_
+                            [ scope_ "col"
+                            , class_ "text-end"
+                            , style_ "width: 6em"
+                            ]
+                            "Spent"
                     th_
                         [ scope_ "col"
                         , class_ "text-end"
@@ -231,6 +232,29 @@ transactionsViewControls = do
                             , name_ "slot"
                             , value_ ""
                             ]
+                    simpleField "Received"
+                        $ div_
+                            [ class_ "d-flex justify-content-end form-check"
+                            ]
+                        $ input_
+                            [ class_ "form-check-input"
+                            , type_ "checkbox"
+                            , id_ "toggle-received"
+                            , name_ "received"
+                            , value_ ""
+                            , checked_
+                            ]
+                    simpleField "Spent"
+                        $ div_
+                            [ class_ "d-flex justify-content-end form-check"
+                            ]
+                        $ input_
+                            [ class_ "form-check-input"
+                            , type_ "checkbox"
+                            , id_ "toggle-spent"
+                            , name_ "spent"
+                            , value_ ""
+                            ]
 
 transactionsElementH :: Html ()
 transactionsElementH = do
@@ -239,7 +263,9 @@ transactionsElementH = do
             "load\
             \, change from:#toggle-utc\
             \, change from:#select-customer\
-            \, change from:#toggle-slot"
+            \, change from:#toggle-slot\
+            \, change from:#toggle-received\
+            \, change from:#toggle-spent"
         , hxInclude_ "#view-control"
         , hxPost_ $ linkText customerHistoryLink
         , hxTarget_ "#transactions"
