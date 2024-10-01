@@ -125,7 +125,7 @@ mnemonicSetupFieldsH PostWalletConfig{..} = do
         $ input_
             [ class_ "form-control form-control-lg mb-3"
             , type_ "number"
-            , name_ "users"
+            , name_ "trackedCustomers"
             , placeholder_ "Customer Discovery"
             ]
     onShelley
