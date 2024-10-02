@@ -1,4 +1,6 @@
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
@@ -6,6 +8,9 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( unsafeSlotOfUTCTime
+    )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv
     , slotsToUTCTimes
@@ -23,7 +28,9 @@ import Cardano.Wallet.Deposit.REST
     , customerAddress
     )
 import Cardano.Wallet.Read
-    ( SlotNo (..)
+    ( Coin
+    , SlotNo (..)
+    , WithOrigin (..)
     , slotFromChainPoint
     , txIdFromHash
     )
@@ -62,6 +69,7 @@ import Data.Maybe
     )
 import Data.Time
     ( UTCTime
+    , getCurrentTime
     )
 import Servant
     ( Handler
@@ -81,7 +89,12 @@ import qualified Data.Set as Set
 getCustomerHistory
     :: NetworkEnv IO a
     -> SessionLayer WalletResource
-    -> (Bool -> TransactionHistoryParams -> [TxSummary] -> Map Slot UTCTime -> html)
+    -> ( Bool
+         -> TransactionHistoryParams
+         -> [TxSummary]
+         -> Map Slot (WithOrigin UTCTime)
+         -> html
+       )
     -> (BL.ByteString -> html)
     -> TransactionHistoryParams
     -> Handler html
@@ -97,18 +110,23 @@ getCustomerHistory
             case r of
                 Nothing -> pure $ alert "Address not discovered"
                 Just _ -> do
-                    let (b, ss) = fakeData txHistoryCustomer . toList $ h
-                        slots =
+                    (b, ss) <- liftIO $ fakeData txHistoryCustomer . toList $ h
+                    let slots =
                             Set.fromList
                                 $ slotFromChainPoint . txChainPoint <$> ss
                         filtered = case (txHistoryReceived, txHistorySpent) of
-                            (True, False) -> filter
-                                (\TxSummaryC{txTransfer = ValueTransfer _ received}
-                                    -> received /= mempty)
-                                ss
-                            (False, True) -> filter
-                                (\TxSummaryC{txTransfer = ValueTransfer spent _}
-                                    -> spent /= mempty) ss
+                            (True, False) ->
+                                filter
+                                    ( \TxSummaryC{txTransfer = ValueTransfer _ received} ->
+                                        received /= mempty
+                                    )
+                                    ss
+                            (False, True) ->
+                                filter
+                                    ( \TxSummaryC{txTransfer = ValueTransfer spent _} ->
+                                        spent /= mempty
+                                    )
+                                    ss
                             _ -> ss
 
                     times <- liftIO $ slotsToUTCTimes network slots
@@ -116,13 +134,15 @@ getCustomerHistory
 
 -- fake data generation until DB is implemented
 
-fakeData :: Customer -> [TxSummary] -> (Bool, [TxSummary])
-fakeData c [] =
-    (True,)
+fakeData :: Customer -> [TxSummary] -> IO (Bool, [TxSummary])
+fakeData c [] = do
+    now <- getCurrentTime
+    pure
+        $ (True,)
         $ sortBy
             (on compare $ \(TxSummaryC _ cp _) -> cp)
-        $ txSummaryG (fromIntegral c)
-fakeData _c xs = (False, xs)
+        $ txSummaryG now (fromIntegral c)
+fakeData _c xs = pure (False, xs)
 
 unsafeMkTxId :: String -> Read.TxId
 unsafeMkTxId = txIdFromHash . fromJust . hashFromStringAsHex
@@ -133,18 +153,21 @@ hexOfInt n = "0123456789abcdef" !! (n `mod` 16)
 randomValue :: StatefulGen g f => g -> Read.Coin -> f Read.Value
 randomValue g l = Read.ValueC <$> uniformRM (0, l) g <*> pure mempty
 
+maxLovelaces :: Coin
+maxLovelaces = 1_000_000_000
+
 createSpent :: StatefulGen g f => g -> Int -> f Read.Value
 createSpent g r = randomValue g l
   where
-    l = if r >= 0 && r < 5 || r == 11 then 1000 else 0
+    l = if r >= 0 && r < 5 || r == 11 then maxLovelaces else 0
 
 createReceived :: StatefulGen g f => g -> Int -> f Read.Value
 createReceived g r = randomValue g l
   where
-    l = if r >= 5 && r <= 11 then 1000 else 0
+    l = if r >= 5 && r <= 11 then maxLovelaces else 0
 
-txSummaryG :: Int -> [TxSummary]
-txSummaryG c = runStateGen_ pureGen $ \g -> do
+txSummaryG :: UTCTime -> Int -> [TxSummary]
+txSummaryG now c = runStateGen_ pureGen $ \g -> do
     ns <- uniformRM (1, 10) g
     replicateM ns $ do
         txId <- txIdR g
@@ -161,11 +184,18 @@ txSummaryG c = runStateGen_ pureGen $ \g -> do
         pure $ unsafeMkTxId ls
     headerHash g = replicateM 64 $ hexOfInt <$> uniformRM (0, 15) g
     chainPointR g = do
-        slot <- uniformRM (0, 100) g
-        case slot of
-            0 -> pure Read.GenesisPoint
-            _ -> do
+        case unsafeSlotOfUTCTime now of
+            Origin -> pure Read.GenesisPoint
+            At (SlotNo slotNo) -> do
+                slotInt :: Int <- uniformRM (-1, fromIntegral slotNo) g
                 r <- hashFromStringAsHex <$> headerHash g
                 case r of
-                    Just h -> pure $ Read.BlockPoint (SlotNo slot) h
+                    Just h -> do
+                        pure
+                            $ if slotInt == -1
+                                then Read.GenesisPoint
+                                else
+                                    Read.BlockPoint
+                                        (SlotNo $ fromIntegral slotInt)
+                                        h
                     Nothing -> error "chainPointR: invalid hash"

@@ -7,7 +7,9 @@
 -- Mock implementation of a 'NetworkEnv'.
 module Cardano.Wallet.Deposit.IO.Network.Mock
     ( newNetworkEnvMock
+    , unsafeUTCTimeOfSlot
     , unsafeSlotsToUTCTimes
+    , unsafeSlotOfUTCTime
     ) where
 
 import Prelude
@@ -56,6 +58,7 @@ import Data.Set
     )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
+    , utcTimeToPOSIXSeconds
     )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
@@ -111,16 +114,38 @@ newNetworkEnvMock = do
             , slotsToUTCTimes = pure . unsafeSlotsToUTCTimes
             }
 
-unsafeSlotsToUTCTimes :: Set Slot -> Map Slot UTCTime
+unsafeSlotsToUTCTimes :: Set Slot -> Map Slot (WithOrigin UTCTime)
 unsafeSlotsToUTCTimes =
     Map.fromList
-        . fmap (\slot -> (slot, unsafeUTCTimeOfSlot slot))
+        . fmap (\slot -> (slot, unsafeUTCTimeOfSlot <$> slot))
         . Set.toList
 
-unsafeUTCTimeOfSlot :: Read.Slot -> UTCTime
-unsafeUTCTimeOfSlot Origin = posixSecondsToUTCTime $ 1596491091 - 4924800 * 20
-unsafeUTCTimeOfSlot (At (SlotNo n)) = posixSecondsToUTCTime pt
+unsafeUTCTimeOfSlot :: SlotNo -> UTCTime
+unsafeUTCTimeOfSlot (SlotNo n) =
+    posixSecondsToUTCTime
+        $ fromIntegral pt
   where
-    pts = fromIntegral n - 4924800
-    pt = if pts >= 0 then 1596491091 + pts
-        else 1596491091 + pts * 20
+    pts = fromIntegral n - byronSlots
+    pt =
+        if pts >= 0
+            then shelleyTime + pts
+            else shelleyTime + pts * 20
+
+unsafeSlotOfUTCTime :: UTCTime -> Read.Slot
+unsafeSlotOfUTCTime t
+    | origin = Origin
+    | byron = At $ SlotNo $ fromIntegral $ (pt - originTime) `div` 20
+    | otherwise = At $ SlotNo $ fromIntegral $ pt - shelleyTime + byronSlots
+  where
+    pt = floor $ utcTimeToPOSIXSeconds t
+    origin = pt < originTime
+    byron = pt < shelleyTime
+
+byronSlots :: Integer
+byronSlots = 4924800
+
+shelleyTime :: Integer
+shelleyTime = 1596491091
+
+originTime :: Integer
+originTime = shelleyTime - byronSlots * 20

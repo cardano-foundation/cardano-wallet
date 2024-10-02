@@ -10,6 +10,7 @@ import Prelude
 
 import Cardano.Wallet.Deposit.Read
     ( Slot
+    , WithOrigin
     )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
@@ -58,7 +59,7 @@ data NetworkEnv m block = NetworkEnv
         :: Write.Tx -> m (Either ErrPostTx ())
         -- ^ Post a transaction to the Cardano network.
     , slotsToUTCTimes
-        :: Set Slot -> m (Map Slot UTCTime)
+        :: Set Slot -> m (Map Slot (WithOrigin UTCTime))
         -- ^ Try to convert a set of slots to their UTCTimes counterparts
     }
 
