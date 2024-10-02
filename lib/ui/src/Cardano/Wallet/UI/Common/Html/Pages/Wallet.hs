@@ -103,7 +103,7 @@ newWalletFromMnemonicH walletMnemonicLink config = do
 mnemonicH :: Maybe [Text] -> Html ()
 mnemonicH Nothing = ""
 mnemonicH (Just mnemonic) = do
-    div_  [class_ "d-flex justify-content-end"] $ do
+    div_  [class_ "d-flex justify-content-end align-items-center"] $ do
         div_
             [ class_ ""
             , id_ "copy-mnemonic"

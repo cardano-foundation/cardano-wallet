@@ -84,7 +84,7 @@ showLocalTime = do
         $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" . utcToLocalTime zone
 
 justifyRight :: ToHtml b => b -> Html ()
-justifyRight = div_ [class_ "d-flex justify-content-end"] . toHtml
+justifyRight = div_ [class_ "d-flex justify-content-end align-items-center"] . toHtml
 
 linkText :: Link -> Text
 linkText = T.pack . ('/' :) . show . linkURI
@@ -121,7 +121,7 @@ monospaced identitifier =
             identitifier
 
 truncatableText :: Monad m => Text -> HtmlT m () -> HtmlT m ()
-truncatableText identifier h = div_ [class_ "d-flex justify-content-end"] $ do
+truncatableText identifier h = div_ [class_ "d-flex justify-content-end align-items-center"] $ do
     monospaced identifier
     div_
         [ id_ identifier

@@ -81,7 +81,7 @@ selectCustomerH
     -> ListOf (AssocRow m)
 selectCustomerH identifier include link trackedUsers =
     simpleField "Customer Number"
-        $ div_ [class_ "d-flex justify-content-end"]
+        $ div_ [class_ "d-flex justify-content-end align-items-center"]
         $ input_
         $ [ id_ "select-customer"
           , type_ "number"
