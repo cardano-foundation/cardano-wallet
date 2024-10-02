@@ -31,6 +31,7 @@ import Lucid
     , ToHtml (..)
     , body_
     , charset_
+    , class_
     , content_
     , crossorigin_
     , head_
@@ -139,7 +140,7 @@ truncatedTdTextWorkaround =
 
 pageFromBodyH :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
 pageFromBodyH faviconLink PageConfig{..} body =
-    html_ [term "data-bs-theme" "dark"]
+    html_ [term "data-bs-theme" "dark", class_ "p-1"]
         $ do
             head_ $ do
                 title_ $ toHtml title
