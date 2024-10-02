@@ -1,7 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
 where
@@ -47,6 +49,7 @@ import Lucid
     , input_
     , name_
     , scope_
+    , span_
     , style_
     , table_
     , tbody_
@@ -60,6 +63,7 @@ import Lucid
 
 import Cardano.Wallet.Deposit.Read
     ( Slot
+    , WithOrigin (..)
     )
 import Data.Map.Strict
     ( Map
@@ -85,20 +89,24 @@ import Data.Time
     , defaultTimeLocale
     , formatTime
     )
+import Numeric
+    ( showFFloatAlt
+    )
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Map.Strict as Map
 
 chainPointToUTCH
-    :: Map Slot UTCTime
+    :: Map Slot (WithOrigin UTCTime)
     -> Read.ChainPoint
     -> Html ()
 chainPointToUTCH
     times
     cp = case Map.lookup (Read.slotFromChainPoint cp) times of
-        Just t ->
+        Just (At t) ->
             toHtml
                 $ formatTime defaultTimeLocale "%F %T" t
+        Just Origin -> toHtml ("Genesis" :: Text)
         Nothing -> toHtml ("Unknown" :: Text)
 
 chainPointToSlotH
@@ -109,11 +117,15 @@ chainPointToSlotH cp = case cp of
     Read.BlockPoint (Read.SlotNo n) _ -> toHtml $ show n
 
 valueH :: Read.Value -> Html ()
-valueH (Read.ValueC (Read.CoinC c) _) = toHtml $ show c
+valueH (Read.ValueC (Read.CoinC c) _) = do
+    span_ $ toHtml $ a ""
+    span_ [class_ "opacity-25"] "₳"
+  where
+    a = showFFloatAlt @Double (Just 2) $ fromIntegral c / 1_000_000
 
 txSummaryH
     :: TransactionHistoryParams
-    -> Map Slot UTCTime
+    -> Map Slot (WithOrigin UTCTime)
     -> (Int, TxSummary)
     -> Html ()
 txSummaryH
@@ -145,7 +157,7 @@ customerHistoryH
     :: Bool
     -> TransactionHistoryParams
     -> [TxSummary]
-    -> Map Slot UTCTime
+    -> Map Slot (WithOrigin UTCTime)
     -> Html ()
 customerHistoryH fake params@TransactionHistoryParams{..} txs times =
     fakeOverlay $ do
@@ -160,7 +172,7 @@ customerHistoryH fake params@TransactionHistoryParams{..} txs times =
                         $ th_
                             [ scope_ "col"
                             , class_ "text-end"
-                            , style_ "width: 4em"
+                            , style_ "width: 7em"
                             ]
                             "Slot"
                     when txHistoryUTC
@@ -174,14 +186,14 @@ customerHistoryH fake params@TransactionHistoryParams{..} txs times =
                         $ th_
                             [ scope_ "col"
                             , class_ "text-end"
-                            , style_ "width: 6em"
+                            , style_ "width: 7em"
                             ]
                             "Received"
                     when txHistorySpent
                         $ th_
                             [ scope_ "col"
                             , class_ "text-end"
-                            , style_ "width: 6em"
+                            , style_ "width: 7em"
                             ]
                             "Spent"
                     th_
