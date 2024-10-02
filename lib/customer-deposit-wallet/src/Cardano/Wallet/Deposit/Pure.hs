@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 module Cardano.Wallet.Deposit.Pure
     (
     -- * Types
@@ -41,6 +42,9 @@ module Cardano.Wallet.Deposit.Pure
 
     , addTxSubmission
     , listTxsInSubmission
+
+    -- * Internal, for testing
+    , availableUTxO
     ) where
 
 import Prelude
@@ -86,6 +90,7 @@ import Data.Word.Odd
 
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
+import qualified Cardano.Wallet.Deposit.Pure.RollbackWindow as Rollback
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
@@ -203,7 +208,29 @@ rollBackward
     :: Read.ChainPoint
     -> WalletState
     -> (WalletState, Read.ChainPoint)
-rollBackward point w = (w, point) -- FIXME: This is a mock implementation
+rollBackward targetPoint w =
+    ( w
+        { utxoHistory =
+            UTxOHistory.rollback actualSlot (utxoHistory w)
+        , submissions =
+            Delta.apply (Sbm.rollBackward actualSlot) (submissions w)
+        }
+    , actualPoint
+    )
+  where
+    h = utxoHistory w
+
+    targetSlot = Read.slotFromChainPoint targetPoint
+    actualSlot = Read.slotFromChainPoint actualPoint
+
+    -- NOTE: We don't keep enough information about
+    -- the block hashes to roll back to
+    -- any other point than the target point (or genesis).
+    actualPoint =
+        if (targetSlot `Rollback.member` UTxOHistory.getRollbackWindow h)
+        -- FIXME: Add test for rollback window of `submissions`
+        then targetPoint
+        else Read.GenesisPoint
 
 availableBalance :: WalletState -> Read.Value
 availableBalance = UTxO.balance . availableUTxO

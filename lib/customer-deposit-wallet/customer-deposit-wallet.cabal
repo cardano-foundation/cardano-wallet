@@ -182,6 +182,7 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet-read
     , cardano-wallet-test-utils
+    , containers
     , contra-tracer
     , customer-deposit-wallet
     , customer-deposit-wallet:http
@@ -198,6 +199,7 @@ test-suite unit
   other-modules:
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
     Cardano.Wallet.Deposit.HTTP.OpenAPISpec
+    Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
     Paths_customer_deposit_wallet
     Spec

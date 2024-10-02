@@ -29,6 +29,7 @@ module Cardano.Wallet.Deposit.Read
     , Read.TxOut
     , address
     , Read.Value
+    , Read.lessOrEqual
     , UTxO
 
     , Read.TxId

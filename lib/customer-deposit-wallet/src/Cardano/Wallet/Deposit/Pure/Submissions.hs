@@ -69,5 +69,5 @@ rollForward block = [ Sbm.RollForward tip txs ]
     txids = undefined block
     txs = map (tip,) txids
 
-rollBackward :: Read.SlotNo -> DeltaTxSubmissions
+rollBackward :: Read.Slot -> DeltaTxSubmissions
 rollBackward = undefined
