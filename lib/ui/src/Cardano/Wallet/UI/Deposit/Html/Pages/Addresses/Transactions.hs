@@ -32,10 +32,10 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
 import Cardano.Wallet.UI.Deposit.API
     ( TransactionHistoryParams (..)
     , customerHistoryLink
+    , sortByDirection
     )
 import Control.Monad
-    ( forM_
-    , when
+    ( when
     )
 import Lucid
     ( Html
@@ -48,7 +48,10 @@ import Lucid
     , id_
     , input_
     , name_
+    , option_
     , scope_
+    , select_
+    , selected_
     , span_
     , style_
     , table_
@@ -202,7 +205,13 @@ customerHistoryH fake params@TransactionHistoryParams{..} txs times =
                         , style_ "width: auto"
                         ]
                         "Tx Id"
-                tbody_ $ forM_ (zip [0 ..] txs) $ txSummaryH params times
+                tbody_
+                    $ mapM_ (txSummaryH params times)
+                    $ zip [0 ..]
+                    $ sortByDirection
+                        txHistorySorting
+                        txChainPoint
+                        txs
   where
     fakeOverlay = if fake then overlayFakeDataH else id
 
@@ -267,6 +276,18 @@ transactionsViewControls = do
                             , name_ "spent"
                             , value_ ""
                             ]
+                    simpleField "Sorting"
+                        $ div_
+                            [ class_ "d-flex justify-content-end align-items-center form-check"
+                            ]
+                        $ select_
+                            [ class_ "form-select"
+                            , id_ "select-sorting"
+                            , name_ "sorting"
+                            ]
+                        $ do
+                            option_ [selected_ "", value_ "desc"] "Descending"
+                            option_ [value_ "asc"] "Ascending"
 
 transactionsElementH :: Html ()
 transactionsElementH = do
@@ -277,7 +298,8 @@ transactionsElementH = do
             \, change from:#select-customer\
             \, change from:#toggle-slot\
             \, change from:#toggle-received\
-            \, change from:#toggle-spent"
+            \, change from:#toggle-spent\
+            \, change from:#select-sorting"
         , hxInclude_ "#view-control"
         , hxPost_ $ linkText customerHistoryLink
         , hxTarget_ "#transactions"
