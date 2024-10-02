@@ -210,7 +210,7 @@ transactionsViewControls = do
                 record Nothing $ do
                     simpleField "UTC"
                         $ div_
-                            [ class_ "d-flex justify-content-end form-check"
+                            [ class_ "d-flex justify-content-end align-items-center form-check"
                             ]
                         $ input_
                             [ class_ "form-check-input"
@@ -223,7 +223,7 @@ transactionsViewControls = do
                             ]
                     simpleField "Slot"
                         $ div_
-                            [ class_ "d-flex justify-content-end form-check"
+                            [ class_ "d-flex justify-content-end align-items-center form-check"
                             ]
                         $ input_
                             [ class_ "form-check-input"
@@ -234,7 +234,7 @@ transactionsViewControls = do
                             ]
                     simpleField "Received"
                         $ div_
-                            [ class_ "d-flex justify-content-end form-check"
+                            [ class_ "d-flex justify-content-end align-items-center form-check"
                             ]
                         $ input_
                             [ class_ "form-check-input"
@@ -246,7 +246,7 @@ transactionsViewControls = do
                             ]
                     simpleField "Spent"
                         $ div_
-                            [ class_ "d-flex justify-content-end form-check"
+                            [ class_ "d-flex justify-content-end align-items-center form-check"
                             ]
                         $ input_
                             [ class_ "form-check-input"
