@@ -26,6 +26,12 @@ import Cardano.Wallet.UI.Deposit.API
     ( addressesLink
     , customerAddressLink
     )
+import Cardano.Wallet.UI.Deposit.Html.Lib
+    ( selectCustomerH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
+    ( transactionsElementH
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
     , onWalletPresentH
@@ -36,6 +42,9 @@ import Cardano.Wallet.UI.Lib.Address
 import Cardano.Wallet.UI.Type
     ( WHtml
     )
+import Data.Time
+    ( UTCTime
+    )
 import Lucid
     ( Html
     , HtmlT
@@ -43,13 +52,6 @@ import Lucid
     , class_
     , div_
     , id_
-    )
-
-import Cardano.Wallet.UI.Deposit.Html.Lib
-    ( selectCustomerH
-    )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
-    ( transactionsElementH
     )
 
 addressesH :: WHtml ()
@@ -61,8 +63,8 @@ customerAddressH addr = truncatableText "address-text" $ toHtml encodedAddr
   where
     encodedAddr = encodeMainnetAddress addr
 
-addressElementH :: AlertH -> WalletPresent -> Html ()
-addressElementH = onWalletPresentH $ \case
+addressElementH :: UTCTime -> UTCTime -> AlertH -> WalletPresent -> Html ()
+addressElementH now origin = onWalletPresentH $ \case
     WalletPublicIdentity _xpub customers ->
         div_ [id_ "view-control"] $ do
             div_ [class_ "row"] $ do
@@ -77,4 +79,4 @@ addressElementH = onWalletPresentH $ \case
                             [ id_ "customer-address"
                             ]
                             mempty
-            transactionsElementH
+            transactionsElementH now origin

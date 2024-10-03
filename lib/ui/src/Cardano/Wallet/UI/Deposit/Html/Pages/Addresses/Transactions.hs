@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -32,10 +33,10 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
 import Cardano.Wallet.UI.Deposit.API
     ( TransactionHistoryParams (..)
     , customerHistoryLink
-    , sortByDirection
     )
 import Control.Monad
-    ( when
+    ( forM_
+    , when
     )
 import Lucid
     ( Html
@@ -88,9 +89,10 @@ import Data.Text.Class
     ( ToText (..)
     )
 import Data.Time
-    ( UTCTime
+    ( UTCTime (..)
     , defaultTimeLocale
     , formatTime
+    , pattern YearMonthDay
     )
 import Numeric
     ( showFFloatAlt
@@ -98,6 +100,7 @@ import Numeric
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.Map.Strict as Map
+import qualified Data.Text.Class as T
 
 chainPointToUTCH
     :: Map Slot (WithOrigin UTCTime)
@@ -159,10 +162,10 @@ txSummaryH
 customerHistoryH
     :: Bool
     -> TransactionHistoryParams
-    -> [TxSummary]
     -> Map Slot (WithOrigin UTCTime)
+    -> [TxSummary]
     -> Html ()
-customerHistoryH fake params@TransactionHistoryParams{..} txs times =
+customerHistoryH fake params@TransactionHistoryParams{..} times txs =
     fakeOverlay $ do
         table_
             [ class_
@@ -207,18 +210,56 @@ customerHistoryH fake params@TransactionHistoryParams{..} txs times =
                         "Tx Id"
                 tbody_
                     $ mapM_ (txSummaryH params times)
-                    $ zip [0 ..]
-                    $ sortByDirection
-                        txHistorySorting
-                        txChainPoint
-                        txs
+                    $ zip [0 ..] txs
   where
     fakeOverlay = if fake then overlayFakeDataH else id
 
-transactionsViewControls :: Html ()
-transactionsViewControls = do
+yearOf :: UTCTime -> Integer
+yearOf UTCTime{utctDay = YearMonthDay year _ _} = year
+
+monthOf :: UTCTime -> Int
+monthOf UTCTime{utctDay = YearMonthDay _ month _} = month
+
+monthsH :: UTCTime -> Html ()
+monthsH now = do
+    select_
+        [ class_ "form-select w-auto"
+        , id_ "select-month"
+        , name_ "start-month"
+        ]
+        $ forM_ [1 .. 12]
+        $ \month -> do
+            let select =
+                    if month == monthOf now
+                        then ([selected_ ""] <>)
+                        else id
+            option_ (select [value_ $ T.toText month])
+                $ toHtml
+                $ T.toText month
+
+yearsH :: UTCTime -> UTCTime -> Html ()
+yearsH now origin = do
+    let firstYear = yearOf origin
+        lastYear = yearOf now
+    select_
+        [ class_ "form-select w-auto"
+        , id_ "select-year"
+        , name_ "start-year"
+        ]
+        $ forM_ [firstYear .. lastYear]
+        $ \year -> do
+            let select =
+                    if year == lastYear
+                        then ([selected_ ""] <>)
+                        else id
+            option_ (select [value_ $ T.toText year])
+                $ toHtml
+                $ T.toText year
+
+transactionsViewControls :: UTCTime -> UTCTime -> Html ()
+transactionsViewControls now origin =
     div_ [class_ "row"] $ do
-        div_ [class_ "col"] $ do
+        div_ [class_ "col-3"] $ do
             button_
                 [ class_ "btn btn-secondary"
                 , type_ "button"
@@ -226,7 +267,7 @@ transactionsViewControls = do
                 , data_ "bs-target" "#columns-control"
                 ]
                 "Configure"
-        div_ [class_ "col"] $ do
+        div_ [class_ "col-9"] $ do
             div_ [class_ "collapse", id_ "columns-control"] $ do
                 record Nothing $ do
                     simpleField "UTC"
@@ -278,19 +319,26 @@ transactionsViewControls = do
                             ]
                     simpleField "Sorting"
                         $ div_
-                            [ class_ "d-flex justify-content-end align-items-center form-check"
+                            [ class_ "d-flex justify-content-end align-items-center"
                             ]
                         $ select_
-                            [ class_ "form-select"
+                            [ class_ "form-select w-auto"
                             , id_ "select-sorting"
                             , name_ "sorting"
                             ]
                         $ do
                             option_ [selected_ "", value_ "desc"] "Descending"
                             option_ [value_ "asc"] "Ascending"
+                    simpleField "From"
+                        $ div_
+                            [ class_ "d-flex justify-content-end align-items-center"
+                            ]
+                        $ do
+                            yearsH now origin
+                            monthsH now
 
-transactionsElementH :: Html ()
-transactionsElementH = do
+transactionsElementH :: UTCTime -> UTCTime -> Html ()
+transactionsElementH now origin = do
     div_
         [ hxTrigger_
             "load\
@@ -299,14 +347,16 @@ transactionsElementH = do
             \, change from:#toggle-slot\
             \, change from:#toggle-received\
             \, change from:#toggle-spent\
-            \, change from:#select-sorting"
+            \, change from:#select-sorting\
+            \, change from:#select-month\
+            \, change from:#select-year"
         , hxInclude_ "#view-control"
         , hxPost_ $ linkText customerHistoryLink
         , hxTarget_ "#transactions"
         ]
         $ do
-            transactionsViewControls
-            div_ [class_ "row"] $ do
+            transactionsViewControls now origin
+            div_ [class_ "row pe-0"] $ do
                 div_
                     [ class_ "col"
                     , id_ "transactions"

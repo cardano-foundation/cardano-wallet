@@ -36,18 +36,14 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
 import Cardano.Wallet.UI.Cookies
     ( CookieRequest
     )
+import Cardano.Wallet.UI.Lib.TimeWindow
+    ( Direction (..)
+    )
 import Control.Lens
     ( makePrisms
     )
-import Data.List
-    ( sortBy
-    )
 import Data.Maybe
     ( isJust
-    )
-import Data.Ord
-    ( Down (..)
-    , comparing
     )
 import Servant
     ( Delete
@@ -146,12 +142,6 @@ type Data =
             :> ReqBody '[FormUrlEncoded] TransactionHistoryParams
             :> SessionedHtml Post
 
-data Direction = Asc | Desc
-
-sortByDirection :: Ord b => Direction -> (a -> b) -> [a] -> [a]
-sortByDirection Asc f = sortBy (comparing f)
-sortByDirection Desc f = sortBy (comparing (Down . f))
-
 instance FromHttpApiData Direction where
     parseUrlPiece "asc" = Right Asc
     parseUrlPiece "desc" = Right Desc
@@ -164,6 +154,8 @@ data TransactionHistoryParams = TransactionHistoryParams
     , txHistorySpent :: Bool
     , txHistoryReceived :: Bool
     , txHistorySorting :: Direction
+    , txHistoryStartYear :: Int
+    , txHistoryStartMonth :: Int
     }
 
 instance FromForm Customer where
@@ -177,7 +169,10 @@ instance FromForm TransactionHistoryParams where
         spent <- isJust <$> lookupMaybe "spent" form
         received <- isJust <$> lookupMaybe "received" form
         sorting <- parseUnique "sorting" form
-        pure $ TransactionHistoryParams customer utc slot spent received sorting
+        year <- parseUnique "start-year" form
+        month <- parseUnique "start-month" form
+        pure
+            $ TransactionHistoryParams customer utc slot spent received sorting year month
 
 type Home = SessionedHtml Get
 

@@ -1,10 +1,10 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.UI.Deposit.Server
     ( serveUI
@@ -20,6 +20,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
+    )
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( originTime
     )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv
@@ -40,15 +43,15 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.SSE
+    ( sse
+    )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
     , withSessionLayerRead
     )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
-    )
-import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( sse
     )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
@@ -139,6 +142,10 @@ import Data.Time
     ( UTCTime
     , defaultTimeLocale
     , formatTime
+    , getCurrentTime
+    )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime
     )
 import Lucid
     ( Html
@@ -194,7 +201,7 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
-        :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
+        :<|> wsl (\l -> getAddresses l (\now -> renderSmoothHtml . addressElementH now origin alertH))
         :<|> serveNavigation
         :<|> serveTransactions ul
         :<|> serveCustomerHistory network ul
@@ -235,7 +242,10 @@ serveCustomerHistory network ul params = do
                 params
 
 renderSmoothHtml :: Html () -> RawHtml
-renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] $ toHtml response
+renderSmoothHtml response =
+    renderHtml
+        $ div_ [class_ "smooth"]
+        $ toHtml response
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
@@ -248,4 +258,9 @@ serveTransactions
     -> Handler (CookieResponse RawHtml)
 serveTransactions ul =
     withSessionLayer ul
-        $ \_ -> pure $ renderSmoothHtml transactionsElementH
+        $ \_ -> do
+            now <- liftIO getCurrentTime
+            pure $ renderSmoothHtml $ transactionsElementH now origin
+
+origin :: UTCTime
+origin = posixSecondsToUTCTime $ fromIntegral originTime

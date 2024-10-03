@@ -10,6 +10,8 @@ module Cardano.Wallet.Deposit.IO.Network.Mock
     , unsafeUTCTimeOfSlot
     , unsafeSlotsToUTCTimes
     , unsafeSlotOfUTCTime
+    , originTime
+    , shelleyTime
     ) where
 
 import Prelude
