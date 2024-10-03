@@ -45,6 +45,12 @@ import Control.Lens
 import Data.Maybe
     ( isJust
     )
+import Data.Text.Class
+    ( ToText (..)
+    )
+import Data.Time
+    ( DayOfWeek
+    )
 import Servant
     ( Delete
     , FormUrlEncoded
@@ -78,6 +84,7 @@ data Page
     | Settings
     | Wallet
     | Addresses
+    | Deposits
 
 makePrisms ''Page
 
@@ -87,6 +94,7 @@ instance ToHttpApiData Page where
     toUrlPiece Settings = "settings"
     toUrlPiece Wallet = "wallet"
     toUrlPiece Addresses = "addresses"
+    toUrlPiece Deposits = "deposits"
 
 instance FromHttpApiData Page where
     parseUrlPiece "about" = Right About
@@ -94,6 +102,7 @@ instance FromHttpApiData Page where
     parseUrlPiece "settings" = Right Settings
     parseUrlPiece "wallet" = Right Wallet
     parseUrlPiece "addresses" = Right Addresses
+    parseUrlPiece "deposits" = Right Deposits
     parseUrlPiece _ = Left "Invalid page"
 
 -- | Pages endpoints
@@ -103,6 +112,7 @@ type Pages =
         :<|> "settings" :> SessionedHtml Get
         :<|> "wallet" :> SessionedHtml Get
         :<|> "addresses" :> SessionedHtml Get
+        :<|> "deposits" :> SessionedHtml Get
 
 -- | Data endpoints
 type Data =
@@ -141,6 +151,11 @@ type Data =
             :> "history"
             :> ReqBody '[FormUrlEncoded] TransactionHistoryParams
             :> SessionedHtml Post
+        :<|> "deposits" :> SessionedHtml Get
+        :<|> "deposits"
+            :> "history"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> SessionedHtml Post
 
 instance FromHttpApiData Direction where
     parseUrlPiece "asc" = Right Asc
@@ -174,6 +189,81 @@ instance FromForm TransactionHistoryParams where
         pure
             $ TransactionHistoryParams customer utc slot spent received sorting year month
 
+data Window
+    = Minute5
+    | Minute10
+    | Minute15
+    | Minute30
+    | Hour1
+    | Hour2
+    | Hour4
+    | Hour6
+    | Hour12
+    | Day
+    | Week
+    | Month
+    | Year
+    deriving (Eq, Show, Enum, Bounded)
+
+instance ToText Window where
+    toText Minute5 = "5 minutes"
+    toText Minute10 = "10 minutes"
+    toText Minute15 = "15 minutes"
+    toText Minute30 = "30 minutes"
+    toText Hour1 = "1 hour"
+    toText Hour2 = "2 hours"
+    toText Hour4 = "4 hours"
+    toText Hour6 = "6 hours"
+    toText Hour12 = "12 hours"
+    toText Day = "1 day"
+    toText Week = "1 week"
+    toText Month = "1 month"
+    toText Year = "1 year"
+
+instance FromHttpApiData Window where
+    parseUrlPiece "5m" = Right Minute5
+    parseUrlPiece "10m" = Right Minute10
+    parseUrlPiece "15m" = Right Minute15
+    parseUrlPiece "30m" = Right Minute30
+    parseUrlPiece "1h" = Right Hour1
+    parseUrlPiece "2h" = Right Hour2
+    parseUrlPiece "4h" = Right Hour4
+    parseUrlPiece "6h" = Right Hour6
+    parseUrlPiece "12h" = Right Hour12
+    parseUrlPiece "1d" = Right Day
+    parseUrlPiece "1w" = Right Week
+    parseUrlPiece "1M" = Right Month
+    parseUrlPiece "1y" = Right Year
+    parseUrlPiece _ = Left "Invalid time window"
+
+instance ToHttpApiData Window where
+    toUrlPiece Minute5 = "5m"
+    toUrlPiece Minute10 = "10m"
+    toUrlPiece Minute15 = "15m"
+    toUrlPiece Minute30 = "30m"
+    toUrlPiece Hour1 = "1h"
+    toUrlPiece Hour2 = "2h"
+    toUrlPiece Hour4 = "4h"
+    toUrlPiece Hour6 = "6h"
+    toUrlPiece Hour12 = "12h"
+    toUrlPiece Day = "1d"
+    toUrlPiece Week = "1w"
+    toUrlPiece Month = "1M"
+    toUrlPiece Year = "1y"
+
+data DepositsParams = DepositsParams
+    { depositsSlot :: Bool
+    , depositsWindow :: Window
+    , depositsFirstWeekDay :: DayOfWeek
+    }
+
+instance FromForm DepositsParams where
+    fromForm form = do
+        slot <- isJust <$> lookupMaybe "slot" form
+        window <- parseUnique "window" form
+        firstWeekDay <- parseUnique "first-week-day" form
+        pure $ DepositsParams slot window firstWeekDay
+
 type Home = SessionedHtml Get
 
 -- | UI endpoints
@@ -189,6 +279,7 @@ aboutPageLink :: Link
 networkPageLink :: Link
 settingsPageLink :: Link
 addressesPageLink :: Link
+depositPageLink :: Link
 networkInfoLink :: Link
 settingsGetLink :: Link
 settingsSseToggleLink :: Link
@@ -207,12 +298,15 @@ addressesLink :: Link
 navigationLink :: Maybe Page -> Link
 transactionsLink :: Link
 customerHistoryLink :: Link
+depositsLink :: Link
+depositsHistoryLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
     :<|> settingsPageLink
     :<|> walletPageLink
     :<|> addressesPageLink
+    :<|> depositPageLink
     :<|> networkInfoLink
     :<|> settingsGetLink
     :<|> settingsSseToggleLink
@@ -229,5 +323,8 @@ homePageLink
     :<|> addressesLink
     :<|> navigationLink
     :<|> transactionsLink
-    :<|> customerHistoryLink =
+    :<|> customerHistoryLink
+    :<|> depositsLink
+    :<|> depositsHistoryLink
+    =
         allLinks (Proxy @UI)
