@@ -50,6 +50,7 @@ import Test.Scenario.Blockchain
     )
 import Data.Foldable
     ( toList
+    , fold
     )
 
 import qualified Cardano.Wallet.Deposit.IO as Wallet
@@ -170,19 +171,17 @@ scenarioTrackDepositAll env w = do
     Just address1 <- Wallet.customerAddress customer1 w
     Just address2 <- Wallet.customerAddress customer2 w
 
-    from <- Wallet.getWalletTip w
     depositFundsAt env address1 coin
     depositFundsAt env address2 coin
     depositFundsAt env address1 (coin <> coin)
-    to <- Wallet.getWalletTip w
 
-    history <- Wallet.getCustomerHistories (from,to) w
+    history <- fold <$> Wallet.getValueTransfers w
     assert $
         Map.map received history
       ==
         Map.fromList
-            [ (customer1, coin <> coin <> coin)
-            , (customer2, coin)
+            [ (address1, coin <> coin <> coin)
+            , (address2, coin)
             ]
   where
     customer1, customer2 :: Customer

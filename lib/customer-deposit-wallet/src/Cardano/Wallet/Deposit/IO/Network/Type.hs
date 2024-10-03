@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
     , mapBlock
@@ -53,14 +54,15 @@ data NetworkEnv m block = NetworkEnv
         :: Tracer m ChainFollowLog
         -> ChainFollower m Read.ChainPoint Read.ChainPoint (NonEmpty block)
         -> m Void
-        -- ^ Run the chain-sync mini-protocol (forever).
-
+    -- ^ Run the chain-sync mini-protocol (forever).
     , postTx
-        :: Write.Tx -> m (Either ErrPostTx ())
-        -- ^ Post a transaction to the Cardano network.
+        :: Write.Tx
+        -> m (Either ErrPostTx ())
+    -- ^ Post a transaction to the Cardano network.
     , slotsToUTCTimes
-        :: Set Slot -> m (Map Slot (WithOrigin UTCTime))
-        -- ^ Try to convert a set of slots to their UTCTimes counterparts
+        :: Set Slot
+        -> m (Map Slot (WithOrigin UTCTime))
+    -- ^ Try to convert a set of slots to their UTCTimes counterparts
     }
 
 mapBlock
@@ -68,11 +70,13 @@ mapBlock
     => (block1 -> block2)
     -> NetworkEnv m block1
     -> NetworkEnv m block2
-mapBlock f NetworkEnv{chainSync,postTx} = NetworkEnv
-    { chainSync = \tr follower ->
-        chainSync tr (mapChainFollower id id id (fmap f) follower)
-    , postTx = postTx
-    }
+mapBlock f NetworkEnv{chainSync, postTx, slotsToUTCTimes} =
+    NetworkEnv
+        { chainSync = \tr follower ->
+            chainSync tr (mapChainFollower id id id (fmap f) follower)
+        , postTx = postTx
+        , slotsToUTCTimes = slotsToUTCTimes
+        }
 
 {-------------------------------------------------------------------------------
     Errors
@@ -91,7 +95,8 @@ data ErrPostTx
 -- | Higher level log of a chain follower.
 -- -- Includes computed statistics about synchronization progress.
 data ChainFollowLog
-    -- = MsgChainSync (ChainSyncLog BlockHeader ChainPoint)
-    -- | MsgFollowStats (FollowStats Rearview)
-    = MsgStartFollowing
+    = -- = MsgChainSync (ChainSyncLog BlockHeader ChainPoint)
+
+      -- | MsgFollowStats (FollowStats Rearview)
+      MsgStartFollowing
     deriving (Eq, Show, Generic)

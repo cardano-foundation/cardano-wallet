@@ -61,6 +61,7 @@ library
     Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Deposit.Handlers.Addresses
     Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits
     Cardano.Wallet.UI.Deposit.Handlers.Lib
     Cardano.Wallet.UI.Deposit.Handlers.Wallet
     Cardano.Wallet.UI.Deposit.Html.Lib
