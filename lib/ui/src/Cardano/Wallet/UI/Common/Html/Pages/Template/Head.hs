@@ -107,6 +107,28 @@ clipboardScript =
         ]
         $ pure ()
 
+flatPickrScript :: Monad m => HtmlT m ()
+flatPickrScript =
+    term
+        "script"
+        [ src_
+            "https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"
+        , integrity_
+            "sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6"
+        , crossorigin_ "anonymous"
+        ]
+        $ pure ()
+
+flatPickrCSSDark :: Monad m => HtmlT m ()
+flatPickrCSSDark =
+    link_
+        [ rel_ "stylesheet"
+        , href_ "https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css"
+        , integrity_
+            "sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX"
+        , crossorigin_ "anonymous"
+        ]
+
 -- | Render a favicon link.
 favicon :: Link -> Monad m => HtmlT m ()
 favicon path =
@@ -154,6 +176,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 bootstrapScript
                 bootstrapIcons
                 clipboardScript
+                flatPickrScript
                 favicon faviconLink
                 useHtmxVersion (1, 9, 12)
                 useHtmxExtension "json-enc"
@@ -161,6 +184,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 modalCssWorkaround
                 truncatedTdTextWorkaround
                 offscreenCss
+                flatPickrCSSDark
             body_ $ do
                 fadeInId
                 body

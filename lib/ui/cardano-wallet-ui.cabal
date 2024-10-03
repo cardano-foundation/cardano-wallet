@@ -72,6 +72,7 @@ library
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.Address
     Cardano.Wallet.UI.Lib.ListOf
+    Cardano.Wallet.UI.Lib.TimeWindow
     Cardano.Wallet.UI.Shelley.API
     Cardano.Wallet.UI.Shelley.Handlers.Addresses
     Cardano.Wallet.UI.Shelley.Handlers.Wallet

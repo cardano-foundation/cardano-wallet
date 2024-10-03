@@ -46,6 +46,12 @@ import Cardano.Wallet.UI.Deposit.API
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
     )
+import Cardano.Wallet.UI.Lib.TimeWindow
+    ( Match (..)
+    , filterByDirection
+    , sortByDirection
+    , utcTimeByDirection
+    )
 import Control.Monad
     ( replicateM
     )
@@ -68,7 +74,7 @@ import Data.Maybe
     ( fromJust
     )
 import Data.Time
-    ( UTCTime
+    ( UTCTime (..)
     , getCurrentTime
     )
 import Servant
@@ -84,6 +90,7 @@ import System.Random.Stateful
 import qualified Cardano.Wallet.Deposit.REST as REST
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 getCustomerHistory
@@ -91,8 +98,8 @@ getCustomerHistory
     -> SessionLayer WalletResource
     -> ( Bool
          -> TransactionHistoryParams
-         -> [TxSummary]
          -> Map Slot (WithOrigin UTCTime)
+         -> [TxSummary]
          -> html
        )
     -> (BL.ByteString -> html)
@@ -105,32 +112,63 @@ getCustomerHistory
     alert
     params@TransactionHistoryParams{..} = do
         catchRunWalletResourceHtml layer alert id $ do
-            h <- REST.getCustomerHistory txHistoryCustomer
             r <- customerAddress txHistoryCustomer
             case r of
                 Nothing -> pure $ alert "Address not discovered"
                 Just _ -> do
-                    (b, ss) <- liftIO $ fakeData txHistoryCustomer . toList $ h
+                    h <- REST.getCustomerHistory txHistoryCustomer
+                    (b, summaries) <-
+                        liftIO
+                            $ fakeData txHistoryCustomer . toList
+                            $ h
                     let slots =
                             Set.fromList
-                                $ slotFromChainPoint . txChainPoint <$> ss
-                        filtered = case (txHistoryReceived, txHistorySpent) of
-                            (True, False) ->
-                                filter
-                                    ( \TxSummaryC{txTransfer = ValueTransfer _ received} ->
-                                        received /= mempty
-                                    )
-                                    ss
-                            (False, True) ->
-                                filter
-                                    ( \TxSummaryC{txTransfer = ValueTransfer spent _} ->
-                                        spent /= mempty
-                                    )
-                                    ss
-                            _ -> ss
-
+                                $ slotFromChainPoint
+                                    . txChainPoint
+                                    <$> summaries
                     times <- liftIO $ slotsToUTCTimes network slots
-                    pure $ render b params filtered times
+                    pure
+                        $ render b params times
+                        $ filterByParams params times summaries
+
+filterByParams
+    :: TransactionHistoryParams
+    -> Map Slot (WithOrigin UTCTime)
+    -> [TxSummary]
+    -> [TxSummary]
+filterByParams TransactionHistoryParams{..} times =
+    sortByDirection txHistorySorting txChainPoint
+        . filterByDirection
+            txHistorySorting
+            startTime
+            matchUTCTime
+        . filterByTransfer
+  where
+    startTime =
+        utcTimeByDirection
+            txHistorySorting
+            txHistoryStartYear
+            txHistoryStartMonth
+    matchUTCTime :: TxSummary -> Match UTCTime
+    matchUTCTime TxSummaryC{txChainPoint = cp} =
+        do
+            let slot :: Slot = slotFromChainPoint cp
+            case Map.lookup slot times of
+                Just (At t) -> Match t
+                Just Origin -> DirectionMatch
+                _ -> NoMatch
+    filterByTransfer = case (txHistoryReceived, txHistorySpent) of
+        (True, False) ->
+            filter
+                ( \TxSummaryC{txTransfer = ValueTransfer _ received} ->
+                    received /= mempty
+                )
+        (False, True) ->
+            filter
+                ( \TxSummaryC{txTransfer = ValueTransfer spent _} ->
+                    spent /= mempty
+                )
+        _ -> id
 
 -- fake data generation until DB is implemented
 
