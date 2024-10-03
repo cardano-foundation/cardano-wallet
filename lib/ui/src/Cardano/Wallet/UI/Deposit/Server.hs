@@ -1,10 +1,10 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 
 module Cardano.Wallet.UI.Deposit.Server
     ( serveUI
@@ -43,15 +43,15 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( sse
-    )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
     , withSessionLayerRead
     )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
+    )
+import Cardano.Wallet.UI.Common.Handlers.SSE
+    ( sse
     )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState

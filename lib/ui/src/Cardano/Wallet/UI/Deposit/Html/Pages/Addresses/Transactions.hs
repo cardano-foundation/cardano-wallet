@@ -27,7 +27,10 @@ import Cardano.Wallet.UI.Common.Html.Lib
     , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( Striped (..)
+    , Width (..)
+    , box
+    , record
     , simpleField
     )
 import Cardano.Wallet.UI.Deposit.API
@@ -46,6 +49,7 @@ import Lucid
     , class_
     , data_
     , div_
+    , i_
     , id_
     , input_
     , name_
@@ -140,20 +144,20 @@ txSummaryH
     (index, TxSummaryC{txSummarized, txChainPoint, txTransfer}) = do
         tr_ [scope_ "row"] $ do
             when txHistorySlot
-                $ td_ [scope_ "col", class_ "text-end"]
+                $ td_ [scope_ "col", class_ "text-end align-bottom"]
                 $ chainPointToSlotH txChainPoint
             when txHistoryUTC
-                $ td_ [scope_ "col", class_ "text-end"]
+                $ td_ [scope_ "col", class_ "text-end align-bottom"]
                 $ chainPointToUTCH times txChainPoint
             when txHistoryReceived
-                $ td_ [scope_ "col", class_ "text-end"]
+                $ td_ [scope_ "col", class_ "text-end align-bottom"]
                 $ valueH
                 $ received txTransfer
             when txHistorySpent
-                $ td_ [scope_ "col", class_ "text-end"]
+                $ td_ [scope_ "col", class_ "text-end align-bottom"]
                 $ valueH
                 $ spent txTransfer
-            td_ [scope_ "col", class_ "flex-fill"]
+            td_ [scope_ "col", class_ "flex-fill align-bottom"]
                 $ truncatableText ("tx-id-text-" <> toText index)
                 $ toHtml
                 $ hashToStringAsHex
@@ -169,7 +173,7 @@ customerHistoryH fake params@TransactionHistoryParams{..} times txs =
     fakeOverlay $ do
         table_
             [ class_
-                $ "table table-striped table-bordered table-hover"
+                $ "border-top table table-striped table-hover m-0"
                     <> if fake then " fake" else ""
             ]
             $ do
@@ -223,7 +227,7 @@ monthOf UTCTime{utctDay = YearMonthDay _ month _} = month
 monthsH :: UTCTime -> Html ()
 monthsH now = do
     select_
-        [ class_ "form-select w-auto"
+        [ class_ "form-select w-auto m-1 p-1"
         , id_ "select-month"
         , name_ "start-month"
         ]
@@ -242,7 +246,7 @@ yearsH now origin = do
     let firstYear = yearOf origin
         lastYear = yearOf now
     select_
-        [ class_ "form-select w-auto"
+        [ class_ "form-select w-auto m-1 p-1"
         , id_ "select-year"
         , name_ "start-year"
         ]
@@ -258,89 +262,81 @@ yearsH now origin = do
 
 transactionsViewControls :: UTCTime -> UTCTime -> Html ()
 transactionsViewControls now origin =
-    div_ [class_ "row"] $ do
-        div_ [class_ "col-3"] $ do
-            button_
-                [ class_ "btn btn-secondary"
-                , type_ "button"
-                , data_ "bs-toggle" "collapse"
-                , data_ "bs-target" "#columns-control"
-                ]
-                "Configure"
-        div_ [class_ "col-9"] $ do
-            div_ [class_ "collapse", id_ "columns-control"] $ do
-                record Nothing $ do
-                    simpleField "UTC"
-                        $ div_
-                            [ class_ "d-flex justify-content-end align-items-center form-check"
-                            ]
-                        $ input_
-                            [ class_ "form-check-input"
-                            , type_ "checkbox"
-                            , id_ "toggle-utc"
-                            , hxTrigger_ "change"
-                            , name_ "utc"
-                            , value_ ""
-                            , checked_
-                            ]
-                    simpleField "Slot"
-                        $ div_
-                            [ class_ "d-flex justify-content-end align-items-center form-check"
-                            ]
-                        $ input_
-                            [ class_ "form-check-input"
-                            , type_ "checkbox"
-                            , id_ "toggle-slot"
-                            , name_ "slot"
-                            , value_ ""
-                            ]
-                    simpleField "Received"
-                        $ div_
-                            [ class_ "d-flex justify-content-end align-items-center form-check"
-                            ]
-                        $ input_
-                            [ class_ "form-check-input"
-                            , type_ "checkbox"
-                            , id_ "toggle-received"
-                            , name_ "received"
-                            , value_ ""
-                            , checked_
-                            ]
-                    simpleField "Spent"
-                        $ div_
-                            [ class_ "d-flex justify-content-end align-items-center form-check"
-                            ]
-                        $ input_
-                            [ class_ "form-check-input"
-                            , type_ "checkbox"
-                            , id_ "toggle-spent"
-                            , name_ "spent"
-                            , value_ ""
-                            ]
-                    simpleField "Sorting"
-                        $ div_
-                            [ class_ "d-flex justify-content-end align-items-center"
-                            ]
-                        $ select_
-                            [ class_ "form-select w-auto"
-                            , id_ "select-sorting"
-                            , name_ "sorting"
-                            ]
-                        $ do
-                            option_ [selected_ "", value_ "desc"] "Descending"
-                            option_ [value_ "asc"] "Ascending"
-                    simpleField "From"
-                        $ div_
-                            [ class_ "d-flex justify-content-end align-items-center"
-                            ]
-                        $ do
-                            yearsH now origin
-                            monthsH now
+    div_ [class_ "d-flex justify-content-end"] $ do
+        div_ [class_ "collapse", id_ "columns-control"] $ do
+            record Nothing Auto NotStriped $ do
+                simpleField "UTC"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center form-check"
+                        ]
+                    $ input_
+                        [ class_ "form-check-input"
+                        , type_ "checkbox"
+                        , id_ "toggle-utc"
+                        , hxTrigger_ "change"
+                        , name_ "utc"
+                        , value_ ""
+                        , checked_
+                        ]
+                simpleField "Slot"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center form-check"
+                        ]
+                    $ input_
+                        [ class_ "form-check-input"
+                        , type_ "checkbox"
+                        , id_ "toggle-slot"
+                        , name_ "slot"
+                        , value_ ""
+                        ]
+                simpleField "Received"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center form-check"
+                        ]
+                    $ input_
+                        [ class_ "form-check-input"
+                        , type_ "checkbox"
+                        , id_ "toggle-received"
+                        , name_ "received"
+                        , value_ ""
+                        , checked_
+                        ]
+                simpleField "Spent"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center form-check"
+                        ]
+                    $ input_
+                        [ class_ "form-check-input"
+                        , type_ "checkbox"
+                        , id_ "toggle-spent"
+                        , name_ "spent"
+                        , value_ ""
+                        ]
+                simpleField "Sorting"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center"
+                        ]
+                    $ select_
+                        [ class_ "form-select w-auto m-1 p-1"
+                        , id_ "select-sorting"
+                        , name_ "sorting"
+                        ]
+                    $ do
+                        option_ [selected_ "", value_ "desc"] "Descending"
+                        option_ [value_ "asc"] "Ascending"
+                simpleField "From"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center"
+                        ]
+                    $ do
+                        yearsH now origin
+                        monthsH now
 
 transactionsElementH :: UTCTime -> UTCTime -> Html ()
 transactionsElementH now origin = do
     div_
-        [ hxTrigger_
+        [ class_ "row mt-3 g-0"
+        , hxTrigger_
             "load\
             \, change from:#toggle-utc\
             \, change from:#select-customer\
@@ -355,10 +351,22 @@ transactionsElementH now origin = do
         , hxTarget_ "#transactions"
         ]
         $ do
-            transactionsViewControls now origin
-            div_ [class_ "row pe-0"] $ do
-                div_
-                    [ class_ "col"
-                    , id_ "transactions"
-                    ]
-                    mempty
+            let configure =
+                    div_ [class_ "d-flex justify-content-end"] $ do
+                        button_
+                            [ class_ "btn"
+                            , type_ "button"
+                            , data_ "bs-toggle" "collapse"
+                            , data_ "bs-target" "#columns-control"
+                            ]
+                            $ div_
+                            $ do
+                                i_ [class_ "bi bi-gear"] mempty
+            box "Transactions" configure $ do
+                transactionsViewControls now origin
+                div_ [class_ "row g-0"] $ do
+                    div_
+                        [ class_ "col"
+                        , id_ "transactions"
+                        ]
+                        mempty

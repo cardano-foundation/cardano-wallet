@@ -22,7 +22,9 @@ import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( Striped (..)
+    , Width (..)
+    , record
     , simpleField
     , sseH
     )
@@ -45,7 +47,7 @@ settingsPageH settingsGetLink =
 -- | Settings state
 settingsStateH :: Link -> State s -> Html ()
 settingsStateH settingsSseToggleLink state =
-    record Nothing $ do
+    record Nothing Full Striped $ do
         simpleField "Enable SSE" $ do
             input_
                 $ [ hxTrigger_ "click"

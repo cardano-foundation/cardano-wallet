@@ -22,6 +22,11 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , showAdaOfLoveLace
     , showThousandDots
     , fadeInId
+    , Width (..)
+    , onWidth
+    , Striped (..)
+    , onStriped
+    , box
     )
 where
 
@@ -57,6 +62,7 @@ import Lucid
     , class_
     , div_
     , id_
+    , nav_
     , role_
     , scope_
     , style_
@@ -110,19 +116,37 @@ data AssocRow m
 -- | Render an 'AssocRow' as a table row.
 assocRowH :: Maybe Int -> AssocRow m -> Monad m => HtmlT m ()
 assocRowH mn AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
-    td_ [scope_ "col", style_ width] $ b_ key
-    td_ [scope_ "col", class_ "flex-fill"] val
+    td_ [scope_ "col", class_ "align-bottom", style_ width] $ b_ key
+    td_ [scope_ "col", class_ "align-bottom flex-fill p-0"] val
   where
     width = T.pack
         $ case mn of
             Just n -> printf "width: %dem" n
             Nothing -> "width: auto"
 
+data Width = Auto | Full
+
+onWidth :: Width -> a -> a -> a
+onWidth w a b = case w of
+    Auto -> a
+    Full -> b
+
+data Striped = Striped | NotStriped
+
+onStriped :: Striped -> a -> a -> a
+onStriped s a b = case s of
+    Striped -> a
+    NotStriped -> b
+
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
-record :: Maybe Int -> ListOf (AssocRow m) -> Monad m => HtmlT m ()
-record n xs =
-    table_ [class_ "table table-hover table-striped"]
+record :: Maybe Int -> Width -> Striped -> ListOf (AssocRow m) -> Monad m => HtmlT m ()
+record n w s xs =
+    table_
+        [ class_ $ "border-top table table-hover mb-0" <> onStriped s " table-striped" ""
+        , style_
+            $ onWidth w "width: auto" ""
+        ]
         $ mapM_ (assocRowH n)
         $ listOf xs
 
@@ -228,3 +252,12 @@ showThousandDots = reverse . showThousandDots' . reverse . show
             (a, b) = splitAt 3 xs
         in
             a <> if null b then [] else "." <> showThousandDots' b
+
+box :: Monad m => Text -> HtmlT m () -> HtmlT m () -> HtmlT m ()
+box x y z = div_ [class_ "bg-body-secondary pb-1"] $ do
+    nav_ [class_ "navbar  p-1 justify-content-center "]
+        $ div_ [class_ "container-fluid p-0 "]
+        $ do
+            div_ [class_ "navbar-brand opacity-50"] $ toHtml x
+            div_ [class_ "bg-body-primary"] y
+    div_ [class_ "bg-body-primary"] z

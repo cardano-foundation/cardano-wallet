@@ -72,7 +72,7 @@ navigationH
     -- ^ Pages
     -> HtmlT m ()
 navigationH prefix pages = do
-    nav_ [class_ "navbar navbar-expand-lg bg-body-tertiary mb-2"]
+    nav_ [class_ "navbar navbar-expand-lg mb-2"]
         $ div_ [class_ "container-fluid"]
         $ do
             a_ [class_ "navbar-brand", href_ $ linkText homePageLink]

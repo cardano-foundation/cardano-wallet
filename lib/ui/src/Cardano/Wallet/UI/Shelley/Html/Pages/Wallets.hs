@@ -28,6 +28,8 @@ import Cardano.Wallet.UI.Common.Html.Lib
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( AssocRow
+    , Striped (..)
+    , Width (..)
     , field
     , record
     , simpleField
@@ -88,7 +90,7 @@ walletsH = do
     div_ [id_ "#post-response"] mempty
 
 walletListH :: Maybe WalletId -> [(ApiWallet, UTCTime)] -> Html ()
-walletListH mwid wallets = record Nothing
+walletListH mwid wallets = record Nothing Full Striped
     $ forM_ wallets
     $ \(w, _) -> do
         let wid' = getApiT $ id w
@@ -124,7 +126,7 @@ walletElementH
     -> ListOf (AssocRow m)
 walletElementH selected ApiWallet{..} attrs =
     field attrs (selectedName selected $ toText $ getApiT name) $ do
-        record Nothing $ do
+        record Nothing Full Striped  $ do
             simpleField "id" $ toTextHtml $ getApiT id
             simpleField "state" $ toHtml $ renderState state
             simpleField "balance" $ renderBalance balance
