@@ -68,6 +68,7 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.About
     Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
+    Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
@@ -117,6 +118,7 @@ library
     , lucid
     , memory
     , mmorph
+    , monoidal-containers
     , mtl
     , ntp-client
     , operational

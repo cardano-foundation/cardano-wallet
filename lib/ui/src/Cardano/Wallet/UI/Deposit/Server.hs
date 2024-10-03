@@ -89,7 +89,8 @@ import Cardano.Wallet.UI.Cookies
     , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( TransactionHistoryParams
+    ( DepositsParams
+    , TransactionHistoryParams
     , UI
     , settingsSseToggleLink
     )
@@ -99,6 +100,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     ( getCustomerHistory
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits
+    ( depositsHistoryHandler
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
@@ -116,6 +120,10 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     ( customerHistoryH
     , transactionsElementH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
+    ( depositsElementH
+    , depositsHistoryH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -188,6 +196,7 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> ph Settings
         :<|> ph Wallet
         :<|> ph Addresses
+        :<|> ph Deposits
         :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
@@ -205,6 +214,8 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveNavigation
         :<|> serveTransactions ul
         :<|> serveCustomerHistory network ul
+        :<|> serveDeposits ul
+        :<|> serveDepositsHistory network ul
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
@@ -212,13 +223,15 @@ serveUI tr network ul env dbDir config _ nl bs =
         pure $ renderSmoothHtml $ headerElementH mp wp
     ph p = wsl $ \_ -> pure $ page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
-    alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
     initWallet = initXPubWallet tr env dbDir
+
+alert :: ToHtml a => a -> RawHtml
+alert = renderHtml . alertH
 
 serveFakeDataBackground :: Handler BL.ByteString
 serveFakeDataBackground = do
@@ -260,7 +273,34 @@ serveTransactions ul =
     withSessionLayer ul
         $ \_ -> do
             now <- liftIO getCurrentTime
-            pure $ renderSmoothHtml $ transactionsElementH now origin
+            pure
+                $ renderSmoothHtml
+                $ transactionsElementH now origin
 
 origin :: UTCTime
 origin = posixSecondsToUTCTime $ fromIntegral originTime
+
+serveDeposits
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDeposits ul = withSessionLayer ul $ \layer -> do
+    wp <- walletPresence layer
+    pure
+        $ renderSmoothHtml
+        $ depositsElementH alertH wp
+
+serveDepositsHistory
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> DepositsParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistory network ul params = withSessionLayer ul $ \layer -> do
+    renderSmoothHtml
+        <$> depositsHistoryHandler
+            network
+            layer
+            (depositsHistoryH False params)
+            alertH
+            params

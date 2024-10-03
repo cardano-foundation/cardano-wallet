@@ -40,11 +40,13 @@ import Cardano.Wallet.UI.Deposit.API
     ( Page (..)
     , _About
     , _Addresses
+    , _Deposits
     , _Network
     , _Settings
     , _Wallet
     , aboutPageLink
     , addressesPageLink
+    , depositPageLink
     , faviconLink
     , navigationLink
     , networkInfoLink
@@ -62,6 +64,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.About
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressesH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
+    ( depositsH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
@@ -104,6 +109,7 @@ page c p = RawHtml
                     Settings -> settingsPageH settingsGetLink
                     Wallet -> walletH
                     Addresses -> addressesH
+                    Deposits -> depositsH
 
 headerH :: Monad m => Page -> HtmlT m ()
 headerH p = sseH (navigationLink $ Just p) "header" ["wallet"]
@@ -114,6 +120,9 @@ headerElementH p wp =
         mempty
         $ [(is' _Wallet, walletPageLink, "Wallet")]
             <> [ (is' _Addresses, addressesPageLink, "Addresses")
+               | isPresent wp
+               ]
+            <> [ (is' _Deposits, depositPageLink, "Deposits")
                | isPresent wp
                ]
             <> [ (is' _Network, networkPageLink, "Network")
