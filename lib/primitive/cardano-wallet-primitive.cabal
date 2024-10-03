@@ -1,6 +1,6 @@
 cabal-version: 3.6
 name:          cardano-wallet-primitive
-version:       0.2024.9.29
+version:       0.2024.10.3
 synopsis:      Selected primitive types for Cardano Wallet.
 description:   Please see README.md.
 homepage:      https://github.com/cardano-foundation/cardano-wallet
