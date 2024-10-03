@@ -30,7 +30,7 @@ module Cardano.Wallet.Deposit.Pure
     , TxSummary (..)
     , ValueTransfer (..)
     , getCustomerHistory
-    , getCustomerHistories
+    , getValueTransfers
 
       -- ** Writing to the blockchain
     , createPayment
@@ -260,11 +260,8 @@ getCustomerHistory c state =
 
 -- TODO: Return an error if any of the `ChainPoint` are no longer
 -- part of the consensus chain?
-getCustomerHistories
-    :: (Read.ChainPoint, Read.ChainPoint)
-    -> WalletState
-    -> Map Customer ValueTransfer
-getCustomerHistories = undefined
+getValueTransfers :: WalletState -> Map Read.Slot (Map Address ValueTransfer)
+getValueTransfers state = TxHistory.getValueTransfers (txHistory state)
 
 {-----------------------------------------------------------------------------
     Operations

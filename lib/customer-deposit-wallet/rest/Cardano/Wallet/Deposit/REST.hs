@@ -37,7 +37,7 @@ module Cardano.Wallet.Deposit.REST
     , getWalletTip
     , availableBalance
     , getCustomerHistory
-    , getCustomerHistories
+    , getValueTransfers
 
       -- ** Writing to the blockchain
     , createPayment
@@ -133,7 +133,6 @@ import qualified "customer-deposit-wallet" Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map as Map
 
 {-----------------------------------------------------------------------------
     Types
@@ -294,10 +293,10 @@ loadWallet bootEnv dir = do
     let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk dir $ \case
             Right wallet ->
-                Right <$>
-                    WalletIO.withWalletLoad
+                Right
+                    <$> WalletIO.withWalletLoad
                         (WalletIO.WalletEnv bootEnv wallet)
-                     f
+                        f
             Left e -> pure $ Left $ ErrLoadingDatabase e
     resource <- ask
     lift
@@ -327,9 +326,9 @@ initXPubWallet tr bootEnv dir xpub users = do
                         (WalletIO.WalletEnv bootEnv wallet)
                         xpub
                         users
-                        $ \i -> do
-                            ls <- WalletIO.listCustomers i
-                            last ls `seq` f i
+                    $ \i -> do
+                        ls <- WalletIO.listCustomers i
+                        last ls `seq` f i
             Nothing ->
                 pure
                     $ Left
@@ -361,12 +360,12 @@ walletPublicIdentity = onWalletInstance WalletIO.walletPublicIdentity
 {-----------------------------------------------------------------------------
     Operations
 ------------------------------------------------------------------------------}
+
 -- | List all tracked customers addresses.
 listCustomers :: WalletResourceM [(Customer, Address)]
 listCustomers = onWalletInstance WalletIO.listCustomers
 
 -- | Retrieve the address for a customer if it's tracked by the wallet.
-
 customerAddress :: Customer -> WalletResourceM (Maybe Address)
 customerAddress = onWalletInstance . WalletIO.customerAddress
 
@@ -385,10 +384,9 @@ getCustomerHistory
     -> WalletResourceM (Map Read.TxId Wallet.TxSummary)
 getCustomerHistory = onWalletInstance . WalletIO.getCustomerHistory
 
-getCustomerHistories
-    :: (Read.ChainPoint, Read.ChainPoint)
-    -> WalletResourceM (Map.Map Customer Wallet.ValueTransfer)
-getCustomerHistories = onWalletInstance . WalletIO.getCustomerHistories
+getValueTransfers
+    :: WalletResourceM (Map Read.Slot (Map Address Wallet.ValueTransfer))
+getValueTransfers = onWalletInstance WalletIO.getValueTransfers
 
 {-----------------------------------------------------------------------------
     Operations
