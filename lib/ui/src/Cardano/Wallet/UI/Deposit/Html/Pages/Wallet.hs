@@ -35,7 +35,9 @@ import Cardano.Wallet.UI.Common.Html.Modal
     , mkModalButton
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( Striped (..)
+    , Width (..)
+    , record
     , simpleField
     , sseH
     )
@@ -156,13 +158,13 @@ deleteWalletModalH =
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        div_ [class_ "row mt-5 "] $ do
-            div_ [class_ "col"] $ record (Just 11) $ do
+        div_ [class_ "row mt-5 g-0"] $ do
+            div_ [class_ "col"] $ record (Just 11) Full Striped $ do
                 simpleField "Public Key" $ pubKeyH xpub
                 simpleField "Tracked Addresses"
                     $ div_ [class_ "d-flex justify-content-end align-items-center"]
                     $ toHtml $ toText customers
-        div_ [class_ "row mt-5"] $ do
+        div_ [class_ "row mt-5 g-0"] $ do
             div_ [class_ "col"] $ do
                 deleteWalletButtonH
             div_ [id_ "delete-result"] mempty

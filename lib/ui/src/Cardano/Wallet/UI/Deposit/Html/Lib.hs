@@ -86,7 +86,7 @@ selectCustomerH identifier include link trackedUsers =
         $ [ id_ "select-customer"
           , type_ "number"
           , hxTarget_ identifier
-          , class_ "form-control"
+          , class_ "form-control m-1 p-1"
           , hxTrigger_ "load, change"
           , hxPost_ $ linkText link
           , min_ "0"

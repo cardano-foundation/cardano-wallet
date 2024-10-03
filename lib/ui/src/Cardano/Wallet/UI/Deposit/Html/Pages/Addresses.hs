@@ -18,7 +18,10 @@ import Cardano.Wallet.UI.Common.Html.Lib
     , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( Striped (..)
+    , Width (..)
+    , box
+    , record
     , simpleField
     , sseH
     )
@@ -67,16 +70,19 @@ addressElementH :: UTCTime -> UTCTime -> AlertH -> WalletPresent -> Html ()
 addressElementH now origin = onWalletPresentH $ \case
     WalletPublicIdentity _xpub customers ->
         div_ [id_ "view-control"] $ do
-            div_ [class_ "row"] $ do
-                div_ [class_ "col"] $ record (Just 11) $ do
-                    selectCustomerH
-                        "#customer-address"
-                        (Just "#view-control")
-                        customerAddressLink
-                        $ fromIntegral customers
-                    simpleField "Address"
-                        $ div_
-                            [ id_ "customer-address"
-                            ]
-                            mempty
+            div_ [class_ "row mt-3 g-0"] $ do
+                box "Selection" mempty
+                    $ div_ [class_ "col"]
+                    $ record (Just 11) Full Striped
+                    $ do
+                        selectCustomerH
+                            "#customer-address"
+                            (Just "#view-control")
+                            customerAddressLink
+                            $ fromIntegral customers
+                        simpleField "Address"
+                            $ div_
+                                [ id_ "customer-address"
+                                ]
+                                mempty
             transactionsElementH now origin

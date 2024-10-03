@@ -31,7 +31,9 @@ import Cardano.Wallet.UI.Common.Html.Copy
     ( copyButton
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( fieldHtml
+    ( Striped (..)
+    , Width (..)
+    , fieldHtml
     , record
     , simpleField
     , sseH
@@ -67,7 +69,7 @@ addressesH
      . (HasSNetworkId n, Monad m)
     => [ApiAddressWithPath n]
     -> HtmlT m ()
-addressesH addresses = record Nothing $ do
+addressesH addresses = record Nothing Full Striped $ do
     forM_ (zip [0 :: Int ..] addresses) $ \(j, ApiAddressWithPath{..}) -> do
         fieldHtml [] "id" $ do
             let identifier = "address-" <> toText j

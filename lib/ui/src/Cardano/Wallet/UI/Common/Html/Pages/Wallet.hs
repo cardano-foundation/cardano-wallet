@@ -123,21 +123,21 @@ mnemonicSetupFieldsH PostWalletConfig{..} = do
         ]
     onDeposit
         $ input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg m-1 p-1"
             , type_ "number"
             , name_ "trackedCustomers"
             , placeholder_ "Customer Discovery"
             ]
     onShelley
         $ input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg m-1 p-1"
             , type_ "text"
             , name_ "name"
             , placeholder_ "Wallet Name"
             ]
     onShelley
         $ input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg m-1 p-1"
             , type_ "password"
             , name_ "password"
             , placeholder_ "Wallet Password"
@@ -161,14 +161,14 @@ newWalletFromXPubH :: PostWalletConfig -> WHtml ()
 newWalletFromXPubH config = do
     postWalletFormTagH config $ do
         input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg m-1 p-1"
             , type_ "text"
             , name_ "xpub"
             , placeholder_ "Extended Public Key"
             ]
         onDeposit
             $ input_
-                [ class_ "form-control form-control-lg mb-3"
+                [ class_ "form-control form-control-lg m-1 p-1"
                 , type_ "number"
                 , name_ "users"
                 , placeholder_ "Customer Discovery"
