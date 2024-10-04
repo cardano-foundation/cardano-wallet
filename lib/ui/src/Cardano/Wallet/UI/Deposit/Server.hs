@@ -89,7 +89,7 @@ import Cardano.Wallet.UI.Cookies
     , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( DepositsParams
+    ( DepositsParams (depositsViewStart)
     , TransactionHistoryParams
     , UI
     , settingsSseToggleLink
@@ -124,6 +124,7 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
 import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
     ( depositsElementH
     , depositsHistoryH
+    , depositsPartsH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -216,6 +217,7 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveCustomerHistory network ul
         :<|> serveDeposits ul
         :<|> serveDepositsHistory network ul
+        :<|> serveDepositsHistoryExtension network ul
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
@@ -301,6 +303,20 @@ serveDepositsHistory network ul params = withSessionLayer ul $ \layer -> do
         <$> depositsHistoryHandler
             network
             layer
-            (depositsHistoryH False params)
+            (depositsHistoryH params)
             alertH
-            params
+            params{depositsViewStart = Nothing}
+
+serveDepositsHistoryExtension
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> DepositsParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryExtension network ul params = withSessionLayer ul $ \layer -> do
+    renderHtml <$> depositsHistoryHandler
+        network
+        layer
+        (depositsPartsH params)
+        alertH
+        params

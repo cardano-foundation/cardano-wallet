@@ -262,4 +262,4 @@ box x y z = div_ [class_ "bg-body-secondary pb-1"] $ do
             div_ [class_ "navbar-brand opacity-50 ms-1"] $ toHtml x
             div_ [class_ "bg-body-primary"] y
     hr_ [class_ "mt-0 mb-1"]
-    div_ [class_ "container bg-body-primary px-1"] z
+    div_ [class_ "bg-body-primary px-1"] z
