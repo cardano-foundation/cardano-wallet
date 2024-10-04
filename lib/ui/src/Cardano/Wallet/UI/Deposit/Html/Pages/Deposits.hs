@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -21,6 +23,7 @@ import Cardano.Wallet.Deposit.Read
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxInclude_
     , hxPost_
+    , hxSwap_
     , hxTarget_
     , hxTrigger_
     )
@@ -40,6 +43,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
     , Window (..)
+    , depositsHistoryExtendLink
     , depositsHistoryLink
     , depositsLink
     )
@@ -63,6 +67,9 @@ import Cardano.Wallet.UI.Lib.Address
 import Cardano.Wallet.UI.Type
     ( WHtml
     )
+import Control.Lens
+    ( unsnoc
+    )
 import Control.Monad
     ( forM_
     , when
@@ -80,11 +87,15 @@ import Data.Time
     ( DayOfWeek (..)
     , UTCTime
     )
+import Data.Time.Format.ISO8601
+    ( iso8601Show
+    )
 import Lucid
     ( Html
     , HtmlT
     , ToHtml (..)
     , button_
+    , checked_
     , class_
     , data_
     , div_
@@ -134,6 +145,7 @@ depositsViewControls =
                         [ class_ "form-select w-auto m-1 p-1"
                         , id_ "select-first-week-day"
                         , name_ "first-week-day"
+                        , style_ "background-image: none"
                         ]
                     $ forM_ [Sunday, Monday]
                     $ \day -> do
@@ -162,6 +174,7 @@ depositsViewControls =
                         [ class_ "form-select w-auto m-1 p-1"
                         , id_ "select-window"
                         , name_ "window"
+                        , style_ "background-image: none"
                         ]
                     $ forM_ [Minute5 .. Year]
                     $ \window -> do
@@ -171,6 +184,18 @@ depositsViewControls =
                         option_ (selected [value_ $ toUrlPiece window])
                             $ toHtml
                             $ toText window
+                simpleField "Fake Data"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center form-check"
+                        ]
+                    $ input_
+                        [ class_ "form-check-input"
+                        , type_ "checkbox"
+                        , id_ "toggle-fake-data"
+                        , name_ "fake-data"
+                        , value_ ""
+                        , checked_
+                        ]
 
 depositsElementH
     :: AlertH
@@ -183,10 +208,11 @@ depositsElementH = onWalletPresentH $ \case
                 [ class_ "row mt-3 g-0"
                 , hxTrigger_
                     "load\
-                    \, change from:#first-week-day\
+                    \, change from:#select-first-week-day\
                     \, change from:#select-customer\
                     \, change from:#toggle-slot\
-                    \, change from:#select-window"
+                    \, change from:#select-window\
+                    \, change from:#toggle-fake-data"
                 , hxInclude_ "#view-control"
                 , hxPost_ $ linkText depositsHistoryLink
                 , hxTarget_ "#deposits"
@@ -212,52 +238,87 @@ depositsElementH = onWalletPresentH $ \case
                                 ]
                                 mempty
 
-depositsHistoryH :: Bool -> DepositsParams -> DepositsHistory -> Html ()
-depositsHistoryH fake params@DepositsParams{..} ds =
-    fakeOverlay $ do
-        table_
-            [ class_
-                $ "border-top table table-striped table-hover m-0"
-                    <> if fake then " fake" else ""
-            ]
-            $ do
-                thead_ $ tr_ [scope_ "row"] $ do
-                    th_
+depositsPartsH :: DepositsParams -> DepositsHistory -> Html ()
+depositsPartsH params ds = do
+    let ((before, after), lasted) =
+            let
+                xs = MonoidalMap.assocs ds
+                l = length xs
+            in
+                (splitAt (l `div` 2) xs, snd <$> unsnoc xs)
+    tbody_ $ mapM_ (depositH params) before
+    case lasted of
+        Just (Down (At _time), _) -> do
+            tbody_
+                [ hxTrigger_ "intersect once"
+                , hxTarget_ "#load-more"
+                , hxSwap_ "outerHTML"
+                , hxInclude_ "#view-control"
+                , hxPost_ $ linkText depositsHistoryExtendLink
+                ]
+                mempty
+        _ -> mempty
+    tbody_ $ mapM_ (depositH params) after
+    case lasted of
+        Just (Down (At time), _) -> do
+            tbody_
+                [ id_ "load-more"
+                ]
+                $ do
+                    tr_ [scope_ "row"] $ td_ "to be loaded"
+                    input_
+                        [ type_ "hidden"
+                        , id_ "revealed"
+                        , name_ "view-start"
+                        , value_
+                            $ toText
+                            $ iso8601Show time
+                        ]
+        _ -> mempty
+
+depositsHistoryH :: DepositsParams -> DepositsHistory -> Html ()
+depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
+    table_
+        [ class_
+            $ "border-top table table-striped table-hover m-0"
+                <> if depositsFakeData then " fake" else ""
+        ]
+        $ do
+            thead_ $ tr_ [scope_ "row"] $ do
+                th_
+                    [ scope_ "col"
+                    , class_ "text-end"
+                    , style_ "width: 7em"
+                    ]
+                    "Time"
+                when depositsSlot
+                    $ th_
                         [ scope_ "col"
                         , class_ "text-end"
                         , style_ "width: 7em"
                         ]
-                        "Time"
-                    when depositsSlot
-                        $ th_
-                            [ scope_ "col"
-                            , class_ "text-end"
-                            , style_ "width: 7em"
-                            ]
-                            "Slot"
-                    th_
-                        [ scope_ "col"
-                        , class_ "text-end"
-                        , style_ "width: 7em"
-                        ]
-                        "Received"
-                    th_
-                        [ scope_ "col"
-                        , class_ "text-end"
-                        , style_ "width: 7em"
-                        ]
-                        "Spent"
-                tbody_
-                    $ mapM_ (depositH params)
-                    $ MonoidalMap.assocs ds
+                        "Slot"
+                th_
+                    [ scope_ "col"
+                    , class_ "text-end"
+                    , style_ "width: 7em"
+                    ]
+                    "Received"
+                th_
+                    [ scope_ "col"
+                    , class_ "text-end"
+                    , style_ "width: 7em"
+                    ]
+                    "Spent"
+            tbody_ $ depositsPartsH params ds
   where
-    fakeOverlay = if fake then overlayFakeDataH else id
+    fakeOverlay = if depositsFakeData then overlayFakeDataH else id
 
 depositH
     :: DepositsParams
     -> (Down (WithOrigin UTCTime), DepositsWindow)
     -> Html ()
-depositH DepositsParams{..} (Down time, DepositsWindow{..}) = do
+depositH DepositsParams{depositsSlot} (Down time, DepositsWindow{..}) = do
     tr_ [scope_ "row"] $ do
         td_ [class_ "text-end"] $ toHtml $ case time of
             Origin -> "Origin"

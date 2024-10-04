@@ -112,6 +112,7 @@ library
     , customer-deposit-wallet:rest
     , exceptions
     , generic-lens
+    , hashable
     , http-api-data
     , http-media
     , lens
@@ -120,6 +121,7 @@ library
     , mmorph
     , monoidal-containers
     , mtl
+    , mwc-random
     , ntp-client
     , operational
     , random

@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( depositsHistoryHandler
@@ -10,20 +11,27 @@ module Cardano.Wallet.UI.Deposit.Handlers.Deposits
 
 import Prelude
 
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( unsafeSlotOfUTCTime
+    )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( ValueTransfer
+    ( ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
     , Slot
-    , WithOrigin
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , getValueTransfers
+    , listCustomers
+    )
+import Cardano.Wallet.Read
+    ( SlotNo (..)
     )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer
@@ -32,8 +40,21 @@ import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
     , Window (..)
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
+    ( valueTransferG
+    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
+    )
+import Control.Concurrent.STM
+    ( TVar
+    , atomically
+    , newTVarIO
+    , readTVarIO
+    , writeTVar
+    )
+import Control.Monad
+    ( replicateM
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
@@ -54,13 +75,26 @@ import Data.Time
     ( DayOfWeek
     , DiffTime
     , UTCTime (..)
-    , diffTimeToPicoseconds
+    , diffUTCTime
+    , getCurrentTime
     , pattern YearMonthDay
-    , picosecondsToDiffTime
+    , secondsToDiffTime
+    , secondsToNominalDiffTime
     , weekFirstDay
+    )
+import GHC.IO
+    ( unsafePerformIO
     )
 import Servant
     ( Handler
+    )
+import System.Random.MWC.Distributions
+    ( standard
+    )
+import System.Random.Stateful
+    ( UniformRange (uniformRM)
+    , mkStdGen
+    , runStateGen_
     )
 
 import qualified Data.ByteString.Lazy as BL
@@ -83,10 +117,11 @@ type DepositsHistory =
         (Down (WithOrigin UTCTime))
         DepositsWindow
 
-quantizeSeconds :: DiffTime -> Int -> DiffTime
+quantizeSeconds :: DiffTime -> Integer -> DiffTime
 quantizeSeconds t q =
-    picosecondsToDiffTime
-        $ fromIntegral q * (diffTimeToPicoseconds t `div` fromIntegral q)
+    q' * fromIntegral @Integer (floor (t / q'))
+  where
+    q' = secondsToDiffTime q
 
 quantize :: DayOfWeek -> Window -> UTCTime -> UTCTime
 quantize _ Year (UTCTime (YearMonthDay y _ _) _) = UTCTime (YearMonthDay y 1 1) 0
@@ -134,6 +169,75 @@ depositsHistoryHandler
 depositsHistoryHandler network layer render alert params = do
     catchRunWalletResourceHtml layer alert id
         $ do
-            transfers <- getValueTransfers
+            transfers <-
+                if depositsFakeData params
+                    then do
+                        now <- liftIO getCurrentTime
+                        addresses <- fmap snd <$> listCustomers
+                        liftIO $ fakeDeposits now addresses
+                    else getValueTransfers
             times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
-            render . depositsHistory times params <$> getValueTransfers
+
+            let
+                based = case depositsViewStart params of
+                    Nothing -> transfers
+                    Just start ->
+                        let acceptedTimes = Map.filter (<= At start) times
+                        in  Map.restrictKeys transfers (Map.keysSet acceptedTimes)
+            pure
+                $ render
+                $ MonoidalMap.take 1000
+                $ depositsHistory times params based
+
+--------------------------------------------------------------------------------
+-- Fake data
+--------------------------------------------------------------------------------
+
+type FakeDepositsCache = TVar (Maybe (UTCTime, [Address], DepositsHistoryRaw))
+
+{-# NOINLINE fakeDepositsCache #-}
+fakeDepositsCache :: FakeDepositsCache
+fakeDepositsCache = unsafePerformIO $ newTVarIO Nothing
+
+fakeDeposits :: UTCTime -> [Address] -> IO DepositsHistoryRaw
+fakeDeposits now addresses = do
+    cache <- readTVarIO fakeDepositsCache
+    let generate = do
+            let newDeposits = fakeDepositsCreate now addresses
+            atomically $ writeTVar fakeDepositsCache $ Just (now, addresses, newDeposits)
+            pure newDeposits
+    case cache of
+        Just (now', addresses', deposits)
+            | diffUTCTime now now' < secondsToNominalDiffTime 60 && addresses' == addresses -> do
+                putStrLn "Using cached fake deposits"
+                pure deposits
+        Just _ -> do
+            putStrLn "Regenerating fake deposits"
+            generate
+        Nothing -> do
+            putStrLn "Generating fake deposits"
+            generate
+
+fakeDepositsCreate :: UTCTime -> [Address] -> Map Slot (Map Address ValueTransfer)
+fakeDepositsCreate now addresses = runStateGen_ (mkStdGen 0) $ \g -> do
+    -- ns <- uniformRM (1000, 100000) g
+    let ns = 100000
+    fmap (fmap getMonoidalMap . fold) $ replicateM ns $ do
+        slot <- case unsafeSlotOfUTCTime now of
+            Origin -> pure Origin
+            At (SlotNo n) -> do
+                slotInt <-
+                    floor
+                        . (fromIntegral n -)
+                        . (* fromIntegral n)
+                        . (abs)
+                        <$> standard g
+                -- _ <- error $ show slotInt
+                pure
+                    $ if slotInt < 0
+                        then Origin
+                        else At (SlotNo $ fromIntegral @Integer slotInt)
+        addressNumber <- uniformRM (0, length addresses - 1) g
+        let address = addresses !! addressNumber
+        value <- valueTransferG g
+        pure $ Map.singleton slot $ MonoidalMap.singleton address value

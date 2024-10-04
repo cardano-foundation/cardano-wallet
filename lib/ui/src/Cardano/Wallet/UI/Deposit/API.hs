@@ -50,6 +50,7 @@ import Data.Text.Class
     )
 import Data.Time
     ( DayOfWeek
+    , UTCTime
     )
 import Servant
     ( Delete
@@ -69,6 +70,7 @@ import Servant
 import Web.FormUrlEncoded
     ( FromForm (..)
     , lookupMaybe
+    , parseMaybe
     , parseUnique
     )
 
@@ -154,6 +156,11 @@ type Data =
         :<|> "deposits" :> SessionedHtml Get
         :<|> "deposits"
             :> "history"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "extend"
             :> ReqBody '[FormUrlEncoded] DepositsParams
             :> SessionedHtml Post
 
@@ -255,14 +262,19 @@ data DepositsParams = DepositsParams
     { depositsSlot :: Bool
     , depositsWindow :: Window
     , depositsFirstWeekDay :: DayOfWeek
+    , depositsFakeData :: Bool
+    , depositsViewStart :: Maybe UTCTime
     }
+    deriving (Eq, Show)
 
 instance FromForm DepositsParams where
     fromForm form = do
         slot <- isJust <$> lookupMaybe "slot" form
         window <- parseUnique "window" form
         firstWeekDay <- parseUnique "first-week-day" form
-        pure $ DepositsParams slot window firstWeekDay
+        fake <- isJust <$> lookupMaybe "fake-data" form
+        viewStart <- parseMaybe "view-start" form
+        pure $ DepositsParams slot window firstWeekDay fake viewStart
 
 type Home = SessionedHtml Get
 
@@ -300,6 +312,7 @@ transactionsLink :: Link
 customerHistoryLink :: Link
 depositsLink :: Link
 depositsHistoryLink :: Link
+depositsHistoryExtendLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -326,5 +339,6 @@ homePageLink
     :<|> customerHistoryLink
     :<|> depositsLink
     :<|> depositsHistoryLink
+    :<|> depositsHistoryExtendLink
     =
         allLinks (Proxy @UI)

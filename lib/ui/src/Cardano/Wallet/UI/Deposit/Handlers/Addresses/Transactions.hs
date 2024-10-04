@@ -188,6 +188,9 @@ unsafeMkTxId = txIdFromHash . fromJust . hashFromStringAsHex
 hexOfInt :: Int -> Char
 hexOfInt n = "0123456789abcdef" !! (n `mod` 16)
 
+headerHash :: StatefulGen g m => g -> m [Char]
+headerHash g = replicateM 64 $ hexOfInt <$> uniformRM (0, 15) g
+
 randomValue :: StatefulGen g f => g -> Read.Coin -> f Read.Value
 randomValue g l = Read.ValueC <$> uniformRM (0, l) g <*> pure mempty
 
@@ -204,23 +207,26 @@ createReceived g r = randomValue g l
   where
     l = if r >= 5 && r <= 11 then maxLovelaces else 0
 
+valueTransferG :: StatefulGen g m => g -> m ValueTransfer
+valueTransferG g = do
+    spentOrReceived <- uniformRM (0, 11) g
+    spent <- createSpent g spentOrReceived
+    received <- createReceived g spentOrReceived
+    pure $ ValueTransfer spent received
+
 txSummaryG :: UTCTime -> Int -> [TxSummary]
 txSummaryG now c = runStateGen_ pureGen $ \g -> do
     ns <- uniformRM (1, 10) g
     replicateM ns $ do
         txId <- txIdR g
         cp <- chainPointR g
-        spentOrReceived <- uniformRM (0, 11) g
-        spent <- createSpent g spentOrReceived
-        received <- createReceived g spentOrReceived
-
-        pure $ TxSummaryC txId cp $ ValueTransfer spent received
+        value <- valueTransferG g
+        pure $ TxSummaryC txId cp value
   where
     pureGen = mkStdGen c
     txIdR g = do
         ls <- replicateM 64 $ hexOfInt <$> uniformRM (0, 15) g
         pure $ unsafeMkTxId ls
-    headerHash g = replicateM 64 $ hexOfInt <$> uniformRM (0, 15) g
     chainPointR g = do
         case unsafeSlotOfUTCTime now of
             Origin -> pure Read.GenesisPoint
