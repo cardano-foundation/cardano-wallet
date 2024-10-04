@@ -70,7 +70,7 @@ addressElementH :: UTCTime -> UTCTime -> AlertH -> WalletPresent -> Html ()
 addressElementH now origin = onWalletPresentH $ \case
     WalletPublicIdentity _xpub customers ->
         div_ [id_ "view-control"] $ do
-            div_ [class_ "row mt-3 g-0"] $ do
+            div_ [class_ "row mt-2 g-0"] $ do
                 box "Selection" mempty
                     $ div_ [class_ "col"]
                     $ record (Just 11) Full Striped

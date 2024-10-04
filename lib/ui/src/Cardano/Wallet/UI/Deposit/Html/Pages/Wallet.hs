@@ -37,6 +37,7 @@ import Cardano.Wallet.UI.Common.Html.Modal
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( Striped (..)
     , Width (..)
+    , box
     , record
     , simpleField
     , sseH
@@ -82,10 +83,8 @@ import Lucid
     , button_
     , class_
     , div_
-    , hr_
     , id_
     , p_
-    , section_
     )
 
 import qualified Data.ByteString.Char8 as B8
@@ -158,33 +157,36 @@ deleteWalletModalH =
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        div_ [class_ "row mt-5 g-0"] $ do
-            div_ [class_ "col"] $ record (Just 11) Full Striped $ do
-                simpleField "Public Key" $ pubKeyH xpub
-                simpleField "Tracked Addresses"
-                    $ div_ [class_ "d-flex justify-content-end align-items-center"]
-                    $ toHtml $ toText customers
-        div_ [class_ "row mt-5 g-0"] $ do
-            div_ [class_ "col"] $ do
-                deleteWalletButtonH
+        div_ [class_ "row mt-2 g-0"] $ do
+            box "Wallet Public Identity" mempty $
+                record (Just 13) Full Striped $ do
+                    simpleField "Extended Public Key" $ pubKeyH xpub
+                    simpleField "Tracked Addresses"
+                        $ div_ [class_ "d-flex justify-content-end align-items-center"]
+                        $ toHtml
+                        $ toText customers
+        div_ [class_ "row mt-2 g-0"] $ do
+            box "Wallet Management" mempty
+                $ div_ [class_ "d-flex justify-content-end align-items-center"]
+                    deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
-        section_
+        div_ [class_ "row mt-2 g-0"]
             $ newWalletFromMnemonicH walletMnemonicLink
             $ PostWalletConfig
                 { walletDataLink = walletPostMnemonicLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        hr_ mempty
-        section_
+        div_ [class_ "row mt-2 g-0"]
             $ newWalletFromXPubH
             $ PostWalletConfig
                 { walletDataLink = walletPostXPubLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        div_ [id_ "post-response"] mempty
+        div_ [class_ "row mt-2 g-0"]
+            $ div_ [id_ "post-response"] mempty
     WalletFailedToInitialize err ->
         alert
             $ "Failed to initialize wallet"
