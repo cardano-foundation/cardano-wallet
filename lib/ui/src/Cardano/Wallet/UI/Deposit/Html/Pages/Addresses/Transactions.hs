@@ -230,6 +230,7 @@ monthsH now = do
         [ class_ "form-select w-auto m-1 p-1"
         , id_ "select-month"
         , name_ "start-month"
+        , style_ "background-image: none"
         ]
         $ forM_ [1 .. 12]
         $ \month -> do
@@ -249,6 +250,7 @@ yearsH now origin = do
         [ class_ "form-select w-auto m-1 p-1"
         , id_ "select-year"
         , name_ "start-year"
+        , style_ "background-image: none"
         ]
         $ forM_ [firstYear .. lastYear]
         $ \year -> do
@@ -320,6 +322,7 @@ transactionsViewControls now origin =
                         [ class_ "form-select w-auto m-1 p-1"
                         , id_ "select-sorting"
                         , name_ "sorting"
+                        , style_ "background-image: none"
                         ]
                     $ do
                         option_ [selected_ "", value_ "desc"] "Descending"
@@ -335,7 +338,7 @@ transactionsViewControls now origin =
 transactionsElementH :: UTCTime -> UTCTime -> Html ()
 transactionsElementH now origin = do
     div_
-        [ class_ "row mt-3 g-0"
+        [ class_ "row mt-2 g-0"
         , hxTrigger_
             "load\
             \, change from:#toggle-utc\
