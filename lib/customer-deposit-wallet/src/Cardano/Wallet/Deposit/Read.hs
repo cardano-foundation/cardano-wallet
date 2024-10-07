@@ -46,8 +46,9 @@ module Cardano.Wallet.Deposit.Read
     , mockNextBlock
     , Read.mockRawHeaderHash
 
-    , GenesisData
-    , GenesisHash
+    , Read.GenesisData
+    , Read.GenesisHash
+    , Read.mockGenesisDataMainnet
 
     , Read.NetworkId (Read.Mainnet, Read.Testnet)
     , Read.getNetworkId

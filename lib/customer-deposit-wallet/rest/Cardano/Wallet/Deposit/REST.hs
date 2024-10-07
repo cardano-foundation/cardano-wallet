@@ -240,7 +240,7 @@ findTheDepositWalletOnDisk dir action = do
                             fromXPubAndGenesis
                                 identity
                                 (fromIntegral @Int users)
-                                (error "FIXME")
+                                Read.mockGenesisDataMainnet
                     store <- newStore
                     writeS store state
                     action $ Right store
