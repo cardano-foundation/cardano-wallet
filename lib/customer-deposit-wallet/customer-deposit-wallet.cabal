@@ -57,7 +57,6 @@ library
     , bytestring
     , cardano-crypto
     , cardano-ledger-api
-    , cardano-ledger-byron
     , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-network-layer
