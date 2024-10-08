@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               light-mode-test
-version:            0.2024.9.29
+version:            0.2024.10.8
 synopsis:           Explore feasability of light mode
 description:
     This prototype explores whether we can implement a "light mode"
