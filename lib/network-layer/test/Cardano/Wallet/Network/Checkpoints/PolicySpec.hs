@@ -1,11 +1,11 @@
 {-# LANGUAGE DataKinds #-}
-module Cardano.Wallet.Checkpoints.PolicySpec
+module Cardano.Wallet.Network.Checkpoints.PolicySpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Checkpoints.Policy
+import Cardano.Wallet.Network.Checkpoints.Policy
     ( BlockHeight
     , CheckpointPolicy
     , nextCheckpoint
@@ -30,7 +30,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Network.Checkpoints.Policy as CP
 import qualified Data.Set as Set
 
 spec :: Spec

@@ -89,7 +89,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.Checkpoints.Policy as CP
+import qualified Cardano.Wallet.Network.Checkpoints.Policy as CP
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Data.List as L

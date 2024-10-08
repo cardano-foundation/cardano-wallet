@@ -214,7 +214,6 @@ test-suite unit
     Cardano.Wallet.Balance.Migration.PlanningSpec
     Cardano.Wallet.Balance.Migration.SelectionSpec
     Cardano.Wallet.Balance.MigrationSpec
-    Cardano.Wallet.Checkpoints.PolicySpec
     Cardano.Wallet.CheckpointsSpec
     Cardano.Wallet.DB.Arbitrary
     Cardano.Wallet.DB.Fixtures
