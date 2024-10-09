@@ -50,6 +50,9 @@ import Cardano.Wallet.Deposit.Pure
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
+import Cardano.Wallet.Network.Checkpoints.Policy
+    ( defaultPolicy
+    )
 import Control.Tracer
     ( Tracer
     , contramap
@@ -175,8 +178,13 @@ withWalletDBVar
         trChainSync = contramap (\_ -> WalletLogDummy) logger
         chainFollower w =
             Network.ChainFollower
-                { checkpointPolicy = undefined
-                , readChainPoints = undefined
+                { checkpointPolicy = defaultPolicy
+                , readChainPoints = do
+                    walletTip <- Wallet.getWalletTip <$> readWalletState w
+                    pure
+                        [ walletTip
+                        , Read.GenesisPoint
+                        ]
                 , rollForward = rollForward w
                 , rollBackward = rollBackward w
                 }

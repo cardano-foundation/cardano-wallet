@@ -33,6 +33,9 @@ import Cardano.Api
 import Cardano.Slotting.Slot
     ( SlotNo (..)
     )
+import Cardano.Wallet.Network.Checkpoints.Policy
+    ( CheckpointPolicy
+    )
 import Cardano.Wallet.Network.Logging
     ( ChainFollowLog (..)
     , ChainSyncLog (..)
@@ -49,9 +52,6 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
-    )
-import Cardano.Wallet.Primitive.Types.Checkpoints.Policy
-    ( CheckpointPolicy
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin

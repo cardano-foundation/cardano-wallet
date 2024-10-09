@@ -1,10 +1,11 @@
 -- |
--- Copyright: © 2022 IOHK
+-- Copyright: © 2022 IOHK, 2024 Cardano Foundation
 -- License: Apache-2.0
 --
 -- Abstract data type that describes a policy for keeping and discarding
--- checkpoints. To be used with the 'Checkpoints' type.
-module Cardano.Wallet.Primitive.Types.Checkpoints.Policy
+-- checkpoints.
+-- Useful for 'ChainFollower'.
+module Cardano.Wallet.Network.Checkpoints.Policy
     ( BlockHeight
     , CheckpointPolicy
     , nextCheckpoint

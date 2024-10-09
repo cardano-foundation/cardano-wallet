@@ -105,7 +105,8 @@ import qualified Data.Set as Set
 type Customer = Address.Customer
 
 data WalletState = WalletState
-    { addresses :: !Address.AddressState
+    { walletTip :: Read.ChainPoint
+    , addresses :: !Address.AddressState
     , utxoHistory :: !UTxOHistory.UTxOHistory
     -- , txHistory :: [Read.Tx]
     , submissions :: Sbm.TxSubmissions
@@ -171,7 +172,8 @@ fromXPubAndGenesis
     :: XPub -> Word31 -> Read.GenesisData -> WalletState
 fromXPubAndGenesis xpub knownCustomerCount genesisData =
     WalletState
-        { addresses =
+        { walletTip = Read.GenesisPoint
+        , addresses =
             Address.fromXPubAndCount network xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
         , submissions = Sbm.empty
@@ -182,7 +184,7 @@ fromXPubAndGenesis xpub knownCustomerCount genesisData =
     initialUTxO = mempty
 
 getWalletTip :: WalletState -> Read.ChainPoint
-getWalletTip = error "getWalletTip"
+getWalletTip = walletTip
 
 rollForwardMany
     :: NonEmpty (Read.EraValue Read.Block) -> WalletState -> WalletState
@@ -192,7 +194,8 @@ rollForwardOne
     :: Read.EraValue Read.Block -> WalletState -> WalletState
 rollForwardOne (Read.EraValue block) w =
     w
-        { utxoHistory = rollForwardUTxO isOurs block (utxoHistory w)
+        { walletTip = Read.getChainPoint block
+        , utxoHistory = rollForwardUTxO isOurs block (utxoHistory w)
         , submissions = Delta.apply (Sbm.rollForward block) (submissions w)
         }
   where
@@ -214,7 +217,8 @@ rollBackward
     -> (WalletState, Read.ChainPoint)
 rollBackward targetPoint w =
     ( w
-        { utxoHistory =
+        { walletTip = actualPoint
+        , utxoHistory =
             UTxOHistory.rollback actualSlot (utxoHistory w)
         , submissions =
             Delta.apply (Sbm.rollBackward actualSlot) (submissions w)

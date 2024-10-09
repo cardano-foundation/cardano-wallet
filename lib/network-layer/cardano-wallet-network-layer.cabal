@@ -43,6 +43,7 @@ library
   hs-source-dirs:  src
   exposed-modules:
     Cardano.Wallet.Network
+    Cardano.Wallet.Network.Checkpoints.Policy
     Cardano.Wallet.Network.Config
     Cardano.Wallet.Network.Implementation
     Cardano.Wallet.Network.Implementation.Ouroboros
@@ -124,6 +125,7 @@ test-suite unit
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
+    , containers
     , contra-tracer
     , hspec
     , io-classes
@@ -133,4 +135,6 @@ test-suite unit
 
   build-tool-depends: hspec-discover:hspec-discover
   main-is:            Main.hs
-  other-modules:      Cardano.Wallet.Network.LightSpec
+  other-modules:
+    Cardano.Wallet.Network.Checkpoints.PolicySpec
+    Cardano.Wallet.Network.LightSpec
