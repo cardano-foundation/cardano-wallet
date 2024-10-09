@@ -12,7 +12,6 @@ module Cardano.Wallet.Deposit.Read
     , Read.EraValue (..)
     , Read.Conway
 
-    , Network (..)
     , Read.SlotNo
     , Read.ChainPoint (..)
     , Slot
@@ -47,8 +46,12 @@ module Cardano.Wallet.Deposit.Read
     , mockNextBlock
     , Read.mockRawHeaderHash
 
-    , GenesisData
-    , GenesisHash
+    , Read.GenesisData
+    , Read.GenesisHash
+    , Read.mockGenesisDataMainnet
+
+    , Read.NetworkId (Read.Mainnet, Read.Testnet)
+    , Read.getNetworkId
 
     -- * Dummy Values useful for testing
     , dummyAddress
@@ -83,7 +86,6 @@ import Data.Word
     ( Word8
     )
 
-import qualified Cardano.Chain.Genesis as Byron
 import qualified Cardano.Wallet.Read as Read
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -93,7 +95,6 @@ import qualified Data.ByteString.Short as SBS
     Type definitions
     with dummies
 ------------------------------------------------------------------------------}
-data Network = Testnet | Mainnet
 
 -- | Synonym for readability.
 -- The ledger specifications define @Addr@.
@@ -143,11 +144,3 @@ mockNextBlock old txs =
     slotNumber = case old of
         Read.GenesisPoint -> Read.SlotNo 0
         Read.BlockPoint{slotNo = n} -> succ n
-
-{-----------------------------------------------------------------------------
-    Genesis
-------------------------------------------------------------------------------}
-
--- GenesisData is not part of the ledger specification proper
-type GenesisData = Byron.GenesisData
-type GenesisHash = Byron.GenesisHash

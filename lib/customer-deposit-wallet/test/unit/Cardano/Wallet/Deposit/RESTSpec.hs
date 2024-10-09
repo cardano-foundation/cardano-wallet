@@ -52,7 +52,7 @@ import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Data.ByteString.Char8 as B8
 
 fakeBootEnv :: WalletBootEnv IO
-fakeBootEnv = WalletBootEnv undefined undefined undefined
+fakeBootEnv = WalletBootEnv nullTracer Read.mockGenesisDataMainnet undefined
 
 xpub :: XPub
 xpub =

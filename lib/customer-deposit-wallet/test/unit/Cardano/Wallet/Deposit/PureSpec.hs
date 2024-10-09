@@ -115,7 +115,7 @@ testXPub =
 ------------------------------------------------------------------------------}
 
 testGenesis :: Read.GenesisData
-testGenesis = undefined
+testGenesis = Read.mockGenesisDataMainnet
 
 spendOneTxOut :: UTxO.UTxO -> Read.Tx
 spendOneTxOut utxo =

@@ -79,7 +79,7 @@ withScenarioEnvMock action = do
     networkEnv <- mapBlock Read.EraValue <$> newNetworkEnvMock
     action
         $ ScenarioEnv
-            { genesisData = error "TODO: Mock Genesis Data"
+            { genesisData = Read.mockGenesisDataMainnet
             , networkEnv
             , faucet = Faucet{xprv = error "TODO: Faucet xprv"}
             }

@@ -136,8 +136,10 @@ customerAddress c = lookup c . listCustomers
 -- depend on the private key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
 deriveAddress w =
-    Address.deriveAddress (Address.getXPub (addresses w))
+    Address.deriveAddress (Address.getNetworkTag as) (Address.getXPub as)
     . Address.DerivationCustomer
+  where
+    as = addresses w
 
 -- FIXME: More performant with a double index.
 knownCustomer :: Customer -> WalletState -> Bool
@@ -165,16 +167,18 @@ walletXPub  = Address.getXPub . addresses
     Reading from the blockchain
 ------------------------------------------------------------------------------}
 
-fromXPubAndGenesis :: XPub -> Word31 -> Read.GenesisData -> WalletState
-fromXPubAndGenesis xpub knownCustomerCount _ =
+fromXPubAndGenesis
+    :: XPub -> Word31 -> Read.GenesisData -> WalletState
+fromXPubAndGenesis xpub knownCustomerCount genesisData =
     WalletState
         { addresses =
-            Address.fromXPubAndCount xpub knownCustomerCount
+            Address.fromXPubAndCount network xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
         , submissions = Sbm.empty
         , rootXSignKey = Nothing
         }
   where
+    network = Read.getNetworkId genesisData
     initialUTxO = mempty
 
 getWalletTip :: WalletState -> Read.ChainPoint
