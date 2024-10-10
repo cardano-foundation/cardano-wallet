@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+
 module Cardano.Wallet.Deposit.Pure
     ( -- * Types
       WalletState
@@ -41,8 +42,9 @@ module Cardano.Wallet.Deposit.Pure
     , addTxSubmission
     , listTxsInSubmission
 
-    -- * Internal, for testing
+      -- * Internal, for testing
     , availableUTxO
+    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -76,6 +78,12 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map
     )
+import Data.Maps.PairMap
+    ( PairMap (..)
+    )
+import Data.Maps.Timeline
+    ( Timeline (eventsByTime)
+    )
 import Data.Maybe
     ( mapMaybe
     )
@@ -96,6 +104,7 @@ import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
@@ -137,7 +146,7 @@ customerAddress c = lookup c . listCustomers
 deriveAddress :: WalletState -> (Customer -> Address)
 deriveAddress w =
     Address.deriveAddress (Address.getNetworkTag as) (Address.getXPub as)
-    . Address.DerivationCustomer
+        . Address.DerivationCustomer
   where
     as = addresses w
 
@@ -204,11 +213,14 @@ rollForwardOne (Read.EraValue block) w =
 
 rollForwardUTxO
     :: Read.IsEra era
-    => (Address -> Bool) -> Read.Block era -> UTxOHistory -> UTxOHistory
+    => (Address -> Bool)
+    -> Read.Block era
+    -> UTxOHistory
+    -> UTxOHistory
 rollForwardUTxO isOurs block u =
     UTxOHistory.appendBlock slot deltaUTxO u
   where
-    (deltaUTxO,_) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
+    (deltaUTxO, _) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
     slot = Read.getEraSlotNo $ Read.getEraBHeader block
 
 rollBackward
@@ -236,9 +248,9 @@ rollBackward targetPoint w =
     -- any other point than the target point (or genesis).
     actualPoint =
         if (targetSlot `Rollback.member` UTxOHistory.getRollbackWindow h)
-        -- FIXME: Add test for rollback window of `submissions`
-        then targetPoint
-        else Read.GenesisPoint
+            -- FIXME: Add test for rollback window of `submissions`
+            then targetPoint
+            else Read.GenesisPoint
 
 availableBalance :: WalletState -> Read.Value
 availableBalance = UTxO.balance . availableUTxO
@@ -260,6 +272,16 @@ getCustomerHistory c state =
 -- part of the consensus chain?
 getValueTransfers :: WalletState -> Map Read.Slot (Map Address ValueTransfer)
 getValueTransfers state = TxHistory.getValueTransfers (txHistory state)
+
+getValueTransfersWithTxIds
+    :: WalletState
+    -> Map Read.Slot (Map Address (Map Read.TxId ValueTransfer))
+getValueTransfersWithTxIds state =
+    restrictByTxId <$> eventsByTime (TxHistory.txIds history)
+  where
+    history = txHistory state
+    restrictByTxId txIds =
+        (`Map.restrictKeys` txIds) <$> mba (TxHistory.txTransfers history)
 
 {-----------------------------------------------------------------------------
     Operations

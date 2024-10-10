@@ -23,15 +23,15 @@ import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer (..)
     )
-import Cardano.Wallet.Deposit.REST
-    ( WalletResource
-    , getValueTransfers
-    , listCustomers
-    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     , Slot
     , WithOrigin (..)
+    )
+import Cardano.Wallet.Deposit.REST
+    ( WalletResource
+    , getValueTransfers
+    , listCustomers
     )
 import Cardano.Wallet.Read
     ( SlotNo (..)
@@ -80,10 +80,10 @@ import Data.Time
     , UTCTime (..)
     , diffUTCTime
     , getCurrentTime
+    , pattern YearMonthDay
     , secondsToDiffTime
     , secondsToNominalDiffTime
     , weekFirstDay
-    , pattern YearMonthDay
     )
 import GHC.IO
     ( unsafePerformIO
