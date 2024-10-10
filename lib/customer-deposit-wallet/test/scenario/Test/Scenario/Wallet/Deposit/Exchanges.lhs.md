@@ -48,6 +48,10 @@ import Test.Scenario.Blockchain
     , signTx
     , submitTx
     )
+import Data.Foldable
+    ( toList
+    , fold
+    )
 
 import qualified Cardano.Wallet.Deposit.IO as Wallet
 import qualified Data.Map as Map
@@ -58,6 +62,12 @@ We use a function `depositFundsAt` to make a deposit at a given address.
 ```haskell
 depositFundsAt :: ScenarioEnv -> Address -> Value -> IO ()
 depositFundsAt env address value = payFromFaucet env [(address, value)]
+```
+
+We ignore the mapping from TxId when retrieving the customer history
+```haskell
+getCustomerHistory :: Customer -> WalletInstance -> IO [TxSummary]
+getCustomerHistory customer w = toList <$> Wallet.getCustomerHistory customer w
 ```
 
 ## 0. Start a Wallet
@@ -126,17 +136,17 @@ scenarioTrackDepositOne env w = do
     Just address <- Wallet.customerAddress customer w
 
     -- no deposits
-    txsummaries0<- Wallet.getCustomerHistory customer w
+    txsummaries0 <- getCustomerHistory customer w
     assert $ null txsummaries0
 
     -- first deposit
     depositFundsAt env address coin
-    txsummaries1 <- Wallet.getCustomerHistory customer w
+    txsummaries1 <- getCustomerHistory customer w
     assert $ map (received . txTransfer) txsummaries1 == [coin]
 
     -- second deposit
     depositFundsAt env address coin
-    txsummaries2 <- Wallet.getCustomerHistory customer w
+    txsummaries2 <- getCustomerHistory customer w
     assert $ map (received . txTransfer) txsummaries2 == [coin, coin]
   where
     customer = 7 :: Customer
@@ -161,19 +171,17 @@ scenarioTrackDepositAll env w = do
     Just address1 <- Wallet.customerAddress customer1 w
     Just address2 <- Wallet.customerAddress customer2 w
 
-    from <- Wallet.getWalletTip w
     depositFundsAt env address1 coin
     depositFundsAt env address2 coin
     depositFundsAt env address1 (coin <> coin)
-    to <- Wallet.getWalletTip w
 
-    history <- Wallet.getCustomerHistories (from,to) w
+    history <- fold <$> Wallet.getValueTransfers w
     assert $
         Map.map received history
       ==
         Map.fromList
-            [ (customer1, coin <> coin <> coin)
-            , (customer2, coin)
+            [ (address1, coin <> coin <> coin)
+            , (address2, coin)
             ]
   where
     customer1, customer2 :: Customer
@@ -209,7 +217,7 @@ scenarioCreatePayment xprv env destination w = do
     assert $ value2 <> coin == value1
 
     -- but the original deposit amount is still recorded
-    txsummaries <- Wallet.getCustomerHistory customer w
+    txsummaries <- getCustomerHistory customer w
     assert $ value1 `elem` map (received . txTransfer) txsummaries
   where
     customer :: Customer

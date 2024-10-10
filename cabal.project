@@ -157,8 +157,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/cardano-foundation/cardano-wallet-agda
-    tag: 45aa257d25871b667cac6fb85e17ceeeac72f421
-    --sha256: 061hdzgskhp2cc4y8841v27zwkgczsx03xmca1a4aqfs0p600c98
+    tag: 9d11cdd5eaa5ba00440b5bb9f4e1bf2ab4523b95
+    --sha256: 0ylbf8hhkziam9hnbcwhpbml16h6i3va2cr5595r21fxqdc9y09g
     subdir:
       lib/customer-deposit-wallet-pure
       lib/cardano-wallet-read
