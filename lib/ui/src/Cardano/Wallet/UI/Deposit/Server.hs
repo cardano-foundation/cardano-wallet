@@ -103,6 +103,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( depositsHistoryHandler
+    , depositsHistoryHandlerWindow
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
@@ -124,6 +125,7 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
 import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
     ( depositsElementH
     , depositsHistoryH
+    , depositsHistoryWindowH
     , depositsPartsH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
@@ -218,6 +220,8 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveDeposits ul
         :<|> serveDepositsHistory network ul
         :<|> serveDepositsHistoryExtension network ul
+        :<|> serveDepositsHistoryWindow network ul
+        :<|> wsl (\_ -> pure $ RawHtml "")
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
@@ -314,9 +318,25 @@ serveDepositsHistoryExtension
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
 serveDepositsHistoryExtension network ul params = withSessionLayer ul $ \layer -> do
-    renderHtml <$> depositsHistoryHandler
-        network
-        layer
-        (depositsPartsH params)
-        alertH
-        params
+    renderHtml
+        <$> depositsHistoryHandler
+            network
+            layer
+            (depositsPartsH params)
+            alertH
+            params
+
+serveDepositsHistoryWindow
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> DepositsParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryWindow network ul params = withSessionLayer ul $ \layer -> do
+    renderHtml
+        <$> depositsHistoryHandlerWindow
+            network
+            layer
+            (depositsHistoryWindowH params)
+            alertH
+            params

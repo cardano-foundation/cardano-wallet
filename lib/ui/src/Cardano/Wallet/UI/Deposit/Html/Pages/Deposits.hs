@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -21,11 +20,13 @@ import Cardano.Wallet.Deposit.Read
     , WithOrigin (..)
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
-    ( hxInclude_
+    ( hxGet_
+    , hxInclude_
     , hxPost_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
+    , hxVals_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( AlertH
@@ -45,7 +46,9 @@ import Cardano.Wallet.UI.Deposit.API
     , Window (..)
     , depositsHistoryExtendLink
     , depositsHistoryLink
+    , depositsHistoryWindowLink
     , depositsLink
+    , emptinessLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( DepositsHistory
@@ -77,6 +80,9 @@ import Control.Monad
 import Data.Foldable
     ( Foldable (..)
     )
+import Data.Hashable
+    ( Hashable (..)
+    )
 import Data.Ord
     ( Down (..)
     )
@@ -87,9 +93,6 @@ import Data.Time
     ( DayOfWeek (..)
     , UTCTime
     )
-import Data.Time.Format.ISO8601
-    ( iso8601Show
-    )
 import Lucid
     ( Html
     , HtmlT
@@ -97,6 +100,7 @@ import Lucid
     , button_
     , checked_
     , class_
+    , colspan_
     , data_
     , div_
     , i_
@@ -122,6 +126,7 @@ import Servant
     )
 
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
+import qualified Data.Text as T
 
 depositsH :: WHtml ()
 depositsH = do
@@ -260,7 +265,7 @@ depositsPartsH params ds = do
         _ -> mempty
     tbody_ $ mapM_ (depositH params) after
     case lasted of
-        Just (Down (At time), _) -> do
+        Just (Down time, _) -> do
             tbody_
                 [ id_ "load-more"
                 ]
@@ -271,10 +276,48 @@ depositsPartsH params ds = do
                         , id_ "revealed"
                         , name_ "view-start"
                         , value_
-                            $ toText
-                            $ iso8601Show time
+                            $ toUrlPiece time
                         ]
         _ -> mempty
+
+depositsHistoryWindowH :: DepositsParams -> DepositsWindow -> Html ()
+depositsHistoryWindowH
+    params@DepositsParams{depositsViewStart}
+    DepositsWindow{depositsWindowTransfers} = do
+        let xs = MonoidalMap.assocs depositsWindowTransfers
+            swapTarget = maybe "" (T.pack . show . hash) depositsViewStart
+
+        td_ [colspan_ "3"] $ table_ [class_ "table table-hover m-0"] $ do
+            div_ [class_ "d-flex justify-content-end"] $ do
+                button_
+                    [ class_ "btn btn-secondary"
+                    , type_ "button"
+                    , hxTarget_ $ "#window-" <> swapTarget
+                    , hxGet_ $ linkText emptinessLink
+                    ]
+                    "Close"
+            thead_ $ tr_ [scope_ "row"] $ do
+                th_ [scope_ "col", class_ "text-end"] "Address"
+                th_
+                    [ scope_ "col"
+                    , class_ "text-end"
+                    , style_ "width: 7em"
+                    ]
+                    "Received"
+                th_
+                    [ scope_ "col"
+                    , class_ "text-end"
+                    , style_ "width: 7em"
+                    ]
+                    "Spent"
+            tbody_ $ mapM_ (depositByAddressH params) xs
+
+depositByAddressH :: DepositsParams -> (Address, ValueTransfer) -> Html ()
+depositByAddressH _ (addr, ValueTransfer received spent) = do
+    tr_ [scope_ "row"] $ do
+        td_ [class_ "text-end"] $ customerAddressH addr
+        td_ [class_ "text-end"] $ valueH received
+        td_ [class_ "text-end"] $ valueH spent
 
 depositsHistoryH :: DepositsParams -> DepositsHistory -> Html ()
 depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
@@ -310,7 +353,8 @@ depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
                     , style_ "width: 7em"
                     ]
                     "Spent"
-            tbody_ $ depositsPartsH params ds
+            tbody_ $ do
+                depositsPartsH params ds
   where
     fakeOverlay = if depositsFakeData then overlayFakeDataH else id
 
@@ -319,14 +363,22 @@ depositH
     -> (Down (WithOrigin UTCTime), DepositsWindow)
     -> Html ()
 depositH DepositsParams{depositsSlot} (Down time, DepositsWindow{..}) = do
-    tr_ [scope_ "row"] $ do
-        td_ [class_ "text-end"] $ toHtml $ case time of
-            Origin -> "Origin"
-            At t -> show t
-        when depositsSlot
-            $ td_ [class_ "text-end"]
-            $ toHtml
-            $ show depositsSlot
-        let ValueTransfer received spent = fold depositsWindowTransfers
-        td_ [class_ "text-end"] $ valueH received
-        td_ [class_ "text-end"] $ valueH spent
+    tr_
+        [ scope_ "row"
+        , hxTrigger_ "click"
+        , hxTarget_ "next"
+        , hxPost_ $ linkText depositsHistoryWindowLink
+        , hxVals_ $ "{\"view-start\":\"" <> toUrlPiece time <> "\"}"
+        ]
+        $ do
+            td_ [class_ "text-end"] $ toHtml $ case time of
+                Origin -> "Origin"
+                At t -> show t
+            when depositsSlot
+                $ td_ [class_ "text-end"]
+                $ toHtml
+                $ show depositsSlot
+            let ValueTransfer received spent = fold depositsWindowTransfers
+            td_ [class_ "text-end"] $ valueH received
+            td_ [class_ "text-end"] $ valueH spent
+    tr_ [id_ $ "window-" <> T.pack (show $ hash time)] mempty

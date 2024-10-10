@@ -7,6 +7,7 @@ module Cardano.Wallet.UI.Deposit.Handlers.Deposits
     , depositsHistory
     , DepositsHistory
     , DepositsWindow (..)
+    , depositsHistoryHandlerWindow
     ) where
 
 import Prelude
@@ -167,6 +168,7 @@ depositsHistoryHandler
     -> DepositsParams
     -> Handler html
 depositsHistoryHandler network layer render alert params = do
+    liftIO $ print params
     catchRunWalletResourceHtml layer alert id
         $ do
             transfers <-
@@ -182,12 +184,43 @@ depositsHistoryHandler network layer render alert params = do
                 based = case depositsViewStart params of
                     Nothing -> transfers
                     Just start ->
-                        let acceptedTimes = Map.filter (<= At start) times
+                        let acceptedTimes = Map.filter (<= start) times
                         in  Map.restrictKeys transfers (Map.keysSet acceptedTimes)
             pure
                 $ render
                 $ MonoidalMap.take 1000
                 $ depositsHistory times params based
+
+depositsHistoryHandlerWindow
+    :: NetworkEnv IO a
+    -> SessionLayer WalletResource
+    -> (DepositsWindow -> html)
+    -> (BL.ByteString -> html)
+    -> DepositsParams
+    -> Handler html
+depositsHistoryHandlerWindow network layer render alert params = do
+    liftIO $ print params
+    catchRunWalletResourceHtml layer alert id
+        $ do
+            transfers <-
+                if depositsFakeData params
+                    then do
+                        now <- liftIO getCurrentTime
+                        addresses <- fmap snd <$> listCustomers
+                        liftIO $ fakeDeposits now addresses
+                    else getValueTransfers
+            times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
+
+            let
+                based = case depositsViewStart params of
+                    Nothing -> transfers
+                    Just start ->
+                        let acceptedTimes = Map.filter (<= start) times
+                        in  Map.restrictKeys transfers (Map.keysSet acceptedTimes)
+            pure $ case MonoidalMap.lookupMin
+                $ depositsHistory times params based of
+                Just (_, window) -> render window
+                Nothing -> alert "No deposits found for that time period"
 
 --------------------------------------------------------------------------------
 -- Fake data
