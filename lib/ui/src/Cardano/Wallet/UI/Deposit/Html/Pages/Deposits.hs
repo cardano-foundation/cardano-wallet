@@ -281,12 +281,16 @@ depositsPartsH params ds = do
                         ]
         _ -> mempty
 
-depositsHistoryWindowH :: DepositsParams -> SolveAddress -> DepositsWindow -> Html ()
+depositsHistoryWindowH
+    :: DepositsParams
+    -> SolveAddress
+    -> DepositsWindow
+    -> Html ()
 depositsHistoryWindowH
     params@DepositsParams{depositsViewStart}
     customerOfAddress
     DepositsWindow{depositsWindowTransfers} = do
-        let xs = MonoidalMap.assocs depositsWindowTransfers
+        let xs = MonoidalMap.assocs $ fmap fold depositsWindowTransfers
             swapTarget = maybe "" (T.pack . show . hash) depositsViewStart
 
         td_ [colspan_ "3"] $ table_ [class_ "table table-hover m-0"] $ do
@@ -303,7 +307,7 @@ depositsHistoryWindowH
                 th_
                     [ scope_ "col"
                     , class_ "text-end"
-                    , style_ "width: 7em"
+                    , style_ "width: 6em"
                     ]
                     "Customer"
                 th_
@@ -320,7 +324,11 @@ depositsHistoryWindowH
                     "Spent"
             tbody_ $ mapM_ (depositByAddressH customerOfAddress params) xs
 
-depositByAddressH :: SolveAddress -> DepositsParams -> (Address, ValueTransfer) -> Html ()
+depositByAddressH
+    :: SolveAddress
+    -> DepositsParams
+    -> (Address, ValueTransfer)
+    -> Html ()
 depositByAddressH customerOfAddress _ (addr, ValueTransfer received spent) = do
     tr_ [scope_ "row"] $ do
         td_ [class_ "text-end"] $ customerAddressH addr
@@ -389,7 +397,8 @@ depositH DepositsParams{depositsSlot} (Down time, DepositsWindow{..}) = do
                 $ td_ [class_ "text-end"]
                 $ toHtml
                 $ show depositsSlot
-            let ValueTransfer received spent = fold depositsWindowTransfers
+            let ValueTransfer received spent =
+                    fold $ fold depositsWindowTransfers
             td_ [class_ "text-end"] $ valueH received
             td_ [class_ "text-end"] $ valueH spent
     tr_ [id_ $ "window-" <> T.pack (show $ hash time)] mempty

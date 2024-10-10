@@ -47,6 +47,7 @@ module Cardano.Wallet.Deposit.REST
     , deleteWallet
     , deleteTheDepositWalletOnDisk
     , customerAddress
+    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -386,6 +387,15 @@ getCustomerHistory = onWalletInstance . WalletIO.getCustomerHistory
 getValueTransfers
     :: WalletResourceM (Map Read.Slot (Map Address Wallet.ValueTransfer))
 getValueTransfers = onWalletInstance WalletIO.getValueTransfers
+
+getValueTransfersWithTxIds
+    :: WalletResourceM
+        ( Map
+            Read.Slot
+            (Map Address (Map Read.TxId Wallet.ValueTransfer))
+        )
+getValueTransfersWithTxIds =
+    onWalletInstance WalletIO.getValueTransfersWithTxIds
 
 {-----------------------------------------------------------------------------
     Operations

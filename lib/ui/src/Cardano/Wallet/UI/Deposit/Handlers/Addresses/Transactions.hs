@@ -20,12 +20,12 @@ import Cardano.Wallet.Deposit.Pure
     , TxSummary (..)
     , ValueTransfer (ValueTransfer)
     )
-import Cardano.Wallet.Deposit.Read
-    ( Slot
-    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , customerAddress
+    )
+import Cardano.Wallet.Deposit.Read
+    ( Slot
     )
 import Cardano.Wallet.Read
     ( Coin
@@ -224,9 +224,7 @@ txSummaryG now c = runStateGen_ pureGen $ \g -> do
         pure $ TxSummaryC txId cp value
   where
     pureGen = mkStdGen c
-    txIdR g = do
-        ls <- replicateM 64 $ hexOfInt <$> uniformRM (0, 15) g
-        pure $ unsafeMkTxId ls
+
     chainPointR g = do
         case unsafeSlotOfUTCTime now of
             Origin -> pure Read.GenesisPoint
@@ -243,3 +241,8 @@ txSummaryG now c = runStateGen_ pureGen $ \g -> do
                                         (SlotNo $ fromIntegral slotInt)
                                         h
                     Nothing -> error "chainPointR: invalid hash"
+txIdR :: StatefulGen g m => g -> m Read.TxId
+txIdR g = do
+    ls <- fmap (concatMap $ replicate 8)
+        $ replicateM 8 $ hexOfInt <$> uniformRM (0, 15) g
+    pure $ unsafeMkTxId ls
