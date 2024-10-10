@@ -53,6 +53,7 @@ import Cardano.Wallet.UI.Deposit.API
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( DepositsHistory
     , DepositsWindow (..)
+    , SolveAddress
     )
 import Cardano.Wallet.UI.Deposit.Html.Lib
     ( overlayFakeDataH
@@ -280,9 +281,10 @@ depositsPartsH params ds = do
                         ]
         _ -> mempty
 
-depositsHistoryWindowH :: DepositsParams -> DepositsWindow -> Html ()
+depositsHistoryWindowH :: DepositsParams -> SolveAddress -> DepositsWindow -> Html ()
 depositsHistoryWindowH
     params@DepositsParams{depositsViewStart}
+    customerOfAddress
     DepositsWindow{depositsWindowTransfers} = do
         let xs = MonoidalMap.assocs depositsWindowTransfers
             swapTarget = maybe "" (T.pack . show . hash) depositsViewStart
@@ -303,6 +305,12 @@ depositsHistoryWindowH
                     , class_ "text-end"
                     , style_ "width: 7em"
                     ]
+                    "Customer"
+                th_
+                    [ scope_ "col"
+                    , class_ "text-end"
+                    , style_ "width: 7em"
+                    ]
                     "Received"
                 th_
                     [ scope_ "col"
@@ -310,12 +318,15 @@ depositsHistoryWindowH
                     , style_ "width: 7em"
                     ]
                     "Spent"
-            tbody_ $ mapM_ (depositByAddressH params) xs
+            tbody_ $ mapM_ (depositByAddressH customerOfAddress params) xs
 
-depositByAddressH :: DepositsParams -> (Address, ValueTransfer) -> Html ()
-depositByAddressH _ (addr, ValueTransfer received spent) = do
+depositByAddressH :: SolveAddress -> DepositsParams -> (Address, ValueTransfer) -> Html ()
+depositByAddressH customerOfAddress _ (addr, ValueTransfer received spent) = do
     tr_ [scope_ "row"] $ do
         td_ [class_ "text-end"] $ customerAddressH addr
+        td_ [class_ "text-end"] $ case customerOfAddress addr of
+            Just c -> toHtml $ show c
+            Nothing -> "External"
         td_ [class_ "text-end"] $ valueH received
         td_ [class_ "text-end"] $ valueH spent
 

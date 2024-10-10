@@ -7,6 +7,7 @@ module Cardano.Wallet.UI.Deposit.Handlers.Deposits
     , depositsHistory
     , DepositsHistory
     , DepositsWindow (..)
+    , SolveAddress
     , depositsHistoryHandlerWindow
     ) where
 
@@ -19,17 +20,18 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( ValueTransfer (..)
-    )
-import Cardano.Wallet.Deposit.Read
-    ( Address
-    , Slot
-    , WithOrigin (..)
+    ( Customer
+    , ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , getValueTransfers
     , listCustomers
+    )
+import Cardano.Wallet.Deposit.Read
+    ( Address
+    , Slot
+    , WithOrigin (..)
     )
 import Cardano.Wallet.Read
     ( SlotNo (..)
@@ -78,10 +80,10 @@ import Data.Time
     , UTCTime (..)
     , diffUTCTime
     , getCurrentTime
-    , pattern YearMonthDay
     , secondsToDiffTime
     , secondsToNominalDiffTime
     , weekFirstDay
+    , pattern YearMonthDay
     )
 import GHC.IO
     ( unsafePerformIO
@@ -160,6 +162,8 @@ depositsHistory times DepositsParams{..} raw = fold $ do
         $ DepositsWindow slot
         $ MonoidalMap transfers
 
+type SolveAddress = Address -> Maybe Customer
+
 depositsHistoryHandler
     :: NetworkEnv IO a
     -> SessionLayer WalletResource
@@ -194,7 +198,7 @@ depositsHistoryHandler network layer render alert params = do
 depositsHistoryHandlerWindow
     :: NetworkEnv IO a
     -> SessionLayer WalletResource
-    -> (DepositsWindow -> html)
+    -> (SolveAddress -> DepositsWindow -> html)
     -> (BL.ByteString -> html)
     -> DepositsParams
     -> Handler html
@@ -202,6 +206,8 @@ depositsHistoryHandlerWindow network layer render alert params = do
     liftIO $ print params
     catchRunWalletResourceHtml layer alert id
         $ do
+            users <- listCustomers
+            let customerOfAddress x = Map.lookup x $ Map.fromList $ fmap (\(a, c) -> (c, a)) users
             transfers <-
                 if depositsFakeData params
                     then do
@@ -219,7 +225,7 @@ depositsHistoryHandlerWindow network layer render alert params = do
                         in  Map.restrictKeys transfers (Map.keysSet acceptedTimes)
             pure $ case MonoidalMap.lookupMin
                 $ depositsHistory times params based of
-                Just (_, window) -> render window
+                Just (_, window) -> render customerOfAddress window
                 Nothing -> alert "No deposits found for that time period"
 
 --------------------------------------------------------------------------------
