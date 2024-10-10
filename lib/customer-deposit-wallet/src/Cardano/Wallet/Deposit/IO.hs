@@ -32,6 +32,7 @@ module Cardano.Wallet.Deposit.IO
     , signTxBody
     , WalletStore
     , walletPublicIdentity
+    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -236,6 +237,12 @@ getValueTransfers
     :: WalletInstance
     -> IO (Map Slot (Map Address ValueTransfer))
 getValueTransfers w = Wallet.getValueTransfers <$> readWalletState w
+
+getValueTransfersWithTxIds
+    :: WalletInstance
+    -> IO (Map Slot (Map Address (Map Read.TxId ValueTransfer)))
+getValueTransfersWithTxIds w =
+    Wallet.getValueTransfersWithTxIds <$> readWalletState w
 
 rollForward
     :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()

@@ -23,18 +23,19 @@ import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer (..)
     )
-import Cardano.Wallet.Deposit.REST
-    ( WalletResource
-    , getValueTransfers
-    , listCustomers
-    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     , Slot
     , WithOrigin (..)
     )
+import Cardano.Wallet.Deposit.REST
+    ( WalletResource
+    , getValueTransfersWithTxIds
+    , listCustomers
+    )
 import Cardano.Wallet.Read
     ( SlotNo (..)
+    , TxId
     )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer
@@ -44,7 +45,8 @@ import Cardano.Wallet.UI.Deposit.API
     , Window (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
-    ( valueTransferG
+    ( txIdR
+    , valueTransferG
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
@@ -80,10 +82,10 @@ import Data.Time
     , UTCTime (..)
     , diffUTCTime
     , getCurrentTime
+    , pattern YearMonthDay
     , secondsToDiffTime
     , secondsToNominalDiffTime
     , weekFirstDay
-    , pattern YearMonthDay
     )
 import GHC.IO
     ( unsafePerformIO
@@ -104,11 +106,12 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
 import qualified Data.Map.Strict as Map
 
-type DepositsHistoryRaw = Map Slot (Map Address ValueTransfer)
+type DepositsHistoryRaw = Map Slot (Map Address (Map TxId ValueTransfer))
 
 data DepositsWindow = DepositsWindow
     { depositsWindowSlot :: !Slot
-    , depositsWindowTransfers :: !(MonoidalMap Address ValueTransfer)
+    , depositsWindowTransfers
+        :: !(MonoidalMap Address (MonoidalMap TxId ValueTransfer))
     }
 
 instance Semigroup DepositsWindow where
@@ -160,7 +163,8 @@ depositsHistory times DepositsParams{..} raw = fold $ do
     pure
         $ MonoidalMap.singleton (Down time)
         $ DepositsWindow slot
-        $ MonoidalMap transfers
+        $ MonoidalMap
+        $ MonoidalMap <$> transfers
 
 type SolveAddress = Address -> Maybe Customer
 
@@ -181,7 +185,7 @@ depositsHistoryHandler network layer render alert params = do
                         now <- liftIO getCurrentTime
                         addresses <- fmap snd <$> listCustomers
                         liftIO $ fakeDeposits now addresses
-                    else getValueTransfers
+                    else getValueTransfersWithTxIds
             times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
 
             let
@@ -207,16 +211,16 @@ depositsHistoryHandlerWindow network layer render alert params = do
     catchRunWalletResourceHtml layer alert id
         $ do
             users <- listCustomers
-            let customerOfAddress x = Map.lookup x $ Map.fromList $ fmap (\(a, c) -> (c, a)) users
+            let customerOfAddress x =
+                    Map.lookup x $ Map.fromList $ fmap (\(a, c) -> (c, a)) users
             transfers <-
                 if depositsFakeData params
                     then do
                         now <- liftIO getCurrentTime
                         addresses <- fmap snd <$> listCustomers
                         liftIO $ fakeDeposits now addresses
-                    else getValueTransfers
+                    else getValueTransfersWithTxIds
             times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
-
             let
                 based = case depositsViewStart params of
                     Nothing -> transfers
@@ -247,7 +251,9 @@ fakeDeposits now addresses = do
             pure newDeposits
     case cache of
         Just (now', addresses', deposits)
-            | diffUTCTime now now' < secondsToNominalDiffTime 60 && addresses' == addresses -> do
+            | diffUTCTime now now'
+                < secondsToNominalDiffTime 60
+                && addresses' == addresses -> do
                 putStrLn "Using cached fake deposits"
                 pure deposits
         Just _ -> do
@@ -257,26 +263,34 @@ fakeDeposits now addresses = do
             putStrLn "Generating fake deposits"
             generate
 
-fakeDepositsCreate :: UTCTime -> [Address] -> Map Slot (Map Address ValueTransfer)
+fakeDepositsCreate
+    :: UTCTime
+    -> [Address]
+    -> Map Slot (Map Address (Map TxId ValueTransfer))
 fakeDepositsCreate now addresses = runStateGen_ (mkStdGen 0) $ \g -> do
-    -- ns <- uniformRM (1000, 100000) g
     let ns = 100000
-    fmap (fmap getMonoidalMap . fold) $ replicateM ns $ do
-        slot <- case unsafeSlotOfUTCTime now of
-            Origin -> pure Origin
-            At (SlotNo n) -> do
-                slotInt <-
-                    floor
-                        . (fromIntegral n -)
-                        . (* fromIntegral n)
-                        . (abs)
-                        <$> standard g
-                -- _ <- error $ show slotInt
-                pure
-                    $ if slotInt < 0
-                        then Origin
-                        else At (SlotNo $ fromIntegral @Integer slotInt)
-        addressNumber <- uniformRM (0, length addresses - 1) g
-        let address = addresses !! addressNumber
-        value <- valueTransferG g
-        pure $ Map.singleton slot $ MonoidalMap.singleton address value
+    fmap (getMonoidalMap . fmap (getMonoidalMap . fmap getMonoidalMap) . fold)
+        $ replicateM ns
+        $ do
+            slot <- case unsafeSlotOfUTCTime now of
+                Origin -> pure Origin
+                At (SlotNo n) -> do
+                    slotInt <-
+                        floor
+                            . (fromIntegral n -)
+                            . (* fromIntegral n)
+                            . (abs)
+                            <$> standard g
+                    -- _ <- error $ show slotInt
+                    pure
+                        $ if slotInt < 0
+                            then Origin
+                            else At (SlotNo $ fromIntegral @Integer slotInt)
+            addressNumber <- uniformRM (0, length addresses - 1) g
+            let address = addresses !! addressNumber
+            value <- valueTransferG g
+            txId <- txIdR g
+            pure
+                $ MonoidalMap.singleton slot
+                $ MonoidalMap.singleton address
+                $ MonoidalMap.singleton txId value
