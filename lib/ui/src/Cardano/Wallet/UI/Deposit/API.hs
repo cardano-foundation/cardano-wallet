@@ -12,6 +12,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Cardano.Wallet.UI.Deposit.API where
 
@@ -19,6 +21,9 @@ import Prelude
 
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    )
+import Cardano.Wallet.Deposit.Read
+    ( WithOrigin (..)
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMenmonic
@@ -41,6 +46,9 @@ import Cardano.Wallet.UI.Lib.TimeWindow
     )
 import Control.Lens
     ( makePrisms
+    )
+import Data.Hashable
+    ( Hashable
     )
 import Data.Maybe
     ( isJust
@@ -163,6 +171,12 @@ type Data =
             :> "extend"
             :> ReqBody '[FormUrlEncoded] DepositsParams
             :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "window"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> SessionedHtml Post
+        :<|> "emptiness" :> SessionedHtml Get
 
 instance FromHttpApiData Direction where
     parseUrlPiece "asc" = Right Asc
@@ -194,7 +208,15 @@ instance FromForm TransactionHistoryParams where
         year <- parseUnique "start-year" form
         month <- parseUnique "start-month" form
         pure
-            $ TransactionHistoryParams customer utc slot spent received sorting year month
+            $ TransactionHistoryParams
+                customer
+                utc
+                slot
+                spent
+                received
+                sorting
+                year
+                month
 
 data Window
     = Minute5
@@ -263,10 +285,18 @@ data DepositsParams = DepositsParams
     , depositsWindow :: Window
     , depositsFirstWeekDay :: DayOfWeek
     , depositsFakeData :: Bool
-    , depositsViewStart :: Maybe UTCTime
+    , depositsViewStart :: Maybe (WithOrigin UTCTime)
+    , depositsWindowOpen :: Maybe (WithOrigin UTCTime)
     }
     deriving (Eq, Show)
 
+instance FromHttpApiData (WithOrigin UTCTime) where
+    parseUrlPiece "Origin" = pure Origin
+    parseUrlPiece t = At <$> parseUrlPiece t
+
+instance ToHttpApiData (WithOrigin UTCTime) where
+    toUrlPiece Origin = "Origin"
+    toUrlPiece (At t) = toUrlPiece t
 instance FromForm DepositsParams where
     fromForm form = do
         slot <- isJust <$> lookupMaybe "slot" form
@@ -274,9 +304,12 @@ instance FromForm DepositsParams where
         firstWeekDay <- parseUnique "first-week-day" form
         fake <- isJust <$> lookupMaybe "fake-data" form
         viewStart <- parseMaybe "view-start" form
-        pure $ DepositsParams slot window firstWeekDay fake viewStart
+        windowOpen <- parseMaybe "window-open" form
+        pure $ DepositsParams slot window firstWeekDay fake viewStart windowOpen
 
 type Home = SessionedHtml Get
+
+deriving instance Hashable (WithOrigin UTCTime)
 
 -- | UI endpoints
 type UI =
@@ -313,6 +346,8 @@ customerHistoryLink :: Link
 depositsLink :: Link
 depositsHistoryLink :: Link
 depositsHistoryExtendLink :: Link
+depositsHistoryWindowLink :: Link
+emptinessLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -340,5 +375,7 @@ homePageLink
     :<|> depositsLink
     :<|> depositsHistoryLink
     :<|> depositsHistoryExtendLink
+    :<|> depositsHistoryWindowLink
+    :<|> emptinessLink
     =
         allLinks (Proxy @UI)
