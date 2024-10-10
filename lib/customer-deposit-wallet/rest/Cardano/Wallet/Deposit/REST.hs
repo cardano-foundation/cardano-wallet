@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -69,12 +68,12 @@ import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceExists (..)
     , ErrResourceMissing (..)
     )
-import "customer-deposit-wallet" Cardano.Wallet.Deposit.Pure
+import Cardano.Wallet.Deposit.Pure
     ( Customer
     , Word31
     , fromXPubAndGenesis
     )
-import "customer-deposit-wallet" Cardano.Wallet.Deposit.Read
+import Cardano.Wallet.Deposit.Read
     ( Address
     )
 import Codec.Serialise
@@ -128,8 +127,8 @@ import System.FilePath
 
 import qualified Cardano.Wallet.Deposit.IO as WalletIO
 import qualified Cardano.Wallet.Deposit.IO.Resource as Resource
-import qualified "customer-deposit-wallet" Cardano.Wallet.Deposit.Pure as Wallet
-import qualified "customer-deposit-wallet" Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Pure as Wallet
+import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
