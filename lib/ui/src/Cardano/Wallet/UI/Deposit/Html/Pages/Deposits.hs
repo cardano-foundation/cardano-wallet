@@ -72,10 +72,10 @@ import Cardano.Wallet.UI.Type
     ( WHtml
     )
 import Control.Lens
-    ( _1
-    , unsnoc
+    ( unsnoc
     , view
     , (<&>)
+    , _1
     )
 import Control.Monad
     ( forM_
@@ -139,79 +139,78 @@ depositsH = do
 
 depositsViewControls :: Html ()
 depositsViewControls =
-    div_ [class_ "d-flex justify-content-end"] $ do
-        div_ [class_ "collapse", id_ "columns-control"] $ do
-            record Nothing Auto NotStriped $ do
-                simpleField "Week Start"
-                    $ div_
-                        [ class_ "d-flex justify-content-end align-items-center form-check"
-                        ]
-                    $ select_
-                        [ class_ "form-select w-auto m-1 p-1"
-                        , id_ "select-first-week-day"
-                        , name_ "first-week-day"
-                        , style_ "background-image: none"
-                        ]
-                    $ forM_ [Sunday, Monday]
-                    $ \day -> do
-                        let selected = case day of
-                                Monday -> (selected_ "" :)
-                                _ -> id
-                        option_ (selected [value_ $ toUrlPiece day])
-                            $ toHtml
-                            $ show day
-                simpleField "Slot"
-                    $ div_
-                        [ class_ "d-flex justify-content-end align-items-center form-check"
-                        ]
-                    $ input_
-                        [ class_ "form-check-input"
-                        , type_ "checkbox"
-                        , id_ "toggle-slot"
-                        , name_ "slot"
-                        , value_ ""
-                        ]
-                simpleField "Window"
-                    $ div_
-                        [ class_ "d-flex justify-content-end align-items-center form-check"
-                        ]
-                    $ select_
-                        [ class_ "form-select w-auto m-1 p-1"
-                        , id_ "select-window"
-                        , name_ "window"
-                        , style_ "background-image: none"
-                        ]
-                    $ forM_ [Minute5 .. Year]
-                    $ \window -> do
-                        let selected = case window of
-                                Day -> (selected_ "" :)
-                                _ -> id
-                        option_ (selected [value_ $ toUrlPiece window])
-                            $ toHtml
-                            $ toText window
-                simpleField "Spent"
-                    $ div_
-                        [ class_ "d-flex justify-content-end align-items-center form-check"
-                        ]
-                    $ input_
-                        [ class_ "form-check-input"
-                        , type_ "checkbox"
-                        , id_ "toggle-spent"
-                        , name_ "spent"
-                        , value_ ""
-                        ]
-                simpleField "Fake Data"
-                    $ div_
-                        [ class_ "d-flex justify-content-end align-items-center form-check"
-                        ]
-                    $ input_
-                        [ class_ "form-check-input"
-                        , type_ "checkbox"
-                        , id_ "toggle-fake-data"
-                        , name_ "fake-data"
-                        , value_ ""
-                        , checked_
-                        ]
+    div_ [class_ "collapse", id_ "columns-control"] $ do
+        record Nothing Auto NotStriped $ do
+            simpleField "Week Start"
+                $ div_
+                    [ class_ "d-flex justify-content-end align-items-center form-check"
+                    ]
+                $ select_
+                    [ class_ "form-select w-auto m-1 p-1"
+                    , id_ "select-first-week-day"
+                    , name_ "first-week-day"
+                    , style_ "background-image: none"
+                    ]
+                $ forM_ [Sunday, Monday]
+                $ \day -> do
+                    let selected = case day of
+                            Monday -> (selected_ "" :)
+                            _ -> id
+                    option_ (selected [value_ $ toUrlPiece day])
+                        $ toHtml
+                        $ show day
+            simpleField "Slot"
+                $ div_
+                    [ class_ "d-flex justify-content-end align-items-center form-check"
+                    ]
+                $ input_
+                    [ class_ "form-check-input"
+                    , type_ "checkbox"
+                    , id_ "toggle-slot"
+                    , name_ "slot"
+                    , value_ ""
+                    ]
+            simpleField "Window"
+                $ div_
+                    [ class_ "d-flex justify-content-end align-items-center form-check"
+                    ]
+                $ select_
+                    [ class_ "form-select w-auto m-1 p-1"
+                    , id_ "select-window"
+                    , name_ "window"
+                    , style_ "background-image: none"
+                    ]
+                $ forM_ [Minute5 .. Year]
+                $ \window -> do
+                    let selected = case window of
+                            Day -> (selected_ "" :)
+                            _ -> id
+                    option_ (selected [value_ $ toUrlPiece window])
+                        $ toHtml
+                        $ toText window
+            simpleField "Spent"
+                $ div_
+                    [ class_ "d-flex justify-content-end align-items-center form-check"
+                    ]
+                $ input_
+                    [ class_ "form-check-input"
+                    , type_ "checkbox"
+                    , id_ "toggle-spent"
+                    , name_ "spent"
+                    , value_ ""
+                    ]
+            simpleField "Fake Data"
+                $ div_
+                    [ class_ "d-flex justify-content-end align-items-center form-check"
+                    ]
+                $ input_
+                    [ class_ "form-check-input"
+                    , type_ "checkbox"
+                    , id_ "toggle-fake-data"
+                    , name_ "fake-data"
+                    , value_ ""
+                    , checked_
+                    ]
 
 depositsElementH
     :: AlertH
@@ -235,19 +234,20 @@ depositsElementH = onWalletPresentH $ \case
                 , hxTarget_ "#deposits"
                 ]
                 $ do
-                    let configure =
-                            div_ [class_ "d-flex justify-content-end"] $ do
-                                button_
-                                    [ class_ "btn"
-                                    , type_ "button"
-                                    , data_ "bs-toggle" "collapse"
-                                    , data_ "bs-target" "#columns-control"
-                                    ]
-                                    $ div_
-                                    $ do
-                                        i_ [class_ "bi bi-gear"] mempty
-                    box "Deposits" configure $ do
-                        depositsViewControls
+                    let configure = do
+                            div_ [class_ "d-flex justify-content-end sticky-top"] $ do
+                                let toggle =
+                                        button_
+                                            [ class_ "btn"
+                                            , type_ "button"
+                                            , data_ "bs-toggle" "collapse"
+                                            , data_ "bs-target" "#columns-control"
+                                            ]
+                                            $ do
+                                                i_ [class_ "bi bi-gear"] mempty
+                                box mempty toggle depositsViewControls
+                    box "Deposits" mempty $ do
+                        configure
                         div_ [class_ "row g-0"]
                             $ div_
                                 [ class_ "col"
@@ -393,7 +393,8 @@ depositH
                             $ case time of
                                 At t -> show t
                                 Origin -> "Origin"
-                        close = button_
+                        close =
+                            button_
                                 [ class_ "btn p-1"
                                 , type_ "button"
                                 , hxTarget_ $ "#" <> trId
