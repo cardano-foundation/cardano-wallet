@@ -48,7 +48,7 @@ copyButton
     -> HtmlT m ()
 copyButton field' = do
     button_
-        [ class_ "btn copy-button"
+        [ class_ "btn copy-button p-1"
         , id_ button
         , makeAttribute "data-clipboard-target" fieldId
         ]

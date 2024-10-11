@@ -62,7 +62,8 @@ addressesH = do
     sseH addressesLink "addresses" ["wallet"]
 
 customerAddressH :: Monad m => Address -> HtmlT m ()
-customerAddressH addr = truncatableText "address-text" $ toHtml encodedAddr
+customerAddressH addr = truncatableText ("address-text-" <> encodedAddr)
+    $ toHtml encodedAddr
   where
     encodedAddr = encodeMainnetAddress addr
 

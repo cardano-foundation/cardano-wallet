@@ -19,6 +19,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
+    , monospaced
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( fadeInId
@@ -185,6 +186,7 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 truncatedTdTextWorkaround
                 offscreenCss
                 flatPickrCSSDark
+                monospaced
             body_ $ do
                 fadeInId
                 body

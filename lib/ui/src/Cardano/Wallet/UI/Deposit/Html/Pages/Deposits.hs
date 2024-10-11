@@ -13,7 +13,8 @@ import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( ValueTransfer (..)
+    ( Customer
+    , ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -31,7 +32,8 @@ import Cardano.Wallet.UI.Common.Html.Htmx
 import Cardano.Wallet.UI.Common.Html.Lib
     ( AlertH
     , linkText
-    , truncatableText
+    , tdEnd
+    , thEnd
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( Striped (..)
@@ -58,6 +60,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Deposits
 import Cardano.Wallet.UI.Deposit.Html.Lib
     ( overlayFakeDataH
     )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
+    ( customerAddressH
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     ( valueH
     )
@@ -65,14 +70,14 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
     , onWalletPresentH
     )
-import Cardano.Wallet.UI.Lib.Address
-    ( encodeMainnetAddress
-    )
 import Cardano.Wallet.UI.Type
     ( WHtml
     )
 import Control.Lens
-    ( unsnoc
+    ( _1
+    , unsnoc
+    , view
+    , (<&>)
     )
 import Control.Monad
     ( forM_
@@ -83,6 +88,9 @@ import Data.Foldable
     )
 import Data.Hashable
     ( Hashable (..)
+    )
+import Data.List
+    ( sortOn
     )
 import Data.Ord
     ( Down (..)
@@ -96,7 +104,6 @@ import Data.Time
     )
 import Lucid
     ( Html
-    , HtmlT
     , ToHtml (..)
     , button_
     , checked_
@@ -116,7 +123,6 @@ import Lucid
     , table_
     , tbody_
     , td_
-    , th_
     , thead_
     , tr_
     , type_
@@ -132,11 +138,6 @@ import qualified Data.Text as T
 depositsH :: WHtml ()
 depositsH = do
     sseH depositsLink "addresses" ["wallet"]
-
-customerAddressH :: Monad m => Address -> HtmlT m ()
-customerAddressH addr = truncatableText "address-text" $ toHtml encodedAddr
-  where
-    encodedAddr = encodeMainnetAddress addr
 
 depositsViewControls :: Html ()
 depositsViewControls =
@@ -290,53 +291,43 @@ depositsHistoryWindowH
     params@DepositsParams{depositsViewStart}
     customerOfAddress
     DepositsWindow{depositsWindowTransfers} = do
-        let xs = MonoidalMap.assocs $ fmap fold depositsWindowTransfers
+        let xs =
+                MonoidalMap.assocs (fmap fold depositsWindowTransfers)
+                    <&> \(addr, ValueTransfer received spent) ->
+                        ( customerOfAddress addr
+                        , addr
+                        , ValueTransfer received spent
+                        )
             swapTarget = maybe "" (T.pack . show . hash) depositsViewStart
 
-        td_ [colspan_ "3"] $ table_ [class_ "table table-hover m-0"] $ do
+        td_ [colspan_ "3"] $ table_ [class_ "table table-striped table-hover m-0"] $ do
             div_ [class_ "d-flex justify-content-end"] $ do
                 button_
-                    [ class_ "btn btn-secondary"
+                    [ class_ "btn btn-secondary p-1"
                     , type_ "button"
                     , hxTarget_ $ "#window-" <> swapTarget
                     , hxGet_ $ linkText emptinessLink
                     ]
-                    "Close"
+                    $ i_ [class_ "bi bi-x"] mempty
             thead_ $ tr_ [scope_ "row"] $ do
-                th_ [scope_ "col", class_ "text-end"] "Address"
-                th_
-                    [ scope_ "col"
-                    , class_ "text-end"
-                    , style_ "width: 6em"
-                    ]
-                    "Customer"
-                th_
-                    [ scope_ "col"
-                    , class_ "text-end"
-                    , style_ "width: 7em"
-                    ]
-                    "Received"
-                th_
-                    [ scope_ "col"
-                    , class_ "text-end"
-                    , style_ "width: 7em"
-                    ]
-                    "Spent"
-            tbody_ $ mapM_ (depositByAddressH customerOfAddress params) xs
+                thEnd Nothing "Addr"
+                thEnd (Just 6) "Customer"
+                thEnd (Just 7) "Received"
+                thEnd (Just 7) "Spent"
+            tbody_ $ mapM_ (depositByAddressH params) $ sortOn (view _1) xs
 
 depositByAddressH
-    :: SolveAddress
-    -> DepositsParams
-    -> (Address, ValueTransfer)
+    :: DepositsParams
+    -> (Maybe Customer, Address, ValueTransfer)
     -> Html ()
-depositByAddressH customerOfAddress _ (addr, ValueTransfer received spent) = do
+depositByAddressH _ (mcustomer, addr, ValueTransfer received spent) = do
     tr_ [scope_ "row"] $ do
-        td_ [class_ "text-end"] $ customerAddressH addr
-        td_ [class_ "text-end"] $ case customerOfAddress addr of
+        tdEnd $ customerAddressH addr
+        tdEnd $ case mcustomer of
             Just c -> toHtml $ show c
             Nothing -> "External"
-        td_ [class_ "text-end"] $ valueH received
-        td_ [class_ "text-end"] $ valueH spent
+        tdEnd $ valueH received
+        tdEnd $ valueH spent
 
 depositsHistoryH :: DepositsParams -> DepositsHistory -> Html ()
 depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
@@ -347,31 +338,11 @@ depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
         ]
         $ do
             thead_ $ tr_ [scope_ "row"] $ do
-                th_
-                    [ scope_ "col"
-                    , class_ "text-end"
-                    , style_ "width: 7em"
-                    ]
-                    "Time"
+                thEnd (Just 7) "Time"
                 when depositsSlot
-                    $ th_
-                        [ scope_ "col"
-                        , class_ "text-end"
-                        , style_ "width: 7em"
-                        ]
-                        "Slot"
-                th_
-                    [ scope_ "col"
-                    , class_ "text-end"
-                    , style_ "width: 7em"
-                    ]
-                    "Received"
-                th_
-                    [ scope_ "col"
-                    , class_ "text-end"
-                    , style_ "width: 7em"
-                    ]
-                    "Spent"
+                    $ thEnd (Just 7) "Slot"
+                thEnd (Just 7) "Received"
+                thEnd (Just 7) "Spent"
             tbody_ $ do
                 depositsPartsH params ds
   where
@@ -390,15 +361,15 @@ depositH DepositsParams{depositsSlot} (Down time, DepositsWindow{..}) = do
         , hxVals_ $ "{\"view-start\":\"" <> toUrlPiece time <> "\"}"
         ]
         $ do
-            td_ [class_ "text-end"] $ toHtml $ case time of
+            tdEnd $ toHtml $ case time of
                 Origin -> "Origin"
                 At t -> show t
             when depositsSlot
-                $ td_ [class_ "text-end"]
+                $ tdEnd
                 $ toHtml
                 $ show depositsSlot
             let ValueTransfer received spent =
                     fold $ fold depositsWindowTransfers
-            td_ [class_ "text-end"] $ valueH received
-            td_ [class_ "text-end"] $ valueH spent
+            tdEnd $ valueH received
+            tdEnd $ valueH spent
     tr_ [id_ $ "window-" <> T.pack (show $ hash time)] mempty
