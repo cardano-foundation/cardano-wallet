@@ -19,6 +19,8 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , AlertH
     , monospaced
     , truncatableText
+    , tdEnd
+    , thEnd
     )
 where
 
@@ -51,6 +53,8 @@ import Lucid
     , div_
     , id_
     , style_
+    , td_
+    , th_
     )
 import Lucid.Base
     ( makeAttribute
@@ -58,9 +62,6 @@ import Lucid.Base
 import Servant.Links
     ( Link
     , linkURI
-    )
-import Text.Printf
-    ( printf
     )
 
 import qualified Data.ByteString.Lazy as BL
@@ -112,20 +113,23 @@ ariaLabel_ = makeAttribute "aria-label"
 
 type AlertH = BL.ByteString -> Html ()
 
-monospaced :: Monad m => Text -> HtmlT m ()
-monospaced identitifier =
-    style_
-        $ T.pack
-        $ printf
-            "#%s {font-family: \"Courier New\",monospace !important;}"
-            identitifier
+monospaced :: Monad m => HtmlT m ()
+monospaced =
+    style_ ".monospaced {font-family: \"Courier New\",monospace !important;}"
 
 truncatableText :: Monad m => Text -> HtmlT m () -> HtmlT m ()
-truncatableText identifier h = div_ [class_ "d-flex justify-content-end align-items-center"] $ do
-    monospaced identifier
-    div_
-        [ id_ identifier
-        , class_ "text-truncate text-end"
-        ]
-        h
-    copyButton identifier
+truncatableText identifier h =
+    div_ [class_ "d-flex justify-content-end align-items-center"] $ do
+        div_
+            [ id_ identifier
+            , class_ "text-truncate text-end monospaced"
+            ]
+            h
+        copyButton identifier
+
+tdEnd :: Monad m => HtmlT m () -> HtmlT m ()
+tdEnd = td_ [class_ "text-end p-1 px-0"]
+
+thEnd :: Monad m => Maybe Int -> HtmlT m () -> HtmlT m ()
+thEnd mw = th_ $ [class_ "text-end p-1 px-0"] <>
+    maybe [] (\w -> [style_ $ "width: " <> T.pack (show w) <> "em"]) mw
