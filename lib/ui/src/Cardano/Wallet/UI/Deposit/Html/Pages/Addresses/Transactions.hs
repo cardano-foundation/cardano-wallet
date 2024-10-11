@@ -24,6 +24,8 @@ import Cardano.Wallet.Read.Tx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
+    , tdEnd
+    , thEnd
     , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
@@ -43,6 +45,7 @@ import Control.Monad
     )
 import Lucid
     ( Html
+    , HtmlT
     , ToHtml (..)
     , button_
     , checked_
@@ -62,7 +65,6 @@ import Lucid
     , table_
     , tbody_
     , td_
-    , th_
     , thead_
     , tr_
     , type_
@@ -144,17 +146,17 @@ txSummaryH
     (index, TxSummaryC{txSummarized, txChainPoint, txTransfer}) = do
         tr_ [scope_ "row"] $ do
             when txHistorySlot
-                $ td_ [scope_ "col", class_ "text-end align-bottom"]
+                $ tdEnd
                 $ chainPointToSlotH txChainPoint
             when txHistoryUTC
-                $ td_ [scope_ "col", class_ "text-end align-bottom"]
+                $ tdEnd
                 $ chainPointToUTCH times txChainPoint
             when txHistoryReceived
-                $ td_ [scope_ "col", class_ "text-end align-bottom"]
+                $ tdEnd
                 $ valueH
                 $ received txTransfer
             when txHistorySpent
-                $ td_ [scope_ "col", class_ "text-end align-bottom"]
+                $ tdEnd
                 $ valueH
                 $ spent txTransfer
             td_ [scope_ "col", class_ "flex-fill align-bottom"]
@@ -164,11 +166,12 @@ txSummaryH
                 $ hashFromTxId txSummarized
 
 customerHistoryH
-    :: Bool
+    :: Monad m
+    => Bool
     -> TransactionHistoryParams
     -> Map Slot (WithOrigin UTCTime)
     -> [TxSummary]
-    -> Html ()
+    -> HtmlT m ()
 customerHistoryH fake params@TransactionHistoryParams{..} times txs =
     fakeOverlay $ do
         table_
@@ -179,41 +182,16 @@ customerHistoryH fake params@TransactionHistoryParams{..} times txs =
             $ do
                 thead_ $ tr_ [scope_ "row"] $ do
                     when txHistorySlot
-                        $ th_
-                            [ scope_ "col"
-                            , class_ "text-end"
-                            , style_ "width: 7em"
-                            ]
-                            "Slot"
+                        $ thEnd (Just 7) "Slot"
                     when txHistoryUTC
-                        $ th_
-                            [ scope_ "col"
-                            , class_ "text-end"
-                            , style_ "width: 7em"
-                            ]
-                            "Time"
+                        $ thEnd (Just 7) "Time"
                     when txHistoryReceived
-                        $ th_
-                            [ scope_ "col"
-                            , class_ "text-end"
-                            , style_ "width: 7em"
-                            ]
-                            "Received"
+                        $ thEnd (Just 7) "Received"
                     when txHistorySpent
-                        $ th_
-                            [ scope_ "col"
-                            , class_ "text-end"
-                            , style_ "width: 7em"
-                            ]
-                            "Spent"
-                    th_
-                        [ scope_ "col"
-                        , class_ "text-end"
-                        , style_ "width: auto"
-                        ]
-                        "Tx Id"
+                        $ thEnd (Just 7) "Spent"
+                    thEnd Nothing "Tx Id"
                 tbody_
-                    $ mapM_ (txSummaryH params times)
+                    $ mapM_ (toHtml . txSummaryH params times)
                     $ zip [0 ..] txs
   where
     fakeOverlay = if fake then overlayFakeDataH else id

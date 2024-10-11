@@ -128,8 +128,8 @@ truncatableText identifier h =
         copyButton identifier
 
 tdEnd :: Monad m => HtmlT m () -> HtmlT m ()
-tdEnd = td_ [class_ "text-end p-1 px-0"]
+tdEnd = td_ [class_ "text-end p-1 px-0 align-bottom"]
 
 thEnd :: Monad m => Maybe Int -> HtmlT m () -> HtmlT m ()
-thEnd mw = th_ $ [class_ "text-end p-1 px-0"] <>
+thEnd mw = th_ $ [class_ "text-end p-1 px-0 align-bottom"] <>
     maybe [] (\w -> [style_ $ "width: " <> T.pack (show w) <> "em"]) mw
