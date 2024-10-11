@@ -61,7 +61,7 @@ imageOverlay =
     style_ []
         $ toHtml @String
             ".overlay-image { position: absolute; top: 0; left: 0; z-index: 10;\
-            \ width: 100%; opacity: 20%; pointer-events: none }"
+            \ width: 100%; opacity: 5%; pointer-events: none }"
 
 overlayFakeDataH :: Monad m => HtmlT m () -> HtmlT m ()
 overlayFakeDataH x = div_ [style_ "position: relative;"] $ do

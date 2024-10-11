@@ -12,6 +12,9 @@ module Cardano.Wallet.UI.Deposit.Server
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( WithOrigin
+    )
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     ( getNetworkInformation
     )
@@ -90,6 +93,7 @@ import Cardano.Wallet.UI.Cookies
     )
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (depositsViewStart)
+    , Expand
     , TransactionHistoryParams
     , UI
     , settingsSseToggleLink
@@ -103,10 +107,12 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( depositsHistoryHandler
-    , depositsHistoryHandlerWindow
+    , depositsHistoryWindowHandler
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
-    ( walletPresence
+    ( catchRunWalletResourceM
+    , solveAddress
+    , walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
@@ -123,9 +129,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     , transactionsElementH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
-    ( depositsElementH
+    ( depositH
+    , depositsElementH
     , depositsHistoryH
-    , depositsHistoryWindowH
     , depositsPartsH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
@@ -145,6 +151,9 @@ import Control.Tracer
     )
 import Data.Functor
     ( ($>)
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Text
     ( Text
@@ -303,11 +312,12 @@ serveDepositsHistory
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
 serveDepositsHistory network ul params = withSessionLayer ul $ \layer -> do
+    customerOfAddress <- catchRunWalletResourceM layer solveAddress
     renderSmoothHtml
         <$> depositsHistoryHandler
             network
             layer
-            (depositsHistoryH params)
+            (depositsHistoryH params customerOfAddress)
             alertH
             params{depositsViewStart = Nothing}
 
@@ -318,11 +328,12 @@ serveDepositsHistoryExtension
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
 serveDepositsHistoryExtension network ul params = withSessionLayer ul $ \layer -> do
+    customerOfAddress <- catchRunWalletResourceM layer solveAddress
     renderHtml
         <$> depositsHistoryHandler
             network
             layer
-            (depositsPartsH params)
+            (depositsPartsH params customerOfAddress)
             alertH
             params
 
@@ -330,13 +341,19 @@ serveDepositsHistoryWindow
     :: NetworkEnv IO a
     -> UILayer WalletResource
     -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Expand
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-serveDepositsHistoryWindow network ul params = withSessionLayer ul $ \layer -> do
-    renderHtml
-        <$> depositsHistoryHandlerWindow
-            network
-            layer
-            (depositsHistoryWindowH params)
-            alertH
-            params
+serveDepositsHistoryWindow network ul params mtime mexpand = withSessionLayer ul $ \layer -> do
+    liftIO $ print params
+    fmap renderHtml $ case mtime of
+        Nothing -> pure $ alertH ("No time provided" :: Text)
+        Just time -> do
+            depositsHistoryWindowHandler
+                network
+                layer
+                (\solve window -> depositH params solve mexpand (Down time, window))
+                alertH
+                params
+                time

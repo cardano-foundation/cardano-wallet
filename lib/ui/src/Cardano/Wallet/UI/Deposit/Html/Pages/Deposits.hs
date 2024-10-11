@@ -21,13 +21,11 @@ import Cardano.Wallet.Deposit.Read
     , WithOrigin (..)
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
-    ( hxGet_
-    , hxInclude_
+    ( hxInclude_
     , hxPost_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
-    , hxVals_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( AlertH
@@ -45,12 +43,12 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
+    , Expand (..)
     , Window (..)
     , depositsHistoryExtendLink
     , depositsHistoryLink
     , depositsHistoryWindowLink
     , depositsLink
-    , emptinessLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( DepositsHistory
@@ -257,15 +255,15 @@ depositsElementH = onWalletPresentH $ \case
                                 ]
                                 mempty
 
-depositsPartsH :: DepositsParams -> DepositsHistory -> Html ()
-depositsPartsH params ds = do
+depositsPartsH :: DepositsParams -> SolveAddress -> DepositsHistory -> Html ()
+depositsPartsH params solveAddress ds = do
     let ((before, after), lasted) =
             let
                 xs = MonoidalMap.assocs ds
                 l = length xs
             in
                 (splitAt (l `div` 2) xs, snd <$> unsnoc xs)
-    tbody_ $ mapM_ (depositH params) before
+    tbody_ $ mapM_ (depositH params solveAddress Nothing) before
     case lasted of
         Just (Down (At _time), _) -> do
             tbody_
@@ -277,21 +275,22 @@ depositsPartsH params ds = do
                 ]
                 mempty
         _ -> mempty
-    tbody_ $ mapM_ (depositH params) after
+    tbody_ $ mapM_ (depositH params solveAddress Nothing) after
     case lasted of
-        Just (Down time, _) -> do
-            tbody_
-                [ id_ "load-more"
-                ]
-                $ do
-                    tr_ [scope_ "row"] $ td_ "to be loaded"
-                    input_
-                        [ type_ "hidden"
-                        , id_ "revealed"
-                        , name_ "view-start"
-                        , value_
-                            $ toUrlPiece time
-                        ]
+        Just (Down time, _)
+            | time > Origin -> do
+                tbody_
+                    [ id_ "load-more"
+                    ]
+                    $ do
+                        tr_ [scope_ "row"] $ td_ "to be loaded"
+                        input_
+                            [ type_ "hidden"
+                            , id_ "revealed"
+                            , name_ "view-start"
+                            , value_
+                                $ toUrlPiece time
+                            ]
         _ -> mempty
 
 depositsHistoryWindowH
@@ -300,54 +299,54 @@ depositsHistoryWindowH
     -> DepositsWindow
     -> Html ()
 depositsHistoryWindowH
-    params@DepositsParams{depositsViewStart, depositsSpent}
+    params@DepositsParams{depositsSpent}
     customerOfAddress
-    DepositsWindow{depositsWindowTransfers} = do
-        let xs =
-                MonoidalMap.assocs (fmap fold depositsWindowTransfers)
-                    <&> \(addr, ValueTransfer received spent) ->
-                        ( customerOfAddress addr
-                        , addr
-                        , ValueTransfer received spent
-                        )
-            swapTarget = maybe "" (T.pack . show . hash) depositsViewStart
-        let columns = if depositsSpent then "3" else "2"
-            -- this is bullshit :shrug: . This number refers to the number of columns
-            -- in the container table. Probably one day it will break up.
-        td_ [colspan_ columns] $ table_ [class_ "table table-striped table-hover m-0"] $ do
-            div_ [class_ "d-flex justify-content-end"] $ do
-                button_
-                    [ class_ "btn btn-secondary p-1"
-                    , type_ "button"
-                    , hxTarget_ $ "#window-" <> swapTarget
-                    , hxGet_ $ linkText emptinessLink
-                    ]
-                    $ i_ [class_ "bi bi-x"] mempty
-            thead_ $ tr_ [scope_ "row"] $ do
-                thEnd Nothing "Addr"
-                thEnd (Just 6) "Customer"
-                thEnd (Just 7) "Received"
-                when depositsSpent
-                    $ thEnd (Just 7) "Spent"
-            tbody_ $ mapM_ (depositByAddressH params) $ sortOn (view _1) xs
+    DepositsWindow{depositsWindowTransfers} =
+        do
+            let xs =
+                    MonoidalMap.assocs (fmap fold depositsWindowTransfers)
+                        <&> \(addr, ValueTransfer received spent) ->
+                            ( customerOfAddress addr
+                            , addr
+                            , ValueTransfer received spent
+                            )
+            -- swapTarget = maybe "" (T.pack . show . hash) depositsDetails
+            table_ [class_ "table table-striped table-hover m-0"] $ do
+                -- div_ [class_ "d-flex justify-content-end"] $ do
+                --     button_
+                --         [ class_ "btn btn-secondary p-1"
+                --         , type_ "button"
+                --         , hxTarget_ $ "#window-" <> swapTarget
+                --         , hxGet_ $ linkText emptinessLink
+                --         ]
+                --         $ i_ [class_ "bi bi-x"] mempty
+                thead_ $ tr_ [scope_ "row"] $ do
+                    thEnd Nothing "Addr"
+                    thEnd (Just 6) "Customer"
+                    thEnd (Just 7) "Received"
+                    when depositsSpent
+                        $ thEnd (Just 7) "Spent"
+                tbody_ $ mapM_ (depositByAddressH params) $ sortOn (view _1) xs
 
 depositByAddressH
     :: DepositsParams
     -> (Maybe Customer, Address, ValueTransfer)
     -> Html ()
-depositByAddressH DepositsParams{depositsSpent}
+depositByAddressH
+    DepositsParams{depositsSpent}
     (mcustomer, addr, ValueTransfer received spent) = do
-    tr_ [scope_ "row"] $ do
-        tdEnd $ customerAddressH addr
-        tdEnd $ case mcustomer of
-            Just c -> toHtml $ show c
-            Nothing -> "External"
-        tdEnd $ valueH received
-        when depositsSpent
-            $ tdEnd $ valueH spent
+        tr_ [scope_ "row"] $ do
+            tdEnd $ customerAddressH addr
+            tdEnd $ case mcustomer of
+                Just c -> toHtml $ show c
+                Nothing -> "External"
+            tdEnd $ valueH received
+            when depositsSpent
+                $ tdEnd
+                $ valueH spent
 
-depositsHistoryH :: DepositsParams -> DepositsHistory -> Html ()
-depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
+depositsHistoryH :: DepositsParams -> SolveAddress -> DepositsHistory -> Html ()
+depositsHistoryH params@DepositsParams{..} solveAddress ds = fakeOverlay $ do
     table_
         [ class_
             $ "border-top table table-striped table-hover m-0"
@@ -362,34 +361,75 @@ depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
                 when depositsSpent
                     $ thEnd (Just 7) "Spent"
             tbody_ $ do
-                depositsPartsH params ds
+                depositsPartsH params solveAddress ds
   where
     fakeOverlay = if depositsFakeData then overlayFakeDataH else id
 
 depositH
     :: DepositsParams
+    -> SolveAddress
+    -> Maybe Expand
     -> (Down (WithOrigin UTCTime), DepositsWindow)
     -> Html ()
-depositH DepositsParams{depositsSlot, depositsSpent}
-    (Down time, DepositsWindow{..}) = do
-    tr_
-        [ scope_ "row"
-        , hxTrigger_ "click"
-        , hxTarget_ "next"
-        , hxPost_ $ linkText depositsHistoryWindowLink
-        , hxVals_ $ "{\"view-start\":\"" <> toUrlPiece time <> "\"}"
-        ]
-        $ do
-            tdEnd $ toHtml $ case time of
-                Origin -> "Origin"
-                At t -> show t
-            when depositsSlot
-                $ tdEnd
-                $ toHtml
-                $ show depositsSlot
-            let ValueTransfer received spent =
-                    fold $ fold depositsWindowTransfers
-            tdEnd $ valueH received
-            when depositsSpent
-                $ tdEnd $ valueH spent
-    tr_ [id_ $ "window-" <> T.pack (show $ hash time)] mempty
+depositH
+    params@DepositsParams{depositsSlot, depositsSpent, depositsDetails}
+    solveAddress
+    mexpand
+    (Down time, DepositsWindow{..})
+        | expand = do
+            let link = linkText $ depositsHistoryWindowLink (Just time) (Just Collapse)
+                trId = T.pack $ "window-" <> show (hash time)
+            tr_
+                [ id_ trId
+                ]
+                $ do
+                    let depositColumn = if depositsSpent then succ else id
+                        slotColumn = if depositsSlot then succ else id
+                        columns = T.pack $ show $ depositColumn $ slotColumn (2 :: Int)
+                        -- this is bullshit :shrug: . This number refers to the number of columns
+                        -- in the container table. Probably one day it will break up.
+                        bar = toHtml
+                            $ T.pack
+                            $ case time of
+                                At t -> show t
+                                Origin -> "Origin"
+                        close = button_
+                                [ class_ "btn p-1"
+                                , type_ "button"
+                                , hxTarget_ $ "#" <> trId
+                                , hxSwap_ "outerHTML"
+                                , hxPost_ link
+                                ]
+                                $ i_ [class_ "bi bi-x"] mempty
+                    td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
+                        depositsHistoryWindowH
+                            params
+                            solveAddress
+                            DepositsWindow{..}
+                        input_ [type_ "hidden", name_ "details", value_ $ toUrlPiece time]
+        | otherwise = do
+            let link = linkText $ depositsHistoryWindowLink (Just time) (Just Expand)
+            tr_
+                [ scope_ "row"
+                , hxTrigger_ "click"
+                , hxTarget_ "this"
+                , hxSwap_ "outerHTML"
+                , hxPost_ link
+                ]
+                $ do
+                    tdEnd $ do
+                        toHtml $ case time of
+                            Origin -> "Origin"
+                            At t -> show t
+                    when depositsSlot
+                        $ tdEnd
+                        $ toHtml
+                        $ show depositsSlot
+                    let ValueTransfer received spent =
+                            fold $ fold depositsWindowTransfers
+                    tdEnd $ valueH received
+                    when depositsSpent
+                        $ tdEnd
+                        $ valueH spent
+      where
+        expand = maybe (time `elem` depositsDetails) (== Expand) mexpand
