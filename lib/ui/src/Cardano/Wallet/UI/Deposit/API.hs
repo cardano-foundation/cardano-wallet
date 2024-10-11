@@ -53,6 +53,9 @@ import Data.Hashable
 import Data.Maybe
     ( isJust
     )
+import Data.Set
+    ( Set
+    )
 import Data.Text.Class
     ( ToText (..)
     )
@@ -78,11 +81,13 @@ import Servant
 import Web.FormUrlEncoded
     ( FromForm (..)
     , lookupMaybe
+    , parseAll
     , parseMaybe
     , parseUnique
     )
 
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Set as Set
 
 instance FromForm PostWalletViaMenmonic
 
@@ -175,8 +180,10 @@ type Data =
             :> "history"
             :> "window"
             :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "selected-window" (WithOrigin UTCTime)
+            :> QueryParam "expand" Expand
             :> SessionedHtml Post
-        :<|> "emptiness" :> SessionedHtml Get
+        :<|> "emptiness" :> SessionedHtml Post
 
 instance FromHttpApiData Direction where
     parseUrlPiece "asc" = Right Asc
@@ -288,6 +295,7 @@ data DepositsParams = DepositsParams
     , depositsViewStart :: Maybe (WithOrigin UTCTime)
     , depositsWindowOpen :: Maybe (WithOrigin UTCTime)
     , depositsSpent :: Bool
+    , depositsDetails :: Set (WithOrigin UTCTime)
     }
     deriving (Eq, Show)
 
@@ -307,6 +315,7 @@ instance FromForm DepositsParams where
         viewStart <- parseMaybe "view-start" form
         windowOpen <- parseMaybe "window-open" form
         spent <- isJust <$> lookupMaybe "spent" form
+        details <- Set.fromList <$> parseAll "details" form
         pure
             $ DepositsParams
                 slot
@@ -316,6 +325,19 @@ instance FromForm DepositsParams where
                 viewStart
                 windowOpen
                 spent
+                details
+
+data Expand = Expand | Collapse
+    deriving (Eq, Show, Enum, Bounded)
+
+instance ToHttpApiData Expand where
+    toUrlPiece Expand = "expand"
+    toUrlPiece Collapse = "collapse"
+
+instance FromHttpApiData Expand where
+    parseUrlPiece "expand" = Right Expand
+    parseUrlPiece "collapse" = Right Collapse
+    parseUrlPiece _ = Left "Invalid expand/collapse"
 
 type Home = SessionedHtml Get
 
@@ -356,7 +378,7 @@ customerHistoryLink :: Link
 depositsLink :: Link
 depositsHistoryLink :: Link
 depositsHistoryExtendLink :: Link
-depositsHistoryWindowLink :: Link
+depositsHistoryWindowLink :: Maybe (WithOrigin UTCTime) -> Maybe Expand ->  Link
 emptinessLink :: Link
 homePageLink
     :<|> aboutPageLink

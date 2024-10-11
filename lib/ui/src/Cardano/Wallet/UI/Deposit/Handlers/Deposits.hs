@@ -8,7 +8,7 @@ module Cardano.Wallet.UI.Deposit.Handlers.Deposits
     , DepositsHistory
     , DepositsWindow (..)
     , SolveAddress
-    , depositsHistoryHandlerWindow
+    , depositsHistoryWindowHandler
     ) where
 
 import Prelude
@@ -50,6 +50,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
+    , solveAddress
     )
 import Control.Concurrent.STM
     ( TVar
@@ -199,20 +200,19 @@ depositsHistoryHandler network layer render alert params = do
                 $ MonoidalMap.take 1000
                 $ depositsHistory times params based
 
-depositsHistoryHandlerWindow
+depositsHistoryWindowHandler
     :: NetworkEnv IO a
     -> SessionLayer WalletResource
     -> (SolveAddress -> DepositsWindow -> html)
     -> (BL.ByteString -> html)
     -> DepositsParams
+    -> WithOrigin UTCTime
     -> Handler html
-depositsHistoryHandlerWindow network layer render alert params = do
+depositsHistoryWindowHandler network layer render alert params start = do
     liftIO $ print params
     catchRunWalletResourceHtml layer alert id
         $ do
-            users <- listCustomers
-            let customerOfAddress x =
-                    Map.lookup x $ Map.fromList $ fmap (\(a, c) -> (c, a)) users
+            customerOfAddress <- solveAddress
             transfers <-
                 if depositsFakeData params
                     then do
@@ -221,15 +221,9 @@ depositsHistoryHandlerWindow network layer render alert params = do
                         liftIO $ fakeDeposits now addresses
                     else getValueTransfersWithTxIds
             times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
-            let
-                based = case depositsViewStart params of
-                    Nothing -> transfers
-                    Just start ->
-                        let acceptedTimes = Map.filter (<= start) times
-                        in  Map.restrictKeys transfers (Map.keysSet acceptedTimes)
-            pure $ case MonoidalMap.lookupMin
-                $ depositsHistory times params based of
-                Just (_, window) -> render customerOfAddress window
+            pure $ case MonoidalMap.lookup (Down start)
+                $ depositsHistory times params transfers of
+                Just window -> render customerOfAddress window
                 Nothing -> alert "No deposits found for that time period"
 
 --------------------------------------------------------------------------------
@@ -252,7 +246,7 @@ fakeDeposits now addresses = do
     case cache of
         Just (now', addresses', deposits)
             | diffUTCTime now now'
-                < secondsToNominalDiffTime 60
+                < secondsToNominalDiffTime 6000000 -- better not do it on the full set TODO
                 && addresses' == addresses -> do
                 putStrLn "Using cached fake deposits"
                 pure deposits
@@ -268,7 +262,7 @@ fakeDepositsCreate
     -> [Address]
     -> Map Slot (Map Address (Map TxId ValueTransfer))
 fakeDepositsCreate now addresses = runStateGen_ (mkStdGen 0) $ \g -> do
-    let ns = 100000
+    let ns = 10000
     fmap (getMonoidalMap . fmap (getMonoidalMap . fmap getMonoidalMap) . fold)
         $ replicateM ns
         $ do

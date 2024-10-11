@@ -254,12 +254,12 @@ showThousandDots = reverse . showThousandDots' . reverse . show
         in
             a <> if null b then [] else "." <> showThousandDots' b
 
-box :: Monad m => Text -> HtmlT m () -> HtmlT m () -> HtmlT m ()
+box :: Monad m => HtmlT m () -> HtmlT m () -> HtmlT m () -> HtmlT m ()
 box x y z = div_ [class_ "bg-body-secondary pb-1"] $ do
     nav_ [class_ "navbar  p-1 justify-content-center pb-0"]
-        $ div_ [class_ "container-fluid p-0"]
         $ do
-            div_ [class_ "navbar-brand opacity-50 ms-1"] $ toHtml x
-            div_ [class_ "bg-body-primary"] y
+            div_ [class_ "navbar-brand opacity-50 ms-1 m-0 container-fluid p-0"] $ do
+                div_ x
+                div_ y
     hr_ [class_ "mt-0 mb-1"]
     div_ [class_ "bg-body-primary px-1"] z
