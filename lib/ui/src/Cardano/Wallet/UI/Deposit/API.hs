@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -7,13 +8,12 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Cardano.Wallet.UI.Deposit.API where
 
@@ -287,6 +287,7 @@ data DepositsParams = DepositsParams
     , depositsFakeData :: Bool
     , depositsViewStart :: Maybe (WithOrigin UTCTime)
     , depositsWindowOpen :: Maybe (WithOrigin UTCTime)
+    , depositsSpent :: Bool
     }
     deriving (Eq, Show)
 
@@ -305,7 +306,16 @@ instance FromForm DepositsParams where
         fake <- isJust <$> lookupMaybe "fake-data" form
         viewStart <- parseMaybe "view-start" form
         windowOpen <- parseMaybe "window-open" form
-        pure $ DepositsParams slot window firstWeekDay fake viewStart windowOpen
+        spent <- isJust <$> lookupMaybe "spent" form
+        pure
+            $ DepositsParams
+                slot
+                window
+                firstWeekDay
+                fake
+                viewStart
+                windowOpen
+                spent
 
 type Home = SessionedHtml Get
 
@@ -376,6 +386,5 @@ homePageLink
     :<|> depositsHistoryLink
     :<|> depositsHistoryExtendLink
     :<|> depositsHistoryWindowLink
-    :<|> emptinessLink
-    =
+    :<|> emptinessLink =
         allLinks (Proxy @UI)

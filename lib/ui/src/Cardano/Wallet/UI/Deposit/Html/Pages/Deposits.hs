@@ -191,6 +191,17 @@ depositsViewControls =
                         option_ (selected [value_ $ toUrlPiece window])
                             $ toHtml
                             $ toText window
+                simpleField "Spent"
+                    $ div_
+                        [ class_ "d-flex justify-content-end align-items-center form-check"
+                        ]
+                    $ input_
+                        [ class_ "form-check-input"
+                        , type_ "checkbox"
+                        , id_ "toggle-spent"
+                        , name_ "spent"
+                        , value_ ""
+                        ]
                 simpleField "Fake Data"
                     $ div_
                         [ class_ "d-flex justify-content-end align-items-center form-check"
@@ -219,6 +230,7 @@ depositsElementH = onWalletPresentH $ \case
                     \, change from:#select-customer\
                     \, change from:#toggle-slot\
                     \, change from:#select-window\
+                    \, change from:#toggle-spent\
                     \, change from:#toggle-fake-data"
                 , hxInclude_ "#view-control"
                 , hxPost_ $ linkText depositsHistoryLink
@@ -288,7 +300,7 @@ depositsHistoryWindowH
     -> DepositsWindow
     -> Html ()
 depositsHistoryWindowH
-    params@DepositsParams{depositsViewStart}
+    params@DepositsParams{depositsViewStart, depositsSpent}
     customerOfAddress
     DepositsWindow{depositsWindowTransfers} = do
         let xs =
@@ -299,8 +311,10 @@ depositsHistoryWindowH
                         , ValueTransfer received spent
                         )
             swapTarget = maybe "" (T.pack . show . hash) depositsViewStart
-
-        td_ [colspan_ "3"] $ table_ [class_ "table table-striped table-hover m-0"] $ do
+        let columns = if depositsSpent then "3" else "2"
+            -- this is bullshit :shrug: . This number refers to the number of columns
+            -- in the container table. Probably one day it will break up.
+        td_ [colspan_ columns] $ table_ [class_ "table table-striped table-hover m-0"] $ do
             div_ [class_ "d-flex justify-content-end"] $ do
                 button_
                     [ class_ "btn btn-secondary p-1"
@@ -313,21 +327,24 @@ depositsHistoryWindowH
                 thEnd Nothing "Addr"
                 thEnd (Just 6) "Customer"
                 thEnd (Just 7) "Received"
-                thEnd (Just 7) "Spent"
+                when depositsSpent
+                    $ thEnd (Just 7) "Spent"
             tbody_ $ mapM_ (depositByAddressH params) $ sortOn (view _1) xs
 
 depositByAddressH
     :: DepositsParams
     -> (Maybe Customer, Address, ValueTransfer)
     -> Html ()
-depositByAddressH _ (mcustomer, addr, ValueTransfer received spent) = do
+depositByAddressH DepositsParams{depositsSpent}
+    (mcustomer, addr, ValueTransfer received spent) = do
     tr_ [scope_ "row"] $ do
         tdEnd $ customerAddressH addr
         tdEnd $ case mcustomer of
             Just c -> toHtml $ show c
             Nothing -> "External"
         tdEnd $ valueH received
-        tdEnd $ valueH spent
+        when depositsSpent
+            $ tdEnd $ valueH spent
 
 depositsHistoryH :: DepositsParams -> DepositsHistory -> Html ()
 depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
@@ -342,7 +359,8 @@ depositsHistoryH params@DepositsParams{..} ds = fakeOverlay $ do
                 when depositsSlot
                     $ thEnd (Just 7) "Slot"
                 thEnd (Just 7) "Received"
-                thEnd (Just 7) "Spent"
+                when depositsSpent
+                    $ thEnd (Just 7) "Spent"
             tbody_ $ do
                 depositsPartsH params ds
   where
@@ -352,7 +370,8 @@ depositH
     :: DepositsParams
     -> (Down (WithOrigin UTCTime), DepositsWindow)
     -> Html ()
-depositH DepositsParams{depositsSlot} (Down time, DepositsWindow{..}) = do
+depositH DepositsParams{depositsSlot, depositsSpent}
+    (Down time, DepositsWindow{..}) = do
     tr_
         [ scope_ "row"
         , hxTrigger_ "click"
@@ -371,5 +390,6 @@ depositH DepositsParams{depositsSlot} (Down time, DepositsWindow{..}) = do
             let ValueTransfer received spent =
                     fold $ fold depositsWindowTransfers
             tdEnd $ valueH received
-            tdEnd $ valueH spent
+            when depositsSpent
+                $ tdEnd $ valueH spent
     tr_ [id_ $ "window-" <> T.pack (show $ hash time)] mempty
