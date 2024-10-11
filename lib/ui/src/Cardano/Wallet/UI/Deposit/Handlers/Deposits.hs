@@ -1,5 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits
@@ -74,6 +75,9 @@ import Data.Map.Monoidal.Strict
 import Data.Map.Strict
     ( Map
     )
+import Data.Monoid
+    ( First (..)
+    )
 import Data.Ord
     ( Down (..)
     )
@@ -112,7 +116,7 @@ type DepositsHistoryRaw = Map Slot (Map Address (Map TxId ValueTransfer))
 data DepositsWindow = DepositsWindow
     { depositsWindowSlot :: !Slot
     , depositsWindowTransfers
-        :: !(MonoidalMap Address (MonoidalMap TxId ValueTransfer))
+        :: !(MonoidalMap Address (MonoidalMap TxId (First Slot, ValueTransfer)))
     }
 
 instance Semigroup DepositsWindow where
@@ -154,6 +158,7 @@ depositsHistory
     -> DepositsHistory
 depositsHistory times DepositsParams{..} raw = fold $ do
     (slot, transfers) <- Map.toList raw
+    let transfers' = fmap (First $ Just slot, ) <$> transfers
     time <-
         maybe
             []
@@ -165,7 +170,7 @@ depositsHistory times DepositsParams{..} raw = fold $ do
         $ MonoidalMap.singleton (Down time)
         $ DepositsWindow slot
         $ MonoidalMap
-        $ MonoidalMap <$> transfers
+        $ MonoidalMap <$> transfers'
 
 type SolveAddress = Address -> Maybe Customer
 

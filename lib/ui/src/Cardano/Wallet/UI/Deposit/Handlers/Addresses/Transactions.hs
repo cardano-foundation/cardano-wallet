@@ -20,12 +20,12 @@ import Cardano.Wallet.Deposit.Pure
     , TxSummary (..)
     , ValueTransfer (ValueTransfer)
     )
+import Cardano.Wallet.Deposit.Read
+    ( Slot
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , customerAddress
-    )
-import Cardano.Wallet.Deposit.Read
-    ( Slot
     )
 import Cardano.Wallet.Read
     ( Coin
