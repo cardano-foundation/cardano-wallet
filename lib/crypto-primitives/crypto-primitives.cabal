@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          crypto-primitives
-version:       0.2024.9.29
+version:       0.2024.10.11
 synopsis:      Cryptographic primitives
 license:       Apache-2.0
 author:        Cardano Foundation (High Assurance Lab)
