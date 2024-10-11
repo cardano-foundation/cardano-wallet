@@ -18,7 +18,11 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , Slot
     , WithOrigin (..)
+    )
+import Cardano.Wallet.Read
+    ( SlotNo (..)
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxInclude_
@@ -72,10 +76,10 @@ import Cardano.Wallet.UI.Type
     ( WHtml
     )
 import Control.Lens
-    ( unsnoc
+    ( _1
+    , unsnoc
     , view
     , (<&>)
-    , _1
     )
 import Control.Monad
     ( forM_
@@ -89,6 +93,9 @@ import Data.Hashable
     )
 import Data.List
     ( sortOn
+    )
+import Data.Monoid
+    ( First (..)
     )
 import Data.Ord
     ( Down (..)
@@ -299,29 +306,23 @@ depositsHistoryWindowH
     -> DepositsWindow
     -> Html ()
 depositsHistoryWindowH
-    params@DepositsParams{depositsSpent}
+    params@DepositsParams{depositsSpent, depositsSlot}
     customerOfAddress
     DepositsWindow{depositsWindowTransfers} =
         do
             let xs =
                     MonoidalMap.assocs (fmap fold depositsWindowTransfers)
-                        <&> \(addr, ValueTransfer received spent) ->
+                        <&> \(addr, (First slot, ValueTransfer received spent)) ->
                             ( customerOfAddress addr
+                            , slot
                             , addr
                             , ValueTransfer received spent
                             )
-            -- swapTarget = maybe "" (T.pack . show . hash) depositsDetails
             table_ [class_ "table table-striped table-hover m-0"] $ do
-                -- div_ [class_ "d-flex justify-content-end"] $ do
-                --     button_
-                --         [ class_ "btn btn-secondary p-1"
-                --         , type_ "button"
-                --         , hxTarget_ $ "#window-" <> swapTarget
-                --         , hxGet_ $ linkText emptinessLink
-                --         ]
-                --         $ i_ [class_ "bi bi-x"] mempty
                 thead_ $ tr_ [scope_ "row"] $ do
                     thEnd Nothing "Addr"
+                    when depositsSlot
+                        $ thEnd (Just 6) "Slot"
                     thEnd (Just 6) "Customer"
                     thEnd (Just 7) "Received"
                     when depositsSpent
@@ -330,13 +331,19 @@ depositsHistoryWindowH
 
 depositByAddressH
     :: DepositsParams
-    -> (Maybe Customer, Address, ValueTransfer)
+    -> (Maybe Customer, Maybe Slot, Address, ValueTransfer)
     -> Html ()
 depositByAddressH
-    DepositsParams{depositsSpent}
-    (mcustomer, addr, ValueTransfer received spent) = do
+    DepositsParams{depositsSpent, depositsSlot}
+    (mcustomer, mslot, addr, ValueTransfer received spent) = do
         tr_ [scope_ "row"] $ do
             tdEnd $ customerAddressH addr
+            when depositsSlot
+                $ tdEnd $ toHtml $ case mslot of
+                    Just slot -> case slot of
+                        Origin -> "Origin"
+                        At (SlotNo t) -> show t
+                    Nothing -> "ERROR"
             tdEnd $ case mcustomer of
                 Just c -> toHtml $ show c
                 Nothing -> "External"
@@ -356,7 +363,7 @@ depositsHistoryH params@DepositsParams{..} solveAddress ds = fakeOverlay $ do
             thead_ $ tr_ [scope_ "row"] $ do
                 thEnd (Just 7) "Time"
                 when depositsSlot
-                    $ thEnd (Just 7) "Slot"
+                    $ thEnd (Just 5) "Slot"
                 thEnd (Just 7) "Received"
                 when depositsSpent
                     $ thEnd (Just 7) "Spent"
@@ -425,8 +432,10 @@ depositH
                     when depositsSlot
                         $ tdEnd
                         $ toHtml
-                        $ show depositsSlot
-                    let ValueTransfer received spent =
+                        $ case depositsWindowSlot of
+                            Origin -> "Origin"
+                            At (SlotNo t) -> show t
+                    let (_ , ValueTransfer received spent) =
                             fold $ fold depositsWindowTransfers
                     tdEnd $ valueH received
                     when depositsSpent
