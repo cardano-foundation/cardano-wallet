@@ -225,42 +225,45 @@ depositsElementH
     -> Html ()
 depositsElementH = onWalletPresentH $ \case
     WalletPublicIdentity _xpub _customers ->
-        div_ [id_ "view-control"] $ do
-            div_
-                [ class_ "row mt-3 g-0"
-                , hxTrigger_
-                    "load\
-                    \, change from:#select-first-week-day\
-                    \, change from:#select-customer\
-                    \, change from:#toggle-slot\
-                    \, change from:#select-window\
-                    \, change from:#toggle-spent\
-                    \, change from:#toggle-fake-data"
-                , hxInclude_ "#view-control"
-                , hxPost_ $ linkText depositsHistoryLink
-                , hxTarget_ "#deposits"
-                ]
-                $ do
-                    let configure = do
-                            div_ [class_ "d-flex justify-content-end sticky-top"] $ do
-                                let toggle =
-                                        button_
-                                            [ class_ "btn"
-                                            , type_ "button"
-                                            , data_ "bs-toggle" "collapse"
-                                            , data_ "bs-target" "#columns-control"
-                                            ]
-                                            $ do
-                                                i_ [class_ "bi bi-gear"] mempty
-                                box mempty toggle depositsViewControls
-                    box "Deposits" mempty $ do
-                        configure
-                        div_ [class_ "row g-0"]
-                            $ div_
-                                [ class_ "col"
-                                , id_ "deposits"
+        div_
+            [ class_ "row mt-3 g-0"
+            ]
+            $ do
+                let configure = do
+                        div_ [class_ "d-flex justify-content-end sticky-top", style_ "z:3"] $ do
+                            let toggle =
+                                    button_
+                                        [ class_ "btn"
+                                        , type_ "button"
+                                        , data_ "bs-toggle" "collapse"
+                                        , data_ "bs-target" "#columns-control"
+                                        ]
+                                        $ do
+                                            i_ [class_ "bi bi-gear"] mempty
+                            div_
+                                [ id_ "view-control"
+                                , hxTrigger_
+                                    "load\
+                                    \, change from:#select-first-week-day\
+                                    \, change from:#select-customer\
+                                    \, change from:#toggle-slot\
+                                    \, change from:#select-window\
+                                    \, change from:#toggle-spent\
+                                    \, change from:#toggle-fake-data"
+                                , hxInclude_ "#view-control , #deposits"
+                                , hxPost_ $ linkText depositsHistoryLink
+                                , hxTarget_ "#deposits"
                                 ]
-                                mempty
+                                $ do
+                                    box mempty toggle depositsViewControls
+                box "Deposits" mempty $ do
+                    configure
+                    div_ [class_ "row g-0"]
+                        $ div_
+                            [ class_ "col"
+                            , id_ "deposits"
+                            ]
+                            mempty
 
 depositsPartsH :: DepositsParams -> SolveAddress -> DepositsHistory -> Html ()
 depositsPartsH params solveAddress ds = do
@@ -339,7 +342,9 @@ depositByAddressH
         tr_ [scope_ "row"] $ do
             tdEnd $ customerAddressH addr
             when depositsSlot
-                $ tdEnd $ toHtml $ case mslot of
+                $ tdEnd
+                $ toHtml
+                $ case mslot of
                     Just slot -> case slot of
                         Origin -> "Origin"
                         At (SlotNo t) -> show t
@@ -407,6 +412,7 @@ depositH
                                 , hxTarget_ $ "#" <> trId
                                 , hxSwap_ "outerHTML"
                                 , hxPost_ link
+                                , hxInclude_ "#view-control"
                                 ]
                                 $ i_ [class_ "bi bi-x"] mempty
                     td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
@@ -423,6 +429,7 @@ depositH
                 , hxTarget_ "this"
                 , hxSwap_ "outerHTML"
                 , hxPost_ link
+                , hxInclude_ "#view-control"
                 ]
                 $ do
                     tdEnd $ do
@@ -435,7 +442,7 @@ depositH
                         $ case depositsWindowSlot of
                             Origin -> "Origin"
                             At (SlotNo t) -> show t
-                    let (_ , ValueTransfer received spent) =
+                    let (_, ValueTransfer received spent) =
                             fold $ fold depositsWindowTransfers
                     tdEnd $ valueH received
                     when depositsSpent

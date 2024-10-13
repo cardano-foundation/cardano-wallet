@@ -98,7 +98,7 @@ navigationH prefix pages = do
                 $ do
                     span_ [class_ "navbar-toggler-icon"] ""
             div_
-                [ class_ "collapse navbar-collapse"
+                [ class_ "collapse navbar-collapse justify-content-end"
                 , id_ "navbar"
                 ]
                 $ div_ [class_ "navbar-nav"]
