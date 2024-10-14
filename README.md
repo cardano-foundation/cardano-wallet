@@ -35,7 +35,7 @@
 
 ## Overview
 
-Cardano Wallet is software that helps you manage your Ada. You can use it to send and receive payments on the [Cardano blockchain](https://www.cardano.org).
+Cardano Wallet is software that helps you manage your Ada <img height="14" src=".github/images/ada-logo.png"/>. You can use it to send and receive payments on the [Cardano blockchain](https://www.cardano.org).
 
 This project provides an HTTP Application Programming Interface (API)
 and command-line interface (CLI) for working with your wallet.
