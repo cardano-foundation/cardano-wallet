@@ -12,6 +12,9 @@ module Cardano.Wallet.UI.Deposit.Server
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( WithOrigin
+    )
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     ( getNetworkInformation
     )
@@ -20,6 +23,12 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
+    )
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( originTime
+    )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
@@ -78,18 +87,32 @@ import Cardano.Wallet.UI.Common.Layer
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( sessioning
+    ( CookieResponse
+    , RequestCookies
+    , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( UI
+    ( DepositsParams (depositsViewStart)
+    , Expand
+    , TransactionHistoryParams
+    , UI
     , settingsSseToggleLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses
     ( getAddresses
     , getCustomerAddress
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
+    ( getCustomerHistory
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits
+    ( depositsHistoryHandler
+    , depositsHistoryWindowHandler
+    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
-    ( walletPresence
+    ( catchRunWalletResourceM
+    , solveAddress
+    , walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
@@ -100,6 +123,16 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
     , customerAddressH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
+    ( customerHistoryH
+    , transactionsElementH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
+    ( depositH
+    , depositsElementH
+    , depositsHistoryH
+    , depositsPartsH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -119,6 +152,9 @@ import Control.Tracer
 import Data.Functor
     ( ($>)
     )
+import Data.Ord
+    ( Down (..)
+    )
 import Data.Text
     ( Text
     )
@@ -126,9 +162,15 @@ import Data.Time
     ( UTCTime
     , defaultTimeLocale
     , formatTime
+    , getCurrentTime
+    )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime
     )
 import Lucid
-    ( class_
+    ( Html
+    , ToHtml (..)
+    , class_
     , div_
     )
 import Paths_cardano_wallet_ui
@@ -147,9 +189,10 @@ showTime :: UTCTime -> String
 showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 
 serveUI
-    :: forall n
+    :: forall n x
      . HasSNetworkId n
     => Tracer IO String
+    -> NetworkEnv IO x
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -158,18 +201,20 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr ul env dbDir config _ nl bs =
+serveUI tr network ul env dbDir config _ nl bs =
     ph Wallet
         :<|> ph About
         :<|> ph Network
         :<|> ph Settings
         :<|> ph Wallet
         :<|> ph Addresses
+        :<|> ph Deposits
         :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
+        :<|> serveFakeDataBackground
         :<|> (\c -> sessioning $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
@@ -177,8 +222,15 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
         :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
-        :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
-        :<|> serveNavigation -- (\l -> getAddresses l (renderSmoothHtml . headerElementH _ _ _))
+        :<|> wsl (\l -> getAddresses l (\now -> renderSmoothHtml . addressElementH now origin alertH))
+        :<|> serveNavigation
+        :<|> serveTransactions ul
+        :<|> serveCustomerHistory network ul
+        :<|> serveDeposits ul
+        :<|> serveDepositsHistory network ul
+        :<|> serveDepositsHistoryExtension network ul
+        :<|> serveDepositsHistoryWindow network ul
+        :<|> wsl (\_ -> pure $ RawHtml "")
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
@@ -186,16 +238,122 @@ serveUI tr ul env dbDir config _ nl bs =
         pure $ renderSmoothHtml $ headerElementH mp wp
     ph p = wsl $ \_ -> pure $ page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
-    alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
     initWallet = initXPubWallet tr env dbDir
-    renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] response
+
+alert :: ToHtml a => a -> RawHtml
+alert = renderHtml . alertH
+
+serveFakeDataBackground :: Handler BL.ByteString
+serveFakeDataBackground = do
+    file <- liftIO $ getDataFileName "data/images/fake-data.png"
+    liftIO $ BL.readFile file
+
+serveCustomerHistory
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> TransactionHistoryParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveCustomerHistory network ul params = do
+    withSessionLayer ul $ \layer ->
+        renderSmoothHtml
+            <$> getCustomerHistory
+                network
+                layer
+                customerHistoryH
+                alertH
+                params
+
+renderSmoothHtml :: Html () -> RawHtml
+renderSmoothHtml response =
+    renderHtml
+        $ div_ [class_ "smooth"]
+        $ toHtml response
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
     file <- liftIO $ getDataFileName "data/images/icon.png"
     liftIO $ BL.readFile file
+
+serveTransactions
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveTransactions ul =
+    withSessionLayer ul
+        $ \_ -> do
+            now <- liftIO getCurrentTime
+            pure
+                $ renderSmoothHtml
+                $ transactionsElementH now origin
+
+origin :: UTCTime
+origin = posixSecondsToUTCTime $ fromIntegral originTime
+
+serveDeposits
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDeposits ul = withSessionLayer ul $ \layer -> do
+    wp <- walletPresence layer
+    pure
+        $ renderSmoothHtml
+        $ depositsElementH alertH wp
+
+serveDepositsHistory
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> DepositsParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistory network ul params = withSessionLayer ul $ \layer -> do
+    customerOfAddress <- catchRunWalletResourceM layer solveAddress
+    renderSmoothHtml
+        <$> depositsHistoryHandler
+            network
+            layer
+            (depositsHistoryH params customerOfAddress)
+            alertH
+            params{depositsViewStart = Nothing}
+
+serveDepositsHistoryExtension
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> DepositsParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryExtension network ul params = withSessionLayer ul $ \layer -> do
+    customerOfAddress <- catchRunWalletResourceM layer solveAddress
+    renderHtml
+        <$> depositsHistoryHandler
+            network
+            layer
+            (depositsPartsH params customerOfAddress)
+            alertH
+            params
+
+serveDepositsHistoryWindow
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Expand
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryWindow network ul params mtime mexpand = withSessionLayer ul $ \layer -> do
+    liftIO $ print params
+    fmap renderHtml $ case mtime of
+        Nothing -> pure $ alertH ("No time provided" :: Text)
+        Just time -> do
+            depositsHistoryWindowHandler
+                network
+                layer
+                (\solve window -> depositH params solve mexpand (Down time, window))
+                alertH
+                params
+                time

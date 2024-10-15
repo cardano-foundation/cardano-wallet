@@ -25,6 +25,13 @@ import Cardano.Wallet.UI.Deposit.Handlers.Lib
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
     )
+import Control.Monad.IO.Class
+    ( MonadIO (..)
+    )
+import Data.Time
+    ( UTCTime
+    , getCurrentTime
+    )
 import Servant
     ( Handler
     )
@@ -33,9 +40,11 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 
 getAddresses
     :: SessionLayer WalletResource
-    -> (WalletPresent -> html) -- success report
+    -> (UTCTime -> WalletPresent -> html) -- success report
     -> Handler html
-getAddresses layer render = render <$> walletPresence layer
+getAddresses layer render = do
+    now <- liftIO getCurrentTime
+    render now <$> walletPresence layer
 
 getCustomerAddress
     :: SessionLayer WalletResource
