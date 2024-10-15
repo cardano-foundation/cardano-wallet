@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -47,15 +48,16 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
+    , DownTime
     , Expand (..)
     , Window (..)
-    , depositsHistoryExtendLink
     , depositsHistoryLink
+    , depositsHistoryPageLink
     , depositsHistoryWindowLink
     , depositsLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
-    ( DepositsHistory
+    ( DepositsHandlers (..)
     , DepositsWindow (..)
     , SolveAddress
     )
@@ -77,7 +79,6 @@ import Cardano.Wallet.UI.Type
     )
 import Control.Lens
     ( _1
-    , unsnoc
     , view
     , (<&>)
     )
@@ -108,7 +109,8 @@ import Data.Time
     , UTCTime
     )
 import Lucid
-    ( Html
+    ( Attribute
+    , Html
     , ToHtml (..)
     , button_
     , checked_
@@ -137,6 +139,7 @@ import Servant
     ( ToHttpApiData (toUrlPiece)
     )
 
+import qualified Cardano.Wallet.UI.Common.Html.Scrolling as Scrolling
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
 import qualified Data.Text as T
 
@@ -230,7 +233,7 @@ depositsElementH = onWalletPresentH $ \case
             ]
             $ do
                 let configure = do
-                        div_ [class_ "d-flex justify-content-end sticky-top", style_ "z:3"] $ do
+                        div_ [class_ "d-flex justify-content-end"] $ do
                             let toggle =
                                     button_
                                         [ class_ "btn"
@@ -265,43 +268,58 @@ depositsElementH = onWalletPresentH $ \case
                             ]
                             mempty
 
-depositsPartsH :: DepositsParams -> SolveAddress -> DepositsHistory -> Html ()
-depositsPartsH params solveAddress ds = do
-    let ((before, after), lasted) =
-            let
-                xs = MonoidalMap.assocs ds
-                l = length xs
-            in
-                (splitAt (l `div` 2) xs, snd <$> unsnoc xs)
-    tbody_ $ mapM_ (depositH params solveAddress Nothing) before
-    case lasted of
-        Just (Down (At _time), _) -> do
-            tbody_
-                [ hxTrigger_ "intersect once"
-                , hxTarget_ "#load-more"
-                , hxSwap_ "outerHTML"
-                , hxInclude_ "#view-control"
-                , hxPost_ $ linkText depositsHistoryExtendLink
-                ]
-                mempty
-        _ -> mempty
-    tbody_ $ mapM_ (depositH params solveAddress Nothing) after
-    case lasted of
-        Just (Down time, _)
-            | time > Origin -> do
-                tbody_
-                    [ id_ "load-more"
-                    ]
+scrollableDeposits
+    :: Monad m
+    => DepositsParams
+    -> (Address -> Maybe Customer)
+    -> DepositsHandlers m
+    -> Scrolling.Configuration m DownTime
+scrollableDeposits
+    params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
+    customerOfAddress
+    (DepositsHandlers previous next retrieve start) =
+        Scrolling.Configuration{..}
+      where
+        scrollableWidget :: [Attribute] -> Html () -> Html ()
+        scrollableWidget attrs content =
+            fakeOverlay $ do
+                let attrs' =
+                        [ class_
+                            $ "border-top table table-striped table-hover m-0"
+                                <> if depositsFakeData then " fake" else ""
+                        ]
+                table_ (attrs' <> attrs)
                     $ do
-                        tr_ [scope_ "row"] $ td_ "to be loaded"
-                        input_
-                            [ type_ "hidden"
-                            , id_ "revealed"
-                            , name_ "view-start"
-                            , value_
-                                $ toUrlPiece time
-                            ]
-        _ -> mempty
+                        thead_ [class_ "bg-primary"]
+                            $ tr_
+                                [ scope_ "row"
+                                , class_ "sticky-top my-1"
+                                , style_ "z-index: 1"
+                                ]
+                            $ do
+                                thEnd (Just 7) "Time"
+                                when depositsSlot
+                                    $ thEnd (Just 5) "Slot"
+                                thEnd (Just 7) "Received"
+                                when depositsSpent
+                                    $ thEnd (Just 7) "Spent"
+                        content
+          where
+            fakeOverlay = if depositsFakeData then overlayFakeDataH else id
+        scrollableContainer = table_
+        retrieveContent time attrs = do
+            ds <- retrieve time
+            pure
+                $ tbody_ attrs
+                $ mapM_ (depositH params customerOfAddress Nothing)
+                $ MonoidalMap.assocs ds
+
+        uniqueScrollingId = "deposits"
+        presentFieldName = "page-present"
+        controlSelector = "#view-control"
+        renderIndex (Down t) = toUrlPiece t
+        updateURL (Down t) = linkText . depositsHistoryPageLink . Just $ t
+        renderIdOfIndex (Down t) = toUrlPiece $ abs $ hash t
 
 depositsHistoryWindowH
     :: DepositsParams
@@ -322,14 +340,16 @@ depositsHistoryWindowH
                             , ValueTransfer received spent
                             )
             table_ [class_ "table table-striped table-hover m-0"] $ do
-                thead_ $ tr_ [scope_ "row"] $ do
-                    thEnd Nothing "Addr"
-                    when depositsSlot
-                        $ thEnd (Just 6) "Slot"
-                    thEnd (Just 6) "Customer"
-                    thEnd (Just 7) "Received"
-                    when depositsSpent
-                        $ thEnd (Just 7) "Spent"
+                thead_ [class_ "sticky-top bg-primary py-1"]
+                    $ tr_ [scope_ "row"]
+                    $ do
+                        thEnd Nothing "Addr"
+                        when depositsSlot
+                            $ thEnd (Just 6) "Slot"
+                        thEnd (Just 6) "Customer"
+                        thEnd (Just 7) "Received"
+                        when depositsSpent
+                            $ thEnd (Just 7) "Spent"
                 tbody_ $ mapM_ (depositByAddressH params) $ sortOn (view _1) xs
 
 depositByAddressH
@@ -356,26 +376,6 @@ depositByAddressH
             when depositsSpent
                 $ tdEnd
                 $ valueH spent
-
-depositsHistoryH :: DepositsParams -> SolveAddress -> DepositsHistory -> Html ()
-depositsHistoryH params@DepositsParams{..} solveAddress ds = fakeOverlay $ do
-    table_
-        [ class_
-            $ "border-top table table-striped table-hover m-0"
-                <> if depositsFakeData then " fake" else ""
-        ]
-        $ do
-            thead_ $ tr_ [scope_ "row"] $ do
-                thEnd (Just 7) "Time"
-                when depositsSlot
-                    $ thEnd (Just 5) "Slot"
-                thEnd (Just 7) "Received"
-                when depositsSpent
-                    $ thEnd (Just 7) "Spent"
-            tbody_ $ do
-                depositsPartsH params solveAddress ds
-  where
-    fakeOverlay = if depositsFakeData then overlayFakeDataH else id
 
 depositH
     :: DepositsParams

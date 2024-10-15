@@ -13,7 +13,7 @@ module Cardano.Wallet.UI.Deposit.Server
 import Prelude
 
 import Cardano.Slotting.Slot
-    ( WithOrigin
+    ( WithOrigin (..)
     )
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     ( getNetworkInformation
@@ -32,6 +32,7 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
+    , WalletResourceM
     , deleteWallet
     , initXPubWallet
     )
@@ -92,7 +93,8 @@ import Cardano.Wallet.UI.Cookies
     , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( DepositsParams (depositsViewStart)
+    ( DepositsParams (..)
+    , DownTime
     , Expand
     , TransactionHistoryParams
     , UI
@@ -106,8 +108,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     ( getCustomerHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
-    ( depositsHistoryHandler
+    ( depositsHandlers
     , depositsHistoryWindowHandler
+    , getFakeDepositsHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceM
@@ -131,8 +134,7 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
 import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
     ( depositH
     , depositsElementH
-    , depositsHistoryH
-    , depositsPartsH
+    , scrollableDeposits
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -183,6 +185,10 @@ import Servant
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
+import Cardano.Wallet.UI.Common.Html.Scrolling
+    ( Scrolling (..)
+    , newScrolling
+    )
 import qualified Data.ByteString.Lazy as BL
 
 showTime :: UTCTime -> String
@@ -228,7 +234,7 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveCustomerHistory network ul
         :<|> serveDeposits ul
         :<|> serveDepositsHistory network ul
-        :<|> serveDepositsHistoryExtension network ul
+        :<|> serveDepositsHistoryPage network ul
         :<|> serveDepositsHistoryWindow network ul
         :<|> wsl (\_ -> pure $ RawHtml "")
   where
@@ -312,30 +318,40 @@ serveDepositsHistory
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
 serveDepositsHistory network ul params = withSessionLayer ul $ \layer -> do
-    customerOfAddress <- catchRunWalletResourceM layer solveAddress
-    renderSmoothHtml
-        <$> depositsHistoryHandler
-            network
-            layer
-            (depositsHistoryH params customerOfAddress)
-            alertH
-            params{depositsViewStart = Nothing}
 
-serveDepositsHistoryExtension
+    result <- catchRunWalletResourceM layer $ do
+        scrolling <- depositsTable network params
+        pure $ widget scrolling
+    pure $ renderSmoothHtml result
+
+depositsTable
+    :: NetworkEnv IO a
+    -> DepositsParams
+    -> WalletResourceM (Scrolling WalletResourceM DownTime)
+depositsTable network params = do
+    let hs = depositsHandlers network getFakeDepositsHistory 100 params
+    customerOfAddress <- solveAddress
+    newScrolling
+        (scrollableDeposits params customerOfAddress hs)
+
+serveDepositsHistoryPage
     :: NetworkEnv IO a
     -> UILayer WalletResource
     -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-serveDepositsHistoryExtension network ul params = withSessionLayer ul $ \layer -> do
-    customerOfAddress <- catchRunWalletResourceM layer solveAddress
-    renderHtml
-        <$> depositsHistoryHandler
-            network
-            layer
-            (depositsPartsH params customerOfAddress)
-            alertH
-            params
+serveDepositsHistoryPage network ul params (Just index) = withSessionLayer ul
+    $ \layer -> do
+        result <- catchRunWalletResourceM layer $ do
+            scrolling <- depositsTable network params
+            scroll scrolling (depositsPages params) $ Down index
+        pure $ renderHtml result
+serveDepositsHistoryPage _ ul _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No page index provided" :: Text)
 
 serveDepositsHistoryWindow
     :: NetworkEnv IO a
@@ -345,15 +361,16 @@ serveDepositsHistoryWindow
     -> Maybe Expand
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-serveDepositsHistoryWindow network ul params mtime mexpand = withSessionLayer ul $ \layer -> do
-    liftIO $ print params
-    fmap renderHtml $ case mtime of
-        Nothing -> pure $ alertH ("No time provided" :: Text)
-        Just time -> do
-            depositsHistoryWindowHandler
-                network
-                layer
-                (\solve window -> depositH params solve mexpand (Down time, window))
-                alertH
-                params
-                time
+serveDepositsHistoryWindow network ul params mtime mexpand = withSessionLayer ul
+    $ \layer -> do
+        liftIO $ print params
+        fmap renderHtml $ case mtime of
+            Nothing -> pure $ alertH ("No time provided" :: Text)
+            Just time -> do
+                depositsHistoryWindowHandler
+                    network
+                    layer
+                    (\solve window -> depositH params solve mexpand (Down time, window))
+                    alertH
+                    params
+                    time

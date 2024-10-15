@@ -114,6 +114,7 @@ newNetworkEnvMock = do
                 threadDelay 100
                 pure $ Right ()
             , slotsToUTCTimes = pure . unsafeSlotsToUTCTimes
+            , utcTimeToSlot = pure . Just . unsafeSlotOfUTCTime
             }
 
 unsafeSlotsToUTCTimes :: Set Slot -> Map Slot (WithOrigin UTCTime)

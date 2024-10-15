@@ -262,4 +262,4 @@ box x y z = div_ [class_ "bg-body-secondary pb-1"] $ do
                 div_ x
                 div_ y
     hr_ [class_ "mt-0 mb-1"]
-    div_ [class_ "bg-body-primary px-1"] z
+    div_ [class_ "bg-body-primary"] z

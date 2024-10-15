@@ -63,6 +63,9 @@ data NetworkEnv m block = NetworkEnv
         :: Set Slot
         -> m (Map Slot (WithOrigin UTCTime))
     -- ^ Try to convert a set of slots to their UTCTimes counterparts
+    , utcTimeToSlot
+        :: UTCTime
+        -> m (Maybe Slot)
     }
 
 mapBlock
@@ -70,12 +73,13 @@ mapBlock
     => (block1 -> block2)
     -> NetworkEnv m block1
     -> NetworkEnv m block2
-mapBlock f NetworkEnv{chainSync, postTx, slotsToUTCTimes} =
+mapBlock f NetworkEnv{chainSync, postTx, slotsToUTCTimes, utcTimeToSlot} =
     NetworkEnv
         { chainSync = \tr follower ->
             chainSync tr (mapChainFollower id id id (fmap f) follower)
         , postTx = postTx
         , slotsToUTCTimes = slotsToUTCTimes
+        , utcTimeToSlot = utcTimeToSlot
         }
 
 {-------------------------------------------------------------------------------

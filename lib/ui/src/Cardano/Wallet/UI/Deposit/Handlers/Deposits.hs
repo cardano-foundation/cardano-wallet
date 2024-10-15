@@ -1,15 +1,19 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE QualifiedDo #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits
-    ( depositsHistoryHandler
-    , depositsHistory
+    ( depositsHistory
     , DepositsHistory
     , DepositsWindow (..)
+    , DepositsHandlers (..)
     , SolveAddress
     , depositsHistoryWindowHandler
+    , depositsHandlers
+    , getFakeDepositsHistory
     ) where
 
 import Prelude
@@ -31,6 +35,7 @@ import Cardano.Wallet.Deposit.Read
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
+    , WalletResourceM
     , getValueTransfersWithTxIds
     , listCustomers
     )
@@ -43,6 +48,7 @@ import Cardano.Wallet.UI.Common.Layer
     )
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
+    , DownTime
     , Window (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
@@ -52,6 +58,11 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
     , solveAddress
+    )
+import Cardano.Wallet.UI.Lib.Paging
+    ( next
+    , nextPage
+    , previous
     )
 import Control.Concurrent.STM
     ( TVar
@@ -65,6 +76,13 @@ import Control.Monad
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Control.Monad.Trans
+    ( lift
+    )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..)
+    , hoistMaybe
     )
 import Data.Foldable
     ( Foldable (..)
@@ -128,6 +146,21 @@ type DepositsHistory =
         (Down (WithOrigin UTCTime))
         DepositsWindow
 
+-- diffTimeOfindow :: Window -> NominalDiffTime
+-- diffTimeOfindow Year = 365 * 24 * 3600
+-- diffTimeOfindow Month = 30 * 24 * 3600
+-- diffTimeOfindow Week = 7 * 24 * 3600
+-- diffTimeOfindow Day = 24 * 3600
+-- diffTimeOfindow Hour12 = 12 * 3600
+-- diffTimeOfindow Hour6 = 6 * 3600
+-- diffTimeOfindow Hour4 = 4 * 3600
+-- diffTimeOfindow Hour2 = 2 * 3600
+-- diffTimeOfindow Hour1 = 3600
+-- diffTimeOfindow Minute30 = 30 * 60
+-- diffTimeOfindow Minute15 = 15 * 60
+-- diffTimeOfindow Minute10 = 10 * 60
+-- diffTimeOfindow Minute5 = 5 * 60
+
 quantizeSeconds :: DiffTime -> Integer -> DiffTime
 quantizeSeconds t q =
     q' * fromIntegral @Integer (floor (t / q'))
@@ -158,7 +191,7 @@ depositsHistory
     -> DepositsHistory
 depositsHistory times DepositsParams{..} raw = fold $ do
     (slot, transfers) <- Map.toList raw
-    let transfers' = fmap (First $ Just slot, ) <$> transfers
+    let transfers' = fmap (First $ Just slot,) <$> transfers
     time <-
         maybe
             []
@@ -174,36 +207,43 @@ depositsHistory times DepositsParams{..} raw = fold $ do
 
 type SolveAddress = Address -> Maybe Customer
 
-depositsHistoryHandler
-    :: NetworkEnv IO a
-    -> SessionLayer WalletResource
-    -> (DepositsHistory -> html)
-    -> (BL.ByteString -> html)
-    -> DepositsParams
-    -> Handler html
-depositsHistoryHandler network layer render alert params = do
-    liftIO $ print params
-    catchRunWalletResourceHtml layer alert id
-        $ do
-            transfers <-
-                if depositsFakeData params
-                    then do
-                        now <- liftIO getCurrentTime
-                        addresses <- fmap snd <$> listCustomers
-                        liftIO $ fakeDeposits now addresses
-                    else getValueTransfersWithTxIds
-            times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
+data DepositsHandlers m = DepositsHandlers
+    { depositsPrevious :: DownTime -> m (Maybe DownTime)
+    , depositsNext :: DownTime -> m (Maybe DownTime)
+    , depositsRetrieve :: DownTime -> m DepositsHistory
+    , depositsNow :: m (Maybe DownTime)
+    }
 
-            let
-                based = case depositsViewStart params of
-                    Nothing -> transfers
-                    Just start ->
-                        let acceptedTimes = Map.filter (<= start) times
-                        in  Map.restrictKeys transfers (Map.keysSet acceptedTimes)
-            pure
-                $ render
-                $ MonoidalMap.take 1000
-                $ depositsHistory times params based
+depositsHandlers
+    :: NetworkEnv IO a
+    -> WalletResourceM DepositsHistoryRaw
+    -> Int
+    -- ^ Number of rows per page
+    -> DepositsParams
+    -> DepositsHandlers (WalletResourceM)
+depositsHandlers network retrieve rows
+    params@DepositsParams{depositsFirstWeekDay, depositsWindow} =
+    DepositsHandlers
+        { depositsPrevious = \t -> runMaybeT $ do
+            MonoidalMap transfers <- lift newHistory
+            hoistMaybe $ previous rows transfers t
+        , depositsNext = \t -> runMaybeT $ do
+            MonoidalMap transfers <- lift newHistory
+            hoistMaybe $ next rows transfers t
+        , depositsRetrieve = \t -> do
+            MonoidalMap transfers <- newHistory
+            pure $ MonoidalMap $ nextPage rows t transfers
+        , depositsNow = depositNow
+        }
+  where
+    newHistory = do
+        raw <- retrieve
+        times <- liftIO $ slotsToUTCTimes network $ Map.keysSet raw
+        pure $ depositsHistory times params raw
+    depositNow = do
+        now <- liftIO getCurrentTime
+        pure $ Just $ Down $ At $ quantize
+            depositsFirstWeekDay depositsWindow now
 
 depositsHistoryWindowHandler
     :: NetworkEnv IO a
@@ -220,10 +260,7 @@ depositsHistoryWindowHandler network layer render alert params start = do
             customerOfAddress <- solveAddress
             transfers <-
                 if depositsFakeData params
-                    then do
-                        now <- liftIO getCurrentTime
-                        addresses <- fmap snd <$> listCustomers
-                        liftIO $ fakeDeposits now addresses
+                    then getFakeDepositsHistory
                     else getValueTransfersWithTxIds
             times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
             pure $ case MonoidalMap.lookup (Down start)
@@ -237,12 +274,19 @@ depositsHistoryWindowHandler network layer render alert params start = do
 
 type FakeDepositsCache = TVar (Maybe (UTCTime, [Address], DepositsHistoryRaw))
 
+getFakeDepositsHistory
+    :: WalletResourceM DepositsHistoryRaw
+getFakeDepositsHistory = do
+    addresses <- fmap snd <$> listCustomers
+    liftIO $ fakeDeposits addresses
+
 {-# NOINLINE fakeDepositsCache #-}
 fakeDepositsCache :: FakeDepositsCache
 fakeDepositsCache = unsafePerformIO $ newTVarIO Nothing
 
-fakeDeposits :: UTCTime -> [Address] -> IO DepositsHistoryRaw
-fakeDeposits now addresses = do
+fakeDeposits :: [Address] -> IO DepositsHistoryRaw
+fakeDeposits addresses = do
+    now <- getCurrentTime
     cache <- readTVarIO fakeDepositsCache
     let generate = do
             let newDeposits = fakeDepositsCreate now addresses
