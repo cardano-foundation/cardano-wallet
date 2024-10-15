@@ -22,12 +22,13 @@ import Prelude
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
-import Cardano.Wallet.Deposit.Read
-    ( WithOrigin (..)
-    )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMenmonic
     , PostWalletViaXPub
+    )
+import Cardano.Wallet.Read
+    ( SlotNo (..)
+    , WithOrigin (..)
     )
 import Cardano.Wallet.UI.Common.API
     ( Image
@@ -52,6 +53,9 @@ import Data.Hashable
     )
 import Data.Maybe
     ( isJust
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Set
     ( Set
@@ -173,8 +177,9 @@ type Data =
             :> SessionedHtml Post
         :<|> "deposits"
             :> "history"
-            :> "extend"
+            :> "page"
             :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "index" (WithOrigin UTCTime)
             :> SessionedHtml Post
         :<|> "deposits"
             :> "history"
@@ -296,16 +301,24 @@ data DepositsParams = DepositsParams
     , depositsWindowOpen :: Maybe (WithOrigin UTCTime)
     , depositsSpent :: Bool
     , depositsDetails :: Set (WithOrigin UTCTime)
+    , depositsPages :: Set DownTime
     }
     deriving (Eq, Show)
 
-instance FromHttpApiData (WithOrigin UTCTime) where
+instance FromHttpApiData SlotNo where
+    parseUrlPiece = fmap SlotNo . parseUrlPiece
+
+instance FromHttpApiData t => FromHttpApiData (WithOrigin t) where
     parseUrlPiece "Origin" = pure Origin
     parseUrlPiece t = At <$> parseUrlPiece t
 
-instance ToHttpApiData (WithOrigin UTCTime) where
+instance ToHttpApiData SlotNo where
+    toUrlPiece (SlotNo t) = toUrlPiece t
+
+instance ToHttpApiData t => ToHttpApiData (WithOrigin t) where
     toUrlPiece Origin = "Origin"
     toUrlPiece (At t) = toUrlPiece t
+
 instance FromForm DepositsParams where
     fromForm form = do
         slot <- isJust <$> lookupMaybe "slot" form
@@ -316,6 +329,7 @@ instance FromForm DepositsParams where
         windowOpen <- parseMaybe "window-open" form
         spent <- isJust <$> lookupMaybe "spent" form
         details <- Set.fromList <$> parseAll "details" form
+        pages <- Set.fromList . fmap Down <$> parseAll "page-present" form
         pure
             $ DepositsParams
                 slot
@@ -326,6 +340,7 @@ instance FromForm DepositsParams where
                 windowOpen
                 spent
                 details
+                pages
 
 data Expand = Expand | Collapse
     deriving (Eq, Show, Enum, Bounded)
@@ -342,6 +357,8 @@ instance FromHttpApiData Expand where
 type Home = SessionedHtml Get
 
 deriving instance Hashable (WithOrigin UTCTime)
+
+type DownTime = Down (WithOrigin UTCTime)
 
 -- | UI endpoints
 type UI =
@@ -377,7 +394,7 @@ transactionsLink :: Link
 customerHistoryLink :: Link
 depositsLink :: Link
 depositsHistoryLink :: Link
-depositsHistoryExtendLink :: Link
+depositsHistoryPageLink :: Maybe (WithOrigin UTCTime) -> Link
 depositsHistoryWindowLink :: Maybe (WithOrigin UTCTime) -> Maybe Expand ->  Link
 emptinessLink :: Link
 homePageLink
@@ -406,7 +423,7 @@ homePageLink
     :<|> customerHistoryLink
     :<|> depositsLink
     :<|> depositsHistoryLink
-    :<|> depositsHistoryExtendLink
+    :<|> depositsHistoryPageLink
     :<|> depositsHistoryWindowLink
     :<|> emptinessLink =
         allLinks (Proxy @UI)
