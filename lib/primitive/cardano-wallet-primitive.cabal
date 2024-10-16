@@ -120,6 +120,7 @@ library
     Cardano.Wallet.Primitive.Ledger.Convert
     Cardano.Wallet.Primitive.Ledger.Read.Block
     Cardano.Wallet.Primitive.Ledger.Read.Block.Header
+    Cardano.Wallet.Primitive.Ledger.Read.Eras
     Cardano.Wallet.Primitive.Ledger.Read.Tx
     Cardano.Wallet.Primitive.Ledger.Read.Tx.TxExtended
     Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Certificates
