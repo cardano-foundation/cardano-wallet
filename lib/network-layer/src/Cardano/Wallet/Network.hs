@@ -146,7 +146,7 @@ data NetworkLayer m block = NetworkLayer
     -- ^ Register a callback for when the node tip changes.
     -- This function should never finish, unless the callback throws an
     -- exception, which will be rethrown by this function.
-    , postTx
+    , postSealedTx
         :: SealedTx
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer

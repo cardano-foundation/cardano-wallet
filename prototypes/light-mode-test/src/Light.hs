@@ -89,7 +89,7 @@ data NetworkLayer m = NetworkLayer
         -- ^ implementable.
         -- Pool performance estimation can be copied from ledger code.
 
-    , postTx
+    , postSealedTx
         :: SealedTx -> m ()
         -- ^ implementable, but it is unclear whether we can be __notified__
         -- if the transaction is rejected by the node or times out.
@@ -140,7 +140,7 @@ mkNetworkLayerBlockfrost = nl
 
         , stakeDistribution = undefined
 
-        , postTx = void . BF.submitTx
+        , postSealedTx = void . BF.submitTx
         , getCachedRewardAccountBalance =
             fetchRewardAccountBalances nl
         , fetchRewardAccountBalances =

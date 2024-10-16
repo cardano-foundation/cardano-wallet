@@ -514,8 +514,8 @@ withNodeNetworkLayerBase
                 , currentSlottingParameters =
                     slottingParamsLegacy
                         <$> atomically (readTMVar networkParamsVar)
-                , postTx =
-                    _postTx txSubmissionQ readCurrentNodeEra
+                , postSealedTx =
+                    _postSealedTx txSubmissionQ readCurrentNodeEra
                 , stakeDistribution =
                     _stakeDistribution queryRewardQ
                 , getUTxOByTxIn =
@@ -633,7 +633,7 @@ withNodeNetworkLayerBase
         -- all form of type-level indicator about the era. The 'SealedTx' type
         -- shouldn't be needed anymore since we've dropped jormungandr, so we could
         -- instead carry a transaction from cardano-api types with proper typing.
-        _postTx txSubmissionQueue readCurrentEra tx = do
+        _postSealedTx txSubmissionQueue readCurrentEra tx = do
             liftIO $ traceWith tr $ MsgPostTx tx
             preferredEra <- liftIO readCurrentEra
             case unsealShelleyTx preferredEra tx of
