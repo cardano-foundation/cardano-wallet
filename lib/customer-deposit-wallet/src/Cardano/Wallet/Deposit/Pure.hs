@@ -134,11 +134,12 @@ listCustomers =
 customerAddress :: Customer -> WalletState -> Maybe Address
 customerAddress c = lookup c . listCustomers
 
--- depend on the private key only, not on the entire wallet state
+-- depend on the public key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
 deriveAddress w =
-    Address.deriveAddress (Address.getNetworkTag as) (Address.getXPub as)
-    . Address.DerivationCustomer
+    Address.deriveCustomerAddress
+        (Address.getNetworkTag as)
+        (Address.getXPub as)
   where
     as = addresses w
 
@@ -157,11 +158,12 @@ isCustomerAddress address =
 fromRawCustomer :: Word31 -> Customer
 fromRawCustomer = id
 
+-- | Maximum 'Customer' that is being tracked.
 trackedCustomers :: WalletState -> Customer
-trackedCustomers = fromIntegral . length . Address.addresses . addresses
+trackedCustomers = Address.getMaxCustomer . addresses
 
 walletXPub :: WalletState -> XPub
-walletXPub  = Address.getXPub . addresses
+walletXPub = Address.getXPub . addresses
 
 {-----------------------------------------------------------------------------
     Operations
@@ -206,7 +208,7 @@ rollForwardUTxO
     :: Read.IsEra era
     => (Address -> Bool) -> Read.Block era -> UTxOHistory -> UTxOHistory
 rollForwardUTxO isOurs block u =
-    UTxOHistory.appendBlock slot deltaUTxO u
+    UTxOHistory.rollForward slot deltaUTxO u
   where
     (deltaUTxO,_) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
     slot = Read.getEraSlotNo $ Read.getEraBHeader block
@@ -219,7 +221,7 @@ rollBackward targetPoint w =
     ( w
         { walletTip = actualPoint
         , utxoHistory =
-            UTxOHistory.rollback actualSlot (utxoHistory w)
+            UTxOHistory.rollBackward actualSlot (utxoHistory w)
         , submissions =
             Delta.apply (Sbm.rollBackward actualSlot) (submissions w)
         }
