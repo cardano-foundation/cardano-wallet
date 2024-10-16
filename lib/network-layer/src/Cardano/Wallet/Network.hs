@@ -285,7 +285,7 @@ mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
 data ErrPostTx
     = ErrPostTxValidationError Text
     | ErrPostTxMempoolFull
-    | ErrPostTxEraUnsupported AnyCardanoEra
+    | ErrPostTxEraUnsupported (Read.EraValue Read.Era)
     deriving (Generic, Show, Eq)
 
 instance ToText ErrPostTx where
@@ -293,7 +293,7 @@ instance ToText ErrPostTx where
         ErrPostTxValidationError msg -> msg
         ErrPostTxMempoolFull ->
             "mempool was full and refused posted transaction"
-        ErrPostTxEraUnsupported unsupported ->
+        ErrPostTxEraUnsupported (Read.EraValue unsupported) ->
             "Submitted transaction was in "
                 <> T.pack (show unsupported)
                 <> " era, which is not supported"

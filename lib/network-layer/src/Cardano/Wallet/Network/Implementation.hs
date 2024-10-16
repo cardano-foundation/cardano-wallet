@@ -95,6 +95,9 @@ import Cardano.Wallet.Network.Implementation.UnliftIO
 import Cardano.Wallet.Primitive.Ledger.Byron
     ( byronCodecConfig
     )
+import Cardano.Wallet.Primitive.Ledger.Read.Eras
+    ( fromAnyCardanoEra
+    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( UnsealException (..)
     , nodeToClientVersions
@@ -638,7 +641,7 @@ withNodeNetworkLayerBase
             preferredEra <- liftIO readCurrentEra
             case unsealShelleyTx preferredEra tx of
                 Left (UnsealedTxInUnsupportedEra era) ->
-                    throwE $ ErrPostTxEraUnsupported era
+                    throwE $ ErrPostTxEraUnsupported (fromAnyCardanoEra era)
                 Right tx' -> do
                     let cmd = CmdSubmitTx . toConsensusGenTx $ tx'
                     liftIO (send txSubmissionQueue cmd) >>= \case
