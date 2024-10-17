@@ -32,11 +32,8 @@ module Cardano.Wallet.Deposit.Read
     , UTxO
 
     , Read.TxId
-    , Tx
+    , Read.Tx
     , Read.utxoFromEraTx
-
-    , TxBody
-    , TxWitness
 
     , Read.Block
     , Read.getChainPoint
@@ -98,12 +95,6 @@ address :: Read.TxOut -> Address
 address = Read.getCompactAddr
 
 type UTxO = Map Read.TxIn Read.TxOut
-
-type Tx = Read.Tx Read.Conway
-
-type TxBody = ()
-
-type TxWitness = ()
 
 {-----------------------------------------------------------------------------
     Block
