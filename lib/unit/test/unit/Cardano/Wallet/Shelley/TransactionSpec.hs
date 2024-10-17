@@ -54,6 +54,9 @@ import Cardano.Api.Gen
     , genTxInEra
     , genWitnesses
     )
+import Cardano.Api.Shelley
+    ( ShelleyLedgerEra
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
@@ -196,7 +199,6 @@ import Cardano.Write.Eras
     , CardanoApiEra
     , IsRecentEra
     , RecentEra (..)
-    , ShelleyLedgerEra
     , cardanoEraFromRecentEra
     )
 import Cardano.Write.Tx
