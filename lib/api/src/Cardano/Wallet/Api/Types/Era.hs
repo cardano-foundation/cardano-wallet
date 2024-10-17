@@ -70,9 +70,6 @@ import Text.Show
 
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Write.Eras as Write
-    ( allRecentEras
-    , toAnyCardanoEra
-    )
 import qualified Data.Aeson as Aeson
 import qualified Data.Set as Set
 
@@ -129,4 +126,9 @@ toAnyCardanoEra = \case
 --
 allRecentEras :: Set ApiEra
 allRecentEras =
-    Set.map (fromAnyCardanoEra . Write.toAnyCardanoEra) Write.allRecentEras
+    Set.map fromAnyRecentEra Write.allRecentEras
+
+fromAnyRecentEra :: Write.AnyRecentEra -> ApiEra
+fromAnyRecentEra = \case
+    Write.AnyRecentEra Write.RecentEraBabbage -> ApiBabbage
+    Write.AnyRecentEra Write.RecentEraConway -> ApiConway
