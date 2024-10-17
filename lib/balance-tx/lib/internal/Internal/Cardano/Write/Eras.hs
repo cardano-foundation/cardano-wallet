@@ -7,7 +7,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -37,7 +36,6 @@ module Internal.Cardano.Write.Eras
     , AnyRecentEra (..)
 
     -- ** Helpers for cardano-api compatibility
-    , shelleyBasedEra
     , CardanoApi.ShelleyLedgerEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
@@ -203,15 +201,6 @@ shelleyBasedEraFromRecentEra
 shelleyBasedEraFromRecentEra = \case
     RecentEraConway -> CardanoApi.ShelleyBasedEraConway
     RecentEraBabbage -> CardanoApi.ShelleyBasedEraBabbage
-
--- | For convenience working with 'IsRecentEra'.
---
--- Similar to 'CardanoApi.shelleyBasedEra, but with a 'IsRecentEra era'
--- constraint instead of 'CardanoApi.IsShelleyBasedEra'.
-shelleyBasedEra
-    :: forall era. IsRecentEra era
-    => CardanoApi.ShelleyBasedEra (CardanoApiEra era)
-shelleyBasedEra = shelleyBasedEraFromRecentEra $ recentEra @era
 
 data MaybeInRecentEra (thing :: Type -> Type)
     = InNonRecentEraByron

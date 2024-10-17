@@ -21,7 +21,6 @@ module Cardano.Write.Eras
     , AnyRecentEra (..)
 
     -- ** Helpers for cardano-api compatibility
-    , shelleyBasedEra
     , ShelleyLedgerEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
@@ -40,6 +39,5 @@ import Internal.Cardano.Write.Eras
     , ShelleyLedgerEra
     , allRecentEras
     , cardanoEraFromRecentEra
-    , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     )

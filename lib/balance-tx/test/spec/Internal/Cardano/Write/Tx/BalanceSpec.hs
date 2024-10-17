@@ -253,7 +253,6 @@ import Internal.Cardano.Write.Eras
     , IsRecentEra (recentEra)
     , RecentEra (..)
     , cardanoEraFromRecentEra
-    , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     )
 import Internal.Cardano.Write.Tx
@@ -1986,8 +1985,10 @@ cardanoToWalletTxOut
     => CardanoApi.TxOut CardanoApi.CtxUTxO (CardanoApiEra era)
     -> W.TxOut
 cardanoToWalletTxOut =
-    toWallet . CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
+    toWallet . CardanoApi.toShelleyTxOut shelleyBasedEra
   where
+    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra @era)
+
     toWallet :: TxOut era -> W.TxOut
     toWallet x = case recentEra @era of
         RecentEraBabbage -> Convert.fromBabbageTxOut x
@@ -2397,10 +2398,11 @@ genTxOut =
     -- `maxBound :: Word64`, however users could supply these. We
     -- should ideally test what happens, and make it clear what
     -- code, if any, should validate.
-    CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
+    CardanoApi.toShelleyTxOut shelleyBasedEra
         <$> CardanoApi.genTxOut cardanoEra
   where
     cardanoEra = cardanoEraFromRecentEra (recentEra :: RecentEra era)
+    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]

@@ -215,7 +215,7 @@ import Internal.Cardano.Write.Eras
     , LatestLedgerEra
     , MaybeInRecentEra (..)
     , RecentEra (..)
-    , shelleyBasedEra
+    , shelleyBasedEraFromRecentEra
     )
 import Numeric.Natural
     ( Natural
@@ -503,7 +503,8 @@ toCardanoApiTx
     => Core.Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
 toCardanoApiTx =
-    CardanoApi.ShelleyTx (shelleyBasedEra @era)
+    CardanoApi.ShelleyTx
+    $ shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 toCardanoApiUTxO
     :: forall era. IsRecentEra era
@@ -512,8 +513,10 @@ toCardanoApiUTxO
 toCardanoApiUTxO =
     CardanoApi.UTxO
     . Map.mapKeys CardanoApi.fromShelleyTxIn
-    . Map.map (CardanoApi.fromShelleyTxOut (shelleyBasedEra @era))
+    . Map.map (CardanoApi.fromShelleyTxOut shelleyBasedEra)
     . unUTxO
+  where
+    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 fromCardanoApiUTxO
     :: forall era. IsRecentEra era
@@ -523,8 +526,10 @@ fromCardanoApiUTxO =
     Shelley.UTxO
     . Map.mapKeys CardanoApi.toShelleyTxIn
     . Map.map
-        (CardanoApi.toShelleyTxOut (shelleyBasedEra @era))
+        (CardanoApi.toShelleyTxOut shelleyBasedEra)
     . CardanoApi.unUTxO
+  where
+    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 --------------------------------------------------------------------------------
 -- PParams
