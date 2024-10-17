@@ -17,6 +17,7 @@
 module Cardano.Wallet.Api.Types.Era
     ( ApiEra (..)
     , fromAnyCardanoEra
+    , fromReadEra
     , toAnyCardanoEra
     , allRecentEras
     )
@@ -67,6 +68,7 @@ import Text.Show
     ( Show
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.Aeson as Aeson
 import qualified Data.Set as Set
 import qualified Internal.Cardano.Write.Tx as Write
@@ -92,6 +94,16 @@ instance FromJSON ApiEra where
 instance ToJSON ApiEra where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 4 . camelTo2 '_' }
+
+fromReadEra :: Read.EraValue Read.Era -> ApiEra
+fromReadEra (Read.EraValue era) = case era of
+    Read.Byron -> ApiByron
+    Read.Shelley -> ApiShelley
+    Read.Allegra -> ApiAllegra
+    Read.Mary -> ApiMary
+    Read.Alonzo -> ApiAlonzo
+    Read.Babbage -> ApiBabbage
+    Read.Conway -> ApiConway
 
 fromAnyCardanoEra :: AnyCardanoEra -> ApiEra
 fromAnyCardanoEra = \case

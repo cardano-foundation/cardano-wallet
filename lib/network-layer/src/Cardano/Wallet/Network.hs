@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Cardano.Wallet.Network
     ( -- * Interface
@@ -146,8 +147,13 @@ data NetworkLayer m block = NetworkLayer
     -- ^ Register a callback for when the node tip changes.
     -- This function should never finish, unless the callback throws an
     -- exception, which will be rethrown by this function.
-    , postTx
+    , postSealedTx
         :: SealedTx
+        -> ExceptT ErrPostTx m ()
+    -- ^ Broadcast a transaction to the chain producer (legacy types)
+    , postTx
+        :: forall era. Read.IsEra era
+        => Read.Tx era
         -> ExceptT ErrPostTx m ()
     -- ^ Broadcast a transaction to the chain producer
     , stakeDistribution
@@ -285,7 +291,7 @@ mapChainFollower fpoint12 fpoint21 ftip fblocks cf =
 data ErrPostTx
     = ErrPostTxValidationError Text
     | ErrPostTxMempoolFull
-    | ErrPostTxEraUnsupported AnyCardanoEra
+    | ErrPostTxEraUnsupported (Read.EraValue Read.Era)
     deriving (Generic, Show, Eq)
 
 instance ToText ErrPostTx where
@@ -293,7 +299,7 @@ instance ToText ErrPostTx where
         ErrPostTxValidationError msg -> msg
         ErrPostTxMempoolFull ->
             "mempool was full and refused posted transaction"
-        ErrPostTxEraUnsupported unsupported ->
+        ErrPostTxEraUnsupported (Read.EraValue unsupported) ->
             "Submitted transaction was in "
                 <> T.pack (show unsupported)
                 <> " era, which is not supported"

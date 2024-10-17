@@ -2341,7 +2341,7 @@ buildSignSubmitTransaction db@DBLayer{..} netLayer txLayer
 
             pure txWithSlot
 
-        postTx netLayer builtSealedTx
+        postSealedTx netLayer builtSealedTx
             & throwWrappedErr wrapNetworkError
             & liftIO
 
@@ -2755,7 +2755,7 @@ submitTx
     -> ExceptT ErrSubmitTx m ()
 submitTx tr DBLayer{walletState, atomically} nw tx@BuiltTx{..} =
     traceResult (MsgWallet . MsgTxSubmit . MsgSubmitTx tx >$< tr) $ do
-        withExceptT ErrSubmitTxNetwork $ postTx nw builtSealedTx
+        withExceptT ErrSubmitTxNetwork $ postSealedTx nw builtSealedTx
         lift
             . atomically
             . Delta.onDBVar walletState
@@ -2775,12 +2775,12 @@ submitExternalTx
     -> ExceptT ErrPostTx IO TxId
 submitExternalTx tr nw tl sealedTx = do
     -- FIXME: We read the current era to constrain the @sealedTx@ **twice**:
-    -- once here for decodeTx, and once in postTx before submitting.
+    -- once here for decodeTx, and once in postSealedTx before submitting.
     era <- liftIO $ currentNodeEra nw
     let tx = walletTx $ decodeTx tl era sealedTx
         txid = tx ^. #txId
     _ <- traceResult (MsgSubmitExternalTx txid >$< tr) $ do
-        postTx nw sealedTx
+        postSealedTx nw sealedTx
         pure sealedTx
     pure txid
 
@@ -2933,7 +2933,7 @@ runLocalTxSubmissionPool cfg ctx = db & \DBLayer{..} -> do
         -- Re-submit transactions due, ignore errors
         forM_ (filter (isScheduled sp sl) pendingOldStyle) $ \st -> do
             _ <- runExceptT $ traceResult (trRetry (st ^. #txId)) $
-                postTx nw (st ^. #submittedTx )
+                postSealedTx nw (st ^. #submittedTx )
             atomically $ resubmitTx (st ^. #txId) sl
     watchNodeTip nw submitPending
   where
@@ -4128,7 +4128,7 @@ instance Buildable TxSubmitLog where
                 case res of
                     Right _ -> "accepted again"
                     Left _ -> "not accepted (this is expected)"
-            _ -> formatResultMsg "runLocalTxSubmissionPool(postTx)"
+            _ -> formatResultMsg "runLocalTxSubmissionPool(postSealedTx)"
                 [("txid", txid)] msg
 
         MsgProcessPendingPool msg ->

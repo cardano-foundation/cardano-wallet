@@ -160,6 +160,7 @@ dummyNetworkLayer = NetworkLayer
     , currentSlottingParameters = err "currentSlottingParameters"
     , getUTxOByTxIn = err "getUTxOByTxIn"
     , getStakeDelegDeposits = error "getStakeDelegDeposits"
+    , postSealedTx = err "postSealedTx"
     , postTx = err "postTx"
     , stakeDistribution = err "stakeDistribution"
     , getCachedRewardAccountBalance = err "getRewardCachedAccountBalance"

@@ -827,7 +827,7 @@ instance Arbitrary Write.AnyRecentEra where
 
 data TxRetryTest = TxRetryTest
     { retryTestPool :: [BuiltTx]
-    , postTxResults :: [(SealedTx, Bool)]
+    , postSealedTxResults :: [(SealedTx, Bool)]
     , testSlottingParameters :: SlottingParameters
     , retryTestWallet :: (WalletId, WalletName, DummyState)
     } deriving (Generic, Show, Eq)
@@ -992,9 +992,9 @@ prop_localTxSubmission tc = monadicIO $ do
     mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Read.ConsensusBlock
     mockNetwork var = dummyNetworkLayer
         { currentSlottingParameters = pure (testSlottingParameters tc)
-        , postTx = \tx -> ExceptT $ do
+        , postSealedTx = \tx -> ExceptT $ do
                 stash var tx
-                pure $ case lookup tx (postTxResults tc) of
+                pure $ case lookup tx (postSealedTxResults tc) of
                     Just True -> Right ()
                     Just False -> Left (W.ErrPostTxValidationError "intended")
                     Nothing -> Left (W.ErrPostTxValidationError "unexpected")

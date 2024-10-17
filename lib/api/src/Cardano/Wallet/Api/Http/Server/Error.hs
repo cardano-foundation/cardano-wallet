@@ -210,9 +210,6 @@ import Servant.Server
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Api.Types.Amount as ApiAmount
 import qualified Cardano.Wallet.Api.Types.Era as ApiEra
-    ( allRecentEras
-    , fromAnyCardanoEra
-    )
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -740,7 +737,7 @@ instance IsServerError ErrPostTx where
         e@(ErrPostTxEraUnsupported unsupported) ->
             flip (apiError err403) (toText e) $ UnsupportedEra
                 ApiErrorUnsupportedEra
-                    { unsupportedEra = ApiEra.fromAnyCardanoEra unsupported
+                    { unsupportedEra = ApiEra.fromReadEra unsupported
                     , supportedEras = ApiEra.allRecentEras
                     }
 
