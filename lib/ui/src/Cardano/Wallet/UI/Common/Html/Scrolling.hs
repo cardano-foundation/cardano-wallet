@@ -194,7 +194,7 @@ dontSwap = (:) $ hxSwap_ "none"
 
 -- | Add a trigger on intersect attribute to a list of attributes.
 triggerIntersect :: [Attribute] -> [Attribute]
-triggerIntersect = (:) $ hxTrigger_ "intersect"
+triggerIntersect = (:) $ hxTrigger_ "intersect consume"
 
 -- | Add a inclusion tags to a list of attributes.
 includeStates :: Configuration m index -> [Attribute] -> [Attribute]

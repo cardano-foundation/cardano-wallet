@@ -8,12 +8,16 @@
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( depositsHistory
     , DepositsHistory
+    , DepositsHistoryByCustomer
+    , DepositsHistoryByCustomerAndSlot
     , DepositsWindow (..)
-    , DepositsHandlers (..)
+    , PageHandler (..)
     , SolveAddress
     , depositsHistoryWindowHandler
-    , depositsHandlers
+    , depositsPageHandler
+    , depositsDetailsPageHandler
     , getFakeDepositsHistory
+    , mkMDepositsHistory
     ) where
 
 import Prelude
@@ -87,7 +91,7 @@ import Control.Monad.Trans.Maybe
 import Data.Foldable
     ( Foldable (..)
     )
-import Data.Map.Monoidal.Strict
+import Data.Map.Monoidal
     ( MonoidalMap (..)
     )
 import Data.Map.Strict
@@ -126,15 +130,37 @@ import System.Random.Stateful
     )
 
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map.Monoidal.Strict as MonoidalMap
+import qualified Data.Map.Monoidal as MonoidalMap
 import qualified Data.Map.Strict as Map
+import Data.Maybe
+    ( maybeToList
+    )
 
 type DepositsHistoryRaw = Map Slot (Map Address (Map TxId ValueTransfer))
 
+type DepositsHistoryByCustomer =
+    MonoidalMap
+        Customer
+        (First Address, MonoidalMap TxId (First Slot, ValueTransfer))
+
+type DepositsHistoryByCustomerAndSlot =
+    MonoidalMap
+        (Customer, Slot)
+        (First Address, MonoidalMap TxId ValueTransfer)
+
+mkDepositsHistoryByCustomerAndSlot
+    :: DepositsHistoryByCustomer
+    -> DepositsHistoryByCustomerAndSlot
+mkDepositsHistoryByCustomerAndSlot m = fold $ do
+    (customer, (address, transfers)) <- MonoidalMap.assocs m
+    (txId, (First (Just slot), transfer)) <- MonoidalMap.assocs transfers
+    pure $ MonoidalMap.singleton
+        (customer, slot)
+        (address, MonoidalMap.singleton txId transfer)
+
 data DepositsWindow = DepositsWindow
     { depositsWindowSlot :: !Slot
-    , depositsWindowTransfers
-        :: !(MonoidalMap Address (MonoidalMap TxId (First Slot, ValueTransfer)))
+    , depositsWindowTransfers :: !DepositsHistoryByCustomer
     }
 
 instance Semigroup DepositsWindow where
@@ -145,21 +171,6 @@ type DepositsHistory =
     MonoidalMap
         (Down (WithOrigin UTCTime))
         DepositsWindow
-
--- diffTimeOfindow :: Window -> NominalDiffTime
--- diffTimeOfindow Year = 365 * 24 * 3600
--- diffTimeOfindow Month = 30 * 24 * 3600
--- diffTimeOfindow Week = 7 * 24 * 3600
--- diffTimeOfindow Day = 24 * 3600
--- diffTimeOfindow Hour12 = 12 * 3600
--- diffTimeOfindow Hour6 = 6 * 3600
--- diffTimeOfindow Hour4 = 4 * 3600
--- diffTimeOfindow Hour2 = 2 * 3600
--- diffTimeOfindow Hour1 = 3600
--- diffTimeOfindow Minute30 = 30 * 60
--- diffTimeOfindow Minute15 = 15 * 60
--- diffTimeOfindow Minute10 = 10 * 60
--- diffTimeOfindow Minute5 = 5 * 60
 
 quantizeSeconds :: DiffTime -> Integer -> DiffTime
 quantizeSeconds t q =
@@ -186,12 +197,17 @@ quantize _ Minute5 (UTCTime d t) = UTCTime d (quantizeSeconds t 300)
 
 depositsHistory
     :: Map Slot (WithOrigin UTCTime)
+    -> SolveAddress
     -> DepositsParams
     -> DepositsHistoryRaw
     -> DepositsHistory
-depositsHistory times DepositsParams{..} raw = fold $ do
+depositsHistory times customerOfAddress DepositsParams{..} raw = fold $ do
     (slot, transfers) <- Map.toList raw
     let transfers' = fmap (First $ Just slot,) <$> transfers
+        customerTransfers = Map.fromList $ do
+            (address, transfer) <- Map.toList transfers'
+            customer <- maybeToList $ customerOfAddress address
+            pure (customer, (First $ Just address, MonoidalMap transfer))
     time <-
         maybe
             []
@@ -202,53 +218,98 @@ depositsHistory times DepositsParams{..} raw = fold $ do
     pure
         $ MonoidalMap.singleton (Down time)
         $ DepositsWindow slot
-        $ MonoidalMap
-        $ MonoidalMap <$> transfers'
+        $ MonoidalMap customerTransfers
 
 type SolveAddress = Address -> Maybe Customer
 
-data DepositsHandlers m = DepositsHandlers
-    { depositsPrevious :: DownTime -> m (Maybe DownTime)
-    , depositsNext :: DownTime -> m (Maybe DownTime)
-    , depositsRetrieve :: DownTime -> m DepositsHistory
-    , depositsNow :: m (Maybe DownTime)
+data PageHandler m a b = PageHandler
+    { pagePrevious :: a -> m (Maybe a)
+    , pageNext :: a -> m (Maybe a)
+    , page :: a -> m b
+    , start :: m (Maybe a)
     }
 
-depositsHandlers
-    :: NetworkEnv IO a
-    -> WalletResourceM DepositsHistoryRaw
-    -> Int
-    -- ^ Number of rows per page
+mkMDepositsHistory
+    :: MonadIO m
+    => SolveAddress
     -> DepositsParams
-    -> DepositsHandlers (WalletResourceM)
-depositsHandlers network retrieve rows
-    params@DepositsParams{depositsFirstWeekDay, depositsWindow} =
-    DepositsHandlers
-        { depositsPrevious = \t -> runMaybeT $ do
-            MonoidalMap transfers <- lift newHistory
-            hoistMaybe $ previous rows transfers t
-        , depositsNext = \t -> runMaybeT $ do
-            MonoidalMap transfers <- lift newHistory
-            hoistMaybe $ next rows transfers t
-        , depositsRetrieve = \t -> do
-            MonoidalMap transfers <- newHistory
-            pure $ MonoidalMap $ nextPage rows t transfers
-        , depositsNow = depositNow
-        }
-  where
-    newHistory = do
+    -> NetworkEnv IO block
+    -> m DepositsHistoryRaw
+    -> m DepositsHistory
+mkMDepositsHistory
+    customerOfAddress
+    params
+    network
+    retrieve = do
         raw <- retrieve
         times <- liftIO $ slotsToUTCTimes network $ Map.keysSet raw
-        pure $ depositsHistory times params raw
-    depositNow = do
-        now <- liftIO getCurrentTime
-        pure $ Just $ Down $ At $ quantize
-            depositsFirstWeekDay depositsWindow now
+        pure $ depositsHistory times customerOfAddress params raw
+
+depositsPageHandler
+    :: MonadIO m
+    => DepositsParams
+    -> m DepositsHistory
+    -> Int
+    -> PageHandler m DownTime DepositsHistory
+depositsPageHandler
+    DepositsParams{depositsFirstWeekDay, depositsWindow}
+    newDepositsHistory
+    rows =
+        PageHandler
+            { pagePrevious = \t -> runMaybeT $ do
+                MonoidalMap transfers <- lift newDepositsHistory
+                hoistMaybe $ previous rows transfers t
+            , pageNext = \t -> runMaybeT $ do
+                MonoidalMap transfers <- lift newDepositsHistory
+                hoistMaybe $ next rows transfers t
+            , page = \t -> do
+                MonoidalMap transfers <- newDepositsHistory
+                pure $ MonoidalMap $ nextPage rows t transfers
+            , start = do
+                c <- liftIO getCurrentTime
+                pure $ Just $ Down $ At $ quantize depositsFirstWeekDay depositsWindow c
+            }
+
+depositsDetailsPageHandler
+    :: (Monad m)
+    => m (MonoidalMap DownTime DepositsWindow)
+    -> DownTime
+    -> Int
+    -> PageHandler m (DownTime, (Customer, Slot))
+        DepositsHistoryByCustomerAndSlot
+depositsDetailsPageHandler
+    newDepositsHistory
+    time
+    rows =
+        PageHandler
+            { pagePrevious = \(t, k) -> runMaybeT $ do
+                MonoidalMap r <- newDepositsWindow t
+                k' <- hoistMaybe $ previous rows r k
+                pure (t, k')
+            , pageNext = \(t, k) -> runMaybeT $ do
+                MonoidalMap r <- newDepositsWindow t
+                k' <- hoistMaybe $ next rows r k
+                pure (t, k')
+            , page = \(t, k) -> fmap fold $ runMaybeT $ do
+                MonoidalMap r <- newDepositsWindow t
+                pure $ MonoidalMap $ nextPage rows k r
+            , start = runMaybeT $ do
+                r <- newDepositsWindow time
+                ((c,s), _) <- hoistMaybe $ MonoidalMap.lookupMin r
+                pure (time, (c, s))
+
+            }
+      where
+        newDepositsWindow t = do
+            transfers <- lift newDepositsHistory
+            DepositsWindow _ r <-
+                hoistMaybe $ MonoidalMap.lookup t transfers
+            pure $ mkDepositsHistoryByCustomerAndSlot r
 
 depositsHistoryWindowHandler
     :: NetworkEnv IO a
     -> SessionLayer WalletResource
-    -> (SolveAddress -> DepositsWindow -> html)
+    -> (DepositsWindow -> html)
     -> (BL.ByteString -> html)
     -> DepositsParams
     -> WithOrigin UTCTime
@@ -264,8 +325,8 @@ depositsHistoryWindowHandler network layer render alert params start = do
                     else getValueTransfersWithTxIds
             times <- liftIO $ slotsToUTCTimes network $ Map.keysSet transfers
             pure $ case MonoidalMap.lookup (Down start)
-                $ depositsHistory times params transfers of
-                Just window -> render customerOfAddress window
+                $ depositsHistory times customerOfAddress params transfers of
+                Just window -> render window
                 Nothing -> alert "No deposits found for that time period"
 
 --------------------------------------------------------------------------------
