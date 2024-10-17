@@ -18,24 +18,19 @@
 --
 -- Recent eras.
 module Internal.Cardano.Write.Eras
-    (
-    -- * Eras
-      BabbageEra
-    , ConwayEra
+    ( Babbage
+    , Conway
+    , LatestLedgerEra
 
-    -- ** RecentEra
     , RecentEra (..)
     , IsRecentEra (..)
     , CardanoApiEra
     , MaybeInRecentEra (..)
-    , LatestLedgerEra
     , RecentEraConstraints
+
+    , AnyRecentEra (..)
     , allRecentEras
 
-    -- ** Existential wrapper
-    , AnyRecentEra (..)
-
-    -- ** Helpers for cardano-api compatibility
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
     ) where
@@ -58,6 +53,10 @@ import Cardano.Ledger.Alonzo.TxWits
     )
 import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
+    )
+import Cardano.Ledger.Api
+    ( Babbage
+    , Conway
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
@@ -105,10 +104,7 @@ import qualified Data.Set as Set
 -- Eras
 --------------------------------------------------------------------------------
 
-type BabbageEra = Ledger.BabbageEra StandardCrypto
-type ConwayEra = Ledger.ConwayEra StandardCrypto
-
-type LatestLedgerEra = ConwayEra
+type LatestLedgerEra = Conway
 
 --------------------------------------------------------------------------------
 -- RecentEra
@@ -121,12 +117,9 @@ type LatestLedgerEra = ConwayEra
 -- after a hard-fork, we need to, at that time, support the two latest eras. We
 -- could get away with just supporting one era at other times, but for
 -- simplicity we stick with always supporting the two latest eras for now.
---
--- NOTE: We /could/ let 'era' refer to eras from the ledger rather than from
--- cardano-api.
 data RecentEra era where
-    RecentEraBabbage :: RecentEra BabbageEra
-    RecentEraConway :: RecentEra ConwayEra
+    RecentEraBabbage :: RecentEra Babbage
+    RecentEraConway :: RecentEra Conway
 
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
@@ -144,10 +137,6 @@ class
     , RecentEraConstraints era
     ) => IsRecentEra era where
     recentEra :: RecentEra era
-
-type family CardanoApiEra era = cardanoApiEra | cardanoApiEra -> era
-type instance CardanoApiEra BabbageEra = CardanoApi.BabbageEra
-type instance CardanoApiEra ConwayEra = CardanoApi.ConwayEra
 
 -- | Convenient constraints. Constraints may be dropped as we move to new eras.
 --
@@ -181,25 +170,11 @@ type RecentEraConstraints era =
     , Core.NativeScript era ~ Timelock era
     )
 
-instance IsRecentEra BabbageEra where
+instance IsRecentEra Babbage where
     recentEra = RecentEraBabbage
 
-instance IsRecentEra ConwayEra where
+instance IsRecentEra Conway where
     recentEra = RecentEraConway
-
-cardanoEraFromRecentEra
-    :: RecentEra era
-    -> CardanoApi.CardanoEra (CardanoApiEra era)
-cardanoEraFromRecentEra = \case
-    RecentEraConway -> CardanoApi.ConwayEra
-    RecentEraBabbage -> CardanoApi.BabbageEra
-
-shelleyBasedEraFromRecentEra
-    :: RecentEra era
-    -> CardanoApi.ShelleyBasedEra (CardanoApiEra era)
-shelleyBasedEraFromRecentEra = \case
-    RecentEraConway -> CardanoApi.ShelleyBasedEraConway
-    RecentEraBabbage -> CardanoApi.ShelleyBasedEraBabbage
 
 data MaybeInRecentEra (thing :: Type -> Type)
     = InNonRecentEraByron
@@ -207,12 +182,12 @@ data MaybeInRecentEra (thing :: Type -> Type)
     | InNonRecentEraAllegra
     | InNonRecentEraMary
     | InNonRecentEraAlonzo
-    | InRecentEraBabbage (thing BabbageEra)
-    | InRecentEraConway (thing ConwayEra)
+    | InRecentEraBabbage (thing Babbage)
+    | InRecentEraConway (thing Conway)
 
-deriving instance (Eq (a BabbageEra), (Eq (a ConwayEra)))
+deriving instance (Eq (a Babbage), (Eq (a Conway)))
     => Eq (MaybeInRecentEra a)
-deriving instance (Show (a BabbageEra), (Show (a ConwayEra)))
+deriving instance (Show (a Babbage), (Show (a Conway)))
     => Show (MaybeInRecentEra a)
 
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
@@ -252,10 +227,37 @@ instance Eq AnyRecentEra where
 allRecentEras :: Set AnyRecentEra
 allRecentEras = Set.fromList [minBound .. maxBound]
 
+--------------------------------------------------------------------------------
+-- Cardano.Api compatibility
+--------------------------------------------------------------------------------
+-- | Type family for converting to "Cardano.Api" eras.
+type family CardanoApiEra era = cardanoApiEra | cardanoApiEra -> era
+type instance CardanoApiEra Babbage = CardanoApi.BabbageEra
+type instance CardanoApiEra Conway = CardanoApi.ConwayEra
+
+-- | Convert to a 'CardanoEra'.
+cardanoEraFromRecentEra
+    :: RecentEra era
+    -> CardanoApi.CardanoEra (CardanoApiEra era)
+cardanoEraFromRecentEra = \case
+    RecentEraConway -> CardanoApi.ConwayEra
+    RecentEraBabbage -> CardanoApi.BabbageEra
+
+-- | Convert to a 'ShelleyBasedEra'.
+-- At this time, every 'RecentEra' is Shelley-based.
+shelleyBasedEraFromRecentEra
+    :: RecentEra era
+    -> CardanoApi.ShelleyBasedEra (CardanoApiEra era)
+shelleyBasedEraFromRecentEra = \case
+    RecentEraConway -> CardanoApi.ShelleyBasedEraConway
+    RecentEraBabbage -> CardanoApi.ShelleyBasedEraBabbage
+
+-- | Currently needed for 'Enum' instance.
 toAnyCardanoEra :: AnyRecentEra -> CardanoApi.AnyCardanoEra
 toAnyCardanoEra (AnyRecentEra era) =
     CardanoApi.AnyCardanoEra (cardanoEraFromRecentEra era)
 
+-- | Currently needed for 'Enum' instance.
 fromAnyCardanoEra
     :: CardanoApi.AnyCardanoEra
     -> Maybe AnyRecentEra

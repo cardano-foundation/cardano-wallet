@@ -355,7 +355,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Write.Eras as Write
-    ( BabbageEra
+    ( Babbage
     , CardanoApiEra
     , IsRecentEra
     , RecentEra (RecentEraBabbage, RecentEraConway)
@@ -1383,7 +1383,7 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParams @Write.BabbageEra)
+        (mockPParams @Write.Babbage)
         TxWitnessShelleyUTxO
 data MockSelection = MockSelection
     { txInputCount :: Int
