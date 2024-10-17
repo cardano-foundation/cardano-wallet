@@ -29,7 +29,8 @@ import Cardano.Wallet.Deposit.Pure
     , fromRawCustomer
     )
 import Cardano.Wallet.Deposit.Read
-    ( mkEnterpriseAddress
+    ( NetworkTag (MainnetTag, TestnetTag)
+    , mkEnterpriseAddress
     )
 import Data.Aeson
     ( FromJSON (..)
@@ -74,8 +75,8 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Wallet.Read as Read
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.ByteString.Short as SBS
 import qualified Data.List as L
 
 spec :: Spec
@@ -133,8 +134,9 @@ prop_jsonRoundtrip val =
 
 genAddress :: Gen Address
 genAddress = do
-    keyhashCred <- BS.pack <$> vectorOf 28 arbitrary
-    pure $ mkEnterpriseAddress keyhashCred
+    network <- elements [MainnetTag, TestnetTag]
+    keyhashCred <- SBS.pack <$> vectorOf 28 arbitrary
+    pure $ mkEnterpriseAddress network keyhashCred
 
 genApiTAddress :: Gen (ApiT Address)
 genApiTAddress = ApiT <$> genAddress

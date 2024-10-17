@@ -129,11 +129,7 @@ payFromFaucet env destinations =
 ------------------------------------------------------------------------------}
 
 signTx :: XPrv -> [BIP32Path] -> Write.TxBody -> Write.Tx
-signTx _ _ txbody =
-    Write.Tx
-        { Write.txbody = txbody
-        , Write.txwits = ()
-        }
+signTx _ _ = Write.mkTx
 
 submitTx :: ScenarioEnv -> Write.Tx -> IO ()
 submitTx env tx = do

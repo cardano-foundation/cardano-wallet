@@ -117,9 +117,9 @@ testXPub =
 testGenesis :: Read.GenesisData
 testGenesis = Read.mockGenesisDataMainnet
 
-spendOneTxOut :: UTxO.UTxO -> Read.Tx
+spendOneTxOut :: UTxO.UTxO -> Write.Tx
 spendOneTxOut utxo =
-    Write.toConwayTx txid tx
+    Write.mkTx txBody
   where
     txBody = Write.TxBody
         { Write.spendInputs = Set.singleton . fst . head $ Map.toList utxo
@@ -127,15 +127,10 @@ spendOneTxOut utxo =
         , Write.txouts = Map.empty
         , Write.collRet = Nothing
         }
-    tx = Write.Tx
-        { Write.txbody = txBody
-        , Write.txwits = ()
-        }
-    txid = Write.mockTxId txBody
 
-payFromFaucet :: [(Write.Address, Write.Value)] -> Read.Tx
+payFromFaucet :: [(Write.Address, Write.Value)] -> Write.Tx
 payFromFaucet destinations =
-    Write.toConwayTx txid tx
+    Write.mkTx txBody
   where
     toTxOut (addr, value) = Write.mkTxOut addr value
     txBody = Write.TxBody
@@ -145,8 +140,3 @@ payFromFaucet destinations =
             Map.fromList $ zip [toEnum 0..] $ map toTxOut destinations
         , Write.collRet = Nothing
         }
-    tx = Write.Tx
-        { Write.txbody = txBody
-        , Write.txwits = ()
-        }
-    txid = Write.mockTxId txBody

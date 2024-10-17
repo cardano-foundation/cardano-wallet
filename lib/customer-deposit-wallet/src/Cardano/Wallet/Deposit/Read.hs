@@ -14,14 +14,14 @@ module Cardano.Wallet.Deposit.Read
 
     , Read.SlotNo
     , Read.ChainPoint (..)
-    , Slot
-    , WithOrigin (..)
-    , slotFromChainPoint
+    , Read.Slot
+    , Read.WithOrigin (..)
+    , Read.slotFromChainPoint
 
     , Address
     , KeyHash
+    , NetworkTag (..)
     , mkEnterpriseAddress
-    , mockAddress
 
     , Ix
     , Read.TxIn
@@ -32,11 +32,8 @@ module Cardano.Wallet.Deposit.Read
     , UTxO
 
     , Read.TxId
-    , Tx
+    , Read.Tx
     , Read.utxoFromEraTx
-
-    , TxBody
-    , TxWitness
 
     , Read.Block
     , Read.getChainPoint
@@ -52,44 +49,28 @@ module Cardano.Wallet.Deposit.Read
 
     , Read.NetworkId (Read.Mainnet, Read.Testnet)
     , Read.getNetworkId
-
-    -- * Dummy Values useful for testing
-    , dummyAddress
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Address.Encoding
+    ( Credential (..)
+    , EnterpriseAddr (..)
+    , KeyHash
+    , NetworkTag (..)
+    , compactAddrFromEnterpriseAddr
+    )
 import Cardano.Wallet.Read.Block.Gen
     ( mkBlockEra
     )
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
     )
-import Cardano.Wallet.Read.Chain
-    ( Slot
-    , WithOrigin (..)
-    , slotFromChainPoint
-    )
-import Cardano.Wallet.Read.Tx
-    ( TxIx
-    )
-import Data.ByteString
-    ( ByteString
-    )
 import Data.Map
     ( Map
     )
-import Data.Maybe
-    ( fromJust
-    )
-import Data.Word
-    ( Word8
-    )
 
 import qualified Cardano.Wallet.Read as Read
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Short as SBS
 
 {-----------------------------------------------------------------------------
     Type definitions
@@ -101,35 +82,19 @@ import qualified Data.ByteString.Short as SBS
 -- Byron addresses are represented by @Addr_bootstrap@.
 type Address = Read.CompactAddr
 
-mockAddress :: Show a => a -> Address
-mockAddress = mkEnterpriseAddress . B8.pack . show
+-- | Make an enterprise address from a given network and key hash.
+mkEnterpriseAddress :: NetworkTag -> KeyHash -> Address
+mkEnterpriseAddress network =
+    compactAddrFromEnterpriseAddr
+    . EnterpriseAddrC network
+    . KeyHashObj
 
--- 28 Bytes.
-type KeyHash = ByteString
-
-mkEnterpriseAddress :: KeyHash -> Address
-mkEnterpriseAddress keyHash =
-    fromJust . Read.fromShortByteString . SBS.pack
-        $ [tagEnterprise] <> take 28 (BS.unpack keyHash <> repeat 0)
-
-tagEnterprise :: Word8
-tagEnterprise = 0b01100001
-
-dummyAddress :: Address
-dummyAddress = mockAddress (0 :: Int)
-
-type Ix = TxIx
+type Ix = Read.TxIx
 
 address :: Read.TxOut -> Address
 address = Read.getCompactAddr
 
 type UTxO = Map Read.TxIn Read.TxOut
-
-type Tx = Read.Tx Read.Conway
-
-type TxBody = ()
-
-type TxWitness = ()
 
 {-----------------------------------------------------------------------------
     Block

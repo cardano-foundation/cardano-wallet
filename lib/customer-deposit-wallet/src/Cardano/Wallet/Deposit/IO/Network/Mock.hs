@@ -65,7 +65,7 @@ newNetworkEnvMock = do
 
     let forgeBlock tx = atomically $ do
             tipOld <- readTVar mtip
-            let txRead = Write.toConwayTx (Write.mockTxId tipOld) tx
+            let txRead = Write.toConwayTx tx
                 blockNew = Read.mockNextBlock tipOld [txRead]
                 tipNew = Read.getChainPoint blockNew
             writeTVar mtip tipNew
