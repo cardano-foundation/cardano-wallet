@@ -252,7 +252,6 @@ import Internal.Cardano.Write.Eras
     , ConwayEra
     , IsRecentEra (recentEra)
     , RecentEra (..)
-    , cardanoEra
     , cardanoEraFromRecentEra
     , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
@@ -2385,7 +2384,9 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
 
 genTxForBalancing :: forall era. IsRecentEra era => Gen (Tx era)
 genTxForBalancing =
-    fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
+    fromCardanoApiTx <$> CardanoApi.genTxForBalancing cardanoEra
+  where
+    cardanoEra = cardanoEraFromRecentEra (recentEra :: RecentEra era)
 
 genTxIn :: Gen TxIn
 genTxIn = fromWalletTxIn <$> W.genTxIn
@@ -2397,7 +2398,9 @@ genTxOut =
     -- should ideally test what happens, and make it clear what
     -- code, if any, should validate.
     CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
-        <$> CardanoApi.genTxOut (cardanoEra @era)
+        <$> CardanoApi.genTxOut cardanoEra
+  where
+    cardanoEra = cardanoEraFromRecentEra (recentEra :: RecentEra era)
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]

@@ -37,7 +37,6 @@ module Internal.Cardano.Write.Eras
     , AnyRecentEra (..)
 
     -- ** Helpers for cardano-api compatibility
-    , cardanoEra
     , shelleyBasedEra
     , CardanoApi.ShelleyLedgerEra
     , cardanoEraFromRecentEra
@@ -204,13 +203,6 @@ shelleyBasedEraFromRecentEra
 shelleyBasedEraFromRecentEra = \case
     RecentEraConway -> CardanoApi.ShelleyBasedEraConway
     RecentEraBabbage -> CardanoApi.ShelleyBasedEraBabbage
-
--- Similar to 'CardanoApi.cardanoEra', but with an 'IsRecentEra era' constraint
--- instead of 'CardanoApi.IsCardanoEra'.
-cardanoEra
-    :: forall era. IsRecentEra era
-    => CardanoApi.CardanoEra (CardanoApiEra era)
-cardanoEra = cardanoEraFromRecentEra $ recentEra @era
 
 -- | For convenience working with 'IsRecentEra'.
 --
