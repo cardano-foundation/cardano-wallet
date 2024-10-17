@@ -28,7 +28,6 @@ module Internal.Cardano.Write.Eras
     , RecentEra (..)
     , IsRecentEra (..)
     , CardanoApiEra
-    , toRecentEra
     , fromRecentEra
     , MaybeInRecentEra (..)
     , LatestLedgerEra
@@ -188,21 +187,6 @@ type RecentEraConstraints era =
     , AllegraEraScript era
     , Core.NativeScript era ~ Timelock era
     )
-
--- | Returns a proof that the given era is a recent era.
---
--- Otherwise, returns @Nothing@.
-toRecentEra
-    :: CardanoApi.CardanoEra era
-    -> Maybe (RecentEra (CardanoApi.ShelleyLedgerEra era))
-toRecentEra = \case
-    CardanoApi.ConwayEra  -> Just RecentEraConway
-    CardanoApi.BabbageEra -> Just RecentEraBabbage
-    CardanoApi.AlonzoEra  -> Nothing
-    CardanoApi.MaryEra    -> Nothing
-    CardanoApi.AllegraEra -> Nothing
-    CardanoApi.ShelleyEra -> Nothing
-    CardanoApi.ByronEra   -> Nothing
 
 fromRecentEra :: RecentEra era -> CardanoApi.CardanoEra (CardanoApiEra era)
 fromRecentEra = \case
