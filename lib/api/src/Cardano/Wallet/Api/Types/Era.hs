@@ -69,12 +69,12 @@ import Text.Show
     )
 
 import qualified Cardano.Wallet.Read as Read
-import qualified Data.Aeson as Aeson
-import qualified Data.Set as Set
-import qualified Internal.Cardano.Write.Tx as Write
+import qualified Cardano.Write.Eras as Write
     ( allRecentEras
     , toAnyCardanoEra
     )
+import qualified Data.Aeson as Aeson
+import qualified Data.Set as Set
 
 data ApiEra
     = ApiByron

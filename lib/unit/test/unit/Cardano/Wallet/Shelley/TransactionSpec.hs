@@ -191,6 +191,14 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
     )
+import Cardano.Write.Eras
+    ( AnyRecentEra (..)
+    , CardanoApiEra
+    , IsRecentEra
+    , RecentEra (..)
+    , ShelleyLedgerEra
+    , cardanoEraFromRecentEra
+    )
 import Cardano.Write.Tx
     ( ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
@@ -266,14 +274,6 @@ import Fmt
     , pretty
     , (+||)
     , (||+)
-    )
-import Internal.Cardano.Write.Tx
-    ( AnyRecentEra (..)
-    , CardanoApiEra
-    , IsRecentEra
-    , RecentEra (..)
-    , ShelleyLedgerEra
-    , cardanoEraFromRecentEra
     )
 import Internal.Cardano.Write.Tx.Gen
     ( mockPParams
@@ -352,6 +352,14 @@ import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Write.Eras as Write
+    ( BabbageEra
+    , CardanoApiEra
+    , IsRecentEra
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    , cardanoEraFromRecentEra
+    , shelleyBasedEraFromRecentEra
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -361,14 +369,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Internal.Cardano.Write.Tx as Write
-    ( BabbageEra
-    , CardanoApiEra
-    , IsRecentEra
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    , cardanoEraFromRecentEra
-    , shelleyBasedEraFromRecentEra
-    )
 
 spec :: Spec
 spec = describe "TransactionSpec" $ do

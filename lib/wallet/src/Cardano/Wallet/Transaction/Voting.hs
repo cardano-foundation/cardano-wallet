@@ -37,15 +37,15 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Transaction
     ( VotingAction (..)
     )
+import Cardano.Write.Eras
+    ( CardanoApiEra
+    , RecentEra (..)
+    )
 import Cryptography.Hash.Blake
     ( blake2b224
     )
 import Data.ByteString.Short
     ( toShort
-    )
-import Internal.Cardano.Write.Tx
-    ( CardanoApiEra
-    , RecentEra (RecentEraBabbage, RecentEraConway)
     )
 
 import qualified Cardano.Api as Cardano

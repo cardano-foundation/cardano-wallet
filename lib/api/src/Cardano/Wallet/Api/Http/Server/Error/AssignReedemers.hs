@@ -17,11 +17,11 @@ import Cardano.Wallet.Api.Http.Server.Error.IsServerError
 import Cardano.Wallet.Api.Types.Error
     ( ApiErrorInfo (..)
     )
+import Cardano.Write.Eras
+    ( IsRecentEra (..)
+    )
 import Fmt
     ( pretty
-    )
-import Internal.Cardano.Write.Tx
-    ( IsRecentEra (..)
     )
 import Internal.Cardano.Write.Tx.Balance
     ( ErrAssignRedeemers (..)

@@ -109,9 +109,9 @@ import Test.QuickCheck.Arbitrary.Generic
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Delegation as WD
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
+import qualified Cardano.Write.Eras as Write
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
-import qualified Internal.Cardano.Write.Tx as Write
 
 spec :: Spec
 spec = describe "Cardano.Wallet.DelegationSpec" $ do

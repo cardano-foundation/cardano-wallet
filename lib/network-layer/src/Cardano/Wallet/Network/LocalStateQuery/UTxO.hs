@@ -23,11 +23,11 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( onAnyEra
     )
+import Cardano.Write.Eras
+    ( MaybeInRecentEra (..)
+    )
 import Data.Set
     ( Set
-    )
-import Internal.Cardano.Write.Tx
-    ( MaybeInRecentEra (..)
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock

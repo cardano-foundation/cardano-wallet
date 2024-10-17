@@ -628,6 +628,10 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Transaction.Built
     ( BuiltTx (..)
     )
+import Cardano.Write.Eras
+    ( MaybeInRecentEra (..)
+    , recentEra
+    )
 import Cardano.Write.Tx
     ( ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
@@ -803,9 +807,7 @@ import GHC.TypeNats
     ( Nat
     )
 import Internal.Cardano.Write.Tx
-    ( MaybeInRecentEra (..)
-    , recentEra
-    , toRecentEraGADT
+    ( toRecentEraGADT
     )
 import Internal.Cardano.Write.Tx.Balance
     ( ChangeAddressGen (..)
@@ -865,6 +867,14 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as TxOut
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Write.Eras as Write
+    ( AnyRecentEra
+    , CardanoApiEra
+    , IsRecentEra (..)
+    , MaybeInRecentEra (..)
+    , RecentEra (..)
+    , cardanoEraFromRecentEra
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -874,18 +884,12 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Internal.Cardano.Write.Tx as Write
-    ( AnyRecentEra
-    , CardanoApiEra
-    , ErrInvalidTxOutInEra
+    ( ErrInvalidTxOutInEra
     , FeePerByte
-    , IsRecentEra (..)
-    , MaybeInRecentEra (..)
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra (..)
     , Tx
     , UTxO (UTxO)
-    , cardanoEraFromRecentEra
     , feeOfBytes
     , forceUTxOToEra
     , fromCardanoApiTx

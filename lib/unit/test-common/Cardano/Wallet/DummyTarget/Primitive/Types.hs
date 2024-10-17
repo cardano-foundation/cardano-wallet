@@ -91,6 +91,7 @@ import Internal.Cardano.Write.Tx.Gen
     ( mockPParams
     )
 
+import qualified Cardano.Write.Eras as Write
 import qualified Data.ByteString.Char8 as B8
 import qualified Internal.Cardano.Write.Tx as Write
 

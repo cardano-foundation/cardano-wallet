@@ -72,6 +72,9 @@ import Cardano.Wallet.Primitive.Types.StakePoolSummary
 import Cardano.Wallet.Primitive.Types.Tx.SealedTx
     ( SealedTx
     )
+import Cardano.Write.Eras
+    ( MaybeInRecentEra
+    )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
     )
@@ -95,9 +98,6 @@ import Data.Text.Class
     )
 import GHC.Generics
     ( Generic
-    )
-import Internal.Cardano.Write.Tx
-    ( MaybeInRecentEra
     )
 
 import qualified Cardano.Wallet.Read as Read

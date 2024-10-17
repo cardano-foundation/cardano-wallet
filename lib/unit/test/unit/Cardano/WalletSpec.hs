@@ -412,6 +412,10 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Submissions.Submissions as Smbs
 import qualified Cardano.Wallet.Submissions.TxStatus as Sbms
+import qualified Cardano.Write.Eras as Write
+    ( AnyRecentEra (AnyRecentEra)
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -420,10 +424,6 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.Tx as Write
-    ( AnyRecentEra (AnyRecentEra)
-    , RecentEra (RecentEraBabbage, RecentEraConway)
-    )
 
 spec :: Spec
 spec = describe "Cardano.WalletSpec" $ do

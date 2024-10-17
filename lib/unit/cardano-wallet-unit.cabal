@@ -45,6 +45,7 @@ library test-common
     , base
     , bytestring
     , cardano-api
+    , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-network-layer

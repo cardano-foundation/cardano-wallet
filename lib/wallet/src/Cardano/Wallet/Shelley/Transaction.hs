@@ -196,6 +196,10 @@ import Cardano.Wallet.Transaction.Voting
 import Cardano.Wallet.Util
     ( HasCallStack
     )
+import Cardano.Write.Eras
+    ( CardanoApiEra
+    , RecentEra (..)
+    )
 import Control.Arrow
     ( left
     , second
@@ -237,10 +241,6 @@ import Data.Word
     ( Word64
     , Word8
     )
-import Internal.Cardano.Write.Tx
-    ( CardanoApiEra
-    , RecentEra (..)
-    )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxSkeleton (..)
     , TxWitnessTag (..)
@@ -268,6 +268,13 @@ import qualified Cardano.Wallet.Primitive.Ledger.Convert as Convert
 import qualified Cardano.Wallet.Primitive.Ledger.Shelley as Compatibility
 import qualified Cardano.Wallet.Primitive.Types.AssetId as AssetId
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Write.Eras as Write
+    ( CardanoApiEra
+    , IsRecentEra (recentEra)
+    , RecentEra (RecentEraBabbage, RecentEraConway)
+    , shelleyBasedEra
+    , shelleyBasedEraFromRecentEra
+    )
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -275,12 +282,9 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
-    ( CardanoApiEra
-    , Coin
+    ( Coin
     , FeePerByte
-    , IsRecentEra (recentEra)
     , PParams
-    , RecentEra (RecentEraBabbage, RecentEraConway)
     , Tx
     , TxOut
     , computeMinimumCoinForTxOut
@@ -288,8 +292,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , fromCardanoApiTx
     , getFeePerByte
     , isBelowMinimumCoinForTxOut
-    , shelleyBasedEra
-    , shelleyBasedEraFromRecentEra
     , toCardanoApiTx
     )
 import qualified Internal.Cardano.Write.Tx.Sign as Write
