@@ -200,15 +200,15 @@ import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
+import qualified Cardano.Write.Eras as Write
+    ( MaybeInRecentEra (InRecentEraBabbage)
+    )
 import qualified Data.Aeson as Aeson
 import Data.Functor
     ( (<&>)
     )
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.Tx as Write
-    ( MaybeInRecentEra (InRecentEraBabbage)
-    )
 import qualified System.Environment as Sys
 import qualified System.Exit as Sys
 

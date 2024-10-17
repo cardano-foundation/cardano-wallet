@@ -108,6 +108,7 @@ benchmark restore
     , base
     , bytestring
     , cardano-addresses
+    , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-api
@@ -228,6 +229,7 @@ benchmark api
     , base
     , bytestring
     , cardano-api
+    , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
     , cardano-wallet-benchmarks

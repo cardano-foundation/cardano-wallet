@@ -27,12 +27,14 @@ import Cardano.Api.Ledger
 import Data.Maybe
     ( fromMaybe
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( BabbageEra
     , ConwayEra
-    , DatumHash
     , IsRecentEra (..)
     , RecentEra (..)
+    )
+import Internal.Cardano.Write.Tx
+    ( DatumHash
     , datumHashFromBytes
     )
 import Test.QuickCheck

@@ -30,9 +30,11 @@ import Cardano.Ledger.Api.Tx.Body
 import Control.Lens
     ( view
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( IsRecentEra
-    , Tx
+    )
+import Internal.Cardano.Write.Tx
+    ( Tx
     , TxIn
     , TxOut
     , UTxO (UTxO)

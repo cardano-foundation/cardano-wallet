@@ -70,6 +70,7 @@ library
     , base
     , bytestring
     , cardano-api
+    , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-binary
     , cardano-crypto-class

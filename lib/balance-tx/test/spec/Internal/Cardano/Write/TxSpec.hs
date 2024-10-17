@@ -26,11 +26,13 @@ import Control.Lens
 import Data.Default
     ( Default (..)
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( AnyRecentEra
     , BabbageEra
     , ConwayEra
-    , computeMinimumCoinForTxOut
+    )
+import Internal.Cardano.Write.Tx
+    ( computeMinimumCoinForTxOut
     , datumHashFromBytes
     , datumHashToBytes
     , fromCardanoApiUTxO

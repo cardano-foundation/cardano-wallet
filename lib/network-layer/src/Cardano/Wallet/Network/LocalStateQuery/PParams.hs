@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.Types.ProtocolParameters
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( SlottingParameters
     )
-import Internal.Cardano.Write.Tx
+import Cardano.Write.Eras
     ( MaybeInRecentEra (..)
     )
 import Ouroboros.Consensus.Cardano

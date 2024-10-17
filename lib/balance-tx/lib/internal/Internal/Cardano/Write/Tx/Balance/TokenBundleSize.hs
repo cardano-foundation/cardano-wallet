@@ -28,9 +28,11 @@ import Control.Lens
 import Data.IntCast
     ( intCastMaybe
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( IsRecentEra
-    , PParams
+    )
+import Internal.Cardano.Write.Tx
+    ( PParams
     , Value
     , Version
     )

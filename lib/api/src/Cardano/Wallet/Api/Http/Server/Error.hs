@@ -214,6 +214,9 @@ import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
+import qualified Cardano.Write.Eras as Write
+    ( IsRecentEra
+    )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
@@ -222,8 +225,7 @@ import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Internal.Cardano.Write.Tx as Write
-    ( IsRecentEra
-    , serializeTx
+    ( serializeTx
     )
 import qualified Internal.Cardano.Write.Tx as WriteTx
 import qualified Internal.Cardano.Write.Tx.Balance as Write

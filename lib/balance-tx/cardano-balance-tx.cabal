@@ -40,6 +40,7 @@ library
   build-depends:
     , cardano-balance-tx:internal
   exposed-modules:
+    Cardano.Write.Eras
     Cardano.Write.Tx
 
 library internal
@@ -87,6 +88,7 @@ library internal
     , text
     , transformers
   exposed-modules:
+    Internal.Cardano.Write.Eras
     Internal.Cardano.Write.Tx
     Internal.Cardano.Write.Tx.Balance
     Internal.Cardano.Write.Tx.Balance.CoinSelection

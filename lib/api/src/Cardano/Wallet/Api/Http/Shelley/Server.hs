@@ -668,6 +668,9 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT
     )
+import Cardano.Write.Eras
+    ( AnyRecentEra (..)
+    )
 import Control.Arrow
     ( second
     , (&&&)
@@ -799,9 +802,6 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
-import Internal.Cardano.Write.Tx
-    ( AnyRecentEra (..)
-    )
 import Internal.Cardano.Write.Tx.Balance
     ( PartialTx (..)
     , Redeemer (..)
@@ -882,6 +882,12 @@ import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
+import qualified Cardano.Write.Eras as Write
+    ( IsRecentEra
+    , RecentEra
+    , cardanoEra
+    , cardanoEraFromRecentEra
+    )
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -893,14 +899,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Internal.Cardano.Write.Tx as Write
     ( Datum (DatumHash, NoDatum)
-    , IsRecentEra
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , RecentEra
     , Tx
     , TxIn
     , TxOutInRecentEra (TxOutInRecentEra)
-    , cardanoEra
-    , cardanoEraFromRecentEra
     , fromCardanoApiTx
     , getFeePerByte
     , pattern PolicyId

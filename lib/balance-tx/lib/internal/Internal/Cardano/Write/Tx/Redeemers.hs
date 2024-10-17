@@ -86,11 +86,13 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( IsRecentEra (..)
-    , PParams
-    , PolicyId
     , RecentEra (..)
+    )
+import Internal.Cardano.Write.Tx
+    ( PParams
+    , PolicyId
     , RewardAccount
     , TxIn
     , UTxO
