@@ -253,7 +253,7 @@ import Internal.Cardano.Write.Eras
     , IsRecentEra (recentEra)
     , RecentEra (..)
     , cardanoEra
-    , fromRecentEra
+    , cardanoEraFromRecentEra
     , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     )
@@ -2365,7 +2365,7 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
                         <*> pure CardanoApi.TxOutDatumNone
                         <*> pure CardanoApi.ReferenceScriptNone
                   where
-                    era = fromRecentEra (recentEra @era)
+                    era = cardanoEraFromRecentEra (recentEra @era)
 
     shrink (Wallet utxoAssumptions utxo changeAddressGen) =
         [ Wallet utxoAssumptions utxo' changeAddressGen

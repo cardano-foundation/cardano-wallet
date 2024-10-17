@@ -28,7 +28,6 @@ module Internal.Cardano.Write.Eras
     , RecentEra (..)
     , IsRecentEra (..)
     , CardanoApiEra
-    , fromRecentEra
     , MaybeInRecentEra (..)
     , LatestLedgerEra
     , RecentEraConstraints
@@ -188,11 +187,6 @@ type RecentEraConstraints era =
     , Core.NativeScript era ~ Timelock era
     )
 
-fromRecentEra :: RecentEra era -> CardanoApi.CardanoEra (CardanoApiEra era)
-fromRecentEra = \case
-    RecentEraConway -> CardanoApi.ConwayEra
-    RecentEraBabbage -> CardanoApi.BabbageEra
-
 instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
 
@@ -202,10 +196,9 @@ instance IsRecentEra ConwayEra where
 cardanoEraFromRecentEra
     :: RecentEra era
     -> CardanoApi.CardanoEra (CardanoApiEra era)
-cardanoEraFromRecentEra era = case shelleyBasedEraFromRecentEra era of
-    CardanoApi.ShelleyBasedEraBabbage -> CardanoApi.toCardanoEra CardanoApi.BabbageEra
-    CardanoApi.ShelleyBasedEraConway -> CardanoApi.toCardanoEra CardanoApi.ConwayEra
-    _ -> error "we are expecting only Babbage and Conway"
+cardanoEraFromRecentEra = \case
+    RecentEraConway -> CardanoApi.ConwayEra
+    RecentEraBabbage -> CardanoApi.BabbageEra
 
 shelleyBasedEraFromRecentEra
     :: RecentEra era
@@ -283,7 +276,7 @@ allRecentEras = Set.fromList [minBound .. maxBound]
 
 toAnyCardanoEra :: AnyRecentEra -> CardanoApi.AnyCardanoEra
 toAnyCardanoEra (AnyRecentEra era) =
-    CardanoApi.AnyCardanoEra (fromRecentEra era)
+    CardanoApi.AnyCardanoEra (cardanoEraFromRecentEra era)
 
 fromAnyCardanoEra
     :: CardanoApi.AnyCardanoEra

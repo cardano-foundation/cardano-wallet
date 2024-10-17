@@ -12,7 +12,6 @@ module Cardano.Write.Eras
     , RecentEra (..)
     , IsRecentEra (..)
     , CardanoApiEra
-    , fromRecentEra
     , MaybeInRecentEra (..)
     , LatestLedgerEra
     , RecentEraConstraints
@@ -46,7 +45,6 @@ import Internal.Cardano.Write.Eras
     , cardanoEra
     , cardanoEraFromRecentEra
     , fromAnyCardanoEra
-    , fromRecentEra
     , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     , toAnyCardanoEra
