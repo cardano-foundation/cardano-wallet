@@ -19,7 +19,6 @@ module Cardano.Write.Eras
 
     -- ** Existential wrapper
     , AnyRecentEra (..)
-    , fromAnyCardanoEra
 
     -- ** Helpers for cardano-api compatibility
     , cardanoEra
@@ -43,7 +42,6 @@ import Internal.Cardano.Write.Eras
     , allRecentEras
     , cardanoEra
     , cardanoEraFromRecentEra
-    , fromAnyCardanoEra
     , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     )
