@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 -- | Indirection module that re-exports types
 -- used for writing transactions to the blockchain,
 -- in the most recent and the next future eras.
@@ -11,11 +9,11 @@ module Cardano.Wallet.Deposit.Write
     , Value
 
     , TxId
-    , Tx (..)
+    , Tx
+    , mkTx
     , TxBody (..)
     , TxIn
     , TxOut
-    , TxWitness
 
     -- * Helper functions
     , mkAda
@@ -35,7 +33,6 @@ import Cardano.Wallet.Deposit.Read
     , TxId
     , TxIn
     , TxOut
-    , TxWitness
     , Value
     )
 import Cardano.Wallet.Read.Hash
@@ -80,11 +77,7 @@ import qualified Data.Set as Set
     Type definitions
     with dummies
 ------------------------------------------------------------------------------}
-data Tx = Tx
-    { txbody :: TxBody
-    , txwits :: TxWitness
-    }
-    deriving (Show)
+type Tx = Read.Tx Read.Conway
 
 data TxBody = TxBody
     { spendInputs :: Set TxIn
@@ -100,8 +93,11 @@ mkAda = Read.injectCoin . Read.CoinC
 mkTxOut :: Address -> Value -> TxOut
 mkTxOut = Read.mkBasicTxOut
 
-toConwayTx :: TxId -> Tx -> Read.Tx Read.Conway
-toConwayTx _ Tx{txbody} = Read.Tx $ L.mkBasicTx txBody
+toConwayTx :: Tx -> Read.Tx Read.Conway
+toConwayTx = id
+
+mkTx :: TxBody -> Tx
+mkTx txbody = Read.Tx $ L.mkBasicTx txBody
   where
     txBody :: L.TxBody L.Conway
     txBody =

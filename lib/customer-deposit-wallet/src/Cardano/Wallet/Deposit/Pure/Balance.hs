@@ -29,8 +29,8 @@ import Data.Set
     )
 
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.DeltaUTxO as DeltaUTxO
-import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
+import qualified Cardano.Wallet.Read as Read
 
 {-----------------------------------------------------------------------------
     Wallet Balance
@@ -45,10 +45,10 @@ availableUTxO u pending =
 
     -- UTxO which have been spent or committed as collateral in a pending
     -- transaction are not available to use in future transactions.
-    getUsedTxIn :: Write.Tx -> Set Read.TxIn
+    getUsedTxIn :: Read.Tx Read.Conway -> Set Read.TxIn
     getUsedTxIn tx =
-        Write.spendInputs (Write.txbody tx)
-        <> Write.collInputs (Write.txbody tx)
+        Read.getInputs tx
+        <> Read.getCollateralInputs tx
 
 {-----------------------------------------------------------------------------
     Applying Blocks
@@ -58,7 +58,7 @@ availableUTxO u pending =
 -- Returns both a delta and the new value.
 applyBlock
     :: Read.IsEra era
-    => IsOurs Read.Address -> Read.Block era -> UTxO -> (DeltaUTxO, UTxO)
+    => IsOurs Read.CompactAddr -> Read.Block era -> UTxO -> (DeltaUTxO, UTxO)
 applyBlock isOurs block u0 =
     (DeltaUTxO.concat $ reverse dus, u1)
   where
