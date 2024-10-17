@@ -14,9 +14,9 @@ module Cardano.Wallet.Deposit.Read
 
     , Read.SlotNo
     , Read.ChainPoint (..)
-    , Slot
-    , WithOrigin (..)
-    , slotFromChainPoint
+    , Read.Slot
+    , Read.WithOrigin (..)
+    , Read.slotFromChainPoint
 
     , Address
     , KeyHash
@@ -65,14 +65,6 @@ import Cardano.Wallet.Read.Block.Gen
 import Cardano.Wallet.Read.Block.Gen.BlockParameters
     ( BlockParameters (..)
     )
-import Cardano.Wallet.Read.Chain
-    ( Slot
-    , WithOrigin (..)
-    , slotFromChainPoint
-    )
-import Cardano.Wallet.Read.Tx
-    ( TxIx
-    )
 import Data.ByteString
     ( ByteString
     )
@@ -118,7 +110,7 @@ tagEnterprise = 0b01100001
 dummyAddress :: Address
 dummyAddress = mockAddress (0 :: Int)
 
-type Ix = TxIx
+type Ix = Read.TxIx
 
 address :: Read.TxOut -> Address
 address = Read.getCompactAddr
