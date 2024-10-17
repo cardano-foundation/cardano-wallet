@@ -245,16 +245,22 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( AnyRecentEra (..)
     , BabbageEra
     , CardanoApiEra
-    , Coin (..)
     , ConwayEra
+    , IsRecentEra (recentEra)
+    , RecentEra (..)
+    , cardanoEra
+    , fromRecentEra
+    , shelleyBasedEra
+    , shelleyBasedEraFromRecentEra
+    )
+import Internal.Cardano.Write.Tx
+    ( Coin (..)
     , Datum (..)
     , FeePerByte (..)
-    , IsRecentEra (..)
-    , RecentEra (..)
     , StandardCrypto
     , Tx
     , TxIn
@@ -262,9 +268,7 @@ import Internal.Cardano.Write.Tx
     , TxOutInRecentEra (..)
     , UTxO (..)
     , Value
-    , cardanoEra
     , fromCardanoApiTx
-    , recentEra
     , serializeTx
     , toCardanoApiTx
     , unsafeUtxoFromTxOutsInRecentEra
@@ -1216,7 +1220,7 @@ prop_balanceTxExistingTotalCollateral
 --
 prop_balanceTxUnableToCreateInput
     -- TODO: Test with all recent eras [ADP-2997]
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. era ~ BabbageEra
     => Success (BalanceTxArgs era)
     -> Property
 prop_balanceTxUnableToCreateInput
@@ -1640,7 +1644,7 @@ prop_bootstrapWitnesses
 -- TODO [ADO-2997] Test this property in all recent eras.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
-    :: forall era. era ~ Write.BabbageEra
+    :: forall era. era ~ BabbageEra
     => Tx era
     -> Set W.TxIn
     -> Set W.TxIn
@@ -1830,8 +1834,8 @@ data Wallet era = Wallet UTxOAssumptions (UTxO era) AnyChangeAddressGenWithState
 -- Ideally merge with 'updateTx'
 addExtraTxIns
     :: [W.TxIn]
-    -> PartialTx Write.BabbageEra
-    -> PartialTx Write.BabbageEra
+    -> PartialTx BabbageEra
+    -> PartialTx BabbageEra
 addExtraTxIns extraIns =
     #tx . bodyTxL . inputsTxBodyL %~ (<> toLedgerInputs extraIns)
   where
@@ -1893,7 +1897,7 @@ balanceTxWithDummyChangeState utxoAssumptions utxo seed partialTx =
   where
     utxoIndex = constructUTxOIndex $ fromWalletUTxO utxo
 
-deserializeBabbageTx :: ByteString -> Tx Write.BabbageEra
+deserializeBabbageTx :: ByteString -> Tx BabbageEra
 deserializeBabbageTx
     = fromCardanoApiTx
     . either (error . show) id
@@ -1938,7 +1942,7 @@ mkTestWallet walletUTxO =
   where
     utxo = fromWalletUTxO walletUTxO
 
-paymentPartialTx :: [W.TxOut] -> PartialTx Write.BabbageEra
+paymentPartialTx :: [W.TxOut] -> PartialTx BabbageEra
 paymentPartialTx txouts =
     PartialTx (mkBasicTx body) mempty mempty (StakeKeyDepositMap mempty) mempty
   where
@@ -1983,7 +1987,7 @@ cardanoToWalletTxOut
     => CardanoApi.TxOut CardanoApi.CtxUTxO (CardanoApiEra era)
     -> W.TxOut
 cardanoToWalletTxOut =
-    toWallet . CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
+    toWallet . CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
   where
     toWallet :: TxOut era -> W.TxOut
     toWallet x = case recentEra @era of
@@ -2334,7 +2338,7 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
                 <*> CardanoApi.genPaymentCredential -- only vk credentials
                 <*> CardanoApi.genStakeAddressReference
           where
-            era = Write.shelleyBasedEraFromRecentEra (recentEra @era)
+            era = shelleyBasedEraFromRecentEra (recentEra @era)
 
         genByronVkAddr :: Gen (CardanoApi.AddressInEra (CardanoApiEra era))
         genByronVkAddr = CardanoApi.byronAddressInEra
@@ -2361,7 +2365,7 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
                         <*> pure CardanoApi.TxOutDatumNone
                         <*> pure CardanoApi.ReferenceScriptNone
                   where
-                    era = Write.fromRecentEra (recentEra @era)
+                    era = fromRecentEra (recentEra @era)
 
     shrink (Wallet utxoAssumptions utxo changeAddressGen) =
         [ Wallet utxoAssumptions utxo' changeAddressGen
@@ -2392,7 +2396,7 @@ genTxOut =
     -- `maxBound :: Word64`, however users could supply these. We
     -- should ideally test what happens, and make it clear what
     -- code, if any, should validate.
-    CardanoApi.toShelleyTxOut (Write.shelleyBasedEra @era)
+    CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
         <$> CardanoApi.genTxOut (cardanoEra @era)
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
@@ -2464,8 +2468,8 @@ shrinkTxBodyBabbage
         ]
   where
     shrinkLedgerTxBody
-        :: Ledger.TxBody Write.BabbageEra
-        -> [Ledger.TxBody Write.BabbageEra]
+        :: Ledger.TxBody BabbageEra
+        -> [Ledger.TxBody BabbageEra]
     shrinkLedgerTxBody body = tail
         [ body
             & withdrawalsTxBodyL .~ wdrls'

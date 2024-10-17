@@ -191,15 +191,17 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack
     )
+import Internal.Cardano.Write.Eras
+    ( IsRecentEra (..)
+    , RecentEra (..)
+    )
 import Internal.Cardano.Write.Tx
     ( Address
     , AssetName
     , Coin (..)
-    , IsRecentEra (..)
     , KeyWitnessCounts (..)
     , PParams
     , PolicyId
-    , RecentEra (..)
     , StakeCredential
     , Tx
     , TxBody

@@ -87,6 +87,7 @@ library internal
     , text
     , transformers
   exposed-modules:
+    Internal.Cardano.Write.Eras
     Internal.Cardano.Write.Tx
     Internal.Cardano.Write.Tx.Balance
     Internal.Cardano.Write.Tx.Balance.CoinSelection

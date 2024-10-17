@@ -86,9 +86,12 @@ import Data.Maybe
 import Data.Set
     ( Set
     )
+import Internal.Cardano.Write.Eras
+    ( CardanoApiEra
+    , IsRecentEra (..)
+    )
 import Internal.Cardano.Write.Tx
-    ( IsRecentEra (..)
-    , KeyWitnessCounts (..)
+    ( KeyWitnessCounts (..)
     , PParams
     , Script
     , Tx
@@ -116,7 +119,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
-import qualified Internal.Cardano.Write.Tx as Write
 
 -- | Estimate the size of the transaction when fully signed.
 --
@@ -255,7 +257,7 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         scriptsAvailableInBody = tx ^. witsTxL . scriptTxWitsL
 
     estimateDelegSigningKeys
-        :: CardanoApi.Certificate (Write.CardanoApiEra era)
+        :: CardanoApi.Certificate (CardanoApiEra era)
         -> Integer
     estimateDelegSigningKeys = \case
         CardanoApi.ShelleyRelatedCertificate s2b shelleyCert ->

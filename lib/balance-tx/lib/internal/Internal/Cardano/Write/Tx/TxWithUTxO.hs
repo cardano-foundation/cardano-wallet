@@ -45,9 +45,11 @@ import Data.Semigroup.Cancellative
 import Data.Set.NonEmpty
     ( NESet
     )
-import Internal.Cardano.Write.Tx
+import Internal.Cardano.Write.Eras
     ( IsRecentEra
-    , Tx
+    )
+import Internal.Cardano.Write.Tx
+    ( Tx
     , TxIn
     , UTxO (UTxO)
     )
