@@ -54,6 +54,9 @@ import Cardano.Api.Gen
     , genTxInEra
     , genWitnesses
     )
+import Cardano.Api.Shelley
+    ( ShelleyLedgerEra
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
     )
@@ -196,7 +199,6 @@ import Cardano.Write.Eras
     , CardanoApiEra
     , IsRecentEra
     , RecentEra (..)
-    , ShelleyLedgerEra
     , cardanoEraFromRecentEra
     )
 import Cardano.Write.Tx
@@ -353,7 +355,7 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Write.Eras as Write
-    ( BabbageEra
+    ( Babbage
     , CardanoApiEra
     , IsRecentEra
     , RecentEra (RecentEraBabbage, RecentEraConway)
@@ -1381,7 +1383,7 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParams @Write.BabbageEra)
+        (mockPParams @Write.Babbage)
         TxWitnessShelleyUTxO
 data MockSelection = MockSelection
     { txInputCount :: Int

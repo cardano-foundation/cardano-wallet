@@ -143,7 +143,7 @@ dummyNetworkParameters = NetworkParameters
 dummyProtocolParameters :: ProtocolParameters
 dummyProtocolParameters = fromConwayPParams
     emptyEraInfo
-    (mockPParams @Write.ConwayEra)
+    (mockPParams @Write.Conway)
 
 dummyLedgerProtocolParameters :: Write.IsRecentEra era => Write.PParams era
 dummyLedgerProtocolParameters = mockPParams

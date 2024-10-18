@@ -272,7 +272,6 @@ import qualified Cardano.Write.Eras as Write
     ( CardanoApiEra
     , IsRecentEra (recentEra)
     , RecentEra (RecentEraBabbage, RecentEraConway)
-    , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
     )
 import qualified Data.ByteString as BS
@@ -1113,9 +1112,10 @@ mkShelleyWitness
     -> (XPrv, Passphrase "encryption")
     -> Cardano.KeyWitness (CardanoApiEra era)
 mkShelleyWitness body key =
-    Cardano.makeShelleyKeyWitness shelleyEra body (unencrypt key)
+    Cardano.makeShelleyKeyWitness shelleyBasedEra body (unencrypt key)
   where
-    shelleyEra = Write.shelleyBasedEra @era
+    shelleyBasedEra =
+        Write.shelleyBasedEraFromRecentEra (Write.recentEra @era)
     unencrypt (xprv, pwd) =
         Cardano.WitnessPaymentExtendedKey
         $ Cardano.PaymentExtendedSigningKey

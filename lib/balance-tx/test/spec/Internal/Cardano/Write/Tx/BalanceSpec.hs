@@ -247,14 +247,12 @@ import GHC.Stack
     )
 import Internal.Cardano.Write.Eras
     ( AnyRecentEra (..)
-    , BabbageEra
+    , Babbage
     , CardanoApiEra
-    , ConwayEra
+    , Conway
     , IsRecentEra (recentEra)
     , RecentEra (..)
-    , cardanoEra
-    , fromRecentEra
-    , shelleyBasedEra
+    , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
     )
 import Internal.Cardano.Write.Tx
@@ -509,10 +507,10 @@ spec_balanceTx = describe "balanceTx" $ do
         $ property prop_balanceTxUnableToCreateInput
 
     it "produces valid transactions or fails (Babbage)"
-        $ property (prop_balanceTxValid @BabbageEra)
+        $ property (prop_balanceTxValid @Babbage)
 
     it "produces valid transactions or fails (Conway)"
-        $ property (prop_balanceTxValid @ConwayEra)
+        $ property (prop_balanceTxValid @Conway)
 
     describe "bootstrap witnesses" $ do
         -- Used in 'estimateTxSize', and in turn used by coin-selection
@@ -676,7 +674,7 @@ spec_balanceTx = describe "balanceTx" $ do
     describe "stake key deposit lookup" $ do
         let stakeCred = KeyHashObj $ KeyHash
                 "00000000000000000000000000000000000000000000000000000000"
-        let partialTxWithRefund :: Coin -> PartialTx BabbageEra
+        let partialTxWithRefund :: Coin -> PartialTx Babbage
             partialTxWithRefund r = PartialTx
                 { tx = mkBasicTx $ mkBasicTxBody
                     & certsTxBodyL .~ StrictSeq.fromList
@@ -737,7 +735,7 @@ spec_balanceTx = describe "balanceTx" $ do
         it "fails with ErrBalanceTxUnresolvedInputs" $ do
             let txin = W.TxIn (W.Hash $ B8.replicate 32 '3') 10
             -- 1 output, 1 input without utxo entry
-            let partialTx :: PartialTx BabbageEra
+            let partialTx :: PartialTx Babbage
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
                         [ W.TxOut dummyAddr
@@ -894,7 +892,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
     it "testPParams" $
         let name = "testPParams"
             dir = $(getTestData) </> "balanceTx" </> "binary"
-            pparams = mockPParams @BabbageEra
+            pparams = mockPParams @Babbage
         in Golden
             { output = pparams
             , encodePretty = show
@@ -926,7 +924,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
                     . T.pack
                     . B8.unpack
                     . hex
-                    . serializeTx @BabbageEra
+                    . serializeTx @Babbage
                     $ x
                 , readFromFile =
                     fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
@@ -945,7 +943,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
     toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
 
-    test :: String -> PartialTx BabbageEra -> Spec
+    test :: String -> PartialTx Babbage -> Spec
     test name partialTx = it name $ do
         goldenText name
             (map (mkGolden partialTx . W.Coin) defaultWalletBalanceRange)
@@ -967,7 +965,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
             dir = $(getTestData) </> "balanceTx"
 
         mkGolden
-            :: PartialTx BabbageEra
+            :: PartialTx Babbage
             -> W.Coin
             -> BalanceTxGolden
         mkGolden ptx c =
@@ -1001,12 +999,12 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
     addr = W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    payment :: PartialTx BabbageEra
+    payment :: PartialTx Babbage
     payment = paymentPartialTx
         [ W.TxOut addr (W.TokenBundle.fromCoin (W.Coin 1_000_000))
         ]
 
-    delegate :: PartialTx BabbageEra
+    delegate :: PartialTx Babbage
     delegate = PartialTx
         (mkBasicTx body)
         mempty
@@ -1014,7 +1012,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
         (StakeKeyDepositMap mempty)
         mempty
       where
-        body :: TxBody BabbageEra
+        body :: TxBody Babbage
         body =
             mkBasicTxBody
                 & certsTxBodyL .~ StrictSeq.fromList certs
@@ -1152,7 +1150,7 @@ spec_updateTx = describe "updateTx" $ do
             pendingWith "todo: add test data"
   where
     readTestTransactions
-        :: SpecM a [(FilePath, Tx BabbageEra)]
+        :: SpecM a [(FilePath, Tx Babbage)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
@@ -1169,7 +1167,7 @@ spec_updateTx = describe "updateTx" $ do
 --------------------------------------------------------------------------------
 
 prop_balanceTxExistingReturnCollateral
-    :: forall era. (era ~ BabbageEra)
+    :: forall era. (era ~ Babbage)
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTxExistingReturnCollateral
@@ -1188,7 +1186,7 @@ prop_balanceTxExistingReturnCollateral
     PartialTx {tx} = partialTx
 
 prop_balanceTxExistingTotalCollateral
-    :: forall era. (era ~ BabbageEra)
+    :: forall era. (era ~ Babbage)
     => SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTxExistingTotalCollateral
@@ -1220,7 +1218,7 @@ prop_balanceTxExistingTotalCollateral
 --
 prop_balanceTxUnableToCreateInput
     -- TODO: Test with all recent eras [ADP-2997]
-    :: forall era. era ~ BabbageEra
+    :: forall era. era ~ Babbage
     => Success (BalanceTxArgs era)
     -> Property
 prop_balanceTxUnableToCreateInput
@@ -1644,7 +1642,7 @@ prop_bootstrapWitnesses
 -- TODO [ADO-2997] Test this property in all recent eras.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
-    :: forall era. era ~ BabbageEra
+    :: forall era. era ~ Babbage
     => Tx era
     -> Set W.TxIn
     -> Set W.TxIn
@@ -1834,8 +1832,8 @@ data Wallet era = Wallet UTxOAssumptions (UTxO era) AnyChangeAddressGenWithState
 -- Ideally merge with 'updateTx'
 addExtraTxIns
     :: [W.TxIn]
-    -> PartialTx BabbageEra
-    -> PartialTx BabbageEra
+    -> PartialTx Babbage
+    -> PartialTx Babbage
 addExtraTxIns extraIns =
     #tx . bodyTxL . inputsTxBodyL %~ (<> toLedgerInputs extraIns)
   where
@@ -1897,7 +1895,7 @@ balanceTxWithDummyChangeState utxoAssumptions utxo seed partialTx =
   where
     utxoIndex = constructUTxOIndex $ fromWalletUTxO utxo
 
-deserializeBabbageTx :: ByteString -> Tx BabbageEra
+deserializeBabbageTx :: ByteString -> Tx Babbage
 deserializeBabbageTx
     = fromCardanoApiTx
     . either (error . show) id
@@ -1942,7 +1940,7 @@ mkTestWallet walletUTxO =
   where
     utxo = fromWalletUTxO walletUTxO
 
-paymentPartialTx :: [W.TxOut] -> PartialTx BabbageEra
+paymentPartialTx :: [W.TxOut] -> PartialTx Babbage
 paymentPartialTx txouts =
     PartialTx (mkBasicTx body) mempty mempty (StakeKeyDepositMap mempty) mempty
   where
@@ -1978,8 +1976,8 @@ valueHasNegativeAndPositiveParts v =
 
 withValidityInterval
     :: ValidityInterval
-    -> PartialTx BabbageEra
-    -> PartialTx BabbageEra
+    -> PartialTx Babbage
+    -> PartialTx Babbage
 withValidityInterval vi = #tx . bodyTxL %~ vldtTxBodyL .~ vi
 
 cardanoToWalletTxOut
@@ -1987,8 +1985,10 @@ cardanoToWalletTxOut
     => CardanoApi.TxOut CardanoApi.CtxUTxO (CardanoApiEra era)
     -> W.TxOut
 cardanoToWalletTxOut =
-    toWallet . CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
+    toWallet . CardanoApi.toShelleyTxOut shelleyBasedEra
   where
+    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra @era)
+
     toWallet :: TxOut era -> W.TxOut
     toWallet x = case recentEra @era of
         RecentEraBabbage -> Convert.fromBabbageTxOut x
@@ -2104,7 +2104,7 @@ dummyTimeTranslationWithHorizon horizon =
 mainnetFeePerByte :: FeePerByte
 mainnetFeePerByte = FeePerByte 44
 
-pingPong_1 :: PartialTx BabbageEra
+pingPong_1 :: PartialTx Babbage
 pingPong_1 = PartialTx tx mempty mempty (StakeKeyDepositMap mempty) mempty
   where
     tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
@@ -2113,7 +2113,7 @@ pingPong_1 = PartialTx tx mempty mempty (StakeKeyDepositMap mempty) mempty
         , "bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
         ]
 
-pingPong_2 :: PartialTx BabbageEra
+pingPong_2 :: PartialTx Babbage
 pingPong_2 = PartialTx
     { tx = deserializeBabbageTx $ mconcat
         [ unsafeFromHex "84a50081825820"
@@ -2365,7 +2365,7 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
                         <*> pure CardanoApi.TxOutDatumNone
                         <*> pure CardanoApi.ReferenceScriptNone
                   where
-                    era = fromRecentEra (recentEra @era)
+                    era = cardanoEraFromRecentEra (recentEra @era)
 
     shrink (Wallet utxoAssumptions utxo changeAddressGen) =
         [ Wallet utxoAssumptions utxo' changeAddressGen
@@ -2385,7 +2385,9 @@ instance forall era. IsRecentEra era => Arbitrary (Wallet era) where
 
 genTxForBalancing :: forall era. IsRecentEra era => Gen (Tx era)
 genTxForBalancing =
-    fromCardanoApiTx <$> CardanoApi.genTxForBalancing (cardanoEra @era)
+    fromCardanoApiTx <$> CardanoApi.genTxForBalancing cardanoEra
+  where
+    cardanoEra = cardanoEraFromRecentEra (recentEra :: RecentEra era)
 
 genTxIn :: Gen TxIn
 genTxIn = fromWalletTxIn <$> W.genTxIn
@@ -2396,8 +2398,11 @@ genTxOut =
     -- `maxBound :: Word64`, however users could supply these. We
     -- should ideally test what happens, and make it clear what
     -- code, if any, should validate.
-    CardanoApi.toShelleyTxOut (shelleyBasedEra @era)
-        <$> CardanoApi.genTxOut (cardanoEra @era)
+    CardanoApi.toShelleyTxOut shelleyBasedEra
+        <$> CardanoApi.genTxOut cardanoEra
+  where
+    cardanoEra = cardanoEraFromRecentEra (recentEra :: RecentEra era)
+    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 -- | For writing shrinkers in the style of https://stackoverflow.com/a/14006575
 prependOriginal :: (t -> [t]) -> t -> [t]
@@ -2468,8 +2473,8 @@ shrinkTxBodyBabbage
         ]
   where
     shrinkLedgerTxBody
-        :: Ledger.TxBody BabbageEra
-        -> [Ledger.TxBody BabbageEra]
+        :: Ledger.TxBody Babbage
+        -> [Ledger.TxBody Babbage]
     shrinkLedgerTxBody body = tail
         [ body
             & withdrawalsTxBodyL .~ wdrls'

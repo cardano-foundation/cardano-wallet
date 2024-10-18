@@ -28,8 +28,8 @@ import Data.Default
     )
 import Internal.Cardano.Write.Eras
     ( AnyRecentEra
-    , BabbageEra
-    , ConwayEra
+    , Babbage
+    , Conway
     )
 import Internal.Cardano.Write.Tx
     ( computeMinimumCoinForTxOut
@@ -108,7 +108,7 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Babbage)"
                 $ property $ \out delta perByte -> do
-                    let pp = (def :: PParams BabbageEra)
+                    let pp = (def :: PParams Babbage)
                             & ppCoinsPerUTxOByteL .~ perByte
                     let c = delta <> computeMinimumCoinForTxOut pp out
                     isBelowMinimumCoinForTxOut pp
@@ -118,7 +118,7 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Conway)"
                 $ property $ \out delta perByte -> do
-                    let pp = (def :: PParams ConwayEra)
+                    let pp = (def :: PParams Conway)
                             & ppCoinsPerUTxOByteL .~ perByte
                     let c = delta <> computeMinimumCoinForTxOut pp out
                     isBelowMinimumCoinForTxOut pp
@@ -129,10 +129,10 @@ spec = do
         it "is isomorphic to CardanoApi.UTxO" $ do
             testIsomorphism
                 (NamedFun
-                    (toCardanoApiUTxO @BabbageEra)
+                    (toCardanoApiUTxO @Babbage)
                     "toCardanoApiUTxO")
                 (NamedFun
-                    (fromCardanoApiUTxO @BabbageEra)
+                    (fromCardanoApiUTxO @Babbage)
                     "fromCardanoApiUTxO")
                 id
 

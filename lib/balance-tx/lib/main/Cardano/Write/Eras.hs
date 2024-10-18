@@ -4,52 +4,39 @@
 --
 module Cardano.Write.Eras
     (
-    -- * Eras
-      BabbageEra
-    , ConwayEra
+    -- * Recent Eras
+    -- ** Names
+      Babbage
+    , Conway
+    , LatestLedgerEra
 
-    -- ** RecentEra
+    -- * 'RecentEra' type
     , RecentEra (..)
     , IsRecentEra (..)
-    , CardanoApiEra
-    , toRecentEra
-    , fromRecentEra
     , MaybeInRecentEra (..)
-    , LatestLedgerEra
     , RecentEraConstraints
-    , allRecentEras
 
     -- ** Existential wrapper
     , AnyRecentEra (..)
-    , toAnyCardanoEra
-    , fromAnyCardanoEra
+    , allRecentEras
 
-    -- ** Helpers for cardano-api compatibility
-    , cardanoEra
-    , shelleyBasedEra
-    , ShelleyLedgerEra
+    -- ** Compatibility with "Cardano.Api"
+    , CardanoApiEra
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
     ) where
 
 import Internal.Cardano.Write.Eras
     ( AnyRecentEra (..)
-    , BabbageEra
+    , Babbage
     , CardanoApiEra
-    , ConwayEra
+    , Conway
     , IsRecentEra (..)
     , LatestLedgerEra
     , MaybeInRecentEra (..)
     , RecentEra (..)
     , RecentEraConstraints
-    , ShelleyLedgerEra
     , allRecentEras
-    , cardanoEra
     , cardanoEraFromRecentEra
-    , fromAnyCardanoEra
-    , fromRecentEra
-    , shelleyBasedEra
     , shelleyBasedEraFromRecentEra
-    , toAnyCardanoEra
-    , toRecentEra
     )

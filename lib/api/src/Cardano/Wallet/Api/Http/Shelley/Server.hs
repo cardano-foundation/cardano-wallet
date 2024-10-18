@@ -883,9 +883,8 @@ import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Cardano.Write.Eras as Write
-    ( IsRecentEra
+    ( IsRecentEra (recentEra)
     , RecentEra
-    , cardanoEra
     , cardanoEraFromRecentEra
     )
 import qualified Control.Concurrent.Concierge as Concierge
@@ -4892,8 +4891,11 @@ fromApiRedeemer = \case
 
 sealWriteTx :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx
 sealWriteTx = W.sealedTxFromCardano
-    . Cardano.InAnyCardanoEra (Write.cardanoEra @era)
+    . Cardano.InAnyCardanoEra cardanoEra
     . Write.toCardanoApiTx
+  where
+    cardanoEra =
+        Write.cardanoEraFromRecentEra (Write.recentEra :: Write.RecentEra era)
 
 toApiSerialisedTransaction
     :: Write.IsRecentEra era

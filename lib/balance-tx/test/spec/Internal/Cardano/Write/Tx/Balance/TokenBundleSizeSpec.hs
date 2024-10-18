@@ -31,8 +31,8 @@ import Data.Word
     ( Word32
     )
 import Internal.Cardano.Write.Eras
-    ( BabbageEra
-    , ConwayEra
+    ( Babbage
+    , Conway
     , IsRecentEra (..)
     , RecentEra (..)
     )
@@ -173,7 +173,7 @@ unit_assessTokenBundleSize_fixedSizeBundle
             ]
   where
     actualAssessment = assessTokenBundleSize assessor bundle
-    v = eraProtVerLow @BabbageEra
+    v = eraProtVerLow @Babbage
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle v
     counterexampleText = unlines
         [ "Expected min length bytes:"
@@ -270,8 +270,8 @@ instance Arbitrary Version where
     arbitrary = arbitraryBoundedEnum
 
 data PParamsInRecentEra
-    = PParamsInBabbage (PParams BabbageEra)
-    | PParamsInConway (PParams ConwayEra)
+    = PParamsInBabbage (PParams Babbage)
+    | PParamsInConway (PParams Conway)
     deriving (Show, Eq)
 
 instance Arbitrary PParamsInRecentEra where
@@ -306,8 +306,8 @@ instance Arbitrary PParamsInRecentEra where
 
 babbageTokenBundleSizeAssessor :: TokenBundleSizeAssessor
 babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor
-    $ (def :: PParams BabbageEra)
-        & ppProtocolVersionL .~ (ProtVer (eraProtVerLow @BabbageEra) 0)
+    $ (def :: PParams Babbage)
+        & ppProtocolVersionL .~ (ProtVer (eraProtVerLow @Babbage) 0)
         & ppMaxValSizeL .~ maryTokenBundleMaxSizeBytes
   where
     maryTokenBundleMaxSizeBytes = 4000
