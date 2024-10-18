@@ -39,6 +39,7 @@ library
   hs-source-dirs:  lib/main
   build-depends:
     , cardano-balance-tx:internal
+    , cardano-ledger-api
   exposed-modules:
     Cardano.Write.Eras
     Cardano.Write.Tx

@@ -802,13 +802,6 @@ import Fmt
 import GHC.Generics
     ( Generic
     )
-import Internal.Cardano.Write.Tx.Balance
-    ( PartialTx (..)
-    , Redeemer (..)
-    )
-import Internal.Cardano.Write.Tx.Sign
-    ( TimelockKeyWitnessCounts
-    )
 import Network.Ntp
     ( NtpClient
     , getNtpStatus
@@ -887,6 +880,12 @@ import qualified Cardano.Write.Eras as Write
     , RecentEra
     , cardanoEraFromRecentEra
     )
+import qualified Cardano.Write.Tx as Write
+    ( PartialTx (..)
+    , Redeemer (..)
+    , StakeKeyDepositLookup (..)
+    , TimelockKeyWitnessCounts (..)
+    )
 import qualified Control.Concurrent.Concierge as Concierge
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -908,10 +907,8 @@ import qualified Internal.Cardano.Write.Tx as Write
     , toCardanoApiTx
     , utxoFromTxOutsInRecentEra
     )
-import qualified Internal.Cardano.Write.Tx.Balance as Write
 import qualified Internal.Cardano.Write.Tx.Sign as Write
-    ( TimelockKeyWitnessCounts (..)
-    , estimateMinWitnessRequiredPerInput
+    ( estimateMinWitnessRequiredPerInput
     )
 import qualified Network.Ntp as Ntp
 
@@ -2759,7 +2756,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                 wrk
                 pp
                 timeTranslation
-                PartialTx
+                Write.PartialTx
                     { tx = Write.fromCardanoApiTx $ Cardano.Tx unbalancedTx []
                     , extraUTxO = mempty
                     , redeemers = mempty
@@ -3184,7 +3181,7 @@ constructSharedTransaction
                     wrk
                     pp
                     timeTranslation
-                    PartialTx
+                    Write.PartialTx
                         { tx = Write.fromCardanoApiTx
                              $ Cardano.Tx unbalancedTx []
                         , extraUTxO = mempty
@@ -3401,7 +3398,7 @@ balanceTransaction ctx (ApiT wid) body = do
                 (fromApiRedeemer <$> body ^. #redeemers)
                 (Write.StakeKeyDepositMap mempty)
                 -- Stake key deposits will be queried by W.balanceTx
-                (mempty :: TimelockKeyWitnessCounts)
+                (mempty :: Write.TimelockKeyWitnessCounts)
             Left e -> liftHandler $ throwE e
 
 decodeTransaction
@@ -4880,14 +4877,14 @@ fromExternalInput ApiExternalInput
     in
         (inp, out)
 
-fromApiRedeemer :: ApiRedeemer n -> Redeemer
+fromApiRedeemer :: ApiRedeemer n -> Write.Redeemer
 fromApiRedeemer = \case
     ApiRedeemerSpending (ApiBytesT bytes) (ApiT i) ->
-        RedeemerSpending bytes (toLedger i)
+        Write.RedeemerSpending bytes (toLedger i)
     ApiRedeemerMinting (ApiBytesT bytes) (ApiT p) ->
-        RedeemerMinting bytes (toLedger p)
+        Write.RedeemerMinting bytes (toLedger p)
     ApiRedeemerRewarding (ApiBytesT bytes) (StakeAddress x y) ->
-        RedeemerRewarding bytes (Ledger.RewardAccount x y)
+        Write.RedeemerRewarding bytes (Ledger.RewardAccount x y)
 
 sealWriteTx :: forall era. Write.IsRecentEra era => Write.Tx era -> W.SealedTx
 sealWriteTx = W.sealedTxFromCardano

@@ -633,7 +633,8 @@ import Cardano.Write.Eras
     , recentEra
     )
 import Cardano.Write.Tx
-    ( ErrBalanceTx (..)
+    ( ChangeAddressGen (..)
+    , ErrBalanceTx (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
     )
 import Control.Arrow
@@ -810,10 +811,7 @@ import Internal.Cardano.Write.Tx
     ( toRecentEraGADT
     )
 import Internal.Cardano.Write.Tx.Balance
-    ( ChangeAddressGen (..)
-    , PartialTx (..)
-    , UTxOAssumptions (..)
-    , stakeCredentialsWithRefunds
+    ( stakeCredentialsWithRefunds
     )
 import Internal.Cardano.Write.Tx.SizeEstimation
     ( TxWitnessTag (..)
@@ -875,6 +873,16 @@ import qualified Cardano.Write.Eras as Write
     , RecentEra (..)
     , cardanoEraFromRecentEra
     )
+import qualified Cardano.Write.Tx as Write
+    ( PartialTx (..)
+    , StakeKeyDepositLookup (..)
+    , Tx
+    , UTxO (UTxO)
+    , UTxOAssumptions (..)
+    , UTxOIndex
+    , balanceTx
+    , constructUTxOIndex
+    )
 import qualified Data.ByteArray as BA
 import qualified Data.Delta.Update as Delta
 import qualified Data.Foldable as F
@@ -888,8 +896,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , FeePerByte
     , PParams
     , PParamsInAnyRecentEra (PParamsInAnyRecentEra)
-    , Tx
-    , UTxO (UTxO)
     , feeOfBytes
     , forceUTxOToEra
     , fromCardanoApiTx
@@ -898,12 +904,7 @@ import qualified Internal.Cardano.Write.Tx as Write
     , toCardanoApiTx
     )
 import qualified Internal.Cardano.Write.Tx.Balance as Write
-    ( PartialTx
-    , StakeKeyDepositLookup (StakeKeyDepositAssumeCurrent, StakeKeyDepositMap)
-    , UTxOIndex
-    , balanceTx
-    , constructUTxOIndex
-    , fromWalletUTxO
+    ( fromWalletUTxO
     )
 
 -- $Development
@@ -2186,7 +2187,7 @@ balanceTx
     => WalletLayer IO s
     -> Write.PParams era
     -> TimeTranslation
-    -> PartialTx era
+    -> Write.PartialTx era
     -> IO (Write.Tx era)
 balanceTx wrk pp timeTranslation partialTx = do
     (utxo, wallet, _txs) <- liftIO $ readWalletUTxO wrk
@@ -2206,8 +2207,8 @@ balanceTx wrk pp timeTranslation partialTx = do
         <$> getStakeDelegDeposits netLayer deregCreds
 
     let utxoAssumptions = case walletFlavor @s of
-            ShelleyWallet -> AllKeyPaymentCredentials
-            SharedWallet -> AllScriptPaymentCredentialsFrom
+            ShelleyWallet -> Write.AllKeyPaymentCredentials
+            SharedWallet -> Write.AllScriptPaymentCredentialsFrom
                 (Shared.paymentTemplate (getState wallet))
                 (sharedWalletScriptLookup (getState wallet)
                     . Convert.toWalletAddress)
@@ -2553,7 +2554,7 @@ buildTransactionPure
             utxoIndex
             changeAddrGen
             (getState wallet)
-            PartialTx
+            Write.PartialTx
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , extraUTxO = Write.UTxO mempty
                 , redeemers = []
@@ -3248,7 +3249,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
                 (Left preSelection)
 
         let ptx :: Write.PartialTx era
-            ptx = PartialTx
+            ptx = Write.PartialTx
                 { tx = Write.fromCardanoApiTx (Cardano.Tx unsignedTxBody [])
                 , extraUTxO = Write.UTxO mempty
                 , redeemers = []
@@ -4174,8 +4175,8 @@ utxoAssumptionsForWallet
     :: forall s
      . (Excluding '[SharedKey] (KeyOf s))
     => WalletFlavorS s
-    -> UTxOAssumptions
+    -> Write.UTxOAssumptions
 utxoAssumptionsForWallet = keyOfWallet >>> \case
-    ByronKeyS -> AllByronKeyPaymentCredentials
-    IcarusKeyS -> AllByronKeyPaymentCredentials
-    ShelleyKeyS -> AllKeyPaymentCredentials
+    ByronKeyS -> Write.AllByronKeyPaymentCredentials
+    IcarusKeyS -> Write.AllByronKeyPaymentCredentials
+    ShelleyKeyS -> Write.AllKeyPaymentCredentials
