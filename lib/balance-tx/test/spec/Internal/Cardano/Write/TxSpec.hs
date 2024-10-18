@@ -10,10 +10,6 @@ module Internal.Cardano.Write.TxSpec where
 
 import Prelude
 
-import Cardano.Api.Gen
-    ( genTxIn
-    , genTxOut
-    )
 import Cardano.Ledger.Api
     ( PParams
     , coinTxOutL
@@ -35,9 +31,7 @@ import Internal.Cardano.Write.Tx
     ( computeMinimumCoinForTxOut
     , datumHashFromBytes
     , datumHashToBytes
-    , fromCardanoApiUTxO
     , isBelowMinimumCoinForTxOut
-    , toCardanoApiUTxO
     )
 import Test.Cardano.Ledger.Alonzo.Serialisation.Generators
     ()
@@ -54,7 +48,6 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Arbitrary1 (liftArbitrary)
     , Property
     , arbitraryBoundedEnum
     , conjoin
@@ -72,9 +65,7 @@ import Test.Utils.Laws
     ( testLawsMany
     )
 
-import qualified Cardano.Api as CardanoApi
 import qualified Data.ByteString as BS
-import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
@@ -125,17 +116,6 @@ spec = do
                         (out & coinTxOutL .~ c)
                         === False
 
-    describe "UTxO" $ do
-        it "is isomorphic to CardanoApi.UTxO" $ do
-            testIsomorphism
-                (NamedFun
-                    (toCardanoApiUTxO @Babbage)
-                    "toCardanoApiUTxO")
-                (NamedFun
-                    (fromCardanoApiUTxO @Babbage)
-                    "fromCardanoApiUTxO")
-                id
-
 --------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
@@ -143,13 +123,6 @@ spec = do
 instance Arbitrary AnyRecentEra where
     arbitrary = arbitraryBoundedEnum
     shrink = shrinkBoundedEnum
-
-instance Arbitrary (CardanoApi.UTxO CardanoApi.BabbageEra) where
-    arbitrary = CardanoApi.UTxO . Map.fromList <$> liftArbitrary genTxInOutEntry
-      where
-        genTxInOutEntry = (,)
-            <$> genTxIn
-            <*> genTxOut CardanoApi.BabbageEra
 
 --------------------------------------------------------------------------------
 -- Helpers
