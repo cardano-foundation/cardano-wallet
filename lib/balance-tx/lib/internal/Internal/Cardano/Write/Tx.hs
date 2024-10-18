@@ -31,8 +31,6 @@ module Internal.Cardano.Write.Tx
 
     -- ** Helpers for cardano-api compatibility
     , fromCardanoApiTx
-    , toCardanoApiUTxO
-    , fromCardanoApiUTxO
     , toCardanoApiTx
 
     -- ** Misc
@@ -505,31 +503,6 @@ toCardanoApiTx
 toCardanoApiTx =
     CardanoApi.ShelleyTx
     $ shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
-
-toCardanoApiUTxO
-    :: forall era. IsRecentEra era
-    => Shelley.UTxO era
-    -> CardanoApi.UTxO (CardanoApiEra era)
-toCardanoApiUTxO =
-    CardanoApi.UTxO
-    . Map.mapKeys CardanoApi.fromShelleyTxIn
-    . Map.map (CardanoApi.fromShelleyTxOut shelleyBasedEra)
-    . unUTxO
-  where
-    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
-
-fromCardanoApiUTxO
-    :: forall era. IsRecentEra era
-    => CardanoApi.UTxO (CardanoApiEra era)
-    -> Shelley.UTxO era
-fromCardanoApiUTxO =
-    Shelley.UTxO
-    . Map.mapKeys CardanoApi.toShelleyTxIn
-    . Map.map
-        (CardanoApi.toShelleyTxOut shelleyBasedEra)
-    . CardanoApi.unUTxO
-  where
-    shelleyBasedEra = shelleyBasedEraFromRecentEra (recentEra :: RecentEra era)
 
 --------------------------------------------------------------------------------
 -- PParams
