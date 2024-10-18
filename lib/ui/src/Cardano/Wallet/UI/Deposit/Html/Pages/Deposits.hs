@@ -13,9 +13,17 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
     )
+import Cardano.Wallet.Deposit.Map
+    ( openMap
+    , openPatched
+    , unPatch
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer (..)
+    )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByTime
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -58,8 +66,7 @@ import Cardano.Wallet.UI.Deposit.API
     , depositsLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
-    ( DepositsHistoryByCustomerAndSlot
-    , DepositsWindow (..)
+    ( InWindow
     , PageHandler (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Lib
@@ -106,7 +113,6 @@ import Data.Text.Class
     )
 import Data.Time
     ( DayOfWeek (..)
-    , UTCTime
     )
 import Lucid
     ( Attribute
@@ -140,7 +146,7 @@ import Servant
     )
 
 import qualified Cardano.Wallet.UI.Common.Html.Scrolling as Scrolling
-import qualified Data.Map.Monoidal as MonoidalMap
+import qualified Data.Map.Monoidal.Strict as MonoidalMap
 import qualified Data.Text as T
 
 depositsH :: WHtml ()
@@ -271,7 +277,7 @@ depositsElementH = onWalletPresentH $ \case
 scrollableDeposits
     :: Monad m
     => DepositsParams
-    -> PageHandler m DownTime (MonoidalMap.MonoidalMap DownTime DepositsWindow)
+    -> PageHandler m DownTime ByTime
     -> Scrolling.Configuration m DownTime
 scrollableDeposits
     params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
@@ -310,7 +316,8 @@ scrollableDeposits
             pure
                 $ tbody_ attrs
                 $ mapM_ (\window -> depositH params Nothing window mempty)
-                $ MonoidalMap.assocs ds
+                $ MonoidalMap.assocs
+                $ openMap ds
         uniqueScrollingId = "deposits"
         presentFieldName = "page-present"
         controlSelector = "#view-control"
@@ -321,9 +328,9 @@ scrollableDeposits
 scrollableDepositsDetails
     :: Monad m
     => DepositsParams
-    -> PageHandler m (DownTime, (Customer, Slot)) DepositsHistoryByCustomerAndSlot
+    -> PageHandler m (DownTime, Customer) InWindow
     -> DownTime
-    -> Scrolling.Configuration m (Customer, Slot)
+    -> Scrolling.Configuration m Customer
 scrollableDepositsDetails
     params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
     (PageHandler previousH nextH retrieve startH)
@@ -362,11 +369,12 @@ scrollableDepositsDetails
             fakeOverlay = if depositsFakeData then overlayFakeDataH else id
         scrollableContainer = table_
         retrieveContent customer attrs = do
-            r <- retrieve (time, customer)
+            (First slot, r) <- openPatched <$> retrieve (time, customer)
             let xs = do
-                    ((customer', slot), (First addr, mvs)) <-
+                    (customer', m) <-
                         MonoidalMap.assocs r
-                    pure (customer', slot, addr, fold mvs)
+                    let (First addr, v) = fold $ unPatch m
+                    pure (customer', slot, addr, v)
             pure
                 $ tbody_ attrs
                 $ mapM_ (depositByAddressH params)
@@ -375,17 +383,16 @@ scrollableDepositsDetails
         presentFieldName = "details-page-present"
         controlSelector = "#view-control"
         renderIndex = toUrlPiece
-        updateURL (c, s) =
+        updateURL c =
             linkText
                 $ depositsHistoryWindowPageLink
                     (Just regularTime)
-                (Just c)
-                (Just s)
+                    (Just c)
         renderIdOfIndex = T.replace " " "-" . toUrlPiece
 
 depositByAddressH
     :: DepositsParams
-    -> (Customer, Slot, Maybe Address, ValueTransfer)
+    -> (Customer, Maybe Slot, Maybe Address, ValueTransfer)
     -> Html ()
 depositByAddressH
     DepositsParams{depositsSpent, depositsSlot}
@@ -396,8 +403,9 @@ depositByAddressH
                 $ tdEnd
                 $ toHtml
                 $ case slot of
-                    Origin -> "Origin"
-                    At (SlotNo t) -> show t
+                    Just Origin -> "Origin"
+                    Just (At (SlotNo t)) -> show t
+                    Nothing -> "unresolved"
             tdEnd $ toHtml $ show customer
             tdEnd $ valueH received
             when depositsSpent
@@ -407,15 +415,15 @@ depositByAddressH
 depositH
     :: DepositsParams
     -> Maybe Expand
-    -> (Down (WithOrigin UTCTime), DepositsWindow)
+    -> (DownTime, InWindow)
     -> Html ()
     -> Html ()
 depositH
     DepositsParams{depositsSlot, depositsSpent, depositsDetails}
     mexpand
-    (Down time, DepositsWindow{..})
+    (Down time, inWindow)
     widget
-        | expand = do
+        | expanded = do
             let link = linkText $ depositsHistoryWindowLink (Just time) (Just Collapse)
                 trId = T.pack $ "window-" <> show (hash time)
             tr_
@@ -460,17 +468,17 @@ depositH
                         toHtml $ case time of
                             Origin -> "Origin"
                             At t -> show t
+                    let (First slot, ValueTransfer received spent) = fold $ unPatch inWindow
                     when depositsSlot
                         $ tdEnd
                         $ toHtml
-                        $ case depositsWindowSlot of
-                            Origin -> "Origin"
-                            At (SlotNo t) -> show t
-                    let (_, ValueTransfer received spent) =
-                            fold $ snd $ fold depositsWindowTransfers
+                        $ case slot of
+                            Just Origin -> "Origin"
+                            Just (At (SlotNo t)) -> show t
+                            Nothing -> "unresolved"
                     tdEnd $ valueH received
                     when depositsSpent
                         $ tdEnd
                         $ valueH spent
       where
-        expand = maybe (time `elem` depositsDetails) (== Expand) mexpand
+        expanded = maybe (time `elem` depositsDetails) (== Expand) mexpand

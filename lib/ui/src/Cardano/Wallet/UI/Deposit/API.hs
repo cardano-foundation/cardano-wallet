@@ -199,7 +199,6 @@ type Data =
             :> ReqBody '[FormUrlEncoded] DepositsParams
             :> QueryParam "selected-window" (WithOrigin UTCTime)
             :> QueryParam "customer" Customer
-            :> QueryParam "slot" Slot
             :> SessionedHtml Post
         :<|> "emptiness" :> SessionedHtml Post
 
@@ -315,7 +314,7 @@ data DepositsParams = DepositsParams
     , depositsSpent :: Bool
     , depositsDetails :: Set (WithOrigin UTCTime)
     , depositsPages :: Set DownTime
-    , depositsDetailsPages :: Set (Customer, Slot)
+    , depositsDetailsPages :: Set Customer
     }
     deriving (Eq, Show)
 
@@ -426,7 +425,7 @@ depositsLink :: Link
 depositsHistoryLink :: Link
 depositsHistoryPageLink :: Maybe (WithOrigin UTCTime) -> Link
 depositsHistoryWindowLink :: Maybe (WithOrigin UTCTime) -> Maybe Expand ->  Link
-depositsHistoryWindowPageLink :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe Slot -> Link
+depositsHistoryWindowPageLink :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Link
 emptinessLink :: Link
 
 homePageLink

@@ -55,6 +55,9 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map
     )
+import Data.Maybe
+    ( maybeToList
+    )
 import Data.Set
     ( Set
     )
@@ -118,14 +121,17 @@ newNetworkEnvMock = do
             }
 
 unsafeSlotsToUTCTimes :: Set Slot -> Map Slot (WithOrigin UTCTime)
-unsafeSlotsToUTCTimes =
-    Map.fromList
-        . fmap (\slot -> (slot, unsafeUTCTimeOfSlot <$> slot))
-        . Set.toList
+unsafeSlotsToUTCTimes slots =
+    Map.fromList $ do
+        slot <- Set.toList slots
+        time <- maybeToList $ unsafeUTCTimeOfSlot slot
+        pure (slot, time)
 
-unsafeUTCTimeOfSlot :: SlotNo -> UTCTime
-unsafeUTCTimeOfSlot (SlotNo n) =
-    posixSecondsToUTCTime
+unsafeUTCTimeOfSlot :: Slot -> Maybe (WithOrigin UTCTime)
+unsafeUTCTimeOfSlot Origin = Just Origin
+unsafeUTCTimeOfSlot (At (SlotNo n)) =
+    Just . At
+        $ posixSecondsToUTCTime
         $ fromIntegral pt
   where
     pts = fromIntegral n - byronSlots
