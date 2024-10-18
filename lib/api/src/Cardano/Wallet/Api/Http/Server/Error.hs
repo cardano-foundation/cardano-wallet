@@ -33,6 +33,15 @@ import Prelude
 import Cardano.Address.Script
     ( Cosigner (..)
     )
+import Cardano.Ledger.Api
+    ( coinTxOutL
+    )
+import Cardano.Ledger.Api.UTxO
+    ( UTxO (..)
+    )
+import Cardano.Ledger.Coin
+    ( Coin
+    )
 import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
@@ -213,9 +222,8 @@ import qualified Cardano.Wallet.Api.Types.Era as ApiEra
 import qualified Cardano.Wallet.Api.Types.WalletAssets as ApiWalletAssets
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.UTxO as UTxO
 import qualified Cardano.Write.Eras as Write
-    ( IsRecentEra
+    ( IsRecentEra (..)
     )
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -228,9 +236,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     ( serializeTx
     )
 import qualified Internal.Cardano.Write.Tx as WriteTx
-import qualified Internal.Cardano.Write.Tx.Balance as Write
-    ( toWalletUTxO
-    )
 
 instance IsServerError WalletException where
     toServerError = \case
@@ -1170,14 +1175,16 @@ instance
             , "I need an ada amount of at least:"
             , pretty (toWalletCoin (view #minimumCollateralAmount e))
             , "The largest combination of pure ada UTxOs I could find is:"
-            , pretty $ listF $ L.sort
-                $ fmap (view #coin . view #tokens . snd)
-                $ UTxO.toList
-                $ Write.toWalletUTxO
+            , pretty $ listF $ L.map show
+                $ L.sort
+                $ getCoins
                 $ view #largestCombinationAvailable e
             , "To fix this, you'll need to add one or more pure ada UTxOs"
             , "to your wallet that can cover the minimum amount required."
             ]
+      where
+        getCoins :: UTxO era -> [Coin]
+        getCoins (UTxO m) = view coinTxOutL <$> F.toList m
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     toServerError = \case
