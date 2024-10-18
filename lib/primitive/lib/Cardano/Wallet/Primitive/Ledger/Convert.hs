@@ -48,6 +48,11 @@ module Cardano.Wallet.Primitive.Ledger.Convert
     , toConwayTxOut
     , fromBabbageTxOut
     , fromConwayTxOut
+
+    , toWalletUTxOBabbage
+    , toWalletUTxOConway
+    , toLedgerUTxOBabbage
+    , toLedgerUTxOConway
     ) where
 
 import Prelude
@@ -60,6 +65,10 @@ import Cardano.Address.Script
 import Cardano.Crypto.Hash
     ( hashFromBytes
     , hashToBytes
+    )
+import Cardano.Ledger.Api
+    ( Babbage
+    , Conway
     )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
@@ -102,6 +111,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..)
     )
 import Data.ByteString.Short
     ( fromShort
@@ -351,8 +363,7 @@ toWalletAddress = Address . Ledger.serialiseAddr
 --------------------------------------------------------------------------------
 
 toBabbageTxOut
-    :: HasCallStack
-    => TxOut
+    :: TxOut
     -> Babbage.BabbageTxOut StandardBabbage
 toBabbageTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
@@ -384,6 +395,34 @@ fromBabbageTxOut
     -> TxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
+
+--------------------------------------------------------------------------------
+-- Conversions for 'UTxO'
+--------------------------------------------------------------------------------
+
+toLedgerUTxOBabbage :: UTxO -> Ledger.UTxO Babbage
+toLedgerUTxOBabbage (UTxO m) = Ledger.UTxO
+    $ Map.mapKeys toLedger
+    $ Map.map toBabbageTxOut m
+
+toLedgerUTxOConway :: UTxO -> Ledger.UTxO Conway
+toLedgerUTxOConway (UTxO m) = Ledger.UTxO
+    $ Map.mapKeys toLedger
+    $ Map.map toConwayTxOut m
+
+toWalletUTxOBabbage :: Ledger.UTxO Babbage -> UTxO
+toWalletUTxOBabbage (Ledger.UTxO m) = UTxO
+    $ Map.mapKeys toWallet
+    $ Map.map fromBabbageTxOut m
+
+toWalletUTxOConway :: Ledger.UTxO Conway -> UTxO
+toWalletUTxOConway (Ledger.UTxO m) = UTxO
+    $ Map.mapKeys toWallet
+    $ Map.map fromConwayTxOut m
+
+--------------------------------------------------------------------------------
+-- Conversions for timelock and multisignature scripts
+--------------------------------------------------------------------------------
 
 toWalletScript
     :: forall era.
@@ -469,6 +508,10 @@ toLedgerTimelockScript s = case s of
             , "Unexpected out of bounds SlotNo"
             , show x
             ]
+
+--------------------------------------------------------------------------------
+-- Conversions for 'Delegatee'
+--------------------------------------------------------------------------------
 
 toLedgerDelegatee
     :: Maybe PoolId

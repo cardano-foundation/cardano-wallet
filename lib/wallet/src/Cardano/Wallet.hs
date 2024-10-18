@@ -903,9 +903,6 @@ import qualified Internal.Cardano.Write.Tx as Write
     , stakeKeyDeposit
     , toCardanoApiTx
     )
-import qualified Internal.Cardano.Write.Tx.Balance as Write
-    ( fromWalletUTxO
-    )
 
 -- $Development
 -- __Naming Conventions__
@@ -2191,9 +2188,7 @@ balanceTx
     -> IO (Write.Tx era)
 balanceTx wrk pp timeTranslation partialTx = do
     (utxo, wallet, _txs) <- liftIO $ readWalletUTxO wrk
-    let utxoIndex =
-            Write.constructUTxOIndex $
-            Write.fromWalletUTxO utxo
+    let utxoIndex = utxoIndexFromWalletUTxO utxo
 
     -- Resolve inputs using LSQ. Useful for foreign reference inputs supplied by
     -- the user when calling transactions-construct, or in transactions-balance.
@@ -2543,9 +2538,7 @@ buildTransactionPure
                 txCtx
                 (Left preSelection)
     let utxoIndex :: Write.UTxOIndex era
-        utxoIndex =
-            Write.constructUTxOIndex $
-            Write.fromWalletUTxO utxo
+        utxoIndex = utxoIndexFromWalletUTxO utxo
     withExceptT Left $
         Write.balanceTx @_ @_ @s
             pparams
@@ -3238,8 +3231,7 @@ transactionFee DBLayer{atomically, walletState} protocolParams
             -- strict, and each field is defined in terms of 'Data.Map.Strict'.
             --
             evaluate
-                $ Write.constructUTxOIndex
-                $ Write.fromWalletUTxO
+                $ utxoIndexFromWalletUTxO
                 $ availableUTxO mempty wallet
         unsignedTxBody <- wrapErrMkTransaction $
             mkUnsignedTransaction
@@ -3691,6 +3683,18 @@ normalizeSharedAddress st addr = case Shared.ready st of
                 pure $ Shared.liftDelegationAddress @n ix dT fingerprint
             _ ->
                 pure $ Shared.liftPaymentAddress @n fingerprint
+
+{-------------------------------------------------------------------------------
+                                   Helpers
+-------------------------------------------------------------------------------}
+
+utxoIndexFromWalletUTxO
+    :: forall era. Write.IsRecentEra era => UTxO -> Write.UTxOIndex era
+utxoIndexFromWalletUTxO utxo =
+    Write.constructUTxOIndex
+    $ case Write.recentEra :: Write.RecentEra era of
+        Write.RecentEraBabbage -> Convert.toLedgerUTxOBabbage utxo
+        Write.RecentEraConway -> Convert.toLedgerUTxOConway utxo
 
 {-------------------------------------------------------------------------------
                                    Errors
