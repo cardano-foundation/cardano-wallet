@@ -69,6 +69,7 @@ library
     , delta-types
     , io-classes
     , microlens
+    , monoidal-containers
     , mtl
     , OddWord
     , text
@@ -82,7 +83,9 @@ library
     Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.IO.Resource.Event
     Cardano.Wallet.Deposit.Pure
+    Cardano.Wallet.Deposit.Pure.API.TxHistory
     Cardano.Wallet.Deposit.Pure.Balance
+    Cardano.Wallet.Deposit.Map
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
     Cardano.Wallet.Deposit.Read
