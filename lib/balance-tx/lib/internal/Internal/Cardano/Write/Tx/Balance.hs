@@ -525,17 +525,17 @@ fromWalletUTxO
     :: forall era. IsRecentEra era
     => W.UTxO
     -> UTxO era
-fromWalletUTxO (W.UTxO m) = UTxO
-    $ Map.mapKeys Convert.toLedger
-    $ Map.map (toLedgerTxOut (recentEra @era)) m
+fromWalletUTxO = case recentEra :: RecentEra era of
+    RecentEraBabbage -> Convert.toLedgerUTxOBabbage
+    RecentEraConway -> Convert.toLedgerUTxOConway
 
 toWalletUTxO
     :: forall era. IsRecentEra era
     => UTxO era
     -> W.UTxO
-toWalletUTxO (UTxO m) = W.UTxO
-    $ Map.mapKeys Convert.toWallet
-    $ Map.map (toWalletTxOut (recentEra @era)) m
+toWalletUTxO = case recentEra :: RecentEra era of
+    RecentEraBabbage -> Convert.toWalletUTxOBabbage
+    RecentEraConway -> Convert.toWalletUTxOConway
 
 balanceTx
     :: forall era m changeState.
@@ -615,8 +615,6 @@ balanceTx
             then balanceWith SelectionStrategyMinimal
             else throwE e
   where
-    era = recentEra @era
-
     -- Creates an index of all UTxOs that are already spent as inputs of the
     -- partial transaction.
     --
@@ -634,7 +632,7 @@ balanceTx
         convertUTxO :: (TxIn, TxOut era) -> (WalletUTxO, W.TokenBundle)
         convertUTxO (i, o) = (WalletUTxO (Convert.toWallet i) addr, bundle)
           where
-            W.TxOut addr bundle = toWalletTxOut era o
+            W.TxOut addr bundle = toWalletTxOut o
         maybeUnresolvedTxIns :: Maybe (NESet TxIn)
         maybeUnresolvedTxIns =
             NESet.nonEmptySet $ txIns <\> Map.keysSet selectedUTxO
@@ -688,7 +686,7 @@ balanceTx
             Nothing -> return ()
       where
         conflicts :: UTxO era -> UTxO era -> Map TxIn (TxOut era, TxOut era)
-        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut era) `on` unUTxO
+        conflicts = Map.conflictsWith ((/=) `on` toWalletTxOut) `on` unUTxO
 
     guardRefundsResolvable :: ExceptT (ErrBalanceTx era) m ()
     guardRefundsResolvable = case stakeKeyDeposits of
@@ -1004,14 +1002,7 @@ selectAssets pp utxoAssumptions outs' redeemers
         except validateTxOutputs'
         transformSelection <$> performSelection'
   where
-    era = recentEra @era
-
-    outs = map fromLedgerTxOut outs'
-
-    fromLedgerTxOut :: TxOut era -> W.TxOut
-    fromLedgerTxOut o = case era of
-       RecentEraBabbage -> Convert.fromBabbageTxOut o
-       RecentEraConway -> Convert.fromConwayTxOut o
+    outs = map toWalletTxOut outs'
 
     validateTxOutputs'
         :: Either (ErrBalanceTx era) ()
@@ -1032,9 +1023,9 @@ selectAssets pp utxoAssumptions outs' redeemers
         , computeMinimumAdaQuantity = \addr tokens -> Convert.toWallet $
             computeMinimumCoinForTxOut
                 pp
-                (mkLedgerTxOut era addr (W.TokenBundle W.txOutMaxCoin tokens))
+                (mkLedgerTxOut addr (W.TokenBundle W.txOutMaxCoin tokens))
         , isBelowMinimumAdaQuantity = \addr bundle ->
-            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut era addr bundle)
+            isBelowMinimumCoinForTxOut pp (mkLedgerTxOut addr bundle)
         , computeMinimumCost = \skeleton -> mconcat
             [ feePadding
             , fee0
@@ -1080,17 +1071,16 @@ selectAssets pp utxoAssumptions outs' redeemers
         valueOfInputs = UTxOSelection.selectedBalance utxoSelection
 
     mkLedgerTxOut
-        :: HasCallStack
-        => RecentEra era
-        -> W.Address
+        :: forall e. IsRecentEra e
+        => W.Address
         -> W.TokenBundle
-        -> TxOut era
-    mkLedgerTxOut txOutEra address bundle =
-        case txOutEra of
+        -> TxOut e
+    mkLedgerTxOut address bundle =
+        case recentEra :: RecentEra e of
             RecentEraBabbage -> Convert.toBabbageTxOut txOut
             RecentEraConway -> Convert.toConwayTxOut txOut
-          where
-            txOut = W.TxOut address bundle
+      where
+        txOut = W.TxOut address bundle
 
     txPlutusScriptExecutionCost = Convert.toWallet @W.Coin $
         if null redeemers
@@ -1355,8 +1345,7 @@ modifyShelleyTxBody txUpdate =
         UseOldTxFee -> old
 
 toLedgerTxOut
-    :: HasCallStack
-    => RecentEra era
+    :: RecentEra era
     -> W.TxOut
     -> TxOut era
 toLedgerTxOut txOutEra txOut =
@@ -1364,12 +1353,10 @@ toLedgerTxOut txOutEra txOut =
         RecentEraBabbage -> Convert.toBabbageTxOut txOut
         RecentEraConway -> Convert.toConwayTxOut txOut
 
-toWalletTxOut
-    :: RecentEra era
-    -> TxOut era
-    -> W.TxOut
-toWalletTxOut RecentEraBabbage = Convert.fromBabbageTxOut
-toWalletTxOut RecentEraConway = Convert.fromConwayTxOut
+toWalletTxOut :: forall era. IsRecentEra era => TxOut era -> W.TxOut
+toWalletTxOut o = case recentEra :: RecentEra era of
+    RecentEraBabbage -> Convert.fromBabbageTxOut o
+    RecentEraConway -> Convert.fromConwayTxOut o
 
 -- | Maps an error from the coin selection API to a balanceTx error.
 --

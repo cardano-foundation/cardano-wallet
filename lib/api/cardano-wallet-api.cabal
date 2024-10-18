@@ -48,6 +48,7 @@ library
     , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-binary
     , cardano-crypto
+    , cardano-ledger-api
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-launcher
