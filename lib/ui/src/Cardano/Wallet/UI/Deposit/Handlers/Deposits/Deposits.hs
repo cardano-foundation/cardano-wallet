@@ -6,7 +6,7 @@
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.Deposits
     ( depositsPageHandler
-    , quantizeByTime
+    , discretizeAByTime
     )
 where
 
@@ -14,6 +14,9 @@ import Prelude hiding
     ( lookup
     )
 
+import Cardano.Slotting.Slot
+    ( WithOrigin (..)
+    )
 import Cardano.Wallet.Deposit.Map
     ( Map (Map)
     , forMap
@@ -32,8 +35,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Pagination
     ( PageHandler (..)
     )
 import Cardano.Wallet.UI.Lib.Discretization
-    ( minKey
-    , quantizeByTime'
+    ( discretizeTime
+    , minKey
+    , nextDiscretizedTime
     )
 import Cardano.Wallet.UI.Lib.Pagination
     ( next
@@ -50,8 +54,14 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..)
     , hoistMaybe
     )
+import Data.Foldable
+    ( fold
+    )
 import Data.Map.Monoidal.Strict
     ( MonoidalMap (..)
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Time
     ( DayOfWeek
@@ -59,8 +69,41 @@ import Data.Time
 
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
 
-quantizeByTime :: DayOfWeek -> Window -> ByTime -> ByTime
-quantizeByTime fdk w (Map mm) = Map $ quantizeByTime' fdk w mm
+discretizeAMonoidalMap
+    :: Monoid a
+    => DayOfWeek
+    -> Window
+    -> MonoidalMap DownTime a
+    -> MonoidalMap DownTime a
+discretizeAMonoidalMap fdk w mm = case MonoidalMap.lookupMin mm of
+    Just ((Down (At t)), _) ->
+        let
+            t' = discretizeTime fdk w t
+            nt = Down $ At $ nextDiscretizedTime fdk w t'
+            (before, match, after) = MonoidalMap.splitLookup nt mm
+            after' =
+                maybe
+                    after
+                    (\v -> MonoidalMap.insert nt v after)
+                    match
+        in
+            MonoidalMap.singleton (Down (At t')) (fold before)
+                <> discretizeAMonoidalMap fdk w after'
+    Just (Down Origin, _) ->
+        let
+            (before, match, after) = MonoidalMap.splitLookup (Down Origin) mm
+            before' =
+                maybe
+                    before
+                    (\v -> MonoidalMap.insert (Down Origin) v before)
+                    match
+        in
+            MonoidalMap.singleton (Down Origin) (fold before')
+                <> discretizeAMonoidalMap fdk w after
+    Nothing -> MonoidalMap.empty
+
+discretizeAByTime :: DayOfWeek -> Window -> ByTime -> ByTime
+discretizeAByTime fdk w (Map mm) = Map $ discretizeAMonoidalMap fdk w mm
 
 depositsPageHandler
     :: MonadIO m
@@ -96,7 +139,7 @@ depositsPageHandler
             }
       where
         newDepositsHistory' =
-            quantizeByTime
+            discretizeAByTime
                 depositsFirstWeekDay
                 depositsWindow
                 <$> newDepositsHistory

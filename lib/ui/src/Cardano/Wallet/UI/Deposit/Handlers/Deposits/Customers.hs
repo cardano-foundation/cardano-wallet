@@ -47,7 +47,7 @@ import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Deposits
-    ( quantizeByTime
+    ( discretizeAByTime
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
     ( getFakeDepositsHistory
@@ -154,7 +154,7 @@ depositsDetailsPageHandler
         newDepositsWindow t = do
             transfers' <- lift newDepositsHistory
             let transfers'' =
-                    quantizeByTime
+                    discretizeAByTime
                         depositsFirstWeekDay
                         depositsWindow
                         transfers'
@@ -180,7 +180,7 @@ depositsHistoryWindowHandler
                         then getFakeDepositsHistory
                         else error "depositsHistoryWindowHandler: real data not implemented"
                 let transfers' =
-                        quantizeByTime
+                        discretizeAByTime
                             depositsFirstWeekDay
                             depositsWindow
                             transfers
