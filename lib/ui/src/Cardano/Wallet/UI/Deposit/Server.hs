@@ -115,8 +115,8 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( depositCustomersHandler
-    , depositCustomersPageHandler
-    , depositsPageHandler
+    , depositCustomersPaginationHandlers
+    , depositsPaginationHandlers
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
     ( getFakeDepositsHistory
@@ -321,7 +321,7 @@ depositsTable
     :: DepositsParams
     -> WalletResourceM (Scrolling WalletResourceM DownTime)
 depositsTable params = do
-    let hs = depositsPageHandler params getFakeDepositsHistory 100
+    let hs = depositsPaginationHandlers params getFakeDepositsHistory 100
     newScrolling $ scrollableDeposits params hs
 
 serveDepositsHistoryPage
@@ -347,7 +347,7 @@ depositsCustomersTable
     -> DownTime
     -> WalletResourceM (Scrolling WalletResourceM Customer)
 depositsCustomersTable params time = do
-    let hs = depositCustomersPageHandler params getFakeDepositsHistory time 100
+    let hs = depositCustomersPaginationHandlers params getFakeDepositsHistory time 100
     newScrolling $ scrollableDepositsCustomers params hs time
 
 serveDepositsHistoryWindowPage

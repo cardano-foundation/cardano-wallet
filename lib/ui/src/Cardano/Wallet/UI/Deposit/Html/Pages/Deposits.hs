@@ -69,7 +69,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
     ( AtTimeByCustomer
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Pagination
-    ( PageHandler (..)
+    ( PaginationHandlers (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Lib
     ( overlayFakeDataH
@@ -279,11 +279,11 @@ depositsElementH = onWalletPresentH $ \case
 scrollableDeposits
     :: Monad m
     => DepositsParams
-    -> PageHandler m DownTime ByTime
+    -> PaginationHandlers m DownTime ByTime
     -> Scrolling.Configuration m DownTime
 scrollableDeposits
     params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
-    (PageHandler previous next retrieve start) =
+    (PaginationHandlers previous next retrieve start) =
         Scrolling.Configuration{..}
       where
         scrollableWidget :: [Attribute] -> Html () -> Html ()
@@ -330,12 +330,12 @@ scrollableDeposits
 scrollableDepositsCustomers
     :: Monad m
     => DepositsParams
-    -> PageHandler m (DownTime, Customer) AtTimeByCustomer
+    -> PaginationHandlers m (DownTime, Customer) AtTimeByCustomer
     -> DownTime
     -> Scrolling.Configuration m Customer
 scrollableDepositsCustomers
     params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
-    (PageHandler previousH nextH retrieve startH)
+    (PaginationHandlers previousH nextH retrieve startH)
     time@(Down regularTime) =
         Scrolling.Configuration{..}
       where

@@ -1,14 +1,14 @@
 module Cardano.Wallet.UI.Deposit.Handlers.Pagination
-    ( PageHandler (..)
+    ( PaginationHandlers (..)
     )
 where
 
 import Prelude
 
 -- | A handler for paginating
-data PageHandler m k a = PageHandler
-    { pagePrevious :: k -> m (Maybe k)
-    , pageNext :: k -> m (Maybe k)
-    , page :: k -> m a
-    , start :: m (Maybe k)
+data PaginationHandlers m k a = PaginationHandlers
+    { previousPageIndex :: k -> m (Maybe k)
+    , nextPageIndex :: k -> m (Maybe k)
+    , retrievePage :: k -> m a
+    , startingIndex :: m (Maybe k)
     }

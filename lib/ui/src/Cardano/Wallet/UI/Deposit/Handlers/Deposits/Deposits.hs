@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.Deposits
-    ( depositsPageHandler
+    ( depositsPaginationHandlers
     , discretizeAByTime
     )
 where
@@ -20,7 +20,6 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Deposit.Map
     ( Map (Map)
     , forMap
-    , openMap
     , withMap
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
@@ -32,7 +31,7 @@ import Cardano.Wallet.UI.Deposit.API
     , Window (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Pagination
-    ( PageHandler (..)
+    ( PaginationHandlers (..)
     )
 import Cardano.Wallet.UI.Lib.Discretization
     ( discretizeTime
@@ -105,34 +104,34 @@ discretizeAMonoidalMap fdk w mm = case MonoidalMap.lookupMin mm of
 discretizeAByTime :: DayOfWeek -> Window -> ByTime -> ByTime
 discretizeAByTime fdk w (Map mm) = Map $ discretizeAMonoidalMap fdk w mm
 
-depositsPageHandler
+depositsPaginationHandlers
     :: MonadIO m
     => DepositsParams
     -> m ByTime
     -> Int
-    -> PageHandler m DownTime ByTime
-depositsPageHandler
+    -> PaginationHandlers m DownTime ByTime
+depositsPaginationHandlers
     DepositsParams{depositsFirstWeekDay, depositsWindow}
     newDepositsHistory
     rows =
-        PageHandler
-            { pagePrevious = \t -> runMaybeT $ do
+        PaginationHandlers
+            { previousPageIndex = \t -> runMaybeT $ do
                 m <- lift newDepositsHistory'
                 hoistMaybe
                     $ withMap m
                     $ \(MonoidalMap transfers) -> previous rows transfers t
-            , pageNext = \t -> runMaybeT $ do
+            , nextPageIndex = \t -> runMaybeT $ do
                 m <- lift newDepositsHistory'
                 hoistMaybe
                     $ withMap m
                     $ \(MonoidalMap transfers) -> next rows transfers t
-            , page = \t -> do
+            , retrievePage = \t -> do
                 m <- newDepositsHistory'
                 pure
                     $ forMap m
                     $ \(MonoidalMap transfers) ->
                         MonoidalMap $ nextPage rows t transfers
-            , start = do
+            , startingIndex = do
                 m <- newDepositsHistory'
                 pure $ withMap m minKey
             }

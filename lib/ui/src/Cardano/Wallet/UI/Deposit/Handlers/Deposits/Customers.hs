@@ -4,7 +4,7 @@
 {-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
-    ( depositCustomersPageHandler
+    ( depositCustomersPaginationHandlers
     , depositCustomersHandler
     , AtTimeByCustomer
     )
@@ -56,7 +56,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Pagination
-    ( PageHandler (..)
+    ( PaginationHandlers (..)
     )
 import Cardano.Wallet.UI.Lib.Discretization
     ( minKey
@@ -104,41 +104,41 @@ type AtTimeByCustomer =
          ]
         ValueTransfer
 
-depositCustomersPageHandler
+depositCustomersPaginationHandlers
     :: forall m
      . Monad m
     => DepositsParams
     -> m ByTime
     -> DownTime
     -> Int
-    -> PageHandler m (DownTime, Customer) AtTimeByCustomer
-depositCustomersPageHandler
+    -> PaginationHandlers m (DownTime, Customer) AtTimeByCustomer
+depositCustomersPaginationHandlers
     DepositsParams{depositsFirstWeekDay, depositsWindow}
     newDepositsHistory
     time
     rows =
-        PageHandler
-            { pagePrevious = \(t, k) -> runMaybeT $ do
+        PaginationHandlers
+            { previousPageIndex = \(t, k) -> runMaybeT $ do
                 m <- newDepositCustomers t
                 fmap (t,)
                     $ hoistMaybe
                     $ withPatched m
                     $ \_ (MonoidalMap r) ->
                         previous rows r k
-            , pageNext = \(t, k) -> runMaybeT $ do
+            , nextPageIndex = \(t, k) -> runMaybeT $ do
                 m <- newDepositCustomers t
                 fmap (t,)
                     $ hoistMaybe
                     $ withPatched m
                     $ \_ (MonoidalMap r) ->
                         next rows r k
-            , page = \(t, k) -> fmap fold $ runMaybeT $ do
+            , retrievePage = \(t, k) -> fmap fold $ runMaybeT $ do
                 m <- newDepositCustomers t
                 pure
                     $ forPatched m
                     $ \_ (MonoidalMap r) ->
                         MonoidalMap $ nextPage rows k r
-            , start = runMaybeT $ do
+            , startingIndex = runMaybeT $ do
                 m <- newDepositCustomers time
                 hoistMaybe
                     $ fmap (time,)
