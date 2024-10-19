@@ -65,9 +65,11 @@ import Cardano.Wallet.UI.Deposit.API
     , depositsHistoryWindowPageLink
     , depositsLink
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
     ( InWindow
-    , PageHandler (..)
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Pagination
+    ( PageHandler (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Lib
     ( overlayFakeDataH

@@ -1,7 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -29,6 +28,9 @@ import Cardano.Wallet.Deposit.IO.Network.Mock
     )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv
+    )
+import Cardano.Wallet.Deposit.Pure
+    ( Customer
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
@@ -83,6 +85,10 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
 import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     ( mnemonicH
     )
+import Cardano.Wallet.UI.Common.Html.Scrolling
+    ( Scrolling (..)
+    , newScrolling
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
@@ -111,7 +117,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Deposits
     ( depositsDetailsPageHandler
     , depositsHistoryWindowHandler
     , depositsPageHandler
-    , getFakeDepositsHistory
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
+    ( getFakeDepositsHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceM
@@ -186,13 +194,6 @@ import Servant
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
-import Cardano.Wallet.Deposit.Pure
-    ( Customer
-    )
-import Cardano.Wallet.UI.Common.Html.Scrolling
-    ( Scrolling (..)
-    , newScrolling
-    )
 import qualified Data.ByteString.Lazy as BL
 
 showTime :: UTCTime -> String
@@ -363,7 +364,7 @@ serveDepositsHistoryWindowPage ul params (Just time) (Just customer) =
                 scrolling <- depositsDetailsTable params (Down time)
                 scroll scrolling (depositsDetailsPages params) customer
             pure $ renderHtml result
-serveDepositsHistoryWindowPage ul _ _ _  = withSessionLayer ul
+serveDepositsHistoryWindowPage ul _ _ _ = withSessionLayer ul
     $ \_layer -> do
         pure
             $ renderHtml
@@ -389,8 +390,6 @@ serveDepositsHistoryWindow
     -> Handler (CookieResponse RawHtml)
 serveDepositsHistoryWindow ul params mtime mexpand = withSessionLayer ul
     $ \layer -> do
-        liftIO $ print params
-
         fmap renderHtml $ case mtime of
             Nothing -> pure $ alertH ("No time provided" :: Text)
             Just time -> do
