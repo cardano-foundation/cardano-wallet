@@ -66,7 +66,7 @@ import Cardano.Wallet.UI.Deposit.API
     , depositsLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
-    ( InWindow
+    ( AtTimeByCustomer
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Pagination
     ( PageHandler (..)
@@ -327,13 +327,13 @@ scrollableDeposits
         updateURL (Down t) = linkText . depositsHistoryPageLink . Just $ t
         renderIdOfIndex (Down t) = toUrlPiece $ abs $ hash t
 
-scrollableDepositsDetails
+scrollableDepositsCustomers
     :: Monad m
     => DepositsParams
-    -> PageHandler m (DownTime, Customer) InWindow
+    -> PageHandler m (DownTime, Customer) AtTimeByCustomer
     -> DownTime
     -> Scrolling.Configuration m Customer
-scrollableDepositsDetails
+scrollableDepositsCustomers
     params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
     (PageHandler previousH nextH retrieve startH)
     time@(Down regularTime) =
@@ -381,8 +381,8 @@ scrollableDepositsDetails
                 $ tbody_ attrs
                 $ mapM_ (depositByAddressH params)
                 $ sortOn (view _1) xs
-        uniqueScrollingId = "deposit-details"
-        presentFieldName = "details-page-present"
+        uniqueScrollingId = "deposit-customers"
+        presentFieldName = "customers-page-present"
         controlSelector = "#view-control"
         renderIndex = toUrlPiece
         updateURL c =
@@ -417,11 +417,11 @@ depositByAddressH
 depositH
     :: DepositsParams
     -> Maybe Expand
-    -> (DownTime, InWindow)
+    -> (DownTime, AtTimeByCustomer)
     -> Html ()
     -> Html ()
 depositH
-    DepositsParams{depositsSlot, depositsSpent, depositsDetails}
+    DepositsParams{depositsSlot, depositsSpent, depositsCustomers}
     mexpand
     (Down time, inWindow)
     widget
@@ -454,7 +454,7 @@ depositH
                                 $ i_ [class_ "bi bi-x"] mempty
                     td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
                         widget
-                        input_ [type_ "hidden", name_ "details", value_ $ toUrlPiece time]
+                        input_ [type_ "hidden", name_ "customers", value_ $ toUrlPiece time]
         | otherwise = do
             let link = linkText $ depositsHistoryWindowLink (Just time) (Just Expand)
             tr_
@@ -483,4 +483,4 @@ depositH
                         $ tdEnd
                         $ valueH spent
       where
-        expanded = maybe (time `elem` depositsDetails) (== Expand) mexpand
+        expanded = maybe (time `elem` depositsCustomers) (== Expand) mexpand

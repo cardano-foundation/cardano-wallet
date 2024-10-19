@@ -114,8 +114,8 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     ( getCustomerHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits
-    ( depositsDetailsPageHandler
-    , depositsHistoryWindowHandler
+    ( depositCustomersHandler
+    , depositCustomersPageHandler
     , depositsPageHandler
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
@@ -143,7 +143,7 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
     ( depositH
     , depositsElementH
     , scrollableDeposits
-    , scrollableDepositsDetails
+    , scrollableDepositsCustomers
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -342,13 +342,13 @@ serveDepositsHistoryPage ul _ _ = withSessionLayer ul
             $ renderHtml
             $ alertH ("No page index provided" :: Text)
 
-depositsDetailsTable
+depositsCustomersTable
     :: DepositsParams
     -> DownTime
     -> WalletResourceM (Scrolling WalletResourceM Customer)
-depositsDetailsTable params time = do
-    let hs = depositsDetailsPageHandler params getFakeDepositsHistory time 100
-    newScrolling $ scrollableDepositsDetails params hs time
+depositsCustomersTable params time = do
+    let hs = depositCustomersPageHandler params getFakeDepositsHistory time 100
+    newScrolling $ scrollableDepositsCustomers params hs time
 
 serveDepositsHistoryWindowPage
     :: UILayer WalletResource
@@ -361,8 +361,8 @@ serveDepositsHistoryWindowPage ul params (Just time) (Just customer) =
     withSessionLayer ul
         $ \layer -> do
             result <- catchRunWalletResourceM layer $ do
-                scrolling <- depositsDetailsTable params (Down time)
-                scroll scrolling (depositsDetailsPages params) customer
+                scrolling <- depositsCustomersTable params (Down time)
+                scroll scrolling (depositsCustomersPages params) customer
             pure $ renderHtml result
 serveDepositsHistoryWindowPage ul _ _ _ = withSessionLayer ul
     $ \_layer -> do
@@ -394,9 +394,9 @@ serveDepositsHistoryWindow ul params mtime mexpand = withSessionLayer ul
             Nothing -> pure $ alertH ("No time provided" :: Text)
             Just time -> do
                 result <- catchRunWalletResourceM layer $ do
-                    scrolling <- depositsDetailsTable params (Down time)
+                    scrolling <- depositsCustomersTable params (Down time)
                     pure $ widget scrolling
-                depositsHistoryWindowHandler
+                depositCustomersHandler
                     layer
                     (\window -> depositH params mexpand (Down time, window) result)
                     alertH

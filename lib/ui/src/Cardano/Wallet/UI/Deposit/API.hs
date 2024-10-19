@@ -312,9 +312,9 @@ data DepositsParams = DepositsParams
     , depositsViewStart :: Maybe (WithOrigin UTCTime)
     , depositsWindowOpen :: Maybe (WithOrigin UTCTime)
     , depositsSpent :: Bool
-    , depositsDetails :: Set (WithOrigin UTCTime)
+    , depositsCustomers :: Set (WithOrigin UTCTime)
     , depositsPages :: Set DownTime
-    , depositsDetailsPages :: Set Customer
+    , depositsCustomersPages :: Set Customer
     }
     deriving (Eq, Show)
 
@@ -349,9 +349,9 @@ instance FromForm DepositsParams where
         viewStart <- parseMaybe "view-start" form
         windowOpen <- parseMaybe "window-open" form
         spent <- isJust <$> lookupMaybe "spent" form
-        details <- Set.fromList <$> parseAll "details" form
+        customers <- Set.fromList <$> parseAll "customers" form
         pages <- Set.fromList . fmap Down <$> parseAll "page-present" form
-        pageDetails <- Set.fromList <$> parseAll "details-page-present" form
+        pageCustomers <- Set.fromList <$> parseAll "customers-page-present" form
         pure
             $ DepositsParams
                 slot
@@ -361,9 +361,9 @@ instance FromForm DepositsParams where
                 viewStart
                 windowOpen
                 spent
-                details
+                customers
                 pages
-                pageDetails
+                pageCustomers
 
 data Expand = Expand | Collapse
     deriving (Eq, Show, Enum, Bounded)

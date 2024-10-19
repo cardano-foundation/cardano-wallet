@@ -128,7 +128,6 @@ depositsPageHandler
                     $ \(MonoidalMap transfers) -> next rows transfers t
             , page = \t -> do
                 m <- newDepositsHistory'
-                liftIO $ print $ MonoidalMap.keys $ openMap m
                 pure
                     $ forMap m
                     $ \(MonoidalMap transfers) ->

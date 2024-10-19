@@ -4,9 +4,9 @@
 {-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
-    ( depositsDetailsPageHandler
-    , depositsHistoryWindowHandler
-    , InWindow
+    ( depositCustomersPageHandler
+    , depositCustomersHandler
+    , AtTimeByCustomer
     )
 where
 
@@ -29,13 +29,13 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByTime
     , DownTime
     )
-import Cardano.Wallet.Deposit.REST
-    ( WalletResource
-    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     , Slot
     , WithOrigin (..)
+    )
+import Cardano.Wallet.Deposit.REST
+    ( WalletResource
     )
 import Cardano.Wallet.Read
     ( TxId
@@ -66,9 +66,6 @@ import Cardano.Wallet.UI.Lib.Pagination
     , nextPage
     , previous
     )
-import Control.Monad.IO.Class
-    ( MonadIO (..)
-    )
 import Control.Monad.Trans
     ( lift
     )
@@ -83,8 +80,7 @@ import Data.Map.Monoidal.Strict
     ( MonoidalMap (..)
     )
 import Data.Map.Strict
-    (
-    )
+    ()
 import Data.Monoid
     ( First (..)
     )
@@ -101,57 +97,57 @@ import Servant
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 
-type InWindow =
+type AtTimeByCustomer =
     Map
         '[ W (First Slot) Customer
          , W (First Address) TxId
          ]
         ValueTransfer
 
-depositsDetailsPageHandler
+depositCustomersPageHandler
     :: forall m
-     . (MonadIO m)
+     . Monad m
     => DepositsParams
     -> m ByTime
     -> DownTime
     -> Int
-    -> PageHandler m (DownTime, Customer) InWindow
-depositsDetailsPageHandler
+    -> PageHandler m (DownTime, Customer) AtTimeByCustomer
+depositCustomersPageHandler
     DepositsParams{depositsFirstWeekDay, depositsWindow}
     newDepositsHistory
     time
     rows =
         PageHandler
             { pagePrevious = \(t, k) -> runMaybeT $ do
-                m <- newDepositsWindow t
+                m <- newDepositCustomers t
                 fmap (t,)
                     $ hoistMaybe
                     $ withPatched m
                     $ \_ (MonoidalMap r) ->
                         previous rows r k
             , pageNext = \(t, k) -> runMaybeT $ do
-                m <- newDepositsWindow t
+                m <- newDepositCustomers t
                 fmap (t,)
                     $ hoistMaybe
                     $ withPatched m
                     $ \_ (MonoidalMap r) ->
                         next rows r k
             , page = \(t, k) -> fmap fold $ runMaybeT $ do
-                m <- newDepositsWindow t
+                m <- newDepositCustomers t
                 pure
                     $ forPatched m
                     $ \_ (MonoidalMap r) ->
                         MonoidalMap $ nextPage rows k r
             , start = runMaybeT $ do
-                m <- newDepositsWindow time
+                m <- newDepositCustomers time
                 hoistMaybe
                     $ fmap (time,)
                     $ withPatched m
                     $ \_ -> minKey
             }
       where
-        newDepositsWindow :: DownTime -> MaybeT m InWindow
-        newDepositsWindow t = do
+        newDepositCustomers :: DownTime -> MaybeT m AtTimeByCustomer
+        newDepositCustomers t = do
             transfers' <- lift newDepositsHistory
             let transfers'' =
                     discretizeAByTime
@@ -160,14 +156,14 @@ depositsDetailsPageHandler
                         transfers'
             hoistMaybe $ lookup t transfers''
 
-depositsHistoryWindowHandler
+depositCustomersHandler
     :: SessionLayer WalletResource
-    -> (InWindow -> html)
+    -> (AtTimeByCustomer -> html)
     -> (BL.ByteString -> html)
     -> DepositsParams
     -> WithOrigin UTCTime
     -> Handler html
-depositsHistoryWindowHandler
+depositCustomersHandler
     layer
     render
     alert
