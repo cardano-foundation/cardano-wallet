@@ -18,7 +18,6 @@ module Cardano.Wallet.Deposit.Write
     -- * Helper functions
     , mkAda
     , mkTxOut
-    , mockTxId
     , toConwayTx
     ) where
 
@@ -35,18 +34,11 @@ import Cardano.Wallet.Deposit.Read
     , TxOut
     , Value
     )
-import Cardano.Wallet.Read.Hash
-    ( hashFromBytesShort
-    )
 import Cardano.Wallet.Read.Tx
     ( toConwayOutput
-    , txIdFromHash
     )
 import Data.Map
     ( Map
-    )
-import Data.Maybe
-    ( fromJust
     )
 import Data.Maybe.Strict
     ( StrictMaybe
@@ -67,9 +59,6 @@ import Lens.Micro
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
 import qualified Cardano.Wallet.Read as Read
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -124,11 +113,3 @@ toConwayTxOut :: TxOut -> L.TxOut L.Conway
 toConwayTxOut txout =
     case toConwayOutput txout of
         Output o -> o
-
-mockTxId :: Show a => a -> TxId
-mockTxId x =
-    txIdFromHash
-    . fromJust
-    . hashFromBytesShort
-    . SBS.pack
-    $ take 32 (BS.unpack (B8.pack $ show x) <> repeat 0)
