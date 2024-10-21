@@ -19,6 +19,7 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , AlertH
     , monospaced
     , truncatableText
+    , WithCopy (..)
     , tdEnd
     , thEnd
     )
@@ -117,15 +118,19 @@ monospaced :: Monad m => HtmlT m ()
 monospaced =
     style_ ".monospaced {font-family: \"Courier New\",monospace !important;}"
 
-truncatableText :: Monad m => Text -> HtmlT m () -> HtmlT m ()
-truncatableText identifier h =
+data WithCopy = WithCopy | WithoutCopy
+
+truncatableText :: Monad m => WithCopy -> Text -> HtmlT m () -> HtmlT m ()
+truncatableText copy identifier h =
     div_ [class_ "d-flex justify-content-end align-items-center"] $ do
         div_
             [ id_ identifier
             , class_ "text-truncate text-end monospaced"
             ]
             h
-        copyButton identifier
+        case copy of
+            WithCopy -> copyButton identifier
+            WithoutCopy -> mempty
 
 tdEnd :: Monad m => HtmlT m () -> HtmlT m ()
 tdEnd = td_ [class_ "text-end p-1 px-0 align-bottom"]

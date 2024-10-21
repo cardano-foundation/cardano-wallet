@@ -15,6 +15,7 @@ import Cardano.Wallet.Deposit.Read
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( AlertH
+    , WithCopy
     , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
@@ -61,8 +62,8 @@ addressesH :: WHtml ()
 addressesH = do
     sseH addressesLink "addresses" ["wallet"]
 
-customerAddressH :: Monad m => Address -> HtmlT m ()
-customerAddressH addr = truncatableText ("address-text-" <> encodedAddr)
+customerAddressH :: Monad m => WithCopy -> Address -> HtmlT m ()
+customerAddressH copy addr = truncatableText copy ("address-text-" <> encodedAddr)
     $ toHtml encodedAddr
   where
     encodedAddr = encodeMainnetAddress addr

@@ -72,6 +72,9 @@ import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( WithCopy (WithCopy)
+    )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( alertH
     , rogerH
@@ -244,7 +247,18 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
-        :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
+        :<|> ( \c ->
+                wsl
+                    ( \l ->
+                        getCustomerAddress
+                            l
+                            ( renderSmoothHtml
+                                . customerAddressH WithCopy
+                            )
+                            alert
+                            c
+                    )
+             )
         :<|> wsl (\l -> getAddresses l (\now -> renderSmoothHtml . addressElementH now origin alertH))
         :<|> serveNavigation
         :<|> serveTransactions ul

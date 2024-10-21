@@ -25,7 +25,8 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxSwap_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
-    ( dataBsDismiss_
+    ( WithCopy (..)
+    , dataBsDismiss_
     , linkText
     , truncatableText
     )
@@ -118,7 +119,7 @@ base64 = convertToBase Base64
 
 pubKeyH :: Monad m => XPub -> HtmlT m ()
 pubKeyH xpub =
-    truncatableText "public_key"
+    truncatableText WithCopy "public_key"
         $ toHtml
         $ base64
         $ xpubToBytes xpub

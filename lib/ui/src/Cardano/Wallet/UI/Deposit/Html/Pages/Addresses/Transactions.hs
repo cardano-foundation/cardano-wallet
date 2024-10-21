@@ -23,7 +23,8 @@ import Cardano.Wallet.Read.Tx
     ( hashFromTxId
     )
 import Cardano.Wallet.UI.Common.Html.Lib
-    ( linkText
+    ( WithCopy (..)
+    , linkText
     , tdEnd
     , thEnd
     , truncatableText
@@ -160,7 +161,7 @@ txSummaryH
                 $ valueH
                 $ spent txTransfer
             td_ [scope_ "col", class_ "flex-fill align-bottom"]
-                $ truncatableText ("tx-id-text-" <> toText index)
+                $ truncatableText WithCopy ("tx-id-text-" <> toText index)
                 $ toHtml
                 $ hashToStringAsHex
                 $ hashFromTxId txSummarized
