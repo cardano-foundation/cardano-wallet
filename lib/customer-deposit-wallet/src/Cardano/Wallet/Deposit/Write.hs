@@ -4,7 +4,8 @@
 --
 -- TODO: Match this up with the @Write@ hierarchy.
 module Cardano.Wallet.Deposit.Write
-    ( Address
+    ( -- * Basic types
+      Address
 
     , Value
 
@@ -15,6 +16,24 @@ module Cardano.Wallet.Deposit.Write
     , TxIn
     , TxOut
 
+    -- * Transaction balancing
+    , Write.IsRecentEra
+    , Write.Conway
+    , L.PParams
+    , Write.UTxOAssumptions (..)
+    , Write.ChangeAddressGen (..)
+    , Write.StakeKeyDepositLookup (..)
+    , Write.TimelockKeyWitnessCounts (..)
+    , Write.UTxOIndex
+    , Write.constructUTxOIndex
+    , Write.UTxO
+    , toConwayUTxO
+    , Write.PartialTx (..)
+    , Write.ErrBalanceTx (..)
+    , Write.balanceTx
+
+    -- ** Time interpreter
+    , Write.TimeTranslation
     -- * Helper functions
     , mkAda
     , mkTxOut
@@ -59,12 +78,13 @@ import Lens.Micro
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Write.Eras as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
-    Type definitions
-    with dummies
+    Convenience TxBody
 ------------------------------------------------------------------------------}
 type Tx = Read.Tx Read.Conway
 
@@ -113,3 +133,6 @@ toConwayTxOut :: TxOut -> L.TxOut L.Conway
 toConwayTxOut txout =
     case toConwayOutput txout of
         Output o -> o
+
+toConwayUTxO :: Map TxIn TxOut -> Write.UTxO L.Conway
+toConwayUTxO = Write.UTxO . Map.map toConwayTxOut
