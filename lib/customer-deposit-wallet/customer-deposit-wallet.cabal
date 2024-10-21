@@ -55,8 +55,10 @@ library
     , async
     , base
     , bytestring
+    , cardano-balance-tx
     , cardano-crypto
     , cardano-ledger-api
+    , cardano-ledger-core
     , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-network-layer
@@ -66,11 +68,14 @@ library
     , customer-deposit-wallet-pure
     , delta-store
     , delta-types
+    , digest
     , io-classes
     , microlens
     , mtl
+    , MonadRandom
     , OddWord
     , text
+    , transformers
 
   reexported-modules: Cardano.Wallet.Address.BIP32
   exposed-modules:

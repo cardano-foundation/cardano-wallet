@@ -20,6 +20,7 @@ module Cardano.Write.Tx
 
     -- ** Balancing
     , balanceTx
+    , TimeTranslation
     , UTxOAssumptions (..)
     , UTxOIndex
     , constructUTxOIndex
@@ -63,4 +64,7 @@ import Internal.Cardano.Write.Tx.Balance
     )
 import Internal.Cardano.Write.Tx.Sign
     ( TimelockKeyWitnessCounts (..)
+    )
+import Internal.Cardano.Write.Tx.TimeTranslation
+    ( TimeTranslation
     )

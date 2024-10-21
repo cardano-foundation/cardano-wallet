@@ -4,7 +4,8 @@
 --
 -- TODO: Match this up with the @Write@ hierarchy.
 module Cardano.Wallet.Deposit.Write
-    ( Address
+    ( -- * Basic types
+      Address
 
     , Value
 
@@ -14,6 +15,24 @@ module Cardano.Wallet.Deposit.Write
     , TxBody (..)
     , TxIn
     , TxOut
+
+    -- * Transaction balancing
+    , Write.IsRecentEra
+    , Write.Conway
+    , L.PParams
+    , Write.TimeTranslation
+    , conwayTimeTranslation
+    , Write.UTxOAssumptions (..)
+    , Write.ChangeAddressGen (..)
+    , Write.StakeKeyDepositLookup (..)
+    , Write.TimelockKeyWitnessCounts (..)
+    , Write.UTxOIndex
+    , Write.constructUTxOIndex
+    , Write.UTxO
+    , toConwayUTxO
+    , Write.PartialTx (..)
+    , Write.ErrBalanceTx (..)
+    , Write.balanceTx
 
     -- * Helper functions
     , mkAda
@@ -64,9 +83,12 @@ import Lens.Micro
     , (.~)
     )
 
+import qualified Cardano.Ledger.Core as L
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
 import qualified Cardano.Wallet.Read as Read
+import qualified Cardano.Write.Eras as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Short as SBS
@@ -74,8 +96,13 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
-    Type definitions
-    with dummies
+    Balance transaction
+------------------------------------------------------------------------------}
+conwayTimeTranslation :: Write.TimeTranslation
+conwayTimeTranslation = undefined
+
+{-----------------------------------------------------------------------------
+    Convenience TxBody
 ------------------------------------------------------------------------------}
 type Tx = Read.Tx Read.Conway
 
@@ -124,6 +151,9 @@ toConwayTxOut :: TxOut -> L.TxOut L.Conway
 toConwayTxOut txout =
     case toConwayOutput txout of
         Output o -> o
+
+toConwayUTxO :: Map TxIn TxOut -> Write.UTxO L.Conway
+toConwayUTxO = Write.UTxO . Map.map toConwayTxOut
 
 mockTxId :: Show a => a -> TxId
 mockTxId x =
