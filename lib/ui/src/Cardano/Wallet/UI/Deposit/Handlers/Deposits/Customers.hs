@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
     ( depositCustomersPaginationHandlers
@@ -17,8 +16,9 @@ import Prelude hiding
 import Cardano.Wallet.Deposit.Map
     ( Map (..)
     , W
-    , forPatched
     , lookup
+    , openPatched
+    , unPatch
     , withPatched
     )
 import Cardano.Wallet.Deposit.Pure
@@ -58,11 +58,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Lib
 import Cardano.Wallet.UI.Deposit.Handlers.Pagination
     ( PaginationHandlers (..)
     )
-import Cardano.Wallet.UI.Lib.Discretization
-    ( minKey
-    )
 import Cardano.Wallet.UI.Lib.Pagination
-    ( next
+    ( minKey
+    , next
     , nextPage
     , previous
     )
@@ -73,14 +71,15 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..)
     , hoistMaybe
     )
+import Data.Bifunctor
+    ( first
+    )
 import Data.Foldable
     ( Foldable (..)
     )
 import Data.Map.Monoidal.Strict
     ( MonoidalMap (..)
     )
-import Data.Map.Strict
-    ()
 import Data.Monoid
     ( First (..)
     )
@@ -96,6 +95,7 @@ import Servant
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.Map.Strict as Map
 
 type AtTimeByCustomer =
     Map
@@ -111,39 +111,41 @@ depositCustomersPaginationHandlers
     -> m ByTime
     -> DownTime
     -> Int
-    -> PaginationHandlers m (DownTime, Customer) AtTimeByCustomer
+    -> PaginationHandlers
+        m
+        Customer
+        (Map.Map Customer (Maybe Address, ValueTransfer))
 depositCustomersPaginationHandlers
     DepositsParams{depositsFirstWeekDay, depositsWindow}
     newDepositsHistory
     time
     rows =
         PaginationHandlers
-            { previousPageIndex = \(t, k) -> runMaybeT $ do
-                m <- newDepositCustomers t
-                fmap (t,)
-                    $ hoistMaybe
+            { previousPageIndex = \k -> runMaybeT $ do
+                m <- newDepositCustomers time
+                hoistMaybe
                     $ withPatched m
                     $ \_ (MonoidalMap r) ->
                         previous rows r k
-            , nextPageIndex = \(t, k) -> runMaybeT $ do
-                m <- newDepositCustomers t
-                fmap (t,)
-                    $ hoistMaybe
+            , nextPageIndex = \k -> runMaybeT $ do
+                m <- newDepositCustomers time
+                hoistMaybe
                     $ withPatched m
                     $ \_ (MonoidalMap r) ->
                         next rows r k
-            , retrievePage = \(t, k) -> fmap fold $ runMaybeT $ do
-                m <- newDepositCustomers t
-                pure
-                    $ forPatched m
-                    $ \_ (MonoidalMap r) ->
-                        MonoidalMap $ nextPage rows k r
             , startingIndex = runMaybeT $ do
                 m <- newDepositCustomers time
                 hoistMaybe
-                    $ fmap (time,)
                     $ withPatched m
-                    $ \_ -> minKey
+                    $ \_ (MonoidalMap q) -> minKey q
+            , retrievePage = \k -> fmap fold $ runMaybeT $ do
+                m <- newDepositCustomers time
+                pure
+                    $ let
+                        (_w, r) = openPatched m
+                        p = nextPage rows k $ getMonoidalMap r
+                      in
+                        first getFirst . fold . unPatch <$> p
             }
       where
         newDepositCustomers :: DownTime -> MaybeT m AtTimeByCustomer

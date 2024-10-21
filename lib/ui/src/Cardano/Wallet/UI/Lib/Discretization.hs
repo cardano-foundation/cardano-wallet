@@ -4,7 +4,6 @@
 module Cardano.Wallet.UI.Lib.Discretization
     ( nextDiscretizedTime
     , discretizeTime
-    , minKey
     )
 where
 
@@ -71,6 +70,3 @@ nextDiscretizedTime _ Minute30 (UTCTime d s) = UTCTime d (s - 1800)
 nextDiscretizedTime _ Minute15 (UTCTime d s) = UTCTime d (s - 900)
 nextDiscretizedTime _ Minute10 (UTCTime d s) = UTCTime d (s - 600)
 nextDiscretizedTime _ Minute5 (UTCTime d s) = UTCTime d (s - 300)
-
-minKey :: MonoidalMap k a -> Maybe k
-minKey = fmap fst . MonoidalMap.lookupMin

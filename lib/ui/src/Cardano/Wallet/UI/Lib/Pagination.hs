@@ -3,6 +3,7 @@ module Cardano.Wallet.UI.Lib.Pagination
     , previous
     , nextPage
     , previousPage
+    , minKey
     )
 where
 
@@ -44,3 +45,7 @@ nextPage n start' = Map.take n . Map.dropWhileAntitone (< start')
 -- and going backwards.
 previousPage :: Ord k => Int -> k -> Map k a -> Map k a
 previousPage n start' = takeEnd n . Map.takeWhileAntitone (<= start')
+
+-- | Compute the minimum key in the given map.
+minKey :: Map k a -> Maybe k
+minKey = fmap fst . Map.lookupMin

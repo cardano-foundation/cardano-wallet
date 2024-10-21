@@ -19,12 +19,19 @@ import Cardano.Slotting.Slot
     )
 import Cardano.Wallet.Deposit.Map
     ( Map (Map)
-    , forMap
+    , openMap
+    , unPatch
     , withMap
+    )
+import Cardano.Wallet.Deposit.Pure
+    ( ValueTransfer
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByTime
     , DownTime
+    )
+import Cardano.Wallet.Deposit.Read
+    ( Slot
     )
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
@@ -35,11 +42,11 @@ import Cardano.Wallet.UI.Deposit.Handlers.Pagination
     )
 import Cardano.Wallet.UI.Lib.Discretization
     ( discretizeTime
-    , minKey
     , nextDiscretizedTime
     )
 import Cardano.Wallet.UI.Lib.Pagination
-    ( next
+    ( minKey
+    , next
     , nextPage
     , previous
     )
@@ -53,11 +60,17 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..)
     , hoistMaybe
     )
+import Data.Bifunctor
+    ( first
+    )
 import Data.Foldable
     ( fold
     )
 import Data.Map.Monoidal.Strict
     ( MonoidalMap (..)
+    )
+import Data.Monoid
+    ( First (..)
     )
 import Data.Ord
     ( Down (..)
@@ -67,6 +80,7 @@ import Data.Time
     )
 
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
+import qualified Data.Map.Strict as Map
 
 discretizeAMonoidalMap
     :: Monoid a
@@ -109,7 +123,8 @@ depositsPaginationHandlers
     => DepositsParams
     -> m ByTime
     -> Int
-    -> PaginationHandlers m DownTime ByTime
+    -> PaginationHandlers m DownTime
+        (Map.Map DownTime (Maybe Slot, ValueTransfer))
 depositsPaginationHandlers
     DepositsParams{depositsFirstWeekDay, depositsWindow}
     newDepositsHistory
@@ -128,12 +143,13 @@ depositsPaginationHandlers
             , retrievePage = \t -> do
                 m <- newDepositsHistory'
                 pure
-                    $ forMap m
-                    $ \(MonoidalMap transfers) ->
-                        MonoidalMap $ nextPage rows t transfers
+                    $ fmap (first getFirst . fold . unPatch)
+                    $ nextPage rows t
+                    $ getMonoidalMap
+                    $ openMap m
             , startingIndex = do
                 m <- newDepositsHistory'
-                pure $ withMap m minKey
+                pure $ withMap m $ \(MonoidalMap q) -> minKey q
             }
       where
         newDepositsHistory' =

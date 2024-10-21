@@ -29,6 +29,9 @@ import Cardano.Wallet.Deposit.IO.Network.Mock
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv
     )
+import Cardano.Wallet.Deposit.Map
+    ( unPatch
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
@@ -160,8 +163,17 @@ import Control.Monad.Trans
 import Control.Tracer
     ( Tracer (..)
     )
+import Data.Bifunctor
+    ( first
+    )
+import Data.Foldable
+    ( fold
+    )
 import Data.Functor
     ( ($>)
+    )
+import Data.Monoid
+    ( First (..)
     )
 import Data.Ord
     ( Down (..)
@@ -347,8 +359,13 @@ depositsCustomersTable
     -> DownTime
     -> WalletResourceM (Scrolling WalletResourceM Customer)
 depositsCustomersTable params time = do
-    let hs = depositCustomersPaginationHandlers params getFakeDepositsHistory time 100
-    newScrolling $ scrollableDepositsCustomers params hs time
+    let hs =
+            depositCustomersPaginationHandlers
+                params
+                getFakeDepositsHistory
+                time
+                100
+    newScrolling $ scrollableDepositsCustomers params time hs
 
 serveDepositsHistoryWindowPage
     :: UILayer WalletResource
@@ -398,7 +415,17 @@ serveDepositsHistoryWindow ul params mtime mexpand = withSessionLayer ul
                     pure $ widget scrolling
                 depositCustomersHandler
                     layer
-                    (\window -> depositH params mexpand (Down time, window) result)
+                    ( \window ->
+                        depositH
+                            params
+                            mexpand
+                            ( Down time
+                            , first getFirst
+                                $ fold
+                                $ unPatch window
+                            )
+                            result
+                    )
                     alertH
                     params
                     time
