@@ -68,9 +68,11 @@ library
     , customer-deposit-wallet-pure
     , delta-store
     , delta-types
+    , digest
     , io-classes
     , microlens
     , mtl
+    , MonadRandom
     , OddWord
     , text
     , transformers
