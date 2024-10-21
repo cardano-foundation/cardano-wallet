@@ -66,6 +66,7 @@ library
     Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
     Cardano.Wallet.UI.Deposit.Handlers.Deposits.Deposits
     Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits.TxIds
     Cardano.Wallet.UI.Deposit.Handlers.Lib
     Cardano.Wallet.UI.Deposit.Handlers.Pagination
     Cardano.Wallet.UI.Deposit.Handlers.Wallet
@@ -76,6 +77,7 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
     Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.Customers
     Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.Deposits
+    Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.TxIds
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server

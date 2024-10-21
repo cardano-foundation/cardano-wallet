@@ -70,6 +70,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
     , onWalletPresentH
     )
+import Cardano.Wallet.UI.Lib.Discretization
+    ( nextDiscretizedTime
+    )
 import Cardano.Wallet.UI.Type
     ( WHtml
     )
@@ -91,6 +94,8 @@ import Data.Text.Class
     )
 import Data.Time
     ( DayOfWeek (..)
+    , defaultTimeLocale
+    , formatTime
     )
 import Lucid
     ( Attribute
@@ -282,7 +287,7 @@ scrollableDeposits
                                 thEnd (Just 7) "Time"
                                 when depositsSlot
                                     $ thEnd (Just 5) "Slot"
-                                thEnd (Just 7) "Received"
+                                thEnd (Just 7) "Deposit"
                                 when depositsSpent
                                     $ thEnd (Just 7) "Spent"
                         content
@@ -307,10 +312,16 @@ depositH
     :: DepositsParams
     -> Maybe Expand
     -> (DownTime, (Maybe Slot, ValueTransfer))
-    -> Html ()
+    -> ([Attribute] -> Html ())
     -> Html ()
 depositH
-    DepositsParams{depositsSlot, depositsSpent, depositsCustomers}
+    DepositsParams
+        { depositsSlot
+        , depositsSpent
+        , depositsCustomers
+        , depositsWindow
+        , depositsFirstWeekDay
+        }
     mexpand
     (Down time, (slot, ValueTransfer received spent))
     widget
@@ -334,11 +345,22 @@ depositH
                                 $ slotColumn (2 :: Int)
                         -- this is bullshit :shrug: . This number refers to the number of columns
                         -- in the container table. Probably one day it will break up.
-                        bar = toHtml
-                            $ T.pack
-                            $ case time of
-                                At t -> show t
-                                Origin -> "Origin"
+                        bar = do
+                            div_
+                                $ toHtml
+                                $ "From: " <> case time of
+                                    Origin -> "Origin"
+                                    At t ->
+                                        formatTime
+                                            defaultTimeLocale
+                                            "%Y-%m-%d %H:%M:%S"
+                                            (nextDiscretizedTime depositsFirstWeekDay depositsWindow t)
+                            div_
+                                $ toHtml
+                                $ "To: " <> case time of
+                                    Origin -> "Origin"
+                                    At t ->
+                                        formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" t
                         close =
                             button_
                                 [ class_ "btn p-1"
@@ -350,7 +372,7 @@ depositH
                                 ]
                                 $ i_ [class_ "bi bi-x"] mempty
                     td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
-                        widget
+                        widget [class_ "ps-4"]
                         input_
                             [ type_ "hidden"
                             , name_ "customers"

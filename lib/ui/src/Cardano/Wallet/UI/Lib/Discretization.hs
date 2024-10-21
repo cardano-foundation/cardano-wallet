@@ -14,11 +14,6 @@ import Prelude hiding
 import Cardano.Wallet.UI.Deposit.API
     ( Window (..)
     )
-import Data.Map.Monoidal.Strict
-    ( MonoidalMap (..)
-    )
-import Data.Map.Strict
-    ()
 import Data.Time
     ( DayOfWeek
     , DiffTime
@@ -30,8 +25,6 @@ import Data.Time
     , secondsToDiffTime
     , weekFirstDay
     )
-
-import qualified Data.Map.Monoidal.Strict as MonoidalMap
 
 discretizeSeconds :: DiffTime -> Integer -> DiffTime
 discretizeSeconds t q =

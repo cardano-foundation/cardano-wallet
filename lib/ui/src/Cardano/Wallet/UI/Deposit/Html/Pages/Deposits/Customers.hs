@@ -4,6 +4,7 @@
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.Customers
     ( scrollableDepositsCustomers
+    , depositByCustomerH
     )
 where
 
@@ -16,24 +17,30 @@ import Cardano.Wallet.Deposit.Pure
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
+import Cardano.Wallet.UI.Common.Html.Htmx
+    ( hxInclude_
+    , hxPost_
+    , hxSwap_
+    , hxTarget_
+    , hxTrigger_
+    )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     , tdEnd
     , thEnd
     )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( box
+    )
 import Cardano.Wallet.UI.Deposit.API
     ( DepositsParams (..)
     , DownTime
+    , Expand (..)
+    , depositsHistoryCustomersTxIdsLink
     , depositsHistoryWindowPageLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Pagination
     ( PaginationHandlers (..)
-    )
-import Cardano.Wallet.UI.Deposit.Html.Lib
-    ( overlayFakeDataH
-    )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
-    ( customerAddressH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     ( valueH
@@ -58,13 +65,25 @@ import Lucid
     ( Attribute
     , Html
     , ToHtml (..)
+    )
+import Lucid.Html5
+    ( button_
     , class_
+    , colspan_
+    , div_
+    , i_
+    , id_
+    , input_
+    , name_
     , scope_
     , style_
     , table_
     , tbody_
+    , td_
     , thead_
     , tr_
+    , type_
+    , value_
     )
 import Servant
     ( ToHttpApiData (toUrlPiece)
@@ -92,36 +111,35 @@ scrollableDepositsCustomers
         start = startingIndex
 
         scrollableWidget :: [Attribute] -> Html () -> Html ()
-        scrollableWidget attrs content =
-            fakeOverlay $ do
-                let attrs' =
-                        [ class_
-                            $ "border-top table table-striped table-hover m-0"
-                                <> if depositsFakeData then " fake" else ""
-                        ]
-                table_ (attrs' <> attrs)
-                    $ do
-                        thead_ [class_ "bg-primary"]
-                            $ tr_
-                                [ scope_ "row"
-                                , class_ "sticky-top my-1"
-                                , style_ "z-index: 2"
-                                ]
-                            $ do
-                                thEnd Nothing "Addr"
-                                thEnd (Just 6) "Customer"
-                                thEnd (Just 7) "Received"
-                                when depositsSpent
-                                    $ thEnd (Just 7) "Spent"
-                        content
-          where
-            fakeOverlay = if depositsFakeData then overlayFakeDataH else id
+        scrollableWidget attrs content = do
+            let attrs' =
+                    [ class_
+                        $ "border-top table table-striped table-hover m-0"
+                            <> if depositsFakeData then " fake" else ""
+                    ]
+            table_ (attrs' <> attrs)
+                $ do
+                    thead_ [class_ "bg-primary"]
+                        $ tr_
+                            [ scope_ "row"
+                            , class_ "sticky-top my-1"
+                            , style_ "z-index: 2"
+                            ]
+                        $ do
+                            thEnd (Just 6) "Customer"
+                            thEnd (Just 7) "Deposit"
+                            when depositsSpent
+                                $ thEnd (Just 7) "Spent"
+                    content
         scrollableContainer = table_
         retrieveContent customer attrs = do
             xs <- retrievePage customer
             pure
                 $ tbody_ attrs
-                $ mapM_ (depositByAddressH params)
+                $ mapM_
+                    ( \transfers ->
+                        depositByCustomerH params Nothing (Down time) transfers mempty
+                    )
                 $ sortOn (view _1)
                 $ Map.assocs xs
         uniqueScrollingId = "deposit-customers"
@@ -135,17 +153,78 @@ scrollableDepositsCustomers
                     (Just c)
         renderIdOfIndex = T.replace " " "-" . toUrlPiece
 
-depositByAddressH
+depositByCustomerH
     :: DepositsParams
+    -> Maybe Expand
+    -> DownTime
     -> (Customer, (Maybe Address, ValueTransfer))
+    -> ([Attribute] -> Html ())
     -> Html ()
-depositByAddressH
+depositByCustomerH
     DepositsParams{depositsSpent}
-    (customer, (addr, ValueTransfer received spent)) = do
-        tr_ [scope_ "row"] $ do
-            tdEnd $ maybe "" customerAddressH addr
-            tdEnd $ toHtml $ show customer
-            tdEnd $ valueH received
-            when depositsSpent
-                $ tdEnd
-                $ valueH spent
+    mexpand
+    (Down time)
+    (customer, (_addr, ValueTransfer received spent))
+    widget
+        | expand = do
+            let link =
+                    linkText
+                        $ depositsHistoryCustomersTxIdsLink
+                            (Just time)
+                            (Just customer)
+                            (Just Collapse)
+                trId = T.pack $ "customers-tx-ids-" <> show customer
+            tr_
+                [ id_ trId
+                ]
+                $ do
+                    let spentColumn = if depositsSpent then succ else id
+                        columns =
+                            T.pack
+                                $ show
+                                $ spentColumn (2 :: Int)
+                        bar =
+                            div_ $ do
+                                div_ $ toHtml $ "Cutomer: " <> show customer
+                        close =
+                            button_
+                                [ class_ "btn p-1"
+                                , type_ "button"
+                                , hxTarget_ $ "#" <> trId
+                                , hxSwap_ "outerHTML"
+                                , hxPost_ link
+                                , hxInclude_ "#view-control"
+                                ]
+                                $ i_ [class_ "bi bi-x"] mempty
+                    td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
+                        widget [class_ "ps-4"]
+                        input_
+                            [ type_ "hidden"
+                            , name_ "tx-ids"
+                            , value_ $ toUrlPiece time
+                            ]
+        | otherwise = do
+            let link =
+                    linkText
+                        $ depositsHistoryCustomersTxIdsLink
+                            (Just time)
+                            (Just customer)
+                            (Just Expand)
+                trId = T.pack $ "customers-tx-ids-" <> show customer
+            tr_
+                [ scope_ "row"
+                , hxTrigger_ "click"
+                , hxTarget_ "this"
+                , hxSwap_ "outerHTML"
+                , hxPost_ link
+                , hxInclude_ "#view-control"
+                , id_ trId
+                ]
+                $ do
+                    tdEnd $ toHtml $ show customer
+                    tdEnd $ valueH received
+                    when depositsSpent
+                        $ tdEnd
+                        $ valueH spent
+      where
+        expand = Just Expand == mexpand

@@ -22,6 +22,10 @@ import Prelude
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
+import Cardano.Wallet.Deposit.Read
+    ( Slot
+    , TxId
+    )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMenmonic
     , PostWalletViaXPub
@@ -29,6 +33,12 @@ import Cardano.Wallet.Deposit.REST.Wallet.Create
 import Cardano.Wallet.Read
     ( SlotNo (..)
     , WithOrigin (..)
+    , hashFromTxId
+    , txIdFromHash
+    )
+import Cardano.Wallet.Read.Hash
+    ( hashFromStringAsHex
+    , hashToStringAsHex
     )
 import Cardano.Wallet.UI.Common.API
     ( Image
@@ -90,9 +100,6 @@ import Web.FormUrlEncoded
     , parseUnique
     )
 
-import Cardano.Wallet.Deposit.Read
-    ( Slot
-    )
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -199,6 +206,25 @@ type Data =
             :> ReqBody '[FormUrlEncoded] DepositsParams
             :> QueryParam "selected-window" (WithOrigin UTCTime)
             :> QueryParam "customer" Customer
+            :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "customers"
+            :> "tx-ids"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "selected-window" (WithOrigin UTCTime)
+            :> QueryParam "customer" Customer
+            :> QueryParam "expand" Expand
+            :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "customers"
+            :> "tx-ids"
+            :> "page"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "selected-window" (WithOrigin UTCTime)
+            :> QueryParam "customer" Customer
+            :> QueryParam "tx-id" TxId
             :> SessionedHtml Post
         :<|> "emptiness" :> SessionedHtml Post
 
@@ -315,6 +341,7 @@ data DepositsParams = DepositsParams
     , depositsCustomers :: Set (WithOrigin UTCTime)
     , depositsPages :: Set DownTime
     , depositsCustomersPages :: Set Customer
+    , depositsCustomersTxIdsPages :: Set TxId
     }
     deriving (Eq, Show)
 
@@ -338,8 +365,6 @@ instance FromHttpApiData (Customer, Slot) where
             [c, s] -> (,) <$> parseUrlPiece c <*> parseUrlPiece s
             _ -> Left "Invalid customer/slot pair"
 
-instance ToHttpApiData (Customer, Slot) where
-    toUrlPiece (c, s) = toUrlPiece c <> "-" <> toUrlPiece s
 instance FromForm DepositsParams where
     fromForm form = do
         slot <- isJust <$> lookupMaybe "slot" form
@@ -352,6 +377,7 @@ instance FromForm DepositsParams where
         customers <- Set.fromList <$> parseAll "customers" form
         pages <- Set.fromList . fmap Down <$> parseAll "page-present" form
         pageCustomers <- Set.fromList <$> parseAll "customers-page-present" form
+        pageTxIds <- Set.fromList <$> parseAll "tx-ids-page-present" form
         pure
             $ DepositsParams
                 slot
@@ -364,6 +390,7 @@ instance FromForm DepositsParams where
                 customers
                 pages
                 pageCustomers
+                pageTxIds
 
 data Expand = Expand | Collapse
     deriving (Eq, Show, Enum, Bounded)
@@ -388,6 +415,15 @@ instance ToHttpApiData Customer where
 
 instance FromHttpApiData Customer where
     parseUrlPiece = fmap (fromIntegral @Int) . parseUrlPiece
+
+instance FromHttpApiData TxId where
+    parseUrlPiece x =
+        case fmap txIdFromHash . hashFromStringAsHex . T.unpack $ x of
+            Just txId -> Right txId
+            _ -> Left "Invalid TxId"
+
+instance ToHttpApiData TxId where
+    toUrlPiece = T.pack . hashToStringAsHex . hashFromTxId
 
 -- | UI endpoints
 type UI =
@@ -424,10 +460,11 @@ customerHistoryLink :: Link
 depositsLink :: Link
 depositsHistoryLink :: Link
 depositsHistoryPageLink :: Maybe (WithOrigin UTCTime) -> Link
-depositsHistoryWindowLink :: Maybe (WithOrigin UTCTime) -> Maybe Expand ->  Link
+depositsHistoryWindowLink :: Maybe (WithOrigin UTCTime) -> Maybe Expand -> Link
 depositsHistoryWindowPageLink :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Link
+depositsHistoryCustomersTxIdsLink :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe Expand -> Link
+depositsHistoryCustomersTxIdsPageLink :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe TxId -> Link
 emptinessLink :: Link
-
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -457,5 +494,7 @@ homePageLink
     :<|> depositsHistoryPageLink
     :<|> depositsHistoryWindowLink
     :<|> depositsHistoryWindowPageLink
+    :<|> depositsHistoryCustomersTxIdsLink
+    :<|> depositsHistoryCustomersTxIdsPageLink
     :<|> emptinessLink =
         allLinks (Proxy @UI)
