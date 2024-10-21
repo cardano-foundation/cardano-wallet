@@ -49,6 +49,9 @@ import Cardano.Wallet.Primitive.NetworkId
     , SNetworkId
     , networkIdVal
     )
+import Cardano.Wallet.Read
+    ( TxId
+    )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
@@ -127,6 +130,10 @@ import Cardano.Wallet.UI.Deposit.Handlers.Deposits
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
     ( getFakeDepositsHistory
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits.TxIds
+    ( depositCustomersTxIdsHandler
+    , depositCustomersTxIdsPaginationHandlers
+    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceM
     , walletPresence
@@ -146,10 +153,14 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     , transactionsElementH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
-    ( depositH
+    ( depositByCustomerH
+    , depositH
     , depositsElementH
     , scrollableDeposits
     , scrollableDepositsCustomers
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.TxIds
+    ( scrollableDepositsCustomersTxIds
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -268,6 +279,8 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveDepositsHistoryPage ul
         :<|> serveDepositsHistoryWindow ul
         :<|> serveDepositsHistoryWindowPage ul
+        :<|> serveDepositsCustomersTxIds ul
+        :<|> serveDepositsCustomersTxIdsPage ul
         :<|> wsl (\_ -> pure $ RawHtml "")
   where
     serveNavigation mp = wsl $ \l -> do
@@ -381,6 +394,21 @@ depositsCustomersTable params time = do
                 100
     newScrolling $ scrollableDepositsCustomers params time hs
 
+depositsCustomersTxIdsTable
+    :: DepositsParams
+    -> DownTime
+    -> Customer
+    -> WalletResourceM (Scrolling WalletResourceM TxId)
+depositsCustomersTxIdsTable params time customer = do
+    let hs =
+            depositCustomersTxIdsPaginationHandlers
+                params
+                getFakeDepositsHistory
+                time
+                customer
+                100
+    newScrolling $ scrollableDepositsCustomersTxIds params time customer hs
+
 serveDepositsHistoryWindowPage
     :: UILayer WalletResource
     -> DepositsParams
@@ -409,7 +437,7 @@ serveDepositsHistory
 serveDepositsHistory ul params = withSessionLayer ul $ \layer -> do
     result <- catchRunWalletResourceM layer $ do
         scrolling <- depositsTable params
-        pure $ widget scrolling
+        pure $ widget scrolling []
     pure $ renderSmoothHtml result
 
 serveDepositsHistoryWindow
@@ -443,3 +471,62 @@ serveDepositsHistoryWindow ul params mtime mexpand = withSessionLayer ul
                     alertH
                     params
                     time
+
+serveDepositsCustomersTxIds
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Customer
+    -> Maybe Expand
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsCustomersTxIds ul params (Just time) (Just customer) mexpand =
+    withSessionLayer ul $ \layer -> do
+        fmap renderHtml $ do
+            result <- catchRunWalletResourceM layer $ do
+                scrolling <- depositsCustomersTxIdsTable params (Down time) customer
+                pure $ widget scrolling
+            depositCustomersTxIdsHandler
+                layer
+                ( \txIds ->
+                    depositByCustomerH
+                        params
+                        mexpand
+                        (Down time)
+                        ( customer
+                        , first getFirst
+                            $ fold
+                            $ unPatch txIds
+                        )
+                        result
+                )
+                alertH
+                params
+                time
+                customer
+serveDepositsCustomersTxIds ul _ _ _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No time or customer provided" :: Text)
+
+serveDepositsCustomersTxIdsPage
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Customer
+    -> Maybe TxId
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsCustomersTxIdsPage ul params (Just time) (Just customer) (Just txId) =
+    withSessionLayer ul
+        $ \layer -> do
+            result <- catchRunWalletResourceM layer $ do
+                scrolling <- depositsCustomersTxIdsTable params (Down time) customer
+                scroll scrolling (depositsCustomersTxIdsPages params) txId
+            pure $ renderHtml result
+serveDepositsCustomersTxIdsPage ul _ _ _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No time, customer or txId provided" :: Text)

@@ -253,26 +253,28 @@ retrieveContentAtIndex c j = retrieveContent c j (updaterAttributes c j)
 setup
     :: Monad m
     => Configuration m index
-    -> m (Html ())
+    -> m ([Attribute] -> Html ())
 setup c = do
     mzero <- start c
     case mzero of
         Nothing -> pure mempty
         Just zero -> do
             zeroContent <- retrieveContentAtIndex c zero
-            pure $ do
-                div_ [id_ $ scrollingName <> "-" <> uniqueScrollingId c] $ do
-                    form_
-                        [id_ $ appendScrollingId c stateName]
-                        $ renderIndexId c zero
-                    scrollableWidget
-                        c
-                        [id_ $ appendScrollingId c scrollableName]
-                        zeroContent
+            pure $ \attrs -> do
+                div_
+                    ([id_ $ scrollingName <> "-" <> uniqueScrollingId c] <> attrs)
+                    $ do
+                        form_
+                            [id_ $ appendScrollingId c stateName]
+                            $ renderIndexId c zero
+                        scrollableWidget
+                            c
+                            [id_ $ appendScrollingId c scrollableName]
+                            zeroContent
 
 -- | A 'Scrolling' is a widget that can be scrolled in constant HTML space.
 data Scrolling m index = Scrolling
-    { widget :: Html ()
+    { widget :: [Attribute] -> Html ()
     -- ^ The widget that contains the scrolling table.
     , scroll :: Set index -> index -> m (Html ())
     -- ^ Scroll the table to the given index, given the set of indices that

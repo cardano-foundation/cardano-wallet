@@ -316,7 +316,7 @@ transactionsViewControls now origin =
 transactionsElementH :: UTCTime -> UTCTime -> Html ()
 transactionsElementH now origin = do
     div_
-        [ class_ "row mt-2 g-0"
+        [ class_ "row mt-2 gx-0"
         , hxTrigger_
             "load\
             \, change from:#toggle-utc\
@@ -347,7 +347,7 @@ transactionsElementH now origin = do
                             $ transactionsViewControls now origin
             box "Transactions" mempty $ do
                 configure
-                div_ [class_ "row g-0"] $ do
+                div_ [class_ "row gx-0"] $ do
                     div_
                         [ class_ "col"
                         , id_ "transactions"

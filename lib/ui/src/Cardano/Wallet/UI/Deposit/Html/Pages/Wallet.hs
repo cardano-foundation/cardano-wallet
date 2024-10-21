@@ -158,7 +158,7 @@ deleteWalletModalH =
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        div_ [class_ "row mt-2 g-0"] $ do
+        div_ [class_ "row mt-2 gx-0"] $ do
             box "Wallet Public Identity" mempty $
                 record (Just 13) Full Striped $ do
                     simpleField "Extended Public Key" $ pubKeyH xpub
@@ -166,27 +166,27 @@ walletElementH alert = \case
                         $ div_ [class_ "d-flex justify-content-end align-items-center"]
                         $ toHtml
                         $ toText customers
-        div_ [class_ "row mt-2 g-0"] $ do
+        div_ [class_ "row mt-2 gx-0"] $ do
             box "Wallet Management" mempty
                 $ div_ [class_ "d-flex justify-content-end align-items-center"]
                     deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
-        div_ [class_ "row mt-2 g-0"]
+        div_ [class_ "row mt-2 gx-0"]
             $ newWalletFromMnemonicH walletMnemonicLink
             $ PostWalletConfig
                 { walletDataLink = walletPostMnemonicLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        div_ [class_ "row mt-2 g-0"]
+        div_ [class_ "row mt-2 gx-0"]
             $ newWalletFromXPubH
             $ PostWalletConfig
                 { walletDataLink = walletPostXPubLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        div_ [class_ "row mt-2 g-0"]
+        div_ [class_ "row mt-2 gx-0"]
             $ div_ [id_ "post-response"] mempty
     WalletFailedToInitialize err ->
         alert
