@@ -1,7 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -12,6 +11,9 @@ module Cardano.Wallet.UI.Deposit.Server
 
 import Prelude
 
+import Cardano.Slotting.Slot
+    ( WithOrigin (..)
+    )
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     ( getNetworkInformation
     )
@@ -21,8 +23,21 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( originTime
+    )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
+import Cardano.Wallet.Deposit.Map
+    ( unPatch
+    )
+import Cardano.Wallet.Deposit.Pure
+    ( Customer
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
+    , WalletResourceM
     , deleteWallet
     , initXPubWallet
     )
@@ -33,6 +48,9 @@ import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
     , SNetworkId
     , networkIdVal
+    )
+import Cardano.Wallet.Read
+    ( TxId
     )
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
@@ -57,6 +75,9 @@ import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( WithCopy (WithCopy)
+    )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( alertH
     , rogerH
@@ -73,23 +94,49 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
 import Cardano.Wallet.UI.Common.Html.Pages.Wallet
     ( mnemonicH
     )
+import Cardano.Wallet.UI.Common.Html.Scrolling
+    ( Scrolling (..)
+    , newScrolling
+    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( sessioning
+    ( CookieResponse
+    , RequestCookies
+    , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( UI
+    ( DepositsParams (..)
+    , DownTime
+    , Expand
+    , TransactionHistoryParams
+    , UI
     , settingsSseToggleLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses
     ( getAddresses
     , getCustomerAddress
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
+    ( getCustomerHistory
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits
+    ( depositCustomersHandler
+    , depositCustomersPaginationHandlers
+    , depositsPaginationHandlers
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
+    ( getFakeDepositsHistory
+    )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits.TxIds
+    ( depositCustomersTxIdsHandler
+    , depositCustomersTxIdsPaginationHandlers
+    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
-    ( walletPresence
+    ( catchRunWalletResourceM
+    , walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
@@ -100,6 +147,20 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
     , customerAddressH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
+    ( customerHistoryH
+    , transactionsElementH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
+    ( depositByCustomerH
+    , depositH
+    , depositsElementH
+    , scrollableDeposits
+    , scrollableDepositsCustomers
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.TxIds
+    ( scrollableDepositsCustomersTxIds
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -116,8 +177,20 @@ import Control.Monad.Trans
 import Control.Tracer
     ( Tracer (..)
     )
+import Data.Bifunctor
+    ( first
+    )
+import Data.Foldable
+    ( fold
+    )
 import Data.Functor
     ( ($>)
+    )
+import Data.Monoid
+    ( First (..)
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Text
     ( Text
@@ -126,9 +199,15 @@ import Data.Time
     ( UTCTime
     , defaultTimeLocale
     , formatTime
+    , getCurrentTime
+    )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime
     )
 import Lucid
-    ( class_
+    ( Html
+    , ToHtml (..)
+    , class_
     , div_
     )
 import Paths_cardano_wallet_ui
@@ -147,9 +226,10 @@ showTime :: UTCTime -> String
 showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 
 serveUI
-    :: forall n
+    :: forall n x
      . HasSNetworkId n
     => Tracer IO String
+    -> NetworkEnv IO x
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -158,27 +238,50 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr ul env dbDir config _ nl bs =
+serveUI tr network ul env dbDir config _ nl bs =
     ph Wallet
         :<|> ph About
         :<|> ph Network
         :<|> ph Settings
         :<|> ph Wallet
         :<|> ph Addresses
+        :<|> ph Deposits
         :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
         :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
+        :<|> serveFakeDataBackground
         :<|> (\c -> sessioning $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
         :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
         :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
-        :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
-        :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
-        :<|> serveNavigation -- (\l -> getAddresses l (renderSmoothHtml . headerElementH _ _ _))
+        :<|> ( \c ->
+                wsl
+                    ( \l ->
+                        getCustomerAddress
+                            l
+                            ( renderSmoothHtml
+                                . customerAddressH WithCopy
+                            )
+                            alert
+                            c
+                    )
+             )
+        :<|> wsl (\l -> getAddresses l (\now -> renderSmoothHtml . addressElementH now origin alertH))
+        :<|> serveNavigation
+        :<|> serveTransactions ul
+        :<|> serveCustomerHistory network ul
+        :<|> serveDeposits ul
+        :<|> serveDepositsHistory ul
+        :<|> serveDepositsHistoryPage ul
+        :<|> serveDepositsHistoryWindow ul
+        :<|> serveDepositsHistoryWindowPage ul
+        :<|> serveDepositsCustomersTxIds ul
+        :<|> serveDepositsCustomersTxIdsPage ul
+        :<|> wsl (\_ -> pure $ RawHtml "")
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
@@ -186,16 +289,244 @@ serveUI tr ul env dbDir config _ nl bs =
         pure $ renderSmoothHtml $ headerElementH mp wp
     ph p = wsl $ \_ -> pure $ page config p
     ok _ = renderHtml . rogerH @Text $ "ok"
-    alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
     initWallet = initXPubWallet tr env dbDir
-    renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] response
+
+alert :: ToHtml a => a -> RawHtml
+alert = renderHtml . alertH
+
+serveFakeDataBackground :: Handler BL.ByteString
+serveFakeDataBackground = do
+    file <- liftIO $ getDataFileName "data/images/fake-data.png"
+    liftIO $ BL.readFile file
+
+serveCustomerHistory
+    :: NetworkEnv IO a
+    -> UILayer WalletResource
+    -> TransactionHistoryParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveCustomerHistory network ul params = do
+    withSessionLayer ul $ \layer ->
+        renderSmoothHtml
+            <$> getCustomerHistory
+                network
+                layer
+                customerHistoryH
+                alertH
+                params
+
+renderSmoothHtml :: Html () -> RawHtml
+renderSmoothHtml response =
+    renderHtml
+        $ div_ [class_ "smooth"]
+        $ toHtml response
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
     file <- liftIO $ getDataFileName "data/images/icon.png"
     liftIO $ BL.readFile file
+
+serveTransactions
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveTransactions ul =
+    withSessionLayer ul
+        $ \_ -> do
+            now <- liftIO getCurrentTime
+            pure
+                $ renderSmoothHtml
+                $ transactionsElementH now origin
+
+origin :: UTCTime
+origin = posixSecondsToUTCTime $ fromIntegral originTime
+
+serveDeposits
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDeposits ul = withSessionLayer ul $ \layer -> do
+    wp <- walletPresence layer
+    pure
+        $ renderSmoothHtml
+        $ depositsElementH alertH wp
+
+depositsTable
+    :: DepositsParams
+    -> WalletResourceM (Scrolling WalletResourceM DownTime)
+depositsTable params = do
+    let hs = depositsPaginationHandlers params getFakeDepositsHistory 100
+    newScrolling $ scrollableDeposits params hs
+
+serveDepositsHistoryPage
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryPage ul params (Just index) = withSessionLayer ul
+    $ \layer -> do
+        result <- catchRunWalletResourceM layer $ do
+            scrolling <- depositsTable params
+            scroll scrolling (depositsPages params) $ Down index
+        pure $ renderHtml result
+serveDepositsHistoryPage ul _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No page index provided" :: Text)
+
+depositsCustomersTable
+    :: DepositsParams
+    -> DownTime
+    -> WalletResourceM (Scrolling WalletResourceM Customer)
+depositsCustomersTable params time = do
+    let hs =
+            depositCustomersPaginationHandlers
+                params
+                getFakeDepositsHistory
+                time
+                100
+    newScrolling $ scrollableDepositsCustomers params time hs
+
+depositsCustomersTxIdsTable
+    :: DepositsParams
+    -> DownTime
+    -> Customer
+    -> WalletResourceM (Scrolling WalletResourceM TxId)
+depositsCustomersTxIdsTable params time customer = do
+    let hs =
+            depositCustomersTxIdsPaginationHandlers
+                params
+                getFakeDepositsHistory
+                time
+                customer
+                100
+    newScrolling $ scrollableDepositsCustomersTxIds params time customer hs
+
+serveDepositsHistoryWindowPage
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> (Maybe (WithOrigin UTCTime))
+    -> Maybe Customer
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryWindowPage ul params (Just time) (Just customer) =
+    withSessionLayer ul
+        $ \layer -> do
+            result <- catchRunWalletResourceM layer $ do
+                scrolling <- depositsCustomersTable params (Down time)
+                scroll scrolling (depositsCustomersPages params) customer
+            pure $ renderHtml result
+serveDepositsHistoryWindowPage ul _ _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No time or customer provided" :: Text)
+
+serveDepositsHistory
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistory ul params = withSessionLayer ul $ \layer -> do
+    result <- catchRunWalletResourceM layer $ do
+        scrolling <- depositsTable params
+        pure $ widget scrolling []
+    pure $ renderSmoothHtml result
+
+serveDepositsHistoryWindow
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Expand
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsHistoryWindow ul params mtime mexpand = withSessionLayer ul
+    $ \layer -> do
+        fmap renderHtml $ case mtime of
+            Nothing -> pure $ alertH ("No time provided" :: Text)
+            Just time -> do
+                result <- catchRunWalletResourceM layer $ do
+                    scrolling <- depositsCustomersTable params (Down time)
+                    pure $ widget scrolling
+                depositCustomersHandler
+                    layer
+                    ( \window ->
+                        depositH
+                            params
+                            mexpand
+                            ( Down time
+                            , first getFirst
+                                $ fold
+                                $ unPatch window
+                            )
+                            result
+                    )
+                    alertH
+                    params
+                    time
+
+serveDepositsCustomersTxIds
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Customer
+    -> Maybe Expand
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsCustomersTxIds ul params (Just time) (Just customer) mexpand =
+    withSessionLayer ul $ \layer -> do
+        fmap renderHtml $ do
+            result <- catchRunWalletResourceM layer $ do
+                scrolling <- depositsCustomersTxIdsTable params (Down time) customer
+                pure $ widget scrolling
+            depositCustomersTxIdsHandler
+                layer
+                ( \txIds ->
+                    depositByCustomerH
+                        params
+                        mexpand
+                        (Down time)
+                        ( customer
+                        , first getFirst
+                            $ fold
+                            $ unPatch txIds
+                        )
+                        result
+                )
+                alertH
+                params
+                time
+                customer
+serveDepositsCustomersTxIds ul _ _ _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No time or customer provided" :: Text)
+
+serveDepositsCustomersTxIdsPage
+    :: UILayer WalletResource
+    -> DepositsParams
+    -> Maybe (WithOrigin UTCTime)
+    -> Maybe Customer
+    -> Maybe TxId
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveDepositsCustomersTxIdsPage ul params (Just time) (Just customer) (Just txId) =
+    withSessionLayer ul
+        $ \layer -> do
+            result <- catchRunWalletResourceM layer $ do
+                scrolling <- depositsCustomersTxIdsTable params (Down time) customer
+                scroll scrolling (depositsCustomersTxIdsPages params) txId
+            pure $ renderHtml result
+serveDepositsCustomersTxIdsPage ul _ _ _ _ = withSessionLayer ul
+    $ \_layer -> do
+        pure
+            $ renderHtml
+            $ alertH ("No time, customer or txId provided" :: Text)

@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+
 module Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
     , mapBlock
@@ -8,15 +9,28 @@ module Cardano.Wallet.Deposit.IO.Network.Type
 
 import Prelude
 
+import Cardano.Wallet.Deposit.Read
+    ( Slot
+    , WithOrigin
+    )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
     , mapChainFollower
+    )
+import Control.Monad.Class.MonadTime
+    ( UTCTime
     )
 import Control.Tracer
     ( Tracer
     )
 import Data.List.NonEmpty
     ( NonEmpty
+    )
+import Data.Map.Strict
+    ( Map
+    )
+import Data.Set
+    ( Set
     )
 import Data.Text
     ( Text
@@ -40,12 +54,18 @@ data NetworkEnv m block = NetworkEnv
         :: Tracer m ChainFollowLog
         -> ChainFollower m Read.ChainPoint Read.ChainPoint (NonEmpty block)
         -> m Void
-        -- ^ Run the chain-sync mini-protocol (forever).
-
+    -- ^ Run the chain-sync mini-protocol (forever).
     , postTx
-        :: Write.Tx -> m (Either ErrPostTx ())
-        -- ^ Post a transaction to the Cardano network.
-
+        :: Write.Tx
+        -> m (Either ErrPostTx ())
+    -- ^ Post a transaction to the Cardano network.
+    , slotsToUTCTimes
+        :: Set Slot
+        -> m (Map Slot (WithOrigin UTCTime))
+    -- ^ Try to convert a set of slots to their UTCTimes counterparts
+    , utcTimeToSlot
+        :: UTCTime
+        -> m (Maybe Slot)
     }
 
 mapBlock
@@ -53,11 +73,14 @@ mapBlock
     => (block1 -> block2)
     -> NetworkEnv m block1
     -> NetworkEnv m block2
-mapBlock f NetworkEnv{chainSync,postTx} = NetworkEnv
-    { chainSync = \tr follower ->
-        chainSync tr (mapChainFollower id id id (fmap f) follower)
-    , postTx = postTx
-    }
+mapBlock f NetworkEnv{chainSync, postTx, slotsToUTCTimes, utcTimeToSlot} =
+    NetworkEnv
+        { chainSync = \tr follower ->
+            chainSync tr (mapChainFollower id id id (fmap f) follower)
+        , postTx = postTx
+        , slotsToUTCTimes = slotsToUTCTimes
+        , utcTimeToSlot = utcTimeToSlot
+        }
 
 {-------------------------------------------------------------------------------
     Errors
@@ -76,7 +99,8 @@ data ErrPostTx
 -- | Higher level log of a chain follower.
 -- -- Includes computed statistics about synchronization progress.
 data ChainFollowLog
-    -- = MsgChainSync (ChainSyncLog BlockHeader ChainPoint)
-    -- | MsgFollowStats (FollowStats Rearview)
-    = MsgStartFollowing
+    = -- = MsgChainSync (ChainSyncLog BlockHeader ChainPoint)
+
+      -- | MsgFollowStats (FollowStats Rearview)
+      MsgStartFollowing
     deriving (Eq, Show, Generic)

@@ -19,6 +19,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
+    , monospaced
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( fadeInId
@@ -31,6 +32,7 @@ import Lucid
     , ToHtml (..)
     , body_
     , charset_
+    , class_
     , content_
     , crossorigin_
     , head_
@@ -106,6 +108,28 @@ clipboardScript =
         ]
         $ pure ()
 
+flatPickrScript :: Monad m => HtmlT m ()
+flatPickrScript =
+    term
+        "script"
+        [ src_
+            "https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js"
+        , integrity_
+            "sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6"
+        , crossorigin_ "anonymous"
+        ]
+        $ pure ()
+
+flatPickrCSSDark :: Monad m => HtmlT m ()
+flatPickrCSSDark =
+    link_
+        [ rel_ "stylesheet"
+        , href_ "https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css"
+        , integrity_
+            "sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX"
+        , crossorigin_ "anonymous"
+        ]
+
 -- | Render a favicon link.
 favicon :: Link -> Monad m => HtmlT m ()
 favicon path =
@@ -131,9 +155,15 @@ modalCssWorkaround =
             ".modal {padding-right: 0px!important;}\
             \.modal-open {padding-right: 0px!important;}"
 
+truncatedTdTextWorkaround :: Monad m => HtmlT m ()
+truncatedTdTextWorkaround =
+    style_ []
+        $ toHtml @Text
+            ".table { table-layout: fixed; }"
+
 pageFromBodyH :: Monad m => Link -> PageConfig -> HtmlT m () -> HtmlT m ()
 pageFromBodyH faviconLink PageConfig{..} body =
-    html_ [term "data-bs-theme" "dark"]
+    html_ [term "data-bs-theme" "dark", class_ "p-1"]
         $ do
             head_ $ do
                 title_ $ toHtml title
@@ -147,12 +177,16 @@ pageFromBodyH faviconLink PageConfig{..} body =
                 bootstrapScript
                 bootstrapIcons
                 clipboardScript
+                flatPickrScript
                 favicon faviconLink
                 useHtmxVersion (1, 9, 12)
                 useHtmxExtension "json-enc"
                 bodyCss
                 modalCssWorkaround
+                truncatedTdTextWorkaround
                 offscreenCss
+                flatPickrCSSDark
+                monospaced
             body_ $ do
                 fadeInId
                 body

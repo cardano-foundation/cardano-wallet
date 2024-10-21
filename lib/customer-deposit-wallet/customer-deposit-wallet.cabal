@@ -22,6 +22,7 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+    PackageImports
 
 common opts-lib
   ghc-options:
@@ -68,11 +69,12 @@ library
     , delta-types
     , io-classes
     , microlens
+    , monoidal-containers
     , mtl
     , OddWord
     , text
+    , time
 
-  reexported-modules: Cardano.Wallet.Address.BIP32
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
@@ -81,7 +83,9 @@ library
     Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.IO.Resource.Event
     Cardano.Wallet.Deposit.Pure
+    Cardano.Wallet.Deposit.Pure.API.TxHistory
     Cardano.Wallet.Deposit.Pure.Balance
+    Cardano.Wallet.Deposit.Map
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
     Cardano.Wallet.Deposit.Read
@@ -153,6 +157,7 @@ library rest
     , contra-tracer
     , crypto-primitives
     , customer-deposit-wallet
+    , customer-deposit-wallet-pure
     , delta-store
     , directory
     , filepath

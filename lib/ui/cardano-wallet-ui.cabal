@@ -56,19 +56,36 @@ library
     Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     Cardano.Wallet.UI.Common.Html.Pages.Wallet
+    Cardano.Wallet.UI.Common.Html.Scrolling
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Deposit.Handlers.Addresses
+    Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits.Deposits
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits.Fake
+    Cardano.Wallet.UI.Deposit.Handlers.Deposits.TxIds
     Cardano.Wallet.UI.Deposit.Handlers.Lib
+    Cardano.Wallet.UI.Deposit.Handlers.Pagination
     Cardano.Wallet.UI.Deposit.Handlers.Wallet
+    Cardano.Wallet.UI.Deposit.Html.Lib
     Cardano.Wallet.UI.Deposit.Html.Pages.About
     Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
+    Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
+    Cardano.Wallet.UI.Deposit.Html.Pages.Deposits
+    Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.Customers
+    Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.Deposits
+    Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.TxIds
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.Address
+    Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
+    Cardano.Wallet.UI.Lib.Pagination
+    Cardano.Wallet.UI.Lib.TimeWindow
     Cardano.Wallet.UI.Shelley.API
     Cardano.Wallet.UI.Shelley.Handlers.Addresses
     Cardano.Wallet.UI.Shelley.Handlers.Wallet
@@ -106,13 +123,16 @@ library
     , customer-deposit-wallet:rest
     , exceptions
     , generic-lens
+    , hashable
     , http-api-data
     , http-media
     , lens
     , lucid
     , memory
     , mmorph
+    , monoidal-containers
     , mtl
+    , mwc-random
     , ntp-client
     , operational
     , random
@@ -123,6 +143,7 @@ library
     , text
     , text-class
     , time
+    , transformers
     , unliftio
 
   hs-source-dirs:   src
