@@ -1,11 +1,31 @@
 -- |
--- Copyright: © 2023 Cardano Foundation
+-- Copyright: © 2023-2024 Cardano Foundation
 -- License: Apache-2.0
+--
 --
 module Cardano.Write.Tx
     (
-    -- * Balancing transactions
-      balanceTx
+    -- * UTxO
+      UTxO (..)
+
+    -- * Tx
+    , Tx
+    , TxBody
+
+    -- ** PartialTx
+    , PartialTx (..)
+    , Redeemer (..)
+    , StakeKeyDepositLookup (..)
+    , TimelockKeyWitnessCounts (..)
+
+    -- ** Balancing
+    , balanceTx
+    , UTxOAssumptions (..)
+    , UTxOIndex
+    , constructUTxOIndex
+    , ChangeAddressGen (..)
+
+    -- ** Balancing Errors
     , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)
@@ -14,19 +34,18 @@ module Cardano.Write.Tx
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-
-    -- * UTxO-related types and functions
-    , UTxO
-    , UTxOAssumptions
-    , UTxOIndex
-    , constructUTxOIndex
     ) where
 
-import Internal.Cardano.Write.Tx
-    ( UTxO
+import Cardano.Ledger.Api
+    ( Tx
+    , TxBody
+    )
+import Cardano.Ledger.Api.UTxO
+    ( UTxO (..)
     )
 import Internal.Cardano.Write.Tx.Balance
-    ( ErrAssignRedeemers (..)
+    ( ChangeAddressGen (..)
+    , ErrAssignRedeemers (..)
     , ErrBalanceTx (..)
     , ErrBalanceTxAssetsInsufficientError (..)
     , ErrBalanceTxInsufficientCollateralError (..)
@@ -34,8 +53,14 @@ import Internal.Cardano.Write.Tx.Balance
     , ErrBalanceTxOutputError (..)
     , ErrBalanceTxOutputErrorInfo (..)
     , ErrBalanceTxUnableToCreateChangeError (..)
-    , UTxOAssumptions
+    , PartialTx (..)
+    , Redeemer (..)
+    , StakeKeyDepositLookup (..)
+    , UTxOAssumptions (..)
     , UTxOIndex
     , balanceTx
     , constructUTxOIndex
+    )
+import Internal.Cardano.Write.Tx.Sign
+    ( TimelockKeyWitnessCounts (..)
     )
