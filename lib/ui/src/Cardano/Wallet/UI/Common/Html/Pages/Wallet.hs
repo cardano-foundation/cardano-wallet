@@ -13,11 +13,15 @@ import Cardano.Wallet.UI.Common.Html.Copy
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxGet_
+    , hxInclude_
     , hxPost_
     , hxTarget_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
+    )
+import Cardano.Wallet.UI.Common.Html.Pages.Lib
+    ( box
     )
 import Cardano.Wallet.UI.Type
     ( WHtml
@@ -28,13 +32,13 @@ import Data.Text
     ( Text
     )
 import Lucid
-    ( Html
+    ( Attribute
+    , Html
     , ToHtml (..)
     , autocomplete_
     , button_
     , class_
     , div_
-    , form_
     , id_
     , input_
     , name_
@@ -46,9 +50,6 @@ import Servant
     ( Link
     )
 
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( box
-    )
 import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
@@ -69,12 +70,12 @@ data PostWalletConfig = PostWalletConfig
 --------------------------------------------------------------------------------
 
 -- | Add a form tag with the appropriate attributes for a POST request
-postWalletFormTagH :: PostWalletConfig -> WHtml () -> WHtml ()
-postWalletFormTagH PostWalletConfig{..} =
-    form_
-        [ hxPost_ $ linkText walletDataLink
-        , hxTarget_ responseTarget
-        , autocomplete_ "off"
+postWalletFormTagH :: Text -> PostWalletConfig -> WHtml () -> WHtml ()
+postWalletFormTagH idName PostWalletConfig{} =
+    div_
+        [ autocomplete_ "off"
+        , class_ "p-2"
+        , id_ idName
         ]
 
 --------------------------------------------------------------------------------
@@ -84,9 +85,10 @@ postWalletFormTagH PostWalletConfig{..} =
 -- | Widget to create a new wallet from a mnemonic
 newWalletFromMnemonicH :: (Maybe Bool -> Link) -> PostWalletConfig -> WHtml ()
 newWalletFromMnemonicH walletMnemonicLink config = do
-    box "Restore from Mnemonic" mempty
-        $ postWalletFormTagH config
-        $ mnemonicSetupFieldsH walletMnemonicLink config
+    box "Restore from Mnemonic" mempty $ do
+        div_ [class_ "p-2"] $ do
+            postWalletFormTagH "wallet-from-menmonic" config
+                $ mnemonicSetupFieldsH walletMnemonicLink config
 
 -- | Display a mnemonic
 mnemonicH :: Maybe [Text] -> Html ()
@@ -122,7 +124,7 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
                     "Clean"
         div_ [id_ "menmonic", class_ "mb"] ""
         input_
-            [ class_ "form-control form-control-lg m-1 p-1"
+            [ formControl
             , visibility
             , name_ "mnemonics"
             , placeholder_ "Mnemonic Sentence"
@@ -130,21 +132,21 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
     onDeposit
         $ div_ [class_ "border-start"]
         $ input_
-            [ class_ "form-control form-control-lg m-1 p-1"
+            [ formControl
             , type_ "number"
             , name_ "trackedCustomers"
             , placeholder_ "Tracked Customers"
             ]
     onShelley
         $ input_
-            [ class_ "form-control form-control-lg m-1 p-1"
+            [ formControl
             , type_ "text"
             , name_ "name"
             , placeholder_ "Wallet Name"
             ]
     onShelley
         $ input_
-            [ class_ "form-control form-control-lg m-1 p-1"
+            [ formControl
             , type_ "password"
             , name_ "password"
             , placeholder_ "Wallet Password"
@@ -153,6 +155,9 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
         button_
             [ class_ "btn btn-primary btn-block mb-3"
             , type_ "submit"
+            , hxPost_ $ linkText walletDataLink
+            , hxTarget_ responseTarget
+            , hxInclude_ "#wallet-from-menmonic"
             ]
             "Restore"
   where
@@ -166,18 +171,18 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
 --------------------------------------------------------------------------------
 
 newWalletFromXPubH :: PostWalletConfig -> WHtml ()
-newWalletFromXPubH config = do
-    box "Restore from Public Key" mempty $ do
-        postWalletFormTagH config $ do
+newWalletFromXPubH config@PostWalletConfig{..} = do
+    box "Restore from Public Key" mempty $ div_ [class_ "p-2"] $ do
+        postWalletFormTagH "wallet-from-xpub" config $ do
             input_
-                [ class_ "form-control form-control-lg m-1 p-1"
+                [ formControl
                 , type_ "text"
                 , name_ "xpub"
                 , placeholder_ "Extended Public Key"
                 ]
             onDeposit
                 $ input_
-                    [ class_ "form-control form-control-lg m-1 p-1"
+                    [ formControl
                     , type_ "number"
                     , name_ "trackedCustomers"
                     , placeholder_ "Tracked Customers"
@@ -185,6 +190,11 @@ newWalletFromXPubH config = do
             div_ [class_ "d-flex justify-content-end align-items-center"] $ do
                 button_
                     [ class_ "btn btn-primary btn-block mb-3"
-                    , type_ "submit"
+                    , hxPost_ $ linkText walletDataLink
+                    , hxTarget_ responseTarget
+                    , hxInclude_ "#wallet-from-xpub"
                     ]
                     "Restore"
+
+formControl :: Attribute
+formControl = class_ "form-control m-1 px-3 py-"

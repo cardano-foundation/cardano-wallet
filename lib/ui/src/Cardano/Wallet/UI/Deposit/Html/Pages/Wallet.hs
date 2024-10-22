@@ -152,7 +152,7 @@ deleteWalletModalH =
                     [ class_ "btn btn-secondary"
                     , dataBsDismiss_ "modal"
                     ]
-                    "Close"
+                    "Cancel"
             }
 
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
