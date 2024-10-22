@@ -45,16 +45,14 @@ import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
     )
 import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( sse
+    ( Message
+    , sse
     )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( alertH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkInfoH
@@ -70,20 +68,16 @@ import Cardano.Wallet.UI.Common.Layer
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( sessioning
+    ( CookieResponse
+    , RequestCookies
+    , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Addresses
-    ( getAddresses
-    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
-    )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
-    ( addressElementH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -91,9 +85,10 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     , page
     )
 import Cardano.Wallet.UI.Deposit.Server.Addresses
-    ( serveCustomerHistory
+    ( serveAddressesPage
+    , serveCustomerHistory
     , serveGetAddress
-    , serveTransactions, serveAddressesPage
+    , serveTransactions
     )
 import Cardano.Wallet.UI.Deposit.Server.Deposits
     ( serveDeposits
@@ -105,8 +100,7 @@ import Cardano.Wallet.UI.Deposit.Server.Deposits
     , serveDepositsPagination
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
-    ( origin
-    , renderSmoothHtml
+    ( renderSmoothHtml
     , showTime
     )
 import Cardano.Wallet.UI.Deposit.Server.Wallet
@@ -132,7 +126,10 @@ import Paths_cardano_wallet_ui
 import Servant
     ( Handler
     , Server
-    , (:<|>) (..), serve
+    , (:<|>) (..)
+    )
+import Servant.Types.SourceT
+    ( SourceT
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
@@ -151,18 +148,18 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr network ul env dbDir config _ nl bs =
-    ph Wallet
-        :<|> ph About
-        :<|> ph Network
-        :<|> ph Settings
-        :<|> ph Wallet
-        :<|> ph Addresses
-        :<|> ph Deposits
-        :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
-        :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
-        :<|> wsl (\l -> toggleSSE l $> RawHtml "")
-        :<|> withSessionLayerRead ul (sse . sseConfig)
+serveUI tr network ul env dbDir config nid nl bs =
+    serveTabPage ul config Wallet
+        :<|> serveTabPage ul config About
+        :<|> serveTabPage ul config Network
+        :<|> serveTabPage ul config Settings
+        :<|> serveTabPage ul config Wallet
+        :<|> serveTabPage ul config Addresses
+        :<|> serveTabPage ul config Deposits
+        :<|> serveNetworkInformation nid nl bs
+        :<|> serveSSESettings ul
+        :<|> serveToggleSSE ul
+        :<|> serveSSE ul
         :<|> serveFavicon
         :<|> serveFakeDataBackground
         :<|> serveMnemonic
@@ -173,7 +170,7 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveDeleteWalletModal ul
         :<|> serveGetAddress ul
         :<|> serveAddressesPage ul
-        :<|> serveNavigation
+        :<|> serveNavigation ul
         :<|> serveTransactions ul
         :<|> serveCustomerHistory network ul
         :<|> serveDepositsPage ul
@@ -183,18 +180,24 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveDepositsCustomerPagination ul
         :<|> serveDepositsCustomersTxIds ul
         :<|> serveDepositsCustomersTxIdsPagination ul
-        :<|> wsl (\_ -> pure $ RawHtml "")
-  where
-    serveNavigation mp = wsl $ \l -> do
-        wp <- walletPresence l
+        :<|> serveEmptiness ul
 
-        pure $ renderSmoothHtml $ headerElementH mp wp
-    ph p = wsl $ \_ -> pure $ page config p
-    nid = networkIdVal (sNetworkId @n)
-    mode = case bs of
-        NodeSource{} -> Node
-    _ = networkInfoH
-    wsl f = withSessionLayer ul $ \l -> f l
+serveTabPage
+    :: UILayer s
+    -> PageConfig
+    -> Page
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveTabPage ul config p = withSessionLayer ul $ \_ -> pure $ page config p
+
+serveNavigation
+    :: UILayer WalletResource
+    -> Maybe Page
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveNavigation ul mp = withSessionLayer ul $ \l -> do
+    wp <- walletPresence l
+    pure $ renderSmoothHtml $ headerElementH mp wp
 
 serveFakeDataBackground :: Handler BL.ByteString
 serveFakeDataBackground = do
@@ -205,3 +208,47 @@ serveFavicon :: Handler BL.ByteString
 serveFavicon = do
     file <- liftIO $ getDataFileName "data/images/icon.png"
     liftIO $ BL.readFile file
+
+serveNetworkInformation
+    :: forall n
+     . HasSNetworkId n
+    => SNetworkId n
+    -> NetworkLayer IO Read.ConsensusBlock
+    -> BlockchainSource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveNetworkInformation _ nl bs =
+    sessioning
+        $ renderSmoothHtml . networkInfoH showTime
+            <$> getNetworkInformation nid nl mode
+  where
+    nid = networkIdVal (sNetworkId @n)
+    mode = case bs of
+        NodeSource{} -> Node
+    _ = networkInfoH
+
+serveEmptiness
+    :: UILayer s
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveEmptiness ul = withSessionLayer ul $ \_ -> pure $ RawHtml ""
+
+serveSSESettings
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveSSESettings ul = withSessionLayer ul $ \l -> do
+    getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink)
+
+serveToggleSSE
+    :: UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveToggleSSE ul = withSessionLayer ul $ \l -> do
+    toggleSSE l $> RawHtml ""
+
+serveSSE
+    :: UILayer s
+    -> Maybe RequestCookies
+    -> Handler (SourceT IO Message)
+serveSSE ul = withSessionLayerRead ul (sse . sseConfig)
