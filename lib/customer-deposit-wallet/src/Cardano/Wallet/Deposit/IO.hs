@@ -1,36 +1,38 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module Cardano.Wallet.Deposit.IO
-    (
-    -- * Types
+    ( -- * Types
       WalletEnv (..)
     , WalletBootEnv (..)
     , WalletPublicIdentity (..)
     , WalletInstance
 
-    -- * Operations
-    -- ** Initialization
+      -- * Operations
+
+      -- ** Initialization
     , withWalletInit
     , Word31
     , withWalletLoad
 
-    -- ** Mapping between customers and addresses
+      -- ** Mapping between customers and addresses
     , listCustomers
     , customerAddress
 
-    -- ** Reading from the blockchain
+      -- ** Reading from the blockchain
     , getWalletTip
     , availableBalance
     , getCustomerHistory
-    , getCustomerHistories
+    , getValueTransfers
 
-    -- ** Writing to the blockchain
+      -- ** Writing to the blockchain
     , createPayment
     , getBIP32PathsForOwnedInputs
     , signTxBody
     , WalletStore
     , walletPublicIdentity
+    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -43,12 +45,15 @@ import Cardano.Wallet.Address.BIP32
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    , TxSummary
+    , ValueTransfer
     , WalletPublicIdentity (..)
     , WalletState
     , Word31
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , Slot
     )
 import Cardano.Wallet.Network.Checkpoints.Policy
     ( defaultPolicy
@@ -63,6 +68,9 @@ import Data.Bifunctor
 import Data.List.NonEmpty
     ( NonEmpty
     )
+import Data.Map.Strict
+    ( Map
+    )
 
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
 import qualified Cardano.Wallet.Deposit.Pure as Wallet
@@ -74,7 +82,6 @@ import qualified Data.Delta as Delta
     ( Replace (..)
     )
 import qualified Data.Delta.Update as Delta
-import qualified Data.Map.Strict as Map
 import qualified Data.Store as Store
 
 {-----------------------------------------------------------------------------
@@ -84,25 +91,25 @@ import qualified Data.Store as Store
 -- | The environment needed to initialize a wallet, before a database is
 -- connected.
 data WalletBootEnv m = WalletBootEnv
-        { logger :: Tracer m WalletLog
-        -- ^ Logger for the wallet.
-        , genesisData :: Read.GenesisData
-        -- ^ Genesis data for the wallet.
-        , networkEnv :: Network.NetworkEnv m (Read.EraValue Read.Block)
-        -- ^ Network environment for the wallet.
+    { logger :: Tracer m WalletLog
+    -- ^ Logger for the wallet.
+    , genesisData :: Read.GenesisData
+    -- ^ Genesis data for the wallet.
+    , networkEnv :: Network.NetworkEnv m (Read.EraValue Read.Block)
+    -- ^ Network environment for the wallet.
     }
 
 -- | The wallet store type.
 type WalletStore = Store.UpdateStore IO Wallet.DeltaWalletState
 
 -- | The full environment needed to run a wallet.
-data WalletEnv m =
-    WalletEnv
-        { bootEnv :: WalletBootEnv m
-        -- ^ The boot environment.
-        , store :: WalletStore
-        -- ^ The store for the wallet.
-        }
+data WalletEnv m
+    = WalletEnv
+    { bootEnv :: WalletBootEnv m
+    -- ^ The boot environment.
+    , store :: WalletStore
+    -- ^ The store for the wallet.
+    }
 
 data WalletInstance = WalletInstance
     { env :: WalletEnv IO
@@ -112,6 +119,7 @@ data WalletInstance = WalletInstance
 {-----------------------------------------------------------------------------
     Helpers
 ------------------------------------------------------------------------------}
+
 -- | Convenience to apply an 'Update' to the 'WalletState' via the 'DBLayer'.
 onWalletState
     :: WalletInstance
@@ -119,7 +127,8 @@ onWalletState
     -> IO r
 onWalletState WalletInstance{walletState} =
     Delta.onDBVar walletState
-    -- FIXME: Propagation of exceptions from Pure to IO.
+
+-- FIXME: Propagation of exceptions from Pure to IO.
 
 -- | Convenience to read the 'WalletState'.
 --
@@ -202,10 +211,12 @@ customerAddress c w = Wallet.customerAddress c <$> readWalletState w
 walletPublicIdentity :: WalletInstance -> IO WalletPublicIdentity
 walletPublicIdentity w = do
     state <- readWalletState w
-    pure $ WalletPublicIdentity
-        { pubXpub = Wallet.walletXPub state
-        , pubNextUser = Wallet.trackedCustomers state
-        }
+    pure
+        $ WalletPublicIdentity
+            { pubXpub = Wallet.walletXPub state
+            , pubNextUser = Wallet.trackedCustomers state
+            }
+
 {-----------------------------------------------------------------------------
     Operations
     Reading from the blockchain
@@ -218,16 +229,20 @@ availableBalance :: WalletInstance -> IO Read.Value
 availableBalance w =
     Wallet.availableBalance <$> readWalletState w
 
-getCustomerHistory :: Customer -> WalletInstance -> IO [Wallet.TxSummary]
+getCustomerHistory :: Customer -> WalletInstance -> IO (Map Read.TxId TxSummary)
 getCustomerHistory c w =
     Wallet.getCustomerHistory c <$> readWalletState w
 
-getCustomerHistories
-    :: (Read.ChainPoint, Read.ChainPoint)
-    -> WalletInstance
-    -> IO (Map.Map Customer Wallet.ValueTransfer)
-getCustomerHistories a w =
-    Wallet.getCustomerHistories a <$> readWalletState w
+getValueTransfers
+    :: WalletInstance
+    -> IO (Map Slot (Map Address ValueTransfer))
+getValueTransfers w = Wallet.getValueTransfers <$> readWalletState w
+
+getValueTransfersWithTxIds
+    :: WalletInstance
+    -> IO (Map Slot (Map Address (Map Read.TxId ValueTransfer)))
+getValueTransfersWithTxIds w =
+    Wallet.getValueTransfersWithTxIds <$> readWalletState w
 
 rollForward
     :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()
@@ -265,3 +280,4 @@ signTxBody txbody w = Wallet.signTxBody txbody <$> readWalletState w
 ------------------------------------------------------------------------------}
 data WalletLog
     = WalletLogDummy
+    deriving Show
