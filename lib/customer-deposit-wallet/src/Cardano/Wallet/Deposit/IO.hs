@@ -280,3 +280,4 @@ signTxBody txbody w = Wallet.signTxBody txbody <$> readWalletState w
 ------------------------------------------------------------------------------}
 data WalletLog
     = WalletLogDummy
+    deriving Show
