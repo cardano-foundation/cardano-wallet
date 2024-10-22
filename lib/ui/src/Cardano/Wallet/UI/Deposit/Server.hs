@@ -9,6 +9,8 @@ module Cardano.Wallet.UI.Deposit.Server
     ( serveUI
     ) where
 
+import Prelude
+
 import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
     ( getNetworkInformation
     )
@@ -37,15 +39,15 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
+import Cardano.Wallet.UI.Common.Handlers.SSE
+    ( sse
+    )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
     , withSessionLayerRead
     )
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
-    )
-import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( sse
     )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
@@ -125,12 +127,12 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     )
 import Cardano.Wallet.UI.Deposit.Server.Deposits
     ( serveDeposits
+    , serveDepositsCustomerPagination
+    , serveDepositsCustomers
     , serveDepositsCustomersTxIds
-    , serveDepositsCustomersTxIdsPage
-    , serveDepositsHistory
-    , serveDepositsHistoryPage
-    , serveDepositsHistoryWindow
-    , serveDepositsHistoryWindowPage
+    , serveDepositsCustomersTxIdsPagination
+    , serveDepositsPage
+    , serveDepositsPagination
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( alert
@@ -156,7 +158,6 @@ import Data.Time
 import Paths_cardano_wallet_ui
     ( getDataFileName
     )
-import Prelude
 import Servant
     ( Handler
     , Server
@@ -215,13 +216,13 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> serveNavigation
         :<|> serveTransactions ul
         :<|> serveCustomerHistory network ul
+        :<|> serveDepositsPage ul
         :<|> serveDeposits ul
-        :<|> serveDepositsHistory ul
-        :<|> serveDepositsHistoryPage ul
-        :<|> serveDepositsHistoryWindow ul
-        :<|> serveDepositsHistoryWindowPage ul
+        :<|> serveDepositsPagination ul
+        :<|> serveDepositsCustomers ul
+        :<|> serveDepositsCustomerPagination ul
         :<|> serveDepositsCustomersTxIds ul
-        :<|> serveDepositsCustomersTxIdsPage ul
+        :<|> serveDepositsCustomersTxIdsPagination ul
         :<|> wsl (\_ -> pure $ RawHtml "")
   where
     serveNavigation mp = wsl $ \l -> do

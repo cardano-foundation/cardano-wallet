@@ -1,4 +1,9 @@
 module Cardano.Wallet.UI.Deposit.Server.Lib
+    ( alert
+    , origin
+    , renderSmoothHtml
+    , showTime
+    )
 where
 
 import Prelude
