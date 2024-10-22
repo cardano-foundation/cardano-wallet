@@ -25,8 +25,6 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
-    , deleteWallet
-    , initXPubWallet
     )
 import Cardano.Wallet.Network
     ( NetworkLayer
@@ -39,9 +37,6 @@ import Cardano.Wallet.Primitive.NetworkId
 import Cardano.Wallet.Shelley.BlockchainSource
     ( BlockchainSource (..)
     )
-import Cardano.Wallet.UI.Common.Handlers.SSE
-    ( sse
-    )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
     , withSessionLayerRead
@@ -49,22 +44,17 @@ import Cardano.Wallet.UI.Common.Handlers.Session
 import Cardano.Wallet.UI.Common.Handlers.Settings
     ( toggleSSE
     )
+import Cardano.Wallet.UI.Common.Handlers.SSE
+    ( sse
+    )
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     )
-import Cardano.Wallet.UI.Common.Handlers.Wallet
-    ( pickMnemonic
-    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
-    , renderHtml
-    )
-import Cardano.Wallet.UI.Common.Html.Lib
-    ( WithCopy (WithCopy)
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( alertH
-    , rogerH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkInfoH
@@ -75,55 +65,35 @@ import Cardano.Wallet.UI.Common.Html.Pages.Settings
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Wallet
-    ( mnemonicH
-    )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     , UILayer (..)
     )
 import Cardano.Wallet.UI.Cookies
-    ( CookieResponse
-    , RequestCookies
-    , sessioning
+    ( sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( TransactionHistoryParams
-    , UI
+    ( UI
     , settingsSseToggleLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses
     ( getAddresses
-    , getCustomerAddress
-    )
-import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
-    ( getCustomerHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Wallet
-    ( deleteWalletHandler
-    , getWallet
-    , postMnemonicWallet
-    , postXPubWallet
-    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
-    , customerAddressH
-    )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
-    ( customerHistoryH
-    , transactionsElementH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , headerElementH
     , page
     )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( deleteWalletModalH
-    , walletElementH
+import Cardano.Wallet.UI.Deposit.Server.Addresses
+    ( serveCustomerHistory
+    , serveGetAddress
+    , serveTransactions, serveAddressesPage
     )
 import Cardano.Wallet.UI.Deposit.Server.Deposits
     ( serveDeposits
@@ -135,10 +105,17 @@ import Cardano.Wallet.UI.Deposit.Server.Deposits
     , serveDepositsPagination
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
-    ( alert
-    , origin
+    ( origin
     , renderSmoothHtml
     , showTime
+    )
+import Cardano.Wallet.UI.Deposit.Server.Wallet
+    ( serveDeleteWallet
+    , serveDeleteWalletModal
+    , serveMnemonic
+    , servePostMnemonicWallet
+    , servePostXPubWallet
+    , serveWalletPage
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -149,19 +126,13 @@ import Control.Tracer
 import Data.Functor
     ( ($>)
     )
-import Data.Text
-    ( Text
-    )
-import Data.Time
-    ( getCurrentTime
-    )
 import Paths_cardano_wallet_ui
     ( getDataFileName
     )
 import Servant
     ( Handler
     , Server
-    , (:<|>) (..)
+    , (:<|>) (..), serve
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
@@ -194,25 +165,14 @@ serveUI tr network ul env dbDir config _ nl bs =
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
         :<|> serveFakeDataBackground
-        :<|> (\c -> sessioning $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
-        :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
-        :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
-        :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
-        :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
-        :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
-        :<|> ( \c ->
-                wsl
-                    ( \l ->
-                        getCustomerAddress
-                            l
-                            ( renderSmoothHtml
-                                . customerAddressH WithCopy
-                            )
-                            alert
-                            c
-                    )
-             )
-        :<|> wsl (\l -> getAddresses l (\now -> renderSmoothHtml . addressElementH now origin alertH))
+        :<|> serveMnemonic
+        :<|> serveWalletPage ul
+        :<|> servePostMnemonicWallet tr env dbDir ul
+        :<|> servePostXPubWallet tr env dbDir ul
+        :<|> serveDeleteWallet ul dbDir
+        :<|> serveDeleteWalletModal ul
+        :<|> serveGetAddress ul
+        :<|> serveAddressesPage ul
         :<|> serveNavigation
         :<|> serveTransactions ul
         :<|> serveCustomerHistory network ul
@@ -230,48 +190,18 @@ serveUI tr network ul env dbDir config _ nl bs =
 
         pure $ renderSmoothHtml $ headerElementH mp wp
     ph p = wsl $ \_ -> pure $ page config p
-    ok _ = renderHtml . rogerH @Text $ "ok"
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
-    initWallet = initXPubWallet tr env dbDir
 
 serveFakeDataBackground :: Handler BL.ByteString
 serveFakeDataBackground = do
     file <- liftIO $ getDataFileName "data/images/fake-data.png"
     liftIO $ BL.readFile file
 
-serveCustomerHistory
-    :: NetworkEnv IO a
-    -> UILayer WalletResource
-    -> TransactionHistoryParams
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse RawHtml)
-serveCustomerHistory network ul params = do
-    withSessionLayer ul $ \layer ->
-        renderSmoothHtml
-            <$> getCustomerHistory
-                network
-                layer
-                customerHistoryH
-                alertH
-                params
-
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
     file <- liftIO $ getDataFileName "data/images/icon.png"
     liftIO $ BL.readFile file
-
-serveTransactions
-    :: UILayer WalletResource
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse RawHtml)
-serveTransactions ul =
-    withSessionLayer ul
-        $ \_ -> do
-            now <- liftIO getCurrentTime
-            pure
-                $ renderSmoothHtml
-                $ transactionsElementH now origin
