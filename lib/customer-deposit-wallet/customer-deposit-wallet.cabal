@@ -70,7 +70,9 @@ library
     , microlens
     , monoidal-containers
     , mtl
+    , mwc-random
     , OddWord
+    , random
     , text
     , time
 
@@ -84,6 +86,7 @@ library
     Cardano.Wallet.Deposit.Map
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.API.TxHistory
+    Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
