@@ -4,7 +4,8 @@
 --
 -- TODO: Match this up with the @Write@ hierarchy.
 module Cardano.Wallet.Deposit.Write
-    ( Address
+    ( -- * Basic types
+      Address
 
     , Value
 
@@ -15,10 +16,27 @@ module Cardano.Wallet.Deposit.Write
     , TxIn
     , TxOut
 
+    -- * Transaction balancing
+    , Write.IsRecentEra
+    , Write.Conway
+    , L.PParams
+    , Write.UTxOAssumptions (..)
+    , Write.ChangeAddressGen (..)
+    , Write.StakeKeyDepositLookup (..)
+    , Write.TimelockKeyWitnessCounts (..)
+    , Write.UTxOIndex
+    , Write.constructUTxOIndex
+    , Write.UTxO
+    , toConwayUTxO
+    , Write.PartialTx (..)
+    , Write.ErrBalanceTx (..)
+    , Write.balanceTx
+
+    -- ** Time interpreter
+    , Write.TimeTranslation
     -- * Helper functions
     , mkAda
     , mkTxOut
-    , mockTxId
     , toConwayTx
     ) where
 
@@ -35,18 +53,11 @@ import Cardano.Wallet.Deposit.Read
     , TxOut
     , Value
     )
-import Cardano.Wallet.Read.Hash
-    ( hashFromBytesShort
-    )
 import Cardano.Wallet.Read.Tx
     ( toConwayOutput
-    , txIdFromHash
     )
 import Data.Map
     ( Map
-    )
-import Data.Maybe
-    ( fromJust
     )
 import Data.Maybe.Strict
     ( StrictMaybe
@@ -67,15 +78,13 @@ import Lens.Micro
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
 import qualified Cardano.Wallet.Read as Read
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as B8
-import qualified Data.ByteString.Short as SBS
+import qualified Cardano.Write.Eras as Write
+import qualified Cardano.Write.Tx as Write
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
-    Type definitions
-    with dummies
+    Convenience TxBody
 ------------------------------------------------------------------------------}
 type Tx = Read.Tx Read.Conway
 
@@ -125,10 +134,5 @@ toConwayTxOut txout =
     case toConwayOutput txout of
         Output o -> o
 
-mockTxId :: Show a => a -> TxId
-mockTxId x =
-    txIdFromHash
-    . fromJust
-    . hashFromBytesShort
-    . SBS.pack
-    $ take 32 (BS.unpack (B8.pack $ show x) <> repeat 0)
+toConwayUTxO :: Map TxIn TxOut -> Write.UTxO L.Conway
+toConwayUTxO = Write.UTxO . Map.map toConwayTxOut

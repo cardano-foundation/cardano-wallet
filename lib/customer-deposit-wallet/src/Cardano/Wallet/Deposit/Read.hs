@@ -32,7 +32,7 @@ module Cardano.Wallet.Deposit.Read
     , UTxO
 
     , Read.TxId
-    , Read.Tx
+    , Read.Tx (..)
     , Read.utxoFromEraTx
 
     , Read.Block

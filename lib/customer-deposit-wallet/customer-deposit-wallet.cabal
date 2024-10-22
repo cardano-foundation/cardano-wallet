@@ -54,7 +54,7 @@ library
   build-depends:
     , async
     , base
-    , bytestring
+    , cardano-balance-tx
     , cardano-crypto
     , cardano-ledger-api
     , cardano-strict-containers
