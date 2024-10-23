@@ -11,6 +11,7 @@
 module Cardano.Wallet.Network.LocalStateQuery.Extra
     ( byronOrShelleyBased
     , onAnyEra
+    , onAnyEra'
     , shelleyBased
     , currentEra
     ) where
@@ -23,6 +24,15 @@ import Cardano.Api
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
+    )
+import Cardano.Wallet.Read
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Byron
+    , Conway
+    , Mary
+    , Shelley
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -55,6 +65,7 @@ import Ouroboros.Consensus.Shelley.Eras
     , StandardShelley
     )
 
+import qualified Cardano.Wallet.Read as Read
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
@@ -82,6 +93,26 @@ byronOrShelleyBased onByron onShelleyBased =
         onShelleyBased
         onShelleyBased
         onShelleyBased
+
+-- | Combine era-specific local state queries into an era-agnostic one.
+onAnyEra'
+    :: LSQ Byron.ByronBlock m (f Byron)
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Shelley) m (f Shelley)
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Allegra) m (f Allegra)
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Mary) m (f Mary)
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) Alonzo) m (f Alonzo)
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) Babbage) m (f Babbage)
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) Conway) m (f Conway)
+    -> LSQ (CardanoBlock StandardCrypto) m (Read.EraValue f)
+onAnyEra' a b c d e f g =
+    onAnyEra
+        (Read.EraValue <$> a)
+        (Read.EraValue <$> b)
+        (Read.EraValue <$> c)
+        (Read.EraValue <$> d)
+        (Read.EraValue <$> e)
+        (Read.EraValue <$> f)
+        (Read.EraValue <$> g)
 
 -- | Create a local state query specific to the each era.
 --
