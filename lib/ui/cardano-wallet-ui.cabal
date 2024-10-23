@@ -69,6 +69,7 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.Address
+    Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Lib.Pagination.Map
     Cardano.Wallet.UI.Lib.Pagination.Type
@@ -147,10 +148,14 @@ test-suite unit
     , cardano-wallet-ui
     , containers
     , hspec
+    , mtl
     , QuickCheck
+    , time
 
   build-tool-depends: hspec-discover:hspec-discover
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/unit
   main-is:            unit-test.hs
-  other-modules:      Cardano.Wallet.UI.Lib.Pagination.MapSpec
+  other-modules:
+    Cardano.Wallet.UI.Lib.DiscretizationSpec
+    Cardano.Wallet.UI.Lib.Pagination.MapSpec

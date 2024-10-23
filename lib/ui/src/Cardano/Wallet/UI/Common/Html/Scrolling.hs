@@ -275,7 +275,8 @@ setup c = do
 -- | A 'Scrolling' is a widget that can be scrolled in constant HTML space.
 data Scrolling m index = Scrolling
     { widget :: [Attribute] -> Html ()
-    -- ^ The widget that contains the scrolling table.
+    -- ^ The widget that contains the scrolling table. The attributes will be
+    -- passed to the widget to allow setting the identifier.
     , scroll :: Set index -> index -> m (Html ())
     -- ^ Scroll the table to the given index, given the set of indices that
     -- are currently present in the scrolling table.
