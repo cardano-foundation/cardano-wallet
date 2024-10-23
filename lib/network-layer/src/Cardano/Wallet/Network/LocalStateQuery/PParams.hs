@@ -8,7 +8,6 @@
 module Cardano.Wallet.Network.LocalStateQuery.PParams
     ( protocolParams
     , protocolParamsLegacy
-    , protocolParamsRecent
     , slottingParamsLegacy
     ) where
 
@@ -19,7 +18,6 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( byronOrShelleyBased
-    , onAnyEra
     , onAnyEra'
     )
 import Cardano.Wallet.Primitive.Ledger.Read.PParams
@@ -39,9 +37,6 @@ import Cardano.Wallet.Primitive.Types.ProtocolParameters
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( SlottingParameters
-    )
-import Cardano.Write.Eras
-    ( MaybeInRecentEra (..)
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -63,7 +58,6 @@ import qualified Cardano.Chain.Update.Validation.Interface as Byron
     ( adoptedProtocolParameters
     )
 import qualified Cardano.Wallet.Read as Read
-import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
@@ -84,17 +78,6 @@ protocolParams =
         (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
   where
     fromByron = Read.PParams . Byron.adoptedProtocolParameters
-
-protocolParamsRecent :: LSQ' m (MaybeInRecentEra Write.PParams)
-protocolParamsRecent =
-    onAnyEra
-        (pure InNonRecentEraByron)
-        (pure InNonRecentEraShelley)
-        (pure InNonRecentEraAllegra)
-        (pure InNonRecentEraMary)
-        (pure InNonRecentEraAlonzo)
-        (InRecentEraBabbage <$> LSQry Shelley.GetCurrentPParams)
-        (InRecentEraConway <$> LSQry Shelley.GetCurrentPParams)
 
 slottingParamsLegacy :: NetworkParameters -> LSQ' m SlottingParameters
 slottingParamsLegacy np =

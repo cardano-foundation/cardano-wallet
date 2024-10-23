@@ -18,7 +18,6 @@ import Cardano.Wallet.Network.LocalStateQuery.Extra
 import Cardano.Wallet.Network.LocalStateQuery.PParams
     ( protocolParams
     , protocolParamsLegacy
-    , protocolParamsRecent
     , slottingParamsLegacy
     )
 import Cardano.Wallet.Network.LocalStateQuery.RewardAccount
