@@ -248,7 +248,9 @@ rollBackward w point =
 ------------------------------------------------------------------------------}
 
 createPayment
-    :: [(Address, Read.Value)] -> WalletInstance -> IO (Maybe Write.TxBody)
+    :: [(Address, Read.Value)]
+    -> WalletInstance
+    -> IO (Either (Write.ErrBalanceTx Write.Conway) Write.Tx)
 createPayment a w =
     Wallet.createPayment a <$> readWalletState w
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Cardano.Wallet.Deposit.Pure
     (
     -- * Types
@@ -69,6 +70,12 @@ import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
+import Control.Monad.Trans.Except
+    ( runExceptT
+    )
+import Data.Digest.CRC32
+    ( crc32
+    )
 import Data.Foldable
     ( foldl'
     )
@@ -96,7 +103,10 @@ import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
+import qualified Cardano.Wallet.Read.Hash as Hash
+import qualified Control.Monad.Random.Strict as Random
 import qualified Data.Delta as Delta
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
@@ -106,11 +116,17 @@ type Customer = Address.Customer
 
 data WalletState = WalletState
     { walletTip :: Read.ChainPoint
+    -- ^ The wallet includes information from all blocks until
+    -- and including this one.
     , addresses :: !Address.AddressState
+    -- ^ Addresses and public keys known to this wallet.
     , utxoHistory :: !UTxOHistory.UTxOHistory
+    -- ^ UTxO of this wallet, with support for rollbacks.
     -- , txHistory :: [Read.Tx]
     , submissions :: Sbm.TxSubmissions
+    -- ^ Queue of pending transactions.
     , rootXSignKey :: Maybe XPrv
+    -- ^ Maybe a private key for signing transactions.
     -- , info :: !WalletInfo
     }
 
@@ -265,13 +281,77 @@ getCustomerHistories = undefined
 
 {-----------------------------------------------------------------------------
     Operations
-    Writing to blockchain
+    Constructing transactions
 ------------------------------------------------------------------------------}
 
-createPayment :: [(Address, Write.Value)] -> WalletState -> Maybe Write.TxBody
-createPayment = undefined
-    -- needs balanceTx
-    -- needs to sign the transaction
+-- | Create a payment to a list of destinations.
+createPayment
+    :: [(Address, Write.Value)]
+    -> WalletState
+    -> Either (Write.ErrBalanceTx Write.Conway) Write.Tx
+createPayment destinations w@WalletState{utxoHistory,addresses} =
+    fmap (Read.Tx . fst)
+    . flip Random.evalRand (pilferRandomGen w) 
+    . runExceptT
+    . balance
+        (UTxOHistory.getUTxO utxoHistory)
+        (Address.newChangeAddress addresses)
+    . mkPartialTx
+    $ paymentTxBody
+  where
+    pparams :: Write.PParams Write.Conway
+    pparams = undefined
+
+    paymentTxBody :: Write.TxBody
+    paymentTxBody = Write.TxBody
+        { spendInputs = mempty
+        , collInputs = mempty
+        , txouts =
+            Map.fromList $ zip [(toEnum 0)..] $ map (uncurry Write.mkTxOut) destinations
+        , collRet = Nothing
+        }
+
+    mkPartialTx :: Write.TxBody -> Write.PartialTx Write.Conway
+    mkPartialTx txbody = Write.PartialTx
+        { tx = Read.unTx $ Write.mkTx txbody
+        , extraUTxO = mempty :: Write.UTxO Write.Conway
+        , redeemers = mempty
+        , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
+        , timelockKeyWitnessCounts = Write.TimelockKeyWitnessCounts mempty
+        }
+
+    balance utxo genChangeAddress =
+        Write.balanceTx
+            pparams
+            Write.conwayTimeTranslation
+            Write.AllKeyPaymentCredentials
+            (Write.constructUTxOIndex $ Write.toConwayUTxO utxo)
+            (changeAddressGen genChangeAddress)
+            ()
+
+    changeAddressGen genChangeAddress = Write.ChangeAddressGen
+        { Write.genChangeAddress =
+            fromCompactAddr . fst $ genChangeAddress ()
+        , Write.maxLengthChangeAddress =
+            fromCompactAddr $ genChangeAddress ()
+        }
+    fromCompactAddr = undefined
+
+-- | Use entropy contained in the current 'WalletState'
+-- to construct a pseudorandom seed.
+-- (NOT a viable source of cryptographic randomness.)
+pilferRandomGen :: WalletState -> Random.StdGen
+pilferRandomGen =
+    Random.mkStdGen . fromEnum . fromChainPoint . walletTip
+  where
+    fromChainPoint (Read.GenesisPoint) = 0
+    fromChainPoint (Read.BlockPoint _ headerHash) =
+        crc32 $ Hash.hashToBytes headerHash
+
+{-----------------------------------------------------------------------------
+    Operations
+    Signing transactions
+------------------------------------------------------------------------------}
 
 getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [BIP32Path]
 getBIP32PathsForOwnedInputs txbody w =
@@ -291,6 +371,11 @@ getBIP32Paths w =
 
 signTxBody :: Write.TxBody -> WalletState -> Maybe Write.Tx
 signTxBody _txbody _w = undefined
+
+{-----------------------------------------------------------------------------
+    Operations
+    Pending transactions
+------------------------------------------------------------------------------}
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined
