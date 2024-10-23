@@ -430,7 +430,8 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
 
 -- | Network parameters and protocol parameters for the node's current tip.
 data NetworkParams = NetworkParams
-    { protocolParamsRecent :: MaybeInRecentEra Write.PParams
+    { protocolParams :: Read.EraValue Read.PParams
+    , protocolParamsRecent :: MaybeInRecentEra Write.PParams
     , protocolParamsLegacy :: ProtocolParameters
     , slottingParamsLegacy :: SlottingParameters
     }
@@ -514,6 +515,8 @@ withNodeNetworkLayerBase
                     readCurrentNodeEra
                 , watchNodeTip =
                     _watchNodeTip readNodeTip
+                , currentPParams =
+                    protocolParams <$> atomically (readTMVar networkParamsVar)
                 , currentProtocolParameters =
                     protocolParamsLegacy
                         <$> atomically (readTMVar networkParamsVar)
@@ -959,7 +962,8 @@ mkWalletToNodeProtocols
 
         let queryParams =
                 NetworkParams
-                    <$> LSQ.protocolParamsRecent
+                    <$> LSQ.protocolParams
+                    <*> LSQ.protocolParamsRecent
                     <*> LSQ.protocolParamsLegacy
                     <*> (LSQ.slottingParamsLegacy np)
 
