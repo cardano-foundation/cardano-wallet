@@ -23,8 +23,14 @@ import Control.Monad.IO.Class
     )
 import Control.Tracer
     ( Tracer
+    , stdoutTracer
     , traceWith
     )
+import Data.Functor.Contravariant
+    ( (>$<)
+    )
+
+import qualified Cardano.Wallet.Deposit.Read as Read
 
 lg :: (MonadIO m, Show a) => Tracer IO String -> String -> a -> m ()
 lg tr p x = liftIO $ traceWith tr $ p <> ": " <> show x
@@ -46,10 +52,10 @@ loadDepositWalletFromDisk tr dir env resource = do
         Left e -> error $ show e
         Right _ -> pure ()
 
-fakeBootEnv :: WalletBootEnv m
+fakeBootEnv :: MonadIO m => WalletBootEnv m
 fakeBootEnv =
     ( WalletBootEnv
-        (error "Not defined")
-        (error "Not defined")
-        (error "Not defined")
+        (show >$< stdoutTracer)
+        Read.mockGenesisDataMainnet
+        (error "network env not defined")
     )

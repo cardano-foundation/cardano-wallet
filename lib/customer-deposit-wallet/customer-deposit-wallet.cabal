@@ -49,8 +49,8 @@ flag release
   manual:      True
 
 library
-  import:             language, opts-lib, no-delta-table-on-windows
-  hs-source-dirs:     src
+  import:          language, opts-lib, no-delta-table-on-windows
+  hs-source-dirs:  src
   build-depends:
     , async
     , base
@@ -68,11 +68,14 @@ library
     , delta-types
     , io-classes
     , microlens
+    , monoidal-containers
     , mtl
+    , mwc-random
     , OddWord
+    , random
     , text
+    , time
 
-  reexported-modules: Cardano.Wallet.Address.BIP32
   exposed-modules:
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
@@ -80,7 +83,10 @@ library
     Cardano.Wallet.Deposit.IO.Network.Type
     Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.IO.Resource.Event
+    Cardano.Wallet.Deposit.Map
     Cardano.Wallet.Deposit.Pure
+    Cardano.Wallet.Deposit.Pure.API.TxHistory
+    Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
@@ -153,6 +159,7 @@ library rest
     , contra-tracer
     , crypto-primitives
     , customer-deposit-wallet
+    , customer-deposit-wallet-pure
     , delta-store
     , directory
     , filepath
