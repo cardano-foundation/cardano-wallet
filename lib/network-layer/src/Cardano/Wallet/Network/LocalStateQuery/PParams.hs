@@ -22,17 +22,11 @@ import Cardano.Wallet.Network.LocalStateQuery.Extra
     , onAnyEra
     , onAnyEra'
     )
-import Cardano.Wallet.Primitive.Ledger.Byron
-    ( protocolParametersFromUpdateState
+import Cardano.Wallet.Primitive.Ledger.Read.PParams
+    ( primitiveProtocolParameters
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromAllegraPParams
-    , fromAlonzoPParams
-    , fromBabbagePParams
-    , fromConwayPParams
-    , fromMaryPParams
-    , fromShelleyPParams
-    , slottingParametersFromGenesis
+    ( slottingParametersFromGenesis
     )
 import Cardano.Wallet.Primitive.Types.EraInfo
     ( EraInfo (..)
@@ -121,25 +115,5 @@ protocolParamsLegacy = do
             <*> LSQry (QueryAnytimeAlonzo GetEraStart)
             <*> LSQry (QueryAnytimeBabbage GetEraStart)
 
-    onAnyEra
-        ( protocolParametersFromUpdateState eraBounds
-            <$> LSQry Byron.GetUpdateInterfaceState
-        )
-        ( fromShelleyPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromAllegraPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromMaryPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromAlonzoPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromBabbagePParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromConwayPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
+    Read.EraValue pparams <- protocolParams
+    pure $ primitiveProtocolParameters eraBounds pparams
