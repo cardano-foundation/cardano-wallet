@@ -67,6 +67,7 @@ import Data.Time.Clock.POSIX
     )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Time as Time
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -116,6 +117,8 @@ newNetworkEnvMock = do
                 -- brief delay to account for asynchronous chain followers
                 threadDelay 100
                 pure $ Right ()
+            , getTimeInterpreter =
+                pure Time.mockTimeInterpreter
             , slotsToUTCTimes = pure . unsafeSlotsToUTCTimes
             , utcTimeToSlot = pure . Just . unsafeSlotOfUTCTime
             }

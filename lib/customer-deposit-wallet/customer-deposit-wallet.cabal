@@ -60,6 +60,7 @@ library
     , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-network-layer
+    , cardano-wallet-primitive
     , cardano-wallet-read           ==0.2024.8.27
     , containers
     , contra-tracer
@@ -91,6 +92,7 @@ library
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
     Cardano.Wallet.Deposit.Read
+    Cardano.Wallet.Deposit.Time
     Cardano.Wallet.Deposit.Write
 
 test-suite scenario
