@@ -200,9 +200,6 @@ import qualified Cardano.Wallet.DB.Layer as Sqlite
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Wallet.Transaction as Tx
-import qualified Cardano.Write.Eras as Write
-    ( MaybeInRecentEra (InRecentEraBabbage)
-    )
 import qualified Data.Aeson as Aeson
 import Data.Functor
     ( (<&>)
@@ -620,6 +617,10 @@ mockNetworkLayer :: NetworkLayer IO Read.ConsensusBlock
 mockNetworkLayer = dummyNetworkLayer
     { timeInterpreter = hoistTimeInterpreter liftIO mockTimeInterpreter
     , currentSlottingParameters = pure dummySlottingParameters
+    , currentPParams = pure $ Read.EraValue
+        ( Read.PParams dummyLedgerProtocolParameters
+            :: Read.PParams Read.Babbage
+        )
     , currentProtocolParameters = pure dummyProtocolParameters
     , currentProtocolParametersInRecentEras =
         pure $ Write.InRecentEraBabbage dummyLedgerProtocolParameters

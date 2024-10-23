@@ -155,6 +155,7 @@ dummyNetworkLayer = NetworkLayer
     , currentNodeEra = err "currentNodeEra"
     , currentNodeTip = err "currentNodeTip"
     , watchNodeTip = err "watchNodeTip"
+    , currentPParams = err "currentPParams"
     , currentProtocolParameters = err "currentProtocolParameters"
     , currentProtocolParametersInRecentEras
         = err "currentProtocolParametersInRecentEras"
