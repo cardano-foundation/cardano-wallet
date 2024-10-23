@@ -28,7 +28,7 @@ module Cardano.Wallet.Primitive.Ledger.Byron
     , fromProtocolMagicId
     , fromByronTxIn
     , fromByronTxOut
-    , protocolParametersFromUpdateState
+    , protocolParametersFromPP
     ) where
 
 import Prelude
@@ -99,7 +99,6 @@ import Ouroboros.Network.Block
     )
 
 import qualified Cardano.Chain.Update as Update
-import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Slotting.Slot as Slotting
 import qualified Cardano.Wallet.Primitive.Slotting as W
@@ -294,6 +293,8 @@ fromMaxSize :: Natural -> Quantity "byte" Word16
 fromMaxSize =
     Quantity . fromIntegral
 
+-- | Extract the protocol parameters relevant to the wallet
+-- from the Byron 'ProtocolParameters'.
 protocolParametersFromPP
     :: W.EraInfo Bound
     -> Update.ProtocolParameters
@@ -319,15 +320,6 @@ protocolParametersFromPP eraInfo pp =
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
         W.EpochNo $ fromIntegral e
-
--- | Extract the protocol parameters relevant to the wallet out of the
---   cardano-chain update state record.
-protocolParametersFromUpdateState
-    :: W.EraInfo Bound
-    -> Update.State
-    -> W.ProtocolParameters
-protocolParametersFromUpdateState b =
-    (protocolParametersFromPP b) . Update.adoptedProtocolParameters
 
 -- | Convert non AVVM balances to genesis UTxO.
 fromNonAvvmBalances :: GenesisNonAvvmBalances -> [W.TxOut]
