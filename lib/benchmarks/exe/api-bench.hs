@@ -622,8 +622,6 @@ mockNetworkLayer = dummyNetworkLayer
             :: Read.PParams Read.Babbage
         )
     , currentProtocolParameters = pure dummyProtocolParameters
-    , currentProtocolParametersInRecentEras =
-        pure $ Write.InRecentEraBabbage dummyLedgerProtocolParameters
     , currentNodeEra = pure $ Cardano.anyCardanoEra Cardano.BabbageEra
     , currentNodeTip = pure Read.BlockTip
         { Read.slotNo = Read.SlotNo 123456789

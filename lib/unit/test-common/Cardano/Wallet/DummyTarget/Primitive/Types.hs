@@ -157,8 +157,6 @@ dummyNetworkLayer = NetworkLayer
     , watchNodeTip = err "watchNodeTip"
     , currentPParams = err "currentPParams"
     , currentProtocolParameters = err "currentProtocolParameters"
-    , currentProtocolParametersInRecentEras
-        = err "currentProtocolParametersInRecentEras"
     , currentSlottingParameters = err "currentSlottingParameters"
     , getUTxOByTxIn = err "getUTxOByTxIn"
     , getStakeDelegDeposits = error "getStakeDelegDeposits"

@@ -138,9 +138,6 @@ data NetworkLayer m block = NetworkLayer
         :: m ProtocolParameters
     -- ^ Get the last known protocol parameters. In principle, these can
     -- only change once per epoch.
-    , currentProtocolParametersInRecentEras
-        :: m (MaybeInRecentEra Write.PParams)
-    -- ^ Get the last known protocol parameters for recent eras.
     , currentSlottingParameters
         :: m SlottingParameters
     -- ^ Get the last known slotting parameters. In principle, these can
