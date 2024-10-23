@@ -26,7 +26,9 @@ import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( Striped (..)
+    , Width (..)
+    , record
     , simpleField
     , sseH
     )
@@ -84,11 +86,13 @@ customerAddressH addr = div_ [class_ "d-flex justify-content-end"] $ do
             <> " .. "
             <> T.takeEnd 10 encodedAddr
 
-addressElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
+addressElementH
+    :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 addressElementH alert = \case
     WalletPresent (WalletPublicIdentity _xpub customers) -> do
-        div_ [class_ "row mt-5"] $ do
-            div_ [class_ "col"] $ record $ do
+        div_ [class_ "row mt-5"]
+            $ record (Just 11) Full Striped
+            $ do
                 simpleField "Customer Number"
                     $ input_
                         [ type_ "number"

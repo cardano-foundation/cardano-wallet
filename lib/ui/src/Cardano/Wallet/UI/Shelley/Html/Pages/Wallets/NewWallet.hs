@@ -93,25 +93,25 @@ postWalletForm mv = form_
     ]
     $ do
         input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg  m-1 p-1"
             , visibility
             , name_ "mnemonicSentence"
             , placeholder_ "Mnemonic Sentence"
             ]
         input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg m-1 p-1"
             , type_ "text"
             , name_ "name"
             , placeholder_ "Wallet Name"
             ]
         input_
-            [ class_ "form-control form-control-lg mb-3"
+            [ class_ "form-control form-control-lg m-1 p-1"
             , visibility
             , name_ "passphrase"
             , placeholder_ "Passphrase"
             ]
         button_
-            [ class_ "btn btn-primary btn-block mb-3"
+            [ class_ "btn btn-primary btn-block m-1 p-1"
             , type_ "submit"
             ]
             "Restore wallet"
