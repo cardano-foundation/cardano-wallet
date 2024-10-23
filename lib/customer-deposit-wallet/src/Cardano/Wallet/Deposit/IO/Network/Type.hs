@@ -73,14 +73,10 @@ mapBlock
     => (block1 -> block2)
     -> NetworkEnv m block1
     -> NetworkEnv m block2
-mapBlock f NetworkEnv{chainSync, postTx, slotsToUTCTimes, utcTimeToSlot} =
-    NetworkEnv
-        { chainSync = \tr follower ->
-            chainSync tr (mapChainFollower id id id (fmap f) follower)
-        , postTx = postTx
-        , slotsToUTCTimes = slotsToUTCTimes
-        , utcTimeToSlot = utcTimeToSlot
-        }
+mapBlock f env@NetworkEnv{chainSync} = env
+    { chainSync = \tr follower ->
+        chainSync tr (mapChainFollower id id id (fmap f) follower)
+    }
 
 {-------------------------------------------------------------------------------
     Errors
