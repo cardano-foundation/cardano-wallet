@@ -20,3 +20,4 @@ newlines-between-decls: 1
 record-brace-space: false
 respectful: true
 single-constraint-parens: auto
+column-limit: 70

@@ -56,6 +56,7 @@ library
     Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     Cardano.Wallet.UI.Common.Html.Pages.Wallet
+    Cardano.Wallet.UI.Common.Html.Scrolling
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API
@@ -68,7 +69,10 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
     Cardano.Wallet.UI.Lib.Address
+    Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
+    Cardano.Wallet.UI.Lib.Pagination.Map
+    Cardano.Wallet.UI.Lib.Pagination.Type
     Cardano.Wallet.UI.Shelley.API
     Cardano.Wallet.UI.Shelley.Handlers.Addresses
     Cardano.Wallet.UI.Shelley.Handlers.Wallet
@@ -127,3 +131,31 @@ library
 
   hs-source-dirs:   src
   default-language: Haskell2010
+
+test-suite unit
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+  build-depends:
+    , base
+    , cardano-wallet-ui
+    , containers
+    , hspec
+    , mtl
+    , QuickCheck
+    , time
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            unit-test.hs
+  other-modules:
+    Cardano.Wallet.UI.Lib.DiscretizationSpec
+    Cardano.Wallet.UI.Lib.Pagination.MapSpec
