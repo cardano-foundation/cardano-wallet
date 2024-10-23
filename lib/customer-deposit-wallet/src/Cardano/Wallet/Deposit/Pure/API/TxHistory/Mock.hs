@@ -9,9 +9,6 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Deposit.IO.Network.Mock
-    ( unsafeSlotOfUTCTime
-    )
 import Cardano.Wallet.Deposit.Map
     ( Map (..)
     , singletonMap
@@ -62,6 +59,8 @@ import System.Random.Stateful
     , runStateGen_
     )
 
+import qualified Cardano.Wallet.Deposit.Time as Time
+
 mockTxHistoryByTime
     :: UTCTime
     -- ^ Current time.
@@ -79,7 +78,7 @@ mockTxHistoryByTime now solveAddress solveSlot addresses ns =
         fmap mconcat
             $ replicateM ns
             $ do
-                slot <- case unsafeSlotOfUTCTime now of
+                slot <- case Time.unsafeSlotOfUTCTime now of
                     Origin -> pure Origin
                     At (SlotNo n) -> do
                         slotInt <-
