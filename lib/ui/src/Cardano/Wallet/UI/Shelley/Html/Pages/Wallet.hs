@@ -43,7 +43,9 @@ import Cardano.Wallet.UI.Common.Html.Lib
     , toTextHtml
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( fieldHtml
+    ( Striped (..)
+    , Width (..)
+    , fieldHtml
     , record
     , showThousandDots
     , simpleField
@@ -104,7 +106,7 @@ walletActionsH = do
 
 walletElementH :: Monad m => ShowTime -> ApiWallet -> HtmlT m ()
 walletElementH showTime ApiWallet{..} = do
-    record $ do
+    record Nothing Full Striped $ do
         simpleField "name" $ toHtml $ toText $ getApiT name
         simpleField "id" $ toHtml $ toText $ getApiT id
         simpleField "state" $ toHtml $ renderState state
@@ -128,14 +130,14 @@ renderPoolGap :: Monad m => ApiT AddressPoolGap -> HtmlT m ()
 renderPoolGap = toHtml . show . getAddressPoolGap . getApiT
 
 renderDelegation :: Monad m => ApiWalletDelegation -> HtmlT m ()
-renderDelegation ApiWalletDelegation{..} = record
+renderDelegation ApiWalletDelegation{..} = record Nothing Full Striped
     $ do
         simpleField "active" $ renderActive active
         fieldHtml [] "next" $ ul_ $ forM_ next $ li_ . renderActive
 
 renderActive :: Monad m => ApiWalletDelegationNext -> HtmlT m ()
 renderActive (ApiWalletDelegationNext status target voting _changesAt) =
-    record $ do
+    record Nothing Full Striped $ do
         case status of
             NotDelegating -> simpleField "not delegating" mempty
             Delegating ->
@@ -151,14 +153,14 @@ renderActive (ApiWalletDelegationNext status target voting _changesAt) =
                     $ foldMap (showHtml . getApiT) voting
 
 renderAsset :: Monad m => ApiWalletAsset -> HtmlT m ()
-renderAsset ApiWalletAsset{..} = record $ do
+renderAsset ApiWalletAsset{..} = record Nothing Full Striped $ do
     simpleField "policy id" $ toTextHtml $ getApiT policyId
     simpleField "asset name" $ toTextHtml $ getApiT assetName
     simpleField "quantity" $ toHtml $ showThousandDots quantity
 
 renderAssets :: Monad m => ApiWalletAssetsBalance -> HtmlT m ()
 renderAssets ApiWalletAssetsBalance{..} =
-    record $ do
+    record Nothing Full Striped $ do
         fieldHtml [] "available"
             $ ul_
             $ forM_ (getApiWalletAssets available)
@@ -171,7 +173,7 @@ renderAssets ApiWalletAssetsBalance{..} =
 
 renderBalance :: Monad m => ApiWalletBalance -> HtmlT m ()
 renderBalance ApiWalletBalance{..} =
-    record $ do
+    record Nothing Full Striped $ do
         simpleField "available" $ toHtml $ showAmount available
         simpleField "total" $ toHtml $ showAmount total
         simpleField "reward" $ toHtml $ showAmount reward

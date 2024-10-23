@@ -20,17 +20,15 @@ import Cardano.Wallet.Deposit.REST
 import Cardano.Wallet.UI.Common.API
     ( Visible (..)
     )
-import Cardano.Wallet.UI.Common.Html.Copy
-    ( copyButton
-    , copyableHidden
-    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxDelete_
     , hxSwap_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
-    ( dataBsDismiss_
+    ( WithCopy (..)
+    , dataBsDismiss_
     , linkText
+    , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Modal
     ( ModalData (..)
@@ -38,7 +36,10 @@ import Cardano.Wallet.UI.Common.Html.Modal
     , mkModalButton
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( record
+    ( Striped (..)
+    , Width (..)
+    , box
+    , record
     , simpleField
     , sseH
     )
@@ -83,10 +84,8 @@ import Lucid
     , button_
     , class_
     , div_
-    , hr_
     , id_
     , p_
-    , section_
     )
 
 import qualified Data.ByteString.Char8 as B8
@@ -119,16 +118,11 @@ base64 :: ByteString -> ByteString
 base64 = convertToBase Base64
 
 pubKeyH :: Monad m => XPub -> HtmlT m ()
-pubKeyH xpub = div_ [class_ "d-flex justify-content-end"] $ do
-    div_ (copyableHidden "public_key") $ toHtml xpubByteString
-    div_ [class_ "d-block d-lg-none"]
+pubKeyH xpub =
+    truncatableText WithCopy "public_key"
         $ toHtml
-        $ headAndTail 5
-        $ B8.dropEnd 1 xpubByteString
-    div_ [class_ "d-none d-lg-block"] $ toHtml xpubByteString
-    div_ [class_ "ms-1"] $ copyButton "public_key"
-  where
-    xpubByteString = base64 $ xpubToBytes xpub
+        $ base64
+        $ xpubToBytes xpub
 
 headAndTail :: Int -> ByteString -> ByteString
 headAndTail n t = B8.take n t <> " .. " <> B8.takeEnd n t
@@ -158,37 +152,58 @@ deleteWalletModalH =
                     [ class_ "btn btn-secondary"
                     , dataBsDismiss_ "modal"
                     ]
-                    "Close"
+                    "Cancel"
             }
 
 walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
 walletElementH alert = \case
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        div_ [class_ "row mt-5 "] $ do
-            div_ [class_ "col"] $ record $ do
-                simpleField "Public Key" $ pubKeyH xpub
-                simpleField "Tracked Addresses" $ toHtml $ toText customers
-        div_ [class_ "row mt-5"] $ do
-            div_ [class_ "col"] $ do
-                deleteWalletButtonH
+        div_ [class_ "row mt-2 gx-0"] $ do
+            box "Wallet Public Identity" mempty $
+                record (Just 13) Full Striped $ do
+                    simpleField "Extended Public Key" $ pubKeyH xpub
+                    simpleField "Tracked Addresses"
+                        $ div_ [class_ "d-flex justify-content-end align-items-center"]
+                        $ toHtml
+                        $ toText customers
+        div_ [class_ "row mt-2 gx-0"] $ do
+            box "Wallet Management" mempty
+                $ div_ [class_ "d-flex justify-content-end align-items-center"]
+                    deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
-        section_
+        div_ [class_ "row mt-2 gx-0"]
             $ newWalletFromMnemonicH walletMnemonicLink
             $ PostWalletConfig
                 { walletDataLink = walletPostMnemonicLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        hr_ mempty
-        section_
+        div_ [class_ "row mt-2 gx-0"]
             $ newWalletFromXPubH
             $ PostWalletConfig
                 { walletDataLink = walletPostXPubLink
                 , passwordVisibility = Just Hidden
                 , responseTarget = "#post-response"
                 }
-        div_ [id_ "post-response"] mempty
+        div_ [class_ "row mt-2 gx-0"]
+            $ div_ [id_ "post-response"] mempty
+    WalletFailedToInitialize err ->
+        alert
+            $ "Failed to initialize wallet"
+                <> BL.pack (show err)
+    WalletVanished e -> alert $ "Wallet vanished " <> BL.pack (show e)
+    WalletInitializing -> alert "Wallet is initializing"
+    WalletClosing -> alert "Wallet is closing"
+
+onWalletPresentH
+    :: (WalletPublicIdentity -> Html ())
+    -> (BL.ByteString -> Html ())
+    -> WalletPresent
+    -> Html ()
+onWalletPresentH f alert = \case
+    WalletPresent wpi -> f wpi
+    WalletAbsent -> alert "Wallet is absent"
     WalletFailedToInitialize err ->
         alert
             $ "Failed to initialize wallet"

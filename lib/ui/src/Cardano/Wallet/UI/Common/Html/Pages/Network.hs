@@ -32,7 +32,9 @@ import Cardano.Wallet.UI.Common.Html.Lib
     , showPercentage
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( fieldShow
+    ( Striped (..)
+    , Width (..)
+    , fieldShow
     , record
     , showThousandDots
     , simpleField
@@ -69,7 +71,7 @@ networkInfoH
     -> ApiNetworkInformation
     -- ^ network information
     -> Html ()
-networkInfoH showTime ApiNetworkInformation{..} = record $ do
+networkInfoH showTime ApiNetworkInformation{..} = record (Just 7) Full Striped $ do
     simpleField "Sync progress" $ syncProgressH progress
     simpleField "Next epoch" $ nextEpochH nextEpoch
     simpleField "Node tip" $ blockReferenceH showTime nodeTip
@@ -83,9 +85,9 @@ networkInfoH showTime ApiNetworkInformation{..} = record $ do
 nextEpochH :: Maybe EpochInfo -> Html ()
 nextEpochH Nothing = p_ "Unknown"
 nextEpochH (Just EpochInfo{..}) = do
-    record $ do
-        simpleField "Epoch start" $ showHtml epochStartTime
-        simpleField "Epoch number" $ toHtml $ showThousandDots epochNumber'
+    record (Just 5) Full Striped  $ do
+        simpleField "Epoch Start" $ showHtml epochStartTime
+        simpleField "Epoch Number" $ toHtml $ showThousandDots epochNumber'
   where
     EpochNo epochNumber' = epochNumber
 
@@ -99,7 +101,7 @@ syncProgressH (NotResponding) = "Not Responding"
 -- | Render a block reference as a record
 blockReferenceH :: ShowTime -> ApiBlockReference -> Html ()
 blockReferenceH showTime ApiBlockReference{..} =
-    record $ do
+    record (Just 4) Full Striped $ do
         simpleField "Slot" $ toHtml $ showThousandDots slot
         simpleField "Time" $ toHtml $ showTime time
         simpleField "Block" $ blockInfoH block
@@ -114,7 +116,7 @@ blockInfoH (ApiBlockInfo (Quantity height)) = toHtml (showThousandDots height)
 networkTipH :: ShowTime -> Maybe ApiSlotReference -> Html ()
 networkTipH _ Nothing = "Unknown"
 networkTipH showTime (Just ApiSlotReference{..}) = do
-    record $ do
+    record (Just 4) Full Striped $ do
         simpleField "Slot" $ toHtml $ showThousandDots slot
         simpleField "Time" $ toHtml $ showTime time
   where
@@ -133,6 +135,6 @@ nodeEraH ApiConway = "Conway"
 -- | Render the network id and protocol magic as a record
 networkIdH :: ApiNetworkInfo -> Html ()
 networkIdH ApiNetworkInfo{..} = do
-    record $ do
+    record (Just 11) Full Striped $ do
         simpleField "Network ID" $ toHtml networkId
         fieldShow [] "Protocol Magic" protocolMagic

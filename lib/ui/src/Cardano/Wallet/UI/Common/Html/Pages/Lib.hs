@@ -22,6 +22,11 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , showAdaOfLoveLace
     , showThousandDots
     , fadeInId
+    , Width (..)
+    , onWidth
+    , Striped (..)
+    , onStriped
+    , box
     )
 where
 
@@ -56,7 +61,9 @@ import Lucid
     , b_
     , class_
     , div_
+    , hr_
     , id_
+    , nav_
     , role_
     , scope_
     , style_
@@ -72,6 +79,9 @@ import Numeric.Natural
     )
 import Servant
     ( Link
+    )
+import Text.Printf
+    ( printf
     )
 
 import qualified Data.Text as T
@@ -105,17 +115,40 @@ data AssocRow m
     }
 
 -- | Render an 'AssocRow' as a table row.
-assocRowH :: AssocRow m -> Monad m => HtmlT m ()
-assocRowH AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
-    td_ [scope_ "col"] $ b_ key
-    td_ [scope_ "col", class_ "d-flex justify-content-end"] val
+assocRowH :: Maybe Int -> AssocRow m -> Monad m => HtmlT m ()
+assocRowH mn AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
+    td_ [scope_ "col", class_ "align-bottom p-1", style_ width] $ b_ key
+    td_ [scope_ "col", class_ "align-bottom flex-fill p-1"] val
+  where
+    width = T.pack
+        $ case mn of
+            Just n -> printf "width: %dem" n
+            Nothing -> "width: auto"
+
+data Width = Auto | Full
+
+onWidth :: Width -> a -> a -> a
+onWidth w a b = case w of
+    Auto -> a
+    Full -> b
+
+data Striped = Striped | NotStriped
+
+onStriped :: Striped -> a -> a -> a
+onStriped s a b = case s of
+    Striped -> a
+    NotStriped -> b
 
 -- | Render a list of 'AssocRow' as a table. We use 'listOf' to allow 'do' notation
 -- in the definition of the rows
-record :: ListOf (AssocRow m) -> Monad m => HtmlT m ()
-record xs =
-    table_ [class_ "table table-hover table-striped"]
-        $ mapM_ assocRowH
+record :: Maybe Int -> Width -> Striped -> ListOf (AssocRow m) -> Monad m => HtmlT m ()
+record n w s xs =
+    table_
+        [ class_ $ "border-top table table-hover mb-0" <> onStriped s " table-striped" ""
+        , style_
+            $ onWidth w "width: auto" ""
+        ]
+        $ mapM_ (assocRowH n)
         $ listOf xs
 
 -- | Create an 'AssocRow' from a key and a value.
@@ -220,3 +253,13 @@ showThousandDots = reverse . showThousandDots' . reverse . show
             (a, b) = splitAt 3 xs
         in
             a <> if null b then [] else "." <> showThousandDots' b
+
+box :: Monad m => HtmlT m () -> HtmlT m () -> HtmlT m () -> HtmlT m ()
+box x y z = div_ [class_ "bg-body-secondary pb-1"] $ do
+    nav_ [class_ "navbar  p-1 justify-content-center pb-0"]
+        $ do
+            div_ [class_ "navbar-brand opacity-50 ms-1 m-0 container-fluid p-0"] $ do
+                div_ x
+                div_ y
+    hr_ [class_ "mt-0 mb-1"]
+    div_ [class_ "bg-body-primary"] z
