@@ -144,12 +144,12 @@ filterByParams TransactionHistoryParams{..} =
     filterByTransfer = case (txHistoryReceived, txHistorySpent) of
         (True, False) ->
             filter
-                ( \(_, (_, _, ValueTransfer{received})) ->
+                ( \(_, (_, _, ValueTransferC{received})) ->
                     received /= mempty
                 )
         (False, True) ->
             filter
-                ( \(_, (_, _, ValueTransfer{spent})) ->
+                ( \(_, (_, _, ValueTransferC{spent})) ->
                     spent /= mempty
                 )
         _ -> id

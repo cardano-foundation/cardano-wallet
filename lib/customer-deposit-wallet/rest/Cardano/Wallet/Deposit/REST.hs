@@ -86,6 +86,9 @@ import Codec.Serialise
     ( deserialise
     , serialise
     )
+import Control.DeepSeq
+    ( deepseq
+    )
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
@@ -332,8 +335,8 @@ initXPubWallet tr bootEnv dir xpub users = do
                         xpub
                         users
                     $ \i -> do
-                        ls <- WalletIO.listCustomers i
-                        last ls `seq` f i
+                        addresses <- map snd <$> WalletIO.listCustomers i
+                        addresses `deepseq` f i
             Nothing ->
                 pure
                     $ Left

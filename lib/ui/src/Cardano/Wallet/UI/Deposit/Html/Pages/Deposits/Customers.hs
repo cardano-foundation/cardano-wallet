@@ -182,7 +182,7 @@ depositByCustomerH
     depositsTxIdsLink
     mexpand
     (Down time)
-    (customer, (_addr, ValueTransfer{received, spent}))
+    (customer, (_addr, ValueTransferC{received, spent}))
     widget
         | expand = do
             let trId = T.pack $ "customers-tx-ids-" <> show customer

@@ -24,14 +24,13 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
-    , Value
-    , WithOrigin (..)
     )
 import Cardano.Wallet.Read
     ( Coin
     , SlotNo (..)
     , TxId
     , Value (..)
+    , WithOrigin (..)
     , txIdFromHash
     )
 import Cardano.Wallet.Read.Hash
@@ -125,7 +124,7 @@ valueTransferG g = do
     spentOrReceived <- uniformRM (0, 11) g
     spent <- createSpent g spentOrReceived
     received <- createReceived g spentOrReceived
-    pure $ ValueTransfer{..}
+    pure $ ValueTransferC{..}
 
 unsafeMkTxId :: String -> TxId
 unsafeMkTxId = txIdFromHash . fromJust . hashFromStringAsHex
