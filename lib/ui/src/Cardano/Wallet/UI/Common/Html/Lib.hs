@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -15,11 +16,20 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , dataBsDismiss_
     , ariaHidden_
     , ariaLabel_
+    , AlertH
+    , monospaced
+    , truncatableText
+    , WithCopy (..)
+    , tdEnd
+    , thEnd
     )
 where
 
 import Prelude
 
+import Cardano.Wallet.UI.Common.Html.Copy
+    ( copyButton
+    )
 import Data.Generics.Product
     ()
 import Data.Text
@@ -42,6 +52,10 @@ import Lucid
     , ToHtml (..)
     , class_
     , div_
+    , id_
+    , style_
+    , td_
+    , th_
     )
 import Lucid.Base
     ( makeAttribute
@@ -51,6 +65,7 @@ import Servant.Links
     , linkURI
     )
 
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 
 showPercentage :: Rational -> String
@@ -71,7 +86,7 @@ showLocalTime = do
         $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" . utcToLocalTime zone
 
 justifyRight :: ToHtml b => b -> Html ()
-justifyRight = div_ [class_ "d-flex justify-content-end"] . toHtml
+justifyRight = div_ [class_ "d-flex justify-content-end align-items-center"] . toHtml
 
 linkText :: Link -> Text
 linkText = T.pack . ('/' :) . show . linkURI
@@ -96,3 +111,31 @@ ariaHidden_ = makeAttribute "aria-hidden"
 
 ariaLabel_ :: Text -> Attribute
 ariaLabel_ = makeAttribute "aria-label"
+
+type AlertH = BL.ByteString -> Html ()
+
+monospaced :: Monad m => HtmlT m ()
+monospaced =
+    style_ ".monospaced {font-family: \"Courier New\",monospace !important;}"
+
+data WithCopy = WithCopy | WithoutCopy
+
+truncatableText :: Monad m => WithCopy -> Text -> HtmlT m () -> HtmlT m ()
+truncatableText copy identifier h =
+    div_ [class_ "d-flex justify-content-end align-items-center"] $ do
+        div_
+            [ id_ identifier
+            , class_ "text-truncate text-end monospaced"
+            ]
+            h
+        case copy of
+            WithCopy -> copyButton identifier
+            WithoutCopy -> mempty
+
+tdEnd :: Monad m => HtmlT m () -> HtmlT m ()
+tdEnd = td_ [class_ "text-end p-1 align-bottom"]
+
+thEnd :: Monad m => Maybe Int -> HtmlT m () -> HtmlT m ()
+thEnd mw = th_ $ [class_ "text-end p-1 align-bottom"
+    , style_ "background:#26264d;"] <>
+    maybe [] (\w -> [style_ $ "width: " <> T.pack (show w) <> "em;"]) mw
