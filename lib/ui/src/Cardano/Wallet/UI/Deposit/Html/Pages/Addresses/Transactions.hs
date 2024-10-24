@@ -91,13 +91,14 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxTarget_
     , hxTrigger_
     )
+import Cardano.Wallet.UI.Deposit.Server.Lib
+    ( showTime
+    )
 import Data.Text.Class
     ( ToText (..)
     )
 import Data.Time
     ( UTCTime (..)
-    , defaultTimeLocale
-    , formatTime
     , pattern YearMonthDay
     )
 import Numeric
@@ -115,9 +116,7 @@ chainPointToUTCH
 chainPointToUTCH
     times
     cp = case Map.lookup (Read.slotFromChainPoint cp) times of
-        Just (At t) ->
-            toHtml
-                $ formatTime defaultTimeLocale "%F %T" t
+        Just (At t) -> toHtml $ showTime t
         Just Origin -> toHtml ("Genesis" :: Text)
         Nothing -> toHtml ("Unknown" :: Text)
 
@@ -180,16 +179,22 @@ customerHistoryH fake params@TransactionHistoryParams{..} times txs =
                     <> if fake then " fake" else ""
             ]
             $ do
-                thead_ $ tr_ [scope_ "row"] $ do
-                    when txHistorySlot
-                        $ thEnd (Just 7) "Slot"
-                    when txHistoryUTC
-                        $ thEnd (Just 7) "Time"
-                    when txHistoryReceived
-                        $ thEnd (Just 7) "Received"
-                    when txHistorySpent
-                        $ thEnd (Just 7) "Spent"
-                    thEnd Nothing "Tx Id"
+                thead_
+                    $ tr_
+                        [ scope_ "row"
+                        , class_ "sticky-top my-1"
+                        , style_ "z-index: 1"
+                        ]
+                    $ do
+                        when txHistorySlot
+                            $ thEnd (Just 7) "Slot"
+                        when txHistoryUTC
+                            $ thEnd (Just 9) "Time"
+                        when txHistoryReceived
+                            $ thEnd (Just 7) "Deposit"
+                        when txHistorySpent
+                            $ thEnd (Just 7) "Withdrawal"
+                        thEnd Nothing "Id"
                 tbody_
                     $ mapM_ (toHtml . txSummaryH params times)
                     $ zip [0 ..] txs
@@ -268,26 +273,26 @@ transactionsViewControls now origin =
                     , name_ "slot"
                     , value_ ""
                     ]
-            simpleField "Received"
+            simpleField "Deposit"
                 $ div_
                     [ class_ "d-flex justify-content-end align-items-center form-check"
                     ]
                 $ input_
                     [ class_ "form-check-input"
                     , type_ "checkbox"
-                    , id_ "toggle-received"
+                    , id_ "toggle-deposit"
                     , name_ "received"
                     , value_ ""
                     , checked_
                     ]
-            simpleField "Spent"
+            simpleField "Withdrawal"
                 $ div_
                     [ class_ "d-flex justify-content-end align-items-center form-check"
                     ]
                 $ input_
                     [ class_ "form-check-input"
                     , type_ "checkbox"
-                    , id_ "toggle-spent"
+                    , id_ "toggle-withdrawal"
                     , name_ "spent"
                     , value_ ""
                     ]
@@ -321,8 +326,8 @@ transactionsElementH now origin = do
             \, change from:#toggle-utc\
             \, change from:#select-customer\
             \, change from:#toggle-slot\
-            \, change from:#toggle-received\
-            \, change from:#toggle-spent\
+            \, change from:#toggle-deposit\
+            \, change from:#toggle-withdrawal\
             \, change from:#select-sorting\
             \, change from:#select-month\
             \, change from:#select-year"
@@ -332,7 +337,7 @@ transactionsElementH now origin = do
         ]
         $ do
             let configure =
-                    div_ [class_ "d-flex justify-content-end sticky-top"] $ do
+                    div_ [class_ "d-flex justify-content-end"] $ do
                         let toggle = button_
                                 [ class_ "btn"
                                 , type_ "button"
