@@ -51,10 +51,6 @@ import Cardano.Wallet.UI.Common.Handlers.State
     )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
-    , renderHtml
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( alertH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkInfoH
@@ -78,21 +74,17 @@ import Cardano.Wallet.UI.Deposit.API
     ( UI
     , settingsSseToggleLink
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Addresses
-    ( getAddresses
-    , getCustomerAddress
-    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
-    )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
-    ( addressElementH
-    , customerAddressH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , headerElementH
     , page
+    )
+import Cardano.Wallet.UI.Deposit.Server.Addresses
+    ( serveAddressesPage
+    , serveCustomerHistory
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
@@ -160,16 +152,9 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> servePostXPubWallet tr env dbDir ul
         :<|> serveDeleteWallet ul dbDir
         :<|> serveDeleteWalletModal ul
-        :<|> ( \c ->
-                wsl
-                    ( \l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c
-                    )
-             )
-        :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
+        :<|> serveCustomerHistory ul
+        :<|> serveAddressesPage ul
         :<|> serveNavigation ul
-  where
-    alert = renderHtml . alertH
-    wsl f = withSessionLayer ul $ \l -> f l
 
 serveTabPage
     :: UILayer s
