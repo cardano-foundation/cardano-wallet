@@ -22,6 +22,8 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , WithCopy (..)
     , tdEnd
     , thEnd
+    , overlayFakeDataH
+    , imageOverlay
     )
 where
 
@@ -53,6 +55,8 @@ import Lucid
     , class_
     , div_
     , id_
+    , img_
+    , src_
     , style_
     , td_
     , th_
@@ -86,7 +90,8 @@ showLocalTime = do
         $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" . utcToLocalTime zone
 
 justifyRight :: ToHtml b => b -> Html ()
-justifyRight = div_ [class_ "d-flex justify-content-end align-items-center"] . toHtml
+justifyRight =
+    div_ [class_ "d-flex justify-content-end align-items-center"] . toHtml
 
 linkText :: Link -> Text
 linkText = T.pack . ('/' :) . show . linkURI
@@ -116,11 +121,13 @@ type AlertH = BL.ByteString -> Html ()
 
 monospaced :: Monad m => HtmlT m ()
 monospaced =
-    style_ ".monospaced {font-family: \"Courier New\",monospace !important;}"
+    style_
+        ".monospaced {font-family: \"Courier New\",monospace !important;}"
 
 data WithCopy = WithCopy | WithoutCopy
 
-truncatableText :: Monad m => WithCopy -> Text -> HtmlT m () -> HtmlT m ()
+truncatableText
+    :: Monad m => WithCopy -> Text -> HtmlT m () -> HtmlT m ()
 truncatableText copy identifier h =
     div_ [class_ "d-flex justify-content-end align-items-center"] $ do
         div_
@@ -136,6 +143,22 @@ tdEnd :: Monad m => HtmlT m () -> HtmlT m ()
 tdEnd = td_ [class_ "text-end p-1 align-bottom"]
 
 thEnd :: Monad m => Maybe Int -> HtmlT m () -> HtmlT m ()
-thEnd mw = th_ $ [class_ "text-end p-1 align-bottom"
-    , style_ "background:#26264d;"] <>
-    maybe [] (\w -> [style_ $ "width: " <> T.pack (show w) <> "em;"]) mw
+thEnd mw =
+    th_
+        $ [ class_ "text-end p-1 align-bottom"
+          , style_ "background:#26264d;"
+          ]
+            <> maybe [] (\w -> [style_ $ "width: " <> T.pack (show w) <> "em;"]) mw
+
+imageOverlay :: Monad m => HtmlT m ()
+imageOverlay =
+    style_ []
+        $ toHtml @String
+            ".overlay-image { position: absolute; top: 0; left: 0; z-index: 10;\
+            \ width: 100%; opacity: 5%; pointer-events: none }"
+
+overlayFakeDataH :: Monad m => Link -> HtmlT m () -> HtmlT m ()
+overlayFakeDataH fakeDataBackgroundLink x =
+    div_ [style_ "position: relative;"] $ do
+        x
+        img_ [class_ "overlay-image", src_ $ linkText fakeDataBackgroundLink]

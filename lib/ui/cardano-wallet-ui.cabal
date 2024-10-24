@@ -61,10 +61,12 @@ library
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Deposit.Handlers.Addresses
+    Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     Cardano.Wallet.UI.Deposit.Handlers.Lib
     Cardano.Wallet.UI.Deposit.Handlers.Wallet
     Cardano.Wallet.UI.Deposit.Html.Pages.About
     Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
+    Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server

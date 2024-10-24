@@ -56,7 +56,19 @@ import Servant
     )
 import Web.FormUrlEncoded
     ( FromForm (..)
+    , lookupMaybe
     , parseUnique
+    )
+
+import Cardano.Wallet.Read
+    ( SlotNo (..)
+    , WithOrigin (..)
+    )
+import Cardano.Wallet.UI.Lib.Time.Direction
+    ( Direction (..)
+    )
+import Data.Maybe
+    ( isJust
     )
 
 import qualified Data.ByteString.Lazy as BL
@@ -104,6 +116,9 @@ type Data =
         :<|> "settings" :> "sse" :> "toggle" :> SessionedHtml Post
         :<|> "sse" :> (CookieRequest :> SSE)
         :<|> "favicon.ico" :> Get '[Image] BL.ByteString
+        :<|> "images"
+            :> "fake-data.png"
+            :> Get '[Image] BL.ByteString
         :<|> "wallet"
             :> "mnemonic"
             :> QueryParam "clean" Bool
@@ -125,9 +140,65 @@ type Data =
             :> SessionedHtml Post
         :<|> "addresses" :> SessionedHtml Get
         :<|> "navigation" :> QueryParam "page" Page :> SessionedHtml Get
+        :<|> "customer"
+            :> "transactions"
+            :> "history"
+            :> ReqBody '[FormUrlEncoded] TransactionHistoryParams
+            :> SessionedHtml Post
+
+instance FromHttpApiData Direction where
+    parseUrlPiece "asc" = Right Asc
+    parseUrlPiece "desc" = Right Desc
+    parseUrlPiece _ = Left "Invalid sorting direction"
+
+data TransactionHistoryParams = TransactionHistoryParams
+    { txHistoryCustomer :: Customer
+    , txHistoryUTC :: Bool
+    , txHistorySlot :: Bool
+    , txHistorySpent :: Bool
+    , txHistoryReceived :: Bool
+    , txHistorySorting :: Direction
+    , txHistoryStartYear :: Int
+    , txHistoryStartMonth :: Int
+    }
 
 instance FromForm Customer where
     fromForm form = fromIntegral @Int <$> parseUnique "customer" form
+
+instance FromForm TransactionHistoryParams where
+    fromForm form = do
+        utc <- isJust <$> lookupMaybe "utc" form
+        customer <- fromIntegral @Int <$> parseUnique "customer" form
+        slot <- isJust <$> lookupMaybe "slot" form
+        spent <- isJust <$> lookupMaybe "spent" form
+        received <- isJust <$> lookupMaybe "received" form
+        sorting <- parseUnique "sorting" form
+        year <- parseUnique "start-year" form
+        month <- parseUnique "start-month" form
+        pure
+            $ TransactionHistoryParams
+                customer
+                utc
+                slot
+                spent
+                received
+                sorting
+                year
+                month
+
+instance FromHttpApiData SlotNo where
+    parseUrlPiece = fmap SlotNo . parseUrlPiece
+
+instance FromHttpApiData t => FromHttpApiData (WithOrigin t) where
+    parseUrlPiece "Origin" = pure Origin
+    parseUrlPiece t = At <$> parseUrlPiece t
+
+instance ToHttpApiData SlotNo where
+    toUrlPiece (SlotNo t) = toUrlPiece t
+
+instance ToHttpApiData t => ToHttpApiData (WithOrigin t) where
+    toUrlPiece Origin = "Origin"
+    toUrlPiece (At t) = toUrlPiece t
 
 type Home = SessionedHtml Get
 
@@ -143,14 +214,15 @@ homePageLink :: Link
 aboutPageLink :: Link
 networkPageLink :: Link
 settingsPageLink :: Link
+walletPageLink :: Link
 addressesPageLink :: Link
 networkInfoLink :: Link
 settingsGetLink :: Link
 settingsSseToggleLink :: Link
 sseLink :: Link
 faviconLink :: Link
+fakeDataBackgroundLink :: Link
 walletMnemonicLink :: Maybe Bool -> Link
-walletPageLink :: Link
 walletLink :: Link
 walletPostMnemonicLink :: Link
 walletPostXPubLink :: Link
@@ -159,6 +231,7 @@ walletDeleteModalLink :: Link
 customerAddressLink :: Link
 addressesLink :: Link
 navigationLink :: Maybe Page -> Link
+customerHistoryLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -170,6 +243,7 @@ homePageLink
     :<|> settingsSseToggleLink
     :<|> sseLink
     :<|> faviconLink
+    :<|> fakeDataBackgroundLink
     :<|> walletMnemonicLink
     :<|> walletLink
     :<|> walletPostMnemonicLink
@@ -178,5 +252,6 @@ homePageLink
     :<|> walletDeleteModalLink
     :<|> customerAddressLink
     :<|> addressesLink
-    :<|> navigationLink =
+    :<|> navigationLink
+    :<|> customerHistoryLink =
         allLinks (Proxy @UI)
