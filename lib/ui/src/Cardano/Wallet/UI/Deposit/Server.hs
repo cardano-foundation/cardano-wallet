@@ -110,6 +110,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( deleteWalletModalH
     , walletElementH
     )
+import Cardano.Wallet.UI.Deposit.Server.Lib
+    ( showTime
+    )
 import Control.Monad.Trans
     ( MonadIO (..)
     )
@@ -121,11 +124,6 @@ import Data.Functor
     )
 import Data.Text
     ( Text
-    )
-import Data.Time
-    ( UTCTime
-    , defaultTimeLocale
-    , formatTime
     )
 import Lucid
     ( class_
@@ -142,9 +140,6 @@ import Servant
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Data.ByteString.Lazy as BL
-
-showTime :: UTCTime -> String
-showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 
 serveUI
     :: forall n
@@ -165,18 +160,31 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> ph Settings
         :<|> ph Wallet
         :<|> ph Addresses
-        :<|> sessioning (renderSmoothHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
-        :<|> wsl (\l -> getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink))
+        :<|> sessioning
+            ( renderSmoothHtml . networkInfoH showTime
+                <$> getNetworkInformation nid nl mode
+            )
+        :<|> wsl
+            ( \l ->
+                getState l (renderSmoothHtml . settingsStateH settingsSseToggleLink)
+            )
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
-        :<|> (\c -> sessioning $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
+        :<|> ( \c ->
+                sessioning
+                    $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c)
+             )
         :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
         :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
         :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
         :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
         :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
-        :<|> (\c -> wsl (\l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c))
+        :<|> ( \c ->
+                wsl
+                    ( \l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c
+                    )
+             )
         :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
         :<|> serveNavigation -- (\l -> getAddresses l (renderSmoothHtml . headerElementH _ _ _))
   where
