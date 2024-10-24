@@ -7,11 +7,6 @@
 -- Mock implementation of a 'NetworkEnv'.
 module Cardano.Wallet.Deposit.IO.Network.Mock
     ( newNetworkEnvMock
-    , unsafeUTCTimeOfSlot
-    , unsafeSlotsToUTCTimes
-    , unsafeSlotOfUTCTime
-    , originTime
-    , shelleyTime
     ) where
 
 import Prelude
@@ -21,11 +16,6 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
-    )
-import Cardano.Wallet.Read
-    ( Slot
-    , SlotNo (..)
-    , WithOrigin (..)
     )
 import Control.Concurrent.Class.MonadSTM
     ( MonadSTM
@@ -39,9 +29,6 @@ import Control.Concurrent.Class.MonadSTM
 import Control.Monad
     ( forever
     )
-import Control.Monad.Class.MonadTime
-    ( UTCTime
-    )
 import Control.Monad.Class.MonadTimer
     ( MonadDelay
     , threadDelay
@@ -52,24 +39,10 @@ import Data.Foldable
 import Data.List.NonEmpty
     ( NonEmpty ((:|))
     )
-import Data.Map.Strict
-    ( Map
-    )
-import Data.Maybe
-    ( maybeToList
-    )
-import Data.Set
-    ( Set
-    )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime
-    , utcTimeToPOSIXSeconds
-    )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Time as Time
 import qualified Cardano.Wallet.Deposit.Write as Write
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
     Mock implementation of 'NetworkEnv'
@@ -116,45 +89,8 @@ newNetworkEnvMock = do
                 -- brief delay to account for asynchronous chain followers
                 threadDelay 100
                 pure $ Right ()
-            , slotsToUTCTimes = pure . unsafeSlotsToUTCTimes
-            , utcTimeToSlot = pure . Just . unsafeSlotOfUTCTime
+            , getTimeInterpreter =
+                pure Time.mockTimeInterpreter
+            , slotsToUTCTimes = pure . Time.unsafeSlotsToUTCTimes
+            , utcTimeToSlot = pure . Just . Time.unsafeSlotOfUTCTime
             }
-
-unsafeSlotsToUTCTimes :: Set Slot -> Map Slot (WithOrigin UTCTime)
-unsafeSlotsToUTCTimes slots =
-    Map.fromList $ do
-        slot <- Set.toList slots
-        time <- maybeToList $ unsafeUTCTimeOfSlot slot
-        pure (slot, time)
-
-unsafeUTCTimeOfSlot :: Slot -> Maybe (WithOrigin UTCTime)
-unsafeUTCTimeOfSlot Origin = Just Origin
-unsafeUTCTimeOfSlot (At (SlotNo n)) =
-    Just . At
-        $ posixSecondsToUTCTime
-        $ fromIntegral pt
-  where
-    pts = fromIntegral n - byronSlots
-    pt =
-        if pts >= 0
-            then shelleyTime + pts
-            else shelleyTime + pts * 20
-
-unsafeSlotOfUTCTime :: UTCTime -> Read.Slot
-unsafeSlotOfUTCTime t
-    | origin = Origin
-    | byron = At $ SlotNo $ fromIntegral $ (pt - originTime) `div` 20
-    | otherwise = At $ SlotNo $ fromIntegral $ pt - shelleyTime + byronSlots
-  where
-    pt = floor $ utcTimeToPOSIXSeconds t
-    origin = pt < originTime
-    byron = pt < shelleyTime
-
-byronSlots :: Integer
-byronSlots = 4924800
-
-shelleyTime :: Integer
-shelleyTime = 1596491091
-
-originTime :: Integer
-originTime = shelleyTime - byronSlots * 20

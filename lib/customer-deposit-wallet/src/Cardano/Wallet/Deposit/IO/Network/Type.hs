@@ -43,6 +43,7 @@ import GHC.Generics
     )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Time as Time
 import qualified Cardano.Wallet.Deposit.Write as Write
 
 {-----------------------------------------------------------------------------
@@ -59,6 +60,9 @@ data NetworkEnv m block = NetworkEnv
         :: Write.Tx
         -> m (Either ErrPostTx ())
     -- ^ Post a transaction to the Cardano network.
+    , getTimeInterpreter
+        :: m Time.TimeInterpreter
+        -- ^ Get the current 'TimeInterpreter' from the Cardano node.
     , slotsToUTCTimes
         :: Set Slot
         -> m (Map Slot (WithOrigin UTCTime))
@@ -73,14 +77,10 @@ mapBlock
     => (block1 -> block2)
     -> NetworkEnv m block1
     -> NetworkEnv m block2
-mapBlock f NetworkEnv{chainSync, postTx, slotsToUTCTimes, utcTimeToSlot} =
-    NetworkEnv
-        { chainSync = \tr follower ->
-            chainSync tr (mapChainFollower id id id (fmap f) follower)
-        , postTx = postTx
-        , slotsToUTCTimes = slotsToUTCTimes
-        , utcTimeToSlot = utcTimeToSlot
-        }
+mapBlock f env@NetworkEnv{chainSync} = env
+    { chainSync = \tr follower ->
+        chainSync tr (mapChainFollower id id id (fmap f) follower)
+    }
 
 {-------------------------------------------------------------------------------
     Errors
