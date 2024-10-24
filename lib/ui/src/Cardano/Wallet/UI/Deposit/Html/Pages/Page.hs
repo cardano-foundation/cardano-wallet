@@ -14,6 +14,9 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( imageOverlay
+    )
 import Cardano.Wallet.UI.Common.Html.Modal
     ( modalsH
     )
@@ -38,11 +41,6 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     )
 import Cardano.Wallet.UI.Deposit.API
     ( Page (..)
-    , _About
-    , _Addresses
-    , _Network
-    , _Settings
-    , _Wallet
     , aboutPageLink
     , addressesPageLink
     , faviconLink
@@ -53,6 +51,11 @@ import Cardano.Wallet.UI.Deposit.API
     , settingsPageLink
     , sseLink
     , walletPageLink
+    , _About
+    , _Addresses
+    , _Network
+    , _Settings
+    , _Wallet
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
@@ -94,6 +97,7 @@ page c p = RawHtml
         bodyH sseLink (headerH p)
             $ do
                 modalsH
+                imageOverlay
                 case p of
                     About -> aboutH
                     Network -> networkH networkInfoLink

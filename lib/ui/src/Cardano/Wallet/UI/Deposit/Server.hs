@@ -21,6 +21,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     )
@@ -85,6 +88,7 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
 import Cardano.Wallet.UI.Deposit.Server.Addresses
     ( serveAddressesPage
     , serveCustomerHistory
+    , serveGetAddress
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
@@ -123,9 +127,10 @@ import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Data.ByteString.Lazy as BL
 
 serveUI
-    :: forall n
+    :: forall n x
      . HasSNetworkId n
     => Tracer IO String
+    -> NetworkEnv IO x
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -134,7 +139,7 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr ul env dbDir config nid nl bs =
+serveUI tr network ul env dbDir config nid nl bs =
     serveTabPage ul config Wallet
         :<|> serveTabPage ul config About
         :<|> serveTabPage ul config Network
@@ -146,15 +151,17 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveToggleSSE ul
         :<|> serveSSE ul
         :<|> serveFavicon
+        :<|> serveFakeDataBackground
         :<|> serveMnemonic
         :<|> serveWalletPage ul
         :<|> servePostMnemonicWallet tr env dbDir ul
         :<|> servePostXPubWallet tr env dbDir ul
         :<|> serveDeleteWallet ul dbDir
         :<|> serveDeleteWalletModal ul
-        :<|> serveCustomerHistory ul
+        :<|> serveGetAddress ul
         :<|> serveAddressesPage ul
         :<|> serveNavigation ul
+        :<|> serveCustomerHistory network ul
 
 serveTabPage
     :: UILayer s
@@ -172,6 +179,11 @@ serveNavigation
 serveNavigation ul mp = withSessionLayer ul $ \l -> do
     wp <- walletPresence l
     pure $ renderSmoothHtml $ headerElementH mp wp
+
+serveFakeDataBackground :: Handler BL.ByteString
+serveFakeDataBackground = do
+    file <- liftIO $ getDataFileName "data/images/fake-data.png"
+    liftIO $ BL.readFile file
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
