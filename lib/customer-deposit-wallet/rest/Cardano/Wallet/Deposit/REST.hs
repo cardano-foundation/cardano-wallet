@@ -37,6 +37,8 @@ module Cardano.Wallet.Deposit.REST
     , availableBalance
     , getCustomerHistory
     , getValueTransfers
+    , ResolveAddress
+    , addressToCustomer
 
       -- ** Writing to the blockchain
     , createPayment
@@ -133,6 +135,7 @@ import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------
     Types
@@ -368,6 +371,14 @@ listCustomers = onWalletInstance WalletIO.listCustomers
 -- | Retrieve the address for a customer if it's tracked by the wallet.
 customerAddress :: Customer -> WalletResourceM (Maybe Address)
 customerAddress = onWalletInstance . WalletIO.customerAddress
+
+type ResolveAddress = Address -> Maybe Customer
+
+addressToCustomer :: WalletResourceM ResolveAddress
+addressToCustomer = do
+    customers <- listCustomers
+    pure $ \address ->
+        Map.lookup address . Map.fromList . fmap (\(a, c) -> (c, a)) $ customers
 
 {-----------------------------------------------------------------------------
     Operations
