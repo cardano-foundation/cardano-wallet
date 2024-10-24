@@ -14,6 +14,9 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
+import Cardano.Wallet.UI.Common.Html.Lib
+    ( imageOverlay
+    )
 import Cardano.Wallet.UI.Common.Html.Modal
     ( modalsH
     )
@@ -94,6 +97,7 @@ page c p = RawHtml
         bodyH sseLink (headerH p)
             $ do
                 modalsH
+                imageOverlay
                 case p of
                     About -> aboutH
                     Network -> networkH networkInfoLink
