@@ -73,6 +73,7 @@ library
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Lib.Pagination.Map
     Cardano.Wallet.UI.Lib.Pagination.Type
+    Cardano.Wallet.UI.Lib.Time.Direction
     Cardano.Wallet.UI.Shelley.API
     Cardano.Wallet.UI.Shelley.Handlers.Addresses
     Cardano.Wallet.UI.Shelley.Handlers.Wallet
