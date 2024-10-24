@@ -23,8 +23,6 @@ import Cardano.Wallet.Deposit.IO
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
-    , deleteWallet
-    , initXPubWallet
     )
 import Cardano.Wallet.Network
     ( NetworkLayer
@@ -50,16 +48,12 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     )
-import Cardano.Wallet.UI.Common.Handlers.Wallet
-    ( pickMnemonic
-    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( alertH
-    , rogerH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Network
     ( networkInfoH
@@ -69,9 +63,6 @@ import Cardano.Wallet.UI.Common.Html.Pages.Settings
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig
-    )
-import Cardano.Wallet.UI.Common.Html.Pages.Wallet
-    ( mnemonicH
     )
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
@@ -91,12 +82,6 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Wallet
-    ( deleteWalletHandler
-    , getWallet
-    , postMnemonicWallet
-    , postXPubWallet
-    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
     , customerAddressH
@@ -106,12 +91,16 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     , headerElementH
     , page
     )
-import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
-    ( deleteWalletModalH
-    , walletElementH
-    )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( showTime
+    )
+import Cardano.Wallet.UI.Deposit.Server.Wallet
+    ( serveDeleteWallet
+    , serveDeleteWalletModal
+    , serveMnemonic
+    , servePostMnemonicWallet
+    , servePostXPubWallet
+    , serveWalletPage
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -121,9 +110,6 @@ import Control.Tracer
     )
 import Data.Functor
     ( ($>)
-    )
-import Data.Text
-    ( Text
     )
 import Lucid
     ( class_
@@ -171,36 +157,31 @@ serveUI tr ul env dbDir config _ nl bs =
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> withSessionLayerRead ul (sse . sseConfig)
         :<|> serveFavicon
-        :<|> ( \c ->
-                sessioning
-                    $ renderSmoothHtml . mnemonicH <$> liftIO (pickMnemonic 15 c)
-             )
-        :<|> wsl (\l -> getWallet l (renderSmoothHtml . walletElementH alertH))
-        :<|> (\v -> wsl (\l -> postMnemonicWallet l initWallet alert ok v))
-        :<|> (\v -> wsl (\l -> postXPubWallet l initWallet alert ok v))
-        :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
-        :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
+        :<|> serveMnemonic
+        :<|> serveWalletPage ul
+        :<|> servePostMnemonicWallet tr env dbDir ul
+        :<|> servePostXPubWallet tr env dbDir ul
+        :<|> serveDeleteWallet ul dbDir
+        :<|> serveDeleteWalletModal ul
         :<|> ( \c ->
                 wsl
                     ( \l -> getCustomerAddress l (renderSmoothHtml . customerAddressH) alert c
                     )
              )
         :<|> wsl (\l -> getAddresses l (renderSmoothHtml . addressElementH alertH))
-        :<|> serveNavigation -- (\l -> getAddresses l (renderSmoothHtml . headerElementH _ _ _))
+        :<|> serveNavigation
   where
     serveNavigation mp = wsl $ \l -> do
         wp <- walletPresence l
 
         pure $ renderSmoothHtml $ headerElementH mp wp
     ph p = wsl $ \_ -> pure $ page config p
-    ok _ = renderHtml . rogerH @Text $ "ok"
     alert = renderHtml . alertH
     nid = networkIdVal (sNetworkId @n)
     mode = case bs of
         NodeSource{} -> Node
     _ = networkInfoH
     wsl f = withSessionLayer ul $ \l -> f l
-    initWallet = initXPubWallet tr env dbDir
     renderSmoothHtml response = renderHtml $ div_ [class_ "smooth"] response
 
 serveFavicon :: Handler BL.ByteString
