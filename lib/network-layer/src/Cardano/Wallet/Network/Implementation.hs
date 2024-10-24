@@ -392,7 +392,6 @@ import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Internal.Cardano.Write.Tx as Write
 import qualified Ouroboros.Consensus.Cardano.Block as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger.Mempool as Consensus
 
@@ -430,7 +429,7 @@ withNetworkLayer tr pipeliningStrategy np conn ver tol action = do
 
 -- | Network parameters and protocol parameters for the node's current tip.
 data NetworkParams = NetworkParams
-    { protocolParams :: MaybeInRecentEra Write.PParams
+    { protocolParams :: Read.EraValue Read.PParams
     , protocolParamsLegacy :: ProtocolParameters
     , slottingParamsLegacy :: SlottingParameters
     }
@@ -514,11 +513,11 @@ withNodeNetworkLayerBase
                     readCurrentNodeEra
                 , watchNodeTip =
                     _watchNodeTip readNodeTip
+                , currentPParams =
+                    protocolParams <$> atomically (readTMVar networkParamsVar)
                 , currentProtocolParameters =
                     protocolParamsLegacy
                         <$> atomically (readTMVar networkParamsVar)
-                , currentProtocolParametersInRecentEras =
-                    protocolParams <$> atomically (readTMVar networkParamsVar)
                 , currentSlottingParameters =
                     slottingParamsLegacy
                         <$> atomically (readTMVar networkParamsVar)
