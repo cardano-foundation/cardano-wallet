@@ -7,9 +7,16 @@ import Cardano.Wallet.Deposit.IO.Resource
     ( ResourceStatus (..)
     , readStatus
     )
+import Cardano.Wallet.Deposit.Pure
+    ( Customer
+    )
+import Cardano.Wallet.Deposit.Read
+    ( Address
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
+    , listCustomers
     , runWalletResourceM
     , walletPublicIdentity
     )
@@ -39,6 +46,7 @@ import Servant
 
 import qualified Cardano.Wallet.Deposit.REST.Catch as REST
 import qualified Data.ByteString.Lazy.Char8 as BL
+import qualified Data.Map.Strict as Map
 
 catchRunWalletResourceM
     :: SessionLayer WalletResource
@@ -71,3 +79,9 @@ walletPresence session = catchRunWalletResourceM session $ do
         FailedToOpen e -> pure $ WalletFailedToInitialize e
         Opening -> pure WalletInitializing
         Closing -> pure WalletClosing
+
+solveAddress :: WalletResourceM (Address -> Maybe Customer)
+solveAddress = do
+    customers <- listCustomers
+    pure $ \address ->
+        Map.lookup address . Map.fromList . fmap (\(a, c) -> (c, a)) $ customers

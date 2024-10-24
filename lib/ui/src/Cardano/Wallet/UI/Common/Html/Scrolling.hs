@@ -68,7 +68,8 @@ changes
     -- ^ The index that entered the viewport.
     -> m [Change index]
 changes configuration presences signal = case Set.toList presences of
-    [_] -> onNext signal Add
+    [_] -> do
+        onNext signal Add
     -- we cannot expand in the past as sadly htmx will focus on the new element
     -- and we will loop on it as it is revealed straight away
     [p0, p1]
@@ -92,8 +93,8 @@ changes configuration presences signal = case Set.toList presences of
         pure $ case nextIndex of
             Nothing -> []
             Just j -> [f dir j]
-    onNext = onAny After next
-    onPrevious = onAny Before previous
+    onNext = onAny After nextIndex
+    onPrevious = onAny Before previousIndex
 
 -- | Render a 'Change' to the scrolling table as a series of out-of-band
 -- updates.
@@ -135,11 +136,11 @@ data Configuration m index = Configuration
     -- ^ Render the rows for the given index.
     , uniqueScrollingId :: Text
     -- ^ A unique identifier for the scrolling table.
-    , previous :: index -> m (Maybe index)
+    , nextIndex :: index -> m (Maybe index)
     -- ^ Get the previous index if it exists.
-    , next :: index -> m (Maybe index)
+    , previousIndex :: index -> m (Maybe index)
     -- ^ Get the next index if it exists.
-    , start :: m (Maybe index)
+    , minIndex :: m (Maybe index)
     -- ^ The initial index.
     , renderIndex :: index -> Text
     -- ^ Render an index as a 'Text' to be used in queries
@@ -255,7 +256,7 @@ setup
     => Configuration m index
     -> m ([Attribute] -> Html ())
 setup c = do
-    mzero <- start c
+    mzero <- minIndex c
     case mzero of
         Nothing -> pure mempty
         Just zero -> do

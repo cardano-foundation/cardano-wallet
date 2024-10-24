@@ -1,14 +1,13 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Server
     ( serveUI
-    ) where
+    , CachingTxHistory(..)) where
 
 import Prelude
 
@@ -23,6 +22,9 @@ import Cardano.Wallet.Deposit.IO
     )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv
+    )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByTime
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
@@ -90,6 +92,15 @@ import Cardano.Wallet.UI.Deposit.Server.Addresses
     , serveCustomerHistory
     , serveGetAddress
     )
+import Cardano.Wallet.UI.Deposit.Server.Deposits
+    ( serveDeposits
+    , serveDepositsCustomerPagination
+    , serveDepositsCustomers
+    , serveDepositsCustomersTxIds
+    , serveDepositsCustomersTxIdsPagination
+    , serveDepositsPage
+    , serveDepositsPagination
+    )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
     , showTime
@@ -126,6 +137,11 @@ import Servant.Types.SourceT
 import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Data.ByteString.Lazy as BL
 
+data CachingTxHistory s = CachingTxHistory
+    { state :: s
+    , cached :: ByTime
+    }
+
 serveUI
     :: forall n x
      . HasSNetworkId n
@@ -146,6 +162,7 @@ serveUI tr network ul env dbDir config nid nl bs =
         :<|> serveTabPage ul config Settings
         :<|> serveTabPage ul config Wallet
         :<|> serveTabPage ul config Addresses
+        :<|> serveTabPage ul config Deposits
         :<|> serveNetworkInformation nid nl bs
         :<|> serveSSESettings ul
         :<|> serveToggleSSE ul
@@ -162,6 +179,56 @@ serveUI tr network ul env dbDir config nid nl bs =
         :<|> serveAddressesPage ul
         :<|> serveNavigation ul
         :<|> serveCustomerHistory network ul
+        :<|> serveDepositsPage ul
+        :<|> serveDeposits ul
+        :<|> serveDepositsPagination ul
+        :<|> serveDepositsCustomers ul
+        :<|> serveDepositsCustomerPagination ul
+        :<|> serveDepositsCustomersTxIds ul
+        :<|> serveDepositsCustomersTxIdsPagination ul
+
+-- serveTabPage
+--     :: UILayer s
+--     -> PageConfig
+--     -> Page
+--     -> Maybe RequestCookies
+--     -> Handler (CookieResponse RawHtml)
+-- serveTabPage ul config p = withSessionLayer ul $ \_ -> pure $ page config p
+
+-- serveNavigation
+--     :: UILayer WalletResource
+--     -> Maybe Page
+--     -> Maybe RequestCookies
+--     -> Handler (CookieResponse RawHtml)
+-- serveNavigation ul mp = withSessionLayer ul $ \l -> do
+--     wp <- walletPresence l
+--     pure $ renderSmoothHtml $ headerElementH mp wp
+
+-- serveFakeDataBackground :: Handler BL.ByteString
+-- serveFakeDataBackground = do
+--     file <- liftIO $ getDataFileName "data/images/fake-data.png"
+--     liftIO $ BL.readFile file
+
+-- serveFavicon :: Handler BL.ByteString
+-- serveFavicon = do
+--     file <- liftIO $ getDataFileName "data/images/icon.png"
+--     liftIO $ BL.readFile file
+
+-- serveNetworkInformation
+--     :: forall n
+--      . HasSNetworkId n
+--     => SNetworkId n
+--     -> NetworkLayer IO Read.ConsensusBlock
+--     -> BlockchainSource
+--     -> Maybe RequestCookies
+--     -> Handler (CookieResponse RawHtml)
+-- serveNetworkInformation _ nl bs =
+--     sessioning
+--         $ renderSmoothHtml . networkInfoH showTime
+--             <$> getNetworkInformation nid nl mode
+--   where
+--     serveNavigation mp = wsl $ \l -> do
+--         wp <- walletPresence l
 
 serveTabPage
     :: UILayer s
