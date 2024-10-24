@@ -68,6 +68,7 @@ library
     Cardano.Wallet.UI.Deposit.Html.Pages.Page
     Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     Cardano.Wallet.UI.Deposit.Server
+    Cardano.Wallet.UI.Deposit.Server.Lib
     Cardano.Wallet.UI.Lib.Address
     Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
