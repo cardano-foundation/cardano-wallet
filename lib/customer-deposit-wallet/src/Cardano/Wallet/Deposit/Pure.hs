@@ -28,10 +28,9 @@ module Cardano.Wallet.Deposit.Pure
     , rollForwardMany
     , rollForwardOne
     , rollBackward
-    , TxSummary (..)
     , ValueTransfer (..)
-    , getCustomerHistory
-    , getValueTransfers
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
 
       -- ** Writing to the blockchain
     , createPayment
@@ -44,7 +43,6 @@ module Cardano.Wallet.Deposit.Pure
 
       -- * Internal, for testing
     , availableUTxO
-    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -57,8 +55,10 @@ import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
     , DerivationType (..)
     )
-import Cardano.Wallet.Deposit.Pure.TxSummary
-    ( TxSummary (..)
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByCustomer
+    , ByTime
+    , TxHistory (..)
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
@@ -75,18 +75,8 @@ import Data.Foldable
 import Data.List.NonEmpty
     ( NonEmpty
     )
-import Data.Map.Strict
-    ( Map
-    )
-import Data.Maps.PairMap
-    ( PairMap (..)
-    )
-import Data.Maps.Timeline
-    ( Timeline (eventsByTime)
-    )
 import Data.Maybe
     ( mapMaybe
-    , maybeToList
     )
 import Data.Set
     ( Set
@@ -99,13 +89,11 @@ import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.RollbackWindow as Rollback
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
-import qualified Cardano.Wallet.Deposit.Pure.TxHistory as TxHistory
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
@@ -117,7 +105,7 @@ data WalletState = WalletState
     { walletTip :: Read.ChainPoint
     , addresses :: !Address.AddressState
     , utxoHistory :: !UTxOHistory.UTxOHistory
-    , txHistory :: !TxHistory.TxHistory
+    , txHistory :: !TxHistory
     , submissions :: Sbm.TxSubmissions
     , rootXSignKey :: Maybe XPrv
     -- , info :: !WalletInfo
@@ -187,7 +175,7 @@ fromXPubAndGenesis xpub knownCustomerCount genesisData =
         , addresses =
             Address.fromXPubAndCount network xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
-        , txHistory = TxHistory.empty
+        , txHistory = mempty
         , submissions = Sbm.empty
         , rootXSignKey = Nothing
         }
@@ -265,29 +253,11 @@ availableUTxO w =
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
 
-getCustomerHistory :: Customer -> WalletState -> Map Read.TxId TxSummary
-getCustomerHistory c state =
-    case customerAddress c state of
-        Nothing -> mempty
-        Just addr -> TxHistory.getAddressHistory addr (txHistory state)
+getTxHistoryByCustomer :: WalletState -> ByCustomer
+getTxHistoryByCustomer state = byCustomer $ txHistory state
 
--- TODO: Return an error if any of the `ChainPoint` are no longer
--- part of the consensus chain?
-getValueTransfers :: WalletState -> Map Read.Slot (Map Address ValueTransfer)
-getValueTransfers state = TxHistory.getValueTransfers (txHistory state)
-
-getValueTransfersWithTxIds
-    :: WalletState
-    -> Map Read.Slot (Map Address (Map Read.TxId ValueTransfer))
-getValueTransfersWithTxIds state =
-    restrictByTxId <$> eventsByTime (TxHistory.txIds history)
-  where
-    history = txHistory state
-    restrictByTxId :: Set Read.TxId -> Map Address (Map Read.TxId ValueTransfer)
-    restrictByTxId txIds = Map.unionsWith (<>) $ do
-        txId <- Set.toList txIds
-        x <- maybeToList $ Map.lookup txId $ mab (TxHistory.txTransfers history)
-        pure $ fmap (Map.singleton txId) x
+getTxHistoryByTime :: WalletState -> ByTime
+getTxHistoryByTime state = byTime $ txHistory state
 
 {-----------------------------------------------------------------------------
     Operations

@@ -23,8 +23,8 @@ module Cardano.Wallet.Deposit.IO
       -- ** Reading from the blockchain
     , getWalletTip
     , availableBalance
-    , getCustomerHistory
-    , getValueTransfers
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
 
       -- ** Writing to the blockchain
     , createPayment
@@ -32,7 +32,6 @@ module Cardano.Wallet.Deposit.IO
     , signTxBody
     , WalletStore
     , walletPublicIdentity
-    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -45,15 +44,16 @@ import Cardano.Wallet.Address.BIP32
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
-    , TxSummary
-    , ValueTransfer
     , WalletPublicIdentity (..)
     , WalletState
     , Word31
     )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByCustomer
+    , ByTime
+    )
 import Cardano.Wallet.Deposit.Read
     ( Address
-    , Slot
     )
 import Cardano.Wallet.Network.Checkpoints.Policy
     ( defaultPolicy
@@ -67,9 +67,6 @@ import Data.Bifunctor
     )
 import Data.List.NonEmpty
     ( NonEmpty
-    )
-import Data.Map.Strict
-    ( Map
     )
 
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
@@ -229,20 +226,14 @@ availableBalance :: WalletInstance -> IO Read.Value
 availableBalance w =
     Wallet.availableBalance <$> readWalletState w
 
-getCustomerHistory :: Customer -> WalletInstance -> IO (Map Read.TxId TxSummary)
-getCustomerHistory c w =
-    Wallet.getCustomerHistory c <$> readWalletState w
+getTxHistoryByCustomer :: WalletInstance -> IO ByCustomer
+getTxHistoryByCustomer w =
+    Wallet.getTxHistoryByCustomer <$> readWalletState w
 
-getValueTransfers
+getTxHistoryByTime
     :: WalletInstance
-    -> IO (Map Slot (Map Address ValueTransfer))
-getValueTransfers w = Wallet.getValueTransfers <$> readWalletState w
-
-getValueTransfersWithTxIds
-    :: WalletInstance
-    -> IO (Map Slot (Map Address (Map Read.TxId ValueTransfer)))
-getValueTransfersWithTxIds w =
-    Wallet.getValueTransfersWithTxIds <$> readWalletState w
+    -> IO ByTime
+getTxHistoryByTime w = Wallet.getTxHistoryByTime <$> readWalletState w
 
 rollForward
     :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()

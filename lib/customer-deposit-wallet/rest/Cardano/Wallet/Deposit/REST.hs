@@ -35,8 +35,8 @@ module Cardano.Wallet.Deposit.REST
       -- ** Reading from the blockchain
     , getWalletTip
     , availableBalance
-    , getCustomerHistory
-    , getValueTransfers
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
     , ResolveAddress
     , addressToCustomer
 
@@ -49,7 +49,6 @@ module Cardano.Wallet.Deposit.REST
     , deleteWallet
     , deleteTheDepositWalletOnDisk
     , customerAddress
-    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -75,6 +74,10 @@ import Cardano.Wallet.Deposit.Pure
     ( Customer
     , Word31
     , fromXPubAndGenesis
+    )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByCustomer
+    , ByTime
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -113,9 +116,6 @@ import Data.ByteArray.Encoding
 import Data.List
     ( isPrefixOf
     )
-import Data.Map.Strict
-    ( Map
-    )
 import Data.Store
     ( Store (..)
     , newStore
@@ -130,7 +130,6 @@ import System.FilePath
 
 import qualified Cardano.Wallet.Deposit.IO as WalletIO
 import qualified Cardano.Wallet.Deposit.IO.Resource as Resource
-import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
@@ -390,23 +389,13 @@ getWalletTip = onWalletInstance WalletIO.getWalletTip
 availableBalance :: WalletResourceM Read.Value
 availableBalance = onWalletInstance WalletIO.availableBalance
 
-getCustomerHistory
-    :: Customer
-    -> WalletResourceM (Map Read.TxId Wallet.TxSummary)
-getCustomerHistory = onWalletInstance . WalletIO.getCustomerHistory
+getTxHistoryByCustomer
+    :: WalletResourceM ByCustomer
+getTxHistoryByCustomer = onWalletInstance WalletIO.getTxHistoryByCustomer
 
-getValueTransfers
-    :: WalletResourceM (Map Read.Slot (Map Address Wallet.ValueTransfer))
-getValueTransfers = onWalletInstance WalletIO.getValueTransfers
-
-getValueTransfersWithTxIds
-    :: WalletResourceM
-        ( Map
-            Read.Slot
-            (Map Address (Map Read.TxId Wallet.ValueTransfer))
-        )
-getValueTransfersWithTxIds =
-    onWalletInstance WalletIO.getValueTransfersWithTxIds
+getTxHistoryByTime
+    :: WalletResourceM ByTime
+getTxHistoryByTime = onWalletInstance WalletIO.getTxHistoryByTime
 
 {-----------------------------------------------------------------------------
     Operations
