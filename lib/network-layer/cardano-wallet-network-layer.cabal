@@ -1,6 +1,6 @@
 cabal-version:   3.6
 name:            cardano-wallet-network-layer
-version:         0.2024.9.29
+version:         0.2024.10.25
 synopsis:        Node communication layer functionality.
 
 -- description:
