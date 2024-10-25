@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
-    ( mockTxHistoryByTime
+    ( mockTxHistory
     )
 where
 
@@ -18,9 +18,9 @@ import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ByTime
-    , ResolveAddress
+    ( ResolveAddress
     , ResolveSlot
+    , TxHistory (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -61,7 +61,7 @@ import System.Random.Stateful
 
 import qualified Cardano.Wallet.Deposit.Time as Time
 
-mockTxHistoryByTime
+mockTxHistory
     :: UTCTime
     -- ^ Current time.
     -> ResolveAddress
@@ -72,8 +72,8 @@ mockTxHistoryByTime
     -- ^ List of addresses to use.
     -> Int
     -- ^ Number of deposits to create.
-    -> ByTime
-mockTxHistoryByTime now solveAddress solveSlot addresses ns =
+    -> TxHistory
+mockTxHistory now solveAddress solveSlot addresses ns =
     runStateGen_ (mkStdGen 0) $ \g -> do
         fmap mconcat
             $ replicateM ns
@@ -101,17 +101,22 @@ mockTxHistoryByTime now solveAddress solveSlot addresses ns =
                 let time = case solveSlot slot of
                         Just t -> t
                         Nothing -> error "fakeDepositsCreate: slot not found"
-                pure
-                    $ singletonMap time
-                    $ singletonPatched (First $ Just slot) customer
-                    $ singletonPatched (First $ Just address) txId
-                    $ Value value
+                    singletonByTime =
+                        singletonMap time
+                            $ singletonPatched (First $ Just slot) customer
+                            $ singletonPatched (First $ Just address) txId
+                            $ Value value
+                    singletonByCustomer =
+                        singletonMap customer
+                            $ singletonPatched (First $ Just address) time
+                            $ singletonPatched (First $ Just slot) txId
+                            $ Value value
+                pure $ TxHistory singletonByCustomer singletonByTime
 
 txIdR :: StatefulGen g m => g -> m TxId
 txIdR g = do
     ls <-
-        fmap (concatMap $ replicate 8)
-            $ replicateM 8
+        replicateM 64
             $ hexOfInt <$> uniformRM (0, 15) g
     pure $ unsafeMkTxId ls
 
