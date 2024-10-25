@@ -19,6 +19,8 @@ module Cardano.Wallet.Deposit.IO
       -- ** Mapping between customers and addresses
     , listCustomers
     , customerAddress
+    , addressToCustomer
+    , ResolveAddress
 
       -- ** Reading from the blockchain
     , getWalletTip
@@ -213,6 +215,13 @@ walletPublicIdentity w = do
             { pubXpub = Wallet.walletXPub state
             , pubNextUser = Wallet.trackedCustomers state
             }
+
+type ResolveAddress = Address -> Maybe Customer
+
+addressToCustomer :: WalletInstance -> IO ResolveAddress
+addressToCustomer w = do
+    state <- readWalletState w
+    pure $ flip Wallet.addressToCustomer state
 
 {-----------------------------------------------------------------------------
     Operations

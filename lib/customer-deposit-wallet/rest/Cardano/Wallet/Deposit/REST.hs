@@ -31,14 +31,15 @@ module Cardano.Wallet.Deposit.REST
 
       -- ** Mapping between customers and addresses
     , listCustomers
+    , customerAddress
+    , addressToCustomer
 
       -- ** Reading from the blockchain
     , getWalletTip
     , availableBalance
     , getTxHistoryByCustomer
     , getTxHistoryByTime
-    , ResolveAddress
-    , addressToCustomer
+    , WalletIO.ResolveAddress
 
       -- ** Writing to the blockchain
     , createPayment
@@ -48,7 +49,6 @@ module Cardano.Wallet.Deposit.REST
     , walletPublicIdentity
     , deleteWallet
     , deleteTheDepositWalletOnDisk
-    , customerAddress
     ) where
 
 import Prelude
@@ -134,7 +134,6 @@ import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map.Strict as Map
 
 {-----------------------------------------------------------------------------
     Types
@@ -159,7 +158,8 @@ data ErrDatabase
     deriving (Show, Eq)
 
 -- | Mutable resource that may hold a 'WalletInstance'.
-type WalletResource = Resource.Resource ErrDatabase WalletIO.WalletInstance
+type WalletResource =
+    Resource.Resource ErrDatabase WalletIO.WalletInstance
 
 -- | Error indicating that the 'WalletResource' does not hold a wallet.
 data ErrWalletResource
@@ -187,7 +187,8 @@ instance Show ErrWalletResource where
             ErrAlreadyClosing -> "Wallet is already closing"
 
 -- | Monad for acting on a 'WalletResource'.
-type WalletResourceM = ReaderT WalletResource (ExceptT ErrWalletResource IO)
+type WalletResourceM =
+    ReaderT WalletResource (ExceptT ErrWalletResource IO)
 
 -- | Run a 'WalletResourceM' action on a 'WalletResource'.
 runWalletResourceM
@@ -292,7 +293,8 @@ loadWallet
     -- ^ Path to the wallet database directory
     -> WalletResourceM ()
 loadWallet bootEnv dir = do
-    let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
+    let action
+            :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk dir $ \case
             Right wallet ->
                 Right
@@ -320,7 +322,8 @@ initXPubWallet
     -- ^ Max number of users ?
     -> WalletResourceM ()
 initXPubWallet tr bootEnv dir xpub users = do
-    let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
+    let action
+            :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = createTheDepositWalletOnDisk tr dir xpub users $ \case
             Just wallet -> do
                 fmap Right
@@ -371,13 +374,8 @@ listCustomers = onWalletInstance WalletIO.listCustomers
 customerAddress :: Customer -> WalletResourceM (Maybe Address)
 customerAddress = onWalletInstance . WalletIO.customerAddress
 
-type ResolveAddress = Address -> Maybe Customer
-
-addressToCustomer :: WalletResourceM ResolveAddress
-addressToCustomer = do
-    customers <- listCustomers
-    pure $ \address ->
-        Map.lookup address . Map.fromList . fmap (\(a, c) -> (c, a)) $ customers
+addressToCustomer :: WalletResourceM WalletIO.ResolveAddress
+addressToCustomer = onWalletInstance WalletIO.addressToCustomer
 
 {-----------------------------------------------------------------------------
     Operations

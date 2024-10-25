@@ -11,6 +11,7 @@ module Cardano.Wallet.Deposit.Pure
       -- ** Mapping between customers and addresses
     , Customer
     , listCustomers
+    , addressToCustomer
     , deriveAddress
     , knownCustomer
     , knownCustomerAddress
@@ -94,6 +95,7 @@ import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
@@ -130,6 +132,13 @@ listCustomers =
 
 customerAddress :: Customer -> WalletState -> Maybe Address
 customerAddress c = lookup c . listCustomers
+
+addressToCustomer :: Address -> WalletState -> Maybe Customer
+addressToCustomer address =
+    Map.lookup address
+        . Map.fromList
+        . fmap (\(a, c) -> (c, a))
+        . listCustomers
 
 -- depend on the public key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)

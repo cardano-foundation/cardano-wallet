@@ -157,7 +157,6 @@ library rest
     , bytestring
     , cardano-addresses
     , cardano-crypto
-    , containers
     , contra-tracer
     , crypto-primitives
     , customer-deposit-wallet
