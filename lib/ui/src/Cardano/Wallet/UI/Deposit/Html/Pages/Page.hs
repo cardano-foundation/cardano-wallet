@@ -41,6 +41,11 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
     )
 import Cardano.Wallet.UI.Deposit.API
     ( Page (..)
+    , _About
+    , _Addresses
+    , _Network
+    , _Settings
+    , _Wallet
     , aboutPageLink
     , addressesPageLink
     , faviconLink
@@ -51,11 +56,6 @@ import Cardano.Wallet.UI.Deposit.API
     , settingsPageLink
     , sseLink
     , walletPageLink
-    , _About
-    , _Addresses
-    , _Network
-    , _Settings
-    , _Wallet
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.About
     ( aboutH
