@@ -95,6 +95,12 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     )
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( newNetworkEnvMock
+    )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
 import Cardano.Wallet.Deposit.IO.Resource
     ( withResource
     )
@@ -435,9 +441,11 @@ serveWallet
                                 )
                                 resource
                             sourceOfNewTip netLayer ui
+                            networkEnv <- liftIO newNetworkEnvMock
                             let uiService =
                                     startDepositUiServer
                                         ui
+                                        networkEnv
                                         databaseDir'
                                         socket
                                         sNetwork
@@ -445,7 +453,7 @@ serveWallet
                                         blockchainSource
                             ContT $ \k ->
                                 withAsync uiService $ \_ -> k ()
-                            pure $ Just (databaseDir', resource)
+                            pure $ Just (databaseDir', resource, networkEnv)
             case eDepositSocket of
                 Left err -> do
                     lift $ trace $ MsgServerStartupError err
@@ -471,7 +479,8 @@ serveWallet
                                                 fakeBootEnv
                                                 resource
                                         pure (databaseDir', resource)
-                                    Just databaseDir' -> pure databaseDir'
+                                    Just (databaseDir', w, _) ->
+                                        pure (databaseDir', w)
                             let depositService =
                                     startDepositServer
                                         resource
@@ -630,10 +639,11 @@ serveWallet
                         socket
                         application
         startDepositUiServer
-            :: forall n
+            :: forall n x
              . ( HasSNetworkId n
                )
             => UILayer WalletResource
+            -> NetworkEnv IO x
             -> FilePath
             -> Socket
             -> SNetworkId n
@@ -642,6 +652,7 @@ serveWallet
             -> IO ()
         startDepositUiServer
             ui
+            networkEnv
             databaseDir'
             socket
             _proxy
@@ -653,6 +664,7 @@ serveWallet
                         Server.serve api
                             $ DepositUi.serveUI
                                 (DepositUIApplicationLog >$< applicationTracer)
+                                networkEnv
                                 ui
                                 fakeBootEnv
                                 databaseDir'

@@ -43,6 +43,6 @@ bodyH
 bodyH sseLink header body = do
     div_ [hxSse_ $ sseConnectFromLink sseLink] $ do
         header
-        div_ [class_ "container-fluid"] $ do
+        div_ [class_ "container-fluid p-0"] $ do
             div_ [class_ "main"] body
     initClipboardScript

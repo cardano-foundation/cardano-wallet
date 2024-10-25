@@ -23,6 +23,7 @@ module Cardano.Wallet.Deposit.Time
     , unsafeSlotsToUTCTimes
     , unsafeSlotOfUTCTime
     , systemStartMainnet
+    , originTime
     ) where
 
 import Prelude
