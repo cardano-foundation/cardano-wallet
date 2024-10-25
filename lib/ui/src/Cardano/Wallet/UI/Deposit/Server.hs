@@ -21,9 +21,6 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
-import Cardano.Wallet.Deposit.IO.Network.Type
-    ( NetworkEnv
-    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     )
@@ -127,10 +124,9 @@ import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Data.ByteString.Lazy as BL
 
 serveUI
-    :: forall n x
+    :: forall n
      . HasSNetworkId n
     => Tracer IO String
-    -> NetworkEnv IO x
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -139,7 +135,7 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr network ul env dbDir config nid nl bs =
+serveUI tr ul env dbDir config nid nl bs =
     serveTabPage ul config Wallet
         :<|> serveTabPage ul config About
         :<|> serveTabPage ul config Network
@@ -161,7 +157,7 @@ serveUI tr network ul env dbDir config nid nl bs =
         :<|> serveGetAddress ul
         :<|> serveAddressesPage ul
         :<|> serveNavigation ul
-        :<|> serveCustomerHistory network ul
+        :<|> serveCustomerHistory ul
 
 serveTabPage
     :: UILayer s

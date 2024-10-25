@@ -123,6 +123,7 @@ library
     , lens
     , lucid
     , memory
+    , monoidal-containers
     , mmorph
     , mtl
     , ntp-client
