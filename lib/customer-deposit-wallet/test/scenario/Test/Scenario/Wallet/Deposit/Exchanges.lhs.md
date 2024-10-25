@@ -33,12 +33,12 @@ import Cardano.Wallet.Deposit.IO
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
-    , TxSummary (..)
     , ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
     , Value
+    , TxId
     )
 import Test.Scenario.Blockchain
     ( ScenarioEnv
@@ -47,10 +47,6 @@ import Test.Scenario.Blockchain
     , payFromFaucet
     , signTx
     , submitTx
-    )
-import Data.Foldable
-    ( toList
-    , fold
     )
 
 import qualified Cardano.Wallet.Deposit.IO as Wallet
@@ -66,8 +62,9 @@ depositFundsAt env address value = payFromFaucet env [(address, value)]
 
 We ignore the mapping from TxId when retrieving the customer history
 ```haskell
-getCustomerHistory :: Customer -> WalletInstance -> IO [TxSummary]
-getCustomerHistory customer w = toList <$> Wallet.getCustomerHistory customer w
+getCustomerDeposits :: Customer -> WalletInstance -> IO [(TxId, ValueTransfer)]
+getCustomerDeposits customer w =
+    Map.toList <$> Wallet.getCustomerDeposits w customer Nothing
 ```
 
 ## 0. Start a Wallet
@@ -123,11 +120,11 @@ scenarioCreateAddressList w = do
 
 As soon as an association between customer and address has been added to the wallet state using `customerAddress`, the wallet will track deposits sent to this address.
 
-The function `getCustomerHistory` returns a `TxSummary` for each transaction that is related to this customer. For every `TxSummary`, the `received` field records the total deposit made by the customer at this address in this transaction.
+The function `getCustomerDeposits` returns a summary for each transaction that is related to this customer. For every summary, the `received` field records the total deposit made by the customer at this address in this transaction.
 
 (The `spent` field has informative purpose only, and records whether the wallet has moved any funds out of this address.)
 
-The following scenario illustrates how `getCustomerHistory` records deposits:
+The following scenario illustrates how `getCustomerDeposits` records deposits:
 
 ```haskell
 scenarioTrackDepositOne
@@ -136,18 +133,18 @@ scenarioTrackDepositOne env w = do
     Just address <- Wallet.customerAddress customer w
 
     -- no deposits
-    txsummaries0 <- getCustomerHistory customer w
+    txsummaries0 <- getCustomerDeposits customer w
     assert $ null txsummaries0
 
     -- first deposit
     depositFundsAt env address coin
-    txsummaries1 <- getCustomerHistory customer w
-    assert $ map (received . txTransfer) txsummaries1 == [coin]
+    txsummaries1 <- getCustomerDeposits customer w
+    assert $ map (received . snd) txsummaries1 == [coin]
 
     -- second deposit
     depositFundsAt env address coin
-    txsummaries2 <- getCustomerHistory customer w
-    assert $ map (received . txTransfer) txsummaries2 == [coin, coin]
+    txsummaries2 <- getCustomerDeposits customer w
+    assert $ map (received . snd) txsummaries2 == [coin, coin]
   where
     customer = 7 :: Customer
     coin = ada 12
@@ -175,13 +172,13 @@ scenarioTrackDepositAll env w = do
     depositFundsAt env address2 coin
     depositFundsAt env address1 (coin <> coin)
 
-    history <- fold <$> Wallet.getValueTransfers w
+    history <- Wallet.getAllDeposits w Nothing
     assert $
         Map.map received history
       ==
         Map.fromList
-            [ (address1, coin <> coin <> coin)
-            , (address2, coin)
+            [ (customer1, coin <> coin <> coin)
+            , (customer2, coin)
             ]
   where
     customer1, customer2 :: Customer
@@ -217,8 +214,8 @@ scenarioCreatePayment xprv env destination w = do
     assert $ value2 <> coin == value1
 
     -- but the original deposit amount is still recorded
-    txsummaries <- getCustomerHistory customer w
-    assert $ value1 `elem` map (received . txTransfer) txsummaries
+    txsummaries <- getCustomerDeposits customer w
+    assert $ value1 `elem` map (received . snd) txsummaries
   where
     customer :: Customer
     customer = 17

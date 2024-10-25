@@ -11,8 +11,20 @@ import Prelude hiding
     ( lookup
     )
 
+import Cardano.Wallet.Deposit.Map
+    ( Map (..)
+    , W
+    , forgetPatch
+    , lookup
+    , openMap
+    , unPatch
+    )
 import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer (..)
+    )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( DownTime
+    , TxHistory (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -32,6 +44,9 @@ import Cardano.Wallet.UI.Common.Layer
 import Cardano.Wallet.UI.Deposit.API
     ( TransactionHistoryParams (..)
     )
+import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
+    ( getMockHistory
+    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
     )
@@ -41,14 +56,8 @@ import Cardano.Wallet.UI.Lib.Time.Direction
     , sortByDirection
     , utcTimeByDirection
     )
-
-import Cardano.Wallet.Deposit.Map
-    ( Map (..)
-    , W
-    , forgetPatch
-    , lookup
-    , openMap
-    , unPatch
+import Data.Bifunctor
+    ( first
     )
 import Data.Foldable
     ( fold
@@ -59,22 +68,11 @@ import Data.Monoid
 import Data.Ord
     ( Down (..)
     )
-import Servant
-    ( Handler
-    )
-
-import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( DownTime
-    , TxHistory (..)
-    )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
-    ( getMockHistory
-    )
-import Data.Bifunctor
-    ( first
-    )
 import Data.Time
     ( UTCTime
+    )
+import Servant
+    ( Handler
     )
 
 import qualified Data.ByteString.Lazy.Char8 as BL

@@ -27,6 +27,8 @@ module Cardano.Wallet.Deposit.IO
     , availableBalance
     , getTxHistoryByCustomer
     , getTxHistoryByTime
+    , getCustomerDeposits
+    , getAllDeposits
 
       -- ** Writing to the blockchain
     , createPayment
@@ -46,6 +48,7 @@ import Cardano.Wallet.Address.BIP32
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    , ValueTransfer
     , WalletPublicIdentity (..)
     , WalletState
     , Word31
@@ -56,6 +59,8 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , TxId
+    , WithOrigin
     )
 import Cardano.Wallet.Network.Checkpoints.Policy
     ( defaultPolicy
@@ -69,6 +74,12 @@ import Data.Bifunctor
     )
 import Data.List.NonEmpty
     ( NonEmpty
+    )
+import Data.Map.Strict
+    ( Map
+    )
+import Data.Time
+    ( UTCTime
     )
 
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
@@ -239,10 +250,23 @@ getTxHistoryByCustomer :: WalletInstance -> IO ByCustomer
 getTxHistoryByCustomer w =
     Wallet.getTxHistoryByCustomer <$> readWalletState w
 
-getTxHistoryByTime
-    :: WalletInstance
-    -> IO ByTime
+getTxHistoryByTime :: WalletInstance -> IO ByTime
 getTxHistoryByTime w = Wallet.getTxHistoryByTime <$> readWalletState w
+
+getCustomerDeposits
+    :: WalletInstance
+    -> Customer
+    -> Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> IO (Map TxId ValueTransfer)
+getCustomerDeposits w c i =
+    Wallet.getCustomerDeposits c i <$> readWalletState w
+
+getAllDeposits
+    :: WalletInstance
+    -> Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> IO (Map Customer ValueTransfer)
+getAllDeposits w i =
+    Wallet.getAllDeposits i <$> readWalletState w
 
 rollForward
     :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()
@@ -251,7 +275,8 @@ rollForward w blocks _nodeTip =
         $ Delta.update
         $ Delta.Replace . Wallet.rollForwardMany blocks
 
-rollBackward :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint
+rollBackward
+    :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint
 rollBackward w point =
     onWalletState w
         $ Delta.updateWithResult
@@ -280,4 +305,4 @@ signTxBody txbody w = Wallet.signTxBody txbody <$> readWalletState w
 ------------------------------------------------------------------------------}
 data WalletLog
     = WalletLogDummy
-    deriving Show
+    deriving (Show)
