@@ -2,7 +2,6 @@ module Cardano.Wallet.UI.Deposit.Server.Lib
     ( alert
     , origin
     , renderSmoothHtml
-    , showTime
     )
 where
 
@@ -20,8 +19,6 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 import Data.Time
     ( UTCTime
-    , defaultTimeLocale
-    , formatTime
     )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime
@@ -32,9 +29,6 @@ import Lucid
     , class_
     , div_
     )
-
-showTime :: UTCTime -> String
-showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
 
 alert :: ToHtml a => a -> RawHtml
 alert = renderHtml . alertH

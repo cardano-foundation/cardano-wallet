@@ -77,6 +77,9 @@ import Cardano.Wallet.UI.Deposit.API
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
     )
+import Cardano.Wallet.UI.Deposit.Html.Common
+    ( showTimeSecs
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , headerElementH
@@ -89,7 +92,6 @@ import Cardano.Wallet.UI.Deposit.Server.Addresses
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
-    , showTime
     )
 import Cardano.Wallet.UI.Deposit.Server.Wallet
     ( serveDeleteWallet
@@ -196,7 +198,7 @@ serveNetworkInformation
     -> Handler (CookieResponse RawHtml)
 serveNetworkInformation _ nl bs =
     sessioning
-        $ renderSmoothHtml . networkInfoH showTime
+        $ renderSmoothHtml . networkInfoH showTimeSecs
             <$> getNetworkInformation nid nl mode
   where
     nid = networkIdVal (sNetworkId @n)
