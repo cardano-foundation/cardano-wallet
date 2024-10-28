@@ -204,9 +204,9 @@ scenarioCreatePayment xprv env destination w = do
     assert $ value1 == (coin <> coin)
 
     -- createPayment
-    Just txBody <- Wallet.createPayment [(destination, coin)] w
-    paths <- Wallet.getBIP32PathsForOwnedInputs txBody w
-    let tx = signTx xprv paths txBody
+    Right txUnsigned <- Wallet.createPayment [(destination, coin)] w
+    paths <- Wallet.getBIP32PathsForOwnedInputs txUnsigned w
+    let tx = signTx xprv paths txUnsigned
     submitTx env tx
 
     -- funds have been moved out of the wallet

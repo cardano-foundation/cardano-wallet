@@ -42,7 +42,7 @@ module Cardano.Wallet.Deposit.Pure
     , BIP32Path (..)
     , DerivationType (..)
     , getBIP32PathsForOwnedInputs
-    , signTxBody
+    , signTx
     , addTxSubmission
     , listTxsInSubmission
 
@@ -352,13 +352,15 @@ createPayment = undefined
 -- needs balanceTx
 -- needs to sign the transaction
 
-getBIP32PathsForOwnedInputs
-    :: Write.TxBody -> WalletState -> [BIP32Path]
-getBIP32PathsForOwnedInputs txbody w =
+getBIP32PathsForOwnedInputs :: Write.Tx -> WalletState -> [BIP32Path]
+getBIP32PathsForOwnedInputs tx w =
     getBIP32Paths w
         . resolveInputAddresses
-        $ Write.spendInputs txbody <> Write.collInputs txbody
+        $ Write.spendInputs txBody <> Write.collInputs txBody
   where
+    txBody :: Write.TxBody
+    txBody = undefined tx
+
     resolveInputAddresses :: Set Read.TxIn -> [Read.Address]
     resolveInputAddresses ins =
         map (Read.address . snd)
@@ -369,8 +371,8 @@ getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
 getBIP32Paths w =
     mapMaybe $ Address.getBIP32Path (addresses w)
 
-signTxBody :: Write.TxBody -> WalletState -> Maybe Write.Tx
-signTxBody _txbody _w = undefined
+signTx :: Write.Tx -> WalletState -> Maybe Write.Tx
+signTx _tx _w = undefined
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
 addTxSubmission _tx _w = undefined

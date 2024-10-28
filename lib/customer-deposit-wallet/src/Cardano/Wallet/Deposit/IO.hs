@@ -33,7 +33,7 @@ module Cardano.Wallet.Deposit.IO
       -- ** Writing to the blockchain
     , createPayment
     , getBIP32PathsForOwnedInputs
-    , signTxBody
+    , signTx
     , WalletStore
     , walletPublicIdentity
     ) where
@@ -293,12 +293,12 @@ createPayment a w =
     Wallet.createPayment a <$> readWalletState w
 
 getBIP32PathsForOwnedInputs
-    :: Write.TxBody -> WalletInstance -> IO [BIP32Path]
+    :: Write.Tx -> WalletInstance -> IO [BIP32Path]
 getBIP32PathsForOwnedInputs a w =
     Wallet.getBIP32PathsForOwnedInputs a <$> readWalletState w
 
-signTxBody :: Write.TxBody -> WalletInstance -> IO (Maybe Write.Tx)
-signTxBody txbody w = Wallet.signTxBody txbody <$> readWalletState w
+signTx :: Write.Tx -> WalletInstance -> IO (Maybe Write.Tx)
+signTx a w = Wallet.signTx a <$> readWalletState w
 
 {-----------------------------------------------------------------------------
     Logging

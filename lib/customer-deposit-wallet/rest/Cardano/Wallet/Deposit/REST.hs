@@ -44,7 +44,7 @@ module Cardano.Wallet.Deposit.REST
       -- ** Writing to the blockchain
     , createPayment
     , getBIP32PathsForOwnedInputs
-    , signTxBody
+    , signTx
     , walletExists
     , walletPublicIdentity
     , deleteWallet
@@ -409,12 +409,12 @@ createPayment
 createPayment = onWalletInstance . WalletIO.createPayment
 
 getBIP32PathsForOwnedInputs
-    :: Write.TxBody
+    :: Write.Tx
     -> WalletResourceM [BIP32Path]
 getBIP32PathsForOwnedInputs =
     onWalletInstance . WalletIO.getBIP32PathsForOwnedInputs
 
-signTxBody
-    :: Write.TxBody
+signTx
+    :: Write.Tx
     -> WalletResourceM (Maybe Write.Tx)
-signTxBody = onWalletInstance . WalletIO.signTxBody
+signTx = onWalletInstance . WalletIO.signTx
