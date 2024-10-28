@@ -1,7 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -77,6 +76,9 @@ import Cardano.Wallet.UI.Deposit.API
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
     )
+import Cardano.Wallet.UI.Deposit.Html.Common
+    ( showTimeSecs
+    )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
     , headerElementH
@@ -87,9 +89,23 @@ import Cardano.Wallet.UI.Deposit.Server.Addresses
     , serveCustomerHistory
     , serveGetAddress
     )
+import Cardano.Wallet.UI.Deposit.Server.Deposits.Customers
+    ( serveDepositsCustomerPagination
+    , serveDepositsCustomers
+    )
+import Cardano.Wallet.UI.Deposit.Server.Deposits.Page
+    ( serveDepositsPage
+    )
+import Cardano.Wallet.UI.Deposit.Server.Deposits.Times
+    ( serveDeposits
+    , serveDepositsPagination
+    )
+import Cardano.Wallet.UI.Deposit.Server.Deposits.TxIds
+    ( serveDepositsCustomersTxIds
+    , serveDepositsCustomersTxIdsPagination
+    )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
-    , showTime
     )
 import Cardano.Wallet.UI.Deposit.Server.Wallet
     ( serveDeleteWallet
@@ -142,6 +158,7 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveTabPage ul config Settings
         :<|> serveTabPage ul config Wallet
         :<|> serveTabPage ul config Addresses
+        :<|> serveTabPage ul config Deposits
         :<|> serveNetworkInformation nid nl bs
         :<|> serveSSESettings ul
         :<|> serveToggleSSE ul
@@ -158,6 +175,13 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveAddressesPage ul
         :<|> serveNavigation ul
         :<|> serveCustomerHistory ul
+        :<|> serveDepositsPage ul
+        :<|> serveDeposits ul
+        :<|> serveDepositsPagination ul
+        :<|> serveDepositsCustomers ul
+        :<|> serveDepositsCustomerPagination ul
+        :<|> serveDepositsCustomersTxIds ul
+        :<|> serveDepositsCustomersTxIdsPagination ul
 
 serveTabPage
     :: UILayer s
@@ -196,7 +220,7 @@ serveNetworkInformation
     -> Handler (CookieResponse RawHtml)
 serveNetworkInformation _ nl bs =
     sessioning
-        $ renderSmoothHtml . networkInfoH showTime
+        $ renderSmoothHtml . networkInfoH showTimeSecs
             <$> getNetworkInformation nid nl mode
   where
     nid = networkIdVal (sNetworkId @n)

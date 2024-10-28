@@ -41,7 +41,7 @@ import Cardano.Wallet.Read
 import Cardano.Wallet.UI.Common.Layer
     ( SessionLayer (..)
     )
-import Cardano.Wallet.UI.Deposit.API
+import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     ( TransactionHistoryParams (..)
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock

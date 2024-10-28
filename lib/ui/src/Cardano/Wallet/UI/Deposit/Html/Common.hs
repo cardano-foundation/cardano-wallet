@@ -1,4 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Common
     ( downTimeH
@@ -8,6 +10,7 @@ module Cardano.Wallet.UI.Deposit.Html.Common
     , showTime
     , showTimeSecs
     , withOriginH
+    , valueH
     )
 where
 
@@ -22,7 +25,9 @@ import Cardano.Wallet.Deposit.Read
     , WithOrigin (..)
     )
 import Cardano.Wallet.Read
-    ( SlotNo (..)
+    ( Coin (..)
+    , SlotNo (..)
+    , Value (..)
     , hashFromTxId
     )
 import Cardano.Wallet.Read.Hash
@@ -46,6 +51,11 @@ import Data.Time
 import Lucid
     ( Html
     , ToHtml (..)
+    , class_
+    , span_
+    )
+import Numeric
+    ( showFFloatAlt
     )
 
 showTime :: UTCTime -> String
@@ -79,3 +89,10 @@ txIdH txId =
         hashToStringAsHex
             $ hashFromTxId
                 txId
+
+valueH :: Value -> Html ()
+valueH (ValueC (CoinC c) _) = do
+    span_ $ toHtml $ a ""
+    span_ [class_ "opacity-25"] "₳"
+  where
+    a = showFFloatAlt @Double (Just 2) $ fromIntegral c / 1_000_000

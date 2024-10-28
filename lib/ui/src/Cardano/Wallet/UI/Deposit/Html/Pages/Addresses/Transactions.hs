@@ -1,9 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
 where
@@ -29,8 +25,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( TransactionHistoryParams (..)
-    , customerHistoryLink
+    ( customerHistoryLink
     , fakeDataBackgroundLink
     )
 import Control.Monad
@@ -54,7 +49,6 @@ import Lucid
     , scope_
     , select_
     , selected_
-    , span_
     , style_
     , table_
     , tbody_
@@ -75,10 +69,14 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxTarget_
     , hxTrigger_
     )
+import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
+    ( TransactionHistoryParams (..)
+    )
 import Cardano.Wallet.UI.Deposit.Html.Common
     ( slotH
     , timeH
     , txIdH
+    , valueH
     , withOriginH
     )
 import Data.Text
@@ -87,9 +85,6 @@ import Data.Text
 import Data.Time
     ( UTCTime (..)
     , pattern YearMonthDay
-    )
-import Numeric
-    ( showFFloatAlt
     )
 
 import qualified Cardano.Wallet.Read as Read
@@ -101,13 +96,6 @@ chainPointToSlotH
 chainPointToSlotH cp = case cp of
     Read.GenesisPoint -> toHtml ("Genesis" :: Text)
     Read.BlockPoint (Read.SlotNo n) _ -> toHtml $ show n
-
-valueH :: Read.Value -> Html ()
-valueH (Read.ValueC (Read.CoinC c) _) = do
-    span_ $ toHtml $ a ""
-    span_ [class_ "opacity-25"] "₳"
-  where
-    a = showFFloatAlt @Double (Just 2) $ fromIntegral c / 1_000_000
 
 txSummaryH
     :: TransactionHistoryParams
