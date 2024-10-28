@@ -62,6 +62,7 @@ library
     Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     Cardano.Wallet.UI.Deposit.API.Common
+    Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     Cardano.Wallet.UI.Deposit.Handlers.Addresses
     Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
@@ -120,6 +121,7 @@ library
     , customer-deposit-wallet:rest
     , exceptions
     , generic-lens
+    , hashable
     , http-api-data
     , http-media
     , lens
