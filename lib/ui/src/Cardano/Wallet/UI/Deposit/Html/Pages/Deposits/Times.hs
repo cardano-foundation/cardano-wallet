@@ -197,7 +197,7 @@ depositH
     widget
         | expanded = do
             let
-                trId = T.pack $ "window-" <> show (hash time)
+                trId = T.pack $ "customers-" <> show (hash time)
             tr_
                 [ id_ trId
                 ]

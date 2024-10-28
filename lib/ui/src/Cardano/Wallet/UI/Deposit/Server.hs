@@ -1,7 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -101,6 +100,10 @@ import Cardano.Wallet.UI.Deposit.Server.Deposits.Times
     ( serveDeposits
     , serveDepositsPagination
     )
+import Cardano.Wallet.UI.Deposit.Server.Deposits.TxIds
+    ( serveDepositsCustomersTxIds
+    , serveDepositsCustomersTxIdsPagination
+    )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
     )
@@ -177,6 +180,8 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveDepositsPagination ul
         :<|> serveDepositsCustomers ul
         :<|> serveDepositsCustomerPagination ul
+        :<|> serveDepositsCustomersTxIds ul
+        :<|> serveDepositsCustomersTxIdsPagination ul
 
 serveTabPage
     :: UILayer s

@@ -47,6 +47,7 @@ import Cardano.Wallet.UI.Cookies
 import Cardano.Wallet.UI.Deposit.API
     ( depositsCustomersLink
     , depositsCustomersPaginatingLink
+    , depositsTxIdsLink
     )
 import Cardano.Wallet.UI.Deposit.API.Common
     ( Expand
@@ -107,7 +108,7 @@ depositsCustomersTable params time = do
         $ scrollableDepositsCustomers
             params
             depositsCustomersPaginatingLink
-            (error "not implemented")
+            depositsTxIdsLink
             time
             hs
 

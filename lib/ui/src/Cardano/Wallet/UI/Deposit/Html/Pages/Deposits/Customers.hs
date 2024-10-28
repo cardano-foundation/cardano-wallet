@@ -23,6 +23,7 @@ import Cardano.Wallet.Deposit.Read
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxInclude_
+    , hxPost_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
@@ -111,7 +112,7 @@ scrollableDepositsCustomers
 scrollableDepositsCustomers
     params@DepositsParams{depositsSpent, depositsFakeData}
     depositsCustomersPaginatingLink
-    depositsCustomersTxIdsLink
+    depositsTxIdsLink
     (Down time)
     Paginate{previousIndex, nextIndex, pageAtIndex, minIndex} =
         Scrolling.Configuration{..}
@@ -149,7 +150,7 @@ scrollableDepositsCustomers
                             ( \transfers ->
                                 depositByCustomerH
                                     params
-                                    depositsCustomersTxIdsLink
+                                    depositsTxIdsLink
                                     Nothing
                                     (Down time)
                                     transfers
@@ -178,7 +179,7 @@ depositByCustomerH
     -> Html ()
 depositByCustomerH
     DepositsParams{depositsSpent}
-    depositsCustomersTxIdsLink
+    depositsTxIdsLink
     mexpand
     (Down time)
     (customer, (_addr, ValueTransfer{received, spent}))
@@ -203,8 +204,8 @@ depositByCustomerH
                                 , type_ "button"
                                 , hxTarget_ $ "#" <> trId
                                 , hxSwap_ "outerHTML"
-                                , -- , hxPost_ $ txIdsPost (Just Collapse)
-                                  hxInclude_ "#view-control"
+                                , hxPost_ $ txIdsPost (Just Collapse)
+                                , hxInclude_ "#view-control"
                                 ]
                                 $ i_ [class_ "bi bi-x"] mempty
                     td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
@@ -221,8 +222,8 @@ depositByCustomerH
                 , hxTrigger_ "click"
                 , hxTarget_ "this"
                 , hxSwap_ "outerHTML"
-                , -- , hxPost_ $ txIdsPost (Just Expand)
-                  hxInclude_ "#view-control"
+                , hxPost_ $ txIdsPost (Just Expand)
+                , hxInclude_ "#view-control"
                 , id_ trId
                 ]
                 $ do
@@ -232,9 +233,9 @@ depositByCustomerH
                         $ tdEnd
                         $ valueH spent
       where
-        _txIdsPost =
+        txIdsPost =
             linkText
-                . depositsCustomersTxIdsLink
+                . depositsTxIdsLink
                     (Just time)
                     (Just customer)
         expand = Just Expand == mexpand

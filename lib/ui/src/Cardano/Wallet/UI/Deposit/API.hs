@@ -11,6 +11,9 @@ import Prelude
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
+import Cardano.Wallet.Deposit.Read
+    ( TxId
+    )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMenmonic
     , PostWalletViaXPub
@@ -168,6 +171,25 @@ type Data =
             :> QueryParam "time" (WithOrigin UTCTime)
             :> QueryParam "customer" Customer
             :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "customers"
+            :> "tx-ids"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "time" (WithOrigin UTCTime)
+            :> QueryParam "customer" Customer
+            :> QueryParam "expand" Expand
+            :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "customers"
+            :> "tx-ids"
+            :> "page"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "time" (WithOrigin UTCTime)
+            :> QueryParam "customer" Customer
+            :> QueryParam "tx-id" TxId
+            :> SessionedHtml Post
 
 type Home = SessionedHtml Get
 
@@ -210,6 +232,10 @@ depositsCustomersLink
     :: Maybe (WithOrigin UTCTime) -> Maybe Expand -> Link
 depositsCustomersPaginatingLink
     :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Link
+depositsTxIdsLink
+    :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe Expand -> Link
+depositsTxIdsPaginatingLink
+    :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe TxId -> Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -238,4 +264,6 @@ homePageLink
     :<|> depositsTimesPaginatingLink
     :<|> depositsCustomersLink
     :<|> depositsCustomersPaginatingLink
-    = allLinks (Proxy @UI)
+    :<|> depositsTxIdsLink
+    :<|> depositsTxIdsPaginatingLink =
+        allLinks (Proxy @UI)
