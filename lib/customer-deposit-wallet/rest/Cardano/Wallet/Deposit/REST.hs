@@ -72,6 +72,7 @@ import Cardano.Wallet.Deposit.IO.Resource
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    , ErrCreatePayment
     , Word31
     , fromXPubAndGenesis
     )
@@ -405,7 +406,7 @@ getTxHistoryByTime = onWalletInstance WalletIO.getTxHistoryByTime
 
 createPayment
     :: [(Address, Read.Value)]
-    -> WalletResourceM (Maybe Write.TxBody)
+    -> WalletResourceM (Either ErrCreatePayment Write.Tx)
 createPayment = onWalletInstance . WalletIO.createPayment
 
 getBIP32PathsForOwnedInputs

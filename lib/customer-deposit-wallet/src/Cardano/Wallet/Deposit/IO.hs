@@ -85,6 +85,7 @@ import Data.Time
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
 import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Read as Read
+import qualified Cardano.Wallet.Deposit.Time as Time
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Control.Concurrent.Async as Async
 import qualified Data.DBVar as DBVar
@@ -288,9 +289,17 @@ rollBackward w point =
 ------------------------------------------------------------------------------}
 
 createPayment
-    :: [(Address, Read.Value)] -> WalletInstance -> IO (Maybe Write.TxBody)
-createPayment a w =
-    Wallet.createPayment a <$> readWalletState w
+    :: [(Address, Read.Value)]
+    -> WalletInstance
+    -> IO (Either Wallet.ErrCreatePayment Write.Tx)
+createPayment a w = do
+    timeTranslation <-
+        Time.toTimeTranslation <$> Network.getTimeInterpreter network
+    pparams <-
+        Network.currentPParams network
+    Wallet.createPayment pparams timeTranslation a <$> readWalletState w
+  where
+    network = networkEnv $ bootEnv $ env w
 
 getBIP32PathsForOwnedInputs
     :: Write.Tx -> WalletInstance -> IO [BIP32Path]
