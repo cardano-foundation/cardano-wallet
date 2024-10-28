@@ -24,6 +24,7 @@ import Cardano.Wallet.Read
     )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxInclude_
+    , hxPost_
     , hxSwap_
     , hxTarget_
     , hxTrigger_
@@ -208,8 +209,8 @@ depositH
                                 $ show
                                 $ depositColumn
                                 $ slotColumn (2 :: Int)
-                        -- this is bullshit :shrug: . This number refers to the number of columns
-                        -- in the container table. Probably one day it will break up.
+                        -- This number refers to the number of columns
+                        -- in the container table.
                         bar = do
                             div_
                                 $ toHtml
@@ -231,7 +232,7 @@ depositH
                                 , type_ "button"
                                 , hxTarget_ $ "#" <> trId
                                 , hxSwap_ "outerHTML"
-                                -- , hxPost_ $ customerPostLink $ Just Collapse
+                                , hxPost_ $ customerPost $ Just Collapse
                                 , hxInclude_ "#view-control"
                                 ]
                                 $ i_ [class_ "bi bi-x"] mempty
@@ -248,7 +249,7 @@ depositH
                 , hxTrigger_ "click"
                 , hxTarget_ "this"
                 , hxSwap_ "outerHTML"
-                -- , hxPost_ $ customerPostLink (Just Expand)
+                , hxPost_ $ customerPost (Just Expand)
                 , hxInclude_ "#view-control"
                 ]
                 $ do
@@ -268,6 +269,6 @@ depositH
                         $ tdEnd
                         $ valueH spent
       where
-        _customerPostLink mexpand' =
+        customerPost mexpand' =
                 linkText $ depositsCustomersLink (Just time) mexpand'
         expanded = maybe (time `elem` depositsCustomers) (== Expand) mexpand

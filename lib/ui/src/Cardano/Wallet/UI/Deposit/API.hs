@@ -33,6 +33,9 @@ import Cardano.Wallet.UI.Cookies
 import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     ( TransactionHistoryParams
     )
+import Cardano.Wallet.UI.Deposit.API.Common
+    ( Expand
+    )
 import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     ( DepositsParams
     )
@@ -150,6 +153,21 @@ type Data =
             :> ReqBody '[FormUrlEncoded] DepositsParams
             :> QueryParam "index" (WithOrigin UTCTime)
             :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "customers"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "time" (WithOrigin UTCTime)
+            :> QueryParam "expand" Expand
+            :> SessionedHtml Post
+        :<|> "deposits"
+            :> "history"
+            :> "customers"
+            :> "page"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "time" (WithOrigin UTCTime)
+            :> QueryParam "customer" Customer
+            :> SessionedHtml Post
 
 type Home = SessionedHtml Get
 
@@ -186,7 +204,12 @@ navigationLink :: Maybe Page -> Link
 customerHistoryLink :: Link
 depositsLink :: Link
 depositsTimesLink :: Link
-depositsTimesPaginatingLink :: Maybe (WithOrigin UTCTime) -> Link
+depositsTimesPaginatingLink
+    :: Maybe (WithOrigin UTCTime) -> Link
+depositsCustomersLink
+    :: Maybe (WithOrigin UTCTime) -> Maybe Expand -> Link
+depositsCustomersPaginatingLink
+    :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -213,4 +236,6 @@ homePageLink
     :<|> depositsLink
     :<|> depositsTimesLink
     :<|> depositsTimesPaginatingLink
+    :<|> depositsCustomersLink
+    :<|> depositsCustomersPaginatingLink
     = allLinks (Proxy @UI)
