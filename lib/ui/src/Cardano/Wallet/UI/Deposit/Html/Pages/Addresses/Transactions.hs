@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -12,23 +11,15 @@ where
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure
-    ( TxSummary (..)
+    ( ValueTransfer
     , received
     , spent
     )
-import Cardano.Wallet.Read.Hash
-    ( hashToStringAsHex
-    )
-import Cardano.Wallet.Read.Tx
-    ( hashFromTxId
-    )
 import Cardano.Wallet.UI.Common.Html.Lib
-    ( WithCopy (..)
-    , linkText
+    ( linkText
     , overlayFakeDataH
     , tdEnd
     , thEnd
-    , truncatableText
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( Striped (..)
@@ -67,7 +58,6 @@ import Lucid
     , style_
     , table_
     , tbody_
-    , td_
     , thead_
     , tr_
     , type_
@@ -76,26 +66,23 @@ import Lucid
 
 import Cardano.Wallet.Deposit.Read
     ( Slot
-    , WithOrigin (..)
+    , TxId
+    , WithOrigin
     )
-import Data.Map.Strict
-    ( Map
-    )
-import Data.Text
-    ( Text
-    )
-
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxInclude_
     , hxPost_
     , hxTarget_
     , hxTrigger_
     )
-import Cardano.Wallet.UI.Deposit.Server.Lib
-    ( showTime
+import Cardano.Wallet.UI.Deposit.Html.Common
+    ( slotH
+    , timeH
+    , txIdH
+    , withOriginH
     )
-import Data.Text.Class
-    ( ToText (..)
+import Data.Text
+    ( Text
     )
 import Data.Time
     ( UTCTime (..)
@@ -106,19 +93,7 @@ import Numeric
     )
 
 import qualified Cardano.Wallet.Read as Read
-import qualified Data.Map.Strict as Map
 import qualified Data.Text.Class as T
-
-chainPointToUTCH
-    :: Map Slot (WithOrigin UTCTime)
-    -> Read.ChainPoint
-    -> Html ()
-chainPointToUTCH
-    times
-    cp = case Map.lookup (Read.slotFromChainPoint cp) times of
-        Just (At t) -> toHtml $ showTime t
-        Just Origin -> toHtml ("Genesis" :: Text)
-        Nothing -> toHtml ("Unknown" :: Text)
 
 chainPointToSlotH
     :: Read.ChainPoint
@@ -136,42 +111,35 @@ valueH (Read.ValueC (Read.CoinC c) _) = do
 
 txSummaryH
     :: TransactionHistoryParams
-    -> Map Slot (WithOrigin UTCTime)
-    -> (Int, TxSummary)
+    -> (WithOrigin UTCTime, (Slot, TxId, ValueTransfer))
     -> Html ()
 txSummaryH
     TransactionHistoryParams{..}
-    times
-    (index, TxSummaryC{txSummarized, txChainPoint, txTransfer}) = do
+    (time, (slot, txId, value)) = do
         tr_ [scope_ "row"] $ do
             when txHistorySlot
                 $ tdEnd
-                $ chainPointToSlotH txChainPoint
+                $ slotH slot
             when txHistoryUTC
                 $ tdEnd
-                $ chainPointToUTCH times txChainPoint
+                $ withOriginH timeH time
             when txHistoryReceived
                 $ tdEnd
                 $ valueH
-                $ received txTransfer
+                $ received value
             when txHistorySpent
                 $ tdEnd
                 $ valueH
-                $ spent txTransfer
-            td_ [scope_ "col", class_ "flex-fill align-bottom"]
-                $ truncatableText WithCopy ("tx-id-text-" <> toText index)
-                $ toHtml
-                $ hashToStringAsHex
-                $ hashFromTxId txSummarized
+                $ spent value
+            tdEnd $ txIdH txId
 
 customerHistoryH
     :: Monad m
     => Bool
     -> TransactionHistoryParams
-    -> Map Slot (WithOrigin UTCTime)
-    -> [TxSummary]
+    -> [(WithOrigin UTCTime,(Slot, TxId, ValueTransfer))]
     -> HtmlT m ()
-customerHistoryH fake params@TransactionHistoryParams{..} times txs =
+customerHistoryH fake params@TransactionHistoryParams{..} txs =
     fakeOverlay $ do
         table_
             [ class_
@@ -196,8 +164,7 @@ customerHistoryH fake params@TransactionHistoryParams{..} times txs =
                             $ thEnd (Just 7) "Withdrawal"
                         thEnd Nothing "Id"
                 tbody_
-                    $ mapM_ (toHtml . txSummaryH params times)
-                    $ zip [0 ..] txs
+                    $ mapM_ (toHtml . txSummaryH params) txs
   where
     fakeOverlay = if fake then overlayFakeDataH fakeDataBackgroundLink else id
 

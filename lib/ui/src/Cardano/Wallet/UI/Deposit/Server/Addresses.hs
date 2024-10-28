@@ -7,9 +7,6 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Deposit.IO.Network.Type
-    ( NetworkEnv
-    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
@@ -62,16 +59,14 @@ import Servant
     )
 
 serveCustomerHistory
-    :: NetworkEnv IO a
-    -> UILayer WalletResource
+    :: UILayer WalletResource
     -> TransactionHistoryParams
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-serveCustomerHistory network ul params = do
+serveCustomerHistory ul params = do
     withSessionLayer ul $ \layer ->
         renderSmoothHtml
             <$> getCustomerHistory
-                network
                 layer
                 customerHistoryH
                 alertH

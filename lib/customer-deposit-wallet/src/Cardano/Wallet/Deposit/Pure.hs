@@ -1,4 +1,8 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Deposit.Pure
     ( -- * Types
@@ -11,6 +15,7 @@ module Cardano.Wallet.Deposit.Pure
       -- ** Mapping between customers and addresses
     , Customer
     , listCustomers
+    , addressToCustomer
     , deriveAddress
     , knownCustomer
     , knownCustomerAddress
@@ -28,10 +33,9 @@ module Cardano.Wallet.Deposit.Pure
     , rollForwardMany
     , rollForwardOne
     , rollBackward
-    , TxSummary (..)
     , ValueTransfer (..)
-    , getCustomerHistory
-    , getValueTransfers
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
 
       -- ** Writing to the blockchain
     , createPayment
@@ -44,10 +48,13 @@ module Cardano.Wallet.Deposit.Pure
 
       -- * Internal, for testing
     , availableUTxO
-    , getValueTransfersWithTxIds
+    , getCustomerDeposits
+    , getAllDeposits
     ) where
 
-import Prelude
+import Prelude hiding
+    ( lookup
+    )
 
 import Cardano.Crypto.Wallet
     ( XPrv
@@ -57,8 +64,18 @@ import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
     , DerivationType (..)
     )
-import Cardano.Wallet.Deposit.Pure.TxSummary
-    ( TxSummary (..)
+import Cardano.Wallet.Deposit.Map
+    ( Map
+    , W
+    , forgetPatch
+    , lookup
+    , openMap
+    )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByCustomer
+    , ByTime
+    , DownTime
+    , TxHistory (..)
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
@@ -68,28 +85,30 @@ import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , TxId
+    , WithOrigin
     )
 import Data.Foldable
-    ( foldl'
+    ( fold
+    , foldl'
     )
 import Data.List.NonEmpty
     ( NonEmpty
     )
-import Data.Map.Strict
-    ( Map
-    )
-import Data.Maps.PairMap
-    ( PairMap (..)
-    )
-import Data.Maps.Timeline
-    ( Timeline (eventsByTime)
+import Data.Map.Monoidal.Strict
+    ( MonoidalMap (..)
     )
 import Data.Maybe
     ( mapMaybe
-    , maybeToList
+    )
+import Data.Ord
+    ( Down (..)
     )
 import Data.Set
     ( Set
+    )
+import Data.Time
+    ( UTCTime
     )
 import Data.Word.Odd
     ( Word31
@@ -99,12 +118,13 @@ import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.RollbackWindow as Rollback
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
-import qualified Cardano.Wallet.Deposit.Pure.TxHistory as TxHistory
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
+import qualified Data.List as L
+import qualified Data.Map.Monoidal.Strict as MonoidalMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -117,7 +137,7 @@ data WalletState = WalletState
     { walletTip :: Read.ChainPoint
     , addresses :: !Address.AddressState
     , utxoHistory :: !UTxOHistory.UTxOHistory
-    , txHistory :: !TxHistory.TxHistory
+    , txHistory :: !TxHistory
     , submissions :: Sbm.TxSubmissions
     , rootXSignKey :: Maybe XPrv
     -- , info :: !WalletInfo
@@ -141,7 +161,14 @@ listCustomers =
     Address.listCustomers . addresses
 
 customerAddress :: Customer -> WalletState -> Maybe Address
-customerAddress c = lookup c . listCustomers
+customerAddress c = L.lookup c . listCustomers
+
+addressToCustomer :: Address -> WalletState -> Maybe Customer
+addressToCustomer address =
+    Map.lookup address
+        . Map.fromList
+        . fmap (\(a, c) -> (c, a))
+        . listCustomers
 
 -- depend on the public key only, not on the entire wallet state
 deriveAddress :: WalletState -> (Customer -> Address)
@@ -187,7 +214,7 @@ fromXPubAndGenesis xpub knownCustomerCount genesisData =
         , addresses =
             Address.fromXPubAndCount network xpub knownCustomerCount
         , utxoHistory = UTxOHistory.empty initialUTxO
-        , txHistory = TxHistory.empty
+        , txHistory = mempty
         , submissions = Sbm.empty
         , rootXSignKey = Nothing
         }
@@ -265,42 +292,71 @@ availableUTxO w =
     pending = listTxsInSubmission w
     utxo = UTxOHistory.getUTxO $ utxoHistory w
 
-getCustomerHistory :: Customer -> WalletState -> Map Read.TxId TxSummary
-getCustomerHistory c state =
-    case customerAddress c state of
-        Nothing -> mempty
-        Just addr -> TxHistory.getAddressHistory addr (txHistory state)
+getTxHistoryByCustomer :: WalletState -> ByCustomer
+getTxHistoryByCustomer state = byCustomer $ txHistory state
 
--- TODO: Return an error if any of the `ChainPoint` are no longer
--- part of the consensus chain?
-getValueTransfers :: WalletState -> Map Read.Slot (Map Address ValueTransfer)
-getValueTransfers state = TxHistory.getValueTransfers (txHistory state)
+getTxHistoryByTime :: WalletState -> ByTime
+getTxHistoryByTime state = byTime $ txHistory state
 
-getValueTransfersWithTxIds
-    :: WalletState
-    -> Map Read.Slot (Map Address (Map Read.TxId ValueTransfer))
-getValueTransfersWithTxIds state =
-    restrictByTxId <$> eventsByTime (TxHistory.txIds history)
-  where
-    history = txHistory state
-    restrictByTxId :: Set Read.TxId -> Map Address (Map Read.TxId ValueTransfer)
-    restrictByTxId txIds = Map.unionsWith (<>) $ do
-        txId <- Set.toList txIds
-        x <- maybeToList $ Map.lookup txId $ mab (TxHistory.txTransfers history)
-        pure $ fmap (Map.singleton txId) x
+getCustomerDeposits
+    :: Customer
+    -> Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> WalletState
+    -> Map.Map TxId ValueTransfer
+getCustomerDeposits c interval s = fold $ do
+    m <-
+        fmap (openMap . forgetPatch)
+            $ lookup c
+            $ getTxHistoryByCustomer s
+    pure
+        $ wonders interval
+        $ selectTimeInterval interval m
+
+selectTimeInterval
+    :: Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> MonoidalMap DownTime a
+    -> MonoidalMap DownTime a
+selectTimeInterval Nothing = id
+selectTimeInterval (Just (from, to)) =
+    MonoidalMap.dropWhileAntitone (< Down to)
+        . MonoidalMap.takeWhileAntitone (>= Down from)
+
+getAllDeposits
+    :: Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> WalletState
+    -> Map.Map Customer ValueTransfer
+getAllDeposits interval s =
+    wonders interval
+        $ openMap
+        $ getTxHistoryByTime s
+
+wonders
+    :: (Ord k, Monoid w, Foldable (Map xs), Monoid (Map xs ValueTransfer))
+    => Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> MonoidalMap DownTime (Map (W w k : xs) ValueTransfer)
+    -> Map.Map k ValueTransfer
+wonders interval =
+    getMonoidalMap
+        . fmap fold
+        . openMap
+        . forgetPatch
+        . fold
+        . selectTimeInterval interval
 
 {-----------------------------------------------------------------------------
     Operations
     Writing to blockchain
 ------------------------------------------------------------------------------}
 
-createPayment :: [(Address, Write.Value)] -> WalletState -> Maybe Write.TxBody
+createPayment
+    :: [(Address, Write.Value)] -> WalletState -> Maybe Write.TxBody
 createPayment = undefined
 
 -- needs balanceTx
 -- needs to sign the transaction
 
-getBIP32PathsForOwnedInputs :: Write.TxBody -> WalletState -> [BIP32Path]
+getBIP32PathsForOwnedInputs
+    :: Write.TxBody -> WalletState -> [BIP32Path]
 getBIP32PathsForOwnedInputs txbody w =
     getBIP32Paths w
         . resolveInputAddresses

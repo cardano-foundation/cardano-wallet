@@ -31,12 +31,15 @@ module Cardano.Wallet.Deposit.REST
 
       -- ** Mapping between customers and addresses
     , listCustomers
+    , customerAddress
+    , addressToCustomer
 
       -- ** Reading from the blockchain
     , getWalletTip
     , availableBalance
-    , getCustomerHistory
-    , getValueTransfers
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
+    , WalletIO.ResolveAddress
 
       -- ** Writing to the blockchain
     , createPayment
@@ -46,8 +49,6 @@ module Cardano.Wallet.Deposit.REST
     , walletPublicIdentity
     , deleteWallet
     , deleteTheDepositWalletOnDisk
-    , customerAddress
-    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -73,6 +74,10 @@ import Cardano.Wallet.Deposit.Pure
     ( Customer
     , Word31
     , fromXPubAndGenesis
+    )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByCustomer
+    , ByTime
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -111,9 +116,6 @@ import Data.ByteArray.Encoding
 import Data.List
     ( isPrefixOf
     )
-import Data.Map.Strict
-    ( Map
-    )
 import Data.Store
     ( Store (..)
     , newStore
@@ -128,7 +130,6 @@ import System.FilePath
 
 import qualified Cardano.Wallet.Deposit.IO as WalletIO
 import qualified Cardano.Wallet.Deposit.IO.Resource as Resource
-import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
@@ -157,7 +158,8 @@ data ErrDatabase
     deriving (Show, Eq)
 
 -- | Mutable resource that may hold a 'WalletInstance'.
-type WalletResource = Resource.Resource ErrDatabase WalletIO.WalletInstance
+type WalletResource =
+    Resource.Resource ErrDatabase WalletIO.WalletInstance
 
 -- | Error indicating that the 'WalletResource' does not hold a wallet.
 data ErrWalletResource
@@ -185,7 +187,8 @@ instance Show ErrWalletResource where
             ErrAlreadyClosing -> "Wallet is already closing"
 
 -- | Monad for acting on a 'WalletResource'.
-type WalletResourceM = ReaderT WalletResource (ExceptT ErrWalletResource IO)
+type WalletResourceM =
+    ReaderT WalletResource (ExceptT ErrWalletResource IO)
 
 -- | Run a 'WalletResourceM' action on a 'WalletResource'.
 runWalletResourceM
@@ -290,7 +293,8 @@ loadWallet
     -- ^ Path to the wallet database directory
     -> WalletResourceM ()
 loadWallet bootEnv dir = do
-    let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
+    let action
+            :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk dir $ \case
             Right wallet ->
                 Right
@@ -318,7 +322,8 @@ initXPubWallet
     -- ^ Max number of users ?
     -> WalletResourceM ()
 initXPubWallet tr bootEnv dir xpub users = do
-    let action :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
+    let action
+            :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = createTheDepositWalletOnDisk tr dir xpub users $ \case
             Just wallet -> do
                 fmap Right
@@ -369,6 +374,9 @@ listCustomers = onWalletInstance WalletIO.listCustomers
 customerAddress :: Customer -> WalletResourceM (Maybe Address)
 customerAddress = onWalletInstance . WalletIO.customerAddress
 
+addressToCustomer :: WalletResourceM WalletIO.ResolveAddress
+addressToCustomer = onWalletInstance WalletIO.addressToCustomer
+
 {-----------------------------------------------------------------------------
     Operations
     Reading from the blockchain
@@ -379,23 +387,13 @@ getWalletTip = onWalletInstance WalletIO.getWalletTip
 availableBalance :: WalletResourceM Read.Value
 availableBalance = onWalletInstance WalletIO.availableBalance
 
-getCustomerHistory
-    :: Customer
-    -> WalletResourceM (Map Read.TxId Wallet.TxSummary)
-getCustomerHistory = onWalletInstance . WalletIO.getCustomerHistory
+getTxHistoryByCustomer
+    :: WalletResourceM ByCustomer
+getTxHistoryByCustomer = onWalletInstance WalletIO.getTxHistoryByCustomer
 
-getValueTransfers
-    :: WalletResourceM (Map Read.Slot (Map Address Wallet.ValueTransfer))
-getValueTransfers = onWalletInstance WalletIO.getValueTransfers
-
-getValueTransfersWithTxIds
-    :: WalletResourceM
-        ( Map
-            Read.Slot
-            (Map Address (Map Read.TxId Wallet.ValueTransfer))
-        )
-getValueTransfersWithTxIds =
-    onWalletInstance WalletIO.getValueTransfersWithTxIds
+getTxHistoryByTime
+    :: WalletResourceM ByTime
+getTxHistoryByTime = onWalletInstance WalletIO.getTxHistoryByTime
 
 {-----------------------------------------------------------------------------
     Operations

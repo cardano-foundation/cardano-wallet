@@ -19,12 +19,16 @@ module Cardano.Wallet.Deposit.IO
       -- ** Mapping between customers and addresses
     , listCustomers
     , customerAddress
+    , addressToCustomer
+    , ResolveAddress
 
       -- ** Reading from the blockchain
     , getWalletTip
     , availableBalance
-    , getCustomerHistory
-    , getValueTransfers
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
+    , getCustomerDeposits
+    , getAllDeposits
 
       -- ** Writing to the blockchain
     , createPayment
@@ -32,7 +36,6 @@ module Cardano.Wallet.Deposit.IO
     , signTxBody
     , WalletStore
     , walletPublicIdentity
-    , getValueTransfersWithTxIds
     ) where
 
 import Prelude
@@ -45,15 +48,19 @@ import Cardano.Wallet.Address.BIP32
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
-    , TxSummary
     , ValueTransfer
     , WalletPublicIdentity (..)
     , WalletState
     , Word31
     )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( ByCustomer
+    , ByTime
+    )
 import Cardano.Wallet.Deposit.Read
     ( Address
-    , Slot
+    , TxId
+    , WithOrigin
     )
 import Cardano.Wallet.Network.Checkpoints.Policy
     ( defaultPolicy
@@ -70,6 +77,9 @@ import Data.List.NonEmpty
     )
 import Data.Map.Strict
     ( Map
+    )
+import Data.Time
+    ( UTCTime
     )
 
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
@@ -217,6 +227,13 @@ walletPublicIdentity w = do
             , pubNextUser = Wallet.trackedCustomers state
             }
 
+type ResolveAddress = Address -> Maybe Customer
+
+addressToCustomer :: WalletInstance -> IO ResolveAddress
+addressToCustomer w = do
+    state <- readWalletState w
+    pure $ flip Wallet.addressToCustomer state
+
 {-----------------------------------------------------------------------------
     Operations
     Reading from the blockchain
@@ -229,20 +246,27 @@ availableBalance :: WalletInstance -> IO Read.Value
 availableBalance w =
     Wallet.availableBalance <$> readWalletState w
 
-getCustomerHistory :: Customer -> WalletInstance -> IO (Map Read.TxId TxSummary)
-getCustomerHistory c w =
-    Wallet.getCustomerHistory c <$> readWalletState w
+getTxHistoryByCustomer :: WalletInstance -> IO ByCustomer
+getTxHistoryByCustomer w =
+    Wallet.getTxHistoryByCustomer <$> readWalletState w
 
-getValueTransfers
-    :: WalletInstance
-    -> IO (Map Slot (Map Address ValueTransfer))
-getValueTransfers w = Wallet.getValueTransfers <$> readWalletState w
+getTxHistoryByTime :: WalletInstance -> IO ByTime
+getTxHistoryByTime w = Wallet.getTxHistoryByTime <$> readWalletState w
 
-getValueTransfersWithTxIds
+getCustomerDeposits
     :: WalletInstance
-    -> IO (Map Slot (Map Address (Map Read.TxId ValueTransfer)))
-getValueTransfersWithTxIds w =
-    Wallet.getValueTransfersWithTxIds <$> readWalletState w
+    -> Customer
+    -> Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> IO (Map TxId ValueTransfer)
+getCustomerDeposits w c i =
+    Wallet.getCustomerDeposits c i <$> readWalletState w
+
+getAllDeposits
+    :: WalletInstance
+    -> Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+    -> IO (Map Customer ValueTransfer)
+getAllDeposits w i =
+    Wallet.getAllDeposits i <$> readWalletState w
 
 rollForward
     :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()
@@ -251,7 +275,8 @@ rollForward w blocks _nodeTip =
         $ Delta.update
         $ Delta.Replace . Wallet.rollForwardMany blocks
 
-rollBackward :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint
+rollBackward
+    :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint
 rollBackward w point =
     onWalletState w
         $ Delta.updateWithResult
@@ -280,4 +305,4 @@ signTxBody txbody w = Wallet.signTxBody txbody <$> readWalletState w
 ------------------------------------------------------------------------------}
 data WalletLog
     = WalletLogDummy
-    deriving Show
+    deriving (Show)
