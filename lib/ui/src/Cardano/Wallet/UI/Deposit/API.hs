@@ -30,6 +30,9 @@ import Cardano.Wallet.UI.Cookies
 import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     ( TransactionHistoryParams
     )
+import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
+    ( DepositsParams
+    )
 import Control.Lens
     ( makePrisms
     )
@@ -64,6 +67,7 @@ data Page
     | Settings
     | Wallet
     | Addresses
+    | Deposits
 
 makePrisms ''Page
 
@@ -73,6 +77,7 @@ instance ToHttpApiData Page where
     toUrlPiece Settings = "settings"
     toUrlPiece Wallet = "wallet"
     toUrlPiece Addresses = "addresses"
+    toUrlPiece Deposits = "deposits"
 
 instance FromHttpApiData Page where
     parseUrlPiece "about" = Right About
@@ -80,6 +85,7 @@ instance FromHttpApiData Page where
     parseUrlPiece "settings" = Right Settings
     parseUrlPiece "wallet" = Right Wallet
     parseUrlPiece "addresses" = Right Addresses
+    parseUrlPiece "deposits" = Right Deposits
     parseUrlPiece _ = Left "Invalid page"
 
 -- | Pages endpoints
@@ -89,6 +95,7 @@ type Pages =
         :<|> "settings" :> SessionedHtml Get
         :<|> "wallet" :> SessionedHtml Get
         :<|> "addresses" :> SessionedHtml Get
+        :<|> "deposits" :> SessionedHtml Get
 
 -- | Data endpoints
 type Data =
@@ -126,6 +133,11 @@ type Data =
             :> "history"
             :> ReqBody '[FormUrlEncoded] TransactionHistoryParams
             :> SessionedHtml Post
+        :<|> "deposits" :> SessionedHtml Get
+        :<|> "deposits"
+            :> "history"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> SessionedHtml Post
 
 type Home = SessionedHtml Get
 
@@ -143,6 +155,7 @@ networkPageLink :: Link
 settingsPageLink :: Link
 walletPageLink :: Link
 addressesPageLink :: Link
+depositPageLink :: Link
 networkInfoLink :: Link
 settingsGetLink :: Link
 settingsSseToggleLink :: Link
@@ -159,12 +172,15 @@ customerAddressLink :: Link
 addressesLink :: Link
 navigationLink :: Maybe Page -> Link
 customerHistoryLink :: Link
+depositsLink :: Link
+depositsHistoryLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
     :<|> settingsPageLink
     :<|> walletPageLink
     :<|> addressesPageLink
+    :<|> depositPageLink
     :<|> networkInfoLink
     :<|> settingsGetLink
     :<|> settingsSseToggleLink
@@ -180,5 +196,7 @@ homePageLink
     :<|> customerAddressLink
     :<|> addressesLink
     :<|> navigationLink
-    :<|> customerHistoryLink =
+    :<|> customerHistoryLink
+    :<|> depositsLink
+    :<|> depositsHistoryLink =
         allLinks (Proxy @UI)

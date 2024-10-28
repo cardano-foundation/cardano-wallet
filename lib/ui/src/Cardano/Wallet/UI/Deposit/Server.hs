@@ -90,6 +90,10 @@ import Cardano.Wallet.UI.Deposit.Server.Addresses
     , serveCustomerHistory
     , serveGetAddress
     )
+import Cardano.Wallet.UI.Deposit.Server.Deposits.Page
+    ( serveDeposits
+    , serveDepositsPage
+    )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
     )
@@ -144,6 +148,7 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveTabPage ul config Settings
         :<|> serveTabPage ul config Wallet
         :<|> serveTabPage ul config Addresses
+        :<|> serveTabPage ul config Deposits
         :<|> serveNetworkInformation nid nl bs
         :<|> serveSSESettings ul
         :<|> serveToggleSSE ul
@@ -160,6 +165,8 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveAddressesPage ul
         :<|> serveNavigation ul
         :<|> serveCustomerHistory ul
+        :<|> serveDepositsPage ul
+        :<|> serveDeposits ul
 
 serveTabPage
     :: UILayer s
