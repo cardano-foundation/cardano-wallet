@@ -49,6 +49,7 @@ module Cardano.Wallet.Deposit.Read
     , Read.mockRawHeaderHash
 
     , Read.PParams (..)
+    , Read.mockPParamsConway
 
     , Read.GenesisData
     , Read.GenesisHash
