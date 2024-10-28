@@ -1,6 +1,5 @@
 module Cardano.Wallet.UI.Deposit.Server.Deposits.Page
     ( serveDepositsPage
-    , serveDeposits
     )
 where
 
@@ -26,10 +25,7 @@ import Cardano.Wallet.UI.Cookies
     , RequestCookies
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( depositsHistoryLink
-    )
-import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
-    ( DepositsParams (..)
+    ( depositsTimesLink
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
@@ -52,12 +48,4 @@ serveDepositsPage ul = withSessionLayer ul $ \layer -> do
     wp <- walletPresence layer
     pure
         $ renderSmoothHtml
-        $ depositsElementH depositsHistoryLink alertH wp
-
-serveDeposits
-    :: UILayer WalletResource
-    -> DepositsParams
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse RawHtml)
-serveDeposits ul _params = withSessionLayer ul $ \_layer ->
-    pure $ renderSmoothHtml "TODO"
+        $ depositsElementH depositsTimesLink alertH wp

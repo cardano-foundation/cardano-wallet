@@ -15,6 +15,9 @@ import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMenmonic
     , PostWalletViaXPub
     )
+import Cardano.Wallet.Read
+    ( WithOrigin (..)
+    )
 import Cardano.Wallet.UI.Common.API
     ( Image
     , SessionedHtml
@@ -35,6 +38,9 @@ import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     )
 import Control.Lens
     ( makePrisms
+    )
+import Data.Time
+    ( UTCTime
     )
 import Servant
     ( Delete
@@ -135,8 +141,14 @@ type Data =
             :> SessionedHtml Post
         :<|> "deposits" :> SessionedHtml Get
         :<|> "deposits"
-            :> "history"
+            :> "times"
             :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> SessionedHtml Post
+        :<|> "deposits"
+            :> "times"
+            :> "page"
+            :> ReqBody '[FormUrlEncoded] DepositsParams
+            :> QueryParam "index" (WithOrigin UTCTime)
             :> SessionedHtml Post
 
 type Home = SessionedHtml Get
@@ -173,7 +185,8 @@ addressesLink :: Link
 navigationLink :: Maybe Page -> Link
 customerHistoryLink :: Link
 depositsLink :: Link
-depositsHistoryLink :: Link
+depositsTimesLink :: Link
+depositsTimesPaginatingLink :: Maybe (WithOrigin UTCTime) -> Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -198,5 +211,6 @@ homePageLink
     :<|> navigationLink
     :<|> customerHistoryLink
     :<|> depositsLink
-    :<|> depositsHistoryLink =
-        allLinks (Proxy @UI)
+    :<|> depositsTimesLink
+    :<|> depositsTimesPaginatingLink
+    = allLinks (Proxy @UI)

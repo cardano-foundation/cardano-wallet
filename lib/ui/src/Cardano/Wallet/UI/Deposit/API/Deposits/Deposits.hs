@@ -113,10 +113,11 @@ instance FromForm DepositsParams where
         windowOpen <- parseMaybe "window-open" form
         spent <- isJust <$> lookupMaybe "spent" form
         customers <- Set.fromList <$> parseAll "customers" form
-        pages <- Set.fromList . fmap Down <$> parseAll "page-present" form
+        pageTimes <- Set.fromList . fmap Down <$>
+            parseAll "times-paginating-presence" form
         pageCustomers <-
-            Set.fromList <$> parseAll "customers-page-present" form
-        pageTxIds <- Set.fromList <$> parseAll "tx-ids-page-present" form
+            Set.fromList <$> parseAll "customers-paginating-presence" form
+        pageTxIds <- Set.fromList <$> parseAll "tx-ids-paginating-presence" form
         pure
             $ DepositsParams
                 slot
@@ -127,6 +128,6 @@ instance FromForm DepositsParams where
                 windowOpen
                 spent
                 customers
-                pages
+                pageTimes
                 pageCustomers
                 pageTxIds
