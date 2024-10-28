@@ -32,7 +32,7 @@ import Cardano.Wallet.UI.Cookies
     ( CookieResponse
     , RequestCookies
     )
-import Cardano.Wallet.UI.Deposit.API
+import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     ( TransactionHistoryParams
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses

@@ -29,8 +29,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     )
 import Cardano.Wallet.UI.Deposit.API
-    ( TransactionHistoryParams (..)
-    , customerHistoryLink
+    ( customerHistoryLink
     , fakeDataBackgroundLink
     )
 import Control.Monad
@@ -74,6 +73,9 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxPost_
     , hxTarget_
     , hxTrigger_
+    )
+import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
+    ( TransactionHistoryParams (..)
     )
 import Cardano.Wallet.UI.Deposit.Html.Common
     ( slotH

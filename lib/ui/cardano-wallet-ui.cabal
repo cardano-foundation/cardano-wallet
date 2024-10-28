@@ -60,6 +60,8 @@ library
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
     Cardano.Wallet.UI.Deposit.API
+    Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
+    Cardano.Wallet.UI.Deposit.API.Common
     Cardano.Wallet.UI.Deposit.Handlers.Addresses
     Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
@@ -123,8 +125,8 @@ library
     , lens
     , lucid
     , memory
-    , monoidal-containers
     , mmorph
+    , monoidal-containers
     , mtl
     , ntp-client
     , operational
