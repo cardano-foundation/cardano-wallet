@@ -217,7 +217,7 @@ fromXPubAndGenesis xpub knownCustomerCount genesisData =
         { walletTip = Read.GenesisPoint
         , addresses =
             Address.fromXPubAndCount network xpub knownCustomerCount
-        , utxoHistory = UTxOHistory.empty initialUTxO
+        , utxoHistory = UTxOHistory.fromOrigin initialUTxO
         , txHistory = mempty
         , submissions = Sbm.empty
         , rootXSignKey = Nothing
