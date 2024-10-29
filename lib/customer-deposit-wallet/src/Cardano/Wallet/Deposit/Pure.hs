@@ -144,7 +144,6 @@ import qualified Control.Monad.Random.Strict as Random
 import qualified Data.Delta as Delta
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
     Types
@@ -482,8 +481,10 @@ signTx _tx _w = undefined
 ------------------------------------------------------------------------------}
 
 addTxSubmission :: Write.Tx -> WalletState -> WalletState
-addTxSubmission _tx _w = undefined
+addTxSubmission tx w =
+    w
+        { submissions = Delta.apply (Sbm.add tx) (submissions w)
+        }
 
-listTxsInSubmission :: WalletState -> Set Write.Tx
--- listTxsInSubmission = Sbm.listInSubmission . submissions
-listTxsInSubmission _ = Set.empty
+listTxsInSubmission :: WalletState -> [Write.Tx]
+listTxsInSubmission = Sbm.listInSubmission . submissions
