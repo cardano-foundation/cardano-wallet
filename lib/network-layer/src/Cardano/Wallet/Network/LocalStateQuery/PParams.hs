@@ -18,19 +18,13 @@ import Cardano.Wallet.Network.Implementation.Ouroboros
     )
 import Cardano.Wallet.Network.LocalStateQuery.Extra
     ( byronOrShelleyBased
-    , onAnyEra
+    , onAnyEra'
     )
-import Cardano.Wallet.Primitive.Ledger.Byron
-    ( protocolParametersFromUpdateState
+import Cardano.Wallet.Primitive.Ledger.Read.PParams
+    ( primitiveProtocolParameters
     )
 import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromAllegraPParams
-    , fromAlonzoPParams
-    , fromBabbagePParams
-    , fromConwayPParams
-    , fromMaryPParams
-    , fromShelleyPParams
-    , slottingParametersFromGenesis
+    ( slottingParametersFromGenesis
     )
 import Cardano.Wallet.Primitive.Types.EraInfo
     ( EraInfo (..)
@@ -43,9 +37,6 @@ import Cardano.Wallet.Primitive.Types.ProtocolParameters
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( SlottingParameters
-    )
-import Cardano.Write.Eras
-    ( MaybeInRecentEra (..)
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -63,7 +54,10 @@ import Ouroboros.Consensus.Shelley.Ledger.Config
     ( getCompactGenesis
     )
 
-import qualified Internal.Cardano.Write.Tx as Write
+import qualified Cardano.Chain.Update.Validation.Interface as Byron
+    ( adoptedProtocolParameters
+    )
+import qualified Cardano.Wallet.Read as Read
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 
@@ -72,16 +66,18 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 ------------------------------------------------------------------------------}
 type LSQ' m = LSQ (CardanoBlock StandardCrypto) m
 
-protocolParams :: LSQ' m (MaybeInRecentEra Write.PParams)
+protocolParams :: LSQ' m (Read.EraValue Read.PParams)
 protocolParams =
-    onAnyEra
-        (pure InNonRecentEraByron)
-        (pure InNonRecentEraShelley)
-        (pure InNonRecentEraAllegra)
-        (pure InNonRecentEraMary)
-        (pure InNonRecentEraAlonzo)
-        (InRecentEraBabbage <$> LSQry Shelley.GetCurrentPParams)
-        (InRecentEraConway <$> LSQry Shelley.GetCurrentPParams)
+    onAnyEra'
+        (fromByron <$> LSQry Byron.GetUpdateInterfaceState)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+        (Read.PParams <$> LSQry Shelley.GetCurrentPParams)
+  where
+    fromByron = Read.PParams . Byron.adoptedProtocolParameters
 
 slottingParamsLegacy :: NetworkParameters -> LSQ' m SlottingParameters
 slottingParamsLegacy np =
@@ -102,25 +98,5 @@ protocolParamsLegacy = do
             <*> LSQry (QueryAnytimeAlonzo GetEraStart)
             <*> LSQry (QueryAnytimeBabbage GetEraStart)
 
-    onAnyEra
-        ( protocolParametersFromUpdateState eraBounds
-            <$> LSQry Byron.GetUpdateInterfaceState
-        )
-        ( fromShelleyPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromAllegraPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromMaryPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromAlonzoPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromBabbagePParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
-        ( fromConwayPParams eraBounds
-            <$> LSQry Shelley.GetCurrentPParams
-        )
+    Read.EraValue pparams <- protocolParams
+    pure $ primitiveProtocolParameters eraBounds pparams

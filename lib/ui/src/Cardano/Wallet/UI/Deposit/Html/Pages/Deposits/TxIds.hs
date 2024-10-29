@@ -154,7 +154,7 @@ depositByTxIdH
     -> Html ()
 depositByTxIdH
     DepositsParams{depositsSpent}
-    (txId, ValueTransfer{received, spent}) = do
+    (txId, ValueTransferC{received, spent}) = do
         tr_ [scope_ "row"] $ do
             tdEnd $ txIdH txId
             tdEnd $ valueH received

@@ -193,7 +193,7 @@ depositH
         , depositsFirstWeekDay
         }
     mexpand depositsCustomersLink
-    (dTime@(Down time), (slot, ValueTransfer{received, spent}))
+    (dTime@(Down time), (slot, ValueTransferC{received, spent}))
     widget
         | expanded = do
             let

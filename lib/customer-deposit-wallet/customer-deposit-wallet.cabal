@@ -161,6 +161,7 @@ library rest
     , crypto-primitives
     , customer-deposit-wallet
     , customer-deposit-wallet-pure
+    , deepseq
     , delta-store
     , directory
     , filepath

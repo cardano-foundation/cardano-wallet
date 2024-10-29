@@ -844,6 +844,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CAShelley
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Ledger.Core as Ledger
 import qualified Cardano.Slotting.Slot as Slot
 import qualified Cardano.Wallet.Address.Discovery.Random as Rnd
 import qualified Cardano.Wallet.Address.Discovery.Sequential as Seq
@@ -2160,11 +2161,26 @@ readNodeTipStateForTxWrite
     -> IO (Write.PParamsInAnyRecentEra, TimeTranslation)
 readNodeTipStateForTxWrite netLayer = do
     timeTranslation <- toTimeTranslation (timeInterpreter netLayer)
-    mpp <- currentProtocolParametersInRecentEras netLayer
+    mpp <- Read.applyEraFun pparamsInRecentEra <$> currentPParams netLayer
     case toRecentEraGADT mpp of
         Left nopp -> throwIO $ ExceptionWriteTxEra
             $ ErrNodeNotYetInRecentEra nopp
         Right pp -> pure (pp, timeTranslation)
+
+-- | Filter protocol parameters for recent eras.
+pparamsInRecentEra
+    :: forall era. Read.IsEra era
+    => Read.PParams era
+    -> Write.MaybeInRecentEra Ledger.PParams
+pparamsInRecentEra (Read.PParams pparams) =
+    case Read.theEra :: Read.Era era of
+        Read.Byron -> Write.InNonRecentEraByron
+        Read.Shelley -> Write.InNonRecentEraShelley
+        Read.Allegra -> Write.InNonRecentEraAllegra
+        Read.Mary -> Write.InNonRecentEraMary
+        Read.Alonzo -> Write.InNonRecentEraAlonzo
+        Read.Babbage -> Write.InRecentEraBabbage pparams
+        Read.Conway -> Write.InRecentEraConway pparams
 
 -- | Wallet-specific wrapped version of 'Write.balanceTx', made for the new tx
 -- workflow with Shelley- and Shared- wallet flavors.
