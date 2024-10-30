@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <img width="200" src=".github/images/cardano-logo.png"/>
+  <img height="200" src=".github/images/cardano-logo.png"/>
+  <img height="200" src=".github/images/ada-logo.png"/>
 </p>
 
 <p align="center">
@@ -35,7 +36,11 @@
 
 ## Overview
 
-Cardano Wallet is software that helps you manage your Ada <img height="14" src=".github/images/ada-logo.png"/>. You can use it to send and receive payments on the [Cardano blockchain](https://www.cardano.org).
+Cardano Wallet is software that helps you manage your ADA.
+
+<img height="50" src=".github/images/ada-logo.png"/>
+
+You can use this wallet to send and receive payments on the [Cardano blockchain](https://www.cardano.org).
 
 This project provides an HTTP Application Programming Interface (API)
 and command-line interface (CLI) for working with your wallet.
