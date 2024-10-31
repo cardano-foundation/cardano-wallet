@@ -963,6 +963,7 @@ mkUnsignedTx
         Nothing
     , txCurrentTreasuryValue = Nothing
     , txTreasuryDonation = Nothing
+    , txSupplementalData = Cardano.BuildTxWith Cardano.TxSupplementalDataNone
     }
   where
     era = Write.recentEra @era
