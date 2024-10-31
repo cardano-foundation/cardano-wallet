@@ -1,6 +1,10 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use <$>" #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.TxIds
     ( depositCustomersTxIdsPaginateM
@@ -17,9 +21,9 @@ import Cardano.Wallet.Deposit.Map
     ( Map (..)
     , W
     , forgetPatch
-    , lookup
-    , lookupPatched
-    , openMap
+    , lookupFinger
+    , lookupMap
+    , value
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
@@ -49,11 +53,11 @@ import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
     ( getMockHistory
     )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Times
-    ( discretizeAByTime
-    )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
+    )
+import Cardano.Wallet.UI.Lib.Discretization
+    ( nextDiscretizedTime
     )
 import Cardano.Wallet.UI.Lib.Pagination.Map
     ( Paginate (..)
@@ -89,7 +93,6 @@ import Servant
     )
 
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Map.Strict as Map
 
 type AtTimeAtCustomerByTxId =
@@ -111,41 +114,65 @@ depositCustomersTxIdsPaginateM
         TxId
         (Map.Map TxId ValueTransfer)
 depositCustomersTxIdsPaginateM
-    DepositsParams{depositsFirstWeekDay, depositsWindow}
-    newDepositsHistory
+    depositsParams
+    retrieveByTime
     time
     customer
     rows =
         Paginate
             { previousIndex = \k -> runMaybeT $ do
-                Paginate{previousIndex} <- paginate <$> newDepositTxIds
+                Paginate{previousIndex} <- history
                 hoistMaybe $ previousIndex k
             , nextIndex = \k -> runMaybeT $ do
-                Paginate{nextIndex} <- paginate <$> newDepositTxIds
+                Paginate{nextIndex} <- history
                 hoistMaybe $ nextIndex k
             , minIndex = runMaybeT $ do
-                Paginate{minIndex} <- paginate <$> newDepositTxIds
+                Paginate{minIndex} <- history
                 hoistMaybe minIndex
             , pageAtIndex = \k -> runMaybeT $ do
-                Paginate{pageAtIndex} <- paginate <$> newDepositTxIds
+                Paginate{pageAtIndex} <- history
                 hoistMaybe $ do
                     (n, x) <- pageAtIndex k
                     pure (n, fmap fold x)
             }
       where
-        paginate = mkStrictMapPaginate rows . getMonoidalMap . openMap . forgetPatch
-        newDepositTxIds
-            :: MaybeT m AtTimeAtCustomerByTxId
-        newDepositTxIds = do
-            transfers' <- lift newDepositsHistory
-            let transfers'' =
-                    discretizeAByTime
-                        depositsFirstWeekDay
-                        depositsWindow
-                        transfers'
+        history =
+            mkStrictMapPaginate rows
+                . getMonoidalMap
+                . value
+                . forgetPatch
+                <$> retrieveAtTimeAtCustomerByTxId
+                    retrieveByTime
+                    depositsParams
+                    time
+                    customer
+
+retrieveAtTimeAtCustomerByTxId
+    :: Monad m
+    => m ByTime
+    -> DepositsParams
+    -> DownTime
+    -> Customer
+    -> MaybeT m AtTimeAtCustomerByTxId
+retrieveAtTimeAtCustomerByTxId
+    retrieveByTime
+    DepositsParams{depositsFirstWeekDay, depositsWindow}
+    tStart
+    customerStart =
+        do
+            transfers' <- lift retrieveByTime
+            let tEnd =
+                    fmap
+                        (nextDiscretizedTime depositsFirstWeekDay depositsWindow)
+                        <$> tStart
+            customers <-
+                hoistMaybe
+                    $ fmap snd
+                    $ lookupFinger tStart tEnd transfers'
             hoistMaybe
-                $ lookup time transfers''
-                    >>= lookup customer . forgetPatch
+                $ fmap snd
+                $ lookupMap customerStart
+                $ forgetPatch customers
 
 depositCustomersTxIdsHandler
     :: SessionLayer WalletResource
@@ -159,29 +186,22 @@ depositCustomersTxIdsHandler
     layer
     render
     alert
-    DepositsParams{depositsFirstWeekDay, depositsWindow, depositsFakeData}
+    params@DepositsParams{depositsFakeData}
     start
-    customer =
-        do
-            catchRunWalletResourceHtml layer alert id
-                $ do
-                    transfers <-
-                        if depositsFakeData
-                            then byTime <$> getMockHistory
-                            else error "depositsHistoryWindowHandler: real data not implemented"
-                    let transfers' =
-                            discretizeAByTime
-                                depositsFirstWeekDay
-                                depositsWindow
-                                transfers
-                    pure $ case lookup (Down start) transfers' of
-                        Just window -> case lookupPatched customer window of
-                            Just (_, txIds) -> render txIds
-                            Nothing ->
-                                alert
-                                    "No deposits found for that time period and customer"
-                        Nothing ->
-                            alert
-                                $ "No deposits found for that time period"
-                                    <> " "
-                                    <> BL8.pack (show start)
+    customer = catchRunWalletResourceHtml layer alert id $ do
+        let transfers =
+                if depositsFakeData
+                    then byTime <$> getMockHistory
+                    else error "depositsHistoryWindowHandler: real data not implemented"
+        transfers' <-
+            runMaybeT
+                $ retrieveAtTimeAtCustomerByTxId
+                    transfers
+                    params
+                    (Down start)
+                    customer
+        pure $ case transfers' of
+            Just txIds -> render txIds
+            Nothing ->
+                alert
+                    "No deposits found for that time period and customer"

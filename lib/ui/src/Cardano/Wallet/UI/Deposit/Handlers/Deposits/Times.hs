@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE QualifiedDo #-}
@@ -6,7 +7,6 @@
 
 module Cardano.Wallet.UI.Deposit.Handlers.Deposits.Times
     ( depositsPaginateM
-    , discretizeAByTime
     )
 where
 
@@ -14,13 +14,12 @@ import Prelude hiding
     ( lookup
     )
 
-import Cardano.Slotting.Slot
-    ( WithOrigin (..)
-    )
 import Cardano.Wallet.Deposit.Map
-    ( Map (Map)
-    , openMap
-    , unPatch
+    ( unPatch
+    , value
+    )
+import Cardano.Wallet.Deposit.Map.Timed
+    ( Timed (..)
     )
 import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer
@@ -36,13 +35,13 @@ import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     ( DepositsParams (..)
     )
 import Cardano.Wallet.UI.Lib.Discretization
-    ( Window
-    , discretizeTime
-    , nextDiscretizedTime
+    ( discretizeTime
     )
 import Cardano.Wallet.UI.Lib.Pagination.Map
     ( Paginate (..)
-    , mkStrictMapPaginate
+    )
+import Cardano.Wallet.UI.Lib.Pagination.TimedSeq
+    ( mkTimedSeqPaginate
     )
 import Cardano.Wallet.UI.Lib.Pagination.Type
     ( PaginateM
@@ -62,59 +61,17 @@ import Data.Bifunctor
     , first
     )
 import Data.Foldable
-    ( fold
-    )
-import Data.Map.Monoidal.Strict
-    ( MonoidalMap (..)
+    ( Foldable (..)
     )
 import Data.Monoid
     ( First (..)
+    , Last (..)
     )
 import Data.Ord
     ( Down (..)
     )
-import Data.Time
-    ( DayOfWeek
-    )
 
-import qualified Data.Map.Monoidal.Strict as MonoidalMap
 import qualified Data.Map.Strict as Map
-
-discretizeAMonoidalMap
-    :: Monoid a
-    => DayOfWeek
-    -> Window
-    -> MonoidalMap DownTime a
-    -> MonoidalMap DownTime a
-discretizeAMonoidalMap fdk w mm = case MonoidalMap.lookupMin mm of
-    Just ((Down (At t)), _) ->
-        let
-            t' = discretizeTime fdk w t
-            nt = Down $ At $ nextDiscretizedTime fdk w t'
-            (before, match, after) = MonoidalMap.splitLookup nt mm
-            after' =
-                maybe
-                    after
-                    (\v -> MonoidalMap.insert nt v after)
-                    match
-        in
-            MonoidalMap.singleton (Down (At t')) (fold before)
-                <> discretizeAMonoidalMap fdk w after'
-    Just (Down Origin, _) ->
-        let
-            (before, match, after) = MonoidalMap.splitLookup (Down Origin) mm
-            before' =
-                maybe
-                    before
-                    (\v -> MonoidalMap.insert (Down Origin) v before)
-                    match
-        in
-            MonoidalMap.singleton (Down Origin) (fold before')
-                <> discretizeAMonoidalMap fdk w after
-    Nothing -> MonoidalMap.empty
-
-discretizeAByTime :: DayOfWeek -> Window -> ByTime -> ByTime
-discretizeAByTime fdk w (Map mm) = Map $ discretizeAMonoidalMap fdk w mm
 
 depositsPaginateM
     :: MonadIO m
@@ -127,28 +84,29 @@ depositsPaginateM
         (Map.Map DownTime (Maybe Slot, ValueTransfer))
 depositsPaginateM
     DepositsParams{depositsFirstWeekDay, depositsWindow}
-    newDepositsHistory
+    retrieveByTime
     rows =
         Paginate
             { previousIndex = \t -> runMaybeT $ do
-                Paginate{previousIndex} <- paginate <$> lift discretizedHistory
+                Paginate{previousIndex} <- lift history
                 hoistMaybe $ previousIndex t
             , nextIndex = \t -> runMaybeT $ do
-                Paginate{nextIndex} <- paginate <$> lift discretizedHistory
+                Paginate{nextIndex} <- lift history
                 hoistMaybe $ nextIndex t
             , pageAtIndex = \t -> do
-                Paginate{pageAtIndex} <- paginate <$> discretizedHistory
+                Paginate{pageAtIndex} <- history
                 pure
-                    $ fmap (fmap (first getFirst . fold . unPatch))
-                    <$> pageAtIndex t
+                    $ second (Map.fromList . concatMap fromTimed . toList)
+                        <$> pageAtIndex t
             , minIndex = do
-                Paginate{minIndex} <- paginate <$> discretizedHistory
+                Paginate{minIndex} <- paginate <$> retrieveByTime
                 pure minIndex
             }
       where
-        paginate = mkStrictMapPaginate rows . getMonoidalMap . openMap
-        discretizedHistory = do
-            discretizeAByTime
-                depositsFirstWeekDay
-                depositsWindow
-                <$> newDepositsHistory
+        discretize = discretizeTime depositsFirstWeekDay depositsWindow
+        paginate = mkTimedSeqPaginate bucket rows . id . value
+        history = paginate <$> retrieveByTime
+        bucket (Down t) = Down $ fmap discretize t
+        fromTimed (Timed (Last (Just t)) x) =
+            [(bucket t, first getFirst $ fold $ unPatch x)]
+        fromTimed _ = []

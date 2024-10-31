@@ -12,12 +12,15 @@ import Prelude hiding
     )
 
 import Cardano.Wallet.Deposit.Map
-    ( Map (..)
+    ( F
+    , Map (..)
     , W
-    , forgetPatch
-    , lookup
-    , openMap
+    , lookupMap
     , unPatch
+    , value
+    )
+import Cardano.Wallet.Deposit.Map.Timed
+    ( Timed (..)
     )
 import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer (..)
@@ -60,10 +63,11 @@ import Data.Bifunctor
     ( first
     )
 import Data.Foldable
-    ( fold
+    ( toList
     )
 import Data.Monoid
     ( First (..)
+    , Last (..)
     )
 import Data.Ord
     ( Down (..)
@@ -103,20 +107,23 @@ getCustomerHistory
                         $ render True params
                         $ filterByParams params
                         $ convert
-                        $ lookup txHistoryCustomer h
+                        $ snd <$> lookupMap txHistoryCustomer h
 
 convert
     :: Maybe
-        (Map '[W (First Address) DownTime, W (First Slot) TxId] ValueTransfer)
+        (Map [F (First Address) DownTime, W (First Slot) TxId] ValueTransfer)
     -> [(DownTime, (Slot, TxId, ValueTransfer))]
-convert = concatMap f . MonoidalMap.assocs . openMap . forgetPatch . fold
-    where
-        f :: (DownTime, Map '[W (First Slot) TxId] ValueTransfer)
-                -> [(DownTime, (Slot, TxId, ValueTransfer))]
-        f (time, txs) = do
-            (txId, Value (First (Just slot) , value) )
-                <- MonoidalMap.assocs . openMap . unPatch $ txs
-            pure (time, (slot, txId, value))
+convert Nothing = []
+convert (Just mtxs) = concatMap f $ toList $ value mtxs
+  where
+    f
+        :: Timed DownTime (Map '[W (First Slot) TxId] ValueTransfer)
+        -> [(DownTime, (Slot, TxId, ValueTransfer))]
+    f (Timed (Last (Just time)) txs) = do
+        (txId, Value (First (Just slot), v)) <-
+            MonoidalMap.assocs . value . unPatch $ txs
+        pure (time, (slot, txId, v))
+    f _ = []
 
 filterByParams
     :: TransactionHistoryParams
@@ -137,10 +144,9 @@ filterByParams TransactionHistoryParams{..} =
             txHistoryStartYear
             txHistoryStartMonth
     matchUTCTime (time, (_, _, _)) =
-        do
-            case time of
-                At t -> Match t
-                Origin -> DirectionMatch
+        case time of
+            At t -> Match t
+            Origin -> DirectionMatch
     filterByTransfer = case (txHistoryReceived, txHistorySpent) of
         (True, False) ->
             filter

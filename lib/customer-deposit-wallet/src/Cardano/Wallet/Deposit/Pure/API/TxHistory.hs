@@ -2,12 +2,21 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Cardano.Wallet.Deposit.Pure.API.TxHistory
- where
+    ( ByCustomer
+    , ByTime
+    , DownTime
+    , ResolveAddress
+    , ResolveSlot
+    , TxHistory (..)
+    , firstJust
+    , transfers
+    )
+where
 
 import Prelude
 
 import Cardano.Wallet.Deposit.Map
-    ( K
+    ( F
     , Map (..)
     , W
     )
@@ -49,15 +58,15 @@ type DownTime = Down (WithOrigin UTCTime)
 
 type ByCustomer =
     Map
-        '[ K Customer
-         , W (First Address) DownTime
+        '[ W () Customer
+         , F (First Address) DownTime
          , W (First Slot) TxId
          ]
         ValueTransfer
 
 type ByTime =
     Map
-        '[ K DownTime
+        '[ F () DownTime
          , W (First Slot) Customer
          , W (First Address) TxId
          ]
