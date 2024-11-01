@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # Enforce strict script execution modes
-set -euox pipefail
+set -euo pipefail
 
 # Function to display usage information
 usage() {
