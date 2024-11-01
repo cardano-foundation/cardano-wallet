@@ -39,7 +39,13 @@ module Cardano.Wallet.Deposit.Map
       -- * Construction
     , singletonMap
     , singletonFinger
+
+      -- * Conversion
     , toFinger
+
+      -- * Modification
+    , onMap
+    , onFinger
     )
 where
 
@@ -82,12 +88,20 @@ data F (w :: Type) (k :: Type)
 
 -- | A nested monoidal map. Every nesting can also be patched with a monoid 'w'.
 data Map :: [Type] -> Type -> Type where
-    Value :: v -> Map '[] v
-    -- ^ A leaf node with a value.
-    Map :: w -> k ^^^ Map ks v -> Map (W w k ': ks) v
-    -- ^ A node with a patch 'w' and a nested monoidal map.
-    Finger :: w -> TimedSeq k (Map ks v) -> Map (F w k ': ks) v
-    -- ^ A node with a patch 'w' and a nested finger tree of maps.
+    Value
+        :: v
+        -> Map '[] v
+        -- ^ A leaf node with a value.
+    Map
+        :: w
+        -> k ^^^ Map ks v
+        -> Map (W w k ': ks) v
+        -- ^ A node with a patch 'w' and a nested monoidal map.
+    Finger
+        :: w
+        -> TimedSeq k (Map ks v)
+        -> Map (F w k ': ks) v
+        -- ^ A node with a patch 'w' and a nested finger tree of maps.
 
 deriving instance Show v => Show (Map '[] v)
 
@@ -113,6 +127,13 @@ deriving instance
     , Show (Map ks v)
     )
     => Show (Map (F w k ': ks) v)
+
+deriving instance
+    ( Eq w
+    , Eq k
+    , Eq (Map ks v)
+    )
+    => Eq (Map (F w k ': ks) v)
 
 instance Functor (Map '[]) where
     fmap f (Value v) = Value (f v)
@@ -241,7 +262,8 @@ singletonFinger
 singletonFinger w k m =
     Finger w $ FingerTree.singleton (Timed (Last (Just k)) m)
 
-toFinger :: Monoid (Map ks a) => Map (W w k : ks) a -> Map (F w k : ks) a
+toFinger
+    :: Monoid (Map ks a) => Map (W w k : ks) a -> Map (F w k : ks) a
 toFinger (Map w m) = Finger w $ FingerTree.fromList $ do
     (k, v) <- MonoidalMap.toList m
     pure $ Timed (Last (Just k)) v
@@ -262,3 +284,17 @@ lookupFinger k1 k2 (Finger w m) = do
     case extractInterval k1 k2 m of
         Timed (Last Nothing) _ -> Nothing
         Timed _ m' -> Just (w, m')
+
+-- | Apply a function to the nested monoidal map keeping the patch.
+onMap
+    :: Map (W w k : ks) a
+    -> (MonoidalMap k (Map ks a) -> MonoidalMap k (Map ks a))
+    -> Map (W w k : ks) a
+onMap (Map w m) f = Map w $ f m
+
+-- | Apply a function to the nested finger tree keeping the patch.
+onFinger
+    :: Map (F w k : ks) a
+    -> (TimedSeq k (Map ks a) -> TimedSeq k (Map ks a))
+    -> Map (F w k : ks) a
+onFinger (Finger w m) f = Finger w $ f m
