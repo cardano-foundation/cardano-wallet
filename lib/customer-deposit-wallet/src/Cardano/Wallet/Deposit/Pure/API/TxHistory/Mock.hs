@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
@@ -12,7 +13,7 @@ import Prelude
 import Cardano.Wallet.Deposit.Map
     ( Map (..)
     , singletonMap
-    , singletonPatched
+    , toFinger
     )
 import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer (..)
@@ -60,6 +61,10 @@ import System.Random.Stateful
 
 import qualified Cardano.Wallet.Deposit.Time as Time
 
+-- | Create a mock 'TxHistory' with a given number of deposits.
+-- The fingertree monoid is not designed to sort by time, so the
+-- we fold a Map instead and convert afterwards.
+-- In reality we are going to roll forward and backward with ordered elements.
 mockTxHistory
     :: UTCTime
     -- ^ Current time.
@@ -73,44 +78,46 @@ mockTxHistory
     -- ^ Number of deposits to create.
     -> TxHistory
 mockTxHistory now solveAddress solveSlot addresses ns =
-    runStateGen_ (mkStdGen 0) $ \g -> do
-        fmap mconcat
-            $ replicateM ns
-            $ do
-                slot <- case Time.unsafeSlotOfUTCTime now of
-                    Origin -> pure Origin
-                    At (SlotNo n) -> do
-                        slotInt <-
-                            floor
-                                . (fromIntegral n -)
-                                . (* fromIntegral n)
-                                . (abs)
-                                <$> standard g
-                        pure
-                            $ if slotInt < 0
-                                then Origin
-                                else At (SlotNo $ fromIntegral @Integer slotInt)
-                addressNumber <- uniformRM (0, length addresses - 1) g
-                let address = addresses !! addressNumber
-                value <- valueTransferG g
-                txId <- txIdR g
-                let customer = case solveAddress address of
-                        Just c -> c
-                        Nothing -> error "fakeDepositsCreate: address not found"
-                let time = case solveSlot slot of
-                        Just t -> t
-                        Nothing -> error "fakeDepositsCreate: slot not found"
-                    singletonByTime =
-                        singletonMap time
-                            $ singletonPatched (First $ Just slot) customer
-                            $ singletonPatched (First $ Just address) txId
-                            $ Value value
-                    singletonByCustomer =
-                        singletonMap customer
-                            $ singletonPatched (First $ Just address) time
-                            $ singletonPatched (First $ Just slot) txId
-                            $ Value value
-                pure $ TxHistory singletonByCustomer singletonByTime
+    let (Map w f, byTime) = runStateGen_ (mkStdGen 0) $ \g ->
+            fmap mconcat
+                $ replicateM ns
+                $ do
+                    slot <- case Time.unsafeSlotOfUTCTime now of
+                        Origin -> pure Origin
+                        At (SlotNo n) -> do
+                            slotInt <-
+                                floor
+                                    . (fromIntegral n -)
+                                    . (* fromIntegral n)
+                                    . (abs)
+                                    <$> standard g
+                            pure
+                                $ if slotInt < 0
+                                    then Origin
+                                    else At (SlotNo $ fromIntegral @Integer slotInt)
+                    addressNumber <- uniformRM (0, length addresses - 1) g
+                    let address = addresses !! addressNumber
+                    value <- valueTransferG g
+                    txId <- txIdR g
+                    let customer = case solveAddress address of
+                            Just c -> c
+                            Nothing -> error "fakeDepositsCreate: address not found"
+                    let time = case solveSlot slot of
+                            Just t -> t
+                            Nothing -> error "fakeDepositsCreate: slot not found"
+                        singletonByTime =
+                            singletonMap () time
+                                $ singletonMap (First $ Just slot) customer
+                                $ singletonMap (First $ Just address) txId
+                                $ Value value
+                        singletonByCustomer =
+                            singletonMap () customer
+                                $ singletonMap (First $ Just address) time
+                                $ singletonMap (First $ Just slot) txId
+                                $ Value value
+                    pure (singletonByCustomer, singletonByTime)
+        byCustomer' = Map w $ fmap toFinger f
+    in  TxHistory byCustomer' (toFinger byTime)
 
 txIdR :: StatefulGen g m => g -> m TxId
 txIdR g = do

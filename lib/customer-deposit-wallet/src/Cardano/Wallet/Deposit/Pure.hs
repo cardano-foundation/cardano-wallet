@@ -67,9 +67,14 @@ import Cardano.Wallet.Address.BIP32
 import Cardano.Wallet.Deposit.Map
     ( Map
     , W
-    , forgetPatch
-    , lookup
-    , openMap
+    , lookupMap
+    , value
+    )
+import Cardano.Wallet.Deposit.Map.Timed
+    ( Timed
+    , TimedSeq
+    , extractInterval
+    , monoid
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByCustomer
@@ -124,7 +129,6 @@ import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.Delta as Delta
 import qualified Data.List as L
-import qualified Data.Map.Monoidal.Strict as MonoidalMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -304,22 +308,9 @@ getCustomerDeposits
     -> WalletState
     -> Map.Map TxId ValueTransfer
 getCustomerDeposits c interval s = fold $ do
-    m <-
-        fmap (openMap . forgetPatch)
-            $ lookup c
-            $ getTxHistoryByCustomer s
-    pure
-        $ wonders interval
-        $ selectTimeInterval interval m
-
-selectTimeInterval
-    :: Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
-    -> MonoidalMap DownTime a
-    -> MonoidalMap DownTime a
-selectTimeInterval Nothing = id
-selectTimeInterval (Just (from, to)) =
-    MonoidalMap.dropWhileAntitone (< Down to)
-        . MonoidalMap.takeWhileAntitone (>= Down from)
+    fmap (wonders interval . value . snd)
+        $ lookupMap c
+        $ getTxHistoryByCustomer s
 
 getAllDeposits
     :: Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
@@ -327,21 +318,27 @@ getAllDeposits
     -> Map.Map Customer ValueTransfer
 getAllDeposits interval s =
     wonders interval
-        $ openMap
+        $ value
         $ getTxHistoryByTime s
 
 wonders
     :: (Ord k, Monoid w, Foldable (Map xs), Monoid (Map xs ValueTransfer))
     => Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
-    -> MonoidalMap DownTime (Map (W w k : xs) ValueTransfer)
+    -> TimedSeq DownTime (Map (W w k : xs) ValueTransfer)
     -> Map.Map k ValueTransfer
 wonders interval =
     getMonoidalMap
-        . fmap fold
-        . openMap
-        . forgetPatch
-        . fold
-        . selectTimeInterval interval
+        . monoid
+        . fmap (fmap fold . value)
+        . extractInterval' interval
+  where
+    extractInterval'
+        :: Monoid a
+        => Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
+        -> TimedSeq (DownTime) a
+        -> Timed (DownTime) a
+    extractInterval' Nothing = mempty
+    extractInterval' (Just (t1, t2)) = extractInterval (Down t1) (Down t2)
 
 {-----------------------------------------------------------------------------
     Operations

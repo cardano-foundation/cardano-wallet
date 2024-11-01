@@ -1,9 +1,9 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -13,38 +13,58 @@
 {-# LANGUAGE TypeOperators #-}
 
 module Cardano.Wallet.Deposit.Map
-    ( Map (..)
-    , K
+    ( -- * Type
+      Map (..)
+
+      -- * Keys
     , W
-    , type (^^^)
-    , Lookup
-    , Key (..)
-    , singletonMap
-    , openMap
-    , singletonPatched
+    , F
+
+      -- * Patch management
     , unPatch
-    , withMap
-    , forMap
-    , withPatched
-    , lookup
-    , lookupPatched
-    , forPatched
-    , openPatched
-    , At (..)
     , forgetPatch
-    ) where
 
-import Prelude hiding
-    ( lookup
+      -- * Accessors
+    , OpenF
+    , open
+    , PatchF
+    , patch
+    , ValueF
+    , value
+
+      -- * Lookup
+    , lookupMap
+    , lookupFinger
+
+      -- * Construction
+    , singletonMap
+    , singletonFinger
+    , toFinger
     )
+where
 
+import Cardano.Wallet.Deposit.Map.Timed
+    ( Timed (..)
+    , TimedSeq
+    , extractInterval
+    )
+import Data.FingerTree
+    ( fmap'
+    )
 import Data.Kind
     ( Type
     )
 import Data.Map.Monoidal.Strict
-    ( MonoidalMap (..)
+    ( MonoidalMap
+    )
+import Data.Monoid
+    ( Last (..)
+    )
+import Prelude hiding
+    ( lookup
     )
 
+import qualified Data.FingerTree as FingerTree
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
 
 -- | Infix form of MonoidalMap type
@@ -56,23 +76,20 @@ infixr 5 ^^^
 -- 'w'. This is used to keep track of the patches applied to the map.
 data W (w :: Type) (k :: Type)
 
--- | A phantom type for mappings from 'k'
-data K (k :: Type)
+-- | A phantom type for a finger tree of mappings from 'k' tupled with a spurious
+-- monoid 'w'.
+data F (w :: Type) (k :: Type)
 
 -- | A nested monoidal map. Every nesting can also be patched with a monoid 'w'.
 data Map :: [Type] -> Type -> Type where
     Value :: v -> Map '[] v
-    Map :: k ^^^ Map ks v -> Map (K k ': ks) v
-    Patched :: w -> k ^^^ Map ks v -> Map (W w k ': ks) v
+    -- ^ A leaf node with a value.
+    Map :: w -> k ^^^ Map ks v -> Map (W w k ': ks) v
+    -- ^ A node with a patch 'w' and a nested monoidal map.
+    Finger :: w -> TimedSeq k (Map ks v) -> Map (F w k ': ks) v
+    -- ^ A node with a patch 'w' and a nested finger tree of maps.
 
 deriving instance Show v => Show (Map '[] v)
-
-deriving instance
-    ( Show k
-    , Show v
-    , Show (Map ks v)
-    )
-    => Show (Map (K k ': ks) v)
 
 deriving instance
     ( Show w
@@ -84,33 +101,33 @@ deriving instance
 deriving instance Eq v => Eq (Map '[] v)
 
 deriving instance
-    ( Eq k
-    , Eq v
-    , Eq (k ^^^ Map ks v)
-    )
-    => Eq (Map (K k ': ks) v)
-
-deriving instance
     ( Eq w
     , Eq k
     , Eq (Map ks v)
     )
     => Eq (Map (W w k ': ks) v)
 
-deriving instance Functor (Map '[])
+deriving instance
+    ( Show w
+    , Show k
+    , Show (Map ks v)
+    )
+    => Show (Map (F w k ': ks) v)
 
-deriving instance Functor (Map ks) => Functor (Map (k ': ks))
+instance Functor (Map '[]) where
+    fmap f (Value v) = Value (f v)
+
+instance Functor (Map xs) => Functor (Map (W w x : xs)) where
+    fmap f (Map w m) = Map w $ fmap (fmap f) m
+
+instance
+    (Functor (Map xs), forall a. Monoid (Map xs a))
+    => Functor (Map (F w x : xs))
+    where
+    fmap f (Finger w m) = Finger w $ fmap' (fmap $ fmap f) m
 
 instance Monoid v => Monoid (Map '[] v) where
     mempty = Value mempty
-
-instance
-    ( Monoid (Map ks v)
-    , Ord k
-    )
-    => Monoid (Map (K k : ks) v)
-    where
-    mempty = Map mempty
 
 instance
     ( Monoid (Map ks v)
@@ -119,18 +136,13 @@ instance
     )
     => Monoid (Map (W w k : ks) v)
     where
-    mempty = Patched mempty mempty
+    mempty = Map mempty mempty
+
+instance (Monoid (Map xs v), Monoid w) => Monoid (Map (F w x : xs) v) where
+    mempty = Finger mempty mempty
 
 instance Semigroup v => Semigroup (Map '[] v) where
     Value a <> Value b = Value (a <> b)
-
-instance
-    ( Monoid (Map ks v)
-    , Ord k
-    )
-    => Semigroup (Map (K k : ks) v)
-    where
-    Map a <> Map b = Map (a <> b)
 
 instance
     ( Ord x
@@ -139,106 +151,114 @@ instance
     )
     => Semigroup (Map (W w x : xs) v)
     where
-    Patched w a <> Patched w' b = Patched (w <> w') (a <> b)
+    Map w a <> Map w' b = Map (w <> w') (a <> b)
+
+instance
+    (Monoid w, Monoid (Map xs v))
+    => Semigroup (Map (F w x : xs) v)
+    where
+    Finger wa a <> Finger wb b = Finger (wa <> wb) (a <> b)
 
 instance Foldable (Map '[]) where
     foldMap f (Value v) = f v
 
-instance (Foldable (Map xs), Ord x) => Foldable (Map (K x : xs)) where
-    foldMap f (Map m) = foldMap (foldMap f) m
+instance (Foldable (Map xs), Ord x) => Foldable (Map (F w x : xs)) where
+    foldMap f (Finger _ m) = foldMap (foldMap $ foldMap f) m
 
 instance (Foldable (Map xs), Ord x) => Foldable (Map (W w x : xs)) where
-    foldMap f (Patched _ m) = foldMap (foldMap f) m
+    foldMap f (Map _ m) = foldMap (foldMap f) m
+
+type family UnPatchF xs where
+    UnPatchF (Map (W w x ': xs) v) =
+        Map (W () x ': xs) (w, v)
+    UnPatchF (Map (F w x ': xs) v) =
+        Map (F () x ': xs) (w, v)
 
 -- | Push the patch down to the leaves of the map.
-unPatch :: Functor (Map xs) => Map (W w x : xs) v -> Map (K x : xs) (w, v)
-unPatch (Patched w m) = Map $ fmap (fmap (w,)) m
+unPatch
+    :: ( y ~ Map (x : ks) v
+       , Functor (Map ks)
+       , Monoid (Map ks v)
+       , Monoid (Map ks (w, v))
+       , w ~ PatchF x
+       )
+    => y
+    -> UnPatchF y
+unPatch (Map w m) = Map () $ fmap (fmap (w,)) m
+unPatch (Finger w m) = Finger () $ fmap' (fmap $ fmap (w,)) m
 
--- | Forget the patch applied to the map.
-forgetPatch :: Map (W w x : xs) v -> Map (K x : xs) v
-forgetPatch (Patched _ m) = Map m
+type family ForgetPatchF xs where
+    ForgetPatchF (Map (W w x ': xs) v) =
+        Map (W () x ': xs) v
+    ForgetPatchF (Map (F w x ': xs) v) =
+        Map (F () x ': xs) v
 
--- | Open the map to access the underlying monoidal map.
-openMap :: Map (K x : xs) v -> x ^^^ Map xs v
-openMap (Map m) = m
+-- | Forget the patch of any map layer.
+forgetPatch
+    :: (y ~ Map (x : ks) v)
+    => y
+    -> ForgetPatchF y
+forgetPatch ((Map _ m)) = Map () m
+forgetPatch ((Finger _ m)) = Finger () m
 
--- | Open the patched map to access the underlying monoidal map and the patch.
-openPatched :: Map (W w x : xs) v -> (w, x ^^^ Map xs v)
-openPatched (Patched w m) = (w, m)
+type family PatchF x where
+    PatchF (W w x) = w
+    PatchF (F w x) = w
 
--- | Create a map with a single key-value pair.
-singletonMap :: x -> Map xs v -> Map (K x : xs) v
-singletonMap x m = Map $ MonoidalMap.singleton x m
+-- | Extract the patch from any map layer.
+patch :: Map (x : xs) v -> PatchF x
+patch (Map w _) = w
+patch (Finger w _) = w
 
--- | Create a patched map with a single key-value pair.
-singletonPatched :: w -> x -> Map xs v -> Map (W w x : xs) v
-singletonPatched w x m = Patched w $ MonoidalMap.singleton x m
+type family ValueF x where
+    ValueF (Map '[] v) = v
+    ValueF (Map (W w x ': xs) v) = x ^^^ Map xs v
+    ValueF (Map (F w x ': xs) v) = TimedSeq x (Map xs v)
 
--- | Destroy the underlying monoidal map.
-withMap
-    :: Map (K k ': ks) a
-    -> (forall x. MonoidalMap k x -> b)
-    -> b
-withMap (Map m) f = f m
+-- | Extract the value from any map layer.
+value :: Map xs v -> ValueF (Map xs v)
+value (Map _ m) = m
+value (Finger _ m) = m
+value (Value v) = v
 
--- | Apply a function to the underlying monoidal map.
-forMap
-    :: Map (K k ': ks) a
-    -> (forall x. MonoidalMap k x -> MonoidalMap k x)
-    -> Map (K k ': ks) a
-forMap (Map m) f = Map (f m)
+type family OpenF xs where
+    OpenF (Map (W w x ': xs) v) = (w, x ^^^ Map xs v)
+    OpenF (Map (F w x ': xs) v) = (w, TimedSeq x (Map xs v))
 
--- | Destroy the underlying monoidal map and the patch.
-withPatched
-    :: Map (W w k ': ks) a
-    -> (forall x. w -> MonoidalMap k x -> b)
-    -> b
-withPatched (Patched w m) f = f w m
+-- | Open any map layer and return the patch as well.
+open :: Map (x : xs) v -> OpenF (Map (x : xs) v)
+open (Map w m) = (w, m)
+open (Finger w m) = (w, m)
 
--- | Apply a function to the underlying monoidal map and the patch.
-forPatched
-    :: Map (W w k ': ks) a
-    -> (forall x. w -> MonoidalMap k x -> MonoidalMap k x)
-    -> Map (W w k ': ks) a
-forPatched (Patched w m) f = Patched w (f w m)
+-- | Construct a map layer with a single key-value pair.
+singletonMap
+    :: w -> k -> Map xs v -> Map (W w k ': xs) v
+singletonMap w k = Map w . MonoidalMap.singleton k
 
--- | Lookup a value in first layer of the map.
-lookup :: (Ord k) => k -> Map (K k : ks) a -> Maybe (Map ks a)
-lookup k (Map m) = MonoidalMap.lookup k m
+-- | Construct a finger layer with a single key-value pair.
+singletonFinger
+    :: Monoid (Map xs v) => w -> k -> Map xs v -> Map (F w k ': xs) v
+singletonFinger w k m =
+    Finger w $ FingerTree.singleton (Timed (Last (Just k)) m)
+
+toFinger :: Monoid (Map ks a) => Map (W w k : ks) a -> Map (F w k : ks) a
+toFinger (Map w m) = Finger w $ FingerTree.fromList $ do
+    (k, v) <- MonoidalMap.toList m
+    pure $ Timed (Last (Just k)) v
 
 -- | Lookup a value in first layer of the map and return the patch as well.
-lookupPatched :: (Ord k) => k -> Map (W w k : ks) a -> Maybe (w, Map ks a)
-lookupPatched k (Patched w m) = (w,) <$> MonoidalMap.lookup k m
+lookupMap
+    :: (Ord k) => k -> Map (W w k : ks) a -> Maybe (w, Map ks a)
+lookupMap k (Map w m) = (w,) <$> MonoidalMap.lookup k m
 
--- | A key to access a value at some depth in the map. It's also a witness of
--- ks being a prefix of rs.
-data Key ks rs where
-    KeyK :: k -> Key ks rs -> Key (K k ': ks) (K k ': rs)
-    KeyW :: k -> Key ks rs -> Key (W w k ': ks) (W w k ': rs)
-    LastK :: Key '[] rs
-
--- | Compute the type of a lookup at some depth in the map. The type is lossless
--- so it carries the patched semigroups as well.
-type family Lookup xs ys a :: Type where
-    Lookup '[] ys a = Map ys a
-    Lookup (K x ': xs) (K x : ys) a = Lookup xs ys a
-    Lookup (W w x ': xs) (W w x : ys) a = (w, Lookup xs ys a)
-
--- | A class to access a value at some depth in the map.
-class At ks rs where
-    at
-        :: Key ks rs
-        -- ^ The key list to access the value.
-        -> Map rs a
-        -- ^ The map to access the value from.
-        -> Maybe (Lookup ks rs a)
-        -- ^ The value at the given key list.
-
-instance At '[] rs where
-    at LastK = Just
-
-instance (Ord k, At ks rs) => At (K k ': ks) (K k ': rs) where
-    at (KeyK k ks) m = lookup k m >>= at ks
-
-instance (Ord k, At ks rs) => At (W w k ': ks) (W w k ': rs) where
-    at (KeyW k ks) m = lookupPatched k m >>= \(w, m') -> (w,) <$> at ks m'
+-- | Lookup for an interval of keys in the finger tree and return the patch as well.
+lookupFinger
+    :: (Ord k, Monoid (Map ks a))
+    => k
+    -> k
+    -> Map (F w k : ks) a
+    -> Maybe (w, Map ks a)
+lookupFinger k1 k2 (Finger w m) = do
+    case extractInterval k1 k2 m of
+        Timed (Last Nothing) _ -> Nothing
+        Timed _ m' -> Just (w, m')

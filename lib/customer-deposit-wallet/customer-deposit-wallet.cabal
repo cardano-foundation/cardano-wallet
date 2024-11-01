@@ -67,6 +67,7 @@ library
     , customer-deposit-wallet-pure
     , delta-store
     , delta-types
+    , fingertree
     , io-classes
     , microlens
     , monoidal-containers
@@ -85,6 +86,7 @@ library
     Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.IO.Resource.Event
     Cardano.Wallet.Deposit.Map
+    Cardano.Wallet.Deposit.Map.Timed
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.API.TxHistory
     Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
@@ -196,17 +198,20 @@ test-suite unit
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
     , directory
+    , fingertree
     , hspec
     , hspec-golden
     , openapi3
     , QuickCheck
     , temporary
+    , time
     , with-utf8
 
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
     Cardano.Wallet.Deposit.HTTP.OpenAPISpec
+    Cardano.Wallet.Deposit.Map.TimedSpec
     Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
     Paths_customer_deposit_wallet

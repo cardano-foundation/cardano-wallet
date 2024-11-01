@@ -48,7 +48,7 @@ import System.IO.Unsafe
     )
 
 nMockDeposits :: Int
-nMockDeposits = 50000
+nMockDeposits = 100000
 
 type TxHistoryCache = TVar (Maybe (UTCTime, [Address], TxHistory))
 
@@ -98,7 +98,7 @@ getCachedMockDeposits solveAddress solveSlot nDeposits addresses = do
     case cache of
         Just (now', addresses', deposits)
             | diffUTCTime now now'
-                < secondsToNominalDiffTime 600
+                < secondsToNominalDiffTime 60000
                 && addresses' == addresses -> do
                 putStrLn "Using cached fake deposits"
                 pure deposits
