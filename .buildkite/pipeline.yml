@@ -233,30 +233,6 @@ steps:
       concurrency: 1
       concurrency_group: 'mithril-mainnet-full-sync'
 
-    - block: Sanchonet Full Sync
-      if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: []
-      key: linux-sanchonet-full-sync-block
-
-    - label: Sanchonet Full Sync
-      depends_on:
-        - linux-sanchonet-full-sync-block
-      timeout_in_minutes: 120
-      command: |
-        rm -rf run/sanchonet/nix/logs
-        mkdir -p run/sanchonet/nix/logs
-        rm -rf run/sanchonet/nix/databases
-        cd run/sanchonet/nix && ./run.sh sync
-      artifact_paths:
-        - "./run/sanchonet/nix/logs/*"
-      agents:
-        system: x86_64-linux
-      env:
-        NODE_LOGS_FILE: ./logs/node.log
-        WALLET_LOGS_FILE: ./logs/wallet.log
-        CLEANUP_DB: true
-        NETWORK: testnet
-
     - block: Preprod Full Sync
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: []
@@ -784,18 +760,6 @@ steps:
           system: x86_64-linux
         env:
           SUCCESS_STATUS: syncing
-          USE_LOCAL_IMAGE: true
-
-      - label: Sanchonet Full Sync
-        timeout_in_minutes: 240
-        command: |
-          cd run/sanchonet/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
-          rm -rf databases
-          ./run.sh sync
-        agents:
-          system: x86_64-linux
-        env:
           USE_LOCAL_IMAGE: true
 
       - label: Preprod Full Sync
