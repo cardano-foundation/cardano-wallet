@@ -303,16 +303,19 @@ rollForwardUTxO isOurs block u =
     slot = Read.getEraSlotNo $ Read.getEraBHeader block
 
 rollBackward
-    :: Read.ChainPoint
+    :: LookupTimeFromSlot
+    -> Read.ChainPoint
     -> WalletState
     -> (WalletState, Read.ChainPoint)
-rollBackward targetPoint w =
+rollBackward timeFromSlot targetPoint w =
     ( w
         { walletTip = actualPoint
         , utxoHistory =
             UTxOHistory.rollBackward actualSlot (utxoHistory w)
         , submissions =
             Delta.apply (Sbm.rollBackward actualSlot) (submissions w)
+        , txHistory =
+            TxHistory.rollBackward timeFromSlot actualSlot (txHistory w)
         }
     , actualPoint
     )

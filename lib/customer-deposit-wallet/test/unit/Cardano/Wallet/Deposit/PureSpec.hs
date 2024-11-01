@@ -68,7 +68,7 @@ prop_availableBalance_rollForward_twice =
     tx1 = payFromFaucet [(addr1, Write.mkAda 1)]
     block1 = Read.mockNextBlock Read.GenesisPoint [tx1]
     chainPoint1 = Read.getChainPoint block1
-    w1 = Wallet.rollForwardOne  timeFromSlot (Read.EraValue block1) w0
+    w1 = Wallet.rollForwardOne timeFromSlot (Read.EraValue block1) w0
 
     tx2 = payFromFaucet [(addr2, Write.mkAda 2)]
     block2 = Read.mockNextBlock chainPoint1 [tx2]
@@ -76,13 +76,16 @@ prop_availableBalance_rollForward_twice =
 
 prop_availableBalance_rollForward_rollBackward :: Property
 prop_availableBalance_rollForward_rollBackward =
-        Wallet.availableBalance (fst $ Wallet.rollBackward chainPoint0 w3)
+        Wallet.availableBalance
+            (fst $ Wallet.rollBackward timeFromSlot chainPoint0 w3)
             === Wallet.availableBalance w0
     .&&.
-        Wallet.availableBalance (fst $ Wallet.rollBackward chainPoint1 w3)
+        Wallet.availableBalance
+            (fst $ Wallet.rollBackward timeFromSlot chainPoint1 w3)
             === Wallet.availableBalance w1
     .&&.
-        Wallet.availableBalance (fst $ Wallet.rollBackward chainPoint2 w3)
+        Wallet.availableBalance
+            (fst $ Wallet.rollBackward timeFromSlot chainPoint2 w3)
             === Wallet.availableBalance w2
     .&&.
         Wallet.availableBalance w3

@@ -33,11 +33,14 @@ module Cardano.Wallet.Deposit.IO
     , getAllDeposits
 
       -- ** Writing to the blockchain
+
       -- *** Create transactions
     , createPayment
+
       -- *** Sign transactions
     , getBIP32PathsForOwnedInputs
     , signTx
+
       -- *** Submit transactions
     , submitTx
     , listTxsInSubmission
@@ -64,6 +67,7 @@ import Cardano.Wallet.Deposit.Pure
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByCustomer
     , ByTime
+    , LookupTimeFromSlot
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -282,11 +286,7 @@ rollForward
     -> tip
     -> IO ()
 rollForward w blocks _nodeTip = do
-    timeFromSlot <-
-        slotToUTCTime
-            $ networkEnv
-            $ bootEnv
-            $ env w
+    timeFromSlot <- slotResolver w
     onWalletState w
         $ Delta.update
         $ Delta.Replace
@@ -296,10 +296,21 @@ rollForward w blocks _nodeTip = do
 
 rollBackward
     :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint
-rollBackward w point =
+rollBackward w point = do
+    timeFromSlot <- slotResolver w
     onWalletState w
         $ Delta.updateWithResult
-        $ first Delta.Replace . Wallet.rollBackward point
+        $ first Delta.Replace . Wallet.rollBackward timeFromSlot point
+
+-- | Compute a slot resolver for the given slots.
+slotResolver
+    :: WalletInstance
+    -> IO LookupTimeFromSlot
+slotResolver w = do
+    slotToUTCTime
+        $ networkEnv
+        $ bootEnv
+        $ env w
 
 {-----------------------------------------------------------------------------
     Operations
@@ -337,7 +348,8 @@ signTx a w = Wallet.signTx a <$> readWalletState w
     Pending transactions
 ------------------------------------------------------------------------------}
 
-submitTx :: Write.Tx -> WalletInstance -> IO (Either Network.ErrPostTx ())
+submitTx
+    :: Write.Tx -> WalletInstance -> IO (Either Network.ErrPostTx ())
 submitTx tx w = do
     e <- Network.postTx network tx
     case e of
