@@ -17,6 +17,12 @@ import Cardano.Crypto.Wallet
     , generate
     , toXPub
     )
+import Cardano.Wallet.Deposit.Pure.API.TxHistory
+    ( LookupTimeFromSlot
+    )
+import Cardano.Wallet.Deposit.Time
+    ( unsafeUTCTimeOfSlot
+    )
 import Test.Hspec
     ( Spec
     , describe
@@ -36,6 +42,9 @@ import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
+timeFromSlot :: LookupTimeFromSlot
+timeFromSlot = unsafeUTCTimeOfSlot
 
 spec :: Spec
 spec = do
@@ -59,11 +68,11 @@ prop_availableBalance_rollForward_twice =
     tx1 = payFromFaucet [(addr1, Write.mkAda 1)]
     block1 = Read.mockNextBlock Read.GenesisPoint [tx1]
     chainPoint1 = Read.getChainPoint block1
-    w1 = Wallet.rollForwardOne (Read.EraValue block1) w0
+    w1 = Wallet.rollForwardOne  timeFromSlot (Read.EraValue block1) w0
 
     tx2 = payFromFaucet [(addr2, Write.mkAda 2)]
     block2 = Read.mockNextBlock chainPoint1 [tx2]
-    w2 = Wallet.rollForwardOne (Read.EraValue block2) w1
+    w2 = Wallet.rollForwardOne timeFromSlot (Read.EraValue block2) w1
 
 prop_availableBalance_rollForward_rollBackward :: Property
 prop_availableBalance_rollForward_rollBackward =
@@ -89,17 +98,17 @@ prop_availableBalance_rollForward_rollBackward =
 
     tx1 = payFromFaucet [(addr1, Write.mkAda 1)]
     block1 = Read.mockNextBlock chainPoint0 [tx1]
-    w1 = Wallet.rollForwardOne (Read.EraValue block1) w0
+    w1 = Wallet.rollForwardOne timeFromSlot (Read.EraValue block1) w0
     chainPoint1 = Read.getChainPoint block1
 
     tx2 = payFromFaucet [(addr2, Write.mkAda 2)]
     block2 = Read.mockNextBlock chainPoint1 [tx2]
     chainPoint2 = Read.getChainPoint block2
-    w2 = Wallet.rollForwardOne (Read.EraValue block2) w1
+    w2 = Wallet.rollForwardOne timeFromSlot (Read.EraValue block2) w1
 
     tx3 = spendOneTxOut (Wallet.availableUTxO w2)
     block3 = Read.mockNextBlock chainPoint2 [tx3]
-    w3 = Wallet.rollForwardOne (Read.EraValue block3) w2
+    w3 = Wallet.rollForwardOne timeFromSlot (Read.EraValue block3) w2
 
 emptyWalletWith17Addresses :: Wallet.WalletState
 emptyWalletWith17Addresses =

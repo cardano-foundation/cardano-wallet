@@ -37,11 +37,11 @@ module Cardano.Wallet.Deposit.Pure
     , ValueTransfer (..)
     , getTxHistoryByCustomer
     , getTxHistoryByTime
+    , getEraSlotOfBlock
 
       -- ** Writing to the blockchain
     , ErrCreatePayment (..)
     , createPayment
-
     , BIP32Path (..)
     , DerivationType (..)
     , getBIP32PathsForOwnedInputs
@@ -85,6 +85,9 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     , DownTime
     , TxHistory (..)
     )
+import Cardano.Wallet.Deposit.Pure.Balance
+    ( ValueTransferMap
+    )
 import Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory
     ( UTxOHistory
     )
@@ -94,7 +97,11 @@ import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
 import Cardano.Wallet.Deposit.Read
     ( Address
     , TxId
-    , WithOrigin
+    , WithOrigin (..)
+    , getEraSlotOfBlock
+    )
+import Cardano.Wallet.Deposit.Time
+    ( LookupTimeFromSlot
     )
 import Control.Monad.Trans.Except
     ( runExceptT
@@ -132,6 +139,7 @@ import Data.Word.Odd
     )
 
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
+import qualified Cardano.Wallet.Deposit.Pure.API.TxHistory as TxHistory
 import qualified Cardano.Wallet.Deposit.Pure.Balance as Balance
 import qualified Cardano.Wallet.Deposit.Pure.RollbackWindow as Rollback
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
@@ -250,18 +258,34 @@ getWalletTip :: WalletState -> Read.ChainPoint
 getWalletTip = walletTip
 
 rollForwardMany
-    :: NonEmpty (Read.EraValue Read.Block) -> WalletState -> WalletState
-rollForwardMany blocks w = foldl' (flip rollForwardOne) w blocks
+    :: LookupTimeFromSlot
+    -> NonEmpty (Read.EraValue Read.Block)
+    -> WalletState
+    -> WalletState
+rollForwardMany timeFromSlot blocks w =
+    foldl' (flip $ rollForwardOne timeFromSlot) w blocks
 
 rollForwardOne
-    :: Read.EraValue Read.Block -> WalletState -> WalletState
-rollForwardOne (Read.EraValue block) w =
+    :: LookupTimeFromSlot
+    -> Read.EraValue Read.Block
+    -> WalletState
+    -> WalletState
+rollForwardOne timeFromSlot (Read.EraValue block) w =
     w
         { walletTip = Read.getChainPoint block
-        , utxoHistory = rollForwardUTxO isOurs block (utxoHistory w)
+        , utxoHistory = utxoHistory'
         , submissions = Delta.apply (Sbm.rollForward block) (submissions w)
+        , txHistory =
+            TxHistory.rollForward
+                valueTransfers
+                (`addressToCustomer` w)
+                timeFromSlot
+                (getEraSlotOfBlock block)
+                (txHistory w)
         }
   where
+    (utxoHistory', valueTransfers) =
+        rollForwardUTxO isOurs block (utxoHistory w)
     isOurs :: Address -> Bool
     isOurs = Address.isOurs (addresses w)
 
@@ -270,11 +294,12 @@ rollForwardUTxO
     => (Address -> Bool)
     -> Read.Block era
     -> UTxOHistory
-    -> UTxOHistory
+    -> (UTxOHistory, ValueTransferMap)
 rollForwardUTxO isOurs block u =
-    UTxOHistory.rollForward slot deltaUTxO u
+    (UTxOHistory.rollForward slot deltaUTxO u, valueTransfers)
   where
-    (deltaUTxO, _, _) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
+    (deltaUTxO, _, valueTransfers) =
+        Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
     slot = Read.getEraSlotNo $ Read.getEraBHeader block
 
 rollBackward
@@ -302,8 +327,8 @@ rollBackward targetPoint w =
     -- any other point than the target point (or genesis).
     actualPoint =
         if (targetSlot `Rollback.member` UTxOHistory.getRollbackWindow h)
-            -- FIXME: Add test for rollback window of `submissions`
-            then targetPoint
+            then -- FIXME: Add test for rollback window of `submissions`
+                targetPoint
             else Read.GenesisPoint
 
 availableBalance :: WalletState -> Read.Value
@@ -392,32 +417,36 @@ createPaymentConway
     -> Either (Write.ErrBalanceTx Write.Conway) Write.Tx
 createPaymentConway pparams timeTranslation destinations w =
     fmap (Read.Tx . fst)
-    . flip Random.evalRand (pilferRandomGen w)
-    . runExceptT
-    . balance
-        (availableUTxO w)
-        (addresses w)
-    . mkPartialTx
-    $ paymentTxBody
+        . flip Random.evalRand (pilferRandomGen w)
+        . runExceptT
+        . balance
+            (availableUTxO w)
+            (addresses w)
+        . mkPartialTx
+        $ paymentTxBody
   where
     paymentTxBody :: Write.TxBody
-    paymentTxBody = Write.TxBody
-        { spendInputs = mempty
-        , collInputs = mempty
-        , txouts =
-            Map.fromList $ zip [(toEnum 0)..] $ map (uncurry Write.mkTxOut) destinations
-        , collRet = Nothing
-        , expirySlot = Just . computeExpirySlot $ walletTip w
-        }
+    paymentTxBody =
+        Write.TxBody
+            { spendInputs = mempty
+            , collInputs = mempty
+            , txouts =
+                Map.fromList
+                    $ zip [(toEnum 0) ..]
+                    $ map (uncurry Write.mkTxOut) destinations
+            , collRet = Nothing
+            , expirySlot = Just . computeExpirySlot $ walletTip w
+            }
 
     mkPartialTx :: Write.TxBody -> Write.PartialTx Write.Conway
-    mkPartialTx txbody = Write.PartialTx
-        { tx = Read.unTx $ Write.mkTx txbody
-        , extraUTxO = mempty :: Write.UTxO Write.Conway
-        , redeemers = mempty
-        , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
-        , timelockKeyWitnessCounts = Write.TimelockKeyWitnessCounts mempty
-        }
+    mkPartialTx txbody =
+        Write.PartialTx
+            { tx = Read.unTx $ Write.mkTx txbody
+            , extraUTxO = mempty :: Write.UTxO Write.Conway
+            , redeemers = mempty
+            , stakeKeyDeposits = Write.StakeKeyDepositMap mempty
+            , timelockKeyWitnessCounts = Write.TimelockKeyWitnessCounts mempty
+            }
 
     balance utxo addressState =
         Write.balanceTx
@@ -428,12 +457,13 @@ createPaymentConway pparams timeTranslation destinations w =
             (changeAddressGen addressState)
             ()
 
-    changeAddressGen s = Write.ChangeAddressGen
-        { Write.genChangeAddress =
-            first Read.decompactAddr . Address.newChangeAddress s
-        , Write.maxLengthChangeAddress =
-            Read.decompactAddr $ Address.mockMaxLengthChangeAddress s
-        }
+    changeAddressGen s =
+        Write.ChangeAddressGen
+            { Write.genChangeAddress =
+                first Read.decompactAddr . Address.newChangeAddress s
+            , Write.maxLengthChangeAddress =
+                Read.decompactAddr $ Address.mockMaxLengthChangeAddress s
+            }
 
 -- | Use entropy contained in the current 'WalletState'
 -- to construct a pseudorandom seed.
@@ -458,7 +488,7 @@ computeExpirySlot Read.GenesisPoint = 0
 computeExpirySlot (Read.BlockPoint slotNo _) =
     slotNo + hour
   where
-    hour = 60*60
+    hour = 60 * 60
 
 {-----------------------------------------------------------------------------
     Operations

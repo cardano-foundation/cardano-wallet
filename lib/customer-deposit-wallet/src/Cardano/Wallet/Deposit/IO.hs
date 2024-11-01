@@ -51,6 +51,9 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path
     )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv (slotToUTCTime)
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer
@@ -119,8 +122,7 @@ data WalletBootEnv m = WalletBootEnv
 type WalletStore = Store.UpdateStore IO Wallet.DeltaWalletState
 
 -- | The full environment needed to run a wallet.
-data WalletEnv m
-    = WalletEnv
+data WalletEnv m = WalletEnv
     { bootEnv :: WalletBootEnv m
     -- ^ The boot environment.
     , store :: WalletStore
@@ -275,11 +277,22 @@ getAllDeposits w i =
     Wallet.getAllDeposits i <$> readWalletState w
 
 rollForward
-    :: WalletInstance -> NonEmpty (Read.EraValue Read.Block) -> tip -> IO ()
-rollForward w blocks _nodeTip =
+    :: WalletInstance
+    -> NonEmpty (Read.EraValue Read.Block)
+    -> tip
+    -> IO ()
+rollForward w blocks _nodeTip = do
+    timeFromSlot <-
+        slotToUTCTime
+            $ networkEnv
+            $ bootEnv
+            $ env w
     onWalletState w
         $ Delta.update
-        $ Delta.Replace . Wallet.rollForwardMany blocks
+        $ Delta.Replace
+            . Wallet.rollForwardMany
+                timeFromSlot
+                blocks
 
 rollBackward
     :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint
