@@ -143,24 +143,6 @@ steps:
       concurrency: 1
       concurrency_group: 'linux-e2e-tests'
 
-    - label: Private Network Full Sync
-      timeout_in_minutes: 30
-      depends_on: []
-      command: |
-        rm -rf run/private/nix/logs
-        mkdir -p run/private/nix/logs
-        rm -rf run/private/nix/databases
-        cd run/private/nix && ./run.sh sync
-      artifact_paths:
-        - "./run/private/nix/logs/*"
-      agents:
-        system: x86_64-linux
-      env:
-        NODE_LOGS_FILE: ./logs/node.log
-        WALLET_LOGS_FILE: ./logs/wallet.log
-        CLEANUP_DB: true
-        NETWORK: testnet
-
     - label: Preview Network Boot Sync
       timeout_in_minutes: 2
       depends_on: []
@@ -171,7 +153,7 @@ steps:
         rm -rf databases
         ./run.sh sync
       artifact_paths:
-        - "./run/private/nix/logs/*"
+        - "./run/preview/nix/logs/*"
       agents:
         system: x86_64-linux
       env:
@@ -736,18 +718,6 @@ steps:
           USE_LOCAL_IMAGE: true
         concurrency: 1
         concurrency_group: 'mithril-mainnet-full-sync'
-
-      - label: Private Network Full Sync
-        timeout_in_minutes: 30
-        command: |
-          cd run/private/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
-          rm -rf databases
-          ./run.sh sync
-        agents:
-          system: x86_64-linux
-        env:
-          USE_LOCAL_IMAGE: true
 
       - label: Preview Network Boot Sync
         timeout_in_minutes: 30
