@@ -22,6 +22,7 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( LookupTimeFromSlot
     , ResolveAddress
     , TxHistory (..)
+    , firstJust
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -42,9 +43,6 @@ import Control.Monad
     )
 import Data.Maybe
     ( fromJust
-    )
-import Data.Monoid
-    ( First (..)
     )
 import Data.Ord
     ( Down (..)
@@ -110,13 +108,13 @@ mockTxHistory now solveAddress solveSlot addresses ns =
                             Nothing -> error "fakeDepositsCreate: slot not found"
                         singletonByTime =
                             singletonMap () time
-                                $ singletonMap (First $ Just slot) customer
-                                $ singletonMap (First $ Just address) txId
+                                $ singletonMap (firstJust slot) customer
+                                $ singletonMap (firstJust address) txId
                                 $ Value value
                         singletonByCustomer =
                             singletonMap () customer
-                                $ singletonMap (First $ Just address) time
-                                $ singletonMap (First $ Just slot) txId
+                                $ singletonMap (firstJust address) time
+                                $ singletonMap (firstJust slot) txId
                                 $ Value value
                     pure (singletonByCustomer, singletonByTime)
         byCustomer' = Map w $ fmap toFinger f

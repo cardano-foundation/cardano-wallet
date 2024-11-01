@@ -13,6 +13,7 @@ module Cardano.Wallet.Deposit.Pure.API.TxHistory
     , firstJust
     , transfers
     , rollForward
+    , rollBackward
     )
 where
 
@@ -22,8 +23,14 @@ import Cardano.Wallet.Deposit.Map
     ( F
     , Map (..)
     , W
+    , onFinger
+    , onMap
     , singletonFinger
     , singletonMap
+    )
+import Cardano.Wallet.Deposit.Map.Timed
+    ( TimedSeq
+    , dropBefore
     )
 import Cardano.Wallet.Deposit.Pure.Address
     ( Customer
@@ -137,3 +144,21 @@ blockToTxHistory valueTransferMap resolveAddress timeFromSlot slot =
                     $ singletonMap (First $ Just slot) txId
                     $ Value valueTransfer
         pure $ TxHistory{byCustomer, byTime}
+
+-- | Roll backward the transaction history to a given slot. This function
+-- relies on the TxHistory to be sorted by time both on the time and
+-- customer views.
+rollBackward
+    :: LookupTimeFromSlot
+    -> Slot
+    -> TxHistory
+    -> TxHistory
+rollBackward timeFromSlot slot TxHistory{byCustomer, byTime} =
+    TxHistory
+        { byCustomer = onMap byCustomer $ fmap (`onFinger` takeToSlot)
+        , byTime = onFinger byTime takeToSlot
+        }
+  where
+    takeToSlot :: Monoid a => TimedSeq DownTime a -> TimedSeq DownTime a
+    takeToSlot x = maybe x (`forgetAfter` x)  $ timeFromSlot slot
+    forgetAfter t = dropBefore (Down t)
