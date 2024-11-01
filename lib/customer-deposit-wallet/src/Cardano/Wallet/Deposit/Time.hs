@@ -19,6 +19,7 @@ module Cardano.Wallet.Deposit.Time
     , toTimeTranslation
 
     -- * wishlist
+    , LookupTimeFromSlot
     , unsafeUTCTimeOfSlot
     , unsafeSlotsToUTCTimes
     , unsafeSlotOfUTCTime
@@ -92,12 +93,15 @@ mockSlottingParameters = SlottingParameters
 {-----------------------------------------------------------------------------
     TimeInterpreter
 ------------------------------------------------------------------------------}
+
 toTimeTranslation :: TimeInterpreter -> Write.TimeTranslation
 toTimeTranslation = toTimeTranslationPure
 
-unsafeSlotsToUTCTimes :: Set.Set Slot -> Map.Map Slot (WithOrigin UTCTime)
+type LookupTimeFromSlot = Slot -> Maybe (WithOrigin UTCTime)
+
+unsafeSlotsToUTCTimes :: Set.Set Slot -> LookupTimeFromSlot
 unsafeSlotsToUTCTimes slots =
-    Map.fromList $ do
+    flip Map.lookup $ Map.fromList $ do
         slot <- Set.toList slots
         time <- maybeToList $ unsafeUTCTimeOfSlot slot
         pure (slot, time)

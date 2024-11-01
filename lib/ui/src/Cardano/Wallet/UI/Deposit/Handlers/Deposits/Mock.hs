@@ -6,8 +6,8 @@ where
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ResolveAddress
-    , ResolveSlot
+    ( LookupTimeFromSlot
+    , ResolveAddress
     , TxHistory
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
@@ -76,7 +76,7 @@ getMockDepositsByTimeWithCount nDeposits = do
 
 getCachedMockDeposits
     :: ResolveAddress
-    -> ResolveSlot
+    -> LookupTimeFromSlot
     -> Int
     -> [Address]
     -> IO TxHistory

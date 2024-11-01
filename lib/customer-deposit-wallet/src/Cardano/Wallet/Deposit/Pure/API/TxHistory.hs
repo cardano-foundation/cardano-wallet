@@ -6,7 +6,7 @@ module Cardano.Wallet.Deposit.Pure.API.TxHistory
     , ByTime
     , DownTime
     , ResolveAddress
-    , ResolveSlot
+    , LookupTimeFromSlot
     , TxHistory (..)
     , firstJust
     , transfers
@@ -84,4 +84,4 @@ instance Monoid TxHistory where
     mempty = TxHistory mempty mempty
 
 type ResolveAddress = Address -> Maybe Customer
-type ResolveSlot = Slot -> Maybe DownTime
+type LookupTimeFromSlot = Slot -> Maybe DownTime

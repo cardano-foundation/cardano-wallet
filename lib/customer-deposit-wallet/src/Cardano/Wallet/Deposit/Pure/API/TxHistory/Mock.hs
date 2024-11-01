@@ -19,8 +19,8 @@ import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ResolveAddress
-    , ResolveSlot
+    ( LookupTimeFromSlot
+    , ResolveAddress
     , TxHistory (..)
     )
 import Cardano.Wallet.Deposit.Read
@@ -70,7 +70,7 @@ mockTxHistory
     -- ^ Current time.
     -> ResolveAddress
     -- ^ Compute a customer from an address.
-    -> ResolveSlot
+    -> LookupTimeFromSlot
     -- ^ Compute a time from a slot.
     -> [Address]
     -- ^ List of addresses to use.
