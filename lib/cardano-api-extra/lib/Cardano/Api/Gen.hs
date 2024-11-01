@@ -1760,6 +1760,19 @@ genVotingProcedures w = case w of
             , pure TxVotingProceduresNone
             ]
 
+genSupplementalData
+    :: CardanoEra era
+    -> ( Gen
+            (BuildTxWith BuildTx (ShelleyApi.TxSupplementalDatums era2))
+       )
+genSupplementalData era = fmap BuildTxWith
+    $ flip (inEonForEra (pure ShelleyApi.TxSupplementalDataNone)) era
+    $ \case
+        ConwayEraOnwardsConway -> oneof
+            [ pure ShelleyApi.TxSupplementalDataNone
+            , ShelleyApi.TxSupplementalDatums <$> listOf genHashableScriptData
+            ]
+
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = withEraWitness era $ \sbe -> do
     txIns <- scale (`div` 3) $ do
@@ -1782,9 +1795,10 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
     txValidityUpperBound <- genTxValidityUpperBound era
     txProposalProcedures <- genMaybeFeaturedInEra genProposals era
     txVotingProcedures <- genMaybeFeaturedInEra genVotingProcedures era
-    txCurrentTreasuryValue <- genMaybeFeaturedInEra (const (pure <$> genCoin)) era
+    txCurrentTreasuryValue <-
+        genMaybeFeaturedInEra (const (pure <$> genCoin)) era
     txTreasuryDonation <- genMaybeFeaturedInEra (const genCoin) era
-
+    txSupplementalData <- genSupplementalData era
     let
         txBody =
             TxBodyContent
@@ -1816,6 +1830,7 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
                 , Api.txVotingProcedures
                 , Api.txCurrentTreasuryValue
                 , Api.txTreasuryDonation
+                , Api.txSupplementalData
                 }
 
     let witnesses = collectTxBodyScriptWitnesses sbe txBody

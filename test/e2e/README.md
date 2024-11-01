@@ -74,7 +74,7 @@ One can also start tests against cardano-wallet docker. There is docker-compose-
 >NETWORK=preprod \
 >TESTS_E2E_TOKEN_METADATA=https://metadata.world.dev.cardano.org/ \
 >WALLET=dev-master \
->NODE=9.1.0 \
+>NODE=10.1.1 \
 >NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
 >DATA=`pwd`/state/node_db/$NETWORK
 >docker-compose -f docker-compose-test.yml up

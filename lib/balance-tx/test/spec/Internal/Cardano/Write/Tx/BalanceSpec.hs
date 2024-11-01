@@ -424,7 +424,7 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Style.Shelley as Shelley
 import qualified Cardano.Api as CardanoApi
-import qualified Cardano.Api.Byron as CardanoApi
+import qualified Cardano.Api.Byron as ByronApi
 import qualified Cardano.Api.Gen as CardanoApi
 import qualified Cardano.Api.Shelley as CardanoApi
 import qualified Cardano.Chain.Common as Byron
@@ -1637,7 +1637,7 @@ prop_bootstrapWitnesses
 
         addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
             (toHDPayloadAddress addr)
-            (CardanoApi.toByronNetworkMagic network)
+            (ByronApi.toByronNetworkMagic network)
 
 -- TODO [ADO-2997] Test this property in all recent eras.
 -- https://cardanofoundation.atlassian.net/browse/ADP-2997
