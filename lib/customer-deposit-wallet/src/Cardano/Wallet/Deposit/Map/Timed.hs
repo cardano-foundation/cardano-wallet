@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.Deposit.Map.Timed
@@ -41,6 +43,12 @@ import Data.Function
 import Data.Monoid
     ( Last (..)
     )
+import GHC.IsList
+    ( IsList (..)
+    )
+
+import qualified Data.FingerTree as FingerTree
+import qualified Data.Foldable as F
 
 -- | A value paired with a timestamp.
 data Timed t a = Timed
@@ -60,6 +68,11 @@ instance Monoid a => Measured (Timed t a) (Timed t a) where
 
 -- | A sequence of timed values with a monoidal annotation as itself
 type TimedSeq t a = FingerTree (Timed t a) (Timed t a)
+
+instance Monoid a => IsList (TimedSeq t a) where
+    type Item (TimedSeq t a) = Timed t a
+    fromList = FingerTree.fromList
+    toList = F.toList
 
 takeAfterElement
     :: (Monoid a, Ord q)
