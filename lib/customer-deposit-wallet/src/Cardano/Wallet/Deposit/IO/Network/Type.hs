@@ -3,6 +3,7 @@
 
 module Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (..)
+    , ErrPostTx (..)
     , mapBlock
     , ChainFollower (..)
     ) where
