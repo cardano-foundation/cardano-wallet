@@ -407,6 +407,7 @@ createPaymentConway pparams timeTranslation destinations w =
         , txouts =
             Map.fromList $ zip [(toEnum 0)..] $ map (uncurry Write.mkTxOut) destinations
         , collRet = Nothing
+        , expirySlot = Nothing
         }
 
     mkPartialTx :: Write.TxBody -> Write.PartialTx Write.Conway

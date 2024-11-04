@@ -14,7 +14,7 @@ module Cardano.Wallet.Deposit.Read
     , Read.Conway
     , Read.getEra
 
-    , Read.SlotNo
+    , Read.SlotNo (..)
     , Read.ChainPoint (..)
     , Read.Slot
     , Read.WithOrigin (..)

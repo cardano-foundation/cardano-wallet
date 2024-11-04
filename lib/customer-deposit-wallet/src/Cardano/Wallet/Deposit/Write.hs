@@ -48,6 +48,7 @@ import Cardano.Read.Ledger.Tx.Output
 import Cardano.Wallet.Deposit.Read
     ( Address
     , Ix
+    , SlotNo (..)
     , TxId
     , TxIn
     , TxOut
@@ -60,7 +61,7 @@ import Data.Map
     ( Map
     )
 import Data.Maybe.Strict
-    ( StrictMaybe
+    ( StrictMaybe (..)
     , maybeToStrictMaybe
     )
 import Data.Sequence.Strict
@@ -77,6 +78,7 @@ import Lens.Micro
 
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
+import qualified Cardano.Ledger.Slot as L
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Write.Eras as Write
 import qualified Cardano.Write.Tx as Write
@@ -93,6 +95,7 @@ data TxBody = TxBody
     , collInputs :: Set TxIn
     , txouts :: Map Ix TxOut
     , collRet :: Maybe TxOut
+    , expirySlot :: Maybe SlotNo
     }
     deriving (Show)
 
@@ -120,6 +123,14 @@ mkTx txbody = Read.Tx $ L.mkBasicTx txBody
             & (L.collateralReturnTxBodyL
                 .~ toLedgerMaybeTxOut (collRet txbody)
                 )
+            & (L.vldtTxBodyL .~
+                L.ValidityInterval
+                    SNothing
+                    (toLedgerSlotNo <$> maybeToStrictMaybe (expirySlot txbody))
+                )
+
+toLedgerSlotNo :: SlotNo -> L.SlotNo
+toLedgerSlotNo (SlotNo n) = L.SlotNo (fromInteger $ fromIntegral n)
 
 toLedgerTxIn :: TxIn -> L.TxIn L.StandardCrypto
 toLedgerTxIn = id
