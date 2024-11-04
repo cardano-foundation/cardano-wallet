@@ -96,8 +96,9 @@ data TxBody = TxBody
     }
     deriving (Show)
 
+-- | Inject a number of ADA, i.e. a million lovelace.
 mkAda :: Integer -> Value
-mkAda = Read.injectCoin . Read.CoinC
+mkAda = Read.injectCoin . Read.CoinC . (* 1000000)
 
 mkTxOut :: Address -> Value -> TxOut
 mkTxOut = Read.mkBasicTxOut

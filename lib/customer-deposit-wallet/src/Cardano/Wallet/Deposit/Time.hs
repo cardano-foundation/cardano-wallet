@@ -34,7 +34,7 @@ import Cardano.Wallet.Primitive.Slotting
     , mkSingleEraInterpreter
     )
 import Cardano.Wallet.Primitive.Slotting.TimeTranslation
-    ( toTimeTranslation
+    ( toTimeTranslationPure
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient (..)
@@ -92,6 +92,9 @@ mockSlottingParameters = SlottingParameters
 {-----------------------------------------------------------------------------
     TimeInterpreter
 ------------------------------------------------------------------------------}
+toTimeTranslation :: TimeInterpreter -> Write.TimeTranslation
+toTimeTranslation = toTimeTranslationPure
+
 unsafeSlotsToUTCTimes :: Set.Set Slot -> Map.Map Slot (WithOrigin UTCTime)
 unsafeSlotsToUTCTimes slots =
     Map.fromList $ do

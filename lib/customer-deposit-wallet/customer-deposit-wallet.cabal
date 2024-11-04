@@ -57,6 +57,7 @@ library
     , cardano-balance-tx
     , cardano-crypto
     , cardano-ledger-api
+    , cardano-ledger-core
     , cardano-strict-containers
     , cardano-wallet
     , cardano-wallet-network-layer
@@ -67,16 +68,19 @@ library
     , customer-deposit-wallet-pure
     , delta-store
     , delta-types
+    , digest
     , fingertree
     , io-classes
     , microlens
     , monoidal-containers
     , mtl
+    , MonadRandom
     , mwc-random
     , OddWord
     , random
     , text
     , time
+    , transformers
 
   exposed-modules:
     Cardano.Wallet.Deposit.IO

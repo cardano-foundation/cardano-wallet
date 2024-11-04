@@ -60,6 +60,9 @@ data NetworkEnv m block = NetworkEnv
         :: Write.Tx
         -> m (Either ErrPostTx ())
     -- ^ Post a transaction to the Cardano network.
+    , currentPParams
+        :: m (Read.EraValue Read.PParams)
+    -- ^ Current protocol paramters.
     , getTimeInterpreter
         :: m Time.TimeInterpreter
         -- ^ Get the current 'TimeInterpreter' from the Cardano node.

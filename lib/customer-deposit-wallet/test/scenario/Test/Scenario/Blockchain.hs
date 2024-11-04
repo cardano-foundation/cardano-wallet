@@ -122,14 +122,14 @@ payFromFaucet env destinations =
             Map.fromList $ zip [toEnum 0..] $ map toTxOut destinations
         , Write.collRet = Nothing
         }
-    tx = signTx (xprv (faucet env)) [] txBody
+    tx = signTx (xprv (faucet env)) [] $ Write.mkTx txBody
 
 {-----------------------------------------------------------------------------
     Transaction submission
 ------------------------------------------------------------------------------}
 
-signTx :: XPrv -> [BIP32Path] -> Write.TxBody -> Write.Tx
-signTx _ _ = Write.mkTx
+signTx :: XPrv -> [BIP32Path] -> Write.Tx -> Write.Tx
+signTx _ _ = id
 
 submitTx :: ScenarioEnv -> Write.Tx -> IO ()
 submitTx env tx = do

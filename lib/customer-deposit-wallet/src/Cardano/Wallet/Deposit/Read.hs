@@ -8,9 +8,11 @@
 --
 -- TODO: Match this up with the @Read@ hierarchy.
 module Cardano.Wallet.Deposit.Read
-    ( Read.IsEra
+    ( Read.IsEra (..)
+    , Read.Era (..)
     , Read.EraValue (..)
     , Read.Conway
+    , Read.getEra
 
     , Read.SlotNo
     , Read.ChainPoint (..)
@@ -22,6 +24,9 @@ module Cardano.Wallet.Deposit.Read
     , KeyHash
     , NetworkTag (..)
     , mkEnterpriseAddress
+    , Addr
+    , compactAddr
+    , decompactAddr
 
     , Ix
     , Read.TxIn
@@ -43,6 +48,9 @@ module Cardano.Wallet.Deposit.Read
     , mockNextBlock
     , Read.mockRawHeaderHash
 
+    , Read.PParams (..)
+    , Read.mockPParamsConway
+
     , Read.GenesisData
     , Read.GenesisHash
     , Read.mockGenesisDataMainnet
@@ -53,6 +61,11 @@ module Cardano.Wallet.Deposit.Read
 
 import Prelude
 
+import Cardano.Ledger.Address
+    ( Addr
+    , compactAddr
+    , decompactAddr
+    )
 import Cardano.Wallet.Address.Encoding
     ( Credential (..)
     , EnterpriseAddr (..)

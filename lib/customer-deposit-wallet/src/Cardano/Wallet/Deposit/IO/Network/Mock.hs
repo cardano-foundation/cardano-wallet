@@ -89,6 +89,8 @@ newNetworkEnvMock = do
                 -- brief delay to account for asynchronous chain followers
                 threadDelay 100
                 pure $ Right ()
+            , currentPParams =
+                pure $ Read.EraValue Read.mockPParamsConway
             , getTimeInterpreter =
                 pure Time.mockTimeInterpreter
             , slotsToUTCTimes = pure . Time.unsafeSlotsToUTCTimes

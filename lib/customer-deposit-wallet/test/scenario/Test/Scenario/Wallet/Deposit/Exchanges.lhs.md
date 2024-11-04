@@ -39,6 +39,7 @@ import Cardano.Wallet.Deposit.Read
     ( Address
     , Value
     , TxId
+    , lessOrEqual
     )
 import Test.Scenario.Blockchain
     ( ScenarioEnv
@@ -204,14 +205,14 @@ scenarioCreatePayment xprv env destination w = do
     assert $ value1 == (coin <> coin)
 
     -- createPayment
-    Just txBody <- Wallet.createPayment [(destination, coin)] w
-    paths <- Wallet.getBIP32PathsForOwnedInputs txBody w
-    let tx = signTx xprv paths txBody
+    Right txUnsigned <- Wallet.createPayment [(destination, coin)] w
+    paths <- Wallet.getBIP32PathsForOwnedInputs txUnsigned w
+    let tx = signTx xprv paths txUnsigned
     submitTx env tx
 
     -- funds have been moved out of the wallet
     value2 <- Wallet.availableBalance w
-    assert $ value2 <> coin == value1
+    assert $ (value2 <> coin) `lessOrEqual` value1
 
     -- but the original deposit amount is still recorded
     txsummaries <- getCustomerDeposits customer w
