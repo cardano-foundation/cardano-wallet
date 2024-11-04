@@ -46,6 +46,7 @@ module Cardano.Wallet.Deposit.Map
       -- * Modification
     , onMap
     , onFinger
+    , Peel
     )
 where
 
@@ -298,3 +299,8 @@ onFinger
     -> (TimedSeq k (Map ks a) -> TimedSeq k (Map ks a))
     -> Map (F w k : ks) a
 onFinger (Finger w m) f = Finger w $ f m
+
+type family Peel x where
+    Peel (Map (W w k : xs) v) =  Map xs v
+    Peel (Map (F w k : xs) v) =  Map xs v
+    Peel (Map '[] v) = v
