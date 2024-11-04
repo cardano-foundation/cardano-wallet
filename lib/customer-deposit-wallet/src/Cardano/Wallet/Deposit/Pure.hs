@@ -459,12 +459,9 @@ pilferRandomGen =
 
 getBIP32PathsForOwnedInputs :: Write.Tx -> WalletState -> [BIP32Path]
 getBIP32PathsForOwnedInputs tx w =
-    getBIP32Paths w
-        . resolveInputAddresses
-        $ Write.spendInputs txBody <> Write.collInputs txBody
+    getBIP32Paths w $ resolveInputAddresses inputs
   where
-    txBody :: Write.TxBody
-    txBody = undefined tx
+    inputs = Read.getInputs tx <> Read.getCollateralInputs tx
 
     resolveInputAddresses :: Set Read.TxIn -> [Read.Address]
     resolveInputAddresses ins =

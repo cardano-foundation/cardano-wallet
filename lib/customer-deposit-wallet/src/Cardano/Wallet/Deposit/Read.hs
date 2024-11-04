@@ -39,6 +39,8 @@ module Cardano.Wallet.Deposit.Read
     , Read.TxId
     , Read.Tx (..)
     , Read.utxoFromEraTx
+    , Read.getCollateralInputs
+    , Read.getInputs
 
     , Read.Block
     , Read.getChainPoint
