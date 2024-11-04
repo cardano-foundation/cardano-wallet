@@ -407,7 +407,7 @@ createPaymentConway pparams timeTranslation destinations w =
         , txouts =
             Map.fromList $ zip [(toEnum 0)..] $ map (uncurry Write.mkTxOut) destinations
         , collRet = Nothing
-        , expirySlot = Nothing
+        , expirySlot = Just . computeExpirySlot $ walletTip w
         }
 
     mkPartialTx :: Write.TxBody -> Write.PartialTx Write.Conway
@@ -451,6 +451,14 @@ pilferRandomGen =
     fromChainPoint (Read.GenesisPoint) = 0
     fromChainPoint (Read.BlockPoint _ headerHash) =
         crc32 $ Hash.hashToBytes headerHash
+
+-- | Compute an expiry slot from a current 'ChainPoint'.
+computeExpirySlot :: Read.ChainPoint -> Read.SlotNo
+computeExpirySlot Read.GenesisPoint = 0
+computeExpirySlot (Read.BlockPoint slotNo _) =
+    slotNo + hour
+  where
+    hour = 60*60
 
 {-----------------------------------------------------------------------------
     Operations
