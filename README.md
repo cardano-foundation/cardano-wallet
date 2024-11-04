@@ -185,7 +185,7 @@ Or modify the `docker-compose.yml` to host your client in the `mainnet_default` 
 
 ### Running on preprod
 
-Preprod network is broken for node 10.1.1 at some block in the past.
+Preprod network is broken for node 10.1.2 at some block in the past.
 One way to overcome that limitation is to download a snapshot that used an old version node (1.35.2)
 to trespass that point.
 Use `snpashot.sh` to download the snapshot.
