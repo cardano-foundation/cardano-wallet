@@ -140,8 +140,7 @@ integration-tests match:
     -c integration-exe -j 2 --match="{{match}}"
 
 
-# start a shell with 10.1.2 in scope
-node-910:
+node:
   nix shell \
   --accept-flake-config \
   'github:IntersectMBO/cardano-node?ref=10.1.2#cardano-node' \
