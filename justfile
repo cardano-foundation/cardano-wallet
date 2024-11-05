@@ -140,12 +140,11 @@ integration-tests match:
     -c integration-exe -j 2 --match="{{match}}"
 
 
-# start a shell with 10.1.1 in scope
-node-910:
+node:
   nix shell \
   --accept-flake-config \
-  'github:IntersectMBO/cardano-node?ref=10.1.1#cardano-node' \
-  'github:IntersectMBO/cardano-node?ref=10.1.1#cardano-cli'
+  'github:IntersectMBO/cardano-node?ref=10.1.2#cardano-node' \
+  'github:IntersectMBO/cardano-node?ref=10.1.2#cardano-cli'
 
 # run babbage integration tests matching the given pattern via nix
 babbage-integration-tests-match match:

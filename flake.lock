@@ -328,7 +328,7 @@
       },
       "original": {
         "owner": "IntersectMBO",
-        "ref": "9.2.1",
+        "ref": "10.1.2",
         "repo": "cardano-node",
         "type": "github"
       }
@@ -775,11 +775,11 @@
     "hackage": {
       "flake": false,
       "locked": {
-        "lastModified": 1730334523,
-        "narHash": "sha256-m3YpA8tDs3EA3UZZy8U9hDT4NJuKuwi67qnGAwMBdMw=",
+        "lastModified": 1730680170,
+        "narHash": "sha256-CUPGIJ4PMrGKVC30bZfCrlzvTvlAjvz2bQ091DKqNNk=",
         "owner": "input-output-hk",
         "repo": "hackage.nix",
-        "rev": "49a85d9969134eac18146e75d99e67dc454cfa34",
+        "rev": "3f9db9843a52f45de2e9884838de31fe7c526c75",
         "type": "github"
       },
       "original": {
