@@ -274,7 +274,7 @@ rollForwardUTxO
 rollForwardUTxO isOurs block u =
     UTxOHistory.rollForward slot deltaUTxO u
   where
-    (deltaUTxO, _) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
+    (deltaUTxO, _, _) = Balance.applyBlock isOurs block (UTxOHistory.getUTxO u)
     slot = Read.getEraSlotNo $ Read.getEraBHeader block
 
 rollBackward

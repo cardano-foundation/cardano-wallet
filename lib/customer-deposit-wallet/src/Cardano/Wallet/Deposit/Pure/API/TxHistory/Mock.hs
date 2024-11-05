@@ -46,6 +46,9 @@ import Data.Maybe
 import Data.Monoid
     ( First (..)
     )
+import Data.Ord
+    ( Down (..)
+    )
 import Data.Time
     ( UTCTime (..)
     )
@@ -103,7 +106,7 @@ mockTxHistory now solveAddress solveSlot addresses ns =
                             Just c -> c
                             Nothing -> error "fakeDepositsCreate: address not found"
                     let time = case solveSlot slot of
-                            Just t -> t
+                            Just t -> Down t
                             Nothing -> error "fakeDepositsCreate: slot not found"
                         singletonByTime =
                             singletonMap () time

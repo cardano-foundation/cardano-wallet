@@ -34,9 +34,6 @@ import Control.Concurrent.STM
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
-import Data.Ord
-    ( Down (..)
-    )
 import Data.Time
     ( UTCTime (..)
     , diffUTCTime
@@ -66,7 +63,7 @@ getMockDepositsByTimeWithCount
 getMockDepositsByTimeWithCount nDeposits = do
     addresses <- fmap snd <$> listCustomers
     solveAddress <- addressToCustomer
-    let solveSlot = fmap Down <$> unsafeUTCTimeOfSlot
+    let solveSlot = unsafeUTCTimeOfSlot
     liftIO
         $ getCachedMockDeposits
             solveAddress

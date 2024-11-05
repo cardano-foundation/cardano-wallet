@@ -1,5 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByCustomer
@@ -10,6 +12,7 @@ module Cardano.Wallet.Deposit.Pure.API.TxHistory
     , TxHistory (..)
     , firstJust
     , transfers
+    , rollForward
     )
 where
 
@@ -19,24 +22,34 @@ import Cardano.Wallet.Deposit.Map
     ( F
     , Map (..)
     , W
+    , singletonFinger
+    , singletonMap
     )
-
 import Cardano.Wallet.Deposit.Pure.Address
     ( Customer
+    )
+import Cardano.Wallet.Deposit.Pure.Balance
+    ( ValueTransferMap
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
     ( ValueTransfer
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
+    , WithOrigin (..)
+    )
+import Cardano.Wallet.Deposit.Time
+    ( LookupTimeFromSlot
     )
 import Cardano.Wallet.Read
     ( Slot
     , TxId
-    , WithOrigin
     )
 import Data.Foldable
     ( Foldable (..)
+    )
+import Data.Maybe
+    ( maybeToList
     )
 import Data.Monoid
     ( First (..)
@@ -48,10 +61,13 @@ import Data.Time
     ( UTCTime
     )
 
+import qualified Data.Map.Monoidal.Strict as MonoidalMap
+
 firstJust :: a -> First a
 firstJust = First . Just
 
-transfers :: Foldable (Map xs) => Map xs ValueTransfer -> ValueTransfer
+transfers
+    :: Foldable (Map xs) => Map xs ValueTransfer -> ValueTransfer
 transfers = fold
 
 type DownTime = Down (WithOrigin UTCTime)
@@ -84,4 +100,40 @@ instance Monoid TxHistory where
     mempty = TxHistory mempty mempty
 
 type ResolveAddress = Address -> Maybe Customer
-type LookupTimeFromSlot = Slot -> Maybe DownTime
+
+rollForward
+    :: ValueTransferMap
+    -> ResolveAddress
+    -> LookupTimeFromSlot
+    -> Slot
+    -> TxHistory
+    -> TxHistory
+rollForward valueTransferMap resolveAddress timeFromSlot slot =
+    (txHistory' <>)
+  where
+    txHistory' =
+        blockToTxHistory valueTransferMap resolveAddress timeFromSlot slot
+
+blockToTxHistory
+    :: ValueTransferMap
+    -> ResolveAddress
+    -> LookupTimeFromSlot
+    -> Slot
+    -> TxHistory
+blockToTxHistory valueTransferMap resolveAddress timeFromSlot slot =
+    fold $ do
+        time <- fmap Down $ maybeToList $ timeFromSlot slot
+        (address, valueTransferByTxId) <- MonoidalMap.toList valueTransferMap
+        (txId, valueTransfer) <- MonoidalMap.toList valueTransferByTxId
+        customer <- maybeToList $ resolveAddress address
+        let byTime =
+                singletonFinger () time
+                    $ singletonMap (First $ Just slot) customer
+                    $ singletonMap (First $ Just address) txId
+                    $ Value valueTransfer
+        let byCustomer =
+                singletonMap () customer
+                    $ singletonFinger (First $ Just address) time
+                    $ singletonMap (First $ Just slot) txId
+                    $ Value valueTransfer
+        pure $ TxHistory{byCustomer, byTime}
