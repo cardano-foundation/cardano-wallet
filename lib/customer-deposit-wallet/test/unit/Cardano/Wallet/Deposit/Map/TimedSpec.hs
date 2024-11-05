@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.Deposit.Map.TimedSpec where
 
@@ -10,6 +11,8 @@ import Prelude
 import Cardano.Wallet.Deposit.Map.Timed
     ( Timed (..)
     , TimedSeq
+    , dropAfter
+    , dropBefore
     , maxKey
     , minKey
     , takeAfter
@@ -358,3 +361,37 @@ spec = do
                     [ [t4 <> t5 <> t6 <> t7]
                     , [t0 <> t1 <> t2 <> t3]
                     ]
+
+    describe "dropAfter function" $ do
+        it "works on empty" $ do
+            dropAfter (t "2021-01-01 00:00:00") (fromList @UTimed [])
+                `shouldBe` fromList []
+        it "drop a single" $ do
+            dropAfter (t "2021-01-01 00:00:00") (fromList @UTimed [t0])
+                `shouldBe` fromList [t0]
+        it "take one and drop the second, early cut" $ do
+            dropAfter (t "2021-01-01 00:00:00") (fromList @UTimed [t0, t1])
+                `shouldBe` fromList [t0]
+        it "take one and drop the second, late cut" $ do
+            dropAfter (t "2021-01-01 23:59:59") (fromList @UTimed [t0, t1])
+                `shouldBe` fromList [t0]
+        it "can take all" $ do
+            dropAfter (t "2021-01-02 00:00:00") (fromList @UTimed [t0, t1])
+                `shouldBe` fromList [t0, t1]
+
+    describe "dropBefore function" $ do
+        it "works on empty" $ do
+            dropBefore @UTCTime @() (t "2021-01-01 00:00:00") (fromList [])
+                `shouldBe` fromList []
+        it "drop a single" $ do
+            dropBefore (t "2021-01-01 00:00:01") (fromList [t0])
+                `shouldBe` fromList []
+        it "take second and drop the first, early cut" $ do
+            dropBefore (t "2021-01-01 00:00:01") (fromList [t0, t1])
+                `shouldBe` fromList [t1]
+        it "take the second and drop the first, late cut" $ do
+            dropBefore (t "2021-01-02 00:00:00") (fromList [t0, t1])
+                `shouldBe` fromList [t1]
+        it "can take all" $ do
+            dropBefore (t "2021-01-01 00:00:00") (fromList [t0, t1])
+                `shouldBe` fromList [t0, t1]

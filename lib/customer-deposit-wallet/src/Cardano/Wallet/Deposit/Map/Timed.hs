@@ -11,6 +11,8 @@ module Cardano.Wallet.Deposit.Map.Timed
     , extractInterval
     , minKey
     , maxKey
+    , dropAfter
+    , dropBefore
     )
 where
 
@@ -183,3 +185,11 @@ extractInterval t0 t1 tseq =
     measure
         $ takeUntil (\q -> time q > Last (Just t1))
         $ dropUntil (\q -> time q >= Last (Just t0)) tseq
+
+-- | Drop all elements from a tseq that are after the given time.
+dropAfter :: (Ord t, Monoid a) => t -> TimedSeq t a -> TimedSeq t a
+dropAfter t = takeUntil (\q -> time q > Last (Just t))
+
+-- | Drop all elements from a tseq that are before the given time.
+dropBefore :: (Ord t, Monoid a) => t -> TimedSeq t a -> TimedSeq t a
+dropBefore t = dropUntil (\q -> time q >= Last (Just t))
