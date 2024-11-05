@@ -121,6 +121,7 @@ payFromFaucet env destinations =
         , Write.txouts =
             Map.fromList $ zip [toEnum 0..] $ map toTxOut destinations
         , Write.collRet = Nothing
+        , Write.expirySlot = Nothing
         }
     tx = signTx (xprv (faucet env)) [] $ Write.mkTx txBody
 

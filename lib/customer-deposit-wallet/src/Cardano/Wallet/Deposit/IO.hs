@@ -5,6 +5,7 @@
 module Cardano.Wallet.Deposit.IO
     ( -- * Types
       WalletEnv (..)
+    , WalletStore
     , WalletBootEnv (..)
     , WalletPublicIdentity (..)
     , WalletInstance
@@ -15,6 +16,7 @@ module Cardano.Wallet.Deposit.IO
     , withWalletInit
     , Word31
     , withWalletLoad
+    , walletPublicIdentity
 
       -- ** Mapping between customers and addresses
     , listCustomers
@@ -31,11 +33,14 @@ module Cardano.Wallet.Deposit.IO
     , getAllDeposits
 
       -- ** Writing to the blockchain
+      -- *** Create transactions
     , createPayment
+      -- *** Sign transactions
     , getBIP32PathsForOwnedInputs
     , signTx
-    , WalletStore
-    , walletPublicIdentity
+      -- *** Submit transactions
+    , submitTx
+    , listTxsInSubmission
     ) where
 
 import Prelude
@@ -285,7 +290,7 @@ rollBackward w point =
 
 {-----------------------------------------------------------------------------
     Operations
-    Writing to blockchain
+    Constructing transactions
 ------------------------------------------------------------------------------}
 
 createPayment
@@ -301,6 +306,11 @@ createPayment a w = do
   where
     network = networkEnv $ bootEnv $ env w
 
+{-----------------------------------------------------------------------------
+    Operations
+    Signing transactions
+------------------------------------------------------------------------------}
+
 getBIP32PathsForOwnedInputs
     :: Write.Tx -> WalletInstance -> IO [BIP32Path]
 getBIP32PathsForOwnedInputs a w =
@@ -308,6 +318,28 @@ getBIP32PathsForOwnedInputs a w =
 
 signTx :: Write.Tx -> WalletInstance -> IO (Maybe Write.Tx)
 signTx a w = Wallet.signTx a <$> readWalletState w
+
+{-----------------------------------------------------------------------------
+    Operations
+    Pending transactions
+------------------------------------------------------------------------------}
+
+submitTx :: Write.Tx -> WalletInstance -> IO (Either Network.ErrPostTx ())
+submitTx tx w = do
+    e <- Network.postTx network tx
+    case e of
+        Right _ -> do
+            onWalletState w
+                $ Delta.update
+                $ Delta.Replace . Wallet.addTxSubmission tx
+            pure $ Right ()
+        _ -> pure e
+  where
+    network = networkEnv $ bootEnv $ env w
+
+listTxsInSubmission :: WalletInstance -> IO [Write.Tx]
+listTxsInSubmission w =
+    Wallet.listTxsInSubmission <$> readWalletState w
 
 {-----------------------------------------------------------------------------
     Logging

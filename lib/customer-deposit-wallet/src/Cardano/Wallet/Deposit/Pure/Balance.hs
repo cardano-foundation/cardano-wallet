@@ -21,9 +21,6 @@ import Cardano.Wallet.Deposit.Pure.UTxO.UTxO
     , balance
     , excluding
     )
-import Data.Foldable
-    ( foldMap'
-    )
 import Data.Set
     ( Set
     )
@@ -36,12 +33,12 @@ import qualified Cardano.Wallet.Read as Read
     Wallet Balance
 ------------------------------------------------------------------------------}
 -- | Available = excluding pending transactions
-availableUTxO :: UTxO -> Set Write.Tx -> UTxO
+availableUTxO :: UTxO -> [Write.Tx] -> UTxO
 availableUTxO u pending =
     u `excluding` used
   where
     used :: Set Read.TxIn
-    used = foldMap' getUsedTxIn pending
+    used = foldMap getUsedTxIn pending
 
     -- UTxO which have been spent or committed as collateral in a pending
     -- transaction are not available to use in future transactions.

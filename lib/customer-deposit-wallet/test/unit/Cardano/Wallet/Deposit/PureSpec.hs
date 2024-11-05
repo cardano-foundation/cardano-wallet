@@ -126,6 +126,7 @@ spendOneTxOut utxo =
         , Write.collInputs = mempty
         , Write.txouts = Map.empty
         , Write.collRet = Nothing
+        , Write.expirySlot = Nothing
         }
 
 payFromFaucet :: [(Write.Address, Write.Value)] -> Write.Tx
@@ -139,4 +140,5 @@ payFromFaucet destinations =
         , Write.txouts =
             Map.fromList $ zip [toEnum 0..] $ map toTxOut destinations
         , Write.collRet = Nothing
+        , Write.expirySlot = Nothing
         }
