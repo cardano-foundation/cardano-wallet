@@ -219,6 +219,7 @@ test-suite unit
     , QuickCheck
     , temporary
     , time
+    , transformers
     , with-utf8
 
   build-tool-depends: hspec-discover:hspec-discover

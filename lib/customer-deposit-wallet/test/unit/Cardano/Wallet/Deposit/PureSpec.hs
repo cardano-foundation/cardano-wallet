@@ -1,11 +1,12 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-|
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
 
-Property tests for the deposit wallet.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Property tests for the deposit wallet.
 module Cardano.Wallet.Deposit.PureSpec
     ( spec
     ) where
@@ -17,16 +18,53 @@ import Cardano.Crypto.Wallet
     , generate
     , toXPub
     )
+import Cardano.Wallet.Deposit.Pure
+    ( Customer
+    )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( LookupTimeFromSlot
     )
+import Cardano.Wallet.Deposit.Testing.DSL
+    ( InterpreterState (..)
+    , ScenarioP
+    , assert
+    , availableBalance
+    , block
+    , deposit
+    , deposit_
+    , existsTx
+    , historyByTime
+    , interpret
+    , newHistoryByTime
+    , rollBackward
+    , rollForward
+    , withdrawal
+    )
+import Cardano.Wallet.Deposit.Testing.DSL.ByTime
+    ( atBlock
+    , deposited
+    , forCustomer
+    , inTx
+    , newByTime
+    , withdrawn
+    )
 import Cardano.Wallet.Deposit.Time
     ( unsafeUTCTimeOfSlot
+    )
+import Control.Monad.Trans.State
+    ( StateT
+    )
+import Data.Maybe
+    ( fromJust
+    )
+import Data.Time
+    ( UTCTime
     )
 import Test.Hspec
     ( Spec
     , describe
     , it
+    , shouldBe
     )
 import Test.QuickCheck
     ( Property
@@ -46,13 +84,148 @@ import qualified Data.Set as Set
 timeFromSlot :: LookupTimeFromSlot
 timeFromSlot = unsafeUTCTimeOfSlot
 
+unsafeTimeForSlot :: Read.Slot -> Read.WithOrigin UTCTime
+unsafeTimeForSlot = fromJust . timeFromSlot
+
+unsafeCustomerAddress
+    :: Wallet.WalletState -> Customer -> Write.Address
+unsafeCustomerAddress w = fromJust . flip Wallet.customerAddress w
+
+testOnWallet
+    :: ScenarioP
+        (IO ())
+        (StateT (Wallet.WalletState, InterpreterState) IO)
+        ()
+    -> IO ()
+testOnWallet =
+    interpret
+        emptyWalletWith17Addresses
+        id
+        (unsafeCustomerAddress emptyWalletWith17Addresses)
+        unsafeTimeForSlot
+
 spec :: Spec
 spec = do
     describe "UTxO availableBalance" $ do
-        it "rollForward twice"
+        it
+            "rollForward twice"
             prop_availableBalance_rollForward_twice
-        it "rollBackward . rollForward"
+        it
+            "rollBackward . rollForward"
             prop_availableBalance_rollForward_rollBackward
+    describe "history by time" $ do
+        it "is empty after initialization"
+            $ testOnWallet
+            $ do
+                h0 <- historyByTime
+                assert $ h0 `shouldBe` mempty
+        it "reports a tx after a rollforward"
+            $ testOnWallet
+            $ do
+                tx1 <- existsTx
+                deposit_ tx1 1 100
+                b1 <- block [tx1]
+                rollForward [b1]
+                h1 <- historyByTime
+                h1' <- newHistoryByTime $ newByTime $ do
+                    atBlock b1 $ do
+                        forCustomer 1 $ do
+                            inTx tx1 $ deposited 100
+                assert $ h1 `shouldBe` h1'
+                balance <- availableBalance
+                assert $ balance `shouldBe` 100_000_000
+        it "reports multiple blocks after a rollforward"
+            $ testOnWallet
+            $ do
+                tx1 <- existsTx
+                deposit_ tx1 1 100
+                b1 <- block [tx1]
+                tx2 <- existsTx
+                deposit_ tx2 1 200
+                b2 <- block [tx2]
+                rollForward [b1, b2]
+                h1 <- historyByTime
+                h1' <- newHistoryByTime $ newByTime $ do
+                    atBlock b1 $ do
+                        forCustomer 1 $ do
+                            inTx tx1 $ deposited 100
+                    atBlock b2 $ do
+                        forCustomer 1 $ do
+                            inTx tx2 $ deposited 200
+                assert $ h1 `shouldBe` h1'
+                balance <- availableBalance
+                assert $ balance `shouldBe` 300_000_000
+        it "reports withdrawals in separate blocks from deposits"
+            $ testOnWallet
+            $ do
+                tx1 <- existsTx
+                w1 <- deposit tx1 1 100
+                b1 <- block [tx1]
+                tx2 <- existsTx
+                withdrawal tx2 w1
+                b2 <- block [tx2]
+                rollForward [b1, b2]
+                h1 <- historyByTime
+                h1' <- newHistoryByTime $ newByTime $ do
+                    atBlock b1 $ do
+                        forCustomer 1 $ do
+                            inTx tx1 $ deposited 100
+                    atBlock b2 $ do
+                        forCustomer 1 $ do
+                            inTx tx2 $ withdrawn 100
+                assert $ h1 `shouldBe` h1'
+                balance <- availableBalance
+                assert $ balance `shouldBe` 0
+        it "reports withdrawals in the same block as deposits"
+            $ testOnWallet
+            $ do
+                tx1 <- existsTx
+                w1 <- deposit tx1 1 100
+                tx2 <- existsTx
+                withdrawal tx2 w1
+                b1 <- block [tx1, tx2]
+                rollForward [b1]
+                h1 <- historyByTime
+                h1' <- newHistoryByTime $ newByTime $ do
+                    atBlock b1 $ do
+                        forCustomer 1 $ do
+                            inTx tx1 $ deposited 100
+                            inTx tx2 $ withdrawn 100
+                assert $ h1 `shouldBe` h1'
+                balance <- availableBalance
+                assert $ balance `shouldBe` 0
+
+        it "is empty after a full rollback"
+            $ testOnWallet
+            $ do
+                tx1 <- existsTx
+                deposit_ tx1 1 100
+                b1 <- block [tx1]
+                rollForward [b1]
+                rollBackward Nothing
+                h1 <- historyByTime
+                assert $ h1 `shouldBe` mempty
+                balance <- availableBalance
+                assert $ balance `shouldBe` 0
+        it "contains the blocks not rolled back after a partial rollback"
+            $ testOnWallet
+            $ do
+                tx1 <- existsTx
+                deposit_ tx1 1 100
+                b1 <- block [tx1]
+                tx2 <- existsTx
+                deposit_ tx2 1 200
+                b2 <- block [tx2]
+                rollForward [b1, b2]
+                rollBackward $ Just b1
+                h1 <- historyByTime
+                h1' <- newHistoryByTime $ newByTime $ do
+                    atBlock b1 $ do
+                        forCustomer 1 $ do
+                            inTx tx1 $ deposited 100
+                assert $ h1 `shouldBe` h1'
+                balance <- availableBalance
+                assert $ balance `shouldBe` 100_000_000
 
 {-----------------------------------------------------------------------------
     Properties
@@ -76,23 +249,19 @@ prop_availableBalance_rollForward_twice =
 
 prop_availableBalance_rollForward_rollBackward :: Property
 prop_availableBalance_rollForward_rollBackward =
-        Wallet.availableBalance
-            (fst $ Wallet.rollBackward timeFromSlot chainPoint0 w3)
-            === Wallet.availableBalance w0
-    .&&.
-        Wallet.availableBalance
+    Wallet.availableBalance
+        (fst $ Wallet.rollBackward timeFromSlot chainPoint0 w3)
+        === Wallet.availableBalance w0
+        .&&. Wallet.availableBalance
             (fst $ Wallet.rollBackward timeFromSlot chainPoint1 w3)
-            === Wallet.availableBalance w1
-    .&&.
-        Wallet.availableBalance
+        === Wallet.availableBalance w1
+        .&&. Wallet.availableBalance
             (fst $ Wallet.rollBackward timeFromSlot chainPoint2 w3)
-            === Wallet.availableBalance w2
-    .&&.
-        Wallet.availableBalance w3
-            =/= Wallet.availableBalance w2
-    .&&.
-        Wallet.availableBalance w3
-            `Read.lessOrEqual` Wallet.availableBalance w2
+        === Wallet.availableBalance w2
+        .&&. Wallet.availableBalance w3
+        =/= Wallet.availableBalance w2
+        .&&. Wallet.availableBalance w3
+        `Read.lessOrEqual` Wallet.availableBalance w2
   where
     w0 = emptyWalletWith17Addresses
     Just addr1 = Wallet.customerAddress 1 w0
@@ -120,7 +289,7 @@ emptyWalletWith17Addresses =
 testXPub :: XPub
 testXPub =
     toXPub
-    $ generate (B8.pack "random seed for a testing xpub lala") B8.empty
+        $ generate (B8.pack "random seed for a testing xpub lala") B8.empty
 
 {-----------------------------------------------------------------------------
     Test blockchain
@@ -133,24 +302,26 @@ spendOneTxOut :: UTxO.UTxO -> Write.Tx
 spendOneTxOut utxo =
     Write.mkTx txBody
   where
-    txBody = Write.TxBody
-        { Write.spendInputs = Set.singleton . fst . head $ Map.toList utxo
-        , Write.collInputs = mempty
-        , Write.txouts = Map.empty
-        , Write.collRet = Nothing
-        , Write.expirySlot = Nothing
-        }
+    txBody =
+        Write.TxBody
+            { Write.spendInputs = Set.singleton . fst . head $ Map.toList utxo
+            , Write.collInputs = mempty
+            , Write.txouts = Map.empty
+            , Write.collRet = Nothing
+            , Write.expirySlot = Nothing
+            }
 
 payFromFaucet :: [(Write.Address, Write.Value)] -> Write.Tx
 payFromFaucet destinations =
     Write.mkTx txBody
   where
     toTxOut (addr, value) = Write.mkTxOut addr value
-    txBody = Write.TxBody
-        { Write.spendInputs = mempty
-        , Write.collInputs = mempty
-        , Write.txouts =
-            Map.fromList $ zip [toEnum 0..] $ map toTxOut destinations
-        , Write.collRet = Nothing
-        , Write.expirySlot = Nothing
-        }
+    txBody =
+        Write.TxBody
+            { Write.spendInputs = mempty
+            , Write.collInputs = mempty
+            , Write.txouts =
+                Map.fromList $ zip [toEnum 0 ..] $ map toTxOut destinations
+            , Write.collRet = Nothing
+            , Write.expirySlot = Nothing
+            }
