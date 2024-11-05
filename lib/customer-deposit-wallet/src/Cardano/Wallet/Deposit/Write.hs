@@ -11,6 +11,7 @@ module Cardano.Wallet.Deposit.Write
 
     , TxId
     , Tx
+    , Block
     , mkTx
     , TxBody (..)
     , TxIn
@@ -89,6 +90,8 @@ import qualified Data.Set as Set
     Convenience TxBody
 ------------------------------------------------------------------------------}
 type Tx = Read.Tx Read.Conway
+
+type Block = Read.Block Read.Conway
 
 data TxBody = TxBody
     { spendInputs :: Set TxIn
