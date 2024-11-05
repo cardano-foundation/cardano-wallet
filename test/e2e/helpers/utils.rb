@@ -153,19 +153,6 @@ module Helpers
     end
 
     ##
-    # Latest node-db snapshot updated at the end of every epoch
-    def get_latest_node_db_url(env)
-      raise "Unsupported env, supported are: 'mainnet' or 'testnet'" if (env != 'testnet') && (env != 'mainnet')
-
-      case env
-      when 'testnet'
-        'https://updates-cardano-testnet.s3.amazonaws.com/cardano-node-state/db-testnet.tar.gz'
-      when 'mainnet'
-        'https://update-cardano-mainnet.iohk.io/cardano-node-state/db-mainnet.tar.gz'
-      end
-    end
-
-    ##
     # Get protocol magic from byron-genesis.json corresponding to particular env
     def get_protocol_magic(env)
       config = File.join(absolute_path(ENV.fetch('CARDANO_NODE_CONFIGS', nil)), env)
