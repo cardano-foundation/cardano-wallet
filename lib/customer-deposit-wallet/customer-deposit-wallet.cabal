@@ -212,7 +212,6 @@ test-suite unit
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
     , directory
-    , fingertree
     , hspec
     , hspec-golden
     , openapi3

@@ -13,14 +13,12 @@ import Cardano.Wallet.Deposit.Map.Timed
     , TimedSeq
     , dropAfter
     , dropBefore
+    , fromList
     , maxKey
     , minKey
     , takeAfter
     , takeUpTo
-    )
-import Data.FingerTree
-    ( fromList
-    , (<|)
+    , toList
     )
 import Data.List
     ( sort
@@ -41,9 +39,12 @@ import Test.Hspec
     , describe
     , it
     , shouldBe
+    , shouldNotBe
     )
 
 type UTimed = Timed UTCTime (Sum Int)
+
+type UTimedSeq = TimedSeq UTCTime (Sum Int)
 
 t :: String -> UTCTime
 t =
@@ -82,15 +83,15 @@ ts = sort [t0, t1, t2, t3, t4, t5, t6, t7]
 result
     :: [UTimed]
     -> Maybe UTimed
-    -> (TimedSeq UTCTime (Sum Int), Maybe UTCTime)
-result included next = (foldr (<|) mempty included, nextTime)
+    -> (UTimedSeq, Maybe UTCTime)
+result included next = (fromList included, nextTime)
   where
     nextTime = do
         Timed x _ <- next
         getLast x
 
-results :: [[UTimed]] -> [TimedSeq UTCTime (Sum Int)]
-results = fmap (foldr (<|) mempty)
+results :: [[UTimed]] -> [UTimedSeq]
+results = fmap fromList
 
 byYear :: UTCTime -> Integer
 byYear (UTCTime (YearMonthDay y _ _) _) = y
@@ -122,7 +123,7 @@ scroll boot extract bucket count pager = unfoldr f $ boot pager
 
 spec :: Spec
 spec = do
-    describe "finger tree pager front" $ do
+    describe "takeAfter" $ do
         it "can extract without start" $ do
             takeAfter
                 byDay
@@ -229,7 +230,7 @@ spec = do
                 (Just 1)
                 (fromList ts)
                 `shouldBe` result [t1 <> t2 <> t3] (Just t4)
-    describe "finger tree pager back" $ do
+    describe "takeBefore" $ do
         it "can extract without start" $ do
             takeUpTo
                 byDay
@@ -310,7 +311,7 @@ spec = do
                 (fromList ts)
                 `shouldBe` result [t0 <> t1 <> t2 <> t3] Nothing
 
-    describe "finger tree pager scroll" $ do
+    describe "TimedSeq scroll" $ do
         it "can consume scrolling forward by 1 day" $ do
             scroll minKey takeAfter byDay 1 (fromList ts)
                 `shouldBe` results
@@ -364,19 +365,19 @@ spec = do
 
     describe "dropAfter function" $ do
         it "works on empty" $ do
-            dropAfter (t "2021-01-01 00:00:00") (fromList @UTimed [])
+            dropAfter @UTCTime @() (t "2021-01-01 00:00:00") (fromList [])
                 `shouldBe` fromList []
         it "drop a single" $ do
-            dropAfter (t "2021-01-01 00:00:00") (fromList @UTimed [t0])
+            dropAfter (t "2021-01-01 00:00:00") (fromList [t0])
                 `shouldBe` fromList [t0]
         it "take one and drop the second, early cut" $ do
-            dropAfter (t "2021-01-01 00:00:00") (fromList @UTimed [t0, t1])
+            dropAfter (t "2021-01-01 00:00:00") (fromList [t0, t1])
                 `shouldBe` fromList [t0]
         it "take one and drop the second, late cut" $ do
-            dropAfter (t "2021-01-01 23:59:59") (fromList @UTimed [t0, t1])
+            dropAfter (t "2021-01-01 23:59:59") (fromList [t0, t1])
                 `shouldBe` fromList [t0]
         it "can take all" $ do
-            dropAfter (t "2021-01-02 00:00:00") (fromList @UTimed [t0, t1])
+            dropAfter (t "2021-01-02 00:00:00") (fromList [t0, t1])
                 `shouldBe` fromList [t0, t1]
 
     describe "dropBefore function" $ do
@@ -395,3 +396,34 @@ spec = do
         it "can take all" $ do
             dropBefore (t "2021-01-01 00:00:00") (fromList [t0, t1])
                 `shouldBe` fromList [t0, t1]
+
+    describe "TimedSeq semigroup" $ do
+        it "can append two sequences of distinct times" $ do
+            fromList [t0, t1] <> fromList [t2, t3]
+                `shouldBe` fromList [t0, t1, t2, t3]
+        it "can append two sequences of overlapping edges in time" $ do
+            fromList [t0, t1] <> fromList [t1, t2]
+                `shouldBe` fromList
+                    [ t0
+                    , Timed (time t1) (monoid t1 <> monoid t1)
+                    , t2
+                    ]
+        it "is used in fromList" $ do
+            fromList [t0, t1, t1, t2]
+                `shouldBe` fromList
+                    [ t0
+                    , Timed (time t1) (monoid t1 <> monoid t1)
+                    , t2
+                    ]
+    describe "fromList" $ do
+        it "is the inverse of toList for different ts" $ do
+            fromList (toList (fromList ts)) `shouldBe` fromList ts
+        it "is the inverse of toList for overlapping ts" $ do
+            let ts' = [t0, t1, t1, t2]
+            fromList (toList (fromList ts'))
+                `shouldBe` fromList ts'
+
+    describe "toList" $ do
+        it "is not the inverse of fromList for overlapping ts" $ do
+            let ts' = [t0, t1, t1, t2]
+            toList (fromList ts') `shouldNotBe` ts'

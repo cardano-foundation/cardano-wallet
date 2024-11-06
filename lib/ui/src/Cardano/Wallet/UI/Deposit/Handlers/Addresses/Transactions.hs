@@ -62,9 +62,6 @@ import Cardano.Wallet.UI.Lib.Time.Direction
 import Data.Bifunctor
     ( first
     )
-import Data.Foldable
-    ( toList
-    )
 import Data.Monoid
     ( First (..)
     , Last (..)
@@ -79,6 +76,7 @@ import Servant
     ( Handler
     )
 
+import qualified Cardano.Wallet.Deposit.Map.Timed as TimedSeq
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
 
@@ -114,7 +112,7 @@ convert
         (Map [F (First Address) DownTime, W (First Slot) TxId] ValueTransfer)
     -> [(DownTime, (Slot, TxId, ValueTransfer))]
 convert Nothing = []
-convert (Just mtxs) = concatMap f $ toList $ value mtxs
+convert (Just mtxs) = concatMap f $ TimedSeq.toList $ value mtxs
   where
     f
         :: Timed DownTime (Map '[W (First Slot) TxId] ValueTransfer)
