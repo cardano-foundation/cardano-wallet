@@ -112,6 +112,9 @@ import Data.Bifunctor
 import Data.Digest.CRC32
     ( crc32
     )
+import Data.FingerTree
+    ( Measured (..)
+    )
 import Data.Foldable
     ( fold
     , foldl'
@@ -385,7 +388,7 @@ wonders interval =
         => Maybe (WithOrigin UTCTime, WithOrigin UTCTime)
         -> TimedSeq (DownTime) a
         -> Timed (DownTime) a
-    extractInterval' Nothing = mempty
+    extractInterval' Nothing = measure
     extractInterval' (Just (t1, t2)) = extractInterval (Down t1) (Down t2)
 
 {-----------------------------------------------------------------------------

@@ -93,6 +93,9 @@ fmapTimedSeq f = TimedSeq . fmap' (fmap f) . unTimedSeq
 singleton :: Monoid a => Timed t a -> TimedSeq t a
 singleton = TimedSeq . FingerTree.singleton
 
+instance Monoid a => Measured (Timed t a) (TimedSeq t a) where
+    measure = measure . unTimedSeq
+
 instance Foldable (TimedSeq t) where
     foldMap f = foldMap (f . monoid) . unTimedSeq
 
