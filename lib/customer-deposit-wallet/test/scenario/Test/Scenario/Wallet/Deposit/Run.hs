@@ -20,7 +20,6 @@ import Test.Hspec
     ( SpecWith
     , describe
     , it
-    , pendingWith
     )
 import Test.Hspec.Extra
     ( aroundAll
@@ -64,7 +63,6 @@ scenarios = do
                     Exchanges.scenarioCreateAddressList
 
         it "4. Create payments to a different wallet" $ \env -> do
-            pendingWith "Waiting for getCustomerDeposits to support rollForward"
             withWalletEnvMock env $ \walletEnv ->
                 Wallet.withWalletInit walletEnv xpub 32
                     $ Exchanges.scenarioCreatePayment xprv env mockAddress
