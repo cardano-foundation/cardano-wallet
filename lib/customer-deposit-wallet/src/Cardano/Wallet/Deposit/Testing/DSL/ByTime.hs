@@ -26,22 +26,28 @@ module Cardano.Wallet.Deposit.Testing.DSL.ByTime
       -- * Value transfer
     , deposited
     , withdrawn
+    , byCustomerFromByTime
     )
 where
 
 import Prelude
 
 import Cardano.Wallet.Deposit.Map
-    ( Map (Map, Value)
+    ( F
+    , Map (..)
     , W
     , toFinger
+    )
+import Cardano.Wallet.Deposit.Map.Timed
+    ( Timed (..)
     )
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer (received, spent)
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ByTime
+    ( ByCustomer
+    , ByTime
     , DownTime
     , firstJust
     )
@@ -74,6 +80,9 @@ import Control.Monad.State
 import Control.Monad.Trans
     ( MonadTrans (..)
     )
+import Data.Foldable
+    ( Foldable (..)
+    )
 import Data.Map.Monoidal.Strict
     ( MonoidalMap
     )
@@ -87,7 +96,24 @@ import Data.Time
     ( UTCTime
     )
 
+import qualified Cardano.Wallet.Deposit.Map.Timed as TimedSeq
+import qualified Cardano.Wallet.Deposit.Map.Timed as TimeSeq
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
+
+byCustomerFromByTime :: ByTime -> ByCustomer
+byCustomerFromByTime (Finger () xs) = Map () xs'
+  where
+    xs'
+        :: MonoidalMap
+            Customer
+            (Map '[F (First Address) DownTime, W (First Slot) TxId] ValueTransfer)
+    xs' = fold $ do
+        Timed t (Map slot ys) <- TimeSeq.toList xs
+        (customer, Map addr kv) <- MonoidalMap.toList ys
+        pure
+            $ MonoidalMap.singleton customer
+            $ Finger addr
+            $ TimedSeq.singleton (Timed t $ Map slot kv)
 
 -- -------------------------------------------------------------------------------
 -- -- AtTime

@@ -17,6 +17,7 @@ module Cardano.Wallet.Deposit.Testing.DSL
     , rollForward
     , rollBackward
     , historyByTime
+    , historyByCustomer
     , newHistoryByTime
     , availableBalance
     , assert
@@ -33,7 +34,8 @@ import Cardano.Wallet.Deposit.Pure
     , getTxHistoryByTime
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ByTime
+    ( ByCustomer
+    , ByTime
     , LookupTimeFromSlot
     )
 import Cardano.Wallet.Deposit.Read
@@ -130,6 +132,7 @@ data Scenario p a where
     RollForward :: [BlockI] -> Scenario p ()
     RollBackward :: Maybe BlockI -> Scenario p ()
     HistoryByTime :: Scenario p ByTime
+    HistoryByCustomer :: Scenario p ByCustomer
     NewHistoryByTime :: ByTimeM ByTime -> Scenario p ByTime
     AvailableBalance :: Scenario p Int
     Assert :: p -> Scenario p ()
@@ -159,6 +162,9 @@ rollBackward slot = singleton (RollBackward slot)
 
 historyByTime :: ScenarioP p m ByTime
 historyByTime = singleton HistoryByTime
+
+historyByCustomer :: ScenarioP p m ByCustomer
+historyByCustomer = singleton HistoryByCustomer
 
 newHistoryByTime :: ByTimeM ByTime -> ScenarioP p m ByTime
 newHistoryByTime = singleton . NewHistoryByTime
@@ -306,6 +312,9 @@ interpret w runP customerAddresses slotTimes p = flip evalStateT w $ do
         go $ k ()
     eval (HistoryByTime :>>= k) = do
         v <- uses _1 getTxHistoryByTime
+        go $ k v
+    eval (HistoryByCustomer :>>= k) = do
+        v <- uses _1 Wallet.getTxHistoryByCustomer
         go $ k v
     eval (NewHistoryByTime m :>>= k) = do
         txIds' <- uses (_2 . iTxsL) $ (Map.!) . fmap (getTxId . mkTx)
