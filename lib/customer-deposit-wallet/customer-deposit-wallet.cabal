@@ -197,6 +197,7 @@ test-suite unit
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/unit
   main-is:            test-suite-unit.hs
+  ghc-options:        -Wno-unused-packages
   build-depends:
     , aeson
     , aeson-pretty
@@ -215,6 +216,7 @@ test-suite unit
     , hspec
     , hspec-golden
     , openapi3
+    , pretty-simple
     , QuickCheck
     , temporary
     , time

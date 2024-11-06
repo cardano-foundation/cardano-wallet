@@ -155,10 +155,13 @@ rollBackward
     -> TxHistory
 rollBackward timeFromSlot slot TxHistory{byCustomer, byTime} =
     TxHistory
-        { byCustomer = onMap byCustomer $ fmap (`onFinger` takeToSlot)
+        { byCustomer =
+            onMap byCustomer
+                $ cleanNulls . fmap (`onFinger` takeToSlot)
         , byTime = onFinger byTime takeToSlot
         }
   where
     takeToSlot :: Monoid a => TimedSeq DownTime a -> TimedSeq DownTime a
-    takeToSlot x = maybe x (`forgetAfter` x)  $ timeFromSlot slot
+    takeToSlot x = maybe x (`forgetAfter` x) $ timeFromSlot slot
     forgetAfter t = dropBefore (Down t)
+    cleanNulls = MonoidalMap.filter (not . null)

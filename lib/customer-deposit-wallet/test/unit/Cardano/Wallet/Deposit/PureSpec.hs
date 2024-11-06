@@ -33,6 +33,7 @@ import Cardano.Wallet.Deposit.Testing.DSL
     , deposit
     , deposit_
     , existsTx
+    , historyByCustomer
     , historyByTime
     , interpret
     , newHistoryByTime
@@ -42,6 +43,7 @@ import Cardano.Wallet.Deposit.Testing.DSL
     )
 import Cardano.Wallet.Deposit.Testing.DSL.ByTime
     ( atBlock
+    , byCustomerFromByTime
     , deposited
     , forCustomer
     , inTx
@@ -117,8 +119,10 @@ spec = do
         it "is empty after initialization"
             $ testOnWallet
             $ do
-                h0 <- historyByTime
-                assert $ h0 `shouldBe` mempty
+                ht0 <- historyByTime
+                assert $ ht0 `shouldBe` mempty
+                hc0 <- historyByCustomer
+                assert $ hc0 `shouldBe` mempty
         it "reports a tx after a rollforward"
             $ testOnWallet
             $ do
@@ -132,6 +136,8 @@ spec = do
                         forCustomer 1 $ do
                             inTx tx1 $ deposited 100
                 assert $ h1 `shouldBe` h1'
+                hc1 <- historyByCustomer
+                assert $ hc1 `shouldBe` byCustomerFromByTime h1'
                 balance <- availableBalance
                 assert $ balance `shouldBe` 100_000_000
         it "reports multiple blocks after a rollforward"
@@ -153,6 +159,8 @@ spec = do
                         forCustomer 1 $ do
                             inTx tx2 $ deposited 200
                 assert $ h1 `shouldBe` h1'
+                hc1 <- historyByCustomer
+                assert $ hc1 `shouldBe` byCustomerFromByTime h1'
                 balance <- availableBalance
                 assert $ balance `shouldBe` 300_000_000
         it "reports withdrawals in separate blocks from deposits"
@@ -174,6 +182,8 @@ spec = do
                         forCustomer 1 $ do
                             inTx tx2 $ withdrawn 100
                 assert $ h1 `shouldBe` h1'
+                hc1 <- historyByCustomer
+                assert $ hc1 `shouldBe` byCustomerFromByTime h1'
                 balance <- availableBalance
                 assert $ balance `shouldBe` 0
         it "reports withdrawals in the same block as deposits"
@@ -192,6 +202,8 @@ spec = do
                             inTx tx1 $ deposited 100
                             inTx tx2 $ withdrawn 100
                 assert $ h1 `shouldBe` h1'
+                hc1 <- historyByCustomer
+                assert $ hc1 `shouldBe` byCustomerFromByTime h1'
                 balance <- availableBalance
                 assert $ balance `shouldBe` 0
 
@@ -205,6 +217,8 @@ spec = do
                 rollBackward Nothing
                 h1 <- historyByTime
                 assert $ h1 `shouldBe` mempty
+                hc1 <- historyByCustomer
+                assert $ hc1 `shouldBe` mempty
                 balance <- availableBalance
                 assert $ balance `shouldBe` 0
         it "contains the blocks not rolled back after a partial rollback"
@@ -224,6 +238,8 @@ spec = do
                         forCustomer 1 $ do
                             inTx tx1 $ deposited 100
                 assert $ h1 `shouldBe` h1'
+                hc1 <- historyByCustomer
+                assert $ hc1 `shouldBe` byCustomerFromByTime h1'
                 balance <- availableBalance
                 assert $ balance `shouldBe` 100_000_000
 
