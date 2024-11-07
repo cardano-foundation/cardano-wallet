@@ -2,8 +2,10 @@
 # set -euox pipefail
 set -euo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # shellcheck disable=SC1091
-source .env
+source ${SCRIPT_DIR}/.env
 
 mkdir -p ./databases
 
@@ -31,7 +33,7 @@ NODE_SOCKET_DIR=${NODE_SOCKET_DIR:=$LOCAL_NODE_SOCKET_DIR}
 NODE_SOCKET_PATH=${NODE_SOCKET_DIR}/${NODE_SOCKET_NAME}
 
 # Define and export the local and actual configs directory for the node
-LOCAL_NODE_CONFIGS=./configs
+LOCAL_NODE_CONFIGS=${SCRIPT_DIR}/configs
 NODE_CONFIGS=${NODE_CONFIGS:=$LOCAL_NODE_CONFIGS}
 
 
@@ -68,8 +70,9 @@ else
     NETWORK_OPTION="--testnet ${NODE_CONFIGS}/byron-genesis.json"
 
 fi
+
 # shellcheck disable=SC2086
-cabal run --project-dir ../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
+cabal run --project-dir ${SCRIPT_DIR}/../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
     serve \
     --log-level DEBUG \
     --trace-application DEBUG \
