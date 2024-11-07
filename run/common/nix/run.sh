@@ -113,7 +113,7 @@ if [[ -z ${NO_NODE-} ]]; then
     echo "Node id: $NODE_ID"
     echo "Node socket path: $NODE_SOCKET_PATH"
 
-    sleep 5
+    sleep 10
 
 
 
@@ -121,40 +121,6 @@ else
     echo "Skipping node service..."
 fi
 
-
-magic=$(jq .networkMagic $LOCAL_NODE_CONFIGS/shelley-genesis.json)
-##### Wait until the node is ready #####
-
-# Capture the start time
-start_time=$(date +%s)
-
-# Define the timeout duration in seconds
-timeout_duration=3600
-
-# Repeat the command until it succeeds or 10 seconds elapse
-while true; do
-    # Execute the command
-    failure_status=0
-    cardano-cli ping -m "${magic}" -u "${NODE_SOCKET_PATH}" 2>/dev/null || failure_status=1
-    # Check if the command succeeded
-    # shellcheck disable=SC2181
-    if [[ "$failure_status" -eq 0 ]]; then
-        break
-    fi
-
-    # Calculate the elapsed time
-    current_time=$(date +%s)
-    elapsed_time=$((current_time - start_time))
-
-    # Check if the timeout duration has been reached
-    if [[ $elapsed_time -ge $timeout_duration ]]; then
-        echo "Cannot  ping the node after $timeout_duration seconds"
-        exit 1
-    fi
-
-    # Sleep for a short interval before retrying
-    sleep 1
-done
 
 if [[ -z ${NO_WALLET-} ]]; then
     echo "Starting the wallet service..."
