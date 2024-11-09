@@ -39,8 +39,8 @@ module Cardano.Wallet.Deposit.Write
     , mkTxOut
     , toConwayTx
     , addTxIn
-    , emptyTxBody
     , addTxOut
+    , emptyTxBody
     ) where
 
 import Prelude

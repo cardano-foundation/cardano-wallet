@@ -1,6 +1,9 @@
+{-# LANGUAGE NumericUnderscores #-}
+
 module Cardano.Wallet.Deposit.REST.Start
     ( loadDepositWalletFromDisk
     , newFakeBootEnv
+    , mockFundTheWallet
     )
 where
 
@@ -13,19 +16,37 @@ import Cardano.Wallet.Deposit.IO.Network.Mock
     ( newNetworkEnvMock
     )
 import Cardano.Wallet.Deposit.IO.Network.Type
-    ( mapBlock
+    ( NetworkEnv
+    , mapBlock
+    , postTx
     )
 import Cardano.Wallet.Deposit.REST
-    ( WalletResource
+    ( ErrWalletResource
+    , WalletResource
+    , customerAddress
     , loadWallet
     , runWalletResourceM
     , walletExists
+    )
+import Cardano.Wallet.Deposit.Write
+    ( addTxOut
+    , emptyTxBody
+    , mkAda
+    , mkTx
+    , mkTxOut
+    )
+import Control.Concurrent
+    ( threadDelay
     )
 import Control.Monad
     ( when
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Control.Monad.Trans.Except
+    ( ExceptT (..)
+    , runExceptT
     )
 import Control.Tracer
     ( Tracer
@@ -48,15 +69,31 @@ loadDepositWalletFromDisk
     -> WalletResource
     -> IO ()
 loadDepositWalletFromDisk tr dir env resource = do
-    result <- flip runWalletResourceM resource $ do
-        test <- walletExists dir
-        when test $ do
-            lg tr "Loading wallet from" dir
-            loadWallet env dir
-            lg tr "Wallet loaded from" dir
+    result <- runExceptT $ do
+        ExceptT $ flip runWalletResourceM resource $ do
+            test <- walletExists dir
+            when test $ do
+                lg tr "Loading wallet from" dir
+                loadWallet env dir
+                lg tr "Wallet loaded from" dir
+        liftIO $ threadDelay 1_000_000
+        ExceptT $ mockFundTheWallet (networkEnv env) resource
     case result of
         Left e -> error $ show e
         Right _ -> pure ()
+
+mockFundTheWallet
+    :: NetworkEnv IO z
+    -> WalletResource
+    -> IO (Either ErrWalletResource ())
+mockFundTheWallet network resource = flip runWalletResourceM resource $ do
+    Just address <- customerAddress 0
+    let tx =
+            mkTx
+                $ fst
+                $ addTxOut (mkTxOut address (mkAda 1_000_000)) emptyTxBody
+    Right () <- liftIO $ postTx network tx
+    pure ()
 
 newFakeBootEnv :: IO (WalletBootEnv IO)
 newFakeBootEnv =

@@ -44,6 +44,9 @@ module Cardano.Wallet.Deposit.IO
       -- *** Submit transactions
     , submitTx
     , listTxsInSubmission
+
+     -- * Internals
+     , onWalletState
     ) where
 
 import Prelude
