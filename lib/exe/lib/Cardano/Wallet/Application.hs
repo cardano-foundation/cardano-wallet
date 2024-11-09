@@ -95,6 +95,9 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     )
+import Cardano.Wallet.Deposit.IO
+    ( WalletBootEnv
+    )
 import Cardano.Wallet.Deposit.IO.Resource
     ( withResource
     )
@@ -102,8 +105,8 @@ import Cardano.Wallet.Deposit.REST
     ( WalletResource
     )
 import Cardano.Wallet.Deposit.REST.Start
-    ( fakeBootEnv
-    , loadDepositWalletFromDisk
+    ( loadDepositWalletFromDisk
+    , newFakeBootEnv
     )
 import Cardano.Wallet.Flavor
     ( CredFromOf
@@ -378,6 +381,7 @@ serveWallet
         eDepositUiSocket <- bindDepositUiSocket
         eDepositSocket <- bindDepositSocket
         eShelleySocket <- bindApiSocket
+        fakeBootEnv <- lift newFakeBootEnv
         callCC $ \exit -> do
             case eShelleyUiSocket of
                 Left err -> do
@@ -438,6 +442,7 @@ serveWallet
                             let uiService =
                                     startDepositUiServer
                                         ui
+                                        fakeBootEnv
                                         databaseDir'
                                         socket
                                         sNetwork
@@ -476,6 +481,7 @@ serveWallet
                             let depositService =
                                     startDepositServer
                                         resource
+                                        fakeBootEnv
                                         databaseDir'
                                         socket
                             ContT $ \k ->
@@ -503,7 +509,8 @@ serveWallet
         bindApiSocket :: ContT r IO (Either ListenError (Warp.Port, Socket))
         bindApiSocket = ContT $ withListeningSocket hostPref listenShelley
 
-        bindShelleyUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindShelleyUiSocket
+            :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
         bindShelleyUiSocket = case mListenShelleyUi of
             Nothing -> pure $ Right Nothing
             Just listenUi -> do
@@ -511,7 +518,8 @@ serveWallet
                     $ ContT
                     $ withListeningSocket hostPref listenUi
 
-        bindDepositUiSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindDepositUiSocket
+            :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
         bindDepositUiSocket = case mListenDepositUi of
             Nothing -> pure $ Right Nothing
             Just listenUi -> do
@@ -519,7 +527,8 @@ serveWallet
                     $ ContT
                     $ withListeningSocket hostPref listenUi
 
-        bindDepositSocket :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
+        bindDepositSocket
+            :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
         bindDepositSocket = case mListenDeposit of
             Nothing -> pure $ Right Nothing
             Just listenDeposit ->
@@ -607,11 +616,13 @@ serveWallet
 
         startDepositServer
             :: WalletResource
+            -> WalletBootEnv IO
             -> FilePath
             -> Socket
             -> IO ()
         startDepositServer
             resource
+            fakeBootEnv
             databaseDir'
             socket =
                 do
@@ -635,6 +646,7 @@ serveWallet
              . ( HasSNetworkId n
                )
             => UILayer WalletResource
+            -> WalletBootEnv IO
             -> FilePath
             -> Socket
             -> SNetworkId n
@@ -643,6 +655,7 @@ serveWallet
             -> IO ()
         startDepositUiServer
             ui
+            fakeBootEnv
             databaseDir'
             socket
             _proxy
@@ -781,7 +794,8 @@ serveWallet
                 tokenMetaClient
                 coworker
 
-handleWalletExceptions :: forall x. Servant.Handler x -> Servant.Handler x
+handleWalletExceptions
+    :: forall x. Servant.Handler x -> Servant.Handler x
 handleWalletExceptions =
     Servant.Handler
         . ExceptT

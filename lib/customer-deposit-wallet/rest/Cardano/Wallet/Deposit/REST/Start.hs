@@ -1,6 +1,6 @@
 module Cardano.Wallet.Deposit.REST.Start
     ( loadDepositWalletFromDisk
-    , fakeBootEnv
+    , newFakeBootEnv
     )
 where
 
@@ -8,6 +8,12 @@ import Prelude
 
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (..)
+    )
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( newNetworkEnvMock
+    )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( mapBlock
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
@@ -52,10 +58,10 @@ loadDepositWalletFromDisk tr dir env resource = do
         Left e -> error $ show e
         Right _ -> pure ()
 
-fakeBootEnv :: MonadIO m => WalletBootEnv m
-fakeBootEnv =
-    ( WalletBootEnv
+newFakeBootEnv :: IO (WalletBootEnv IO)
+newFakeBootEnv =
+    WalletBootEnv
         (show >$< stdoutTracer)
         Read.mockGenesisDataMainnet
-        (error "network env not defined")
-    )
+        . mapBlock Read.EraValue
+        <$> newNetworkEnvMock
