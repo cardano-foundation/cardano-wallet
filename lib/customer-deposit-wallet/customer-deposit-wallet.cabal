@@ -54,6 +54,10 @@ library
   build-depends:
     , async
     , base
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , bytestring
     , cardano-balance-tx
     , cardano-crypto
     , cardano-ledger-api
@@ -72,9 +76,9 @@ library
     , fingertree
     , io-classes
     , microlens
+    , MonadRandom
     , monoidal-containers
     , mtl
-    , MonadRandom
     , mwc-random
     , OddWord
     , random
@@ -92,6 +96,7 @@ library
     Cardano.Wallet.Deposit.Map
     Cardano.Wallet.Deposit.Map.Timed
     Cardano.Wallet.Deposit.Pure
+    Cardano.Wallet.Deposit.Pure.API.Address
     Cardano.Wallet.Deposit.Pure.API.TxHistory
     Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
     Cardano.Wallet.Deposit.Pure.Balance
@@ -194,6 +199,7 @@ test-suite unit
     , base
     , bytestring
     , cardano-crypto
+    , cardano-ledger-core:testlib
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , containers
@@ -216,6 +222,7 @@ test-suite unit
     Cardano.Wallet.Deposit.HTTP.JSON.JSONSpec
     Cardano.Wallet.Deposit.HTTP.OpenAPISpec
     Cardano.Wallet.Deposit.Map.TimedSpec
+    Cardano.Wallet.Deposit.Pure.API.AddressSpec
     Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
     Paths_customer_deposit_wallet
