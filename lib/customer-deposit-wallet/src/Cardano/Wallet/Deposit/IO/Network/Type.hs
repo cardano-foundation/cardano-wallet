@@ -29,9 +29,6 @@ import Control.Tracer
 import Data.List.NonEmpty
     ( NonEmpty
     )
-import Data.Set
-    ( Set
-    )
 import Data.Text
     ( Text
     )
@@ -66,9 +63,8 @@ data NetworkEnv m block = NetworkEnv
     , getTimeInterpreter
         :: m Time.TimeInterpreter
         -- ^ Get the current 'TimeInterpreter' from the Cardano node.
-    , slotsToUTCTimes
-        :: Set Slot
-        -> m LookupTimeFromSlot
+    , slotToUTCTime
+        :: m LookupTimeFromSlot
     -- ^ Try to convert a set of slots to their UTCTimes counterparts
     , utcTimeToSlot
         :: UTCTime

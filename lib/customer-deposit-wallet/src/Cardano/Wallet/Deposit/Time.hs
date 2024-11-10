@@ -21,7 +21,6 @@ module Cardano.Wallet.Deposit.Time
     -- * wishlist
     , LookupTimeFromSlot
     , unsafeUTCTimeOfSlot
-    , unsafeSlotsToUTCTimes
     , unsafeSlotOfUTCTime
     , systemStartMainnet
     , originTime
@@ -51,9 +50,6 @@ import Cardano.Wallet.Read
 import Data.Functor.Identity
     ( Identity (..)
     )
-import Data.Maybe
-    ( maybeToList
-    )
 import Data.Quantity
     ( Quantity (..)
     )
@@ -68,8 +64,6 @@ import Data.Time.Clock.POSIX
 import qualified Cardano.Wallet.Primitive.Slotting as Primitive
 import qualified Cardano.Wallet.Read as Read
 import qualified Cardano.Write.Tx as Write
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 {-----------------------------------------------------------------------------
     TimeInterpreter
@@ -98,13 +92,6 @@ toTimeTranslation :: TimeInterpreter -> Write.TimeTranslation
 toTimeTranslation = toTimeTranslationPure
 
 type LookupTimeFromSlot = Slot -> Maybe (WithOrigin UTCTime)
-
-unsafeSlotsToUTCTimes :: Set.Set Slot -> LookupTimeFromSlot
-unsafeSlotsToUTCTimes slots =
-    flip Map.lookup $ Map.fromList $ do
-        slot <- Set.toList slots
-        time <- maybeToList $ unsafeUTCTimeOfSlot slot
-        pure (slot, time)
 
 unsafeUTCTimeOfSlot :: Slot -> Maybe (WithOrigin UTCTime)
 unsafeUTCTimeOfSlot Origin = Just Origin
