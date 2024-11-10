@@ -71,6 +71,7 @@ import Data.Ord
     ( Down (..)
     )
 
+import qualified Cardano.Wallet.Deposit.Map.Timed as TimedSeq
 import qualified Data.Map.Strict as Map
 
 depositsPaginateM
@@ -96,7 +97,11 @@ depositsPaginateM
             , pageAtIndex = \t -> do
                 Paginate{pageAtIndex} <- history
                 pure
-                    $ second (Map.fromList . concatMap fromTimed . toList)
+                    $ second
+                        ( Map.fromList
+                            . concatMap fromTimed
+                            . TimedSeq.toList
+                        )
                         <$> pageAtIndex t
             , minIndex = do
                 Paginate{minIndex} <- paginate <$> retrieveByTime

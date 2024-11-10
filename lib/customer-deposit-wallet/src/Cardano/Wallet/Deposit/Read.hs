@@ -62,6 +62,7 @@ module Cardano.Wallet.Deposit.Read
 
     , Read.NetworkId (Read.Mainnet, Read.Testnet)
     , Read.getNetworkId
+    , getEraSlotOfBlock
     ) where
 
 import Prelude
@@ -127,3 +128,6 @@ mockNextBlock old txs =
     slotNumber = case old of
         Read.GenesisPoint -> Read.SlotNo 0
         Read.BlockPoint{slotNo = n} -> succ n
+
+getEraSlotOfBlock :: Read.IsEra era => Read.Block era -> Read.Slot
+getEraSlotOfBlock = Read.At . Read.getEraSlotNo . Read.getEraBHeader

@@ -6,17 +6,16 @@
 module Cardano.Wallet.Deposit.Write
     ( -- * Basic types
       Address
-
     , Value
-
     , TxId
     , Tx
+    , Block
     , mkTx
     , TxBody (..)
     , TxIn
     , TxOut
 
-    -- * Transaction balancing
+      -- * Transaction balancing
     , Write.IsRecentEra
     , Write.Conway
     , L.PParams
@@ -32,12 +31,16 @@ module Cardano.Wallet.Deposit.Write
     , Write.ErrBalanceTx (..)
     , Write.balanceTx
 
-    -- ** Time interpreter
+      -- ** Time interpreter
     , Write.TimeTranslation
-    -- * Helper functions
+
+      -- * Helper functions
     , mkAda
     , mkTxOut
     , toConwayTx
+    , addTxIn
+    , emptyTxBody
+    , addTxOut
     ) where
 
 import Prelude
@@ -57,6 +60,12 @@ import Cardano.Wallet.Deposit.Read
 import Cardano.Wallet.Read.Tx
     ( toConwayOutput
     )
+import Control.Lens
+    ( Lens'
+    , lens
+    , (&)
+    , (.~)
+    )
 import Data.Map
     ( Map
     )
@@ -70,10 +79,6 @@ import Data.Sequence.Strict
     )
 import Data.Set
     ( Set
-    )
-import Lens.Micro
-    ( (&)
-    , (.~)
     )
 
 import qualified Cardano.Ledger.Api as L
@@ -90,6 +95,8 @@ import qualified Data.Set as Set
 ------------------------------------------------------------------------------}
 type Tx = Read.Tx Read.Conway
 
+type Block = Read.Block Read.Conway
+
 data TxBody = TxBody
     { spendInputs :: Set TxIn
     , collInputs :: Set TxIn
@@ -98,6 +105,24 @@ data TxBody = TxBody
     , expirySlot :: Maybe SlotNo
     }
     deriving (Show)
+
+txOutsL :: Lens' TxBody (Map Ix TxOut)
+txOutsL = lens txouts (\s a -> s{txouts = a})
+
+nextIx :: TxBody -> Ix
+nextIx = maybe minBound (succ . fst) . Map.lookupMax . txouts
+
+addTxOut :: TxOut -> TxBody -> (TxBody, Ix)
+addTxOut txout txbody = (txBody', txIx)
+  where
+    txBody' = txbody & txOutsL .~ Map.insert txIx txout (txouts txbody)
+    txIx = nextIx txbody
+
+addTxIn :: TxIn -> TxBody -> TxBody
+addTxIn txin txbody = txbody{spendInputs = Set.insert txin (spendInputs txbody)}
+
+emptyTxBody :: TxBody
+emptyTxBody = TxBody mempty mempty mempty Nothing Nothing
 
 -- | Inject a number of ADA, i.e. a million lovelace.
 mkAda :: Integer -> Value
@@ -115,19 +140,16 @@ mkTx txbody = Read.Tx $ L.mkBasicTx txBody
     txBody :: L.TxBody L.Conway
     txBody =
         L.mkBasicTxBody
-            & (L.inputsTxBodyL .~ Set.map toLedgerTxIn (spendInputs txbody))
-            & (L.collateralInputsTxBodyL
+            & L.inputsTxBodyL .~ Set.map toLedgerTxIn (spendInputs txbody)
+            & L.collateralInputsTxBodyL
                 .~ Set.map toLedgerTxIn (collInputs txbody)
-                )
-            & (L.outputsTxBodyL .~ toLedgerTxOuts (txouts txbody))
-            & (L.collateralReturnTxBodyL
+            & L.outputsTxBodyL .~ toLedgerTxOuts (txouts txbody)
+            & L.collateralReturnTxBodyL
                 .~ toLedgerMaybeTxOut (collRet txbody)
-                )
-            & (L.vldtTxBodyL .~
-                L.ValidityInterval
+            & L.vldtTxBodyL
+                .~ L.ValidityInterval
                     SNothing
                     (toLedgerSlotNo <$> maybeToStrictMaybe (expirySlot txbody))
-                )
 
 toLedgerSlotNo :: SlotNo -> L.SlotNo
 toLedgerSlotNo (SlotNo n) = L.SlotNo (fromInteger $ fromIntegral n)

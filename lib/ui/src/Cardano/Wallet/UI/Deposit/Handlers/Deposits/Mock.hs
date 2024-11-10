@@ -6,8 +6,8 @@ where
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ResolveAddress
-    , ResolveSlot
+    ( LookupTimeFromSlot
+    , ResolveAddress
     , TxHistory
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
@@ -33,9 +33,6 @@ import Control.Concurrent.STM
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
-    )
-import Data.Ord
-    ( Down (..)
     )
 import Data.Time
     ( UTCTime (..)
@@ -66,7 +63,7 @@ getMockDepositsByTimeWithCount
 getMockDepositsByTimeWithCount nDeposits = do
     addresses <- fmap snd <$> listCustomers
     solveAddress <- addressToCustomer
-    let solveSlot = fmap Down <$> unsafeUTCTimeOfSlot
+    let solveSlot = unsafeUTCTimeOfSlot
     liftIO
         $ getCachedMockDeposits
             solveAddress
@@ -76,7 +73,7 @@ getMockDepositsByTimeWithCount nDeposits = do
 
 getCachedMockDeposits
     :: ResolveAddress
-    -> ResolveSlot
+    -> LookupTimeFromSlot
     -> Int
     -> [Address]
     -> IO TxHistory

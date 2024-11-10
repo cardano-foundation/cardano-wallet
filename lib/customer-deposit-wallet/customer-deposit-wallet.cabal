@@ -75,12 +75,13 @@ library
     , digest
     , fingertree
     , io-classes
-    , microlens
+    , lens
     , MonadRandom
     , monoidal-containers
     , mtl
     , mwc-random
     , OddWord
+    , operational
     , random
     , text
     , time
@@ -103,6 +104,9 @@ library
     Cardano.Wallet.Deposit.Pure.Submissions
     Cardano.Wallet.Deposit.Pure.UTxO
     Cardano.Wallet.Deposit.Read
+    Cardano.Wallet.Deposit.Testing.DSL
+    Cardano.Wallet.Deposit.Testing.DSL.ByTime
+    Cardano.Wallet.Deposit.Testing.DSL.Types
     Cardano.Wallet.Deposit.Time
     Cardano.Wallet.Deposit.Write
 
@@ -122,7 +126,7 @@ test-suite scenario
     , contra-tracer
     , customer-deposit-wallet
     , delta-store
-    , hspec                      >=2.8.2
+    , hspec
 
   other-modules:
     Test.Scenario.Blockchain
@@ -193,6 +197,7 @@ test-suite unit
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/unit
   main-is:            test-suite-unit.hs
+  ghc-options:        -Wno-unused-packages
   build-depends:
     , aeson
     , aeson-pretty
@@ -208,13 +213,14 @@ test-suite unit
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
     , directory
-    , fingertree
     , hspec
     , hspec-golden
     , openapi3
+    , pretty-simple
     , QuickCheck
     , temporary
     , time
+    , transformers
     , with-utf8
 
   build-tool-depends: hspec-discover:hspec-discover

@@ -19,9 +19,10 @@ import Cardano.Wallet.Deposit.Pure
     ( ValueTransfer (..)
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
-    ( ResolveAddress
-    , ResolveSlot
+    ( LookupTimeFromSlot
+    , ResolveAddress
     , TxHistory (..)
+    , firstJust
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -43,8 +44,8 @@ import Control.Monad
 import Data.Maybe
     ( fromJust
     )
-import Data.Monoid
-    ( First (..)
+import Data.Ord
+    ( Down (..)
     )
 import Data.Time
     ( UTCTime (..)
@@ -70,7 +71,7 @@ mockTxHistory
     -- ^ Current time.
     -> ResolveAddress
     -- ^ Compute a customer from an address.
-    -> ResolveSlot
+    -> LookupTimeFromSlot
     -- ^ Compute a time from a slot.
     -> [Address]
     -- ^ List of addresses to use.
@@ -103,17 +104,17 @@ mockTxHistory now solveAddress solveSlot addresses ns =
                             Just c -> c
                             Nothing -> error "fakeDepositsCreate: address not found"
                     let time = case solveSlot slot of
-                            Just t -> t
+                            Just t -> Down t
                             Nothing -> error "fakeDepositsCreate: slot not found"
                         singletonByTime =
                             singletonMap () time
-                                $ singletonMap (First $ Just slot) customer
-                                $ singletonMap (First $ Just address) txId
+                                $ singletonMap (firstJust slot) customer
+                                $ singletonMap (firstJust address) txId
                                 $ Value value
                         singletonByCustomer =
                             singletonMap () customer
-                                $ singletonMap (First $ Just address) time
-                                $ singletonMap (First $ Just slot) txId
+                                $ singletonMap (firstJust address) time
+                                $ singletonMap (firstJust slot) txId
                                 $ Value value
                     pure (singletonByCustomer, singletonByTime)
         byCustomer' = Map w $ fmap toFinger f

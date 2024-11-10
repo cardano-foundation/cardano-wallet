@@ -12,7 +12,9 @@ import Prelude
 
 import Cardano.Wallet.Deposit.Read
     ( Slot
-    , WithOrigin
+    )
+import Cardano.Wallet.Deposit.Time
+    ( LookupTimeFromSlot
     )
 import Cardano.Wallet.Network
     ( ChainFollower (..)
@@ -26,12 +28,6 @@ import Control.Tracer
     )
 import Data.List.NonEmpty
     ( NonEmpty
-    )
-import Data.Map.Strict
-    ( Map
-    )
-import Data.Set
-    ( Set
     )
 import Data.Text
     ( Text
@@ -67,9 +63,8 @@ data NetworkEnv m block = NetworkEnv
     , getTimeInterpreter
         :: m Time.TimeInterpreter
         -- ^ Get the current 'TimeInterpreter' from the Cardano node.
-    , slotsToUTCTimes
-        :: Set Slot
-        -> m (Map Slot (WithOrigin UTCTime))
+    , slotToUTCTime
+        :: m LookupTimeFromSlot
     -- ^ Try to convert a set of slots to their UTCTimes counterparts
     , utcTimeToSlot
         :: UTCTime
