@@ -7,7 +7,7 @@ module Cardano.Wallet.Deposit.Map.Timed
     ( Timed (..)
     , TimedSeq
     , takeAfter
-    , takeBefore
+    , takeUpTo
     , extractInterval
     , minKey
     , maxKey
@@ -149,7 +149,7 @@ takeAfter bucket mstart mcount tseq =
 -- | Extract the last n elements from a timed seq before and excluding
 -- a given start time after applying a bucketing function.
 -- The result is a map of the extracted elements and the next time to start from.
-takeBefore
+takeUpTo
     :: (Monoid a, Ord q, Ord t)
     => (t -> q)
     -- ^ A function to bucket the timestamps.
@@ -160,7 +160,7 @@ takeBefore
     -> TimedSeq t a
     -- ^ The timed sequence to extract elements from.
     -> (TimedSeq t a, Maybe t)
-takeBefore bucket mstart mcount tseq =
+takeUpTo bucket mstart mcount tseq =
     takeBeforeElements bucket mcount
         $ takeUntil
             (\q -> mstart & maybe False (\t -> time q > Last (Just t)))

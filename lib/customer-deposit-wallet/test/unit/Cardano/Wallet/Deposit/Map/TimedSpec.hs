@@ -16,7 +16,7 @@ import Cardano.Wallet.Deposit.Map.Timed
     , maxKey
     , minKey
     , takeAfter
-    , takeBefore
+    , takeUpTo
     )
 import Data.FingerTree
     ( fromList
@@ -231,56 +231,56 @@ spec = do
                 `shouldBe` result [t1 <> t2 <> t3] (Just t4)
     describe "finger tree pager back" $ do
         it "can extract without start" $ do
-            takeBefore
+            takeUpTo
                 byDay
                 Nothing
                 (Just 1)
                 (fromList ts)
                 `shouldBe` result [t7] (Just t6)
         it "can extract without count" $ do
-            takeBefore
+            takeUpTo
                 byDay
                 (Just $ t "2022-03-05 12:00:00")
                 Nothing
                 (fromList ts)
                 `shouldBe` result [t7, t6, t4 <> t5, t3, t2, t1, t0] Nothing
         it "can extract 1 day" $ do
-            takeBefore
+            takeUpTo
                 byDay
                 (Just $ t "2022-03-05 12:00:00")
                 (Just 1)
                 (fromList ts)
                 `shouldBe` result [t7] (Just t6)
         it "can extract 2 days" $ do
-            takeBefore
+            takeUpTo
                 byDay
                 (Just $ t "2022-03-05 12:00:00")
                 (Just 2)
                 (fromList ts)
                 `shouldBe` result [t7, t6] (Just t5)
         it "can extract 3 days" $ do
-            takeBefore
+            takeUpTo
                 byDay
                 (Just $ t "2022-03-05 12:00:00")
                 (Just 3)
                 (fromList ts)
                 `shouldBe` result [t7, t6, t4 <> t5] (Just t3)
         it "can extract 1 month" $ do
-            takeBefore
+            takeUpTo
                 byMonth
                 (Just $ t "2022-03-05 12:00:00")
                 (Just 1)
                 (fromList ts)
                 `shouldBe` result [t6 <> t7] (Just t5)
         it "can extract 2 months" $ do
-            takeBefore
+            takeUpTo
                 byMonth
                 (Just $ t "2022-03-05 12:00:00")
                 (Just 2)
                 (fromList ts)
                 `shouldBe` result [t6 <> t7, t4 <> t5] (Just t3)
         it "can extract 2 years" $ do
-            takeBefore
+            takeUpTo
                 byYear
                 (Just $ t "2022-03-05 12:00:00")
                 (Just 2)
@@ -289,21 +289,21 @@ spec = do
                     [t4 <> t5 <> t6 <> t7, t0 <> t1 <> t2 <> t3]
                     Nothing
         it "can extract 1 day before t7" $ do
-            takeBefore
+            takeUpTo
                 byDay
                 (Just $ t "2022-03-05 11:59:59")
                 (Just 1)
                 (fromList ts)
                 `shouldBe` result [t6] (Just t5)
         it "can extract 1 month before t6" $ do
-            takeBefore
+            takeUpTo
                 byMonth
                 (Just $ t "2022-03-03 11:59:59")
                 (Just 1)
                 (fromList ts)
                 `shouldBe` result [t4 <> t5] (Just t3)
         it "can extract 1 year before t4" $ do
-            takeBefore
+            takeUpTo
                 byYear
                 (Just $ t "2022-01-02 23:59:59")
                 (Just 1)
@@ -323,7 +323,7 @@ spec = do
                     , [t7]
                     ]
         it "can consume scrolling backward by 1 day" $ do
-            scroll maxKey takeBefore byDay 1 (fromList ts)
+            scroll maxKey takeUpTo byDay 1 (fromList ts)
                 `shouldBe` results
                     [ [t7]
                     , [t6]
@@ -342,7 +342,7 @@ spec = do
                     , [t6 <> t7]
                     ]
         it "can consume scrolling backward by 1 month" $ do
-            scroll maxKey takeBefore byMonth 1 (fromList ts)
+            scroll maxKey takeUpTo byMonth 1 (fromList ts)
                 `shouldBe` results
                     [ [t6 <> t7]
                     , [t4 <> t5]
@@ -356,7 +356,7 @@ spec = do
                     , [t4 <> t5 <> t6 <> t7]
                     ]
         it "can consume scrolling backward by 1 year" $ do
-            scroll maxKey takeBefore byYear 1 (fromList ts)
+            scroll maxKey takeUpTo byYear 1 (fromList ts)
                 `shouldBe` results
                     [ [t4 <> t5 <> t6 <> t7]
                     , [t0 <> t1 <> t2 <> t3]

@@ -10,7 +10,7 @@ import Cardano.Wallet.Deposit.Map.Timed
     ( TimedSeq
     , minKey
     , takeAfter
-    , takeBefore
+    , takeUpTo
     )
 import Cardano.Wallet.UI.Lib.Pagination.Type
     ( MkPaginatePure
@@ -45,7 +45,7 @@ previous
     -> TimedSeq k a
     -> k
     -> Maybe k
-previous n proj s start' = snd $ takeBefore proj (Just start') (Just n) s
+previous n proj s start' = snd $ takeUpTo proj (Just start') (Just n) s
 
 nextPage
     :: (Ord q, Monoid a, Ord k)
