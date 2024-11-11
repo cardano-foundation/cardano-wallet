@@ -6,7 +6,8 @@ where
 import Prelude
 
 import Cardano.Wallet.Deposit.Pure.API.Address
-    ( decodeAddress
+    ( DecodingError (..)
+    , decodeAddress
     , encodeAddress
     )
 import Control.Monad
@@ -42,3 +43,8 @@ spec = do
                 forM_ testCases $ \addr ->
                     encodeAddress <$> decodeAddress addr
                         `shouldBe` Right addr
+
+        it "fails to decode addresses where the network tag doesn't match the bech32 hrp" $ do
+            let secretlyMainnetAddr = "addr_test1z92l7rnra7sxjn5qv5fzc4fwsrrm29mgkleqj9a0y46j5lyjz4gwd3njhyqwntdkcm8rrgapudajydteywgtuvl6etjshn59kk"
+            decodeAddress secretlyMainnetAddr
+                `shouldBe` Left AddressNetworkMismatch
