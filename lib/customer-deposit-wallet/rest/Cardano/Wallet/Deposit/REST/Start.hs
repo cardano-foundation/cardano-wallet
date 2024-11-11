@@ -23,7 +23,11 @@ import Cardano.Wallet.Deposit.IO.Network.Type
 import Cardano.Wallet.Deposit.REST
     ( ErrWalletResource
     , WalletResource
+    , availableBalance
     , customerAddress
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
+    , listCustomers
     , loadWallet
     , runWalletResourceM
     , walletExists
@@ -70,14 +74,27 @@ loadDepositWalletFromDisk
     -> IO ()
 loadDepositWalletFromDisk tr dir env resource = do
     result <- runExceptT $ do
-        ExceptT $ flip runWalletResourceM resource $ do
+        exists <- ExceptT $ flip runWalletResourceM resource $ do
             test <- walletExists dir
+            liftIO $ print test
             when test $ do
                 lg tr "Loading wallet from" dir
                 loadWallet env dir
                 lg tr "Wallet loaded from" dir
+            pure test
         liftIO $ threadDelay 1_000_000
-        ExceptT $ mockFundTheWallet (networkEnv env) resource
+        when exists $ do
+            ExceptT $ mockFundTheWallet (networkEnv env) resource
+            ExceptT $ flip runWalletResourceM resource $ do
+                liftIO $ putStrLn "Available balance"
+                availableBalance >>= liftIO . print
+                liftIO $ putStrLn "Tx history by customer"
+                getTxHistoryByCustomer >>= liftIO . print
+                liftIO $ putStrLn "Tx history by time"
+                getTxHistoryByTime >>= liftIO . print
+                liftIO $ putStrLn "List customers"
+                listCustomers >>= liftIO . print
+                liftIO $ putStrLn "UTxO"
     case result of
         Left e -> error $ show e
         Right _ -> pure ()
