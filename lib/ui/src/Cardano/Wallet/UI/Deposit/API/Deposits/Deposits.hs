@@ -86,7 +86,6 @@ data DepositsParams = DepositsParams
     { depositsSlot :: Bool
     , depositsWindow :: Window
     , depositsFirstWeekDay :: DayOfWeek
-    , depositsFakeData :: Bool
     , depositsViewStart :: Maybe (WithOrigin UTCTime)
     , depositsWindowOpen :: Maybe (WithOrigin UTCTime)
     , depositsSpent :: Bool
@@ -108,7 +107,6 @@ instance FromForm DepositsParams where
         slot <- isJust <$> lookupMaybe "slot" form
         window <- parseUnique "window" form
         firstWeekDay <- parseUnique "first-week-day" form
-        fake <- isJust <$> lookupMaybe "fake-data" form
         viewStart <- parseMaybe "view-start" form
         windowOpen <- parseMaybe "window-open" form
         spent <- isJust <$> lookupMaybe "spent" form
@@ -123,7 +121,6 @@ instance FromForm DepositsParams where
                 slot
                 window
                 firstWeekDay
-                fake
                 viewStart
                 windowOpen
                 spent

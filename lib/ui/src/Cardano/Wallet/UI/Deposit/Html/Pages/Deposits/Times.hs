@@ -31,7 +31,6 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    , overlayFakeDataH
     , tdEnd
     , thEnd
     )
@@ -106,8 +105,7 @@ import qualified Data.Text as T
 
 scrollableDeposits
     :: MonadIO m
-    => Link
-    -> (Maybe (WithOrigin UTCTime) -> Link)
+    => (Maybe (WithOrigin UTCTime) -> Link)
     -> (Maybe (WithOrigin UTCTime) -> Maybe Expand -> Link)
     -> DepositsParams
     -> PaginateM
@@ -116,42 +114,33 @@ scrollableDeposits
         (Map DownTime (Maybe Slot, ValueTransfer))
     -> Scrolling.Configuration m DownTime
 scrollableDeposits
-    fakeDataBackgroundLink
     depositsHistoryPageLink
     depositsCustomersLink
-    params@DepositsParams{depositsSpent, depositsSlot, depositsFakeData}
+    params@DepositsParams{depositsSpent, depositsSlot}
     Paginate{nextIndex, previousIndex, pageAtIndex, minIndex} =
         Scrolling.Configuration{..}
       where
         scrollableWidget :: [Attribute] -> Html () -> Html ()
-        scrollableWidget attrs content =
-            fakeOverlay $ do
-                let attrs' =
-                        [ class_
-                            $ "border-top table table-striped table-hover m-0"
-                                <> if depositsFakeData then " fake" else ""
-                        ]
-                table_ (attrs' <> attrs)
-                    $ do
-                        thead_ [class_ "bg-primary"]
-                            $ tr_
-                                [ scope_ "row"
-                                , class_ "sticky-top my-1"
-                                , style_ "z-index: 1"
-                                ]
-                            $ do
-                                thEnd (Just 7) "Time"
-                                when depositsSlot
-                                    $ thEnd (Just 5) "Slot"
-                                thEnd (Just 7) "Deposit"
-                                when depositsSpent
-                                    $ thEnd (Just 7) "Spent"
-                        content
-          where
-            fakeOverlay =
-                if depositsFakeData
-                    then overlayFakeDataH fakeDataBackgroundLink
-                    else id
+        scrollableWidget attrs content = do
+            let attrs' =
+                    [ class_ "border-top table table-striped table-hover m-0"
+                    ]
+            table_ (attrs' <> attrs)
+                $ do
+                    thead_ [class_ "bg-primary"]
+                        $ tr_
+                            [ scope_ "row"
+                            , class_ "sticky-top my-1"
+                            , style_ "z-index: 1"
+                            ]
+                        $ do
+                            thEnd (Just 7) "Time"
+                            when depositsSlot
+                                $ thEnd (Just 5) "Slot"
+                            thEnd (Just 7) "Deposit"
+                            when depositsSpent
+                                $ thEnd (Just 7) "Spent"
+                    content
         scrollableContainer = table_
         retrieveContent time attrs = do
             mds <- pageAtIndex time
@@ -192,7 +181,8 @@ depositH
         , depositsWindow
         , depositsFirstWeekDay
         }
-    mexpand depositsCustomersLink
+    mexpand
+    depositsCustomersLink
     (dTime@(Down time), (slot, ValueTransferC{received, spent}))
     widget
         | expanded = do
@@ -270,5 +260,5 @@ depositH
                         $ valueH spent
       where
         customerPost mexpand' =
-                linkText $ depositsCustomersLink (Just time) mexpand'
+            linkText $ depositsCustomersLink (Just time) mexpand'
         expanded = maybe (time `elem` depositsCustomers) (== Expand) mexpand

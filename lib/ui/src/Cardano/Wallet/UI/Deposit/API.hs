@@ -116,9 +116,6 @@ type Data =
         :<|> "settings" :> "sse" :> "toggle" :> SessionedHtml Post
         :<|> "sse" :> (CookieRequest :> SSE)
         :<|> "favicon.ico" :> Get '[Image] BL.ByteString
-        :<|> "images"
-            :> "fake-data.png"
-            :> Get '[Image] BL.ByteString
         :<|> "wallet"
             :> "mnemonic"
             :> QueryParam "clean" Bool
@@ -213,7 +210,6 @@ settingsGetLink :: Link
 settingsSseToggleLink :: Link
 sseLink :: Link
 faviconLink :: Link
-fakeDataBackgroundLink :: Link
 walletMnemonicLink :: Maybe Bool -> Link
 walletLink :: Link
 walletPostMnemonicLink :: Link
@@ -248,7 +244,6 @@ homePageLink
     :<|> settingsSseToggleLink
     :<|> sseLink
     :<|> faviconLink
-    :<|> fakeDataBackgroundLink
     :<|> walletMnemonicLink
     :<|> walletLink
     :<|> walletPostMnemonicLink

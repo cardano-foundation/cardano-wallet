@@ -52,7 +52,6 @@ import Lucid
     ( Html
     , ToHtml (..)
     , button_
-    , checked_
     , class_
     , data_
     , div_
@@ -138,18 +137,6 @@ depositsViewControls =
                     , name_ "spent"
                     , value_ ""
                     ]
-            simpleField "Fake Data"
-                $ div_
-                    [ class_ "d-flex justify-content-end align-items-center form-check"
-                    ]
-                $ input_
-                    [ class_ "form-check-input"
-                    , type_ "checkbox"
-                    , id_ "toggle-fake-data"
-                    , name_ "fake-data"
-                    , value_ ""
-                    , checked_
-                    ]
 
 depositsElementH
     :: Link
@@ -182,7 +169,7 @@ depositsElementH depositsHistoryLink = onWalletPresentH $ \case
                                     \, change from:#toggle-slot\
                                     \, change from:#select-window\
                                     \, change from:#toggle-spent\
-                                    \, change from:#toggle-fake-data"
+                                    \"
                                 , hxInclude_ "#view-control , #deposits"
                                 , hxPost_ $ linkText depositsHistoryLink
                                 , hxTarget_ "#deposits"

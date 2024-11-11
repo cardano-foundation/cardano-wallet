@@ -31,7 +31,6 @@ import Cardano.Wallet.Deposit.Pure
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByTime
     , DownTime
-    , byTime
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -40,6 +39,7 @@ import Cardano.Wallet.Deposit.Read
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
+    , getTxHistoryByTime
     )
 import Cardano.Wallet.Read
     ( TxId
@@ -49,9 +49,6 @@ import Cardano.Wallet.UI.Common.Layer
     )
 import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     ( DepositsParams (..)
-    )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
-    ( getMockHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
@@ -178,19 +175,15 @@ depositCustomersHandler
     layer
     render
     alert
-    params@DepositsParams{depositsFakeData}
+    params
     start = catchRunWalletResourceHtml layer alert id $ do
-        let transfers =
-                if depositsFakeData
-                    then byTime <$> getMockHistory
-                    else error "depositsHistoryWindowHandler: real data not implemented"
-        transfers' <-
+        transfers <-
             runMaybeT
                 $ retrieveAtTimeByCustomer
-                    transfers
+                    getTxHistoryByTime
                     params
                     (Down start)
-        pure $ case transfers' of
+        pure $ case transfers of
             Just customers -> render customers
             Nothing ->
                 alert

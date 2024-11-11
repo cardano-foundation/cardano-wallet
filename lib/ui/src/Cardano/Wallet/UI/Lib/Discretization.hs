@@ -20,9 +20,9 @@ import Data.Time
     , NominalDiffTime
     , UTCTime (..)
     , addUTCTime
+    , pattern YearMonthDay
     , secondsToDiffTime
     , weekFirstDay
-    , pattern YearMonthDay
     )
 
 -- | A time window for discretization.

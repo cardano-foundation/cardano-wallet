@@ -13,7 +13,6 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    , overlayFakeDataH
     , tdEnd
     , thEnd
     )
@@ -26,7 +25,6 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     )
 import Cardano.Wallet.UI.Deposit.API
     ( customerHistoryLink
-    , fakeDataBackgroundLink
     )
 import Control.Monad
     ( forM_
@@ -123,38 +121,32 @@ txSummaryH
 
 customerHistoryH
     :: Monad m
-    => Bool
-    -> TransactionHistoryParams
-    -> [(WithOrigin UTCTime,(Slot, TxId, ValueTransfer))]
+    => TransactionHistoryParams
+    -> [(WithOrigin UTCTime, (Slot, TxId, ValueTransfer))]
     -> HtmlT m ()
-customerHistoryH fake params@TransactionHistoryParams{..} txs =
-    fakeOverlay $ do
-        table_
-            [ class_
-                $ "border-top table table-striped table-hover m-0"
-                    <> if fake then " fake" else ""
-            ]
-            $ do
-                thead_
-                    $ tr_
-                        [ scope_ "row"
-                        , class_ "sticky-top my-1"
-                        , style_ "z-index: 1"
-                        ]
-                    $ do
-                        when txHistorySlot
-                            $ thEnd (Just 7) "Slot"
-                        when txHistoryUTC
-                            $ thEnd (Just 9) "Time"
-                        when txHistoryReceived
-                            $ thEnd (Just 7) "Deposit"
-                        when txHistorySpent
-                            $ thEnd (Just 7) "Withdrawal"
-                        thEnd Nothing "Id"
-                tbody_
-                    $ mapM_ (toHtml . txSummaryH params) txs
-  where
-    fakeOverlay = if fake then overlayFakeDataH fakeDataBackgroundLink else id
+customerHistoryH params@TransactionHistoryParams{..} txs =
+    table_
+        [ class_ "border-top table table-striped table-hover m-0"
+        ]
+        $ do
+            thead_
+                $ tr_
+                    [ scope_ "row"
+                    , class_ "sticky-top my-1"
+                    , style_ "z-index: 1"
+                    ]
+                $ do
+                    when txHistorySlot
+                        $ thEnd (Just 7) "Slot"
+                    when txHistoryUTC
+                        $ thEnd (Just 9) "Time"
+                    when txHistoryReceived
+                        $ thEnd (Just 7) "Deposit"
+                    when txHistorySpent
+                        $ thEnd (Just 7) "Withdrawal"
+                    thEnd Nothing "Id"
+            tbody_
+                $ mapM_ (toHtml . txSummaryH params) txs
 
 yearOf :: UTCTime -> Integer
 yearOf UTCTime{utctDay = YearMonthDay year _ _} = year

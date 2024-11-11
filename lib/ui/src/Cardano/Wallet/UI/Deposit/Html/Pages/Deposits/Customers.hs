@@ -110,7 +110,7 @@ scrollableDepositsCustomers
     -> PaginateM m Customer (Map Customer (Maybe Address, ValueTransfer))
     -> Scrolling.Configuration m Customer
 scrollableDepositsCustomers
-    params@DepositsParams{depositsSpent, depositsFakeData}
+    params@DepositsParams{depositsSpent}
     depositsCustomersPaginatingLink
     depositsTxIdsLink
     (Down time)
@@ -120,9 +120,7 @@ scrollableDepositsCustomers
         scrollableWidget :: [Attribute] -> Html () -> Html ()
         scrollableWidget attrs content = do
             let attrs' =
-                    [ class_
-                        $ "border-top table table-striped table-hover m-0"
-                            <> if depositsFakeData then " fake" else ""
+                    [ class_ "border-top table table-striped table-hover m-0"
                     ]
             table_ (attrs' <> attrs)
                 $ do

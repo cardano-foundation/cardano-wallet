@@ -164,7 +164,6 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveToggleSSE ul
         :<|> serveSSE ul
         :<|> serveFavicon
-        :<|> serveFakeDataBackground
         :<|> serveMnemonic
         :<|> serveWalletPage ul
         :<|> servePostMnemonicWallet tr env dbDir ul
@@ -199,11 +198,6 @@ serveNavigation
 serveNavigation ul mp = withSessionLayer ul $ \l -> do
     wp <- walletPresence l
     pure $ renderSmoothHtml $ headerElementH mp wp
-
-serveFakeDataBackground :: Handler BL.ByteString
-serveFakeDataBackground = do
-    file <- liftIO $ getDataFileName "data/images/fake-data.png"
-    liftIO $ BL.readFile file
 
 serveFavicon :: Handler BL.ByteString
 serveFavicon = do
