@@ -11,6 +11,7 @@ module Cardano.Wallet.UI.Deposit.Html.Common
     , showTimeSecs
     , withOriginH
     , valueH
+    , lovelaceH
     )
 where
 
@@ -57,6 +58,9 @@ import Lucid
 import Numeric
     ( showFFloatAlt
     )
+import Numeric.Natural
+    ( Natural
+    )
 
 showTime :: UTCTime -> String
 showTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
@@ -91,8 +95,13 @@ txIdH txId =
                 txId
 
 valueH :: Value -> Html ()
-valueH (ValueC (CoinC c) _) = do
-    span_ $ toHtml $ a ""
+valueH (ValueC (CoinC c) _) = lovelaceH $ fromIntegral c
+
+lovelaceH :: Natural -> Html ()
+lovelaceH c = do
+    span_ $ toHtml $ showLovelaceAsAda c
     span_ [class_ "opacity-25"] "₳"
-  where
-    a = showFFloatAlt @Double (Just 2) $ fromIntegral c / 1_000_000
+
+showLovelaceAsAda :: Integral a => a -> String
+showLovelaceAsAda c =
+    showFFloatAlt @Double (Just 2) (fromIntegral c / 1_000_000) ""
