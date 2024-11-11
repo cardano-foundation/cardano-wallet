@@ -168,7 +168,7 @@ retrieveAtTimeAtCustomerByTxId
             customers <-
                 hoistMaybe
                     $ fmap snd
-                    $ lookupFinger tStart tEnd transfers'
+                    $ lookupFinger tEnd tStart transfers'
             hoistMaybe
                 $ fmap snd
                 $ lookupMap customerStart

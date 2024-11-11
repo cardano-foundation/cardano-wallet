@@ -165,7 +165,7 @@ retrieveAtTimeByCustomer
                         <$> tStart
             hoistMaybe
                 $ fmap snd
-                $ lookupFinger tStart tEnd transfers'
+                $ lookupFinger tEnd tStart transfers'
 
 depositCustomersHandler
     :: SessionLayer WalletResource
