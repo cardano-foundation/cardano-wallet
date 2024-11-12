@@ -115,6 +115,7 @@ module Cardano.Wallet
     , getCurrentEpochSlotting
     , setChangeAddressMode
     , setChangeAddressModeShared
+    , assertIsVoting
 
     -- * Shared Wallet
     , updateCosigner
