@@ -390,6 +390,7 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Integration.Plutus as PlutusScenario
 
+
 spec :: forall n. HasSNetworkId n => SpecWith Context
 spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     it "TRANS_NEW_CREATE_01a - Empty payload is not allowed" $ \ctx -> runResourceT $ do
@@ -3207,7 +3208,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 })
         decodeErrorInfo submittedMaryTxExternal `shouldBe` errInfo
 
-    it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit" $ \ctx -> runResourceT $ do
+    it "TRANS_NEW_JOIN_01a - Can join stakepool, rejoin another and quit without voting" $ \ctx -> runResourceT $ do
         let initialAmt = 10 * minUTxOValue (_mainEra ctx)
         src <- fixtureWalletWith @n ctx [initialAmt]
         dest <- emptyWallet ctx
@@ -3477,6 +3478,93 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
             , expectField #depositTaken (`shouldBe` ApiAmount 0)
             , expectField #depositReturned (`shouldBe` depositAmt)
             ]
+
+    it "TRANS_NEW_JOIN_01a - Cannot withdraw without voting" $ \ctx -> runResourceT $ do
+        noBabbage ctx "voting only Conway onwards"
+        let initialAmt = 10 * minUTxOValue (_mainEra ctx)
+        src <- fixtureWalletWith @n ctx [initialAmt]
+        dest <- emptyWallet ctx
+
+        let depositAmt = ApiAmount 1_000_000
+
+        pool1 : _ <- map (view #id) <$> notRetiringPools ctx
+
+        let delegationJoin = Json [json|{
+                "delegations": [{
+                    "join": {
+                        "pool": #{ApiT pool1},
+                        "stake_key_index": "0H"
+                    }
+                }]
+            }|]
+        rTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default delegationJoin
+        verify rTx
+            [ expectResponseCode HTTP.status202
+            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
+            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            ]
+
+        let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
+        signedTx <- signTx ctx src apiTx [ expectResponseCode HTTP.status202 ]
+
+        submittedTx <- submitTxWithWid ctx src signedTx
+        verify submittedTx
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+
+        eventually "Wallet has joined pool1 and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getResponse submittedTx))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #depositTaken (`shouldBe` depositAmt)
+                , expectField #depositReturned (`shouldBe` ApiAmount 0)
+                ]
+
+        waitNumberOfEpochBoundaries 2 ctx
+
+        let getSrcWallet =
+                let endpoint = Link.getWallet @'Shelley src
+                 in request @ApiWallet ctx endpoint Default Empty
+
+        eventually "Wallet is delegating to pool" $ do
+            getSrcWallet >>= flip verify
+                [ expectField #delegation (`shouldBe` delegating (ApiT pool1) [])
+                ]
+
+        waitNumberOfEpochBoundaries 2 ctx
+
+        eventually "Wallet gets rewards from pool1" $ do
+            getSrcWallet >>= flip verify
+                [ expectField (#balance . #reward) (.> ApiAmount 0) ]
+
+        addrs <- listAddresses @n ctx dest
+        let addr = (addrs !! 1) ^. #id
+        let withdrawalAmount = minUTxOValue (_mainEra ctx)
+
+        let withdrawalPayload = Json [json|
+                { "payments":
+                    [ { "address": #{addr}
+                    , "amount":
+                        { "quantity": #{withdrawalAmount}
+                        , "unit": "lovelace"
+                        }
+                    }
+                    ]
+                , "passphrase": #{fixturePassphrase},
+                "withdrawal": "self"
+                }|]
+
+        withdrawalTx <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default withdrawalPayload
+
+        decodeErrorInfo withdrawalTx `shouldBe` WithdrawalNotPossibleWithoutVote
 
     it "TRANS_NEW_JOIN_01b - Invalid pool id" $ \ctx -> runResourceT $ do
         wa <- fixtureWallet ctx
