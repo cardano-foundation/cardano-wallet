@@ -663,8 +663,8 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
-    , defaultTransactionCtx
     , containsWithdrawal
+    , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT
