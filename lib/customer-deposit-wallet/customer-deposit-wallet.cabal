@@ -102,6 +102,7 @@ library
     Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.State.Creation
+    Cardano.Wallet.Deposit.Pure.State.Payment.Inspect
     Cardano.Wallet.Deposit.Pure.State.Payment
     Cardano.Wallet.Deposit.Pure.State.Rolling
     Cardano.Wallet.Deposit.Pure.State.Signing
