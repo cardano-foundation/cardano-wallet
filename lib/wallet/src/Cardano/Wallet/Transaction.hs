@@ -310,7 +310,7 @@ containsWithdrawal = \case
 
 containsSelfWithdrawal :: Withdrawal -> Bool
 containsSelfWithdrawal = \case
-    WithdrawalSelf _ _ _ -> True
+    WithdrawalSelf {} -> True
     _            -> False
 
 withdrawalToCoin :: Withdrawal -> Coin
