@@ -34,6 +34,7 @@ module Cardano.Wallet.Transaction
     , Withdrawal (..)
     , withdrawalToCoin
     , containsWithdrawal
+    , containsSelfWithdrawal
     , TokenMapWithScripts (..)
     , emptyTokenMapWithScripts
     , AnyExplicitScript (..)
@@ -306,6 +307,11 @@ containsWithdrawal :: Withdrawal -> Bool
 containsWithdrawal = \case
     NoWithdrawal -> False
     _            -> True
+
+containsSelfWithdrawal :: Withdrawal -> Bool
+containsSelfWithdrawal = \case
+    WithdrawalSelf _ _ _ -> True
+    _            -> False
 
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case

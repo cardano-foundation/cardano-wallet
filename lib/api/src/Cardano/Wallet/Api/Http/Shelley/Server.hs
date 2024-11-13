@@ -663,7 +663,7 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
-    , containsWithdrawal
+    , containsSelfWithdrawal
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
@@ -2303,7 +2303,7 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
                     (txWitnessTagForKey $ keyOfWallet $ walletFlavor @s)
                     db
                     apiWdrl
-        when (containsWithdrawal wdrl) $
+        when (containsSelfWithdrawal wdrl) $
             liftHandler $ W.assertIsVoting db era
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
