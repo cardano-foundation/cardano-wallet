@@ -210,6 +210,9 @@ test-suite unit
     , aeson
     , aeson-pretty
     , base
+    , bech32
+    , bech32-th
+    , base58-bytestring
     , bytestring
     , cardano-crypto
     , cardano-ledger-core:testlib
@@ -228,6 +231,7 @@ test-suite unit
     , QuickCheck
     , temporary
     , time
+    , text
     , transformers
     , with-utf8
 

@@ -82,7 +82,6 @@ data DecodingError
     | InvalidBase58Encoding
     | InvalidHumanReadablePart HumanReadablePart
     | InvalidDataPart DataPart
-    | InvalidNetwork
     | AddressFlavorMismatch
     | AddressDecodingError String
     | AddressNetworkMismatch
