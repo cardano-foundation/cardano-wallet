@@ -24,13 +24,11 @@ import Cardano.Wallet.Deposit.Read
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( linkText
-    , overlayFakeDataH
     , tdEnd
     , thEnd
     )
 import Cardano.Wallet.UI.Deposit.API
     ( depositsTxIdsPaginatingLink
-    , fakeDataBackgroundLink
     )
 import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     ( DepositsParams (..)
@@ -90,7 +88,7 @@ scrollableDepositsCustomersTxIds
     -> PaginateM m TxId (Map TxId ValueTransfer)
     -> Scrolling.Configuration m TxId
 scrollableDepositsCustomersTxIds
-    params@DepositsParams{depositsSpent, depositsFakeData}
+    params@DepositsParams{depositsSpent}
     (Down time)
     customer
     Paginate
@@ -102,32 +100,24 @@ scrollableDepositsCustomersTxIds
         Scrolling.Configuration{..}
       where
         scrollableWidget :: [Attribute] -> Html () -> Html ()
-        scrollableWidget attrs content =
-            fakeOverlay $ do
-                let attrs' =
-                        [ class_
-                            $ "border-top table table-striped table-hover m-0"
-                                <> if depositsFakeData then " fake" else ""
-                        ]
-                table_ (attrs' <> attrs)
-                    $ do
-                        thead_ [class_ "bg-primary"]
-                            $ tr_
-                                [ scope_ "row"
-                                , class_ "sticky-top my-1"
-                                , style_ "z-index: 2"
-                                ]
-                            $ do
-                                thEnd Nothing "Transaction"
-                                thEnd (Just 7) "Deposit"
-                                when depositsSpent
-                                    $ thEnd (Just 7) "Spent"
-                        content
-          where
-            fakeOverlay =
-                if depositsFakeData
-                    then overlayFakeDataH fakeDataBackgroundLink
-                    else id
+        scrollableWidget attrs content = do
+            let attrs' =
+                    [ class_ "border-top table table-striped table-hover m-0"
+                    ]
+            table_ (attrs' <> attrs)
+                $ do
+                    thead_ [class_ "bg-primary"]
+                        $ tr_
+                            [ scope_ "row"
+                            , class_ "sticky-top my-1"
+                            , style_ "z-index: 2"
+                            ]
+                        $ do
+                            thEnd Nothing "Transaction"
+                            thEnd (Just 7) "Deposit"
+                            when depositsSpent
+                                $ thEnd (Just 7) "Spent"
+                    content
         scrollableContainer = table_
         retrieveContent txId attrs = do
             mxs <- pageAtIndex txId

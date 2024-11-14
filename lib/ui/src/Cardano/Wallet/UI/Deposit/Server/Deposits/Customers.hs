@@ -17,11 +17,11 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( DownTime
-    , byTime
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
+    , getTxHistoryByTime
     )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
@@ -58,9 +58,6 @@ import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Customers
     ( depositCustomersHandler
     , depositCustomersPaginateM
-    )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
-    ( getMockHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceM
@@ -101,7 +98,7 @@ depositsCustomersTable params time = do
     let hs =
             depositCustomersPaginateM
                 params
-                (byTime <$> getMockHistory)
+                getTxHistoryByTime
                 time
                 100
     newScrolling

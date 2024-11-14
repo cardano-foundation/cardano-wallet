@@ -27,7 +27,6 @@ import Cardano.Wallet.Deposit.Pure
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( DownTime
-    , TxHistory (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -36,6 +35,7 @@ import Cardano.Wallet.Deposit.Read
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , customerAddress
+    , getTxHistoryByCustomer
     )
 import Cardano.Wallet.Read
     ( TxId
@@ -46,9 +46,6 @@ import Cardano.Wallet.UI.Common.Layer
     )
 import Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     ( TransactionHistoryParams (..)
-    )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
-    ( getMockHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( catchRunWalletResourceHtml
@@ -82,8 +79,7 @@ import qualified Data.Map.Monoidal.Strict as MonoidalMap
 
 getCustomerHistory
     :: SessionLayer WalletResource
-    -> ( Bool
-         -> TransactionHistoryParams
+    -> ( TransactionHistoryParams
          -> [(WithOrigin UTCTime, (Slot, TxId, ValueTransfer))]
          -> html
        )
@@ -100,9 +96,9 @@ getCustomerHistory
             case r of
                 Nothing -> pure $ alert "Address not discovered"
                 Just _ -> do
-                    h <- byCustomer <$> getMockHistory
+                    h <- getTxHistoryByCustomer
                     pure
-                        $ render True params
+                        $ render params
                         $ filterByParams params
                         $ convert
                         $ snd <$> lookupMap txHistoryCustomer h

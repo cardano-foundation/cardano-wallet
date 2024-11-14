@@ -79,10 +79,8 @@ library
     , MonadRandom
     , monoidal-containers
     , mtl
-    , mwc-random
     , OddWord
     , operational
-    , random
     , text
     , time
     , transformers
@@ -99,7 +97,6 @@ library
     Cardano.Wallet.Deposit.Pure
     Cardano.Wallet.Deposit.Pure.API.Address
     Cardano.Wallet.Deposit.Pure.API.TxHistory
-    Cardano.Wallet.Deposit.Pure.API.TxHistory.Mock
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.State.Creation
     Cardano.Wallet.Deposit.Pure.State.Payment.Inspect

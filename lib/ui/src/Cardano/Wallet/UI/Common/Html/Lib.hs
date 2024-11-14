@@ -22,7 +22,6 @@ module Cardano.Wallet.UI.Common.Html.Lib
     , WithCopy (..)
     , tdEnd
     , thEnd
-    , overlayFakeDataH
     , imageOverlay
     )
 where
@@ -55,8 +54,6 @@ import Lucid
     , class_
     , div_
     , id_
-    , img_
-    , src_
     , style_
     , td_
     , th_
@@ -156,9 +153,3 @@ imageOverlay =
         $ toHtml @String
             ".overlay-image { position: absolute; top: 0; left: 0; z-index: 10;\
             \ width: 100%; opacity: 5%; pointer-events: none }"
-
-overlayFakeDataH :: Monad m => Link -> HtmlT m () -> HtmlT m ()
-overlayFakeDataH fakeDataBackgroundLink x =
-    div_ [style_ "position: relative;"] $ do
-        x
-        img_ [class_ "overlay-image", src_ $ linkText fakeDataBackgroundLink]

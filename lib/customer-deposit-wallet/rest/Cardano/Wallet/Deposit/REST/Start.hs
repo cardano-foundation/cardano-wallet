@@ -1,6 +1,9 @@
+{-# LANGUAGE NumericUnderscores #-}
+
 module Cardano.Wallet.Deposit.REST.Start
     ( loadDepositWalletFromDisk
-    , fakeBootEnv
+    , newFakeBootEnv
+    , mockFundTheWallet
     )
 where
 
@@ -9,17 +12,45 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (..)
     )
+import Cardano.Wallet.Deposit.IO.Network.Mock
+    ( newNetworkEnvMock
+    )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    , mapBlock
+    , postTx
+    )
 import Cardano.Wallet.Deposit.REST
-    ( WalletResource
+    ( ErrWalletResource
+    , WalletResource
+    , availableBalance
+    , customerAddress
+    , getTxHistoryByCustomer
+    , getTxHistoryByTime
+    , listCustomers
     , loadWallet
     , runWalletResourceM
     , walletExists
+    )
+import Cardano.Wallet.Deposit.Write
+    ( addTxOut
+    , emptyTxBody
+    , mkAda
+    , mkTx
+    , mkTxOut
+    )
+import Control.Concurrent
+    ( threadDelay
     )
 import Control.Monad
     ( when
     )
 import Control.Monad.IO.Class
     ( MonadIO (..)
+    )
+import Control.Monad.Trans.Except
+    ( ExceptT (..)
+    , runExceptT
     )
 import Control.Tracer
     ( Tracer
@@ -42,20 +73,49 @@ loadDepositWalletFromDisk
     -> WalletResource
     -> IO ()
 loadDepositWalletFromDisk tr dir env resource = do
-    result <- flip runWalletResourceM resource $ do
-        test <- walletExists dir
-        when test $ do
-            lg tr "Loading wallet from" dir
-            loadWallet env dir
-            lg tr "Wallet loaded from" dir
+    result <- runExceptT $ do
+        exists <- ExceptT $ flip runWalletResourceM resource $ do
+            test <- walletExists dir
+            liftIO $ print test
+            when test $ do
+                lg tr "Loading wallet from" dir
+                loadWallet env dir
+                lg tr "Wallet loaded from" dir
+            pure test
+        liftIO $ threadDelay 1_000_000
+        when exists $ do
+            ExceptT $ mockFundTheWallet (networkEnv env) resource
+            ExceptT $ flip runWalletResourceM resource $ do
+                liftIO $ putStrLn "Available balance"
+                availableBalance >>= liftIO . print
+                liftIO $ putStrLn "Tx history by customer"
+                getTxHistoryByCustomer >>= liftIO . print
+                liftIO $ putStrLn "Tx history by time"
+                getTxHistoryByTime >>= liftIO . print
+                liftIO $ putStrLn "List customers"
+                listCustomers >>= liftIO . print
+                liftIO $ putStrLn "UTxO"
     case result of
         Left e -> error $ show e
         Right _ -> pure ()
 
-fakeBootEnv :: MonadIO m => WalletBootEnv m
-fakeBootEnv =
-    ( WalletBootEnv
+mockFundTheWallet
+    :: NetworkEnv IO z
+    -> WalletResource
+    -> IO (Either ErrWalletResource ())
+mockFundTheWallet network resource = flip runWalletResourceM resource $ do
+    Just address <- customerAddress 0
+    let tx =
+            mkTx
+                $ fst
+                $ addTxOut (mkTxOut address (mkAda 1_000_000)) emptyTxBody
+    Right () <- liftIO $ postTx network tx
+    pure ()
+
+newFakeBootEnv :: IO (WalletBootEnv IO)
+newFakeBootEnv =
+    WalletBootEnv
         (show >$< stdoutTracer)
         Read.mockGenesisDataMainnet
-        (error "network env not defined")
-    )
+        . mapBlock Read.EraValue
+        <$> newNetworkEnvMock

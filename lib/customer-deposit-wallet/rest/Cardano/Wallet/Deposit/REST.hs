@@ -49,6 +49,9 @@ module Cardano.Wallet.Deposit.REST
     , walletPublicIdentity
     , deleteWallet
     , deleteTheDepositWalletOnDisk
+    -- * Internals
+    , onWalletInstance
+
     ) where
 
 import Prelude

@@ -18,6 +18,7 @@ import Control.Monad.Cont
 import Data.Time
     ( DayOfWeek (..)
     , UTCTime
+    , addUTCTime
     , defaultTimeLocale
     , parseTimeOrError
     )
@@ -38,6 +39,7 @@ import Test.QuickCheck
     ( Gen
     , NonNegative (NonNegative)
     , Property
+    , Testable
     , arbitrary
     , counterexample
     , elements
@@ -79,7 +81,12 @@ windowG =
         ]
 
 showCounterExample
-    :: UTCTime -> DayOfWeek -> Window -> Property -> Property
+    :: Testable property
+    => UTCTime
+    -> DayOfWeek
+    -> Window
+    -> property
+    -> Property
 showCounterExample t d w =
     counterexample
         ( "t: "
@@ -101,10 +108,10 @@ showCounterExample t d w =
 spec :: Spec
 spec = do
     describe
-        "discretize after next is equivalent to next after discretize"
+        "discretize"
         $ modifyMaxSuccess (const 100000)
         $ do
-            it "discretize after next is equivalent to next after discretize"
+            it "after next is equivalent to next after discretize"
                 $ evalCont
                 $ do
                     t <- cont $ forAll timeG
@@ -120,3 +127,27 @@ spec = do
                                 d
                                 w
                                 (nextDiscretizedTime d w t)
+    describe "next"
+        $ do
+            it "is in the future" $ evalCont $ do
+                t <- cont $ forAll timeG
+                d <- cont $ forAll dayOfWeekG
+                w <- cont $ forAll windowG
+                pure
+                    $ showCounterExample t d w
+                    $ nextDiscretizedTime d w t > t
+            it "can be reverted by discretizing from one seconds before"
+                $ evalCont
+                $ do
+                    t <- cont $ forAll timeG
+                    d <- cont $ forAll dayOfWeekG
+                    w <- cont $ forAll windowG
+                    pure
+                        $ showCounterExample t d w
+                        $ discretizeTime
+                            d
+                            w
+                            ( addUTCTime (-1)
+                                $ nextDiscretizedTime d w t
+                            )
+                            === discretizeTime d w t

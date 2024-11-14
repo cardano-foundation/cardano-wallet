@@ -11,11 +11,11 @@ import Cardano.Slotting.Slot
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( DownTime
-    , byTime
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
+    , getTxHistoryByTime
     )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
@@ -41,13 +41,9 @@ import Cardano.Wallet.UI.Cookies
 import Cardano.Wallet.UI.Deposit.API
     ( depositsCustomersLink
     , depositsTimesPaginatingLink
-    , fakeDataBackgroundLink
     )
 import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     ( DepositsParams (..)
-    )
-import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Mock
-    ( getMockHistory
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Deposits.Times
     ( depositsPaginateM
@@ -92,11 +88,10 @@ depositsTable params = do
     let hs =
             depositsPaginateM
                 params
-                (byTime <$> getMockHistory)
+                getTxHistoryByTime
                 100
     newScrolling
         $ scrollableDeposits
-            fakeDataBackgroundLink
             depositsTimesPaginatingLink
             depositsCustomersLink
             params
