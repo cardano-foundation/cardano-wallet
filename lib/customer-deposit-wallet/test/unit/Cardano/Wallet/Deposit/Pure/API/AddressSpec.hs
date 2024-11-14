@@ -12,13 +12,15 @@ import Cardano.Wallet.Deposit.Pure.API.Address
     , encodeAddress
     )
 import Cardano.Wallet.Read.Address
-    ( toShortByteString
+    ( isBootstrapCompactAddr
+    , toShortByteString
     )
 import Control.Monad
     ( forM_
     )
 import Data.ByteString.Base58
     ( bitcoinAlphabet
+    , decodeBase58
     , encodeBase58
     )
 import Data.Either
@@ -27,6 +29,9 @@ import Data.Either
     )
 import Data.Function
     ( (&)
+    )
+import Data.Maybe
+    ( isJust
     )
 import Data.Text
     ( Text
@@ -43,6 +48,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , checkCoverage
+    , counterexample
     , cover
     , elements
     , forAll
@@ -54,7 +60,8 @@ import Test.QuickCheck
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
-import qualified Data.ByteString.Short as B8
+import qualified Data.ByteString.Short as SBS
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 spec :: Spec
@@ -82,6 +89,19 @@ spec = do
                     & cover 0.2 (isLeft res) "failure"
                     & cover 0.2 (isRight res) "success"
 
+        it "isBootstrapAddr decides whether bech32 or base58 encoding is used"
+            $ forAll arbitrary $ \addr ->
+                let
+                    isBase58 = isJust . decodeBase58 bitcoinAlphabet . T.encodeUtf8
+                    isBech32 = isRight . Bech32.decodeLenient
+
+                    encodedAddr = encodeAddress addr
+                in
+                    if isBootstrapCompactAddr addr
+                    then property $ isBase58 encodedAddr
+                    else property $ isBech32 encodedAddr
+                    & counterexample (T.unpack encodedAddr)
+
         it "roundtrips correctly on some addresses from online examples"
             $ do
                 let testCases =
@@ -108,7 +128,7 @@ genArbitrarilyEncodedAddress = oneof
   where
     encodeAddrBech32 hrp addr = Bech32.encodeLenient hrp dataPart
       where
-        bytes = B8.fromShort $ toShortByteString addr
+        bytes = SBS.fromShort $ toShortByteString addr
         dataPart = Bech32.dataPartFromBytes bytes
 
     genAddrHrp = elements
@@ -119,5 +139,5 @@ genArbitrarilyEncodedAddress = oneof
 
     encodeAddrBase58 = T.decodeUtf8
         . encodeBase58 bitcoinAlphabet
-        . B8.fromShort
+        . SBS.fromShort
         . toShortByteString
