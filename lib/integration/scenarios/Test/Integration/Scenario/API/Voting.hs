@@ -279,7 +279,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
 
         waitNumberOfEpochBoundaries 4 ctx
 
-        submittedWithdrawalTx1 <- do
+        withdrawalFailure <- do
             let endpoint = Link.createTransactionOld @'Shelley src
             request @(ApiTransaction n) ctx endpoint Default
                 $ Json [json|
@@ -294,7 +294,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     , "passphrase": #{fixturePassphrase},
                     "withdrawal": "self"
                     }|]
-        decodeErrorInfo submittedWithdrawalTx1 `shouldBe` WithdrawalNotPossibleWithoutVote
+        decodeErrorInfo withdrawalFailure `shouldBe` WithdrawalNotPossibleWithoutVote
 
         --Now voting
         let voteNoConfidence = Json [json|{
@@ -426,7 +426,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                       (`shouldBe` votingAndDelegating (ApiT pool1) voting2 [])
                 ]
 
-        submittedWithdrawalTx2 <- do
+        withdrawalSucesss <- do
             let endpoint = Link.createTransactionOld @'Shelley src
             request @(ApiTransaction n) ctx endpoint Default
                 $ Json [json|
@@ -442,7 +442,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     "withdrawal": "self"
                     }|]
 
-        verify submittedWithdrawalTx2
+        verify withdrawalSucesss
             [ expectField #amount (.> ApiAmount withdrawalAmount)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             ]

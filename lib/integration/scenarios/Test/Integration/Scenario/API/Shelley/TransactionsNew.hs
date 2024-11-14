@@ -3652,7 +3652,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let addr = (addrs !! 1) ^. #id
         let withdrawalAmount = minUTxOValue (_mainEra ctx)
 
-        submittedWithdrawalTx <- do
+        withdrawalFailure <- do
             let endpoint = Link.createTransactionOld @'Shelley src
             request @(ApiTransaction n) ctx endpoint Default
                 $ Json [json|
@@ -3668,7 +3668,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                     "withdrawal": "self"
                     }|]
 
-        decodeErrorInfo submittedWithdrawalTx `shouldBe` WithdrawalNotPossibleWithoutVote
+        decodeErrorInfo withdrawalFailure `shouldBe` WithdrawalNotPossibleWithoutVote
 
     it "TRANS_NEW_JOIN_01b - Cannot withdraw without voting in Conway - new tx workflow" $ \ctx -> runResourceT $ do
         noBabbage ctx "voting only Conway onwards"
@@ -3752,10 +3752,10 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 "withdrawal": "self"
                 }|]
 
-        withdrawalTx <- request @(ApiConstructTransaction n) ctx
+        withdrawalFailure <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default withdrawalPayload
 
-        decodeErrorInfo withdrawalTx `shouldBe` WithdrawalNotPossibleWithoutVote
+        decodeErrorInfo withdrawalFailure `shouldBe` WithdrawalNotPossibleWithoutVote
 
     it "TRANS_NEW_JOIN_01b - Can withdraw without voting in Babbage - new tx workflow" $ \ctx -> runResourceT $ do
         noConway ctx "withdraw possible"
