@@ -15,7 +15,7 @@ import Cardano.Wallet.Deposit.Read
     ( TxId
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic
+    ( PostWalletViaMnemonic
     , PostWalletViaXPub
     )
 import Cardano.Wallet.Read
@@ -69,7 +69,7 @@ import Web.FormUrlEncoded
 
 import qualified Data.ByteString.Lazy as BL
 
-instance FromForm PostWalletViaMenmonic
+instance FromForm PostWalletViaMnemonic
 
 instance FromForm PostWalletViaXPub
 
@@ -123,7 +123,7 @@ type Data =
         :<|> "wallet" :> SessionedHtml Get
         :<|> "wallet"
             :> "mnemonic"
-            :> ReqBody '[FormUrlEncoded] PostWalletViaMenmonic
+            :> ReqBody '[FormUrlEncoded] PostWalletViaMnemonic
             :> SessionedHtml Post
         :<|> "wallet"
             :> "xpub"

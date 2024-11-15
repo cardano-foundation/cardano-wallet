@@ -8,7 +8,7 @@
 module Cardano.Faucet
     ( initialState
     , serveMnemonics
-    , serveMenmonic
+    , serveMnemonic
     , serveAddresses
     ) where
 
@@ -100,8 +100,8 @@ serveMnemonics mnLen minIndex maxIndex = do
                     & NE.filter \(IndexedMnemonic index _mnemonic) ->
                         index >= minIndex && index <= maxIndex
 
-serveMenmonic :: MnemonicLength -> MnemonicIndex -> FaucetM Mnemonic
-serveMenmonic mnLen index =
+serveMnemonic :: MnemonicLength -> MnemonicIndex -> FaucetM Mnemonic
+serveMnemonic mnLen index =
     serveMnemonics mnLen index index >>= \case
         [IndexedMnemonic _index mnemonic] -> pure mnemonic
         _ -> throwError err404
@@ -115,7 +115,7 @@ serveAddresses
     -> AddressIndex
     -> FaucetM [IndexedAddress]
 serveAddresses mnLen mnIdx style netTag minAddrIdx maxAddrIdx = do
-    Mnemonic (SomeMnemonic mnemonic) <- serveMenmonic mnLen mnIdx
+    Mnemonic (SomeMnemonic mnemonic) <- serveMnemonic mnLen mnIdx
     let stylishEncoder = case style of
             AddressStyleShelley -> Addresses.shelley
             AddressStyleByron -> Addresses.byron

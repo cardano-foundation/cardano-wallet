@@ -2,7 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic (..)
+    ( PostWalletViaMnemonic (..)
     , PostWalletViaXPub (..)
     )
 where
@@ -17,7 +17,7 @@ import GHC.Generics
     )
 
 -- | Data for a request to create a wallet via a mnemonic.
-data PostWalletViaMenmonic = PostWalletViaMenmonic
+data PostWalletViaMnemonic = PostWalletViaMnemonic
     { mnemonics :: Text
     , password :: Text
     , trackedCustomers :: Int

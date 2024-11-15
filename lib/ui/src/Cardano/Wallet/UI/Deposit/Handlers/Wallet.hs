@@ -18,7 +18,7 @@ import Cardano.Wallet.Deposit.REST
     , WalletResourceM
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic (..)
+    ( PostWalletViaMnemonic (..)
     , PostWalletViaXPub (..)
     )
 import Cardano.Wallet.UI.Common.Layer
@@ -64,14 +64,14 @@ postMnemonicWallet
     -> (Credentials -> Customer -> WalletResourceM ())
     -> (BL.ByteString -> html)
     -> (() -> html)
-    -> PostWalletViaMenmonic
+    -> PostWalletViaMnemonic
     -> Handler html
 postMnemonicWallet
     l
     initWallet
     alert
     render
-    (PostWalletViaMenmonic mnemonic passphrase customers) = do
+    (PostWalletViaMnemonic mnemonic passphrase customers) = do
         let credentials = credentialsFromMnemonics mnemonic passphrase
         initWalletWithXPub l alert render
             $ initWallet credentials

@@ -36,7 +36,7 @@ import Cardano.Wallet.Deposit.REST.Catch
     ( catchRunWalletResourceM
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic (..)
+    ( PostWalletViaMnemonic (..)
     , PostWalletViaXPub (..)
     )
 import Control.Tracer
@@ -83,14 +83,14 @@ createWalletViaMnemonic
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
-    -> PostWalletViaMenmonic
+    -> PostWalletViaMnemonic
     -> Handler NoContent
 createWalletViaMnemonic
     tracer
     dir
     boot
     resource
-    (PostWalletViaMenmonic mnemonics' passphrase' users') =
+    (PostWalletViaMnemonic mnemonics' passphrase' users') =
         onlyOnWalletIntance resource initWallet $> NoContent
       where
         initWallet :: WalletResourceM ()

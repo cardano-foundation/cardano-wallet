@@ -71,7 +71,7 @@ import Servant
     )
 
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic
+    ( PostWalletViaMnemonic
     , PostWalletViaXPub
     )
 
@@ -96,7 +96,7 @@ servePostMnemonicWallet
     -> WalletBootEnv IO
     -> FilePath
     -> UILayer WalletResource
-    -> PostWalletViaMenmonic
+    -> PostWalletViaMnemonic
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
 servePostMnemonicWallet tr env dbDir ul request =

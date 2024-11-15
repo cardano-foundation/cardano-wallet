@@ -17,7 +17,7 @@ import qualified Servant
 
 import Cardano.Faucet
     ( serveAddresses
-    , serveMenmonic
+    , serveMnemonic
     , serveMnemonics
     )
 import Cardano.Faucet.FaucetM
@@ -60,6 +60,6 @@ server state0 =
     Servant.hoistServer api (runFaucetM state0) faucetServer
   where
     serveMnemmonicOrAddresses len index =
-        serveMenmonic len index :<|> serveAddresses len index
+        serveMnemonic len index :<|> serveAddresses len index
     faucetServer :: Servant.ServerT FaucetApi FaucetM
     faucetServer len = serveMnemonics len :<|> serveMnemmonicOrAddresses len

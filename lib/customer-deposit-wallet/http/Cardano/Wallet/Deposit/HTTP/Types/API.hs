@@ -20,7 +20,7 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
     , CustomerList
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic
+    ( PostWalletViaMnemonic
     , PostWalletViaXPub
     )
 import Servant.API
@@ -47,7 +47,7 @@ type API =
             :> Capture "customerId" (ApiT Customer)
             :> Put '[JSON] (ApiT Address)
         :<|> "mnemonics"
-            :> ReqBody '[JSON] PostWalletViaMenmonic
+            :> ReqBody '[JSON] PostWalletViaMnemonic
             :> PutNoContent
         :<|> "xpub"
             :> ReqBody '[JSON] PostWalletViaXPub
