@@ -115,6 +115,7 @@ module Cardano.Wallet
     , getCurrentEpochSlotting
     , setChangeAddressMode
     , setChangeAddressModeShared
+    , assertIsVoting
 
     -- * Shared Wallet
     , updateCosigner
@@ -621,7 +622,7 @@ import Cardano.Wallet.Transaction
     , VotingAction (..)
     , Withdrawal (..)
     , WitnessCountCtx (..)
-    , containsWithdrawal
+    , containsSelfWithdrawal
     , defaultTransactionCtx
     , withdrawalToCoin
     )
@@ -2670,7 +2671,7 @@ constructTransaction
     -> ExceptT ErrConstructTx IO (Cardano.TxBody (Write.CardanoApiEra era))
 constructTransaction era db txCtx preSel = do
     (_, xpub, _) <- lift $ readRewardAccount db
-    when (containsWithdrawal (txCtx ^. #txWithdrawal)) $
+    when (containsSelfWithdrawal (txCtx ^. #txWithdrawal)) $
         assertIsVoting db era
     mkUnsignedTransaction netId (Left $ fromJust xpub) txCtx (Left preSel)
         & withExceptT ErrConstructTxBody . except
@@ -2693,7 +2694,7 @@ constructUnbalancedSharedTransaction era db txCtx sel = db & \DBLayer{..} -> do
         scriptM =
             flip (replaceCosignersWithVerKeys CAShelley.Stake) minBound <$>
             delegationTemplate s
-    when (containsWithdrawal (txCtx ^. #txWithdrawal)) $
+    when (containsSelfWithdrawal (txCtx ^. #txWithdrawal)) $
         assertIsVoting db era
     mapExceptT atomically $ do
         withExceptT ErrConstructTxBody $ ExceptT $ pure $
