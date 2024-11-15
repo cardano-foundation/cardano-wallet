@@ -183,6 +183,10 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
+              # Meh. It looks like iohkNix is outdated
+              # things no longer work.
+              # Not sure what to do about ./regenerate.sh
+              (final: prev: { nixFlakes = prev.nixVersions.stable; })
               iohkNix.overlays.utils
               iohkNix.overlays.crypto
               iohkNix.overlays.cardano-lib
