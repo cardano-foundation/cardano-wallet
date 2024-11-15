@@ -279,7 +279,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
 
         waitNumberOfEpochBoundaries 4 ctx
 
-        submittedWithdrawalTx <- do
+        withdrawalFailure <- do
             let endpoint = Link.createTransactionOld @'Shelley src
             request @(ApiTransaction n) ctx endpoint Default
                 $ Json [json|
@@ -294,19 +294,7 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                     , "passphrase": #{fixturePassphrase},
                     "withdrawal": "self"
                     }|]
-
-        verify submittedWithdrawalTx
-            [ expectField #amount (.> ApiAmount withdrawalAmount)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            ]
-
-        eventually "Rewards have been consumed" $ do
-            getSrcWallet ctx src >>= flip verify
-                [ expectField (#balance . #reward . #toNatural)
-                    (.< withdrawalAmount)
-                , expectField (#balance . #available)
-                    (.>  (walletBeforeWithdrawal ^. #balance . #available))
-                ] & counterexample ("Wdrl: " <> show withdrawalAmount)
+        decodeErrorInfo withdrawalFailure `shouldBe` WithdrawalNotPossibleWithoutVote
 
         --Now voting
         let voteNoConfidence = Json [json|{
@@ -437,6 +425,35 @@ spec = describe "VOTING_TRANSACTIONS" $ do
                 [ expectField #delegation
                       (`shouldBe` votingAndDelegating (ApiT pool1) voting2 [])
                 ]
+
+        withdrawalSucesss <- do
+            let endpoint = Link.createTransactionOld @'Shelley src
+            request @(ApiTransaction n) ctx endpoint Default
+                $ Json [json|
+                    { "payments":
+                        [ { "address": #{addr}
+                        , "amount":
+                            { "quantity": #{withdrawalAmount}
+                            , "unit": "lovelace"
+                            }
+                        }
+                        ]
+                    , "passphrase": #{fixturePassphrase},
+                    "withdrawal": "self"
+                    }|]
+
+        verify withdrawalSucesss
+            [ expectField #amount (.> ApiAmount withdrawalAmount)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            ]
+
+        eventually "Rewards have been consumed" $ do
+            getSrcWallet ctx src >>= flip verify
+                [ expectField (#balance . #reward . #toNatural)
+                    (.< withdrawalAmount)
+                , expectField (#balance . #available)
+                    (.>  (walletBeforeWithdrawal ^. #balance . #available))
+                ] & counterexample ("Wdrl: " <> show withdrawalAmount)
 
     it "VOTING_01c - Can vote together with delegation" $ \ctx -> runResourceT $ do
         noBabbage ctx "voting supported in Conway onwards"

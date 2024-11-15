@@ -663,6 +663,7 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , WitnessCount (..)
     , WitnessCountCtx (..)
+    , containsSelfWithdrawal
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
@@ -2289,6 +2290,8 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
     let outs = addressAmountToTxOut <$> body ^. #payments
     let md = body ^? #metadata . traverse . #txMetadataWithSchema_metadata
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
+    (Write.PParamsInAnyRecentEra era _, _)
+        <- liftIO $ W.readNodeTipStateForTxWrite netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let db = wrk ^. dbLayer
         ttl <- liftIO $ W.transactionExpirySlot ti mTTL
@@ -2300,6 +2303,8 @@ postTransactionOld ctx@ApiLayer{..} argGenChange (ApiT wid) body = do
                     (txWitnessTagForKey $ keyOfWallet $ walletFlavor @s)
                     db
                     apiWdrl
+        when (containsSelfWithdrawal wdrl) $
+            liftHandler $ W.assertIsVoting db era
         let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
                 , txMetadata = md
