@@ -64,10 +64,6 @@ import Cardano.Wallet.UI.Type
 import Control.Exception
     ( SomeException
     )
-import Data.ByteArray.Encoding
-    ( Base (..)
-    , convertToBase
-    )
 import Data.ByteString
     ( ByteString
     )
@@ -88,6 +84,7 @@ import Lucid
     , p_
     )
 
+import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy.Char8 as BL
 
@@ -114,14 +111,11 @@ instance Show WalletPresent where
 walletH :: WHtml ()
 walletH = sseH walletLink "wallet" ["wallet"]
 
-base64 :: ByteString -> ByteString
-base64 = convertToBase Base64
-
 pubKeyH :: Monad m => XPub -> HtmlT m ()
 pubKeyH xpub =
     truncatableText WithCopy "public_key"
         $ toHtml
-        $ base64
+        $ B16.encode
         $ xpubToBytes xpub
 
 headAndTail :: Int -> ByteString -> ByteString

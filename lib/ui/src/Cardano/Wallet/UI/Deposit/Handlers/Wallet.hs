@@ -5,21 +5,21 @@ where
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( XPub
-    )
 import Cardano.Wallet.Deposit.Pure
-    ( Customer
+    ( Credentials
+    , Customer
+    )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( credentialsFromEncodedXPub
+    , credentialsFromMnemonics
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic (..)
+    ( PostWalletViaMnemonic (..)
     , PostWalletViaXPub (..)
-    , decodeXPub
-    , xpubFromMnemonics
     )
 import Cardano.Wallet.UI.Common.Layer
     ( Push (Push)
@@ -61,25 +61,25 @@ initWalletWithXPub l@SessionLayer{sendSSE} alert render initWallet = do
 
 postMnemonicWallet
     :: SessionLayer WalletResource
-    -> (XPub -> Customer -> WalletResourceM ())
+    -> (Credentials -> Customer -> WalletResourceM ())
     -> (BL.ByteString -> html)
     -> (() -> html)
-    -> PostWalletViaMenmonic
+    -> PostWalletViaMnemonic
     -> Handler html
 postMnemonicWallet
     l
     initWallet
     alert
     render
-    (PostWalletViaMenmonic mnemonic customers) = do
-        let xpub = xpubFromMnemonics mnemonic
+    (PostWalletViaMnemonic mnemonic passphrase customers) = do
+        let credentials = credentialsFromMnemonics mnemonic passphrase
         initWalletWithXPub l alert render
-            $ initWallet xpub
+            $ initWallet credentials
             $ fromIntegral customers
 
 postXPubWallet
     :: SessionLayer WalletResource
-    -> (XPub -> Customer -> WalletResourceM ())
+    -> (Credentials -> Customer -> WalletResourceM ())
     -> (BL.ByteString -> html)
     -> (() -> html)
     -> PostWalletViaXPub
@@ -90,16 +90,11 @@ postXPubWallet
     alert
     render
     (PostWalletViaXPub xpubText customers) =
-        case decodeXPub xpubText of
-            Left e -> pure $ alert $ BL.pack $ "Invalid base64: " <> e
-            Right Nothing ->
-                pure
-                    $ alert
-                    $ BL.pack
-                    $ "Invalid xpub: " <> show xpubText
-            Right (Just xpub) ->
+        case credentialsFromEncodedXPub xpubText of
+            Left e -> pure $ alert $ BL.pack $ show e
+            Right credentials ->
                 initWalletWithXPub l alert render
-                    $ initWallet xpub
+                    $ initWallet credentials
                     $ fromIntegral customers
 
 walletIsLoading

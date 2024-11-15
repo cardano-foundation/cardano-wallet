@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- |
 -- Copyright: © 2024 Cardano Foundation
@@ -26,7 +27,7 @@ module Cardano.Wallet.Deposit.REST
       -- * Operations
 
       -- ** Initialization
-    , initXPubWallet
+    , initWallet
     , loadWallet
 
       -- ** Mapping between customers and addresses
@@ -57,11 +58,15 @@ module Cardano.Wallet.Deposit.REST
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubFromBytes
-    , xpubToBytes
+    ( xpubToBytes
     )
 import Cardano.Crypto.Wallet
-    ( XPub (..)
+    ( XPrv
+    , XPub (..)
+    , unXPrv
+    , unXPub
+    , xprv
+    , xpub
     )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path
@@ -74,20 +79,25 @@ import Cardano.Wallet.Deposit.IO.Resource
     , ErrResourceMissing (..)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( Customer
+    ( Credentials
+    , Customer
     , ErrCreatePayment
     , Word31
-    , fromXPubAndGenesis
+    , fromCredentialsAndGenesis
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByCustomer
     , ByTime
     )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( xpubFromCredentials
+    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
 import Codec.Serialise
-    ( deserialise
+    ( Serialise (..)
+    , deserialise
     , serialise
     )
 import Control.DeepSeq
@@ -119,6 +129,9 @@ import Data.Bifunctor
 import Data.ByteArray.Encoding
     ( Base (..)
     , convertToBase
+    )
+import Data.ByteString
+    ( ByteString
     )
 import Data.List
     ( isPrefixOf
@@ -245,20 +258,36 @@ findTheDepositWalletOnDisk dir action = do
     ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [d] -> do
-            (xpub, users) <- deserialise <$> BL.readFile (dir </> d)
-            case xpubFromBytes xpub of
-                Nothing -> action $ Left $ ErrDatabaseCorrupted (dir </> d)
-                Just identity -> do
-                    let state =
-                            fromXPubAndGenesis
-                                identity
-                                (fromIntegral @Int users)
-                                Read.mockGenesisDataMainnet
-                    store <- newStore
-                    writeS store state
-                    action $ Right store
+            (credentials, users) <-
+                deserialise <$> BL.readFile (dir </> d)
+            let state =
+                    fromCredentialsAndGenesis
+                        credentials
+                        (fromIntegral @Int users)
+                        Read.mockGenesisDataMainnet
+            store <- newStore
+            writeS store state
+            action $ Right store
         [] -> action $ Left $ ErrDatabaseNotFound dir
         ds' -> action $ Left $ ErrMultipleDatabases ((dir </>) <$> ds')
+
+instance Serialise XPub where
+    encode = encode . unXPub
+    decode = do
+        b <- decode
+        case xpub b of
+            Right x -> pure x
+            Left e -> fail e
+
+instance Serialise XPrv where
+    encode = encode . unXPrv
+    decode = do
+        b :: ByteString <- decode
+        case xprv  b of
+            Right x -> pure x
+            Left e -> fail e
+
+instance Serialise Credentials
 
 -- | Try to create a new wallet
 createTheDepositWalletOnDisk
@@ -266,31 +295,32 @@ createTheDepositWalletOnDisk
     -- ^ Tracer for logging
     -> FilePath
     -- ^ Path to the wallet database directory
-    -> XPub
+    -> Credentials
     -- ^ Id of the wallet
     -> Word31
     -- ^ Max number of users ?
     -> (Maybe WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is created
     -> IO a
-createTheDepositWalletOnDisk _tr dir identity users action = do
+createTheDepositWalletOnDisk _tr dir credentials users action = do
     ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [] -> do
-            let fp = dir </> depositPrefix <> hashWalletId identity
+            let fp = dir </> depositPrefix <> hashWalletId credentials
             BL.writeFile fp
-                $ serialise (xpubToBytes identity, fromIntegral users :: Int)
+                $ serialise (credentials, fromIntegral users :: Int)
             store <- newStore
             action $ Just store
         _ -> do
             action Nothing
   where
-    hashWalletId :: XPub -> String
+    hashWalletId :: Credentials -> String
     hashWalletId =
         B8.unpack
             . convertToBase Base16
             . blake2b160
-            . xpubPublicKey
+            . xpubToBytes
+            . xpubFromCredentials
 
 -- | Load an existing wallet from disk.
 loadWallet
@@ -316,27 +346,27 @@ loadWallet bootEnv dir = do
             <$> Resource.putResource action resource
 
 -- | Initialize a new wallet from an 'XPub'.
-initXPubWallet
+initWallet
     :: Tracer IO String
     -- ^ Tracer for logging
     -> WalletIO.WalletBootEnv IO
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
-    -> XPub
+    -> Credentials
     -- ^ Id of the wallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initXPubWallet tr bootEnv dir xpub users = do
+initWallet tr bootEnv dir credentials users = do
     let action
             :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
-        action f = createTheDepositWalletOnDisk tr dir xpub users $ \case
+        action f = createTheDepositWalletOnDisk tr dir credentials users $ \case
             Just wallet -> do
                 fmap Right
                     $ WalletIO.withWalletInit
                         (WalletIO.WalletEnv bootEnv wallet)
-                        xpub
+                        credentials
                         users
                     $ \i -> do
                         addresses <- map snd <$> WalletIO.listCustomers i

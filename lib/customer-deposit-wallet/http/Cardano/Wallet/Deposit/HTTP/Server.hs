@@ -22,6 +22,10 @@ import Cardano.Wallet.Deposit.HTTP.Types.JSON
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( credentialsFromEncodedXPub
+    , credentialsFromMnemonics
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
@@ -32,10 +36,8 @@ import Cardano.Wallet.Deposit.REST.Catch
     ( catchRunWalletResourceM
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic (..)
+    ( PostWalletViaMnemonic (..)
     , PostWalletViaXPub (..)
-    , decodeXPub
-    , xpubFromMnemonics
     )
 import Control.Tracer
     ( Tracer
@@ -81,23 +83,23 @@ createWalletViaMnemonic
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
-    -> PostWalletViaMenmonic
+    -> PostWalletViaMnemonic
     -> Handler NoContent
 createWalletViaMnemonic
     tracer
     dir
     boot
     resource
-    (PostWalletViaMenmonic mnemonics' users') =
+    (PostWalletViaMnemonic mnemonics' passphrase' users') =
         onlyOnWalletIntance resource initWallet $> NoContent
       where
         initWallet :: WalletResourceM ()
         initWallet =
-            REST.initXPubWallet
+            REST.initWallet
                 tracer
                 boot
                 dir
-                (xpubFromMnemonics mnemonics')
+                (credentialsFromMnemonics mnemonics' passphrase')
                 (fromIntegral users')
 
 createWalletViaXPub
@@ -119,17 +121,16 @@ createWalletViaXPub
             Right () -> pure NoContent
       where
         initWallet :: WalletResourceM (Either String ())
-        initWallet = case decodeXPub xpubText of
-            Left e -> pure $ Left e
-            Right (Just xpub') ->
+        initWallet = case credentialsFromEncodedXPub xpubText of
+            Left e -> pure $ Left $ show e
+            Right credentials ->
                 Right
-                    <$> REST.initXPubWallet
+                    <$> REST.initWallet
                         tracer
                         boot
                         dir
-                        xpub'
+                        credentials
                         (fromIntegral users')
-            Right Nothing -> pure $ Left "Invalid XPub"
 
 listCustomerH
     :: WalletResource

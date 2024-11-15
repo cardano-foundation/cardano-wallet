@@ -55,9 +55,11 @@ library
     , async
     , base
     , base58-bytestring
+    , base16-bytestring
     , bech32
     , bech32-th
     , bytestring
+    , cardano-addresses
     , cardano-balance-tx
     , cardano-crypto
     , cardano-ledger-api
@@ -226,7 +228,9 @@ test-suite unit
     , openapi3
     , pretty-simple
     , QuickCheck
+    , serialise
     , temporary
+    , text
     , time
     , text
     , transformers

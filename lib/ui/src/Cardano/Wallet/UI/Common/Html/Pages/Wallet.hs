@@ -144,12 +144,11 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
             , name_ "name"
             , placeholder_ "Wallet Name"
             ]
-    onShelley
-        $ input_
+    input_
             [ formControl
             , type_ "password"
             , name_ "password"
-            , placeholder_ "Wallet Password"
+            , placeholder_ "Signing Passphrase"
             ]
     div_ [class_ "d-flex justify-content-end align-items-center"] $ do
         button_

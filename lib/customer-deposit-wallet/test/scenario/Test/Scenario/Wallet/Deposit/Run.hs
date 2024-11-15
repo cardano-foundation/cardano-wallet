@@ -1,9 +1,8 @@
-{-|
-Copyright: © 2024 Cardano Foundation
-License: Apache-2.0
-
-Execute usage scenarios for the deposit wallet.
--}
+-- |
+-- Copyright: © 2024 Cardano Foundation
+-- License: Apache-2.0
+--
+-- Execute usage scenarios for the deposit wallet.
 module Test.Scenario.Wallet.Deposit.Run
     ( main
     ) where
@@ -15,6 +14,9 @@ import Cardano.Crypto.Wallet
     , XPub
     , generate
     , toXPub
+    )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( Credentials (..)
     )
 import Test.Hspec
     ( SpecWith
@@ -43,14 +45,14 @@ import qualified Test.Scenario.Wallet.Deposit.Exchanges as Exchanges
 main :: IO ()
 main =
     hspecMain
-    $ aroundAll withScenarioEnvMock scenarios
+        $ aroundAll withScenarioEnvMock scenarios
 
 scenarios :: SpecWith ScenarioEnv
 scenarios = do
     describe "Scenarios for centralized exchanges" $ do
         it "0. Restore a wallet" $ \env ->
-            withWalletEnvMock env $
-                Exchanges.scenarioRestore xpub
+            withWalletEnvMock env
+                $ Exchanges.scenarioRestore xpub
 
         it "0. Start a wallet" $ \env ->
             withWalletEnvMock env $ \w -> do
@@ -59,19 +61,25 @@ scenarios = do
 
         it "1. Assign an address to a customer ID" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
-                Wallet.withWalletInit walletEnv (freshXPub 1) 32
+                Wallet.withWalletInit
+                    walletEnv
+                    (XPubCredentials $ freshXPub 1)
+                    32
                     Exchanges.scenarioCreateAddressList
 
         it "4. Create payments to a different wallet" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
-                Wallet.withWalletInit walletEnv xpub 32
+                Wallet.withWalletInit walletEnv (XPubCredentials xpub) 32
                     $ Exchanges.scenarioCreatePayment xprv env mockAddress
 
     describe "Temporary tests" $ do
         it "Wallet receives funds that are sent to customer address" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
-                Wallet.withWalletInit walletEnv (freshXPub 0) 8 $
-                    testBalance env
+                Wallet.withWalletInit
+                    walletEnv
+                    (XPubCredentials $ freshXPub 0)
+                    8
+                    $ testBalance env
 
 xpub :: XPub
 xpub = toXPub xprv
@@ -82,9 +90,9 @@ xprv = generate (B8.pack "random seed for a testing xpub lala") B8.empty
 freshXPub :: Integer -> XPub
 freshXPub i =
     toXPub
-    $ generate
-        (B8.pack $ "random seed for a testing xpub lala" <> show i)
-        B8.empty
+        $ generate
+            (B8.pack $ "random seed for a testing xpub lala" <> show i)
+            B8.empty
 
 mockAddress :: Read.Address
 mockAddress =

@@ -39,7 +39,7 @@ import Cardano.Wallet.Deposit.Read
     , ChainPoint (..)
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMenmonic
+    ( PostWalletViaMnemonic
     , PostWalletViaXPub
     )
 import Control.Applicative
@@ -223,6 +223,6 @@ instance ToSchema (ApiT ChainPoint) where
                 (Just "ApiT ChainPoint")
                 chainPointSchema
 
-instance FromJSON PostWalletViaMenmonic
+instance FromJSON PostWalletViaMnemonic
 
 instance FromJSON PostWalletViaXPub
