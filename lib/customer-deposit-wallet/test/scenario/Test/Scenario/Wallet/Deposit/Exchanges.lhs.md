@@ -34,6 +34,7 @@ import Cardano.Wallet.Deposit.IO
 import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer (..)
+    , Credentials (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -79,7 +80,7 @@ scenarioRestore
     :: XPub -> WalletEnv IO -> IO ()
 scenarioRestore xpub env = do
     let knownCustomerCount = 127
-    Wallet.withWalletInit env xpub knownCustomerCount $ \w -> do
+    Wallet.withWalletInit env (XPubCredentials xpub) knownCustomerCount $ \w -> do
         value <- Wallet.availableBalance w
         assert $ value == ada 0
 ```

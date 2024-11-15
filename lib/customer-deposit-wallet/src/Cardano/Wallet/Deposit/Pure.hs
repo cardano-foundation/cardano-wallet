@@ -10,6 +10,10 @@ module Cardano.Wallet.Deposit.Pure
     , DeltaWalletState
     , WalletPublicIdentity (..)
 
+      -- * Creation
+    , Credentials (..)
+    , fromCredentialsAndGenesis
+
       -- * Operations
 
       -- ** Mapping between customers and addresses
@@ -26,7 +30,6 @@ module Cardano.Wallet.Deposit.Pure
     , walletXPub
 
       -- ** Reading from the blockchain
-    , fromXPubAndGenesis
     , Word31
     , getWalletTip
     , availableBalance
@@ -57,8 +60,9 @@ import Cardano.Wallet.Address.BIP32
     , DerivationType (..)
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( WalletPublicIdentity (..)
-    , fromXPubAndGenesis
+    ( Credentials (..)
+    , WalletPublicIdentity (..)
+    , fromCredentialsAndGenesis
     )
 import Cardano.Wallet.Deposit.Pure.State.Payment
     ( ErrCreatePayment (..)

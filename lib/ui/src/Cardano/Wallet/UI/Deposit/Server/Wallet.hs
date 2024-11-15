@@ -16,7 +16,7 @@ import Cardano.Wallet.Deposit.IO
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , deleteWallet
-    , initXPubWallet
+    , initWallet
     )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
@@ -101,10 +101,10 @@ servePostMnemonicWallet
     -> Handler (CookieResponse RawHtml)
 servePostMnemonicWallet tr env dbDir ul request =
     withSessionLayer ul $ \layer -> do
-        postMnemonicWallet layer initWallet alert ok request
+        postMnemonicWallet layer initWallet' alert ok request
   where
     ok _ = renderHtml . rogerH @Text $ "ok"
-    initWallet = initXPubWallet tr env dbDir
+    initWallet' = initWallet tr env dbDir
 
 servePostXPubWallet
     :: Tracer IO String
@@ -116,10 +116,10 @@ servePostXPubWallet
     -> Handler (CookieResponse RawHtml)
 servePostXPubWallet tr env dbDir ul request =
     withSessionLayer ul $ \layer -> do
-        postXPubWallet layer initWallet alert ok request
+        postXPubWallet layer initWallet' alert ok request
   where
     ok _ = renderHtml . rogerH @Text $ "ok"
-    initWallet = initXPubWallet tr env dbDir
+    initWallet' = initWallet tr env dbDir
 
 serveDeleteWallet
     :: UILayer WalletResource
@@ -137,19 +137,3 @@ serveDeleteWalletModal
     -> Handler (CookieResponse RawHtml)
 serveDeleteWalletModal ul = withSessionLayer ul $ \_ ->
     pure $ renderSmoothHtml deleteWalletModalH
-
-{-         :<|> (\c -> )
-        :<|> wsl (\l -> deleteWalletHandler l (deleteWallet dbDir) alert ok)
-        :<|> wsl (\_l -> pure $ renderSmoothHtml deleteWalletModalH)
-        :<|> ( \c ->
-                wsl
-                    ( \l ->
-                        getCustomerAddress
-                            l
-                            ( renderSmoothHtml
-                                . customerAddressH WithCopy
-                            )
-                            alert
-                            c
-                    )
-             ) -}

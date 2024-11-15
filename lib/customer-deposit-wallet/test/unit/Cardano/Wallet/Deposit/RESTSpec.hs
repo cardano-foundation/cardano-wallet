@@ -6,9 +6,8 @@ where
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub
-    , generate
-    , toXPub
+    ( sign
+    , verify
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (WalletBootEnv)
@@ -17,6 +16,12 @@ import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceMissing (..)
     , withResource
     )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( Credentials
+    , credentialsFromMnemonics
+    , xprvFromCredentials
+    , xpubFromCredentials
+    )
 import Cardano.Wallet.Deposit.REST
     ( ErrCreatingDatabase (..)
     , ErrDatabase (..)
@@ -24,10 +29,14 @@ import Cardano.Wallet.Deposit.REST
     , ErrWalletResource (..)
     , WalletResourceM
     , availableBalance
-    , initXPubWallet
+    , initWallet
     , loadWallet
     , runWalletResourceM
     , walletExists
+    )
+import Codec.Serialise
+    ( deserialise
+    , serialise
     )
 import Control.Concurrent
     ( threadDelay
@@ -37,6 +46,15 @@ import Control.Monad.IO.Class
     )
 import Control.Tracer
     ( nullTracer
+    )
+import Data.ByteString
+    ( ByteString
+    )
+import Data.Maybe
+    ( fromJust
+    )
+import Data.Text
+    ( Text
     )
 import System.IO.Temp
     ( withSystemTempDirectory
@@ -48,16 +66,33 @@ import Test.Hspec
     , shouldBe
     )
 
+import Control.Monad.Trans.Cont
+    ( cont
+    , evalCont
+    )
+import Test.QuickCheck
+    ( Gen
+    , arbitrary
+    , forAll
+    , listOf
+    , suchThat
+    , vectorOf
+    , (===)
+    )
+
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 fakeBootEnv :: WalletBootEnv IO
 fakeBootEnv = WalletBootEnv nullTracer Read.mockGenesisDataMainnet undefined
 
-xpub :: XPub
-xpub =
-    toXPub
-        $ generate (B8.pack "random seed for a testing xpub lala") B8.empty
+mnemonics :: Text
+mnemonics = "random seed for a testing xpub lala"
+
+credentials :: Credentials
+credentials = credentialsFromMnemonics mnemonics mempty
 
 letItInitialize :: WalletResourceM ()
 letItInitialize = liftIO $ threadDelay 100000
@@ -77,7 +112,7 @@ withInitializedWallet
     -> WalletResourceM a
     -> IO (Either ErrWalletResource a)
 withInitializedWallet dir f = withWallet $ do
-    initXPubWallet nullTracer fakeBootEnv dir xpub 0
+    initWallet nullTracer fakeBootEnv dir credentials 0
     letItInitialize
     f
 
@@ -96,8 +131,54 @@ doNothing = pure ()
 inADirectory :: (FilePath -> IO a) -> IO a
 inADirectory = withSystemTempDirectory "deposit-rest"
 
+byteStringGen :: Gen ByteString
+byteStringGen = B8.pack <$> listOf arbitrary
+
+textGen :: Gen Text
+textGen = T.pack <$> listOf arbitrary
+
+textNGen :: Int -> Gen Text
+textNGen n = do
+    n' <- arbitrary `suchThat` (>= n)
+    T.pack <$> vectorOf n' arbitrary
+
+credentialsGen :: Gen (Credentials, Text)
+credentialsGen = do
+    mnemonics' <- textNGen 32
+    passphrase' <- textGen
+    pure (credentialsFromMnemonics mnemonics' passphrase', passphrase')
+
 spec :: Spec
 spec = do
+    describe "XPub" $ do
+        it "can be serialised and deserialised" $ do
+            forAll credentialsGen $ \(credentials', _) ->
+                deserialise (serialise $ xpubFromCredentials credentials')
+                    === xpubFromCredentials credentials'
+    describe "XPrv" $ do
+        it "can be serialised and deserialised" $ do
+            forAll credentialsGen $ \(credentials', _) ->
+                deserialise (serialise $ xprvFromCredentials credentials')
+                    === xprvFromCredentials credentials'
+    describe "Credentials" $ do
+        it "can be serialised and deserialised" $ do
+            forAll credentialsGen $ \(credentials', _) ->
+                deserialise (serialise credentials') === credentials'
+    describe "Credentials with mnemonics" $ do
+        it "can sign and verify a message" $ evalCont $ do
+            (credentials', passphrase') <- cont $ forAll credentialsGen
+            message <- cont $ forAll byteStringGen
+            let
+                sig =
+                    sign
+                        (T.encodeUtf8 passphrase')
+                        ( fromJust
+                            $ xprvFromCredentials credentials'
+                        )
+                        message
+            pure
+                $ verify (xpubFromCredentials credentials') message sig === True
+
     describe "REST Deposit interface" $ do
         it "can initialize a wallet"
             $ inADirectory

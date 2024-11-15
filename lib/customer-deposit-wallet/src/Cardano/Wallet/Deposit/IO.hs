@@ -51,9 +51,6 @@ module Cardano.Wallet.Deposit.IO
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPub
-    )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path
     )
@@ -61,7 +58,8 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv (slotToUTCTime)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( Customer
+    ( Credentials
+    , Customer
     , ValueTransfer
     , WalletPublicIdentity (..)
     , WalletState
@@ -170,7 +168,7 @@ readWalletState WalletInstance{walletState} =
 -- | Initialize a new wallet in the given environment.
 withWalletInit
     :: WalletEnv IO
-    -> XPub
+    -> Credentials
     -> Word31
     -> (WalletInstance -> IO a)
     -> IO a
@@ -179,12 +177,15 @@ withWalletInit
         { bootEnv = WalletBootEnv{genesisData}
         , ..
         }
-    xpub
+    credentials
     knownCustomerCount
     action = do
         walletState <-
             DBVar.initDBVar store
-                $ Wallet.fromXPubAndGenesis xpub knownCustomerCount genesisData
+                $ Wallet.fromCredentialsAndGenesis
+                    credentials
+                    knownCustomerCount
+                    genesisData
         withWalletDBVar env walletState action
 
 -- | Load an existing wallet from the given environment.

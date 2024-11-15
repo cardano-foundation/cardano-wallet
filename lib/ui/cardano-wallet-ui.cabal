@@ -91,8 +91,8 @@ library
     Cardano.Wallet.UI.Lib.Address
     Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
-    Cardano.Wallet.UI.Lib.Pagination.TimedSeq
     Cardano.Wallet.UI.Lib.Pagination.Map
+    Cardano.Wallet.UI.Lib.Pagination.TimedSeq
     Cardano.Wallet.UI.Lib.Pagination.Type
     Cardano.Wallet.UI.Lib.Time.Direction
     Cardano.Wallet.UI.Shelley.API
@@ -115,6 +115,7 @@ library
     , aeson
     , aeson-pretty
     , base
+    , base16-bytestring
     , bech32
     , bech32-th
     , bytestring
@@ -137,7 +138,6 @@ library
     , http-media
     , lens
     , lucid
-    , memory
     , mmorph
     , monoidal-containers
     , mtl

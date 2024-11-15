@@ -13,16 +13,15 @@ module Cardano.Wallet.Deposit.PureSpec
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( XPub
-    , generate
-    , toXPub
-    )
 import Cardano.Wallet.Deposit.Pure
-    ( Customer
+    ( Credentials
+    , Customer
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( LookupTimeFromSlot
+    )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( credentialsFromMnemonics
     )
 import Cardano.Wallet.Deposit.Testing.DSL
     ( InterpreterState (..)
@@ -79,7 +78,6 @@ import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -300,12 +298,11 @@ prop_availableBalance_rollForward_rollBackward =
 
 emptyWalletWith17Addresses :: Wallet.WalletState
 emptyWalletWith17Addresses =
-    Wallet.fromXPubAndGenesis testXPub 17 testGenesis
+    Wallet.fromCredentialsAndGenesis testCredentials 17 testGenesis
 
-testXPub :: XPub
-testXPub =
-    toXPub
-        $ generate (B8.pack "random seed for a testing xpub lala") B8.empty
+testCredentials :: Credentials
+testCredentials =
+    credentialsFromMnemonics "random seed for a testing xpub lala" mempty
 
 {-----------------------------------------------------------------------------
     Test blockchain
