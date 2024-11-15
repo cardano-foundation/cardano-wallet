@@ -140,7 +140,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           curlFull
           jq
           yq
-          nixWrapped
           mdbook
           haskellPackages.fourmolu
           haskellPackages.ghcid
@@ -184,16 +183,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             in
             {
               reinstallableLibGhc = true;
-
-              # These are here to make `stackProject` vs `cabalProject` `nix-diff` cleaner
-              # TODO remove
-              packages.entropy.components.setup.doExactConfig = true;
-              packages.prettyprinter-configurable.components.setup.doExactConfig = true;
-              packages.pretty-simple.components.setup.doExactConfig = true;
-              packages.wai-logger.components.setup.doExactConfig = true;
-              packages.openapi3.components.setup.doExactConfig = true;
-              packages.servant-openapi3.components.setup.doExactConfig = true;
-              packages.system-filepath.components.setup.doExactConfig = true;
 
               packages.cardano-wallet-unit.components.tests = {
                 unit.build-tools = cardanoNodeExes;
@@ -286,26 +275,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + setGitRevPostInstall + rewriteLibsPostInstall + stripBinariesPostInstall;
             })
 
-          ({ config, ... }:
-            let
-              setGitRevPostInstall = setGitRevPostInstall' config.packages.cardano-node.src.rev;
-            in
-            {
-              # Add shell completions for tools.
-              packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
-              packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + setGitRevPostInstall;
-              packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
-              packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
-            })
-
-          # Provide the git revision for cardano-addresses
-          ({ config, ... }:
-            {
-              packages.cardano-addresses-cli.components.library.preBuild = ''
-                export GITREV=${config.hsPkgs.cardano-addresses-cli.src.rev}
-              '';
-            })
-
           # Provide the swagger file in an environment variable for
           # tests because it is located outside of the Cabal package
           # source tree.
@@ -319,7 +288,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             # Use our forked libsodium from iohk-nix crypto overlay.
             packages.plutus-tx.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
             packages.byron-spec-ledger.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
-            packages.cardano-wallet-cli.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
             packages.cardano-crypto-praos.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 ] ];
             packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 pkgs.libblst ] ];
           })
@@ -370,10 +338,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
               packages.cardano-wallet-unit.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-benchmarks.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
-
-              # systemd can't be statically linked - disable lobemo-scribe-journal
-              packages.cardano-config.flags.systemd = false;
-              packages.cardano-node.flags.systemd = false;
 
               # Haddock not working for cross builds and is not needed anyway
               doHaddock = false;
