@@ -4,7 +4,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Test.Integration.Run
@@ -14,9 +13,6 @@ where
 
 import Prelude
 
-import Cardano.Wallet.Launch.Cluster
-    ( FileOf (..)
-    )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
     ( ignoreInBabbage
     , ignoreInConway
@@ -41,11 +37,7 @@ import System.Environment
     ( lookupEnv
     )
 import System.Path
-    ( absDir
-    , absRel
-    )
-import Test.Hspec
-    ( mapSubject
+    ( absRel
     )
 import Test.Hspec.Core.Spec
     ( SpecM
@@ -61,9 +53,6 @@ import Test.Integration.Framework.Setup
     ( TestingCtx (..)
     , withContext
     , withTestsSetup
-    )
-import UnliftIO.STM
-    ( newTVarIO
     )
 
 import qualified Cardano.Wallet.Launch.Cluster as Cluster
@@ -87,8 +76,10 @@ import qualified Test.Integration.Scenario.API.Shelley.Restoration as Restoratio
 import qualified Test.Integration.Scenario.API.Shelley.Settings as Settings
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
+import qualified Test.Integration.Scenario.API.Shelley.Transactions.JoinPool as TransactionsJoinPool
 import qualified Test.Integration.Scenario.API.Shelley.TransactionsNew as TransactionsNew
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
+import qualified Test.Integration.Scenario.API.Shelley.Withdrawals as Withdrawals
 import qualified Test.Integration.Scenario.API.Voting as Voting
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
@@ -106,8 +97,9 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
         _noBabbage = ignoreInBabbage localClusterEra
         testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
     testDataDir <- do
-        dir <- fromMaybe "."
-            <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
+        dir <-
+            fromMaybe "."
+                <$> lookupEnv "CARDANO_WALLET_TEST_DATA"
         DirOf <$> absolutize (absRel dir)
     let testingCtx = TestingCtx{..}
     hspecMain $ do
@@ -133,6 +125,8 @@ main = withTestsSetup $ \testDir (tr, tracers) -> do
                     ByronMigrations.spec @n
                     Transactions.spec @n
                     TransactionsNew.spec @n
+                    Withdrawals.spec @n
+                    TransactionsJoinPool.spec @n
                     Network.spec
                     Network_.spec
                     StakePools.spec @n

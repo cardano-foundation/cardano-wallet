@@ -16,12 +16,14 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
-  ghc-options: -Wunused-packages -Wall -Wcompat -Wredundant-constraints
-    -Wunused-imports
 
+  ghc-options:
+    -Wunused-packages -Wall -Wcompat -Wredundant-constraints
+    -Wunused-imports
 
 common opts-lib
   ghc-options:
+
   if flag(release)
     ghc-options: -O2 -Werror
 
@@ -84,16 +86,15 @@ library framework
     , iohk-monitoring-extra
     , lens
     , lobemo-backend-ekg
-    , local-cluster:local-cluster-process
-    , local-cluster:local-cluster
+    , local-cluster:{local-cluster, local-cluster-process}
     , memory
     , microstache
     , monad-loops
     , mtl
     , network-uri
+    , pathtype
     , resourcet
     , retry
-    , pathtype
     , serialise
     , servant-client
     , string-interpolate
@@ -133,12 +134,9 @@ library scenarios
     , cardano-addresses
     , cardano-api
     , cardano-crypto
-    , cardano-crypto-class
-    , cardano-wallet-exe
-    , cardano-ledger-alonzo
-    , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-api
+    , cardano-wallet-exe
     , cardano-wallet-integration:framework
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -193,8 +191,10 @@ library scenarios
     Test.Integration.Scenario.API.Shelley.Settings
     Test.Integration.Scenario.API.Shelley.StakePools
     Test.Integration.Scenario.API.Shelley.Transactions
+    Test.Integration.Scenario.API.Shelley.Transactions.JoinPool
     Test.Integration.Scenario.API.Shelley.TransactionsNew
     Test.Integration.Scenario.API.Shelley.Wallets
+    Test.Integration.Scenario.API.Shelley.Withdrawals
     Test.Integration.Scenario.API.Voting
     Test.Integration.Scenario.CLI.Byron.Addresses
     Test.Integration.Scenario.CLI.Byron.Wallets
@@ -221,4 +221,6 @@ test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
-  build-tool-depends: cardano-wallet-exe:cardano-wallet
+  build-tool-depends:
+    , cardano-wallet-exe:cardano-wallet
+    , local-cluster:local-cluster
