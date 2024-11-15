@@ -19,7 +19,7 @@ common language
 
   ghc-options:
     -Wunused-packages -Wall -Wcompat -Wredundant-constraints
-    -Wunused-imports
+    -Wunused-imports -j4
 
 common opts-lib
   ghc-options:
