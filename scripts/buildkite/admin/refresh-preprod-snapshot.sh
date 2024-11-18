@@ -3,41 +3,19 @@
 
 set -euox pipefail
 
+rm -rf "${NODE_STATE_DIR:?}"/*
 mkdir -p "$NODE_STATE_DIR"
 
-cd "$NODE_STATE_DIR"
+export AGGREGATOR_ENDPOINT=https://aggregator.release-preprod.api.mithril.network/aggregator
+export GENESIS_VERIFICATION_KEY=5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d
 
-curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json \
-    | jq -r .[].file_name > filename_new
+mithril() {
+    # shellcheck disable=SC2048
+    # shellcheck disable=SC2086
+    nix shell "github:input-output-hk/mithril?ref=2445.0" -c $*
+}
 
+mithril echo "mithril is available" || exit 44
 
-if [ -f filename ]; then
-    if [ "$(cat filename)" == "$(cat filename_new)" ]; then
-        echo "Preprod snapshot is up to date with the latest snapshot available."
-        exit 0
-    fi
-fi
-
-dir_new="$(sed -e 's/\.tar\.lz4//' filename_new)"
-
-rm -rf "$dir_new" && mkdir -p "$dir_new"
-
-cd "$dir_new"
-
-curl -o snapshot.tar.lz4 \
-    "https://downloads.csnapshots.io/testnet/$(cat ../filename_new)"
-lz4 -c -d snapshot.tar.lz4 > snapshot.tar
-tar -x -f snapshot.tar
-
-cd ..
-
-if [ -f filename ]; then
-    dir_old="$(sed -e 's/\.tar\.lz4//' filename)"
-    rm -rf "$dir_old"
-fi
-
-# Set the `db` directory to a symlink in a way that is supposed to be atomic.
-#     See also: https://unix.stackexchange.com/a/6786
-ln -s "$dir_new"/db db-new && mv -T db-new db
-
-mv filename_new filename
+digest=$(mithril mithril-client cdb  snapshot list --json | jq -r .[0].digest)
+(cd "${NODE_STATE_DIR}" && mithril mithril-client cdb download "$digest")
