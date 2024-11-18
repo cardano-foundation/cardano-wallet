@@ -62,6 +62,8 @@ git commit -am "Update cardano-wallet version in README.md"
 
 sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/linux-e2e.sh
 git commit -am "Update cardano-wallet version in linux-e2e.sh"
+sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/macos-silicon-e2e.sh
+git commit -am "Update cardano-wallet version in macos-silicon-e2e.sh"
 
 RELEASE_COMMIT=$(git rev-parse HEAD)
 
