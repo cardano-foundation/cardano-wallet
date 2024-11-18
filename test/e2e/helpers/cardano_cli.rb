@@ -93,7 +93,7 @@ class CardanoCli
                                 target_addr,
                                 collateral_ret_addr)
     txbody = File.join(@node_state, 'txbody')
-    cli('transaction', 'build-raw',
+    cli('conway', 'transaction', 'build-raw',
         '--tx-in', script_utxo,
         '--tx-out', "#{target_addr}+#{50_000_000 - fee}",
         '--tx-in-script-file', script_file,
@@ -106,15 +106,13 @@ class CardanoCli
         '--tx-out-return-collateral', "#{collateral_ret_addr}+#{collateral_utxo_amt - (fee * 1.5).to_i}",
         '--tx-total-collateral', (fee * 1.5).to_i,
         '--script-invalid',
-        '--babbage-era',
         '--out-file', txbody)
     txbody
   end
 
   def tx_build(*options)
     txbody = File.join(@node_state, 'txbody')
-    cli('transaction', 'build',
-        '--babbage-era',
+    cli('conway', 'transaction', 'build',
         '--testnet-magic', @protocol_magic,
         '--out-file', txbody,
         *options)
@@ -124,7 +122,7 @@ class CardanoCli
   def tx_sign(txbody, keys)
     txsigned = File.join(@node_state, 'txsigned')
     signing_keys = keys.filter { |k, _| k.to_s.end_with?('_skey') }.map { |_, v| "--signing-key-file #{v}" }
-    cli('transaction', 'sign',
+    cli('conway', 'transaction', 'sign',
         '--tx-body-file', txbody,
         '--testnet-magic', @protocol_magic,
         signing_keys.join(' '), # --signing-key-file key1 --signing-key-file key2 ...
@@ -135,17 +133,17 @@ class CardanoCli
   # @return [String] - tx id
   def tx_submit(txsigned)
     # submit
-    cli('transaction', 'submit',
+    cli('conway', 'transaction', 'submit',
         '--tx-file', txsigned,
         '--testnet-magic', @protocol_magic)
 
     # return tx id
-    cli('transaction', 'txid',
+    cli('conway', 'transaction', 'txid',
         '--tx-file', txsigned).strip
   end
 
   def policy_id(script_file)
-    cli('transaction', 'policyid',
+    cli('conway', 'transaction', 'policyid',
         '--script-file', script_file).strip
   end
 end
