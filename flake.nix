@@ -424,7 +424,8 @@
               inherit dockerImage;
               inherit (config) dockerHubRepoName;
             };
-            inherit (pkgs) checkCabalProject;
+            checkCabalProject =
+              (pkgs.callPackage iohkNix.utils.cabal-project {}).checkCabalProject;
           } // (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs;
