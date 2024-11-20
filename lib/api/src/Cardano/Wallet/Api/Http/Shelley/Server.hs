@@ -2716,7 +2716,10 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                 (Map.singleton (Cosigner 0) policyXPub)
                 <$> mintBurnReferenceScriptTemplate
             Nothing ->
-                liftHandler $ throwE W.ErrReadPolicyPublicKeyAbsent
+                if isJust mintBurnReferenceScriptTemplate then
+                    liftHandler $ throwE W.ErrReadPolicyPublicKeyAbsent
+                else
+                    pure Nothing
 
         let transactionCtx3 = transactionCtx2
                 { txReferenceScript = referenceScriptM
