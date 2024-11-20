@@ -82,6 +82,7 @@ import Cardano.Wallet.Deposit.Pure
     ( Credentials
     , Customer
     , ErrCreatePayment
+    , Passphrase
     , Word31
     , fromCredentialsAndGenesis
     )
@@ -450,5 +451,6 @@ getBIP32PathsForOwnedInputs =
 
 signTx
     :: Write.Tx
+    -> Passphrase
     -> WalletResourceM (Maybe Write.Tx)
-signTx = onWalletInstance . WalletIO.signTx
+signTx tx = onWalletInstance . WalletIO.signTx tx
