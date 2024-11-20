@@ -2562,7 +2562,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             _ -> pure ()
 
     when (isJust (body ^. #encryptMetadata) && isNothing (body ^. #metadata) ) $
-        liftHandler $ throwE ErrConstructTxWrongPayload
+         liftHandler $ throwE ErrConstructTxWrongPayload
 
     metadata <- case (body ^. #encryptMetadata, body ^. #metadata) of
         (Just apiEncrypt, Just metadataWithSchema) -> do
@@ -2632,11 +2632,17 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                     Just action ->
                         transactionCtx0 { txDelegationAction = Just action }
 
-        (policyXPub, _) <-
-            liftHandler $ W.readPolicyPublicKey wrk
+        policyXPubM <-
+            if isJust mintBurnDatum || isJust mintBurnReferenceScriptTemplate then
+                liftHandler $ Just . fst <$> W.readPolicyPublicKey wrk
+            else
+                pure Nothing
 
         transactionCtx2 <-
             if isJust mintBurnDatum then do
+                policyXPub <- case policyXPubM of
+                    Just val -> pure val
+                    Nothing -> liftHandler $ throwE W.ErrReadPolicyPublicKeyAbsent
                 let isMinting mb = case mb ^. #mintBurnData of
                         Left (ApiMintBurnDataFromScript _ _ (ApiMint _)) -> True
                         Right (ApiMintBurnDataFromInput _ _ _ (ApiMint _)) -> True
@@ -2702,11 +2708,15 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             else
                 pure transactionCtx1
 
-        let referenceScriptM =
+        referenceScriptM <- case policyXPubM of
+            Just policyXPub ->
+                pure $
                 replaceCosigner
                 ShelleyKeyS
                 (Map.singleton (Cosigner 0) policyXPub)
                 <$> mintBurnReferenceScriptTemplate
+            Nothing ->
+                liftHandler $ throwE W.ErrReadPolicyPublicKeyAbsent
 
         let transactionCtx3 = transactionCtx2
                 { txReferenceScript = referenceScriptM
@@ -2728,7 +2738,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             mintingOuts = case mintBurnDatum of
                 Just mintBurns ->
                     coalesceTokensPerAddr $
-                    map (toMintTxOut policyXPub) $
+                    map (toMintTxOut (fromJust policyXPubM)) $
                     filter mintWithAddress $
                     NE.toList mintBurns
                 Nothing -> []
