@@ -1,13 +1,16 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Cardano.Wallet.Deposit.Pure.State.Creation
     ( WalletPublicIdentity (..)
     , fromCredentialsAndGenesis
+    , deriveAccountXPrv
     , Credentials (..)
     , credentialsFromMnemonics
     , credentialsFromEncodedXPub
-    , xpubFromCredentials
-    , xprvFromCredentials
+    , accountXPubFromCredentials
+    , rootXPrvFromCredentials
     , ErrDecodingXPub (..)
     , encodedXPubFromCredentials
     ) where
@@ -21,11 +24,14 @@ import Cardano.Address.Derivation
     , xpubToBytes
     )
 import Cardano.Crypto.Wallet
+    ( generate
+    )
+import Cardano.Wallet.Address.BIP32_Ed25519
     ( XPrv
     , XPub
-    , generate
+    , deriveXPrvHard
+    , rawSerialiseXPrv
     , toXPub
-    , unXPrv
     )
 import Cardano.Wallet.Deposit.Pure.State.Type
     ( WalletState (..)
@@ -60,18 +66,34 @@ data Credentials
     deriving (Generic, Show, Eq)
 
 instance Show XPrv where
-    show = B8.unpack . B16.encode . unXPrv
+    show = B8.unpack . B16.encode . rawSerialiseXPrv
 
 instance Eq XPrv where
-    a == b = unXPrv a == unXPrv b
+    a == b = rawSerialiseXPrv a == rawSerialiseXPrv b
 
-xpubFromCredentials :: Credentials -> XPub
-xpubFromCredentials (XPubCredentials xpub) = xpub
-xpubFromCredentials (XPrvCredentials _ xpub) = xpub
+-- | Get /account/ 'XPub' from credentials if available.
+--
+-- The account public key corresponds to the account
+-- private key obtained from 'deriveAccountXPrv',
+-- /not/ the root private key.
+accountXPubFromCredentials :: Credentials -> XPub
+accountXPubFromCredentials (XPubCredentials xpub) = xpub
+accountXPubFromCredentials (XPrvCredentials _ xpub) = xpub
 
-xprvFromCredentials :: Credentials -> Maybe XPrv
-xprvFromCredentials (XPubCredentials _) = Nothing
-xprvFromCredentials (XPrvCredentials xprv _) = Just xprv
+-- | Derive account 'XPrv' from the root 'XPrv'.
+deriveAccountXPrv :: XPrv -> XPrv
+deriveAccountXPrv xprv =
+    (deriveXPrvHard
+    (deriveXPrvHard
+    (deriveXPrvHard xprv
+    1857) -- Address derivation standard
+    1815) -- ADA
+    0)    -- Account number
+
+-- | Get root 'XPrv' from credentials if available.
+rootXPrvFromCredentials :: Credentials -> Maybe XPrv
+rootXPrvFromCredentials (XPubCredentials _) = Nothing
+rootXPrvFromCredentials (XPrvCredentials xprv _) = Just xprv
 
 fromCredentialsAndGenesis
     :: Credentials -> Word31 -> Read.GenesisData -> WalletState
@@ -81,12 +103,12 @@ fromCredentialsAndGenesis credentials knownCustomerCount genesisData =
         , addresses =
             Address.fromXPubAndCount
                 network
-                (xpubFromCredentials credentials)
+                (accountXPubFromCredentials credentials)
                 knownCustomerCount
         , utxoHistory = UTxOHistory.fromOrigin initialUTxO
         , txHistory = mempty
         , submissions = Sbm.empty
-        , rootXSignKey = xprvFromCredentials credentials
+        , rootXSignKey = rootXPrvFromCredentials credentials
         }
   where
     network = Read.getNetworkId genesisData
@@ -110,7 +132,9 @@ credentialsFromMnemonics mnemonics passphrase =
                 (T.encodeUtf8 mnemonics)
                 (T.encodeUtf8 passphrase)
     in
-        XPrvCredentials encryptedXPrv (toXPub unencryptedXPrv)
+        XPrvCredentials
+            encryptedXPrv
+            (toXPub $ deriveAccountXPrv unencryptedXPrv)
 
 -- | Create 'Credentials' from an extended public key failures to decode
 data ErrDecodingXPub = ErrFromXPubBase16 | ErrFromXPubDecodeKey

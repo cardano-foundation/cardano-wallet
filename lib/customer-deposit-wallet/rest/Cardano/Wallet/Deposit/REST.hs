@@ -90,7 +90,7 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     , ByTime
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( xpubFromCredentials
+    ( accountXPubFromCredentials
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -320,7 +320,7 @@ createTheDepositWalletOnDisk _tr dir credentials users action = do
             . convertToBase Base16
             . blake2b160
             . xpubToBytes
-            . xpubFromCredentials
+            . accountXPubFromCredentials
 
 -- | Load an existing wallet from disk.
 loadWallet
