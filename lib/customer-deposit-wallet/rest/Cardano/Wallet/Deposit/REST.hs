@@ -52,6 +52,7 @@ module Cardano.Wallet.Deposit.REST
     , deleteTheDepositWalletOnDisk
     -- * Internals
     , onWalletInstance
+    , networkTag
 
     ) where
 
@@ -437,6 +438,9 @@ getTxHistoryByCustomer = onWalletInstance WalletIO.getTxHistoryByCustomer
 getTxHistoryByTime
     :: WalletResourceM ByTime
 getTxHistoryByTime = onWalletInstance WalletIO.getTxHistoryByTime
+
+networkTag :: WalletResourceM Read.NetworkTag
+networkTag = onWalletInstance WalletIO.networkTag
 
 {-----------------------------------------------------------------------------
     Operations

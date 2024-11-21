@@ -43,6 +43,7 @@ module Cardano.Wallet.Deposit.Pure
     , getEraSlotOfBlock
     , getCustomerDeposits
     , getAllDeposits
+    , networkTag
 
       -- ** Writing to the blockchain
     , ErrCreatePayment (..)
@@ -104,6 +105,7 @@ import Cardano.Wallet.Deposit.Pure.State.Type
     , knownCustomer
     , knownCustomerAddress
     , listCustomers
+    , networkTag
     , trackedCustomers
     , walletXPub
     )
