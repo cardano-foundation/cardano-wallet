@@ -88,7 +88,6 @@ library
     Cardano.Wallet.UI.Deposit.Server.Deposits.TxIds
     Cardano.Wallet.UI.Deposit.Server.Lib
     Cardano.Wallet.UI.Deposit.Server.Wallet
-    Cardano.Wallet.UI.Lib.Address
     Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Lib.Pagination.Map
@@ -116,8 +115,6 @@ library
     , aeson-pretty
     , base
     , base16-bytestring
-    , bech32
-    , bech32-th
     , bytestring
     , cardano-addresses
     , cardano-slotting
