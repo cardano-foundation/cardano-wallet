@@ -101,6 +101,7 @@ module Cardano.Wallet.Application.CLI
     , listenShelleyUiOption
     , listenDepositUiOption
     , listenDepositOption
+    , depositByronGenesisFileOption
     ) where
 
 import Prelude hiding
@@ -1459,6 +1460,13 @@ listenDepositUiOption =
     (Just . ListenOnPort . getPort <$> uiDepositPortOption)
     <|>
     pure Nothing
+
+-- | [--deposit-byron-genesis-file=FILEPATH]
+depositByronGenesisFileOption :: Parser FilePath
+depositByronGenesisFileOption = option str $ mempty
+    <> long "deposit-byron-genesis-file"
+    <> metavar "FILEPATH"
+    <> help "Byron genesis file to use for the deposit wallet."
 
 -- | [--ui-random-port]
 uiRandomPortOption :: Parser Bool

@@ -313,6 +313,7 @@ serveWallet
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
     -> Block
+    -> Maybe FilePath
     -- ^ The genesis block, or some starting point.
     -- See also: 'Cardano.Wallet.Primitive.Ledger.Shelley#KnownNetwork'.
     -> (URI -> IO ())
@@ -339,6 +340,7 @@ serveWallet
     settings
     tokenMetaUri
     block0
+    depositByronGenesisFile
     beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
         let netId = networkIdVal sNetwork
         lift $ case blockchainSource of
@@ -381,7 +383,7 @@ serveWallet
         eDepositUiSocket <- bindDepositUiSocket
         eDepositSocket <- bindDepositSocket
         eShelleySocket <- bindApiSocket
-        fakeBootEnv <- lift newFakeBootEnv
+        fakeBootEnv <- lift $ newFakeBootEnv depositByronGenesisFile
         callCC $ \exit -> do
             case eShelleyUiSocket of
                 Left err -> do

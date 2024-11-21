@@ -81,6 +81,7 @@ import Cardano.Wallet.Application.CLI
     , cmdWallet
     , cmdWalletCreate
     , databaseOption
+    , depositByronGenesisFileOption
     , ekgEnabled
     , enableWindowsANSI
     , helperTracing
@@ -241,6 +242,7 @@ data ServeArgs = ServeArgs
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
     , _logging :: LoggingOptions TracerSeverities
+    , _depositByronGenesisFile :: Maybe FilePath
     }
     deriving (Show)
 
@@ -268,6 +270,7 @@ cmdServe =
                 <*> optional poolMetadataSourceOption
                 <*> optional tokenMetadataSourceOption
                 <*> loggingOptions tracerSeveritiesOption
+                <*> optional depositByronGenesisFileOption
 
     exec :: ServeArgs -> IO ()
     exec
@@ -285,6 +288,7 @@ cmdServe =
                     poolMetadataFetching
                     tokenMetadataServerURI
                     logOpt
+                    byronGenesisFileOpt
                 ) = withTracers logOpt $ \tr tracers -> do
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
@@ -321,6 +325,7 @@ cmdServe =
                         (Settings <$> poolMetadataFetching)
                         tokenMetadataServerURI
                         block0
+                        byronGenesisFileOpt
                         (beforeMainLoop tr)
 
     withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()

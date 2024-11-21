@@ -397,6 +397,7 @@ onClusterStart
                         Nothing
                         (Just tokenMetaUrl)
                         block0
+                        Nothing
                         (\uri -> k (networkParameters, uri))
                         `withException` (traceWith tr . MsgServerError)
                 case end of
