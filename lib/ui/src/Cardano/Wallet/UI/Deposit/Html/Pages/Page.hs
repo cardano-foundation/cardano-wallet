@@ -45,6 +45,7 @@ import Cardano.Wallet.UI.Deposit.API
     , _Addresses
     , _Deposits
     , _Network
+    , _Payments
     , _Settings
     , _Wallet
     , aboutPageLink
@@ -55,6 +56,8 @@ import Cardano.Wallet.UI.Deposit.API
     , navigationLink
     , networkInfoLink
     , networkPageLink
+    , paymentsLink
+    , paymentsPageLink
     , settingsGetLink
     , settingsPageLink
     , sseLink
@@ -68,6 +71,9 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Deposits.Page
     ( depositsH
+    )
+import Cardano.Wallet.UI.Deposit.Html.Pages.Payments.Page
+    ( paymentsH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
@@ -111,6 +117,7 @@ page c p = RawHtml
                     Wallet -> walletH
                     Addresses -> addressesH
                     Deposits -> depositsH depositsLink
+                    Payments -> paymentsH paymentsLink
 
 headerH :: Monad m => Page -> HtmlT m ()
 headerH p = sseH (navigationLink $ Just p) "header" ["wallet"]
@@ -124,6 +131,9 @@ headerElementH p wp =
                | isPresent wp
                ]
             <> [ (is' _Deposits, depositPageLink, "Deposits")
+               | isPresent wp
+               ]
+            <> [ (is' _Payments, paymentsPageLink, "Payments")
                | isPresent wp
                ]
             <> [ (is' _Network, networkPageLink, "Network")
