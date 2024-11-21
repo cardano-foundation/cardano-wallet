@@ -623,6 +623,11 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS"
 
 ## E2E Tests
 
+the following tests are actually not about cardano-wallet at all but testing other utilities: [cardano-address]()
+They also depend on code defined in [cardano-wallet-rb](https://github.com/piotr-iohk/cardano-wallet-rb)
+
+**They can be safely discarded**
+
 ```
 misc:
      describe CardanoWallet::Misc::Node do
@@ -648,8 +653,12 @@ misc:
          it 'Reward account pub key address' do
          it 'Delegating address with both pub key credentials' do
          it 'Delegating address - payment from script, stake from key' do
-         it 'Delegating address - payment from key, stake from script' do
+         it 'Delegating address - payment from key, stake from script' d
        it 'Malformed payload when tx is not binary' do
+```
+
+
+```
 shared:      it 'I can create, get and delete wallet from mnemonics getting acc_xpub from cardano-address' do
          it 'I can create, get and delete wallet from pub key getting acc_xpub from cardano-address' do
          it 'Cannot create wallet with different acc xpub - derived from different mnemonic sentence' do
