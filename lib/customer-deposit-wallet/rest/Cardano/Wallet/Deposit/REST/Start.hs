@@ -77,7 +77,7 @@ loadDepositWalletFromDisk
 loadDepositWalletFromDisk tr dir env resource = do
     result <- runExceptT $ do
         exists <- ExceptT $ flip runWalletResourceM resource $ do
-            test <- walletExists dir
+            test <- liftIO $ walletExists dir
             liftIO $ print test
             when test $ do
                 lg tr "Loading wallet from" dir

@@ -230,10 +230,10 @@ spec = do
                             | dir == fp -> pure ()
                     Left e -> fail $ show e
                     Right _ -> fail "Should have failed the query on load"
-        it "can check if a wallet is present"
+        it "can check if a wallet is present on disk"
             $ inADirectory
             $ \dir -> do
                 r <- withInitializedWallet dir doNothing
                 onSuccess r $ \_ -> do
-                    presence <- withWallet $ walletExists dir
-                    onSuccess presence $ \p -> p `shouldBe` True
+                    presence <- walletExists dir
+                    presence `shouldBe` True

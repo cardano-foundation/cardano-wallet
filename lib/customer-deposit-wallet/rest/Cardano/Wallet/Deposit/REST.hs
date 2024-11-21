@@ -72,7 +72,9 @@ import Cardano.Wallet.Address.BIP32
     ( BIP32Path
     )
 import Cardano.Wallet.Deposit.IO
-    ( WalletPublicIdentity
+    ( WalletBootEnv
+    , WalletPublicIdentity
+    , genesisData
     )
 import Cardano.Wallet.Deposit.IO.Resource
     ( ErrResourceExists (..)
@@ -250,12 +252,13 @@ deleteTheDepositWalletOnDisk dir = do
 
 -- | Try to open an existing wallet
 findTheDepositWalletOnDisk
-    :: FilePath
+    :: WalletBootEnv IO
+    -> FilePath
     -- ^ Path to the wallet database directory
     -> (Either ErrLoadingDatabase WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is found
     -> IO a
-findTheDepositWalletOnDisk dir action = do
+findTheDepositWalletOnDisk env dir action = do
     ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [d] -> do
@@ -265,7 +268,7 @@ findTheDepositWalletOnDisk dir action = do
                     fromCredentialsAndGenesis
                         credentials
                         (fromIntegral @Int users)
-                        Read.mockGenesisDataMainnet
+                        (genesisData env)
             store <- newStore
             writeS store state
             action $ Right store
@@ -333,7 +336,7 @@ loadWallet
 loadWallet bootEnv dir = do
     let action
             :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
-        action f = findTheDepositWalletOnDisk dir $ \case
+        action f = findTheDepositWalletOnDisk bootEnv dir $ \case
             Right wallet ->
                 Right
                     <$> WalletIO.withWalletLoad
@@ -392,10 +395,12 @@ deleteWallet dir = do
             <$> Resource.closeResource resource
     liftIO $ deleteTheDepositWalletOnDisk dir
 
-walletExists :: FilePath -> WalletResourceM Bool
-walletExists dir = liftIO $ findTheDepositWalletOnDisk dir $ \case
-    Right _ -> pure True
-    Left _ -> pure False
+walletExists :: FilePath -> IO Bool
+walletExists dir = do
+    r <- scanDirectoryForDepositPrefix dir
+    case r of
+        [] -> pure False
+        _ -> pure True
 
 walletPublicIdentity :: WalletResourceM WalletPublicIdentity
 walletPublicIdentity = onWalletInstance WalletIO.walletPublicIdentity
