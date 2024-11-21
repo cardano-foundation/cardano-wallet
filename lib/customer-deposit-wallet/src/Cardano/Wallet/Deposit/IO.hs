@@ -45,8 +45,9 @@ module Cardano.Wallet.Deposit.IO
     , submitTx
     , listTxsInSubmission
 
-     -- * Internals
-     , onWalletState
+      -- * Internals
+    , onWalletState
+    , networkTag
     ) where
 
 import Prelude
@@ -314,6 +315,10 @@ slotResolver w = do
         $ networkEnv
         $ bootEnv
         $ env w
+
+networkTag :: WalletInstance -> IO Read.NetworkTag
+networkTag w = do
+    Wallet.networkTag <$> readWalletState w
 
 {-----------------------------------------------------------------------------
     Operations

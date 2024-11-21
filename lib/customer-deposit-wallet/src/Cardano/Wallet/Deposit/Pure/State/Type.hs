@@ -17,6 +17,7 @@ module Cardano.Wallet.Deposit.Pure.State.Type
     , walletXPub
     , getUTxO
     , getWalletTip
+    , networkTag
     ) where
 
 import Prelude hiding
@@ -29,6 +30,9 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( TxHistory (..)
+    )
+import Cardano.Wallet.Deposit.Read
+    ( NetworkTag
     )
 import Cardano.Wallet.Deposit.Write
     ( Address
@@ -117,3 +121,6 @@ getUTxO = UTxOHistory.getUTxO . utxoHistory
 
 getWalletTip :: WalletState -> Read.ChainPoint
 getWalletTip = walletTip
+
+networkTag :: WalletState -> NetworkTag
+networkTag = Address.getNetworkTag . addresses
