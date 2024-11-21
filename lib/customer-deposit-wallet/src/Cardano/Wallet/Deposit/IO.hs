@@ -344,8 +344,9 @@ getBIP32PathsForOwnedInputs
 getBIP32PathsForOwnedInputs a w =
     Wallet.getBIP32PathsForOwnedInputs a <$> readWalletState w
 
-signTx :: Write.Tx -> WalletInstance -> IO (Maybe Write.Tx)
-signTx a w = Wallet.signTx a <$> readWalletState w
+signTx
+    :: Write.Tx -> Wallet.Passphrase -> WalletInstance -> IO (Maybe Write.Tx)
+signTx a b w = Wallet.signTx a b <$> readWalletState w
 
 {-----------------------------------------------------------------------------
     Operations

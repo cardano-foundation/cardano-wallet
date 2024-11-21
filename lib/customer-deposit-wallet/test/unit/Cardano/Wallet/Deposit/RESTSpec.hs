@@ -8,6 +8,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( sign
     , verify
+    , xPrvChangePass
     )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (WalletBootEnv)
@@ -18,9 +19,10 @@ import Cardano.Wallet.Deposit.IO.Resource
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
     ( Credentials
+    , accountXPubFromCredentials
     , credentialsFromMnemonics
-    , xprvFromCredentials
-    , xpubFromCredentials
+    , deriveAccountXPrv
+    , rootXPrvFromCredentials
     )
 import Cardano.Wallet.Deposit.REST
     ( ErrCreatingDatabase (..)
@@ -153,13 +155,13 @@ spec = do
     describe "XPub" $ do
         it "can be serialised and deserialised" $ do
             forAll credentialsGen $ \(credentials', _) ->
-                deserialise (serialise $ xpubFromCredentials credentials')
-                    === xpubFromCredentials credentials'
+                deserialise (serialise $ accountXPubFromCredentials credentials')
+                    === accountXPubFromCredentials credentials'
     describe "XPrv" $ do
         it "can be serialised and deserialised" $ do
             forAll credentialsGen $ \(credentials', _) ->
-                deserialise (serialise $ xprvFromCredentials credentials')
-                    === xprvFromCredentials credentials'
+                deserialise (serialise $ rootXPrvFromCredentials credentials')
+                    === rootXPrvFromCredentials credentials'
     describe "Credentials" $ do
         it "can be serialised and deserialised" $ do
             forAll credentialsGen $ \(credentials', _) ->
@@ -169,15 +171,17 @@ spec = do
             (credentials', passphrase') <- cont $ forAll credentialsGen
             message <- cont $ forAll byteStringGen
             let
-                sig =
-                    sign
-                        (T.encodeUtf8 passphrase')
-                        ( fromJust
-                            $ xprvFromCredentials credentials'
-                        )
-                        message
+                decryptXPrv =
+                    xPrvChangePass (T.encodeUtf8 passphrase') B8.empty
+                xprv =
+                    deriveAccountXPrv
+                    $ decryptXPrv
+                    $ fromJust
+                    $ rootXPrvFromCredentials credentials'
+                sig = sign B8.empty xprv message
             pure
-                $ verify (xpubFromCredentials credentials') message sig === True
+                $ verify (accountXPubFromCredentials credentials') message sig
+                    === True
 
     describe "REST Deposit interface" $ do
         it "can initialize a wallet"

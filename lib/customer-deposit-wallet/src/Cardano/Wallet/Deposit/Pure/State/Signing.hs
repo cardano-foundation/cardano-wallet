@@ -1,12 +1,22 @@
 module Cardano.Wallet.Deposit.Pure.State.Signing
     ( getBIP32PathsForOwnedInputs
     , signTx
+    , Passphrase
     ) where
 
 import Prelude
 
+import Cardano.Crypto.Wallet
+    ( xPrvChangePass
+    )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
+    , DerivationType (..)
+    )
+import Cardano.Wallet.Address.BIP32_Ed25519
+    ( XPrv
+    , deriveXPrvHard
+    , deriveXPrvSoft
     )
 import Cardano.Wallet.Deposit.Pure.State.Submissions
     ( availableUTxO
@@ -20,11 +30,16 @@ import Data.Maybe
 import Data.Set
     ( Set
     )
+import Data.Text
+    ( Text
+    )
 
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.UTxO as UTxO
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
+import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as T
 
 getBIP32PathsForOwnedInputs :: Write.Tx -> WalletState -> [BIP32Path]
 getBIP32PathsForOwnedInputs tx w =
@@ -42,5 +57,26 @@ getBIP32Paths :: WalletState -> [Read.Address] -> [BIP32Path]
 getBIP32Paths w =
     mapMaybe $ Address.getBIP32Path (addresses w)
 
-signTx :: Write.Tx -> WalletState -> Maybe Write.Tx
-signTx _tx _w = undefined
+type Passphrase = Text
+
+-- | Sign the transaction if 'rootXSignKey' is 'Just'.
+signTx :: Write.Tx -> Passphrase -> WalletState -> Maybe Write.Tx
+signTx tx passphrase w = signTx' <$> rootXSignKey w
+  where
+    signTx' encryptedXPrv =
+        foldr Write.addAddressWitness tx keys
+      where
+        unencryptedXPrv =
+            xPrvChangePass
+                (T.encodeUtf8 passphrase)
+                BS.empty
+                encryptedXPrv
+        keys = deriveBIP32Path unencryptedXPrv
+            <$> getBIP32PathsForOwnedInputs tx w
+
+deriveBIP32Path :: XPrv -> BIP32Path -> XPrv
+deriveBIP32Path xprv Root = xprv
+deriveBIP32Path xprv (Segment path Hardened ix) =
+    deriveXPrvHard (deriveBIP32Path xprv path) ix
+deriveBIP32Path xprv (Segment path Soft ix) =
+    deriveXPrvSoft (deriveBIP32Path xprv path) ix

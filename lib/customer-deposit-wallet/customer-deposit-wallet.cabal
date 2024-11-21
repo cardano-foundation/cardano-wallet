@@ -62,6 +62,7 @@ library
     , cardano-addresses
     , cardano-balance-tx
     , cardano-crypto
+    , cardano-crypto-class
     , cardano-ledger-api
     , cardano-ledger-core
     , cardano-strict-containers

@@ -50,6 +50,7 @@ module Cardano.Wallet.Deposit.Pure
     , BIP32Path (..)
     , DerivationType (..)
     , getBIP32PathsForOwnedInputs
+    , Passphrase
     , signTx
     , addTxSubmission
     , listTxsInSubmission
@@ -74,7 +75,8 @@ import Cardano.Wallet.Deposit.Pure.State.Rolling
     , rollForwardOne
     )
 import Cardano.Wallet.Deposit.Pure.State.Signing
-    ( getBIP32PathsForOwnedInputs
+    ( Passphrase
+    , getBIP32PathsForOwnedInputs
     , signTx
     )
 import Cardano.Wallet.Deposit.Pure.State.Submissions
