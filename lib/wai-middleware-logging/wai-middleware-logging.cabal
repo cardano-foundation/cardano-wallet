@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name:          wai-middleware-logging
-version:       0.2024.11.18
+version:       0.2024.11.21
 synopsis:      WAI Middleware for Logging
 homepage:      https://github.com/cardano-foundation/cardano-wallet
 author:        Cardano Foundation (High Assurance Lab)
