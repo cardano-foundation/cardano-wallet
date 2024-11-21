@@ -14,9 +14,12 @@ module Cardano.Wallet.Deposit.Time
     , PastHorizonException
     , mockTimeInterpreter
 
+    , slotToUTCTime
+
     -- * from Write
     , Write.TimeTranslation
     , toTimeTranslation
+    , toTimeTranslationPure
 
     -- * wishlist
     , LookupTimeFromSlot
@@ -32,10 +35,13 @@ import Prelude
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
     , StartTime (..)
+    , hoistTimeInterpreter
+    , interpretQuery
     , mkSingleEraInterpreter
     )
 import Cardano.Wallet.Primitive.Slotting.TimeTranslation
-    ( toTimeTranslationPure
+    ( toTimeTranslation
+    , toTimeTranslationPure
     )
 import Cardano.Wallet.Primitive.Types.SlottingParameters
     ( ActiveSlotCoefficient (..)
@@ -50,6 +56,9 @@ import Cardano.Wallet.Read
     )
 import Data.Functor.Identity
     ( Identity (..)
+    )
+import Data.IntCast
+    ( intCastMaybe
     )
 import Data.Quantity
     ( Quantity (..)
@@ -69,10 +78,10 @@ import qualified Cardano.Write.Tx as Write
 {-----------------------------------------------------------------------------
     TimeInterpreter
 ------------------------------------------------------------------------------}
-type TimeInterpreter = Primitive.TimeInterpreter Identity
+type TimeInterpreter = Primitive.TimeInterpreter (Either PastHorizonException)
 
-mockTimeInterpreter :: TimeInterpreter
-mockTimeInterpreter =
+mockTimeInterpreter :: Primitive.TimeInterpreter Identity
+mockTimeInterpreter = hoistTimeInterpreter (pure . runIdentity) $
     mkSingleEraInterpreter
         (StartTime $ UTCTime (toEnum 0) 0)
         mockSlottingParameters
@@ -85,15 +94,29 @@ mockSlottingParameters = SlottingParameters
     , getSecurityParameter = Quantity 2_160
     }
 
+type LookupTimeFromSlot = Slot -> Maybe (WithOrigin UTCTime)
+
 {-----------------------------------------------------------------------------
     TimeInterpreter
 ------------------------------------------------------------------------------}
 
-toTimeTranslation :: TimeInterpreter -> Write.TimeTranslation
-toTimeTranslation = toTimeTranslationPure
+-- TODO: Is this the start time of the slot?
+slotToUTCTime :: TimeInterpreter -> LookupTimeFromSlot
+slotToUTCTime _ti Origin = Just Origin --either (const Nothing) Just $ interpretQuery ti $ Primitive.slotToUTCTime minBound
+slotToUTCTime ti (At s) = either (const Nothing) (Just . At) . interpretQuery ti . Primitive.slotToUTCTime =<< convertSlotNo s
+  where
+    convertSlotNo :: SlotNo -> Maybe Primitive.SlotNo
+    convertSlotNo (SlotNo n) = Primitive.SlotNo <$> intCastMaybe n
 
-type LookupTimeFromSlot = Slot -> Maybe (WithOrigin UTCTime)
+--utcTimeToSlot :: TimeInterpreter -> UTCTime -> Maybe Slot
+--utcTimeToSlot ti t = either (const Nothing) Just . interpretQuery ti $ do
+--    ongoingSlotAt $ toRelativeTime startTime t
+--  where
+--    convertSlotNo :: Primitive.SlotNo -> SlotNo
+--    convertSlotNo (Primitive.SlotNo n) = SlotNo $ intCast n
 
+-- TODO: Rename to mainnetUTCTimeOfSlot
+-- TODO: Move to tests?
 unsafeUTCTimeOfSlot :: Slot -> Maybe (WithOrigin UTCTime)
 unsafeUTCTimeOfSlot Origin = Just Origin
 unsafeUTCTimeOfSlot (At (SlotNo n)) =

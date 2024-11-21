@@ -53,6 +53,10 @@ module Cardano.Wallet.Deposit.Read
     , mockNextBlock
     , Read.mockRawHeaderHash
 
+    , Read.ChainTip (..)
+    , Read.getChainTip
+    , Read.prettyChainTip
+
     , Read.PParams (..)
     , Read.mockPParamsConway
 

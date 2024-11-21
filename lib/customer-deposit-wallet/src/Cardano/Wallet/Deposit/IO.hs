@@ -98,7 +98,6 @@ import Data.Time
 import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
 import qualified Cardano.Wallet.Deposit.Pure as Wallet
 import qualified Cardano.Wallet.Deposit.Read as Read
-import qualified Cardano.Wallet.Deposit.Time as Time
 import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Control.Concurrent.Async as Async
 import qualified Data.DBVar as DBVar
@@ -326,8 +325,7 @@ createPayment
     -> WalletInstance
     -> IO (Either Wallet.ErrCreatePayment Write.Tx)
 createPayment a w = do
-    timeTranslation <-
-        Time.toTimeTranslation <$> Network.getTimeInterpreter network
+    timeTranslation <- Network.getTimeInterpreter network
     pparams <-
         Network.currentPParams network
     Wallet.createPayment pparams timeTranslation a <$> readWalletState w
