@@ -48,6 +48,7 @@ module Cardano.Wallet.Deposit.IO
       -- * Internals
     , onWalletState
     , networkTag
+    , resolveCurrentEraTx
     , canSign
     ) where
 
@@ -61,6 +62,7 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     )
 import Cardano.Wallet.Deposit.Pure
     ( Credentials
+    , CurrentEraResolvedTx
     , Customer
     , ValueTransfer
     , WalletPublicIdentity (..)
@@ -340,6 +342,13 @@ createPayment a w = do
     Wallet.createPayment pparams timeTranslation a <$> readWalletState w
   where
     network = networkEnv $ bootEnv $ env w
+
+resolveCurrentEraTx
+    :: Write.Tx
+    -> WalletInstance
+    -> IO CurrentEraResolvedTx
+resolveCurrentEraTx tx w =
+    Wallet.resolveCurrentEraTx tx <$> readWalletState w
 
 {-----------------------------------------------------------------------------
     Operations

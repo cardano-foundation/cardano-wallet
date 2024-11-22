@@ -50,11 +50,12 @@ module Cardano.Wallet.Deposit.REST
     , walletPublicIdentity
     , deleteWallet
     , deleteTheDepositWalletOnDisk
-    -- * Internals
+
+      -- * Internals
     , onWalletInstance
     , networkTag
+    , resolveCurrentEraTx
     , canSign
-
     ) where
 
 import Prelude
@@ -85,6 +86,7 @@ import Cardano.Wallet.Deposit.IO.Resource
 import Cardano.Wallet.Deposit.Pure
     ( CanSign
     , Credentials
+    , CurrentEraResolvedTx
     , Customer
     , ErrCreatePayment
     , Passphrase
@@ -290,7 +292,7 @@ instance Serialise XPrv where
     encode = encode . unXPrv
     decode = do
         b :: ByteString <- decode
-        case xprv  b of
+        case xprv b of
             Right x -> pure x
             Left e -> fail e
 
@@ -468,3 +470,6 @@ signTx
     -> Passphrase
     -> WalletResourceM (Maybe Write.Tx)
 signTx tx = onWalletInstance . WalletIO.signTx tx
+resolveCurrentEraTx
+    :: Write.Tx -> WalletResourceM CurrentEraResolvedTx
+resolveCurrentEraTx = onWalletInstance . WalletIO.resolveCurrentEraTx

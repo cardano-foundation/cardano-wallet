@@ -6,6 +6,7 @@ module Cardano.Wallet.Deposit.Pure.State.Payment
     ( ErrCreatePayment (..)
     , createPayment
     , CurrentEraResolvedTx
+    , resolveCurrentEraTx
     ) where
 
 import Prelude hiding
@@ -20,12 +21,14 @@ import Cardano.Wallet.Deposit.Pure.State.Type
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.Tx
     ( ResolvedTx (..)
+    , resolveInputs
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
 import Cardano.Wallet.Deposit.Write
-    ( TxBody (..)
+    ( Tx
+    , TxBody (..)
     )
 import Control.Monad.Trans.Except
     ( runExceptT
@@ -50,6 +53,9 @@ data ErrCreatePayment
     deriving (Eq, Show)
 
 type CurrentEraResolvedTx = ResolvedTx Read.Conway
+
+resolveCurrentEraTx :: Tx -> WalletState -> CurrentEraResolvedTx
+resolveCurrentEraTx tx w = resolveInputs (availableUTxO w) tx
 
 -- | Create a payment to a list of destinations.
 createPayment
