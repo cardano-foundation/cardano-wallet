@@ -59,6 +59,8 @@ module Cardano.Wallet.Deposit.Pure
     , signTx
     , addTxSubmission
     , listTxsInSubmission
+    , inspectTx
+    , InspectTx (..)
     ) where
 
 import Cardano.Wallet.Address.BIP32
@@ -77,6 +79,10 @@ import Cardano.Wallet.Deposit.Pure.State.Payment
     , ErrCreatePayment (..)
     , createPayment
     , resolveCurrentEraTx
+    )
+import Cardano.Wallet.Deposit.Pure.State.Payment.Inspect
+    ( InspectTx (..)
+    , inspectTx
     )
 import Cardano.Wallet.Deposit.Pure.State.Rolling
     ( rollBackward

@@ -52,6 +52,7 @@ module Cardano.Wallet.Deposit.REST
     , deleteTheDepositWalletOnDisk
 
       -- * Internals
+    , inspectTx
     , onWalletInstance
     , networkTag
     , resolveCurrentEraTx
@@ -89,6 +90,7 @@ import Cardano.Wallet.Deposit.Pure
     , CurrentEraResolvedTx
     , Customer
     , ErrCreatePayment
+    , InspectTx
     , Passphrase
     , Word31
     , fromCredentialsAndGenesis
@@ -470,6 +472,11 @@ signTx
     -> Passphrase
     -> WalletResourceM (Maybe Write.Tx)
 signTx tx = onWalletInstance . WalletIO.signTx tx
-resolveCurrentEraTx
-    :: Write.Tx -> WalletResourceM CurrentEraResolvedTx
+
+inspectTx
+    :: CurrentEraResolvedTx
+    -> WalletResourceM InspectTx
+inspectTx = onWalletInstance . WalletIO.inspectTx
+
+resolveCurrentEraTx :: Write.Tx -> WalletResourceM CurrentEraResolvedTx
 resolveCurrentEraTx = onWalletInstance . WalletIO.resolveCurrentEraTx
