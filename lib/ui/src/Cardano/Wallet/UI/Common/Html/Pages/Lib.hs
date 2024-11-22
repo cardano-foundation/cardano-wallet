@@ -28,6 +28,7 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , onStriped
     , box
     , addressH
+    , sseWithControlsH
     )
 where
 
@@ -205,21 +206,28 @@ sseH
     -> [Text]
     -- ^ Events to trigger onto
     -> HtmlT m ()
-sseH link target events = do
-    do
-        div_
-            [ hxTrigger_ triggered
-            , hxGet_ $ linkText link
-            , hxTarget_ $ "#" <> target
-            , hxSwap_ "innerHTML"
-            ]
-            $ div_
-                [ id_ target
-                , hxGet_ $ linkText link
-                , hxTrigger_ "load"
-                , class_ "smooth"
-                ]
-                ""
+sseH link = sseWithControlsH attrs
+  where
+    attrs = [hxGet_ $ linkText link]
+
+sseWithControlsH
+    :: Monad m => [Attribute] -> Text -> [Text] -> HtmlT m ()
+sseWithControlsH attrs target events = do
+    div_
+        ( [ hxTrigger_ triggered
+          , hxTarget_ $ "#" <> target
+          , hxSwap_ "innerHTML"
+          ]
+            <> attrs
+        )
+        $ div_
+            ( [ id_ target
+              , hxTrigger_ "load"
+              , class_ "smooth"
+              ]
+                <> attrs
+            )
+            ""
   where
     triggered = T.intercalate "," $ ("sse:" <>) <$> events
 
