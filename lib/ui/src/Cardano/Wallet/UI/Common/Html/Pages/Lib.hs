@@ -160,7 +160,11 @@ record
 record n w s xs =
     table_
         [ class_
-            $ "border-top table table-hover mb-0" <> onStriped s " table-striped" ""
+            $ "table-sm border-top table table-hover mb-0"
+                <> onStriped
+                    s
+                    " table-striped-columns"
+                    ""
         , style_
             $ onWidth w "width: auto" ""
         ]
