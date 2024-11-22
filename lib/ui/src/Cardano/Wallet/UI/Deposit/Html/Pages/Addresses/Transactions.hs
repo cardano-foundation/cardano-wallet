@@ -284,9 +284,9 @@ transactionsElementH now origin = do
         ]
         $ do
             let configure =
-                    div_ [class_ "d-flex justify-content-end"] $ do
+                    div_ [class_ "d-flex justify-content-end p-0"] $ do
                         let toggle = button_
-                                [ class_ "btn"
+                                [ class_ "btn p-0"
                                 , type_ "button"
                                 , data_ "bs-toggle" "collapse"
                                 , data_ "bs-target" "#columns-control"
@@ -294,10 +294,12 @@ transactionsElementH now origin = do
                                 $ div_
                                 $ do
                                     i_ [class_ "bi bi-gear"] mempty
-                        box mempty toggle
-                            $ transactionsViewControls now origin
-            box "Transactions" mempty $ do
-                configure
+                        div_ $ do
+                            div_ [class_ "d-flex justify-content-end"]
+                                toggle
+                            div_ [class_ "mt-1"]
+                                $ transactionsViewControls now origin
+            box "Transactions" configure $ do
                 div_ [class_ "row gx-0"] $ do
                     div_
                         [ class_ "col"

@@ -153,7 +153,7 @@ depositsElementH depositsHistoryLink = onWalletPresentH $ \case
                         div_ [class_ "d-flex justify-content-end"] $ do
                             let toggle =
                                     button_
-                                        [ class_ "btn"
+                                        [ class_ "btn p-0"
                                         , type_ "button"
                                         , data_ "bs-toggle" "collapse"
                                         , data_ "bs-target" "#columns-control"
@@ -175,9 +175,11 @@ depositsElementH depositsHistoryLink = onWalletPresentH $ \case
                                 , hxTarget_ "#deposits"
                                 ]
                                 $ do
-                                    box mempty toggle depositsViewControls
-                box "Deposits by Time" mempty $ do
-                    configure
+                                    div_ [class_ "d-flex justify-content-end"]
+                                        toggle
+                                    div_ [class_ "mt-1"]
+                                        depositsViewControls
+                box "Deposits by Time" configure $ do
                     div_ [class_ "row gx-0"]
                         $ div_
                             [ class_ "col"
