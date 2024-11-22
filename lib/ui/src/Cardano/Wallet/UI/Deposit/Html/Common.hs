@@ -12,6 +12,7 @@ module Cardano.Wallet.UI.Deposit.Html.Common
     , withOriginH
     , valueH
     , lovelaceH
+    , modalElementH
     )
 where
 
@@ -36,10 +37,18 @@ import Cardano.Wallet.Read.Hash
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( WithCopy (..)
+    , dataBsDismiss_
     , truncatableText
+    )
+import Cardano.Wallet.UI.Common.Html.Modal
+    ( ModalData (..)
+    , mkModal
     )
 import Data.Ord
     ( Down (..)
+    )
+import Data.Text
+    ( Text
     )
 import Data.Text.Class
     ( ToText (..)
@@ -52,6 +61,7 @@ import Data.Time
 import Lucid
     ( Html
     , ToHtml (..)
+    , button_
     , class_
     , span_
     )
@@ -105,3 +115,18 @@ lovelaceH c = do
 showLovelaceAsAda :: Integral a => a -> String
 showLovelaceAsAda c =
     showFFloatAlt @Double (Just 2) (fromIntegral c / 1_000_000) ""
+
+modalElementH :: Maybe Text -> Maybe Text -> Html ()
+modalElementH (Just t) (Just b) =
+    mkModal
+        $ ModalData
+            { modalTitle = toHtml t
+            , modalBody = toHtml b
+            , modalFooter =
+                button_
+                    [ class_ "btn btn-secondary"
+                    , dataBsDismiss_ "modal"
+                    ]
+                    "Dismiss"
+            }
+modalElementH _ _ = mempty
