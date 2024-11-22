@@ -36,6 +36,7 @@ module Cardano.Wallet.Deposit.IO
 
       -- *** Create transactions
     , createPayment
+    , inspectTx
 
       -- *** Sign transactions
     , getBIP32PathsForOwnedInputs
@@ -342,6 +343,12 @@ createPayment a w = do
     Wallet.createPayment pparams timeTranslation a <$> readWalletState w
   where
     network = networkEnv $ bootEnv $ env w
+
+inspectTx
+    :: CurrentEraResolvedTx
+    -> WalletInstance
+    -> IO Wallet.InspectTx
+inspectTx tx w = flip Wallet.inspectTx tx <$> readWalletState w
 
 resolveCurrentEraTx
     :: Write.Tx
