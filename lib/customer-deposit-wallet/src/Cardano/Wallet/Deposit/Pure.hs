@@ -48,6 +48,8 @@ module Cardano.Wallet.Deposit.Pure
       -- ** Writing to the blockchain
     , ErrCreatePayment (..)
     , createPayment
+    , resolveCurrentEraTx
+    , CurrentEraResolvedTx
     , BIP32Path (..)
     , DerivationType (..)
     , canSign
@@ -71,8 +73,10 @@ import Cardano.Wallet.Deposit.Pure.State.Creation
     , fromCredentialsAndGenesis
     )
 import Cardano.Wallet.Deposit.Pure.State.Payment
-    ( ErrCreatePayment (..)
+    ( CurrentEraResolvedTx
+    , ErrCreatePayment (..)
     , createPayment
+    , resolveCurrentEraTx
     )
 import Cardano.Wallet.Deposit.Pure.State.Rolling
     ( rollBackward
