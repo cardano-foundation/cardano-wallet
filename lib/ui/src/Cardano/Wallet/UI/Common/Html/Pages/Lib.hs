@@ -68,7 +68,6 @@ import Lucid
     , Html
     , HtmlT
     , ToHtml (..)
-    , b_
     , class_
     , div_
     , hr_
@@ -127,7 +126,7 @@ data AssocRow m
 -- | Render an 'AssocRow' as a table row.
 assocRowH :: Maybe Int -> AssocRow m -> Monad m => HtmlT m ()
 assocRowH mn AssocRow{..} = tr_ ([scope_ "row"] <> rowAttributes) $ do
-    td_ [scope_ "col", class_ "align-bottom p-1", style_ width] $ b_ key
+    td_ [scope_ "col", class_ "align-bottom p-1", style_ width] key
     td_ [scope_ "col", class_ "align-bottom flex-fill p-1"] val
   where
     width = T.pack
