@@ -18,11 +18,55 @@ a wallet whose root private key is in file 'root.prv' in a single transaction, u
 either the funds of the input tx-in (plus fees) run out or the size of the transaction
 goes above current protocol parameters limit.
 
+## Requirements
+
+The deposit outputs are computed from a file `root.prv` which is expected to be a
+root master signing key, eg. restored from mnemonics for example:
+
+```
+% cardano-address key from-recovery-phrase Shelley  <<< "..." > root.prv
+```
+
 The script also requires a 'protocol-params.json' in the current directory, which can
 be retrieved directly from the network with
 
 ```
 cardano-wallet % cardano-cli conway query protocol-parameters --socket-path databases/node.socket --testnet-magic 1 > protocol-params.json
+```
+
+## Examples
+
+Generating a transaction with lots of outputs, assuming input UTxO has enough value:
+
+```
+ ./gen-deposits.sh '5896d53c996f437874d5e9edd56213021bae49dab1ef86ec3908b148ad009f99#0' 1000000000000 addr_test1vpf26vappzgz5zvjv362pzaag27c4dg4tu7qq7n07e686dsy5669m txgen.sk
+...
+built transaction with 212 outputs (15909B)
+built transaction with 213 outputs (15983B)
+built transaction with 214 outputs (16057B)
+tx too large
+build transaction 0: 164972f37d3efcf156ca6ef968b89395f39dd886425b64737bce9361fa2e4412
+remaining ₳895184
+```
+
+Generating a transaction given an input with not much value:
+
+```
+% ./gen-deposits.sh '5896d53c996f437874d5e9edd56213021bae49dab1ef86ec3908b148ad009f99#0' 10000000000 addr_test1vpf26vappzgz5zvjv362pzaag27c4dg4tu7qq7n07e686dsy5669m txgen.sk
+...
+built transaction with 15 outputs (1395B)
+built transaction with 16 outputs (1469B)
+Command failed: transaction build-estimate  Error: The transaction does not balance in its use of ada. The net balance of the transaction is negative: -60191857 Lovelace. The usual solution is to provide more inputs, or inputs with more ada.
+failed to build txs with 17 outputs
+build transaction 0: 4b1ff833e358093f8dad9eb96f7bf34621fc183da3b0e06a398decf3133e6d38
+remaining ₳860
+```
+
+Unless the script fails at the very first output it tries to add, it should always
+generate a `tx.0.signed` transaction that can be submitted.
+
+```
+% cardano-cli conway transaction submit --tx-file tx.0.signed --testnet-magic 1 --socket-path node.socket
 ```
 
 EOF
@@ -34,7 +78,7 @@ if [[ $# -ne 4 ]]; then
 fi
 
 # generate random 32-bit numbers
-random_u32=$(dd if=/dev/urandom count=800 bs=4 2> /dev/null | od -t u4  | tr -s ' ' | cut -d ' ' -f2)
+random_u32=$(dd if=/dev/urandom count=1000 bs=4 2> /dev/null | od -t u4  | tr -s ' ' | cut -d ' ' -f2)
 
 # start from a single tx input
 current_tx_in=$1
@@ -68,24 +112,20 @@ try_building_tx () {
   done
 
   args+=" --total-utxo-value ${total_utxo_value}"
-  echo "building transaction with ${#current_addresses[@]} outputs"
 
   if ! cardano-cli conway transaction build-estimate $args; then
-    total_utxo_value=$(cardano-cli debug transaction view --tx-file ${raw} | jq ".outputs[] | select ( .address == \"${change_address}\") | .amount.lovelace")
-    tx_num=$(( $tx_num + 1 ))
-    echo "failed to build transaction probably because amount is too high ${total_utxo_value}"
-    exit 1 # retry
+    echo "failed to build txs with ${#current_addresses[@]} outputs"
+    return 1 # retry
   else
-    tx_size=$(ls -l ${raw} | tr -s ' ' | cut -d ' ' -f 5)
+    tx_size=$(ls -l ${tmp_raw} | tr -s ' ' | cut -d ' ' -f 5)
 
     # check the size of the raw transaction
     if [[ tx_size -gt $((MAX_TX_SIZE - 300)) ]]; then
       echo "tx too large"
-      total_utxo_value=$(cardano-cli debug transaction view --tx-file ${signed} | jq '.outputs[] | select ( .address == "${change_address}") | .amount.lovelace')
-      tx_num=$(( $tx_num + 1 ))
-      exit 1 #retry
+      return 1 #retry
     else
       cp ${tmp_raw} ${raw}
+      echo "built transaction with ${#current_addresses[@]} outputs (${tx_size}B)"
       cardano-cli conway transaction sign --tx-file ${raw} --signing-key-file ${signing_key_file} --testnet-magic 1 --out-file ${signed}
     fi
 
@@ -103,17 +143,18 @@ for r in $random_u32; do
   rand=$(dd if=/dev/urandom count=4 bs=1 2> /dev/null | od -t u4 | tr -s ' ' | cut -d ' ' -f2 | head -1)
   adas=$(( 5 + rand % 1000 ))
 
-  echo "sending ₳$adas to $account_address"
   current_adas+=( $adas )
   current_addresses+=( $account_address )
 
   # try to construct a tx paying to all current addresses
   try_building_tx
   if [[ $? -eq 1 ]] ; then
+    signed=tx.${tx_num}.signed
+    echo "build transaction ${tx_num}: $(cardano-cli conway transaction txid --tx-file ${signed})"
+    tx_num=$(( $tx_num + 1 ))
+    total_utxo_value=$(cardano-cli debug transaction view --tx-file ${signed} | jq ".outputs[] | select ( .address == \"${change_address}\") | .amount.lovelace")
+    echo "remaining ₳$(( ${total_utxo_value} / 1000000 ))"
     # need to retry
-    try_building_tx
+    break
   fi
 done
-
-echo ${current_adas[@]}
-echo ${current_addresses[@]}
