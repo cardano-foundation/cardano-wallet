@@ -94,14 +94,14 @@ try_building_tx () {
 
 for r in $random_u32; do
   # account id between 0 and 100000
-  acct_id=$((r % 10000 ))
+  acct_id=$((r % 10 ))
 
   # derive public address
   account_address=$(cat root.prv | cardano-address key child "1852H/1815H/${acct_id}H/0/0" | cardano-address key public --with-chain-code | cardano-address address payment --network-tag preprod)
 
   # generate an amount of ADA between 100 and 10000, in lovelaces (x 1000000)
   rand=$(dd if=/dev/urandom count=4 bs=1 2> /dev/null | od -t u4 | tr -s ' ' | cut -d ' ' -f2 | head -1)
-  adas=$(( 5 + rand % 10 ))
+  adas=$(( 5 + rand % 1000 ))
 
   echo "sending ₳$adas to $account_address"
   current_adas+=( $adas )
