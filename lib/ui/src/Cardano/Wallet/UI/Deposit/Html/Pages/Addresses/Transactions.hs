@@ -126,7 +126,7 @@ customerHistoryH
     -> HtmlT m ()
 customerHistoryH params@TransactionHistoryParams{..} txs =
     table_
-        [ class_ "border-top table table-sm table-striped table-hover m-0"
+        [ class_ "table table-sm table-borderless table-striped table-hover m-0"
         ]
         $ do
             thead_
