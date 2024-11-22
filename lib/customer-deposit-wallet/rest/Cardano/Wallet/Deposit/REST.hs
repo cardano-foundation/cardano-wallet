@@ -53,6 +53,7 @@ module Cardano.Wallet.Deposit.REST
     -- * Internals
     , onWalletInstance
     , networkTag
+    , canSign
 
     ) where
 
@@ -82,7 +83,8 @@ import Cardano.Wallet.Deposit.IO.Resource
     , ErrResourceMissing (..)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( Credentials
+    ( CanSign
+    , Credentials
     , Customer
     , ErrCreatePayment
     , Passphrase
@@ -457,6 +459,9 @@ getBIP32PathsForOwnedInputs
     -> WalletResourceM [BIP32Path]
 getBIP32PathsForOwnedInputs =
     onWalletInstance . WalletIO.getBIP32PathsForOwnedInputs
+
+canSign :: WalletResourceM CanSign
+canSign = onWalletInstance WalletIO.canSign
 
 signTx
     :: Write.Tx

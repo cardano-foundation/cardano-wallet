@@ -48,6 +48,7 @@ module Cardano.Wallet.Deposit.IO
       -- * Internals
     , onWalletState
     , networkTag
+    , canSign
     ) where
 
 import Prelude
@@ -70,6 +71,9 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByCustomer
     , ByTime
     , LookupTimeFromSlot
+    )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( CanSign
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -341,6 +345,10 @@ createPayment a w = do
     Operations
     Signing transactions
 ------------------------------------------------------------------------------}
+
+canSign :: WalletInstance -> IO CanSign
+canSign w = do
+    Wallet.canSign <$> readWalletState w
 
 getBIP32PathsForOwnedInputs
     :: Write.Tx -> WalletInstance -> IO [BIP32Path]
