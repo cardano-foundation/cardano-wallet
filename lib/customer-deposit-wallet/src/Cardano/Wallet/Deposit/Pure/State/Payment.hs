@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Deposit.Pure.State.Payment
@@ -39,6 +40,9 @@ import Data.Bifunctor
 import Data.Digest.CRC32
     ( crc32
     )
+import Data.Text.Class.Extended
+    ( ToText (..)
+    )
 
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Read as Read
@@ -46,11 +50,19 @@ import qualified Cardano.Wallet.Deposit.Write as Write
 import qualified Cardano.Wallet.Read.Hash as Hash
 import qualified Control.Monad.Random.Strict as Random
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 data ErrCreatePayment
     = ErrCreatePaymentNotRecentEra (Read.EraValue Read.Era)
     | ErrCreatePaymentBalanceTx (Write.ErrBalanceTx Write.Conway)
     deriving (Eq, Show)
+
+instance ToText ErrCreatePayment where
+    toText = \case
+        ErrCreatePaymentNotRecentEra era ->
+            "Cannot create a payment in the era: " <> T.pack (show era)
+        ErrCreatePaymentBalanceTx err ->
+            "Cannot create a payment: " <> T.pack (show err)
 
 type CurrentEraResolvedTx = ResolvedTx Read.Conway
 
