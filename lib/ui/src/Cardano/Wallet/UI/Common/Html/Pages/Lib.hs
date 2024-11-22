@@ -70,9 +70,8 @@ import Lucid
     , ToHtml (..)
     , class_
     , div_
-    , hr_
+    , h6_
     , id_
-    , nav_
     , role_
     , scope_
     , style_
@@ -301,11 +300,11 @@ box
     -> HtmlT m ()
     -- ^ content
     -> HtmlT m ()
-box x y z = div_ [class_ "bg-body-secondary pb-1"] $ do
-    nav_ [class_ "navbar  p-1 justify-content-center pb-0"]
-        $ do
-            div_ [class_ "navbar-brand opacity-50 ms-1 m-0 container-fluid p-0"] $ do
-                div_ x
-                div_ y
-    hr_ [class_ "mt-0 mb-1"]
-    div_ [class_ "bg-body-primary"] z
+box x y z =
+    div_ [class_ "bg-body-primary p-1 mt-2"] $ do
+        div_ [class_ "p-0 justify-content-center"]
+            $ do
+                h6_ [class_ "navbar bg-body-secondary ms-1 d-flex p-2"] $ do
+                    div_ x
+                    div_ [class_ ""] y
+        div_ [class_ "bg-body-primary ms-1 border-start ps-2"] z
