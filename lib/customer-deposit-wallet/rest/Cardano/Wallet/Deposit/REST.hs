@@ -455,7 +455,7 @@ networkTag = onWalletInstance WalletIO.networkTag
 
 createPayment
     :: [(Address, Read.Value)]
-    -> WalletResourceM (Either ErrCreatePayment Write.Tx)
+    -> WalletResourceM (Either ErrCreatePayment CurrentEraResolvedTx)
 createPayment = onWalletInstance . WalletIO.createPayment
 
 getBIP32PathsForOwnedInputs

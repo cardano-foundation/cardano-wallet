@@ -49,6 +49,7 @@ module Cardano.Wallet.Deposit.IO
       -- * Internals
     , onWalletState
     , networkTag
+    , readWalletState
     , resolveCurrentEraTx
     , canSign
     ) where
@@ -335,7 +336,7 @@ networkTag w = do
 createPayment
     :: [(Address, Read.Value)]
     -> WalletInstance
-    -> IO (Either Wallet.ErrCreatePayment Write.Tx)
+    -> IO (Either Wallet.ErrCreatePayment CurrentEraResolvedTx)
 createPayment a w = do
     timeTranslation <- Network.getTimeTranslation network
     pparams <-
