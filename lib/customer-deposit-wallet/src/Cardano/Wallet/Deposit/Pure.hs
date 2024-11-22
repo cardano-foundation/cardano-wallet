@@ -50,6 +50,8 @@ module Cardano.Wallet.Deposit.Pure
     , createPayment
     , BIP32Path (..)
     , DerivationType (..)
+    , canSign
+    , CanSign (..)
     , getBIP32PathsForOwnedInputs
     , Passphrase
     , signTx
@@ -62,8 +64,10 @@ import Cardano.Wallet.Address.BIP32
     , DerivationType (..)
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( Credentials (..)
+    ( CanSign (..)
+    , Credentials (..)
     , WalletPublicIdentity (..)
+    , canSign
     , fromCredentialsAndGenesis
     )
 import Cardano.Wallet.Deposit.Pure.State.Payment

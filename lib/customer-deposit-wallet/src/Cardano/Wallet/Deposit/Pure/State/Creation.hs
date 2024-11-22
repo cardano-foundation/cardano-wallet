@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -13,6 +14,8 @@ module Cardano.Wallet.Deposit.Pure.State.Creation
     , rootXPrvFromCredentials
     , ErrDecodingXPub (..)
     , encodedXPubFromCredentials
+    , canSign
+    , CanSign (..)
     ) where
 
 import Prelude hiding
@@ -83,12 +86,16 @@ accountXPubFromCredentials (XPrvCredentials _ xpub) = xpub
 -- | Derive account 'XPrv' from the root 'XPrv'.
 deriveAccountXPrv :: XPrv -> XPrv
 deriveAccountXPrv xprv =
-    (deriveXPrvHard
-    (deriveXPrvHard
-    (deriveXPrvHard xprv
-    1857) -- Address derivation standard
-    1815) -- ADA
-    0)    -- Account number
+    ( deriveXPrvHard
+        ( deriveXPrvHard
+            ( deriveXPrvHard
+                xprv
+                1857 -- Address derivation standard
+            )
+            1815 -- ADA
+        )
+        0 -- Account number
+    )
 
 -- | Get root 'XPrv' from credentials if available.
 rootXPrvFromCredentials :: Credentials -> Maybe XPrv
@@ -135,6 +142,14 @@ credentialsFromMnemonics mnemonics passphrase =
         XPrvCredentials
             encryptedXPrv
             (toXPub $ deriveAccountXPrv unencryptedXPrv)
+
+data CanSign = CanSign | CannotSign
+    deriving (Eq, Show)
+
+canSign :: WalletState -> CanSign
+canSign WalletState{rootXSignKey} = case rootXSignKey of
+    Nothing -> CannotSign
+    Just _ -> CanSign
 
 -- | Create 'Credentials' from an extended public key failures to decode
 data ErrDecodingXPub = ErrFromXPubBase16 | ErrFromXPubDecodeKey
