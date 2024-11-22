@@ -35,6 +35,7 @@ import Cardano.Wallet.Deposit.Pure
     ( Customer
     , ValueTransfer (..)
     , Credentials (..)
+    , ResolvedTx (..)
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -206,7 +207,7 @@ scenarioCreatePayment xprv env destination w = do
     assert $ value1 == (coin <> coin)
 
     -- createPayment
-    Right txUnsigned <- Wallet.createPayment [(destination, coin)] w
+    Right (ResolvedTx txUnsigned _) <- Wallet.createPayment [(destination, coin)] w
     paths <- Wallet.getBIP32PathsForOwnedInputs txUnsigned w
     let tx = signTx xprv paths txUnsigned
     submitTx env tx

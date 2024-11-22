@@ -75,12 +75,13 @@ createPayment
     -> Write.TimeTranslation
     -> [(Address, Write.Value)]
     -> WalletState
-    -> Either ErrCreatePayment Write.Tx
+    -> Either ErrCreatePayment CurrentEraResolvedTx
 createPayment (Read.EraValue (Read.PParams pparams :: Read.PParams era)) a b w =
     case Read.theEra :: Read.Era era of
         Read.Conway ->
             first ErrCreatePaymentBalanceTx
-                $ createPaymentConway pparams a b w
+                $ flip resolveCurrentEraTx w
+                    <$> createPaymentConway pparams a b w
         era' -> Left $ ErrCreatePaymentNotRecentEra (Read.EraValue era')
 
 -- | In the Conway era: Create a payment to a list of destinations.

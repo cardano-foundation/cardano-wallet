@@ -52,6 +52,7 @@ module Cardano.Wallet.Deposit.Pure
     , CurrentEraResolvedTx
     , BIP32Path (..)
     , DerivationType (..)
+    , ResolvedTx (..)
     , canSign
     , CanSign (..)
     , getBIP32PathsForOwnedInputs
@@ -122,6 +123,9 @@ import Cardano.Wallet.Deposit.Pure.State.Type
     , networkTag
     , trackedCustomers
     , walletXPub
+    )
+import Cardano.Wallet.Deposit.Pure.UTxO.Tx
+    ( ResolvedTx (..)
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
     ( ValueTransfer (..)
