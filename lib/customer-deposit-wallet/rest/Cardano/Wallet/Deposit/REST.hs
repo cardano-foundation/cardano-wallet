@@ -57,6 +57,7 @@ module Cardano.Wallet.Deposit.REST
     , networkTag
     , resolveCurrentEraTx
     , canSign
+    , submitTx
     ) where
 
 import Prelude
@@ -159,6 +160,7 @@ import System.FilePath
     )
 
 import qualified Cardano.Wallet.Deposit.IO as WalletIO
+import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
 import qualified Cardano.Wallet.Deposit.IO.Resource as Resource
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
@@ -480,3 +482,6 @@ inspectTx = onWalletInstance . WalletIO.inspectTx
 
 resolveCurrentEraTx :: Write.Tx -> WalletResourceM CurrentEraResolvedTx
 resolveCurrentEraTx = onWalletInstance . WalletIO.resolveCurrentEraTx
+
+submitTx :: Write.Tx -> WalletResourceM (Either Network.ErrPostTx ())
+submitTx = onWalletInstance . WalletIO.submitTx
