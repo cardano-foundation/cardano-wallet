@@ -10,6 +10,9 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletPublicIdentity (..)
     )
+import Cardano.Wallet.Deposit.Pure.API.Address
+    ( encodeAddress
+    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     )
@@ -44,9 +47,6 @@ import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent (..)
     , onWalletPresentH
-    )
-import Cardano.Wallet.UI.Lib.Address
-    ( encodeMainnetAddress
     )
 import Cardano.Wallet.UI.Lib.ListOf
     ( ListOf
@@ -95,7 +95,7 @@ customerAddressH copy addr =
     truncatableText copy ("address-text-" <> encodedAddr)
         $ toHtml encodedAddr
   where
-    encodedAddr = encodeMainnetAddress addr
+    encodedAddr = encodeAddress addr
 
 addressElementH
     :: UTCTime -> UTCTime -> AlertH -> WalletPresent -> Html ()

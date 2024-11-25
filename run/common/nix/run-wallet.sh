@@ -52,10 +52,13 @@ DEPOSIT_WALLET_PORT=${DEPOSIT_WALLET_PORT:=$RANDOM_PORT}
 LOCAL_WALLET_LOGS_FILE=./wallet.log
 WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
 
+DEPOSIT_BYRON_GENESIS="${NODE_CONFIGS}/byron-genesis.json"
+
 echo "Wallet service port: $WALLET_PORT"
 echo "Wallet UI port: $WALLET_UI_PORT"
 echo "Deposit wallet UI port: $DEPOSIT_WALLET_UI_PORT"
 echo "Deposit wallet port: $DEPOSIT_WALLET_PORT"
+echo "Deposit Byron genesis file: $DEPOSIT_BYRON_GENESIS"
 
 if [[ $NETWORK == "mainnet" ]]; then
     echo "Running wallet in mainnet mode"
@@ -63,6 +66,7 @@ if [[ $NETWORK == "mainnet" ]]; then
 else
     echo "Running wallet in testnet mode"
     NETWORK_OPTION="--testnet ${NODE_CONFIGS}/byron-genesis.json"
+
 fi
 # shellcheck disable=SC2086
 cabal run --project-dir ../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
@@ -75,6 +79,7 @@ cabal run --project-dir ../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
     --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
     --database "${WALLET_DB}" \
     --node-socket "${NODE_SOCKET_PATH}" \
+    --deposit-byron-genesis-file "${DEPOSIT_BYRON_GENESIS}" \
     $NETWORK_OPTION \
     --listen-address 0.0.0.0 \
     +RTS -N -A16m -qg -qb -RTS

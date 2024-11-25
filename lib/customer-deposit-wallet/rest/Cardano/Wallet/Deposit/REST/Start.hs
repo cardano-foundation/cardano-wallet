@@ -1,4 +1,5 @@
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Deposit.REST.Start
     ( loadDepositWalletFromDisk
@@ -61,6 +62,7 @@ import Data.Functor.Contravariant
     ( (>$<)
     )
 
+import qualified Cardano.Chain.Genesis as Byron
 import qualified Cardano.Wallet.Deposit.Read as Read
 
 lg :: (MonadIO m, Show a) => Tracer IO String -> String -> a -> m ()
@@ -75,7 +77,7 @@ loadDepositWalletFromDisk
 loadDepositWalletFromDisk tr dir env resource = do
     result <- runExceptT $ do
         exists <- ExceptT $ flip runWalletResourceM resource $ do
-            test <- walletExists dir
+            test <- liftIO $ walletExists dir
             liftIO $ print test
             when test $ do
                 lg tr "Loading wallet from" dir
@@ -112,10 +114,19 @@ mockFundTheWallet network resource = flip runWalletResourceM resource $ do
     Right () <- liftIO $ postTx network tx
     pure ()
 
-newFakeBootEnv :: IO (WalletBootEnv IO)
-newFakeBootEnv =
-    WalletBootEnv
-        (show >$< stdoutTracer)
-        Read.mockGenesisDataMainnet
-        . mapBlock Read.EraValue
-        <$> newNetworkEnvMock
+newFakeBootEnv :: Maybe FilePath -> IO (WalletBootEnv IO)
+newFakeBootEnv genesisFile = do
+    eGenesisData <- runExceptT $ case genesisFile of
+        Nothing -> ExceptT $ pure $ Right Read.mockGenesisDataMainnet
+        Just file -> fst <$> Byron.readGenesisData file
+    print genesisFile
+    print eGenesisData
+    print $ Read.getNetworkId <$> eGenesisData
+    case eGenesisData of
+        Left e -> error $ show e
+        Right genesisData' ->
+            WalletBootEnv
+                (show >$< stdoutTracer)
+                genesisData'
+                . mapBlock Read.EraValue
+                <$> newNetworkEnvMock

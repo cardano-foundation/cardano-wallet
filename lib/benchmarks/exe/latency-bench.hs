@@ -749,6 +749,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             Nothing -- settings
             Nothing -- token metadata server
             block0
+            Nothing
             (setupAction networkParameters)
 
 massiveWalletUTxOSize :: Int
