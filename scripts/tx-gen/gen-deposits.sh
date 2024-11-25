@@ -2,16 +2,18 @@
 
 usage () {
   cat <<'EOF'
-Usage: ./gen-deposits.sh <tx-in>  <utxo value> <change-address> <signing key file>
+Usage: ./gen-deposits.sh <tx-in> <utxo value> <change-address> <signing key file> [<max amount>]
 
 A naive script to generate and sign deposit transactions to random accounts in a wallet.
 
 Arguments:
 * <tx-in>: A transaction input containing ₳ to distribute funds from
-* <utxo value>: The value locked at tx-in
+* <utxo value>: The value locked at tx-in, in lovelaces
 * <change-address>: Address to return change to. This is expected to be the same address
   than the one the tx-in points to
 * <signing key file>: the signing key used to sign the transaction.
+* (optional) <max amount>: limit the total number of payments to given lovelace amount,
+  but still use <utxo value> to correctly compute change
 
 This script will try to accumulate as many payment outputs to some random accounts for
 a wallet whose root private key is in file 'root.prv' in a single transaction, until
@@ -72,7 +74,7 @@ generate a `tx.0.signed` transaction that can be submitted.
 EOF
 }
 
-if [[ $# -ne 4 ]]; then
+if [[ $# -lt 4 ]]; then
   usage
   exit 2
 fi
@@ -87,11 +89,20 @@ current_tx_in=$1
 # cardano-cli conway query utxo  --address ${change_address} --testnet-magic 1 --socket-path node.socket| tail -n 1 | tr -s ' ' | cut -d ' ' -f 3
 total_utxo_value=$2
 
-# use this as change address
 change_address=$3
-
-# the signing key
 signing_key_file=$4
+
+if [[ $# -eq 4 ]]; then
+  max_amount=${total_utxo_value}
+else
+  max_amount=$5
+
+  [[ ${max_amount} -lt ${total_utxo_value} ]] || {
+    echo "maximum amount (${max_amount}) should be lower than total UTxO value (${total_utxo_value})"
+    usage
+    exit 2
+  }
+fi
 
 declare current_adas
 declare current_addresses
@@ -109,11 +120,13 @@ try_building_tx () {
   raw=tx.${tx_num}.raw
   tmp_raw=${raw}.tmp
   signed=tx.${tx_num}.signed
+  accumulated_deposits=0
 
   args="--protocol-params-file protocol-params.json --shelley-key-witnesses 1 --change-address ${change_address} --out-file ${tmp_raw} --tx-in ${current_tx_in}"
 
   for i in ${!current_adas[@]}; do
     args+=" --tx-out ${current_addresses[$i]}+$(( ${current_adas[$i]} * 1000000 ))"
+    accumulated_deposits=$(( ${accumulated_deposits} + (${current_adas[$i]} * 1000000) ))
   done
 
   args+=" --total-utxo-value ${total_utxo_value}"
@@ -121,6 +134,9 @@ try_building_tx () {
   if ! cardano-cli conway transaction build-estimate $args; then
     echo "failed to build txs with ${#current_addresses[@]} outputs"
     return 1 # retry
+  elif [[ ${accumulated_deposits} -gt ${max_amount} ]] ; then
+    echo "${accumulated_deposits} greater than requested ${max_amount}"
+    return 1
   else
     tx_size=$(ls -l ${tmp_raw} | tr -s ' ' | cut -d ' ' -f 5)
 
