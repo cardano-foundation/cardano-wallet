@@ -139,7 +139,7 @@ for r in $random_u32; do
   # derive public address
   account_address=$(cat root.prv | cardano-address key child "1852H/1815H/0H/0/${acct_id}" | cardano-address key public --with-chain-code | cardano-address address payment --network-tag preprod)
 
-  # generate an amount of ADA between 100 and 10000, in lovelaces (x 1000000)
+  # generate an amount of ADA between 5 and 1000
   rand=$(dd if=/dev/urandom count=4 bs=1 2> /dev/null | od -t u4 | tr -s ' ' | cut -d ' ' -f2 | head -1)
   adas=$(( 5 + rand % 1000 ))
 
