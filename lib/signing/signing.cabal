@@ -51,6 +51,7 @@ library
     , ansi-wl-pprint
     , base
     , bytestring
+    , cardano-addresses
     , extra
     , optparse-applicative
     , process
