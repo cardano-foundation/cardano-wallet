@@ -100,6 +100,11 @@ MAX_TX_SIZE=$(cat protocol-params.json| jq .maxTxSize)
 
 tx_num=0
 
+if ls tx.*.signed > /dev/null 2>&1 ; then
+  last_signed_tx=$(ls tx.*.signed | sort -r -n -t '.' -k2 | head -1)
+  tx_num=$(( $(expr "$last_signed_tx" : 'tx.\(.*\).signed') + 1 ))
+fi
+
 try_building_tx () {
   raw=tx.${tx_num}.raw
   tmp_raw=${raw}.tmp
@@ -153,7 +158,7 @@ for r in $random_u32; do
     echo "build transaction ${tx_num}: $(cardano-cli conway transaction txid --tx-file ${signed})"
     tx_num=$(( $tx_num + 1 ))
     total_utxo_value=$(cardano-cli debug transaction view --tx-file ${signed} | jq ".outputs[] | select ( .address == \"${change_address}\") | .amount.lovelace")
-    echo "remaining ₳$(( ${total_utxo_value} / 1000000 ))"
+    echo "remaining ₳$(( ${total_utxo_value} / 1000000 )) (${total_utxo_value} lovelaces)"
     # need to retry
     break
   fi
