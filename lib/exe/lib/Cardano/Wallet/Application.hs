@@ -106,7 +106,7 @@ import Cardano.Wallet.Deposit.REST
     )
 import Cardano.Wallet.Deposit.REST.Start
     ( loadDepositWalletFromDisk
-    , newFakeBootEnv
+    , newBootEnv
     )
 import Cardano.Wallet.Flavor
     ( CredFromOf
@@ -383,7 +383,7 @@ serveWallet
         eDepositUiSocket <- bindDepositUiSocket
         eDepositSocket <- bindDepositSocket
         eShelleySocket <- bindApiSocket
-        fakeBootEnv <- lift $ newFakeBootEnv depositByronGenesisFile
+        bootEnv <- lift $ newBootEnv depositByronGenesisFile netLayer
         callCC $ \exit -> do
             case eShelleyUiSocket of
                 Left err -> do
@@ -431,7 +431,7 @@ serveWallet
                                         >$< applicationTracer
                                     )
                                     databaseDir'
-                                    fakeBootEnv
+                                    bootEnv
                                     resource
                             ui <- Ui.withUILayer 1 resource
                             REST.onResourceChange
@@ -444,7 +444,7 @@ serveWallet
                             let uiService =
                                     startDepositUiServer
                                         ui
-                                        fakeBootEnv
+                                        bootEnv
                                         databaseDir'
                                         socket
                                         sNetwork
@@ -475,7 +475,7 @@ serveWallet
                                                     >$< applicationTracer
                                                 )
                                                 databaseDir'
-                                                fakeBootEnv
+                                                bootEnv
                                                 resource
                                         pure (databaseDir', resource)
                                     Just (databaseDir', w) ->
@@ -483,7 +483,7 @@ serveWallet
                             let depositService =
                                     startDepositServer
                                         resource
-                                        fakeBootEnv
+                                        bootEnv
                                         databaseDir'
                                         socket
                             ContT $ \k ->
@@ -624,7 +624,7 @@ serveWallet
             -> IO ()
         startDepositServer
             resource
-            fakeBootEnv
+            bootEnv
             databaseDir'
             socket =
                 do
@@ -635,7 +635,7 @@ serveWallet
                                 $ Deposit.server
                                     (DepositApplicationLog >$< applicationTracer)
                                     databaseDir'
-                                    fakeBootEnv
+                                    bootEnv
                                     resource
                     start
                         serverSettings
@@ -657,7 +657,7 @@ serveWallet
             -> IO ()
         startDepositUiServer
             ui
-            fakeBootEnv
+            bootEnv
             databaseDir'
             socket
             _proxy
@@ -670,7 +670,7 @@ serveWallet
                             $ DepositUi.serveUI
                                 (DepositUIApplicationLog >$< applicationTracer)
                                 ui
-                                fakeBootEnv
+                                bootEnv
                                 databaseDir'
                                 (PageConfig "" "Deposit Cardano Wallet")
                                 _proxy
