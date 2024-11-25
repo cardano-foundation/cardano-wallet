@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 usage () {
-  cat <<EOF
+  cat <<'EOF'
 Usage: ./gen-deposits.sh <tx-in>  <utxo value> <change-address> <signing key file>
 
 A naive script to generate and sign deposit transactions to random accounts in a wallet.
