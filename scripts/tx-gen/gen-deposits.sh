@@ -162,7 +162,7 @@ for r in $random_u32; do
 
   # generate an amount of ADA between 5 and 1000
   rand=$(dd if=/dev/urandom count=4 bs=1 2> /dev/null | od -t u4 | tr -s ' ' | cut -d ' ' -f2 | head -1)
-  adas=$(( 5 + rand % 1000 ))
+  adas=$(( 50 + rand % 500 ))
 
   current_adas+=( $adas )
   current_addresses+=( $account_address )
