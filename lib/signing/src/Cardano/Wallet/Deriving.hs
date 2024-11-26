@@ -2,11 +2,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.Signing
+module Cardano.Wallet.Deriving
     ( DerivedKeys (..)
     , ErrDeriveKey (..)
     , deriveKeys
     , prettyErrDeriveKey
+    , createWitness
     )
     where
 
@@ -34,6 +35,9 @@ import Cardano.Address.Style.Shelley
     )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Either.Extra
+    ( maybeToEither
     )
 import Data.Text
     ( Text
@@ -73,13 +77,11 @@ deriveKeys
     -> Either ErrDeriveKey DerivedKeys
 deriveKeys addrXPrvBytes addrIx = do
     acctXPrv <-
-        case xprvFromBytes addrXPrvBytes of
-            Just xprv -> Right xprv
-            Nothing -> Left ErrDeriveKeyWrongAccountKeyLength
+        maybeToEither ErrDeriveKeyWrongAccountKeyLength . id
+        $ xprvFromBytes addrXPrvBytes
     addrIxCorrect <-
-        case indexFromWord32 @(Index 'Soft 'PaymentK) addrIx of
-            Just val -> Right val
-            Nothing -> Left ErrDeriveKeyOutsideAddressIxBound
+        maybeToEither ErrDeriveKeyOutsideAddressIxBound . id
+        $ indexFromWord32 @(Index 'Soft 'PaymentK) addrIx
     let xprv =
             deriveAddressPrivateKey (liftXPrv acctXPrv) UTxOExternal addrIxCorrect
     let xpub =
@@ -90,3 +92,10 @@ deriveKeys addrXPrvBytes addrIx = do
         , extendedPublic = xpubToBytes xpub
         , public = pubToBytes $ xpubToPub xpub
         }
+
+createWitness
+    :: ByteString
+    -> Word32
+    -> ByteString
+    -> ByteString
+createWitness _addrXPrvBytes _addrIx _cbor = undefined
