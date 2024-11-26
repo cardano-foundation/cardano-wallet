@@ -623,11 +623,6 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS"
 
 ## E2E Tests
 
-the following tests are actually not about cardano-wallet at all but testing other utilities: [cardano-address]()
-They also depend on code defined in [cardano-wallet-rb](https://github.com/piotr-iohk/cardano-wallet-rb)
-
-**They can be safely discarded**
-
 ```
 misc:
      describe CardanoWallet::Misc::Node do
