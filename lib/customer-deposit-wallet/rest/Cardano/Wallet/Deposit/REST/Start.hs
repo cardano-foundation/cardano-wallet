@@ -93,7 +93,6 @@ loadDepositWalletFromDisk tr dir env resource = do
             pure test
         liftIO $ threadDelay 1_000_000
         when exists $ do
-            ExceptT $ mockFundTheWallet (networkEnv env) resource
             ExceptT $ flip runWalletResourceM resource $ do
                 liftIO $ putStrLn "Available balance"
                 availableBalance >>= liftIO . print

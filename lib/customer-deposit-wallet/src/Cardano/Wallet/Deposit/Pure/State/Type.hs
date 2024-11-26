@@ -53,7 +53,7 @@ import qualified Data.Map.Strict as Map
 type Customer = Address.Customer
 
 data WalletState = WalletState
-    { walletTip :: Read.ChainPoint
+    { walletTip :: !Read.ChainPoint
     -- ^ The wallet includes information from all blocks until
     -- and including this one.
     , addresses :: !Address.AddressState
@@ -62,7 +62,7 @@ data WalletState = WalletState
     -- ^ UTxO of this wallet, with support for rollbacks.
     , txHistory :: !TxHistory
     -- ^ (Summarized) transaction history of this wallet.
-    , submissions :: Sbm.TxSubmissions
+    , submissions :: !Sbm.TxSubmissions
     -- ^ Queue of pending transactions.
     , rootXSignKey :: Maybe XPrv
     -- ^ Maybe a private key for signing transactions.
