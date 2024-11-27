@@ -275,6 +275,7 @@ import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi
 import qualified Cardano.Wallet.UI.Shelley.Server as ShelleyUi
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Servant.Server as Servant
+import Control.Concurrent (threadDelay)
 
 -- | The @cardano-wallet@ main function. It takes the configuration
 -- which was passed from the CLI and environment and starts all components of
@@ -359,25 +360,25 @@ serveWallet
                 blockchainSource
                 network
                 netParams
-        stakePoolLayer <- case blockchainSource of
-            NodeSource{} -> do
-                stakePoolDbLayer <-
-                    withStakePoolDbLayer
-                        poolsDbTracer
-                        databaseDir
-                        mPoolDatabaseDecorator
-                        netLayer
-                withNodeStakePoolLayer
-                    poolsEngineTracer
-                    settings
-                    stakePoolDbLayer
-                    netParams
-                    shelleyGenesisPools
-                    netLayer
-        randomApi <- withRandomApi netId netLayer
-        icarusApi <- withIcarusApi netId netLayer
-        shelleyApi <- withShelleyApi netId netLayer
-        multisigApi <- withMultisigApi netId netLayer
+        -- stakePoolLayer <- case blockchainSource of
+        --     NodeSource{} -> do
+        --         stakePoolDbLayer <-
+        --             withStakePoolDbLayer
+        --                 poolsDbTracer
+        --                 databaseDir
+        --                 mPoolDatabaseDecorator
+        --                 netLayer
+        --         withNodeStakePoolLayer
+        --             poolsEngineTracer
+        --             settings
+        --             stakePoolDbLayer
+        --             netParams
+        --             shelleyGenesisPools
+        --             netLayer
+        -- randomApi <- withRandomApi netId netLayer
+        -- icarusApi <- withIcarusApi netId netLayer
+        -- shelleyApi <- withShelleyApi netId netLayer
+        -- multisigApi <- withMultisigApi netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
         eShelleyUiSocket <- bindShelleyUiSocket
         eDepositUiSocket <- bindDepositUiSocket
@@ -385,30 +386,30 @@ serveWallet
         eShelleySocket <- bindApiSocket
         bootEnv <- lift $ newBootEnv depositByronGenesisFile netLayer
         callCC $ \exit -> do
-            case eShelleyUiSocket of
-                Left err -> do
-                    lift $ trace $ MsgServerStartupError err
-                    void $ exit $ ExitFailure $ exitCodeApiServer err
-                Right ms -> do
-                    case ms of
-                        Nothing -> pure ()
-                        Just (_port, socket) -> do
-                            ui <- Ui.withUILayer 1 Nothing
-                            sourceOfNewTip netLayer ui
-                            let uiService =
-                                    startShelleyUiServer
-                                        ui
-                                        sNetwork
-                                        socket
-                                        randomApi
-                                        icarusApi
-                                        shelleyApi
-                                        multisigApi
-                                        stakePoolLayer
-                                        ntpClient
-                                        blockchainSource
-                            ContT $ \k ->
-                                withAsync uiService $ \_ -> k ()
+            -- case eShelleyUiSocket of
+            --     Left err -> do
+            --         lift $ trace $ MsgServerStartupError err
+            --         void $ exit $ ExitFailure $ exitCodeApiServer err
+            --     Right ms -> do
+            --         case ms of
+            --             Nothing -> pure ()
+            --             Just (_port, socket) -> do
+            --                 ui <- Ui.withUILayer 1 Nothing
+            --                 sourceOfNewTip netLayer ui
+            --                 let uiService =
+            --                         startShelleyUiServer
+            --                             ui
+            --                             sNetwork
+            --                             socket
+            --                             randomApi
+            --                             icarusApi
+            --                             shelleyApi
+            --                             multisigApi
+            --                             stakePoolLayer
+            --                             ntpClient
+            --                             blockchainSource
+            --                 ContT $ \k ->
+            --                     withAsync uiService $ \_ -> k ()
             mDepositDatabaseDirAndResource <- case eDepositUiSocket of
                 Left err -> do
                     lift $ trace $ MsgServerStartupError err
@@ -434,13 +435,13 @@ serveWallet
                                     bootEnv
                                     resource
                             ui <- Ui.withUILayer 1 resource
-                            REST.onResourceChange
-                                ( \_ -> do
-                                    traceWith (oobMessages ui)
-                                        $ Push "wallet"
-                                )
-                                resource
-                            sourceOfNewTip netLayer ui
+                            -- REST.onResourceChange
+                            --     ( \_ -> do
+                            --         traceWith (oobMessages ui)
+                            --             $ Push "wallet"
+                            --     )
+                            --     resource
+                            -- sourceOfNewTip netLayer ui
                             let uiService =
                                     startDepositUiServer
                                         ui
@@ -453,57 +454,60 @@ serveWallet
                             ContT $ \k ->
                                 withAsync uiService $ \_ -> k ()
                             pure $ Just (databaseDir', resource)
-            case eDepositSocket of
-                Left err -> do
-                    lift $ trace $ MsgServerStartupError err
-                    void $ exit $ ExitFailure $ exitCodeApiServer err
-                Right ms -> do
-                    case ms of
-                        Nothing -> pure ()
-                        Just (_port, socket) -> do
-                            (databaseDir', resource) <-
-                                case mDepositDatabaseDirAndResource of
-                                    Nothing -> do
-                                        databaseDir' <-
-                                            ContT
-                                                $ withSystemTempDirectory
-                                                    "deposit-wallet"
-                                        resource <- ContT withResource
-                                        liftIO
-                                            $ loadDepositWalletFromDisk
-                                                ( DepositApplicationLog
-                                                    >$< applicationTracer
-                                                )
-                                                databaseDir'
-                                                bootEnv
-                                                resource
-                                        pure (databaseDir', resource)
-                                    Just (databaseDir', w) ->
-                                        pure (databaseDir', w)
-                            let depositService =
-                                    startDepositServer
-                                        resource
-                                        bootEnv
-                                        databaseDir'
-                                        socket
-                            ContT $ \k ->
-                                withAsync depositService $ \_ -> k ()
-            case eShelleySocket of
-                Left err -> do
-                    lift $ trace $ MsgServerStartupError err
-                    exit $ ExitFailure $ exitCodeApiServer err
-                Right (_port, socket) -> do
-                    lift
-                        $ startApiServer
-                            sNetwork
-                            socket
-                            randomApi
-                            icarusApi
-                            shelleyApi
-                            multisigApi
-                            stakePoolLayer
-                            ntpClient
-                    exit ExitSuccess
+            -- let mDepositDatabaseDirAndResource = Nothing
+            -- case eDepositSocket of
+            --     Left err -> do
+            --         lift $ trace $ MsgServerStartupError err
+            --         void $ exit $ ExitFailure $ exitCodeApiServer err
+            --     Right ms -> do
+            --         case ms of
+            --             Nothing -> pure ()
+            --             Just (_port, socket) -> do
+            --                 (databaseDir', resource) <-
+            --                     case mDepositDatabaseDirAndResource of
+            --                         Nothing -> do
+            --                             databaseDir' <-
+            --                                 ContT
+            --                                     $ withSystemTempDirectory
+            --                                         "deposit-wallet"
+            --                             resource <- ContT withResource
+            --                             liftIO
+            --                                 $ loadDepositWalletFromDisk
+            --                                     ( DepositApplicationLog
+            --                                         >$< applicationTracer
+            --                                     )
+            --                                     databaseDir'
+            --                                     bootEnv
+            --                                     resource
+            --                             pure (databaseDir', resource)
+            --                         Just (databaseDir', w) ->
+            --                             pure (databaseDir', w)
+            --                 let depositService =
+            --                         startDepositServer
+            --                             resource
+            --                             bootEnv
+            --                             databaseDir'
+            --                             socket
+            --                 ContT $ \k ->
+            --                     withAsync depositService $ \_ -> k ()
+            -- case eShelleySocket of
+            --     Left err -> do
+            --         lift $ trace $ MsgServerStartupError err
+            --         exit $ ExitFailure $ exitCodeApiServer err
+            --     Right (_port, socket) -> do
+            --         lift
+            --             $ startApiServer
+            --                 sNetwork
+            --                 socket
+            --                 randomApi
+            --                 icarusApi
+            --                 shelleyApi
+            --                 multisigApi
+            --                 stakePoolLayer
+            --                 ntpClient
+            --         exit ExitSuccess
+            liftIO $ threadDelay maxBound
+            pure ExitSuccess
       where
         trace :: ApplicationLog -> IO ()
         trace = traceWith applicationTracer

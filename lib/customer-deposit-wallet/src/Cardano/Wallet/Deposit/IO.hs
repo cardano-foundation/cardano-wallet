@@ -293,7 +293,7 @@ getAllDeposits w i =
     Wallet.getAllDeposits i <$> readWalletState w
 
 rollForward
-    :: WalletInstance
+    :: Show tip => WalletInstance
     -> NonEmpty (Read.EraValue Read.Block)
     -> tip
     -> IO ()
@@ -306,7 +306,8 @@ rollForward w blocks _nodeTip = do
                 timeFromSlot
                 blocks
     x <- readWalletState w
-    x `seq` pure ()
+    print $ Wallet.getWalletTip x
+    print _nodeTip
 
 rollBackward
     :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint

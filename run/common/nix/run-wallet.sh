@@ -45,7 +45,7 @@ WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
 
-RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
+# RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 DEPOSIT_WALLET_PORT=${DEPOSIT_WALLET_PORT:=$RANDOM_PORT}
 
 # Define the wallet logs file
@@ -69,7 +69,7 @@ else
 
 fi
 # shellcheck disable=SC2086
-cabal run --project-dir ../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
+cabal run --project-dir ../../.. -O2 cardano-wallet-exe:exe:cardano-wallet -- \
     serve \
     --log-level DEBUG \
     --trace-application DEBUG \
@@ -82,4 +82,4 @@ cabal run --project-dir ../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
     --deposit-byron-genesis-file "${DEPOSIT_BYRON_GENESIS}" \
     $NETWORK_OPTION \
     --listen-address 0.0.0.0 \
-    +RTS -N -A16m -qg -qb -RTS
+    +RTS -N -A16m -qg -qb -p -RTS
