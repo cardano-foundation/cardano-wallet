@@ -8,6 +8,9 @@ module Cardano.Wallet.Deriving
     , deriveKeys
     , prettyErrDeriveKey
     , createWitness
+
+    , toHex
+    , fromHex
     )
     where
 
@@ -33,8 +36,16 @@ import Cardano.Address.Style.Shelley
     , getKey
     , liftXPrv
     )
+import Data.ByteArray.Encoding
+    ( Base (..)
+    , convertFromBase
+    , convertToBase
+    )
 import Data.ByteString
     ( ByteString
+    )
+import Data.Either.Combinators
+    ( rightToMaybe
     )
 import Data.Either.Extra
     ( maybeToEither
@@ -47,6 +58,7 @@ import Data.Word
     )
 
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 data ErrDeriveKey =
       ErrDeriveKeyOutsideAddressIxBound
@@ -92,6 +104,19 @@ deriveKeys addrXPrvBytes addrIx = do
         , extendedPublic = xpubToBytes xpub
         , public = pubToBytes $ xpubToPub xpub
         }
+
+fromHex
+    :: Text
+    -> Maybe ByteString
+fromHex =
+    rightToMaybe . convertFromBase Base16 . T.encodeUtf8
+
+toHex
+    :: ByteString
+    -> Text
+toHex =
+    T.decodeUtf8 . convertToBase Base16
+
 
 createWitness
     :: ByteString
