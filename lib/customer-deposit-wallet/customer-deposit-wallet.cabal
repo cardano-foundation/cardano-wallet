@@ -117,6 +117,7 @@ library
     Cardano.Wallet.Deposit.Testing.DSL.Types
     Cardano.Wallet.Deposit.Time
     Cardano.Wallet.Deposit.Write
+    Cardano.Wallet.Deposit.Write.Keys
 
 test-suite scenario
   import:             language, opts-exe

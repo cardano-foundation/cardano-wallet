@@ -50,21 +50,11 @@ module Cardano.Wallet.Deposit.Write
 
 import Prelude
 
-import Cardano.Crypto.Wallet
-    ( xpubPublicKey
-    )
-import Cardano.Ledger.Keys
-    ( SignedDSIGN
-    , VKey (..)
-    )
 import Cardano.Read.Ledger.Tx.Output
     ( Output (..)
     )
 import Cardano.Wallet.Address.BIP32_Ed25519
     ( XPrv
-    , XPub
-    , XSignature
-    , rawSerialiseXSignature
     , sign
     , toXPub
     )
@@ -76,6 +66,10 @@ import Cardano.Wallet.Deposit.Read
     , TxIn
     , TxOut
     , Value
+    )
+import Cardano.Wallet.Deposit.Write.Keys
+    ( signedDSIGNfromXSignature
+    , vkeyFromXPub
     )
 import Cardano.Wallet.Read.Tx
     ( toConwayOutput
@@ -90,9 +84,6 @@ import Control.Lens
 import Data.Map
     ( Map
     )
-import Data.Maybe
-    ( fromMaybe
-    )
 import Data.Maybe.Strict
     ( StrictMaybe (..)
     , maybeToStrictMaybe
@@ -105,7 +96,6 @@ import Data.Set
     ( Set
     )
 
-import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Ledger.Api as L
 import qualified Cardano.Ledger.Api.Tx.In as L
 import qualified Cardano.Ledger.Slot as L
@@ -138,29 +128,6 @@ addAddressWitness xprv tx@(Read.Tx ledgerTx) =
     xsign = sign xprv (Hash.hashToBytes txHash)
     witnessVKey =
         L.WitVKey (vkeyFromXPub xpub) (signedDSIGNfromXSignature xsign)
-
--- | Convert 'XPub' to a type that 'Cardano.Ledger' accepts.
-vkeyFromXPub :: XPub -> VKey 'L.Witness L.StandardCrypto
-vkeyFromXPub =
-    VKey
-    . fromMaybe impossible
-    . DSIGN.rawDeserialiseVerKeyDSIGN
-    . xpubPublicKey
-  where
-    impossible = error "impossible: Cannot convert XPub to VKey"
-
--- | Convert 'XSignature' to a type that 'Cardano.Ledger' accepts.
-signedDSIGNfromXSignature
-    :: XSignature
-    -> SignedDSIGN L.StandardCrypto
-        (Hash.Hash Hash.Blake2b_256 Read.EraIndependentTxBody)
-signedDSIGNfromXSignature =
-    DSIGN.SignedDSIGN
-    . fromMaybe impossible
-    . DSIGN.rawDeserialiseSigDSIGN
-    . rawSerialiseXSignature
-  where
-    impossible = error "impossible: Cannot convert XSignature to SignedDSIGN"
 
 {-----------------------------------------------------------------------------
     Convenience TxBody
