@@ -72,6 +72,7 @@ test-suite test
     , cardano-wallet-test-utils
     , hspec
     , signing
+    , text
     , QuickCheck
     , with-utf8
   build-tool-depends: hspec-discover:hspec-discover
