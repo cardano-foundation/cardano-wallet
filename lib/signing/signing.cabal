@@ -42,7 +42,7 @@ library
   exposed-modules:
     Cardano.Wallet.Deriving
     Command
-    Command.Sign
+    Command.Deriving
     Command.Version
     System.Git.TH
     System.IO.Extra

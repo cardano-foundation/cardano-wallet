@@ -56,18 +56,18 @@ import System.IO.Extra
     , progName
     )
 
-import qualified Command.Sign as Sign
+import qualified Command.Deriving as Deriving
 import qualified Command.Version as Version
 
 data CLI
-    = Sign Sign.Cmd
+    = Deriving Deriving.Cmd
     | Version
     deriving (Show)
 
 -- | Run a given command
 run :: CLI -> IO ()
 run = handle prettyIOException . \case
-    Sign sub -> Sign.run sub
+    Deriving sub -> Deriving.run sub
     Version -> Version.run
 
 cli :: ParserInfo CLI
@@ -90,7 +90,7 @@ cli = info (helper <*> parser) $ mempty
         ])
   where
     parser = Version.opt Version <|> subparser (mconcat
-        [ Sign.mod Sign
+        [ Deriving.mod Deriving
         ])
 
 -- | Parse command line options and arguments
