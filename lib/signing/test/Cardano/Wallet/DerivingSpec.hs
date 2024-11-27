@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.DerivingSpec
     ( spec
     ) where
@@ -6,14 +8,23 @@ import Prelude
 
 import Cardano.Wallet.Deriving
     ( DerivedKeys (..)
+    , ErrDeriveKey (..)
+    , KeyIndexType
     , deriveKeys
     , fromHex
+    , indexToWord32
     )
 import Data.ByteString
     ( ByteString
     )
+import Data.Either
+    ( isRight
+    )
 import Data.Text
     ( Text
+    )
+import Data.Word
+    ( Word32
     )
 import Test.Hspec
     ( Spec
@@ -21,7 +32,16 @@ import Test.Hspec
     , it
     , shouldBe
     )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , chooseInt
+    , property
+    , suchThat
+    , vectorOf
+    , (===)
+    )
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 spec :: Spec
@@ -127,6 +147,105 @@ spec = do
                     , public = prv10vk
                     }
             deriveKeys accXPrv 10 `shouldBe` Right expectedKeys
+
+        --- Signing keys for payment credential with path 0/101
+        --- $ cardano-address key child 0/101 < acct.xsk > pay101.xsk
+        --- $ cat pay101.xsk
+        --- addr_xsk1zz84l6p0x5muesnwdetj4jnac6xlme42uv75esex9w4zcq8gwfvjutz2fhdkfufds3xuzp3mexrladlw4479jjz83gl3c8zyuu4gq9009kvllewex03caacn3x4yel074tk3ygfvyrrqmfhrqw8v94m4ruu9ttdg
+        --- $ bech32 < pay101.xsk
+        --- 108f5fe82f3537ccc26e6e572aca7dc68dfde6aae33d4cc3262baa2c00e872592e2c4a4ddb64f12d844dc1063bc987feb7eead7c5948478a3f1c1c44e72a8015ef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f
+        --- $ cardano-address key inspect <<< $(cat pay101.xsk)
+        --- {
+        ---    "chain_code": "ef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f",
+        ---    "extended_key": "108f5fe82f3537ccc26e6e572aca7dc68dfde6aae33d4cc3262baa2c00e872592e2c4a4ddb64f12d844dc1063bc987feb7eead7c5948478a3f1c1c44e72a8015",
+        ---    "key_type": "private"
+        --- }
+        ---
+        --- Verification keys for payment credential
+        --- $ cardano-address key public --with-chain-code < pay101.xsk > pay101.xvk
+        --- $ cat pay101.xvk
+        --- addr_xvk1ez8wc6nmllq3vrf4qq9kn59w6znrprmqcqtjqyecjaqdjl2zlnl77tvelljajvlr3mm38zd2fn7la2hdzgsjcgxxpknwxquwctth28csesa2g
+        --- $ bech32 < pay101.xvk
+        --- c88eec6a7bffc1160d35000b69d0aed0a6308f60c0172013389740d97d42fcffef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f
+        --- $ cabal run cardano-address key inspect < pay101.xvk
+        --- {
+        ---     "chain_code": "ef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f",
+        ---     "extended_key": "c88eec6a7bffc1160d35000b69d0aed0a6308f60c0172013389740d97d42fcff",
+        ---     "key_type": "public"
+        --- }
+        it "golden for 0/101" $ do
+            let prv101XskTxt = "108f5fe82f3537ccc26e6e572aca7dc68dfde6aae33d4cc3262baa2c00e872592e2c4a4ddb64f12d844dc1063bc987feb7eead7c5948478a3f1c1c44e72a8015ef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f"
+            let prv101Xsk = fromHexUnsafe prv101XskTxt
+            let prv101skTxt = "108f5fe82f3537ccc26e6e572aca7dc68dfde6aae33d4cc3262baa2c00e872592e2c4a4ddb64f12d844dc1063bc987feb7eead7c5948478a3f1c1c44e72a8015"
+            let prv101sk = fromHexUnsafe prv101skTxt
+            let pub101XvkTxt = "c88eec6a7bffc1160d35000b69d0aed0a6308f60c0172013389740d97d42fcffef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f"
+            let pub101Xvk = fromHexUnsafe pub101XvkTxt
+            let prv101vkTxt = "c88eec6a7bffc1160d35000b69d0aed0a6308f60c0172013389740d97d42fcff"
+            let prv101vk = fromHexUnsafe prv101vkTxt
+            let expectedKeys = DerivedKeys
+                    { extendedPrivate = prv101Xsk
+                    , private = prv101sk
+                    , extendedPublic = pub101Xvk
+                    , public = prv101vk
+                    }
+            deriveKeys accXPrv 101 `shouldBe` Right expectedKeys
+
+    describe "deriveKey with incorrect key index" $
+        it "deriveKeys accXPrv wrongIndex == error" $ property $
+        \(WrongIx validAccXPrv' wrongIx') -> do
+            deriveKeys validAccXPrv' wrongIx' ===
+                Left ErrDeriveKeyOutsideAddressIxBound
+
+    describe "deriveKey with incorrect account key length" $
+        it "deriveKeys invalidAccXPrv correctIndex == error" $ property $
+        \(WrongKeyLength invalidAccXPrv' correctIx') -> do
+            deriveKeys invalidAccXPrv' correctIx' ===
+                Left ErrDeriveKeyWrongAccountKeyLength
+
+    describe "deriveKey with correct account key length and key ix is always successful" $
+        it "deriveKeys validAccXPrv correctIndex == isRight" $ property $
+        \(CorrectArgs validAccXPrv' correctIx') -> do
+            isRight (deriveKeys validAccXPrv' correctIx') === True
+
+
+data WrongIx = WrongIx
+    { validAccXPrv :: ByteString
+    , wrongIx :: Word32
+    } deriving (Eq, Show)
+
+instance Arbitrary WrongIx where
+    arbitrary = do
+        validAccXPrv' <- BS.pack <$> vectorOf 96 arbitrary
+        let maxValidIx = indexToWord32 (maxBound @KeyIndexType)
+        wrongIx' <- chooseInt (fromIntegral $ maxValidIx + 1, fromIntegral $ maxBound @Word32)
+        pure $ WrongIx validAccXPrv' (fromIntegral wrongIx')
+
+data WrongKeyLength = WrongKeyLength
+    { invalidAccXPrv :: ByteString
+    , correctIx :: Word32
+    } deriving (Eq, Show)
+
+instance Arbitrary WrongKeyLength where
+    arbitrary = do
+        len <- chooseInt (1,160) `suchThat` (/= 96)
+        invalidAccXPrv' <- BS.pack <$> vectorOf len arbitrary
+        let minValidIx = indexToWord32 (minBound @KeyIndexType)
+        let maxValidIx = indexToWord32 (maxBound @KeyIndexType)
+        correctIx' <- chooseInt (fromIntegral minValidIx, fromIntegral maxValidIx)
+        pure $ WrongKeyLength invalidAccXPrv' (fromIntegral correctIx')
+
+data CorrectArgs = CorrectArgs
+    { correctAccXPrv :: ByteString
+    , validtIx :: Word32
+    } deriving (Eq, Show)
+
+instance Arbitrary CorrectArgs where
+    arbitrary = do
+        validAccXPrv' <- BS.pack <$> vectorOf 96 arbitrary
+        let minValidIx = indexToWord32 (minBound @KeyIndexType)
+        let maxValidIx = indexToWord32 (maxBound @KeyIndexType)
+        correctIx' <- chooseInt (fromIntegral minValidIx, fromIntegral maxValidIx)
+        pure $ CorrectArgs validAccXPrv' (fromIntegral correctIx')
 
 fromHexUnsafe :: Text -> ByteString
 fromHexUnsafe txt = case fromHex txt of

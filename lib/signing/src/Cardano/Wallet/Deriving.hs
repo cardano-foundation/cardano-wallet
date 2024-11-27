@@ -5,12 +5,14 @@
 module Cardano.Wallet.Deriving
     ( DerivedKeys (..)
     , ErrDeriveKey (..)
+    , KeyIndexType
     , deriveKeys
     , prettyErrDeriveKey
     , createWitness
 
     , toHex
     , fromHex
+    , indexToWord32
     )
     where
 
@@ -71,6 +73,8 @@ data DerivedKeys = DerivedKeys
     , extendedPublic :: ByteString
     , public :: ByteString
     }  deriving (Show, Eq)
+
+type KeyIndexType = Index 'Soft 'PaymentK
 
 prettyErrDeriveKey :: ErrDeriveKey -> Text
 prettyErrDeriveKey = \case
