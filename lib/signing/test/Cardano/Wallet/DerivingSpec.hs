@@ -89,6 +89,8 @@ spec = do
         ---    "extended_key": "cc1c6c947f4245d297a7fe9f34bffe08fb6f25322057cc3eb87556fdbca5eaa9",
         ---    "key_type": "public"
         --- }
+       --- $ cardano-address key hash --hex < pay0.xvk
+       --- c8f945808fa4e5e7fa8fdf8f30f2363123c058415825707b26ca9406
         it "golden for 0/0" $ do
             let prv0XskTxt = "600d9fc48ef9c6249a6d8190762bdad8439a2c2d13cdd1661878023a06e8725993e19505261ca08fa403d91c975d6e842164fc0614fabbeb998bcb1f71001e07ff273a153a3905108dbb490112d4e3740ec5a3d206423188523bee1c0e8a2c17"
             let prv0Xsk = fromHexUnsafe prv0XskTxt
@@ -98,11 +100,14 @@ spec = do
             let pub0Xvk = fromHexUnsafe pub0XvkTxt
             let prv0vkTxt = "cc1c6c947f4245d297a7fe9f34bffe08fb6f25322057cc3eb87556fdbca5eaa9"
             let prv0vk = fromHexUnsafe prv0vkTxt
+            let credTxt = "c8f945808fa4e5e7fa8fdf8f30f2363123c058415825707b26ca9406"
+            let cred = fromHexUnsafe  credTxt
             let expectedKeys = DerivedKeys
                     { extendedPrivate = prv0Xsk
                     , private = prv0sk
                     , extendedPublic = pub0Xvk
                     , public = prv0vk
+                    , credential = cred
                     }
             deriveKeys accXPrv 0 `shouldBe` Right expectedKeys
 
@@ -131,6 +136,8 @@ spec = do
         ---     "extended_key": "0181ea6024fa8e1a8d9e42df83227c9c323052476cdee43ec8cfd2724bb06920",
         ---     "key_type": "public"
         --- }
+        --- cardano-address key hash --hex < pay10.xvk
+        --- 725f3ca61f061363326961850e2079b7628400a5fc15bde4727c7007
         it "golden for 0/10" $ do
             let prv10XskTxt = "d086998e32e263cd6df12f412e89e311126268fd5dfd73a05baac15b01e87259cc3ac260eafd06f826068b8fbbe0f490b3010755216f7afb61f5eb65d03d03fa30b84f432269b358d0ccc5582e23db5a48fc89dcbe201204442f2d380cb88d63"
             let prv10Xsk = fromHexUnsafe prv10XskTxt
@@ -140,11 +147,14 @@ spec = do
             let pub10Xvk = fromHexUnsafe pub10XvkTxt
             let prv10vkTxt = "0181ea6024fa8e1a8d9e42df83227c9c323052476cdee43ec8cfd2724bb06920"
             let prv10vk = fromHexUnsafe prv10vkTxt
+            let credTxt = "725f3ca61f061363326961850e2079b7628400a5fc15bde4727c7007"
+            let cred = fromHexUnsafe  credTxt
             let expectedKeys = DerivedKeys
                     { extendedPrivate = prv10Xsk
                     , private = prv10sk
                     , extendedPublic = pub10Xvk
                     , public = prv10vk
+                    , credential = cred
                     }
             deriveKeys accXPrv 10 `shouldBe` Right expectedKeys
 
@@ -173,6 +183,8 @@ spec = do
         ---     "extended_key": "c88eec6a7bffc1160d35000b69d0aed0a6308f60c0172013389740d97d42fcff",
         ---     "key_type": "public"
         --- }
+        --- cardano-address -- key hash --hex < ../tests/signing/pay101.xvk
+        --- 02e84fe9ac56cdc2a4af672db4c2754bbcf95c7f57544a6ac51035a5
         it "golden for 0/101" $ do
             let prv101XskTxt = "108f5fe82f3537ccc26e6e572aca7dc68dfde6aae33d4cc3262baa2c00e872592e2c4a4ddb64f12d844dc1063bc987feb7eead7c5948478a3f1c1c44e72a8015ef2d99ffe5d933e38ef71389aa4cfdfeaaed12212c20c60da6e3038ec2d7751f"
             let prv101Xsk = fromHexUnsafe prv101XskTxt
@@ -182,11 +194,14 @@ spec = do
             let pub101Xvk = fromHexUnsafe pub101XvkTxt
             let prv101vkTxt = "c88eec6a7bffc1160d35000b69d0aed0a6308f60c0172013389740d97d42fcff"
             let prv101vk = fromHexUnsafe prv101vkTxt
+            let credTxt = "02e84fe9ac56cdc2a4af672db4c2754bbcf95c7f57544a6ac51035a5"
+            let cred = fromHexUnsafe  credTxt
             let expectedKeys = DerivedKeys
                     { extendedPrivate = prv101Xsk
                     , private = prv101sk
                     , extendedPublic = pub101Xvk
                     , public = prv101vk
+                    , credential = cred
                     }
             deriveKeys accXPrv 101 `shouldBe` Right expectedKeys
 

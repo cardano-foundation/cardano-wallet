@@ -72,7 +72,7 @@ run = handle prettyIOException . \case
 
 cli :: ParserInfo CLI
 cli = info (helper <*> parser) $ mempty
-    <> progDesc "Command-line tool for external signing of a transaction in Cardano."
+    <> progDesc "Command-line tool for deriving keys and external signing of a transaction in Cardano."
     <> footerDoc (Just $ vsep
         [ pretty @String "💡 Need auto-completion?"
         , pretty @String ""

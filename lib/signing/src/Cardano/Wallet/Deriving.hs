@@ -8,7 +8,6 @@ module Cardano.Wallet.Deriving
     , KeyIndexType
     , deriveKeys
     , prettyErrDeriveKey
-    , createWitness
 
     , toHex
     , fromHex
@@ -22,6 +21,7 @@ import Cardano.Address.Derivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , hashCredential
     , indexFromWord32
     , indexToWord32
     , pubToBytes
@@ -72,6 +72,7 @@ data DerivedKeys = DerivedKeys
     , private :: ByteString
     , extendedPublic :: ByteString
     , public :: ByteString
+    , credential :: ByteString
     }  deriving (Show, Eq)
 
 type KeyIndexType = Index 'Soft 'PaymentK
@@ -102,11 +103,13 @@ deriveKeys addrXPrvBytes addrIx = do
             deriveAddressPrivateKey (liftXPrv acctXPrv) UTxOExternal addrIxCorrect
     let xpub =
             toXPub $ getKey xprv
+    let pubBytes = pubToBytes $ xpubToPub xpub
     pure DerivedKeys
         { extendedPrivate = xprvToBytes $ getKey xprv
         , private = xprvPrivateKey $ getKey xprv
         , extendedPublic = xpubToBytes xpub
-        , public = pubToBytes $ xpubToPub xpub
+        , public = pubBytes
+        , credential = hashCredential pubBytes
         }
 
 fromHex
@@ -120,11 +123,3 @@ toHex
     -> Text
 toHex =
     T.decodeUtf8 . convertToBase Base16
-
-
-createWitness
-    :: ByteString
-    -> Word32
-    -> ByteString
-    -> ByteString
-createWitness _addrXPrvBytes _addrIx _cbor = undefined
