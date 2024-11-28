@@ -85,3 +85,25 @@ Remark: *cborHex* contains:
 $ cardano-cli address key-hash --payment-verification-key-file key.vkey
 b79e1b895406ca8d70c6471c714e7908314e715b018a46fb3d3931ee
 ```
+
+7. Signing using cardano-cli. Here let's assume we have unsigned tx and we will use the above keys.
+```bash
+$ cat tx.unsigned
+{
+    "type":"Unwitnessed Tx ConwayEra",
+    "description":"Ledger Cddl Format",
+    "cborHex":"84a400d90102818258204fe1968fc521dffe2bb9799b9c6548e38cd5e1a593c7d43a251eeb92deadc3fe00018282581d60d23d12a37c21b84c8c7838d4bbda848fe7a6b7bfc3f54212238912ec1a000f424082581d601cbb2cdd51437bb9f43bdd1214984e8b2794e0cff25f47ba187494041b0000000253fa1907021a000288b9031a0498a97aa0f5f6"}
+
+$ cardano-cli conway transaction sign --signing-key-file key.skey --testnet-magic 1 --tx-body-file tx.unsigned --out-file tx.signed
+$ cat tx.signed
+{
+    "type": "Witnessed Tx ConwayEra",
+    "description": "Ledger Cddl Format",
+    "cborHex": "84a400d90102818258204fe1968fc521dffe2bb9799b9c6548e38cd5e1a593c7d43a251eeb92deadc3fe00018282581d60d23d12a37c21b84c8c7838d4bbda848fe7a6b7bfc3f54212238912ec1a000f424082581d601cbb2cdd51437bb9f43bdd1214984e8b2794e0cff25f47ba187494041b0000000253fa1907021a000288b9031a0498a97aa100d90102818258206d8124102a5b40febd63cf81fb846d19ce3a97d67f9407f95afdf86a988932f058401a4757dc289f97684339ec766d1fcddfe1ebd50a53d7cccbb71b265e784dd6eb4bf87d5b6c2383e66f1a679f2ac0d97add6a890779096f0802690518223a8c04f5f6"
+}
+```
+
+8. Submitting the signed tx
+```bash
+$ cardano-cli conway transaction submit --tx-file  tx.signed --testnet-magic 1
+```
