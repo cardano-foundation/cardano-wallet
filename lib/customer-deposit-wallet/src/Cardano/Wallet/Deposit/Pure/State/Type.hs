@@ -1,3 +1,4 @@
+{-# LANGUAGE StrictData #-}
 module Cardano.Wallet.Deposit.Pure.State.Type
     ( -- * Types
       WalletState (..)
