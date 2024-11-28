@@ -47,3 +47,41 @@ b79e1b895406ca8d70c6471c714e7908314e715b018a46fb3d3931ee
 $ cardano-address address payment --network-tag testnet < key.xvk
 addr_test1vzmeuxuf2srv4rtscer3cu2w0yyrznn3tvqc53hm85unrmsg4m9cg
 ```
+
+4. Mapping *key.xsk* to the key suitable for cardano-cli
+```bash
+$ cardano-cli key convert-cardano-address-key --shelley-payment-key --signing-key-file key.xsk --out-file key.skey
+$ cat key.skey
+{
+    "type": "PaymentExtendedSigningKeyShelley_ed25519_bip32",
+    "description": "",
+    "cborHex": "5880a85c89dea0f53d642653538f108f7757ad2a1f2b247b862df26195f71984a55e8db688e215940cadf899513eb3d964d56bbfa96ae2af40bfc497f87956c9c2ed6d8124102a5b40febd63cf81fb846d19ce3a97d67f9407f95afdf86a988932f09e8103ae93752e1ed2fbe941c8fc474c44994a826e5e7431453a33feb9c80976"
+}
+```
+Remark: *cborHex* contains:
+- prefix 5880 staking that the bytestring is 128 bytes
+- signing key (64 bytes)
+- verification key (32 bytes)
+- chain code (32 bytes)
+One can confirm this using `cardano-address key inspect`, `cardano-address key public` and `cardano-address key private` options
+
+5. The corresponding verification key
+```bash
+$ cardano-cli key verification-key --signing-key-file key.skey --verification-key-file key.vkey
+$ cat key.vkey
+{
+    "type": "PaymentExtendedVerificationKeyShelley_ed25519_bip32",
+    "description": "",
+    "cborHex": "58406d8124102a5b40febd63cf81fb846d19ce3a97d67f9407f95afdf86a988932f09e8103ae93752e1ed2fbe941c8fc474c44994a826e5e7431453a33feb9c80976"
+}
+```
+Remark: *cborHex* contains:
+- prefix 5840 staking that the bytestring is 64 bytes
+- verification key (32 bytes)
+- chain code (32 bytes)
+
+6. The corresponding key hash (the same like in point 2 above)
+```bash
+$ cardano-cli address key-hash --payment-verification-key-file key.vkey
+b79e1b895406ca8d70c6471c714e7908314e715b018a46fb3d3931ee
+```
