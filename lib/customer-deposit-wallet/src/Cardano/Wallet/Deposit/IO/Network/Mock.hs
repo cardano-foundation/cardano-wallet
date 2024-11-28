@@ -91,8 +91,7 @@ newNetworkEnvMock = do
                 pure $ Right ()
             , currentPParams =
                 pure $ Read.EraValue Read.mockPParamsConway
-            , getTimeInterpreter =
-                pure Time.mockTimeInterpreter
+            , getTimeTranslation =
+                pure $ Time.toTimeTranslationPure Time.mockTimeInterpreter
             , slotToUTCTime = pure Time.unsafeUTCTimeOfSlot
-            , utcTimeToSlot = pure . Just . Time.unsafeSlotOfUTCTime
             }

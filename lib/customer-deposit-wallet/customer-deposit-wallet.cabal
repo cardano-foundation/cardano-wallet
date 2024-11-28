@@ -78,6 +78,7 @@ library
     , digest
     , fingertree
     , io-classes
+    , int-cast
     , lens
     , MonadRandom
     , monoidal-containers
@@ -92,6 +93,7 @@ library
     Cardano.Wallet.Deposit.IO
     Cardano.Wallet.Deposit.IO.DB
     Cardano.Wallet.Deposit.IO.Network.Mock
+    Cardano.Wallet.Deposit.IO.Network.NodeToClient
     Cardano.Wallet.Deposit.IO.Network.Type
     Cardano.Wallet.Deposit.IO.Resource
     Cardano.Wallet.Deposit.IO.Resource.Event
