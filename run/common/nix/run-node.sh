@@ -4,8 +4,10 @@
 # set -euox pipefail
 set -euo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # shellcheck disable=SC1091
-source .env
+source ${SCRIPT_DIR}/.env
 
 mkdir -p ./databases
 
