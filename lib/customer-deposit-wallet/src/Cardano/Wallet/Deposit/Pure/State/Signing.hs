@@ -11,12 +11,9 @@ import Cardano.Crypto.Wallet
     )
 import Cardano.Wallet.Address.BIP32
     ( BIP32Path (..)
-    , DerivationType (..)
     )
 import Cardano.Wallet.Address.BIP32_Ed25519
-    ( XPrv
-    , deriveXPrvHard
-    , deriveXPrvSoft
+    ( deriveXPrvBIP32Path
     )
 import Cardano.Wallet.Deposit.Pure.State.Submissions
     ( availableUTxO
@@ -71,12 +68,5 @@ signTx tx passphrase w = signTx' <$> rootXSignKey w
                 (T.encodeUtf8 passphrase)
                 BS.empty
                 encryptedXPrv
-        keys = deriveBIP32Path unencryptedXPrv
+        keys = deriveXPrvBIP32Path unencryptedXPrv
             <$> getBIP32PathsForOwnedInputs tx w
-
-deriveBIP32Path :: XPrv -> BIP32Path -> XPrv
-deriveBIP32Path xprv Root = xprv
-deriveBIP32Path xprv (Segment path Hardened ix) =
-    deriveXPrvHard (deriveBIP32Path xprv path) ix
-deriveBIP32Path xprv (Segment path Soft ix) =
-    deriveXPrvSoft (deriveBIP32Path xprv path) ix

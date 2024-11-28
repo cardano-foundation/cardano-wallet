@@ -117,6 +117,7 @@ library
     Cardano.Wallet.Deposit.Testing.DSL.Types
     Cardano.Wallet.Deposit.Time
     Cardano.Wallet.Deposit.Write
+    Cardano.Wallet.Deposit.Write.Keys
 
 test-suite scenario
   import:             language, opts-exe
@@ -216,6 +217,9 @@ test-suite unit
     , base58-bytestring
     , bytestring
     , cardano-crypto
+    , cardano-crypto-class
+    , cardano-ledger-api
+    , cardano-ledger-core
     , cardano-ledger-core:testlib
     , cardano-wallet-read
     , cardano-wallet-test-utils
@@ -224,6 +228,7 @@ test-suite unit
     , customer-deposit-wallet
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
+    , customer-deposit-wallet-pure
     , directory
     , hspec
     , hspec-golden
@@ -246,6 +251,7 @@ test-suite unit
     Cardano.Wallet.Deposit.Pure.API.AddressSpec
     Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
+    Cardano.Wallet.Deposit.Write.KeysSpec
     Paths_customer_deposit_wallet
     Spec
 
