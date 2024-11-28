@@ -325,7 +325,7 @@ createPayment
     -> WalletInstance
     -> IO (Either Wallet.ErrCreatePayment Write.Tx)
 createPayment a w = do
-    timeTranslation <- Network.getTimeInterpreter network
+    timeTranslation <- Network.getTimeTranslation network
     pparams <-
         Network.currentPParams network
     Wallet.createPayment pparams timeTranslation a <$> readWalletState w

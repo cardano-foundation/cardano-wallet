@@ -3,7 +3,6 @@
 
 module Cardano.Wallet.Deposit.REST.Start
     ( loadDepositWalletFromDisk
-    , newFakeBootEnv
     , newBootEnv
     , mockFundTheWallet
     )
@@ -14,9 +13,6 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (..)
     )
-import Cardano.Wallet.Deposit.IO.Network.Mock
-    ( newNetworkEnvMock
-    )
 import Cardano.Wallet.Deposit.IO.Network.NodeToClient
     ( CardanoBlock
     , NetworkLayer
@@ -25,7 +21,6 @@ import Cardano.Wallet.Deposit.IO.Network.NodeToClient
     )
 import Cardano.Wallet.Deposit.IO.Network.Type
     ( NetworkEnv
-    , mapBlock
     , postTx
     )
 import Cardano.Wallet.Deposit.REST
@@ -120,23 +115,6 @@ mockFundTheWallet network resource = flip runWalletResourceM resource $ do
                 $ addTxOut (mkTxOut address (mkAda 1_000_000)) emptyTxBody
     Right () <- liftIO $ postTx network tx
     pure ()
-
-newFakeBootEnv :: Maybe FilePath -> IO (WalletBootEnv IO)
-newFakeBootEnv genesisFile = do
-    eGenesisData <- runExceptT $ case genesisFile of
-        Nothing -> ExceptT $ pure $ Right Read.mockGenesisDataMainnet
-        Just file -> fst <$> Byron.readGenesisData file
-    print genesisFile
-    print eGenesisData
-    print $ Read.getNetworkId <$> eGenesisData
-    case eGenesisData of
-        Left e -> error $ show e
-        Right genesisData' ->
-            WalletBootEnv
-                (show >$< stdoutTracer)
-                genesisData'
-                . mapBlock Read.EraValue
-                <$> newNetworkEnvMock
 
 newBootEnv
     :: Maybe FilePath

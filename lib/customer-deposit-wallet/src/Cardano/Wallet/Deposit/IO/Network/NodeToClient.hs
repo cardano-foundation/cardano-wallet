@@ -6,10 +6,7 @@
 --
 -- Real implementation of a 'NetworkEnv'.
 module Cardano.Wallet.Deposit.IO.Network.NodeToClient
-    ( withNetwork
-
-    -- * Network Layer compatibility
-    , fromNetworkLayer
+    ( fromNetworkLayer
     , NetworkLayer
     , CardanoBlock
     , StandardCrypto
@@ -17,9 +14,6 @@ module Cardano.Wallet.Deposit.IO.Network.NodeToClient
 
 import Prelude
 
-import Cardano.Launcher.Node
-    ( CardanoNodeConn
-    )
 import Cardano.Ledger.Api
     ( StandardCrypto
     )
@@ -35,21 +29,11 @@ import Cardano.Wallet.Network
     ( NetworkLayer
     , mapChainFollower
     )
-import Cardano.Wallet.Network.Implementation.Ouroboros
-    ( tunedForMainnetPipeliningStrategy
-    )
 import Cardano.Wallet.Primitive.Ledger.Shelley
     ( CardanoBlock
-    , NodeToClientVersionData
     )
 import Cardano.Wallet.Primitive.Slotting
     ( snapshot
-    )
-import Cardano.Wallet.Primitive.SyncProgress
-    ( SyncTolerance
-    )
-import Cardano.Wallet.Primitive.Types.NetworkParameters
-    ( NetworkParameters
     )
 import Cardano.Wallet.Read
     ( chainPointFromChainTip
@@ -61,41 +45,15 @@ import Control.Monad.Trans.Except
 import Control.Tracer
     ( nullTracer
     )
-import GHC.Stack
-    ( HasCallStack
-    )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Time as Time
 import qualified Cardano.Wallet.Network as NetworkLayer
-import qualified Cardano.Wallet.Network.Implementation as NetworkLayer
 
 {-----------------------------------------------------------------------------
     NodeToClient 'NetworkEnv'
 ------------------------------------------------------------------------------}
-
-withNetwork
-    :: HasCallStack
-    => NetworkParameters
-    -- ^ Initial blockchain parameters
-    -> CardanoNodeConn
-    -- ^ Socket for communicating with the node
-    -> NodeToClientVersionData
-    -- ^ Codecs for the node's client
-    -> SyncTolerance
-    -> (NetworkEnv IO (Read.EraValue Read.Block) -> IO a)
-    -- ^ Callback function with the network layer
-    -> IO a
-withNetwork np conn vData syncTol act =
-    NetworkLayer.withNetworkLayer
-        nullTracer -- Using this for now
-        tunedForMainnetPipeliningStrategy
-        np
-        conn
-        vData
-        syncTol
-        (act .  fromNetworkLayer)
 
 -- | Translate the old NetworkLayer to the new NetworkEnv interface
 fromNetworkLayer
@@ -113,9 +71,8 @@ fromNetworkLayer nl = mapBlock Read.fromConsensusBlock $
         , postTx = runExceptT . withExceptT translateErrPostTx . NetworkLayer.postTx nl
         , currentPParams =
             NetworkLayer.currentPParams nl
-        , getTimeInterpreter = toTimeTranslation (NetworkLayer.timeInterpreter nl)
+        , getTimeTranslation = toTimeTranslation (NetworkLayer.timeInterpreter nl)
         , slotToUTCTime = Time.slotToUTCTime <$> snapshot ti
---        , utcTimeToSlot = pure . Just . Time.unsafeSlotOfUTCTime
         }
 
   where

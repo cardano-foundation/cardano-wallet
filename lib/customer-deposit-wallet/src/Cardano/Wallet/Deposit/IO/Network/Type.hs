@@ -58,16 +58,12 @@ data NetworkEnv m block = NetworkEnv
     , currentPParams
         :: m (Read.EraValue Read.PParams)
     -- ^ Current protocol paramters.
-    , getTimeInterpreter
+    , getTimeTranslation
         :: m Time.TimeTranslation
         -- ^ Get the current 'TimeInterpreter' from the Cardano node.
     , slotToUTCTime
         :: m (Slot -> (Maybe (WithOrigin UTCTime)))
 
---    -- ^ Try to convert a set of slots to their UTCTimes counterparts
---    , utcTimeToSlot
---        :: UTCTime
---        -> m (Maybe Slot)
     }
 
 mapBlock

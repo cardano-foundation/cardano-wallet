@@ -67,7 +67,6 @@ library
     , cardano-ledger-core
     , cardano-strict-containers
     , cardano-wallet
-    , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read           ==0.2024.8.27

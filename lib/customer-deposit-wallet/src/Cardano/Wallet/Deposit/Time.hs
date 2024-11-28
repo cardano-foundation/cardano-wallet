@@ -94,26 +94,21 @@ mockSlottingParameters = SlottingParameters
     , getSecurityParameter = Quantity 2_160
     }
 
-type LookupTimeFromSlot = Slot -> Maybe (WithOrigin UTCTime)
-
 {-----------------------------------------------------------------------------
     TimeInterpreter
 ------------------------------------------------------------------------------}
 
--- TODO: Is this the start time of the slot?
+type LookupTimeFromSlot = Slot -> Maybe (WithOrigin UTCTime)
+
+-- | Look up the UTCTime corresponding to the start of the provided `Slot`.
+--
+-- TODO: Check roundtrip properties once we need to implement the corresponding 'utcTimeToSlot'.
 slotToUTCTime :: TimeInterpreter -> LookupTimeFromSlot
-slotToUTCTime _ti Origin = Just Origin --either (const Nothing) Just $ interpretQuery ti $ Primitive.slotToUTCTime minBound
+slotToUTCTime _ti Origin = Just Origin
 slotToUTCTime ti (At s) = either (const Nothing) (Just . At) . interpretQuery ti . Primitive.slotToUTCTime =<< convertSlotNo s
   where
     convertSlotNo :: SlotNo -> Maybe Primitive.SlotNo
     convertSlotNo (SlotNo n) = Primitive.SlotNo <$> intCastMaybe n
-
---utcTimeToSlot :: TimeInterpreter -> UTCTime -> Maybe Slot
---utcTimeToSlot ti t = either (const Nothing) Just . interpretQuery ti $ do
---    ongoingSlotAt $ toRelativeTime startTime t
---  where
---    convertSlotNo :: Primitive.SlotNo -> SlotNo
---    convertSlotNo (Primitive.SlotNo n) = SlotNo $ intCast n
 
 -- TODO: Rename to mainnetUTCTimeOfSlot
 -- TODO: Move to tests?
