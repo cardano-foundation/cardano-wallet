@@ -6,6 +6,7 @@
 module Cardano.Wallet.Deposit.Pure.State.Payment
     ( ErrCreatePayment (..)
     , createPayment
+    , createPaymentTxBody
     , CurrentEraResolvedTx
     , resolveCurrentEraTx
     ) where
@@ -69,29 +70,60 @@ type CurrentEraResolvedTx = ResolvedTx Read.Conway
 resolveCurrentEraTx :: Tx -> WalletState -> CurrentEraResolvedTx
 resolveCurrentEraTx tx w = resolveInputs (availableUTxO w) tx
 
--- | Create a payment to a list of destinations.
 createPayment
     :: Read.EraValue Read.PParams
     -> Write.TimeTranslation
     -> [(Address, Write.Value)]
     -> WalletState
     -> Either ErrCreatePayment CurrentEraResolvedTx
-createPayment (Read.EraValue (Read.PParams pparams :: Read.PParams era)) a b w =
-    case Read.theEra :: Read.Era era of
-        Read.Conway ->
-            first ErrCreatePaymentBalanceTx
-                $ flip resolveCurrentEraTx w
-                    <$> createPaymentConway pparams a b w
-        era' -> Left $ ErrCreatePaymentNotRecentEra (Read.EraValue era')
+createPayment pp tt destinations w =
+    createPaymentTxBody pp tt (mkPaymentTxBody w destinations) w
+
+-- | Create a payment to a list of destinations.
+createPaymentTxBody
+    :: Read.EraValue Read.PParams
+    -> Write.TimeTranslation
+    -> TxBody
+    -> WalletState
+    -> Either ErrCreatePayment CurrentEraResolvedTx
+createPaymentTxBody
+    (Read.EraValue (Read.PParams pparams :: Read.PParams era))
+    timeTranslation
+    txBody
+    state =
+        case Read.theEra :: Read.Era era of
+            Read.Conway ->
+                first ErrCreatePaymentBalanceTx
+                    $ flip resolveCurrentEraTx state
+                        <$> createPaymentConway
+                            pparams
+                            timeTranslation
+                            txBody
+                            state
+            era' -> Left $ ErrCreatePaymentNotRecentEra (Read.EraValue era')
+
+mkPaymentTxBody
+    :: WalletState -> [(Address, Write.Value)] -> Write.TxBody
+mkPaymentTxBody w destinations =
+    Write.TxBody
+        { spendInputs = mempty
+        , collInputs = mempty
+        , txouts =
+            Map.fromList
+                $ zip [(toEnum 0) ..]
+                $ map (uncurry Write.mkTxOut) destinations
+        , collRet = Nothing
+        , expirySlot = Just . computeExpirySlot $ walletTip w
+        }
 
 -- | In the Conway era: Create a payment to a list of destinations.
 createPaymentConway
     :: Write.PParams Write.Conway
     -> Write.TimeTranslation
-    -> [(Address, Write.Value)]
+    -> TxBody
     -> WalletState
     -> Either (Write.ErrBalanceTx Write.Conway) Write.Tx
-createPaymentConway pparams timeTranslation destinations w =
+createPaymentConway pparams timeTranslation body w =
     fmap (Read.Tx . fst)
         . flip Random.evalRand (pilferRandomGen w)
         . runExceptT
@@ -99,21 +131,8 @@ createPaymentConway pparams timeTranslation destinations w =
             (availableUTxO w)
             (addresses w)
         . mkPartialTx
-        $ paymentTxBody
+        $ body
   where
-    paymentTxBody :: Write.TxBody
-    paymentTxBody =
-        Write.TxBody
-            { spendInputs = mempty
-            , collInputs = mempty
-            , txouts =
-                Map.fromList
-                    $ zip [(toEnum 0) ..]
-                    $ map (uncurry Write.mkTxOut) destinations
-            , collRet = Nothing
-            , expirySlot = Just . computeExpirySlot $ walletTip w
-            }
-
     mkPartialTx :: Write.TxBody -> Write.PartialTx Write.Conway
     mkPartialTx txbody =
         Write.PartialTx
