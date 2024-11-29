@@ -257,6 +257,7 @@ test-suite unit
     Cardano.Wallet.Deposit.HTTP.OpenAPISpec
     Cardano.Wallet.Deposit.Map.TimedSpec
     Cardano.Wallet.Deposit.Pure.API.AddressSpec
+    Cardano.Wallet.Deposit.Pure.API.TransactionSpec
     Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
     Cardano.Wallet.Deposit.Write.KeysSpec

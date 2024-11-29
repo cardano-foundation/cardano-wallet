@@ -19,7 +19,6 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Deposit.Pure
     ( Credentials
-    , Customer
     )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( LookupTimeFromSlot
@@ -92,10 +91,6 @@ timeFromSlot = unsafeUTCTimeOfSlot
 unsafeTimeForSlot :: Read.Slot -> Read.WithOrigin UTCTime
 unsafeTimeForSlot = fromJust . timeFromSlot
 
-unsafeCustomerAddress
-    :: Wallet.WalletState -> Customer -> Write.Address
-unsafeCustomerAddress w = fromJust . flip Wallet.customerAddress w
-
 testOnWallet
     :: ScenarioP
         (IO ())
@@ -106,7 +101,6 @@ testOnWallet =
     interpret
         emptyWalletWith17Addresses
         id
-        (unsafeCustomerAddress emptyWalletWith17Addresses)
         unsafeTimeForSlot
 
 spec :: Spec
