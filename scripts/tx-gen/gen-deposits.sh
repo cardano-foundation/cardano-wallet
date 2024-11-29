@@ -107,11 +107,12 @@ fi
 declare current_adas
 declare current_addresses
 
-MAX_TX_SIZE=$(cat protocol-params.json| jq .maxTxSize)
+MAX_TX_SIZE=$(jq .maxTxSize protocol-params.json)
 
 tx_num=0
 
 if ls tx.*.signed > /dev/null 2>&1 ; then
+  # shellcheck disable=SC2012
   last_signed_tx=$(ls tx.*.signed | sort -r -n -t '.' -k2 | head -1)
   tx_num=$(( $(expr "$last_signed_tx" : 'tx.\(.*\).signed') + 1 ))
 fi
@@ -124,13 +125,14 @@ try_building_tx () {
 
   args="--protocol-params-file protocol-params.json --shelley-key-witnesses 1 --change-address ${change_address} --out-file ${tmp_raw} --tx-in ${current_tx_in}"
 
-  for i in ${!current_adas[@]}; do
+  for i in "${!current_adas[@]}"; do
     args+=" --tx-out ${current_addresses[$i]}+$(( ${current_adas[$i]} * 1000000 ))"
-    accumulated_deposits=$(( ${accumulated_deposits} + (${current_adas[$i]} * 1000000) ))
+    accumulated_deposits=$(( accumulated_deposits + (current_adas[i] * 1000000) ))
   done
 
   args+=" --total-utxo-value ${total_utxo_value}"
 
+  # shellcheck disable=SC2086
   if ! cardano-cli conway transaction build-estimate $args; then
     echo "failed to build txs with ${#current_addresses[@]} outputs"
     return 1 # retry
@@ -138,6 +140,7 @@ try_building_tx () {
     echo "${accumulated_deposits} greater than requested ${max_amount}"
     return 1
   else
+    # shellcheck disable=SC2012
     tx_size=$(ls -l ${tmp_raw} | tr -s ' ' | cut -d ' ' -f 5)
 
     # check the size of the raw transaction
@@ -147,7 +150,7 @@ try_building_tx () {
     else
       cp ${tmp_raw} ${raw}
       echo "built transaction with ${#current_addresses[@]} outputs (${tx_size}B)"
-      cardano-cli conway transaction sign --tx-file ${raw} --signing-key-file ${signing_key_file} --testnet-magic 1 --out-file ${signed}
+      cardano-cli conway transaction sign --tx-file ${raw} --signing-key-file "${signing_key_file}" --testnet-magic 1 --out-file ${signed}
     fi
 
   fi
@@ -158,23 +161,23 @@ for r in $random_u32; do
   acct_id=$((r % 10 ))
 
   # derive public address
-  account_address=$(cat root.prv | cardano-address key child "1857H/1815H/0H/0/${acct_id}" | cardano-address key public --with-chain-code | cardano-address address payment --network-tag preprod)
+  account_address=$(cardano-address key child "1857H/1815H/0H/0/${acct_id}" < root.prv | cardano-address key public --with-chain-code | cardano-address address payment --network-tag preprod)
 
-  # generate an amount of ADA between 5 and 1000
+  # generate an amount of ADAT between 5 and 1000
   rand=$(dd if=/dev/urandom count=4 bs=1 2> /dev/null | od -t u4 | tr -s ' ' | cut -d ' ' -f2 | head -1)
   adas=$(( 50 + rand % 500 ))
 
-  current_adas+=( $adas )
-  current_addresses+=( $account_address )
+  current_adas+=( "$adas" )
+  current_addresses+=( "$account_address" )
 
   # try to construct a tx paying to all current addresses
   try_building_tx
   if [[ $? -eq 1 ]] ; then
     signed=tx.${tx_num}.signed
     echo "build transaction ${tx_num}: $(cardano-cli conway transaction txid --tx-file ${signed})"
-    tx_num=$(( $tx_num + 1 ))
+    tx_num=$(( tx_num + 1 ))
     total_utxo_value=$(cardano-cli debug transaction view --tx-file ${signed} | jq ".outputs[] | select ( .address == \"${change_address}\") | .amount.lovelace")
-    echo "remaining ₳$(( ${total_utxo_value} / 1000000 )) (${total_utxo_value} lovelaces)"
+    echo "remaining ₳$(( total_utxo_value / 1000000 )) (${total_utxo_value} lovelaces)"
     # need to retry
     break
   fi
