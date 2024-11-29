@@ -61,7 +61,7 @@ signTx :: Write.Tx -> Passphrase -> WalletState -> Maybe Write.Tx
 signTx tx passphrase w = signTx' <$> rootXSignKey w
   where
     signTx' encryptedXPrv =
-        foldr Write.addAddressWitness tx keys
+        foldr Write.addSignature tx keys
       where
         unencryptedXPrv =
             xPrvChangePass

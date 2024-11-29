@@ -34,7 +34,7 @@ module Cardano.Wallet.Deposit.Write
     , Write.balanceTx
 
       -- * Signing
-    , addAddressWitness
+    , addSignature
 
       -- ** Time interpreter
     , Write.TimeTranslation
@@ -42,6 +42,7 @@ module Cardano.Wallet.Deposit.Write
       -- * Helper functions
     , mkAda
     , mkTxOut
+    , txOutsL
     , toConwayTx
     , addTxIn
     , addTxOut
@@ -120,9 +121,8 @@ type Block = Read.Block Read.Conway
     Signing
 ------------------------------------------------------------------------------}
 -- | Add a signature to the transaction using the private key
--- corresponding to a payment address.
-addAddressWitness :: XPrv -> Tx -> Tx
-addAddressWitness xprv tx@(Read.Tx ledgerTx) =
+addSignature :: XPrv -> Tx -> Tx
+addSignature xprv tx@(Read.Tx ledgerTx) =
     Read.Tx
         (ledgerTx & (L.witsTxL . L.addrTxWitsL) %~ Set.insert witnessVKey)
   where
