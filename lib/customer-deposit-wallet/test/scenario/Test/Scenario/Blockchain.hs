@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {-|
@@ -39,6 +40,9 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     )
 import Cardano.Wallet.Deposit.Pure
     ( BIP32Path
+    )
+import Control.Concurrent
+    ( threadDelay
     )
 import Control.Tracer
     ( nullTracer
@@ -135,4 +139,6 @@ signTx _ _ = id
 submitTx :: ScenarioEnv -> Write.Tx -> IO ()
 submitTx env tx = do
     _ <- postTx (networkEnv env) tx
-    pure ()
+
+    -- Wait a short while to give the tx time to make it on-chain.
+    threadDelay 500_000
