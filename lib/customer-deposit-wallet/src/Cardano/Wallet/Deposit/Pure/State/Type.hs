@@ -1,3 +1,4 @@
+{-# LANGUAGE StrictData #-}
 module Cardano.Wallet.Deposit.Pure.State.Type
     ( -- * Types
       WalletState (..)
@@ -52,17 +53,17 @@ data WalletState = WalletState
     { walletTip :: Read.ChainPoint
     -- ^ The wallet includes information from all blocks until
     -- and including this one.
-    , addresses :: !Address.AddressState
+    , addresses :: Address.AddressState
     -- ^ Addresses and public keys known to this wallet.
-    , utxoHistory :: !UTxOHistory.UTxOHistory
+    , utxoHistory :: UTxOHistory.UTxOHistory
     -- ^ UTxO of this wallet, with support for rollbacks.
-    , txHistory :: !TxHistory
+    , txHistory :: TxHistory
     -- ^ (Summarized) transaction history of this wallet.
     , submissions :: Sbm.TxSubmissions
     -- ^ Queue of pending transactions.
     , rootXSignKey :: Maybe XPrv
     -- ^ Maybe a private key for signing transactions.
-    -- , info :: !WalletInfo
+    -- , info :: WalletInfo
     }
 
 type DeltaWalletState = Delta.Replace WalletState
