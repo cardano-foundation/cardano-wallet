@@ -49,17 +49,19 @@ lg :: (MonadIO m, Show a) => Tracer IO String -> String -> a -> m ()
 lg tr p x = liftIO $ traceWith tr $ p <> ": " <> show x
 
 loadDepositWalletFromDisk
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
     -> IO ()
-loadDepositWalletFromDisk tr dir env resource = do
+loadDepositWalletFromDisk wtc tr dir env resource = do
     result <- flip runWalletResourceM resource $ do
         test <- liftIO $ walletExists dir
         when test $ do
             lg tr "Loading wallet from" dir
-            loadWallet env dir
+            loadWallet wtc env dir
             lg tr "Wallet loaded from" dir
         pure test
     case result of
