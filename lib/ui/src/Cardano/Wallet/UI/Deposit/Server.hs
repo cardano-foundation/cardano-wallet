@@ -126,6 +126,7 @@ import Cardano.Wallet.UI.Deposit.Server.Wallet
     , servePostMnemonicWallet
     , servePostXPubWallet
     , serveWalletPage
+    , serveWalletStatus
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -183,7 +184,7 @@ serveUI wtc tr ul env dbDir config nid nl bs =
         :<|> serveSSE ul
         :<|> serveFavicon
         :<|> serveMnemonic
-        :<|> serveWalletPage (networkEnv env) ul
+        :<|> serveWalletPage ul
         :<|> servePostMnemonicWallet wtc tr env dbDir ul
         :<|> servePostXPubWallet wtc tr env dbDir ul
         :<|> serveDeleteWallet ul dbDir
@@ -209,6 +210,7 @@ serveUI wtc tr ul env dbDir config nid nl bs =
         :<|> servePaymentsSign ul
         :<|> servePaymentsSubmit ul
         :<|> servePaymentsReset ul
+        :<|> serveWalletStatus (networkEnv env) ul
 
 serveModal
     :: UILayer WalletResource

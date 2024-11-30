@@ -13,10 +13,17 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , deleteWallet
     , initWallet
+    )
+import Cardano.Wallet.Deposit.REST.Wallet.Create
+    ( PostWalletViaMnemonic
+    , PostWalletViaXPub
     )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
@@ -45,6 +52,7 @@ import Cardano.Wallet.UI.Cookies
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
+    , getStatus
     , getWallet
     , postMnemonicWallet
     , postXPubWallet
@@ -52,6 +60,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( deleteWalletModalH
     , walletElementH
+    , walletStatusH
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( alert
@@ -70,14 +79,6 @@ import Servant
     ( Handler
     )
 
-import Cardano.Wallet.Deposit.IO.Network.Type
-    ( NetworkEnv
-    )
-import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMnemonic
-    , PostWalletViaXPub
-    )
-
 serveMnemonic
     :: Maybe Bool
     -> Maybe RequestCookies
@@ -88,13 +89,12 @@ serveMnemonic hintOrClean =
             <$> liftIO (pickMnemonic 15 hintOrClean)
 
 serveWalletPage
-    :: NetworkEnv IO x
-    -> UILayer WalletResource
+    :: UILayer WalletResource
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-serveWalletPage nenv ul = withSessionLayer ul $ \layer -> do
-    getWallet nenv layer alert $ \presence status ->
-        renderSmoothHtml $ walletElementH alertH presence status
+serveWalletPage ul = withSessionLayer ul $ \layer -> do
+    getWallet layer $ \presence ->
+        renderSmoothHtml $ walletElementH alertH presence
 
 servePostMnemonicWallet
     :: Tracer IO ()
@@ -146,3 +146,11 @@ serveDeleteWalletModal
     -> Handler (CookieResponse RawHtml)
 serveDeleteWalletModal ul = withSessionLayer ul $ \_ ->
     pure $ renderSmoothHtml deleteWalletModalH
+
+serveWalletStatus
+    :: NetworkEnv IO x
+    -> UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveWalletStatus nenv ul = withSessionLayer ul $ \l ->
+    renderHtml <$> getStatus nenv l alertH walletStatusH
