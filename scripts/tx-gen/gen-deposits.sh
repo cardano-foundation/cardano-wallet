@@ -132,24 +132,22 @@ try_building_tx () {
 
   args+=" --total-utxo-value ${total_utxo_value}"
 
+  num_utxo=${#current_addresses[@]}
+
   # shellcheck disable=SC2086
   if ! cardano-cli conway transaction build-estimate $args; then
-    echo "failed to build txs with ${#current_addresses[@]} outputs"
-    return 1 # retry
+    return ${num_utxo}
   elif [[ ${accumulated_deposits} -gt ${max_amount} ]] ; then
-    echo "${accumulated_deposits} greater than requested ${max_amount}"
-    return 1
+    return ${num_utxo}
   else
     # shellcheck disable=SC2012
     tx_size=$(ls -l ${tmp_raw} | tr -s ' ' | cut -d ' ' -f 5)
 
     # check the size of the raw transaction
     if [[ tx_size -gt $((MAX_TX_SIZE - 300)) ]]; then
-      echo "tx too large"
-      return 1 #retry
+      return ${num_utxo}
     else
       cp ${tmp_raw} ${raw}
-      echo "built transaction with ${#current_addresses[@]} outputs (${tx_size}B)"
       cardano-cli conway transaction sign --tx-file ${raw} --signing-key-file "${signing_key_file}" --testnet-magic 1 --out-file ${signed}
     fi
 
@@ -172,12 +170,13 @@ for r in $random_u32; do
 
   # try to construct a tx paying to all current addresses
   try_building_tx
-  if [[ $? -eq 1 ]] ; then
+  num_utxo=$?
+  if [[ $num_utxo -gt 0 ]] ; then
     signed=tx.${tx_num}.signed
-    echo "build transaction ${tx_num}: $(cardano-cli conway transaction txid --tx-file ${signed})"
+    tx_id=$(cardano-cli conway transaction txid --tx-file ${signed})
     tx_num=$(( tx_num + 1 ))
     total_utxo_value=$(cardano-cli debug transaction view --tx-file ${signed} | jq ".outputs[] | select ( .address == \"${change_address}\") | .amount.lovelace")
-    echo "remaining ₳$(( total_utxo_value / 1000000 )) (${total_utxo_value} lovelaces)"
+    echo "${tx_id}#$(( num_utxo -1 )) ${total_utxo_value}"
     # need to retry
     break
   fi
