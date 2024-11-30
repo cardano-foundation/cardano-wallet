@@ -58,14 +58,12 @@ import Servant
 import qualified Data.ByteString.Lazy.Char8 as BL
 
 getWallet
-    :: NetworkEnv IO x
-    -> SessionLayer WalletResource
-    -> (BL.ByteString -> html) -- alert
-    -> (WalletPresent -> Status -> html) -- success report
+    :: SessionLayer WalletResource
+    -> (WalletPresent -> html) -- success report
     -> Handler html
-getWallet nenv layer alert render = do
+getWallet layer render = do
     presence <- walletPresence layer
-    getStatus nenv layer alert (render presence)
+    pure $ render presence
 
 initWalletWithXPub
     :: SessionLayer WalletResource
@@ -145,7 +143,6 @@ getStatusRest nenv = do
         <*> pure (slotToTime $ slotFromChainPoint tip)
         <*> availableBalance
         <*> networkTag
-
 getStatus
     :: NetworkEnv IO x
     -> SessionLayer WalletResource

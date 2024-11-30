@@ -55,6 +55,7 @@ import Cardano.Wallet.UI.Deposit.API
     , walletMnemonicLink
     , walletPostMnemonicLink
     , walletPostXPubLink
+    , walletStatusLink
     )
 import Cardano.Wallet.UI.Deposit.Html.Common
     ( chainPointToSlotH
@@ -159,23 +160,26 @@ deleteWalletModalH =
                     "Cancel"
             }
 
+walletStatusH :: Status -> Html ()
+walletStatusH status = do
+    box "Status" mempty
+        $ record (Just 13) Full Striped
+        $ do
+            simpleField "Tip Slot" $ do
+                chainPointToSlotH $ tip status
+            simpleField "Tip Time" $ do
+                maybe mempty (withOriginH timeH) (tipTime status)
+            simpleField "Balance" $ valueH $ balance status
+            simpleField "Network" $ networkTagH $ network status
+
 walletElementH
     :: (BL.ByteString -> Html ())
     -> WalletPresent
-    -> Status
     -> Html ()
-walletElementH alert presence status = case presence of
+walletElementH alert presence = case presence of
     WalletPresent (WalletPublicIdentity xpub customers) -> do
-        div_ [class_ "row mt-2 gx-0"] $ do
-            box "Status" mempty
-                $ record (Just 13) Full Striped
-                $ do
-                    simpleField "Tip" $ do
-                        chainPointToSlotH $ tip status
-                    simpleField "Tip Time" $ do
-                        maybe mempty (withOriginH timeH) (tipTime status)
-                    simpleField "Balance" $ valueH $ balance status
-                    simpleField "Network" $ networkTagH $ network status
+        div_ [class_ "row mt-2 gx-0"]
+            $ sseH walletStatusLink "wallet-status" ["wallet-tip"]
         div_ [class_ "row mt-2 gx-0"] $ do
             box "Public Identity" mempty
                 $ record (Just 13) Full Striped

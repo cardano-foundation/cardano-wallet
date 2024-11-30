@@ -119,7 +119,7 @@ withInitializedWallet f =
     withSystemTempDirectory "wallet-ui" $ \dir -> do
         bootEnv <- fakeBootEnv
         withWallet $ do
-            initWallet nullTracer bootEnv dir credentials 1
+            initWallet nullTracer nullTracer bootEnv dir credentials 1
             letItInitialize
             fundTheWallet (networkEnv bootEnv)
             f

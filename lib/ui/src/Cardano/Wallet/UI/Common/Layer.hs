@@ -174,7 +174,12 @@ mkUILayer
     -> UILayer s
 mkUILayer throttling oobChan sessions' s0 = UILayer{..}
   where
-    oobMessages = Tracer $ atomically . writeTChan oobChan . messageOfPush
+    oobMessages =
+        Tracer
+            $ throttling
+                . atomically
+                . writeTChan oobChan
+                . messageOfPush
     sessions sid = do
         sids <- readTVarIO sessions'
         case Map.lookup sid sids of
