@@ -13,6 +13,7 @@ module Cardano.Wallet.UI.Common.Layer
     , stateL
     , sseEnabled
     , sourceOfNewTip
+    , walletTipChanges
     )
 where
 
@@ -123,6 +124,9 @@ data SessionLayer s = SessionLayer
 
 messageOfPush :: Push -> Message
 messageOfPush (Push x) = Message x mempty
+
+walletTipChanges :: () -> Push
+walletTipChanges _ = Push "wallet-tip"
 
 -- | Create a session layer giver the state and the server-sent events channel.
 mkSession :: TVar (State s) -> TChan Message -> SessionLayer s

@@ -97,34 +97,38 @@ serveWalletPage nenv ul = withSessionLayer ul $ \layer -> do
         renderSmoothHtml $ walletElementH alertH presence status
 
 servePostMnemonicWallet
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> WalletBootEnv IO
     -> FilePath
     -> UILayer WalletResource
     -> PostWalletViaMnemonic
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-servePostMnemonicWallet tr env dbDir ul request =
+servePostMnemonicWallet wtc tr env dbDir ul request =
     withSessionLayer ul $ \layer -> do
         postMnemonicWallet layer initWallet' alert ok request
   where
     ok _ = renderHtml . rogerH @Text $ "ok"
-    initWallet' = initWallet tr env dbDir
+    initWallet' = initWallet wtc tr env dbDir
 
 servePostXPubWallet
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> WalletBootEnv IO
     -> FilePath
     -> UILayer WalletResource
     -> PostWalletViaXPub
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-servePostXPubWallet tr env dbDir ul request =
+servePostXPubWallet wtc tr env dbDir ul request =
     withSessionLayer ul $ \layer -> do
         postXPubWallet layer initWallet' alert ok request
   where
     ok _ = renderHtml . rogerH @Text $ "ok"
-    initWallet' = initWallet tr env dbDir
+    initWallet' = initWallet wtc tr env dbDir
 
 serveDeleteWallet
     :: UILayer WalletResource

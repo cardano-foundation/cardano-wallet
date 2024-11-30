@@ -157,7 +157,9 @@ import qualified Data.ByteString.Lazy as BL
 serveUI
     :: forall n
      . HasSNetworkId n
-    => Tracer IO String
+    => Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -166,7 +168,7 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr ul env dbDir config nid nl bs =
+serveUI wtc tr ul env dbDir config nid nl bs =
     serveTabPage ul config Wallet
         :<|> serveTabPage ul config About
         :<|> serveTabPage ul config Network
@@ -182,8 +184,8 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveFavicon
         :<|> serveMnemonic
         :<|> serveWalletPage (networkEnv env) ul
-        :<|> servePostMnemonicWallet tr env dbDir ul
-        :<|> servePostXPubWallet tr env dbDir ul
+        :<|> servePostMnemonicWallet wtc tr env dbDir ul
+        :<|> servePostXPubWallet wtc tr env dbDir ul
         :<|> serveDeleteWallet ul dbDir
         :<|> serveDeleteWalletModal ul
         :<|> serveGetAddress ul

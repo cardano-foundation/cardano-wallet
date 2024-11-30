@@ -90,6 +90,7 @@ import Cardano.Wallet.Network.Checkpoints.Policy
 import Control.Tracer
     ( Tracer
     , contramap
+    , traceWith
     )
 import Data.Bifunctor
     ( first
@@ -175,12 +176,14 @@ readWalletState WalletInstance{walletState} =
 
 -- | Initialize a new wallet in the given environment.
 withWalletInit
-    :: WalletEnv IO
+    :: Tracer IO () -- wallet tip changes
+    -> WalletEnv IO
     -> Credentials
     -> Word31
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletInit
+    wtc
     env@WalletEnv
         { bootEnv = WalletBootEnv{genesisData}
         , ..
@@ -194,23 +197,26 @@ withWalletInit
                     credentials
                     knownCustomerCount
                     genesisData
-        withWalletDBVar env walletState action
+        withWalletDBVar wtc env walletState action
 
 -- | Load an existing wallet from the given environment.
 withWalletLoad
-    :: WalletEnv IO
+    :: Tracer IO () -- wallet tip changes
+    -> WalletEnv IO
     -> (WalletInstance -> IO a)
     -> IO a
-withWalletLoad env@WalletEnv{..} action = do
+withWalletLoad wtc env@WalletEnv{..} action = do
     walletState <- DBVar.loadDBVar store
-    withWalletDBVar env walletState action
+    withWalletDBVar wtc env walletState action
 
 withWalletDBVar
-    :: WalletEnv IO
+    :: Tracer IO () -- wallet tip changes
+    -> WalletEnv IO
     -> DBVar.DBVar IO Wallet.DeltaWalletState
     -> (WalletInstance -> IO a)
     -> IO a
 withWalletDBVar
+    wtc
     env@WalletEnv{bootEnv = WalletBootEnv{logger, networkEnv}}
     walletState
     action = do
@@ -228,7 +234,7 @@ withWalletDBVar
                         [ walletTip
                         , Read.GenesisPoint
                         ]
-                , rollForward = rollForward w
+                , rollForward = rollForward w wtc
                 , rollBackward = rollBackward w
                 }
 
@@ -294,10 +300,11 @@ getAllDeposits w i =
 
 rollForward
     :: WalletInstance
+    -> Tracer IO () -- wallet tip changes
     -> NonEmpty (Read.EraValue Read.Block)
     -> tip
     -> IO ()
-rollForward w blocks _nodeTip = do
+rollForward w wtc blocks _nodeTip = do
     timeFromSlot <- slotResolver w
     onWalletState w
         $ Delta.update
@@ -305,6 +312,7 @@ rollForward w blocks _nodeTip = do
             . Wallet.rollForwardMany
                 timeFromSlot
                 blocks
+    traceWith wtc ()
     x <- readWalletState w
     x `seq` pure ()
 
