@@ -94,6 +94,7 @@ library
     Cardano.Wallet.UI.Deposit.Server.Payments.Page
     Cardano.Wallet.UI.Deposit.Server.Wallet
     Cardano.Wallet.UI.Deposit.Types.Payments
+    Cardano.Wallet.UI.Deposit.Types.Wallet
     Cardano.Wallet.UI.Lib.Discretization
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Lib.Pagination.Map
@@ -180,16 +181,16 @@ test-suite unit
     , cardano-crypto
     , cardano-wallet-read
     , cardano-wallet-ui
-    , contra-tracer
     , containers
+    , contra-tracer
+    , customer-deposit-wallet
+    , customer-deposit-wallet:rest
     , hspec
     , mtl
     , QuickCheck
-    , text
     , temporary
+    , text
     , time
-    , customer-deposit-wallet:rest
-    , customer-deposit-wallet:customer-deposit-wallet
 
   build-tool-depends: hspec-discover:hspec-discover
   type:               exitcode-stdio-1.0

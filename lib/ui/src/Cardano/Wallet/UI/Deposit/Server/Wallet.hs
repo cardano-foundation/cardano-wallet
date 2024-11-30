@@ -70,6 +70,9 @@ import Servant
     ( Handler
     )
 
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMnemonic
     , PostWalletViaXPub
@@ -85,11 +88,13 @@ serveMnemonic hintOrClean =
             <$> liftIO (pickMnemonic 15 hintOrClean)
 
 serveWalletPage
-    :: UILayer WalletResource
+    :: NetworkEnv IO x
+    -> UILayer WalletResource
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-serveWalletPage ul = withSessionLayer ul $ \layer -> do
-    getWallet layer (renderSmoothHtml . walletElementH alertH)
+serveWalletPage nenv ul = withSessionLayer ul $ \layer -> do
+    getWallet nenv layer alert $ \presence status ->
+        renderSmoothHtml $ walletElementH alertH presence status
 
 servePostMnemonicWallet
     :: Tracer IO String
