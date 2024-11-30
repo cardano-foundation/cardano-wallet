@@ -18,7 +18,7 @@ import Cardano.Wallet.Api.Types
     ( ApiWalletMode (..)
     )
 import Cardano.Wallet.Deposit.IO
-    ( WalletBootEnv
+    ( WalletBootEnv (networkEnv)
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
@@ -181,7 +181,7 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveSSE ul
         :<|> serveFavicon
         :<|> serveMnemonic
-        :<|> serveWalletPage ul
+        :<|> serveWalletPage (networkEnv env) ul
         :<|> servePostMnemonicWallet tr env dbDir ul
         :<|> servePostXPubWallet tr env dbDir ul
         :<|> serveDeleteWallet ul dbDir

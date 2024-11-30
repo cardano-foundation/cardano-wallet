@@ -56,6 +56,16 @@ import Cardano.Wallet.UI.Deposit.API
     , walletPostMnemonicLink
     , walletPostXPubLink
     )
+import Cardano.Wallet.UI.Deposit.Html.Common
+    ( chainPointToSlotH
+    , networkTagH
+    , timeH
+    , valueH
+    , withOriginH
+    )
+import Cardano.Wallet.UI.Deposit.Types.Wallet
+    ( Status (..)
+    )
 import Cardano.Wallet.UI.Type
     ( WHtml
     , WalletType (..)
@@ -149,20 +159,36 @@ deleteWalletModalH =
                     "Cancel"
             }
 
-walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
-walletElementH alert = \case
+walletElementH
+    :: (BL.ByteString -> Html ())
+    -> WalletPresent
+    -> Status
+    -> Html ()
+walletElementH alert presence status = case presence of
     WalletPresent (WalletPublicIdentity xpub customers) -> do
         div_ [class_ "row mt-2 gx-0"] $ do
-            box "Wallet Public Identity" mempty $
-                record (Just 13) Full Striped $ do
+            box "Status" mempty
+                $ record (Just 13) Full Striped
+                $ do
+                    simpleField "Tip" $ do
+                        chainPointToSlotH $ tip status
+                    simpleField "Tip Time" $ do
+                        maybe mempty (withOriginH timeH) (tipTime status)
+                    simpleField "Balance" $ valueH $ balance status
+                    simpleField "Network" $ networkTagH $ network status
+        div_ [class_ "row mt-2 gx-0"] $ do
+            box "Public Identity" mempty
+                $ record (Just 13) Full Striped
+                $ do
                     simpleField "Extended Public Key" $ pubKeyH xpub
                     simpleField "Tracked Addresses"
                         $ div_ [class_ "d-flex justify-content-end align-items-center"]
                         $ toHtml
                         $ toText customers
         div_ [class_ "row mt-2 gx-0"] $ do
-            box "Wallet Management" mempty
-                $ div_ [class_ "d-flex justify-content-end align-items-center"]
+            box "Management" mempty
+                $ div_
+                    [class_ "d-flex justify-content-end align-items-center"]
                     deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do

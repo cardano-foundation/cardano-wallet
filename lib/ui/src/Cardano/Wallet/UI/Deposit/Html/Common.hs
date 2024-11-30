@@ -13,6 +13,8 @@ module Cardano.Wallet.UI.Deposit.Html.Common
     , valueH
     , lovelaceH
     , modalElementH
+    , chainPointToSlotH
+    , networkTagH
     )
 where
 
@@ -22,12 +24,14 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( DownTime
     )
 import Cardano.Wallet.Deposit.Read
-    ( Slot
+    ( NetworkTag (..)
+    , Slot
     , TxId
     , WithOrigin (..)
     )
 import Cardano.Wallet.Read
-    ( Coin (..)
+    ( ChainPoint (..)
+    , Coin (..)
     , SlotNo (..)
     , Value (..)
     , hashFromTxId
@@ -93,6 +97,20 @@ slotH :: Slot -> Html ()
 slotH = \case
     Origin -> "Origin"
     At (SlotNo s) -> toHtml $ show s
+
+chainPointToSlotH
+    :: ChainPoint
+    -> Html ()
+chainPointToSlotH cp = case cp of
+    GenesisPoint -> toHtml ("Genesis" :: Text)
+    BlockPoint (SlotNo n) _ -> toHtml $ show n
+
+networkTagH :: NetworkTag -> Html ()
+networkTagH = toHtml . showTag
+
+showTag :: NetworkTag -> Text
+showTag MainnetTag = "Mainnet"
+showTag TestnetTag = "Testnet"
 
 txIdH :: TxId -> Html ()
 txIdH txId =

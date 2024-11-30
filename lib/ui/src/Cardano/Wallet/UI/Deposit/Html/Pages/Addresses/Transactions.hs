@@ -139,7 +139,7 @@ customerHistoryH params@TransactionHistoryParams{..} txs =
                     when txHistorySlot
                         $ thEnd (Just 7) "Slot"
                     when txHistoryUTC
-                        $ thEnd (Just 9) "Time"
+                        $ thEnd (Just 10) "Time"
                     when txHistoryReceived
                         $ thEnd (Just 7) "Deposit"
                     when txHistorySpent
@@ -295,7 +295,8 @@ transactionsElementH now origin = do
                                 $ do
                                     i_ [class_ "bi bi-gear"] mempty
                         div_ $ do
-                            div_ [class_ "d-flex justify-content-end"]
+                            div_
+                                [class_ "d-flex justify-content-end"]
                                 toggle
                             div_ [class_ "mt-1"]
                                 $ transactionsViewControls now origin
