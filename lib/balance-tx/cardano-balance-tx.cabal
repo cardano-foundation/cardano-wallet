@@ -54,12 +54,15 @@ library internal
     , cardano-addresses
     , cardano-api
     , cardano-coin-selection
+    , cardano-crypto
     , cardano-crypto-class
+    , cardano-crypto-wrapper
     , cardano-ledger-allegra
     , cardano-ledger-alonzo
     , cardano-ledger-api
     , cardano-ledger-babbage
     , cardano-ledger-binary
+    , cardano-ledger-byron
     , cardano-ledger-conway
     , cardano-ledger-core
     , cardano-ledger-mary
@@ -70,6 +73,7 @@ library internal
     , cardano-wallet-test-utils
     , cborg
     , containers
+    , crypto-hash-extra
     , deepseq
     , either
     , fmt
