@@ -6,7 +6,10 @@
 
 set -e
 
-[[ $# -eq 5 ]] || { echo "Usage: $0 <tx-in> <amount> <address> <key file> <increment> <interval>"; exit 1; }
+[[ $# -eq 5 ]] || {
+    echo "Usage: $0 <tx-in> <amount> <address> <key file> <increment> <interval>"
+    exit 1
+}
 
 tx_in=$1
 amount=$2
@@ -21,7 +24,7 @@ generate_exponential() {
     rate=$(echo "1 / $mean_interval" | bc -l)
 
     # Generate a random number between 0 and 1 using /dev/urandom
-    n=$(od -An -N4 -tu4 < /dev/urandom)
+    n=$(od -An -N4 -tu4 </dev/urandom)
 
     u=$(echo "$n /  4294967295" | bc -l)
 
@@ -30,19 +33,20 @@ generate_exponential() {
     echo "$interval"
 }
 
-
 while [[ $amount -gt 1000000000 ]]; do
-    latest_tx=( $(./gen-deposits.sh "$tx_in" "$amount" "$address" "$keyfile" "$increment") )
+    # shellcheck disable=SC2207
+    latest_tx=($(./gen-deposits.sh "$tx_in" "$amount" "$address" "$keyfile" "$increment"))
     amount=${latest_tx[1]}
     tx_in=${latest_tx[0]}
+    # shellcheck disable=SC2012
     last_signed_tx=$(ls -1 tx.*.signed | sort -r -n -t '.' -k2 | head -1)
 
-    if ! cardano-cli conway transaction submit --tx-file ${last_signed_tx} --testnet-magic 1 --socket-path node.socket ; then
-      echo "Failed to submit ${last_signed_tx}"
-      exit 1
+    if ! cardano-cli conway transaction submit --tx-file "${last_signed_tx}" --testnet-magic 1 --socket-path node.socket; then
+        echo "Failed to submit ${last_signed_tx}"
+        exit 1
     else
-      echo "Submitted ${last_signed_tx} : ${latest_tx[@]}"
+        echo "Submitted ${last_signed_tx} :" "${latest_tx[@]}"
     fi
 
-    sleep $(generate_exponential)
+    sleep "$(generate_exponential)"
 done
