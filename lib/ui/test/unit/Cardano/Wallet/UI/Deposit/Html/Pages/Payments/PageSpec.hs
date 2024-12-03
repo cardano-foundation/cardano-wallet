@@ -28,7 +28,9 @@ import Cardano.Wallet.Deposit.IO.Resource
     ( withResource
     )
 import Cardano.Wallet.Deposit.Pure
-    ( Credentials
+    ( BIP32Path (..)
+    , Credentials
+    , DerivationType (..)
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
     ( createMnemonicFromWords
@@ -54,7 +56,9 @@ import Cardano.Wallet.Deposit.Write
     , mkTxOut
     )
 import Cardano.Wallet.UI.Deposit.API.Payments
-    ( unsigned
+    ( decodeBip32
+    , encodeBip32
+    , unsigned
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Payments.Transaction
     ( deserializeTransaction
@@ -82,6 +86,7 @@ import Test.Hspec
     ( Spec
     , describe
     , it
+    , shouldBe
     , shouldNotBe
     )
 
@@ -93,7 +98,8 @@ fakeBootEnv = do
     pure $ WalletBootEnv nullTracer Read.mockGenesisDataMainnet net
 
 mnemonics :: Text
-mnemonics = "vital minimum victory start lunch find city peanut shiver soft hedgehog artwork mushroom loud found"
+mnemonics =
+    "vital minimum victory start lunch find city peanut shiver soft hedgehog artwork mushroom loud found"
 
 seed :: SomeMnemonic
 Right seed = createMnemonicFromWords mnemonics
@@ -134,6 +140,26 @@ fundTheWallet network = do
     Right () <- liftIO $ postTx network tx
     pure ()
 
+customer0 :: BIP32Path
+customer0 =
+    ( Segment
+        ( Segment
+            ( Segment
+                ( Segment
+                    (Segment Root Hardened 1857)
+                    Hardened
+                    1815
+                )
+                Hardened
+                0
+            )
+            Soft
+            0
+        )
+        Soft
+        0
+    )
+
 spec :: Spec
 spec = do
     describe "payment" $ do
@@ -148,3 +174,10 @@ spec = do
                 change `shouldNotBe` []
                 ourInputs `shouldNotBe` []
                 fee `shouldNotBe` 0
+    describe "inputh paths" $ do
+        it "has a json encoding"
+            $ do
+                encodeBip32 customer0 `shouldBe` "1857H/1815H/0H/0/0"
+        it "can be decoded after encoding" $ do
+            decodeBip32 "1857H/1815H/0H/0/0"
+                 `shouldBe` Right customer0

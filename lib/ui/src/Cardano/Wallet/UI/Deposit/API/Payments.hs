@@ -14,6 +14,11 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Deposit.Pure
+    ( BIP32Path (..)
+    , DerivationType (..)
+    , Word31
+    )
 import Cardano.Wallet.Deposit.Pure.API.Address
     ( encodeAddress
     )
@@ -31,6 +36,11 @@ import Data.Aeson
     , withObject
     , (.:)
     )
+import Data.Aeson.Types
+    ( Parser
+    , parseEither
+    , parseFail
+    )
 import Data.Map.Monoidal.Strict
     ( MonoidalMap
     )
@@ -42,6 +52,7 @@ import Data.Text
     )
 import GHC.Generics
     ( Generic
+    , S
     )
 import Numeric.Natural
     ( Natural
@@ -61,7 +72,8 @@ import Web.FormUrlEncoded
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 
 newtype NewReceiver = NewReceiver Receiver
@@ -104,23 +116,66 @@ data Transaction
     { dataType :: Text
     , description :: Text
     , cborHex :: Text
+    , inputBip32Paths :: [BIP32Path]
     }
     deriving (Eq, Show)
 
 instance ToJSON Transaction where
-    toJSON Transaction{dataType, description, cborHex} =
+    toJSON Transaction{dataType, description, cborHex, inputBip32Paths} =
         object
             [ "type" .= dataType
             , "description" .= description
             , "cborHex" .= cborHex
+            , "bip32Paths" .= (encodeBip32 <$> inputBip32Paths)
             ]
+
+encodeBip32 :: BIP32Path -> Text
+encodeBip32 (Segment Root Hardened n) =
+    T.pack (show n)
+        <> "H"
+encodeBip32 (Segment Root Soft n) =
+    T.pack (show n)
+encodeBip32 (Segment p Hardened n) =
+    encodeBip32 p
+        <> "/"
+        <> T.pack (show n)
+        <> "H"
+encodeBip32 (Segment p Soft n) =
+    encodeBip32 p <> "/" <> T.pack (show n)
+encodeBip32 Root = ""
 
 instance FromJSON Transaction where
     parseJSON = withObject "Transaction" $ \o -> do
         dataType <- o .: "type"
         description <- o .: "description"
         cborHex <- o .: "cborHex"
-        pure Transaction{dataType, description, cborHex}
+        inputBip32Paths <- o .: "bip32Paths" >>= traverse parseBip32
+        pure Transaction{dataType, description, cborHex, inputBip32Paths}
+
+decodeBip32 :: Text -> Either String BIP32Path
+decodeBip32 = parseEither parseBip32
+
+parseSegment :: Text -> Parser (Word31, DerivationType)
+parseSegment t = case T.stripSuffix "H" t of
+    Nothing -> do
+        s <- parseIndex t
+        pure (s, Soft)
+    Just t' -> do
+        s <- parseIndex t'
+        pure (s, Hardened)
+  where
+    parseIndex :: Text -> Parser Word31
+    parseIndex text = case reads $ T.unpack text of
+        [(i, "")] -> pure i
+        _ -> parseFail "Invalid index"
+
+parseBip32 :: Text -> Parser BIP32Path
+parseBip32 t = case T.splitOn "/" t of
+    [] -> pure Root
+    xs -> foldSegments <$>  traverse parseSegment xs
+
+foldSegments :: [(Word31, DerivationType)] -> BIP32Path
+foldSegments = foldl (\p (i, t)-> Segment p t i) Root
 
 newtype Password = Password Text
 
@@ -150,7 +205,7 @@ instance FromJSON State
 
 instance FromHttpApiData State where
     parseQueryParam :: Text -> Either Text State
-    parseQueryParam t = case Aeson.decode $ TL.encodeUtf8 $ T.fromStrict t of
+    parseQueryParam t = case Aeson.decode $ TL.encodeUtf8 $ TL.fromStrict t of
         Nothing -> Left "Invalid JSON for a State"
         Just tx -> pure tx
 

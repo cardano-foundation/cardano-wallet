@@ -18,7 +18,8 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     ( ErrPostTx
     )
 import Cardano.Wallet.Deposit.Pure
-    ( CanSign
+    ( BIP32Path
+    , CanSign
     , ErrCreatePayment
     , InspectTx (..)
     )
@@ -35,6 +36,7 @@ import Cardano.Wallet.Deposit.REST
     , availableBalance
     , canSign
     , createPayment
+    , getBIP32PathsForOwnedInputs
     , inspectTx
     , networkTag
     , resolveCurrentEraTx
@@ -168,7 +170,8 @@ signPayment serializedTx (Password pwd) = do
             case mSignedTx of
                 Nothing -> ExceptT $ pure $ Left PrivateKeyIsMissing
                 Just signedTx -> do
-                    pure $ serializeTransaction signedTx
+                    paths <- lift $ getBIP32PathsForOwnedInputs signedTx
+                    pure $ serializeTransaction paths signedTx
 
 receiversPayment
     :: Transaction -> ExceptT PaymentError WalletResourceM Receivers
@@ -189,11 +192,16 @@ unsignedPayment receivers = do
         pure (address, ValueC (CoinC $ fromIntegral amount) mempty)
     case er of
         Left e -> ExceptT $ pure $ Left $ CreatePaymentError e
-        Right rtx -> pure $ serializeTransaction $ resolvedTx rtx
+        Right rtx -> do
+            paths <- lift $ getBIP32PathsForOwnedInputs $ resolvedTx rtx
+            pure $ serializeTransaction paths $ resolvedTx rtx
 
-serializeTransaction :: Tx -> Transaction
-serializeTransaction =
-    conwayEraTransactionExport
+serializeTransaction
+    :: [BIP32Path]
+    -> Tx
+    -> Transaction
+serializeTransaction paths =
+    conwayEraTransactionExport paths
         . T.decodeUtf8
         . B16.encode
         . BL.toStrict
@@ -259,12 +267,13 @@ signalHandler layer alert render state signal = do
                                     $ case r of
                                         x -> x
 
-conwayEraTransactionExport :: Text -> Transaction
-conwayEraTransactionExport cborHex =
+conwayEraTransactionExport :: [BIP32Path] -> Text -> Transaction
+conwayEraTransactionExport inputBip32Paths cborHex =
     Transaction
         { dataType = "Unwitnessed Tx ConwayEra"
         , description = "Ledger Cddl Format"
         , cborHex
+        , inputBip32Paths
         }
 
 data AddressValidationResponse
