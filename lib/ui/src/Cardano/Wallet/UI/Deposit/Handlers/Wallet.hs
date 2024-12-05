@@ -10,7 +10,8 @@ import Cardano.Wallet.Deposit.Pure
     , Customer
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( credentialsFromEncodedXPub
+    ( createMnemonicFromWords
+    , credentialsFromEncodedXPub
     , credentialsFromMnemonics
     )
 import Cardano.Wallet.Deposit.REST
@@ -72,10 +73,13 @@ postMnemonicWallet
     alert
     render
     (PostWalletViaMnemonic mnemonic passphrase customers) = do
-        let credentials = credentialsFromMnemonics mnemonic passphrase
-        initWalletWithXPub l alert render
-            $ initWallet credentials
-            $ fromIntegral customers
+        case createMnemonicFromWords mnemonic of
+            Left e -> pure $ alert $ BL.pack $ show e
+            Right mnemonic' -> do
+                let credentials = credentialsFromMnemonics mnemonic' passphrase
+                initWalletWithXPub l alert render
+                    $ initWallet credentials
+                    $ fromIntegral customers
 
 postXPubWallet
     :: SessionLayer WalletResource

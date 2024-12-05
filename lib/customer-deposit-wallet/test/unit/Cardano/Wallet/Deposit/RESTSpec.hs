@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+
 module Cardano.Wallet.Deposit.RESTSpec
     ( spec
     )
@@ -10,6 +12,9 @@ import Cardano.Crypto.Wallet
     , verify
     , xPrvChangePass
     )
+import Cardano.Mnemonic
+    ( SomeMnemonic
+    )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (WalletBootEnv)
     )
@@ -20,6 +25,7 @@ import Cardano.Wallet.Deposit.IO.Resource
 import Cardano.Wallet.Deposit.Pure.State.Creation
     ( Credentials
     , accountXPubFromCredentials
+    , createMnemonicFromWords
     , credentialsFromMnemonics
     , deriveAccountXPrv
     , rootXPrvFromCredentials
@@ -46,6 +52,10 @@ import Control.Concurrent
 import Control.Monad.IO.Class
     ( MonadIO (..)
     )
+import Control.Monad.Trans.Cont
+    ( cont
+    , evalCont
+    )
 import Control.Tracer
     ( nullTracer
     )
@@ -67,18 +77,12 @@ import Test.Hspec
     , it
     , shouldBe
     )
-
-import Control.Monad.Trans.Cont
-    ( cont
-    , evalCont
-    )
 import Test.QuickCheck
     ( Gen
     , arbitrary
+    , elements
     , forAll
     , listOf
-    , suchThat
-    , vectorOf
     , (===)
     )
 
@@ -90,11 +94,13 @@ import qualified Data.Text.Encoding as T
 fakeBootEnv :: WalletBootEnv IO
 fakeBootEnv = WalletBootEnv nullTracer Read.mockGenesisDataMainnet undefined
 
-mnemonics :: Text
-mnemonics = "random seed for a testing xpub lala"
+seed :: SomeMnemonic
+Right seed =
+    createMnemonicFromWords
+        "vital minimum victory start lunch find city peanut shiver soft hedgehog artwork mushroom loud found"
 
 credentials :: Credentials
-credentials = credentialsFromMnemonics mnemonics mempty
+credentials = credentialsFromMnemonics seed mempty
 
 letItInitialize :: WalletResourceM ()
 letItInitialize = liftIO $ threadDelay 100000
@@ -139,16 +145,21 @@ byteStringGen = B8.pack <$> listOf arbitrary
 textGen :: Gen Text
 textGen = T.pack <$> listOf arbitrary
 
-textNGen :: Int -> Gen Text
-textNGen n = do
-    n' <- arbitrary `suchThat` (>= n)
-    T.pack <$> vectorOf n' arbitrary
+words15 :: [Text]
+words15 =
+    [ "soap retire song hat major steak stuff daughter half scorpion please brisk decade hill song"
+    , "sure cannon broom caution artist legend boring reveal scene rubber weapon chest page clog fine"
+    , "fruit garden saddle upper huge educate fabric ocean bamboo verb iron apple have deposit trap"
+    ]
 
 credentialsGen :: Gen (Credentials, Text)
 credentialsGen = do
-    mnemonics' <- textNGen 32
-    passphrase' <- textGen
-    pure (credentialsFromMnemonics mnemonics' passphrase', passphrase')
+    mnemonics' <- elements words15
+    case createMnemonicFromWords mnemonics' of
+        Left e -> error $ "Invalid mnemonics: " <> show e
+        Right seed' -> do
+            passphrase' <- textGen
+            pure (credentialsFromMnemonics seed' passphrase', passphrase')
 
 spec :: Spec
 spec = do
@@ -175,9 +186,9 @@ spec = do
                     xPrvChangePass (T.encodeUtf8 passphrase') B8.empty
                 xprv =
                     deriveAccountXPrv
-                    $ decryptXPrv
-                    $ fromJust
-                    $ rootXPrvFromCredentials credentials'
+                        $ decryptXPrv
+                        $ fromJust
+                        $ rootXPrvFromCredentials credentials'
                 sig = sign B8.empty xprv message
             pure
                 $ verify (accountXPubFromCredentials credentials') message sig

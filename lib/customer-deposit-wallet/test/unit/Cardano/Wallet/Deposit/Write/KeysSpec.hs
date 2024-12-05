@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -23,7 +24,7 @@ import Cardano.Wallet.Address.BIP32_Ed25519
     , sign
     , toXPub
     )
-import Cardano.Wallet.Address.Encoding
+import "customer-deposit-wallet-pure" Cardano.Wallet.Address.Encoding
     ( EnterpriseAddr (..)
     , NetworkTag (..)
     , compactAddrFromEnterpriseAddr
@@ -101,10 +102,7 @@ instance Arbitrary NetworkTag where
     arbitrary = elements [MainnetTag, TestnetTag]
 
 instance Arbitrary XPrv where
-    arbitrary =
-        generate
-            <$> (BS.pack <$> vectorOf 100 arbitrary)
-            <*> pure BS.empty
+    arbitrary = generate . BS.pack <$> vectorOf 100 arbitrary <*> pure BS.empty
 
 instance Arbitrary XPub where
     arbitrary = toXPub <$> arbitrary

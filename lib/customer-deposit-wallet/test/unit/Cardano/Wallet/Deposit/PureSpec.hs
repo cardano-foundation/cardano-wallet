@@ -9,10 +9,14 @@
 -- Property tests for the deposit wallet.
 module Cardano.Wallet.Deposit.PureSpec
     ( spec
+    , testOnWallet
     ) where
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( SomeMnemonic
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Credentials
     , Customer
@@ -21,7 +25,8 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( LookupTimeFromSlot
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( credentialsFromMnemonics
+    ( createMnemonicFromWords
+    , credentialsFromMnemonics
     )
 import Cardano.Wallet.Deposit.Testing.DSL
     ( InterpreterState (..)
@@ -300,9 +305,16 @@ emptyWalletWith17Addresses :: Wallet.WalletState
 emptyWalletWith17Addresses =
     Wallet.fromCredentialsAndGenesis testCredentials 17 testGenesis
 
+seed :: SomeMnemonic
+seed = case createMnemonicFromWords
+    "vital minimum victory start lunch find city peanut shiver soft hedgehog artwork mushroom loud found"
+    of
+    Right seed' -> seed'
+    Left e -> error $ show e
+
 testCredentials :: Credentials
 testCredentials =
-    credentialsFromMnemonics "random seed for a testing xpub lala" mempty
+    credentialsFromMnemonics seed mempty
 
 {-----------------------------------------------------------------------------
     Test blockchain
