@@ -305,6 +305,8 @@ rollForward w blocks _nodeTip = do
             . Wallet.rollForwardMany
                 timeFromSlot
                 blocks
+    x <- readWalletState w
+    x `seq` pure ()
 
 rollBackward
     :: WalletInstance -> Read.ChainPoint -> IO Read.ChainPoint

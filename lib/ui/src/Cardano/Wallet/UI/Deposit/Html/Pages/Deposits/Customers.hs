@@ -120,7 +120,7 @@ scrollableDepositsCustomers
         scrollableWidget :: [Attribute] -> Html () -> Html ()
         scrollableWidget attrs content = do
             let attrs' =
-                    [ class_ "border-top table table-striped table-hover m-0"
+                    [ class_ "table table-sm table-borderless table-striped table-hover m-0"
                     ]
             table_ (attrs' <> attrs)
                 $ do
@@ -207,7 +207,7 @@ depositByCustomerH
                                 ]
                                 $ i_ [class_ "bi bi-x"] mempty
                     td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
-                        widget [class_ "ps-4"]
+                        widget [class_ "ps-1"]
                         input_
                             [ type_ "hidden"
                             , name_ "tx-ids"

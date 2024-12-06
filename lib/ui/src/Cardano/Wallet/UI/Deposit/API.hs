@@ -12,7 +12,8 @@ import Cardano.Wallet.Deposit.Pure
     ( Customer
     )
 import Cardano.Wallet.Deposit.Read
-    ( TxId
+    ( Address
+    , TxId
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMnemonic
@@ -42,8 +43,16 @@ import Cardano.Wallet.UI.Deposit.API.Common
 import Cardano.Wallet.UI.Deposit.API.Deposits.Deposits
     ( DepositsParams
     )
+import Cardano.Wallet.UI.Deposit.API.Payments
+    ( AddReceiverForm
+    , NewReceiverValidation
+    , SignatureForm
+    )
 import Control.Lens
     ( makePrisms
+    )
+import Data.Text
+    ( Text
     )
 import Data.Time
     ( UTCTime
@@ -67,6 +76,7 @@ import Web.FormUrlEncoded
     ( FromForm (..)
     )
 
+import qualified Cardano.Wallet.UI.Deposit.API.Payments as Payment
 import qualified Data.ByteString.Lazy as BL
 
 instance FromForm PostWalletViaMnemonic
@@ -80,6 +90,7 @@ data Page
     | Wallet
     | Addresses
     | Deposits
+    | Payments
 
 makePrisms ''Page
 
@@ -90,6 +101,7 @@ instance ToHttpApiData Page where
     toUrlPiece Wallet = "wallet"
     toUrlPiece Addresses = "addresses"
     toUrlPiece Deposits = "deposits"
+    toUrlPiece Payments = "payments"
 
 instance FromHttpApiData Page where
     parseUrlPiece "about" = Right About
@@ -98,6 +110,7 @@ instance FromHttpApiData Page where
     parseUrlPiece "wallet" = Right Wallet
     parseUrlPiece "addresses" = Right Addresses
     parseUrlPiece "deposits" = Right Deposits
+    parseUrlPiece "payments" = Right Payments
     parseUrlPiece _ = Left "Invalid page"
 
 -- | Pages endpoints
@@ -108,6 +121,7 @@ type Pages =
         :<|> "wallet" :> SessionedHtml Get
         :<|> "addresses" :> SessionedHtml Get
         :<|> "deposits" :> SessionedHtml Get
+        :<|> "payments" :> SessionedHtml Get
 
 -- | Data endpoints
 type Data =
@@ -187,6 +201,49 @@ type Data =
             :> QueryParam "customer" Customer
             :> QueryParam "tx-id" TxId
             :> SessionedHtml Post
+        :<|> "payments" :> SessionedHtml Get
+        :<|> "payments"
+            :> "receiver"
+            :> ReqBody '[FormUrlEncoded] AddReceiverForm
+            :> SessionedHtml Post
+        :<|> "payments"
+            :> "receiver"
+            :> "delete"
+            :> ReqBody '[FormUrlEncoded] Payment.State
+            :> QueryParam "receiver-number" Address
+            :> SessionedHtml Post
+        :<|> "payments"
+            :> "balance"
+            :> "available"
+            :> SessionedHtml Get
+        :<|> "payments"
+            :> "receiver"
+            :> "address"
+            :> "validation"
+            :> ReqBody '[FormUrlEncoded] NewReceiverValidation
+            :> SessionedHtml Post
+        :<|> "payments"
+            :> "receiver"
+            :> "amount"
+            :> "validation"
+            :> ReqBody '[FormUrlEncoded] NewReceiverValidation
+            :> SessionedHtml Post
+        :<|> "modal"
+            :> "info"
+            :> QueryParam "title" Text
+            :> QueryParam "text" Text
+            :> SessionedHtml Get
+        :<|> "payments"
+            :> "sign"
+            :> ReqBody '[FormUrlEncoded] SignatureForm
+            :> SessionedHtml Post
+        :<|> "payments"
+            :> "submit"
+            :> ReqBody '[FormUrlEncoded] Payment.State
+            :> SessionedHtml Post
+        :<|> "payments"
+            :> "reset"
+            :> SessionedHtml Post
 
 type Home = SessionedHtml Get
 
@@ -205,6 +262,7 @@ settingsPageLink :: Link
 walletPageLink :: Link
 addressesPageLink :: Link
 depositPageLink :: Link
+paymentsPageLink :: Link
 networkInfoLink :: Link
 settingsGetLink :: Link
 settingsSseToggleLink :: Link
@@ -232,6 +290,16 @@ depositsTxIdsLink
     :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe Expand -> Link
 depositsTxIdsPaginatingLink
     :: Maybe (WithOrigin UTCTime) -> Maybe Customer -> Maybe TxId -> Link
+paymentsLink :: Link
+paymentsNewReceiverLink :: Link
+paymentsDeleteReceiverLink :: Maybe Address -> Link
+paymentsBalanceAvailableLink :: Link
+paymentsReceiverAddressValidationLink :: Link
+paymentsReceiverAmountValidationLink :: Link
+modalLink :: Maybe Text -> Maybe Text -> Link
+paymentsSignLink :: Link
+paymentsSubmitLink :: Link
+paymentsResetLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -239,6 +307,7 @@ homePageLink
     :<|> walletPageLink
     :<|> addressesPageLink
     :<|> depositPageLink
+    :<|> paymentsPageLink
     :<|> networkInfoLink
     :<|> settingsGetLink
     :<|> settingsSseToggleLink
@@ -260,5 +329,15 @@ homePageLink
     :<|> depositsCustomersLink
     :<|> depositsCustomersPaginatingLink
     :<|> depositsTxIdsLink
-    :<|> depositsTxIdsPaginatingLink =
+    :<|> depositsTxIdsPaginatingLink
+    :<|> paymentsLink
+    :<|> paymentsNewReceiverLink
+    :<|> paymentsDeleteReceiverLink
+    :<|> paymentsBalanceAvailableLink
+    :<|> paymentsReceiverAddressValidationLink
+    :<|> paymentsReceiverAmountValidationLink
+    :<|> modalLink
+    :<|> paymentsSignLink
+    :<|> paymentsSubmitLink
+    :<|> paymentsResetLink =
         allLinks (Proxy @UI)
