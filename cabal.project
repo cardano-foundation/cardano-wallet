@@ -186,6 +186,8 @@ constraints:
   -- Cardano Node dependencies:
   , io-classes >= 1.4
   , io-classes -asserts
+  
+  , cardano-ledger-api ==1.9.4.0
 
   , ouroboros-network == 0.17.1.2
 
