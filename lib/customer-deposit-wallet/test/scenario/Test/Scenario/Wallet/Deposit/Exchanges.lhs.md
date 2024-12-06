@@ -43,6 +43,9 @@ import Cardano.Wallet.Deposit.Read
     , TxId
     , lessOrEqual
     )
+import Control.Tracer
+    ( nullTracer
+    )
 import Test.Scenario.Blockchain
     ( ScenarioEnv
     , ada
@@ -81,7 +84,7 @@ scenarioRestore
     :: XPub -> WalletEnv IO -> IO ()
 scenarioRestore xpub env = do
     let knownCustomerCount = 127
-    Wallet.withWalletInit env (XPubCredentials xpub) knownCustomerCount $ \w -> do
+    Wallet.withWalletInit nullTracer env (XPubCredentials xpub) knownCustomerCount $ \w -> do
         value <- Wallet.availableBalance w
         assert $ value == ada 0
 ```
@@ -92,7 +95,7 @@ In order to load the wallet state from a database file and resume operation from
 scenarioStart
     :: WalletEnv IO -> IO ()
 scenarioStart env =
-    Wallet.withWalletLoad env $ \w -> do
+    Wallet.withWalletLoad nullTracer env $ \w -> do
         value <- Wallet.availableBalance w
         assert $ value == ada 0
 ```

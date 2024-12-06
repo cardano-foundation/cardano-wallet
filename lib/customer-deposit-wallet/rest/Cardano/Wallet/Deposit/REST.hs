@@ -337,18 +337,20 @@ createTheDepositWalletOnDisk _tr dir credentials users action = do
 
 -- | Load an existing wallet from disk.
 loadWallet
-    :: WalletIO.WalletBootEnv IO
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> WalletIO.WalletBootEnv IO
     -- ^ Environment for the wallet
     -> FilePath
     -- ^ Path to the wallet database directory
     -> WalletResourceM ()
-loadWallet bootEnv dir = do
+loadWallet wtc bootEnv dir = do
     let action
             :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = findTheDepositWalletOnDisk bootEnv dir $ \case
             Right wallet ->
                 Right
-                    <$> WalletIO.withWalletLoad
+                    <$> WalletIO.withWalletLoad wtc
                         (WalletIO.WalletEnv bootEnv wallet)
                         f
             Left e -> pure $ Left $ ErrLoadingDatabase e
@@ -360,7 +362,9 @@ loadWallet bootEnv dir = do
 
 -- | Initialize a new wallet from an 'XPub'.
 initWallet
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -- ^ Tracer for logging
     -> WalletIO.WalletBootEnv IO
     -- ^ Environment for the wallet
@@ -371,13 +375,13 @@ initWallet
     -> Word31
     -- ^ Max number of users ?
     -> WalletResourceM ()
-initWallet tr bootEnv dir credentials users = do
+initWallet wtc tr bootEnv dir credentials users = do
     let action
             :: (WalletIO.WalletInstance -> IO b) -> IO (Either ErrDatabase b)
         action f = createTheDepositWalletOnDisk tr dir credentials users $ \case
             Just wallet -> do
                 fmap Right
-                    $ WalletIO.withWalletInit
+                    $ WalletIO.withWalletInit wtc
                         (WalletIO.WalletEnv bootEnv wallet)
                         credentials
                         users
