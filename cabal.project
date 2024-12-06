@@ -81,6 +81,7 @@ packages:
   lib/numeric/
   lib/primitive/
   lib/secrets
+  lib/signing/
   lib/std-gen-seed/
   lib/temporary-extra/
   lib/test-utils/
