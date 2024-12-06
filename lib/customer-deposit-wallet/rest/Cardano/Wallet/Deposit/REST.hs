@@ -50,9 +50,14 @@ module Cardano.Wallet.Deposit.REST
     , walletPublicIdentity
     , deleteWallet
     , deleteTheDepositWalletOnDisk
-    -- * Internals
-    , onWalletInstance
 
+      -- * Internals
+    , inspectTx
+    , onWalletInstance
+    , networkTag
+    , resolveCurrentEraTx
+    , canSign
+    , submitTx
     ) where
 
 import Prelude
@@ -81,9 +86,12 @@ import Cardano.Wallet.Deposit.IO.Resource
     , ErrResourceMissing (..)
     )
 import Cardano.Wallet.Deposit.Pure
-    ( Credentials
+    ( CanSign
+    , Credentials
+    , CurrentEraResolvedTx
     , Customer
     , ErrCreatePayment
+    , InspectTx
     , Passphrase
     , Word31
     , fromCredentialsAndGenesis
@@ -152,6 +160,7 @@ import System.FilePath
     )
 
 import qualified Cardano.Wallet.Deposit.IO as WalletIO
+import qualified Cardano.Wallet.Deposit.IO.Network.Type as Network
 import qualified Cardano.Wallet.Deposit.IO.Resource as Resource
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Cardano.Wallet.Deposit.Write as Write
@@ -287,7 +296,7 @@ instance Serialise XPrv where
     encode = encode . unXPrv
     decode = do
         b :: ByteString <- decode
-        case xprv  b of
+        case xprv b of
             Right x -> pure x
             Left e -> fail e
 
@@ -438,6 +447,9 @@ getTxHistoryByTime
     :: WalletResourceM ByTime
 getTxHistoryByTime = onWalletInstance WalletIO.getTxHistoryByTime
 
+networkTag :: WalletResourceM Read.NetworkTag
+networkTag = onWalletInstance WalletIO.networkTag
+
 {-----------------------------------------------------------------------------
     Operations
     Writing to blockchain
@@ -445,7 +457,7 @@ getTxHistoryByTime = onWalletInstance WalletIO.getTxHistoryByTime
 
 createPayment
     :: [(Address, Read.Value)]
-    -> WalletResourceM (Either ErrCreatePayment Write.Tx)
+    -> WalletResourceM (Either ErrCreatePayment CurrentEraResolvedTx)
 createPayment = onWalletInstance . WalletIO.createPayment
 
 getBIP32PathsForOwnedInputs
@@ -454,8 +466,22 @@ getBIP32PathsForOwnedInputs
 getBIP32PathsForOwnedInputs =
     onWalletInstance . WalletIO.getBIP32PathsForOwnedInputs
 
+canSign :: WalletResourceM CanSign
+canSign = onWalletInstance WalletIO.canSign
+
 signTx
     :: Write.Tx
     -> Passphrase
     -> WalletResourceM (Maybe Write.Tx)
 signTx tx = onWalletInstance . WalletIO.signTx tx
+
+inspectTx
+    :: CurrentEraResolvedTx
+    -> WalletResourceM InspectTx
+inspectTx = onWalletInstance . WalletIO.inspectTx
+
+resolveCurrentEraTx :: Write.Tx -> WalletResourceM CurrentEraResolvedTx
+resolveCurrentEraTx = onWalletInstance . WalletIO.resolveCurrentEraTx
+
+submitTx :: Write.Tx -> WalletResourceM (Either Network.ErrPostTx ())
+submitTx = onWalletInstance . WalletIO.submitTx

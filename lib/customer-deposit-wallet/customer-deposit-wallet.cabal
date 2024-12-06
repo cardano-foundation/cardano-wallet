@@ -54,8 +54,8 @@ library
   build-depends:
     , async
     , base
-    , base58-bytestring
     , base16-bytestring
+    , base58-bytestring
     , bech32
     , bech32-th
     , bytestring
@@ -69,7 +69,7 @@ library
     , cardano-wallet
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet-read           ==0.2024.8.27
+    , cardano-wallet-read
     , containers
     , contra-tracer
     , customer-deposit-wallet-pure
@@ -77,8 +77,8 @@ library
     , delta-types
     , digest
     , fingertree
-    , io-classes
     , int-cast
+    , io-classes
     , lens
     , MonadRandom
     , monoidal-containers
@@ -104,8 +104,8 @@ library
     Cardano.Wallet.Deposit.Pure.API.TxHistory
     Cardano.Wallet.Deposit.Pure.Balance
     Cardano.Wallet.Deposit.Pure.State.Creation
-    Cardano.Wallet.Deposit.Pure.State.Payment.Inspect
     Cardano.Wallet.Deposit.Pure.State.Payment
+    Cardano.Wallet.Deposit.Pure.State.Payment.Inspect
     Cardano.Wallet.Deposit.Pure.State.Rolling
     Cardano.Wallet.Deposit.Pure.State.Signing
     Cardano.Wallet.Deposit.Pure.State.Submissions
@@ -214,26 +214,33 @@ test-suite unit
     , aeson
     , aeson-pretty
     , base
+    , base58-bytestring
+    , base16-bytestring
     , bech32
     , bech32-th
-    , base58-bytestring
     , bytestring
+    , cardano-addresses
+    , address-derivation-discovery
     , cardano-crypto
     , cardano-crypto-class
     , cardano-ledger-api
     , cardano-ledger-core
     , cardano-ledger-core:testlib
+    , cardano-ledger-shelley
+    , cardano-slotting
     , cardano-wallet-read
     , cardano-wallet-test-utils
     , containers
     , contra-tracer
     , customer-deposit-wallet
+    , customer-deposit-wallet-pure
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
-    , customer-deposit-wallet-pure
+    , data-default
     , directory
     , hspec
     , hspec-golden
+    , lens
     , openapi3
     , pretty-simple
     , QuickCheck
@@ -241,7 +248,6 @@ test-suite unit
     , temporary
     , text
     , time
-    , text
     , transformers
     , with-utf8
 
@@ -251,6 +257,7 @@ test-suite unit
     Cardano.Wallet.Deposit.HTTP.OpenAPISpec
     Cardano.Wallet.Deposit.Map.TimedSpec
     Cardano.Wallet.Deposit.Pure.API.AddressSpec
+    Cardano.Wallet.Deposit.Pure.API.TransactionSpec
     Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
     Cardano.Wallet.Deposit.Write.KeysSpec

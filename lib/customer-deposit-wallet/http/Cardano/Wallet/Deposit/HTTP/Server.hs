@@ -23,7 +23,8 @@ import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( credentialsFromEncodedXPub
+    ( createMnemonicFromWords
+    , credentialsFromEncodedXPub
     , credentialsFromMnemonics
     )
 import Cardano.Wallet.Deposit.REST
@@ -90,17 +91,20 @@ createWalletViaMnemonic
     dir
     boot
     resource
-    (PostWalletViaMnemonic mnemonics' passphrase' users') =
-        onlyOnWalletIntance resource initWallet $> NoContent
-      where
-        initWallet :: WalletResourceM ()
-        initWallet =
-            REST.initWallet
-                tracer
-                boot
-                dir
-                (credentialsFromMnemonics mnemonics' passphrase')
-                (fromIntegral users')
+    (PostWalletViaMnemonic mnemonics' passphrase' users') = do
+        case createMnemonicFromWords mnemonics' of
+            Left e -> fail $ show e
+            Right someMnemonic -> do
+                let
+                    initWallet :: WalletResourceM ()
+                    initWallet =
+                        REST.initWallet
+                            tracer
+                            boot
+                            dir
+                            (credentialsFromMnemonics someMnemonic passphrase')
+                            (fromIntegral users')
+                onlyOnWalletIntance resource initWallet $> NoContent
 
 createWalletViaXPub
     :: Tracer IO String

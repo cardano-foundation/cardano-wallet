@@ -43,17 +43,25 @@ module Cardano.Wallet.Deposit.Pure
     , getEraSlotOfBlock
     , getCustomerDeposits
     , getAllDeposits
+    , networkTag
 
       -- ** Writing to the blockchain
     , ErrCreatePayment (..)
     , createPayment
+    , resolveCurrentEraTx
+    , CurrentEraResolvedTx
     , BIP32Path (..)
     , DerivationType (..)
+    , ResolvedTx (..)
+    , canSign
+    , CanSign (..)
     , getBIP32PathsForOwnedInputs
     , Passphrase
     , signTx
     , addTxSubmission
     , listTxsInSubmission
+    , inspectTx
+    , InspectTx (..)
     ) where
 
 import Cardano.Wallet.Address.BIP32
@@ -61,13 +69,21 @@ import Cardano.Wallet.Address.BIP32
     , DerivationType (..)
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
-    ( Credentials (..)
+    ( CanSign (..)
+    , Credentials (..)
     , WalletPublicIdentity (..)
+    , canSign
     , fromCredentialsAndGenesis
     )
 import Cardano.Wallet.Deposit.Pure.State.Payment
-    ( ErrCreatePayment (..)
+    ( CurrentEraResolvedTx
+    , ErrCreatePayment (..)
     , createPayment
+    , resolveCurrentEraTx
+    )
+import Cardano.Wallet.Deposit.Pure.State.Payment.Inspect
+    ( InspectTx (..)
+    , inspectTx
     )
 import Cardano.Wallet.Deposit.Pure.State.Rolling
     ( rollBackward
@@ -104,8 +120,12 @@ import Cardano.Wallet.Deposit.Pure.State.Type
     , knownCustomer
     , knownCustomerAddress
     , listCustomers
+    , networkTag
     , trackedCustomers
     , walletXPub
+    )
+import Cardano.Wallet.Deposit.Pure.UTxO.Tx
+    ( ResolvedTx (..)
     )
 import Cardano.Wallet.Deposit.Pure.UTxO.ValueTransfer
     ( ValueTransfer (..)

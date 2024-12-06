@@ -36,6 +36,7 @@ module Cardano.Wallet.Deposit.IO
 
       -- *** Create transactions
     , createPayment
+    , inspectTx
 
       -- *** Sign transactions
     , getBIP32PathsForOwnedInputs
@@ -45,8 +46,12 @@ module Cardano.Wallet.Deposit.IO
     , submitTx
     , listTxsInSubmission
 
-     -- * Internals
-     , onWalletState
+      -- * Internals
+    , onWalletState
+    , networkTag
+    , readWalletState
+    , resolveCurrentEraTx
+    , canSign
     ) where
 
 import Prelude
@@ -59,6 +64,7 @@ import Cardano.Wallet.Deposit.IO.Network.Type
     )
 import Cardano.Wallet.Deposit.Pure
     ( Credentials
+    , CurrentEraResolvedTx
     , Customer
     , ValueTransfer
     , WalletPublicIdentity (..)
@@ -69,6 +75,9 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( ByCustomer
     , ByTime
     , LookupTimeFromSlot
+    )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( CanSign
     )
 import Cardano.Wallet.Deposit.Read
     ( Address
@@ -315,6 +324,10 @@ slotResolver w = do
         $ bootEnv
         $ env w
 
+networkTag :: WalletInstance -> IO Read.NetworkTag
+networkTag w = do
+    Wallet.networkTag <$> readWalletState w
+
 {-----------------------------------------------------------------------------
     Operations
     Constructing transactions
@@ -323,7 +336,7 @@ slotResolver w = do
 createPayment
     :: [(Address, Read.Value)]
     -> WalletInstance
-    -> IO (Either Wallet.ErrCreatePayment Write.Tx)
+    -> IO (Either Wallet.ErrCreatePayment CurrentEraResolvedTx)
 createPayment a w = do
     timeTranslation <- Network.getTimeTranslation network
     pparams <-
@@ -332,10 +345,27 @@ createPayment a w = do
   where
     network = networkEnv $ bootEnv $ env w
 
+inspectTx
+    :: CurrentEraResolvedTx
+    -> WalletInstance
+    -> IO Wallet.InspectTx
+inspectTx tx w = flip Wallet.inspectTx tx <$> readWalletState w
+
+resolveCurrentEraTx
+    :: Write.Tx
+    -> WalletInstance
+    -> IO CurrentEraResolvedTx
+resolveCurrentEraTx tx w =
+    Wallet.resolveCurrentEraTx tx <$> readWalletState w
+
 {-----------------------------------------------------------------------------
     Operations
     Signing transactions
 ------------------------------------------------------------------------------}
+
+canSign :: WalletInstance -> IO CanSign
+canSign w = do
+    Wallet.canSign <$> readWalletState w
 
 getBIP32PathsForOwnedInputs
     :: Write.Tx -> WalletInstance -> IO [BIP32Path]

@@ -1,4 +1,6 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -13,6 +15,9 @@ module Cardano.Wallet.Deposit.Pure.State.Creation
     , rootXPrvFromCredentials
     , ErrDecodingXPub (..)
     , encodedXPubFromCredentials
+    , canSign
+    , CanSign (..)
+    , createMnemonicFromWords
     ) where
 
 import Prelude hiding
@@ -23,8 +28,13 @@ import Cardano.Address.Derivation
     ( xpubFromBytes
     , xpubToBytes
     )
-import Cardano.Crypto.Wallet
-    ( generate
+import Cardano.Address.Style.Shelley
+    ( genMasterKeyFromMnemonicShelley
+    )
+import Cardano.Mnemonic
+    ( MkSomeMnemonic (..)
+    , MkSomeMnemonicError
+    , SomeMnemonic
     )
 import Cardano.Wallet.Address.BIP32_Ed25519
     ( XPrv
@@ -46,12 +56,16 @@ import GHC.Generics
     ( Generic
     )
 
+import Cardano.Crypto.Wallet
+    ( xPrvChangePass
+    )
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import qualified Cardano.Wallet.Deposit.Pure.Submissions as Sbm
 import qualified Cardano.Wallet.Deposit.Pure.UTxO.UTxOHistory as UTxOHistory
 import qualified Cardano.Wallet.Deposit.Read as Read
 import qualified Data.ByteString.Base16 as B16
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 data WalletPublicIdentity = WalletPublicIdentity
@@ -83,12 +97,16 @@ accountXPubFromCredentials (XPrvCredentials _ xpub) = xpub
 -- | Derive account 'XPrv' from the root 'XPrv'.
 deriveAccountXPrv :: XPrv -> XPrv
 deriveAccountXPrv xprv =
-    (deriveXPrvHard
-    (deriveXPrvHard
-    (deriveXPrvHard xprv
-    1857) -- Address derivation standard
-    1815) -- ADA
-    0)    -- Account number
+    ( deriveXPrvHard
+        ( deriveXPrvHard
+            ( deriveXPrvHard
+                xprv
+                1857 -- Address derivation standard
+            )
+            1815 -- ADA
+        )
+        0 -- Account number
+    )
 
 -- | Get root 'XPrv' from credentials if available.
 rootXPrvFromCredentials :: Credentials -> Maybe XPrv
@@ -114,9 +132,15 @@ fromCredentialsAndGenesis credentials knownCustomerCount genesisData =
     network = Read.getNetworkId genesisData
     initialUTxO = mempty
 
+-- | Simplified version of 'mkSomeMnemonic' that takes a space-separated list of
+-- words. Entropy and checksum are checked as well.
+createMnemonicFromWords
+    :: Text -> Either (MkSomeMnemonicError '[15, 24]) SomeMnemonic
+createMnemonicFromWords = mkSomeMnemonic . T.words
+
 -- | Create 'Credentials' from a mnemonic sentence and a passphrase.
 credentialsFromMnemonics
-    :: Text
+    :: SomeMnemonic
     -- ^ Mnemonics
     -> Text
     -- ^ Passphrase
@@ -124,17 +148,27 @@ credentialsFromMnemonics
 credentialsFromMnemonics mnemonics passphrase =
     let
         unencryptedXPrv =
-            generate
-                (T.encodeUtf8 mnemonics)
+            genMasterKeyFromMnemonicShelley
+                mnemonics
                 (T.encodeUtf8 mempty)
         encryptedXPrv =
-            generate
-                (T.encodeUtf8 mnemonics)
+            xPrvChangePass
+                B8.empty
                 (T.encodeUtf8 passphrase)
+                unencryptedXPrv
     in
         XPrvCredentials
             encryptedXPrv
-            (toXPub $ deriveAccountXPrv unencryptedXPrv)
+            $ toXPub
+            $ deriveAccountXPrv unencryptedXPrv
+
+data CanSign = CanSign | CannotSign
+    deriving (Eq, Show)
+
+canSign :: WalletState -> CanSign
+canSign WalletState{rootXSignKey} = case rootXSignKey of
+    Nothing -> CannotSign
+    Just _ -> CanSign
 
 -- | Create 'Credentials' from an extended public key failures to decode
 data ErrDecodingXPub = ErrFromXPubBase16 | ErrFromXPubDecodeKey

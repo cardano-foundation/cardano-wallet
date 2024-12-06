@@ -23,6 +23,11 @@ module Cardano.Wallet.Deposit.Testing.DSL
     , assert
     , interpret
     , InterpreterState (..)
+    , spend
+    , sign
+    , utxo
+    , wallet
+    , balance
     )
 where
 
@@ -30,6 +35,7 @@ import Prelude
 
 import Cardano.Wallet.Deposit.Pure
     ( Customer
+    , ResolvedTx (..)
     , WalletState
     , getTxHistoryByTime
     )
@@ -38,10 +44,18 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     , ByTime
     , LookupTimeFromSlot
     )
+import Cardano.Wallet.Deposit.Pure.State.Creation
+    ( createMnemonicFromWords
+    , credentialsFromMnemonics
+    )
+import Cardano.Wallet.Deposit.Pure.State.Payment
+    ( createPaymentTxBody
+    )
 import Cardano.Wallet.Deposit.Read
     ( Address
     , ChainPoint (..)
     , EraValue (..)
+    , UTxO
     , getChainPoint
     , mockNextBlock
     , slotFromChainPoint
@@ -65,7 +79,9 @@ import Cardano.Wallet.Deposit.Write
     , mkAda
     , mkTx
     , mkTxOut
+    , txOutsL
     )
+import qualified Cardano.Wallet.Deposit.Write as Write
 import Cardano.Wallet.Read
     ( Coin (..)
     , Slot
@@ -76,16 +92,17 @@ import Cardano.Wallet.Read
     )
 import Control.Lens
     ( At (..)
+    , Field1 (_1)
+    , Field2 (_2)
     , Ixed (..)
     , Lens'
-    , _1
-    , _2
     , lens
     , use
     , uses
     , zoom
     , (%=)
     , (.=)
+    , (^?)
     )
 import Control.Monad
     ( void
@@ -115,18 +132,28 @@ import Data.List
 import Data.Map
     ( Map
     )
+import Data.Maybe
+    ( fromJust
+    )
+import Data.Text
+    ( Text
+    )
 import Data.Time
     ( UTCTime
     )
 
 import qualified Cardano.Wallet.Deposit.Pure as Wallet
+import qualified Cardano.Wallet.Deposit.Time as Time
+import qualified Cardano.Wallet.Read as Read
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 data Scenario p a where
+    ResetWallet :: Int -> Text -> Text -> Scenario p ()
     ExistsTx :: Scenario p TxI
     Deposit :: TxI -> Customer -> Int -> Scenario p UnspentI
+    Spend :: TxI -> Address -> Int -> Scenario p ()
     Withdrawal :: TxI -> UnspentI -> Scenario p ()
     CreateBlock :: [TxI] -> Scenario p (BlockI)
     RollForward :: [BlockI] -> Scenario p ()
@@ -135,9 +162,16 @@ data Scenario p a where
     HistoryByCustomer :: Scenario p ByCustomer
     NewHistoryByTime :: ByTimeM ByTime -> Scenario p ByTime
     AvailableBalance :: Scenario p Int
+    Sign :: Tx -> Text -> Scenario p Tx
+    Balance :: TxI -> Scenario p Tx
+    UTxO :: UnspentI -> Scenario p UTxO
     Assert :: p -> Scenario p ()
 
 type ScenarioP p m = ProgramT (Scenario p) m
+
+wallet :: Int -> Text -> Text -> ScenarioP p m ()
+wallet users seed passphrase =
+    singleton (ResetWallet users seed passphrase)
 
 existsTx :: ScenarioP p m TxI
 existsTx = singleton ExistsTx
@@ -147,6 +181,9 @@ deposit tx customer value = singleton (Deposit tx customer value)
 
 deposit_ :: Monad m => TxI -> Customer -> Int -> ScenarioP p m ()
 deposit_ tx customer value = void $ deposit tx customer value
+
+spend :: TxI -> Address -> Int -> ScenarioP p m ()
+spend tx addr value = singleton (Spend tx addr value)
 
 withdrawal :: TxI -> UnspentI -> ScenarioP p m ()
 withdrawal tx unspent = singleton (Withdrawal tx unspent)
@@ -171,6 +208,15 @@ newHistoryByTime = singleton . NewHistoryByTime
 
 availableBalance :: ScenarioP p m Int
 availableBalance = singleton AvailableBalance
+
+sign :: Tx -> Text -> ScenarioP p m Write.Tx
+sign tx pass = singleton (Sign tx pass)
+
+balance :: TxI -> ScenarioP p m Tx
+balance tx = singleton (Balance tx)
+
+utxo :: UnspentI -> ScenarioP p m UTxO
+utxo = singleton . UTxO
 
 assert :: p -> ScenarioP p m ()
 assert = singleton . Assert
@@ -260,32 +306,48 @@ newBlockId = zoom iBlockContentsL $ do
     put $ Map.insert blockId [] blocks
     return blockId
 
+freshInterpreterState :: InterpreterState
+freshInterpreterState = InterpreterState mempty mempty mempty mempty
+
+unsafeCustomerAddress
+    :: Wallet.WalletState -> Customer -> Write.Address
+unsafeCustomerAddress w = fromJust . flip Wallet.customerAddress w
+
 interpret
     :: (MonadIO m, MonadFail m)
     => WalletState
     -> (p -> m ())
-    -> (Customer -> Address)
     -> (Slot -> WithOrigin UTCTime)
     -> ScenarioP
         p
         (StateT (WalletState, InterpreterState) m)
         ()
     -> m ()
-interpret w runP customerAddresses slotTimes p = flip evalStateT w $ do
+interpret w runP slotTimes p = flip evalStateT w $ do
     walletState <- get
     (walletState', _) <-
         lift
             $ execStateT
                 (go p)
-                (walletState, InterpreterState mempty mempty mempty mempty)
+                (walletState, freshInterpreterState)
     put walletState'
   where
     go = viewT >=> eval
+    eval (ResetWallet users seed passphrase :>>= k) = do
+        Right mnemonics <- pure $ createMnemonicFromWords seed
+        let new =
+                Wallet.fromCredentialsAndGenesis
+                    (credentialsFromMnemonics mnemonics passphrase)
+                    (fromIntegral users)
+                    Read.mockGenesisDataMainnet
+        id .= (new, freshInterpreterState)
+        go $ k ()
     eval (Return x) = return x
     eval (ExistsTx :>>= k) = do
         txId <- zoom _2 newTxId
         go $ k txId
     eval (Deposit tx customer value :>>= k) = do
+        customerAddresses <- uses _1 unsafeCustomerAddress
         let v = mkAda $ fromIntegral value
             txOut = mkTxOut (customerAddresses customer) v
         Just txBody <- use (_2 . iTxsL . at tx)
@@ -295,6 +357,12 @@ interpret w runP customerAddresses slotTimes p = flip evalStateT w $ do
     eval (Withdrawal tx (UnspentI (tx', tix)) :>>= k) = do
         Just txId <- uses (_2 . iTxsL . at tx') $ fmap (getTxId . mkTx)
         _2 . iTxsL . ix tx %= \txBody -> addTxIn (TxIn txId tix) txBody
+        go $ k ()
+    eval (Spend tx address value :>>= k) = do
+        Just txBody <- use (_2 . iTxsL . at tx)
+        let (txBody', _tix) =
+                addTxOut (mkTxOut address (mkAda $ fromIntegral value)) txBody
+        _2 . iTxsL . ix tx .= txBody'
         go $ k ()
     eval (CreateBlock txs :>>= k) = do
         blockId <- zoom _2 newBlockId
@@ -317,6 +385,7 @@ interpret w runP customerAddresses slotTimes p = flip evalStateT w $ do
         v <- uses _1 Wallet.getTxHistoryByCustomer
         go $ k v
     eval (NewHistoryByTime m :>>= k) = do
+        customerAddresses <- uses _1 unsafeCustomerAddress
         txIds' <- uses (_2 . iTxsL) $ (Map.!) . fmap (getTxId . mkTx)
         blockSlots <-
             uses (_2 . iBlockPointsL) $ (Map.!) . fmap slotFromChainPoint
@@ -327,6 +396,27 @@ interpret w runP customerAddresses slotTimes p = flip evalStateT w $ do
     eval (AvailableBalance :>>= k) = do
         ValueC (CoinC v) _ <- uses _1 Wallet.availableBalance
         go $ k $ fromIntegral v
+    eval (Sign tx pass :>>= k) = do
+        Just stx <- uses _1 $ Wallet.signTx tx pass
+        go $ k stx
+    eval (Balance tx :>>= k) = do
+        Just txBody <- use (_2 . iTxsL . at tx)
+        ws <- use _1
+        let etx =
+                createPaymentTxBody
+                    (Read.EraValue Read.mockPParamsConway)
+                    (Time.toTimeTranslationPure Time.mockTimeInterpreter)
+                    txBody
+                    ws
+        ResolvedTx btx _ <- case etx of
+            Left e -> fail $ "createPaymentTxBody failed: " <> show e
+            Right tx' -> return tx'
+        go $ k btx
+    eval (UTxO (UnspentI (tx, tix)) :>>= k) = do
+        Just txBody <- use (_2 . iTxsL . at tx)
+        let txId = getTxId $ mkTx txBody
+        Just txOut <- pure $ txBody ^? txOutsL . ix tix
+        go $ k $ Map.singleton (TxIn txId tix) txOut
     eval (Assert assertion :>>= k) = do
         lift $ runP assertion
         go $ k ()
