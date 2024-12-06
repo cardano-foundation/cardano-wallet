@@ -13,7 +13,7 @@ else
 fi
 
 
-npm install bump-cli@2.8.2
+npm install bump-cli@2.8.4
 
 export PATH=$PWD/node_modules/.bin:$PATH
 
