@@ -172,7 +172,7 @@
 
       nixosModule = { pkgs, lib, ... }: {
         imports = [ ./nix/nixos/cardano-wallet-service.nix ];
-        services.cardano-node.package = lib.mkDefault self.defaultPackage.${pkgs.system};
+        services.cardano-node.package = lib.mkDefault self.packages.${pkgs.system}.cardano-node;
       };
       nixosModules.cardano-wallet = nixosModule;
 
