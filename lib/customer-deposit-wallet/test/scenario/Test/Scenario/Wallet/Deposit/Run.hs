@@ -18,6 +18,9 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Deposit.Pure.State.Creation
     ( Credentials (..)
     )
+import Control.Tracer
+    ( nullTracer
+    )
 import Test.Hspec
     ( SpecWith
     , describe
@@ -62,6 +65,7 @@ scenarios = do
         it "1. Assign an address to a customer ID" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
                 Wallet.withWalletInit
+                    nullTracer
                     walletEnv
                     (XPubCredentials $ freshXPub 1)
                     32
@@ -69,13 +73,15 @@ scenarios = do
 
         it "4. Create payments to a different wallet" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
-                Wallet.withWalletInit walletEnv (XPubCredentials xpub) 32
+                Wallet.withWalletInit nullTracer
+                    walletEnv (XPubCredentials xpub) 32
                     $ Exchanges.scenarioCreatePayment xprv env mockAddress
 
     describe "Temporary tests" $ do
         it "Wallet receives funds that are sent to customer address" $ \env -> do
             withWalletEnvMock env $ \walletEnv ->
                 Wallet.withWalletInit
+                    nullTracer
                     walletEnv
                     (XPubCredentials $ freshXPub 0)
                     8

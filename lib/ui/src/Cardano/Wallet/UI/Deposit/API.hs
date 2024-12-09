@@ -244,6 +244,9 @@ type Data =
         :<|> "payments"
             :> "reset"
             :> SessionedHtml Post
+        :<|> "wallet"
+            :> "status"
+            :> SessionedHtml Get
 
 type Home = SessionedHtml Get
 
@@ -300,6 +303,7 @@ modalLink :: Maybe Text -> Maybe Text -> Link
 paymentsSignLink :: Link
 paymentsSubmitLink :: Link
 paymentsResetLink :: Link
+walletStatusLink :: Link
 homePageLink
     :<|> aboutPageLink
     :<|> networkPageLink
@@ -339,5 +343,6 @@ homePageLink
     :<|> modalLink
     :<|> paymentsSignLink
     :<|> paymentsSubmitLink
-    :<|> paymentsResetLink =
+    :<|> paymentsResetLink
+    :<|> walletStatusLink =
         allLinks (Proxy @UI)

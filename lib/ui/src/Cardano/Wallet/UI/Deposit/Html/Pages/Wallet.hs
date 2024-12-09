@@ -55,6 +55,17 @@ import Cardano.Wallet.UI.Deposit.API
     , walletMnemonicLink
     , walletPostMnemonicLink
     , walletPostXPubLink
+    , walletStatusLink
+    )
+import Cardano.Wallet.UI.Deposit.Html.Common
+    ( chainPointToSlotH
+    , networkTagH
+    , timeH
+    , valueH
+    , withOriginH
+    )
+import Cardano.Wallet.UI.Deposit.Types.Wallet
+    ( Status (..)
     )
 import Cardano.Wallet.UI.Type
     ( WHtml
@@ -149,20 +160,39 @@ deleteWalletModalH =
                     "Cancel"
             }
 
-walletElementH :: (BL.ByteString -> Html ()) -> WalletPresent -> Html ()
-walletElementH alert = \case
+walletStatusH :: Status -> Html ()
+walletStatusH status = do
+    box "Status" mempty
+        $ record (Just 13) Full Striped
+        $ do
+            simpleField "Tip Slot" $ do
+                chainPointToSlotH $ tip status
+            simpleField "Tip Time" $ do
+                maybe mempty (withOriginH timeH) (tipTime status)
+            simpleField "Balance" $ valueH $ balance status
+            simpleField "Network" $ networkTagH $ network status
+
+walletElementH
+    :: (BL.ByteString -> Html ())
+    -> WalletPresent
+    -> Html ()
+walletElementH alert presence = case presence of
     WalletPresent (WalletPublicIdentity xpub customers) -> do
+        div_ [class_ "row mt-2 gx-0"]
+            $ sseH walletStatusLink "wallet-status" ["wallet-tip"]
         div_ [class_ "row mt-2 gx-0"] $ do
-            box "Wallet Public Identity" mempty $
-                record (Just 13) Full Striped $ do
+            box "Public Identity" mempty
+                $ record (Just 13) Full Striped
+                $ do
                     simpleField "Extended Public Key" $ pubKeyH xpub
                     simpleField "Tracked Addresses"
                         $ div_ [class_ "d-flex justify-content-end align-items-center"]
                         $ toHtml
                         $ toText customers
         div_ [class_ "row mt-2 gx-0"] $ do
-            box "Wallet Management" mempty
-                $ div_ [class_ "d-flex justify-content-end align-items-center"]
+            box "Management" mempty
+                $ div_
+                    [class_ "d-flex justify-content-end align-items-center"]
                     deleteWalletButtonH
             div_ [id_ "delete-result"] mempty
     WalletAbsent -> runWHtml Deposit $ do
