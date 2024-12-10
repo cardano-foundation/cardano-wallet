@@ -22,6 +22,7 @@ import Control.DeepSeq
     )
 import Data.Bifunctor
     ( first
+    , second
     )
 import Data.ByteString
     ( ByteString
@@ -48,13 +49,13 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
 
--- | This is raw key hash credential
+-- | Raw key hash credential
 newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
     deriving (Generic, Eq, Ord, Show)
 
 instance NFData DRepKeyHash
 
--- | This is raw script hash credential
+-- | Raw script hash credential
 newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
     deriving (Generic, Eq, Ord, Show)
 
@@ -135,10 +136,7 @@ instance FromText DRep where
     fromText txt = case txt of
         "abstain" -> Right Abstain
         "no_confidence" -> Right NoConfidence
-        _ -> case decodeDRepIDBech32 txt of
-                Right drepid ->
-                     Right $ FromDRepID drepid
-                Left err -> Left err
+        _ -> second FromDRepID (decodeDRepIDBech32 txt)
 
 instance Buildable DRep where
     build = \case
