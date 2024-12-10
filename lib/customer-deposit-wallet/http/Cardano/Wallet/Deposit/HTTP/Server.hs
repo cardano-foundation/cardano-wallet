@@ -68,25 +68,30 @@ api :: Proxy API
 api = Proxy
 
 server
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
     -> Server API
-server tr dbDir wb r =
+server wtc tr dbDir wb r =
     listCustomerH r
         :<|> queryAddressH r
-        :<|> createWalletViaMnemonic tr dbDir wb r
-        :<|> createWalletViaXPub tr dbDir wb r
+        :<|> createWalletViaMnemonic wtc tr dbDir wb r
+        :<|> createWalletViaXPub wtc tr dbDir wb r
 
 createWalletViaMnemonic
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
     -> PostWalletViaMnemonic
     -> Handler NoContent
 createWalletViaMnemonic
+    wtc
     tracer
     dir
     boot
@@ -99,6 +104,7 @@ createWalletViaMnemonic
                     initWallet :: WalletResourceM ()
                     initWallet =
                         REST.initWallet
+                            wtc
                             tracer
                             boot
                             dir
@@ -107,13 +113,16 @@ createWalletViaMnemonic
                 onlyOnWalletIntance resource initWallet $> NoContent
 
 createWalletViaXPub
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> FilePath
     -> WalletBootEnv IO
     -> WalletResource
     -> PostWalletViaXPub
     -> Handler NoContent
 createWalletViaXPub
+    wtc
     tracer
     dir
     boot
@@ -130,6 +139,7 @@ createWalletViaXPub
             Right credentials ->
                 Right
                     <$> REST.initWallet
+                        wtc
                         tracer
                         boot
                         dir

@@ -227,7 +227,7 @@ depositH
                                 ]
                                 $ i_ [class_ "bi bi-x"] mempty
                     td_ [colspan_ columns, class_ "p-0"] $ box bar close $ do
-                        widget [class_ "ps-4"]
+                        widget [class_ "ps-1"]
                         input_
                             [ type_ "hidden"
                             , name_ "customers"

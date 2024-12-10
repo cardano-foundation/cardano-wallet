@@ -120,7 +120,7 @@ withInitializedWallet
     -> WalletResourceM a
     -> IO (Either ErrWalletResource a)
 withInitializedWallet dir f = withWallet $ do
-    initWallet nullTracer fakeBootEnv dir credentials 0
+    initWallet nullTracer nullTracer fakeBootEnv dir credentials 0
     letItInitialize
     f
 
@@ -129,7 +129,7 @@ withLoadedWallet
     -> WalletResourceM a
     -> IO (Either ErrWalletResource a)
 withLoadedWallet dir f = withWallet $ do
-    loadWallet fakeBootEnv dir
+    loadWallet nullTracer fakeBootEnv dir
     letItInitialize
     f
 

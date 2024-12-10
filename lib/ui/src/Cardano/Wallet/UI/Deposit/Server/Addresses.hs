@@ -23,7 +23,8 @@ import Cardano.Wallet.UI.Common.Html.Lib
     ( WithCopy (..)
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( alertH
+    ( addressH
+    , alertH
     )
 import Cardano.Wallet.UI.Common.Layer
     ( UILayer (..)
@@ -44,7 +45,6 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH
-    , customerAddressH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses.Transactions
     ( customerHistoryH
@@ -80,7 +80,7 @@ serveGetAddress
 serveGetAddress ul c = withSessionLayer ul $ \l -> do
     getCustomerAddress
         l
-        (renderSmoothHtml . customerAddressH WithCopy)
+        (renderSmoothHtml . addressH WithCopy)
         alert
         c
 

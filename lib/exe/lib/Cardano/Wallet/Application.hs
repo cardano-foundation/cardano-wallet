@@ -188,6 +188,7 @@ import Cardano.Wallet.UI.Common.Layer
     , UILayer
     , oobMessages
     , sourceOfNewTip
+    , walletTipChanges
     )
 import Control.Exception.Extra
     ( handle
@@ -208,6 +209,7 @@ import Control.Monad.Trans.Except
     )
 import Control.Tracer
     ( Tracer (..)
+    , nullTracer
     , traceWith
     )
 import Data.Function
@@ -425,15 +427,16 @@ serveWallet
                                             "deposit-wallet"
                                 Just databaseDir' -> pure databaseDir'
                             resource <- ContT withResource
+                            ui <- Ui.withUILayer 1 resource
                             liftIO
                                 $ loadDepositWalletFromDisk
+                                    (walletTipChanges >$< oobMessages ui)
                                     ( DepositApplicationLog
                                         >$< applicationTracer
                                     )
                                     databaseDir'
                                     bootEnv
                                     resource
-                            ui <- Ui.withUILayer 1 resource
                             REST.onResourceChange
                                 ( \_ -> do
                                     traceWith (oobMessages ui)
@@ -471,6 +474,7 @@ serveWallet
                                         resource <- ContT withResource
                                         liftIO
                                             $ loadDepositWalletFromDisk
+                                                nullTracer
                                                 ( DepositApplicationLog
                                                     >$< applicationTracer
                                                 )
@@ -633,6 +637,7 @@ serveWallet
                         application =
                             Server.serve api
                                 $ Deposit.server
+                                    nullTracer
                                     (DepositApplicationLog >$< applicationTracer)
                                     databaseDir'
                                     bootEnv
@@ -668,6 +673,7 @@ serveWallet
                     application =
                         Server.serve api
                             $ DepositUi.serveUI
+                                (walletTipChanges >$< oobMessages ui)
                                 (DepositUIApplicationLog >$< applicationTracer)
                                 ui
                                 bootEnv

@@ -1,10 +1,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Redundant <$>" #-}
 
 module Cardano.Wallet.UI.Deposit.Handlers.Wallet
 where
 
 import Prelude
 
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv (slotToUTCTime)
+    )
 import Cardano.Wallet.Deposit.Pure
     ( Credentials
     , Customer
@@ -14,9 +20,15 @@ import Cardano.Wallet.Deposit.Pure.State.Creation
     , credentialsFromEncodedXPub
     , credentialsFromMnemonics
     )
+import Cardano.Wallet.Deposit.Read
+    ( slotFromChainPoint
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , WalletResourceM
+    , availableBalance
+    , getWalletTip
+    , networkTag
     )
 import Cardano.Wallet.Deposit.REST.Wallet.Create
     ( PostWalletViaMnemonic (..)
@@ -33,6 +45,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Lib
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( WalletPresent
     )
+import Cardano.Wallet.UI.Deposit.Types.Wallet
+    ( Status (..)
+    )
 import Control.Monad.Trans
     ( MonadIO (..)
     )
@@ -46,7 +61,9 @@ getWallet
     :: SessionLayer WalletResource
     -> (WalletPresent -> html) -- success report
     -> Handler html
-getWallet layer render = render <$> walletPresence layer
+getWallet layer render = do
+    presence <- walletPresence layer
+    pure $ render presence
 
 initWalletWithXPub
     :: SessionLayer WalletResource
@@ -116,3 +133,22 @@ deleteWalletHandler
     -> Handler html
 deleteWalletHandler layer deleteWallet alert render =
     catchRunWalletResourceHtml layer alert render deleteWallet
+
+getStatusRest :: NetworkEnv IO x -> WalletResourceM Status
+getStatusRest nenv = do
+    tip <- getWalletTip
+    slotToTime <- liftIO $ slotToUTCTime nenv
+    Status
+        <$> pure tip
+        <*> pure (slotToTime $ slotFromChainPoint tip)
+        <*> availableBalance
+        <*> networkTag
+getStatus
+    :: NetworkEnv IO x
+    -> SessionLayer WalletResource
+    -> (BL.ByteString -> html)
+    -> (Status -> html)
+    -> Handler html
+getStatus nenv layer alert render = do
+    catchRunWalletResourceHtml layer alert id $ do
+        render <$> getStatusRest nenv

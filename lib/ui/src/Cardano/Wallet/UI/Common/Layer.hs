@@ -13,6 +13,7 @@ module Cardano.Wallet.UI.Common.Layer
     , stateL
     , sseEnabled
     , sourceOfNewTip
+    , walletTipChanges
     )
 where
 
@@ -124,6 +125,9 @@ data SessionLayer s = SessionLayer
 messageOfPush :: Push -> Message
 messageOfPush (Push x) = Message x mempty
 
+walletTipChanges :: () -> Push
+walletTipChanges _ = Push "wallet-tip"
+
 -- | Create a session layer giver the state and the server-sent events channel.
 mkSession :: TVar (State s) -> TChan Message -> SessionLayer s
 mkSession var sseChan =
@@ -170,7 +174,12 @@ mkUILayer
     -> UILayer s
 mkUILayer throttling oobChan sessions' s0 = UILayer{..}
   where
-    oobMessages = Tracer $ atomically . writeTChan oobChan . messageOfPush
+    oobMessages =
+        Tracer
+            $ throttling
+                . atomically
+                . writeTChan oobChan
+                . messageOfPush
     sessions sid = do
         sids <- readTVarIO sessions'
         case Map.lookup sid sids of

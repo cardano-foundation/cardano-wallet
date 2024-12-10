@@ -11,6 +11,10 @@ module Cardano.Wallet.UI.Deposit.Html.Common
     , showTimeSecs
     , withOriginH
     , valueH
+    , lovelaceH
+    , modalElementH
+    , chainPointToSlotH
+    , networkTagH
     )
 where
 
@@ -20,12 +24,14 @@ import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( DownTime
     )
 import Cardano.Wallet.Deposit.Read
-    ( Slot
+    ( NetworkTag (..)
+    , Slot
     , TxId
     , WithOrigin (..)
     )
 import Cardano.Wallet.Read
-    ( Coin (..)
+    ( ChainPoint (..)
+    , Coin (..)
     , SlotNo (..)
     , Value (..)
     , hashFromTxId
@@ -35,10 +41,18 @@ import Cardano.Wallet.Read.Hash
     )
 import Cardano.Wallet.UI.Common.Html.Lib
     ( WithCopy (..)
+    , dataBsDismiss_
     , truncatableText
+    )
+import Cardano.Wallet.UI.Common.Html.Modal
+    ( ModalData (..)
+    , mkModal
     )
 import Data.Ord
     ( Down (..)
+    )
+import Data.Text
+    ( Text
     )
 import Data.Text.Class
     ( ToText (..)
@@ -51,11 +65,15 @@ import Data.Time
 import Lucid
     ( Html
     , ToHtml (..)
+    , button_
     , class_
     , span_
     )
 import Numeric
     ( showFFloatAlt
+    )
+import Numeric.Natural
+    ( Natural
     )
 
 showTime :: UTCTime -> String
@@ -80,6 +98,20 @@ slotH = \case
     Origin -> "Origin"
     At (SlotNo s) -> toHtml $ show s
 
+chainPointToSlotH
+    :: ChainPoint
+    -> Html ()
+chainPointToSlotH cp = case cp of
+    GenesisPoint -> toHtml ("Genesis" :: Text)
+    BlockPoint (SlotNo n) _ -> toHtml $ show n
+
+networkTagH :: NetworkTag -> Html ()
+networkTagH = toHtml . showTag
+
+showTag :: NetworkTag -> Text
+showTag MainnetTag = "Mainnet"
+showTag TestnetTag = "Testnet"
+
 txIdH :: TxId -> Html ()
 txIdH txId =
     truncatableText WithCopy ("tx-id-text-" <> toText (take 16 h))
@@ -91,8 +123,28 @@ txIdH txId =
                 txId
 
 valueH :: Value -> Html ()
-valueH (ValueC (CoinC c) _) = do
-    span_ $ toHtml $ a ""
+valueH (ValueC (CoinC c) _) = lovelaceH $ fromIntegral c
+
+lovelaceH :: Natural -> Html ()
+lovelaceH c = do
+    span_ $ toHtml $ showLovelaceAsAda c
     span_ [class_ "opacity-25"] "₳"
-  where
-    a = showFFloatAlt @Double (Just 2) $ fromIntegral c / 1_000_000
+
+showLovelaceAsAda :: Integral a => a -> String
+showLovelaceAsAda c =
+    showFFloatAlt @Double (Just 2) (fromIntegral c / 1_000_000) ""
+
+modalElementH :: Maybe Text -> Maybe Text -> Html ()
+modalElementH (Just t) (Just b) =
+    mkModal
+        $ ModalData
+            { modalTitle = toHtml t
+            , modalBody = toHtml b
+            , modalFooter =
+                button_
+                    [ class_ "btn btn-secondary"
+                    , dataBsDismiss_ "modal"
+                    ]
+                    "Dismiss"
+            }
+modalElementH _ _ = mempty

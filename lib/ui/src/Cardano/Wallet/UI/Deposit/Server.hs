@@ -18,7 +18,7 @@ import Cardano.Wallet.Api.Types
     ( ApiWalletMode (..)
     )
 import Cardano.Wallet.Deposit.IO
-    ( WalletBootEnv
+    ( WalletBootEnv (networkEnv)
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
@@ -77,7 +77,8 @@ import Cardano.Wallet.UI.Deposit.Handlers.Lib
     ( walletPresence
     )
 import Cardano.Wallet.UI.Deposit.Html.Common
-    ( showTimeSecs
+    ( modalElementH
+    , showTimeSecs
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -107,6 +108,17 @@ import Cardano.Wallet.UI.Deposit.Server.Deposits.TxIds
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( renderSmoothHtml
     )
+import Cardano.Wallet.UI.Deposit.Server.Payments.Page
+    ( servePaymentsBalanceAvailable
+    , servePaymentsDeleteReceiver
+    , servePaymentsNewReceiver
+    , servePaymentsPage
+    , servePaymentsReceiverAddressValidation
+    , servePaymentsReceiverAmountValidation
+    , servePaymentsReset
+    , servePaymentsSign
+    , servePaymentsSubmit
+    )
 import Cardano.Wallet.UI.Deposit.Server.Wallet
     ( serveDeleteWallet
     , serveDeleteWalletModal
@@ -114,6 +126,7 @@ import Cardano.Wallet.UI.Deposit.Server.Wallet
     , servePostMnemonicWallet
     , servePostXPubWallet
     , serveWalletPage
+    , serveWalletStatus
     )
 import Control.Monad.Trans
     ( MonadIO (..)
@@ -123,6 +136,9 @@ import Control.Tracer
     )
 import Data.Functor
     ( ($>)
+    )
+import Data.Text
+    ( Text
     )
 import Paths_cardano_wallet_ui
     ( getDataFileName
@@ -142,7 +158,9 @@ import qualified Data.ByteString.Lazy as BL
 serveUI
     :: forall n
      . HasSNetworkId n
-    => Tracer IO String
+    => Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> UILayer WalletResource
     -> WalletBootEnv IO
     -> FilePath
@@ -151,7 +169,7 @@ serveUI
     -> NetworkLayer IO Read.ConsensusBlock
     -> BlockchainSource
     -> Server UI
-serveUI tr ul env dbDir config nid nl bs =
+serveUI wtc tr ul env dbDir config nid nl bs =
     serveTabPage ul config Wallet
         :<|> serveTabPage ul config About
         :<|> serveTabPage ul config Network
@@ -159,6 +177,7 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveTabPage ul config Wallet
         :<|> serveTabPage ul config Addresses
         :<|> serveTabPage ul config Deposits
+        :<|> serveTabPage ul config Payments
         :<|> serveNetworkInformation nid nl bs
         :<|> serveSSESettings ul
         :<|> serveToggleSSE ul
@@ -166,8 +185,8 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveFavicon
         :<|> serveMnemonic
         :<|> serveWalletPage ul
-        :<|> servePostMnemonicWallet tr env dbDir ul
-        :<|> servePostXPubWallet tr env dbDir ul
+        :<|> servePostMnemonicWallet wtc tr env dbDir ul
+        :<|> servePostXPubWallet wtc tr env dbDir ul
         :<|> serveDeleteWallet ul dbDir
         :<|> serveDeleteWalletModal ul
         :<|> serveGetAddress ul
@@ -181,6 +200,28 @@ serveUI tr ul env dbDir config nid nl bs =
         :<|> serveDepositsCustomerPagination ul
         :<|> serveDepositsCustomersTxIds ul
         :<|> serveDepositsCustomersTxIdsPagination ul
+        :<|> servePaymentsPage ul
+        :<|> servePaymentsNewReceiver ul
+        :<|> servePaymentsDeleteReceiver ul
+        :<|> servePaymentsBalanceAvailable ul
+        :<|> servePaymentsReceiverAddressValidation ul
+        :<|> servePaymentsReceiverAmountValidation ul
+        :<|> serveModal ul
+        :<|> servePaymentsSign ul
+        :<|> servePaymentsSubmit ul
+        :<|> servePaymentsReset ul
+        :<|> serveWalletStatus (networkEnv env) ul
+
+serveModal
+    :: UILayer WalletResource
+    -> Maybe Text
+    -> Maybe Text
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveModal ul mtitle mbody = withSessionLayer ul $ \_ ->
+    pure
+        $ renderSmoothHtml
+        $ modalElementH mtitle mbody
 
 serveTabPage
     :: UILayer s

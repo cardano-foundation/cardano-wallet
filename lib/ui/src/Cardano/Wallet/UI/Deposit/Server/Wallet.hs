@@ -13,10 +13,17 @@ import Prelude
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv
     )
+import Cardano.Wallet.Deposit.IO.Network.Type
+    ( NetworkEnv
+    )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
     , deleteWallet
     , initWallet
+    )
+import Cardano.Wallet.Deposit.REST.Wallet.Create
+    ( PostWalletViaMnemonic
+    , PostWalletViaXPub
     )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
@@ -45,6 +52,7 @@ import Cardano.Wallet.UI.Cookies
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Wallet
     ( deleteWalletHandler
+    , getStatus
     , getWallet
     , postMnemonicWallet
     , postXPubWallet
@@ -52,6 +60,7 @@ import Cardano.Wallet.UI.Deposit.Handlers.Wallet
 import Cardano.Wallet.UI.Deposit.Html.Pages.Wallet
     ( deleteWalletModalH
     , walletElementH
+    , walletStatusH
     )
 import Cardano.Wallet.UI.Deposit.Server.Lib
     ( alert
@@ -70,11 +79,6 @@ import Servant
     ( Handler
     )
 
-import Cardano.Wallet.Deposit.REST.Wallet.Create
-    ( PostWalletViaMnemonic
-    , PostWalletViaXPub
-    )
-
 serveMnemonic
     :: Maybe Bool
     -> Maybe RequestCookies
@@ -89,37 +93,42 @@ serveWalletPage
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
 serveWalletPage ul = withSessionLayer ul $ \layer -> do
-    getWallet layer (renderSmoothHtml . walletElementH alertH)
+    getWallet layer $ \presence ->
+        renderSmoothHtml $ walletElementH alertH presence
 
 servePostMnemonicWallet
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> WalletBootEnv IO
     -> FilePath
     -> UILayer WalletResource
     -> PostWalletViaMnemonic
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-servePostMnemonicWallet tr env dbDir ul request =
+servePostMnemonicWallet wtc tr env dbDir ul request =
     withSessionLayer ul $ \layer -> do
         postMnemonicWallet layer initWallet' alert ok request
   where
     ok _ = renderHtml . rogerH @Text $ "ok"
-    initWallet' = initWallet tr env dbDir
+    initWallet' = initWallet wtc tr env dbDir
 
 servePostXPubWallet
-    :: Tracer IO String
+    :: Tracer IO ()
+    -- ^ Tracer for wallet tip changes
+    -> Tracer IO String
     -> WalletBootEnv IO
     -> FilePath
     -> UILayer WalletResource
     -> PostWalletViaXPub
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-servePostXPubWallet tr env dbDir ul request =
+servePostXPubWallet wtc tr env dbDir ul request =
     withSessionLayer ul $ \layer -> do
         postXPubWallet layer initWallet' alert ok request
   where
     ok _ = renderHtml . rogerH @Text $ "ok"
-    initWallet' = initWallet tr env dbDir
+    initWallet' = initWallet wtc tr env dbDir
 
 serveDeleteWallet
     :: UILayer WalletResource
@@ -137,3 +146,11 @@ serveDeleteWalletModal
     -> Handler (CookieResponse RawHtml)
 serveDeleteWalletModal ul = withSessionLayer ul $ \_ ->
     pure $ renderSmoothHtml deleteWalletModalH
+
+serveWalletStatus
+    :: NetworkEnv IO x
+    -> UILayer WalletResource
+    -> Maybe RequestCookies
+    -> Handler (CookieResponse RawHtml)
+serveWalletStatus nenv ul = withSessionLayer ul $ \l ->
+    renderHtml <$> getStatus nenv l alertH walletStatusH

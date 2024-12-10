@@ -102,7 +102,7 @@ scrollableDepositsCustomersTxIds
         scrollableWidget :: [Attribute] -> Html () -> Html ()
         scrollableWidget attrs content = do
             let attrs' =
-                    [ class_ "border-top table table-striped table-hover m-0"
+                    [ class_ "table-sm table-borderless table table-striped table-hover m-0"
                     ]
             table_ (attrs' <> attrs)
                 $ do
