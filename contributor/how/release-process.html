@@ -181,6 +181,22 @@
 <li>Create new page on cardano-wallet's <a href="https://github.com/cardano-foundation/cardano-wallet/wiki/_new">wiki</a> called <code>Release vYYYY-MM-DD</code> by copying contents of the previous releas.</li>
 <li>Follow the <code>Release checklist</code>. Update progress or report obstacles on the thread.</li>
 </ul>
+<h2 id="releasing-packages-to-chap"><a class="header" href="#releasing-packages-to-chap">Releasing packages to CHaP</a></h2>
+<p><a href="https://github.com/IntersectMBO/cardano-haskell-packages">CHaP</a> or the <em>Cardano Haskell Packages</em> repository is useful to publish <em>Haskell</em> packages relevant to the Cardano ecosystem as this allows standard build tools like <code>Cabal</code> to work out-of-the-box with only some configuration to point to the repository in addition to https://hackage.haskell.org</p>
+<p>To publish packages on CHaP:</p>
+<ol>
+<li>
+<p>Clone the repository locally from https://github.com/cardano-foundation/cardano-haskell-packages/</p>
+</li>
+<li>
+<p>Run script to create relevant commits, for example to release <code>cardano-coin-selection</code> package and its (local) dependencies:</p>
+<pre><code>$ scripts/add-from-github.sh https://github.com/cardano-foundation/cardano-wallet 9eb5f59c328163ca061a20f47519686b6f118d74 lib/coin-selection lib/primitive lib/test-utils lib/delta-types lib/crypto-primitives lib/launcher lib/numeric lib/text-class
+</code></pre>
+</li>
+<li>
+<p>Open a Pull Request on upstream repository (ie. https://github.com/IntersectMBO/cardano-haskell-packages/)</p>
+</li>
+</ol>
 
                     </main>
 
