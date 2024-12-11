@@ -2973,7 +2973,7 @@ components:
         - type: string
           format: bech32
           example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
-          description: DRep's key/script hash in accordance to CIP-0129.
+          description: "DRep's key/script hash in accordance to CIP-0129."
           pattern: "^(drep)1[0-9a-z]*$"
           title: vote to a drep represented by key/script hash
 
