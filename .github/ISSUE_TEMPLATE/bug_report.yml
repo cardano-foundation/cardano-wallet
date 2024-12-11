@@ -9,18 +9,7 @@ body:
 
         Help us understand and replicate the issue by filling in this form.
 
-
-        If you are unsure about how to fill out any fields in this
-        form, or are don't know whether the behaviour that you see is
-        actually a bug, then please contact
-        [IOHK Technical Support](https://iohk.zendesk.com/hc/en-us) first,
-        and they will guide you through the process.
-
-
-        If you know that the issue is already tracked in
-        [Jira](https://cardanofoundation.atlassian.net/) (i.e. has an `ADP-` issue number)
-        then please do not also submit it here. See the
-        [release notes](https://github.com/cardano-foundation/cardano-wallet/releases)
+        See the [release notes](https://github.com/cardano-foundation/cardano-wallet/releases)
         for known issues.
   - type: checkboxes
     attributes:

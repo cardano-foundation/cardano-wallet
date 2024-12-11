@@ -4,23 +4,23 @@ labels: ["IMPROVEMENT", "ADDING FEATURE"]
 body:
   - type: textarea
     attributes:
-      label: The problem that you wish to solve
+      label: Why?
       description: >-
         Please describe your situation or application and what you
-        would like to achieve with Cardano.
+        would like to achieve.
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Description
+      label: What?
       description: >-
-        Your idea for an improvement or new feature which would solve
-        this problem.
+        What feature or improvement currently missing would help you
+        achieve your goal.
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Implementation suggestions
+      label: How?
       description: >-
         If you have any suggestions for how to implement this
         improvement, please add them.
