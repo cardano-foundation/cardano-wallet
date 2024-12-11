@@ -403,7 +403,17 @@ x-drepKeyHash: &drepKeyHash
   type: string
   format: bech32
   example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
-  description: DRep's key hash.
+  description: DRep's key hash according to CIP-0129.
+  pattern: "^(drep)1[0-9a-z]*$"
+
+x-drepScriptHash: &drepScriptHash
+  type: string
+  format: bech32
+  example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  description: |
+    DRep's script hash according to CIP-0129. Note this is identical
+    to drepKeyHash but for unknown reasons we need to different
+    schema fragments here.
   pattern: "^(drep)1[0-9a-z]*$"
 
 x-walletAccountXPubkey: &walletAccountXPubkey
@@ -2971,7 +2981,9 @@ components:
             - no_confidence
           title: casting a default vote
         - <<: *drepKeyHash
-          title: vote to a drep represented by key/script hash
+          title: vote to a drep represented by key hash
+        - <<: *drepScriptHash
+          title: vote to a drep represented by script hash
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
