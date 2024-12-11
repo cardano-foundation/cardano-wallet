@@ -12,6 +12,8 @@ module Cardano.Wallet.Primitive.Types.DRep
     , DRep (..)
     , encodeDRepIDBech32
     , decodeDRepIDBech32
+    , fstByteDRepKeyHash
+    , fstByteDRepScriptHash
     )
 where
 
@@ -53,11 +55,23 @@ import qualified Data.ByteString as BS
 newtype DRepKeyHash = DRepKeyHash { getDRepKeyHash :: ByteString }
     deriving (Generic, Eq, Ord, Show)
 
+-- | In accordance to CIP-0129 (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0129)
+--   drep    0010....
+--   keyhash ....0010
+fstByteDRepKeyHash :: Word8
+fstByteDRepKeyHash = 0b00100010
+
 instance NFData DRepKeyHash
 
 -- | Raw script hash credential
 newtype DRepScriptHash = DRepScriptHash { getDRepScriptHash :: ByteString }
     deriving (Generic, Eq, Ord, Show)
+
+-- | In accordance to CIP-0129 (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0129)
+--   drep       0010....
+--   scripthash ....0011
+fstByteDRepScriptHash :: Word8
+fstByteDRepScriptHash = 0b00100011
 
 instance NFData DRepScriptHash
 
@@ -76,17 +90,9 @@ encodeDRepIDBech32 drepid =
     hrp = [Bech32.humanReadablePart|drep|]
     appendCip0129BytePrefix = case drepid of
         DRepFromKeyHash (DRepKeyHash payload) ->
-            -- according to CIP-0129 (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0129)
-            -- drep    0010....
-            -- keyhash ....0010
-            let fstByte = 0b00100010 :: Word8
-            in BS.cons fstByte payload
+            BS.cons fstByteDRepKeyHash payload
         DRepFromScriptHash (DRepScriptHash payload) ->
-            -- according to CIP-0129 (https://github.com/cardano-foundation/CIPs/tree/master/CIP-0129)
-            -- drep       0010....
-            -- scripthash ....0011
-            let fstByte = 0b00100011 :: Word8
-            in BS.cons fstByte payload
+            BS.cons fstByteDRepScriptHash payload
 
 -- | Decode a Bech32 encoded 'DRepID'.
 decodeDRepIDBech32 :: Text -> Either TextDecodingError DRepID
