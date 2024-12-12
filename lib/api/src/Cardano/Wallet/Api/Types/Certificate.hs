@@ -69,11 +69,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
-    , DRepID (..)
-    , decodeDRepKeyHashBech32
-    , decodeDRepScriptHashBech32
-    , encodeDRepKeyHashBech32
-    , encodeDRepScriptHashBech32
+    , decodeDRepIDBech32
+    , encodeDRepIDBech32
     )
 import Cardano.Wallet.Util
     ( ShowFmt (..)
@@ -343,25 +340,17 @@ mkApiAnyCertificate acct' acctPath' = \case
 instance ToJSON (ApiT DRep) where
     toJSON (ApiT Abstain) = "abstain"
     toJSON (ApiT NoConfidence) = "no_confidence"
-    toJSON (ApiT (FromDRepID drep)) = case drep of
-        DRepFromKeyHash keyhash ->
-            String $ encodeDRepKeyHashBech32 keyhash
-        DRepFromScriptHash scripthash ->
-            String $ encodeDRepScriptHashBech32 scripthash
+    toJSON (ApiT (FromDRepID drepid)) =
+        String $ encodeDRepIDBech32 drepid
 instance FromJSON (ApiT DRep) where
     parseJSON t =
-        parseAbstain t <|> parseNoConfidence t <|> parseKeyHash t <|> parseScriptHash t
+        parseAbstain t <|> parseNoConfidence t <|> parseDrepID t
       where
-        parseKeyHash = withText "DRepKeyHash" $ \txt ->
-            case decodeDRepKeyHashBech32 txt of
+        parseDrepID = withText "DRepID" $ \txt ->
+            case decodeDRepIDBech32 txt of
                 Left (TextDecodingError err) -> fail err
-                Right keyhash ->
-                    pure $ ApiT $ FromDRepID $ DRepFromKeyHash keyhash
-        parseScriptHash = withText "DRepScriptHash" $ \txt ->
-            case decodeDRepScriptHashBech32 txt of
-                Left (TextDecodingError err) -> fail err
-                Right scripthash ->
-                    pure $ ApiT $ FromDRepID $ DRepFromScriptHash scripthash
+                Right drepid ->
+                    pure $ ApiT $ FromDRepID drepid
         parseAbstain = withText "Abstain" $ \txt ->
             if txt == "abstain" then
                 pure $ ApiT Abstain

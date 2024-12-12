@@ -215,20 +215,24 @@ instance Wellformed (PathParam ApiDRepSpecifier) where
     wellformed = PathParam <$>
         [ "abstain"
         , "no_confidence"
-        , "drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s"
-        , "drep_script1hwj9yuvzxc623w5lmwvp44md7qkdywz2fcd583qmyu62jvjnz69"
+        , "drep1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvy952y" --28-byte payload with key hash byte prefix ('22' in hex prefixed)
+        , "drep1y0je8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvk492r" --28-byte payload with script hash byte prefix ('23' in hex prefixed)
         ]
 
 instance Malformed (PathParam ApiDRepSpecifier) where
     malformed = first PathParam <$>
-        [ (T.replicate 64 "ś", msg)
-        , (T.replicate 63 "1", msg)
-        , (T.replicate 65 "1", msg)
-        , ("something", msg)
-        , ("no-confidence", msg)
+        [ (T.replicate 64 "ś", msg1)
+        , (T.replicate 63 "1", msg1)
+        , (T.replicate 65 "1", msg1)
+        , ("something", msg1)
+        , ("no-confidence", msg1)
+        , ("drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s",msg2) --28-byte payload without byte prefix correct hrp prefix
+        , ("drep1xhje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axc9fjca3",msg2) --28-byte payload with wrong byte prefix but correct hrp prefix
+        , ("drepp1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcp60l06",msg1) --28-byte payload with key hash byte prefix but wrong hrp prefix
         ]
       where
-        msg = "I couldn't parse the given decentralized representative (DRep). I am expecting either 'abstain', 'no_confidence' or bech32 encoded drep having prefixes: 'drep' or 'drep_script'."
+        msg1 = "Invalid DRep key hash: expecting a Bech32 encoded value with human readable part of 'drep'."
+        msg2 = "Invalid DRep metadata: expecting a byte '00100010' value for key hash or a byte '0b00100011' value for script hash."
 
 instance Wellformed (PathParam (ApiAddress ('Testnet 0))) where
     wellformed = [PathParam
