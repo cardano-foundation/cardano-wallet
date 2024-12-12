@@ -2,14 +2,12 @@
 # 2. https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
 # 3. https://yaml-multiline.info/
 
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: 💁 IOHK Technical Support
-    url: https://iohk.zendesk.com/hc/en-us
+  - name: 💬 Cardano-wallet Discord Channel
+    url: https://discord.gg/Um2qfpDj5F
     about: |
-      Users: Please feel welcome to ask for help from the IOHK
-      Technical Support Desk. They are knowledgeable about commonly
-      experienced issues and workarounds.
+      General chat about cardano-wallet and related tools.
   - name: 🗨 Cardano Forums
     url: https://forum.cardano.org/
     about: |
@@ -21,5 +19,5 @@ contact_links:
       using “cardano-wallet” or its associated APIs, please use the
       “Developers” category of the Cardano forums.
   - name: ☢️ Security issues
-    url: https://preview.tinyurl.com/ec2nrv9c
-    about: Please report security vulnerabilities to security@iohk.io.
+    url: https://github.com/cardano-foundation/cardano-wallet/security
+    about: Please report security vulnerabilities through GitHub
