@@ -45,7 +45,6 @@ pkgs.stdenv.mkDerivation {
   ++ lib.optionals makeTarball [ gnutar gzip ]
   ++ lib.optionals makeZip [ zip ];
   checkInputs = with pkgs.buildPackages; [
-    ruby_3_1
     gnugrep
     gnused
   ]
