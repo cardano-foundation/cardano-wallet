@@ -123,26 +123,6 @@ steps:
       agents:
         system: ${linux}
 
-    - block: Run Ruby E2E Tests (linux)
-      if: build.env("RELEASE_CANDIDATE") == null
-      depends_on: []
-      key: trigger-e2e-tests
-
-    - label: Run Ruby Linux E2E Tests (linux)
-      depends_on:
-        - trigger-e2e-tests
-      commands: |
-        ./scripts/buildkite/main/linux-e2e.sh
-      artifact_paths:
-        - "./result/linux/**"
-        - "./logs/**/*"
-      env:
-        NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
-      agents:
-        system: ${linux}
-      concurrency: 1
-      concurrency_group: 'linux-e2e-tests'
-
     - label: Preview Network Boot Sync
       timeout_in_minutes: 2
       depends_on: []

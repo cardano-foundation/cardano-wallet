@@ -134,8 +134,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
           just
           pkg-config
           nixpkgs-recent.python3Packages.openapi-spec-validator
-          (ruby_3_1.withPackages (ps: [ ps.rake ps.thor ]))
-          rubyPackages_3_1.rubocop
           sqlite-interactive
           curlFull
           jq

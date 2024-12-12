@@ -6,12 +6,12 @@ set -euox pipefail
 # date from git tag
 # example v2023-04-04 -> 2023-04-04
 tag_date() {
-  echo "${1##v}"
+    echo "${1##v}"
 }
 # cabal version from git tag
 # example v2023-04-04 -> 2023.4.4
 tag_cabal_ver() {
-  tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
+    tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
 }
 
 git tag -l | xargs git tag -d
@@ -27,7 +27,7 @@ NEW_GIT_TAG=v$today
 
 NEW_CABAL_VERSION=$(tag_cabal_ver "$NEW_GIT_TAG")
 
-OLD_GIT_TAG=$( git tag -l "v2*-*-*" | sort | tail -n1)
+OLD_GIT_TAG=$(git tag -l "v2*-*-*" | sort | tail -n1)
 
 LAST_RELEASE_DATE=$(tag_date "$OLD_GIT_TAG")
 
@@ -52,21 +52,13 @@ git checkout -b "$RELEASE_CANDIDATE_BRANCH" || true
 sed -i "s|version: .*|version: $NEW_GIT_TAG|g" specifications/api/swagger.yaml
 git commit -m "Update wallet version in swagger.yaml" specifications/api/swagger.yaml
 
-git ls-files  '*.cabal' | xargs sed -i "s|$OLD_CABAL_VERSION|$NEW_CABAL_VERSION|g"
+git ls-files '*.cabal' | xargs sed -i "s|$OLD_CABAL_VERSION|$NEW_CABAL_VERSION|g"
 git commit -am "Update cardano-wallet version in *.cabal files"
 
 sed -i "s|NODE_TAG=.*|NODE_TAG=$CARDANO_NODE_TAG|g" README.md
 sed -i "s|WALLET_TAG=.*|WALLET_TAG=$NEW_CABAL_VERSION|g" README.md
 sed -i "s|WALLET_VERSION=.*|WALLET_VERSION=$NEW_GIT_TAG|g" README.md
 git commit -am "Update cardano-wallet version in README.md"
-
-sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/linux-e2e.sh
-git commit -am "Update cardano-wallet version in linux-e2e.sh"
-sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/macos-silicon-e2e.sh
-git commit -am "Update cardano-wallet version in macos-silicon-e2e.sh"
-
-sed -i "s|RELEASE_WALLET_TAG=.*|RELEASE_WALLET_TAG=$NEW_CABAL_VERSION|g" run/common/docker/run.sh
-git commit -am "Update cardano-wallet version in run/common/docker/run.sh"
 
 RELEASE_COMMIT=$(git rev-parse HEAD)
 
