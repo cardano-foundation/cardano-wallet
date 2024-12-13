@@ -80,7 +80,7 @@ data DRepID =
     deriving (Eq, Generic, Show, Ord)
     deriving anyclass NFData
 
--- | Encode 'DRepID' as Bech32 with "drep" hrp.
+-- | Encode 'DRepID' as Bech32 with "drep" human readable prefix.
 encodeDRepIDBech32 :: DRepID -> Text
 encodeDRepIDBech32 drepid =
     Bech32.encodeLenient hrp
