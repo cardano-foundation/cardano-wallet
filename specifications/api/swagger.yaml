@@ -403,14 +403,16 @@ x-drepKeyHash: &drepKeyHash
   type: string
   format: bech32
   example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
-  description: DRep's key hash.
+  description: DRep's key hash according to CIP-0129.
   pattern: "^(drep)1[0-9a-z]*$"
 
 x-drepScriptHash: &drepScriptHash
   type: string
   format: bech32
-  example: drep_script1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
-  description: DRep's script hash.
+  example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+  description: |
+    DRep's script hash according to CIP-0129 uses also 'drep' bech32 prefix.
+    This one is deprecated and should not be used.
   pattern: "^(drep_script)1[0-9a-z]*$"
 
 x-walletAccountXPubkey: &walletAccountXPubkey

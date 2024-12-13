@@ -215,20 +215,30 @@ instance Wellformed (PathParam ApiDRepSpecifier) where
     wellformed = PathParam <$>
         [ "abstain"
         , "no_confidence"
-        , "drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s"
-        , "drep_script1hwj9yuvzxc623w5lmwvp44md7qkdywz2fcd583qmyu62jvjnz69"
+        , payloadKeyHashWith22HexByte
+        , payloadScriptHashWith23HexByte
         ]
+      where
+        payloadKeyHashWith22HexByte = "drep1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvy952y"
+        payloadScriptHashWith23HexByte = "drep1y0je8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvk492r"
 
 instance Malformed (PathParam ApiDRepSpecifier) where
     malformed = first PathParam <$>
-        [ (T.replicate 64 "ś", msg)
-        , (T.replicate 63 "1", msg)
-        , (T.replicate 65 "1", msg)
-        , ("something", msg)
-        , ("no-confidence", msg)
+        [ (T.replicate 64 "ś", msg1)
+        , (T.replicate 63 "1", msg1)
+        , (T.replicate 65 "1", msg1)
+        , ("something", msg1)
+        , ("no-confidence", msg1)
+        , (payloadWithoutCorrectBytePrefixCorrectHrp, msg2)
+        , (payloadWithWrongBytePrefixCorrectHrp, msg2)
+        , (payloadWithCorrectBytePrefixWrondHrp, msg1)
         ]
       where
-        msg = "I couldn't parse the given decentralized representative (DRep). I am expecting either 'abstain', 'no_confidence' or bech32 encoded drep having prefixes: 'drep' or 'drep_script'."
+        msg1 = "Invalid DRep key hash: expecting a Bech32 encoded value with human readable part of 'drep'."
+        msg2 = "Invalid DRep metadata: expecting a byte '00100010' value for key hash or a byte '0b00100011' value for script hash."
+        payloadWithoutCorrectBytePrefixCorrectHrp = "drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s"
+        payloadWithWrongBytePrefixCorrectHrp = "drep1xhje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axc9fjca3"
+        payloadWithCorrectBytePrefixWrondHrp = "drepp1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcp60l06"
 
 instance Wellformed (PathParam (ApiAddress ('Testnet 0))) where
     wellformed = [PathParam
