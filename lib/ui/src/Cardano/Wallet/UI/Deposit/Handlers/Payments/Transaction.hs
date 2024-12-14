@@ -268,12 +268,12 @@ signalHandler layer alert render state signal = do
                                         x -> x
 
 conwayEraTransactionExport :: [BIP32Path] -> Text -> Transaction
-conwayEraTransactionExport inputBip32Paths cborHex =
+conwayEraTransactionExport bip32Paths cborHex =
     Transaction
         { dataType = "Unwitnessed Tx ConwayEra"
         , description = "Ledger Cddl Format"
         , cborHex
-        , inputBip32Paths
+        , bip32Paths
         }
 
 data AddressValidationResponse

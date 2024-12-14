@@ -1,6 +1,8 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Payments.PageSpec
     ( spec
@@ -56,9 +58,7 @@ import Cardano.Wallet.Deposit.Write
     , mkTxOut
     )
 import Cardano.Wallet.UI.Deposit.API.Payments
-    ( decodeBip32
-    , encodeBip32
-    , unsigned
+    ( unsigned
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Payments.Transaction
     ( deserializeTransaction
@@ -86,11 +86,24 @@ import Test.Hspec
     ( Spec
     , describe
     , it
-    , shouldBe
     , shouldNotBe
     )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
+import Data.Data
+    ( Proxy (..)
+    )
+import Test.Aeson.GenericSpecs
+    ( roundtripAndGoldenSpecs
+    )
+import Test.QuickCheck
+    ( Arbitrary
+    , choose
+    , oneof
+    )
+import Test.QuickCheck.Arbitrary
+    ( Arbitrary (..)
+    )
 
 fakeBootEnv :: IO (WalletBootEnv IO)
 fakeBootEnv = do
@@ -140,26 +153,6 @@ fundTheWallet network = do
     Right () <- liftIO $ postTx network tx
     pure ()
 
-customer0 :: BIP32Path
-customer0 =
-    ( Segment
-        ( Segment
-            ( Segment
-                ( Segment
-                    (Segment Root Hardened 1857)
-                    Hardened
-                    1815
-                )
-                Hardened
-                0
-            )
-            Soft
-            0
-        )
-        Soft
-        0
-    )
-
 spec :: Spec
 spec = do
     describe "payment" $ do
@@ -174,10 +167,17 @@ spec = do
                 change `shouldNotBe` []
                 ourInputs `shouldNotBe` []
                 fee `shouldNotBe` 0
-    describe "inputh paths" $ do
-        it "has a json encoding"
-            $ do
-                encodeBip32 customer0 `shouldBe` "1857H/1815H/0H/0/0"
-        it "can be decoded after encoding" $ do
-            decodeBip32 "1857H/1815H/0H/0/0"
-                 `shouldBe` Right customer0
+    describe "BIP32 input paths"
+        $ roundtripAndGoldenSpecs (Proxy @BIP32Path)
+
+instance Arbitrary DerivationType where
+    arbitrary = oneof [pure Soft, pure Hardened]
+
+instance Arbitrary BIP32Path where
+    arbitrary = oneof [pure Root, segment]
+      where
+        segment = do
+            path <- arbitrary
+            derivation <- arbitrary
+            index <- fromIntegral <$> choose (0 :: Int, 2 ^ (31 :: Int) - 1)
+            pure $ Segment path derivation index

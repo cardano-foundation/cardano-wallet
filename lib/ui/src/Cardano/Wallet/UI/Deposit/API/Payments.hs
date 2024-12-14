@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -34,11 +35,11 @@ import Data.Aeson
     , ToJSON (toJSON)
     , object
     , withObject
+    , withText
     , (.:)
     )
 import Data.Aeson.Types
     ( Parser
-    , parseEither
     , parseFail
     )
 import Data.Map.Monoidal.Strict
@@ -52,7 +53,6 @@ import Data.Text
     )
 import GHC.Generics
     ( Generic
-    , S
     )
 import Numeric.Natural
     ( Natural
@@ -78,8 +78,7 @@ import qualified Data.Text.Lazy.Encoding as TL
 
 newtype NewReceiver = NewReceiver Receiver
 
-data AddReceiverForm
-    = AddReceiverForm
+data AddReceiverForm = AddReceiverForm
     { newReceiver :: NewReceiver
     , addReceiverState :: State
     }
@@ -111,76 +110,76 @@ instance FromForm NewReceiverValidation where
         amountValidation <- parseMaybe "new-receiver-amount" form
         pure $ NewReceiverValidation{addressValidation, amountValidation}
 
-data Transaction
-    = Transaction
-    { dataType :: Text
-    , description :: Text
-    , cborHex :: Text
-    , inputBip32Paths :: [BIP32Path]
+data Transaction = Transaction
+    { dataType :: !Text
+    , description :: !Text
+    , cborHex :: !Text
+    , bip32Paths :: ![BIP32Path]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 instance ToJSON Transaction where
-    toJSON Transaction{dataType, description, cborHex, inputBip32Paths} =
+    toJSON Transaction{dataType, description, cborHex, bip32Paths} =
         object
             [ "type" .= dataType
             , "description" .= description
             , "cborHex" .= cborHex
-            , "bip32Paths" .= (encodeBip32 <$> inputBip32Paths)
+            , "bip32Paths" .= bip32Paths
             ]
-
-encodeBip32 :: BIP32Path -> Text
-encodeBip32 (Segment Root Hardened n) =
-    T.pack (show n)
-        <> "H"
-encodeBip32 (Segment Root Soft n) =
-    T.pack (show n)
-encodeBip32 (Segment p Hardened n) =
-    encodeBip32 p
-        <> "/"
-        <> T.pack (show n)
-        <> "H"
-encodeBip32 (Segment p Soft n) =
-    encodeBip32 p <> "/" <> T.pack (show n)
-encodeBip32 Root = ""
 
 instance FromJSON Transaction where
     parseJSON = withObject "Transaction" $ \o -> do
         dataType <- o .: "type"
         description <- o .: "description"
         cborHex <- o .: "cborHex"
-        inputBip32Paths <- o .: "bip32Paths" >>= traverse parseBip32
-        pure Transaction{dataType, description, cborHex, inputBip32Paths}
+        bip32Paths <- o .: "bip32Paths"
+        pure Transaction{dataType, description, cborHex, bip32Paths}
 
-decodeBip32 :: Text -> Either String BIP32Path
-decodeBip32 = parseEither parseBip32
+-- Orphan instances for BIP32Path
+-- TODO: move where they belong, in the module defining BIP32Path
+instance ToJSON BIP32Path where
+    toJSON = toJSON . encodeBIP32
+      where
+        encodeBIP32 = \case
+            (Segment Root Hardened n) -> T.pack (show n) <> "H"
+            (Segment Root Soft n) -> T.pack (show n)
+            (Segment p Hardened n) ->
+                encodeBIP32 p
+                    <> "/"
+                    <> T.pack (show n)
+                    <> "H"
+            (Segment p Soft n) ->
+                encodeBIP32 p <> "/" <> T.pack (show n)
+            Root -> ""
 
-parseSegment :: Text -> Parser (Word31, DerivationType)
-parseSegment t = case T.stripSuffix "H" t of
-    Nothing -> do
-        s <- parseIndex t
-        pure (s, Soft)
-    Just t' -> do
-        s <- parseIndex t'
-        pure (s, Hardened)
-  where
-    parseIndex :: Text -> Parser Word31
-    parseIndex text = case reads $ T.unpack text of
-        [(i, "")] -> pure i
-        _ -> parseFail "Invalid index"
+instance FromJSON BIP32Path where
+    parseJSON = withText "BIP32Path" parseBip32
+      where
+        parseBip32 :: Text -> Parser BIP32Path
+        parseBip32 t = case T.splitOn "/" t of
+            [""] -> pure Root
+            xs -> foldSegments <$> traverse parseSegment xs
 
-parseBip32 :: Text -> Parser BIP32Path
-parseBip32 t = case T.splitOn "/" t of
-    [] -> pure Root
-    xs -> foldSegments <$>  traverse parseSegment xs
+        foldSegments :: [(Word31, DerivationType)] -> BIP32Path
+        foldSegments = foldl (\p (i, t) -> Segment p t i) Root
 
-foldSegments :: [(Word31, DerivationType)] -> BIP32Path
-foldSegments = foldl (\p (i, t)-> Segment p t i) Root
+        parseSegment :: Text -> Parser (Word31, DerivationType)
+        parseSegment t = case T.stripSuffix "H" t of
+            Nothing -> do
+                s <- parseIndex t
+                pure (s, Soft)
+            Just t' -> do
+                s <- parseIndex t'
+                pure (s, Hardened)
+          where
+            parseIndex :: Text -> Parser Word31
+            parseIndex text = case reads $ T.unpack text of
+                [(i, "")] -> pure i
+                _ -> parseFail "Invalid index"
 
 newtype Password = Password Text
 
-data SignatureForm
-    = SignatureForm
+data SignatureForm = SignatureForm
     { signatureFormState :: State
     , signaturePassword :: Password
     }
