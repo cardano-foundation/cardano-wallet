@@ -295,10 +295,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             # does not require any messing with cabal files.
             packages.katip.doExactConfig = true;
 
-            # Avoid this error on the windows build:
-            #   Wrap.hsc:96:10: fatal error: regex.h: No such file or directory
-            packages.regex-posix.flags._regex-posix-clib = stdenv.hostPlatform.isWindows;
-
             # Lets us put the pretty-simple tool in shell.nix.
             packages.pretty-simple.flags.buildexe = true;
           }
