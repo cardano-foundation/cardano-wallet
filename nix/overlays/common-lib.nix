@@ -5,12 +5,13 @@ in {
   cardanoWalletLib = {
 
     # Retrieve the list of local project packages by
-    # filtering the set of *all* packages by their homepage.
-    projectPackageList = lib.attrNames (lib.filterAttrs
-        (_: p: p != null
-          && haskellLib.isLocalPackage p.package
-          && p.package.homepage == "https://github.com/cardano-foundation/cardano-wallet")
-        cardanoWalletHaskellProject.pkg-set.config.packages);
+    # using the haskell.nix selectProjectPackages function.
+    projectPackageList =
+      let
+        project = haskellLib.selectProjectPackages cardanoWalletHaskellProject.hsPkgs;
+        names = map (key: (builtins.getAttr key project).identifier.name) (builtins.attrNames project);
+      in
+        lib.lists.unique names;
 
   };
 }

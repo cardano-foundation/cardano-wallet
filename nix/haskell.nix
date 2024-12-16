@@ -163,10 +163,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
         [
           {
             packages = lib.genAttrs projectPackages (name: {
-              # Mark package as local non-dep in the nix-shell.
-              # fixme: Haskell.nix should set it
-              package.isProject = true;
-
               # Enable release flag (optimization and -Werror)
               flags.release = true;
 
