@@ -295,9 +295,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
             # does not require any messing with cabal files.
             packages.katip.doExactConfig = true;
 
-            # split data output for ekg to reduce closure size
-            packages.ekg.components.library.enableSeparateDataOutput = true;
-
             # Avoid this error on the windows build:
             #   Wrap.hsc:96:10: fatal error: regex.h: No such file or directory
             packages.regex-posix.flags._regex-posix-clib = stdenv.hostPlatform.isWindows;
