@@ -1,6 +1,8 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Cardano.Wallet.UI.Deposit.Html.Pages.Payments.PageSpec
     ( spec
@@ -28,7 +30,9 @@ import Cardano.Wallet.Deposit.IO.Resource
     ( withResource
     )
 import Cardano.Wallet.Deposit.Pure
-    ( Credentials
+    ( BIP32Path (..)
+    , Credentials
+    , DerivationType (..)
     )
 import Cardano.Wallet.Deposit.Pure.State.Creation
     ( createMnemonicFromWords
@@ -86,6 +90,20 @@ import Test.Hspec
     )
 
 import qualified Cardano.Wallet.Deposit.Read as Read
+import Data.Data
+    ( Proxy (..)
+    )
+import Test.Aeson.GenericSpecs
+    ( roundtripAndGoldenSpecs
+    )
+import Test.QuickCheck
+    ( Arbitrary
+    , choose
+    , oneof
+    )
+import Test.QuickCheck.Arbitrary
+    ( Arbitrary (..)
+    )
 
 fakeBootEnv :: IO (WalletBootEnv IO)
 fakeBootEnv = do
@@ -93,7 +111,8 @@ fakeBootEnv = do
     pure $ WalletBootEnv nullTracer Read.mockGenesisDataMainnet net
 
 mnemonics :: Text
-mnemonics = "vital minimum victory start lunch find city peanut shiver soft hedgehog artwork mushroom loud found"
+mnemonics =
+    "vital minimum victory start lunch find city peanut shiver soft hedgehog artwork mushroom loud found"
 
 seed :: SomeMnemonic
 Right seed = createMnemonicFromWords mnemonics
@@ -148,3 +167,17 @@ spec = do
                 change `shouldNotBe` []
                 ourInputs `shouldNotBe` []
                 fee `shouldNotBe` 0
+    describe "BIP32 input paths"
+        $ roundtripAndGoldenSpecs (Proxy @BIP32Path)
+
+instance Arbitrary DerivationType where
+    arbitrary = oneof [pure Soft, pure Hardened]
+
+instance Arbitrary BIP32Path where
+    arbitrary = oneof [pure Root, segment]
+      where
+        segment = do
+            path <- arbitrary
+            derivation <- arbitrary
+            index <- fromIntegral <$> choose (0 :: Int, 2 ^ (31 :: Int) - 1)
+            pure $ Segment path derivation index

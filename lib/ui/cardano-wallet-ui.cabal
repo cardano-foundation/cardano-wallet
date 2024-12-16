@@ -12,6 +12,7 @@ extra-doc-files: CHANGELOG.md
 data-files:
   data/english.txt
   data/images/*.png
+  golden/*.json
 
 common language
   default-language:   Haskell2010
@@ -134,8 +135,7 @@ library
     , containers
     , contra-tracer
     , cookie
-    , customer-deposit-wallet
-    , customer-deposit-wallet:rest
+    , customer-deposit-wallet:{customer-deposit-wallet, rest}
     , exceptions
     , generic-lens
     , hashable
@@ -183,9 +183,9 @@ test-suite unit
     , cardano-wallet-ui
     , containers
     , contra-tracer
-    , customer-deposit-wallet
-    , customer-deposit-wallet:rest
+    , customer-deposit-wallet:{customer-deposit-wallet, rest}
     , hspec
+    , hspec-golden-aeson
     , mtl
     , QuickCheck
     , temporary

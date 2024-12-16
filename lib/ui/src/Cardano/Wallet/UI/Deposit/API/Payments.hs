@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,6 +15,11 @@ where
 
 import Prelude
 
+import Cardano.Wallet.Deposit.Pure
+    ( BIP32Path (..)
+    , DerivationType (..)
+    , Word31
+    )
 import Cardano.Wallet.Deposit.Pure.API.Address
     ( encodeAddress
     )
@@ -29,7 +35,12 @@ import Data.Aeson
     , ToJSON (toJSON)
     , object
     , withObject
+    , withText
     , (.:)
+    )
+import Data.Aeson.Types
+    ( Parser
+    , parseFail
     )
 import Data.Map.Monoidal.Strict
     ( MonoidalMap
@@ -61,13 +72,13 @@ import Web.FormUrlEncoded
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
-import qualified Data.Text.Lazy as T
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
 
 newtype NewReceiver = NewReceiver Receiver
 
-data AddReceiverForm
-    = AddReceiverForm
+data AddReceiverForm = AddReceiverForm
     { newReceiver :: NewReceiver
     , addReceiverState :: State
     }
@@ -99,20 +110,21 @@ instance FromForm NewReceiverValidation where
         amountValidation <- parseMaybe "new-receiver-amount" form
         pure $ NewReceiverValidation{addressValidation, amountValidation}
 
-data Transaction
-    = Transaction
-    { dataType :: Text
-    , description :: Text
-    , cborHex :: Text
+data Transaction = Transaction
+    { dataType :: !Text
+    , description :: !Text
+    , cborHex :: !Text
+    , bip32Paths :: ![BIP32Path]
     }
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
 
 instance ToJSON Transaction where
-    toJSON Transaction{dataType, description, cborHex} =
+    toJSON Transaction{dataType, description, cborHex, bip32Paths} =
         object
             [ "type" .= dataType
             , "description" .= description
             , "cborHex" .= cborHex
+            , "bip32Paths" .= bip32Paths
             ]
 
 instance FromJSON Transaction where
@@ -120,12 +132,54 @@ instance FromJSON Transaction where
         dataType <- o .: "type"
         description <- o .: "description"
         cborHex <- o .: "cborHex"
-        pure Transaction{dataType, description, cborHex}
+        bip32Paths <- o .: "bip32Paths"
+        pure Transaction{dataType, description, cborHex, bip32Paths}
+
+-- Orphan instances for BIP32Path
+-- TODO: move where they belong, in the module defining BIP32Path
+instance ToJSON BIP32Path where
+    toJSON = toJSON . encodeBIP32
+      where
+        encodeBIP32 = \case
+            (Segment Root Hardened n) -> T.pack (show n) <> "H"
+            (Segment Root Soft n) -> T.pack (show n)
+            (Segment p Hardened n) ->
+                encodeBIP32 p
+                    <> "/"
+                    <> T.pack (show n)
+                    <> "H"
+            (Segment p Soft n) ->
+                encodeBIP32 p <> "/" <> T.pack (show n)
+            Root -> ""
+
+instance FromJSON BIP32Path where
+    parseJSON = withText "BIP32Path" parseBip32
+      where
+        parseBip32 :: Text -> Parser BIP32Path
+        parseBip32 t = case T.splitOn "/" t of
+            [""] -> pure Root
+            xs -> foldSegments <$> traverse parseSegment xs
+
+        foldSegments :: [(Word31, DerivationType)] -> BIP32Path
+        foldSegments = foldl (\p (i, t) -> Segment p t i) Root
+
+        parseSegment :: Text -> Parser (Word31, DerivationType)
+        parseSegment t = case T.stripSuffix "H" t of
+            Nothing -> do
+                s <- parseIndex t
+                pure (s, Soft)
+            Just t' -> do
+                s <- parseIndex t'
+                pure (s, Hardened)
+          where
+            parseIndex :: Text -> Parser Word31
+            parseIndex text = case reads $ T.unpack text of
+                [(i, "")] -> pure i
+                _ -> parseFail "Invalid index"
 
 newtype Password = Password Text
 
-data SignatureForm
-    = SignatureForm
+data SignatureForm = SignatureForm
     { signatureFormState :: State
     , signaturePassword :: Password
     }
@@ -150,7 +204,7 @@ instance FromJSON State
 
 instance FromHttpApiData State where
     parseQueryParam :: Text -> Either Text State
-    parseQueryParam t = case Aeson.decode $ TL.encodeUtf8 $ T.fromStrict t of
+    parseQueryParam t = case Aeson.decode $ TL.encodeUtf8 $ TL.fromStrict t of
         Nothing -> Left "Invalid JSON for a State"
         Just tx -> pure tx
 
