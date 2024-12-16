@@ -435,15 +435,18 @@
             };
 
             ci.benchmarks =
-            packages.benchmarks.cardano-wallet-benchmarks //
-            packages.benchmarks.cardano-wallet-blackbox-benchmarks // {
-              all = pkgs.releaseTools.aggregate {
-                name = "cardano-wallet-benchmarks";
-                meta.description = "Build all benchmarks";
-                constituents =
-                  lib.collect lib.isDerivation packages.benchmarks;
-              };
-            };
+              let
+                collectedBenchmarks =
+                  lib.concatMapAttrs (_n: v: v) packages.benchmarks;
+              in
+                collectedBenchmarks // {
+                  all = pkgs.releaseTools.aggregate {
+                    name = "cardano-wallet-benchmarks";
+                    meta.description = "Build all benchmarks";
+                    constituents =
+                      lib.collect lib.isDerivation collectedBenchmarks;
+                  };
+                };
             ci.artifacts = mkReleaseArtifacts walletProject // {
               dockerImage = packages.dockerImage;
             };
