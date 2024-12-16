@@ -420,7 +420,6 @@
               inherit dockerImage;
               inherit (config) dockerHubRepoName;
             };
-            inherit (pkgs) checkCabalProject;
           } // (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs;

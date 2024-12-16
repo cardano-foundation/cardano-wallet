@@ -10,7 +10,6 @@
 -- Updating this file
 --
 -- This file is the canonical source of dependencies.
--- To generate the Nix packages, use  ./nix/regenerate.sh
 --
 -- -----------------------------------------------------------------------------
 -- How to use with the nix shell
