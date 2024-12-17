@@ -9,7 +9,6 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     , readDelegation
     , CurrentEpochSlotting (..)
     , mkCurrentEpochSlotting
-    , isVoting
     , getVoting
     )
 where
@@ -65,15 +64,6 @@ isStakeKeyRegistered :: Delegations -> Bool
 isStakeKeyRegistered m = fromMaybe False $ do
     (_, v) <- lookupMax m
     pure $ v /= Inactive
-
--- | Check whether the voting has been casted in the delegation state.
-isVoting :: Delegations -> Bool
-isVoting m = fromMaybe False $ do
-    (_, v) <- lookupMax m
-    let votedAlready = \case
-            Active (Just _) _ -> True
-            _ -> False
-    pure $ votedAlready v
 
 -- | Get the voting in the delegation state.
 getVoting :: Delegations -> Maybe DRep

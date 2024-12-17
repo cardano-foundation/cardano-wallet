@@ -61,6 +61,7 @@ import Data.Generics.Internal.VL.Lens
     )
 import Data.Maybe
     ( fromJust
+    , isJust
     , isNothing
     )
 import Data.Set
@@ -187,7 +188,8 @@ quitStakePoolDelegationAction wallet rewards currentEpochSlotting withdrawal =
         Right () -> Right Tx.Quit
   where
     voting =
-        Dlgs.isVoting
+        isJust
+        $ Dlgs.getVoting
         $ WalletState.delegations wallet
     delegation =
         Dlgs.readDelegation currentEpochSlotting

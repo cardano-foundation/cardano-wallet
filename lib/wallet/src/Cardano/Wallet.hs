@@ -758,6 +758,7 @@ import Data.Maybe
     ( fromJust
     , fromMaybe
     , isJust
+    , isNothing
     , mapMaybe
     , maybeToList
     )
@@ -2813,8 +2814,8 @@ assertIsVoting
     -> ExceptT ErrConstructTx IO ()
 assertIsVoting DBLayer{..} = \case
     Write.RecentEraConway -> do
-        voted <- liftIO $ atomically (alreadyVoted walletState)
-        if voted then
+        voted <- liftIO $ atomically (getCurrentVoting walletState)
+        if isJust voted then
             pure ()
         else
             throwE ErrConstructTxWithdrawalWithoutVoting
@@ -2846,14 +2847,6 @@ assertDifferentVoting DBLayer{..} votingActionM = \case
         else
             pure ()
 
-alreadyVoted
-    :: Functor stm
-    => DBVar stm (DeltaWalletState s)
-    -> stm Bool
-alreadyVoted walletState =
-    Dlgs.isVoting . view #delegations
-        <$> readDBVar walletState
-
 getCurrentVoting
     :: Functor stm
     => DBVar stm (DeltaWalletState s)
@@ -2870,9 +2863,9 @@ handleVotingWhenMissingInConway era db = do
     areWeInConway <- case votingEnabledInEra era of
         Left _ -> pure False
         Right _ -> pure True
-    voting <- haveWeVoted db
+    voting <- currentVoting db
     stakingKeyRegistered <- isStakeKeyInDb db
-    if (areWeInConway && not voting) then
+    if (areWeInConway && isNothing voting) then
        if stakingKeyRegistered then
            pure $ Just $ Vote Abstain
        else
@@ -2880,11 +2873,11 @@ handleVotingWhenMissingInConway era db = do
     else
        pure Nothing
   where
-    haveWeVoted
+    currentVoting
         :: DBLayer IO s
-        -> IO Bool
-    haveWeVoted DBLayer{..} = do
-        atomically (alreadyVoted walletState)
+        -> IO (Maybe DRep)
+    currentVoting DBLayer{..} = do
+        atomically (getCurrentVoting walletState)
 
     isStakeKeyInDb
         :: DBLayer IO s
