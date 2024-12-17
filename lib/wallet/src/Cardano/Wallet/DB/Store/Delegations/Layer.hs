@@ -10,6 +10,7 @@ module Cardano.Wallet.DB.Store.Delegations.Layer
     , CurrentEpochSlotting (..)
     , mkCurrentEpochSlotting
     , isVoting
+    , getVoting
     )
 where
 
@@ -72,6 +73,15 @@ isVoting m = fromMaybe False $ do
     let votedAlready = \case
             Active (Just _) _ -> True
             _ -> False
+    pure $ votedAlready v
+
+-- | Get the voting in the delegation state.
+getVoting :: Delegations -> Maybe DRep
+getVoting m = fromMaybe Nothing $ do
+    (_, v) <- lookupMax m
+    let votedAlready = \case
+            Active (Just drep) _ -> Just drep
+            _ -> Nothing
     pure $ votedAlready v
 
 -- | Binds a stake pool id to a wallet. This will have an influence on
