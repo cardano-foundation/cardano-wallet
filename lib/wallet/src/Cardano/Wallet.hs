@@ -2804,7 +2804,7 @@ votingEnabledInEra
     -> Either ErrConstructTx ()
 votingEnabledInEra = \case
     Write.RecentEraConway -> Right ()
-    _ -> Left ErrConstructTxVotingInWrongEra
+    _ -> Left $ ErrConstructTxVoting ErrWrongEra
 
 assertIsVoting
     :: DBLayer IO s
@@ -2819,12 +2819,46 @@ assertIsVoting DBLayer{..} = \case
             throwE ErrConstructTxWithdrawalWithoutVoting
     _ -> pure ()
 
+assertDifferentVoting
+    :: DBLayer IO s
+    -> Maybe VotingAction
+    -> Write.RecentEra era
+    -> ExceptT ErrConstructTx IO ()
+assertDifferentVoting DBLayer{..} votingActionM = \case
+    Write.RecentEraConway -> do
+        votingM <- liftIO $ atomically (getCurrentVoting walletState)
+        case votingM of
+            Nothing ->
+                pure ()
+            Just currentDrep -> case votingActionM of
+                Nothing ->
+                    pure ()
+                Just (VoteRegisteringKey requestedDrep) ->
+                    cmpDReps currentDrep requestedDrep
+                Just (Vote requestedDrep) ->
+                    cmpDReps currentDrep requestedDrep
+    _ -> pure ()
+  where
+    cmpDReps cDrep rDRep =
+        if cDrep == rDRep then
+            throwE $ ErrConstructTxVoting ErrWrongEra
+        else
+            pure ()
+
 alreadyVoted
     :: Functor stm
     => DBVar stm (DeltaWalletState s)
     -> stm Bool
 alreadyVoted walletState =
     Dlgs.isVoting . view #delegations
+        <$> readDBVar walletState
+
+getCurrentVoting
+    :: Functor stm
+    => DBVar stm (DeltaWalletState s)
+    -> stm (Maybe DRep)
+getCurrentVoting walletState =
+    Dlgs.getVoting . view #delegations
         <$> readDBVar walletState
 
 handleVotingWhenMissingInConway
@@ -3793,7 +3827,7 @@ data ErrConstructTx
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
-    | ErrConstructTxVotingInWrongEra
+    | ErrConstructTxVoting ErrCannotVote
     | ErrConstructTxWithdrawalWithoutVoting
     | ErrConstructTxFromMetadataEncryption ErrMetadataEncryption
     | ErrConstructTxNotImplemented

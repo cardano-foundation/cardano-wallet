@@ -475,11 +475,7 @@ instance IsServerError ErrConstructTx where
             [ "I cannot construct a delegating transaction for a shared wallet "
             , "that is lacking a delegation script template."
             ]
-        ErrConstructTxVotingInWrongEra ->
-            apiError err403 VotingInInvalidEra $ mconcat
-            [ "I cannot construct a transaction that includes voting before "
-            , "the Conway era."
-            ]
+        ErrConstructTxVoting e -> toServerError e
         ErrConstructTxWithdrawalWithoutVoting ->
             apiError err403 WithdrawalNotPossibleWithoutVote $ mconcat
             [ "I cannot construct a transaction that contains withdrawals "
