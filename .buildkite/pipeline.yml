@@ -59,7 +59,6 @@ steps:
       - linux-nix
     steps:
     - label: Nix Build (linux)
-      # Check whether regenerate.sh was applied when it had to be applied.
       commands:
         - nix build .#cardano-wallet
       agents:

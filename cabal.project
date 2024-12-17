@@ -10,7 +10,6 @@
 -- Updating this file
 --
 -- This file is the canonical source of dependencies.
--- To generate the Nix packages, use  ./nix/regenerate.sh
 --
 -- -----------------------------------------------------------------------------
 -- How to use with the nix shell
@@ -170,6 +169,7 @@ allow-newer:
     async-timer:unliftio-core
   , servant-openapi3:*
   , katip:Win32
+  , ekg-wai:time
 
 constraints:
     base >= 4.18.2.0 && < 5
@@ -177,6 +177,13 @@ constraints:
   , persistent ^>= 2.14.6.0
 
   , bech32 >= 1.1.7
+
+  -- Force newer version of `lobemo-backend-ekg` here,
+  -- because older versions depend on `snap-server`,
+  -- which in turns fails to link on linux musl
+  -- due to some missing `sendfile64` hack.
+  -- (We use linux musl to get statically linked binaries.)
+  , lobemo-backend-ekg >= 0.2.0.0
 
   -- lower versions of katip won't build with the Win32-2.12.0.1
   -- which is shipped with the ghc-9.2.8
@@ -186,10 +193,10 @@ constraints:
   -- Cardano Node dependencies:
   , io-classes >= 1.4
   , io-classes -asserts
-  
-  , cardano-ledger-api ==1.9.4.0
 
-  , ouroboros-network == 0.17.1.2
+  , cardano-ledger-api ^>= 1.9
+
+  , ouroboros-network ^>= 0.17
 
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
@@ -255,9 +262,6 @@ package cardano-wallet
   tests: True
 
 package cardano-wallet-api
-  tests: True
-
-package cardano-wallet-cli
   tests: True
 
 package cardano-wallet-launcher

@@ -7,7 +7,8 @@ lib
 rec {
   # Imports from nixpkgs.lib
   inherit (lib) filterAttrsRecursive recursiveUpdate collect 
-                optionalAttrs mapAttrs isDerivation fileset;
+                optionalAttrs mapAttrs isDerivation fileset
+                concatMapAttrs;
 
   /* Convert versions string from Cabal (YYYY.M.D)
      to git tag format (vYYYY-MM-DD).
