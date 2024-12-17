@@ -120,26 +120,37 @@ type LatestLedgerEra = Conway
 --
 -- === 'RecentEra' the value vs 'IsRecentEra' the class
 --
+-- We keep track of the era on the type-level, and our code is mostly
+-- polymorphic in the era. In order to simplify such code, we impose the
+-- following two guidelines:
+--
+-- 1. For any type declaration that mentions the era type parameter, you SHOULD
+-- add a type class constraint IsRecentEra era. (Think of this step as adding a
+-- type signature 'era : IsRecent'.)
+--
+-- 2. For any declaration that depends on era, but does not mention era in the
+-- type, you SHOULD add a value-level argument of type RecentEra era in order
+-- to disambiguate the type and AVOID the use of AllowAmbiguousTypes. (In old
+-- Haskell code, the Proxy type was often used for this purpose.) In most other
+-- cases, you SHOULD NOT add a value-level argument.
+--
 -- DO:
 --
 -- @@
--- myTx :: IsRecentEra era => Tx era
--- signByAlice :: IsRecentEra era => Tx era -> Tx era
--- renderCliTx :: IsRecentEra era -> Tx era -> Text
--- myCardanoApiTx :: IsRecentEra era -> RecentEra -> CardanoApi.Tx (CardanoApiEra era)
+-- isBabbageOnwards   :: IsRecentEra era => BabbageEraOnwards (CardanoApiEra era)
+-- signTxByAlice      :: IsRecentEra era => Tx era -> Tx era
+-- makeAndSerializeTx :: IsRecentEra era => RecentEra era -> Intent -> ByteString
 -- @@
 --
 -- DON'T:
 --
 -- @@
--- signByAlice :: RecentEra era -> Tx era -> Tx era
---
--- -- 'RecentEra era' adds boilerplate without improving type inference
--- signByAlice :: IsRecentEra era => RecentEra era -> Tx era -> Tx era
---
--- -- Will always require '@era' type application to disambiguate the type when
--- called:
--- myCardanoApiTx :: IsRecentEra era => CardanoApi.Tx (CardanoApiEra era)
+--    -- The type class constraint is necessary
+-- isBabbageOnwards   :: RecentEra era -> BabbageEraOnwards (CardanoApiEra era)
+--    -- The value-level argument is probaby superfluous
+-- signTxByAlice      :: IsRecentEra era => RecentEra era -> Tx era -> Tx era
+--    -- This type is ambiguous
+-- makeAndSerializeTx :: IsRecentEra era => Intent -> ByteString
 -- @@
 data RecentEra era where
     RecentEraBabbage :: RecentEra Babbage
