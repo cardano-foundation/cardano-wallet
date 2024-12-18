@@ -44,12 +44,6 @@ or more comfortably, for pre-configured networks (`mainnet`, `testnet`, ...):
 > nix run .#mainnet/wallet -- <optional additional cardano wallet arguments>
 ```
 
-You can run the integration tests with:
-
-```console
-> nix build -L .#ci.x86_64-linux.tests.run.integration
-```
-
 #### Cross-compiling with Nix
 
 To build the wallet for Windows, from **Linux**:
