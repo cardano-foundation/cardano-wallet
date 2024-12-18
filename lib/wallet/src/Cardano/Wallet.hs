@@ -2842,10 +2842,7 @@ assertDifferentVoting DBLayer{..} votingActionM = \case
     _ -> pure ()
   where
     cmpDReps cDrep rDRep =
-        if cDrep == rDRep then
-            throwE $ ErrConstructTxVoting ErrWrongEra
-        else
-            pure ()
+        when (cDrep == rDRep) $ throwE $ ErrConstructTxVoting ErrWrongEra
 
 getCurrentVoting
     :: Functor stm
