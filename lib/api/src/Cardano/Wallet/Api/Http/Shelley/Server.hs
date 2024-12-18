@@ -2633,10 +2633,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                         transactionCtx0 { txDelegationAction = Just action }
 
         policyXPubM <-
-            if isJust mintBurnDatum || isJust mintBurnReferenceScriptTemplate then
-                liftHandler $ Just . fst <$> W.readPolicyPublicKey wrk
-            else
-                pure Nothing
+            fmap fst . eitherToMaybe <$> liftIO (W.readPolicyPublicKey wrk)
 
         transactionCtx2 <-
             if isJust mintBurnDatum then do
@@ -3435,8 +3432,18 @@ decodeTransaction
     let ApiDecodeTransactionPostData (ApiT sealed) decryptMetadata = postData
     era <- liftIO $ NW.currentNodeEra netLayer
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
-        let keyhash = KeyHash Policy (xpubToBytes k)
+        policyKeyM <-
+                fmap fst . eitherToMaybe <$> liftIO (W.readPolicyPublicKey wrk)
+        let txWitnessCount =
+                    mkApiWitnessCount
+                        . witnessCount
+                        $ maybe
+                            AnyWitnessCountCtx
+                            ( ShelleyWalletCtx
+                                . KeyHash Policy
+                                . xpubToBytes
+                            )
+                            policyKeyM
             TxExtended{..} = decodeTx tl era sealed
             Tx { txId
                , fee
@@ -3493,8 +3500,7 @@ decodeTransaction
             , metadata = ApiTxMetadata metadata'
             , scriptValidity = ApiT <$> scriptValidity
             , validityInterval = ApiValidityIntervalExplicit <$> validity
-            , witnessCount = mkApiWitnessCount $ witnessCount
-                $ ShelleyWalletCtx keyhash
+            , witnessCount = txWitnessCount
             }
   where
     tl = ctx ^. W.transactionLayer @(KeyOf s) @'CredFromKeyK
@@ -4426,7 +4432,7 @@ getPolicyKey
     -> Handler ApiPolicyKey
 getPolicyKey ctx (ApiT wid) hashed = do
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        (k, _) <- liftHandler $ W.readPolicyPublicKey wrk
+        (k, _) <- liftHandler $ ExceptT $ W.readPolicyPublicKey wrk
         pure $ uncurry ApiPolicyKey (computeKeyPayload hashed k)
 
 postPolicyKey
@@ -4469,7 +4475,7 @@ postPolicyId ctx (ApiT wid) payload = do
         liftHandler $ throwE ErrGetPolicyIdWrongMintingBurningTemplate
 
     withWorkerCtx @_ @s ctx wid liftE liftE $ \wrk -> do
-        (xpub, _) <- liftHandler $ W.readPolicyPublicKey wrk
+        (xpub, _) <- liftHandler $ ExceptT $ W.readPolicyPublicKey wrk
         pure $ ApiPolicyId $ ApiT $
             toTokenPolicyId (keyFlavorFromState @s)
                 scriptTempl (Map.singleton (Cosigner 0) xpub)

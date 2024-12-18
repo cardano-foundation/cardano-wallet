@@ -44,9 +44,6 @@ import Control.Category
 import Control.Monad.IO.Class
     ( MonadIO (liftIO)
     )
-import Control.Monad.Trans.Except
-    ( runExceptT
-    )
 import Data.Either.Extra
     ( eitherToMaybe
     )
@@ -62,7 +59,7 @@ convertApiAssetMintBurn
     -> Handler (ApiAssetMintBurn, ApiAssetMintBurn)
 convertApiAssetMintBurn ctx (mint, burn) = do
     xpubM <- fmap (fmap fst . eitherToMaybe)
-        <$> liftIO . runExceptT $ readPolicyPublicKey ctx
+        <$> liftIO $ readPolicyPublicKey ctx
     let  convert tokenWithScripts =  ApiAssetMintBurn
             { tokens = toApiTokens tokenWithScripts
             , walletPolicyKeyHash =
