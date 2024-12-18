@@ -2815,10 +2815,7 @@ assertIsVoting
 assertIsVoting DBLayer{..} = \case
     Write.RecentEraConway -> do
         voted <- liftIO $ atomically (getCurrentVoting walletState)
-        if isJust voted then
-            pure ()
-        else
-            throwE ErrConstructTxWithdrawalWithoutVoting
+        unless (isJust voted) $ throwE ErrConstructTxWithdrawalWithoutVoting
     _ -> pure ()
 
 assertDifferentVoting
@@ -2827,22 +2824,24 @@ assertDifferentVoting
     -> Write.RecentEra era
     -> ExceptT ErrConstructTx IO ()
 assertDifferentVoting DBLayer{..} votingActionM = \case
-    Write.RecentEraConway -> do
-        votingM <- liftIO $ atomically (getCurrentVoting walletState)
-        case votingM of
-            Nothing ->
-                pure ()
-            Just currentDrep -> case votingActionM of
-                Nothing ->
-                    pure ()
-                Just (VoteRegisteringKey requestedDrep) ->
-                    cmpDReps currentDrep requestedDrep
-                Just (Vote requestedDrep) ->
-                    cmpDReps currentDrep requestedDrep
+    Write.RecentEraConway ->
+        liftIO (atomically $ getCurrentVoting walletState) >>=
+        checkVotingIsDifferent votingActionM
     _ -> pure ()
   where
-    cmpDReps cDrep rDRep =
-        when (cDrep == rDRep) $ throwE $ ErrConstructTxVoting ErrWrongEra
+     checkVotingIsDifferent :: Monad m => Maybe VotingAction -> Maybe DRep -> ExceptT ErrConstructTx m ()
+     checkVotingIsDifferent vActionM = \case
+       Nothing ->
+           pure ()
+       Just currentDrep -> case vActionM of
+           Nothing ->
+               pure ()
+           Just vote -> checkDRepIsDifferent currentDrep (getDRep vote)
+     getDRep = \case
+       VoteRegisteringKey requestedDrep -> requestedDrep
+       Vote requestedDrep -> requestedDrep
+     checkDRepIsDifferent cDrep rDRep =
+         when (cDrep == rDRep) $ throwE $ ErrConstructTxVoting ErrWrongEra
 
 getCurrentVoting
     :: Functor stm
