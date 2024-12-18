@@ -19,7 +19,6 @@
   #     - etc (layout is PACKAGE.COMPONENT)
   #   - checks - attrset of test-suite results
   #     - cardano-wallet.unit
-  #     - cardano-wallet.integration
   #     - etc
   #   - benchmarks - attret of benchmark executables
   #     - cardano-wallet.db
@@ -49,6 +48,11 @@
   # (Running an item will typically also build it if it has not been built
   #  in the nix store already.)
   #
+  # 2024-12-18
+  #    Running tests via `nix run` is *discouraged*.
+  #    We use `nix` to produce the artifacts,
+  #    but we try to no longer run checks on these artifacts
+  #    by building a nix derivation (we still do that for unit tests).
   #
   # The CI-related outputs are
   #
@@ -70,40 +74,9 @@
   #  - outputs.apps."<system>".ci.
   #     - tests
   #       - unit            - run the unit tests on this system
-  #       - integration     - run the integration tests on this system
   #     - benchmarks
   #       - restore
   #       - …
-  #
-  # Recommended granularity:
-  #
-  #  after each commit:
-  #    on x86_64-linux:
-  #      nix build .#ci.tests.all
-  #      nix build .#ci.benchmarks.all
-  #      nix build .#ci.artifacts.linux64.release
-  #      nix build .#ci.artifacts.win64.release
-  #      nix build .#ci.artifacts.win64.tests
-  #
-  #      nix run   .#ci.tests.unit
-  #
-  #  before each pull request merge:
-  #    on each supported system:
-  #      nix build .#ci.benchmarks.all
-  #      nix build .#ci.tests.all
-  #
-  #      nix run   .#ci.tests.unit
-  #      nix run   .#ci.tests.integration
-  #
-  #  nightly:
-  #    on x86_64-linux:
-  #      nix build  .#ci.artifacts.dockerImage
-  #
-  #      nix run    .#ci.benchmarks.restore
-  #      nix run    .#ci.benchmarks.…
-  #
-  #    on x65_64-darwin: (macos)
-  #      nix build .#ci.artifacts.win64.release
   #
   ############################################################################
 
@@ -459,27 +432,18 @@
           mkApp = name: pkg: {
               type = "app";
               program = pkg.exePath or "${pkg}/bin/${pkg.name or name}";
-            };
+          };
           apps = lib.mapAttrs mkApp packages;
 
           devShells = mkDevShells walletProject;
 
-          ci.tests.run.unit = pkgs.releaseTools.aggregate
-            {
-              name = "tests.run.unit";
-              meta.description = "Run unit tests";
-              constituents =
-                lib.collect lib.isDerivation
-                  (lib.keepUnitChecks packages.checks);
-            };
-          ci.tests.run.integration = pkgs.releaseTools.aggregate
-            {
-              name = "tests.run.integration";
-              meta.description = "Run integration tests";
-              constituents =
-                lib.collect lib.isDerivation
-                  (lib.keepIntegrationChecks packages.checks);
-            };
+          ci.tests.run.unit = pkgs.releaseTools.aggregate {
+            name = "tests.run.unit";
+            meta.description = "Run unit tests";
+            constituents =
+              lib.collect lib.isDerivation
+                (lib.keepUnitChecks packages.checks);
+          };
         };
 
       systems = eachSystem supportedSystems mkOutputs;
