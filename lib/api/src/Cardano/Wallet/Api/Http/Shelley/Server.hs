@@ -2599,9 +2599,6 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
         (Write.PParamsInAnyRecentEra era pp, timeTranslation)
             <- liftIO $ W.readNodeTipStateForTxWrite netLayer
 
-        when (isJust (body ^. #vote)) $
-            whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
-
         withdrawal <- case body ^. #withdrawal of
             Just SelfWithdraw -> liftIO $
                 W.shelleyOnlyMkSelfWithdrawal
@@ -2616,6 +2613,10 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
             currentEpochSlotting knownPools
             poolStatus withdrawal delegationRequest
             (getApiT <$> body ^. #vote)
+
+        when (isJust (body ^. #vote)) $ do
+            whenLeft (W.votingEnabledInEra era) (liftHandler .throwE)
+            liftHandler $ W.assertDifferentVoting db optionalVoteAction era
 
         let transactionCtx0 = defaultTransactionCtx
                 { txWithdrawal = withdrawal

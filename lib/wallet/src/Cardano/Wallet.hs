@@ -116,6 +116,7 @@ module Cardano.Wallet
     , setChangeAddressMode
     , setChangeAddressModeShared
     , assertIsVoting
+    , assertDifferentVoting
 
     -- * Shared Wallet
     , updateCosigner
@@ -757,6 +758,7 @@ import Data.Maybe
     ( fromJust
     , fromMaybe
     , isJust
+    , isNothing
     , mapMaybe
     , maybeToList
     )
@@ -2804,7 +2806,7 @@ votingEnabledInEra
     -> Either ErrConstructTx ()
 votingEnabledInEra = \case
     Write.RecentEraConway -> Right ()
-    _ -> Left ErrConstructTxVotingInWrongEra
+    _ -> Left $ ErrConstructTxVoting ErrWrongEra
 
 assertIsVoting
     :: DBLayer IO s
@@ -2812,19 +2814,41 @@ assertIsVoting
     -> ExceptT ErrConstructTx IO ()
 assertIsVoting DBLayer{..} = \case
     Write.RecentEraConway -> do
-        voted <- liftIO $ atomically (alreadyVoted walletState)
-        if voted then
-            pure ()
-        else
-            throwE ErrConstructTxWithdrawalWithoutVoting
+        voted <- liftIO $ atomically (getCurrentVoting walletState)
+        unless (isJust voted) $ throwE ErrConstructTxWithdrawalWithoutVoting
     _ -> pure ()
 
-alreadyVoted
+assertDifferentVoting
+    :: DBLayer IO s
+    -> Maybe VotingAction
+    -> Write.RecentEra era
+    -> ExceptT ErrConstructTx IO ()
+assertDifferentVoting DBLayer{..} votingActionM = \case
+    Write.RecentEraConway ->
+        liftIO (atomically $ getCurrentVoting walletState) >>=
+        checkVotingIsDifferent votingActionM
+    _ -> pure ()
+  where
+     checkVotingIsDifferent :: Monad m => Maybe VotingAction -> Maybe DRep -> ExceptT ErrConstructTx m ()
+     checkVotingIsDifferent vActionM = \case
+       Nothing ->
+           pure ()
+       Just currentDrep -> case vActionM of
+           Nothing ->
+               pure ()
+           Just vote -> checkDRepIsDifferent currentDrep (getDRep vote)
+     getDRep = \case
+       VoteRegisteringKey requestedDrep -> requestedDrep
+       Vote requestedDrep -> requestedDrep
+     checkDRepIsDifferent cDrep rDRep =
+         when (cDrep == rDRep) $ throwE $ ErrConstructTxVoting ErrWrongEra
+
+getCurrentVoting
     :: Functor stm
     => DBVar stm (DeltaWalletState s)
-    -> stm Bool
-alreadyVoted walletState =
-    Dlgs.isVoting . view #delegations
+    -> stm (Maybe DRep)
+getCurrentVoting walletState =
+    Dlgs.getVoting . view #delegations
         <$> readDBVar walletState
 
 handleVotingWhenMissingInConway
@@ -2835,9 +2859,9 @@ handleVotingWhenMissingInConway era db = do
     areWeInConway <- case votingEnabledInEra era of
         Left _ -> pure False
         Right _ -> pure True
-    voting <- haveWeVoted db
+    voting <- currentVoting db
     stakingKeyRegistered <- isStakeKeyInDb db
-    if (areWeInConway && not voting) then
+    if (areWeInConway && isNothing voting) then
        if stakingKeyRegistered then
            pure $ Just $ Vote Abstain
        else
@@ -2845,11 +2869,11 @@ handleVotingWhenMissingInConway era db = do
     else
        pure Nothing
   where
-    haveWeVoted
+    currentVoting
         :: DBLayer IO s
-        -> IO Bool
-    haveWeVoted DBLayer{..} = do
-        atomically (alreadyVoted walletState)
+        -> IO (Maybe DRep)
+    currentVoting DBLayer{..} = do
+        atomically (getCurrentVoting walletState)
 
     isStakeKeyInDb
         :: DBLayer IO s
@@ -3793,7 +3817,7 @@ data ErrConstructTx
     | ErrConstructTxValidityIntervalNotWithinScriptTimelock
     | ErrConstructTxSharedWalletIncomplete
     | ErrConstructTxDelegationInvalid
-    | ErrConstructTxVotingInWrongEra
+    | ErrConstructTxVoting ErrCannotVote
     | ErrConstructTxWithdrawalWithoutVoting
     | ErrConstructTxFromMetadataEncryption ErrMetadataEncryption
     | ErrConstructTxNotImplemented

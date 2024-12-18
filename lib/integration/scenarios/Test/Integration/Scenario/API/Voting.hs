@@ -136,6 +136,14 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         -- voting and re-voting
         _ <- voteAndRevote ctx src depositAmt
 
+         -- we are voting abstain now
+        let voteAbstainAgain = Json [json|{
+                "vote": "abstain"
+            }|]
+        rTx2 <- request @(ApiConstructTransaction n) ctx
+            (Link.createUnsignedTransaction @'Shelley src) Default voteAbstainAgain
+        decodeErrorInfo rTx2 `shouldBe` SameVote
+
         -- quitting, ie. deregistrating the stake key
         quit ctx src depositAmt
 
