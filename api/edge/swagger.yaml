@@ -6258,6 +6258,7 @@ x-responsesConstructTransaction: &responsesConstructTransaction
             - <<: *errVotingInInvalidEra
             - <<: *errWithdrawalNotPossibleWithoutVote
             - <<: *errInvalidMetadataEncryption
+            - <<: *errSameVote
   202:
     description: Accepted
     content:
