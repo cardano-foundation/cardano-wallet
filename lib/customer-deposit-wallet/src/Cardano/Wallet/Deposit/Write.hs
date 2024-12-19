@@ -16,6 +16,7 @@ module Cardano.Wallet.Deposit.Write
     , TxBody (..)
     , TxIn
     , TxOut
+    , Coin
 
       -- * Transaction balancing
     , Write.IsRecentEra
@@ -31,6 +32,13 @@ module Cardano.Wallet.Deposit.Write
     , toConwayUTxO
     , Write.PartialTx (..)
     , Write.ErrBalanceTx (..)
+    , Write.ErrBalanceTxAssetsInsufficientError (..)
+    , Write.ErrBalanceTxInsufficientCollateralError (..)
+    , Write.ErrBalanceTxInternalError (..)
+    , Write.ErrBalanceTxOutputError (..)
+    , Write.ErrBalanceTxOutputErrorInfo (..)
+    , Write.ErrBalanceTxUnableToCreateChangeError (..)
+    , Write.ErrAssignRedeemers (..)
     , Write.balanceTx
 
       -- * Signing
@@ -53,6 +61,9 @@ module Cardano.Wallet.Deposit.Write
 
 import Prelude
 
+import Cardano.Ledger.Coin
+    ( Coin
+    )
 import Cardano.Read.Ledger.Tx.Output
     ( Output (..)
     )
