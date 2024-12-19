@@ -619,7 +619,7 @@ instance (Write.IsRecentEra era, IsServerError (ErrAssignRedeemers era))
         ErrBalanceTxInsufficientCollateral e ->
             toServerError e
         ErrBalanceTxInternalError e -> toServerError e
-        ErrBalanceTxMaxSizeLimitExceeded ->
+        ErrBalanceTxMaxSizeLimitExceeded _ _ ->
             apiError err403 TransactionIsTooBig $ T.unwords
                 [ "I was not able to balance the transaction without exceeding"
                 , "the maximum transaction size."

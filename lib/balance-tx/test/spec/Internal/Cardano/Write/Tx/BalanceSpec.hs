@@ -669,7 +669,11 @@ spec_balanceTx = describe "balanceTx" $ do
                     [ W.TxOut dummyAddr
                         (W.TokenBundle.fromCoin (W.Coin 200_000_000))
                     ]
-            tx `shouldBe` Left ErrBalanceTxMaxSizeLimitExceeded
+            tx `shouldBe` Left
+                (ErrBalanceTxMaxSizeLimitExceeded
+                    { size = W.TxSize 28_226
+                    , maxSize = W.TxSize 16_384
+                    })
 
     describe "stake key deposit lookup" $ do
         let stakeCred = KeyHashObj $ KeyHash
@@ -1354,7 +1358,7 @@ prop_balanceTxValid
                 label "existing total collateral" True
             Left (ErrBalanceTxExistingReturnCollateral) ->
                 label "existing collateral return outputs" True
-            Left ErrBalanceTxMaxSizeLimitExceeded ->
+            Left ErrBalanceTxMaxSizeLimitExceeded{} ->
                 label "maxTxSize limit exceeded" $ property True
             Left ErrBalanceTxUnableToCreateInput ->
                 label "unable to create input" $ property True
