@@ -69,6 +69,9 @@ import Data.Text
 import Data.Text.Class.Extended
     ( ToText (..)
     )
+import Numeric.Natural
+    ( Natural
+    )
 
 import qualified Cardano.Read.Ledger.Value as Read.L
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
@@ -85,6 +88,16 @@ data ErrCreatePayment
     | ErrEmptyUTxO
 
     | ErrTxOutAdaInsufficient { outputIx :: Int, suggestedMinimum :: Coin }
+
+    -- | Only possible when sending (non-ada) assets.
+    | ErrTxOutValueSizeExceedsLimit { outputIx :: Int }
+
+    -- | Only possible when sending (non-ada) assets.
+    | ErrTxOutTokenQuantityExceedsLimit
+        { outputIx :: Int
+        , quantity :: Natural
+        , quantityMaxBound :: Natural
+        }
 
     -- | The final balanced tx was too big. Either because the payload was too
     -- big to begin with, or because we failed to select enough inputs without
@@ -129,12 +142,22 @@ translateBalanceTxError = \case
         impossible "unresolved inputs"
     Write.ErrBalanceTxUnresolvedRefunds _ ->
         impossible "unresolved refunds"
-    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf ix (Write.ErrBalanceTxOutputAdaQuantityInsufficient{minimumExpectedCoin})) ->
-        ErrTxOutAdaInsufficient { outputIx = ix, suggestedMinimum = minimumExpectedCoin }
-    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf _ix (Write.ErrBalanceTxOutputSizeExceedsLimit{})) ->
-        impossible "value can't be too big if there are no assets"
-    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf _ix (Write.ErrBalanceTxOutputTokenQuantityExceedsLimit{})) ->
-        impossible "tokenQuantity can't be too big if there are no tokens"
+    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf ix info) -> case info of
+        Write.ErrBalanceTxOutputAdaQuantityInsufficient{minimumExpectedCoin} ->
+            ErrTxOutAdaInsufficient
+                { outputIx = ix
+                , suggestedMinimum = minimumExpectedCoin
+                }
+        Write.ErrBalanceTxOutputSizeExceedsLimit{} ->
+            ErrTxOutValueSizeExceedsLimit
+                { outputIx = ix
+                }
+        Write.ErrBalanceTxOutputTokenQuantityExceedsLimit{quantity, quantityMaxBound} ->
+            ErrTxOutTokenQuantityExceedsLimit
+                { outputIx = ix
+                , quantity
+                , quantityMaxBound
+                }
     Write.ErrBalanceTxUnableToCreateChange
         Write.ErrBalanceTxUnableToCreateChangeError{shortfall} ->
         ErrNotEnoughAda
@@ -152,13 +175,13 @@ translateBalanceTxError = \case
 instance ToText ErrCreatePayment where
     toText = \case
         ErrCreatePaymentNotRecentEra era ->
-            "Cannot create a payment in the era: " <> T.pack (show era)
+            "Cannot create a payment in the era: " <> showT era
         ErrNotEnoughAda{shortfall} -> T.unwords
             [ "Insufficient funds. Shortfall: ", prettyValue shortfall
             ]
         ErrEmptyUTxO -> "Wallet has no funds"
         ErrTxOutAdaInsufficient{outputIx, suggestedMinimum} -> T.unwords
-            [ "Ada amount in output " <> T.pack (show outputIx)
+            [ "Ada amount in output " <> showT outputIx
             , "is below the required minimum."
             , "Suggested minimum amount:", prettyCoin suggestedMinimum
             ]
@@ -172,7 +195,19 @@ instance ToText ErrCreatePayment where
             , "4) Make preparatory payments to yourself to coalesce dust into"
             , "larger UTxOs."
             ]
+        ErrTxOutValueSizeExceedsLimit{outputIx} -> T.unwords
+            [ "The size of the value of output", showT outputIx, "is too large."
+            , "Try sending fewer assets or splitting them over multiple outputs."
+            ]
+        ErrTxOutTokenQuantityExceedsLimit{outputIx, quantity, quantityMaxBound} -> T.unwords
+            [ "The asset quantity of ", showT quantity, "in output"
+            , showT outputIx, ", is larger than the maximum allowed"
+            , "limit", showT quantityMaxBound <> "."
+            ]
       where
+        showT :: Show a => a -> Text
+        showT = T.pack . show
+
         prettyValue :: Value -> Text
         prettyValue v
             | isAdaOnly (toMaryValue v) = prettyCoin (CoinC $ lookupAssetID AdaID v)
