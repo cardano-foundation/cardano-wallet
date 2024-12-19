@@ -39,6 +39,9 @@ import Cardano.Wallet.Deposit.Write
     , TxBody (..)
     , Value
     )
+import Cardano.Wallet.Primitive.Types.Tx.Constraints
+    ( TxSize (..)
+    )
 import Cardano.Wallet.Read
     ( AssetID (AdaID)
     , Coin (..)
@@ -90,7 +93,7 @@ data ErrCreatePayment
     -- We should ideally split out 'TooManyPayments' from this error.
     -- We should ideally also be able to create payments even when dust causes
     -- us to need preparatory txs.
-    | ErrTxMaxSizeLimitExceeded
+    | ErrTxMaxSizeLimitExceeded{ size :: TxSize, maxSize :: TxSize }
     deriving (Eq, Show)
 
 translateBalanceTxError :: Write.ErrBalanceTx Write.Conway -> ErrCreatePayment
@@ -100,8 +103,8 @@ translateBalanceTxError = \case
             ErrNotEnoughAda
                 { shortfall = fromLedgerValue shortfall
                 }
-    Write.ErrBalanceTxMaxSizeLimitExceeded ->
-            ErrTxMaxSizeLimitExceeded
+    Write.ErrBalanceTxMaxSizeLimitExceeded{size, maxSize} ->
+            ErrTxMaxSizeLimitExceeded{size, maxSize}
     Write.ErrBalanceTxExistingKeyWitnesses _ ->
         impossible "ErrBalanceTxExistingKeyWitnesses"
     Write.ErrBalanceTxExistingCollateral ->
@@ -159,9 +162,10 @@ instance ToText ErrCreatePayment where
             , "is below the required minimum."
             , "Suggested minimum amount:", prettyCoin suggestedMinimum
             ]
-        ErrTxMaxSizeLimitExceeded -> T.unwords
+        ErrTxMaxSizeLimitExceeded{size, maxSize} -> T.unlines
             [ "Exceeded the maximum size limit when creating the transaction."
-            , "Potential solutions:"
+                <> " (size: ", prettyTxSize size, " max size: ", prettyTxSize maxSize <> ")"
+            , "\nPotential solutions:"
             , "1) Make fewer payments at the same time."
             , "2) Send smaller amounts of ada in total."
             , "3) Fund wallet with more ada."
@@ -179,6 +183,9 @@ instance ToText ErrCreatePayment where
           where
             c' :: Fixed E6
             c' = toEnum $ fromEnum c
+
+        prettyTxSize :: TxSize -> Text
+        prettyTxSize (TxSize s) = T.pack (show s)
 
 type CurrentEraResolvedTx = ResolvedTx Read.Conway
 
