@@ -5115,6 +5115,7 @@ x-errTxNotInNodeEra: &errTxNotInNodeEra
 x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
   <<: *responsesErr
   title: balance_tx_conflicting_networks
+  deprecated: true # TODO: Remove this error as soon as bump.sh allows us to
   properties:
     message:
       type: string

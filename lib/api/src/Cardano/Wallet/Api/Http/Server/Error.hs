@@ -602,12 +602,6 @@ instance (Write.IsRecentEra era, IsServerError (ErrAssignRedeemers era))
                 TokenBundle shortfallAda shortfallAssets =
                     toWalletTokenBundle $ e ^. #shortfall
         ErrBalanceTxAssignRedeemers err -> toServerError err
-        ErrBalanceTxConflictingNetworks ->
-            apiError err403 BalanceTxConflictingNetworks $ T.unwords
-                [ "There are withdrawals for multiple networks (e.g. both"
-                , "mainnet and testnet) in the provided transaction. This"
-                , "makes no sense, and I'm confused."
-                ]
         ErrBalanceTxExistingCollateral ->
             apiError err403 BalanceTxExistingCollateral
                 "I cannot balance transactions with pre-defined collateral."
