@@ -86,6 +86,16 @@ data ErrCreatePayment
 
     | ErrTxOutAdaInsufficient { outputIx :: Int, suggestedMinimum :: Coin }
 
+    -- | Only possible when sending (non-ada) assets.
+    | ErrTxOutValueSizeExceedsLimit { outputIx :: Int }
+
+    -- | Only possible when sending (non-ada) assets.
+    | ErrTxOutTokenQuantityExceedsLimit
+        { outputIx :: Int
+        , quantity :: Natural
+        , quantityMaxBound :: Natural
+        }
+
     -- | The final balanced tx was too big. Either because the payload was too
     -- big to begin with, or because we failed to select enough inputs without
     -- making it too big, e.g. due to the UTxO containing lots of dust.
@@ -129,12 +139,22 @@ translateBalanceTxError = \case
         impossible "unresolved inputs"
     Write.ErrBalanceTxUnresolvedRefunds _ ->
         impossible "unresolved refunds"
-    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf ix (Write.ErrBalanceTxOutputAdaQuantityInsufficient{minimumExpectedCoin})) ->
-        ErrTxOutAdaInsufficient { outputIx = ix, suggestedMinimum = minimumExpectedCoin }
-    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf _ix (Write.ErrBalanceTxOutputSizeExceedsLimit{})) ->
-        impossible "value can't be too big if there are no assets"
-    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf _ix (Write.ErrBalanceTxOutputTokenQuantityExceedsLimit{})) ->
-        impossible "tokenQuantity can't be too big if there are no tokens"
+    Write.ErrBalanceTxOutputError (Write.ErrBalanceTxOutputErrorOf ix info) -> case info of
+        Write.ErrBalanceTxOutputAdaQuantityInsufficient{minimumExpectedCoin} ->
+            ErrTxOutAdaInsufficient
+                { outputIx = ix
+                , suggestedMinimum = minimumExpectedCoin
+                }
+        Write.ErrBalanceTxOutputSizeExceedsLimit{} ->
+            ErrTxOutValueSizeExceedsLimit
+                { outputIx = ix
+                }
+        Write.ErrBalanceTxOutputTokenQuantityExceedsLimit{quantity, quantityMaxBound} ->
+            ErrTxOutTokenQuantityExceedsLimit
+                { outputIx = ix
+                , quantity
+                , quantityMaxBound
+                }
     Write.ErrBalanceTxUnableToCreateChange
         Write.ErrBalanceTxUnableToCreateChangeError{shortfall} ->
         ErrNotEnoughAda
