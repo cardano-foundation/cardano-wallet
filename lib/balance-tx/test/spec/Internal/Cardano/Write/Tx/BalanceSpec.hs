@@ -1356,8 +1356,6 @@ prop_balanceTxValid
                 label "existing collateral return outputs" True
             Left ErrBalanceTxMaxSizeLimitExceeded ->
                 label "maxTxSize limit exceeded" $ property True
-            Left ErrBalanceTxConflictingNetworks ->
-                label "conflicting networks" $ property True
             Left ErrBalanceTxUnableToCreateInput ->
                 label "unable to create input" $ property True
             Left (ErrBalanceTxInternalError
