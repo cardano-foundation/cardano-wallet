@@ -55,7 +55,6 @@ NODE_SOCKET_PATH=${NODE_SOCKET_DIR}/${NODE_SOCKET_NAME}
 LOCAL_NODE_CONFIGS=./configs
 NODE_CONFIGS=${NODE_CONFIGS:=$LOCAL_NODE_CONFIGS}
 
-
 # Define the node logs file
 LOCAL_NODE_LOGS_FILE=./node.log
 NODE_LOGS_FILE="${NODE_LOGS_FILE:=$LOCAL_NODE_LOGS_FILE}"
@@ -78,34 +77,33 @@ cleanup() {
 mithril() {
     # shellcheck disable=SC2048
     # shellcheck disable=SC2086
-    nix shell "github:input-output-hk/mithril?ref=2445.0" -c $*
+    nix shell "github:input-output-hk/mithril?ref=2450.0" -c $*
 }
 
 # Trap the cleanup function on exit
 trap cleanup ERR INT EXIT
 if [[ -z ${NO_NODE-} ]]; then
 
-    if [[ -n "${USE_MITHRIL-}" ]];
-        then
-            if [ "$NETWORK" != "mainnet" ]; then
-                echo "Error: This option is only available for the mainnet network"
-                exit 1
-            fi
-            echo "Starting the mithril service..."
-            rm -rf "${NODE_DB:?}"/*
-            export AGGREGATOR_ENDPOINT
-            export GENESIS_VERIFICATION_KEY
-            mithril echo "mithril is available" || exit 44
-            digest=$(mithril mithril-client cdb  snapshot list --json | jq -r .[0].digest)
-            (cd "${NODE_DB}" && mithril mithril-client cdb download "$digest")
-            (cd "${NODE_DB}" && mv db/* . && rmdir db)
+    if [[ -n "${USE_MITHRIL-}" ]]; then
+        if [ "$NETWORK" != "mainnet" ]; then
+            echo "Error: This option is only available for the mainnet network"
+            exit 1
+        fi
+        echo "Starting the mithril service..."
+        rm -rf "${NODE_DB:?}"/*
+        export AGGREGATOR_ENDPOINT
+        export GENESIS_VERIFICATION_KEY
+        mithril echo "mithril is available" || exit 44
+        digest=$(mithril mithril-client cdb snapshot list --json | jq -r .[0].digest)
+        (cd "${NODE_DB}" && mithril mithril-client cdb download "$digest")
+        (cd "${NODE_DB}" && mv db/* . && rmdir db)
     fi
 
     # Start the node with logs redirected to a file if NODE_LOGS_FILE is set
     # shellcheck disable=SC2086
     cardano-node run \
         --topology "${NODE_CONFIGS}"/topology.json \
-        --database-path "${NODE_DB}"\
+        --database-path "${NODE_DB}" \
         --socket-path "${NODE_SOCKET_PATH}" \
         --config "${NODE_CONFIGS}"/config.json \
         +RTS -N -A16m -qg -qb -RTS 1>$NODE_LOGS_FILE 2>$NODE_LOGS_FILE &
@@ -115,12 +113,9 @@ if [[ -z ${NO_NODE-} ]]; then
 
     sleep 10
 
-
-
 else
     echo "Skipping node service..."
 fi
-
 
 if [[ -z ${NO_WALLET-} ]]; then
     echo "Starting the wallet service..."
@@ -147,7 +142,7 @@ if [[ -z ${NO_WALLET-} ]]; then
             --database "${WALLET_DB}" \
             --node-socket "${NODE_SOCKET_PATH}" \
             --mainnet \
-            --listen-address 0.0.0.0  >$WALLET_LOGS_FILE 2>&1 &
+            --listen-address 0.0.0.0 >$WALLET_LOGS_FILE 2>&1 &
         WALLET_ID=$!
     else
         # shellcheck disable=SC2086
@@ -172,7 +167,6 @@ if [[ -z ${NO_WALLET-} ]]; then
 else
     echo "Skipping wallet service..."
 fi
-
 
 # Case statement to handle different command-line arguments
 case "$1" in
