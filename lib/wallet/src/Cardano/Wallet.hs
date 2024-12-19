@@ -1672,20 +1672,23 @@ readPolicyPublicKey
     :: forall s
      . WalletFlavor s
     => WalletLayer IO s
-    -> ExceptT ErrReadPolicyPublicKey IO (XPub, NonEmpty DerivationIndex)
-readPolicyPublicKey ctx = db & \DBLayer{..} -> do
-    cp <- lift $ atomically readCheckpoint
-    case walletFlavor @s of
-        ShelleyWallet -> do
-            let s = getState cp
-            case Seq.policyXPub s of
-                Nothing -> throwE ErrReadPolicyPublicKeyAbsent
-                Just xpub -> pure
-                    ( getRawKey (keyFlavorFromState @s) xpub
-                    , policyDerivationPath
-                    )
-        _ ->
-            throwE ErrReadPolicyPublicKeyNotAShelleyWallet
+    -> IO (Either ErrReadPolicyPublicKey (XPub, NonEmpty DerivationIndex))
+readPolicyPublicKey ctx =
+    db & \DBLayer{..} -> do
+        cp <- atomically readCheckpoint
+        case walletFlavor @s of
+            ShelleyWallet -> do
+                let s = getState cp
+                case Seq.policyXPub s of
+                    Nothing -> pure $ Left ErrReadPolicyPublicKeyAbsent
+                    Just xpub ->
+                        pure
+                            $ Right
+                                ( getRawKey (keyFlavorFromState @s) xpub
+                                , policyDerivationPath
+                                )
+            _ ->
+                pure $ Left ErrReadPolicyPublicKeyNotAShelleyWallet
   where
     db = ctx ^. dbLayer
 
