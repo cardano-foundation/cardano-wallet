@@ -191,42 +191,11 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: haskell-nix.cabalProject' [
                   };
 
               packages.cardano-wallet-integration.components.tests = {
-                # Running Windows integration tests under Wine is disabled
-                # because ouroboros-network doesn't fully work under Wine.
-                integration.doCheck = !pkgs.stdenv.hostPlatform.isWindows;
-
-                # Force more integration tests to run in parallel than the
-                # default number of build cores.
+                # NOTE:
+                # We are concerned with building integration test executables here,
+                # but we are no longer concerned with *running* the integration
+                # tests as part of building a nix derivation.
                 #
-                # To alleviate TimeInterpreter race conditions on the mac builders
-                # since #2755, we run slightly less in parallel on macOS.
-                integration.testFlags =
-                  if pkgs.stdenv.hostPlatform.isDarwin
-                  then [ "-j" "2" ]
-                  else [ "-j" "3" ];
-
-                integration.preCheck = noCacheCookie + ''
-                  # Variables picked up by integration tests
-                  export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
-                  export TESTS_RETRY_FAILED=yes
-                  export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}
-
-                  # Integration tests will place logs here
-                  export TESTS_LOGDIR=$(mktemp -d)/logs
-                '' + lib.optionalString stdenv.isDarwin ''
-                  export TMPDIR=/tmp
-                '';
-
-                integration.postCheck = ''
-                  # fixme: There needs to be some Haskell.nix changes to
-                  # permit getting build products from failed builds.
-                  if [ -n "$TESTS_LOGDIR" && -f $out/nix-support/failed ]; then
-                    logfile=$out/cardano-wallet-integration-logs.tar.gz
-                    ${pkgs.buildPackages.gnutar}/bin/tar -C $(dirname $TESTS_LOGDIR) -czvf $logfile $TESTS_LOGDIR
-                    echo "file none $logfile" >> $out/nix-support/hydra-build-products
-                  fi
-                '';
-
                 # provide cardano-node & cardano-cli to tests
                 integration.build-tools = cardanoNodeExes;
               };
