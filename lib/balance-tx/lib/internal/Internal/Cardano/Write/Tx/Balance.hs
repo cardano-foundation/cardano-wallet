@@ -395,7 +395,6 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingReturnCollateral
     | ErrBalanceTxInsufficientCollateral
         (ErrBalanceTxInsufficientCollateralError era)
-    | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers (ErrAssignRedeemers era)
     | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
     | ErrBalanceTxInputResolutionConflicts
