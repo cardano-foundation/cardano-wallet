@@ -49,7 +49,7 @@ services:
   mithril:
     env_file:
       - .env
-    image: ghcr.io/input-output-hk/mithril-client:test-csd-44dc188
+    image: ghcr.io/input-output-hk/mithril-client:2450.0-c6c7eba
     user: ${USER_ID}:${GROUP_ID}
     volumes:
       - ${NODE_DB}:/app/db
