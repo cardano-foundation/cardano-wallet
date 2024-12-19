@@ -1111,22 +1111,24 @@ spec = describe "VOTING_TRANSACTIONS" $ do
            }|]
        rTx <- request @(ApiConstructTransaction n) ctx
            (Link.createUnsignedTransaction @'Shelley wal) Default delegationQuit
+
+       let quittingCert = QuitPool stakeKeyDerPath
        verify rTx
            [ expectResponseCode HTTP.status202
            , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
            , expectField (#coinSelection . #depositsReturned) (`shouldBe` [depositAmt])
+           , expectField (#coinSelection . #certificates)
+                 (`shouldBe` Just (quittingCert NE.:| []))
            ]
        let ApiSerialisedTransaction apiTx _ = getFromResponse #transaction rTx
        signedTx <- signTx ctx wal apiTx [ expectResponseCode HTTP.status202 ]
-       let quittingCert =
-               WalletDelegationCertificate $ QuitPool stakeKeyDerPath
 
        let decodePayload = Json (toJSON signedTx)
        rDecodedTx <- request @(ApiDecodedTransaction n) ctx
            (Link.decodeTransaction @'Shelley wal) Default decodePayload
        verify rDecodedTx
            [ expectResponseCode HTTP.status202
-           , expectField #certificates (`shouldBe` [quittingCert])
+           , expectField #certificates (`shouldBe` [WalletDelegationCertificate quittingCert])
            , expectField #depositsReturned (`shouldBe` [depositAmt])
            , expectField #depositsTaken (`shouldBe` [])
            ]
