@@ -495,29 +495,31 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             }|]
         rTx1 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoinAbstain
+
+        let voting1 = ApiT Abstain
+        let votingCert1 = CastVote stakeKeyDerPath voting1
+        let registerStakeKeyCert = RegisterRewardAccount stakeKeyDerPath
+        let delegatingCert1 = JoinPool stakeKeyDerPath (ApiT pool1)
+        let joinPoolCastVote1 = JoinPoolCastVote stakeKeyDerPath (ApiT pool1) voting1
+
         verify rTx1
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            , expectField (#coinSelection . #certificates)
+                  (`shouldBe` Just (registerStakeKeyCert NE.:| [joinPoolCastVote1]))
             ]
 
         let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
         signedTx1 <- signTx ctx src apiTx1 [ expectResponseCode HTTP.status202 ]
-
-        let voting1 = ApiT Abstain
-        let votingCert1 =
-                WalletDelegationCertificate $ CastVote stakeKeyDerPath voting1
-        let registerStakeKeyCert =
-                WalletDelegationCertificate $ RegisterRewardAccount stakeKeyDerPath
-        let delegatingCert1 =
-                WalletDelegationCertificate $ JoinPool stakeKeyDerPath (ApiT pool1)
 
         let decodePayload1 = Json (toJSON signedTx1)
         rDecodedTx1 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload1
         verify rDecodedTx1
             [ expectResponseCode HTTP.status202
-            , expectField #certificates (`shouldBe` [registerStakeKeyCert, delegatingCert1, votingCert1])
+            , expectField #certificates
+                 (`shouldBe` WalletDelegationCertificate <$> [registerStakeKeyCert, delegatingCert1, votingCert1])
             , expectField #depositsTaken (`shouldBe` [depositAmt])
             , expectField #depositsReturned (`shouldBe` [])
             ]
@@ -571,27 +573,30 @@ spec = describe "VOTING_TRANSACTIONS" $ do
             }|]
         rTx2 <- request @(ApiConstructTransaction n) ctx
             (Link.createUnsignedTransaction @'Shelley src) Default delegationJoinNoConfidence
+
+        let voting2 = ApiT NoConfidence
+        let votingCert2 = CastVote stakeKeyDerPath voting2
+        let delegatingCert2 = JoinPool stakeKeyDerPath (ApiT pool2)
+        let joinPoolCastVote2 = JoinPoolCastVote stakeKeyDerPath (ApiT pool2) voting2
+
         verify rTx2
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
+            , expectField (#coinSelection . #certificates)
+                  (`shouldBe` Just (joinPoolCastVote2 NE.:| []))
             ]
 
         let ApiSerialisedTransaction apiTx2 _ = getFromResponse #transaction rTx2
         signedTx2 <- signTx ctx src apiTx2 [ expectResponseCode HTTP.status202 ]
-
-        let voting2 = ApiT NoConfidence
-        let votingCert2 =
-                WalletDelegationCertificate $ CastVote stakeKeyDerPath voting2
-        let delegatingCert2 =
-                WalletDelegationCertificate $ JoinPool stakeKeyDerPath (ApiT pool2)
 
         let decodePayload2 = Json (toJSON signedTx2)
         rDecodedTx2 <- request @(ApiDecodedTransaction n) ctx
             (Link.decodeTransaction @'Shelley src) Default decodePayload2
         verify rDecodedTx2
             [ expectResponseCode HTTP.status202
-            , expectField #certificates (`shouldBe` [delegatingCert2, votingCert2])
+            , expectField #certificates
+                  (`shouldBe` WalletDelegationCertificate <$> [delegatingCert2, votingCert2])
             , expectField #depositsTaken (`shouldBe` [])
             , expectField #depositsReturned (`shouldBe` [])
             ]

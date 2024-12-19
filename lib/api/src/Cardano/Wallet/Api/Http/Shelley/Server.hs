@@ -4617,7 +4617,9 @@ mkApiCoinSelection deps refunds mDelCerts mVotingCerts metadata unsignedTx =
             Just $ (Api.RegisterRewardAccount path) :| [JoinPoolCastVote path pidT drepT]
         (Just ((Api.JoinPool _ pidT) :| []), Just ((Api.RegisterRewardAccount path) :| [Api.CastVote _ drepT])) ->
             Just $ (Api.RegisterRewardAccount path) :| [JoinPoolCastVote path pidT drepT]
-        (quit@(Just ((Api.QuitPool path) :| [])), Just _) ->
+        (Just ((Api.RegisterRewardAccount path) :| [Api.JoinPool _ pidT]), Just ((Api.RegisterRewardAccount _) :| [Api.CastVote _ drepT])) ->
+            Just $ (Api.RegisterRewardAccount path) :| [JoinPoolCastVote path pidT drepT]
+        (quit@(Just ((Api.QuitPool _) :| [])), Just _) ->
             quit
         _ -> error "mergeCerts: delegation or voting certs structure unexpected"
 
