@@ -76,6 +76,9 @@ import Cardano.Wallet.Util
 import Control.DeepSeq
     ( NFData
     )
+import Control.Monad
+    ( (>=>)
+    )
 import Data.Aeson.Types
     ( FromJSON (parseJSON)
     , KeyValue ((.=))
@@ -92,9 +95,6 @@ import Data.Aeson.Types
     )
 import Data.Bifunctor
     ( bimap
-    )
-import Control.Monad
-    ( (>=>)
     )
 import Data.List.NonEmpty
     ( NonEmpty
