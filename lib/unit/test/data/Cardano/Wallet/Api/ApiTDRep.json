@@ -2,14 +2,14 @@
     "samples": [
         "abstain",
         "abstain",
-        "abstain",
-        "drep1yv3cj5rqf0xtv7t77v30dyvm25umvhku76td23z4yf7xllsl0cw64x",
-        "abstain",
-        "drep1yv3mrqjjtrekq8hjskdlv7dfmwq3s93urkff6d6v344w9hjj9kxc0k",
         "no_confidence",
         "abstain",
-        "drep1yg3q2x8ph8ujl6eqm85ej9a4f69qw8dujcnvf9w2kry3jsa0nmwjfz",
-        "abstain"
+        "no_confidence",
+        "drep1ytw83udtvvufl4zm4reshl4lvrnulyrdllwxujy934c99xcg3rpdf",
+        "abstain",
+        "no_confidence",
+        "drep1yfmkekrk74t427xtsjwm7z2p4jtqxw09evnqfrjhu7m3fagz4n6nf",
+        "drep1yd8a0vw7e4kc92d9qa8fz0hqhjekuxrm5amg6fygjlx7p0g0u79nt"
     ],
-    "seed": -323609406
+    "seed": -880524152
 }

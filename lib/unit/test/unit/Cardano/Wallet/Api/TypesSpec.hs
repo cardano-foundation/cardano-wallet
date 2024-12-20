@@ -395,8 +395,6 @@ import Cardano.Wallet.Primitive.Types.DRep
     , DRepID (..)
     , DRepKeyHash (..)
     , DRepScriptHash (..)
-    , fstByteDRepKeyHash
-    , fstByteDRepScriptHash
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..)
@@ -2092,9 +2090,9 @@ instance Arbitrary DRepID where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
         oneof [ pure $ DRepFromKeyHash $ DRepKeyHash $
-                BS.cons fstByteDRepKeyHash $ BS.pack $ take 28 bytes
+                BS.pack $ take 28 bytes
               , pure $ DRepFromScriptHash $ DRepScriptHash $
-                BS.cons fstByteDRepScriptHash $ BS.pack $ take 28 bytes
+                BS.pack $ take 28 bytes
               ]
 
 instance Arbitrary DRep where

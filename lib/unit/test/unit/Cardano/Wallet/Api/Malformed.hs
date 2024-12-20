@@ -215,12 +215,18 @@ instance Wellformed (PathParam ApiDRepSpecifier) where
     wellformed = PathParam <$>
         [ "abstain"
         , "no_confidence"
-        , payloadKeyHashWith22HexByte
-        , payloadScriptHashWith23HexByte
+        , payloadKeyHashCredentialWith22HexByte
+        , payloadScriptHashCredentialWith23HexByte
+        , payloadDeprecated
+        , drepVerKeyHash
+        , drepScriptHash
         ]
       where
-        payloadKeyHashWith22HexByte = "drep1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvy952y"
-        payloadScriptHashWith23HexByte = "drep1y0je8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvk492r"
+        payloadKeyHashCredentialWith22HexByte = "drep1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvy952y"
+        payloadScriptHashCredentialWith23HexByte = "drep1y0je8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcvk492r"
+        payloadDeprecated = "drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s"
+        drepVerKeyHash = "drep_vkh15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe254czjh2"
+        drepScriptHash = "drep_script16pjhzfkm7rqntfezfkgu5p50t0mkntmdruwlp089zu8v29l95rg"
 
 instance Malformed (PathParam ApiDRepSpecifier) where
     malformed = first PathParam <$>
@@ -229,14 +235,12 @@ instance Malformed (PathParam ApiDRepSpecifier) where
         , (T.replicate 65 "1", msg1)
         , ("something", msg1)
         , ("no-confidence", msg1)
-        , (payloadWithoutCorrectBytePrefixCorrectHrp, msg2)
         , (payloadWithWrongBytePrefixCorrectHrp, msg2)
         , (payloadWithCorrectBytePrefixWrondHrp, msg1)
         ]
       where
-        msg1 = "Invalid DRep key hash: expecting a Bech32 encoded value with human readable part of 'drep'."
-        msg2 = "Invalid DRep metadata: expecting a byte '00100010' value for key hash or a byte '0b00100011' value for script hash."
-        payloadWithoutCorrectBytePrefixCorrectHrp = "drep15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe25nle07s"
+        msg1 = "Invalid DRep key/script hash: expecting a Bech32 encoded value with human readable part of 'drep', 'drep_vkh' or 'drep_script'."
+        msg2 = "Invalid DRep credential: expecting a first byte '0b00100010' value for key hash or a first byte '0b00100011' value for script hash."
         payloadWithWrongBytePrefixCorrectHrp = "drep1xhje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axc9fjca3"
         payloadWithCorrectBytePrefixWrondHrp = "drepp1ytje8qacj9dyua6esh86rdjqpdactf8wph05gdd72u46axcp60l06"
 

@@ -399,11 +399,25 @@ x-stakePoolId: &stakePoolId
   example: pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: A unique identifier for the pool.
 
+x-drepKeyHashNew: &drepKeyHashNew
+  type: string
+  format: bech32
+  example: drep_vkh15k6929drl7xt0spvudgcxndryn4kmlzpk4meed0xhqe254czjh2
+  description: |
+    DRep's verification key hash according to CIP-0105.
+    Replacing now deprecated 'drep' which is now used for drep credential.
+  pattern: "^(drep_vkh)1[0-9a-z]*$"
+
 x-drepKeyHash: &drepKeyHash
   type: string
   format: bech32
   example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
-  description: DRep's key hash according to CIP-0129.
+  description: |
+    DRep's key hash according to CIP-0105 (deprecated).
+
+    DRep credential which is special byte prepended to script/key hash payload.
+    Introduced by CIP-0129 and the byte prepended is 0x22 and 0x23 for
+    key and script hash, respectively.
   pattern: "^(drep)1[0-9a-z]*$"
 
 x-drepScriptHash: &drepScriptHash
@@ -411,8 +425,7 @@ x-drepScriptHash: &drepScriptHash
   format: bech32
   example: drep1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
   description: |
-    DRep's script hash according to CIP-0129 uses also 'drep' bech32 prefix.
-    This one is deprecated and should not be used.
+    DRep's script hash according to CIP-0105.
   pattern: "^(drep_script)1[0-9a-z]*$"
 
 x-walletAccountXPubkey: &walletAccountXPubkey
@@ -2980,9 +2993,11 @@ components:
             - no_confidence
           title: casting a default vote
         - <<: *drepKeyHash
-          title: vote to a drep represented by key hash
+          title: vote to a drep represented by key hash (deprecated)
         - <<: *drepScriptHash
           title: vote to a drep represented by script hash
+        - <<: *drepKeyHashNew
+          title: vote to a drep represented by key hash
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object

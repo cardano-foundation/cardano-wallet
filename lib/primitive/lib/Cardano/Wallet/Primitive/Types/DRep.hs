@@ -98,9 +98,10 @@ encodeDRepIDBech32 drepid =
 decodeDRepIDBech32 :: Text -> Either TextDecodingError DRepID
 decodeDRepIDBech32 t =
     case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
-        Left _ -> Left textDecodingError
+        Left _ ->
+            Left textDecodingError
         Right (hrp', Just bytes)
-            | hrp' == hrp ->
+            | hrp' == hrpDrep && BS.length bytes == 29 ->
               let (fstByte, payload) = first BS.head $ BS.splitAt 1 bytes
               in case fstByte of
                   0b00100010 ->
@@ -109,20 +110,28 @@ decodeDRepIDBech32 t =
                       Right $ DRepFromScriptHash (DRepScriptHash payload)
                   _ ->
                       Left textFirstByteError
-        Right _ -> Left textDecodingError
+            | hrp' == hrpDrep && BS.length bytes == 28 ->
+                  Right $ DRepFromKeyHash (DRepKeyHash bytes)
+            | hrp' == hrpDrepVKH && BS.length bytes == 28 ->
+                  Right $ DRepFromKeyHash (DRepKeyHash bytes)
+            | hrp' == hrpDrepScript && BS.length bytes == 28 ->
+                  Right $ DRepFromScriptHash (DRepScriptHash bytes)
+            | otherwise ->
+                  Left textDecodingError
+        _ ->
+            Left textDecodingError
       where
         textDecodingError = TextDecodingError $ unwords
-            [ "Invalid DRep key hash: expecting a Bech32 encoded value"
-            , "with human readable part of 'drep'."
+            [ "Invalid DRep key/script hash: expecting a Bech32 encoded value"
+            , "with human readable part of 'drep', 'drep_vkh' or 'drep_script'."
             ]
         textFirstByteError = TextDecodingError $ unwords
-            [ "Invalid DRep metadata: expecting a byte '00100010' value for key hash or"
-            , "a byte '0b00100011' value for script hash."
+            [ "Invalid DRep credential: expecting a first byte '0b00100010' value for key hash or"
+            , "a first byte '0b00100011' value for script hash."
             ]
-        hrp = [Bech32.humanReadablePart|drep|]
-
-instance Buildable DRepID where
-    build = build . encodeDRepIDBech32
+        hrpDrep = [Bech32.humanReadablePart|drep|]
+        hrpDrepVKH = [Bech32.humanReadablePart|drep_vkh|]
+        hrpDrepScript = [Bech32.humanReadablePart|drep_script|]
 
 -- | A decentralized representation ('DRep') will
 -- vote on behalf of the stake delegated to it.
@@ -145,7 +154,4 @@ instance FromText DRep where
         _ -> second FromDRepID (decodeDRepIDBech32 txt)
 
 instance Buildable DRep where
-    build = \case
-        Abstain -> "abstain"
-        NoConfidence -> "no_confidence"
-        FromDRepID drep -> "delegating voting to " <> build drep
+    build = build . toText
