@@ -98,7 +98,8 @@ encodeDRepIDBech32 drepid =
 decodeDRepIDBech32 :: Text -> Either TextDecodingError DRepID
 decodeDRepIDBech32 t =
     case fmap Bech32.dataPartToBytes <$> Bech32.decodeLenient t of
-        Left _ -> Left textDecodingError
+        Left _ ->
+            Left textDecodingError
         Right (hrp', Just bytes)
             | hrp' == hrpDrep && BS.length bytes == 29 ->
               let (fstByte, payload) = first BS.head $ BS.splitAt 1 bytes
@@ -115,7 +116,10 @@ decodeDRepIDBech32 t =
                   Right $ DRepFromKeyHash (DRepKeyHash bytes)
             | hrp' == hrpDrepScript && BS.length bytes == 28 ->
                   Right $ DRepFromScriptHash (DRepScriptHash bytes)
-        Right _ -> Left textDecodingError
+            | otherwise ->
+                  Left textDecodingError
+        _ ->
+            Left textDecodingError
       where
         textDecodingError = TextDecodingError $ unwords
             [ "Invalid DRep key/script hash: expecting a Bech32 encoded value"
@@ -128,9 +132,6 @@ decodeDRepIDBech32 t =
         hrpDrep = [Bech32.humanReadablePart|drep|]
         hrpDrepVKH = [Bech32.humanReadablePart|drep_vkh|]
         hrpDrepScript = [Bech32.humanReadablePart|drep_script|]
-
-instance Buildable DRepID where
-    build = build . encodeDRepIDBech32
 
 -- | A decentralized representation ('DRep') will
 -- vote on behalf of the stake delegated to it.
@@ -153,7 +154,4 @@ instance FromText DRep where
         _ -> second FromDRepID (decodeDRepIDBech32 txt)
 
 instance Buildable DRep where
-    build = \case
-        Abstain -> "abstain"
-        NoConfidence -> "no_confidence"
-        FromDRepID drep -> "delegating voting to " <> build drep
+    build = build . toText

@@ -69,14 +69,9 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.DRep
     ( DRep (..)
-    , decodeDRepIDBech32
-    , encodeDRepIDBech32
     )
 import Cardano.Wallet.Util
     ( ShowFmt (..)
-    )
-import Control.Applicative
-    ( (<|>)
     )
 import Control.DeepSeq
     ( NFData
@@ -93,11 +88,13 @@ import Data.Aeson.Types
     , genericParseJSON
     , genericToJSON
     , withObject
-    , withText
     , (.:)
     )
 import Data.Bifunctor
     ( bimap
+    )
+import Control.Monad
+    ( (>=>)
     )
 import Data.List.NonEmpty
     ( NonEmpty
@@ -109,7 +106,8 @@ import Data.Quantity
     ( Quantity (..)
     )
 import Data.Text.Class
-    ( TextDecodingError (..)
+    ( FromText (..)
+    , ToText (..)
     )
 import GHC.Generics
     ( Generic
@@ -338,26 +336,6 @@ mkApiAnyCertificate acct' acctPath' = \case
             JoinPoolCastVoteExternal (ApiRewardAccount rewardKey) (ApiT poolId') (ApiT vote')
 
 instance ToJSON (ApiT DRep) where
-    toJSON (ApiT Abstain) = "abstain"
-    toJSON (ApiT NoConfidence) = "no_confidence"
-    toJSON (ApiT (FromDRepID drepid)) =
-        String $ encodeDRepIDBech32 drepid
+    toJSON = toJSON . toText . getApiT
 instance FromJSON (ApiT DRep) where
-    parseJSON t =
-        parseAbstain t <|> parseNoConfidence t <|> parseDrepID t
-      where
-        parseDrepID = withText "DRepID" $ \txt ->
-            case decodeDRepIDBech32 txt of
-                Left (TextDecodingError err) -> fail err
-                Right drepid ->
-                    pure $ ApiT $ FromDRepID drepid
-        parseAbstain = withText "Abstain" $ \txt ->
-            if txt == "abstain" then
-                pure $ ApiT Abstain
-            else
-                fail "'abstain' is expected."
-        parseNoConfidence = withText "NoConfidence" $ \txt ->
-            if txt == "no_confidence" then
-                pure $ ApiT NoConfidence
-            else
-                fail "'no_confidence' is expected."
+    parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
