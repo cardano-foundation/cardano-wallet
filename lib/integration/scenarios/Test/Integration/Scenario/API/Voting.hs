@@ -500,14 +500,13 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         let votingCert1 = CastVote stakeKeyDerPath voting1
         let registerStakeKeyCert = RegisterRewardAccount stakeKeyDerPath
         let delegatingCert1 = JoinPool stakeKeyDerPath (ApiT pool1)
-        let joinPoolCastVote1 = JoinPoolCastVote stakeKeyDerPath (ApiT pool1) voting1
 
         verify rTx1
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [depositAmt])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             , expectField (#coinSelection . #certificates)
-                  (`shouldBe` Just (registerStakeKeyCert NE.:| [joinPoolCastVote1]))
+                  (`shouldBe` Just (registerStakeKeyCert NE.:| [delegatingCert1, votingCert1]))
             ]
 
         let ApiSerialisedTransaction apiTx1 _ = getFromResponse #transaction rTx1
@@ -577,14 +576,13 @@ spec = describe "VOTING_TRANSACTIONS" $ do
         let voting2 = ApiT NoConfidence
         let votingCert2 = CastVote stakeKeyDerPath voting2
         let delegatingCert2 = JoinPool stakeKeyDerPath (ApiT pool2)
-        let joinPoolCastVote2 = JoinPoolCastVote stakeKeyDerPath (ApiT pool2) voting2
 
         verify rTx2
             [ expectResponseCode HTTP.status202
             , expectField (#coinSelection . #depositsTaken) (`shouldBe` [])
             , expectField (#coinSelection . #depositsReturned) (`shouldBe` [])
             , expectField (#coinSelection . #certificates)
-                  (`shouldBe` Just (joinPoolCastVote2 NE.:| []))
+                  (`shouldBe` Just (delegatingCert2 NE.:| [votingCert2]))
             ]
 
         let ApiSerialisedTransaction apiTx2 _ = getFromResponse #transaction rTx2

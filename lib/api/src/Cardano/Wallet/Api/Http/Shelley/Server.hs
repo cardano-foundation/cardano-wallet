@@ -4608,20 +4608,10 @@ mkApiCoinSelection deps refunds mDelCerts mVotingCerts metadata unsignedTx =
     delCertsM = uncurry mkApiCoinSelectionDelCerts <$> mDelCerts
     votingCertsM = uncurry mkApiCoinSelectionVotingCerts <$> mVotingCerts
     mergeCerts del vote = case (del, vote) of
+        ((Just dels), (Just votes)) -> Just $ NE.nub $ dels <> votes
         (delM@(Just _), Nothing) -> delM
         (Nothing, voteM@(Just _)) -> voteM
         (Nothing, Nothing) -> Nothing
-        (Just ((Api.JoinPool path pidT) :| []), Just ((Api.CastVote _ drepT) :| [])) ->
-            Just $ pure $ JoinPoolCastVote path pidT drepT
-        (Just ((Api.RegisterRewardAccount path) :| [Api.JoinPool _ pidT]), Just ((Api.CastVote _ drepT) :| [])) ->
-            Just $ (Api.RegisterRewardAccount path) :| [JoinPoolCastVote path pidT drepT]
-        (Just ((Api.JoinPool _ pidT) :| []), Just ((Api.RegisterRewardAccount path) :| [Api.CastVote _ drepT])) ->
-            Just $ (Api.RegisterRewardAccount path) :| [JoinPoolCastVote path pidT drepT]
-        (Just ((Api.RegisterRewardAccount path) :| [Api.JoinPool _ pidT]), Just ((Api.RegisterRewardAccount _) :| [Api.CastVote _ drepT])) ->
-            Just $ (Api.RegisterRewardAccount path) :| [JoinPoolCastVote path pidT drepT]
-        (quit@(Just ((Api.QuitPool _) :| [])), Just _) ->
-            quit
-        _ -> error "mergeCerts: delegation or voting certs structure unexpected"
 
 mkApiCoinSelectionDelCerts
     :: DelegationAction
