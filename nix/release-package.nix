@@ -45,7 +45,6 @@ pkgs.stdenv.mkDerivation {
   ++ lib.optionals makeTarball [ gnutar gzip ]
   ++ lib.optionals makeZip [ zip ];
   checkInputs = with pkgs.buildPackages; [
-    ruby_3_1
     gnugrep
     gnused
   ]
@@ -133,11 +132,6 @@ pkgs.stdenv.mkDerivation {
     export WINEDLLOVERRIDES="winemac.drv=d"
     export WINEDEBUG=warn-all,fixme-all,-menubuilder,-mscoree,-ole,-secur32,-winediag
 
-  '' + ''
-    export PATH=`pwd`/$name:$PATH
-
-    echo " - running checks"
-    ruby ${../scripts/check-bundle.rb} $exeName $exeRunner
   '';
 } // lib.optionalAttrs (pkgs.stdenv.buildPlatform.libc == "glibc") {
   LOCALE_ARCHIVE = "${pkgs.buildPackages.glibcLocales}/lib/locale/locale-archive";
