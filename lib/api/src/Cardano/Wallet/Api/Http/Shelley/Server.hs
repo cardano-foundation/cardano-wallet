@@ -1978,7 +1978,7 @@ selectCoins ctx@ApiLayer {..} argGenChange (ApiT walletId) body = do
             , outputs = mkApiCoinSelectionOutput <$> outputs
             , change = mkApiCoinSelectionChange <$> change
             , collateral = mkApiCoinSelectionCollateral <$> collateral
-            , certificates = uncurry mkApiCoinSelectionCerts <$>
+            , certificates = uncurry mkApiCoinSelectionDelCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
             , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
@@ -2018,7 +2018,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus poolId walletId = do
             , outputs = mkApiCoinSelectionOutput <$> outputs
             , change = mkApiCoinSelectionChange <$> change
             , collateral = mkApiCoinSelectionCollateral <$> collateral
-            , certificates = uncurry mkApiCoinSelectionCerts <$>
+            , certificates = uncurry mkApiCoinSelectionDelCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
             , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
@@ -2047,7 +2047,7 @@ selectCoinsForQuit ctx (ApiT walletId) = do
             , outputs = mkApiCoinSelectionOutput <$> outputs
             , change = mkApiCoinSelectionChange <$> change
             , collateral = mkApiCoinSelectionCollateral <$> collateral
-            , certificates = uncurry mkApiCoinSelectionCerts <$>
+            , certificates = uncurry mkApiCoinSelectionDelCerts <$>
                 delegationAction
             , withdrawals = mkApiCoinSelectionWithdrawal <$> withdrawals
             , depositsTaken = maybeToList $ ApiAmount.fromCoin <$> deposit
@@ -2801,6 +2801,7 @@ constructTransaction api knownPools poolStatus apiWalletId body = do
                 deposits
                 refunds
                 ((,rewardPath) <$> transactionCtx3 ^. #txDelegationAction)
+                ((,rewardPath) <$> transactionCtx3 ^. #txVotingAction)
                 metadata
                 (unsignedTx rewardPath (outs ++ mintingOuts) apiDecoded)
             , fee = apiDecoded ^. #fee
@@ -3240,7 +3241,7 @@ constructSharedTransaction
                         balancedTx
                     , coinSelection =
                         mkApiCoinSelection deposits refunds
-                        delCertsWithPath md
+                        delCertsWithPath Nothing md
                         (unsignedTx outs apiDecoded pathForWithdrawal)
                     , fee = apiDecoded ^. #fee
                     }
@@ -4165,7 +4166,7 @@ mkApiWalletMigrationPlan s addresses rewardWithdrawal plan =
             & view #selections
             & F.foldMap (view #rewardWithdrawal)
 
-    mkApiCoinSelectionForMigration = mkApiCoinSelection [] [] Nothing Nothing
+    mkApiCoinSelectionForMigration = mkApiCoinSelection [] [] Nothing Nothing Nothing
 
     mkApiWalletMigrationBalance :: TokenBundle -> ApiWalletMigrationBalance
     mkApiWalletMigrationBalance b = ApiWalletMigrationBalance
@@ -4578,10 +4579,11 @@ mkApiCoinSelection
     => [Coin]
     -> [Coin]
     -> Maybe (DelegationAction, NonEmpty DerivationIndex)
+    -> Maybe (VotingAction, NonEmpty DerivationIndex)
     -> Maybe W.TxMetadata
     -> UnsignedTx input output change withdrawal
     -> ApiCoinSelection n
-mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
+mkApiCoinSelection deps refunds mDelCerts mVotingCerts metadata unsignedTx =
     ApiCoinSelection
         { inputs = mkApiCoinSelectionInput
             <$> unsignedTx ^. #unsignedInputs
@@ -4593,8 +4595,8 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
             <$> unsignedTx ^. #unsignedCollateral
         , withdrawals = mkApiCoinSelectionWithdrawal
             <$> unsignedTx ^. #unsignedWithdrawals
-        , certificates = uncurry mkApiCoinSelectionCerts
-            <$> mcerts
+        , certificates =
+            mergeCerts delCertsM votingCertsM
         , depositsTaken = ApiAmount.fromCoin
             <$> deps
         , depositsReturned = ApiAmount.fromCoin
@@ -4602,18 +4604,40 @@ mkApiCoinSelection deps refunds mcerts metadata unsignedTx =
         , metadata = ApiBytesT. serialiseToCBOR
             <$> metadata
         }
+  where
+    delCertsM = uncurry mkApiCoinSelectionDelCerts <$> mDelCerts
+    votingCertsM = uncurry mkApiCoinSelectionVotingCerts <$> mVotingCerts
+    mergeCerts del vote = case (del, vote) of
+        ((Just dels), (Just votes)) -> Just $ NE.nub $ dels <> votes
+        (delM@(Just _), Nothing) -> delM
+        (Nothing, voteM@(Just _)) -> voteM
+        (Nothing, Nothing) -> Nothing
 
-mkApiCoinSelectionCerts
+mkApiCoinSelectionDelCerts
     :: DelegationAction
     -> NonEmpty DerivationIndex
     -> NonEmpty Api.ApiCertificate
-mkApiCoinSelectionCerts action ixs =
+mkApiCoinSelectionDelCerts action ixs =
     case action of
         Join pid -> pure $ Api.JoinPool apiStakePath (ApiT pid)
         Quit -> pure $ Api.QuitPool apiStakePath
         JoinRegisteringKey pid -> NE.fromList
             [ Api.RegisterRewardAccount apiStakePath
             , Api.JoinPool apiStakePath (ApiT pid)
+            ]
+  where
+    apiStakePath = ApiT <$> ixs
+
+mkApiCoinSelectionVotingCerts
+    :: VotingAction
+    -> NonEmpty DerivationIndex
+    -> NonEmpty Api.ApiCertificate
+mkApiCoinSelectionVotingCerts action ixs =
+    case action of
+        Vote drep -> pure $ Api.CastVote apiStakePath (ApiT drep)
+        VoteRegisteringKey drep -> NE.fromList
+            [ Api.RegisterRewardAccount apiStakePath
+            , Api.CastVote apiStakePath (ApiT drep)
             ]
   where
     apiStakePath = ApiT <$> ixs
