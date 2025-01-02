@@ -15,9 +15,9 @@ env:
   windows: "windows-x64"
 
 steps:
-  - label: Check Windows
+  - label: Install Ruby
     commands:
-      - echo hello
+      - winget install RubyInstallerTeam.Ruby.2.7 --disable-interactivity  --accept-source-agreements --accept-package-agreements
     agents:
       system: ${windows}
 
