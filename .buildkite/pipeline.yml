@@ -29,19 +29,61 @@ steps:
     agents:
       system: ${windows}
 
-  - label: 📦 Download snapshot
+  # - label: 📦 Download snapshot
+  #   commands:
+  #     - cd test\e2e
+  #     - mkdir state -ErrorAction SilentlyContinue
+  #     - cd state
+  #     - mkdir node_db
+  #     - cd node_db
+  #     - mkdir preprod
+  #     - cd preprod
+  #     - c:\msys64\usr\bin\curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
+  #     - c:\msys64\usr\bin\curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
+  #     - arc unarchive snapshot.tar.lz4
+  #     - mv db/* .
+  #   agents:
+  #     system: ${windows}
+
+  - label: ⚙️ Setup (get latest bins and configs and decode fixtures)
     commands:
       - cd test\e2e
-      - mkdir state -ErrorAction SilentlyContinue
-      - cd state
-      - mkdir node_db
-      - cd node_db
-      - mkdir preprod
-      - cd preprod
-      - c:\msys64\usr\bin\curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
-      - c:\msys64\usr\bin\curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
-      - arc unarchive snapshot.tar.lz4
-      - mv db/* .
+      - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
+    agents:
+      system: ${windows}
+
+  - label: 🔍 Display versions
+    commands:
+      - cd test\e2e
+      - bundle exec rake display_versions
+    agents:
+      system: ${windows}
+
+  - label: 🚀 Start node and wallet
+    commands:
+      - cd test\e2e
+      - bundle exec rake start_node_and_wallet[preprod]
+    agents:
+      system: ${windows}
+
+  - label: ⏳ Wait until node is synced
+    commands:
+      - cd test\e2e
+      - bundle exec rake wait_until_node_synced
+    agents:
+      system: ${windows}
+
+  - label: 🧪 Run all tests
+    commands:
+      - cd test\e2e
+      - bundle exec rake spec SPEC_OPTS="-t %TAGS%"
+    agents:
+      system: ${windows}
+
+  - label: 🏁 Stop node and wallet
+    commands:
+      - cd test\e2e
+      - bundle exec rake stop_node_and_wallet[preprod]
     agents:
       system: ${windows}
 
