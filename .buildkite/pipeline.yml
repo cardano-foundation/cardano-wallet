@@ -658,6 +658,9 @@ steps:
         - bundle exec rake stop_node_and_wallet[preprod]
       agents:
         system: ${windows}
+      environment:
+        TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
+
 
   #   - label: Tag as Release Candidate (windows)
   #     if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
