@@ -5112,20 +5112,6 @@ x-errTxNotInNodeEra: &errTxNotInNodeEra
       type: string
       enum: ["tx_not_in_node_era"]
 
-x-errBalanceTxConflictingNetworks: &errBalanceTxConflictingNetworks
-  <<: *responsesErr
-  title: balance_tx_conflicting_networks
-  properties:
-    message:
-      type: string
-      description: |
-        There are withdrawals for multiple networks
-        (e.g. both mainnet and testnet) in the provided transaction.
-        This makes no sense, and I'm confused.
-    code:
-      type: string
-      enum: ["balance_tx_conflicting_networks"]
-
 x-errTranslationByronTxOutInContext: &errTranslationByronTxOutInContext
   <<: *responsesErr
   title: translation_byron_tx_out_in_context
@@ -6794,7 +6780,6 @@ x-responsesBalanceTransaction: &responsesBalanceTransaction
           oneOf:
             - <<: *errAlreadyWithdrawing
             - <<: *errNodeNotYetInRecentEra
-            - <<: *errBalanceTxConflictingNetworks
             - <<: *errBalanceTxExistingCollateral
             - <<: *errBalanceTxExistingKeyWitnesses
             - <<: *errBalanceTxExistingReturnCollateral
