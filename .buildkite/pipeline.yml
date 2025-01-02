@@ -15,86 +15,15 @@ env:
   windows: "windows-x64"
 
 steps:
-  # - label: 💎 Install Ruby
-  #   commands:
-  #     - winget install RubyInstallerTeam.Ruby.2.7 --force --disable-interactivity  --accept-source-agreements --accept-package-agreements
-  #   agents:
-  #     system: ${windows}
 
-  - label: 💎 Configure Ruby
+  - label: Check Nix (linux)
+    # Check whether regenerate.sh was applied when it had to be applied.
+    key: linux-nix
     commands:
-      - '\$env:path'
-      - cd test\e2e
-      - bundle install
+      - nix --version
+      - nix/regenerate.sh
     agents:
-      system: ${windows}
-
-  # - label: 📦 Download snapshot
-  #   commands:
-  #     - cd test\e2e
-  #     - mkdir state -ErrorAction SilentlyContinue
-  #     - cd state
-  #     - mkdir node_db
-  #     - cd node_db
-  #     - mkdir preprod
-  #     - cd preprod
-  #     - c:\msys64\usr\bin\curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
-  #     - c:\msys64\usr\bin\curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
-  #     - arc unarchive snapshot.tar.lz4
-  #     - mv db/* .
-  #   agents:
-  #     system: ${windows}
-
-  - label: ⚙️ Setup (get latest bins and configs and decode fixtures)
-    commands:
-      - cd test\e2e
-      - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
-    agents:
-      system: ${windows}
-
-  - label: 🔍 Display versions
-    commands:
-      - cd test\e2e
-      - bundle exec rake display_versions
-    agents:
-      system: ${windows}
-
-  - label: 🚀 Start node and wallet
-    commands:
-      - cd test\e2e
-      - bundle exec rake start_node_and_wallet[preprod]
-    agents:
-      system: ${windows}
-
-  - label: ⏳ Wait until node is synced
-    commands:
-      - cd test\e2e
-      - bundle exec rake wait_until_node_synced
-    agents:
-      system: ${windows}
-
-  - label: 🧪 Run all tests
-    commands:
-      - cd test\e2e
-      - bundle exec rake spec SPEC_OPTS="-t %TAGS%"
-    agents:
-      system: ${windows}
-
-  - label: 🏁 Stop node and wallet
-    commands:
-      - cd test\e2e
-      - bundle exec rake stop_node_and_wallet[preprod]
-    agents:
-      system: ${windows}
-
-  # - label: Check Nix (linux)
-  #   # Check whether regenerate.sh was applied when it had to be applied.
-  #   key: linux-nix
-  #   commands:
-  #     - nix --version
-  #     - nix/regenerate.sh
-  #   agents:
-  #     system: ${linux}
+      system: ${linux}
 
   # - label: Dev Shell Attic Cache (linux)
   #   depends_on:
@@ -654,36 +583,121 @@ steps:
   #     concurrency: 1
   #     concurrency_group: 'macos-e2e-tests'
 
-  # - group: Windows Artifacts
-  #   key: windows-artifacts
-  #   depends_on: linux-nix
-  #   steps:
-  #   - block: Build Windows Artifacts (windows)
-  #     depends_on: []
-  #     if: |
-  #       build.branch !~ /^gh-readonly-queue\/master/
-  #         && build.branch != "master"
-  #         && build.branch != "rc-latest"
-  #         && build.env("RELEASE_CANDIDATE") == null
-  #     key: trigger-build-windows-artifacts
+  - group: Windows Artifacts
+    key: windows-artifacts
+    depends_on: linux-nix
+    steps:
+    - block: Build Windows Artifacts (windows)
+      depends_on: []
+      if: |
+        build.branch !~ /^gh-readonly-queue\/master/
+          && build.branch != "master"
+          && build.branch != "rc-latest"
+          && build.env("RELEASE_CANDIDATE") == null
+      key: trigger-build-windows-artifacts
 
-  #   - label: Build Package (windows)
-  #     key: windows-package
-  #     depends_on:
-  #       - trigger-build-windows-artifacts
-  #     command: nix build -o result/windows .#ci.artifacts.win64.release
-  #     artifact_paths: [ "./result/windows/**" ]
-  #     agents:
-  #       system: ${linux}
+    - label: Build Package (windows)
+      key: windows-package
+      depends_on:
+        - trigger-build-windows-artifacts
+      command: nix build -o result/windows .#ci.artifacts.win64.release
+      artifact_paths: [ "./result/windows/**" ]
+      agents:
+        system: ${linux}
 
-  #   - label: Build Testing Bundle (windows)
-  #     key: windows-testing-bundle
-  #     depends_on:
-  #       - trigger-build-windows-artifacts
-  #     command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
-  #     artifact_paths: [ "./result/windows-tests/**" ]
-  #     agents:
-  #       system: ${linux}
+    - label: Build Testing Bundle (windows)
+      key: windows-testing-bundle
+      depends_on:
+        - trigger-build-windows-artifacts
+      command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
+      artifact_paths: [ "./result/windows-tests/**" ]
+      agents:
+        system: ${linux}
+
+    # - label: 💎 Install Ruby
+    #   commands:
+    #     - winget install RubyInstallerTeam.Ruby.2.7 --force --disable-interactivity  --accept-source-agreements --accept-package-agreements
+    #   agents:
+    #     system: ${windows}
+
+    - label: 💎 Configure Ruby
+      commands:
+        - '\$env:path'
+        - cd test\e2e
+        - bundle install
+      agents:
+        system: ${windows}
+
+    # - label: 📦 Download snapshot
+    #   commands:
+    #     - cd test\e2e
+    #     - mkdir state -ErrorAction SilentlyContinue
+    #     - cd state
+    #     - mkdir node_db
+    #     - cd node_db
+    #     - mkdir preprod
+    #     - cd preprod
+    #     - c:\msys64\usr\bin\curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
+    #     - c:\msys64\usr\bin\curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
+    #     - arc unarchive snapshot.tar.lz4
+    #     - mv db/* .
+    #   agents:
+    #     system: ${windows}
+
+    - label: ⚙️ Setup (get latest bins and configs and decode fixtures)
+      key: windows-setup
+      depends_on:
+        - windows-package
+      commands:
+        - cd test\e2e
+        - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
+      agents:
+        system: ${windows}
+
+    - label: 🔍 Display versions
+      depends_on:
+        - windows-setup
+      commands:
+        - cd test\e2e
+        - bundle exec rake display_versions
+      agents:
+        system: ${windows}
+
+    - label: 🚀 Start node and wallet
+      depends_on:
+        - windows-setup
+      commands:
+        - cd test\e2e
+        - bundle exec rake start_node_and_wallet[preprod]
+      agents:
+        system: ${windows}
+
+    - label: ⏳ Wait until node is synced
+      depends_on:
+        - windows-setup
+      commands:
+        - cd test\e2e
+        - bundle exec rake wait_until_node_synced
+      agents:
+        system: ${windows}
+
+    - label: 🧪 Run all tests
+      depends_on:
+        - windows-setup
+      commands:
+        - cd test\e2e
+        - bundle exec rake spec SPEC_OPTS="-t %TAGS%"
+      agents:
+        system: ${windows}
+
+    - label: 🏁 Stop node and wallet
+      depends_on:
+        - windows-setup
+      commands:
+        - cd test\e2e
+        - bundle exec rake stop_node_and_wallet[preprod]
+      agents:
+        system: ${windows}
 
   #   - label: Tag as Release Candidate (windows)
   #     if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
