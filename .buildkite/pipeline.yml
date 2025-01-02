@@ -29,6 +29,22 @@ steps:
     agents:
       system: ${windows}
 
+  - label: 📦 Download snapshot
+    commands:
+      - cd test\e2e
+      - mkdir state -ErrorAction SilentlyContinue
+      - cd state
+      - mkdir node_db
+      - cd node_db
+      - mkdir preprod
+      - cd preprod
+      - c:\msys64\usr\bin\curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
+      - c:\msys64\usr\bin\curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
+      - arc unarchive snapshot.tar.lz4
+      - mv db/* .
+    agents:
+      system: ${windows}
+
   # - label: Check Nix (linux)
   #   # Check whether regenerate.sh was applied when it had to be applied.
   #   key: linux-nix
