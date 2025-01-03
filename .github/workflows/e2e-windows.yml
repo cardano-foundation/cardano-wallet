@@ -62,6 +62,7 @@ jobs:
         choco install unzip
         choco install nssm
         choco install archiver
+        choco install zstd
 
     - name: 🕒 Get Date/Time
       working-directory: C:/cardano-wallet/test/e2e
@@ -74,9 +75,20 @@ jobs:
         path: C:/cardano-wallet/test/e2e/state/node_db/preprod
         key: node-db-e2e-windows-preprod
 
-    - name: Fetch preprod snapshot
+    - name: 🚢 Fetch preprod snapshot
       if: steps.cache-node.outputs.cache-hit != 'true'
+      uses: keithweaver/aws-s3-github-action@v1.0.0
       working-directory: C:/cardano-wallet/test/e2e
+      with:
+        command: cp
+        source: s3://${{ secrets.AWS_S3_BUCKET }}/snapshot-20250102.zstd
+        destination: .
+        aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws_region: eu-west-1
+
+    - name: 🎁 Unpack preprod snapshot
+      if: steps.cache-node.outputs.cache-hit != 'true'
       run: |
         mkdir state -ErrorAction SilentlyContinue
         cd state
@@ -84,9 +96,7 @@ jobs:
         cd node_db
         mkdir preprod
         cd preprod
-        curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
-        curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
-        arc unarchive snapshot.tar.lz4
+        arc unarchive ..\..\..\snapshot-20250102.zstd
         mv db/* .
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
