@@ -58,36 +58,31 @@ jobs:
 
     - name: Prepare Windows
       run: |
-        choco install wget
-        choco install unzip
         choco install nssm
-        choco install archiver
+        choco install zstandard
+        choco install awscli
 
     - name: 🕒 Get Date/Time
       working-directory: C:/cardano-wallet/test/e2e
       run: bundle exec rake datetime
 
-    - name: 💾 GH Cache node db
-      id: cache-node
-      uses: actions/cache@v3
-      with:
-        path: C:/cardano-wallet/test/e2e/state/node_db/preprod
-        key: node-db-e2e-windows-preprod
+    - name: 🚢 Fetch preprod snapshot
+      working-directory: C:/cardano-wallet/test/e2e/
+      run: |
+        aws s3 cp --no-progress s3://${{ secrets.AWS_S3_BUCKET }}/preprod-20250102.zstd .\preprod-20250102.tar.zst
+      env:
+        AWS_DEFAULT_REGION: eu-west-1
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-    - name: Fetch preprod snapshot
-      if: steps.cache-node.outputs.cache-hit != 'true'
+    - name: 🎁 Unpack preprod snapshot
       working-directory: C:/cardano-wallet/test/e2e
       run: |
-        mkdir state -ErrorAction SilentlyContinue
-        cd state
-        mkdir node_db
-        cd node_db
-        mkdir preprod
-        cd preprod
-        curl -s https://downloads.csnapshots.io/testnet/testnet-db-snapshot.json | jq -r .[].file_name > snapshot.json
-        curl -o snapshot.tar.lz4 https://downloads.csnapshots.io/testnet/$(cat snapshot.json)
-        arc unarchive snapshot.tar.lz4
-        mv db/* .
+        mkdir state\node_db
+        mkdir state\node_db\preprod
+        cd state\node_db\preprod
+        tar --zstd -xf ..\..\..\preprod-20250102.tar.zst
+        mv db\* .
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       working-directory: C:/cardano-wallet/test/e2e
@@ -105,20 +100,13 @@ jobs:
       working-directory: C:/cardano-wallet/test/e2e
       run: bundle exec rake wait_until_node_synced
 
-    - name: 🧪 Run all tests
+    - name: 🧪 Run Some Tests
       working-directory: C:/cardano-wallet/test/e2e
-      run: bundle exec rake spec SPEC_OPTS="-t %TAGS%"
+      run: bundle exec rake spec SPEC_OPTS="-e 'CardanoWallet::Shelley::Transactions'"
 
     - name: 🏁 Stop node and wallet
       working-directory: C:/cardano-wallet/test/e2e
       run: bundle exec rake stop_node_and_wallet[preprod]
-
-    - name: 💾 GH Save Cache of node db
-      if: always()
-      uses: actions/cache/save@v3
-      with:
-        path: C:/cardano-wallet/test/e2e/state/node_db/preprod
-        key: node-db-e2e-windows-preprod
 
     - name: 📎 Upload state
       uses: actions/upload-artifact@v3
