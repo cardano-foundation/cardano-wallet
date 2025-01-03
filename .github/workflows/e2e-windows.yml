@@ -77,25 +77,18 @@ jobs:
 
     - name: 🚢 Fetch preprod snapshot
       uses: keithweaver/aws-s3-github-action@v1.0.0
-      working-directory: C:/cardano-wallet/test/e2e
       with:
         command: cp
         source: s3://${{ secrets.AWS_S3_BUCKET }}/snapshot-20250102.zstd
-        destination: .
+        destination: C:/cardano-wallet/test/e2e/state/node_db/preprod/
         aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws_region: eu-west-1
 
     - name: 🎁 Unpack preprod snapshot
+      working-directory: C:/cardano-wallet/test/e2e/state/node_db/preprod
       run: |
-        mkdir state -ErrorAction SilentlyContinue
-        cd state
-        mkdir node_db
-        cd node_db
-        mkdir preprod
-        cd preprod
-        arc unarchive ..\..\..\snapshot-20250102.zstd
-        mv db/* .
+        arc unarchive snapshot-20250102.zstd
 
     - name: ⚙️ Setup (get latest bins and configs and decode fixtures)
       working-directory: C:/cardano-wallet/test/e2e
