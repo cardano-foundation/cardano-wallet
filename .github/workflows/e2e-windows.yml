@@ -68,15 +68,14 @@ jobs:
       working-directory: C:/cardano-wallet/test/e2e
       run: bundle exec rake datetime
 
-    - name: 💾 GH Cache node db
-      id: cache-node
-      uses: actions/cache@v3
-      with:
-        path: C:/cardano-wallet/test/e2e/state/node_db/preprod
-        key: node-db-e2e-windows-preprod
+    # - name: 💾 GH Cache node db
+    #   id: cache-node
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: C:/cardano-wallet/test/e2e/state/node_db/preprod
+    #     key: node-db-e2e-windows-preprod
 
     - name: 🚢 Fetch preprod snapshot
-      if: steps.cache-node.outputs.cache-hit != 'true'
       uses: keithweaver/aws-s3-github-action@v1.0.0
       working-directory: C:/cardano-wallet/test/e2e
       with:
@@ -88,7 +87,6 @@ jobs:
         aws_region: eu-west-1
 
     - name: 🎁 Unpack preprod snapshot
-      if: steps.cache-node.outputs.cache-hit != 'true'
       run: |
         mkdir state -ErrorAction SilentlyContinue
         cd state
@@ -123,12 +121,12 @@ jobs:
       working-directory: C:/cardano-wallet/test/e2e
       run: bundle exec rake stop_node_and_wallet[preprod]
 
-    - name: 💾 GH Save Cache of node db
-      if: always()
-      uses: actions/cache/save@v3
-      with:
-        path: C:/cardano-wallet/test/e2e/state/node_db/preprod
-        key: node-db-e2e-windows-preprod
+    # - name: 💾 GH Save Cache of node db
+    #   if: always()
+    #   uses: actions/cache/save@v3
+    #   with:
+    #     path: C:/cardano-wallet/test/e2e/state/node_db/preprod
+    #     key: node-db-e2e-windows-preprod
 
     - name: 📎 Upload state
       uses: actions/upload-artifact@v3
