@@ -321,7 +321,7 @@ end
 task :get_latest_configs, [:env] do |_task, args|
   env = args[:env]
   out = File.join(CONFIGS, env)
-
+  log ">> Getting latest configs in #{out} for '#{env}'"
   if File.exist?(out)
     # The config directory is probably a /nix/store path
     log ">> Using config directory '#{out}'"
@@ -391,6 +391,7 @@ task :setup, [:env, :branch, :skip_bins, :skip_configs] do |_task, args|
   if args[:skip_configs]
     log '>> Skipping getting latest configs.'
   else
+    log '>> Getting latest configs...'
     Rake::Task[:get_latest_configs].invoke(env)
   end
 
