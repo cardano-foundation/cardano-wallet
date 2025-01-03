@@ -589,11 +589,12 @@ steps:
     steps:
     - block: Build Windows Artifacts (windows)
       depends_on: []
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-          && build.branch != "master"
-          && build.branch != "rc-latest"
-          && build.env("RELEASE_CANDIDATE") == null
+      if: false
+        # |
+        # build.branch !~ /^gh-readonly-queue\/master/
+        #   && build.branch != "master"
+        #   && build.branch != "rc-latest"
+        #   && build.env("RELEASE_CANDIDATE") == null
       key: trigger-build-windows-artifacts
 
     - label: Build Package (windows)
@@ -650,6 +651,7 @@ steps:
         - windows-package
       commands:
         - cd test\e2e
+        - rmdir state\configs\preprod
         - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
         - bundle exec rake display_versions
         - bundle exec rake start_node_and_wallet[preprod]
