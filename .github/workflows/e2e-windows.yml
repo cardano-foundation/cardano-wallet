@@ -62,7 +62,7 @@ jobs:
         choco install unzip
         choco install nssm
         choco install archiver
-        choco install zstd
+        choco install zstandard
 
     - name: 🕒 Get Date/Time
       working-directory: C:/cardano-wallet/test/e2e
