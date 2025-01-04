@@ -14,7 +14,7 @@ We assume the machine is configured with a recent windows version (2022 Server?)
   ```
   winget install RubyInstallerTeam.Ruby.2.7 --force --disable-interactivity  --accept-source-agreements --accept-package-agreements
   ```
-  This was done once through the pipeline step and then removed because we don't want to pay the 3 minutes price of forcing Ruby installation whereas it could just know it's already isntalled and skip it
+  This was done once through the pipeline step and then removed because we don't want to pay the 3 minutes price of forcing Ruby installation whereas it could just know it's already installed and skip it
 * Install Ruby installer toolkit to be able to compile native extensions
   ```
   ridk install
