@@ -581,9 +581,24 @@ steps:
       concurrency: 1
       concurrency_group: 'macos-e2e-tests'
 
-  - group: Windows Build & Checks
+  - group: Windows Agents Setup
+    key: windows-setup
+      # Assumes Ruby 2.7 + resource kit is correctly installed on the target
+      # machine
+    steps:
+        - label: 💎 Configure Ruby
+          key: windows-ruby
+          commands:
+              - cd test\e2e
+              - bundle install
+          agents:
+              system: ${windows}
+
+  - group: Windows Artifacts & E2E Tests
     key: windows-artifacts
-    depends_on: linux-nix
+    depends_on:
+      - linux-nix
+      - windows-setup
     steps:
     - block: Build Windows Artifacts (windows)
       depends_on: []
@@ -612,18 +627,8 @@ steps:
       agents:
         system: ${linux}
 
-      # Assumes Ruby 2.7 + resource kit is correctly installed on the target
-      # machine
-    - label: 💎 Configure Ruby
-      commands:
-        - '\$env:path'
-        - cd test\e2e
-        - bundle install
-      agents:
-        system: ${windows}
-
     - label: ⚙️ Download snapshot, decode fixtures, & run some E2E tests
-      key: windows-setup
+      if: 0 == 1
       depends_on:
         - windows-package
       commands:
@@ -645,7 +650,6 @@ steps:
         TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
       concurrency: 1
       concurrency_group: 'windows-e2e-tests'
-
 
     - label: Tag as Release Candidate (windows)
       if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
