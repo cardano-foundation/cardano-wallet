@@ -627,15 +627,6 @@ steps:
       agents:
         system: ${linux}
 
-    - label: Tag as Release Candidate (windows)
-      if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
-      depends_on:
-        - windows-package
-        - windows-testing-bundle
-      command: scripts/buildkite/main/tag-release-candidate.sh
-      agents:
-        system: ${linux}
-
   - group: Windows Checks
     depends_on:
       - windows-artifacts
