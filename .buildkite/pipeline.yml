@@ -660,8 +660,32 @@ steps:
       agents:
         system: ${linux}
 
+  - group: Windows Checks
+    depends_on:
+      - windows-artifacts
+    steps:
+    - label: Windows Unit Tests
+      command: |
+        cd test\e2e
+        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
+        cd cardano-wallet-tests-win64
+        .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2
+      agents:
+        system: ${windows}
+      env:
+        LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+    - label: Windows Text Class Tests
+      command: |
+        cd test\e2e
+        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
+        cd cardano-wallet-tests-win64
+        .\text-class-test-unit.exe --color
+      agents:
+        system: ${windows}
+
   - group: Docker
     key: docker-artifacts
+
     if: build.env("RELEASE_CANDIDATE") != null
     depends_on:
       - linux-artifacts
