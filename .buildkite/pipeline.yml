@@ -594,7 +594,7 @@ steps:
           agents:
               system: ${windows}
 
-  - group: Windows Artifacts & E2E Tests
+  - group: Windows Artifacts
     key: windows-artifacts
     depends_on:
       - linux-nix
@@ -627,30 +627,6 @@ steps:
       agents:
         system: ${linux}
 
-    - label: ⚙️ Download snapshot, decode fixtures, & run some E2E tests
-      if: 0 == 1
-      depends_on:
-        - windows-package
-      commands:
-        - cd test\e2e
-        - rmdir state\configs\preprod
-        - md state\node_db\preprod
-        - aws s3 cp s3://hal-team/preprod-20250102.zstd ./preprod-20250102.tar.zst
-        - tar xzf ./preprod-20250102.tar.zst
-        - mv db\* state\node_db\preprod\
-        - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
-        - bundle exec rake display_versions
-        - bundle exec rake start_node_and_wallet[preprod]
-        - bundle exec rake wait_until_node_synced
-        - bundle exec rake spec SPEC_OPTS="-t 'CardanoWallet::Shelley::StakePools'"
-        - bundle exec rake stop_node_and_wallet[preprod]
-      agents:
-        system: ${windows}
-      env:
-        TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
-      concurrency: 1
-      concurrency_group: 'windows-e2e-tests'
-
     - label: Tag as Release Candidate (windows)
       if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
       depends_on:
@@ -682,6 +658,34 @@ steps:
         .\text-class-test-unit.exe --color
       agents:
         system: ${windows}
+
+    - block: Windows E2E Tests
+      depends_on: []
+      if: build.env("RELEASE_CANDIDATE") == null
+      key: trigger-windows-e2e-tests
+
+    - label: ⚙️ Windows E2E Tests
+      depends_on:
+        - trigger-windows-e2e-tests
+      commands:
+        - cd test\e2e
+        - rmdir state\configs\preprod
+        - md state\node_db\preprod
+        - aws s3 cp s3://hal-team/preprod-20250102.zstd ./preprod-20250102.tar.zst
+        - tar xzf ./preprod-20250102.tar.zst
+        - mv db\* state\node_db\preprod\
+        - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
+        - bundle exec rake display_versions
+        - bundle exec rake start_node_and_wallet[preprod]
+        - bundle exec rake wait_until_node_synced
+        - bundle exec rake spec SPEC_OPTS="-t 'CardanoWallet::Shelley::StakePools'"
+        - bundle exec rake stop_node_and_wallet[preprod]
+      agents:
+        system: ${windows}
+      env:
+        TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
+      concurrency: 1
+      concurrency_group: 'windows-e2e-tests'
 
   - group: Docker
     key: docker-artifacts
