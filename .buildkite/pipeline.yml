@@ -581,9 +581,24 @@ steps:
       concurrency: 1
       concurrency_group: 'macos-e2e-tests'
 
-  - group: Windows Build & Checks
+  - group: Windows Agents Setup
+    key: windows-setup
+      # Assumes Ruby 2.7 + resource kit is correctly installed on the target
+      # machine
+    steps:
+        - label: 💎 Configure Ruby
+          key: windows-ruby
+          commands:
+              - cd test\e2e
+              - bundle install
+          agents:
+              system: ${windows}
+
+  - group: Windows Artifacts
     key: windows-artifacts
-    depends_on: linux-nix
+    depends_on:
+      - linux-nix
+      - windows-setup
     steps:
     - block: Build Windows Artifacts (windows)
       depends_on: []
@@ -612,20 +627,37 @@ steps:
       agents:
         system: ${linux}
 
-      # Assumes Ruby 2.7 + resource kit is correctly installed on the target
-      # machine
-    - label: 💎 Configure Ruby
-      commands:
-        - '\$env:path'
-        - cd test\e2e
-        - bundle install
+  - group: Windows Checks
+    depends_on:
+      - windows-artifacts
+    steps:
+    - label: Windows Unit Tests
+      command: |
+        cd test\e2e
+        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
+        cd cardano-wallet-tests-win64
+        .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2
+      agents:
+        system: ${windows}
+      env:
+        LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+    - label: Windows Text Class Tests
+      command: |
+        cd test\e2e
+        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
+        cd cardano-wallet-tests-win64
+        .\text-class-test-unit.exe --color
       agents:
         system: ${windows}
 
-    - label: ⚙️ Download snapshot, decode fixtures, & run some E2E tests
-      key: windows-setup
+    - block: Windows E2E Tests
+      depends_on: []
+      if: build.env("RELEASE_CANDIDATE") == null
+      key: trigger-windows-e2e-tests
+
+    - label: ⚙️ Windows E2E Tests
       depends_on:
-        - windows-package
+        - trigger-windows-e2e-tests
       commands:
         - cd test\e2e
         - rmdir state\configs\preprod
@@ -646,18 +678,9 @@ steps:
       concurrency: 1
       concurrency_group: 'windows-e2e-tests'
 
-
-    - label: Tag as Release Candidate (windows)
-      if: build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE"
-      depends_on:
-        - windows-package
-        - windows-testing-bundle
-      command: scripts/buildkite/main/tag-release-candidate.sh
-      agents:
-        system: ${linux}
-
   - group: Docker
     key: docker-artifacts
+
     if: build.env("RELEASE_CANDIDATE") != null
     depends_on:
       - linux-artifacts
