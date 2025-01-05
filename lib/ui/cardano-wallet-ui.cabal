@@ -1,6 +1,6 @@
 cabal-version:   3.6
 name:            cardano-wallet-ui
-version:         0.2024.11.18
+version:         0.2025.1.5
 synopsis:        web ui for the cardano-wallet
 license:         Apache-2.0
 license-file:    LICENSE
