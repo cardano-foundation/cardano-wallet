@@ -666,8 +666,10 @@ steps:
         - tar xzf ./preprod-20250102.tar.zst
         - mv db\* state\node_db\preprod\
         - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
+        - tree . /f
         - bundle exec rake display_versions
         - bundle exec rake start_node_and_wallet[preprod]
+        - tree . /f
         - bundle exec rake wait_until_node_synced
         - bundle exec rake spec SPEC_OPTS="-t 'CardanoWallet::Shelley::StakePools'"
         - bundle exec rake stop_node_and_wallet[preprod]

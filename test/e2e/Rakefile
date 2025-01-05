@@ -163,6 +163,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
   network = args[:env] == 'mainnet' ? '--mainnet' : "--testnet #{config_dir}/byron-genesis.json"
 
   if win?
+    log ">> Creating bat files"
     # create cardano-node.bat file
     node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.write('cardano-node.bat', node_cmd)
