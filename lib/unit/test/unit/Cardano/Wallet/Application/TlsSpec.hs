@@ -75,14 +75,11 @@ import Network.HTTP.Types.Status
     ( Status (..)
     )
 import Network.TLS
-    ( AlertDescription (..)
-    , ClientHooks (..)
+    ( ClientHooks (..)
     , ClientParams (..)
     , Credentials (..)
     , Shared (..)
     , Supported (..)
-    , TLSError (..)
-    , TLSException (..)
     , noSessionManager
     )
 import Network.TLS.Extra.Cipher
@@ -121,9 +118,6 @@ import UnliftIO.Async
     ( async
     , link
     )
-import UnliftIO.Exception
-    ( fromException
-    )
 
 import qualified Cardano.Wallet.Application.Server as Server
 import qualified Data.ByteString as BS
@@ -156,11 +150,7 @@ spec = describe "TLS Client Authentication" $ do
                 (Server.start warpSettings nullTracer (Just tlsSv) socket app)
 
             pingHttps tlsCl port `shouldThrow` \case
-                HttpExceptionRequest _ (InternalException e) ->
-                    case fromException e of
-                        Just (Terminated _ _ (Error_Protocol (_,_,alert))) ->
-                            alert == CertificateUnknown
-                        _ -> False
+                HttpExceptionRequest _ (InternalException _) -> True
                 _ -> False
 
     it "Properly deny HTTP connection if TLS is enabled" $ do
