@@ -168,9 +168,21 @@ task :start_node_and_wallet, [:env] do |_task, args|
     node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.write('cardano-node.bat', node_cmd)
 
+    if not File.exist?('cardano-node.bat')
+      raise "'cardano-node.bat' does not exist in #{cd}"
+    end
+
     # create cardano-wallet.bat file
     wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --port #{WALLET_PORT} --node-socket \\\\.\\pipe\\cardano-node-testnet #{network} --database #{wallet_db_dir} --token-metadata-server #{TOKEN_METADATA}"
     File.write('cardano-wallet.bat', wallet_cmd)
+
+    if not File.exist?('cardano-wallet.bat')
+      raise "'cardano-wallet.bat' does not exist in #{cd}"
+    end
+
+    # echo PATH just in case...
+    path1 = `echo %PATH%`
+    log ">> path: #{path1}"
 
     install_node = "nssm install cardano-node #{cd}/cardano-node.bat"
     install_wallet = "nssm install cardano-wallet #{cd}/cardano-wallet.bat"

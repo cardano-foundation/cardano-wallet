@@ -628,10 +628,10 @@ steps:
         system: ${linux}
 
   - group: Windows Checks
-    depends_on:
-      - windows-artifacts
     steps:
     - label: Windows Unit Tests
+      depends_on:
+        - windows-testing-bundle
       command: |
         cd test\e2e
         bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
@@ -642,6 +642,8 @@ steps:
       env:
         LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
     - label: Windows Text Class Tests
+      depends_on:
+        - windows-testing-bundle
       command: |
         cd test\e2e
         bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
@@ -658,6 +660,7 @@ steps:
     - label: ⚙️ Windows E2E Tests
       depends_on:
         - trigger-windows-e2e-tests
+        - windows-package
       commands:
         - cd test\e2e
         - rmdir state\configs\preprod
@@ -666,10 +669,8 @@ steps:
         - tar xzf ./preprod-20250102.tar.zst
         - mv db\* state\node_db\preprod\
         - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
-        - tree . /f
         - bundle exec rake display_versions
         - bundle exec rake start_node_and_wallet[preprod]
-        - tree . /f
         - bundle exec rake wait_until_node_synced
         - bundle exec rake spec SPEC_OPTS="-t 'CardanoWallet::Shelley::StakePools'"
         - bundle exec rake stop_node_and_wallet[preprod]
