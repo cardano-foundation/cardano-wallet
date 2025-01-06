@@ -180,6 +180,11 @@ task :start_node_and_wallet, [:env] do |_task, args|
     start_node = 'nssm start cardano-node'
     start_wallet = 'nssm start cardano-wallet'
 
+
+    # echo PATH to help troubleshoot command issues
+    path = `echo %PATH%`
+    log ">> path: #{path}"
+
     cmd install_node
     cmd install_wallet
     cmd log_stdout_node

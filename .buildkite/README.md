@@ -42,9 +42,11 @@ We assume the machine is configured with a recent windows version (2022 Server?)
   set AWS_ACCESS_KEY_ID=<needed to retrieve snapshot>
   set AWS_SECRET_ACCESS_KEY=<needed to retrieve snapshot>
   ```
+* Configure buildkite agent to [run as a service](https://buildkite.com/docs/agent/v3/windows#running-as-a-service)
+  * when launched as a service, `buildkite-agent.exe` runs as the [`Local System Account`](https://learn.microsoft.com/en-us/windows/win32/services/localsystem-account) user which is a special user dedicated to such tasks. As such, it does not inherit the environment from the `hal` user which is the standard user we use. To ensure software installed through `winget` are found, we need to explicitly add it to the agent's executors path.
 * Define `hooks\pre-checkout.bat` to ensure node DB files can be removed (they are created readonly which breaks `git clean -xfd`)
 
   ```
+  set PATH=%PATH%;C:\Users\hal\AppData\Local\Microsoft\WinGet\Links
   icacls . /grant hal:F /T /Q
   ```
-* Configure buildkite agent to [run as a service](https://buildkite.com/docs/agent/v3/windows#running-as-a-service)
