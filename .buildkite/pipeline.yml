@@ -669,7 +669,7 @@ steps:
         - bundle exec rake display_versions
         - bundle exec rake start_node_and_wallet[preprod]
         - bundle exec rake wait_until_node_synced
-        - bundle exec rake spec SPEC_OPTS="-t 'CardanoWallet::Shelley::StakePools'"
+        - bundle exec rake spec SPEC_OPTS="-e 'Stake Pools'"
         - bundle exec rake stop_node_and_wallet[preprod]
       agents:
         system: ${windows}
