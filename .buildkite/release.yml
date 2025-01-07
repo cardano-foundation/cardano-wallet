@@ -132,3 +132,8 @@ steps:
           - "./docker-build-push"
         agents:
           system: x86_64-linux
+
+      - label: Update Documentation Links
+        depends_on: create-release
+        commands:
+          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/update-documentation-links.sh
