@@ -32,7 +32,7 @@ fi
 bump diff \
         --doc "$REPO" \
         --token "$TOKEN" \
-        specifications/api/swagger.yaml > artifacts/api-diffs.md;
+        specifications/api/swagger.yaml | tee artifacts/api-diffs.md;
 
 if [[ "${RELEASE_CANDIDATE_COMMIT}" != "" ]]; then
     bump deploy \
