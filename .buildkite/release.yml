@@ -19,116 +19,125 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: "Generate and upload trigger step to main pipeline"
+  # - label: "Generate and upload trigger step to main pipeline"
+  #   depends_on: add-release-commits
+  #   commands:
+  #     - ./scripts/buildkite/release/generate-trigger.sh | buildkite-agent pipeline upload
+
+  # - label: Collect changes
+  #   key: collect-changes
+  #   depends_on: add-release-commits
+  #   commands:
+  #     - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/make_changelog.sh
+  #   agents:
+  #     system: x86_64-linux
+  #   artifacts:
+  #     - artifacts/changes.md
+
+  - label: Update documentation links
     depends_on: add-release-commits
     commands:
-      - ./scripts/buildkite/release/generate-trigger.sh | buildkite-agent pipeline upload
+      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/update-documentation-links.sh
 
-  - label: Collect changes
-    key: collect-changes
-    depends_on: add-release-commits
-    commands:
-      - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/make_changelog.sh
-    agents:
-      system: x86_64-linux
-    artifacts:
-      - artifacts/changes.md
+  # - group : Nightly
+  #   key: nightly
+  #   depends_on: main-pipeline-build
+  #   steps:
+  #     - label: Push swagger nightly
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
+  #       artifacts:
+  #         - artifacts/api-diffs.md
+  #       env:
+  #         RELEASE: false
+  #       agents:
+  #         system: x86_64-linux
 
-  - group : Nightly
-    key: nightly
-    depends_on: main-pipeline-build
-    steps:
-      - label: Push swagger nightly
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
-        artifacts:
-          - artifacts/api-diffs.md
-        env:
-          RELEASE: false
-        agents:
-          system: x86_64-linux
+  #     - label: Push nightly release tag
+  #       key: push-nightly-tag
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
+  #       agents:
+  #         system: x86_64-linux
+  #       env:
+  #         RELEASE: false
 
-      - label: Push nightly release tag
-        key: push-nightly-tag
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
-        agents:
-          system: x86_64-linux
-        env:
-          RELEASE: false
+  #     - label: Push nightly release
+  #       depends_on: push-nightly-tag
+  #       key: push-nightly-release
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-release.sh
+  #       agents:
+  #         system: x86_64-linux
+  #       env:
+  #         RELEASE: false
 
-      - label: Push nightly release
-        depends_on: push-nightly-tag
-        key: push-nightly-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-release.sh
-        agents:
-          system: x86_64-linux
-        env:
-          RELEASE: false
+  #     - label: Push nightly release artifacts
+  #       depends_on: push-nightly-release
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-artifacts.sh
+  #       agents:
+  #         system: x86_64-linux
+  #       env:
+  #         RELEASE: false
 
-      - label: Push nightly release artifacts
-        depends_on: push-nightly-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-artifacts.sh
-        agents:
-          system: x86_64-linux
-        env:
-          RELEASE: false
+  # - group: Release
+  #   depends_on: nightly
+  #   if: build.branch == "master"
+  #   steps:
+  #     - block: Create a release
+  #       key: create-release
 
-  - group: Release
-    depends_on: nightly
-    if: build.branch == "master"
-    steps:
-      - block: Create a release
-        key: create-release
+  #     - label: Push swagger release
+  #       depends_on: create-release
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
+  #       artifacts:
+  #         - artifacts/api-diffs.md
+  #       env:
+  #         RELEASE: true
+  #       agents:
+  #         system: x86_64-linux
 
-      - label: Push swagger release
-        depends_on: create-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
-        artifacts:
-          - artifacts/api-diffs.md
-        env:
-          RELEASE: true
-        agents:
-          system: x86_64-linux
+  #     - label: Push release tag
+  #       key: push-release-tag
+  #       depends_on: create-release
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
+  #       agents:
+  #         system: x86_64-linux
+  #       env:
+  #         RELEASE: true
 
-      - label: Push release tag
-        key: push-release-tag
-        depends_on: create-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
-        agents:
-          system: x86_64-linux
-        env:
-          RELEASE: true
+  #     - label: Push release
+  #       depends_on: push-release-tag
+  #       key: push-release
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-release.sh
+  #       agents:
+  #         system: x86_64-linux
+  #       env:
+  #         RELEASE: true
 
-      - label: Push release
-        depends_on: push-release-tag
-        key: push-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-release.sh
-        agents:
-          system: x86_64-linux
-        env:
-          RELEASE: true
+  #     - label: Push release artifacts
+  #       depends_on: push-release
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-artifacts.sh
+  #       agents:
+  #         system: x86_64-linux
+  #       env:
+  #         RELEASE: true
 
-      - label: Push release artifacts
-        depends_on: push-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-artifacts.sh
-        agents:
-          system: x86_64-linux
-        env:
-          RELEASE: true
+  #     - label: Push Docker Image
+  #       depends_on:
+  #         - create-release
+  #       command:
+  #         - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
+  #         - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
+  #         - "./docker-build-push"
+  #       agents:
+  #         system: x86_64-linux
 
-      - label: Push Docker Image
-        depends_on:
-          - create-release
-        command:
-          - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
-          - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
-          - "./docker-build-push"
-        agents:
-          system: x86_64-linux
+  #     - label: Update documentation links
+  #       commands:
+  #         - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/update-documentation-links.sh
