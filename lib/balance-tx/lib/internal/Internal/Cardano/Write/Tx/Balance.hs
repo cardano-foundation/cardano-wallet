@@ -386,7 +386,7 @@ deriving instance IsRecentEra era => Show (ErrBalanceTxInternalError era)
 -- | Errors that can occur when balancing transactions.
 data ErrBalanceTx era
     = ErrBalanceTxAssetsInsufficient ErrBalanceTxAssetsInsufficientError
-    | ErrBalanceTxMaxSizeLimitExceeded
+    | ErrBalanceTxMaxSizeLimitExceeded { size :: W.TxSize, maxSize :: W.TxSize }
     | ErrBalanceTxExistingKeyWitnesses Int
     -- ^ Indicates that a transaction could not be balanced because a given
     -- number of existing key witnesses would be rendered invalid.
@@ -395,7 +395,6 @@ data ErrBalanceTx era
     | ErrBalanceTxExistingReturnCollateral
     | ErrBalanceTxInsufficientCollateral
         (ErrBalanceTxInsufficientCollateralError era)
-    | ErrBalanceTxConflictingNetworks
     | ErrBalanceTxAssignRedeemers (ErrAssignRedeemers era)
     | ErrBalanceTxInternalError (ErrBalanceTxInternalError era)
     | ErrBalanceTxInputResolutionConflicts
@@ -714,7 +713,7 @@ balanceTx
         -- using this strategy might allow us to generate a transaction within
         -- the size limit.
         maxSizeLimitExceeded = case e of
-            ErrBalanceTxMaxSizeLimitExceeded ->
+            ErrBalanceTxMaxSizeLimitExceeded{} ->
                 True
             _someOtherError ->
                 False
@@ -908,9 +907,10 @@ balanceTxInner
         -> Tx era
         -> ExceptT (ErrBalanceTx era) m (Tx era)
     guardTxSize witCount tx = do
-        let maxSize =  W.TxSize $ intCast (pp ^. ppMaxTxSizeL)
-        when (estimateSignedTxSize pp witCount tx > maxSize) $
-            throwE ErrBalanceTxMaxSizeLimitExceeded
+        let maxSize = W.TxSize $ intCast (pp ^. ppMaxTxSizeL)
+        let size = estimateSignedTxSize pp witCount tx
+        when (size > maxSize) $
+            throwE ErrBalanceTxMaxSizeLimitExceeded{size, maxSize}
         pure tx
 
     guardTxBalanced
