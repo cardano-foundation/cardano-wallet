@@ -413,6 +413,7 @@ steps:
         ./scripts/buildkite/main/benchmark-history.sh
       agents:
         system: x86_64-linux
+      key: benchmarks-history
 
     - input: Restoration Benchmark
       if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
@@ -436,7 +437,9 @@ steps:
       command: |
         nix develop path:./scripts/buildkite/main --command bash -c \
           "./scripts/buildkite/main/bench-restore.sh mainnet base $HOME/databases/node/mainnet-1"
-      depends_on: restoration-parameters
+      depends_on:
+        - restoration-parameters
+        - benchmarks-history # Avoid overlapping with micro-benchmarks
       timeout_in_minutes: 1380
       agents:
         system: ${linux}
@@ -448,7 +451,9 @@ steps:
       command: |
         nix develop path:./scripts/buildkite/main --command bash -c \
           "./scripts/buildkite/main/bench-restore.sh mainnet seq0 $HOME/databases/node/mainnet-2"
-      depends_on: restoration-parameters
+      depends_on:
+        - restoration-parameters
+        - benchmarks-history # Avoid overlapping with micro-benchmarks
       timeout_in_minutes: 1380
       agents:
         system: ${linux}
@@ -460,7 +465,9 @@ steps:
       command: |
         nix develop path:./scripts/buildkite/main --command bash -c \
           "./scripts/buildkite/main/bench-restore.sh mainnet seq1 $HOME/databases/node/mainnet-3"
-      depends_on: restoration-parameters
+      depends_on:
+        - restoration-parameters
+        - benchmarks-history # Avoid overlapping with micro-benchmarks
       timeout_in_minutes: 1380
       agents:
         system: ${linux}
@@ -472,7 +479,9 @@ steps:
       command: |
         nix develop path:./scripts/buildkite/main --command bash -c \
           "./scripts/buildkite/main/bench-restore.sh mainnet rnd5 $HOME/databases/node/mainnet-4"
-      depends_on: restoration-parameters
+      depends_on:
+        - restoration-parameters
+        - benchmarks-history # Avoid overlapping with micro-benchmarks
       timeout_in_minutes: 1380
       agents:
         system: ${linux}
