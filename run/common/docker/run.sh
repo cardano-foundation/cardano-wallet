@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 # Enforce strict script execution modes
 set -euo pipefail
