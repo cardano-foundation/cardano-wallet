@@ -81,7 +81,7 @@ Accepeted variables for the start command are:
 - `NODE_SOCKET_DIR` (default `./.`): the directory where the node socket will be created
 - `NODE_CONFIGS`: the directory where the node configuration files will be retrieved from. In the absence of this variable, the node will use the configurations in the image.
       You have to reflect the directory structure of the node configuration files in the image to use the docker-compose.yml file.
-- `WALLET_TAG` (default 2024.7.7): the tag of the wallet image to use, can be `release-candidate`
+- `WALLET_TAG` (default 2025.1.7): the tag of the wallet image to use, can be `release-candidate`
 
 For example, to start a wallet on `private` network:
 
@@ -116,7 +116,7 @@ WALLET_DB=./my-databases/wallet-db
 NODE_DB=./my-databases/node-db
 NODE_SOCKET_DIR=/tmp/cardano-node-socket
 NODE_CONFIGS=./my-configs-i-just-copied-from-a-malicious-site
-WALLET_TAG=2024.11.18
+WALLET_TAG=2025.1.7
 
 ```
 
