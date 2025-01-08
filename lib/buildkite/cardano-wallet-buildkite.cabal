@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          cardano-wallet-buildkite
-version:       0.2024.7.7
+version:       0.2025.1.7
 description:   CI tools to query Buildkite API
 license:       Apache-2.0
 license-file:  LICENSE
