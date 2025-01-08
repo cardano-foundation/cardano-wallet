@@ -142,7 +142,7 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.1.3";
+    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.1.4";
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
