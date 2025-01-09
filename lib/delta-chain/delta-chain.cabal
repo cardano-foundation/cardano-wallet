@@ -1,7 +1,7 @@
 cabal-version:      3.6
 build-type:         Simple
 name:               delta-chain
-version:            0.2025.1.7
+version:            0.2025.1.9
 synopsis:           Example for storing a chain in a database, using delta types.
 description:        Please see README.md
 homepage:           https://github.com/cardano-foundation/cardano-wallet
