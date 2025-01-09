@@ -7,8 +7,9 @@ make a transaction valid upon managing the shared resources.
 
 ## Contents ##
 1. [Introduction](#introduction)
-2. [Wallet initialization](#wallet-initialization)
+2. [Overview of a wallet lifecycle](#overview-of-a-wallet-lifecycle)
 3. [Staking and spending are ortogonal](#staking-and-spending-are-ortogonal)
+4. [Creating of a shared wallet](#creating-of-a-shared-wallet)
 
 
 ### Introduction ###
@@ -21,7 +22,7 @@ but always including a specific party, and enforcing the submitting of the trans
 The similar or different regulation could pertain to staking. As there is a separation of the control over the movements of funds and the rights (and obligations)
 in the PoS protocol powering the Cardano that are associated with those funds the native scripts regulating staking and spending could be different.
 
-### Wallet Initialization ###
+### Overview of a wallet lifecycle ###
 
 The multisig wallet needs intermediation during the construction and making a transaction. Intermediation vehicle, eg. coordination server,
 is needed to firstly agree on spending/staking ruling and to facilitate sharing cosigners identifiers.
@@ -97,4 +98,90 @@ Spending of the rewards is regulated by spending ruling meaning cosigner1 can do
 
 The detailed draft specification of the multi-signature HD wallet can be found [here][ref1854]
 
-[ref1854]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-1854.
+**What comes next is the technical description of what it entails for a multisig wallet to be created,
+what resources it has under its disposal and how spending of the funds looks like and what are mechanisms under the hood that make it happen.**
+
+### Creating of a shared wallet ###
+
+Let’s assume we have two parties interested in having a shared wallet and eager to jointly spend the funds.
+Each side at the end of this process will have its own shared wallet instance that is able to track the wallet’s resources.
+In order for those two parties to collaborate they need to decide on the following things before:
+
+1. Extended account public keys of other parties
+2. Spending script template
+3. ptional spending script template
+
+This information needs to be intermediated via coordination server or shared off-chain.
+Agreeing on account index among the parties is not important as the shared wallet derives its resources on top of parties’ extended account keys.
+In order to understand this statement one needs to start with the fact that a shared wallet is a hierarchical deterministic wallet
+that imposes the exact tree derivation path. It is evident if we look at derivation path that any wallet uses for key derivation:
+
+```code
+m / purpose' / coin_type' / account_ix' / role / index
+```
+
+In case of shared wallet we use
+
+```code
+m / 1854’ / 1815’ / account_ix' / role / index
+```
+
+path to derive any key of index assuming a role and `account_ix’` for the party’s mnemonic `m`.
+Parties exchange their extended public keys (`accXPub`) between themselves assuming the following path to derive `accXPub`.
+
+```code
+m / 1854’ / 1815’ / account_ix'
+```
+
+This has the immediate consequence that parties can exchange account public keys that were derived for different account indices.
+For each party it is enough to have accXPubs from all participants to derive other public keys that build credentials, both spending or staking.
+And thanks to that construct addresses that participate in transactions.
+
+It is worth noting that all purpose, coin type and account index all use hardened type of derivation.
+To be even more concrete we could write down the path
+
+```code
+m / 1854’ / 1815’ / 10' / 0 / 11
+```
+
+which denotes derivation path for the key assuming external role and index=11 for account index 10’.
+
+Upon creation parties do not have to decide on `account_ix'` in order to be consistent when deriving key families for different roles.
+Sharing `accXPub` is enough to make sure each party is able to fill in the script template with proper keys derived on top of them and
+restore the address pool and hence is able to follow the shared wallet’s resources.
+
+A script template regulates a witness set and time conditions to be met in order to spend or stake.
+The exact form is presented in [CIP 1854][ref1854]. Below we paste several examples that are simple, rather self-explanatory but still interesting:
+
+```code
+all [cosigner#1, self, cosigner#2]
+any [cosigner#1, self, cosigner#2]
+at_least 2 [cosigner#1, self, cosigner#2]
+all [at_least 2 [cosigner#1, self, cosigner#2], from 100, until 120]
+```
+
+As seen in the last example, templates can be nested. The last example encodes the following conditions for each spending
+(or staking if this is a staking script template) transaction within the multisig wallet that has exactly this in the spending template:
+two witnesses are required and the transaction must be submitted within any slot belonging to  <100, 200) range.
+When time conditions are met, it is enough to have witnesses from other parties (cosigner#1 and cosigner2)
+or our witness along with any other party to have a fully-signed transaction.
+
+When the spending script template is chosen it cannot change until the end of the wallet’s life.
+The transaction conditions to be obeyed are determined statically upon wallet’s creation.
+
+To sum up this part and be very concrete, each party after deciding off-chain script template and setting who is who (eg. me cosigner#1, you cosigner#2) creates the wallet via
+[POST WALLET][refPostSharedWallet] api call.
+
+
+In order to get account public key to be shared with other the parties one calls [GET ACCOUNT][refGetAccountKeyShared] endpoint.
+https://cardano-foundation.io/cardano-wallet/api/edge/#operation/getAccountKeyShared
+
+Updating other parties `accXPub`s is realized via [PATCH WALLET PAYMENT PART][refPatchSharedWalletInPayment] endpoint for payment and
+[PATCH WALLET DELEGATION PART][refPatchSharedWalletInDelegation] endpoint for delegation.
+
+
+[ref1854]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-1854
+[refPostSharedWallet]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet
+[refGetAccountKeyShared]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared
+[refPatchSharedWalletInPayment]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment
+[refPatchSharedWalletInDelegation]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation
