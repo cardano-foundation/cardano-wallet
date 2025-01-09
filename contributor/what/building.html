@@ -214,9 +214,6 @@ available only for developers at CF.</p>
 
 &gt; nix run .#mainnet/wallet -- &lt;optional additional cardano wallet arguments&gt;
 </code></pre>
-<p>You can run the integration tests with:</p>
-<pre><code class="language-console">&gt; nix build -L .#ci.x86_64-linux.tests.run.integration
-</code></pre>
 <h4 id="cross-compiling-with-nix"><a class="header" href="#cross-compiling-with-nix">Cross-compiling with Nix</a></h4>
 <p>To build the wallet for Windows, from <strong>Linux</strong>:</p>
 <pre><code>&gt; nix build .#ci.artifacts.win64.release
