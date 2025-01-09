@@ -266,6 +266,7 @@ Lets see the example to comprehend the concept (which is the same one used for s
 
 1. We have a freshly constructed wallet. None of the indices were used. Still we have 5 indices that form the search space.
 
+```code
 .....................
 | 0 | 1 | 2 | 3 | 4 |
 .....................
@@ -277,14 +278,15 @@ Lets see the example to comprehend the concept (which is the same one used for s
 ......
 | ix |   index unused
 ......
-
+```
 
 2. We have used ix=0 to derive a script which was used as credential. The index pool forming the search space of all script candidates would look like:
 
+```code
 #####....................
 | 0 | 1 | 2 | 3 | 4 | 5 |
 #####....................
-
+```
 
 The wallet can use indices 0, 1, 2, 3, 4 and 5 to form a search space for spending credentials.
 If all wallets stick to the same search space rules, all cosigners will be able to discover that ix=0 was used
@@ -294,9 +296,11 @@ and adjust the index search space accordingly.
 3. Next our cosigner used ix=2 to derive a script. This time since ix=2 is within previous index search space
 we are able to detect that it was used and adjust the search space.
 
+```code
 #####...#####....................
 | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
 #####...#####....................
+```
 
 The search state expanded but still obey pool gap invariance (ie. at the end of it there are 5 unused indices).
 
