@@ -10,7 +10,7 @@ make a transaction valid upon managing the shared resources.
 2. [Overview of a wallet lifecycle](#overview-of-a-wallet-lifecycle)
 3. [Staking and spending are ortogonal](#staking-and-spending-are-ortogonal)
 4. [Creating of a shared wallet](#creating-of-a-shared-wallet)
-
+5. [Resources of a shared wallet](#resources-of-a-shared-wallet)
 
 ### Introduction ###
 
@@ -180,8 +180,148 @@ Updating other parties `accXPub`s is realized via [PATCH WALLET PAYMENT PART][re
 [PATCH WALLET DELEGATION PART][refPatchSharedWalletInDelegation] endpoint for delegation.
 
 
+### Resources of a shared wallet ###
+
+When all parties' extended public keys are collected the wallet is ready to identify and discover its resources.
+Each party can separately do this and will obtain the same results. Without `accXPub`s for all cosigners it is not possible.
+In order to make this statement apparent one needs to appreciate that credential (either spending or staking) that
+is part of each address can be constructed from either key hash or script hash (staking credential could be also constructor from pointer
+- see delegation spec for details if interested).
+In shared wallets we want script template to be the source of scripts that when serialized and hashed constitute a valid spending/staking credential.
+The major question is how to go from a script template to a script.
+
+To explain that let’s assume we have spending script template as below:
+
+```code
+all [cosigner#1, cosigner#2]
+```
+
+We decided to have a shared wallet with another party we named cosigner#1. We are cosigner#2 which from our perspective this is equivalent to
+
+```code
+all [cosigner#1, self]
+```
+
+We collected `accXPub1` of cosigner#1 and the wallet is ready for operation.
+We have two extended account public keys: `accXPub1` and `accXPub2`. `accXPub2` is our key that we shared with cosigner#1.
+If we created the wallet from the account public key then this is the key used upon the creation
+(which has a limitation as an account-based wallet cannot sign transactions, and is able only to track resources of the wallet).
+If we create the wallet from the mnemonic m then the account public key is derived using below derivation path
+
+```code
+m / 1854’ / 1815’ / account_ix'
+```
+
+Having an extended account public key (extended key gives us this capability) allows for derivation of public keys
+originating from this node of the key tree. In detail we are able to derive a whole branch of keys following the derivation path:
+
+```code
+ accXPub / role / index
+```
+
+where role can take 0, 1, 2 which stands for external (for payments), internal (for change), and staking, respectively.
+Index can take 0, 1, … 2147483647. In case of staking 0 is assumed.
+
+In order to have a significant number of keys under disposal the keys participating in filling in script templates are derived as specified above.
+Having an extended account key of another party allows derivation of any of its public key in the key branch where the `accXPub` is a node.
+Also in order to have synchrony between all parties, indices used in derivation are chosen in a particular fashion and
+the address pool constructed from those keys is also obeying the restrictions.
+
+Let’s look at how the template is filled in with keys to produce scripts in our example for payment credential.
+
+```code
+payment keys for role = 0 and ix =0
+key1-ix0 = accXPub1 / 0 / 0
+key2-ix0 = accXPub2 / 0 / 0
+
+payment keys for role = 0 and ix =12
+key1-ix12 = accXPub1 / 0 / 12
+key2-ix12 = accXPub2 / 0 / 12
+```
+
+When filling the script template to produce a spending credential,
+for each cosigner **the same index** is used to derive a key.
+Hence, the below credentials are valid:
+
+```code
+all [key1-ix0, key2-ix0]
+all [key1-ix12, key2-ix12]
+```
+
+The the below are invalid:
+
+```code
+all [key1-ix12, key2-ix0]
+all [key1-ix0, key2-ix12]
+```
+
+The reason for this is the size of the search space of script candidates to be tried by each cosigner to restore its resources.
+We underscored that the only information shared off-chain between parties is script template, cosigner number mapping and `accXPub`s.
+Key indexes to be used are unknown by the parties and to limit their scope (hence not to bloat index search space too much)
+a number of measures are taken. The first one is the usage of pool gap that circumvent the whole number of indices that form search space by introducing
+the exact number of consecutive and unused indices to be used.
+Lets see the example to comprehend the concept (which is the same one used for shelley wallets and compliant with BIP-44 standard) for pool gap = 5 (the default value is 20).
+
+1. We have a freshly constructed wallet. None of the indices were used. Still we have 5 indices that form the search space.
+
+.....................
+| 0 | 1 | 2 | 3 | 4 |
+.....................
+
+######
+| ix |   index used
+######
+
+......
+| ix |   index unused
+......
+
+
+2. We have used ix=0 to derive a script which was used as credential. The index pool forming the search space of all script candidates would look like:
+
+#####....................
+| 0 | 1 | 2 | 3 | 4 | 5 |
+#####....................
+
+
+The wallet can use indices 0, 1, 2, 3, 4 and 5 to form a search space for spending credentials.
+If all wallets stick to the same search space rules, all cosigners will be able to discover that ix=0 was used
+and adjust the index search space accordingly.
+
+
+3. Next our cosigner used ix=2 to derive a script. This time since ix=2 is within previous index search space
+we are able to detect that it was used and adjust the search space.
+
+#####...#####....................
+| 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+#####...#####....................
+
+The search state expanded but still obey pool gap invariance (ie. at the end of it there are 5 unused indices).
+
+Now comes the rule of using the same index when constructing a script using a script template.
+In step 3 the rule ensures each party needs to construct 8 scripts that are a part of the address.
+Meaning the wallet upon discovering resources in blockchain needs to check against 8 address candidates
+at this moment (provided this is enterprise address or base address with only one possible staking credential).
+If we would not have this restriction then the number of candidate addresses would be 8*8=64 for this particular two cosigner script.
+The number of possibilities grows like ix<sup>cosignerNumber</sup>which for a long history wallets could be prohibitive.
+
+At any given time available pool of addresses (which is derivative of indexes that were used to construct script credentials) can be inspected via
+[LIST ADDRESSES][refListSharedAddresses] endpoint.
+
+Let’s sum up and draw index, script, credential, address relation.
+The same index is used for each cosigner to derive its key:  `accXPub / role / index`
+The cosigner’s key replace script template to form script for a given index
+The script is serialized and hashed to form a credential
+Spending credential forms either enterprise address (non-staking) or base address (if there is also staking credential)
+See Fig 4 to inspect the relation.
+
+![image](./multisig-figures/fig4.svg)
+
+Fig. 4. From spending script template to address.
+
 [ref1854]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-1854
 [refPostSharedWallet]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet
 [refGetAccountKeyShared]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared
 [refPatchSharedWalletInPayment]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment
 [refPatchSharedWalletInDelegation]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation
+[refListSharedAddresses]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses
