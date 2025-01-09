@@ -31,7 +31,17 @@ OLD_GIT_TAG=$( git tag -l "v2*-*-*" | sort | tail -n1)
 
 LAST_RELEASE_DATE=$(tag_date "$OLD_GIT_TAG")
 
+if [ "$OLD_GIT_TAG" == "$NEW_GIT_TAG" ]; then
+    echo "Refusing to rewrite last release tag"
+    exit 1
+fi
+
 OLD_CABAL_VERSION=$(tag_cabal_ver "$OLD_GIT_TAG")
+
+if [ "$OLD_CABAL_VERSION" == "$NEW_CABAL_VERSION" ]; then
+    echo "Refusing to rewrite last release cabal version"
+    exit 1
+fi
 
 CARDANO_NODE_TAG=$(cardano-node version | head -n1 | awk '{print $2}')
 
