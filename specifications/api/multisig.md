@@ -11,6 +11,8 @@ make a transaction valid upon managing the shared resources.
 3. [Staking and spending are ortogonal](#staking-and-spending-are-ortogonal)
 4. [Creating of a shared wallet](#creating-of-a-shared-wallet)
 5. [Resources of a shared wallet](#resources-of-a-shared-wallet)
+6. [Making a transaction in a shared wallet](#making-a-transaction-in-a-shared-wallet)
+7. [Summary](#summary)
 
 ### Introduction ###
 
@@ -319,9 +321,81 @@ See Fig 4 to inspect the relation.
 
 Fig. 4. From spending script template to address.
 
+### Making a transaction in a shared wallet ###
+
+Let’s continue the example of spending template script
+
+```code
+all [cosigner#1, cosigner#2]
+```
+
+The wallet is funded, ie. some wallet sent X ada to our shared wallet on an enterprise address that is derived from index 0.
+When it comes to a resource situation we have exactly a situation like in step 2 of the previous section.
+Now cosigner#1 decides to make a transaction sending funds to another wallet (it needs to be less than X - fee ada).
+As the money is “located” on an enterprise address having the credential coming from a script obtained using ix=0 we can point to
+the derivation path needed for each cosigner to derive the private key that will form a witness.
+
+```code
+Spending credential was constructed from
+
+payment keys for role = 0 and ix =0
+key1-ix0 = accXPub1 / 0 / 0
+key2-ix0 = accXPub2 / 0 / 0
+
+Signing key to be used are
+prvkey1-ix0 = accXPrv1 / 0 / 0
+prvkey2-ix0 = accXPrv2 / 0 / 0
+```
+
+For each party `accXPrv` and derived private keys are secrets, the derivations only they can perform.
+
+Cosigner#1 constructs a transaction and as there are funds on the address with `ix=0` he signs the transaction with `prvkey1-ix0` and
+enriches the transaction with the resultant witness. The transaction is partially-signed as the spending script template indicates.
+The partially-signed transaction with witness from cosigner#1 needs to be handed over off-chain to cosigner#2 for his signing.
+The cosigner#2 uses `prvkey2-ix0` to sign on his side and as he delivers the witness the transaction becomes fully-signed and
+can be submitted to blockchain. After a short period of time both sides will detect the change of balance.
+
+The construction of transaction can be realized via [CONSTRUCT TX][refConstructSharedTransaction] endpoint.
+Signing is performed using [SIGN TX][refSignSharedTransaction] endpoint.
+When transaction is fully-signed it can be submitted via [SUBMIT TX][refSubmitSharedTransaction] endpoint call.
+In order to inspect rhe transaction at each of the above steps any cosigner can use [DECODE TX][refDecodeSharedTransaction] endpoint.
+What is the history of the transactions for a given wallet can be revealed using [LIST TXS][refListSharedTransactions]endpoint.
+A single transaction pending/in a ledger can be investigated using [GET TX][refGetSharedTransaction] call.
+
+Staking actions are ruled by a staking script template. The script template translation to staking credential is exactly the same as for the spending credential.
+The only difference is that role=2 and only one index=0 are used. This means the key derivation is as follows
+
+```code
+delegation keys for role = 2 and ix =0
+stakingkey1-ix0 = accXPub1 / 2 / 0
+stakingkey2-ix0 = accXPub2 / 2 / 0
+```
+
+Each cosigner has one staking key and whatever staking script template is only they form the staking credential.
+Moreover, private keys corresponding to them act as signing keys. The search space here is a singleton - it is just one staking credential possible.
+
+There is one consequence that should be underlined. A spending script template should be **less restrictive** than a staking script template.
+It follows from the fact that each transaction, also the one dealing with staking, needs to cover a fee.
+Hence, it engages spending meaning spending script requirements is always present on top of optional staking script requirements.
+
+### Summary ###
+
+Overall multisig wallets offer multi-party shared spending and staking functionality that could be a source of many useful applications.
+Any application begs down to providing an adequate coordination server.
+One can think about custodial service or proxy management service (especially if external staking or spending credential is enabled).
+Moreover, multi-party document signing applications can be envisaged marrying metadata functionality with multisig primitives.
+Finally, support of zero-knowledge proof apps to multisig wallets could open a shared identity functionality or cross-blockchain applications.
+
+
 [ref1854]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-1854
 [refPostSharedWallet]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/postSharedWallet
 [refGetAccountKeyShared]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getAccountKeyShared
 [refPatchSharedWalletInPayment]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInPayment
 [refPatchSharedWalletInDelegation]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/patchSharedWalletInDelegation
 [refListSharedAddresses]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listSharedAddresses
+[refConstructSharedTransaction]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/constructSharedTransaction
+[refSignSharedTransaction]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/signSharedTransaction
+[refSubmitSharedTransaction]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/submitSharedTransaction
+[refDecodeSharedTransaction]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/decodeSharedTransaction
+[refListSharedTransactions]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/listSharedTransactions
+[refGetSharedTransaction]: https://cardano-foundation.github.io/cardano-wallet/api/edge/#operation/getSharedTransaction
