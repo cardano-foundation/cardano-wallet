@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            std-gen-seed
-version:         0.2025.1.7
+version:         0.2025.1.9
 synopsis:        Support for standard random number generator seeds
 license:         Apache-2.0
 author:          Cardano Foundation (High Assurance Lab)
