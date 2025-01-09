@@ -7,7 +7,9 @@ make a transaction valid upon managing the shared resources.
 
 ## Contents ##
 1. [Introduction](#introduction)
-1. [Wallet initialization](#wallet-initialization)
+2. [Wallet initialization](#wallet-initialization)
+3. [Staking and spending are ortogonal](#staking-and-spending-are-ortogonal)
+
 
 ### Introduction ###
 
@@ -65,3 +67,34 @@ It entails one party to construct a transaction and sign it, then hand it over o
 to any other party for its signing. After the first sign we have a partially-signed transaction and only after adding
 another witness on top we have a fully-signed transaction that, if submitted before slot 100, is expected to be accepted by cardano-node.
 After sending the transaction each party separately is expected to detect the change of the balance of the shared wallet if the transaction is successful.
+
+### Staking and spending are ortogonal ###
+
+Spending and staking is orthogonal to each other and could be regulated by different rules.
+The example presented in Fig 2 and Figs 3 show the case.
+
+![image](./multisig-figures/fig2.svg)
+
+Fig 2. Spending transaction. Due to spending ruling cosigner1 does not need a consent from cosigner2 to spend funds from a multisig wallet.
+Hence, cosigner1 constructs, signs and submits the transaction that spends without coordination server intermediation.
+Cosigner2 does not regulate spending and is irrelevant in this regard, but can follow cosigner1 action by inspecting a balance of the shared wallet.
+
+![image](./multisig-figures/fig3a.svg)
+
+Fig 3a. Staking transaction. Cosigner2 wants to stake funds to a specified pool.
+Cosigner2 hands over the partially signed transaction to the coordination server.
+Cosigner2 cannot realize this action without a consent from cosigner1 as determined by staking ruling.
+Signing from both cosigner1 and cosigner2 is mandatory to move forward with staking.
+
+![image](./multisig-figures/fig3b.svg)
+
+Fig 3b. Staking transaction. The consent from cosigner1 is required to move forward with a staking transaction.
+Cosigner1 uses the coordination server to download a partially signed transaction, inspects it, and if everything is valid he inscribes its witness
+and submits it to the node. Due to time constraints present in the staking ruling he needs to realize the submission
+in a time period defined by (s1, s2). After staking action is realized, both cosigners see rewards and
+can initiate a withdrawal transaction that is regulated by staking ruling.
+Spending of the rewards is regulated by spending ruling meaning cosigner1 can do it without consent from cosigners2.
+
+The detailed draft specification of the multi-signature HD wallet can be found [here][ref1854]
+
+[ref1854]: https://github.com/cardano-foundation/CIPs/tree/master/CIP-1854.
