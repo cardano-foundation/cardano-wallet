@@ -17,7 +17,7 @@ rsync -a --delete "$NODE_STATE_DIR/db/" "$TESTS_NODE_DB"
 WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
 export WALLET_TAG
 
-NODE_TAG="10.1.3"
+NODE_TAG="10.1.4"
 export NODE_TAG
 
 NODE_DB="$TESTS_NODE_DB"
