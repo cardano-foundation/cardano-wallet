@@ -7296,6 +7296,15 @@ paths:
         use query parameter `format=extended`. For non-extended public key
         use `format=non_extended` or omit query parameter.
 
+        Note the returned key is bech32-encoded. To be used when restoring
+        a wallet with public account key only, one needs to pass the key
+        in hex-encoded form. The <a href="">bech32</a> tool which is included
+        in cardano-wallet distribution can used on the command-line:
+
+        <code>
+        curl https://my.host/v2/wallets/1f8[...]/keys?format=extended' | jq -r . | bech32
+        </code>
+
       parameters:
         - *parametersWalletId
       responses: *responsesGetAccountKey
