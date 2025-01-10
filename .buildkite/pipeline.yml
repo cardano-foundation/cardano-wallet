@@ -559,6 +559,7 @@ steps:
   - group: Windows Checks
     depends_on:
       - windows-artifacts
+    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     steps:
     - label: Windows Unit Tests
       command: |
@@ -581,7 +582,7 @@ steps:
 
     - block: Windows E2E Tests
       depends_on: []
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       key: trigger-windows-e2e-tests
 
     - label: ⚙️ Windows E2E Tests
