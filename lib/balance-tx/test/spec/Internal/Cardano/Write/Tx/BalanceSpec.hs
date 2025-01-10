@@ -20,6 +20,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
+
+{-# OPTIONS_GHC -Wno-x-partial #-}
 {- HLINT ignore "Use null" -}
 {- HLINT ignore "Use camelCase" -}
 
