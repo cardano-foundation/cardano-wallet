@@ -527,17 +527,12 @@ spec_balanceTx era = describe "balanceTx" $ do
                 & (witsTxL . addrTxWitsL) .~ mempty
                 & (witsTxL . bootAddrTxWitsL) .~ mempty
 
-        let measuredWitSize
-                :: forall e. IsRecentEra e => Tx e
-                -> Natural
+        let measuredWitSize :: Tx era -> Natural
             measuredWitSize tx = fromIntegral
                 $ serializedSize tx
                 - serializedSize (withNoKeyWits tx)
 
-        let evaluateMinimumFeeSize
-                :: forall e. IsRecentEra e
-                => Tx e
-                -> Natural
+        let evaluateMinimumFeeSize :: Tx era -> Natural
             evaluateMinimumFeeSize tx = fromIntegral
                 $ Write.unCoin
                 $ estimateSignedTxMinFee
@@ -557,14 +552,14 @@ spec_balanceTx era = describe "balanceTx" $ do
                 inputsHaveNoRefScripts =
                     utxoPromisingInputsHaveAddress dummyAddr tx
 
-        let evaluateMinimumFeeDerivedWitSize :: forall e. IsRecentEra e => Tx e -> Natural
+        let evaluateMinimumFeeDerivedWitSize :: Tx era -> Natural
             evaluateMinimumFeeDerivedWitSize tx
                 = evaluateMinimumFeeSize tx
                 - evaluateMinimumFeeSize (withNoKeyWits tx)
 
         it "coin-selection's size estimation == balanceTx's size estimation"
             $ property
-            $ prop_bootstrapWitnesses
+            $ prop_bootstrapWitnesses era
             $ \n tx -> do
                 let balanceSize = evaluateMinimumFeeDerivedWitSize tx
                 let csSize = coinSelectionEstimatedSize $ intCast n
@@ -573,7 +568,7 @@ spec_balanceTx era = describe "balanceTx" $ do
 
         it "balanceTx's size estimation >= measured serialized size"
             $ property
-            $ prop_bootstrapWitnesses
+            $ prop_bootstrapWitnesses era
             $ \n tx -> do
                 let estimated = evaluateMinimumFeeDerivedWitSize tx
                 let measured = measuredWitSize tx
@@ -1592,12 +1587,13 @@ prop_balanceTxValid era
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
-    :: (forall era. IsRecentEra era => Word8 -> Tx era -> Property)
+    :: forall era. IsRecentEra era
+    => RecentEra era
+    -> (Word8 -> Tx era -> Property)
     -> Word8
     -- ^ Number of bootstrap witnesses.
     --
     -- Testing with [0, 255] should be sufficient.
-    -> AnyRecentEra
     -> CardanoApi.NetworkId
     -- ^ Network - will be encoded inside the witness.
     -> Index 'WholeDomain 'AccountK
@@ -1605,8 +1601,7 @@ prop_bootstrapWitnesses
     -> Index 'WholeDomain 'CredFromKeyK
     -- ^ Index for the first of the 'n' addresses.
     -> Property
-prop_bootstrapWitnesses
-    p n (AnyRecentEra (_ :: RecentEra era)) net accIx addr0Ix =
+prop_bootstrapWitnesses (_ :: RecentEra era) p n net accIx addr0Ix =
     let
         -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
         -- around, to ensure we always have 'n' unique indices.
