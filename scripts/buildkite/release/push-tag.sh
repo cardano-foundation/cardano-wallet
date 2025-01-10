@@ -3,13 +3,19 @@
 set -euox pipefail
 
 RELEASE_GIT_COMMIT=$(buildkite-agent meta-data get release-candidate-commit)
+TEST_RC=$(buildkite-agent meta-data get test-rc)
 
 git tag -l | xargs git tag -d
 git fetch --tags
 
 if [ "$RELEASE" == "false" ]; then
-    git tag -d nightly || true
-    TAG=nightly
+    if [ "$TEST_RC" == "TRUE" ]; then
+        git tag -d nightly || true
+        TAG=nightly
+    else
+        git tag -d test || true
+        TAG="test"
+    fi
 else
     TAG=$(buildkite-agent meta-data get release-version)
     exists=$(git tag -l "$TAG")
