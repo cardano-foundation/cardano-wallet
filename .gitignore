@@ -93,3 +93,6 @@ package.json
 artifacts
 deposit-*
 cabal.project.freeze
+
+# Emacs
+*~
