@@ -57,51 +57,6 @@ import System.Random.StdGenSeed
     , stdGenFromSeed
     )
 
--- Exported function to balance a transaction
--- Convert input and output for C compatibility
-foreign export ccall balanceTxFFI_C
-    :: CString -- CBOR PParams
-    -> CString -- TimeTranslation (as string; encoding up to you)
-    -> CInt -- Random seed
-    -> CString -- Serialized UTxO Map (define format)
-    -> CString -- Change address (serialized)
-    -> CString -- Input transaction CBOR
-    -> Ptr CString -- Result buffer (output)
-    -> IO CInt -- Error code (0 = success, non-zero = failure)
-
-balanceTxFFI_C :: CString -> CString -> CInt -> CString -> CString -> CString -> Ptr CString -> IO CInt
-balanceTxFFI_C pparamsCborPtr timeTranslationPtr seed utxoPtr changeAddrPtr txCborPtr resultPtr = do
-    -- Convert C strings to Haskell ByteStrings
-    pparamsCbor <- unsafePackCStringLen =<< cStringLenFromCString pparamsCborPtr
-    timeTranslation <- unsafePackCStringLen =<< cStringLenFromCString timeTranslationPtr
-    utxoSerialized <- unsafePackCStringLen =<< cStringLenFromCString utxoPtr
-    changeAddr <- unsafePackCStringLen =<< cStringLenFromCString changeAddrPtr
-    txCbor <- unsafePackCStringLen =<< cStringLenFromCString txCborPtr
-
-    let seedInt = fromIntegral seed :: Int
-        utxoMap = deserializeUTxOMap utxoSerialized -- Define deserialization
-        result = balanceTxFFI pparamsCbor (deserializeTimeTranslation timeTranslation) seedInt utxoMap changeAddr txCbor
-
-    case result of
-        Left err -> return $ errorCodeFromErr err -- Define error mapping
-        Right balancedTx -> do
-            balancedTxCStr <- unsafeUseAsCString balancedTx (return . id)
-            poke resultPtr balancedTxCStr
-            return 0 -- Success
-
--- Helpers
-cStringLenFromCString :: CString -> IO (CString, Int)
-cStringLenFromCString cstr = do
-    len <- lengthCString cstr
-    return (cstr, len)
-
-lengthCString :: CString -> IO Int
-lengthCString cstr = go 0
-  where
-    go n = do
-        c <- peekElemOff cstr n
-        if c == 0 then return n else go (n + 1)
-
 deserializeUTxOMap :: ByteString -> Map (TxIn StandardCrypto) (TxOut Conway)
 deserializeUTxOMap = undefined -- Define format and logic
 
