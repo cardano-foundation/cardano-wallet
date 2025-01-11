@@ -54,6 +54,7 @@ module Internal.Cardano.Write.Tx
     , Core.Tx
     , Core.TxBody
     , serializeTx
+    , deserializeTx
 
     -- * TxId
     , Ledger.TxId
@@ -483,6 +484,23 @@ serializeTx
     -> ByteString
 serializeTx tx =
     CardanoApi.serialiseToCBOR $ toCardanoApiTx tx
+
+deserializeTx :: forall era. IsRecentEra era => ByteString -> Core.Tx era
+deserializeTx = case recentEra @era of
+    RecentEraBabbage -> deserializeBabbageTx
+    RecentEraConway -> deserializeConwayTx
+  where
+    deserializeBabbageTx :: ByteString -> Core.Tx Babbage
+    deserializeBabbageTx
+        = fromCardanoApiTx
+        . either (error . show) id
+        . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
+
+    deserializeConwayTx :: ByteString -> Core.Tx Conway
+    deserializeConwayTx
+        = fromCardanoApiTx
+        . either (error . show) id
+        . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsConwayEra)
 
 --------------------------------------------------------------------------------
 -- Compatibility
