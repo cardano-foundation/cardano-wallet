@@ -253,11 +253,12 @@ import Internal.Cardano.Write.Eras
     ( AnyRecentEra (..)
     , Babbage
     , CardanoApiEra
-    , Conway
+    , InAnyRecentEra (..)
     , IsRecentEra (recentEra)
     , RecentEra (..)
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
+    , toInAnyRecentEra
     )
 import Internal.Cardano.Write.Tx
     ( Coin (..)
@@ -2604,19 +2605,6 @@ instance IsRecentEra era => Buildable (Wallet era) where
             , nameF "changeAddressGen" $ build changeAddressGen
             , nameF "utxo" $ pretty $ toWalletUTxO utxo
             ]
-
-data InAnyRecentEra thing
-    = InConway (thing Conway)
-    | InBabbage (thing Babbage)
-
-deriving instance (Show (thing Conway), (Show (thing Babbage))) => Show (InAnyRecentEra thing)
-deriving instance (Eq (thing Conway), (Eq (thing Babbage))) => Eq (InAnyRecentEra thing)
-
-toInAnyRecentEra
-    :: forall era thing. IsRecentEra era => thing era -> InAnyRecentEra thing
-toInAnyRecentEra thing = case recentEra @era of
-    RecentEraConway -> InConway thing
-    RecentEraBabbage -> InBabbage thing
 
 --------------------------------------------------------------------------------
 -- Miscellaneous orphan instances
