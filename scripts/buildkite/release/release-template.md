@@ -40,3 +40,4 @@ FIX THIS LINK BY INSPECTING BUMP SH !
 | Pawel Jakubas @paweljakubas         | Software Engineer |          |
 | Johannes Lund @Anviking             | Software Engineer |          |
 | David Clark @david-a-clark          | Product Manager   |          |
+| Arnaud Bailly @abailly              | Software Engineer |          |
