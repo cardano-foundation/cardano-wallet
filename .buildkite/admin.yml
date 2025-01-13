@@ -9,18 +9,6 @@ env:
 
 steps:
 
-  - block: "Refresh preprod node state (linux)"
-    key: refresh-preprod-node-state-linux-block
-
-  - label: 'Refresh preprod node state (linux)'
-    depends_on: refresh-preprod-node-state-linux-block
-    command: |
-        cd ./scripts/buildkite/admin/ && nix develop -c ./refresh-preprod-snapshot.sh
-    env:
-      NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
-    agents:
-      system: x86_64-linux
-
   - block: "Refresh preprod node state (macOS)"
     depends_on: []
     key: refresh-preprod-node-state-macos-block
