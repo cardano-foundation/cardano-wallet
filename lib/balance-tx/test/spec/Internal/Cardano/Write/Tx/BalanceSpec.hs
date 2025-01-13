@@ -66,6 +66,7 @@ import Cardano.Ledger.Api
     , coinTxOutL
     , collateralReturnTxBodyL
     , mkBasicTx
+    , mkBasicTxOut
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
@@ -234,6 +235,7 @@ import Fmt
     ( Buildable (..)
     , blockListF
     , blockListF'
+    , fixedF
     , fmt
     , nameF
     , pretty
@@ -259,7 +261,8 @@ import Internal.Cardano.Write.Eras
     , toInAnyRecentEra
     )
 import Internal.Cardano.Write.Tx
-    ( Coin (..)
+    ( Address
+    , Coin (..)
     , Datum (..)
     , FeePerByte (..)
     , StandardCrypto
@@ -291,7 +294,6 @@ import Internal.Cardano.Write.Tx.Balance
     , UTxOAssumptions (..)
     , balanceTx
     , constructUTxOIndex
-    , fromWalletUTxO
     , lookupStakeKeyDeposit
     , mergeSignedValue
     , noTxUpdate
@@ -447,7 +449,6 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
@@ -465,7 +466,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -602,24 +602,24 @@ spec_balanceTx era = describe "balanceTx" $ do
         -- have separate 'it' statements for different expectations of the same
         -- test case.
         let nPayments = 10
-        let paymentOuts = replicate nPayments $
-                W.TxOut
-                    dummyAddr
-                    (W.TokenBundle.fromCoin (W.Coin 1_000_000))
+        let paymentOuts :: [TxOut era]
+            paymentOuts = replicate nPayments $
+                mkBasicTxOut dummyAddr (ada 1)
+
         let ptx = paymentPartialTx paymentOuts
 
         -- True for values of nPayments small enough not to cause
         -- 'ErrBalanceTxMaxSizeLimitExceeded' or ErrMakeChange
         let nChange = max nPayments 1
         let changeState0 = DummyChangeState 0
-        let expectedChange = fmap Convert.toWalletAddress <$>
+        let expectedChange =
                 flip evalState changeState0
                 $ replicateM nChange
                 $ state @Identity dummyChangeAddrGen.genChangeAddress
 
         let
-            address :: IsRecentEra era => TxOut era -> W.Address
-            address = Convert.toWallet . view addrTxOutL
+            address :: TxOut era -> Address
+            address = view addrTxOutL
 
         let (tx, changeState') =
                 either (error . show) id $ balance' ptx
@@ -627,14 +627,14 @@ spec_balanceTx era = describe "balanceTx" $ do
         it "assigns change addresses as expected" $
             map address (outputs tx)
                 `shouldBe`
-                (map (view #address) paymentOuts ++ expectedChange)
+                (map address paymentOuts ++ expectedChange)
 
         it "returns a change state that corresponds to the addresses used" $ do
             changeState' `shouldBe` DummyChangeState {nextUnusedIndex = nChange}
 
     it "assigns minimal ada quantities to outputs without ada" $ do
-        let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
-        let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 866_310))
+        let (out  :: TxOut era) = mkBasicTxOut dummyAddr (lovelace 0)
+        let (out' :: TxOut era) = mkBasicTxOut dummyAddr (lovelace 866_310)
         let tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
@@ -648,7 +648,7 @@ spec_balanceTx era = describe "balanceTx" $ do
         Write.isBelowMinimumCoinForTxOut pp (head outs)
             `shouldBe` False
 
-        head outs `shouldBe` (fromWalletTxOut out')
+        head outs `shouldBe` out'
 
     describe "effect of txMaxSize on coin selection" $ do
 
@@ -660,22 +660,19 @@ spec_balanceTx era = describe "balanceTx" $ do
 
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ W.TxOut dummyAddr
-                        (W.TokenBundle.fromCoin (W.Coin 50_000_000))
+                    [ mkBasicTxOut dummyAddr (ada 50)
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ W.TxOut dummyAddr
-                        (W.TokenBundle.fromCoin (W.Coin 100_000_000))
+                    [ mkBasicTxOut dummyAddr (ada 100)
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ W.TxOut dummyAddr
-                        (W.TokenBundle.fromCoin (W.Coin 200_000_000))
+                    [ mkBasicTxOut dummyAddr (ada 200)
                     ]
             tx `shouldBe` Left
                 (ErrBalanceTxMaxSizeLimitExceeded
@@ -752,8 +749,7 @@ spec_balanceTx era = describe "balanceTx" $ do
             let partialTx :: PartialTx era
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
-                        [ W.TxOut dummyAddr
-                            (W.TokenBundle.fromCoin (W.Coin 1_000_000))
+                        [ mkBasicTxOut dummyAddr (ada 1)
                         ]
             balance partialTx
                 `shouldBe`
@@ -875,14 +871,14 @@ spec_balanceTx era = describe "balanceTx" $ do
     horizon = SlotNo 20
     beyondHorizon = SlotNo 21
 
-    wallet = mkTestWallet (utxo [W.Coin 5_000_000])
+    wallet = mkTestWallet (utxo [Coin 5_000_000])
 
     -- Wallet with only small utxos, and enough of them to fill a tx in the
     -- tests below.
     dustWallet = mkTestWallet dustUTxO
-    dustUTxO = W.UTxO $ Map.fromList $
-        [ ( W.TxIn (W.Hash $ B8.replicate 32 '1') ix
-          , W.TxOut dummyAddr (W.TokenBundle.fromCoin $ W.Coin 1_000_000)
+    dustUTxO = UTxO $ Map.fromList $
+        [ ( Convert.toLedger $ W.TxIn (W.Hash $ B8.replicate 32 '1') ix
+          , mkBasicTxOut dummyAddr (ada 1)
           )
         | ix <- [0 .. 500]
         ]
@@ -893,15 +889,16 @@ spec_balanceTx era = describe "balanceTx" $ do
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
 
-    utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
+    utxoWithValues values = UTxO $ Map.fromList $ zip ins outs
       where
-        ins = map (W.TxIn dummyHash) [0..]
-        outs = map (W.TxOut dummyAddr) bundles
+        ins = map (Convert.toLedger . W.TxIn dummyHash) [0..]
+        outs = map (mkBasicTxOut dummyAddr) values
         dummyHash = W.Hash $ B8.replicate 32 '0'
 
-    utxo coins = utxoWithBundles $ map W.TokenBundle.fromCoin coins
+    utxo :: [Coin] -> UTxO era
+    utxo coins = utxoWithValues $ map Value.inject coins
 
-    dummyAddr = W.Address $ unsafeFromHex
+    dummyAddr = Convert.toLedgerAddress $ W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     totalOutput :: IsRecentEra era => Tx era -> Coin
@@ -928,7 +925,7 @@ balanceTxGoldenSpec era = describe "balance goldens" $ do
 
     describe "balanced binaries" $ do
         let dir = goldenDir </> "binary" </> "balanced"
-        let walletUTxO = utxo [W.Coin 5_000_000]
+        let walletUTxO = utxo [Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
             let tx = either (error . show) id $ testBalanceTx
@@ -974,7 +971,7 @@ balanceTxGoldenSpec era = describe "balance goldens" $ do
     test :: String -> PartialTx era -> Spec
     test name partialTx = it name $ do
         goldenText name
-            (map (mkGolden partialTx . W.Coin) defaultWalletBalanceRange)
+            (map (mkGolden partialTx . Coin) defaultWalletBalanceRange)
       where
         defaultWalletBalanceRange = [0, 50_000 .. 4_000_000]
 
@@ -991,7 +988,7 @@ balanceTxGoldenSpec era = describe "balance goldens" $ do
                 }
         mkGolden
             :: PartialTx era
-            -> W.Coin
+            -> Coin
             -> BalanceTxGolden
         mkGolden ptx c =
             let
@@ -1004,7 +1001,7 @@ balanceTxGoldenSpec era = describe "balance goldens" $ do
                     ptx
                 combinedUTxO = mconcat
                     [ view #extraUTxO ptx
-                    , fromWalletUTxO walletUTxO
+                    , walletUTxO
                     ]
             in
                 case res of
@@ -1015,18 +1012,19 @@ balanceTxGoldenSpec era = describe "balance goldens" $ do
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
-    utxo coins = W.UTxO $ Map.fromList $ zip ins outs
+    utxo :: [Coin] -> UTxO era
+    utxo coins = UTxO $ Map.fromList $ zip ins outs
       where
-        ins = map (W.TxIn dummyHash) [0..]
-        outs = map (W.TxOut addr . W.TokenBundle.fromCoin) coins
+        ins = map (Convert.toLedger . W.TxIn dummyHash) [0..]
+        outs = map (mkBasicTxOut addr . Value.inject) coins
         dummyHash = W.Hash $ B8.replicate 32 '0'
 
-    addr = W.Address $ unsafeFromHex
+    addr = Convert.toLedger $ W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     payment :: PartialTx era
     payment = paymentPartialTx
-        [ W.TxOut addr (W.TokenBundle.fromCoin (W.Coin 1_000_000))
+        [ mkBasicTxOut addr (ada 1)
         ]
 
     delegate :: PartialTx era
@@ -1130,12 +1128,12 @@ spec_estimateSignedTxSize _era = describe "estimateSignedTxSize" $ do
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
-    vkCredAddr = W.Address $ unsafeFromHex
+    vkCredAddr = Convert.toLedger $ W.Address $ unsafeFromHex
         "6000000000000000000000000000000000000000000000000000000000"
 
     -- This is a short bootstrap address retrieved from
     -- "byron-address-format.md".
-    bootAddr = W.Address $ unsafeFromHex
+    bootAddr = Convert.toLedger $ W.Address $ unsafeFromHex
         "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
 
     -- With more attributes, the address can be longer. This value was chosen
@@ -1833,10 +1831,10 @@ data AnyChangeAddressGenWithState where
 
 data BalanceTxGolden =
     BalanceTxGoldenSuccess
-        W.Coin -- ^ Wallet balance
+        Coin -- ^ Wallet balance
         Coin -- ^ Fee
         Coin -- ^ Minimum fee
-    | BalanceTxGoldenFailure W.Coin String
+    | BalanceTxGoldenFailure Coin String
     deriving (Eq, Show)
 
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
@@ -1901,7 +1899,7 @@ testBalanceTx
 balanceTxWithDummyChangeState
     :: forall era. IsRecentEra era
     => UTxOAssumptions
-    -> W.UTxO
+    -> UTxO era
     -> StdGenSeed
     -> PartialTx era
     -> Either
@@ -1918,7 +1916,7 @@ balanceTxWithDummyChangeState utxoAssumptions utxo seed partialTx =
             (DummyChangeState 0)
             partialTx
   where
-    utxoIndex = constructUTxOIndex $ fromWalletUTxO utxo
+    utxoIndex = constructUTxOIndex utxo
 
 fromWalletTxIn :: W.TxIn -> TxIn
 fromWalletTxIn = Convert.toLedger
@@ -1953,19 +1951,17 @@ hasTotalCollateral tx =
         SJust _ -> True
         SNothing -> False
 
-mkTestWallet :: IsRecentEra era => W.UTxO -> Wallet era
-mkTestWallet walletUTxO =
+mkTestWallet :: IsRecentEra era => UTxO era -> Wallet era
+mkTestWallet utxo =
     Wallet AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
-  where
-    utxo = fromWalletUTxO walletUTxO
 
-paymentPartialTx :: IsRecentEra era => [W.TxOut] -> PartialTx era
+paymentPartialTx :: IsRecentEra era => [TxOut era] -> PartialTx era
 paymentPartialTx txouts =
     PartialTx (mkBasicTx body) mempty mempty (StakeKeyDepositMap mempty) mempty
   where
     body = mkBasicTxBody
         & outputsTxBodyL .~
-            StrictSeq.fromList (fromWalletTxOut <$> txouts)
+            StrictSeq.fromList txouts
 
 serializedSize
     :: forall era. IsRecentEra era
@@ -2021,7 +2017,7 @@ txFee tx = tx ^. bodyTxL . feeTxBodyL
 -- outputs with the given 'Address'.
 utxoPromisingInputsHaveAddress
     :: forall era. (HasCallStack, IsRecentEra era)
-    => W.Address
+    => Address
     -> Tx era
     -> UTxO era
 utxoPromisingInputsHaveAddress addr tx =
@@ -2031,7 +2027,13 @@ utxoPromisingInputsHaveAddress addr tx =
     allInputs body = Set.toList $ body ^. (bodyTxL . allInputsTxBodyF)
 
     txOut :: TxOutInRecentEra
-    txOut = TxOutInRecentEra (Convert.toLedger addr) mempty NoDatum Nothing
+    txOut = TxOutInRecentEra addr mempty NoDatum Nothing
+
+ada :: Integer -> Value
+ada a = Value.inject (Coin $ a * 1_000_000)
+
+lovelace :: Integer -> Value
+lovelace l = Value.inject $ Coin l
 
 --------------------------------------------------------------------------------
 -- Test values
@@ -2148,8 +2150,7 @@ pingPong_2 = PartialTx
                   [ "714d72cf569a339a18a7d93023139"
                   , "83f56e0d96cd45bdcb1d6512dca6a"
                   ])
-              (Convert.toLedgerTokenBundle
-                  $ W.TokenBundle.fromCoin $ W.Coin 2_000_000)
+              (ada 2)
               (Write.DatumHash
                   $ fromJust
                   $ Write.datumHashFromBytes
@@ -2579,22 +2580,21 @@ instance Buildable AnyChangeAddressGenWithState where
 
 -- CSV with the columns: wallet_balance,(fee,minfee | error)
 instance Buildable BalanceTxGolden where
-    build (BalanceTxGoldenFailure c err) = mconcat
-        [ build c
-        , ","
-        , build (T.pack err)
-        ]
-    build (BalanceTxGoldenSuccess c fee minfee) = mconcat
-        [ build c
-        , ","
-        , lovelaceF fee
-        , ","
-        , lovelaceF minfee
-        ]
+    build = \case
+        BalanceTxGoldenFailure c err -> mconcat
+            [ lovelaceF c
+            , ","
+            , build (T.pack err)
+            ]
+        BalanceTxGoldenSuccess c fee minfee -> mconcat
+            [ lovelaceF c
+            , ","
+            , lovelaceF fee
+            , ","
+            , lovelaceF minfee
+            ]
       where
-        lovelaceF (Coin l)
-            | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
-            | otherwise = pretty (W.Coin.unsafeFromIntegral l)
+        lovelaceF (Coin c) = fixedF @Double 6 (fromIntegral c / 1e6)
 
 instance IsRecentEra era => Buildable (Wallet era) where
     build (Wallet assumptions utxo changeAddressGen) =
