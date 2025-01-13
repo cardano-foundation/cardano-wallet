@@ -51,15 +51,16 @@ module Internal.Cardano.Write.Tx
     , Version
 
     -- * Tx
-    , Core.Tx
-    , Core.TxBody
+    , Tx
+    , TxBody
     , serializeTx
+    , deserializeTx
 
     -- * TxId
     , Ledger.TxId
 
     -- * TxOut
-    , Core.TxOut
+    , TxOut
     , BabbageTxOut (..)
     , TxOutInBabbage
     , TxOutInRecentEra (..)
@@ -132,7 +133,10 @@ import Cardano.Ledger.Alonzo.Scripts
     ( AlonzoScript (..)
     )
 import Cardano.Ledger.Api
-    ( coinTxOutL
+    ( Tx
+    , TxBody
+    , TxOut
+    , coinTxOutL
     , upgradeTxOut
     )
 import Cardano.Ledger.Api.UTxO
@@ -283,8 +287,6 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 --------------------------------------------------------------------------------
 -- TxOut
 --------------------------------------------------------------------------------
-
-type TxOut era = Core.TxOut era
 
 type TxOutInBabbage = Babbage.BabbageTxOut Babbage
 
@@ -479,10 +481,27 @@ forceUTxOToEra (UTxO utxo) =
 
 serializeTx
     :: forall era. IsRecentEra era
-    => Core.Tx era
+    => Tx era
     -> ByteString
 serializeTx tx =
     CardanoApi.serialiseToCBOR $ toCardanoApiTx tx
+
+deserializeTx :: forall era. IsRecentEra era => ByteString -> Tx era
+deserializeTx = case recentEra @era of
+    RecentEraBabbage -> deserializeBabbageTx
+    RecentEraConway -> deserializeConwayTx
+  where
+    deserializeBabbageTx :: ByteString -> Tx Babbage
+    deserializeBabbageTx
+        = fromCardanoApiTx
+        . either (error . show) id
+        . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
+
+    deserializeConwayTx :: ByteString -> Tx Conway
+    deserializeConwayTx
+        = fromCardanoApiTx
+        . either (error . show) id
+        . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsConwayEra)
 
 --------------------------------------------------------------------------------
 -- Compatibility
@@ -491,14 +510,14 @@ serializeTx tx =
 fromCardanoApiTx
     :: IsRecentEra era
     => CardanoApi.Tx (CardanoApiEra era)
-    -> Core.Tx era
+    -> Tx era
 fromCardanoApiTx = \case
     CardanoApi.ShelleyTx _era tx ->
         tx
 
 toCardanoApiTx
     :: forall era. IsRecentEra era
-    => Core.Tx era
+    => Tx era
     -> CardanoApi.Tx (CardanoApiEra era)
 toCardanoApiTx =
     CardanoApi.ShelleyTx
@@ -593,7 +612,7 @@ evaluateTransactionBalance
     => PParams era
     -> (StakeCredential -> Maybe Coin)
     -> Shelley.UTxO era
-    -> Core.TxBody era
+    -> TxBody era
     -> Core.Value era
 evaluateTransactionBalance pp depositLookup =
     Ledger.evalBalanceTxBody
