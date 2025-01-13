@@ -24,8 +24,6 @@
 {- HLINT ignore "Use camelCase" -}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Internal.Cardano.Write.Tx.BalanceSpec
     ( spec
