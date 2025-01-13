@@ -47,6 +47,8 @@ steps:
           RELEASE: false
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: push-swagger-nightly-or-test
 
       - label: Push nightly or test release tag
         key: push-nightly-or-test-tag
@@ -66,6 +68,8 @@ steps:
           system: x86_64-linux
         env:
           RELEASE: false
+        concurrency: 1
+        concurrency_group: push-release-nightly-or-test
 
       - label: Push nightly or test release artifacts
         depends_on: push-nightly-or-test-release
@@ -75,6 +79,18 @@ steps:
           system: x86_64-linux
         env:
           RELEASE: false
+        concurrency: 1
+        concurrency_group: push-release-nightly-or-test
+
+      - label: Push image to dockerhub
+        commands:
+          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-dockerhub.sh
+        agents:
+          system: x86_64-linux
+        env:
+          RELEASE: false
+        concurrency: 1
+        concurrency_group: push-dockerhub-nightly-or-test
 
   - group: Release
     depends_on: nightly-or-test
@@ -93,6 +109,8 @@ steps:
           RELEASE: true
         agents:
           system: x86_64-linux
+        concurrency: 1
+        concurrency_group: push-swagger-release
 
       - label: Push release tag
         key: push-release-tag
@@ -113,6 +131,8 @@ steps:
           system: x86_64-linux
         env:
           RELEASE: true
+        concurrency: 1
+        concurrency_group: push-release-release
 
       - label: Push release artifacts
         depends_on: push-release
@@ -122,16 +142,25 @@ steps:
           system: x86_64-linux
         env:
           RELEASE: true
+        concurrency: 1
+        concurrency_group: push-release-release
 
-      - label: Push Docker Image
-        depends_on:
-          - create-release
-        command:
-          - "mkdir -p config && echo '{ outputs = _: { dockerHubRepoName = \"cardanofoundation/cardano-wallet\"; }; }'  > config/flake.nix"
-          - "nix build .#pushDockerImage --override-input hostNixpkgs \"path:$(nix eval --impure -I $NIX_PATH --expr '(import <nixpkgs> {}).path')\" --override-input customConfig path:./config -o docker-build-push"
-          - "./docker-build-push"
+      - block: Push to dockerhub
+        key: push-dockerhub
+        depends_on: create-release
+
+      - label: Push to dockerhub
+        depends_on: push-dockerhub
+        artifact_paths:
+          - ./artifacts/*.tgz
+        commands:
+          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-dockerhub.sh
         agents:
           system: x86_64-linux
+        env:
+          RELEASE: true
+        concurrency: 1
+        concurrency_group: push-dockerhub-release
 
       - label: Update Documentation Links
         depends_on: create-release
