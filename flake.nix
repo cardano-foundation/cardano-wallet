@@ -388,11 +388,7 @@
           // rec {
             dockerImage =
               mkDockerImage (mkPackages walletProject.projectCross.musl64);
-            pushDockerImage = import ./.buildkite/docker-build-push.nix {
-              hostPkgs = import hostNixpkgs { inherit system; };
-              inherit dockerImage;
-              inherit (config) dockerHubRepoName;
-            };
+
           } // (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs;
