@@ -17,20 +17,13 @@
     <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/publish.yml">
         <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/publish.yml?label=Docs&style=for-the-badge&branch=master"  />
     </a>
-    <a href="https://buildkite.com/cardano-foundation/cardano-wallet-nightly">
-        <img src="https://img.shields.io/buildkite/94de95cfe78b09c547cb109b0a44e6cd489341ea9e2c224ead/master?label=BENCHMARKS&style=for-the-badge"  />
+    <a href="https://buildkite.com/cardano-foundation/cardano-wallet-restoration-benchmarks">
+        <img src="https://img.shields.io/buildkite/1973e5126d02674d8b2489eb7bc31203ad429c31787ab8a830/master?label=BENCHMARKS&style=for-the-badge"  />
     </a>
     <a href="https://buildkite.com/cardano-foundation/cardano-wallet-release">
         <img src="https://img.shields.io/buildkite/782570d86cfcb9cdc2f5fc5048a770777ec980bcfc135f5fe6/master?label=RELEASE-CANDIDATE&style=for-the-badge"  />
     </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/windows.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/windows.yml?label=Windows unit tests&style=for-the-badge&branch=master"  />
-    </a>
-    <a href="https://github.com/cardano-foundation/cardano-wallet/actions/workflows/e2e-windows.yml">
-        <img src="https://img.shields.io/github/actions/workflow/status/cardano-foundation/cardano-wallet/e2e-windows.yml?label=E2E Windows&style=for-the-badge&branch=master" />
-    </a>
 </p>
-
 
 <hr/>
 
@@ -49,6 +42,19 @@ It can be used as a component of a frontend such as
 [Daedalus](https://daedaluswallet.io), which provides a friendly user
 interface for wallets. Most users who would like to use Cardano should
 start with Daedalus.
+
+## Documentation
+
+| Link                                                                                             | Audience                                                     |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| [Documentation](https://cardano-foundation.github.io/cardano-wallet/)                            |                                                              |
+| • [User Manual](https://cardano-foundation.github.io/cardano-wallet/user)                        | Users of Cardano Wallet                                      |
+| &nbsp;&nbsp;⤷ [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user/cli)         | Users of the Cardano Wallet API                              |
+| &nbsp;&nbsp;⤷ [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)  | Users of the Cardano Wallet API                              |
+| • [Design Documents](https://cardano-foundation.github.io/cardano-wallet/design)                 | Anyone interested in wallet design and specifications        |
+| &nbsp;&nbsp;⤷ [Specifications](https://cardano-foundation.github.io/cardano-wallet/design/specs) | Anyone interested in wallet design and specifications        |
+| • [Contributor Manual](https://cardano-foundation.github.io/cardano-wallet/contributor)          | Anyone interested in the project and our development process |
+| [Adrestia Documentation](https://input-output-hk.github.io/adrestia/)                            | Anyone interested in the project and our development process |
 
 ## Quickstart
 
@@ -214,19 +220,6 @@ See [Testing](https://cardano-foundation.github.io/cardano-wallet/contributor/ho
 
 The `cardano-wallet` repository was introduced during the [Shelley phase](https://roadmap.cardano.org/) of the Cardano blockchain.
 Previously, during the Byron phase, the wallet was part of the [cardano-sl](https://github.com/input-output-hk/cardano-sl) repository. (This is useful to know — sometimes the ghosts of the past come back to haunt us in the form of obscure bugs.)
-
-## Documentation
-
-| Link                                                                                             | Audience                                                     |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| [Documentation](https://cardano-foundation.github.io/cardano-wallet/)                            |                                                              |
-| • [User Manual](https://cardano-foundation.github.io/cardano-wallet/user)                        | Users of Cardano Wallet                                      |
-| &nbsp;&nbsp;⤷ [CLI Manual](https://cardano-foundation.github.io/cardano-wallet/user/cli)         | Users of the Cardano Wallet API                              |
-| &nbsp;&nbsp;⤷ [API Documentation](https://cardano-foundation.github.io/cardano-wallet/api/edge)  | Users of the Cardano Wallet API                              |
-| • [Design Documents](https://cardano-foundation.github.io/cardano-wallet/design)                 | Anyone interested in wallet design and specifications        |
-| &nbsp;&nbsp;⤷ [Specifications](https://cardano-foundation.github.io/cardano-wallet/design/specs) | Anyone interested in wallet design and specifications        |
-| • [Contributor Manual](https://cardano-foundation.github.io/cardano-wallet/contributor)          | Anyone interested in the project and our development process |
-| [Adrestia Documentation](https://input-output-hk.github.io/adrestia/)                            | Anyone interested in the project and our development process |
 
 <hr/>
 
