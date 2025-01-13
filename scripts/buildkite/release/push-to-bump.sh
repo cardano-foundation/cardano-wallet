@@ -29,8 +29,8 @@ else
         TOKEN="$BUMP_TEST_TOKEN"
         REPO=cardano-wallet-backend-test
     else
-        TOKEN="$BUMP_DAILY_TOKEN"
-        REPO=cardano-wallet-backend-daily
+        TOKEN="$BUMP_NIGHTLY_TOKEN"
+        REPO=cardano-wallet-backend-nightly
     fi
 fi
 
