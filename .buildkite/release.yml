@@ -35,10 +35,10 @@ steps:
       - artifacts/changes.md
 
   - group : Nightly
-    key: nightly
+    key: nightly-or-test
     depends_on: main-pipeline-build
     steps:
-      - label: Push swagger nightly
+      - label: Push swagger nightly or test
         commands:
           - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
         artifacts:
@@ -48,8 +48,8 @@ steps:
         agents:
           system: x86_64-linux
 
-      - label: Push nightly release tag
-        key: push-nightly-tag
+      - label: Push nightly or test release tag
+        key: push-nightly-or-test-tag
         commands:
           - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-tag.sh
         agents:
@@ -57,9 +57,9 @@ steps:
         env:
           RELEASE: false
 
-      - label: Push nightly release
-        depends_on: push-nightly-tag
-        key: push-nightly-release
+      - label: Push nightly or test release
+        depends_on: push-nightly-or-test-tag
+        key: push-nightly-or-test-release
         commands:
           - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-release.sh
         agents:
@@ -67,8 +67,8 @@ steps:
         env:
           RELEASE: false
 
-      - label: Push nightly release artifacts
-        depends_on: push-nightly-release
+      - label: Push nightly or test release artifacts
+        depends_on: push-nightly-or-test-release
         commands:
           - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-artifacts.sh
         agents:
@@ -77,7 +77,7 @@ steps:
           RELEASE: false
 
   - group: Release
-    depends_on: nightly
+    depends_on: nightly-or-test
     if: build.branch == "master"
     steps:
       - block: Create a release

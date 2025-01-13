@@ -2,6 +2,7 @@
 
 set -euox pipefail
 
+TEST_RC=$(buildkite-agent meta-data get test-rc --default "FALSE")
 
 if [[ -n "${BUILDKITE-}" ]]; then
     RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get release-candidate-commit --default "")
@@ -11,7 +12,6 @@ if [[ -n "${BUILDKITE-}" ]]; then
 else
     RELEASE_CANDIDATE_COMMIT=""
 fi
-
 
 npm install bump-cli@2.8.4
 
@@ -25,8 +25,13 @@ if [[ "$RELEASE" == "true" ]]; then
     TOKEN="$BUMP_RELEASE_TOKEN"
     REPO=cardano-wallet-backend
 else
-    TOKEN="$BUMP_DAILY_TOKEN"
-    REPO=cardano-wallet-backend-daily
+    if [[ "$TEST_RC" == "TRUE" ]]; then
+        TOKEN="$BUMP_TEST_TOKEN"
+        REPO=cardano-wallet-backend-test
+    else
+        TOKEN="$BUMP_NIGHTLY_TOKEN"
+        REPO=cardano-wallet-backend-nightly
+    fi
 fi
 
 bump diff \

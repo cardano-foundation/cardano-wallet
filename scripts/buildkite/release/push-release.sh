@@ -3,10 +3,17 @@
 set -euox pipefail
 
 NEW_GIT_TAG=$(buildkite-agent meta-data get release-version)
+TEST_RC=$(buildkite-agent meta-data get test-rc)
 
 if [ "$RELEASE" == "false" ]; then
-    TAG=nightly
-    title="Nightly $NEW_GIT_TAG"
+    if [ "$TEST_RC" == "FALSE" ]; then
+        TAG=nightly
+        title="Nightly $NEW_GIT_TAG"
+    else
+        TAG="test"
+        title="Test $NEW_GIT_TAG"
+    fi
+
 else
     TAG=$NEW_GIT_TAG
     title="Release $TAG"
@@ -31,7 +38,7 @@ envsubst \
     > "$RELEASE_SCRIPTS_DIR/release-template-final.md"
 
 if [ "$RELEASE" == "false" ]; then
-    gh release delete nightly --yes || true
+    gh release delete "$TAG" --yes || true
 fi
 
 gh release create \
