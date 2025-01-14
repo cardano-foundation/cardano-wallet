@@ -27,12 +27,6 @@ export TESTS_E2E_BINDIR
 
 cd test/e2e
 
-TESTS_NODE_DB="$(pwd)/state/node_db"
-export TESTS_NODE_DB
-
-mkdir -p "$TESTS_NODE_DB"/preprod
-rsync -a --delete "$NODE_STATE_DIR/db/" "$TESTS_NODE_DB/preprod"
-
 tmpfile=$(mktemp /tmp/node-preprod.XXXXXX)
 
 CARDANO_NODE_SOCKET_PATH="$tmpfile"
@@ -47,6 +41,9 @@ export TESTS_E2E_TOKEN_METADATA
 TESTS_E2E_FIXTURES="$FIXTURE_DECRYPTION_KEY"
 
 export TESTS_E2E_FIXTURES
+
+TESTS_NODE_DB=$(pwd)/state/node_db
+export TESTS_NODE_DB
 
 nix develop -c rake "run_on[preprod,sync,true]" # SPEC_OPTS="-e '<match>'"
 
