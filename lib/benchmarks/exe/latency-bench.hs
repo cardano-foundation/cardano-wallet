@@ -149,6 +149,9 @@ import Cardano.Wallet.Unsafe
 import Control.Applicative
     ( (<**>)
     )
+import Control.Concurrent
+    ( threadDelay
+    )
 import Control.Monad
     ( replicateM
     , replicateM_
@@ -497,7 +500,13 @@ runScenario
     -> BenchM ()
 runScenario reporter scenario = lift . runResourceT $ do
     let sceneOfClientMR :: String -> ClientM a -> BenchM ()
-        sceneOfClientMR = sceneOfClientM reporter
+        sceneOfClientMR = do sceneOfClientM reporter
+
+        -- | Decrease likelihood of failing with `no_utxos_available`
+        -- by calling this short delay after creating txs.
+        waitForChange :: BenchM ()
+        waitForChange = liftIO $ threadDelay 5_000_000
+
     (wal1, wal2, walMA, maWalletToMigrate) <- scenario
     let wal1Id = wal1 ^. #id
         wal2Id = wal2 ^. #id
@@ -513,6 +522,7 @@ runScenario reporter scenario = lift . runResourceT $ do
     txs <- request $ listAllTransactions wal1Id
     sceneOfClientMR "getTransaction"
         $ C.getTransaction wal1Id (ApiTxId $ txs !! 1 ^. #id) False
+    waitForChange
 
     addrs <- request $ C.listAddresses wal2Id Nothing
     let destination = addrs !! 1 ^. #id
@@ -530,6 +540,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , timeToLive = Nothing
                 }
     sceneOfClientMR "postTransactionFee" $ C.postTransactionFee wal1Id payload
+    waitForChange
 
     let payloadTx =
             PostTransactionOldData
@@ -540,6 +551,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 , timeToLive = Nothing
                 }
     sceneOfClientMR "postTransaction" $ C.postTransaction wal1Id payloadTx
+    waitForChange
 
     let payments =
             replicate 5
@@ -558,6 +570,7 @@ runScenario reporter scenario = lift . runResourceT $ do
                 }
     sceneOfClientMR "postTransactionTo5Addrs"
         $ C.postTransaction wal1Id payloadTxTo5Addr
+    waitForChange
 
     let
         assetToSend = over _Unwrapped pick $ walMA ^. #assets . #total
