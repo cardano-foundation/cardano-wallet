@@ -425,7 +425,7 @@ steps:
     depends_on: macos-nix
     steps:
 
-    - block: MacOS Steps
+    - block: MacOS Artifacts
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
@@ -511,11 +511,14 @@ steps:
       depends_on:
         - macos-e2e-tests-block
       command:
+        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/download-preprod-snapshot-via-mithril.sh
         - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
       artifact_paths:
         - "./logs/**/*"
       env:
-        NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
+        NODE_DB_DIR: "test/e2e/state/node_db/preprod"
+        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
+        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       agents:
         system: ${macos}
       concurrency: 1
