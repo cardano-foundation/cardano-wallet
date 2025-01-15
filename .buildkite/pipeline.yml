@@ -555,6 +555,7 @@ steps:
       agents:
         system: ${linux}
 
+
     - label: Build Testing Bundle (windows)
       key: windows-testing-bundle
       depends_on:
@@ -602,6 +603,9 @@ steps:
         system: ${windows}
       env:
         TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
+        NODE_DB_DIR: "test\\e2e\\state\\node_db\\preprod"
+        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
+        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1
       concurrency_group: 'windows-e2e-tests'
 

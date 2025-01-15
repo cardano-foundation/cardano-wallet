@@ -149,6 +149,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
   log '>> Setting up cardano-node and cardano-wallet'
 
   bin_dir = BINS == '' ? BINS : "#{BINS}/"
+  log ">> Using binaries from '#{bin_dir}'"
   config_dir = File.join(CONFIGS, args[:env])
   log ">> Using config directory '#{config_dir}'"
   log_dir = File.join(LOGS, args[:env])
@@ -165,6 +166,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
   if win?
     # create cardano-node.bat file
     node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/config.json --topology #{config_dir}/topology.json --database-path #{node_db_dir} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    log ">> Starting cardano-node with command: #{node_cmd}"
     File.write('cardano-node.bat', node_cmd)
 
     # create cardano-wallet.bat file
@@ -193,6 +195,7 @@ task :start_node_and_wallet, [:env] do |_task, args|
     cmd log_stderr_wallet
     cmd start_node
     cmd start_wallet
+
   else
     start_node = <<~CMD
       #{bin_dir}cardano-node run \
@@ -337,6 +340,7 @@ task :get_latest_configs, [:env] do |_task, args|
     mk_dir(STATE)
     mk_dir(CONFIGS)
     mk_dir(out)
+    log ">> Getting latest configs from #{base_url}"
     config_file = File.join(out, 'config.json')
     wget("#{base_url}config.json", config_file)
     wget("#{base_url}byron-genesis.json", "#{out}/byron-genesis.json")
@@ -344,7 +348,7 @@ task :get_latest_configs, [:env] do |_task, args|
     wget("#{base_url}alonzo-genesis.json", "#{out}/alonzo-genesis.json")
     wget("#{base_url}conway-genesis.json", "#{out}/conway-genesis.json")
     wget("#{base_url}topology.json", "#{out}/topology.json")
-
+    log ">> Configs are ready in #{out}"
     config_dir = File.join(CONFIGS, args[:env])
     # Temporary/ad-hoc config changes for cardano-node:
     config_json = JSON.parse(File.read("#{config_dir}/config.json"))
@@ -361,6 +365,7 @@ task :get_latest_configs, [:env] do |_task, args|
           ]
         })
     File.write("#{config_dir}/topology.json", topology)
+    log ">> Configs are ready in #{out}"
   end
 end
 
