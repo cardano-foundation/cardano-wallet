@@ -12,7 +12,7 @@ The sudden decommission of Hydra forces us to revisit our Continuous Integration
 
 ## **Decision**
 
-We predominantly rely on [Buildkite](https://buildkite.com) as CI system. For Windows, we have to use Github Actions.
+We predominantly rely on [Buildkite](https://buildkite.com) as CI system.
 
 We build **artifacts** and run **checks** on them. Artifacts include compiled executables, but also the source code itself. Checks include unit and integration tests, but also source code linters. We specify our artifacts in \`flake.nix\`, and most of our checks, too.
 
