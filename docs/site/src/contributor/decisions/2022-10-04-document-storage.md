@@ -11,7 +11,7 @@ We need to store our documents â€” such as decision records, design documents â€
 
 ## **Decision**
 
-The entry point to our documentation is the [Adrestia (Haskell) Team Dashboard](https://docs.google.com/document/d/1jAmRZDLG7_0VOS88dHvaJDbRoVSvfn_BiL2FXBuk3Z4/edit?skip_itp2_check=true&pli=1#) on Google Docs. All other documents are hyperlinked from this dashboard.
+The entry point to our documentation is the Adrestia (Haskell) Team Dashboard on Google Docs. All other documents are hyperlinked from this dashboard.
 
 For documents that are not public, such as meeting minutes or Advice Process records, we use Google Docs.
 
