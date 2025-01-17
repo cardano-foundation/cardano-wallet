@@ -3,25 +3,6 @@
 Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/IntersectMBO/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
 
-## API Changes
-
-<!--
-  Copy-paste most recent diff excerpt from https://bump.sh/doc/cardano-wallet-diff/changes
-
-  A markdown formatted list can be found by running ./scripts/gh/show-bump.sh
-  -->
-
-
-<!-- A CHANGELOG, organized in three sections:
-
- - New Features
- - Improvements
- - Resolved Issues
-
--->
-
-{{CHANGELOG}}
-
 ## Known Issues
 
 <!-- Bugs known at the moment of the release, or discovered after and not fixed -->
