@@ -41,7 +41,6 @@
             pkgs.gnugrep
             pkgs.haskellPackages.hp2pretty
             pkgs.time
-            pkgs.go
 
             # Nix Caching
             attic

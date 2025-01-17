@@ -34,6 +34,14 @@ steps:
     artifacts:
       - artifacts/changes.md
 
+  - label: Compute api difference against release
+    command: |
+      nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/openapi-diff.sh
+    artifact_paths:
+      - artifacts/api-diff.md
+    agents:
+      system: ${linux}
+
   - group : Nightly
     key: nightly-or-test
     depends_on: main-pipeline-build

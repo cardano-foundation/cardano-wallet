@@ -21,8 +21,7 @@ ${CHANGES}
 
 ## API changes
 
-FIX THIS LINK BY INSPECTING BUMP SH !
-[bump.hs](https://bump.sh/hal-cardano-foundation/doc/cardano-wallet-backend/changes/$BUMP_CHANGES_ID)
+$API_CHANGES
 
 ## Known Issues
 
