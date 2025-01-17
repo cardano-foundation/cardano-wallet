@@ -46,18 +46,6 @@ steps:
     key: nightly-or-test
     depends_on: main-pipeline-build
     steps:
-      - label: Push swagger nightly or test
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
-        artifacts:
-          - artifacts/api-diffs.md
-        env:
-          RELEASE: false
-        agents:
-          system: x86_64-linux
-        concurrency: 1
-        concurrency_group: push-swagger-nightly-or-test
-
       - label: Push nightly or test release tag
         key: push-nightly-or-test-tag
         commands:
@@ -106,19 +94,6 @@ steps:
     steps:
       - block: Create a release
         key: create-release
-
-      - label: Push swagger release
-        depends_on: create-release
-        commands:
-          - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
-        artifacts:
-          - artifacts/api-diffs.md
-        env:
-          RELEASE: true
-        agents:
-          system: x86_64-linux
-        concurrency: 1
-        concurrency_group: push-swagger-release
 
       - label: Push release tag
         key: push-release-tag
