@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo
     , NetworkParameters
     , PoolRetirementCertificate
+    , WalletId
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -100,6 +101,10 @@ data Context = Context
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
         -- Cannot be used by several tests at a time. (!)
+    , _preprodWallets
+        :: [WalletId]
+        -- ^ Only non-empty when when running against preprod.
+
     }
     deriving Generic
 

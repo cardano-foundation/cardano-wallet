@@ -75,8 +75,8 @@ unit-tests-cabal:
 # run wallet-e2e suite against the preprod network
 e2e-preprod:
   nix shell \
-    '.#cardano-node' '.#cardano-wallet' '.#cardano-wallet-e2e' \
-    -c wallet-e2e preprod \
+    '.#cardano-node' '.#cardano-wallet' '.#e2e' \
+    -c e2e preprod \
     -s lib/wallet-e2e/test-state/preprod \
     -c lib/wallet-e2e/config/cardano-node/preprod \
     -t lib/wallet-e2e/test-output/preprod

@@ -217,6 +217,24 @@ executable integration-exe
   import:  integration-common
   main-is: integration-tests-exe.hs
 
+executable e2e
+  import:  integration-common
+  build-depends:
+    , cardano-wallet-e2e
+    , local-cluster
+    , resourcet
+    , hspec
+    , cardano-wallet-primitive
+    , cardano-wallet-integration:framework
+    , text
+    , network-uri
+    , cardano-wallet-exe
+    , with-utf8
+    , hspec-core
+    , cardano-addresses
+    , cardano-wallet-api
+  main-is: e2e.hs
+
 test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0

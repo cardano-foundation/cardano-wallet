@@ -231,7 +231,11 @@ module Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , getTransactionViaCLI
 
-    -- utilities
+    -- * Preprod e2e
+    , setupPreprodWallets
+    , fixturePreprodWallets
+
+    -- * utilities
     , getRetirementEpoch
     , replaceStakeKey
      -- * Re-exports
@@ -375,6 +379,7 @@ import Cardano.Wallet.Pools
     )
 import Cardano.Wallet.Primitive.NetworkId
     ( HasSNetworkId (..)
+    , NetworkDiscriminant (Testnet)
     )
 import Cardano.Wallet.Primitive.Passphrase
     ( Passphrase (..)
@@ -677,6 +682,9 @@ import qualified Cardano.Wallet.Primitive.Passphrase.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOStatistics as UTxOStatistics
+import Cardano.Wallet.Util
+    ( HasCallStack
+    )
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -688,6 +696,9 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import Data.Map
+    ( Map
+    )
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -2273,6 +2284,70 @@ fixtureWallet
 fixtureWallet ctx =
     fst <$> fixtureWalletWithMnemonics nextShelleyMnemonic ctx "shelley"
 
+setupPreprodWallets :: [SomeMnemonic] -> Context -> IO Context
+setupPreprodWallets mnemonics ctx = do
+    createWalletsIfNeeded mnemonics
+
+    wallets <- getResponse <$> request @[ApiWallet] ctx
+        (Link.listWallets @'Shelley) Default Empty
+    -- TODO: Handle changes to global setup
+    length wallets `shouldBe` length mnemonics
+
+    let walletIds = map (getApiT . view #id) wallets
+
+    waitForAllWalletsToSync
+
+    pure ctx{ _preprodWallets = walletIds }
+  where
+    createWalletsIfNeeded :: [SomeMnemonic] -> IO ()
+    createWalletsIfNeeded = mapM_ createWalletIfNeeded
+
+    createWalletIfNeeded :: SomeMnemonic -> IO ()
+    createWalletIfNeeded (SomeMnemonic mnemonic) = do
+        _ <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default $ Json
+            [aesonQQ| {
+                "name": "Faucet Wallet",
+                "mnemonic_sentence": #{mnemonicToText mnemonic},
+                "passphrase": #{fixturePassphrase}
+            } |]
+        -- TODO: Expect either 201 or an wallet already exists error
+        return ()
+
+    waitForAllWalletsToSync :: IO ()
+    waitForAllWalletsToSync = do
+        eventuallyUsingDelay (5 * s) (20 * minutes) "setupPreprodWallets: all wallets are synced" $ do
+            wallets :: [ApiWallet] <- getResponse <$> request @[ApiWallet] ctx
+                (Link.listWallets @'Shelley) Default Empty
+            let progress = map (getApiT . view #state) wallets
+            all (== Ready) progress `shouldBe` True
+      where
+        s = 1_000_000
+        minutes = 60 * s
+
+fixturePreprodWallets :: (HasCallStack, MonadUnliftIO m) => Context -> m [ApiWallet]
+fixturePreprodWallets ctx = do
+    wallets <- fmap getResponse $ request @[ApiWallet] ctx
+        (Link.listWallets @'Shelley) Default Empty
+
+    let keyByWalletId :: ApiWallet -> (WalletId, ApiWallet)
+        keyByWalletId w = (getApiT $ w ^. #id, w)
+
+        walletsById :: Map WalletId ApiWallet
+        walletsById = Map.fromList $ map keyByWalletId wallets
+
+        lookupWallet :: WalletId -> ApiWallet
+        lookupWallet wid = fromMaybe err $ Map.lookup wid walletsById
+          where
+            err = error $ unwords
+                [ "fixturePreprodWallets: expected", show wid, "to be an"
+                , "existing wallet. The wallets that could be found are:\n\n"
+                ] ++ unlines (map show wallets)
+
+    -- Use the information from 'wallets'
+    pure $ map lookupWallet $ _preprodWallets ctx
+
+
+
 fixtureShelleyWallet
     :: (HasCallStack, MonadUnliftIO m)
     => Context
@@ -2295,8 +2370,15 @@ fixtureWalletWithMnemonics nextWalletMnemonic ctx label = do
             "passphrase": #{fixturePassphrase}
         } |]
     expectResponseCode HTTP.status201 r
+
     let w = getResponse r
-    liftIO $ race (threadDelay (60 * oneSecond)) (checkBalance w) >>= \case
+
+    addrs <- fmap (view #id) . getResponse
+        <$> request @[ApiAddressWithPath ('Testnet 1)] ctx
+                (Link.listAddresses @'Shelley w) Default Empty
+    liftIO $ print addrs
+
+    liftIO $ race (threadDelay (6000 * oneSecond)) (checkBalance w) >>= \case
         Left _ -> expectationFailure'
             $ "fixtureWallet (" <> label
             <> "): waited too long for initial transaction"
