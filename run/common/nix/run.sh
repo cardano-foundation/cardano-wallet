@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 # set -euox pipefail
-set -euo pipefail
+set -euox pipefail
 
 usage() {
     echo "Usage: $0 [sync]"
@@ -74,31 +74,9 @@ cleanup() {
     exit $exit_status
 }
 
-mithril() {
-    # shellcheck disable=SC2048
-    # shellcheck disable=SC2086
-    nix shell "github:input-output-hk/mithril?ref=2450.0" -c $*
-}
-
 # Trap the cleanup function on exit
 trap cleanup ERR INT EXIT
 if [[ -z ${NO_NODE-} ]]; then
-
-    if [[ -n "${USE_MITHRIL-}" ]]; then
-        if [ "$NETWORK" != "mainnet" ]; then
-            echo "Error: This option is only available for the mainnet network"
-            exit 1
-        fi
-        echo "Starting the mithril service..."
-        rm -rf "${NODE_DB:?}"/*
-        export AGGREGATOR_ENDPOINT
-        export GENESIS_VERIFICATION_KEY
-        mithril echo "mithril is available" || exit 44
-        digest=$(mithril mithril-client cdb snapshot list --json | jq -r .[0].digest)
-        (cd "${NODE_DB}" && mithril mithril-client cdb download "$digest")
-        (cd "${NODE_DB}" && mv db/* . && rmdir db)
-    fi
-
     # Start the node with logs redirected to a file if NODE_LOGS_FILE is set
     # shellcheck disable=SC2086
     cardano-node run \
