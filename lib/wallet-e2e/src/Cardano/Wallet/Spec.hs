@@ -2,6 +2,7 @@ module Cardano.Wallet.Spec
     ( walletSpec
     , effectsSpec
     , TestNetworkConfig (..)
+    , configureTestNet
     ) where
 
 import qualified Cardano.Wallet.Spec.Network.Local as Local
@@ -68,6 +69,7 @@ data TestNetworkConfig
     = TestNetworkManual
     | TestNetworkLocal (DirOf "state") (DirOf "config")
     | TestNetworkPreprod (DirOf "state") (DirOf "config")
+    deriving stock Show
 
 configureTestNet :: TestNetworkConfig -> (ConfiguredNetwork -> IO ()) -> IO ()
 configureTestNet testNetworkConfig withConfiguredNetwork = runResourceT $ do

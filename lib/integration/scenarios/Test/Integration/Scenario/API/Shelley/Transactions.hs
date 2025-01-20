@@ -19,6 +19,7 @@
 
 module Test.Integration.Scenario.API.Shelley.Transactions
     ( spec
+    , e2eSpec
     ) where
 
 import Prelude
@@ -43,6 +44,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId (..)
     , ApiTxInput (..)
     , ApiWallet
+    , ApiWalletBalance (available)
     , Iso8601Time (..)
     , WalletStyle (..)
     , apiAddress
@@ -191,6 +193,7 @@ import Test.Integration.Framework.DSL
     , fixtureIcarusWalletAddrs
     , fixtureMultiAssetWallet
     , fixturePassphrase
+    , fixturePreprodWallets
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
@@ -248,6 +251,151 @@ data TestCase a = TestCase
     { query :: T.Text
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
+
+e2eSpec :: forall n . HasSNetworkId n => SpecWith Context
+e2eSpec = it "create tx" $ \ctx -> do
+    [wa, wb] <- fixturePreprodWallets ctx
+    let amt = 1_000_000
+    let ApiAmount initialBalanceA = wa ^. #balance . #available
+    let ApiAmount initialBalanceB = wb ^. #balance . #available
+
+    payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
+
+    (_, ApiFee (ApiAmount feeMin) (ApiAmount feeMax) minCoins _) <-
+        unsafeRequest
+            ctx
+            (Link.getTransactionFeeOld @'Shelley wa)
+            payload
+    rTx <-
+        request @(ApiTransaction n)
+            ctx
+            (Link.createTransactionOld @'Shelley wa)
+            Default
+            payload
+    ra <-
+        request @ApiWallet
+            ctx
+            (Link.getWallet @'Shelley wa)
+            Default
+            Empty
+
+    verify
+        rTx
+        [ expectSuccess
+        , expectResponseCode HTTP.status202
+        , expectField (#amount . #toNatural)
+            $ between (feeMin + amt, feeMax + amt)
+        , const
+            $
+            -- The minimum ada quantities returned within an 'ApiFee'
+            -- object are computed using the 'computeMinimumCoinForUTxO'
+            -- function. This function produces quantities that are very
+            -- slightly higher than the Cardano API function on which it is
+            -- based, so as to guarantee that ada quantities can always be
+            -- safely increased while still retaining their validity.
+            --
+            -- To avoid making the test suite more brittle than necessary,
+            -- here we simply assert that the minimum values returned are
+            -- greater than or equal to the 'minUTxOValue' test suite
+            -- constant:
+            --
+            minCoins
+                `shouldSatisfy` all
+                    (>= (ApiAmount $ minUTxOValue (_mainEra ctx)))
+        , expectField #inputs $ \inputs' -> do
+            inputs' `shouldSatisfy` all (isJust . source)
+        , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+        , expectField (#status . #getApiT) (`shouldBe` Pending)
+        , expectField #metadata (`shouldBe` Nothing)
+        ]
+
+    verify
+        ra
+        [ expectSuccess
+        , expectField (#balance . #total)
+            $ between
+                ( ApiAmount (initialBalanceA - feeMax - amt)
+                , ApiAmount (initialBalanceA - feeMin - amt)
+                )
+        , expectField
+            (#balance . #available)
+            (`shouldBe` ApiAmount 0)
+        ]
+
+    let txid = getFromResponse #id rTx
+    let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+    let ApiAmount fee = getFromResponse #fee rTx
+    eventually "transaction is no longer pending on source wallet" $ do
+        rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
+        verify
+            rSrc
+            [ expectResponseCode HTTP.status200
+            , expectField (#amount . #toNatural)
+                $ between (feeMin + amt, feeMax + amt)
+            , expectField #inputs $ \inputs' -> do
+                inputs' `shouldSatisfy` all (isJust . source)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` InLedger)
+            , expectField (#metadata) (`shouldBe` Nothing)
+            , expectField (#fee . #toNatural)
+                $ between (feeMin, feeMax)
+            ]
+
+    let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
+    eventually "transaction is discovered by destination wallet" $ do
+        rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
+        verify
+            rDst
+            [ expectField (#amount . #toNatural) (`shouldBe` amt)
+            , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+            ]
+
+    eventually "wa and wb balances are as expected" $ do
+        rb <-
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley wb)
+                Default
+                Empty
+        expectField
+            (#balance . #available)
+            (`shouldBe` ApiAmount (initialBalanceB + amt))
+            rb
+
+        ra2 <-
+            request @ApiWallet
+                ctx
+                (Link.getWallet @'Shelley wa)
+                Default
+                Empty
+        expectField
+            (#balance . #available)
+            (`shouldBe` ApiAmount (initialBalanceA - fee - amt))
+            ra2
+  where
+    mkTxPayload
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> Natural
+        -> Text
+        -> m Payload
+    mkTxPayload ctx wDest amt passphrase = do
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        return
+            $ Json
+                [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{passphrase}
+            }|]
+
 
 spec
     :: forall n
