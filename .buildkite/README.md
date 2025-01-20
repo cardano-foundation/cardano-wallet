@@ -50,3 +50,18 @@ We assume the machine is configured with a recent windows version (2022 Server?)
   set PATH=%PATH%;C:\Users\hal\AppData\Local\Microsoft\WinGet\Links
   icacls . /grant hal:F /T /Q
   ```
+
+### Troubleshooting
+
+Windows permissions are quite complex and beyond the cognitive abilities of most human beings. Although it's not great security wise, it's a good idea to stick to the default `Local System Account` as user for the buildkite service and avoid switching between local user (eg. `hal`) and this predefined user.
+
+Ensure the user `SYSTEM` has full control to `C:\buildkite-agent` and this right is _inherited_. It should look something like:
+
+```
+PS C:\buildkite-agent> icacls.exe .
+. NT AUTHORITY\SYSTEM:(OI)(CI)(F)
+  BUILTIN\Administrators:(F)
+  ZUR1-S-D-027\hal:(OI)(CI)(F)
+
+Successfully processed 1 files; Failed processing 0 files
+```
