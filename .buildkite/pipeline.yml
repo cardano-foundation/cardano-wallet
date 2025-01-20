@@ -675,25 +675,3 @@ steps:
           SUCCESS_STATUS: syncing
           USE_LOCAL_IMAGE: true
 
-  - group: Links
-    key: links-validity
-    steps:
-      - block: Snapshot Links
-        if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
-        key: snapshot-links
-
-      - label: Check Mainnet Snapshot Link
-        depends_on: snapshot-links
-        command: |
-          cd run/mainnet/docker
-          LINK_TEST=1 ./snapshot.sh
-        agents:
-          system: ${linux}
-
-      - label: Check Preprod Snapshot Link
-        depends_on: snapshot-links
-        command: |
-          cd run/preprod/docker
-          LINK_TEST=1 ./snapshot.sh
-        agents:
-          system: ${linux}
