@@ -9,9 +9,6 @@ import Cardano.Node.Cli.Launcher
     ( NodeApi
     , nodeApiSocket
     )
-import Cardano.Wallet.Launch.Cluster.FileOf
-    ( toFilePath
-    )
 import Data.Aeson
     ( withObject
     , (.:)
@@ -67,7 +64,7 @@ queryTip nodeApi = do
                 , "--testnet-magic"
                 , "1"
                 , "--socket-path"
-                , toFilePath (nodeApiSocket nodeApi)
+                , nodeApiSocket nodeApi
                 ]
     case exitCode of
         ExitFailure code ->
@@ -89,7 +86,7 @@ checkSocket nodeApi = do
                 , "--testnet-magic"
                 , "1"
                 , "--socket-path"
-                , toFilePath (nodeApiSocket nodeApi)
+                , nodeApiSocket nodeApi
                 ]
     case exitCode of
         ExitSuccess -> pure True

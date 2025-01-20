@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo
     , NetworkParameters
     , PoolRetirementCertificate
+    , WalletId
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..)
@@ -68,10 +69,7 @@ import Servant.Client
 -- | Context for integration tests.
 --
 data Context = Context
-    { _cleanup
-        :: IO ()
-        -- ^ A cleanup action.
-    , _manager
+    { _manager
         :: (URI, Manager)
         -- ^ The underlying base URL and manager used by the wallet client.
     , _walletPort
@@ -100,6 +98,10 @@ data Context = Context
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
         -- Cannot be used by several tests at a time. (!)
+    , _preprodWallets
+        :: [WalletId]
+        -- ^ Only non-empty when when running against preprod.
+
     }
     deriving Generic
 

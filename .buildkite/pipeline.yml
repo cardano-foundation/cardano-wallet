@@ -587,6 +587,7 @@ steps:
       key: trigger-windows-e2e-tests
 
     - label: ⚙️ Windows E2E Tests
+      timeout_in_minutes: 120
       depends_on:
         - trigger-windows-e2e-tests
       commands:
@@ -594,8 +595,12 @@ steps:
       agents:
         system: ${windows}
       env:
+        NODE_DB_DIR: "test\\e2e\\state\\node\\db"
+        NODE_DIR: "test\\e2e\\state\\node"
+        WALLET_DB_DIR: "test\\e2e\\state\\wallet"
+        E2E_CONFIG_DIR: "configs\\cardano\\preprod"
         TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
-        NODE_DB_DIR: "test\\e2e\\state\\node_db\\preprod"
+        NODE_DB_DIR: "lib\\wallet-e2e\\test-state\\preprod\\node\\db"
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1

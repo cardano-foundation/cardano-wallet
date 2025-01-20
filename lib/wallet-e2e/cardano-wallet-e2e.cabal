@@ -79,7 +79,6 @@ library
     , relude
     , resourcet
     , retry
-    , sydtest
     , tagged
     , text
     , time
@@ -104,8 +103,6 @@ library
     Cardano.Wallet.Spec.Effect.Timeout
     Cardano.Wallet.Spec.Effect.Trace
     Cardano.Wallet.Spec.Interpreters.Config
-    Cardano.Wallet.Spec.Interpreters.Effectfully
-    Cardano.Wallet.Spec.Interpreters.Pure
     Cardano.Wallet.Spec.Network.Configured
     Cardano.Wallet.Spec.Network.Local
     Cardano.Wallet.Spec.Network.Manual
@@ -115,18 +112,4 @@ library
     Cardano.Wallet.Spec.Network.Wallet.Cli
     Cardano.Wallet.Spec.Stories.Language
     Cardano.Wallet.Spec.Stories.Wallet
-    Cardano.Wallet.Spec.TimeoutSpec
 
-executable wallet-e2e
-  import:         options
-  hs-source-dirs: exe
-  main-is:        Main.hs
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-    , base
-    , cardano-wallet-e2e
-    , optparse-applicative
-    , relude
-    , sydtest
-    , tagged
-    , with-utf8

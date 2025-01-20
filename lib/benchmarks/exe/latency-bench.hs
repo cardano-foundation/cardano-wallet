@@ -671,8 +671,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             putMVar
                 ctx
                 Context
-                    { _cleanup = pure ()
-                    , _manager = (baseUrl, manager)
+                    { _manager = (baseUrl, manager)
                     , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _networkParameters = np
@@ -682,6 +681,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                     , _smashUrl = ""
                     , _mainEra = maxBound
                     , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
+                    , _preprodWallets = []
                     }
     race_
         (takeMVar ctx >>= action massiveWalletMnemonic')

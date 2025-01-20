@@ -214,7 +214,8 @@
                 inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
                 inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
                 inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
-                inherit (project.hsPkgs.cardano-wallet-integration.components.exes) integration-exe;
+                integration-exe = project.hsPkgs.cardano-wallet-integration.components.exes.integration-exe;
+                e2e = project.hsPkgs.cardano-wallet-integration.components.exes.e2e;
                 inherit (project.hsPkgs.local-cluster.components.exes) test-local-cluster-exe;
 
                 # Adrestia tool belt
