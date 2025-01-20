@@ -65,3 +65,9 @@ PS C:\buildkite-agent> icacls.exe .
 
 Successfully processed 1 files; Failed processing 0 files
 ```
+
+To ensure one operates under the right identities, download [pstools](https://learn.microsoft.com/en-us/sysinternals/downloads/pstools) and open a terminal as a `SYSTEM` user:
+
+```
+psexec -s -i cmd
+```
