@@ -188,6 +188,7 @@ type RecentEraConstraints era =
     , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
+    , Core.EraTxOut era
     , Core.EraTxCert era
     , Core.Value era ~ MaryValue StandardCrypto
     , Core.TxWits era ~ AlonzoTxWits era
