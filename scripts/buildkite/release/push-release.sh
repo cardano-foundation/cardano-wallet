@@ -26,11 +26,13 @@ export CHANGES=$(cat artifacts/changes.md)
 # shellcheck disable=SC2155
 export NODE_TAG=$(buildkite-agent meta-data get node-tag)
 
-# shellcheck disable=SC2034
-export BUMP_CHANGES=xxx
+buildkite-agent artifact download artifacts/api-diff.md .
+# shellcheck disable=SC2155
+export API_CHANGES=$(cat artifacts/api-diff.md)
 
 # shellcheck disable=SC2034
 export DOCKER_SHA=xxx
+
 
 # shellcheck disable=SC2016
 envsubst \

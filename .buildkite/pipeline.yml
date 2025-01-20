@@ -246,7 +246,7 @@ steps:
       key: openapi
       depends_on: []
       commands:
-        - nix develop path:$RELEASE_SCRIPTS_DIR -c $RELEASE_SCRIPTS_DIR/push-to-bump.sh
+        - nix develop path:$MAIN_PIPELINE_DIR -c $MAIN_PIPELINE_DIR/validate-swagger.sh
       artifacts:
         - artifacts/api-diffs.md
       env:

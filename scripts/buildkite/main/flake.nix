@@ -41,6 +41,7 @@
             pkgs.gnugrep
             pkgs.haskellPackages.hp2pretty
             pkgs.time
+            pkgs.swagger-cli
 
             # Nix Caching
             attic

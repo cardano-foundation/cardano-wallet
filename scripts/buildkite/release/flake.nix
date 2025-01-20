@@ -34,6 +34,7 @@
             pkgs.nodejs_22
             pkgs.gh
             pkgs.gettext
+            pkgs.go
           ];
           shellHook = ''
             # use this hook to set up additional environment variables
