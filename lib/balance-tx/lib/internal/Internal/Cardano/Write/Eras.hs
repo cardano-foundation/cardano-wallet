@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -30,6 +31,9 @@ module Internal.Cardano.Write.Eras
 
     , AnyRecentEra (..)
     , allRecentEras
+
+    , InAnyRecentEra (..)
+    , toInAnyRecentEra
 
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
@@ -184,6 +188,7 @@ type RecentEraConstraints era =
     , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
+    , Core.EraTxOut era
     , Core.EraTxCert era
     , Core.Value era ~ MaryValue StandardCrypto
     , Core.TxWits era ~ AlonzoTxWits era
@@ -197,6 +202,7 @@ type RecentEraConstraints era =
     , Babbage.BabbageEraTxBody era
     , Alonzo.AlonzoEraTxBody era
     , Shelley.EraUTxO era
+    , Ledger.ShelleyEraTxCert era
     , Show (Core.TxOut era)
     , Show (Core.Tx era)
     , Show (Core.PParams era)
@@ -262,6 +268,19 @@ instance Eq AnyRecentEra where
 --
 allRecentEras :: Set AnyRecentEra
 allRecentEras = Set.fromList [minBound .. maxBound]
+
+data InAnyRecentEra thing
+    = InConway (thing Conway)
+    | InBabbage (thing Babbage)
+
+deriving instance (Show (thing Conway), (Show (thing Babbage))) => Show (InAnyRecentEra thing)
+deriving instance (Eq (thing Conway), (Eq (thing Babbage))) => Eq (InAnyRecentEra thing)
+
+toInAnyRecentEra
+    :: forall era thing. IsRecentEra era => thing era -> InAnyRecentEra thing
+toInAnyRecentEra thing = case recentEra @era of
+    RecentEraConway -> InConway thing
+    RecentEraBabbage -> InBabbage thing
 
 --------------------------------------------------------------------------------
 -- Cardano.Api compatibility

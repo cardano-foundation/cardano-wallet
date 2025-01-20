@@ -32,7 +32,7 @@ import Data.Word
     )
 import Internal.Cardano.Write.Eras
     ( Babbage
-    , Conway
+    , InAnyRecentEra (..)
     , IsRecentEra (..)
     , RecentEra (..)
     )
@@ -269,15 +269,12 @@ instance Arbitrary (VariableSize1024 W.TokenBundle) where
 instance Arbitrary Version where
     arbitrary = arbitraryBoundedEnum
 
-data PParamsInRecentEra
-    = PParamsInBabbage (PParams Babbage)
-    | PParamsInConway (PParams Conway)
-    deriving (Show, Eq)
+type PParamsInRecentEra = InAnyRecentEra PParams
 
 instance Arbitrary PParamsInRecentEra where
     arbitrary = oneof
-        [ PParamsInBabbage <$> genPParams RecentEraBabbage
-        , PParamsInConway <$> genPParams RecentEraConway
+        [ InBabbage <$> genPParams RecentEraBabbage
+        , InConway <$> genPParams RecentEraConway
         ]
 
       where
@@ -315,7 +312,7 @@ babbageTokenBundleSizeAssessor = mkTokenBundleSizeAssessor
 mkAssessorFromPParamsInRecentEra
     :: PParamsInRecentEra
     -> TokenBundleSizeAssessor
-mkAssessorFromPParamsInRecentEra (PParamsInBabbage pp) =
+mkAssessorFromPParamsInRecentEra (InBabbage pp) =
     mkTokenBundleSizeAssessor pp
-mkAssessorFromPParamsInRecentEra (PParamsInConway pp) =
+mkAssessorFromPParamsInRecentEra (InConway pp) =
     mkTokenBundleSizeAssessor pp
