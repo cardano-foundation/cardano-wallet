@@ -69,10 +69,7 @@ import Servant.Client
 -- | Context for integration tests.
 --
 data Context = Context
-    { _cleanup
-        :: IO ()
-        -- ^ A cleanup action.
-    , _manager
+    { _manager
         :: (URI, Manager)
         -- ^ The underlying base URL and manager used by the wallet client.
     , _walletPort

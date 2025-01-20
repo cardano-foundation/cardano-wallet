@@ -115,7 +115,6 @@ configureContext testNetworkConfig action =
                 , _poolGarbageCollectionEvents = ioRef
                 , _smashUrl = error "no smash url"
                 , _mintSeaHorseAssets = error "no"
-                , _cleanup = pure ()
                 , _preprodWallets = []
                 }
         ctx' <- flip setupPreprodWallets ctx =<< e2ePreprodMnemonics
