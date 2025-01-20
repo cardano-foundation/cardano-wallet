@@ -12,8 +12,13 @@ tar xf .\%mithril-tar%
 .\mithril-client.exe --version
 for /f "delims=" %%i in ('.\mithril-client.exe cdb snapshot list --json ^| jq -r .[0].digest') do set digest=%%i
 echo %digest%
-.\mithril-client.exe cdb download --download-dir %NODE_DB_DIR% %digest%
-move %NODE_DB_DIR%\db\* %NODE_DB_DIR%
+.\mithril-client.exe cdb download --download-dir . %digest%
+REM delete the old db folder
+REM this is stupid but will do for now
+mkdir %NODE_DB_DIR%
+rd /q /s %NODE_DB_DIR%
+REM move the new db folder entirely into the old db folder
+move .\db %NODE_DB_DIR%
 ls %NODE_DB_DIR%
 
 REM ------------- ruby tests -------------
