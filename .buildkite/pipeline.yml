@@ -205,6 +205,7 @@ steps:
         rm -rf logs
         mkdir -p logs
         rm -rf databases
+        ./snapshot.sh
         ./run.sh sync
       artifact_paths:
         - "./run/mainnet/nix/logs/*"
@@ -216,7 +217,6 @@ steps:
         WALLET_LOGS_FILE: ./logs/wallet.log
         CLEANUP_DB: true
         NETWORK: mainnet
-        USE_MITHRIL: true
       concurrency: 1
       concurrency_group: 'mithril-mainnet-full-sync'
 
@@ -653,12 +653,12 @@ steps:
           cd run/mainnet/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
           rm -rf databases
+          ./snaphot.sh
           ./run.sh sync
         agents:
           system: x86_64-linux
         env:
           SUCCESS_STATUS: ready
-          USE_MITHRIL: true
           USE_LOCAL_IMAGE: true
         concurrency: 1
         concurrency_group: 'mithril-mainnet-full-sync'
@@ -675,4 +675,3 @@ steps:
         env:
           SUCCESS_STATUS: syncing
           USE_LOCAL_IMAGE: true
-
