@@ -582,6 +582,9 @@ steps:
         system: ${windows}
       env:
         LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+      concurrency: 1
+      concurrency_group: 'windows-tests'
+      
     - label: Windows Text Class Tests
       command: |
         cd test\e2e
@@ -590,6 +593,8 @@ steps:
         .\text-class-test-unit.exe --color
       agents:
         system: ${windows}
+      concurrency: 1
+      concurrency_group: 'windows-tests'
 
     - block: Windows E2E Tests
       depends_on: []
@@ -609,7 +614,7 @@ steps:
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1
-      concurrency_group: 'windows-e2e-tests'
+      concurrency_group: 'windows-tests'
 
   - group: Docker
     key: docker-artifacts
