@@ -134,13 +134,14 @@ steps:
       depends_on:
         - trigger-e2e-tests
       commands: |
-        ./scripts/buildkite/main/download-preprod-snapshot-via-mithril.sh
+        ./run/preprod/nix/snapshot.sh
         ./scripts/buildkite/main/linux-e2e.sh
       artifact_paths:
         - "./result/linux/**"
         - "./logs/**/*"
       env:
         NODE_DB_DIR: "test/e2e/state/node_db/preprod"
+        NODE_DB: "test/e2e/state/node_db/preprod"
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       agents:
@@ -195,7 +196,6 @@ steps:
 
     - label: Mainnet Boot Sync with Mithril
       timeout_in_minutes: 120
-      # mithril is not compiling with nix ATM
       soft_fail :
         - exit_status: 44
       depends_on:
@@ -512,7 +512,7 @@ steps:
       depends_on:
         - macos-e2e-tests-block
       command:
-        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/download-preprod-snapshot-via-mithril.sh
+        - ./run/preprod/nix/snapshot.sh
         - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
       artifact_paths:
         - "./logs/**/*"
@@ -614,7 +614,7 @@ steps:
   - group: Docker
     key: docker-artifacts
 
-    if: build.env("RELEASE_CANDIDATE") != null
+    # if: build.env("RELEASE_CANDIDATE") != null
     depends_on:
       - linux-artifacts
     steps:
@@ -632,7 +632,7 @@ steps:
     depends_on:
       - docker-artifacts
     key: docker-e2e
-    if: (build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE") || build.tag =~ /^v20/
+    # if: (build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE") || build.tag =~ /^v20/
     steps:
       - label: Mainnet Boot Sync
         timeout_in_minutes: 30
