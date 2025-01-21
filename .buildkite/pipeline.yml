@@ -134,13 +134,14 @@ steps:
       depends_on:
         - trigger-e2e-tests
       commands: |
-        ./scripts/buildkite/main/download-preprod-snapshot-via-mithril.sh
+        ./run/preprod/nix/snapshot.sh
         ./scripts/buildkite/main/linux-e2e.sh
       artifact_paths:
         - "./result/linux/**"
         - "./logs/**/*"
       env:
         NODE_DB_DIR: "test/e2e/state/node_db/preprod"
+        NODE_DB: "test/e2e/state/node_db/preprod"
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       agents:
@@ -512,7 +513,7 @@ steps:
       depends_on:
         - macos-e2e-tests-block
       command:
-        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/download-preprod-snapshot-via-mithril.sh
+        - ./run/preprod/nix/snapshot.sh
         - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
       artifact_paths:
         - "./logs/**/*"

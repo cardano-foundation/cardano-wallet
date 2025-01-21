@@ -1,4 +1,4 @@
-#! /usr/bin/env -S nix shell 'github:input-output-hk/mithril' --command bash
+#!/usr/bin/env -S nix shell "github:input-output-hk/mithril" --command bash
 # shellcheck shell=bash
 
 set -euox pipefail
