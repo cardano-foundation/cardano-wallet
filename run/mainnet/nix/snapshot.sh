@@ -1,13 +1,5 @@
-#! /usr/bin/env bash
+#! /usr/bin/env -S nix shell 'github:input-output-hk/mithril' --command bash
 # shellcheck shell=bash
-
-function mithril () {
-  nix shell 'github:input-output-hk/mithril' --command mithril-client $@
-}
-
-function jq () {
-  nix shell 'nixpkgs#jq' --command jq $@
-}
 
 set -euox pipefail
 
@@ -26,6 +18,6 @@ NODE_DB=${NODE_DB:=./databases/node-db}
 mkdir -p "$NODE_DB"
 rm -rf "${NODE_DB:?}"/*
 
-digest=$(mithril cdb snapshot list --json | jq -r .[0].digest)
+digest=$(mithril-client cdb snapshot list --json | jq -r .[0].digest)
 (cd "${NODE_DB}" && mithril-client cdb download "$digest")
 (cd "${NODE_DB}" && mv db/* . && rm -rf db)
