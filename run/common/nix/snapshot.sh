@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
 # shellcheck shell=bash
 
+
 function mithril () {
   nix shell 'github:input-output-hk/mithril' --command mithril-client $@
 }
@@ -27,5 +28,5 @@ mkdir -p "$NODE_DB"
 rm -rf "${NODE_DB:?}"/*
 
 digest=$(mithril cdb snapshot list --json | jq -r .[0].digest)
-(cd "${NODE_DB}" && mithril-client cdb download "$digest")
+(cd "${NODE_DB}" && mithril cdb download "$digest")
 (cd "${NODE_DB}" && mv db/* . && rm -rf db)
