@@ -646,6 +646,19 @@ steps:
           SUCCESS_STATUS: syncing
           USE_LOCAL_IMAGE: true
 
+      - label: Preview Boot Sync
+        timeout_in_minutes: 30
+        command: |
+          cd run/preview/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
+          rm -rf databases
+          ./run.sh sync
+        agents:
+          system: x86_64-linux
+        env:
+          SUCCESS_STATUS: syncing
+          USE_LOCAL_IMAGE: true
+
       - block: Mainnet Boot Sync via Mithril
         if: build.env("RELEASE_CANDIDATE") == null
         depends_on: []
@@ -653,6 +666,7 @@ steps:
 
       - label: Mainnet Boot Sync via Mithril
         timeout_in_minutes: 120
+        depends_on: mithril-mainnet-full-sync-block
         command: |
           cd run/mainnet/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
@@ -666,16 +680,3 @@ steps:
           USE_LOCAL_IMAGE: true
         concurrency: 1
         concurrency_group: 'mithril-mainnet-full-sync'
-
-      - label: Preview Network Boot Sync
-        timeout_in_minutes: 30
-        command: |
-          cd run/preview/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
-          rm -rf databases
-          ./run.sh sync
-        agents:
-          system: x86_64-linux
-        env:
-          SUCCESS_STATUS: syncing
-          USE_LOCAL_IMAGE: true
