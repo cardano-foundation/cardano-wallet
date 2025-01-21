@@ -638,7 +638,7 @@ steps:
         timeout_in_minutes: 30
         command: |
           cd run/mainnet/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
           rm -rf databases
           ./run.sh sync
         agents:
@@ -651,9 +651,9 @@ steps:
         timeout_in_minutes: 120
         command: |
           cd run/mainnet/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
           rm -rf databases
-          ./snaphot.sh
+          ./snapshot.sh
           ./run.sh sync
         agents:
           system: x86_64-linux
@@ -667,7 +667,7 @@ steps:
         timeout_in_minutes: 30
         command: |
           cd run/preview/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
           rm -rf databases
           ./run.sh sync
         agents:

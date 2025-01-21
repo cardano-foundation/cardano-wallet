@@ -1,1 +1,1 @@
-../../common/snapshot.sh
+../../common/nix/snapshot.sh
