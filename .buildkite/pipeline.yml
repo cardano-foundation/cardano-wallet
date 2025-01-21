@@ -190,7 +190,7 @@ steps:
         NETWORK: mainnet
 
     - block: Mainnet Boot Sync with Mithril
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null && build.branch != "master"
       depends_on: []
       key: linux-mainnet-full-sync-block
 
@@ -618,7 +618,6 @@ steps:
     depends_on:
       - linux-artifacts
     steps:
-
       - label: Build Docker Image
         key: docker-build
         commands:
@@ -646,6 +645,11 @@ steps:
         env:
           SUCCESS_STATUS: syncing
           USE_LOCAL_IMAGE: true
+
+      - block: Mainnet Boot Sync via Mithril
+        if: build.env("RELEASE_CANDIDATE") == null
+        depends_on: []
+        key: mithril-mainnet-full-sync-block
 
       - label: Mainnet Boot Sync via Mithril
         timeout_in_minutes: 120
