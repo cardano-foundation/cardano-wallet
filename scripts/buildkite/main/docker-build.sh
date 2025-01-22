@@ -7,8 +7,10 @@ git fetch --all
 default_commit=$(git rev-parse HEAD)
 RELEASE_CANDIDATE_COMMIT=$(buildkite-agent meta-data get "release-candidate-commit" --default "$default_commit")
 
-default_version=$(git describe --tags --abbrev=0)
+default_version=c$default_commit
 RELEASE_VERSION=$(buildkite-agent meta-data get "release-version" --default "$default_version")
+
+RELEASING=$(buildkite-agent meta-data get "release-version" --default "testing")
 
 git checkout "$RELEASE_CANDIDATE_COMMIT"
 
@@ -18,12 +20,14 @@ mkdir -p artifacts
 
 TARGET="artifacts/cardano-wallet-$RELEASE_VERSION-docker-image.tgz"
 
-nix build .#dockerImage -o "$TARGET"
+if [ "$RELEASING" = "testing" ]; then
+    nix build .#dockerTestImage -o "$TARGET"
+else
+    nix build .#dockerImage -o "$TARGET"
+fi
 
-load_out=$(docker load < "$TARGET")
+output=$(docker load <"$TARGET")
 
-image_name=$(sed -n 's/^Loaded image: \(.*\)$/\1/p' <<< "$load_out")
+docker_image_tag=$(echo "$output" | sed -n 's/Loaded image: cardanofoundation\/cardano-wallet:\(.*\)/\1/p')
 
-local_image_name="cardanofoundation/cardano-wallet:$BUILDKITE_BUILD_NUMBER"
-
-docker tag "$image_name" "$local_image_name"
+buildkite-agent meta-data set "docker-image-tag" "$docker_image_tag"
