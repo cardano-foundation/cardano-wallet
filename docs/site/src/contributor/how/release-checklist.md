@@ -9,9 +9,8 @@
 - [ ] Picked up the latest green commgit from the release pipeline and prove it's green by linking the successful buildkite and github actions builds here.
     - [ ] [release pipeline build](https://buildkite.com/cardano-foundation/cardano-wallet-release/)
     - [ ] check for performance regressions on the `release commit` artifacts:
-    - [ ] check that the [restoration benchmarks](https://buildkite.com/cardano-foundation/cardano-wallet-restoration-benchmarks) ran in
-- [ ] Unblock the release block on [release pipeline build](https://buildkite.com/cardano-foundation/cardano-wallet-release/)
-
+    - [ ] check that the [restoration benchmarks](https://buildkite.com/cardano-foundation/cardano-wallet-restoration-benchmarks) ran
+- [ ] Unblock the release blocked on [release pipeline build](https://buildkite.com/cardano-foundation/cardano-wallet-release/)
 
 ## Update the release page
 
@@ -23,10 +22,6 @@
 - [ ] link: https://hub.docker.com/r/cardanofoundation/cardano-wallet/tags
 - [ ] Report the link in the release notes
      [link to docker hub](https://hub.docker.com/layers/cardanofoundation/cardano-wallet/)
-
-## Check out the bump.sh portal has the new release
-
-- [ ] https://bump.sh/hal-cardano-foundation/doc/cardano-wallet-backend
 
 ## Check sensitive fields in the API
 
