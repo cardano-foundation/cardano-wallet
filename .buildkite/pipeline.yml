@@ -540,14 +540,6 @@ steps:
           && build.env("RELEASE_CANDIDATE") == null
       key: trigger-build-windows-artifacts
 
-    - label: 💎 Configure Ruby
-      key: windows-ruby
-      commands:
-          - cd test\e2e
-          - bundle install
-      agents:
-          system: ${windows}
-
     - label: Build Package (windows)
       key: windows-package
       depends_on:
@@ -584,7 +576,7 @@ steps:
         LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
       concurrency: 1
       concurrency_group: 'windows-tests'
-      
+
     - label: Windows Text Class Tests
       command: |
         cd test\e2e

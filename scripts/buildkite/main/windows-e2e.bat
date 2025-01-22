@@ -28,7 +28,8 @@ cd test\e2e
 echo "Running Ruby tests"
 echo "Setting up preprod environment"
 rm -rf state\configs\preprod
-REM copy the preprod config from the root config folder instead of deleting the link
+
+call bundle install
 
 call bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
 echo "Displaying versions"
