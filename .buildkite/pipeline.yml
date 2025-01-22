@@ -8,6 +8,9 @@ env:
   STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
   RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"
   MAIN_PIPELINE_DIR: "./scripts/buildkite/main"
+  # Mithril variables
+  PREPROD_AGGREGATOR_ENDPOINT: https://aggregator.release-preprod.api.mithril.network/aggregator
+  PREPROD_GENESIS_VERIFICATION_KEY: 5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d
 
   # Per-host variables - shared across containers on host
   macos: "aarch64-darwin"
@@ -131,12 +134,16 @@ steps:
       depends_on:
         - trigger-e2e-tests
       commands: |
+        ./run/preprod/nix/snapshot.sh
         ./scripts/buildkite/main/linux-e2e.sh
       artifact_paths:
         - "./result/linux/**"
         - "./logs/**/*"
       env:
-        NODE_STATE_DIR: "${STATE_DIR?}/node/preprod"
+        NODE_DB_DIR: "test/e2e/state/node_db/preprod"
+        NODE_DB: "test/e2e/state/node_db/preprod"
+        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
+        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       agents:
         system: ${linux}
       concurrency: 1
@@ -183,13 +190,12 @@ steps:
         NETWORK: mainnet
 
     - block: Mainnet Boot Sync with Mithril
-      if: build.env("RELEASE_CANDIDATE") == null
+      if: build.env("RELEASE_CANDIDATE") == null && build.branch != "master"
       depends_on: []
       key: linux-mainnet-full-sync-block
 
     - label: Mainnet Boot Sync with Mithril
       timeout_in_minutes: 120
-      # mithril is not compiling with nix ATM
       soft_fail :
         - exit_status: 44
       depends_on:
@@ -199,6 +205,7 @@ steps:
         rm -rf logs
         mkdir -p logs
         rm -rf databases
+        ./snapshot.sh
         ./run.sh sync
       artifact_paths:
         - "./run/mainnet/nix/logs/*"
@@ -210,7 +217,6 @@ steps:
         WALLET_LOGS_FILE: ./logs/wallet.log
         CLEANUP_DB: true
         NETWORK: mainnet
-        USE_MITHRIL: true
       concurrency: 1
       concurrency_group: 'mithril-mainnet-full-sync'
 
@@ -420,7 +426,7 @@ steps:
     depends_on: macos-nix
     steps:
 
-    - block: MacOS Steps
+    - block: MacOS Artifacts
       if: |
         build.branch !~ /^gh-readonly-queue\/master/
           && build.branch != "master"
@@ -506,11 +512,15 @@ steps:
       depends_on:
         - macos-e2e-tests-block
       command:
+        - ./run/preprod/nix/snapshot.sh
         - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
       artifact_paths:
         - "./logs/**/*"
       env:
-        NODE_STATE_DIR: "${STATE_DIR_MACOS?}/node/preprod"
+        NODE_DB_DIR: "test/e2e/state/node_db/preprod"
+        NODE_DB: "test/e2e/state/node_db/preprod"
+        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
+        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       agents:
         system: ${macos}
       concurrency: 1
@@ -530,14 +540,6 @@ steps:
           && build.env("RELEASE_CANDIDATE") == null
       key: trigger-build-windows-artifacts
 
-    - label: 💎 Configure Ruby
-      key: windows-ruby
-      commands:
-          - cd test\e2e
-          - bundle install
-      agents:
-          system: ${windows}
-
     - label: Build Package (windows)
       key: windows-package
       depends_on:
@@ -546,6 +548,7 @@ steps:
       artifact_paths: [ "./result/windows/**" ]
       agents:
         system: ${linux}
+
 
     - label: Build Testing Bundle (windows)
       key: windows-testing-bundle
@@ -571,6 +574,9 @@ steps:
         system: ${windows}
       env:
         LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+      concurrency: 1
+      concurrency_group: 'windows-tests'
+
     - label: Windows Text Class Tests
       command: |
         cd test\e2e
@@ -579,6 +585,8 @@ steps:
         .\text-class-test-unit.exe --color
       agents:
         system: ${windows}
+      concurrency: 1
+      concurrency_group: 'windows-tests'
 
     - block: Windows E2E Tests
       depends_on: []
@@ -589,33 +597,24 @@ steps:
       depends_on:
         - trigger-windows-e2e-tests
       commands:
-        - cd test\e2e
-        - rmdir state\configs\preprod
-        - md state\node_db\preprod
-        - aws s3 cp s3://hal-team/preprod-20250102.zstd ./preprod-20250102.tar.zst
-        - tar xzf ./preprod-20250102.tar.zst
-        - mv db\* state\node_db\preprod\
-        - bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
-        - bundle exec rake display_versions
-        - bundle exec rake start_node_and_wallet[preprod]
-        - bundle exec rake wait_until_node_synced
-        - bundle exec rake spec SPEC_OPTS="-e 'Stake Pools'"
-        - bundle exec rake stop_node_and_wallet[preprod]
+        - ./scripts/buildkite/main/windows-e2e.bat
       agents:
         system: ${windows}
       env:
         TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
+        NODE_DB_DIR: "test\\e2e\\state\\node_db\\preprod"
+        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
+        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1
-      concurrency_group: 'windows-e2e-tests'
+      concurrency_group: 'windows-tests'
 
   - group: Docker
     key: docker-artifacts
 
-    if: build.env("RELEASE_CANDIDATE") != null
+    # if: build.env("RELEASE_CANDIDATE") != null
     depends_on:
       - linux-artifacts
     steps:
-
       - label: Build Docker Image
         key: docker-build
         commands:
@@ -629,13 +628,13 @@ steps:
     depends_on:
       - docker-artifacts
     key: docker-e2e
-    if: (build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE") || build.tag =~ /^v20/
+    # if: (build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE") || build.tag =~ /^v20/
     steps:
       - label: Mainnet Boot Sync
         timeout_in_minutes: 30
         command: |
           cd run/mainnet/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
           rm -rf databases
           ./run.sh sync
         agents:
@@ -644,54 +643,37 @@ steps:
           SUCCESS_STATUS: syncing
           USE_LOCAL_IMAGE: true
 
+      - label: Preview Boot Sync
+        timeout_in_minutes: 30
+        command: |
+          cd run/preview/docker
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
+          rm -rf databases
+          ./run.sh sync
+        agents:
+          system: x86_64-linux
+        env:
+          SUCCESS_STATUS: syncing
+          USE_LOCAL_IMAGE: true
+
+      - block: Mainnet Boot Sync via Mithril
+        if: build.env("RELEASE_CANDIDATE") == null
+        depends_on: []
+        key: mithril-mainnet-full-sync-block
+
       - label: Mainnet Boot Sync via Mithril
         timeout_in_minutes: 120
+        depends_on: mithril-mainnet-full-sync-block
         command: |
           cd run/mainnet/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
+          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version" --default "$BUILDKITE_BUILD_NUMBER")
           rm -rf databases
+          ./snapshot.sh
           ./run.sh sync
         agents:
           system: x86_64-linux
         env:
           SUCCESS_STATUS: ready
-          USE_MITHRIL: true
           USE_LOCAL_IMAGE: true
         concurrency: 1
         concurrency_group: 'mithril-mainnet-full-sync'
-
-      - label: Preview Network Boot Sync
-        timeout_in_minutes: 30
-        command: |
-          cd run/preview/docker
-          export WALLET_TAG=$(buildkite-agent meta-data get "release-cabal-version")
-          rm -rf databases
-          ./run.sh sync
-        agents:
-          system: x86_64-linux
-        env:
-          SUCCESS_STATUS: syncing
-          USE_LOCAL_IMAGE: true
-
-  - group: Links
-    key: links-validity
-    steps:
-      - block: Snapshot Links
-        if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
-        key: snapshot-links
-
-      - label: Check Mainnet Snapshot Link
-        depends_on: snapshot-links
-        command: |
-          cd run/mainnet/docker
-          LINK_TEST=1 ./snapshot.sh
-        agents:
-          system: ${linux}
-
-      - label: Check Preprod Snapshot Link
-        depends_on: snapshot-links
-        command: |
-          cd run/preprod/docker
-          LINK_TEST=1 ./snapshot.sh
-        agents:
-          system: ${linux}

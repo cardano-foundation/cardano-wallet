@@ -156,10 +156,7 @@ On `mainnet`, the Minimum System Requirements for a `cardano-node` are high:
 - 24GB of RAM (for the current UTxO set)
 
 To speed up the synchronization process,
-you can download a snapshot of the `cardano-node` state database,
-but you will have much less security than the full Ouroboros consensus protocol.
-In particular, the snapshot could be created by a malicious block producer and
-contain erroneous transactions that are not consensus on `mainnet`!
+you can download a snapshot of the `cardano-node` state database using mithril.
 
 ```bash
 cd run/mainnet/docker
