@@ -120,7 +120,7 @@
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
-              ... }:
+               ... }:
     let
       # Import libraries
       lib = import ./nix/lib.nix nixpkgs.lib;
@@ -251,8 +251,15 @@
           });
 
           # See the imported file for how to use the docker build.
-          mkDockerImage = packages: pkgs.callPackage ./nix/docker.nix {
+          mkDockerImage = isRelease: packages:
+            let
+            version = (builtins.head exes).version;
+            revision = "c-" + self.shortRev;
             exes = with packages; [ cardano-wallet local-cluster ];
+            in
+
+          pkgs.callPackage ./nix/docker.nix {
+            inherit exes;
             base = with packages; [
               bech32
               cardano-address
@@ -260,6 +267,7 @@
               cardano-node
               (pkgs.linkFarm "docker-config-layer" [{ name = "config"; path = pkgs.cardano-node-deployments; }])
             ];
+            tag = if isRelease then version else revision;
           };
 
           mkDevShells = project: rec {
@@ -371,6 +379,7 @@
                 };
               };
             };
+          imagePackages = mkPackages walletProject.projectCross.musl64;
         in
         rec {
 
@@ -387,9 +396,12 @@
           // mkScripts walletProject
           // rec {
             dockerImage =
-              mkDockerImage (mkPackages walletProject.projectCross.musl64);
+              mkDockerImage true imagePackages;
+            dockerTestImage =
+              mkDockerImage false imagePackages;
+          } //
 
-          } // (lib.optionalAttrs buildPlatform.isLinux {
+          (lib.optionalAttrs buildPlatform.isLinux {
             nixosTests = import ./nix/nixos/tests {
               inherit pkgs;
               project = walletProject;
