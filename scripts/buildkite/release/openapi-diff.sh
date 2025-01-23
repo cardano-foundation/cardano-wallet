@@ -12,7 +12,7 @@ go install github.com/tufin/oasdiff@latest
 
 swagger_tmp=$(mktemp -d)
 swagger_file="specifications/api/swagger.yaml"
-last_release_tag=$(git --no-pager tag --sort=-creatordate | grep ^v | head -n 1)
+last_release_tag=$(curl -s https://api.github.com/repos/cardano-foundation/cardano-wallet/releases | jq -r '.[0].tag_name')
 
 git show "$last_release_tag:$swagger_file" > "$swagger_tmp/last-release-swagger.yaml"
 

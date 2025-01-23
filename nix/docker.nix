@@ -22,10 +22,10 @@
 
 # Used to generate the docker image names
 , repoName ? "cardanofoundation/cardano-wallet"
+, tag
 }:
 
 let
-  version = (lib.head exes).version;
 
   defaultPort = "8090";
   dataDir = "/data";
@@ -91,7 +91,7 @@ let
   # here cardano-wallet.
   mainImage = dockerTools.buildImage {
     name = repoName;
-    tag = version;
+    tag = tag;
     fromImage = baseImage;
     copyToRoot = buildEnv {
       name = "${repoName}-main-packages";
@@ -107,4 +107,5 @@ let
   };
 in
   mainImage
-    // { inherit version; }
+    // { inherit tag;
+      }
