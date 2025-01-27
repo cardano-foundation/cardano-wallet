@@ -1160,7 +1160,8 @@ spec_updateTx _era = describe "updateTx" $ do
 
         it "returns `Left err` with noTxUpdate" $ do
             -- Could be argued that it should instead return `Right tx`.
-            let tx = deserializeTx @era
+            let tx :: Tx era
+                tx = deserializeTx
                     $ snd $ head signedTxs
             let res = updateTx
                     tx
@@ -1599,7 +1600,7 @@ prop_bootstrapWitnesses
     -> Index 'WholeDomain 'CredFromKeyK
     -- ^ Index for the first of the 'n' addresses.
     -> Property
-prop_bootstrapWitnesses (_ :: RecentEra era) p n net accIx addr0Ix =
+prop_bootstrapWitnesses _era p n net accIx addr0Ix =
     let
         -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
         -- around, to ensure we always have 'n' unique indices.
@@ -2594,7 +2595,7 @@ instance Buildable BalanceTxGolden where
             , lovelaceF minfee
             ]
       where
-        lovelaceF (Coin c) = fixedF @Double 6 (fromIntegral c / 1e6)
+        lovelaceF (Coin c) = fixedF 6 (fromIntegral c / 1e6 :: Double)
 
 instance IsRecentEra era => Buildable (Wallet era) where
     build (Wallet assumptions utxo changeAddressGen) =
