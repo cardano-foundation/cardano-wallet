@@ -32,7 +32,9 @@ module Internal.Cardano.Write.Tx.BalanceSpec
 import Prelude
 
 import Cardano.Api.Ledger
-    ( mkUnRegTxCert
+    ( mkDelegStakeTxCert
+    , mkRegTxCert
+    , mkUnRegTxCert
     )
 import Cardano.Binary
     ( ToCBOR
@@ -57,12 +59,14 @@ import Cardano.Ledger.Api
     , ShelleyEraTxBody (..)
     , TransactionScriptFailure (..)
     , ValidityInterval (..)
+    , addrTxOutL
     , addrTxWitsL
     , allInputsTxBodyF
     , bodyTxL
     , coinTxOutL
     , collateralReturnTxBodyL
     , mkBasicTx
+    , mkBasicTxOut
     , ppCoinsPerUTxOByteL
     , ppMaxTxSizeL
     , ppMinFeeAL
@@ -87,12 +91,8 @@ import Cardano.Ledger.Keys.Bootstrap
 import Cardano.Ledger.Shelley.API
     ( Credential (..)
     , KeyHash (..)
-    , ShelleyDelegCert (..)
     , StrictMaybe (SJust, SNothing)
     , Withdrawals (..)
-    )
-import Cardano.Ledger.Shelley.TxCert
-    ( ShelleyTxCert (..)
     )
 import Cardano.Ledger.Val
     ( coin
@@ -142,6 +142,9 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex
+    )
+import Control.Arrow
+    ( left
     )
 import Control.Lens
     ( set
@@ -232,6 +235,7 @@ import Fmt
     ( Buildable (..)
     , blockListF
     , blockListF'
+    , fixedF
     , fmt
     , nameF
     , pretty
@@ -249,14 +253,16 @@ import Internal.Cardano.Write.Eras
     ( AnyRecentEra (..)
     , Babbage
     , CardanoApiEra
-    , Conway
+    , InAnyRecentEra (..)
     , IsRecentEra (recentEra)
     , RecentEra (..)
     , cardanoEraFromRecentEra
     , shelleyBasedEraFromRecentEra
+    , toInAnyRecentEra
     )
 import Internal.Cardano.Write.Tx
-    ( Coin (..)
+    ( Address
+    , Coin (..)
     , Datum (..)
     , FeePerByte (..)
     , StandardCrypto
@@ -266,6 +272,7 @@ import Internal.Cardano.Write.Tx
     , TxOutInRecentEra (..)
     , UTxO (..)
     , Value
+    , deserializeTx
     , fromCardanoApiTx
     , serializeTx
     , toCardanoApiTx
@@ -287,7 +294,6 @@ import Internal.Cardano.Write.Tx.Balance
     , UTxOAssumptions (..)
     , balanceTx
     , constructUTxOIndex
-    , fromWalletUTxO
     , lookupStakeKeyDeposit
     , mergeSignedValue
     , noTxUpdate
@@ -325,9 +331,6 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     )
 import Ouroboros.Consensus.Config
     ( SecurityParam (..)
-    )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
     )
 import Ouroboros.Network.Block
     ( SlotNo (..)
@@ -432,10 +435,8 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Alonzo.TxWits as Alonzo
-import qualified Cardano.Ledger.Babbage as Babbage
-import qualified Cardano.Ledger.Babbage.Core as Ledger
-import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Coin as Ledger
+import qualified Cardano.Ledger.Conway.Core as Ledger
 import qualified Cardano.Ledger.Val as Value
 import qualified Cardano.Slotting.EpochInfo as Slotting
 import qualified Cardano.Slotting.Slot as Slotting
@@ -448,7 +449,6 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
     ( Coin (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.Coin as W.Coin
 import qualified Cardano.Wallet.Primitive.Types.Coin.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
     ( Hash (..)
@@ -466,7 +466,6 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.TxIn.Gen as W
 import qualified Cardano.Wallet.Primitive.Types.Tx.TxOut as W
     ( TxOut (..)
     )
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
@@ -488,29 +487,36 @@ import qualified Test.Hspec.Extra as Hspec
 
 spec :: Spec
 spec = do
-    spec_balanceTx
-    spec_estimateSignedTxSize
-    spec_updateTx
+    forAllRecentEras $ \era -> do
+        spec_balanceTx era
+        spec_updateTx era
 
-spec_balanceTx :: Spec
-spec_balanceTx = describe "balanceTx" $ do
+    -- The exact test expectations depend on the test data which was generated
+    -- in either Alonzo or Babbage. Only running in Babbage should be fine for
+    -- now. When Babbage is dropped we could regenerate the test txs.
+    spec_estimateSignedTxSize RecentEraBabbage
+  where
+    forAllRecentEras :: (forall era. IsRecentEra era => RecentEra era -> Spec) -> Spec
+    forAllRecentEras tests = do
+        describe "Conway" $ tests RecentEraConway
+        describe "Babbage" $ tests RecentEraBabbage
+
+spec_balanceTx :: forall era. IsRecentEra era => RecentEra era -> Spec
+spec_balanceTx era = describe "balanceTx" $ do
     let moreDiscardsAllowed = stdArgs { maxDiscardRatio = 100 }
     it "doesn't balance transactions with existing 'totalCollateral'"
         $ quickCheckWith moreDiscardsAllowed
-            prop_balanceTxExistingTotalCollateral
+            $ prop_balanceTxExistingTotalCollateral era
 
     it "doesn't balance transactions with existing 'returnCollateral'"
         $ quickCheckWith moreDiscardsAllowed
-            prop_balanceTxExistingReturnCollateral
+            $ prop_balanceTxExistingReturnCollateral era
 
     it "does not balance transactions if no inputs can be created"
-        $ property prop_balanceTxUnableToCreateInput
+        $ property (prop_balanceTxUnableToCreateInput era)
 
-    it "produces valid transactions or fails (Babbage)"
-        $ property (prop_balanceTxValid @Babbage)
-
-    it "produces valid transactions or fails (Conway)"
-        $ property (prop_balanceTxValid @Conway)
+    it "produces valid transactions or fails"
+        $ property (prop_balanceTxValid era)
 
     describe "bootstrap witnesses" $ do
         -- Used in 'estimateTxSize', and in turn used by coin-selection
@@ -521,18 +527,12 @@ spec_balanceTx = describe "balanceTx" $ do
                 & (witsTxL . addrTxWitsL) .~ mempty
                 & (witsTxL . bootAddrTxWitsL) .~ mempty
 
-        let measuredWitSize
-                :: IsRecentEra era
-                => Tx era
-                -> Natural
+        let measuredWitSize :: Tx era -> Natural
             measuredWitSize tx = fromIntegral
                 $ serializedSize tx
                 - serializedSize (withNoKeyWits tx)
 
-        let evaluateMinimumFeeSize
-                :: forall era. IsRecentEra era
-                => Tx era
-                -> Natural
+        let evaluateMinimumFeeSize :: Tx era -> Natural
             evaluateMinimumFeeSize tx = fromIntegral
                 $ Write.unCoin
                 $ estimateSignedTxMinFee
@@ -552,13 +552,14 @@ spec_balanceTx = describe "balanceTx" $ do
                 inputsHaveNoRefScripts =
                     utxoPromisingInputsHaveAddress dummyAddr tx
 
-        let evaluateMinimumFeeDerivedWitSize tx
+        let evaluateMinimumFeeDerivedWitSize :: Tx era -> Natural
+            evaluateMinimumFeeDerivedWitSize tx
                 = evaluateMinimumFeeSize tx
                 - evaluateMinimumFeeSize (withNoKeyWits tx)
 
         it "coin-selection's size estimation == balanceTx's size estimation"
             $ property
-            $ prop_bootstrapWitnesses
+            $ prop_bootstrapWitnesses era
             $ \n tx -> do
                 let balanceSize = evaluateMinimumFeeDerivedWitSize tx
                 let csSize = coinSelectionEstimatedSize $ intCast n
@@ -567,7 +568,7 @@ spec_balanceTx = describe "balanceTx" $ do
 
         it "balanceTx's size estimation >= measured serialized size"
             $ property
-            $ prop_bootstrapWitnesses
+            $ prop_bootstrapWitnesses era
             $ \n tx -> do
                 let estimated = evaluateMinimumFeeDerivedWitSize tx
                 let measured = measuredWitSize tx
@@ -583,10 +584,13 @@ spec_balanceTx = describe "balanceTx" $ do
                 estimated .>=. measured
                     & tabulateOverestimation
 
-    balanceTxGoldenSpec
+    balanceTxGoldenSpec era
 
     describe "change address generation" $ do
-        let balance' =
+        let balance'
+                :: PartialTx era
+                -> Either (ErrBalanceTx era) (Tx era, DummyChangeState)
+            balance' =
                 balanceTxWithDummyChangeState
                     AllKeyPaymentCredentials
                     dustUTxO
@@ -598,23 +602,24 @@ spec_balanceTx = describe "balanceTx" $ do
         -- have separate 'it' statements for different expectations of the same
         -- test case.
         let nPayments = 10
-        let paymentOuts = replicate nPayments $
-                W.TxOut
-                    dummyAddr
-                    (W.TokenBundle.fromCoin (W.Coin 1_000_000))
+        let paymentOuts :: [TxOut era]
+            paymentOuts = replicate nPayments $
+                mkBasicTxOut dummyAddr (ada 1)
+
         let ptx = paymentPartialTx paymentOuts
 
         -- True for values of nPayments small enough not to cause
         -- 'ErrBalanceTxMaxSizeLimitExceeded' or ErrMakeChange
         let nChange = max nPayments 1
         let changeState0 = DummyChangeState 0
-        let expectedChange = fmap Convert.toWalletAddress <$>
+        let expectedChange =
                 flip evalState changeState0
                 $ replicateM nChange
                 $ state @Identity dummyChangeAddrGen.genChangeAddress
 
-        let address :: Babbage.BabbageTxOut StandardBabbage -> W.Address
-            address (Babbage.BabbageTxOut addr _ _ _) = Convert.toWallet addr
+        let
+            address :: TxOut era -> Address
+            address = view addrTxOutL
 
         let (tx, changeState') =
                 either (error . show) id $ balance' ptx
@@ -622,25 +627,28 @@ spec_balanceTx = describe "balanceTx" $ do
         it "assigns change addresses as expected" $
             map address (outputs tx)
                 `shouldBe`
-                (map (view #address) paymentOuts ++ expectedChange)
+                (map address paymentOuts ++ expectedChange)
 
         it "returns a change state that corresponds to the addresses used" $ do
             changeState' `shouldBe` DummyChangeState {nextUnusedIndex = nChange}
 
     it "assigns minimal ada quantities to outputs without ada" $ do
-        let out = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 0))
-        let out' = W.TxOut dummyAddr (W.TokenBundle.fromCoin (W.Coin 866_310))
+        let (out  :: TxOut era) = mkBasicTxOut dummyAddr (lovelace 0)
+        let (out' :: TxOut era) = mkBasicTxOut dummyAddr (lovelace 866_310)
         let tx = either (error . show) id
                 $ balance
                 $ paymentPartialTx [ out ]
         let outs = F.toList $ tx ^. bodyTxL . outputsTxBodyL
 
-        let pp = def
-                & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte_Babbage
+        let pp = case era of
+                RecentEraBabbage -> def
+                    & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte
+                RecentEraConway -> def
+                     & ppCoinsPerUTxOByteL .~ testParameter_coinsPerUTxOByte
         Write.isBelowMinimumCoinForTxOut pp (head outs)
             `shouldBe` False
 
-        head outs `shouldBe` (Convert.toBabbageTxOut out')
+        head outs `shouldBe` out'
 
     describe "effect of txMaxSize on coin selection" $ do
 
@@ -652,33 +660,32 @@ spec_balanceTx = describe "balanceTx" $ do
 
         it "tries to select 2x the payment amount" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ W.TxOut dummyAddr
-                        (W.TokenBundle.fromCoin (W.Coin 50_000_000))
+                    [ mkBasicTxOut dummyAddr (ada 50)
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 100_000_000)
 
         it "falls back to 1x if out of space" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ W.TxOut dummyAddr
-                        (W.TokenBundle.fromCoin (W.Coin 100_000_000))
+                    [ mkBasicTxOut dummyAddr (ada 100)
                     ]
             totalOutput <$> tx `shouldBe` Right (Coin 102_000_000)
 
         it "otherwise fails with ErrBalanceTxMaxSizeLimitExceeded" $ do
             let tx = balanceWithDust $ paymentPartialTx
-                    [ W.TxOut dummyAddr
-                        (W.TokenBundle.fromCoin (W.Coin 200_000_000))
+                    [ mkBasicTxOut dummyAddr (ada 200)
                     ]
             tx `shouldBe` Left
                 (ErrBalanceTxMaxSizeLimitExceeded
-                    { size = W.TxSize 28_226
+                    { size = W.TxSize $ case era of
+                        RecentEraConway  -> 28_232
+                        RecentEraBabbage -> 28_226
                     , maxSize = W.TxSize 16_384
                     })
 
     describe "stake key deposit lookup" $ do
         let stakeCred = KeyHashObj $ KeyHash
                 "00000000000000000000000000000000000000000000000000000000"
-        let partialTxWithRefund :: Coin -> PartialTx Babbage
+        let partialTxWithRefund :: Coin -> PartialTx era
             partialTxWithRefund r = PartialTx
                 { tx = mkBasicTx $ mkBasicTxBody
                     & certsTxBodyL .~ StrictSeq.fromList
@@ -739,11 +746,10 @@ spec_balanceTx = describe "balanceTx" $ do
         it "fails with ErrBalanceTxUnresolvedInputs" $ do
             let txin = W.TxIn (W.Hash $ B8.replicate 32 '3') 10
             -- 1 output, 1 input without utxo entry
-            let partialTx :: PartialTx Babbage
+            let partialTx :: PartialTx era
                 partialTx = addExtraTxIns [txin] $
                     paymentPartialTx
-                        [ W.TxOut dummyAddr
-                            (W.TokenBundle.fromCoin (W.Coin 1_000_000))
+                        [ mkBasicTxOut dummyAddr (ada 1)
                         ]
             balance partialTx
                 `shouldBe`
@@ -772,15 +778,23 @@ spec_balanceTx = describe "balanceTx" $ do
                 $ ValidityInterval SNothing (SJust beyondHorizon)
         describe "with some Plutus redeemers" $ do
             it "fails with TimeTranslationPastHorizon" $ do
-                case balance (withValidityBeyondHorizon pingPong_2) of
+                case left toInAnyRecentEra $ balance (withValidityBeyondHorizon pingPong_2) of
                     Left
-                        (ErrBalanceTxAssignRedeemers
+                        (InConway (ErrBalanceTxAssignRedeemers
+                            (ErrAssignRedeemersScriptFailure
+                                _redeemer
+                                (ContextError
+                                (BabbageContextError
+                                (AlonzoContextError
+                                (TimeTranslationPastHorizon
+                                    _pastHoriozon))))))) -> return ()
+                    Left (InBabbage (ErrBalanceTxAssignRedeemers
                             (ErrAssignRedeemersScriptFailure
                                 _redeemer
                                 (ContextError
                                 (AlonzoContextError
                                 (TimeTranslationPastHorizon
-                                    _pastHoriozon))))) -> return ()
+                                    _pastHoriozon)))))) -> return ()
                     other -> expectationFailure $
                         "Expected pastHorizon failure; got " <> show other
 
@@ -857,14 +871,14 @@ spec_balanceTx = describe "balanceTx" $ do
     horizon = SlotNo 20
     beyondHorizon = SlotNo 21
 
-    wallet = mkTestWallet (utxo [W.Coin 5_000_000])
+    wallet = mkTestWallet (utxo [Coin 5_000_000])
 
     -- Wallet with only small utxos, and enough of them to fill a tx in the
     -- tests below.
     dustWallet = mkTestWallet dustUTxO
-    dustUTxO = W.UTxO $ Map.fromList $
-        [ ( W.TxIn (W.Hash $ B8.replicate 32 '1') ix
-          , W.TxOut dummyAddr (W.TokenBundle.fromCoin $ W.Coin 1_000_000)
+    dustUTxO = UTxO $ Map.fromList $
+        [ ( Convert.toLedger $ W.TxIn (W.Hash $ B8.replicate 32 '1') ix
+          , mkBasicTxOut dummyAddr (ada 1)
           )
         | ix <- [0 .. 500]
         ]
@@ -875,15 +889,16 @@ spec_balanceTx = describe "balanceTx" $ do
         (dummyTimeTranslationWithHorizon horizon)
         testStdGenSeed
 
-    utxoWithBundles bundles = W.UTxO $ Map.fromList $ zip ins outs
+    utxoWithValues values = UTxO $ Map.fromList $ zip ins outs
       where
-        ins = map (W.TxIn dummyHash) [0..]
-        outs = map (W.TxOut dummyAddr) bundles
+        ins = map (Convert.toLedger . W.TxIn dummyHash) [0..]
+        outs = map (mkBasicTxOut dummyAddr) values
         dummyHash = W.Hash $ B8.replicate 32 '0'
 
-    utxo coins = utxoWithBundles $ map W.TokenBundle.fromCoin coins
+    utxo :: [Coin] -> UTxO era
+    utxo coins = utxoWithValues $ map Value.inject coins
 
-    dummyAddr = W.Address $ unsafeFromHex
+    dummyAddr = Convert.toLedgerAddress $ W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
     totalOutput :: IsRecentEra era => Tx era -> Coin
@@ -891,12 +906,12 @@ spec_balanceTx = describe "balanceTx" $ do
         F.foldMap (view coinTxOutL) (view (bodyTxL . outputsTxBodyL) tx)
         <> tx ^. bodyTxL . feeTxBodyL
 
-balanceTxGoldenSpec :: Spec
-balanceTxGoldenSpec = describe "balance goldens" $ do
+balanceTxGoldenSpec :: forall era. IsRecentEra era => RecentEra era -> Spec
+balanceTxGoldenSpec era = describe "balance goldens" $ do
     it "testPParams" $
         let name = "testPParams"
-            dir = $(getTestData) </> "balanceTx" </> "binary"
-            pparams = mockPParams @Babbage
+            dir = goldenDir </> "binary"
+            pparams = mockPParams @era
         in Golden
             { output = pparams
             , encodePretty = show
@@ -909,8 +924,8 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
             }
 
     describe "balanced binaries" $ do
-        let dir = $(getTestData) </> "balanceTx" </> "binary" </> "balanced"
-        let walletUTxO = utxo [W.Coin 5_000_000]
+        let dir = goldenDir </> "binary" </> "balanced"
+        let walletUTxO = utxo [Coin 5_000_000]
         it "pingPong_2" $ do
             let ptx = pingPong_2
             let tx = either (error . show) id $ testBalanceTx
@@ -928,10 +943,10 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
                     . T.pack
                     . B8.unpack
                     . hex
-                    . serializeTx @Babbage
+                    . serializeTx @era
                     $ x
                 , readFromFile =
-                    fmap (deserializeBabbageTx . unsafeFromHex . B8.pack)
+                    fmap (deserializeTx . unsafeFromHex . B8.pack)
                     . readFile
                 , goldenFile = dir </> name </> "golden"
                 , actualFile = Just (dir </> name </> "actual")
@@ -947,10 +962,16 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
     toCBORHex :: ToCBOR a => a -> String
     toCBORHex = B8.unpack . hex . serialize'
 
-    test :: String -> PartialTx Babbage -> Spec
+    goldenDir = $(getTestData) </> "balanceTx" </> eraName
+      where
+        eraName = case era of
+            RecentEraConway -> "conway"
+            RecentEraBabbage -> "babbage"
+
+    test :: String -> PartialTx era -> Spec
     test name partialTx = it name $ do
         goldenText name
-            (map (mkGolden partialTx . W.Coin) defaultWalletBalanceRange)
+            (map (mkGolden partialTx . Coin) defaultWalletBalanceRange)
       where
         defaultWalletBalanceRange = [0, 50_000 .. 4_000_000]
 
@@ -961,16 +982,13 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
                 , encodePretty = T.unpack
                 , writeToFile = T.writeFile
                 , readFromFile = T.readFile
-                , goldenFile = dir </> name' </> "golden"
-                , actualFile = Just (dir </> name' </> "actual")
+                , goldenFile = goldenDir </> name' </> "golden"
+                , actualFile = Just (goldenDir </> name' </> "actual")
                 , failFirstTime = False
                 }
-          where
-            dir = $(getTestData) </> "balanceTx"
-
         mkGolden
-            :: PartialTx Babbage
-            -> W.Coin
+            :: PartialTx era
+            -> Coin
             -> BalanceTxGolden
         mkGolden ptx c =
             let
@@ -983,7 +1001,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
                     ptx
                 combinedUTxO = mconcat
                     [ view #extraUTxO ptx
-                    , fromWalletUTxO walletUTxO
+                    , walletUTxO
                     ]
             in
                 case res of
@@ -994,21 +1012,22 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
                     Left e
                         -> BalanceTxGoldenFailure c (show e)
 
-    utxo coins = W.UTxO $ Map.fromList $ zip ins outs
+    utxo :: [Coin] -> UTxO era
+    utxo coins = UTxO $ Map.fromList $ zip ins outs
       where
-        ins = map (W.TxIn dummyHash) [0..]
-        outs = map (W.TxOut addr . W.TokenBundle.fromCoin) coins
+        ins = map (Convert.toLedger . W.TxIn dummyHash) [0..]
+        outs = map (mkBasicTxOut addr . Value.inject) coins
         dummyHash = W.Hash $ B8.replicate 32 '0'
 
-    addr = W.Address $ unsafeFromHex
+    addr = Convert.toLedger $ W.Address $ unsafeFromHex
         "60b1e5e0fb74c86c801f646841e07cdb42df8b82ef3ce4e57cb5412e77"
 
-    payment :: PartialTx Babbage
+    payment :: PartialTx era
     payment = paymentPartialTx
-        [ W.TxOut addr (W.TokenBundle.fromCoin (W.Coin 1_000_000))
+        [ mkBasicTxOut addr (ada 1)
         ]
 
-    delegate :: PartialTx Babbage
+    delegate :: PartialTx era
     delegate = PartialTx
         (mkBasicTx body)
         mempty
@@ -1016,7 +1035,7 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
         (StakeKeyDepositMap mempty)
         mempty
       where
-        body :: TxBody Babbage
+        body :: TxBody era
         body =
             mkBasicTxBody
                 & certsTxBodyL .~ StrictSeq.fromList certs
@@ -1026,8 +1045,8 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
         dummyPool = KeyHash
             "00000000000000000000000000000000000000000000000000000001"
         certs =
-            [ ShelleyTxCertDelegCert $ ShelleyRegCert dummyStakeKey
-            , ShelleyTxCertDelegCert $ ShelleyDelegCert dummyStakeKey dummyPool
+            [ mkRegTxCert dummyStakeKey
+            , mkDelegStakeTxCert dummyStakeKey dummyPool
             ]
 
     minFee
@@ -1042,15 +1061,14 @@ balanceTxGoldenSpec = describe "balance goldens" $ do
             tx
             (estimateKeyWitnessCounts u tx mempty)
 
-spec_estimateSignedTxSize :: Spec
-spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
+spec_estimateSignedTxSize :: forall era. IsRecentEra era => RecentEra era -> Spec
+spec_estimateSignedTxSize _era = describe "estimateSignedTxSize" $ do
     txBinaries <- runIO signedTxTestData
     describe "equals the binary size of signed txs" $
         forAllGoldens txBinaries test
   where
     test
-        :: forall era. IsRecentEra era
-        => String
+        :: String
         -> ByteString
         -> Tx era
         -> IO ()
@@ -1092,15 +1110,15 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
 
     forAllGoldens
         :: [(String, ByteString)]
-        -> (forall era. IsRecentEra era
-            => String
+        -> (String
             -> ByteString
             -> Tx era
             -> IO ())
         -> Spec
     forAllGoldens goldens f = forM_ goldens $ \(name, bs) -> it name $
             let
-                tx = deserializeBabbageTx bs
+                tx :: Tx era
+                tx = deserializeTx bs
                 msg = unlines
                     [ B8.unpack $ hex bs
                     , show $ Pretty tx
@@ -1110,12 +1128,12 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
 
     -- An address with a vk payment credential. For the test above, this is the
     -- only aspect which matters.
-    vkCredAddr = W.Address $ unsafeFromHex
+    vkCredAddr = Convert.toLedger $ W.Address $ unsafeFromHex
         "6000000000000000000000000000000000000000000000000000000000"
 
     -- This is a short bootstrap address retrieved from
     -- "byron-address-format.md".
-    bootAddr = W.Address $ unsafeFromHex
+    bootAddr = Convert.toLedger $ W.Address $ unsafeFromHex
         "82d818582183581cba970ad36654d8dd8f74274b733452ddeab9a62a397746be3c42ccdda0001a9026da5b"
 
     -- With more attributes, the address can be longer. This value was chosen
@@ -1128,8 +1146,8 @@ spec_estimateSignedTxSize = describe "estimateSignedTxSize" $ do
     -- txs, we wouldn't need this fuzziness. Related: ADP-2987.
     bootWitsCanBeLongerBy = W.TxSize 45
 
-spec_updateTx :: Spec
-spec_updateTx = describe "updateTx" $ do
+spec_updateTx :: forall era. IsRecentEra era => RecentEra era -> Spec
+spec_updateTx _era = describe "updateTx" $ do
     describe "no existing key witnesses" $ do
         txs <- readTestTransactions
         forM_ txs $ \(filepath, tx :: Tx era) -> do
@@ -1142,7 +1160,8 @@ spec_updateTx = describe "updateTx" $ do
 
         it "returns `Left err` with noTxUpdate" $ do
             -- Could be argued that it should instead return `Right tx`.
-            let tx = deserializeBabbageTx
+            let tx :: Tx era
+                tx = deserializeTx
                     $ snd $ head signedTxs
             let res = updateTx
                     tx
@@ -1154,7 +1173,7 @@ spec_updateTx = describe "updateTx" $ do
             pendingWith "todo: add test data"
   where
     readTestTransactions
-        :: SpecM a [(FilePath, Tx Babbage)]
+        :: SpecM a [(FilePath, Tx era)]
     readTestTransactions = runIO $ do
         let dir = $(getTestData) </> "plutus"
         paths <- listDirectory dir
@@ -1164,17 +1183,19 @@ spec_updateTx = describe "updateTx" $ do
             then pure []
             else do
                 contents <- BS.readFile (dir </> f)
-                pure [(f, deserializeBabbageTx $ unsafeFromHex contents)]
+                pure [(f, deserializeTx $ unsafeFromHex contents)]
 
 --------------------------------------------------------------------------------
 -- Properties
 --------------------------------------------------------------------------------
 
 prop_balanceTxExistingReturnCollateral
-    :: forall era. (era ~ Babbage)
-    => SuccessOrFailure (BalanceTxArgs era)
+    :: forall era. IsRecentEra era
+    => RecentEra era
+    -> SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTxExistingReturnCollateral
+    _era
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 10 $
         hasReturnCollateral tx
@@ -1190,10 +1211,12 @@ prop_balanceTxExistingReturnCollateral
     PartialTx {tx} = partialTx
 
 prop_balanceTxExistingTotalCollateral
-    :: forall era. (era ~ Babbage)
-    => SuccessOrFailure (BalanceTxArgs era)
+    :: forall era. IsRecentEra era
+    => RecentEra era
+    -> SuccessOrFailure (BalanceTxArgs era)
     -> Property
 prop_balanceTxExistingTotalCollateral
+    _era
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 10 $
         hasTotalCollateral tx
@@ -1221,11 +1244,12 @@ prop_balanceTxExistingTotalCollateral
 -- 3. the order in which failure conditions are checked is unspecified.
 --
 prop_balanceTxUnableToCreateInput
-    -- TODO: Test with all recent eras [ADP-2997]
-    :: forall era. era ~ Babbage
-    => Success (BalanceTxArgs era)
+    :: forall era. IsRecentEra era
+    => RecentEra era
+    -> Success (BalanceTxArgs era)
     -> Property
 prop_balanceTxUnableToCreateInput
+    _era
     (Success balanceTxArgs) =
         withMaxSuccess 10 $
         testBalanceTx
@@ -1254,11 +1278,10 @@ prop_balanceTxUnableToCreateInput
 --   - Ensure we have coverage for normal plutus contracts
 prop_balanceTxValid
     :: forall era. IsRecentEra era
-    -- TODO [ADP-2997] Test with all RecentEras
-    -- https://cardanofoundation.atlassian.net/browse/ADP-2997
-    => SuccessOrFailure (BalanceTxArgs era)
+    => RecentEra era
+    -> SuccessOrFailure (BalanceTxArgs era)
     -> Property
-prop_balanceTxValid
+prop_balanceTxValid era
     (SuccessOrFailure balanceTxArgs) =
         withMaxSuccess 1_000 $ do
         let combinedUTxO =
@@ -1408,7 +1431,7 @@ prop_balanceTxValid
         NoCostModelInLedgerState{}
             -> succeedWithLabel "NoCostModelInLedgerState"
         ContextError e
-            -> case recentEra @era of
+            -> case era of
                     RecentEraBabbage -> prop_babbageContextError e
                     RecentEraConway -> prop_conwayContextError e
       where
@@ -1563,12 +1586,13 @@ prop_balanceTxValid
 
 {-# ANN prop_bootstrapWitnesses ("HLint: ignore Eta reduce" :: String) #-}
 prop_bootstrapWitnesses
-    :: (forall era. IsRecentEra era => Word8 -> Tx era -> Property)
+    :: forall era. IsRecentEra era
+    => RecentEra era
+    -> (Word8 -> Tx era -> Property)
     -> Word8
     -- ^ Number of bootstrap witnesses.
     --
     -- Testing with [0, 255] should be sufficient.
-    -> AnyRecentEra
     -> CardanoApi.NetworkId
     -- ^ Network - will be encoded inside the witness.
     -> Index 'WholeDomain 'AccountK
@@ -1576,8 +1600,7 @@ prop_bootstrapWitnesses
     -> Index 'WholeDomain 'CredFromKeyK
     -- ^ Index for the first of the 'n' addresses.
     -> Property
-prop_bootstrapWitnesses
-    p n (AnyRecentEra (_ :: RecentEra era)) net accIx addr0Ix =
+prop_bootstrapWitnesses _era p n net accIx addr0Ix =
     let
         -- Start incrementing the ixs upward, and if we reach 'maxBound', loop
         -- around, to ensure we always have 'n' unique indices.
@@ -1641,10 +1664,8 @@ prop_bootstrapWitnesses
             (toHDPayloadAddress addr)
             (ByronApi.toByronNetworkMagic network)
 
--- TODO [ADO-2997] Test this property in all recent eras.
--- https://cardanofoundation.atlassian.net/browse/ADP-2997
 prop_updateTx
-    :: forall era. era ~ Babbage
+    :: forall era. IsRecentEra era
     => Tx era
     -> Set W.TxIn
     -> Set W.TxIn
@@ -1811,10 +1832,10 @@ data AnyChangeAddressGenWithState where
 
 data BalanceTxGolden =
     BalanceTxGoldenSuccess
-        W.Coin -- ^ Wallet balance
+        Coin -- ^ Wallet balance
         Coin -- ^ Fee
         Coin -- ^ Minimum fee
-    | BalanceTxGoldenFailure W.Coin String
+    | BalanceTxGoldenFailure Coin String
     deriving (Eq, Show)
 
 newtype DummyChangeState = DummyChangeState { nextUnusedIndex :: Int }
@@ -1833,9 +1854,10 @@ data Wallet era = Wallet UTxOAssumptions (UTxO era) AnyChangeAddressGenWithState
 
 -- Ideally merge with 'updateTx'
 addExtraTxIns
-    :: [W.TxIn]
-    -> PartialTx Babbage
-    -> PartialTx Babbage
+    :: IsRecentEra era
+    => [W.TxIn]
+    -> PartialTx era
+    -> PartialTx era
 addExtraTxIns extraIns =
     #tx . bodyTxL . inputsTxBodyL %~ (<> toLedgerInputs extraIns)
   where
@@ -1878,7 +1900,7 @@ testBalanceTx
 balanceTxWithDummyChangeState
     :: forall era. IsRecentEra era
     => UTxOAssumptions
-    -> W.UTxO
+    -> UTxO era
     -> StdGenSeed
     -> PartialTx era
     -> Either
@@ -1895,13 +1917,7 @@ balanceTxWithDummyChangeState utxoAssumptions utxo seed partialTx =
             (DummyChangeState 0)
             partialTx
   where
-    utxoIndex = constructUTxOIndex $ fromWalletUTxO utxo
-
-deserializeBabbageTx :: ByteString -> Tx Babbage
-deserializeBabbageTx
-    = fromCardanoApiTx
-    . either (error . show) id
-    . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
+    utxoIndex = constructUTxOIndex utxo
 
 fromWalletTxIn :: W.TxIn -> TxIn
 fromWalletTxIn = Convert.toLedger
@@ -1936,19 +1952,17 @@ hasTotalCollateral tx =
         SJust _ -> True
         SNothing -> False
 
-mkTestWallet :: IsRecentEra era => W.UTxO -> Wallet era
-mkTestWallet walletUTxO =
+mkTestWallet :: IsRecentEra era => UTxO era -> Wallet era
+mkTestWallet utxo =
     Wallet AllKeyPaymentCredentials utxo dummyShelleyChangeAddressGen
-  where
-    utxo = fromWalletUTxO walletUTxO
 
-paymentPartialTx :: [W.TxOut] -> PartialTx Babbage
+paymentPartialTx :: IsRecentEra era => [TxOut era] -> PartialTx era
 paymentPartialTx txouts =
     PartialTx (mkBasicTx body) mempty mempty (StakeKeyDepositMap mempty) mempty
   where
     body = mkBasicTxBody
         & outputsTxBodyL .~
-            StrictSeq.fromList (Convert.toBabbageTxOut <$> txouts)
+            StrictSeq.fromList txouts
 
 serializedSize
     :: forall era. IsRecentEra era
@@ -1977,9 +1991,10 @@ valueHasNegativeAndPositiveParts v =
     (b1, b2) = splitSignedValue v
 
 withValidityInterval
-    :: ValidityInterval
-    -> PartialTx Babbage
-    -> PartialTx Babbage
+    :: IsRecentEra era
+    => ValidityInterval
+    -> PartialTx era
+    -> PartialTx era
 withValidityInterval vi = #tx . bodyTxL %~ vldtTxBodyL .~ vi
 
 cardanoToWalletTxOut
@@ -2003,7 +2018,7 @@ txFee tx = tx ^. bodyTxL . feeTxBodyL
 -- outputs with the given 'Address'.
 utxoPromisingInputsHaveAddress
     :: forall era. (HasCallStack, IsRecentEra era)
-    => W.Address
+    => Address
     -> Tx era
     -> UTxO era
 utxoPromisingInputsHaveAddress addr tx =
@@ -2013,7 +2028,13 @@ utxoPromisingInputsHaveAddress addr tx =
     allInputs body = Set.toList $ body ^. (bodyTxL . allInputsTxBodyF)
 
     txOut :: TxOutInRecentEra
-    txOut = TxOutInRecentEra (Convert.toLedger addr) mempty NoDatum Nothing
+    txOut = TxOutInRecentEra addr mempty NoDatum Nothing
+
+ada :: Integer -> Value
+ada a = Value.inject (Coin $ a * 1_000_000)
+
+lovelace :: Integer -> Value
+lovelace l = Value.inject $ Coin l
 
 --------------------------------------------------------------------------------
 -- Test values
@@ -2106,21 +2127,21 @@ dummyTimeTranslationWithHorizon horizon =
 mainnetFeePerByte :: FeePerByte
 mainnetFeePerByte = FeePerByte 44
 
-pingPong_1 :: PartialTx Babbage
+pingPong_1 :: IsRecentEra era => PartialTx era
 pingPong_1 = PartialTx tx mempty mempty (StakeKeyDepositMap mempty) mempty
   where
-    tx = deserializeBabbageTx $ unsafeFromHex $ mconcat
-        [ "84a500800d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
+    tx = deserializeTx $ unsafeFromHex $ mconcat
+        [ "84a30080018183581d714d72cf569a339a18a7d9302313983f56e0d96cd4"
         , "5bdcb1d6512dca6a1a001e84805820923918e403bf43c34b4ef6b48eb2ee04ba"
-        , "bed17320d8d1b9ff9ad086e86f44ec02000e80a10481d87980f5f6"
+        , "bed17320d8d1b9ff9ad086e86f44ec0200a10481d87980f5f6"
         ]
 
-pingPong_2 :: PartialTx Babbage
+pingPong_2 :: IsRecentEra era => PartialTx era
 pingPong_2 = PartialTx
-    { tx = deserializeBabbageTx $ mconcat
-        [ unsafeFromHex "84a50081825820"
+    { tx = deserializeTx $ mconcat
+        [ unsafeFromHex "84a30081825820"
         , tid
-        , unsafeFromHex "000d80018183581d714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e848058208392f0c940435c06888f9bdb8c74a95dc69f156367d6a089cf008ae05caae01e02000e80a20381591b72591b6f01000033233332222333322223322332232323332223233322232333333332222222232333222323333222232323322323332223233322232323322332232323333322222332233223322332233223322223223223232533530333330083333573466e1d40192004204f23333573466e1d401d2002205123333573466e1d40212000205323504b35304c3357389201035054310004d49926499263333573466e1d40112004205323333573466e1d40152002205523333573466e1d40192000205723504b35304c3357389201035054310004d49926499263333573466e1cd55cea8012400046601664646464646464646464646666ae68cdc39aab9d500a480008cccccccccc064cd409c8c8c8cccd5cd19b8735573aa004900011980f981d1aba15002302c357426ae8940088d4164d4c168cd5ce2481035054310005b49926135573ca00226ea8004d5d0a80519a8138141aba150093335502e75ca05a6ae854020ccd540b9d728169aba1500733502704335742a00c66a04e66aa0a8098eb4d5d0a8029919191999ab9a3370e6aae754009200023350213232323333573466e1cd55cea80124000466a05266a084eb4d5d0a80118239aba135744a00446a0ba6a60bc66ae712401035054310005f49926135573ca00226ea8004d5d0a8011919191999ab9a3370e6aae7540092000233502733504275a6ae854008c11cd5d09aba2500223505d35305e3357389201035054310005f49926135573ca00226ea8004d5d09aba2500223505935305a3357389201035054310005b49926135573ca00226ea8004d5d0a80219a813bae35742a00666a04e66aa0a8eb88004d5d0a801181c9aba135744a00446a0aa6a60ac66ae71241035054310005749926135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135573ca00226ea8004d5d0a8011919191999ab9a3370ea00290031180f181d9aba135573ca00646666ae68cdc3a801240084603a608a6ae84d55cf280211999ab9a3370ea00690011180e98181aba135573ca00a46666ae68cdc3a80224000460406eb8d5d09aab9e50062350503530513357389201035054310005249926499264984d55cea80089baa001357426ae8940088d4124d4c128cd5ce249035054310004b49926104a1350483530493357389201035054350004a4984d55cf280089baa001135573a6ea80044d55ce9baa0012212330010030022001222222222212333333333300100b00a00900800700600500400300220012212330010030022001122123300100300212001122123300100300212001122123300100300212001212222300400521222230030052122223002005212222300100520011232230023758002640026aa078446666aae7c004940388cd4034c010d5d080118019aba200203323232323333573466e1cd55cea801a4000466600e6464646666ae68cdc39aab9d5002480008cc034c0c4d5d0a80119a8098169aba135744a00446a06c6a606e66ae71241035054310003849926135573ca00226ea8004d5d0a801999aa805bae500a35742a00466a01eeb8d5d09aba25002235032353033335738921035054310003449926135744a00226aae7940044dd50009110919980080200180110009109198008018011000899aa800bae75a224464460046eac004c8004d540d888c8cccd55cf80112804919a80419aa81898031aab9d5002300535573ca00460086ae8800c0b84d5d08008891001091091198008020018900089119191999ab9a3370ea002900011a80418029aba135573ca00646666ae68cdc3a801240044a01046a0526a605466ae712401035054310002b499264984d55cea80089baa001121223002003112200112001232323333573466e1cd55cea8012400046600c600e6ae854008dd69aba135744a00446a0466a604866ae71241035054310002549926135573ca00226ea80048848cc00400c00880048c8cccd5cd19b8735573aa002900011bae357426aae7940088d407cd4c080cd5ce24810350543100021499261375400224464646666ae68cdc3a800a40084a00e46666ae68cdc3a8012400446a014600c6ae84d55cf280211999ab9a3370ea00690001280511a8111a981199ab9c490103505431000244992649926135573aa00226ea8004484888c00c0104488800844888004480048c8cccd5cd19b8750014800880188cccd5cd19b8750024800080188d4068d4c06ccd5ce249035054310001c499264984d55ce9baa0011220021220012001232323232323333573466e1d4005200c200b23333573466e1d4009200a200d23333573466e1d400d200823300b375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c46601a6eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc048c050d5d0a8049bae357426ae8940248cccd5cd19b875006480088c050c054d5d09aab9e500b23333573466e1d401d2000230133016357426aae7940308d407cd4c080cd5ce2481035054310002149926499264992649926135573aa00826aae79400c4d55cf280109aab9e500113754002424444444600e01044244444446600c012010424444444600a010244444440082444444400644244444446600401201044244444446600201201040024646464646666ae68cdc3a800a400446660106eb4d5d0a8021bad35742a0066eb4d5d09aba2500323333573466e1d400920002300a300b357426aae7940188d4040d4c044cd5ce2490350543100012499264984d55cea80189aba25001135573ca00226ea80048488c00800c888488ccc00401401000c80048c8c8cccd5cd19b875001480088c018dd71aba135573ca00646666ae68cdc3a80124000460106eb8d5d09aab9e500423500a35300b3357389201035054310000c499264984d55cea80089baa001212230020032122300100320011122232323333573466e1cd55cea80124000466aa016600c6ae854008c014d5d09aba25002235007353008335738921035054310000949926135573ca00226ea8004498480048004448848cc00400c008448004488800c488800848880048004488800c488800848880048004448c8c00400488cc00cc008008004c8c8cc88cc88c8ccc888c8c8c8c8c8ccc888ccc888ccc888c8cccc8888c8cc88c8cccc8888c8cc88c8cc88c8ccc888c8c8cc88c8c8cc88c8c8c8cccc8888c8c8c8c8c8cc88c8cc88cc88ccccccccccccc8888888888888c8c8c8c8c8cccccccc88888888cc88cc88cc88cc88c8ccccc88888c8cc88cc88cc88c8cc88cc88cc88c8cc88c8c8c8cccc8888cccc8888c8888d4d540400108888c8c8c94cd4c24004ccc0140280240205400454cd4c24004cd5ce249025331000910115001109101153353508101003215335309001333573466e1cccc109400cd4c07800488004c0580212002092010910115002153353090013357389201025332000910115002109101150011533535080013300533501b00833303e03f5001323355306012001235355096010012233550990100233553063120012353550990100122335509c0100233704900080080080099a809801180a003003909a9aa84a8080091911a9a80f00091299a984a0098050010a99a984a00999aa9837090009a835283491a9aa84d8080091199aa9838890009a836a83611a9aa84f0080091199ab9a3370e900000084e0084d808008008a8020a99a984a0099ab9c49102533300095011500410950113535501e00522253353097013333355027253335301400113374a90001bb14984cdd2a40046ec52613374a90021bb149800c008c8cd400541d141d4488cc008cd40ac01cccc124128018cd4078034c07c04400403c4264044cd5ce249025335000980113535501a0012225335309301333335502325301d00100300200100b109501133573892010253340009401133573892010253360008f0113530220052235302d002222222222253353508b013303000a00b2135303a0012235303e0012220021350a10135309d0133573892010253300009e01498cccd5403488d4d404c008894ccd4c02400c54ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f054ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f04d41f4cd542400554034cd4058019419894ccd4c008004421c04421c044220048882280541e0488800c488800848880048004488800c48880084888004800444ccd5401d416541654164494cd4d41b8004848cd4168cd5421404d4c03000888004cd4168cd54214040052002505b505b12505a235355081013530100012235301b00222222222225335350793301e00a00b213530280012235302c00122235303100322335308701002230930116253353508201004213355098010020011309301161308a01162200211222212333300100500400300211200120011122212333001004003002112001122123300100300212001221233001003002200111222225335307533355304f120013504b504a235300b002223301500200300415335307533355304f120013504b504a235300b002223530160022222222222353501500d22533530840133355305e120013505450562353025001223304b00200400c10860113357389201024c30000850100315335307533355304f120013504b504a235300b002223530160022222222222353501300d22533530840133355305e12001350545056235302700122253353507a00121533530890133305108501003006153353507b330623019007009213308501001002108a01108a011089015335350763301b00c00d2135302500122353029001222333553055120012235302e00222235303300822353035005225335309301333308401004003002001133506f0090081008506701113508c01353088013357389201024c6600089014984218044cd5ce2481024c3100085010021077150741507415074122123300100300212001122123300100300212001221233001003002200122533335300300121505f21505f21505f2133355304612001504a235300d001225335306f3303300200413506300315062003212222300400521222230030052122223002005212222300100520013200135506c22233333333333353019001235300500322222222225335307153353506333355304b12001504f253353072333573466e3c0300041d01cc4d41980045419400c841d041c841cc4cd5ce249024c340007222353006004222222222253353506453353506433355304c1200150502353550790012253353075333573466e3c00803c1dc1d84d41a400c541a000884d419cd4d541e40048800454194854cd4c1ccccd5cd19baf00100c0750741075150701506f235300500322222222225335307133355304b120013504150432333573466ebc0300041d01cccd54c108480048d4d541e00048800400841cc4cd5ce249024c320007222225335306a333573466e1cd4c0200188888888888ccc09801c0380300041b01ac41b04cd5ce2481024c390006b22235300700522222222225335307333355304d1200135043504523530160012225335350690012153353078333040074003010153353506a35301601422222222223305b01b0022153353079333573466e3c0040081ec1e84d4c07401488cccc1b0008004c1d005541b841e841e441e441e002441d44cd5ce249024c6200074225335306833303002f0013335530331200150175045353006004222222222233355303d120012235301600222235301b00322335307100225335307a333573466e3c0500041f01ec4cd415801401c401c801d413c02441a84cd5ce2481024c610006925335306733302f02e001353005003222222222233355304b12001501f235301400122200200910691335738921024c36000682533530673335530411200135037503923300500400100110691335738921024c640006825335306733302f02e001353005003222222222233355304b12001501f23530120012235301600122200200a106913357389201024c35000682353005003222222222253353506333355304b12001504f235301200122533530743303800200e1350680031506700a213530120012235301600122253353506900121507610791506f22353006004222222222253353506433355304c120015050235301300122533530753303900200f1350690031506800a2107513357389201024c380007323530050032222222222353503100b22353503500222353503500822353503900222533530793333333222222253335306d33350640070060031533530800100215335308001005133350610070010041081011333506100700100410810113335061007001004333333335064075225335307b333573466e1c0080041f41f041ac54cd4c1ecccd5cd19b8900200107d07c1069106a22333573466e200080041f41f010088ccd5cd19b8900200107c07d22333573466e200080041f01f4894cd4c1ecccd5cd19b8900200107d07c10011002225335307b333573466e240080041f41f04008400401801401c00800400c41ec4cd5ce249024c330007a222222222212333333333300100b00a009008007006005004003002200122123300100300220012221233300100400300220012212330010030022001212222222300700822122222223300600900821222222230050081222222200412222222003221222222233002009008221222222233001009008200113350325001502f13001002222335530241200123535505a00122335505d002335530271200123535505d001223355060002333535502500123300a4800000488cc02c0080048cc02800520000013301c00200122337000040024446464600200a640026aa0b64466a6a05e0029000111a9aa82e00111299a982c199ab9a3371e0040120b40b22600e0022600c006640026aa0b44466a6a05c0029000111a9aa82d80111299a982b999ab9a3371e00400e0b20b020022600c00642444444444444601801a4424444444444446601601c01a42444444444444601401a44442444444444444666601202001e01c01a444244444444444466601001e01c01a4424444444444446600e01c01a42444444444444600c01a42444444444444600a01a42444444444444600801a42444444444444600601a4424444444444446600401c01a42444444444444600201a400224424660020060042400224424660020060042400244a66a607c666ae68cdc79a9801801110011a98018009100102001f8999ab9a3370e6a6006004440026a60060024400208007e207e442466002006004400244666ae68cdc480100081e81e111199aa980a890009a808a80811a9aa82100091199aa980c090009a80a280991a9aa82280091199a9aa8068009198052400000244660160040024660140029000000998020010009119aa98050900091a9aa8200009119aa821801199a9aa804000919aa98070900091a9aa8220009119aa8238011aa80780080091199aaa80401c801000919aa98070900091a9aa8220009119aa8238011aa806800800999aaa80181a001000888911199aa980209000a80a99aa98050900091a9aa8200009119aa8218011aa805800999aa980209000911a9aa82080111299a981e999aa980b890009a806a80791a9aa82200091198050010028030801899a80c802001a80b00099aa98050900091a9aa820000911919aa8220019800802990009aa82291299a9a80c80089aa8058019109a9aa82300111299a982119806001004099aa80800380089803001801190009aa81f1108911299a9a80a800880111099802801199aa980389000802802000889091118018020891091119801002802089091118008020890008919a80891199a9a803001910010010009a9a80200091000990009aa81c110891299a9a8070008a80811099a808980200119aa980309000802000899a80111299a981800108190800817891091980080180109000899a80191299a9816801080088170168919a80591199a9a802001910010010009a9a8010009100089109198008018010900091299a9a80d999aa980189000a80391a9aa81800091299a9816199ab9a3375e00200a05c05a26a0400062a03e002426a03c6a6aa060002440042a038640026aa05e4422444a66a6a00c00226a6a01400644002442666a6a01800a440046008004666aa600e2400200a00800222440042442446600200800624002266a00444a66a6a02c004420062002a02a24424660020060042400224446a6a008004446a6a00c00644a666a6026666a01400e0080042a66a604c00620022050204e2050244246600200600424002244464646464a666a6a01000c42a666a6a01200c42a666a6a0140104260082c260062c2a666a6a01400e4260082c260062c202a20262a666a6a01200e4260082c260062c2a666a6a01200c4260082c260062c20282a666a6a01000a42024202620222a666a6a01000a42a666a6a01200e42600a2c260082c2a666a6a01200c42600a2c260082c202820242a666a6a01000c42600a2c260082c2a666a6a01000a42600a2c260082c20264a666a6a01000a42a666a6a01200e42a666a6a01400e42666a01e014004002260222c260222c260202c20262a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c202420224a666a6a00e00842a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c20242a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c202220204a666a6a00c00642a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c20222a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c2020201e4a666a6a00a00442a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c20202a666a6a00a00642a666a6a00c00642666a01600c0040022601a2c2601a2c260182c201e201c2424446006008224440042244400224002246a6a0040024444444400e244444444246666666600201201000e00c00a008006004240024c244400624440042444002400244446466a601800a466a601a0084a66a602c666ae68cdc780100080c00b8a801880b900b919a9806802100b9299a980b199ab9a3371e00400203002e2a006202e2a66a6a00a00642a66a6a00c0044266a6014004466a6016004466a601e004466a60200044660280040024034466a6020004403446602800400244403444466a601a0084034444a66a6036666ae68cdc380300180e80e0a99a980d999ab9a3370e00a00403a03826602e00800220382038202a2a66a6a00a0024202a202a2424460040062244002240024244600400644424466600200a00800640024244600400642446002006400244666ae68cdc780100080480411199ab9a3370e00400201000e266ae712401024c630000413357389201024c370000313357389201024c64000021220021220012001235006353002335738921024c6700003498480048004448848cc00400c008448004498448c8c00400488cc00cc0080080050482d87a80d87980f5f6"
+        , unsafeFromHex "00018183581d714d72cf569a339a18a7d9302313983f56e0d96cd45bdcb1d6512dca6a1a001e848058208392f0c940435c06888f9bdb8c74a95dc69f156367d6a089cf008ae05caae01e0200a20381591b72591b6f01000033233332222333322223322332232323332223233322232333333332222222232333222323333222232323322323332223233322232323322332232323333322222332233223322332233223322223223223232533530333330083333573466e1d40192004204f23333573466e1d401d2002205123333573466e1d40212000205323504b35304c3357389201035054310004d49926499263333573466e1d40112004205323333573466e1d40152002205523333573466e1d40192000205723504b35304c3357389201035054310004d49926499263333573466e1cd55cea8012400046601664646464646464646464646666ae68cdc39aab9d500a480008cccccccccc064cd409c8c8c8cccd5cd19b8735573aa004900011980f981d1aba15002302c357426ae8940088d4164d4c168cd5ce2481035054310005b49926135573ca00226ea8004d5d0a80519a8138141aba150093335502e75ca05a6ae854020ccd540b9d728169aba1500733502704335742a00c66a04e66aa0a8098eb4d5d0a8029919191999ab9a3370e6aae754009200023350213232323333573466e1cd55cea80124000466a05266a084eb4d5d0a80118239aba135744a00446a0ba6a60bc66ae712401035054310005f49926135573ca00226ea8004d5d0a8011919191999ab9a3370e6aae7540092000233502733504275a6ae854008c11cd5d09aba2500223505d35305e3357389201035054310005f49926135573ca00226ea8004d5d09aba2500223505935305a3357389201035054310005b49926135573ca00226ea8004d5d0a80219a813bae35742a00666a04e66aa0a8eb88004d5d0a801181c9aba135744a00446a0aa6a60ac66ae71241035054310005749926135744a00226ae8940044d5d1280089aba25001135744a00226ae8940044d5d1280089aba25001135573ca00226ea8004d5d0a8011919191999ab9a3370ea00290031180f181d9aba135573ca00646666ae68cdc3a801240084603a608a6ae84d55cf280211999ab9a3370ea00690011180e98181aba135573ca00a46666ae68cdc3a80224000460406eb8d5d09aab9e50062350503530513357389201035054310005249926499264984d55cea80089baa001357426ae8940088d4124d4c128cd5ce249035054310004b49926104a1350483530493357389201035054350004a4984d55cf280089baa001135573a6ea80044d55ce9baa0012212330010030022001222222222212333333333300100b00a00900800700600500400300220012212330010030022001122123300100300212001122123300100300212001122123300100300212001212222300400521222230030052122223002005212222300100520011232230023758002640026aa078446666aae7c004940388cd4034c010d5d080118019aba200203323232323333573466e1cd55cea801a4000466600e6464646666ae68cdc39aab9d5002480008cc034c0c4d5d0a80119a8098169aba135744a00446a06c6a606e66ae71241035054310003849926135573ca00226ea8004d5d0a801999aa805bae500a35742a00466a01eeb8d5d09aba25002235032353033335738921035054310003449926135744a00226aae7940044dd50009110919980080200180110009109198008018011000899aa800bae75a224464460046eac004c8004d540d888c8cccd55cf80112804919a80419aa81898031aab9d5002300535573ca00460086ae8800c0b84d5d08008891001091091198008020018900089119191999ab9a3370ea002900011a80418029aba135573ca00646666ae68cdc3a801240044a01046a0526a605466ae712401035054310002b499264984d55cea80089baa001121223002003112200112001232323333573466e1cd55cea8012400046600c600e6ae854008dd69aba135744a00446a0466a604866ae71241035054310002549926135573ca00226ea80048848cc00400c00880048c8cccd5cd19b8735573aa002900011bae357426aae7940088d407cd4c080cd5ce24810350543100021499261375400224464646666ae68cdc3a800a40084a00e46666ae68cdc3a8012400446a014600c6ae84d55cf280211999ab9a3370ea00690001280511a8111a981199ab9c490103505431000244992649926135573aa00226ea8004484888c00c0104488800844888004480048c8cccd5cd19b8750014800880188cccd5cd19b8750024800080188d4068d4c06ccd5ce249035054310001c499264984d55ce9baa0011220021220012001232323232323333573466e1d4005200c200b23333573466e1d4009200a200d23333573466e1d400d200823300b375c6ae854014dd69aba135744a00a46666ae68cdc3a8022400c46601a6eb8d5d0a8039bae357426ae89401c8cccd5cd19b875005480108cc048c050d5d0a8049bae357426ae8940248cccd5cd19b875006480088c050c054d5d09aab9e500b23333573466e1d401d2000230133016357426aae7940308d407cd4c080cd5ce2481035054310002149926499264992649926135573aa00826aae79400c4d55cf280109aab9e500113754002424444444600e01044244444446600c012010424444444600a010244444440082444444400644244444446600401201044244444446600201201040024646464646666ae68cdc3a800a400446660106eb4d5d0a8021bad35742a0066eb4d5d09aba2500323333573466e1d400920002300a300b357426aae7940188d4040d4c044cd5ce2490350543100012499264984d55cea80189aba25001135573ca00226ea80048488c00800c888488ccc00401401000c80048c8c8cccd5cd19b875001480088c018dd71aba135573ca00646666ae68cdc3a80124000460106eb8d5d09aab9e500423500a35300b3357389201035054310000c499264984d55cea80089baa001212230020032122300100320011122232323333573466e1cd55cea80124000466aa016600c6ae854008c014d5d09aba25002235007353008335738921035054310000949926135573ca00226ea8004498480048004448848cc00400c008448004488800c488800848880048004488800c488800848880048004448c8c00400488cc00cc008008004c8c8cc88cc88c8ccc888c8c8c8c8c8ccc888ccc888ccc888c8cccc8888c8cc88c8cccc8888c8cc88c8cc88c8ccc888c8c8cc88c8c8cc88c8c8c8cccc8888c8c8c8c8c8cc88c8cc88cc88ccccccccccccc8888888888888c8c8c8c8c8cccccccc88888888cc88cc88cc88cc88c8ccccc88888c8cc88cc88cc88c8cc88cc88cc88c8cc88c8c8c8cccc8888cccc8888c8888d4d540400108888c8c8c94cd4c24004ccc0140280240205400454cd4c24004cd5ce249025331000910115001109101153353508101003215335309001333573466e1cccc109400cd4c07800488004c0580212002092010910115002153353090013357389201025332000910115002109101150011533535080013300533501b00833303e03f5001323355306012001235355096010012233550990100233553063120012353550990100122335509c0100233704900080080080099a809801180a003003909a9aa84a8080091911a9a80f00091299a984a0098050010a99a984a00999aa9837090009a835283491a9aa84d8080091199aa9838890009a836a83611a9aa84f0080091199ab9a3370e900000084e0084d808008008a8020a99a984a0099ab9c49102533300095011500410950113535501e00522253353097013333355027253335301400113374a90001bb14984cdd2a40046ec52613374a90021bb149800c008c8cd400541d141d4488cc008cd40ac01cccc124128018cd4078034c07c04400403c4264044cd5ce249025335000980113535501a0012225335309301333335502325301d00100300200100b109501133573892010253340009401133573892010253360008f0113530220052235302d002222222222253353508b013303000a00b2135303a0012235303e0012220021350a10135309d0133573892010253300009e01498cccd5403488d4d404c008894ccd4c02400c54ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f054ccd4c01400854ccd4c02400c541f04d41f4cd542400554034cd405801c004541f054ccd4c02400c4d41f4cd542400554034cd4058020004541f0541f0541f04d41f4cd542400554034cd4058019419894ccd4c008004421c04421c044220048882280541e0488800c488800848880048004488800c48880084888004800444ccd5401d416541654164494cd4d41b8004848cd4168cd5421404d4c03000888004cd4168cd54214040052002505b505b12505a235355081013530100012235301b00222222222225335350793301e00a00b213530280012235302c00122235303100322335308701002230930116253353508201004213355098010020011309301161308a01162200211222212333300100500400300211200120011122212333001004003002112001122123300100300212001221233001003002200111222225335307533355304f120013504b504a235300b002223301500200300415335307533355304f120013504b504a235300b002223530160022222222222353501500d22533530840133355305e120013505450562353025001223304b00200400c10860113357389201024c30000850100315335307533355304f120013504b504a235300b002223530160022222222222353501300d22533530840133355305e12001350545056235302700122253353507a00121533530890133305108501003006153353507b330623019007009213308501001002108a01108a011089015335350763301b00c00d2135302500122353029001222333553055120012235302e00222235303300822353035005225335309301333308401004003002001133506f0090081008506701113508c01353088013357389201024c6600089014984218044cd5ce2481024c3100085010021077150741507415074122123300100300212001122123300100300212001221233001003002200122533335300300121505f21505f21505f2133355304612001504a235300d001225335306f3303300200413506300315062003212222300400521222230030052122223002005212222300100520013200135506c22233333333333353019001235300500322222222225335307153353506333355304b12001504f253353072333573466e3c0300041d01cc4d41980045419400c841d041c841cc4cd5ce249024c340007222353006004222222222253353506453353506433355304c1200150502353550790012253353075333573466e3c00803c1dc1d84d41a400c541a000884d419cd4d541e40048800454194854cd4c1ccccd5cd19baf00100c0750741075150701506f235300500322222222225335307133355304b120013504150432333573466ebc0300041d01cccd54c108480048d4d541e00048800400841cc4cd5ce249024c320007222225335306a333573466e1cd4c0200188888888888ccc09801c0380300041b01ac41b04cd5ce2481024c390006b22235300700522222222225335307333355304d1200135043504523530160012225335350690012153353078333040074003010153353506a35301601422222222223305b01b0022153353079333573466e3c0040081ec1e84d4c07401488cccc1b0008004c1d005541b841e841e441e441e002441d44cd5ce249024c6200074225335306833303002f0013335530331200150175045353006004222222222233355303d120012235301600222235301b00322335307100225335307a333573466e3c0500041f01ec4cd415801401c401c801d413c02441a84cd5ce2481024c610006925335306733302f02e001353005003222222222233355304b12001501f235301400122200200910691335738921024c36000682533530673335530411200135037503923300500400100110691335738921024c640006825335306733302f02e001353005003222222222233355304b12001501f23530120012235301600122200200a106913357389201024c35000682353005003222222222253353506333355304b12001504f235301200122533530743303800200e1350680031506700a213530120012235301600122253353506900121507610791506f22353006004222222222253353506433355304c120015050235301300122533530753303900200f1350690031506800a2107513357389201024c380007323530050032222222222353503100b22353503500222353503500822353503900222533530793333333222222253335306d33350640070060031533530800100215335308001005133350610070010041081011333506100700100410810113335061007001004333333335064075225335307b333573466e1c0080041f41f041ac54cd4c1ecccd5cd19b8900200107d07c1069106a22333573466e200080041f41f010088ccd5cd19b8900200107c07d22333573466e200080041f01f4894cd4c1ecccd5cd19b8900200107d07c10011002225335307b333573466e240080041f41f04008400401801401c00800400c41ec4cd5ce249024c330007a222222222212333333333300100b00a009008007006005004003002200122123300100300220012221233300100400300220012212330010030022001212222222300700822122222223300600900821222222230050081222222200412222222003221222222233002009008221222222233001009008200113350325001502f13001002222335530241200123535505a00122335505d002335530271200123535505d001223355060002333535502500123300a4800000488cc02c0080048cc02800520000013301c00200122337000040024446464600200a640026aa0b64466a6a05e0029000111a9aa82e00111299a982c199ab9a3371e0040120b40b22600e0022600c006640026aa0b44466a6a05c0029000111a9aa82d80111299a982b999ab9a3371e00400e0b20b020022600c00642444444444444601801a4424444444444446601601c01a42444444444444601401a44442444444444444666601202001e01c01a444244444444444466601001e01c01a4424444444444446600e01c01a42444444444444600c01a42444444444444600a01a42444444444444600801a42444444444444600601a4424444444444446600401c01a42444444444444600201a400224424660020060042400224424660020060042400244a66a607c666ae68cdc79a9801801110011a98018009100102001f8999ab9a3370e6a6006004440026a60060024400208007e207e442466002006004400244666ae68cdc480100081e81e111199aa980a890009a808a80811a9aa82100091199aa980c090009a80a280991a9aa82280091199a9aa8068009198052400000244660160040024660140029000000998020010009119aa98050900091a9aa8200009119aa821801199a9aa804000919aa98070900091a9aa8220009119aa8238011aa80780080091199aaa80401c801000919aa98070900091a9aa8220009119aa8238011aa806800800999aaa80181a001000888911199aa980209000a80a99aa98050900091a9aa8200009119aa8218011aa805800999aa980209000911a9aa82080111299a981e999aa980b890009a806a80791a9aa82200091198050010028030801899a80c802001a80b00099aa98050900091a9aa820000911919aa8220019800802990009aa82291299a9a80c80089aa8058019109a9aa82300111299a982119806001004099aa80800380089803001801190009aa81f1108911299a9a80a800880111099802801199aa980389000802802000889091118018020891091119801002802089091118008020890008919a80891199a9a803001910010010009a9a80200091000990009aa81c110891299a9a8070008a80811099a808980200119aa980309000802000899a80111299a981800108190800817891091980080180109000899a80191299a9816801080088170168919a80591199a9a802001910010010009a9a8010009100089109198008018010900091299a9a80d999aa980189000a80391a9aa81800091299a9816199ab9a3375e00200a05c05a26a0400062a03e002426a03c6a6aa060002440042a038640026aa05e4422444a66a6a00c00226a6a01400644002442666a6a01800a440046008004666aa600e2400200a00800222440042442446600200800624002266a00444a66a6a02c004420062002a02a24424660020060042400224446a6a008004446a6a00c00644a666a6026666a01400e0080042a66a604c00620022050204e2050244246600200600424002244464646464a666a6a01000c42a666a6a01200c42a666a6a0140104260082c260062c2a666a6a01400e4260082c260062c202a20262a666a6a01200e4260082c260062c2a666a6a01200c4260082c260062c20282a666a6a01000a42024202620222a666a6a01000a42a666a6a01200e42600a2c260082c2a666a6a01200c42600a2c260082c202820242a666a6a01000c42600a2c260082c2a666a6a01000a42600a2c260082c20264a666a6a01000a42a666a6a01200e42a666a6a01400e42666a01e014004002260222c260222c260202c20262a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c202420224a666a6a00e00842a666a6a01000c42a666a6a01200c42666a01c012004002260202c260202c2601e2c20242a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c202220204a666a6a00c00642a666a6a00e00a42a666a6a01000a42666a01a0100040022601e2c2601e2c2601c2c20222a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c2020201e4a666a6a00a00442a666a6a00c00842a666a6a00e00842666a01800e0040022601c2c2601c2c2601a2c20202a666a6a00a00642a666a6a00c00642666a01600c0040022601a2c2601a2c260182c201e201c2424446006008224440042244400224002246a6a0040024444444400e244444444246666666600201201000e00c00a008006004240024c244400624440042444002400244446466a601800a466a601a0084a66a602c666ae68cdc780100080c00b8a801880b900b919a9806802100b9299a980b199ab9a3371e00400203002e2a006202e2a66a6a00a00642a66a6a00c0044266a6014004466a6016004466a601e004466a60200044660280040024034466a6020004403446602800400244403444466a601a0084034444a66a6036666ae68cdc380300180e80e0a99a980d999ab9a3370e00a00403a03826602e00800220382038202a2a66a6a00a0024202a202a2424460040062244002240024244600400644424466600200a00800640024244600400642446002006400244666ae68cdc780100080480411199ab9a3370e00400201000e266ae712401024c630000413357389201024c370000313357389201024c64000021220021220012001235006353002335738921024c6700003498480048004448848cc00400c008448004498448c8c00400488cc00cc0080080050482d87a80d87980f5f6"
         ]
     , extraUTxO =
         Write.unsafeUtxoFromTxOutsInRecentEra
@@ -2130,8 +2151,7 @@ pingPong_2 = PartialTx
                   [ "714d72cf569a339a18a7d93023139"
                   , "83f56e0d96cd45bdcb1d6512dca6a"
                   ])
-              (Convert.toLedgerTokenBundle
-                  $ W.TokenBundle.fromCoin $ W.Coin 2_000_000)
+              (ada 2)
               (Write.DatumHash
                   $ fromJust
                   $ Write.datumHashFromBytes
@@ -2171,8 +2191,8 @@ signedTxTestData = do
     goldenIx :: FilePath -> Maybe Int
     goldenIx = readMaybe . takeWhile isDigit
 
-testParameter_coinsPerUTxOByte_Babbage :: Ledger.CoinPerByte
-testParameter_coinsPerUTxOByte_Babbage
+testParameter_coinsPerUTxOByte :: Ledger.CoinPerByte
+testParameter_coinsPerUTxOByte
     = Ledger.CoinPerByte $ Coin 4_310
 
 testStdGenSeed :: StdGenSeed
@@ -2561,22 +2581,21 @@ instance Buildable AnyChangeAddressGenWithState where
 
 -- CSV with the columns: wallet_balance,(fee,minfee | error)
 instance Buildable BalanceTxGolden where
-    build (BalanceTxGoldenFailure c err) = mconcat
-        [ build c
-        , ","
-        , build (T.pack err)
-        ]
-    build (BalanceTxGoldenSuccess c fee minfee) = mconcat
-        [ build c
-        , ","
-        , lovelaceF fee
-        , ","
-        , lovelaceF minfee
-        ]
+    build = \case
+        BalanceTxGoldenFailure c err -> mconcat
+            [ lovelaceF c
+            , ","
+            , build (T.pack err)
+            ]
+        BalanceTxGoldenSuccess c fee minfee -> mconcat
+            [ lovelaceF c
+            , ","
+            , lovelaceF fee
+            , ","
+            , lovelaceF minfee
+            ]
       where
-        lovelaceF (Coin l)
-            | l < 0     = "-" <> pretty (W.Coin.unsafeFromIntegral (-l))
-            | otherwise = pretty (W.Coin.unsafeFromIntegral l)
+        lovelaceF (Coin c) = fixedF 6 (fromIntegral c / 1e6 :: Double)
 
 instance IsRecentEra era => Buildable (Wallet era) where
     build (Wallet assumptions utxo changeAddressGen) =
