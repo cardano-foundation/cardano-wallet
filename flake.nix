@@ -178,6 +178,7 @@
             collectChecks
             check;
 
+          mithrilPackages = mithril.packages.${system};
           nodePackages = cardano-node-runtime.packages.${system};
           nodeProject = cardano-node-runtime.project.${system};
           nodeConfigs = lib.fileset.toSource {
@@ -190,6 +191,7 @@
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
               nodePackages
+              mithrilPackages
             ).appendModule [{
             gitrev =
               if config.gitrev != null
