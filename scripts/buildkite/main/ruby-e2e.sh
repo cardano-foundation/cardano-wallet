@@ -1,11 +1,6 @@
 #! /usr/bin/env bash
 
-set -euo pipefail
-
-####################
-# Prerequisites
-####################
-
+set -euox pipefail
 
 # absolutize paths
 
@@ -18,7 +13,6 @@ export CARDANO_NODE_CONFIGS
 ####################
 # Provide the binaries
 ####################
-
 
 # needed by rake
 TESTS_E2E_BINDIR=$(mktemp -d /tmp/bins-XXXXXX)
@@ -43,6 +37,8 @@ if [ -n "${BUILDKITE:-}" ]; then
     buildkite-agent artifact download "$cardano_wallet_tar" "."
     tar xvzf "$cardano_wallet_tar"
     cp -R "$cardano_wallet_segment"/* "$TESTS_E2E_BINDIR"
+    CARDANO_NODE_CONFIGS="$TESTS_E2E_BINDIR/configs/cardano"
+    export CARDANO_NODE_CONFIGS
 else
     # link the binaries to the temp dir in a loop
     for binary in cardano-node cardano-wallet cardano-cli mithril-client; do
