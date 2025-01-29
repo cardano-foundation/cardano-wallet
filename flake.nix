@@ -116,11 +116,12 @@
     };
     customConfig.url = "github:input-output-hk/empty-flake";
     cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.1.4";
+    mithril.url = "github:input-output-hk/mithril?ref=2450.0";
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
               haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
-               ... }:
+              mithril , ... }:
     let
       # Import libraries
       lib = import ./nix/lib.nix nixpkgs.lib;
@@ -177,6 +178,7 @@
             collectChecks
             check;
 
+          mithrilPackages = mithril.packages.${system};
           nodePackages = cardano-node-runtime.packages.${system};
           nodeProject = cardano-node-runtime.project.${system};
           nodeConfigs = lib.fileset.toSource {
@@ -189,6 +191,7 @@
               pkgs.haskell-nix
               nixpkgs-unstable.legacyPackages.${system}
               nodePackages
+              mithrilPackages
             ).appendModule [{
             gitrev =
               if config.gitrev != null

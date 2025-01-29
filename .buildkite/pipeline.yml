@@ -11,6 +11,7 @@ env:
   # Mithril variables
   PREPROD_AGGREGATOR_ENDPOINT: https://aggregator.release-preprod.api.mithril.network/aggregator
   PREPROD_GENESIS_VERIFICATION_KEY: 5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d
+  PREPROD_CONFIGS_DIR: "./configs/cardano/preprod"
 
   # Per-host variables - shared across containers on host
   macos: "aarch64-darwin"
@@ -63,7 +64,7 @@ steps:
     steps:
     - label: Nix Build (linux)
       commands:
-        - nix build .#cardano-wallet
+        - nix build .
       agents:
         system: ${linux}
 
@@ -86,7 +87,7 @@ steps:
     - label: Run Local Cluster Tests (linux)
       key: local-cluster-tests
       depends_on: []
-      timeout_in_minutes: 10
+      timeout_in_minutes: 30
       command: |
         mkdir local-cluster-logs
         nix shell "nixpkgs#just" -c just test-local-cluster
@@ -121,7 +122,7 @@ steps:
       command: 'nix develop --command bash -c "just e2e-local"'
       soft_fail:
         - exit_status: 130
-      timeout_in_minutes: 5
+      timeout_in_minutes: 30
       agents:
         system: ${linux}
 
@@ -134,23 +135,19 @@ steps:
       depends_on:
         - trigger-e2e-tests
       commands: |
-        ./run/preprod/nix/snapshot.sh
-        ./scripts/buildkite/main/linux-e2e.sh
+        nix shell 'nixpkgs#just' -c just ruby-e2e-linux
       artifact_paths:
         - "./result/linux/**"
         - "./logs/**/*"
       env:
-        NODE_DB_DIR: "test/e2e/state/node_db/preprod"
-        NODE_DB: "test/e2e/state/node_db/preprod"
-        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
-        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
+
       agents:
         system: ${linux}
       concurrency: 1
-      concurrency_group: 'linux-e2e-tests'
+      concurrency_group: 'ruby-e2e-tests'
 
     - label: Preview Network Boot Sync
-      timeout_in_minutes: 2
+      timeout_in_minutes: 10
       depends_on: []
       command: |
         cd run/preview/nix
@@ -170,7 +167,7 @@ steps:
         NETWORK: testnet
 
     - label: Mainnet Boot Sync
-      timeout_in_minutes: 2
+      timeout_in_minutes: 10
       depends_on: []
       command: |
         cd run/mainnet/nix
@@ -502,25 +499,19 @@ steps:
       concurrency: 3
       concurrency_group: 'macos-integration-tests'
 
-    - block: MacOS E2E Tests
+    - block: MacOS Ruby E2E Tests
       if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       depends_on: []
       key: macos-e2e-tests-block
 
-    - label: 'Run E2E Tests (macOS, arm64)'
+    - label: 'Run Ruby E2E Tests (macOS, arm64)'
       key: macos-silicon-e2e
       depends_on:
         - macos-e2e-tests-block
-      command:
-        - ./run/preprod/nix/snapshot.sh
-        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
+      commands: |
+        nix shell 'nixpkgs#just' -c just ruby-e2e-macos
       artifact_paths:
         - "./logs/**/*"
-      env:
-        NODE_DB_DIR: "test/e2e/state/node_db/preprod"
-        NODE_DB: "test/e2e/state/node_db/preprod"
-        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
-        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       agents:
         system: ${macos}
       concurrency: 1

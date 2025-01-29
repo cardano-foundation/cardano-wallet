@@ -70,8 +70,8 @@ sed -i "s|WALLET_TAG=.*|WALLET_TAG=$NEW_CABAL_VERSION|g" README.md
 sed -i "s|WALLET_VERSION=.*|WALLET_VERSION=$NEW_GIT_TAG|g" README.md
 git commit -am "Update cardano-wallet version in README.md"
 
-sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/linux-e2e.sh
-git commit -am "Update cardano-wallet version in linux-e2e.sh"
+sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/ruby-e2e.sh
+git commit -am "Update cardano-wallet version in ruby-e2e.sh"
 sed -i "s|$OLD_GIT_TAG|$NEW_GIT_TAG|g" scripts/buildkite/main/macos-silicon-e2e.sh
 git commit -am "Update cardano-wallet version in macos-silicon-e2e.sh"
 
