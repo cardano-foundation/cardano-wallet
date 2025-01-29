@@ -135,17 +135,12 @@ steps:
       depends_on:
         - trigger-e2e-tests
       commands: |
-        nix develop ./test/e2e -c ./scripts/buildkite/main/ruby-e2e.sh
+        nix shell 'nixpkgs#just' -c just ruby-e2e-linux
       artifact_paths:
         - "./result/linux/**"
         - "./logs/**/*"
       env:
-        # FIXTURE_DECRYPTION_KEY is defined in the buildkite pipeline environment
-        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
-        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
-        RUBY_TEST_DIR: "test/e2e"
-        CARDANO_NODE_CONFIGS: "${PREPROD_CONFIGS_DIR}"
-        PLATFORM: "linux"
+
       agents:
         system: ${linux}
       concurrency: 1
@@ -514,16 +509,9 @@ steps:
       depends_on:
         - macos-e2e-tests-block
       commands: |
-        nix develop --system x86_64-darwin ./test/e2e -c ./scripts/buildkite/main/ruby-e2e.sh
+        nix shell 'nixpkgs#just' -c just ruby-e2e-macos
       artifact_paths:
         - "./logs/**/*"
-      env:
-        # FIXTURE_DECRYPTION_KEY is defined in the buildkite pipeline environment
-        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
-        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
-        RUBY_TEST_DIR: "test/e2e"
-        CARDANO_NODE_CONFIGS: "${PREPROD_CONFIGS_DIR}"
-        PLATFORM: "macos-silicon"
       agents:
         system: ${macos}
       concurrency: 1

@@ -2721,12 +2721,12 @@
       },
       "locked": {
         "lastModified": 0,
-        "narHash": "sha256-838+iSDClgUourBh4RpeMz/1/KmI5xUpTpJkvGsVaSQ=",
-        "path": "/nix/store/9ixmdi0pk09g9vl6g2kfwkzkirw2zap9-source",
+        "narHash": "sha256-1S2s6SsDdUlXwu00wmYlW1IwQxkrhaC5PXVEmd08WNA=",
+        "path": "/nix/store/fz0xaazf0rzqy47far7cg8acdzypyhzv-source",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/9ixmdi0pk09g9vl6g2kfwkzkirw2zap9-source",
+        "path": "/nix/store/fz0xaazf0rzqy47far7cg8acdzypyhzv-source",
         "type": "path"
       }
     },
