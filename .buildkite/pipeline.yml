@@ -145,6 +145,7 @@ steps:
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
         RUBY_TEST_DIR: "test/e2e"
         CARDANO_NODE_CONFIGS: "${PREPROD_CONFIGS_DIR}"
+        PLATFORM: "linux"
       agents:
         system: ${linux}
       concurrency: 1
@@ -503,25 +504,26 @@ steps:
       concurrency: 3
       concurrency_group: 'macos-integration-tests'
 
-    - block: MacOS E2E Tests
+    - block: MacOS Ruby E2E Tests
       if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       depends_on: []
       key: macos-e2e-tests-block
 
-    - label: 'Run E2E Tests (macOS, arm64)'
+    - label: 'Run Ruby E2E Tests (macOS, arm64)'
       key: macos-silicon-e2e
       depends_on:
         - macos-e2e-tests-block
-      command:
-        - ./run/preprod/nix/snapshot.sh
-        - nix develop path:./scripts/buildkite/release -c ./scripts/buildkite/main/macos-silicon-e2e.sh
+      commands: |
+        nix develop --system x86_64-darwin ./test/e2e -c ./scripts/buildkite/main/linux-e2e.sh
       artifact_paths:
         - "./logs/**/*"
       env:
-        NODE_DB_DIR: "test/e2e/state/node_db/preprod"
-        NODE_DB: "test/e2e/state/node_db/preprod"
+        # FIXTURE_DECRYPTION_KEY is defined in the buildkite pipeline environment
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
+        RUBY_TEST_DIR: "test/e2e"
+        CARDANO_NODE_CONFIGS: "${PREPROD_CONFIGS_DIR}"
+        PLATFORM: "macos-silicon"
       agents:
         system: ${macos}
       concurrency: 1

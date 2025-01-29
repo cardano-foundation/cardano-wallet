@@ -16,8 +16,9 @@ CARDANO_NODE_CONFIGS=$(realpath "$CARDANO_NODE_CONFIGS")
 export CARDANO_NODE_CONFIGS
 
 ####################
-# Setup the binaries
+# Provide the binaries
 ####################
+
 
 # needed by rake
 TESTS_E2E_BINDIR=$(mktemp -d /tmp/bins-XXXXXX)
@@ -27,10 +28,21 @@ if [ -n "${BUILDKITE:-}" ]; then
     CURRENT_VERSION=v2025-01-09
     VERSION=$(buildkite-agent meta-data get "release-version" --default "$CURRENT_VERSION")
     echo "VERSION=$VERSION"
-    buildkite-agent artifact \
-        download "result/linux/cardano-wallet-$VERSION-linux64.tar.gz" "."
-    tar xvzf "result/linux/cardano-wallet-$VERSION-linux64.tar.gz"
-    cp -R "cardano-wallet-$VERSION-linux64"/* "$TESTS_E2E_BINDIR"
+    if [ "$PLATFORM" = "linux" ]; then
+        cardano_wallet_dir="linux"
+        cardano_wallet_segment="cardano-wallet-$VERSION-linux64"
+    elif [ "$PLATFORM" = "macos-silicon" ]; then
+        cardano_wallet_dir="$PLATFORM"
+        cardano_wallet_segment="cardano-wallet-$VERSION-$PLATFORM"
+    else
+        echo "Unsupported platform: $PLATFORM"
+        exit 1
+    fi
+    cardano_wallet_tar="result/$cardano_wallet_dir/$cardano_wallet_segment.tar.gz"
+
+    buildkite-agent artifact download "$cardano_wallet_tar" "."
+    tar xvzf "$cardano_wallet_tar"
+    cp -R "$cardano_wallet_segment"/* "$TESTS_E2E_BINDIR"
     ls -la "$TESTS_E2E_BINDIR"
 else
     # link the binaries to the temp dir in a loop
