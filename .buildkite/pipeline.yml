@@ -135,7 +135,7 @@ steps:
       depends_on:
         - trigger-e2e-tests
       commands: |
-        nix develop ./test/e2e -c ./scripts/buildkite/main/linux-e2e.sh
+        nix develop ./test/e2e -c ./scripts/buildkite/main/ruby-e2e.sh
       artifact_paths:
         - "./result/linux/**"
         - "./logs/**/*"
@@ -149,7 +149,7 @@ steps:
       agents:
         system: ${linux}
       concurrency: 1
-      concurrency_group: 'linux-e2e-tests'
+      concurrency_group: 'ruby-e2e-tests'
 
     - label: Preview Network Boot Sync
       timeout_in_minutes: 2
@@ -514,7 +514,7 @@ steps:
       depends_on:
         - macos-e2e-tests-block
       commands: |
-        nix develop --system x86_64-darwin ./test/e2e -c ./scripts/buildkite/main/linux-e2e.sh
+        nix develop --system x86_64-darwin ./test/e2e -c ./scripts/buildkite/main/ruby-e2e.sh
       artifact_paths:
         - "./logs/**/*"
       env:
