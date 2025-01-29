@@ -12,6 +12,8 @@ import Buildkite.API
     , Build (branch, jobs, number)
     , Job (finished_at)
     , Time (Time)
+    , bailout
+    , skip410
     )
 import Buildkite.Artifacts.CSV
     ( fetchCSVArtifactContent
@@ -28,9 +30,7 @@ import Buildkite.Connection
     ( Connector
     , OrganizationName (..)
     , PipelineName (..)
-    , bailout
     , newConnector
-    , skip410
     )
 import Buildkite.LimitsLock
     ( LimitsLockLog (..)

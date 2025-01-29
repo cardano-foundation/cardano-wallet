@@ -2,7 +2,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -29,6 +31,14 @@ module Buildkite.API
     , newLimitsLock
     , LimitsLock
     , withLimitsLock
+    , jobNameContains
+    , deleteJobLog
+    , HandleClientError (..)
+    , bailout
+    , skip410
+    , skip400
+    , handleClientError
+    , Skipping (..)
     )
 where
 
@@ -72,17 +82,30 @@ import Servant.API
     , Header
     , Headers (getResponse)
     , JSON
+    , NoContent
     , QueryParam
     , ResponseHeader (..)
+    , StdMethod (..)
+    , Verb
     , lookupResponseHeader
     , (:>)
     )
 import Servant.Client
-    ( ClientM
+    ( ClientError (..)
+    , ClientM
+    , ResponseF (..)
     , client
+    )
+import Text.Regex.TDFA
+    ( (=~)
     )
 
 import qualified Data.Text as T
+import Network.HTTP.Types
+    ( Status
+    , status400
+    , status410
+    )
 
 newtype Time = Time
     { time :: UTCTime
@@ -111,6 +134,12 @@ data Job = Job
 
 instance FromJSON Job
 instance ToJSON Job
+
+-- Function to check if a job name matches a regex
+jobNameContains :: Text -> Job -> Bool
+jobNameContains regex (Job _ (Just job) _ _ _) =
+    job =~ T.unpack regex
+jobNameContains _ _ = False
 
 jobId :: Job -> Text
 jobId (Job i _ _ _ _) = i
@@ -206,11 +235,17 @@ type GetArtifact mime content =
             :> Get '[mime] content
         )
 
-type WithLockingAuthPipeline a = WithLocking (Maybe Text -> Text -> Text -> a)
-type WithLocking a = LimitsLock -> a
-type WithAuthPipeline a =  Maybe Text -> Text -> Text -> a
+type DeleteJobLog =
+    PreambleJobs
+        ("log" :> Verb 'DELETE 204 '[] (BuildKiteHeaders NoContent))
 
-respectLimits :: HasCallStack => LimitsLock -> BuildKiteHeaders o -> ClientM o
+type WithLockingAuthPipeline a =
+    WithLocking (Maybe Text -> Text -> Text -> a)
+type WithLocking a = LimitsLock -> a
+type WithAuthPipeline a = Maybe Text -> Text -> Text -> a
+
+respectLimits
+    :: HasCallStack => LimitsLock -> BuildKiteHeaders o -> ClientM o
 respectLimits l r = do
     let remaining = case lookupResponseHeader r
                             :: ResponseHeader "RateLimit-Remaining" Int of
@@ -223,7 +258,11 @@ respectLimits l r = do
     liftIO $ setLimit l remaining reset
     pure $ getResponse r
 
-withLimitsLock :: HasCallStack => LimitsLock -> ClientM (BuildKiteHeaders b) -> ClientM b
+withLimitsLock
+    :: HasCallStack
+    => LimitsLock
+    -> ClientM (BuildKiteHeaders b)
+    -> ClientM b
 withLimitsLock l f = do
     liftIO $ checkLimit l
     r <- f
@@ -241,6 +280,12 @@ fetchBuildsOfBranch
 fetchBuildsOfBranch l ma o r mb mc =
     withLimitsLock l $ client (Proxy @GetBuildsOfBranch) ma o r mb mc
 
+deleteJobLog
+    :: WithLockingAuthPipeline (Int -> Text -> ClientM NoContent)
+deleteJobLog l ma o r b j =
+    withLimitsLock l
+        $ client (Proxy @DeleteJobLog) ma o r b j
+
 fetchArtifacts
     :: WithLockingAuthPipeline
         (Int -> Maybe Int -> ClientM [Artifact])
@@ -250,3 +295,39 @@ fetchArtifacts l ma o r bn mp = do
 type RateLimitRemaining = Header "RateLimit-Remaining" Int
 type RateLimitReset = Header "RateLimit-Reset" Int
 type BuildKiteHeaders = Headers '[RateLimitRemaining, RateLimitReset]
+
+newtype HandleClientError
+    = HandleClientError
+        (forall a. IO (Either ClientError a) -> IO (Maybe a))
+
+data SkipOrAbort = Skip | Abort
+
+newtype Skipping = Skipping (ClientError -> SkipOrAbort)
+instance Semigroup Skipping where
+    Skipping f <> Skipping g = Skipping $ \e -> case f e of
+        Skip -> Skip
+        Abort -> g e
+
+bailout :: Skipping
+bailout = Skipping $ const Abort
+
+handleClientError :: Skipping -> HandleClientError
+handleClientError (Skipping g) = HandleClientError $ \f -> do
+    res <- f
+    case res of
+        Left e -> case g e of
+            Abort -> error $ show e
+            Skip -> pure Nothing
+        Right a -> pure $ Just a
+
+skippingStatus :: Status -> Skipping
+skippingStatus s = Skipping $ \case
+    FailureResponse _ (Response s' _ _ _)
+        | s == s' -> Skip
+    _ -> Abort
+
+skip410 :: Skipping
+skip410 = skippingStatus status410
+
+skip400 :: Skipping
+skip400 = skippingStatus status400
