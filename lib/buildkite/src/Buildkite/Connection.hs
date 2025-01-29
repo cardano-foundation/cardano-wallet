@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -13,14 +14,16 @@ module Buildkite.Connection
 
       -- * Error handling
     , HandleClientError (..)
-    , bailout
-    , skip410
-    , handleClientError
     )
 where
 
 import Prelude
 
+import Buildkite.API
+    ( HandleClientError (..)
+    , Skipping (..)
+    , handleClientError
+    )
 import Buildkite.Client
     ( Query (..)
     )
@@ -34,6 +37,9 @@ import Control.Tracer
 import Data.Functor
     ( (<&>)
     )
+import Data.String
+    ( IsString
+    )
 import Data.Text
     ( Text
     )
@@ -46,15 +52,10 @@ import Network.HTTP.Client
 import Network.HTTP.Client.TLS
     ( tlsManagerSettings
     )
-import Network.HTTP.Types
-    ( status410
-    )
 import Servant.Client
     ( BaseUrl (..)
     , ClientEnv
-    , ClientError (..)
     , ClientM
-    , ResponseF (..)
     , Scheme (..)
     , mkClientEnv
     , runClientM
@@ -73,16 +74,17 @@ buildkitePort = 443
 
 -- | The name of the pipeline
 newtype PipelineName = PipelineName Text
+    deriving (IsString)
 
 -- | The name of the organization
 newtype OrganizationName = OrganizationName Text
+    deriving (IsString)
 
 -- | How to handle http client errors
-newtype HandleClientError
-    = HandleClientError (forall a. IO (Either ClientError a) -> IO (Maybe a))
 
 -- | The way to create a query type
-type Connector = OrganizationName -> PipelineName -> HandleClientError -> Query
+type Connector =
+    OrganizationName -> PipelineName -> Skipping -> Query
 
 -- | Create a new connect computer
 newConnector
@@ -105,7 +107,10 @@ newConnector tokenEnvVar lockLimit lockTracer = do
                 action limitsLock (Just $ T.pack apiToken) organizationSlug slug
             withAuthPipeline action =
                 action (Just $ T.pack apiToken) organizationSlug slug
-        in  Query (runQuery h) withLockingAuthPipeline withAuthPipeline
+        in  Query
+                (runQuery $ handleClientError h)
+                withLockingAuthPipeline
+                withAuthPipeline
 
 -- the environment for the buildkite API
 buildkiteEnv :: Manager -> ClientEnv
@@ -126,23 +131,3 @@ stripAuthOnRedirect settings =
                             _ -> False
                     }
         }
-
-data SkipOrAbort = Skip | Abort
-
-bailout :: HandleClientError
-bailout = handleClientError $ const Abort
-
-handleClientError :: (ClientError -> SkipOrAbort) -> HandleClientError
-handleClientError g = HandleClientError $ \f -> do
-    res <- f
-    case res of
-        Left e -> case g e of
-            Abort -> error $ show e
-            Skip -> pure Nothing
-        Right a -> pure $ Just a
-
-skip410 :: HandleClientError
-skip410 = handleClientError $ \case
-    FailureResponse _ (Response s _ _ _)
-        | s == status410 -> Skip
-    _ -> Abort
