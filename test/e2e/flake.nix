@@ -1,13 +1,12 @@
 {
   description = ''
     Shell for the Ruby E2E tests.
-    This shell does *not* include `cardano-wallet` and `cardano-node`,
-    only the Ruby environment.
   '';
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs";
-    flake-utils.url = "github:hamishmack/flake-utils/hkm/nested-hydraJobs";
+    flake-utils.url = "github:numtide/flake-utils";
+    wallet.url = "../..";
   };
 
   outputs = inputs:
@@ -22,7 +21,20 @@
     inputs.flake-utils.lib.eachSystem supportedSystems (system:
       let
         # Imports
-        pkgs = inputs.nixpkgs.legacyPackages.${system};
+        walletPkgs
+          = inputs.wallet.packages.${system};
+        pkgs
+          = inputs.nixpkgs.legacyPackages.${system};
+        mithrilClient
+          = inputs.wallet.inputs.mithril.packages.${system}.mithril-client-cli;
+        cardanoNode
+          = walletPkgs.cardano-node.package.components.exes.cardano-node;
+        cardanoCli
+          = walletPkgs.cardano-cli.package.components.exes.cardano-cli;
+        cardanoAddresses
+          = inputs.wallet.packages.${system}.cardano-address.package.components.exes.cardano-address;
+        cardanoWallet
+          = walletPkgs.cardano-wallet;
 
         # To update gemset.nix, run:
         #   nix develop -c bundix
@@ -42,6 +54,15 @@
             gems.wrappedRuby
             pkgs.bundix
             pkgs.screen
+            pkgs.gnupg
+            pkgs.rsync
+            pkgs.gnutar
+            mithrilClient
+            cardanoNode
+            cardanoCli
+            cardanoAddresses
+            cardanoWallet
+
           ];
           shellHook = ''
             # use this hook to set up additional environment variables
