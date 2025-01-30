@@ -89,7 +89,6 @@ packages:
   lib/wai-middleware-logging/
   lib/wallet-benchmarks/
   lib/wallet/
-  lib/wallet-e2e/
 
 --------------------------------------------------------------------------------
 -- BEGIN OpenAPI

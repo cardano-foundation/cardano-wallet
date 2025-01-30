@@ -72,34 +72,12 @@ unit-tests-local-cluster-match match:
 unit-tests-cabal:
     just unit-tests-cabal-match ""
 
-# run wallet-e2e suite against the preprod network
-e2e-preprod:
-  nix shell \
-    '.#cardano-node' '.#cardano-wallet' '.#e2e' \
-    -c e2e preprod \
-    -s lib/wallet-e2e/test-state/preprod \
-    -c lib/wallet-e2e/config/cardano-node/preprod \
-    -t lib/wallet-e2e/test-output/preprod
-
 # run cardano-wallet-integration:e2e suite against the preprod network
 e2e:
   nix shell '.#cardano-node' '.#cardano-wallet' '.#e2e' -c e2e
 
 add_missing_json_goldens:
     CREATE_MISSING_GOLDEN=1 just unit-tests-cabal-match "JSON"
-
-# run wallet-e2e suite against the local test cluster
-e2e-local:
-  nix shell \
-    '.#local-cluster' '.#cardano-node' '.#cardano-wallet' '.#cardano-wallet-e2e' \
-    -c wallet-e2e local \
-    -s lib/wallet-e2e/test-state/local \
-    -c lib/local-cluster/test/data/cluster-configs \
-    -t lib/wallet-e2e/test-output/local
-
-# run wallet-e2e suite against the manually started node/wallet
-e2e-manual:
-  nix run '.#cardano-wallet-e2e' -- manual
 
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-match match:
