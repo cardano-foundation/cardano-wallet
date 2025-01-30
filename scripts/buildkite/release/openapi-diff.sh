@@ -14,6 +14,8 @@ swagger_tmp=$(mktemp -d)
 swagger_file="specifications/api/swagger.yaml"
 last_release_tag=$(curl -s https://api.github.com/repos/cardano-foundation/cardano-wallet/releases | jq -r '.[0].tag_name')
 
+git fetch --tags --force
+
 git show "$last_release_tag:$swagger_file" > "$swagger_tmp/last-release-swagger.yaml"
 
 mkdir -p artifacts
