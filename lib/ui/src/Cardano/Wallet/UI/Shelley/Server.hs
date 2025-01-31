@@ -4,7 +4,6 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Shelley.Server where
@@ -129,15 +128,14 @@ import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletListH
     )
+import Cardano.Wallet.UI.Static
+    ( favicon
+    )
 import Control.Lens
     ( view
     )
 import Control.Monad.Trans
     ( MonadIO (..)
-    )
-import Data.FileEmbed
-    ( embedFile
-    , makeRelativeToProject
     )
 import Data.Functor
     ( ($>)
@@ -158,8 +156,6 @@ import Servant
     , Server
     , (:<|>) (..)
     )
-
-import qualified Data.ByteString.Lazy as BL
 
 pageHandler
     :: UILayer (Maybe WalletId)
@@ -218,7 +214,7 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> (\w -> wsl (\l -> selectWallet l w $> RawHtml ""))
         :<|> withSessionLayerRead ul (sse . sseConfig)
-        :<|> serveFavicon
+        :<|> pure favicon
   where
     ph = pageHandler ul config
     ok _ = renderHtml . rogerH @Text $ "ok"
@@ -229,9 +225,3 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
-
-serveFavicon :: Handler BL.ByteString
-serveFavicon =
-    pure
-        $ BL.fromStrict
-            $(makeRelativeToProject "data/images/icon.png" >>= embedFile)
