@@ -115,14 +115,14 @@ rootXPrvFromCredentials (XPrvCredentials xprv _) = Just xprv
 
 fromCredentialsAndGenesis
     :: Credentials -> Word31 -> Read.GenesisData -> WalletState
-fromCredentialsAndGenesis credentials knownCustomerCount genesisData =
+fromCredentialsAndGenesis credentials maxCustomer genesisData =
     WalletState
         { walletTip = Read.GenesisPoint
         , addresses =
-            Address.fromXPubAndCount
+            Address.fromXPubAndMax
                 network
                 (accountXPubFromCredentials credentials)
-                knownCustomerCount
+                maxCustomer
         , utxoHistory = UTxOHistory.fromOrigin initialUTxO
         , txHistory = mempty
         , submissions = Sbm.empty

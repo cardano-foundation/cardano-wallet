@@ -170,8 +170,8 @@ data Scenario p a where
 type ScenarioP p m = ProgramT (Scenario p) m
 
 wallet :: Int -> Text -> Text -> ScenarioP p m ()
-wallet users seed passphrase =
-    singleton (ResetWallet users seed passphrase)
+wallet maxCustomer seed passphrase =
+    singleton (ResetWallet maxCustomer seed passphrase)
 
 existsTx :: ScenarioP p m TxI
 existsTx = singleton ExistsTx
@@ -333,12 +333,12 @@ interpret w runP slotTimes p = flip evalStateT w $ do
     put walletState'
   where
     go = viewT >=> eval
-    eval (ResetWallet users seed passphrase :>>= k) = do
+    eval (ResetWallet maxCustomer seed passphrase :>>= k) = do
         Right mnemonics <- pure $ createMnemonicFromWords seed
         let new =
                 Wallet.fromCredentialsAndGenesis
                     (credentialsFromMnemonics mnemonics passphrase)
-                    (fromIntegral users)
+                    (fromIntegral maxCustomer)
                     Read.mockGenesisDataMainnet
         id .= (new, freshInterpreterState)
         go $ k ()
