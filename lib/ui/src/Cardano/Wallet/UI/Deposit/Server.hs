@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Server
@@ -128,20 +129,18 @@ import Cardano.Wallet.UI.Deposit.Server.Wallet
     , serveWalletPage
     , serveWalletStatus
     )
-import Control.Monad.Trans
-    ( MonadIO (..)
-    )
 import Control.Tracer
     ( Tracer (..)
+    )
+import Data.FileEmbed
+    ( embedFile
+    , makeRelativeToProject
     )
 import Data.Functor
     ( ($>)
     )
 import Data.Text
     ( Text
-    )
-import Paths_cardano_wallet_ui
-    ( getDataFileName
     )
 import Servant
     ( Handler
@@ -241,9 +240,10 @@ serveNavigation ul mp = withSessionLayer ul $ \l -> do
     pure $ renderSmoothHtml $ headerElementH mp wp
 
 serveFavicon :: Handler BL.ByteString
-serveFavicon = do
-    file <- liftIO $ getDataFileName "data/images/icon.png"
-    liftIO $ BL.readFile file
+serveFavicon =
+    pure
+        $ BL.fromStrict
+            $(makeRelativeToProject "data/images/icon.png" >>= embedFile)
 
 serveNetworkInformation
     :: forall n
