@@ -1,7 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.UI.Common.Handlers.Wallet where
+module Cardano.Wallet.UI.Common.Handlers.Wallet
+    ( pickMnemonic
+    )
+where
 
 import Prelude hiding
     ( lookup
@@ -17,23 +21,30 @@ import Cardano.Wallet.Api.Types
 import Control.Monad
     ( replicateM
     )
+import Data.ByteString
+    ( ByteString
+    )
+import Data.FileEmbed
+    ( embedFile
+    , makeRelativeToProject
+    )
 import Data.Text
     ( Text
-    )
-import Paths_cardano_wallet_ui
-    ( getDataFileName
     )
 import System.Random.Stateful
     ( randomRIO
     )
 
-import qualified Data.Text as T
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text.Encoding as T
 
 pickMnemonic :: Int -> Maybe Bool -> IO (Maybe [Text])
 pickMnemonic _n (Just True) = pure Nothing
 pickMnemonic n _ = do
-    wordsFile <- getDataFileName "data/english.txt"
-    dict <- fmap T.pack . words <$> readFile wordsFile
+    let wordsList :: ByteString
+        wordsList =
+            $(makeRelativeToProject "data/english.txt" >>= embedFile)
+    let dict = fmap T.decodeUtf8 . B8.words $ wordsList
 
     let loop = do
             xs <- replicateM n $ do

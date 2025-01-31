@@ -58,9 +58,6 @@ import Control.Lens
     , view
     , (^.)
     )
-import Control.Monad
-    ( replicateM
-    )
 import Control.Monad.Trans
     ( MonadIO (..)
     )
@@ -78,16 +75,10 @@ import Data.Text
 import Data.Text.Class
     ( FromText (..)
     )
-import Paths_cardano_wallet_ui
-    ( getDataFileName
-    )
 import Servant
     ( Handler
     , NoContent
     , runHandler
-    )
-import System.Random.Stateful
-    ( randomRIO
     )
 
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
@@ -146,21 +137,6 @@ parsePostWalletRequest = parseEither
 fromRight :: Show a => Either a b -> b
 fromRight (Right a) = a
 fromRight (Left a) = error $ show a
-
-pickMnemonic :: Int -> Maybe Bool -> IO (Maybe [Text])
-pickMnemonic _n (Just True) = pure Nothing
-pickMnemonic n _ = do
-    wordsFile <- getDataFileName "data/english.txt"
-    dict <- fmap T.pack . words <$> readFile wordsFile
-
-    let loop = do
-            xs <- replicateM n $ do
-                i <- randomRIO (0, length dict - 1)
-                pure $ dict !! i
-            case mkSomeMnemonic @(AllowedMnemonics 'Shelley) xs of
-                Left _ -> loop
-                Right _ -> pure xs
-    Just <$> loop
 
 data UIWallet = UIWallet {id :: WalletId, name :: Text}
 
