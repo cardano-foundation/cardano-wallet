@@ -111,5 +111,5 @@ rake "run_on[preprod,sync,true]" # SPEC_OPTS="-e '<match>'"
 # Cleanup
 ####################
 
-rm "$node_socket"
+rm -rf "$node_socket"
 rm -rf "$TESTS_E2E_BINDIR"
