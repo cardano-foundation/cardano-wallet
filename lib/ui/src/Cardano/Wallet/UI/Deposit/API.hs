@@ -85,7 +85,6 @@ instance FromForm PostWalletViaXPub
 
 data Page
     = About
-    | Network
     | Settings
     | Wallet
     | Addresses
@@ -96,7 +95,6 @@ makePrisms ''Page
 
 instance ToHttpApiData Page where
     toUrlPiece About = "about"
-    toUrlPiece Network = "network"
     toUrlPiece Settings = "settings"
     toUrlPiece Wallet = "wallet"
     toUrlPiece Addresses = "addresses"
@@ -105,7 +103,6 @@ instance ToHttpApiData Page where
 
 instance FromHttpApiData Page where
     parseUrlPiece "about" = Right About
-    parseUrlPiece "network" = Right Network
     parseUrlPiece "settings" = Right Settings
     parseUrlPiece "wallet" = Right Wallet
     parseUrlPiece "addresses" = Right Addresses
@@ -116,7 +113,6 @@ instance FromHttpApiData Page where
 -- | Pages endpoints
 type Pages =
     "about" :> SessionedHtml Get
-        :<|> "network" :> SessionedHtml Get
         :<|> "settings" :> SessionedHtml Get
         :<|> "wallet" :> SessionedHtml Get
         :<|> "addresses" :> SessionedHtml Get
@@ -125,8 +121,7 @@ type Pages =
 
 -- | Data endpoints
 type Data =
-    "network" :> "info" :> SessionedHtml Get
-        :<|> "settings" :> SessionedHtml Get
+    "settings" :> SessionedHtml Get
         :<|> "settings" :> "sse" :> "toggle" :> SessionedHtml Post
         :<|> "sse" :> (CookieRequest :> SSE)
         :<|> "favicon.ico" :> Get '[Image] BL.ByteString
@@ -260,13 +255,11 @@ type UI =
 
 homePageLink :: Link
 aboutPageLink :: Link
-networkPageLink :: Link
 settingsPageLink :: Link
 walletPageLink :: Link
 addressesPageLink :: Link
 depositPageLink :: Link
 paymentsPageLink :: Link
-networkInfoLink :: Link
 settingsGetLink :: Link
 settingsSseToggleLink :: Link
 sseLink :: Link
@@ -306,13 +299,11 @@ paymentsResetLink :: Link
 walletStatusLink :: Link
 homePageLink
     :<|> aboutPageLink
-    :<|> networkPageLink
     :<|> settingsPageLink
     :<|> walletPageLink
     :<|> addressesPageLink
     :<|> depositPageLink
     :<|> paymentsPageLink
-    :<|> networkInfoLink
     :<|> settingsGetLink
     :<|> settingsSseToggleLink
     :<|> sseLink

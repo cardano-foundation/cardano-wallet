@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.UI.Deposit.Server
     ( serveUI
@@ -11,28 +10,11 @@ module Cardano.Wallet.UI.Deposit.Server
 
 import Prelude
 
-import Cardano.Wallet.Api.Http.Server.Handlers.NetworkInformation
-    ( getNetworkInformation
-    )
-import Cardano.Wallet.Api.Types
-    ( ApiWalletMode (..)
-    )
 import Cardano.Wallet.Deposit.IO
     ( WalletBootEnv (networkEnv)
     )
 import Cardano.Wallet.Deposit.REST
     ( WalletResource
-    )
-import Cardano.Wallet.Network
-    ( NetworkLayer
-    )
-import Cardano.Wallet.Primitive.NetworkId
-    ( HasSNetworkId (..)
-    , SNetworkId
-    , networkIdVal
-    )
-import Cardano.Wallet.Shelley.BlockchainSource
-    ( BlockchainSource (..)
     )
 import Cardano.Wallet.UI.Common.Handlers.Session
     ( withSessionLayer
@@ -51,9 +33,6 @@ import Cardano.Wallet.UI.Common.Handlers.State
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Network
-    ( networkInfoH
-    )
 import Cardano.Wallet.UI.Common.Html.Pages.Settings
     ( settingsStateH
     )
@@ -67,7 +46,6 @@ import Cardano.Wallet.UI.Common.Layer
 import Cardano.Wallet.UI.Cookies
     ( CookieResponse
     , RequestCookies
-    , sessioning
     )
 import Cardano.Wallet.UI.Deposit.API
     ( UI
@@ -78,7 +56,6 @@ import Cardano.Wallet.UI.Deposit.Handlers.Lib
     )
 import Cardano.Wallet.UI.Deposit.Html.Common
     ( modalElementH
-    , showTimeSecs
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Page
     ( Page (..)
@@ -149,32 +126,28 @@ import Servant.Types.SourceT
     ( SourceT
     )
 
-import qualified Cardano.Read.Ledger.Block.Block as Read
-
 serveUI
-    :: forall n
-     . HasSNetworkId n
-    => Tracer IO ()
+    :: Tracer IO ()
     -- ^ Tracer for wallet tip changes
     -> Tracer IO String
+    -- ^ Tracer for logging
     -> UILayer WalletResource
+    -- ^ UI layer
     -> WalletBootEnv IO
+    -- ^ Wallet boot environment
     -> FilePath
+    -- ^ Database directory
     -> PageConfig
-    -> SNetworkId n
-    -> NetworkLayer IO Read.ConsensusBlock
-    -> BlockchainSource
+    -- ^ Page configuration
     -> Server UI
-serveUI wtc tr ul env dbDir config nid nl bs =
+serveUI wtc tr ul env dbDir config =
     serveTabPage ul config Wallet
         :<|> serveTabPage ul config About
-        :<|> serveTabPage ul config Network
         :<|> serveTabPage ul config Settings
         :<|> serveTabPage ul config Wallet
         :<|> serveTabPage ul config Addresses
         :<|> serveTabPage ul config Deposits
         :<|> serveTabPage ul config Payments
-        :<|> serveNetworkInformation nid nl bs
         :<|> serveSSESettings ul
         :<|> serveToggleSSE ul
         :<|> serveSSE ul
@@ -235,24 +208,6 @@ serveNavigation
 serveNavigation ul mp = withSessionLayer ul $ \l -> do
     wp <- walletPresence l
     pure $ renderSmoothHtml $ headerElementH mp wp
-
-serveNetworkInformation
-    :: forall n
-     . HasSNetworkId n
-    => SNetworkId n
-    -> NetworkLayer IO Read.ConsensusBlock
-    -> BlockchainSource
-    -> Maybe RequestCookies
-    -> Handler (CookieResponse RawHtml)
-serveNetworkInformation _ nl bs =
-    sessioning
-        $ renderSmoothHtml . networkInfoH showTimeSecs
-            <$> getNetworkInformation nid nl mode
-  where
-    nid = networkIdVal (sNetworkId @n)
-    mode = case bs of
-        NodeSource{} -> Node
-    _ = networkInfoH
 
 serveSSESettings
     :: UILayer WalletResource

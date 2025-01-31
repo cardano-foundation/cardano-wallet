@@ -450,9 +450,6 @@ serveWallet
                                         bootEnv
                                         databaseDir'
                                         socket
-                                        sNetwork
-                                        netLayer
-                                        blockchainSource
                             ContT $ \k ->
                                 withAsync uiService $ \_ -> k ()
                             pure $ Just (databaseDir', resource)
@@ -649,25 +646,17 @@ serveWallet
                         socket
                         application
         startDepositUiServer
-            :: forall n
-             . ( HasSNetworkId n
-               )
-            => UILayer WalletResource
+            :: UILayer WalletResource
             -> WalletBootEnv IO
             -> FilePath
             -> Socket
-            -> SNetworkId n
-            -> NetworkLayer IO (CardanoBlock StandardCrypto)
-            -> BlockchainSource
             -> IO ()
         startDepositUiServer
             ui
             bootEnv
             databaseDir'
             socket
-            _proxy
-            nl
-            bs = do
+            = do
                 let serverSettings = Warp.defaultSettings
                     api = Proxy @DepositUi.UI
                     application =
@@ -679,9 +668,6 @@ serveWallet
                                 bootEnv
                                 databaseDir'
                                 (PageConfig "" "Deposit Cardano Wallet")
-                                _proxy
-                                nl
-                                bs
                 start
                     serverSettings
                     apiServerTracer
