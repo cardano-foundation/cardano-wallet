@@ -1,0 +1,368 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>2023-01-27 - Continuous Integration - Cardano Wallet</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././mdbook-admonish.css">
+
+        <!-- MathJax -->
+        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../../user.html"><strong aria-hidden="true">2.</strong> User Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/when.html"><strong aria-hidden="true">2.1.</strong> When to use</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases.html"><strong aria-hidden="true">2.2.</strong> How to</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/common-use-cases/start-wallet-server.html"><strong aria-hidden="true">2.2.1.</strong> Start a server</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/create-a-wallet.html"><strong aria-hidden="true">2.2.2.</strong> Create a wallet</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-manage-wallets.html"><strong aria-hidden="true">2.2.3.</strong> Manage wallets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-create-addresses.html"><strong aria-hidden="true">2.2.4.</strong> Create addresses</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/how-to-make-a-transaction.html"><strong aria-hidden="true">2.2.5.</strong> Create a transaction</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/assets.html"><strong aria-hidden="true">2.2.6.</strong> Handle assets</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/delegation.html"><strong aria-hidden="true">2.2.7.</strong> Handle delegation</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/handle-metadata.html"><strong aria-hidden="true">2.2.8.</strong> Handle metadata</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/shared-wallets.html"><strong aria-hidden="true">2.2.9.</strong> Create shared-wallets</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/installation.html"><strong aria-hidden="true">2.3.</strong> Installation</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../user/installation/use-docker.html"><strong aria-hidden="true">2.3.1.</strong> Use docker</a></li><li class="chapter-item expanded "><a href="../../user/installation/use-nixos.html"><strong aria-hidden="true">2.3.2.</strong> Use NixOS</a></li></ol></li><li class="chapter-item expanded "><a href="../../user/cli.html"><strong aria-hidden="true">2.4.</strong> CLI</a></li><li class="chapter-item expanded "><a href="../../user/http-api.html"><strong aria-hidden="true">2.5.</strong> HTTP-API</a></li><li class="chapter-item expanded "><a href="../../user/hardware-recommendations.html"><strong aria-hidden="true">2.6.</strong> Hardware Recommendations</a></li><li class="chapter-item expanded "><a href="../../user/security.html"><strong aria-hidden="true">2.7.</strong> Security</a></li><li class="chapter-item expanded "><a href="../../user/integrations.html"><strong aria-hidden="true">2.8.</strong> Known integrations</a></li><li class="chapter-item expanded "><a href="../../user/ekg-and-prometheus.html"><strong aria-hidden="true">2.9.</strong> EKG and prometheus</a></li><li class="chapter-item expanded "><a href="../../user/common-use-cases/plutus-application-backend.html"><strong aria-hidden="true">2.10.</strong> Plutus application backend</a></li><li class="chapter-item expanded "><a href="../../user/faq.html"><strong aria-hidden="true">2.11.</strong> FAQ</a></li></ol></li><li class="chapter-item expanded "><a href="../../design.html"><strong aria-hidden="true">3.</strong> Design</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/architecture.html"><strong aria-hidden="true">3.1.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../../design/adrestia-architecture.html"><strong aria-hidden="true">3.2.</strong> Adrestia Architecture</a></li><li class="chapter-item expanded "><a href="../../design/links.html"><strong aria-hidden="true">3.3.</strong> Links</a></li><li class="chapter-item expanded "><a href="../../design/concepts.html"><strong aria-hidden="true">3.4.</strong> Concepts</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/concepts/eras.html"><strong aria-hidden="true">3.4.1.</strong> Eras</a></li><li class="chapter-item expanded "><a href="../../design/concepts/recovery-phrases.html"><strong aria-hidden="true">3.4.2.</strong> Recovery Phrases</a></li><li class="chapter-item expanded "><a href="../../design/concepts/master-key-generation.html"><strong aria-hidden="true">3.4.3.</strong> Master Key Generation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/Notes-about-BIP-44.html"><strong aria-hidden="true">3.4.4.</strong> Notes about BIP 44</a></li><li class="chapter-item expanded "><a href="../../design/concepts/address-derivation.html"><strong aria-hidden="true">3.4.5.</strong> Address Derivation</a></li><li class="chapter-item expanded "><a href="../../design/concepts/byron-address-format.html"><strong aria-hidden="true">3.4.6.</strong> Byron Address Format</a></li><li class="chapter-item expanded "><a href="../../design/concepts/coin-selection.html"><strong aria-hidden="true">3.4.7.</strong> Coin Selection</a></li><li class="chapter-item expanded "><a href="../../design/concepts/hierarchical-deterministic-wallets.html"><strong aria-hidden="true">3.4.8.</strong> Hierarchical Deterministic Wallets</a></li><li class="chapter-item expanded "><a href="../../design/concepts/transaction-lifecycle.html"><strong aria-hidden="true">3.4.9.</strong> Transaction Lifecycle</a></li><li class="chapter-item expanded "><a href="../../design/concepts/utxo.html"><strong aria-hidden="true">3.4.10.</strong> UTxO</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/specs.html"><strong aria-hidden="true">3.5.</strong> Specifications</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/specs/wallet-id.html"><strong aria-hidden="true">3.5.1.</strong> Wallet ID</a></li></ol></li><li class="chapter-item expanded "><a href="../../design/prototypes.html"><strong aria-hidden="true">3.6.</strong> Prototypes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../design/prototypes/light-mode.html"><strong aria-hidden="true">3.6.1.</strong> Light Mode</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../contributor.html"><strong aria-hidden="true">4.</strong> Contributor Manual</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what.html"><strong aria-hidden="true">4.1.</strong> What – Code and Languages</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/what/building.html"><strong aria-hidden="true">4.1.1.</strong> Building</a></li><li class="chapter-item expanded "><a href="../../contributor/what/coding-standards.html"><strong aria-hidden="true">4.1.2.</strong> Coding Standards</a></li><li class="chapter-item expanded "><a href="../../contributor/what/logging-guidelines.html"><strong aria-hidden="true">4.1.3.</strong> Logging Guidelines</a></li><li class="chapter-item expanded "><a href="../../contributor/what/swagger-development.html"><strong aria-hidden="true">4.1.4.</strong> Swagger Development</a></li><li class="chapter-item expanded "><a href="../../contributor/what/specifying-exceptions-with-servant-and-swagger.html"><strong aria-hidden="true">4.1.5.</strong> Specifying exceptions with Servant and Swagger</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix.html"><strong aria-hidden="true">4.1.6.</strong> Nix build language</a></li><li class="chapter-item expanded "><a href="../../contributor/what/nix-flake.html"><strong aria-hidden="true">4.1.7.</strong> Nix flake</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how.html"><strong aria-hidden="true">4.2.</strong> How – Processes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/testing.html"><strong aria-hidden="true">4.2.1.</strong> Testing</a></li><li class="chapter-item expanded "><a href="../../contributor/how/continuous-integration.html"><strong aria-hidden="true">4.2.2.</strong> Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/how/release-process.html"><strong aria-hidden="true">4.2.3.</strong> Release Process</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/how/release-checklist.html"><strong aria-hidden="true">4.2.3.1.</strong> Release Checklist template</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/how/code-review-guidelines.html"><strong aria-hidden="true">4.2.4.</strong> Code Review Guidelines</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/notes.html"><strong aria-hidden="true">4.3.</strong> Notes</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/notes/updating-dependencies.html"><strong aria-hidden="true">4.3.1.</strong> Updating Dependencies</a></li><li class="chapter-item expanded "><a href="../../contributor/notes/notes-from-upgrading-ghc-version.html"><strong aria-hidden="true">4.3.2.</strong> Notes from upgrading GHC version</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributor/decisions.html"><strong aria-hidden="true">4.4.</strong> Decisions Record</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../contributor/decisions/2024-12-03-document-with-code.html"><strong aria-hidden="true">4.4.1.</strong> 2024-12-03 - Store documents alongside code</a></li><li class="chapter-item expanded "><a href="../../contributor/decisions/2024-03-13-release-process.html"><strong aria-hidden="true">4.4.2.</strong> 2024-03-23 - Release Process</a></li><li class="chapter-item expanded "><a href="../../contributor/decisions/2023-07-28-workflow-review.html"><strong aria-hidden="true">4.4.3.</strong> 2023-07-28 - Team Workflow</a></li><li class="chapter-item expanded "><a href="../../contributor/decisions/2023-01-27-continuous-integration.html" class="active"><strong aria-hidden="true">4.4.4.</strong> 2023-01-27 - Continuous Integration</a></li><li class="chapter-item expanded "><a href="../../contributor/decisions/2022-10-04-document-storage.html"><strong aria-hidden="true">4.4.5.</strong> 2022-10-04 - Document Storage</a></li></ol></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Cardano Wallet</h1>
+
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="continuous-integration"><a class="header" href="#continuous-integration"><strong>Continuous Integration</strong></a></h1>
+<div class="table-wrapper"><table><thead><tr><th></th><th></th></tr></thead><tbody>
+<tr><td>Started</td><td>2022-12-06</td></tr>
+<tr><td>Decided</td><td>2023-01-27</td></tr>
+<tr><td>Last amended</td><td>2023-04-04</td></tr>
+</tbody></table>
+</div>
+<h2 id="why"><a class="header" href="#why"><strong>Why</strong></a></h2>
+<p>The sudden decommission of Hydra forces us to revisit our Continuous Integration (CI) setup.</p>
+<h2 id="decision"><a class="header" href="#decision"><strong>Decision</strong></a></h2>
+<p>We predominantly rely on <a href="https://buildkite.com">Buildkite</a> as CI system.</p>
+<p>We build <strong>artifacts</strong> and run <strong>checks</strong> on them. Artifacts include compiled executables, but also the source code itself. Checks include unit and integration tests, but also source code linters. We specify our artifacts in `flake.nix`, and most of our checks, too.</p>
+<p>We perform these builds and checks with different <strong>granularity</strong> — in order to keep our computing resources within reasonable limits, we don’t automatically check everything on every commit. Instead, the granularities are:</p>
+<ul>
+<li><code>post-commit</code>	= (at most once) after each commit; for a quick sanity check after a push</li>
+<li><code>pre-merge</code>	= before merging each pull request; for a reasonably complete, automated check that master will satisfy functional requirements</li>
+<li><code>post-merge</code>	= after merging each pull request to master; for an exhaustive check that master satisfies functional requirements on all platforms</li>
+<li><code>nightly</code>		= every night; for an exhaustive, automated check of functional and non-functional requirements</li>
+</ul>
+<p>The following <strong>table</strong> lists our artifacts, the checks performed on them (`.` for build), the granularity at which the check is performed, and the CI system used for doing that:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">Artifact</th><th style="text-align: left">Check</th><th style="text-align: left">Granularity</th><th style="text-align: left">CI System</th><th>(Status)</th></tr></thead><tbody>
+<tr><td style="text-align: left">Source code</td><td style="text-align: left">Code formatting style</td><td style="text-align: left">post-commit</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Documentation</td><td style="text-align: left">.</td><td style="text-align: left">post-commit</td><td style="text-align: left">Github Action</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Pull request (PR)</td><td style="text-align: left">Mergeable to master concurrently with other PRs</td><td style="text-align: left">pre-merge</td><td style="text-align: left">Bors</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Compiled modules</td><td style="text-align: left">.</td><td style="text-align: left">post-commit</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left">Unit tests (linux)</td><td style="text-align: left">post-commit</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left">Unit tests (macos)</td><td style="text-align: left">post-merge</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left">Unit tests (windows)</td><td style="text-align: left">nightly</td><td style="text-align: left">Github Action</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Executables / Release archive</td><td style="text-align: left">. (linux)</td><td style="text-align: left">pre-merge</td><td style="text-align: left">Buildkite</td><td>🟡<a href="https://cardanofoundation.atlassian.net/browse/ADP-2502">ADP-2502</a></td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left">. (macos)</td><td style="text-align: left">post-merge</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left">. (windows, cross-compiled)</td><td style="text-align: left">pre-merge</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Executables</td><td style="text-align: left">Integration tests (linux)</td><td style="text-align: left">pre-merge</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left"><del>Integration tests (macos)</del></td><td style="text-align: left"></td><td style="text-align: left">Buildkite</td><td>🔴<a href="https://cardanofoundation.atlassian.net/browse/ADP-2522">ADP-2522</a></td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left"><del>Integration tests (windows)</del></td><td style="text-align: left"></td><td style="text-align: left">Github Action</td><td>🔴<a href="https://cardanofoundation.atlassian.net/browse/ADP-2517">ADP-2517</a></td></tr>
+<tr><td style="text-align: left"></td><td style="text-align: left">Benchmarks</td><td style="text-align: left">nightly</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Release archive</td><td style="text-align: left">E2E tests</td><td style="text-align: left">nightly</td><td style="text-align: left">Github Action</td><td>🔵</td></tr>
+<tr><td style="text-align: left">Docker image</td><td style="text-align: left">.</td><td style="text-align: left">post-commit</td><td style="text-align: left">Buildkite</td><td>🔵</td></tr>
+</tbody></table>
+</div>
+<p>Legend: Status 🔵= working; 🟡= needs work; 🔴= not working</p>
+<h2 id="details"><a class="header" href="#details">Details</a></h2>
+<h3 id="granularity"><a class="header" href="#granularity"><strong>Granularity</strong></a></h3>
+<ul>
+<li>Granularity refers to <strong>automatic</strong> actions taken by the CI system. It should be possible to trigger a build or check manually at any time.</li>
+<li>The purpose of granularity is to <strong>conserve</strong> computing <strong>resources</strong> — in a world with infinite resources, the system would perform every build and check on every commit.</li>
+<li>The name of the granularity “<strong>post-commit</strong>” was chosen for brevity — the action is performed automatically on the <strong>latest</strong> commit after a `git push`, not on the git commits in between. In other words, the action is performed at most once per commit.</li>
+<li>We use the “<strong>post-merge</strong>” granularity for actions that
+<ul>
+<li>consume scarce resources and have a high chance of failing, e.g. builds and checks on macOS</li>
+</ul>
+</li>
+<li>We use the “<strong>nightly</strong>” granularity for actions that
+<ul>
+<li>consume many resources, e.g. benchmarks</li>
+</ul>
+</li>
+</ul>
+<h3 id="ci-system"><a class="header" href="#ci-system"><strong>CI System</strong></a></h3>
+<p>As a general rule, we choose</p>
+<ul>
+<li>Github Actions for actions that
+<ul>
+<li>are very simple and do not require a nix store / environment</li>
+<li>run on Windows</li>
+</ul>
+</li>
+<li>Buildkite otherwise
+<ul>
+<li>especially for actions that require a nix store</li>
+</ul>
+</li>
+</ul>
+<p>We have a <strong>tension</strong> where we have to set up some checks (e.g. unit tests) in two different environments due to different availability of operating systems:</p>
+<ul>
+<li>Linux, macOS — in Buildkite</li>
+<li>Windows — in Github Actions</li>
+</ul>
+<p>We hope to address this tension by requesting a <strong>Windows machine</strong> for use with <strong>Buildkite</strong>.</p>
+<h3 id="platform-macos"><a class="header" href="#platform-macos"><strong>Platform macOS</strong></a></h3>
+<p>At the time of writing, we have two mac-mini machines that act as Buildkite agents. Unfortunately, they are frequently overloaded and fail the builds or checks. Hence, we only use granularity “post-merge” or “nightly” for them.</p>
+<h3 id="company-processes"><a class="header" href="#company-processes"><strong>Company Processes</strong></a></h3>
+<p>For developing and maintaining our CI, we may use DevX/SRE expertise from IOG.</p>
+<ul>
+<li>Our <strong>tribe</strong> is responsible for choosing our CI tooling</li>
+<li>Our <strong>tribe</strong> should have a process for getting DevX/SRE support</li>
+<li>Our tribes’ DevX/SRE resources can help teach us how to debug problems that arise</li>
+<li>Link to the <a href="https://input-output.atlassian.net/wiki/spaces/CI/pages/3528785931/SRE+Chapter">SRE Chapter of IOG</a></li>
+</ul>
+<h2 id="rationale"><a class="header" href="#rationale"><strong>Rationale</strong></a></h2>
+<h3 id="artifacts-and-checks"><a class="header" href="#artifacts-and-checks"><strong>Artifacts and checks</strong></a></h3>
+<p>The two main concerns of a CI pipeline are: building <strong>artifacts</strong> and running <strong>checks</strong>.</p>
+<p>The purpose of building an artifact is to produce, say, an executable or HTML. The purpose of running a check is to check that the artifact satisfies certain properties, e.g. all unit tests pass.</p>
+<p>Different CI systems, like Hydra, Cicero, Buildkite or Github Actions, have a different focus regarding these concerns.</p>
+<ul>
+<li>The world view of Hydra is that everything is about building artifacts. Hydra was surprisingly successful as a CI tool, because this world view can be used for running checks, too — they can be expressed as trivial artifacts, where success of the check is equivalent to success of building `()`, and failure of the check is equivalent to failure of the artifact build.</li>
+<li>The world view of Github Actions, Buildkite or Cicero is that everything is about running checks. The drawback is that building artifacts is more difficult and we have problems managing the build cache.</li>
+</ul>
+<p>For us, the main takeaway is that we should try to separate these concerns clearly.</p>
+<p>Our <strong>artifacts</strong> include: <strong>source code</strong> and <strong>compiled</strong> <strong>executables</strong>. We have different <strong>checks</strong> on these: Linters and style checkers on the source code, unit and integration tests on the executables.</p>
+<p>As we are coming from Hydra, compiling executables is easiest to do through a <strong>cached nix store</strong>. At the moment, it looks like only Buildkite has good support for that; hence we choose Buildkite.</p>
+<h3 id="our-options-for-ci-system"><a class="header" href="#our-options-for-ci-system"><strong>Our options for CI system</strong></a></h3>
+<p>Buildkite</p>
+<ul>
+<li>Pro — Good at artifacts, working nix cache</li>
+<li>Pro — Good documentation, easy to write</li>
+<li>Con — Dependency on machine (currently provided by SRE / <a href="mailto:samuel.leathers@iohk.io">Samuel Leathers</a>)</li>
+<li>Con — no Windows machine</li>
+<li>Con — Dependency on permissions (currently only SRE / <a href="mailto:samuel.leathers@iohk.io">Samuel Leathers</a> has write permission)</li>
+</ul>
+<p>In a pinch, the dependencies can be solved by forking the repository and providing our own machines.</p>
+<p>Github Action</p>
+<ul>
+<li>Neutral — Good at small actions, but problems at scale</li>
+<li>Neutral — Good documentation, but a bit cumbersome to write</li>
+<li>Pro — No dependency on machine</li>
+<li>Pro — Windows machine</li>
+<li>Pro — No dependency on permissions</li>
+</ul>
+<p>Cicero</p>
+<ul>
+<li>Con — Poor at artifacts, nix cache currently not working properly</li>
+<li>Con — Poor documentation</li>
+<li>Neutral — Dependency on machine (provided by SRE, but they have long-time commitment)</li>
+<li>Con — no Windows machine</li>
+<li>Pro — No dependency on permission</li>
+</ul>
+<h2 id="references"><a class="header" href="#references"><strong>References</strong></a></h2>
+<p>[1] G Kim, K Behr, G Spafford; <a href="https://www.goodreads.com/book/show/17255186-the-phoenix-project">The Phoenix Project</a>; IT Revolution Press (2013). A business novel about the DevOps movement: make the flow of work visible and automate it, to an extreme of, say, 30 releases per day.</p>
+<p>[2] <a href="https://github.com/input-output-hk/cicero#readme">Cicero on Github</a></p>
+<h1 id="scratchbook"><a class="header" href="#scratchbook"><strong>Scratchbook</strong></a></h1>
+<h2 id="random-findings"><a class="header" href="#random-findings"><strong>Random Findings</strong></a></h2>
+<p>Installing Nix with the `cachix/install-nix-action` Github Action: <a href="https://github.com/input-output-hk/cardano-node/blob/db396b163af615aa89286aa985583ef8843cfcde/.github/workflows/check-mainnet-config.yml#L16-L23">https://github.com/input-output-hk/cardano-node/blob/db396b163af615aa89286aa985583ef8843cfcde/.github/workflows/check-mainnet-config.yml#L16-L23</a></p>
+<h2 id="documentation-findings"><a class="header" href="#documentation-findings"><strong>Documentation Findings</strong></a></h2>
+<h3 id="cicero"><a class="header" href="#cicero"><strong>Cicero</strong></a></h3>
+<p><a href="https://github.com/input-output-hk/cicero#readme">Cicero</a> = An <em>engine</em> for executing actions. An “action” is an arbitrary program (Bash, Python, Nix, …) that is run in the Nomad execution environment.</p>
+<p><a href="https://github.com/input-output-hk/tullia#readme">Tullia</a> = A domain specific language, embedded in the Nix language, for expressing actions to be run with Cicero. This is useful when writing Cicero actions that mainly build stuff with Nix.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../contributor/decisions/2023-07-28-workflow-review.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../contributor/decisions/2022-10-04-document-storage.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../contributor/decisions/2023-07-28-workflow-review.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../contributor/decisions/2022-10-04-document-storage.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../../mermaid.min.js"></script>
+        <script src="../../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
