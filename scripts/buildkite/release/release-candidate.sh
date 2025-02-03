@@ -6,16 +6,18 @@ set -euox pipefail
 # date from git tag
 # example v2023-04-04 -> 2023-04-04
 tag_date() {
-  echo "${1##v}"
+    echo "${1##v}"
 }
 # cabal version from git tag
 # example v2023-04-04 -> 2023.4.4
 tag_cabal_ver() {
-  tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
+    tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
 }
 
 git tag -l | xargs git tag -d
 git fetch --tags
+
+LOCAL_BRANCH_NAME=$(git branch --show-current)
 
 BASE_COMMIT=$(git rev-parse HEAD)
 
@@ -27,7 +29,7 @@ NEW_GIT_TAG=v$today
 
 NEW_CABAL_VERSION=$(tag_cabal_ver "$NEW_GIT_TAG")
 
-OLD_GIT_TAG=$( git tag -l "v2*-*-*" | sort | tail -n1)
+OLD_GIT_TAG=$(git tag -l "v2*-*-*" | sort | tail -n1)
 
 LAST_RELEASE_DATE=$(tag_date "$OLD_GIT_TAG")
 
@@ -45,11 +47,17 @@ fi
 
 CARDANO_NODE_TAG=$(cardano-node version | head -n1 | awk '{print $2}')
 
-if [ "$BUILDKITE_BRANCH" == "master" ]; then
+if [ -n "${BUILDKITE:-}" ]; then
+    BRANCH="$BUILDKITE_BRANCH"
+else
+    BRANCH="$LOCAL_BRANCH_NAME"
+fi
+
+if [ "$BRANCH" == "master" ]; then
     RELEASE_CANDIDATE_BRANCH="release-candidate/$NEW_GIT_TAG"
     TEST_RC="FALSE"
 else
-    RELEASE_CANDIDATE_BRANCH="test-rc/$BUILDKITE_BRANCH"
+    RELEASE_CANDIDATE_BRANCH="test-rc/$BRANCH"
     TEST_RC="TRUE"
 fi
 
@@ -62,7 +70,7 @@ git checkout -b "$RELEASE_CANDIDATE_BRANCH" || true
 sed -i "s|version: .*|version: $NEW_GIT_TAG|g" specifications/api/swagger.yaml
 git commit -m "Update wallet version in swagger.yaml" specifications/api/swagger.yaml
 
-git ls-files  '*.cabal' | xargs sed -i "s|$OLD_CABAL_VERSION|$NEW_CABAL_VERSION|g"
+git ls-files '*.cabal' | xargs sed -i "s|$OLD_CABAL_VERSION|$NEW_CABAL_VERSION|g"
 git commit -am "Update cardano-wallet version in *.cabal files"
 
 sed -i "s|NODE_TAG=.*|NODE_TAG=$CARDANO_NODE_TAG|g" README.md
@@ -83,11 +91,13 @@ git remote get-url origin
 
 git push -f origin "$RELEASE_CANDIDATE_BRANCH"
 
-buildkite-agent meta-data set "release-version" "$NEW_GIT_TAG"
-buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
-buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
-buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
-buildkite-agent meta-data set "test-rc" "$TEST_RC"
-buildkite-agent meta-data set "base-build" "$BUILDKITE_BUILD_ID"
-buildkite-agent meta-data set "node-tag" "$CARDANO_NODE_TAG"
-buildkite-agent meta-data set "last-release-date" "$LAST_RELEASE_DATE"
+if [ -n "${BUILDKITE:-}" ]; then
+    buildkite-agent meta-data set "release-version" "$NEW_GIT_TAG"
+    buildkite-agent meta-data set "release-candidate-commit" "$RELEASE_COMMIT"
+    buildkite-agent meta-data set "release-candidate-branch" "$RELEASE_CANDIDATE_BRANCH"
+    buildkite-agent meta-data set "release-cabal-version" "$NEW_CABAL_VERSION"
+    buildkite-agent meta-data set "test-rc" "$TEST_RC"
+    buildkite-agent meta-data set "base-build" "$BUILDKITE_BUILD_ID"
+    buildkite-agent meta-data set "node-tag" "$CARDANO_NODE_TAG"
+    buildkite-agent meta-data set "last-release-date" "$LAST_RELEASE_DATE"
+fi

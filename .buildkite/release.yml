@@ -3,7 +3,7 @@ agents:
 
 env:
   LC_ALL: "C.UTF-8"
-  NIX_PATH: "channel:nixos-21.11"
+  NIX_PATH: "channel:nixos-24.11"
   STATE_DIR: "/var/lib/buildkite-agent/cache"
   STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
   RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"

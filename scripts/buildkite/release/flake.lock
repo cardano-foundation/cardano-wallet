@@ -5,31 +5,31 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1681378341,
-        "narHash": "sha256-2qUN04W6X9cHHytEsJTM41CmusifPTC0bgTtYsHSNY8=",
-        "owner": "hamishmack",
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "2767bafdb189cd623354620c2dacbeca8fd58b17",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
         "type": "github"
       },
       "original": {
-        "owner": "hamishmack",
-        "ref": "hkm/nested-hydraJobs",
+        "owner": "numtide",
         "repo": "flake-utils",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1719571325,
-        "narHash": "sha256-cyNYj2MtFvZJfNI3zdtGTIFxezT44QQ3y3NryOLzMyk=",
+        "lastModified": 1738410390,
+        "narHash": "sha256-xvTo0Aw0+veek7hvEVLzErmJyQkEcRk6PSR4zsRQFEc=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "c8201d6eef0554bec529465300e600be6ddcf79d",
+        "rev": "3a228057f5b619feb3186e986dbe76278d707b6e",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }

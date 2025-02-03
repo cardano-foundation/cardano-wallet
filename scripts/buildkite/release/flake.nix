@@ -5,8 +5,8 @@
   '';
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
-    flake-utils.url = "github:hamishmack/flake-utils/hkm/nested-hydraJobs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = inputs:
