@@ -601,8 +601,6 @@ steps:
 
   - group: Docker
     key: docker-artifacts
-
-    # if: build.env("RELEASE_CANDIDATE") != null
     depends_on:
       - linux-artifacts
     steps:
@@ -619,7 +617,6 @@ steps:
     depends_on:
       - docker-artifacts
     key: docker-e2e
-    # if: (build.env("RELEASE_CANDIDATE") != null && build.env("TEST_RC") == "FALSE") || build.tag =~ /^v20/
     steps:
       - label: Mainnet Boot Sync
         timeout_in_minutes: 30
@@ -648,7 +645,7 @@ steps:
           USE_LOCAL_IMAGE: true
 
       - block: Mainnet Boot Sync via Mithril
-        if: build.env("RELEASE_CANDIDATE") == null
+        if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
         depends_on: []
         key: mithril-mainnet-full-sync-block
 
