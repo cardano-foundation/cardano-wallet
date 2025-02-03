@@ -64,7 +64,9 @@ steps:
     steps:
     - label: Nix Build (linux)
       commands:
-        - nix build .
+        - nix build .#cardano-wallet
+        - nix build .#cardano-node
+        - nix build .#cardano-cli
       agents:
         system: ${linux}
 
