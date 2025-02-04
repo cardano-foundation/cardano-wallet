@@ -128,8 +128,8 @@ import Cardano.Wallet.UI.Deposit.Server.Wallet
     , serveWalletPage
     , serveWalletStatus
     )
-import Control.Monad.Trans
-    ( MonadIO (..)
+import Cardano.Wallet.UI.Static
+    ( favicon
     )
 import Control.Tracer
     ( Tracer (..)
@@ -139,9 +139,6 @@ import Data.Functor
     )
 import Data.Text
     ( Text
-    )
-import Paths_cardano_wallet_ui
-    ( getDataFileName
     )
 import Servant
     ( Handler
@@ -153,7 +150,6 @@ import Servant.Types.SourceT
     )
 
 import qualified Cardano.Read.Ledger.Block.Block as Read
-import qualified Data.ByteString.Lazy as BL
 
 serveUI
     :: forall n
@@ -182,7 +178,7 @@ serveUI wtc tr ul env dbDir config nid nl bs =
         :<|> serveSSESettings ul
         :<|> serveToggleSSE ul
         :<|> serveSSE ul
-        :<|> serveFavicon
+        :<|> pure favicon
         :<|> serveMnemonic
         :<|> serveWalletPage ul
         :<|> servePostMnemonicWallet wtc tr env dbDir ul
@@ -239,11 +235,6 @@ serveNavigation
 serveNavigation ul mp = withSessionLayer ul $ \l -> do
     wp <- walletPresence l
     pure $ renderSmoothHtml $ headerElementH mp wp
-
-serveFavicon :: Handler BL.ByteString
-serveFavicon = do
-    file <- liftIO $ getDataFileName "data/images/icon.png"
-    liftIO $ BL.readFile file
 
 serveNetworkInformation
     :: forall n

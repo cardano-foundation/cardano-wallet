@@ -65,6 +65,9 @@ import Cardano.Wallet.UI.Common.Handlers.SSE
 import Cardano.Wallet.UI.Common.Handlers.State
     ( getState
     )
+import Cardano.Wallet.UI.Common.Handlers.Wallet
+    ( pickMnemonic
+    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     , renderHtml
@@ -105,7 +108,6 @@ import Cardano.Wallet.UI.Shelley.Handlers.Addresses
 import Cardano.Wallet.UI.Shelley.Handlers.Wallet
     ( deleteWallet
     , getWallet
-    , pickMnemonic
     , postWallet
     , selectWallet
     )
@@ -125,6 +127,9 @@ import Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     )
 import Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
     ( walletListH
+    )
+import Cardano.Wallet.UI.Static
+    ( favicon
     )
 import Control.Lens
     ( view
@@ -146,16 +151,11 @@ import Data.Time
 import Network.NTP.Client
     ( NtpClient
     )
-import Paths_cardano_wallet_ui
-    ( getDataFileName
-    )
 import Servant
     ( Handler
     , Server
     , (:<|>) (..)
     )
-
-import qualified Data.ByteString.Lazy as BL
 
 pageHandler
     :: UILayer (Maybe WalletId)
@@ -196,18 +196,25 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         :<|> ph Wallets
         :<|> ph Addresses
         :<|> ph Settings
-        :<|> sessioning (renderHtml . networkInfoH showTime <$> getNetworkInformation nid nl mode)
+        :<|> sessioning
+            ( renderHtml . networkInfoH showTime
+                <$> getNetworkInformation nid nl mode
+            )
         :<|> (\v -> wsl (\l -> postWallet l alShelley alert ok v))
-        :<|> (\c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c))
+        :<|> ( \c -> sessioning $ renderHtml . mnemonicH <$> liftIO (pickMnemonic 15 c)
+             )
         :<|> wsl (\l -> listWallets l alShelley (fmap renderHtml . walletListH))
-        :<|> wsl (\l -> getWallet l alShelley alert (renderHtml . walletElementH showTime))
+        :<|> wsl
+            ( \l -> getWallet l alShelley alert (renderHtml . walletElementH showTime)
+            )
         :<|> wsl (\l -> listAddresses l alShelley alert (renderHtml . addressesH))
         :<|> wsl (\l -> deleteWallet l alShelley alert ok)
-        :<|> wsl (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
+        :<|> wsl
+            (\l -> getState l (renderHtml . settingsStateH settingsSseToggleLink))
         :<|> wsl (\l -> toggleSSE l $> RawHtml "")
         :<|> (\w -> wsl (\l -> selectWallet l w $> RawHtml ""))
         :<|> withSessionLayerRead ul (sse . sseConfig)
-        :<|> serveFavicon
+        :<|> pure favicon
   where
     ph = pageHandler ul config
     ok _ = renderHtml . rogerH @Text $ "ok"
@@ -218,8 +225,3 @@ serveUI ul config _ alByron _alIcarus alShelley _alShared _spl _ntp bs =
         NodeSource{} -> Node
     _ = networkInfoH
     wsl = withSessionLayer ul
-
-serveFavicon :: Handler BL.ByteString
-serveFavicon = do
-    file <- liftIO $ getDataFileName "data/images/icon.png"
-    liftIO $ BL.readFile file
