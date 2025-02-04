@@ -60,6 +60,7 @@
       - [Updating Dependencies](contributor/notes/updating-dependencies.md)
       - [Notes from upgrading GHC version](contributor/notes/notes-from-upgrading-ghc-version.md)
     - [Decisions Record](contributor/decisions.md)
+      - [2025-02-03 - Manage versions in Cabal](contributor/decisions/2025-02-03-dependency-versions.md)
       - [2024-12-03 - Store documents alongside code](contributor/decisions/2024-12-03-document-with-code.md)
       - [2024-03-23 - Release Process](contributor/decisions/2024-03-13-release-process.md)
       - [2023-07-28 - Team Workflow](contributor/decisions/2023-07-28-workflow-review.md)
