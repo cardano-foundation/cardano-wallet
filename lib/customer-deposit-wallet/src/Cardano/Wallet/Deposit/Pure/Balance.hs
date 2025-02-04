@@ -103,7 +103,7 @@ applyBlock
     -> UTxO
     -> (DeltaUTxO, UTxO, ValueTransferMap)
 applyBlock isOurs block u0 =
-    (DeltaUTxO.concat $ reverse dus, u1, totalValueTransfer)
+    (DeltaUTxO.appends $ reverse dus, u1, totalValueTransfer)
   where
     (dus, (u1, totalValueTransfer)) =
         mapAccumL' applyTx' (u0, mempty)

@@ -189,13 +189,13 @@ withWalletInit
         , ..
         }
     credentials
-    knownCustomerCount
+    maxCustomer
     action = do
         walletState <-
             DBVar.initDBVar store
                 $ Wallet.fromCredentialsAndGenesis
                     credentials
-                    knownCustomerCount
+                    maxCustomer
                     genesisData
         withWalletDBVar wtc env walletState action
 

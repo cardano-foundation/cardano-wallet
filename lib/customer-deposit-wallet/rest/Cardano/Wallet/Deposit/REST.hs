@@ -271,12 +271,12 @@ findTheDepositWalletOnDisk env dir action = do
     ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [d] -> do
-            (credentials, users) <-
+            (credentials, maxCustomer) <-
                 deserialise <$> BL.readFile (dir </> d)
             let state =
                     fromCredentialsAndGenesis
                         credentials
-                        (fromIntegral @Int users)
+                        (fromIntegral @Int maxCustomer)
                         (genesisData env)
             store <- newStore
             writeS store state
@@ -311,7 +311,7 @@ createTheDepositWalletOnDisk
     -> Credentials
     -- ^ Id of the wallet
     -> Word31
-    -- ^ Max number of users ?
+    -- ^ Maximum customer index
     -> (Maybe WalletIO.WalletStore -> IO a)
     -- ^ Action to run if the wallet is created
     -> IO a
