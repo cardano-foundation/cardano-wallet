@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Cardano.Wallet.UI.Deposit.Server.Payments.Page
     ( servePaymentsPage
     , servePaymentsNewReceiver
@@ -154,15 +152,18 @@ servePaymentsSign
     -> SignatureForm
     -> Maybe RequestCookies
     -> Handler (CookieResponse RawHtml)
-servePaymentsSign ul SignatureForm{signatureFormState, signaturePassword} =
+servePaymentsSign ul r = -- SignatureForm{signatureFormState, signaturePassword} =
     withSessionLayer ul $ \layer -> do
         renderHtml
             <$> signalHandler
                 layer
                 alertH
                 paymentsChangeH
-                signatureFormState
-                (Sign signaturePassword)
+                (signatureFormState r)
+                (case r of
+                    SignatureForm _ s -> Sign s
+                    ExternalSignatureForm _ s -> ExternallySign s
+                )
 
 servePaymentsSubmit
     :: UILayer WalletResource
