@@ -37,6 +37,7 @@ import Data.Aeson
     , withObject
     , withText
     , (.:)
+    , (.:?)
     )
 import Data.Aeson.Types
     ( Parser
@@ -72,6 +73,9 @@ import Web.FormUrlEncoded
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Monoidal.Strict as MonoidalMap
+import Data.Maybe
+    ( fromMaybe
+    )
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Encoding as TL
@@ -132,8 +136,14 @@ instance FromJSON Transaction where
         dataType <- o .: "type"
         description <- o .: "description"
         cborHex <- o .: "cborHex"
-        bip32Paths <- o .: "bip32Paths"
-        pure Transaction{dataType, description, cborHex, bip32Paths}
+        bip32Paths <- o .:? "bip32Paths"
+        pure
+            Transaction
+                { dataType
+                , description
+                , cborHex
+                , bip32Paths = fromMaybe [] bip32Paths
+                }
 
 -- Orphan instances for BIP32Path
 -- TODO: move where they belong, in the module defining BIP32Path
@@ -179,16 +189,36 @@ instance FromJSON BIP32Path where
 
 newtype Password = Password Text
 
-data SignatureForm = SignatureForm
-    { signatureFormState :: State
-    , signaturePassword :: Password
-    }
+data SignatureForm
+    = SignatureForm
+        { signatureFormState :: State
+        , signaturePassword :: Password
+        }
+    | ExternalSignatureForm
+        { signatureFormState :: State
+        , signatureSignedTransaction :: Transaction
+        }
 
 instance FromForm SignatureForm where
     fromForm form = do
         signatureFormState <- fromForm form
-        signaturePassword <- Password <$> parseUnique "passphrase" form
-        pure SignatureForm{signatureFormState, signaturePassword}
+        let
+            signature = do
+                signaturePassword <- Password <$> parseUnique "passphrase" form
+                pure SignatureForm{signatureFormState, signaturePassword}
+            externalSignature = do
+                signatureSignedTransaction <- parseUnique "signed-transaction" form
+                pure
+                    ExternalSignatureForm{signatureFormState, signatureSignedTransaction}
+        case signature of
+            Left _ -> externalSignature
+            Right s -> pure s
+
+instance FromHttpApiData Transaction where
+    parseQueryParam :: Text -> Either Text Transaction
+    parseQueryParam t = case Aeson.decode $ TL.encodeUtf8 $ TL.fromStrict t of
+        Nothing -> Left "Invalid JSON for a Transaction"
+        Just tx -> pure tx
 
 data StateA t
     = NoState
@@ -219,6 +249,7 @@ data Signal
     = AddReceiver Receiver
     | DeleteReceiver Address
     | Sign Password
+    | ExternallySign Transaction
     | Unsign
     | Submit
     | Reset
@@ -273,6 +304,8 @@ step c (Unsigned utx) (DeleteReceiver addr) = do
     Just <$> deleteReceiver c utx addr
 step c (Unsigned utx) (Sign pwd) = do
     stx <- sign c utx pwd
+    pure $ Just $ Signed utx stx
+step _ (Unsigned utx) (ExternallySign stx) = do
     pure $ Just $ Signed utx stx
 step c (Signed utx _) (AddReceiver receiver) = do
     Just <$> addReceiver c utx receiver
