@@ -599,8 +599,6 @@ steps:
         NODE_DIR: "test\\e2e\\state\\node"
         WALLET_DB_DIR: "test\\e2e\\state\\wallet"
         E2E_CONFIG_DIR: "configs\\cardano\\preprod"
-        TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
-        NODE_DB_DIR: "lib\\wallet-e2e\\test-state\\preprod\\node\\db"
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1
