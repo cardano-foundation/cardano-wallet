@@ -22,7 +22,7 @@ Currently, the cardano-wallet codebase manages downstream constraints at the top
 
 * All components of the cardano-wallet are currently versioned using `0.yyyy.mm.dd` pattern. In order to ensure published libraries are deemed newer, we need to change their versioning scheme to the usual `1.x.y.z` (eg. following [PVP](https://pvp.haskell.org))
 * We need to start from the bottom-up with [cardano-wallet-read](https://github.com/cardano-foundation/cardano-wallet-agda/blob/f9709fafae2585f24f9833e71bf0b4de3023b3ed/lib/cardano-wallet-read/cardano-wallet-read.cabal#L1) package which lives in the cardano-wallet-agda repository
-* User-facing libraries might depend on "technical" libraries which are mostly useless and implementation details. We nevertheless need to publish those packages to CHaP in order for Cabal resolution mechanism to work properly
+* User-facing libraries might depend on "technical" libraries which mostly expose implementation details. We nevertheless need to publish those packages to CHaP in order for Cabal resolution mechanism to work properly
 * In order to limit the maintenance burden, version bound constraints should be set only on _public libraries_. Cabal will "naturally" propagate those constraints to other packages
 * We acknowledge that defining good version constraints is a bit of a dark art, so our approach will be to start with a rather restrictive set and expand through _package revisions_ as needed
 * We don't invest time in automation and tooling initially, setting and managing bounds manually, until we reach a point where it's becoming overwhelming
