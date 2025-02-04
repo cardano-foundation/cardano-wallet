@@ -1,0 +1,9 @@
+# Pin line endings for genesis files.
+#
+# Genesis files are
+#   * human-readable text data
+#   * but they also have a hash.
+#
+# `cardano-node` is sensitive to the line endings in the genesis file.
+#
+**/*.json text eol=lf
