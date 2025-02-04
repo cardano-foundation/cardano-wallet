@@ -4,13 +4,10 @@
 module Cardano.Wallet.UI.Deposit.Html.Pages.Payments.Page
     ( paymentsH
     , paymentsElementH
-    -- , receiversH
-    --  , updateReceiversH
     , availableBalanceElementH
     , receiverAddressValidationH
     , receiverAmountValidationH
     , paymentsChangeH
-    --   , submitH
     )
 where
 
@@ -89,6 +86,9 @@ import Control.Monad
     ( forM_
     , when
     )
+import Data.Foldable
+    ( Foldable (..)
+    )
 import Data.Maybe
     ( fromMaybe
     )
@@ -153,7 +153,7 @@ paymentsChangeH balance transaction = do
                     setInspection Nothing
                     setBalance balance Nothing
                 Unsigned (utx, inspect) -> do
-                    setReceivers $ Just (signatureFormH canSign, inspect)
+                    setReceivers $ Just (signatureFormH utx canSign, inspect)
                     setInspection $ Just (inspect, utx, Nothing)
                     setBalance balance $ Just inspect
                 Signed utx (stx, inspect) -> do
@@ -183,7 +183,8 @@ setReceivers mInspect =
         $ case mInspect of
             Nothing -> receiversH Nothing
             Just (canSign, inspect) -> do
-                receiversH $ Just (canSign, extractReceivers inspect)
+                receiversH $ Just (extractReceivers inspect)
+                canSign
 
 setInspection
     :: Maybe (InspectTx, Transaction, Maybe Transaction)
@@ -253,7 +254,7 @@ newReceiverH = do
                     ]
                     mempty
 
-receiversH :: Maybe (Html (), Receivers) -> Html ()
+receiversH :: Maybe Receivers -> Html ()
 receiversH m = do
     div_ [class_ "d-flex justify-content-end"] $ do
         table_
@@ -266,7 +267,7 @@ receiversH m = do
                         thEnd (Just 9) "Amount"
                         thEnd (Just 5) "Actions"
                 tbody_ [id_ "payment-state"]
-                    $ forM_ (MonoidalMap.assocs $ foldMap snd m)
+                    $ forM_ (MonoidalMap.assocs $ fold m)
                     $ \(address, Sum amount) -> do
                         tr_ $ do
                             tdEnd $ do
@@ -285,9 +286,6 @@ receiversH m = do
                                     ]
                                 $ i_ [class_ "bi bi-trash"] mempty
                 newReceiverH
-    case m of
-        Just (h, _) -> div_ [class_ "px-2"] h
-        _ -> pure ()
 
 ifNotEmpty :: (Foldable t, Monoid b) => t a -> b -> b
 ifNotEmpty xs b = if null xs then mempty else b
@@ -345,7 +343,9 @@ transactionInspectionH (InspectTx{..}, utx, mstx) = do
                 $ do
                     thead_ $ do
                         tr_ $ do
-                            thEnd Nothing $ toHtml $ truncatableText WithoutCopy "" "Change Address"
+                            thEnd Nothing
+                                $ toHtml
+                                $ truncatableText WithoutCopy "" "Change Address"
                             thEnd (Just 7) "Amount"
                     tbody_
                         $ forM_ change
@@ -386,16 +386,15 @@ transactionInspectionH (InspectTx{..}, utx, mstx) = do
 
 transactionCBORH :: Text -> Transaction -> Html ()
 transactionCBORH copyName cbor =
-    truncatableText WithCopy copyName -- "unsigned-transaction-copy"
+    truncatableText WithCopy copyName
         $ toHtml
         $ Aeson.encode cbor
 
-signatureFormH :: CanSign -> Html ()
-signatureFormH = \case
+signatureFormH :: Transaction -> CanSign -> Html ()
+signatureFormH utx = \case
     CanSign -> do
         div_ [class_ "d-flex justify-content-end"] $ do
             div_ [class_ "input-group", style_ "max-width:35em"] $ do
-                -- span_ [class_ "input-group-text"] "Sign"
                 input_
                     [ id_ "signature-password"
                     , class_ "form-control text-end"
@@ -410,7 +409,25 @@ signatureFormH = \case
                     , hxInclude_ "#signature-password, #payment-state"
                     ]
                     "Sign"
-    CannotSign -> "paste signed tx not implemented"
+    CannotSign -> do
+        record (Just 15) Full Striped $ do
+            field [] "unsigned transaction"
+                $ transactionCBORH "unsigned-transaction-signature-copy" utx
+        div_ [class_ "d-flex justify-content-end"] $ do
+            div_ [class_ "input-group", style_ "max-width:35em"] $ do
+                input_
+                    [ id_ "signed-transaction"
+                    , class_ "form-control text-end"
+                    , name_ "signed-transaction"
+                    , placeholder_ "signed transaction"
+                    ]
+            button_
+                [ class_ "btn btn-secondary"
+                , hxPost_ $ linkText paymentsSignLink
+                , hxInclude_ "#payment-state, #signed-transaction"
+                , hxTarget_ "#none"
+                ]
+                "Accept"
 
 submitH :: Html ()
 submitH = do
@@ -492,7 +509,7 @@ paymentsElementH =
             box "New" mempty
                 $ do
                     setState [] NoState
-                    box "Payment Receivers" mempty
+                    box "Transaction Creation" mempty
                         $ do
                             div_
                                 [ id_ "receivers"
