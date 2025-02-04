@@ -37,6 +37,7 @@
         - [Hierarchical Deterministic Wallets](design/concepts/hierarchical-deterministic-wallets.md)
         - [Transaction Lifecycle](design/concepts/transaction-lifecycle.md)
         - [UTxO](design/concepts/utxo.md)
+        - [Multi-signatures](design/concepts/multisig.md)
     - [Specifications](design/specs.md)
       - [Wallet ID](design/specs/wallet-id.md)
     - [Prototypes](design/prototypes.md)
