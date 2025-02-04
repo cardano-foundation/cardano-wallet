@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Cardano.Wallet.Primitive.Types.AssetName.Gen
     (
     -- * Generators and shrinkers

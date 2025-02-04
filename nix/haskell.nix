@@ -102,7 +102,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
 
     in {
       name = "cardano-wallet";
-      compiler-nix-name = "ghc966";
+      compiler-nix-name = "ghc982";
 
       src = haskellLib.cleanSourceWith {
         name = "cardano-wallet-src";

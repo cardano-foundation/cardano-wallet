@@ -138,7 +138,6 @@ test-suite scenario
     , customer-deposit-wallet
     , delta-store
     , hspec
-
   other-modules:
     Test.Scenario.Blockchain
     Test.Scenario.Wallet.Deposit.Exchanges
