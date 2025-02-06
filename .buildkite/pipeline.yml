@@ -583,6 +583,7 @@ steps:
       depends_on:
         - trigger-windows-e2e-tests
       commands:
+        - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod # ensure the configs don't diverge despite being duplicated
         - ./scripts/buildkite/main/windows-e2e.bat
       agents:
         system: ${windows}
