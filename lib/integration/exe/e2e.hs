@@ -19,6 +19,10 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.Preprod as Preprod
 
+import Cardano.Launcher.Mithril
+    ( downloadLatestSnapshot
+    , downloadMithril
+    )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , isWindows
@@ -72,10 +76,10 @@ import Network.URI
     )
 import System.Directory
     ( createDirectoryIfMissing
-    , getCurrentDirectory
     )
 import System.Environment
     ( lookupEnv
+    , setEnv
     )
 import System.FilePath
     ( takeDirectory
@@ -105,28 +109,20 @@ import Test.Utils.Paths
 
 -- ENV configuration -----------------------------------------------------------
 
-data E2EConfig = E2EConfig
-    { walletDbDir :: FilePath
-    , nodeDir :: FilePath
-    , nodeDbDir :: FilePath
-    , preprodMnemonics :: [SomeMnemonic]
+newtype E2EConfig = E2EConfig
+    { preprodMnemonics :: [SomeMnemonic]
     }
 
 getConfig :: IO E2EConfig
 getConfig = do
-    walletDbDir <- fromMaybe defaultWalletDbDir <$> lookupEnv "WALLET_DB_DIR"
-    nodeDbDir <- fromMaybe defaultNodeDbDir <$> lookupEnv "NODE_DB_DIR"
-    nodeDir <- fromMaybe defaultNodeDir <$> lookupEnv "NODE_DIR"
     preprodMnemonics <- getPreprodMnemonics
+
+    -- Needed for mithril-client
+    setEnv "GENESIS_VERIFICATION_KEY" "5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d"
+    setEnv "AGGREGATOR_ENDPOINT" "https://aggregator.release-preprod.api.mithril.network/aggregator"
+
     pure $ E2EConfig {..}
   where
-    -- Probably too fine grained control with all these settings, but works for now
-    defaultNodeDbDir   = repoRoot </> "test" </> "e2e" </> "state" </> "node" </> "db"
-    defaultNodeDir   = repoRoot </> "test" </> "e2e" </> "state" </> "node"
-    defaultWalletDbDir = repoRoot </> "test" </> "e2e" </> "state" </> "wallet"
-
-    repoRoot = ".." </> ".." -- works when run with 'cabal test'
-
     getPreprodMnemonics :: IO [SomeMnemonic]
     getPreprodMnemonics
         = map (SomeMnemonic . unsafeMkMnemonic @15 . T.words)
@@ -161,43 +157,42 @@ main = withUtf8 $ do
 -- setup -----------------------------------------------------------------------
 
 configureContext :: E2EConfig -> (Context -> IO ()) -> IO ()
-configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} action = do
-    cwd <- getCurrentDirectory
+configureContext E2EConfig{preprodMnemonics} action = withConfigDir $ \dir -> do
+    putStrLn "~~~ Downloading latest mithril snapshot"
+    downloadLatestSnapshot dir =<< downloadMithril dir
     let nodeSocket = if isWindows
             then "\\\\.\\pipe\\socket"
-            else cwd </> nodeDbDir </> "node.socket"
-    withConfigDir $ \configDir -> do
-        let nodeConfig =
-                CardanoNodeConfig
-                    { nodeDir = cwd </> nodeDir
-                    , nodeConfigFile = cwd </> configDir </> "config.json"
-                    , nodeTopologyFile = cwd </> configDir </> "topology.json"
-                    , nodeDatabaseDir = cwd </> nodeDbDir
-                    , nodeDlgCertFile = Nothing
-                    , nodeSignKeyFile = Nothing
-                    , nodeOpCertFile = Nothing
-                    , nodeKesKeyFile = Nothing
-                    , nodeVrfKeyFile = Nothing
-                    , nodePort = Nothing
-                    , nodeLoggingHostname = Nothing
-                    , nodeExecutable = Nothing
-                    , nodeOutputFile = Nothing
-                    , nodeSocketPathFile = JustK nodeSocket
-                    }
+            else "node.socket"
+    let nodeConfig =
+            CardanoNodeConfig
+                { nodeDir = dir
+                , nodeConfigFile = dir </> "config.json"
+                , nodeTopologyFile = dir </> "topology.json"
+                , nodeDatabaseDir = dir </> "db"
+                , nodeDlgCertFile = Nothing
+                , nodeSignKeyFile = Nothing
+                , nodeOpCertFile = Nothing
+                , nodeKesKeyFile = Nothing
+                , nodeVrfKeyFile = Nothing
+                , nodePort = Nothing
+                , nodeLoggingHostname = Nothing
+                , nodeExecutable = Nothing
+                , nodeOutputFile = Nothing
+                , nodeSocketPathFile = JustK nodeSocket
+                }
 
-        withCardanoNode nullTracer nodeConfig $ \(JustK node) -> do
-            let walletConfig =
-                    CardanoWalletConfig
-                        { walletPort = 8090
-                        , walletDatabaseDir = walletDbDir
-                        , walletNetwork = Launcher.Testnet $
-                            configDir </> "byron-genesis.json"
-                        , executable = Nothing
-                        , workingDir = Nothing
-                        , extraArgs = []
-                        }
-            withCardanoWallet nullTracer node walletConfig $ \wallet -> do
-                action =<< contextFromNetwork wallet
+    withCardanoNode nullTracer nodeConfig $ \(JustK node) -> do
+        let walletConfig =
+                CardanoWalletConfig
+                    { walletPort = 8090
+                    , walletDatabaseDir = "wallet-db"
+                    , walletNetwork = Launcher.Testnet "byron-genesis.json"
+                    , executable = Nothing
+                    , workingDir = Just dir
+                    , extraArgs = []
+                    }
+        withCardanoWallet nullTracer node walletConfig $ \wallet -> do
+            action =<< contextFromNetwork wallet
   where
     contextFromNetwork :: CardanoWalletConn -> IO Context
     contextFromNetwork (CardanoWalletConn port _) = do
@@ -237,7 +232,7 @@ configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} actio
     setupAsBuildkiteSections WaitingForNodeConnection = "--- Waiting for node connection"
     setupAsBuildkiteSections CreatingWallets          = "--- Creating wallets"
     setupAsBuildkiteSections WaitingForWalletsToSync  = "--- Syncing wallets"
-    setupAsBuildkiteSections PreprodSetupReady        = "--- Running tests"
+    setupAsBuildkiteSections PreprodSetupReady        = "+++ Running tests"
 
 -- node configs ----------------------------------------------------------------
 
@@ -247,7 +242,7 @@ configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} actio
 -- compile-time, and tweaked for less verbose logs.
 withConfigDir :: (FilePath -> IO a) -> IO a
 withConfigDir action = liftIO $
-  withSystemTempDirectory "e2e-node-configs" $ \tmpDir -> do
+  withSystemTempDirectory "e2e" $ \tmpDir -> do
     -- Write the embedded config dir to the temporary dir
     forM_ embeddedConfigs $ \(relPath, content) -> do
       let dest = tmpDir </> relPath

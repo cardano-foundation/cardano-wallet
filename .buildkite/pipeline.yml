@@ -588,11 +588,6 @@ steps:
       agents:
         system: ${windows}
       env:
-        NODE_DB_DIR: "test\\e2e\\state\\node\\db"
-        NODE_DIR: "test\\e2e\\state\\node"
-        WALLET_DB_DIR: "test\\e2e\\state\\wallet"
-        AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
-        GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1
       concurrency_group: 'windows-tests'
 

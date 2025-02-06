@@ -32,10 +32,12 @@ library
       base
     , bytestring
     , contra-tracer
+    , directory
     , either
     , extra
     , filepath
     , fmt
+    , http-conduit
     , iohk-monitoring
     , network
     , process
@@ -49,6 +51,7 @@ library
     Cardano.Launcher
     Cardano.Launcher.Node
     Cardano.Launcher.Wallet
+    Cardano.Launcher.Mithril
     Cardano.Startup
     Data.MaybeK
   if os(windows)
