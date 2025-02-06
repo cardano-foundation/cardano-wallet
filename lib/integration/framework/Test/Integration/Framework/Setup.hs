@@ -457,8 +457,7 @@ setupContext
             putMVar
                 ctx
                 Context
-                    { _cleanup = pure ()
-                    , _manager = (baseUrl, manager)
+                    { _manager = (baseUrl, manager)
                     , _walletPort = CLI.Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _networkParameters = networkParameters
@@ -472,6 +471,7 @@ setupContext
                                 runFaucetQ
                                 batchSize
                                 (nPerAddr, c, addrs)
+                    , _preprodWallets = []
                     }
 
 withContext :: TestingCtx -> (Context -> IO ()) -> IO ()

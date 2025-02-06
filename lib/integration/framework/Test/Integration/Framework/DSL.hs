@@ -231,7 +231,12 @@ module Test.Integration.Framework.DSL
     , deleteTransactionViaCLI
     , getTransactionViaCLI
 
-    -- utilities
+    -- * Preprod e2e
+    , setupPreprodWallets
+    , fixturePreprodWallets
+    , PreprodSetupLog (..)
+
+    -- * utilities
     , getRetirementEpoch
     , replaceStakeKey
      -- * Re-exports
@@ -465,9 +470,15 @@ import Control.Monad.Trans.Resource
     , runResourceT
     )
 import Control.Retry
-    ( capDelay
+    ( RetryStatus
+    , capDelay
     , constantDelay
+    , fibonacciBackoff
     , retrying
+    )
+import Control.Tracer
+    ( Tracer
+    , traceWith
     )
 import Cryptography.Hash.Blake
     ( Blake2b_160
@@ -533,6 +544,9 @@ import Data.List.NonEmpty
     )
 import Data.List.NonEmpty.Extra
     ( (!?)
+    )
+import Data.Map
+    ( Map
     )
 import Data.Maybe
     ( catMaybes
@@ -2272,6 +2286,102 @@ fixtureWallet
     -> ResourceT m ApiWallet
 fixtureWallet ctx =
     fst <$> fixtureWalletWithMnemonics nextShelleyMnemonic ctx "shelley"
+
+data PreprodSetupLog
+    = WaitingForNodeConnection
+    | CreatingWallets
+    | WaitingForWalletsToSync
+    | PreprodSetupReady
+
+setupPreprodWallets :: Tracer IO PreprodSetupLog -> [SomeMnemonic] -> Context -> IO Context
+setupPreprodWallets tr mnemonics ctx = do
+    traceWith tr WaitingForNodeConnection
+    waitForConnection
+
+    traceWith tr CreatingWallets
+    createWalletsIfNeeded mnemonics
+
+    wallets <- getResponse <$> request @[ApiWallet] ctx
+        (Link.listWallets @'Shelley) Default Empty
+    unless (length wallets == length mnemonics) $
+        expectationFailure $ unwords
+            [ "Setup error: have", show (length mnemonics), "mnemonics but only"
+            , show wallets, "have now been created."
+            ]
+
+    let walletIds = map (getApiT . view #id) wallets
+
+    traceWith tr WaitingForWalletsToSync
+    waitForAllWalletsToSync
+    traceWith tr PreprodSetupReady
+
+    pure ctx{ _preprodWallets = walletIds }
+  where
+    createWalletsIfNeeded :: [SomeMnemonic] -> IO ()
+    createWalletsIfNeeded = mapM_ createWalletIfNeeded
+
+    createWalletIfNeeded :: SomeMnemonic -> IO ()
+    createWalletIfNeeded (SomeMnemonic mnemonic) = do
+        (s, response) <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default $ Json
+            [aesonQQ| {
+                "name": "Faucet Wallet",
+                "mnemonic_sentence": #{mnemonicToText mnemonic},
+                "passphrase": #{fixturePassphrase}
+            } |]
+        case response of
+            Right _ | s == HTTP.status201 -> pure ()
+            Left e | s == HTTP.status409 -> show e `shouldContain` "wallet_already_exists"
+            _ -> expectationFailure $ unwords
+                [ "setupPreprodWallets, createWalletsIfNeeded: unexpected response"
+                , show (s, response)
+                ]
+
+    waitForConnection :: IO ()
+    waitForConnection = void $ retrying
+        (capDelay (30*oneSecond) $ fibonacciBackoff oneSecond)
+        shouldWait
+        (\_retryStatus -> request @ApiNetworkInformation ctx
+          Link.getNetworkInfo Default Empty)
+      where
+        shouldWait
+            :: RetryStatus
+            -> (HTTP.Status, Either RequestException ApiNetworkInformation)
+            -> IO Bool
+        shouldWait _ (_, Right info) = pure $ info ^. #syncProgress . #getApiT <= NotResponding
+        shouldWait _ (_, Left _err) = pure True
+
+    waitForAllWalletsToSync :: IO ()
+    waitForAllWalletsToSync = do
+        eventuallyUsingDelay (5 * s) (90 * minutes) "setupPreprodWallets: all wallets are synced" $ do
+            wallets :: [ApiWallet] <- getResponse <$> request @[ApiWallet] ctx
+                (Link.listWallets @'Shelley) Default Empty
+            let progress = map (getApiT . view #state) wallets
+            all (== Ready) progress `shouldBe` True
+      where
+        s = 1_000_000
+        minutes = 60
+
+fixturePreprodWallets :: (HasCallStack, MonadUnliftIO m) => Context -> m [ApiWallet]
+fixturePreprodWallets ctx = do
+    wallets <- getResponse <$> request @[ApiWallet] ctx
+        (Link.listWallets @'Shelley) Default Empty
+
+    let keyByWalletId :: ApiWallet -> (WalletId, ApiWallet)
+        keyByWalletId w = (getApiT $ w ^. #id, w)
+
+        walletsById :: Map WalletId ApiWallet
+        walletsById = Map.fromList $ map keyByWalletId wallets
+
+        lookupWallet :: WalletId -> ApiWallet
+        lookupWallet wid = fromMaybe err $ Map.lookup wid walletsById
+          where
+            err = error $ unwords
+                [ "fixturePreprodWallets: expected", show wid, "to be an"
+                , "existing wallet. The wallets that could be found are:\n\n"
+                ] ++ unlines (map show wallets)
+
+    -- Use the information from 'wallets'
+    pure $ map lookupWallet $ _preprodWallets ctx
 
 fixtureShelleyWallet
     :: (HasCallStack, MonadUnliftIO m)

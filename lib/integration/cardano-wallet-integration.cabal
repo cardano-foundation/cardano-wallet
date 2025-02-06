@@ -205,6 +205,7 @@ library scenarios
     Test.Integration.Scenario.CLI.Shelley.HWWallets
     Test.Integration.Scenario.CLI.Shelley.Transactions
     Test.Integration.Scenario.CLI.Shelley.Wallets
+    Test.Integration.Scenario.Preprod
 
 common integration-common
   import:         language, opts-exe
@@ -216,6 +217,33 @@ common integration-common
 executable integration-exe
   import:  integration-common
   main-is: integration-tests-exe.hs
+  hs-source-dirs: exe
+
+test-suite e2e
+  import:  integration-common
+  type:               exitcode-stdio-1.0
+  data-files: configs
+  hs-source-dirs: configs
+  build-depends:
+    , aeson
+    , bytestring
+    , cardano-addresses
+    , cardano-wallet-api
+    , cardano-wallet-exe
+    , cardano-wallet-integration:framework
+    , cardano-wallet-launcher
+    , cardano-wallet-primitive
+    , cardano-wallet-test-utils
+    , contra-tracer
+    , directory
+    , file-embed
+    , filepath
+    , hspec
+    , network-uri
+    , temporary
+    , text
+    , with-utf8
+  main-is: e2e.hs
 
 test-suite integration
   import:             integration-common

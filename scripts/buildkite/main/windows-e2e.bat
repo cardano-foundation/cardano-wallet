@@ -24,21 +24,11 @@ ls %NODE_DB_DIR%
 REM ------------- ruby tests -------------
 
 cd test\e2e
-
-echo "Running Ruby tests"
-echo "Setting up preprod environment"
-rm -rf state\configs\preprod
-
 call bundle install
+call bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,bins,any,latest]
+cd ..\..
 
-call bundle exec rake setup[preprod,%BUILDKITE_BRANCH%]
-echo "Displaying versions"
-call bundle exec rake display_versions
-echo "Starting node and wallet"
-call bundle exec rake start_node_and_wallet[preprod]
-echo "Waiting for node to sync"
-call bundle exec rake wait_until_node_synced
-echo "Running tests"
-call bundle exec rake spec SPEC_OPTS="-e 'Stake Pools'"
-echo "Stopping node and wallet"
-call bundle exec rake stop_node_and_wallet[preprod]
+echo %NODE_DB_DIR%
+echo %WALLET_DB_DIR%
+test\e2e\bins\cardano-wallet-integration-test-e2e.exe
+exit /b %ERRORLEVEL%

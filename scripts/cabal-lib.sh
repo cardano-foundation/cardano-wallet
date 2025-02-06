@@ -27,7 +27,7 @@ list_sources() {
     # to be serialised for use in the tests. They are not intended to be built
     # with the project.
     # Exclude prototypes dir because it's a different project.
-    git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/wallet/extra | grep -v lib/wallet-e2e
+    git ls-files 'lib/**/*.hs' | grep -v Main.hs | grep -v prototypes/ | grep -v lib/wallet/extra
 }
 
 # usage: query_plan_json PACKAGE COMP:NAME KEY

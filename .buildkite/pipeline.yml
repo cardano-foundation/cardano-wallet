@@ -120,14 +120,6 @@ steps:
       concurrency: 8
       concurrency_group: 'linux-integration-tests'
 
-    - label: Run Haskell E2E Tests (linux)
-      command: 'nix develop --command bash -c "just e2e-local"'
-      soft_fail:
-        - exit_status: 130
-      timeout_in_minutes: 30
-      agents:
-        system: ${linux}
-
     - block: Run Ruby E2E Tests (linux)
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: []
@@ -587,15 +579,18 @@ steps:
       key: trigger-windows-e2e-tests
 
     - label: ⚙️ Windows E2E Tests
+      timeout_in_minutes: 120
       depends_on:
         - trigger-windows-e2e-tests
       commands:
+        - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod # ensure the configs don't diverge despite being duplicated
         - ./scripts/buildkite/main/windows-e2e.bat
       agents:
         system: ${windows}
       env:
-        TESTS_E2E_FIXTURES: "$FIXTURE_DECRYPTION_KEY"
-        NODE_DB_DIR: "test\\e2e\\state\\node_db\\preprod"
+        NODE_DB_DIR: "test\\e2e\\state\\node\\db"
+        NODE_DIR: "test\\e2e\\state\\node"
+        WALLET_DB_DIR: "test\\e2e\\state\\wallet"
         AGGREGATOR_ENDPOINT: "${PREPROD_AGGREGATOR_ENDPOINT}"
         GENESIS_VERIFICATION_KEY: "${PREPROD_GENESIS_VERIFICATION_KEY}"
       concurrency: 1

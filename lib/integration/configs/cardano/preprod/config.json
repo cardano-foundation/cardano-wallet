@@ -68,11 +68,6 @@
       "stdout"
     ]
   ],
-  "hasEKG": 12788,
-  "hasPrometheus": [
-    "127.0.0.1",
-    12798
-  ],
   "minSeverity": "Info",
   "options": {
     "mapBackends": {
