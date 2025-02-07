@@ -71,6 +71,9 @@ import Data.MaybeK
 import Main.Utf8
     ( withUtf8
     )
+import Network.Socket
+    ( PortNumber
+    )
 import Network.URI
     ( parseURI
     )
@@ -106,16 +109,21 @@ import Test.Integration.Framework.Setup
 import Test.Utils.Paths
     ( getTestDataPath
     )
+import Text.Read
+    ( readMaybe
+    )
 
 -- ENV configuration -----------------------------------------------------------
 
-newtype E2EConfig = E2EConfig
+data E2EConfig = E2EConfig
     { preprodMnemonics :: [SomeMnemonic]
+    , alreadyRunningWallet :: Maybe PortNumber
     }
 
 getConfig :: IO E2EConfig
 getConfig = do
     preprodMnemonics <- getPreprodMnemonics
+    alreadyRunningWallet <- (readMaybe =<<) <$> lookupEnv "HAL_E2E_ALREADY_RUNNING_WALLET_PORT"
 
     -- Needed for mithril-client
     setEnv "GENESIS_VERIFICATION_KEY" "5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d"
@@ -157,47 +165,54 @@ main = withUtf8 $ do
 -- setup -----------------------------------------------------------------------
 
 configureContext :: E2EConfig -> (Context -> IO ()) -> IO ()
-configureContext E2EConfig{preprodMnemonics} action = withConfigDir $ \dir -> do
-    putStrLn "~~~ Downloading latest mithril snapshot"
-    downloadLatestSnapshot dir =<< downloadMithril dir
-    let nodeSocket = if isWindows
-            then "\\\\.\\pipe\\socket"
-            else "node.socket"
-    let nodeConfig =
-            CardanoNodeConfig
-                { nodeDir = dir
-                , nodeConfigFile = dir </> "config.json"
-                , nodeTopologyFile = dir </> "topology.json"
-                , nodeDatabaseDir = dir </> "db"
-                , nodeDlgCertFile = Nothing
-                , nodeSignKeyFile = Nothing
-                , nodeOpCertFile = Nothing
-                , nodeKesKeyFile = Nothing
-                , nodeVrfKeyFile = Nothing
-                , nodePort = Nothing
-                , nodeLoggingHostname = Nothing
-                , nodeExecutable = Nothing
-                , nodeOutputFile = Nothing
-                , nodeSocketPathFile = JustK nodeSocket
-                }
-
-    withCardanoNode nullTracer nodeConfig $ \(JustK node) -> do
-        let walletConfig =
-                CardanoWalletConfig
-                    { walletPort = 8090
-                    , walletDatabaseDir = "wallet-db"
-                    , walletNetwork = Launcher.Testnet "byron-genesis.json"
-                    , executable = Nothing
-                    , workingDir = Just dir
-                    , extraArgs = []
-                    }
-        withCardanoWallet nullTracer node walletConfig $ \wallet -> do
-            action =<< contextFromNetwork wallet
+configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
+    case alreadyRunningWallet of
+        Just port -> action =<< contextFromWalletPort port
+        Nothing -> launchNodeAndWalletViaMithril
   where
-    contextFromNetwork :: CardanoWalletConn -> IO Context
-    contextFromNetwork (CardanoWalletConn port _) = do
+    launchNodeAndWalletViaMithril :: IO ()
+    launchNodeAndWalletViaMithril = withConfigDir $ \dir -> do
+        putStrLn "~~~ Downloading latest mithril snapshot"
+        downloadLatestSnapshot dir =<< downloadMithril dir
+        let nodeSocket = if isWindows
+                then "\\\\.\\pipe\\socket"
+                else "node.socket"
+        let nodeConfig =
+                CardanoNodeConfig
+                    { nodeDir = dir
+                    , nodeConfigFile = dir </> "config.json"
+                    , nodeTopologyFile = dir </> "topology.json"
+                    , nodeDatabaseDir = dir </> "db"
+                    , nodeDlgCertFile = Nothing
+                    , nodeSignKeyFile = Nothing
+                    , nodeOpCertFile = Nothing
+                    , nodeKesKeyFile = Nothing
+                    , nodeVrfKeyFile = Nothing
+                    , nodePort = Nothing
+                    , nodeLoggingHostname = Nothing
+                    , nodeExecutable = Nothing
+                    , nodeOutputFile = Nothing
+                    , nodeSocketPathFile = JustK nodeSocket
+                    }
+
+        withCardanoNode nullTracer nodeConfig $ \(JustK node) -> do
+            let walletConfig =
+                    CardanoWalletConfig
+                        { walletPort = 8090
+                        , walletDatabaseDir = "wallet-db"
+                        , walletNetwork = Launcher.Testnet "byron-genesis.json"
+                        , executable = Nothing
+                        , workingDir = Just dir
+                        , extraArgs = []
+                        }
+            withCardanoWallet nullTracer node walletConfig
+                $ \(CardanoWalletConn walletPort _)  -> do
+                    action =<< contextFromWalletPort walletPort
+
+    contextFromWalletPort :: PortNumber -> IO Context
+    contextFromWalletPort walletPort = do
         manager <- httpManager
-        let mUri = parseURI $ "http://localhost:" <> show port <> "/"
+        let mUri = parseURI ("http://localhost:" <> show walletPort <> "/")
         let baseUri = case mUri of
               Just uri -> uri
               Nothing  -> error "Invalid URI"
@@ -205,7 +220,7 @@ configureContext E2EConfig{preprodMnemonics} action = withConfigDir $ \dir -> do
         let ctx = Context
                 { _manager = (baseUri, manager)
                 , _walletPort =
-                    Port $ fromIntegral port
+                    Port $ fromIntegral walletPort
                 , _mainEra =
                     ApiConway
                 , _faucet =
