@@ -74,11 +74,7 @@ unit-tests-cabal:
 
 # run cardano-wallet-integration:e2e suite against the preprod network
 e2e:
-  # ugly env workaround as the default values work with cabal but not nix
-  WALLET_DB_DIR=test/e2e/state/wallet \
-  NODE_DIR=test/e2e/state/node \
-  NODE_DB_DIR=test/e2e/state/node/db \
-  nix shell '.#cardano-node' '.#cardano-wallet' '.#e2e' -c e2e
+  nix shell '.#cardano-node' '.#cardano-wallet' '.#e2e' nixpkgs#gnutar nixpkgs#p7zip -c e2e
 
 add_missing_json_goldens:
     CREATE_MISSING_GOLDEN=1 just unit-tests-cabal-match "JSON"
