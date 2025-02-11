@@ -1,18 +1,17 @@
 #! /usr/bin/env bash
 # shellcheck shell=bash
 
-
-function mithril () {
-  nix shell 'github:input-output-hk/mithril' --command mithril-client $@
+function mithril() {
+    nix shell 'github:input-output-hk/mithril?ref=2450.0' --command mithril-client $@
 }
 
-function jq () {
-  nix shell 'nixpkgs#jq' --command jq $@
+function jq() {
+    nix shell 'nixpkgs#jq' --command jq $@
 }
 
 set -euox pipefail
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
 # shellcheck disable=SC1091
 # shellcheck disable=SC2086
