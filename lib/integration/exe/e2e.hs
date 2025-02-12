@@ -128,8 +128,8 @@ getConfig = do
     alreadyRunningWallet <- (readMaybe =<<) <$> lookupEnv "HAL_E2E_ALREADY_RUNNING_WALLET_PORT"
 
     -- Needed for mithril-client
-    setEnvIfMissing "GENESIS_VERIFICATION_KEY" "5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d"
-    setEnvIfMissing "AGGREGATOR_ENDPOINT" "https://aggregator.release-preprod.api.mithril.network/aggregator"
+    setEnvIfMissing "GENESIS_VERIFICATION_KEY" mithrilPreprodGenesisVerificationKey
+    setEnvIfMissing "AGGREGATOR_ENDPOINT" mithrilPreprodAggregatorEndpoint
 
     pure $ E2EConfig {..}
   where
@@ -305,3 +305,9 @@ withConfigDir action = liftIO $
 embeddedConfigs :: [(FilePath, BS.ByteString)]
 embeddedConfigs = $(embedDir
     $(getTestDataPath ("configs" </> "cardano" </> "preprod")))
+
+mithrilPreprodGenesisVerificationKey :: String
+mithrilPreprodGenesisVerificationKey = "5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d"
+
+mithrilPreprodAggregatorEndpoint :: String
+mithrilPreprodAggregatorEndpoint = "https://aggregator.release-preprod.api.mithril.network/aggregator"
