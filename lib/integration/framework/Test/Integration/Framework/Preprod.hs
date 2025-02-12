@@ -16,7 +16,10 @@ module Test.Integration.Framework.Preprod
 import Prelude
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Map as Map
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 import Cardano.Mnemonic
@@ -24,10 +27,14 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkInformation
+    ( ApiAddressWithPath
+    , ApiNetworkInformation
     , ApiWallet
     , WalletStyle (..)
     , getApiT
+    )
+import Cardano.Wallet.Primitive.NetworkId
+    ( NetworkDiscriminant (..)
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
@@ -52,6 +59,9 @@ import Control.Tracer
     ( Tracer
     , traceWith
     )
+import Data.Aeson
+    ( ToJSON
+    )
 import Data.Aeson.QQ
     ( aesonQQ
     )
@@ -65,7 +75,13 @@ import Data.Map
     ( Map
     )
 import Data.Maybe
-    ( fromMaybe
+    ( catMaybes
+    , fromMaybe
+    )
+import Fmt
+    ( blockListF
+    , build
+    , fmt
     )
 import GHC.Stack
     ( HasCallStack
@@ -117,6 +133,7 @@ setupPreprodWallets tr mnemonics ctx = do
 
     traceWith tr WaitingForWalletsToSync
     waitForAllWalletsToSync
+    assertWalletsAreFunded
     traceWith tr PreprodSetupReady
 
     pure ctx{ _preprodWallets = walletIds }
@@ -164,6 +181,37 @@ setupPreprodWallets tr mnemonics ctx = do
       where
         s = 1_000_000
         minutes = 60
+
+    assertWalletsAreFunded :: IO ()
+    assertWalletsAreFunded = do
+        wallets :: [ApiWallet] <- getResponse <$> request @[ApiWallet] ctx
+            (Link.listWallets @'Shelley) Default Empty
+        addrsInNeedOfFunding <- catMaybes <$> mapM requiresFunding wallets
+        unless (null addrsInNeedOfFunding) $
+            expectationFailure $ fmt $ build $ mconcat
+                [ "Not all the expected wallets are funded. Please send funds"
+                , "to the following addresses before rerunning the tests:\n"
+                , blockListF addrsInNeedOfFunding
+                ]
+      where
+        -- | Return address of the wallet if the wallet requires funding.
+        requiresFunding :: ApiWallet -> IO (Maybe String)
+        requiresFunding w
+            | w ^. #balance . #total . #toNatural > 5_000_000
+                = pure Nothing
+            | otherwise = do
+                addr <- view #id . head . getResponse
+                    <$> request @[ApiAddressWithPath ('Testnet 1)] ctx -- hardcoded to preprod
+                            (Link.listAddresses @'Shelley w) Default Empty
+                pure $ Just $ toStringViaJson addr
+
+        toStringViaJson :: ToJSON a => a -> String
+        toStringViaJson x =
+          case Aeson.decode (Aeson.encode x) of
+            Just (Aeson.String t)
+                -> T.unpack t
+            _
+                -> BL8.unpack (Aeson.encode x) -- we can return the unexpected object
 
 fixturePreprodWallets :: (HasCallStack, MonadUnliftIO m) => Context -> m [ApiWallet]
 fixturePreprodWallets ctx = do
