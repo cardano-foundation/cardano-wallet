@@ -120,19 +120,17 @@ steps:
       concurrency: 8
       concurrency_group: 'linux-integration-tests'
 
-    - block: Run Ruby E2E Tests (linux)
+    - block: Run E2E Tests (linux)
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: []
       key: trigger-e2e-tests
 
-    - label: Run Ruby Linux E2E Tests (linux)
+    - label: Run Linux E2E Tests (linux)
       depends_on:
         - trigger-e2e-tests
       commands: |
-        nix shell 'nixpkgs#just' -c just ruby-e2e-linux
+        nix shell 'nixpkgs#just' -c just e2e
       artifact_paths:
-        - "./result/linux/**"
-        - "./logs/**/*"
       env:
 
       agents:
