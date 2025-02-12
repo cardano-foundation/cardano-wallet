@@ -19,6 +19,10 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.Preprod as Preprod
 
+import Cardano.Launcher.Mithril
+    ( downloadLatestSnapshot
+    , downloadMithril
+    )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , isWindows
@@ -46,6 +50,7 @@ import Cardano.Wallet.Unsafe
     )
 import Control.Monad
     ( forM_
+    , when
     )
 import Control.Monad.IO.Class
     ( liftIO
@@ -60,6 +65,7 @@ import Data.FileEmbed
     )
 import Data.Maybe
     ( fromMaybe
+    , isNothing
     )
 import Data.MaybeK
     ( MaybeK (..)
@@ -67,15 +73,18 @@ import Data.MaybeK
 import Main.Utf8
     ( withUtf8
     )
+import Network.Socket
+    ( PortNumber
+    )
 import Network.URI
     ( parseURI
     )
 import System.Directory
     ( createDirectoryIfMissing
-    , getCurrentDirectory
     )
 import System.Environment
     ( lookupEnv
+    , setEnv
     )
 import System.FilePath
     ( takeDirectory
@@ -102,31 +111,28 @@ import Test.Integration.Framework.Setup
 import Test.Utils.Paths
     ( getTestDataPath
     )
+import Text.Read
+    ( readMaybe
+    )
 
 -- ENV configuration -----------------------------------------------------------
 
 data E2EConfig = E2EConfig
-    { walletDbDir :: FilePath
-    , nodeDir :: FilePath
-    , nodeDbDir :: FilePath
-    , preprodMnemonics :: [SomeMnemonic]
+    { preprodMnemonics :: [SomeMnemonic]
+    , alreadyRunningWallet :: Maybe PortNumber
     }
 
 getConfig :: IO E2EConfig
 getConfig = do
-    walletDbDir <- fromMaybe defaultWalletDbDir <$> lookupEnv "WALLET_DB_DIR"
-    nodeDbDir <- fromMaybe defaultNodeDbDir <$> lookupEnv "NODE_DB_DIR"
-    nodeDir <- fromMaybe defaultNodeDir <$> lookupEnv "NODE_DIR"
     preprodMnemonics <- getPreprodMnemonics
+    alreadyRunningWallet <- (readMaybe =<<) <$> lookupEnv "HAL_E2E_ALREADY_RUNNING_WALLET_PORT"
+
+    -- Needed for mithril-client
+    setEnvIfMissing "GENESIS_VERIFICATION_KEY" mithrilPreprodGenesisVerificationKey
+    setEnvIfMissing "AGGREGATOR_ENDPOINT" mithrilPreprodAggregatorEndpoint
+
     pure $ E2EConfig {..}
   where
-    -- Probably too fine grained control with all these settings, but works for now
-    defaultNodeDbDir   = repoRoot </> "test" </> "e2e" </> "state" </> "node" </> "db"
-    defaultNodeDir   = repoRoot </> "test" </> "e2e" </> "state" </> "node"
-    defaultWalletDbDir = repoRoot </> "test" </> "e2e" </> "state" </> "wallet"
-
-    repoRoot = ".." </> ".." -- works when run with 'cabal test'
-
     getPreprodMnemonics :: IO [SomeMnemonic]
     getPreprodMnemonics
         = map (SomeMnemonic . unsafeMkMnemonic @15 . T.words)
@@ -146,6 +152,11 @@ getConfig = do
             , "buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo buffalo"
             ]
 
+    setEnvIfMissing :: String -> String -> IO ()
+    setEnvIfMissing var value = do
+        isUnset <- isNothing <$> lookupEnv var
+        when isUnset $ setEnv var value
+
 -- main ------------------------------------------------------------------------
 
 main :: IO ()
@@ -161,18 +172,24 @@ main = withUtf8 $ do
 -- setup -----------------------------------------------------------------------
 
 configureContext :: E2EConfig -> (Context -> IO ()) -> IO ()
-configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} action = do
-    cwd <- getCurrentDirectory
-    let nodeSocket = if isWindows
-            then "\\\\.\\pipe\\socket"
-            else cwd </> nodeDbDir </> "node.socket"
-    withConfigDir $ \configDir -> do
+configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
+    case alreadyRunningWallet of
+        Just port -> action =<< contextFromWalletPort port
+        Nothing -> launchNodeAndWalletViaMithril
+  where
+    launchNodeAndWalletViaMithril :: IO ()
+    launchNodeAndWalletViaMithril = withConfigDir $ \dir -> do
+        putStrLn "~~~ Downloading latest mithril snapshot"
+        downloadLatestSnapshot dir =<< downloadMithril dir
+        let nodeSocket = if isWindows
+                then "\\\\.\\pipe\\socket"
+                else "node.socket"
         let nodeConfig =
                 CardanoNodeConfig
-                    { nodeDir = cwd </> nodeDir
-                    , nodeConfigFile = cwd </> configDir </> "config.json"
-                    , nodeTopologyFile = cwd </> configDir </> "topology.json"
-                    , nodeDatabaseDir = cwd </> nodeDbDir
+                    { nodeDir = dir
+                    , nodeConfigFile = dir </> "config.json"
+                    , nodeTopologyFile = dir </> "topology.json"
+                    , nodeDatabaseDir = dir </> "db"
                     , nodeDlgCertFile = Nothing
                     , nodeSignKeyFile = Nothing
                     , nodeOpCertFile = Nothing
@@ -189,20 +206,20 @@ configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} actio
             let walletConfig =
                     CardanoWalletConfig
                         { walletPort = 8090
-                        , walletDatabaseDir = walletDbDir
-                        , walletNetwork = Launcher.Testnet $
-                            configDir </> "byron-genesis.json"
+                        , walletDatabaseDir = "wallet-db"
+                        , walletNetwork = Launcher.Testnet "byron-genesis.json"
                         , executable = Nothing
-                        , workingDir = Nothing
+                        , workingDir = Just dir
                         , extraArgs = []
                         }
-            withCardanoWallet nullTracer node walletConfig $ \wallet -> do
-                action =<< contextFromNetwork wallet
-  where
-    contextFromNetwork :: CardanoWalletConn -> IO Context
-    contextFromNetwork (CardanoWalletConn port _) = do
+            withCardanoWallet nullTracer node walletConfig
+                $ \(CardanoWalletConn walletPort _)  -> do
+                    action =<< contextFromWalletPort walletPort
+
+    contextFromWalletPort :: PortNumber -> IO Context
+    contextFromWalletPort walletPort = do
         manager <- httpManager
-        let mUri = parseURI $ "http://localhost:" <> show port <> "/"
+        let mUri = parseURI ("http://localhost:" <> show walletPort <> "/")
         let baseUri = case mUri of
               Just uri -> uri
               Nothing  -> error "Invalid URI"
@@ -210,7 +227,7 @@ configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} actio
         let ctx = Context
                 { _manager = (baseUri, manager)
                 , _walletPort =
-                    Port $ fromIntegral port
+                    Port $ fromIntegral walletPort
                 , _mainEra =
                     ApiConway
                 , _faucet =
@@ -237,7 +254,7 @@ configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} actio
     setupAsBuildkiteSections WaitingForNodeConnection = "--- Waiting for node connection"
     setupAsBuildkiteSections CreatingWallets          = "--- Creating wallets"
     setupAsBuildkiteSections WaitingForWalletsToSync  = "--- Syncing wallets"
-    setupAsBuildkiteSections PreprodSetupReady        = "--- Running tests"
+    setupAsBuildkiteSections PreprodSetupReady        = "+++ Running tests"
 
 -- node configs ----------------------------------------------------------------
 
@@ -247,7 +264,7 @@ configureContext E2EConfig{walletDbDir,nodeDbDir,nodeDir,preprodMnemonics} actio
 -- compile-time, and tweaked for less verbose logs.
 withConfigDir :: (FilePath -> IO a) -> IO a
 withConfigDir action = liftIO $
-  withSystemTempDirectory "e2e-node-configs" $ \tmpDir -> do
+  withSystemTempDirectory "e2e" $ \tmpDir -> do
     -- Write the embedded config dir to the temporary dir
     forM_ embeddedConfigs $ \(relPath, content) -> do
       let dest = tmpDir </> relPath
@@ -288,3 +305,9 @@ withConfigDir action = liftIO $
 embeddedConfigs :: [(FilePath, BS.ByteString)]
 embeddedConfigs = $(embedDir
     $(getTestDataPath ("configs" </> "cardano" </> "preprod")))
+
+mithrilPreprodGenesisVerificationKey :: String
+mithrilPreprodGenesisVerificationKey = "5b3132372c37332c3132342c3136312c362c3133372c3133312c3231332c3230372c3131372c3139382c38352c3137362c3139392c3136322c3234312c36382c3132332c3131392c3134352c31332c3233322c3234332c34392c3232392c322c3234392c3230352c3230352c33392c3233352c34345d"
+
+mithrilPreprodAggregatorEndpoint :: String
+mithrilPreprodAggregatorEndpoint = "https://aggregator.release-preprod.api.mithril.network/aggregator"
