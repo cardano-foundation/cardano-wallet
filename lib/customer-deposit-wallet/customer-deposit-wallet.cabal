@@ -228,12 +228,12 @@ test-suite unit
     , cardano-ledger-core:testlib
     , cardano-ledger-shelley
     , cardano-slotting
-    , cardano-wallet-read
+    , cardano-wallet-read == 1.0.0.0
     , cardano-wallet-test-utils
     , containers
     , contra-tracer
     , customer-deposit-wallet
-    , customer-deposit-wallet-pure
+    , customer-deposit-wallet-pure == 0.1.0.0
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
     , data-default
