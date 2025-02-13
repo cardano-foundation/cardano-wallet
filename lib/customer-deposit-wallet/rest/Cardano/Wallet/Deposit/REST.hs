@@ -271,12 +271,12 @@ findTheDepositWalletOnDisk env dir action = do
     ds <- scanDirectoryForDepositPrefix dir
     case ds of
         [d] -> do
-            (credentials, maxCustomer) <-
+            (credentials, customers) <-
                 deserialise <$> BL.readFile (dir </> d)
             let state =
                     fromCredentialsAndGenesis
                         credentials
-                        (fromIntegral @Int maxCustomer)
+                        (fromIntegral @Int customers)
                         (genesisData env)
             store <- newStore
             writeS store state
