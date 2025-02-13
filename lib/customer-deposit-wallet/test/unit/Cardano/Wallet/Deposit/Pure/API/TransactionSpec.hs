@@ -28,9 +28,6 @@ import Cardano.Slotting.Time
     , SystemStart (..)
     , mkSlotLength
     )
-import Cardano.Wallet.Deposit.Pure.Address
-    ( createAddress
-    )
 import qualified Cardano.Wallet.Deposit.Pure.Address as Address
 import Cardano.Wallet.Deposit.Pure.API.Address
     ( encodeAddress
@@ -234,8 +231,9 @@ spec = do
                 xpub = accountXPubFromCredentials creds
                 addr =
                     encodeAddress
-                        $ fst
-                        $ createAddress 0
+                        $ snd
+                        $ head
+                        $ Address.listCustomers
                         $ Address.fromXPubAndCount Mainnet xpub 1
 
             addr `shouldBe` address0
