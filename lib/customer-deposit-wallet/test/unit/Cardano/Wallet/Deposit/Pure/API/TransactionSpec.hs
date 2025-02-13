@@ -236,6 +236,6 @@ spec = do
                     encodeAddress
                         $ fst
                         $ createAddress 0
-                        $ Address.fromXPubAndMax Mainnet xpub 1
+                        $ Address.fromXPubAndCount Mainnet xpub 1
 
             addr `shouldBe` address0
