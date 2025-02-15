@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 function mithril() {
-    nix shell 'github:input-output-hk/mithril?ref=2450.0' --command mithril-client $@
+    nix shell 'github:input-output-hk/mithril?ref=2506.0' --command mithril-client $@
 }
 
 function jq() {
