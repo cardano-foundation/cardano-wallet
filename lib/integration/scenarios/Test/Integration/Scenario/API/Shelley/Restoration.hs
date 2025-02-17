@@ -14,7 +14,6 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiT (..)
-    , WalletPostData (..)
     )
 import Cardano.Wallet.Api.Types.BlockHeader
     ( ApiBlockHeader (..)
@@ -27,6 +26,9 @@ import Cardano.Wallet.Primitive.Types.Hash
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
+    )
+import Data.Generics.Product
+    ( HasField
     )
 import Data.Quantity
     ( Quantity (..)
@@ -58,11 +60,14 @@ import Test.Integration.Framework.DSL.Wallet
     , createARandomWallet
     , createARandomWalletWithMnemonics
     , createWalletFromMnemonics
+    , createWalletFromXPub
     , deleteWallet
     , fundWallet
     , named
     , waitUntilStateIsReady
     , withApiWallet
+    , withRestorationMode
+    , xPubOfMnemonics
     )
 
 import qualified Cardano.Wallet.Api.Clients.Network as C
@@ -71,7 +76,8 @@ import qualified Cardano.Wallet.Read as Read
 spec :: SpecWith Context
 spec = describe "restoration of wallets" $ do
     itM "WALLET_RESTORE_0.1 create a wallet restoring from tip" $ do
-        Partial w <- createARandomWallet $ named "Wallet from tip" . restoringFromTip
+        Partial w <-
+            createARandomWallet $ named "Wallet from tip" . restoringFromTip
         over w $ do
             waitUntilStateIsReady
             withApiWallet $ balanceIs 0
@@ -182,7 +188,9 @@ spec = describe "restoration of wallets" $ do
                     ApiBlockHeader
                         { slotNo = Quantity 0
                         , blockHeight = Quantity 0
-                        , headerHash = unsafeFromText "39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf"
+                        , headerHash =
+                            unsafeFromText
+                                "39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf"
                         }
             w <- createARandomWallet (restoringFromCheckpoint cp)
             clientError w $ do
@@ -193,21 +201,83 @@ spec = describe "restoration of wallets" $ do
                                   \The block at slot number 0 \
                                   \and hash 39d89a1e837e968ba35370be47cdfcbfd193cd992fdeed557b77c49b77ee59cf \
                                   \does not exist."
+    itM
+        "WALLET_RESTORE_0.9 create an account wallet from the tip \
+        \ignores past transactions"
+        $ do
+            Partial (genesisClone, mnemonics) <-
+                createARandomWalletWithMnemonics
+                    $ named "Account from genesis" . restoringFromTip
+            let xpub = xPubOfMnemonics mnemonics
+            over genesisClone $ do
+                waitUntilStateIsReady
+                fundWallet 42_000_000
+                withApiWallet $ balanceIs 42_000_000
+                deleteWallet
+            Partial tipClone <-
+                createWalletFromXPub xpub
+                    $ named "Account from tip" . restoringFromTip
+            over tipClone $ do
+                waitUntilStateIsReady
+                withApiWallet $ balanceIs 0
+    itM
+        "WALLET_RESTORE_0.10 create an account wallet from the genesis \
+        \capture the past transactions"
+        $ do
+            Partial (genesisClone, mnemonics) <-
+                createARandomWalletWithMnemonics
+                    $ named "Account from genesis" . restoringFromTip
+            let xpub = xPubOfMnemonics mnemonics
+            over genesisClone $ do
+                waitUntilStateIsReady
+                fundWallet 42_000_000
+                withApiWallet $ balanceIs 42_000_000
+                deleteWallet
+            Partial tipClone <-
+                createWalletFromXPub xpub
+                    $ named "Account from genesis second take" . restoringFromGenesis
+            over tipClone $ do
+                waitUntilStateIsReady
+                withApiWallet $ balanceIs 42_000_000
+    itM
+        "WALLET_RESTORE_0.11 create an account wallet from checkpoint \
+        \capture the past transactions"
+        $ do
+            Partial (genesisClone, mnemonics) <-
+                createARandomWalletWithMnemonics
+                    $ named "Account from genesis" . restoringFromTip
+            let xpub = xPubOfMnemonics mnemonics
+            over genesisClone $ do
+                waitUntilStateIsReady
+            Partial cp <- request C.blocksLatestHeader
+            waitSomeEpochs 2
+            over genesisClone $ do
+                fundWallet 42_000_000
+                withApiWallet $ balanceIs 42_000_000
+                deleteWallet
+            Partial tipClone <-
+                createWalletFromXPub xpub
+                    $ named "Account from a block" . restoringFromCheckpoint cp
+            over tipClone $ do
+                waitUntilStateIsReady
+                withApiWallet $ balanceIs 42_000_000
 
-setRestorationMode :: RestorationMode -> Patch WalletPostData
-setRestorationMode rm wd = wd{restorationMode = Just $ ApiT rm}
+restoringFromTip
+    :: HasField "restorationMode" a a b (Maybe (ApiT RestorationMode))
+    => Patch a
+restoringFromTip = withRestorationMode RestoreFromTip
 
-restoringFromTip :: Patch WalletPostData
-restoringFromTip = setRestorationMode RestoreFromTip
-
-restoringFromGenesis :: Patch WalletPostData
-restoringFromGenesis = setRestorationMode RestoreFromGenesis
+restoringFromGenesis
+    :: HasField "restorationMode" a a b (Maybe (ApiT RestorationMode))
+    => Patch a
+restoringFromGenesis = withRestorationMode RestoreFromGenesis
 
 restoringFromCheckpoint
-    :: ApiBlockHeader
-    -> Patch WalletPostData
+    :: HasField "restorationMode" a a b (Maybe (ApiT RestorationMode))
+    => ApiBlockHeader
+    -> Patch a
 restoringFromCheckpoint cp =
-    setRestorationMode
+    withRestorationMode
         $ RestoreFromBlock
             (Read.SlotNo $ fromIntegral $ getQuantity $ slotNo cp)
             (toRawHeaderHash $ headerHash cp)
