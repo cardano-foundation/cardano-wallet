@@ -90,7 +90,6 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , expectSuccess
     , fixturePassphrase
-    , fixturePreprodWallets
     , getFromResponse
     , getResponse
     , json
@@ -98,6 +97,9 @@ import Test.Integration.Framework.DSL
     , request
     , verify
     , (.<)
+    )
+import Test.Integration.Framework.Preprod
+    ( fixturePreprodWallets
     )
 
 spec :: forall n . HasSNetworkId n => SpecWith Context

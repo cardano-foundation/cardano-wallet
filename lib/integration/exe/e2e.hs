@@ -101,7 +101,7 @@ import Test.Hspec
 import Test.Integration.Framework.Context
     ( Context (..)
     )
-import Test.Integration.Framework.DSL
+import Test.Integration.Framework.Preprod
     ( PreprodSetupLog (..)
     , setupPreprodWallets
     )
