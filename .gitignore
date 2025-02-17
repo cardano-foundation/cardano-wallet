@@ -39,7 +39,7 @@ cabal.project.diff
 ### Direnv ###
 .envrc-local
 .envrc-override
-.direnv/flake-profile*
+.direnv
 
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json
