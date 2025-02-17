@@ -751,7 +751,8 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.Generics.Product
-    ( typed
+    ( HasField'
+    , typed
     )
 import Data.IntCast
     ( intCastMaybe
@@ -955,6 +956,24 @@ postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
 
         in postAccountWallet ctx mkShelleyWallet liftKey action body'
 
+computeRestorationPoint
+    :: forall ctx s body
+     . ( ctx ~ ApiLayer s
+       , HasField' "restorationMode" body (Maybe (ApiT RestorationMode))
+       )
+    => ctx
+    -> NetworkParameters
+    -> body
+    -> Handler RestorationPoint
+computeRestorationPoint ctx networkParams body =
+    liftHandler
+        $ withExceptT ErrCreateWalletRestorationFromABlockFailed
+        $ ExceptT
+        $ getRestorationPoint
+            (genesisParameters networkParams)
+            (maybe RestoreFromGenesis getApiT $ body ^. #restorationMode)
+            (ctx ^. networkLayer)
+
 postShelleyWallet
     :: forall ctx s k n.
         ( s ~ SeqState n k
@@ -975,12 +994,7 @@ postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv
             (keyFlavorFromState @s) (RootCredentials rootXPrv pwdP)
             purposeCIP1852 g changeAddrMode
-    restorationPoint <- liftHandler
-        $ withExceptT ErrCreateWalletRestorationFromABlockFailed
-        $ ExceptT $ getRestorationPoint
-            (genesisParameters networkParams)
-            (maybe RestoreFromGenesis getApiT $ restorationMode body)
-            (ctx ^. networkLayer)
+    restorationPoint <- computeRestorationPoint ctx networkParams body
     let initialState = InitialState state genesisBlock restorationPoint
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (W.createWallet @s networkParams wid wName initialState)
@@ -1025,9 +1039,10 @@ postAccountWallet
     -> AccountPostData
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
+    restorationPoint <- computeRestorationPoint ctx networkParams body
     let state = mkSeqStateFromAccountXPub
             (liftKey accXPub) Nothing purposeCIP1852 g IncreasingChangeAddresses
-        initialState = InitialState state genesisBlock RestorationPointAtGenesis
+        initialState = InitialState state genesisBlock restorationPoint
     void $ liftHandler $ createWalletWorker @_ @s ctx wid
         (W.createWallet @s networkParams wid wName initialState)
         coworker

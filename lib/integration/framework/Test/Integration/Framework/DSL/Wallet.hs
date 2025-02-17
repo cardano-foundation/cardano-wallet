@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Test.Integration.Framework.DSL.Wallet
     ( createARandomWalletWithMnemonics
@@ -17,10 +19,17 @@ module Test.Integration.Framework.DSL.Wallet
     , named
     , fundWallet
     , withApiWallet
+    , xPubOfMnemonics
+    , createWalletFromXPub
+    , withRestorationMode
     ) where
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub
+    , toXPub
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -28,7 +37,9 @@ import Cardano.Wallet.Api.Clients.Testnet.Id
     ( Testnet42
     )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
+    ( AccountPostData (..)
+    , AddressAmount (..)
+    , ApiAccountPublicKey (..)
     , ApiMnemonicT (..)
     , ApiT (..)
     , ApiTxId (..)
@@ -46,11 +57,15 @@ import Cardano.Wallet.Api.Types.WalletAssets
 import Cardano.Wallet.Faucet
     ( Faucet (nextShelleyMnemonic)
     )
+import Cardano.Wallet.Network.RestorationMode
+    ( RestorationMode
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..)
     )
 import Cardano.Wallet.Primitive.Types
     ( WalletId
+    , WalletName
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxMeta
     ( TxStatus (InLedger)
@@ -71,6 +86,9 @@ import Control.Monad.Reader
 import Data.Generics.Internal.VL
     ( (.~)
     , (^.)
+    )
+import Data.Generics.Product
+    ( HasField
     )
 import Data.Text
     ( Text
@@ -96,6 +114,7 @@ import Test.Integration.Framework.DSL.TestM
     , request
     )
 
+import qualified Cardano.Address.Style.Shelley as Address
 import qualified Cardano.Faucet.Mnemonics as Mnemonics
 import qualified Cardano.Wallet.Api.Clients.Testnet.Shelley as C
 
@@ -103,9 +122,28 @@ type AWallet = ApiT WalletId
 
 type Patch a = a -> a
 
+createWalletFromXPub
+    :: XPub
+    -> Patch AccountPostData
+    -> TestM (Either ClientError AWallet)
+createWalletFromXPub xpub refine = do
+    apiWallet' <-
+        request
+            $ C.postWallet
+            $ WalletOrAccountPostData
+            $ Right
+            $ refine
+            $ AccountPostData
+                { name = ApiT $ unsafeFromText "Wallet from mnemonic"
+                , accountPublicKey = ApiAccountPublicKey $ ApiT xpub
+                , addressPoolGap = Nothing
+                , restorationMode = Nothing
+                }
+    pure $ fmap (view #id) apiWallet'
+
 createWalletFromMnemonics
     :: SomeMnemonic
-    -> (WalletPostData -> WalletPostData)
+    -> Patch WalletPostData
     -> TestM (Either ClientError AWallet)
 createWalletFromMnemonics m15 refine = do
     apiWallet' <-
@@ -125,8 +163,15 @@ createWalletFromMnemonics m15 refine = do
                 }
     pure $ fmap (view #id) apiWallet'
 
-createARandomWallet :: Patch WalletPostData -> TestM (Either ClientError AWallet)
+createARandomWallet
+    :: Patch WalletPostData -> TestM (Either ClientError AWallet)
 createARandomWallet refine = fmap fst <$> createARandomWalletWithMnemonics refine
+
+xPubOfMnemonics :: SomeMnemonic -> XPub
+xPubOfMnemonics mnemonic =
+    let rootKey = Address.genMasterKeyFromMnemonic mnemonic mempty
+        accKey = Address.deriveAccountPrivateKey rootKey minBound
+    in  toXPub $ Address.getKey accKey
 
 createARandomWalletWithMnemonics
     :: Patch WalletPostData
@@ -155,14 +200,24 @@ statusIs :: SyncProgress -> Over ApiWallet ()
 statusIs expected = check
     $ \w -> w ^. #state . #getApiT `shouldBe` expected
 
-named :: Text -> Patch WalletPostData
-named name' = #name .~ ApiT (unsafeFromText name')
+named
+    :: HasField "name" a a b (ApiT WalletName)
+    => Text
+    -> Patch a
+named name' = #name .~ ApiT (unsafeFromText @WalletName name')
+
+withRestorationMode
+    :: HasField "restorationMode" a a b (Maybe (ApiT RestorationMode))
+    => RestorationMode
+    -> Patch a
+withRestorationMode rm = #restorationMode .~ Just (ApiT rm)
 
 aFaucetWallet :: TestM AWallet
 aFaucetWallet = do
     faucet <- asks _faucet
     faucetMnemonic <- liftIO $ nextShelleyMnemonic faucet
-    Partial faucetWalletId <- createWalletFromMnemonics faucetMnemonic $ named "Faucet wallet"
+    Partial faucetWalletId <-
+        createWalletFromMnemonics faucetMnemonic $ named "Faucet wallet"
     over faucetWalletId waitUntilStateIsReady
     pure faucetWalletId
 

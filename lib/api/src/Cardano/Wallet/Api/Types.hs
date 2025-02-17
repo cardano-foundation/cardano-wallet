@@ -1134,6 +1134,7 @@ data AccountPostData = AccountPostData
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , restorationMode :: Maybe ApiRestorationMode
     }
     deriving (FromJSON, ToJSON) via DefaultRecord AccountPostData
     deriving (Eq, Generic, Show)

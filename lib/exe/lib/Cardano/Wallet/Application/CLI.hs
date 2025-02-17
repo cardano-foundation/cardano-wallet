@@ -751,6 +751,7 @@ cmdWalletCreateFromPublicKey mkClient =
                 (ApiT wName)
                 wAccPubKey
                 (Just $ ApiT wGap)
+                Nothing
 
 -- | Arguments for 'wallet get' command
 data WalletGetArgs = WalletGetArgs
