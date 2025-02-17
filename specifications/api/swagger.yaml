@@ -3107,6 +3107,7 @@ components:
         name: *walletName
         account_public_key: *walletAccountXPubkey
         address_pool_gap: *walletAddressPoolGap
+        restoration_mode: *restorationMode
 
     ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
       type: object
