@@ -88,9 +88,9 @@ library
     , cardano-wallet-secrets
     , cardano-wallet-ui
     , contra-tracer
-    , customer-deposit-wallet
-    , customer-deposit-wallet:http
-    , customer-deposit-wallet:rest
+    -- , customer-deposit-wallet
+    -- , customer-deposit-wallet:http
+    -- , customer-deposit-wallet:rest
     , data-default
     , directory
     , extra

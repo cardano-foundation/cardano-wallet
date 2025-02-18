@@ -44,23 +44,12 @@ WALLET_PORT=${WALLET_PORT:=$RANDOM_PORT}
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
 WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
 
-RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
-DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
-
-RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
-DEPOSIT_WALLET_PORT=${DEPOSIT_WALLET_PORT:=$RANDOM_PORT}
-
 # Define the wallet logs file
 LOCAL_WALLET_LOGS_FILE=./wallet.log
 WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
 
-DEPOSIT_BYRON_GENESIS="${NODE_CONFIGS}/byron-genesis.json"
-
 echo "Wallet service port: $WALLET_PORT"
 echo "Wallet UI port: $WALLET_UI_PORT"
-echo "Deposit wallet UI port: $DEPOSIT_WALLET_UI_PORT"
-echo "Deposit wallet port: $DEPOSIT_WALLET_PORT"
-echo "Deposit Byron genesis file: $DEPOSIT_BYRON_GENESIS"
 
 if [[ $NETWORK == "mainnet" ]]; then
     echo "Running wallet in mainnet mode"
@@ -78,11 +67,8 @@ cabal run --project-dir ${SCRIPT_DIR}/../../.. -O0 cardano-wallet-exe:exe:cardan
     --trace-application DEBUG \
     --port "${WALLET_PORT}" \
     --ui-port "${WALLET_UI_PORT}" \
-    --deposit-port "${DEPOSIT_WALLET_PORT}" \
-    --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
     --database "${WALLET_DB}" \
     --node-socket "${NODE_SOCKET_PATH}" \
-    --deposit-byron-genesis-file "${DEPOSIT_BYRON_GENESIS}" \
     $NETWORK_OPTION \
     --listen-address 0.0.0.0 \
     +RTS -N -A16m -qg -qb -RTS

@@ -81,13 +81,10 @@ import Cardano.Wallet.Application.CLI
     , cmdWallet
     , cmdWalletCreate
     , databaseOption
-    , depositByronGenesisFileOption
     , ekgEnabled
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
-    , listenDepositOption
-    , listenDepositUiOption
     , listenShelleyOption
     , listenShelleyUiOption
     , loggingMinSeverity
@@ -233,8 +230,6 @@ data ServeArgs = ServeArgs
     , _mode :: Mode CardanoNodeConn
     , _listenShelley :: Listen
     , _listenShelleyUi :: Maybe Listen
-    , _listenDeposit :: Maybe Listen
-    , _listenDepositUi :: Maybe Listen
     , _tlsConfig :: Maybe TlsConfiguration
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
@@ -242,7 +237,6 @@ data ServeArgs = ServeArgs
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
     , _logging :: LoggingOptions TracerSeverities
-    , _depositByronGenesisFile :: Maybe FilePath
     }
     deriving (Show)
 
@@ -261,8 +255,6 @@ cmdServe =
                 <*> modeOption nodeSocketOption
                 <*> listenShelleyOption
                 <*> listenShelleyUiOption
-                <*> listenDepositOption
-                <*> listenDepositUiOption
                 <*> optional tlsOption
                 <*> networkConfigurationOption
                 <*> optional databaseOption
@@ -270,7 +262,6 @@ cmdServe =
                 <*> optional poolMetadataSourceOption
                 <*> optional tokenMetadataSourceOption
                 <*> loggingOptions tracerSeveritiesOption
-                <*> optional depositByronGenesisFileOption
 
     exec :: ServeArgs -> IO ()
     exec
@@ -279,8 +270,6 @@ cmdServe =
                     mode
                     listenShelley
                     listenShelleyUi
-                    listenDeposit
-                    listenDepositUi
                     tlsConfig
                     networkConfig
                     databaseDir
@@ -288,7 +277,6 @@ cmdServe =
                     poolMetadataFetching
                     tokenMetadataServerURI
                     logOpt
-                    byronGenesisFileOpt
                 ) = withTracers logOpt $ \tr tracers -> do
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
@@ -319,13 +307,10 @@ cmdServe =
                         host
                         listenShelley
                         listenShelleyUi
-                        listenDeposit
-                        listenDepositUi
                         tlsConfig
                         (Settings <$> poolMetadataFetching)
                         tokenMetadataServerURI
                         block0
-                        byronGenesisFileOpt
                         (beforeMainLoop tr)
 
     withShutdownHandlerMaybe :: Trace IO MainLog -> Bool -> IO () -> IO ()

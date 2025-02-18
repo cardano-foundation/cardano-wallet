@@ -756,13 +756,10 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
             "127.0.0.1"
             (ListenOnPort 8_090)
             Nothing
-            Nothing
-            Nothing
             Nothing -- tls configuration
             Nothing -- settings
             Nothing -- token metadata server
             block0
-            Nothing
             (setupAction networkParameters)
 
 massiveWalletUTxOSize :: Int

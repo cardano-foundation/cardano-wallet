@@ -31,7 +31,6 @@ services:
     ports:
       - ${WALLET_PORT}:8090
       - ${WALLET_UI_PORT}:8091
-      - ${DEPOSIT_WALLET_UI_PORT}:8092
     entrypoint: []
     command: >
       cardano-wallet serve
@@ -39,7 +38,6 @@ services:
         --database /wallet-db
         --listen-address 0.0.0.0
         --ui-port 8091
-        --ui-deposit-port 8092
         --testnet /configs/cardano/${NETWORK}/byron-genesis.json
 
     user: ${USER_ID}:${GROUP_ID}
