@@ -7,7 +7,7 @@ import Prelude
 import Cardano.Wallet.Deposit.HTTP.Types.OpenAPI
     ( generateOpenapi3
     )
-import Paths_customer_deposit_wallet
+import Paths_cardano_deposit_wallet
     ( getDataDir
     , getDataFileName
     )

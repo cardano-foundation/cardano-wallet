@@ -1,6 +1,6 @@
 cabal-version:      3.6
 build-type:         Simple
-name:               customer-deposit-wallet
+name:               cardano-deposit-wallet
 version:            0.2025.1.9
 synopsis:           A wallet for the Cardano blockchain.
 description:        Please see README.md
@@ -14,8 +14,6 @@ category:           Web
 data-files:         data/swagger.json
 extra-source-files:
   spec/**/*.lagda.md
-  spec/**/*.lhs.md
-  spec/**/*.openapi.yaml
 
 common language
   default-language:   Haskell2010
@@ -135,7 +133,7 @@ test-suite scenario
     , cardano-wallet-test-utils
     , containers
     , contra-tracer
-    , customer-deposit-wallet
+    , cardano-deposit-wallet
     , delta-store
     , hspec
 
@@ -155,8 +153,8 @@ library http
     , bytestring
     , cardano-wallet-read
     , contra-tracer
-    , customer-deposit-wallet
-    , customer-deposit-wallet:rest
+    , cardano-deposit-wallet
+    , cardano-deposit-wallet:rest
     , http-media
     , insert-ordered-containers
     , lens
@@ -186,7 +184,7 @@ library rest
     , cardano-ledger-byron
     , contra-tracer
     , crypto-primitives
-    , customer-deposit-wallet
+    , cardano-deposit-wallet
     , customer-deposit-wallet-pure
     , deepseq
     , delta-store
@@ -232,10 +230,10 @@ test-suite unit
     , cardano-wallet-test-utils
     , containers
     , contra-tracer
-    , customer-deposit-wallet
+    , cardano-deposit-wallet
     , customer-deposit-wallet-pure == 0.1.0.0
-    , customer-deposit-wallet:http
-    , customer-deposit-wallet:rest
+    , cardano-deposit-wallet:http
+    , cardano-deposit-wallet:rest
     , data-default
     , directory
     , hspec
@@ -261,11 +259,11 @@ test-suite unit
     Cardano.Wallet.Deposit.PureSpec
     Cardano.Wallet.Deposit.RESTSpec
     Cardano.Wallet.Deposit.Write.KeysSpec
-    Paths_customer_deposit_wallet
+    Paths_cardano_deposit_wallet
     Spec
 
-executable customer-deposit-wallet
+executable cardano-deposit-wallet-run
   import:         language, opts-exe
   hs-source-dirs: exe
   build-depends:  base
-  main-is:        customer-deposit-wallet.hs
+  main-is:        cardano-deposit-wallet.hs
