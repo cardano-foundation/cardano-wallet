@@ -136,7 +136,7 @@ library
     , containers
     , contra-tracer
     , cookie
-    , customer-deposit-wallet:{customer-deposit-wallet, rest}
+    , cardano-deposit-wallet:{cardano-deposit-wallet, rest}
     , exceptions
     , file-embed
     , generic-lens
@@ -185,7 +185,7 @@ test-suite unit
     , cardano-wallet-ui
     , containers
     , contra-tracer
-    , customer-deposit-wallet:{customer-deposit-wallet, rest}
+    , cardano-deposit-wallet:{cardano-deposit-wallet, rest}
     , hspec
     , hspec-golden-aeson
     , mtl

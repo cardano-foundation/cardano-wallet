@@ -11,9 +11,6 @@ license:            Apache-2.0
 category:           Web
 build-type:         Simple
 
-extra-source-files:
-  extra/Plutus/*.hs
-  specifications/api/swagger.yaml
 
 common language
   default-language:   Haskell2010

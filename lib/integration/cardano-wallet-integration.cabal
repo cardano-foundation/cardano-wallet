@@ -16,12 +16,14 @@ common language
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
-  ghc-options: -Wunused-packages -Wall -Wcompat -Wredundant-constraints
-    -Wunused-imports
 
+  ghc-options:
+    -Wunused-packages -Wall -Wcompat -Wredundant-constraints
+    -Wunused-imports
 
 common opts-lib
   ghc-options:
+
   if flag(release)
     ghc-options: -O2 -Werror
 
@@ -51,15 +53,17 @@ library framework
     , bytestring
     , cardano-addresses
     , cardano-ledger-shelley
+    , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-exe
+    , cardano-wallet-exe:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , cardano-wallet:{cardano-wallet, mock-token-metadata}
+    , cardano-wallet:mock-token-metadata
     , cborg
     , command
     , containers
@@ -84,16 +88,16 @@ library framework
     , iohk-monitoring-extra
     , lens
     , lobemo-backend-ekg
+    , local-cluster
     , local-cluster:local-cluster-process
-    , local-cluster:local-cluster
     , memory
     , microstache
     , monad-loops
     , mtl
     , network-uri
+    , pathtype
     , resourcet
     , retry
-    , pathtype
     , serialise
     , servant-client
     , string-interpolate
@@ -135,11 +139,11 @@ library scenarios
     , cardano-api
     , cardano-crypto
     , cardano-crypto-class
-    , cardano-wallet-exe
     , cardano-ledger-alonzo
     , cardano-ledger-core
     , cardano-wallet
     , cardano-wallet-api
+    , cardano-wallet-exe
     , cardano-wallet-integration:framework
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -216,14 +220,13 @@ common integration-common
     , cardano-wallet-integration:scenarios
 
 executable integration-exe
-  import:  integration-common
-  main-is: integration-tests-exe.hs
+  import:         integration-common
+  main-is:        integration-tests-exe.hs
   hs-source-dirs: exe
 
 test-suite e2e
-  import:  integration-common
-  type:               exitcode-stdio-1.0
-  data-files: configs
+  import:         integration-common
+  type:           exitcode-stdio-1.0
   hs-source-dirs: configs
   build-depends:
     , aeson
@@ -245,7 +248,8 @@ test-suite e2e
     , temporary
     , text
     , with-utf8
-  main-is: e2e.hs
+
+  main-is:        e2e.hs
 
 test-suite integration
   import:             integration-common

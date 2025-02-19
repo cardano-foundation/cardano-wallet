@@ -95,19 +95,6 @@ import Cardano.Wallet.DB.Layer
 import Cardano.Wallet.DB.Sqlite.Migration.Old
     ( DefaultFieldValues (..)
     )
-import Cardano.Wallet.Deposit.IO
-    ( WalletBootEnv
-    )
-import Cardano.Wallet.Deposit.IO.Resource
-    ( withResource
-    )
-import Cardano.Wallet.Deposit.REST
-    ( WalletResource
-    )
-import Cardano.Wallet.Deposit.REST.Start
-    ( loadDepositWalletFromDisk
-    , newBootEnv
-    )
 import Cardano.Wallet.Flavor
     ( CredFromOf
     , KeyFlavorS (..)
@@ -184,11 +171,8 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     ( PageConfig (..)
     )
 import Cardano.Wallet.UI.Common.Layer
-    ( Push (..)
-    , UILayer
-    , oobMessages
+    ( UILayer
     , sourceOfNewTip
-    , walletTipChanges
     )
 import Control.Exception.Extra
     ( handle
@@ -209,14 +193,10 @@ import Control.Monad.Trans.Except
     )
 import Control.Tracer
     ( Tracer (..)
-    , nullTracer
     , traceWith
     )
 import Data.Function
     ( (&)
-    )
-import Data.Functor.Contravariant
-    ( (>$<)
     )
 import Data.Generics.Internal.VL
     ( view
@@ -259,20 +239,13 @@ import System.IOManager
     ( withIOManager
     )
 import UnliftIO
-    ( MonadIO (..)
-    , withAsync
-    , withSystemTempDirectory
+    ( withAsync
     )
 
 import qualified Cardano.Pool.DB.Layer as Pool
 import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.DB.Layer as Sqlite
-import qualified Cardano.Wallet.Deposit.HTTP.Server as Deposit
-import qualified Cardano.Wallet.Deposit.HTTP.Types.API as Deposit
-import qualified Cardano.Wallet.Deposit.IO.Resource.Event as REST
 import qualified Cardano.Wallet.UI.Common.Layer as Ui
-import qualified Cardano.Wallet.UI.Deposit.API as DepositUi
-import qualified Cardano.Wallet.UI.Deposit.Server as DepositUi
 import qualified Cardano.Wallet.UI.Shelley.API as ShelleyUi
 import qualified Cardano.Wallet.UI.Shelley.Server as ShelleyUi
 import qualified Network.Wai.Handler.Warp as Warp
@@ -305,17 +278,12 @@ serveWallet
     -- ^ HTTP API Server port.
     -> Maybe Listen
     -- ^ Optional HTTP UI Server port for the shelley wallet.
-    -> Maybe Listen
-    -- ^ Optional HTTP JSON data server port for the deposit wallet.
-    -> Maybe Listen
-    -- ^ Optional HTTP UI Server port for the deposit wallet.
     -> Maybe TlsConfiguration
     -- ^ An optional TLS configuration
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
     -> Maybe TokenMetadataServer
     -> Block
-    -> Maybe FilePath
     -- ^ The genesis block, or some starting point.
     -- See also: 'Cardano.Wallet.Primitive.Ledger.Shelley#KnownNetwork'.
     -> (URI -> IO ())
@@ -336,13 +304,10 @@ serveWallet
     hostPref
     listenShelley
     mListenShelleyUi
-    mListenDeposit
-    mListenDepositUi
     tlsConfig
     settings
     tokenMetaUri
     block0
-    depositByronGenesisFile
     beforeMainLoop = withSNetworkId network $ \sNetwork -> evalContT $ do
         let netId = networkIdVal sNetwork
         lift $ case blockchainSource of
@@ -382,10 +347,7 @@ serveWallet
         multisigApi <- withMultisigApi netId netLayer
         ntpClient <- withNtpClient ntpClientTracer
         eShelleyUiSocket <- bindShelleyUiSocket
-        eDepositUiSocket <- bindDepositUiSocket
-        eDepositSocket <- bindDepositSocket
         eShelleySocket <- bindApiSocket
-        bootEnv <- lift $ newBootEnv depositByronGenesisFile netLayer
         callCC $ \exit -> do
             case eShelleyUiSocket of
                 Left err -> do
@@ -411,84 +373,7 @@ serveWallet
                                         blockchainSource
                             ContT $ \k ->
                                 withAsync uiService $ \_ -> k ()
-            mDepositDatabaseDirAndResource <- case eDepositUiSocket of
-                Left err -> do
-                    lift $ trace $ MsgServerStartupError err
-                    _ <- exit $ ExitFailure $ exitCodeApiServer err
-                    pure Nothing
-                Right ms -> do
-                    case ms of
-                        Nothing -> pure Nothing
-                        Just (_port, socket) -> do
-                            databaseDir' <- case databaseDir of
-                                Nothing ->
-                                    ContT
-                                        $ withSystemTempDirectory
-                                            "deposit-wallet"
-                                Just databaseDir' -> pure databaseDir'
-                            resource <- ContT withResource
-                            ui <- Ui.withUILayer 1 resource
-                            liftIO
-                                $ loadDepositWalletFromDisk
-                                    (walletTipChanges >$< oobMessages ui)
-                                    ( DepositApplicationLog
-                                        >$< applicationTracer
-                                    )
-                                    databaseDir'
-                                    bootEnv
-                                    resource
-                            REST.onResourceChange
-                                ( \_ -> do
-                                    traceWith (oobMessages ui)
-                                        $ Push "wallet"
-                                )
-                                resource
-                            sourceOfNewTip netLayer ui
-                            let uiService =
-                                    startDepositUiServer
-                                        ui
-                                        bootEnv
-                                        databaseDir'
-                                        socket
-                            ContT $ \k ->
-                                withAsync uiService $ \_ -> k ()
-                            pure $ Just (databaseDir', resource)
-            case eDepositSocket of
-                Left err -> do
-                    lift $ trace $ MsgServerStartupError err
-                    void $ exit $ ExitFailure $ exitCodeApiServer err
-                Right ms -> do
-                    case ms of
-                        Nothing -> pure ()
-                        Just (_port, socket) -> do
-                            (databaseDir', resource) <-
-                                case mDepositDatabaseDirAndResource of
-                                    Nothing -> do
-                                        databaseDir' <-
-                                            ContT
-                                                $ withSystemTempDirectory
-                                                    "deposit-wallet"
-                                        resource <- ContT withResource
-                                        liftIO
-                                            $ loadDepositWalletFromDisk
-                                                nullTracer
-                                                ( DepositApplicationLog
-                                                    >$< applicationTracer
-                                                )
-                                                databaseDir'
-                                                bootEnv
-                                                resource
-                                        pure (databaseDir', resource)
-                                    Just (databaseDir', w) ->
-                                        pure (databaseDir', w)
-                            let depositService =
-                                    startDepositServer
-                                        resource
-                                        bootEnv
-                                        databaseDir'
-                                        socket
-                            ContT $ \k ->
-                                withAsync depositService $ \_ -> k ()
+
             case eShelleySocket of
                 Left err -> do
                     lift $ trace $ MsgServerStartupError err
@@ -520,24 +405,6 @@ serveWallet
                 fmap (fmap Just)
                     $ ContT
                     $ withListeningSocket hostPref listenUi
-
-        bindDepositUiSocket
-            :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
-        bindDepositUiSocket = case mListenDepositUi of
-            Nothing -> pure $ Right Nothing
-            Just listenUi -> do
-                fmap (fmap Just)
-                    $ ContT
-                    $ withListeningSocket hostPref listenUi
-
-        bindDepositSocket
-            :: ContT r IO (Either ListenError (Maybe (Warp.Port, Socket)))
-        bindDepositSocket = case mListenDeposit of
-            Nothing -> pure $ Right Nothing
-            Just listenDeposit ->
-                fmap (fmap Just)
-                    $ ContT
-                    $ withListeningSocket hostPref listenDeposit
 
         withRandomApi netId netLayer =
             lift
@@ -610,64 +477,6 @@ serveWallet
                                 spl
                                 ntp
                                 bs
-                start
-                    serverSettings
-                    apiServerTracer
-                    tlsConfig
-                    socket
-                    application
-
-        startDepositServer
-            :: WalletResource
-            -> WalletBootEnv IO
-            -> FilePath
-            -> Socket
-            -> IO ()
-        startDepositServer
-            resource
-            bootEnv
-            databaseDir'
-            socket =
-                do
-                    let serverSettings = Warp.defaultSettings
-                        api = Proxy @Deposit.API
-                        application =
-                            Server.serve api
-                                $ Deposit.server
-                                    nullTracer
-                                    (DepositApplicationLog >$< applicationTracer)
-                                    databaseDir'
-                                    bootEnv
-                                    resource
-                    start
-                        serverSettings
-                        apiServerTracer
-                        tlsConfig
-                        socket
-                        application
-        startDepositUiServer
-            :: UILayer WalletResource
-            -> WalletBootEnv IO
-            -> FilePath
-            -> Socket
-            -> IO ()
-        startDepositUiServer
-            ui
-            bootEnv
-            databaseDir'
-            socket
-            = do
-                let serverSettings = Warp.defaultSettings
-                    api = Proxy @DepositUi.UI
-                    application =
-                        Server.serve api
-                            $ DepositUi.serveUI
-                                (walletTipChanges >$< oobMessages ui)
-                                (DepositUIApplicationLog >$< applicationTracer)
-                                ui
-                                bootEnv
-                                databaseDir'
-                                (PageConfig "" "Deposit Cardano Wallet")
                 start
                     serverSettings
                     apiServerTracer

@@ -43,17 +43,15 @@ flag release
 executable cardano-wallet
   import:           language, opts-exe
   main-is:          cardano-wallet.hs
-
-  -- other-modules:
-  -- other-extensions:
+  hs-source-dirs:   app/shelley
   build-depends:    base ^>=4.18.2.0
-  hs-source-dirs:   app
   default-language: Haskell2010
   build-depends:
     , base
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-exe
+    , cardano-wallet-exe:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
@@ -67,6 +65,33 @@ executable cardano-wallet
     , transformers
     , unliftio
     , with-utf8
+
+library shelley
+  import:          language, opts-lib
+  visibility:      public
+  hs-source-dirs:  shelley
+  build-depends:
+    , address-derivation-discovery
+    , base
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-exe
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , cardano-wallet-ui
+    , contra-tracer
+    , extra
+    , generic-lens
+    , network
+    , network-uri
+    , servant-server
+    , streaming-commons
+    , transformers
+    , unliftio
+    , warp
+    , Win32-network
+
+  exposed-modules: Cardano.Wallet.Application
 
 library
   import:          language, opts-lib
@@ -86,23 +111,16 @@ library
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
-    , cardano-wallet-ui
     , contra-tracer
-    , customer-deposit-wallet
-    , customer-deposit-wallet:http
-    , customer-deposit-wallet:rest
     , data-default
     , directory
-    , extra
     , file-embed
     , filepath
     , fmt
-    , generic-lens
     , http-client
     , iohk-monitoring
     , iohk-monitoring-extra
     , network
-    , network-uri
     , ntp-client
     , optparse-applicative
     , servant-client
@@ -114,18 +132,15 @@ library
     , text-class
     , time
     , tls
-    , transformers
     , unliftio
     , wai-middleware-logging
     , warp
     , warp-tls
-    , Win32-network
     , x509
     , x509-store
     , x509-validation
 
   exposed-modules:
-    Cardano.Wallet.Application
     Cardano.Wallet.Application.CLI
     Cardano.Wallet.Application.Logging
     Cardano.Wallet.Application.Server
@@ -135,3 +150,50 @@ library
     Cardano.Wallet.Application.Version.TH
 
   other-modules:   Paths_cardano_wallet_exe
+
+library deposit
+  import:          language, opts-lib
+  hs-source-dirs:  deposit
+  build-depends:
+    , base
+    , cardano-wallet-exe
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , cardano-wallet-ui
+    , contra-tracer
+    , cardano-deposit-wallet
+    , cardano-deposit-wallet:http
+    , cardano-deposit-wallet:rest
+    , network
+    , servant-server
+    , streaming-commons
+    , transformers
+    , unliftio
+    , warp
+
+  exposed-modules: Cardano.Wallet.Deposit.Application
+
+executable cardano-deposit-wallet
+  import:           language, opts-exe
+  main-is:          cardano-deposit-wallet.hs
+  hs-source-dirs:   app/deposit
+  build-depends:    base ^>=4.18.2.0
+  default-language: Haskell2010
+  build-depends:
+    , base
+    , cardano-wallet
+    , cardano-wallet-exe
+    , cardano-wallet-exe:deposit
+    , cardano-wallet-launcher
+    , cardano-wallet-network-layer
+    , contra-tracer
+    , iohk-monitoring
+    , iohk-monitoring-extra
+    , lobemo-backend-ekg
+    , network-uri
+    , optparse-applicative
+    , text
+    , text-class
+    , transformers
+    , unliftio
+    , with-utf8

@@ -128,7 +128,6 @@ if [[ -z ${NO_WALLET-} ]]; then
     WALLET_UI_PORT=${WALLET_UI_PORT:=$RANDOM_PORT}
 
     RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
-    DEPOSIT_WALLET_UI_PORT=${DEPOSIT_WALLET_UI_PORT:=$RANDOM_PORT}
     # Define the wallet logs file
     LOCAL_WALLET_LOGS_FILE=./wallet.log
     WALLET_LOGS_FILE="${WALLET_LOGS_FILE:=$LOCAL_WALLET_LOGS_FILE}"
@@ -138,7 +137,6 @@ if [[ -z ${NO_WALLET-} ]]; then
         cardano-wallet serve \
             --port "${WALLET_PORT}" \
             --ui-port "${WALLET_UI_PORT}" \
-            --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
             --database "${WALLET_DB}" \
             --node-socket "${NODE_SOCKET_PATH}" \
             --mainnet \
@@ -146,13 +144,11 @@ if [[ -z ${NO_WALLET-} ]]; then
         WALLET_ID=$!
     else
         # shellcheck disable=SC2086
-        # ["--log-level", "DEBUG", "--trace-application", "DEBUG", "--port", "8090", "--ui-port", "8091", "--ui-deposit-port", "8092", "--database", "wallet-db", "--node-socket", "node.socket", "--testnet", "byron-genesis.json", "--listen-address", "0.0.0.0"]
         cardano-wallet serve \
             --log-level DEBUG \
             --trace-application DEBUG \
             --port "${WALLET_PORT}" \
             --ui-port "${WALLET_UI_PORT}" \
-            --ui-deposit-port "${DEPOSIT_WALLET_UI_PORT}" \
             --database "${WALLET_DB}" \
             --node-socket "${NODE_SOCKET_PATH}" \
             --testnet "${NODE_CONFIGS}"/byron-genesis.json \
@@ -162,7 +158,6 @@ if [[ -z ${NO_WALLET-} ]]; then
     echo "Wallet id: $WALLET_ID"
     echo "Wallet service port: $WALLET_PORT"
     echo "Wallet UI port: $WALLET_UI_PORT"
-    echo "Deposit wallet UI port: $DEPOSIT_WALLET_UI_PORT"
 
 else
     echo "Skipping wallet service..."
