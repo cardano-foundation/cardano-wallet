@@ -23,9 +23,6 @@ import Cardano.Wallet.UI.Common.Html.Modal
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( sseH
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Network
-    ( networkH
-    )
 import Cardano.Wallet.UI.Common.Html.Pages.Settings
     ( settingsPageH
     )
@@ -44,7 +41,6 @@ import Cardano.Wallet.UI.Deposit.API
     , _About
     , _Addresses
     , _Deposits
-    , _Network
     , _Payments
     , _Settings
     , _Wallet
@@ -54,8 +50,6 @@ import Cardano.Wallet.UI.Deposit.API
     , depositsLink
     , faviconLink
     , navigationLink
-    , networkInfoLink
-    , networkPageLink
     , paymentsLink
     , paymentsPageLink
     , settingsGetLink
@@ -112,7 +106,6 @@ page c p = RawHtml
                 imageOverlay
                 case p of
                     About -> aboutH
-                    Network -> networkH networkInfoLink
                     Settings -> settingsPageH settingsGetLink
                     Wallet -> walletH
                     Addresses -> addressesH
@@ -136,8 +129,7 @@ headerElementH p wp =
             <> [ (is' _Payments, paymentsPageLink, "Payments")
                | isPresent wp
                ]
-            <> [ (is' _Network, networkPageLink, "Network")
-               , (is' _Settings, settingsPageLink, "Settings")
+            <> [ (is' _Settings, settingsPageLink, "Settings")
                , (is' _About, aboutPageLink, "About")
                ]
   where
