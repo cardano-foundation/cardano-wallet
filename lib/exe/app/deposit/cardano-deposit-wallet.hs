@@ -31,27 +31,12 @@ import Cardano.Startup
     , installSignalHandlers
     , withShutdownHandler
     )
-import Cardano.Wallet.Api.Client
-    ( addressClient
-    , networkClient
-    , stakePoolClient
-    , transactionClient
-    , walletClient
-    )
 import Cardano.Wallet.Application.CLI
     ( LogOutput (..)
     , LoggingOptions
     , Mode (..)
     , cli
-    , cmdAddress
-    , cmdKey
-    , cmdMnemonic
-    , cmdNetwork
-    , cmdStakePool
-    , cmdTransaction
     , cmdVersion
-    , cmdWallet
-    , cmdWalletCreate
     , databaseOption
     , depositByronGenesisFileOption
     , ekgEnabled
@@ -192,13 +177,6 @@ main = withUtf8 $ do
         $ cli
         $ mempty
             <> cmdServe
-            <> cmdMnemonic
-            <> cmdKey
-            <> cmdWallet cmdWalletCreate walletClient
-            <> cmdAddress addressClient
-            <> cmdTransaction transactionClient walletClient
-            <> cmdNetwork networkClient
-            <> cmdStakePool stakePoolClient
             <> cmdVersion
 
 beforeMainLoop :: Trace IO MainLog -> URI -> IO ()

@@ -156,7 +156,6 @@ library deposit
   hs-source-dirs:  deposit
   build-depends:
     , base
-    , cardano-wallet-api
     , cardano-wallet-exe
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -166,6 +165,7 @@ library deposit
     , customer-deposit-wallet:http
     , customer-deposit-wallet:rest
     , network
+    , servant-server
     , streaming-commons
     , transformers
     , unliftio
@@ -182,7 +182,6 @@ executable cardano-deposit-wallet
   build-depends:
     , base
     , cardano-wallet
-    , cardano-wallet-api
     , cardano-wallet-exe
     , cardano-wallet-exe:deposit
     , cardano-wallet-launcher

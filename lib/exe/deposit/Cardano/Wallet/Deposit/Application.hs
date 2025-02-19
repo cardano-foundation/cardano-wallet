@@ -81,6 +81,9 @@ import Data.Streaming.Network
 import Network.Socket
     ( Socket
     )
+import Servant
+    ( serve
+    )
 import System.Exit
     ( ExitCode (..)
     )
@@ -90,7 +93,6 @@ import UnliftIO
     , withSystemTempDirectory
     )
 
-import qualified Cardano.Wallet.Api.Http.Shelley.Server as Server
 import qualified Cardano.Wallet.Deposit.HTTP.Server as Deposit
 import qualified Cardano.Wallet.Deposit.HTTP.Types.API as Deposit
 import qualified Cardano.Wallet.Deposit.IO.Resource.Event as REST
@@ -246,7 +248,7 @@ serveDepositWallet
                     let serverSettings = Warp.defaultSettings
                         api = Proxy @Deposit.API
                         application =
-                            Server.serve api
+                            serve api
                                 $ Deposit.server
                                     nullTracer
                                     (DepositApplicationLog >$< applicationTracer)
@@ -274,7 +276,7 @@ serveDepositWallet
                     let serverSettings = Warp.defaultSettings
                         api = Proxy @DepositUi.UI
                         application =
-                            Server.serve api
+                            serve api
                                 $ DepositUi.serveUI
                                     (walletTipChanges >$< oobMessages ui)
                                     (DepositUIApplicationLog >$< applicationTracer)
