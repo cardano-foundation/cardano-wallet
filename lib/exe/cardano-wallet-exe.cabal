@@ -161,9 +161,9 @@ library deposit
     , cardano-wallet-primitive
     , cardano-wallet-ui
     , contra-tracer
-    , customer-deposit-wallet
-    , customer-deposit-wallet:http
-    , customer-deposit-wallet:rest
+    , cardano-deposit-wallet
+    , cardano-deposit-wallet:http
+    , cardano-deposit-wallet:rest
     , network
     , servant-server
     , streaming-commons
