@@ -96,7 +96,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
         filter = lib.cleanSourceFilter;
       };
 
-      indexState = "2024-08-20T21:35:22Z";
+      indexState = "2024-11-04T00:00:00Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
