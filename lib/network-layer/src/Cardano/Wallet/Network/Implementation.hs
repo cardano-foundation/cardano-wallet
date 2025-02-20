@@ -184,9 +184,6 @@ import Control.Monad.Class.MonadTimer
     ( MonadTimer
     , threadDelay
     )
-import Control.Monad.Except
-    ( runExcept
-    )
 import Control.Monad.IO.Unlift
     ( MonadIO
     , MonadUnliftIO
@@ -194,6 +191,7 @@ import Control.Monad.IO.Unlift
     )
 import Control.Monad.Trans.Except
     ( ExceptT (..)
+    , runExcept
     , throwE
     )
 import Control.Retry
