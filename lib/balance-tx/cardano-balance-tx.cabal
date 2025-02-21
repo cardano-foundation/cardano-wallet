@@ -71,7 +71,6 @@ library internal
     , cborg >= 0.2.1 && <0.3
     , containers >= 0.5 && < 0.8
     , deepseq >= 1.4.4 && < 1.6
-    , either
     , fmt >= 0.6.3 && < 0.7
     , generic-lens >= 2.2.2.0 && < 2.3
     , groups >= 0.5.3 && < 0.6

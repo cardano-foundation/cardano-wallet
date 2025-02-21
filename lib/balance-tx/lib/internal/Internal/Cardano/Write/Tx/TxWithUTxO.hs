@@ -33,9 +33,6 @@ import Control.Lens
     ( over
     , view
     )
-import Data.Either.Combinators
-    ( maybeToLeft
-    )
 import Data.Maybe
     ( fromMaybe
     )
@@ -91,7 +88,7 @@ construct
     -> UTxO era
     -> Either (NESet TxIn) (TxWithUTxO era)
 construct tx utxo =
-    maybeToLeft txWithUTxO (unresolvableInputs txWithUTxO)
+    maybe (Right txWithUTxO) Left (unresolvableInputs txWithUTxO)
   where
     txWithUTxO = UnsafeTxWithUTxO tx utxo
 
