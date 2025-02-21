@@ -34,7 +34,9 @@ artifact() {
     curl -H "Authorization: Bearer $BUILDKITE_API_TOKEN" -L \
         -o "artifacts/$artifact_name" \
         "$artifact_value"
-    mv "artifacts/$artifact_name" "artifacts/$new_artifact_name"
+    if [ "$artifact_name" != "$new_artifact_name" ]; then
+        mv "artifacts/$artifact_name" "artifacts/$new_artifact_name"
+    fi
     gh release upload "$TAG" "artifacts/$new_artifact_name"
 }
 
