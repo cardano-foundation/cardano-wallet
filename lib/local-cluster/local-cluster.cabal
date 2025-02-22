@@ -143,7 +143,9 @@ library
     , mtl >= 2.3.1 && < 2.4
     , network >= 3.1.2.5 && < 3.2
     , OddWord >= 1.0.1.1 && < 1.1
-    , openapi3
+    -- openapi3 requires a fork https://github.com/paolino/openapi3
+    -- commit f22c31611c295637a3e72b341cd1c56d1d87b993
+    , openapi3 >= 3.2.3 && < 3.3
     , optparse-applicative >= 0.18.1.0 && < 0.19
     , ouroboros-network
     , ouroboros-network-api == 0.10.0.0
