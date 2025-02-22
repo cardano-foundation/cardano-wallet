@@ -116,9 +116,6 @@ import Control.Concurrent
 import Control.Exception
     ( throwIO
     )
-import Control.Monad.Extra
-    ( concatMapM
-    )
 import Control.Monad.IO.Class
     ( liftIO
     )
@@ -130,9 +127,6 @@ import Data.Functor
     )
 import Data.List
     ( unfoldr
-    )
-import Data.Tuple.Extra
-    ( dupe
     )
 import Numeric.Natural
     ( Natural
@@ -263,7 +257,7 @@ anyFunds mnemonicRange mlength style start end networkTag= FaucetM $ do
                     end
             pure $ ias <&> \ia ->
                 (unFaucetAddress . unIndexedAddress $ ia)
-    concatMapM run' $ enumRange mnemonicRange
+    concat <$> mapM run' (enumRange mnemonicRange)
 
 shelleyMnemonicRange :: MnemonicRange
 shelleyMnemonicRange = MnemonicRange 0 399
@@ -570,7 +564,7 @@ hwLedgerFunds networkTag = do
         addrXPrv = deriveAddressPrivateKey accXPrv Icarus.UTxOExternal
         paymentKeyIxs :: [Index (AddressIndexDerivationType Icarus) PaymentK] =
             let firstIx = minBound
-            in  firstIx : unfoldr (fmap dupe . nextIndex) firstIx
+            in  firstIx : unfoldr (fmap (\x -> (x, x)) . nextIndex) firstIx
 
 massiveWalletRange :: MnemonicRange
 massiveWalletRange = nextRange 1 preregKeyWalletRange
