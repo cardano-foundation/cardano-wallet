@@ -154,18 +154,14 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..)
     )
-import Control.Monad.Extra
-    ( andM
-    , (<=<)
+import Control.Monad
+    ( (<=<)
     )
 import Control.Monad.Random.Class
     ( MonadRandom (..)
     )
 import Data.Bifunctor
     ( first
-    )
-import Data.Either.Extra
-    ( maybeToEither
     )
 import Data.Function
     ( (&)
@@ -594,11 +590,11 @@ selectionHasValidSurplus constraints selection =
         SelectionDeficit _ -> False
   where
     surplusIsValid :: TokenBundle -> Bool
-    surplusIsValid = andM
-        [ surplusHasNoNonAdaAssets
+    surplusIsValid tokenBundle = all ($ tokenBundle)
+        ([ surplusHasNoNonAdaAssets
         , surplusNotBelowMinimumCost
         , surplusNotAboveMaximumCost
-        ]
+        ] :: [TokenBundle -> Bool])
 
     -- None of the non-ada assets can have a surplus.
     surplusHasNoNonAdaAssets :: TokenBundle -> Bool
@@ -1344,8 +1340,9 @@ makeChange criteria
         totalOutputCoinValueIsZero
     | otherwise =
         first mkUnableToConstructChangeError $ do
-            adaAvailable <- maybeToEither
-                (requiredCost <\> excessCoin)
+            adaAvailable <- maybe
+                (Left $ requiredCost <\> excessCoin)
+                Right
                 (excessCoin </> requiredCost)
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs

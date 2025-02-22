@@ -111,9 +111,6 @@ import Prelude hiding
 import Control.DeepSeq
     ( NFData
     )
-import Control.Monad.Extra
-    ( firstJustM
-    )
 import Control.Monad.Random.Class
     ( MonadRandom (..)
     )
@@ -497,6 +494,10 @@ selectRandomWithPriority
     -> m (Maybe ((u, W.TokenBundle), UTxOIndex u))
 selectRandomWithPriority i =
     firstJustM (selectRandom i) . NE.toList
+  where
+    firstJustM _ [] = pure Nothing
+    firstJustM p (x:xs) =
+        maybe (firstJustM p xs) (pure . Just) =<< p x
 
 --------------------------------------------------------------------------------
 -- Internal Interface
