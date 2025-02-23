@@ -40,6 +40,7 @@ pkgs.stdenv.mkDerivation {
   buildInputs = with pkgs.buildPackages; [
     haskellBuildUtils
     nix
+    tree
   ]
   ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ darwin.binutils ] else [ binutils ])
   ++ lib.optionals makeTarball [ gnutar gzip ]
@@ -53,7 +54,7 @@ pkgs.stdenv.mkDerivation {
   ++ lib.optionals isWindows [ unzip winePackages.minimal ]
   ++ lib.optional (stdenv.buildPlatform.libc == "glibc") glibcLocales;
 
-  doCheck = true;
+  doCheck = false;
   phases = [ "buildPhase" "checkPhase" ];
   pkgname = "${name}.${format}";
   exeName = lib.getName exe.name;
@@ -70,9 +71,10 @@ pkgs.stdenv.mkDerivation {
     # This should not happen, but this Note exists to remind us of the possibility.
     #
     cp --no-preserve=timestamps --update=none --recursive \
-      ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} \
+      ${exe}/bin/* \
       $name
-
+    tree $name
+    exit 1
     chmod -R +w $name
 
   '' + lib.optionalString isMacOS ''

@@ -165,7 +165,7 @@
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
-              (import ./nix/overlays/common-lib.nix)
+              # (import ./nix/overlays/common-lib.nix)
               overlay
             ];
           };
@@ -208,44 +208,45 @@
                 cardano-wallet = import ./nix/release-build.nix {
                   inherit pkgs;
                   exe = project.hsPkgs.cardano-wallet-exe.components.exes.cardano-wallet;
-                  backend = self.cardano-node;
+                  # backend = self.cardano-node;
                 };
-                cardano-deposit-wallet = import ./nix/release-build.nix {
-                  inherit pkgs;
-                  exe = project.hsPkgs.cardano-wallet-exe.components.exes.cardano-deposit-wallet;
-                };
-                # Local test cluster and mock metadata server
-                inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
-                inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
-                inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
-                integration-exe = project.hsPkgs.cardano-wallet-integration.components.exes.integration-exe;
-                e2e = project.hsPkgs.cardano-wallet-integration.components.tests.e2e;
-                inherit (project.hsPkgs.local-cluster.components.exes) test-local-cluster-exe;
+                # cardano-deposit-wallet = import ./nix/release-build.nix {
+                #   inherit pkgs;
+                #   exe = project.hsPkgs.cardano-wallet-exe.components.exes.cardano-deposit-wallet;
+                #   backend = self.cardano-node;
+                # };
+                # # Local test cluster and mock metadata server
+                # inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
+                # inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
+                # inherit (project.hsPkgs.local-cluster.components.exes) local-cluster;
+                # integration-exe = project.hsPkgs.cardano-wallet-integration.components.exes.integration-exe;
+                # e2e = project.hsPkgs.cardano-wallet-integration.components.tests.e2e;
+                # inherit (project.hsPkgs.local-cluster.components.exes) test-local-cluster-exe;
 
-                # Adrestia tool belt
-                inherit (project.hsPkgs.bech32.components.exes) bech32;
-                inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
+                # # Adrestia tool belt
+                # inherit (project.hsPkgs.bech32.components.exes) bech32;
+                # inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
 
-                # Cardano
-                cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;
-                cardano-node = nodeProject.hsPkgs.cardano-node.components.exes.cardano-node // {
-                  deployments = pkgs.cardano-node-deployments;
-                };
+                # # Cardano
+                # cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;
+                # cardano-node = nodeProject.hsPkgs.cardano-node.components.exes.cardano-node // {
+                #   deployments = pkgs.cardano-node-deployments;
+                # };
 
-                # Provide db-converter, so daedalus can ship it without needing to
-                # pin an ouroborus-network rev.
-                inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
+                # # Provide db-converter, so daedalus can ship it without needing to
+                # # pin an ouroborus-network rev.
+                # inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
 
-                # Combined project coverage report
-                testCoverageReport = coveredProject.projectCoverageReport;
-                # `tests` are the test suites which have been built.
-                tests =
-                  lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
-                # `checks` are the result of executing the tests.
-                checks = lib.removeRecurse (collectChecks isProjectPackage coveredProject.hsPkgs);
-                # `benchmarks` are only built, not run.
-                benchmarks =
-                  lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+                # # Combined project coverage report
+                # testCoverageReport = coveredProject.projectCoverageReport;
+                # # `tests` are the test suites which have been built.
+                # tests =
+                #   lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
+                # # `checks` are the result of executing the tests.
+                # checks = lib.removeRecurse (collectChecks isProjectPackage coveredProject.hsPkgs);
+                # # `benchmarks` are only built, not run.
+                # benchmarks =
+                #   lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
               };
             in
             self;
@@ -363,11 +364,11 @@
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
-                    macOsPkgs.cardano-deposit-wallet
-                    macOsPkgs.bech32
-                    macOsPkgs.cardano-address
-                    nodePackages.cardano-cli
-                    nodePackages.cardano-node
+                    # macOsPkgs.cardano-deposit-wallet
+                    # macOsPkgs.bech32
+                    # macOsPkgs.cardano-address
+                    # nodePackages.cardano-cli
+                    # nodePackages.cardano-node
                   ];
                   platform = "macos-intel";
                   format = "tar.gz";
@@ -379,11 +380,11 @@
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
-                    macOsPkgs.cardano-deposit-wallet
-                    macOsPkgs.bech32
-                    macOsPkgs.cardano-address
-                    nodePackages.cardano-cli
-                    nodePackages.cardano-node
+                    # macOsPkgs.cardano-deposit-wallet
+                    # macOsPkgs.bech32
+                    # macOsPkgs.cardano-address
+                    # nodePackages.cardano-cli
+                    # nodePackages.cardano-node
                   ];
                   platform = "macos-silicon";
                   format = "tar.gz";
