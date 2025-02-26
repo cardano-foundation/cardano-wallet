@@ -136,7 +136,7 @@ steps:
       agents:
         system: ${linux}
       concurrency: 1
-      concurrency_group: 'ruby-e2e-tests'
+      concurrency_group: 'linux-e2e-tests'
 
     - label: Preview Network Boot Sync
       timeout_in_minutes: 10
