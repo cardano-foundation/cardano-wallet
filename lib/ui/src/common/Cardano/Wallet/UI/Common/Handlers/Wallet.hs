@@ -10,12 +10,9 @@ import Prelude hiding
     ( lookup
     )
 
+
 import Cardano.Mnemonic
     ( MkSomeMnemonic (mkSomeMnemonic)
-    )
-import Cardano.Wallet.Api.Types
-    ( AllowedMnemonics
-    , WalletStyle (..)
     )
 import Control.Monad
     ( replicateM
@@ -38,7 +35,7 @@ pickMnemonic n _ = do
             xs <- replicateM n $ do
                 i <- randomRIO (0, length englishWords - 1)
                 pure $ englishWords !! i
-            case mkSomeMnemonic @(AllowedMnemonics 'Shelley) xs of
+            case mkSomeMnemonic @'[15,18,21,24] xs of
                 Left _ -> loop
                 Right _ -> pure xs
     Just <$> loop

@@ -76,7 +76,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( alertH
     , rogerH
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Network
+import Cardano.Wallet.UI.Shelley.Html.Pages.Network
     ( networkInfoH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Settings

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.Wallet.UI.Common.Html.Pages.Network where
+module Cardano.Wallet.UI.Shelley.Html.Pages.Network where
 
 import Prelude
 

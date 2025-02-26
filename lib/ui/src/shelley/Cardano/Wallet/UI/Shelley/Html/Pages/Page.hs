@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Wallet.UI.Common.Html.Html
     ( RawHtml (..)
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Network
+import Cardano.Wallet.UI.Shelley.Html.Pages.Network
     ( networkH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Settings

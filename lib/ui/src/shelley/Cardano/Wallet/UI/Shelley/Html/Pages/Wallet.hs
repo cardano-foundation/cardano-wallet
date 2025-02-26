@@ -51,7 +51,7 @@ import Cardano.Wallet.UI.Common.Html.Pages.Lib
     , simpleField
     , sseH
     )
-import Cardano.Wallet.UI.Common.Html.Pages.Network
+import Cardano.Wallet.UI.Shelley.Html.Pages.Network
     ( blockReferenceH
     )
 import Cardano.Wallet.UI.Shelley.API

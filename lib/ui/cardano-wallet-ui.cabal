@@ -51,7 +51,6 @@ library common
     Cardano.Wallet.UI.Common.Html.Lib
     Cardano.Wallet.UI.Common.Html.Modal
     Cardano.Wallet.UI.Common.Html.Pages.Lib
-    Cardano.Wallet.UI.Common.Html.Pages.Network
     Cardano.Wallet.UI.Common.Html.Pages.Settings
     Cardano.Wallet.UI.Common.Html.Pages.Template.Body
     Cardano.Wallet.UI.Common.Html.Pages.Template.Footer
@@ -73,11 +72,8 @@ library common
     , base
     , bytestring
     , cardano-addresses
-    , cardano-slotting
     , cardano-wallet
-    , cardano-wallet-api
     , cardano-wallet-network-layer
-    , cardano-wallet-primitive
     , containers
     , contra-tracer
     , cookie
@@ -112,6 +108,7 @@ library shelley
     Cardano.Wallet.UI.Shelley.Handlers.Wallets
     Cardano.Wallet.UI.Shelley.Html.Pages.About
     Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
+    Cardano.Wallet.UI.Shelley.Html.Pages.Network
     Cardano.Wallet.UI.Shelley.Html.Pages.Page
     Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
     Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
@@ -126,6 +123,7 @@ library shelley
     , base
     , bytestring
     , cardano-addresses
+    , cardano-slotting
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-primitive
@@ -135,6 +133,7 @@ library shelley
     , lucid
     , mtl
     , ntp-client
+    , servant
     , servant-server
     , text
     , text-class
