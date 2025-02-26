@@ -65,7 +65,6 @@ packages:
   lib/cardano-api-extra/
   lib/crypto-primitives/
   lib/coin-selection/
-  lib/deposit-wallet/
   lib/delta-chain/
   lib/delta-store/
   lib/delta-table/
@@ -291,9 +290,6 @@ package cardano-wallet-integration
   tests: True
 
 package cardano-wallet-test-utils
-  tests: True
-
-package cardano-deposit-wallet
   tests: True
 
 package std-gen-seed
