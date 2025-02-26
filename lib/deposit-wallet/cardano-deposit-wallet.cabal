@@ -262,7 +262,7 @@ test-suite unit
     Paths_cardano_deposit_wallet
     Spec
 
-executable cardano-deposit-wallet-run
+executable cardano-deposit-wallet
   import:         language, opts-exe
   hs-source-dirs: exe
   build-depends:  base

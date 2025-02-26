@@ -210,10 +210,6 @@
                   exe = project.hsPkgs.cardano-wallet-exe.components.exes.cardano-wallet;
                   backend = self.cardano-node;
                 };
-                cardano-deposit-wallet = import ./nix/release-build.nix {
-                  inherit pkgs;
-                  exe = project.hsPkgs.cardano-wallet-exe.components.exes.cardano-deposit-wallet;
-                };
                 # Local test cluster and mock metadata server
                 inherit (project.hsPkgs.cardano-wallet.components.exes) mock-token-metadata-server;
                 inherit (project.hsPkgs.cardano-wallet-benchmarks.components.exes) benchmark-history;
@@ -295,7 +291,6 @@
               linuxPackages = mkPackages project.projectCross.musl64;
               linuxReleaseExes = [
                 linuxPackages.cardano-wallet
-                linuxPackages.cardano-deposit-wallet
                 linuxPackages.bech32
                 linuxPackages.cardano-address
                 cardano-node-runtime.hydraJobs.x86_64-linux.musl.cardano-cli
@@ -304,7 +299,6 @@
               # Which exes should be put in the release archives.
               checkReleaseContents = jobs: map (exe: jobs.${exe}) [
                 "cardano-wallet"
-                "cardano-deposit-wallet"
                 "bech32"
                 "cardano-address"
                 "cardano-cli"
@@ -335,7 +329,6 @@
                     walletLib = lib;
                     exes = [
                       windowsPackages.cardano-wallet
-                      windowsPackages.cardano-deposit-wallet
                       windowsPackages.bech32
                       windowsPackages.cardano-address
                       windowsPackages.cardano-cli
@@ -363,7 +356,6 @@
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
-                    macOsPkgs.cardano-deposit-wallet
                     macOsPkgs.bech32
                     macOsPkgs.cardano-address
                     nodePackages.cardano-cli
@@ -379,7 +371,6 @@
                   walletLib = lib;
                   exes = let macOsPkgs = mkPackages project; in [
                     macOsPkgs.cardano-wallet
-                    macOsPkgs.cardano-deposit-wallet
                     macOsPkgs.bech32
                     macOsPkgs.cardano-address
                     nodePackages.cardano-cli
