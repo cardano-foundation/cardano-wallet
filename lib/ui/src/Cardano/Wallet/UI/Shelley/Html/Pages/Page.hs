@@ -28,12 +28,14 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     , pageFromBodyH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
-    ( navigationH
+    ( Navigation (..)
+    , navigationH
     )
 import Cardano.Wallet.UI.Shelley.API
     ( aboutPageLink
     , addressesPageLink
     , faviconLink
+    , homePageLink
     , networkInfoLink
     , networkPageLink
     , settingsGetLink
@@ -108,6 +110,11 @@ headerH :: Monad m => Text -> Page -> HtmlT m ()
 headerH prefix p =
     navigationH
         prefix
+        Navigation
+            { navigationHomePage = homePageLink
+            , navigationTitle = "Cardano Deposit Wallet"
+            , navigationFavicon = faviconLink
+            }
         [ (is _About p, aboutPageLink, "About")
         , (is _Network p, networkPageLink, "Network")
         , (is _Wallets p, walletsPageLink, "List")

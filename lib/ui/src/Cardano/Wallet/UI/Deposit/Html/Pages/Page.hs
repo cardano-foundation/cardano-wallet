@@ -34,7 +34,8 @@ import Cardano.Wallet.UI.Common.Html.Pages.Template.Head
     , pageFromBodyH
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Template.Navigation
-    ( navigationH
+    ( Navigation (..)
+    , navigationH
     )
 import Cardano.Wallet.UI.Deposit.API
     ( Page (..)
@@ -49,6 +50,7 @@ import Cardano.Wallet.UI.Deposit.API
     , depositPageLink
     , depositsLink
     , faviconLink
+    , homePageLink
     , navigationLink
     , paymentsLink
     , paymentsPageLink
@@ -119,6 +121,11 @@ headerElementH :: Maybe Page -> WalletPresent -> Monad m => HtmlT m ()
 headerElementH p wp =
     navigationH
         mempty
+        Navigation
+            { navigationHomePage = homePageLink
+            , navigationTitle = "Cardano Deposit Wallet"
+            , navigationFavicon = faviconLink
+            }
         $ [(is' _Wallet, walletPageLink, "Wallet")]
             <> [ (is' _Addresses, addressesPageLink, "Addresses")
                | isPresent wp
