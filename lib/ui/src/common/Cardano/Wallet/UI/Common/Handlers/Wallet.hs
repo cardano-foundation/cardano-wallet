@@ -10,7 +10,6 @@ import Prelude hiding
     ( lookup
     )
 
-
 import Cardano.Mnemonic
     ( MkSomeMnemonic (mkSomeMnemonic)
     )

@@ -33,6 +33,9 @@ import Cardano.Wallet.UI.Cookies
 import Data.Aeson
     ( Value
     )
+import Data.Text.Class
+    ( toText
+    )
 import Servant
     ( Capture
     , Get
@@ -42,6 +45,7 @@ import Servant
     , Proxy (..)
     , QueryParam
     , ReqBody
+    , ToHttpApiData (toQueryParam)
     , allLinks
     , (:<|>) (..)
     , (:>)
@@ -128,3 +132,6 @@ homePageLink
     :<|> sseLink
     :<|> faviconLink =
         allLinks (Proxy @UI)
+
+instance ToHttpApiData WalletId where
+    toQueryParam = toText

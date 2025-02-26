@@ -72,7 +72,6 @@ library common
     , base
     , bytestring
     , cardano-addresses
-    , cardano-wallet
     , cardano-wallet-network-layer
     , containers
     , contra-tracer

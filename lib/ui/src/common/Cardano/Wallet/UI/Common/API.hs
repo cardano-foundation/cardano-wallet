@@ -14,18 +14,12 @@ module Cardano.Wallet.UI.Common.API where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( WalletId (..)
-    )
 import Cardano.Wallet.UI.Common.Html.Html
     ( HTML
     , RawHtml (..)
     )
 import Cardano.Wallet.UI.Cookies
     ( Cookied
-    )
-import Data.Text.Class
-    ( ToText (..)
     )
 import Network.HTTP.Media
     ( (//)
@@ -51,9 +45,6 @@ instance FromHttpApiData Visible where
 instance ToHttpApiData Visible where
     toQueryParam Visible = "visible"
     toQueryParam Hidden = "hidden"
-
-instance ToHttpApiData WalletId where
-    toQueryParam = toText
 
 type SessionedHtml b = Cookied (b '[HTML]) RawHtml
 
