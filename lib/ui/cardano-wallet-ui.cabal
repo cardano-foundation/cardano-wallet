@@ -34,8 +34,9 @@ flag release
   default:     False
   manual:      True
 
-library
+library common
   import:           language, opts-lib
+  visibility:       public
   exposed-modules:
     Cardano.Wallet.UI.Common.API
     Cardano.Wallet.UI.Common.Handlers.Lib
@@ -60,6 +61,133 @@ library
     Cardano.Wallet.UI.Common.Html.Scrolling
     Cardano.Wallet.UI.Common.Layer
     Cardano.Wallet.UI.Cookies
+    Cardano.Wallet.UI.Lib.ListOf
+    Cardano.Wallet.UI.Signal
+    Cardano.Wallet.UI.Static
+    Cardano.Wallet.UI.Type
+
+  other-modules:    Paths_cardano_wallet_ui
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , base
+    , bytestring
+    , cardano-addresses
+    , cardano-slotting
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , containers
+    , contra-tracer
+    , cookie
+    , exceptions
+    , file-embed
+    , generic-lens
+    , http-media
+    , lens
+    , lucid
+    , mmorph
+    , mtl
+    , operational
+    , random
+    , servant
+    , servant-server
+    , string-interpolate
+    , text
+    , text-class
+    , time
+    , unliftio
+
+  hs-source-dirs:   src/common
+  default-language: Haskell2010
+
+library shelley
+  import:           language, opts-lib
+  visibility:       public
+  exposed-modules:
+    Cardano.Wallet.UI.Shelley.API
+    Cardano.Wallet.UI.Shelley.Handlers.Addresses
+    Cardano.Wallet.UI.Shelley.Handlers.Wallet
+    Cardano.Wallet.UI.Shelley.Handlers.Wallets
+    Cardano.Wallet.UI.Shelley.Html.Pages.About
+    Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
+    Cardano.Wallet.UI.Shelley.Html.Pages.Page
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
+    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
+    Cardano.Wallet.UI.Shelley.Server
+
+  other-modules:    Paths_cardano_wallet_ui
+  build-depends:
+    , address-derivation-discovery
+    , aeson
+    , aeson-pretty
+    , base
+    , bytestring
+    , cardano-addresses
+    , cardano-wallet
+    , cardano-wallet-api
+    , cardano-wallet-primitive
+    , cardano-wallet-ui:common
+    , exceptions
+    , lens
+    , lucid
+    , mtl
+    , ntp-client
+    , servant-server
+    , text
+    , text-class
+    , time
+
+  hs-source-dirs:   src/shelley
+  default-language: Haskell2010
+
+test-suite unit
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -threaded -rtsopts -Wall
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+  build-depends:
+    , base
+    , base16-bytestring
+    , bytestring
+    , cardano-addresses
+    , cardano-crypto
+    , cardano-deposit-wallet
+    , cardano-deposit-wallet:rest
+    , cardano-wallet-read
+    , cardano-wallet-ui:common
+    , cardano-wallet-ui:deposit
+    , containers
+    , contra-tracer
+    , hspec
+    , hspec-golden-aeson
+    , mtl
+    , QuickCheck
+    , temporary
+    , text
+    , time
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            unit-test.hs
+  other-modules:
+    Cardano.Wallet.UI.Deposit.Html.Pages.Payments.PageSpec
+    Cardano.Wallet.UI.Lib.DiscretizationSpec
+    Cardano.Wallet.UI.Lib.Pagination.MapSpec
+
+library deposit
+  import:           language, opts-lib
+  visibility:       public
+  exposed-modules:
     Cardano.Wallet.UI.Deposit.API
     Cardano.Wallet.UI.Deposit.API.Addresses.Transactions
     Cardano.Wallet.UI.Deposit.API.Common
@@ -97,108 +225,39 @@ library
     Cardano.Wallet.UI.Deposit.Types.Payments
     Cardano.Wallet.UI.Deposit.Types.Wallet
     Cardano.Wallet.UI.Lib.Discretization
-    Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Lib.Pagination.Map
     Cardano.Wallet.UI.Lib.Pagination.TimedSeq
     Cardano.Wallet.UI.Lib.Pagination.Type
     Cardano.Wallet.UI.Lib.Time.Direction
-    Cardano.Wallet.UI.Shelley.API
-    Cardano.Wallet.UI.Shelley.Handlers.Addresses
-    Cardano.Wallet.UI.Shelley.Handlers.Wallet
-    Cardano.Wallet.UI.Shelley.Handlers.Wallets
-    Cardano.Wallet.UI.Shelley.Html.Pages.About
-    Cardano.Wallet.UI.Shelley.Html.Pages.Addresses
-    Cardano.Wallet.UI.Shelley.Html.Pages.Page
-    Cardano.Wallet.UI.Shelley.Html.Pages.Wallet
-    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets
-    Cardano.Wallet.UI.Shelley.Html.Pages.Wallets.NewWallet
-    Cardano.Wallet.UI.Shelley.Server
-    Cardano.Wallet.UI.Signal
-    Cardano.Wallet.UI.Static
-    Cardano.Wallet.UI.Type
 
   other-modules:    Paths_cardano_wallet_ui
   build-depends:
-    , address-derivation-discovery
     , aeson
-    , aeson-pretty
     , base
     , base16-bytestring
     , bytestring
     , cardano-addresses
     , cardano-binary
+    , cardano-deposit-wallet
+    , cardano-deposit-wallet:rest
     , cardano-slotting
-    , cardano-wallet
-    , cardano-wallet-api
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
     , cardano-wallet-read
+    , cardano-wallet-ui:common
     , containers
     , contra-tracer
-    , cookie
-    , cardano-deposit-wallet:{cardano-deposit-wallet, rest}
-    , exceptions
-    , file-embed
-    , generic-lens
     , hashable
     , http-api-data
-    , http-media
     , lens
     , lucid
-    , mmorph
     , monoidal-containers
     , mtl
-    , ntp-client
-    , operational
-    , random
     , servant
     , servant-server
     , stm
-    , string-interpolate
     , text
     , text-class
     , time
     , transformers
-    , unliftio
 
-  hs-source-dirs:   src
+  hs-source-dirs:   src/deposit
   default-language: Haskell2010
-
-test-suite unit
-  default-language:   Haskell2010
-  default-extensions:
-    NoImplicitPrelude
-    OverloadedStrings
-
-  ghc-options:        -threaded -rtsopts -Wall
-
-  if flag(release)
-    ghc-options: -O2 -Werror
-
-  build-depends:
-    , base
-    , base16-bytestring
-    , bytestring
-    , cardano-addresses
-    , cardano-crypto
-    , cardano-wallet-read
-    , cardano-wallet-ui
-    , containers
-    , contra-tracer
-    , cardano-deposit-wallet:{cardano-deposit-wallet, rest}
-    , hspec
-    , hspec-golden-aeson
-    , mtl
-    , QuickCheck
-    , temporary
-    , text
-    , time
-
-  build-tool-depends: hspec-discover:hspec-discover
-  type:               exitcode-stdio-1.0
-  hs-source-dirs:     test/unit
-  main-is:            unit-test.hs
-  other-modules:
-    Cardano.Wallet.UI.Deposit.Html.Pages.Payments.PageSpec
-    Cardano.Wallet.UI.Lib.DiscretizationSpec
-    Cardano.Wallet.UI.Lib.Pagination.MapSpec

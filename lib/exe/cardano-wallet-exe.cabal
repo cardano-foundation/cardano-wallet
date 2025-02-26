@@ -78,7 +78,8 @@ library shelley
     , cardano-wallet-exe
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
-    , cardano-wallet-ui
+    , cardano-wallet-ui:common
+    , cardano-wallet-ui:shelley
     , contra-tracer
     , extra
     , generic-lens
@@ -156,14 +157,15 @@ library deposit
   hs-source-dirs:  deposit
   build-depends:
     , base
-    , cardano-wallet-exe
-    , cardano-wallet-network-layer
-    , cardano-wallet-primitive
-    , cardano-wallet-ui
-    , contra-tracer
     , cardano-deposit-wallet
     , cardano-deposit-wallet:http
     , cardano-deposit-wallet:rest
+    , cardano-wallet-exe
+    , cardano-wallet-network-layer
+    , cardano-wallet-primitive
+    , cardano-wallet-ui:common
+    , cardano-wallet-ui:deposit
+    , contra-tracer
     , network
     , servant-server
     , streaming-commons
