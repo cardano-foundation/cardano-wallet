@@ -44,7 +44,6 @@ import Cardano.Wallet.UI.Common.Html.Modal
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( Striped (..)
     , Width (..)
-    , addressH
     , alertH
     , box
     , field
@@ -76,7 +75,8 @@ import Cardano.Wallet.UI.Deposit.Handlers.Payments.Transaction
     , extractReceivers
     )
 import Cardano.Wallet.UI.Deposit.Html.Common
-    ( lovelaceH
+    ( addressH
+    , lovelaceH
     , txIdH
     )
 import Cardano.Wallet.UI.Type
@@ -272,7 +272,6 @@ receiversH m = do
                         tr_ $ do
                             tdEnd $ do
                                 addressH WithCopy address
-
                             tdEnd $ lovelaceH amount
                             tdEnd
                                 $ button_

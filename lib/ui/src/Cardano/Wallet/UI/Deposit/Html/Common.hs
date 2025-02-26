@@ -15,16 +15,21 @@ module Cardano.Wallet.UI.Deposit.Html.Common
     , modalElementH
     , chainPointToSlotH
     , networkTagH
+    , addressH
     )
 where
 
 import Prelude
 
+import Cardano.Wallet.Deposit.Pure.API.Address
+    ( encodeAddress
+    )
 import Cardano.Wallet.Deposit.Pure.API.TxHistory
     ( DownTime
     )
 import Cardano.Wallet.Deposit.Read
-    ( NetworkTag (..)
+    ( Address
+    , NetworkTag (..)
     , Slot
     , TxId
     , WithOrigin (..)
@@ -64,6 +69,7 @@ import Data.Time
     )
 import Lucid
     ( Html
+    , HtmlT
     , ToHtml (..)
     , button_
     , class_
@@ -148,3 +154,10 @@ modalElementH (Just t) (Just b) =
                     "Dismiss"
             }
 modalElementH _ _ = mempty
+
+addressH :: Monad m => WithCopy -> Address -> HtmlT m ()
+addressH copy addr =
+    truncatableText copy ("address-text-" <> encodedAddr)
+        $ toHtml encodedAddr
+  where
+    encodedAddr = encodeAddress addr

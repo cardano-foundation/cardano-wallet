@@ -23,8 +23,7 @@ import Cardano.Wallet.UI.Common.Html.Lib
     ( WithCopy (..)
     )
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
-    ( addressH
-    , alertH
+    ( alertH
     )
 import Cardano.Wallet.UI.Common.Layer
     ( UILayer (..)
@@ -42,6 +41,9 @@ import Cardano.Wallet.UI.Deposit.Handlers.Addresses
     )
 import Cardano.Wallet.UI.Deposit.Handlers.Addresses.Transactions
     ( getCustomerHistory
+    )
+import Cardano.Wallet.UI.Deposit.Html.Common
+    ( addressH
     )
 import Cardano.Wallet.UI.Deposit.Html.Pages.Addresses
     ( addressElementH

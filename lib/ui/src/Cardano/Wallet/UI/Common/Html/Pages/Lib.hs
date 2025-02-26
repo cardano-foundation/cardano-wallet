@@ -27,19 +27,12 @@ module Cardano.Wallet.UI.Common.Html.Pages.Lib
     , Striped (..)
     , onStriped
     , box
-    , addressH
     , sseWithControlsH
     )
 where
 
 import Prelude
 
-import Cardano.Wallet.Deposit.Pure.API.Address
-    ( encodeAddress
-    )
-import Cardano.Wallet.Deposit.Read
-    ( Address
-    )
 import Cardano.Wallet.UI.Common.Html.Htmx
     ( hxExt_
     , hxGet_
@@ -48,9 +41,7 @@ import Cardano.Wallet.UI.Common.Html.Htmx
     , hxTrigger_
     )
 import Cardano.Wallet.UI.Common.Html.Lib
-    ( WithCopy
-    , linkText
-    , truncatableText
+    ( linkText
     )
 import Cardano.Wallet.UI.Lib.ListOf
     ( Cons (..)
@@ -282,13 +273,6 @@ showThousandDots = reverse . showThousandDots' . reverse . show
             (a, b) = splitAt 3 xs
         in
             a <> if null b then [] else "." <> showThousandDots' b
-
-addressH :: Monad m => WithCopy -> Address -> HtmlT m ()
-addressH copy addr =
-    truncatableText copy ("address-text-" <> encodedAddr)
-        $ toHtml encodedAddr
-  where
-    encodedAddr = encodeAddress addr
 
 -- | A box with a title, a subtitle and a content.
 box
