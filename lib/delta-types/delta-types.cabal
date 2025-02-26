@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                delta-types
-version:             0.2025.1.9
+version:             1.0.0.0
 synopsis:            Delta types, also known as change actions.
 description:
     A __delta type__ @da@ for a __base type__ @a@ is a collection
@@ -13,14 +13,19 @@ description:
     * [Fixing Incremental Computation: Derivatives of Fixpoints, and the Recursive Semantics of Datalog](http://arxiv.org/abs/1811.06069)
       (Here, the concept of a delta type is called a __change action__.)
 homepage:            https://github.com/cardano-foundation/cardano-wallet
+license:             Apache-2.0
+license-file:        LICENSE
 author:              Cardano Foundation (High Assurance Lab)
 maintainer:          hal@cardanofoundation.org
-copyright:           2021-2023 IOHK, 2024 Cardano Foundation
-license:             Apache-2.0
+copyright:           2021-2023 IOHK, 2024-2025 Cardano Foundation
 category:            Data Structures
 build-type:          Simple
-extra-source-files:
-    README.md
+tested-with:
+    GHC == 9.6.6
+
+extra-doc-files:
+  README.md
+  CHANGELOG.md
 
 common language
   default-language:
@@ -61,10 +66,10 @@ library
   import:           language, opts-lib
   hs-source-dirs:   src
   build-depends:
-    , base
-    , containers
-    , fmt
-    , semigroupoids
+    , base >= 4.14 && < 5
+    , containers >= 0.5 && < 0.8
+    , fmt >= 0.6.3.0 && < 0.7
+    , semigroupoids >= 6.0.1 && < 6.1
   exposed-modules:
     Data.Delta
     Data.Delta.Core
@@ -80,7 +85,7 @@ test-suite unit
   main-is:          Main.hs
   build-depends:
     , base
-    , hspec
+    , hspec >= 2.11.0 && < 2.12
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Data.DeltaSpec
