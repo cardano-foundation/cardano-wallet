@@ -535,8 +535,8 @@ steps:
       key: windows-testing-bundle
       depends_on:
         - trigger-build-windows-artifacts
-      command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
-      artifact_paths: [ "./result/windows-tests/**" ]
+      command: nix build -o windows-tests .#ci.artifacts.win64.tests
+      artifact_paths: [ "./windows-tests/**" ]
       agents:
         system: ${linux}
 
@@ -547,8 +547,7 @@ steps:
     steps:
     - label: Windows Unit Tests
       command: |
-        cd test\e2e
-        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
+        buildkite-agent artifact download "windows-tests/cardano-wallet-tests-win64/*" .
         cd cardano-wallet-tests-win64
         .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2
       agents:
@@ -560,8 +559,7 @@ steps:
 
     - label: Windows Text Class Tests
       command: |
-        cd test\e2e
-        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
+        buildkite-agent artifact download "windows-tests/cardano-wallet-tests-win64/*" .
         cd cardano-wallet-tests-win64
         .\text-class-test-unit.exe --color
       agents:
