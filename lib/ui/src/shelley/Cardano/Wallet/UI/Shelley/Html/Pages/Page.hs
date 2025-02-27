@@ -112,7 +112,7 @@ headerH prefix p =
         prefix
         Navigation
             { navigationHomePage = homePageLink
-            , navigationTitle = "Cardano Deposit Wallet"
+            , navigationTitle = "Cardano Wallet"
             , navigationFavicon = faviconLink
             }
         [ (is _About p, aboutPageLink, "About")
