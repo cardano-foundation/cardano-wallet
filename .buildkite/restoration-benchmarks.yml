@@ -32,8 +32,8 @@ steps:
     key: nix-build-benchmarks
     depends_on: restoration-parameters
     command:
-      - nix build
-      - nix build .#ci.benchmarks.all
+      - nix build -L
+      - nix build -L .#ci.benchmarks.all
     agents:
       system: ${linux}
       queue: adrestia-bench

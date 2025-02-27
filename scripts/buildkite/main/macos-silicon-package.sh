@@ -9,4 +9,4 @@ git fetch --all
 git checkout "$RELEASE_CANDIDATE_COMMIT"
 
 rm -rf ./result/*
-nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release
+nix build -L -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release

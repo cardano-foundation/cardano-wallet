@@ -180,7 +180,7 @@ It would be no different from exposing the keys to your bank account to the inte
 You can connect to the wallet by attaching a container to the network and using the internal port.
 
 ```bash
-docker run -it --network mainnet_default alpine/curl curl http://cardano-wallet:8090/v2/network/information | jq
+docker run --rm -it --network mainnet_default alpine/curl curl http://cardano-wallet:8090/v2/network/information | jq
 ```
 
 Or modify the `docker-compose.yml` to host your client in the `mainnet_default` network.

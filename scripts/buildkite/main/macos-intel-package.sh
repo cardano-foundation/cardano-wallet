@@ -9,4 +9,4 @@ git fetch --all
 git checkout "$RELEASE_CANDIDATE_COMMIT"
 
 rm -rf ./result/*
-nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
+nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release
