@@ -125,7 +125,7 @@ case "$1" in
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time
-        command=$(printf "docker run --network %s_default alpine/curl curl -s --max-time 5 http://cardano-wallet:8090/v2/network/information | jq -r" "$NETWORK" )
+        command=$(printf "docker run --rm --network %s_default alpine/curl curl -s --max-time 5 http://cardano-wallet:8090/v2/network/information | jq -r" "$NETWORK" )
         query_status="$command  .sync_progress.status"
         query_time="$command .node_tip.time"
         query_progress="$command .sync_progress.progress.quantity"
