@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Enforce strict script execution modes
-set -euo pipefail
+set -euox pipefail
 
 # Function to display usage information
 usage() {
@@ -81,32 +81,30 @@ LOCAL_NODE_CONFIGS=./configs
 NODE_CONFIGS=${NODE_CONFIGS:=$LOCAL_NODE_CONFIGS}
 export NODE_CONFIGS
 
+COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:=cardano}
 startup() {
     # Pull the latest images
     if [ -z "${USE_LOCAL_IMAGE-}" ]; then
         docker compose pull -q
     fi
     # Start the service in detached mode
-    docker compose up -d
+    docker compose -p "$COMPOSE_PROJECT_NAME" up -d
 }
 
 # Function to clean up the service
 cleanup() {
     echo "Cleaning up..."
-    docker compose down 2>/dev/null
+    docker compose -p "$COMPOSE_PROJECT_NAME" down 2>/dev/null
     sleep  3
-    docker compose kill 2>/dev/null
+    docker compose -p "$COMPOSE_PROJECT_NAME" kill 2>/dev/null
 }
 
 node-db-with-mithril() {
-    if [ "$NETWORK" != "mainnet" ]; then
-        echo "Error: This option is only available for the mainnet network"
-        exit 1
-    fi
+    random_name=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8 ; echo '')
     echo "Starting the mithril service..."
-    digest=$(docker compose -p mithril run --rm mithril cdb  snapshot list --json | jq -r .[0].digest)
+    digest=$(docker compose -p "$random_name" --profile  mithril run --rm mithril cdb  snapshot list --json | jq -r .[0].digest)
     rm -rf "${NODE_DB:?}"/*
-    docker compose -p mithril run --rm mithril cdb download "$digest"
+    docker compose -p "$random_name" --profile mithril run --rm mithril cdb download "$digest"
 }
 
 # Case statement to handle different command-line arguments
@@ -125,7 +123,7 @@ case "$1" in
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time
-        command=$(printf "docker run --rm --network %s_default alpine/curl curl -s --max-time 5 http://cardano-wallet:8090/v2/network/information | jq -r" "$NETWORK" )
+        command=$(printf "docker run --rm --network %s_default alpine/curl curl -s --max-time 5 http://cardano-wallet:8090/v2/network/information | jq -r" "$COMPOSE_PROJECT_NAME")
         query_status="$command  .sync_progress.status"
         query_time="$command .node_tip.time"
         query_progress="$command .sync_progress.progress.quantity"
@@ -178,7 +176,7 @@ case "$1" in
         ;;
     logs)
         echo "Showing logs..."
-        docker compose logs -f  # Follow the service logs
+        docker compose -p "$COMPOSE_PROJECT_NAME" logs -f  # Follow the service logs
         ;;
     node-db-with-mithril)
         node-db-with-mithril
