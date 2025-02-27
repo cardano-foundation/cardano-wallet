@@ -99,9 +99,6 @@ module Cardano.Wallet.Application.CLI
     , getEKGURL
     , ekgEnabled
     , listenShelleyUiOption
-    , listenDepositUiOption
-    , listenDepositOption
-    , depositByronGenesisFileOption
     ) where
 
 import Prelude hiding
@@ -173,7 +170,6 @@ import Cardano.Wallet.Api.Client
     , TransactionClient (..)
     , WalletClient (..)
     )
-
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount
@@ -1444,42 +1440,11 @@ listenShelleyUiOption =
     <|>
     pure Nothing
 
--- | [--deposit-random-port|--deposit-port=INT]
-listenDepositOption :: Parser (Maybe Listen)
-listenDepositOption =
-    (Just ListenOnRandomPort <$ depositRandomPortOption)
-    <|>
-    (Just . ListenOnPort . getPort <$> depositPortOption)
-    <|>
-    pure Nothing
-
--- | [--ui-deposit-random-port|--ui-deposit-port=INT]
-listenDepositUiOption :: Parser (Maybe Listen)
-listenDepositUiOption =
-    (Just ListenOnRandomPort <$ uiDepositRandomPortOption)
-    <|>
-    (Just . ListenOnPort . getPort <$> uiDepositPortOption)
-    <|>
-    pure Nothing
-
--- | [--deposit-byron-genesis-file=FILEPATH]
-depositByronGenesisFileOption :: Parser FilePath
-depositByronGenesisFileOption = option str $ mempty
-    <> long "deposit-byron-genesis-file"
-    <> metavar "FILEPATH"
-    <> help "Byron genesis file to use for the deposit wallet."
-
 -- | [--ui-random-port]
 uiRandomPortOption :: Parser Bool
 uiRandomPortOption = flag' False $ mempty
     <> long "ui-random-port"
     <> help "serve the personal wallet UI on any available port (conflicts with --ui-port)"
-
--- | [--ui-deposit-random-port]
-uiDepositRandomPortOption :: Parser Bool
-uiDepositRandomPortOption = flag' False $ mempty
-    <> long "ui-deposit-random-port"
-    <> help "serve the deposit wallet UI on any available port (conflicts with --ui-deposit-port)"
 
 -- | [--ui-port=INT]
 uiPortOption :: Parser (Port "Wallet UI")
@@ -1489,25 +1454,11 @@ uiPortOption = optionT $ mempty
     <> help "port used for serving the personal wallet UI."
     <> showDefaultWith showT
 
--- | [--ui-deposit-port=INT]
-uiDepositPortOption :: Parser (Port "Wallet UI")
-uiDepositPortOption = optionT $ mempty
-    <> long "ui-deposit-port"
-    <> metavar "INT"
-    <> help "port used for serving the deposit wallet UI."
-    <> showDefaultWith showT
-
 -- | [--random-port]
 randomPortOption :: Parser Bool
 randomPortOption = flag' False $ mempty
     <> long "random-port"
     <> help "serve wallet API on any available port (conflicts with --port)"
-
--- | [--deposit-random-port]
-depositRandomPortOption :: Parser Bool
-depositRandomPortOption = flag' False $ mempty
-    <> long "deposit-random-port"
-    <> help "serve deposit wallet API on any available port (conflicts with --deposit-port)"
 
 -- | --payment=PAYMENT
 paymentOption :: Parser Text
@@ -1534,14 +1485,6 @@ portOption = optionT $ mempty
     <> metavar "INT"
     <> help "port used for serving the wallet API."
     <> value (Port 8_090)
-    <> showDefaultWith showT
-
--- | [--deposit-port=INT]
-depositPortOption :: Parser (Port "Deposit Wallet")
-depositPortOption = optionT $ mempty
-    <> long "deposit-port"
-    <> metavar "INT"
-    <> help "port used for serving the deposit wallet JSON API."
     <> showDefaultWith showT
 
 -- | [--shutdown-handler]
