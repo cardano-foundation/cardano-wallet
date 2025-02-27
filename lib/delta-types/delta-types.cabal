@@ -74,6 +74,7 @@ library
     Data.Delta
     Data.Delta.Core
     Data.Delta.Embedding
+    Data.Delta.Embedding.Internal
     Data.Delta.List
     Data.Delta.Map
     Data.Delta.Set
