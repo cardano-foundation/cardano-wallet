@@ -39,9 +39,6 @@ import Control.Tracer
     ( Tracer
     , traceWith
     )
-import Data.Either.Extra
-    ( eitherToMaybe
-    )
 import Data.Text.Class
     ( ToText (..)
     )
@@ -104,7 +101,7 @@ withShutdownHandler' tr h action = do
     enabled <- hIsOpen h
     traceWith tr $ MsgShutdownHandler enabled
     let with
-            | enabled = fmap eitherToMaybe . race readerLoop
+            | enabled = fmap (either (const Nothing) Just) . race readerLoop
             | otherwise = fmap Just
     with action
   where

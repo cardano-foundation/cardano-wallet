@@ -11,8 +11,8 @@ import Prelude
 
 import qualified Data.ByteString as BS
 
-import Control.Monad.Extra
-    ( unlessM
+import Control.Monad
+    ( unless
     )
 import Network.HTTP.Simple
     ( getResponseBody
@@ -63,7 +63,8 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
     callProcess "tar" ["xf", mithrilTar]
 
     let clientPath = workingDir </> ("mithril-client" <> if isWindows then ".exe" else "")
-    unlessM (doesFileExist clientPath) $
+    mithrilClientExists <- doesFileExist clientPath
+    unless mithrilClientExists $
         fail $ unwords
             [ "downloadLatest: didn't find"
             , clientPath

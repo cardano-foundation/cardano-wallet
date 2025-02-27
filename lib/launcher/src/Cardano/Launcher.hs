@@ -56,9 +56,6 @@ import Control.Tracer
     , contramap
     , traceWith
     )
-import Data.Either.Combinators
-    ( leftToMaybe
-    )
 import Data.List
     ( isPrefixOf
     )
@@ -291,7 +288,7 @@ withBackendCreateProcess tr process mTimeoutSecs ifToSendSigINT action = do
                     (traceWith tr' MsgLauncherActionDone)
                     (action $ ProcessHandles mstdin mstdout mstderr ph)
 
-    traceWith tr $ MsgLauncherFinish (leftToMaybe res)
+    traceWith tr $ MsgLauncherFinish $ either Just (const Nothing) res
     either throwIO pure res
   where
     -- Exceptions resulting from the @exec@ call for this command. The most
