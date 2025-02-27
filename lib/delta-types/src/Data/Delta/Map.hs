@@ -21,10 +21,6 @@ import Data.Delta.Core
 import Data.Map.Strict
     ( Map
     )
-import Fmt
-    ( Buildable (..)
-    )
-
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -43,7 +39,3 @@ instance (Ord key, Delta da)
     apply (Insert key a) = Map.insert key a
     apply (Delete key) = Map.delete key
     apply (Adjust key da) = Map.adjust (apply da) key
-
-instance (Show key, Show da, Show (Base da))
-    => Buildable (DeltaMap key da) where
-    build = build . show
