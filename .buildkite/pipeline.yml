@@ -136,7 +136,7 @@ steps:
       agents:
         system: ${linux}
       concurrency: 1
-      concurrency_group: 'ruby-e2e-tests'
+      concurrency_group: 'linux-e2e-tests'
 
     - label: Preview Network Boot Sync
       timeout_in_minutes: 10
@@ -491,19 +491,17 @@ steps:
       concurrency: 3
       concurrency_group: 'macos-integration-tests'
 
-    - block: MacOS Ruby E2E Tests
+    - block: MacOS E2E Tests
       if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
       depends_on: []
       key: macos-e2e-tests-block
 
-    - label: 'Run Ruby E2E Tests (macOS, arm64)'
+    - label: 'Run E2E Tests (macOS, arm64)'
       key: macos-silicon-e2e
       depends_on:
         - macos-e2e-tests-block
       commands: |
-        nix shell 'nixpkgs#just' -c just ruby-e2e-macos
-      artifact_paths:
-        - "./logs/**/*"
+        nix shell 'nixpkgs#just' -c just e2e
       agents:
         system: ${macos}
       concurrency: 1

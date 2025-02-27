@@ -87,6 +87,7 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
         osArch :: String
         osArch = case arch of
             "x86_64" -> "x64"
+            "aarch64" -> "arm64"
             other -> other
 
     version       = "2450.0"

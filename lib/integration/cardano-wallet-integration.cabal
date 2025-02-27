@@ -233,6 +233,7 @@ test-suite e2e
     , bytestring
     , cardano-addresses
     , cardano-wallet-api
+    , cardano-wallet-application-extras
     , cardano-wallet-exe
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher

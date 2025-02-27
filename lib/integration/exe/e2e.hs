@@ -42,6 +42,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Application.CLI
     ( Port (..)
     )
+import Cardano.Wallet.Network.Ports
+    ( getRandomPort
+    )
 import Cardano.Wallet.Primitive.NetworkId
     ( NetworkDiscriminant (Testnet)
     )
@@ -203,9 +206,10 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
                     }
 
         withCardanoNode nullTracer nodeConfig $ \(JustK node) -> do
+            walletPort <- getRandomPort
             let walletConfig =
                     CardanoWalletConfig
-                        { walletPort = 8090
+                        { walletPort = walletPort
                         , walletDatabaseDir = "wallet-db"
                         , walletNetwork = Launcher.Testnet "byron-genesis.json"
                         , executable = Nothing
@@ -213,8 +217,8 @@ configureContext (E2EConfig preprodMnemonics alreadyRunningWallet) action =
                         , extraArgs = []
                         }
             withCardanoWallet nullTracer node walletConfig
-                $ \(CardanoWalletConn walletPort _)  -> do
-                    action =<< contextFromWalletPort walletPort
+                $ \(CardanoWalletConn walletPort' _)  -> do
+                    action =<< contextFromWalletPort walletPort'
 
     contextFromWalletPort :: PortNumber -> IO Context
     contextFromWalletPort walletPort = do
