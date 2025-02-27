@@ -64,9 +64,9 @@ steps:
     steps:
     - label: Nix Build (linux)
       commands:
-        - nix build .#cardano-wallet
-        - nix build .#cardano-node
-        - nix build .#cardano-cli
+        - nix build -L .#cardano-wallet
+        - nix build -L .#cardano-node
+        - nix build -L .#cardano-cli
       agents:
         system: ${linux}
 
@@ -298,7 +298,7 @@ steps:
 
     - label: Build Benchmarks (linux)
       command:
-        - nix build .#ci.benchmarks.all
+        - nix build -L .#ci.benchmarks.all
       agents:
         system: ${linux}
 
@@ -311,8 +311,8 @@ steps:
       key: nix-build-benchmarks
       depends_on: trigger-benchmarks
       command:
-        - nix build
-        - nix build .#ci.benchmarks.all
+        - nix build -L
+        - nix build -L .#ci.benchmarks.all
       agents:
         system: ${linux}
         queue: adrestia-bench
@@ -434,7 +434,7 @@ steps:
     - label: Build Package (macOS, x86_64)
       key: macos-intel-package
       depends_on: block-macos
-      command: 'nix build -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
+      command: 'nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
       artifact_paths: [ "./result/macos-intel/**" ]
       agents:
         system: ${macos}
@@ -442,7 +442,7 @@ steps:
     - label: Build Package (macOS, arm64)
       key: macos-arm64-package
       depends_on: block-macos
-      command: 'nix build -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
+      command: 'nix build -L -o result/macos-silicon .#packages.aarch64-darwin.ci.artifacts.macos-silicon.release'
       artifact_paths: [ "./result/macos-silicon/**" ]
       agents:
         system: ${macos}
@@ -525,7 +525,7 @@ steps:
       key: windows-package
       depends_on:
         - trigger-build-windows-artifacts
-      command: nix build -o result/windows .#ci.artifacts.win64.release
+      command: nix build -L -o result/windows .#ci.artifacts.win64.release
       artifact_paths: [ "./result/windows/**" ]
       agents:
         system: ${linux}
@@ -535,7 +535,7 @@ steps:
       key: windows-testing-bundle
       depends_on:
         - trigger-build-windows-artifacts
-      command: nix build -o result/windows-tests .#ci.artifacts.win64.tests
+      command: nix build -L -o result/windows-tests .#ci.artifacts.win64.tests
       artifact_paths: [ "./result/windows-tests/**" ]
       agents:
         system: ${linux}

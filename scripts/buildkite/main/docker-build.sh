@@ -21,9 +21,9 @@ mkdir -p artifacts
 TARGET="artifacts/cardano-wallet-$RELEASE_VERSION-docker-image.tgz"
 
 if [ "$RELEASING" = "testing" ]; then
-    nix build .#dockerTestImage -o "$TARGET"
+    nix build -L .#dockerTestImage -o "$TARGET"
 else
-    nix build .#dockerImage -o "$TARGET"
+    nix build -L .#dockerImage -o "$TARGET"
 fi
 
 output=$(docker load <"$TARGET")

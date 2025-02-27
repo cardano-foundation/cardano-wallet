@@ -9,4 +9,4 @@ git fetch --all
 git checkout "$RELEASE_CANDIDATE_COMMIT"
 
 rm -rf ./result/*
-nix build -o result/linux .#ci.artifacts.linux64.release
+nix build -L -o result/linux .#ci.artifacts.linux64.release
