@@ -98,7 +98,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
 
       # this is a local variable, it controls only the index-state of the
       # tools
-      indexState = "2024-08-20T21:35:22Z";
+      indexState = "2025-01-01T23:24:19Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
