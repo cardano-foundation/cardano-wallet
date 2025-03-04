@@ -32,9 +32,6 @@ import Cardano.Wallet.Api.Types
     , ApiWallet
     , WalletStyle (..)
     )
-import Cardano.Wallet.Api.Types.Amount
-    ( ApiAmount (..)
-    )
 import Cardano.Wallet.Pools
     ( StakePool
     )
@@ -96,7 +93,6 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , request
     , verify
-    , (.<)
     )
 import Test.Integration.Framework.Preprod
     ( fixturePreprodWallets
@@ -114,8 +110,6 @@ spec = do
             let amt = 1_000_000
             let expectedMinFee = 150_000
             let expectedMaxFee = 200_000
-            let ApiAmount initialBalanceA = wa ^. #balance . #available
-            let ApiAmount initialBalanceB = wb ^. #balance . #available
 
             payload <- mkTxPayload @IO ctx wb amt fixturePassphrase
 
@@ -125,13 +119,6 @@ spec = do
                     (Link.createTransactionOld @'Shelley wa)
                     Default
                     payload
-            ra <-
-                request @ApiWallet
-                    ctx
-                    (Link.getWallet @'Shelley wa)
-                    Default
-                    Empty
-
             verify
                 rTx
                 [ expectSuccess
@@ -147,22 +134,13 @@ spec = do
                 , expectField #metadata (`shouldBe` Nothing)
                 ]
 
-            verify
-                ra
-                [ expectSuccess
-                , expectField (#balance . #total)
-                    $ between
-                        ( ApiAmount (initialBalanceA - expectedMaxFee - amt)
-                        , ApiAmount (initialBalanceA - expectedMinFee - amt)
-                        )
-                , expectField
-                    (#balance . #available . #toNatural)
-                    (.< initialBalanceA)
-                ]
+            -- NOTE: We do not make any assertions about the wallet balances, as
+            -- we cannot guarantee the test is run in isolation. Even if we
+            -- perfectly ensure the tests are never run concurrently in CI, there
+            -- could also be airdrops and such from other users.
 
             let txid = getFromResponse #id rTx
             let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
-            let ApiAmount fee = getFromResponse #fee rTx
             eventually "transaction is no longer pending on source wallet" $ do
                 rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
                 verify
@@ -187,29 +165,6 @@ spec = do
                     [ expectField (#amount . #toNatural) (`shouldBe` amt)
                     , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                     ]
-
-            eventually "wa and wb balances are as expected" $ do
-                rb <-
-                    request @ApiWallet
-                        ctx
-                        (Link.getWallet @'Shelley wb)
-                        Default
-                        Empty
-                expectField
-                    (#balance . #available)
-                    (`shouldBe` ApiAmount (initialBalanceB + amt))
-                    rb
-
-                ra2 <-
-                    request @ApiWallet
-                        ctx
-                        (Link.getWallet @'Shelley wa)
-                        Default
-                        Empty
-                expectField
-                    (#balance . #available)
-                    (`shouldBe` ApiAmount (initialBalanceA - fee - amt))
-                    ra2
 
     describe "stake pools" $ do
         describe "list" $ do
