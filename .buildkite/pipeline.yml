@@ -535,8 +535,10 @@ steps:
       key: windows-testing-bundle
       depends_on:
         - trigger-build-windows-artifacts
-      command: nix build -L -o result/windows-tests .#ci.artifacts.win64.tests
-      artifact_paths: [ "./result/windows-tests/**" ]
+      command: |
+        nix build -L -o result .#ci.artifacts.win64.tests
+        cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+      artifact_paths: [ "./windows-tests.zip"]
       agents:
         system: ${linux}
 
@@ -546,11 +548,12 @@ steps:
     if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     steps:
     - label: Windows Unit Tests
-      command: |
-        cd test\e2e
-        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
-        cd cardano-wallet-tests-win64
-        .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2
+      commands:
+        - buildkite-agent artifact download "windows-tests.zip" .
+        - mkdir -p windows\tests
+        - tar -xf windows-tests.zip -C windows\tests
+        - cd windows\tests # tests seem to rely on ..\.. being the repo root
+        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2
       agents:
         system: ${windows}
       env:
@@ -560,10 +563,10 @@ steps:
 
     - label: Windows Text Class Tests
       command: |
-        cd test\e2e
-        bundle exec rake get_latest_windows_tests[%BUILDKITE_BRANCH%,cardano-wallet-tests-win64,any,latest]
-        cd cardano-wallet-tests-win64
-        .\text-class-test-unit.exe --color
+        buildkite-agent artifact download "windows-tests.zip" .
+        mkdir windows-tests
+        tar -xf windows-tests.zip -C windows-tests
+        .\windows-tests\text-class-test-unit.exe --color
       agents:
         system: ${windows}
       concurrency: 1
@@ -580,7 +583,10 @@ steps:
         - trigger-windows-e2e-tests
       commands:
         - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod # ensure the configs don't diverge despite being duplicated
-        - ./scripts/buildkite/main/windows-e2e.bat
+        - buildkite-agent artifact download "windows-tests.zip" .
+        - mkdir windows-tests
+        - tar -xf windows-tests.zip -C windows-tests
+        - .\windows-tests\cardano-wallet-integration-test-e2e.exe
       agents:
         system: ${windows}
       env:
