@@ -19,7 +19,7 @@ TESTS_E2E_BINDIR=$(mktemp -d /tmp/bins-XXXXXX)
 export TESTS_E2E_BINDIR
 
 if [ -n "${BUILDKITE:-}" ]; then
-    CURRENT_VERSION=v2025-01-09
+    CURRENT_VERSION=v2025-03-04
     VERSION=$(buildkite-agent meta-data get "release-version" --default "$CURRENT_VERSION")
     echo "VERSION=$VERSION"
     if [ "$PLATFORM" = "linux" ]; then
