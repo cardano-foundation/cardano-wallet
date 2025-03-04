@@ -436,7 +436,7 @@ data DBFactoryLog
 instance HasPrivacyAnnotation DBFactoryLog
 instance HasSeverityAnnotation DBFactoryLog where
     getSeverityAnnotation ev = case ev of
-        MsgFoundDatabase _ _ -> Info
+        MsgFoundDatabase _ _ -> Debug
         MsgUnknownDBFile _ -> Notice
         MsgRemoving _ -> Info
         MsgRemovingInUse _ _ -> Notice
