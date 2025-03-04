@@ -504,21 +504,30 @@ x-restorationMode: &restorationMode
   description: |
     The wallet restoration mode determines since when the wallet should
     be restored from the blockchain.
+
+    cardano-wallet uses so-called `ChainSync` protocol under the hood to
+    scan the chain and restore its state from blocks and transactions.
+    [Ogmios](https://ogmios.dev/mini-protocols/local-chain-sync/) documentation provides a detailed
+    explanation of this underlying process.
   oneOf:
     - title: Restore from genesis
       description: |
         Restore the wallet from the genesis block. This will cause the wallet
-        to be restored from the very beginning of the blockchain.
+        to be restored from the very beginning of the blockchain, which is
+        expected to take a long time (several hours on mainnet).
       <<: *genesis
     - title: Restore from tip
       description: |
-        Restore the wallet from the tip of the blockchain. This will cause the
-        wallet to be restored from the tip of the blockchain.
+        Restore the wallet from the tip of the blockchain. The wallet queries
+        the current tip of the chain and then starts synchronizing from that point.
+        It waits for the _next block_ to appear before returning a result, which
+        on _mainnet_ will take an average of 30 seconds.
       <<: *tip
     - title: Restore from block
       description: |
-        Restore the wallet from a specific block. This will cause the wallet
-        to be restored from the specified block.
+        Restore the wallet after a specific _point_ identified by a block hash and
+        slot number. Note that any transaction which is part of that specified block
+        won't be restored.
       <<: *chainPoint
 
 x-walletName: &walletName
