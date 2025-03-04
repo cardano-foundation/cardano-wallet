@@ -106,10 +106,14 @@ import Data.Delta
     ( Delta (..)
     , Embedding
     , Embedding' (..)
-    , Machine (..)
     , Replace (..)
-    , inject
+    )
+import Data.Delta.Embedding
+    ( inject
     , project
+    )
+import Data.Delta.Embedding.Internal
+    ( Machine (..)
     )
 import Data.Kind
     ( Type
