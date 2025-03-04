@@ -1,5 +1,5 @@
 name:                delta-store
-version:             0.2025.1.9
+version:             0.2025.3.4
 synopsis:            Facility for storing a Haskell value, using delta types.
 homepage:            https://github.com/cardano-foundation/cardano-wallet
 author:              Cardano Foundation (High Assurance Lab)
