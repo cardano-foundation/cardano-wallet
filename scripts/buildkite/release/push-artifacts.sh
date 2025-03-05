@@ -2,7 +2,7 @@
 
 set -euox pipefail
 
-base_build=$(buildkite-agent meta-data get base-build)
+TRIGGERED_BY=$(buildkite-agent meta-data get base-build)
 NEW_GIT_TAG=$(buildkite-agent meta-data get release-version)
 TEST_RC=$(buildkite-agent meta-data get test-rc)
 
