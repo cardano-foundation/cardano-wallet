@@ -2,7 +2,7 @@
 
 set -euox pipefail
 
-base_build=$(buildkite-agent meta-data get base-build)
+TRIGGERED_BY=$(buildkite-agent meta-data get base-build)
 NEW_GIT_TAG=$(buildkite-agent meta-data get release-version)
 TEST_RC=$(buildkite-agent meta-data get test-rc)
 
@@ -16,10 +16,12 @@ else
     TAG=$NEW_GIT_TAG
 fi
 
-main_build=$(curl -H "Authorization: Bearer $BUILDKITE_API_TOKEN" \
-    -X GET "https://api.buildkite.com/v2/builds" \
-    | jq ".[] | select(.meta_data.\"triggered-by\" == \"$base_build\")" \
-    | jq .number)
+select_last_build="last(.[] | select(.meta_data.\"triggered-by\" == \"$TRIGGERED_BY\") | .number)"
+
+main_build=$(curl -s -H "Authorization: Bearer $BUILDKITE_API_TOKEN"     \
+    -X GET "https://api.buildkite.com/v2/builds"     \
+    | jq  "$select_last_build"
+    )
 
 mkdir -p artifacts
 
