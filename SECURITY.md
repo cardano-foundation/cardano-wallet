@@ -26,6 +26,20 @@ Please include as much details as needed to clearly qualify the issue:
 * The version of `cardano-wallet` package where the vulnerability exists.
 * Any relevant proof-of-concept or exploit code (if applicable).
 
+#### Bug Bounty program
+
+The [Cardano Foundation](https://www.cardanofoundation.org) sponsors a
+bug bounty program for cardano-wallet. You can be entitled to a reward
+for responsible disclosure of a vulnerability by reporting your
+findings on the [program's
+page](https://immunefi.com/bug-bounty/cardanofoundation/scope/#top).
+
+Please note the former is only valid for the purpose of participating
+in the bug bounty program, and technical details about the
+vulnerability shall be analysed using GitHub interface. Make sure you
+put a link to the draft security advisory into your bug bounty program
+submission.
+
 ### Processing Vulnerability
 
 1. **Acknowledgment**: The team acknowledges the receipt of your
