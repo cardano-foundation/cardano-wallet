@@ -96,6 +96,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
         filter = lib.cleanSourceFilter;
       };
 
+      # this is a local variable, it controls only the index-state of the
+      # tools
       indexState = "2024-08-20T21:35:22Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
