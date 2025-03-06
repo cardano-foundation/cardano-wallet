@@ -47,19 +47,19 @@ library
     , async
     , base
     , bytestring
-    , cardano-addresses
-    , cardano-api:{cardano-api, internal}
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api:{cardano-api, internal} >= 10.1.0.0 && < 10.2
     , cardano-balance-tx:{cardano-balance-tx, internal}
-    , cardano-binary
-    , cardano-crypto
-    , cardano-crypto-class
+    , cardano-binary >= 1.7.1.0 && < 1.8
+    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-crypto-class >= 2.1.5.0 && < 2.2
     , cardano-crypto-wrapper
-    , cardano-ledger-allegra
-    , cardano-ledger-api
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-slotting
-    , cardano-strict-containers
+    , cardano-ledger-allegra >= 1.6.0.1 && < 1.7
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-byron >= 1.0.1.0 && < 1.1
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-slotting >= 0.2.0.0 && < 0.3
+    , cardano-strict-containers >= 0.1.3.0 && < 0.2
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -90,7 +90,7 @@ library
     , http-types
     , int-cast
     , io-classes
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , lens
     , list-transformer
@@ -104,10 +104,10 @@ library
     , ntp-client
     , OddWord
     , optparse-applicative
-    , ouroboros-consensus
-    , ouroboros-consensus-cardano
-    , ouroboros-network
-    , ouroboros-network-api
+    , ouroboros-consensus >= 0.21.0.0 && < 0.22
+    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
+    , ouroboros-network >= 0.17.1.2 && < 0.18
+    , ouroboros-network-api >= 0.10.0.0 && < 0.11
     , path-pieces
     , persistent
     , persistent-sqlite

@@ -51,8 +51,8 @@ library framework
     , bech32
     , bech32-th
     , bytestring
-    , cardano-addresses
-    , cardano-ledger-shelley
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-extras
@@ -84,10 +84,10 @@ library framework
     , http-client
     , http-types
     , HUnit
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , lens
-    , lobemo-backend-ekg
+    , lobemo-backend-ekg >= 0.2.0.0 && < 0.3
     , local-cluster
     , local-cluster:local-cluster-process
     , memory
@@ -135,12 +135,12 @@ library scenarios
     , base
     , bech32-th
     , bytestring
-    , cardano-addresses
-    , cardano-api
-    , cardano-crypto
-    , cardano-crypto-class
-    , cardano-ledger-alonzo
-    , cardano-ledger-core
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-crypto-class >= 2.1.5.0 && < 2.2
+    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-exe
@@ -231,7 +231,7 @@ test-suite e2e
   build-depends:
     , aeson
     , bytestring
-    , cardano-addresses
+    , cardano-addresses >= 3.12.0 && < 3.13
     , cardano-wallet-api
     , cardano-wallet-application-extras
     , cardano-wallet-exe

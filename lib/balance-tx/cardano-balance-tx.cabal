@@ -39,7 +39,7 @@ library
   hs-source-dirs:  lib/main
   build-depends:
     , cardano-balance-tx:internal
-    , cardano-ledger-api
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
   exposed-modules:
     Cardano.Write.Eras
     Cardano.Write.Tx
@@ -51,20 +51,20 @@ library internal
   build-depends:
     , base >= 4.14 && < 5
     , bytestring >= 0.10.6 && < 0.13
-    , cardano-addresses == 3.12.0
-    , cardano-api >= 10.1 && < 10.2
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api >= 10.1.0.0 && < 10.2
     , cardano-coin-selection
     , cardano-crypto-class >= 2.1.5.0 && < 2.2
-    , cardano-ledger-allegra
-    , cardano-ledger-alonzo
-    , cardano-ledger-api >= 1.9.2.0 && < 1.10
-    , cardano-ledger-babbage
+    , cardano-ledger-allegra >= 1.6.0.1 && < 1.7
+    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-babbage >= 1.10.0.0 && < 1.11
     , cardano-ledger-binary
-    , cardano-ledger-conway
-    , cardano-ledger-core
-    , cardano-ledger-mary
-    , cardano-ledger-shelley
-    , cardano-slotting >= 0.2 && < 0.3
+    , cardano-ledger-conway >= 1.17.3.0 && < 1.18
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-ledger-mary >= 1.7.0.1 && < 1.8
+    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
+    , cardano-slotting >= 0.2.0.0 && < 0.3
     , cardano-strict-containers >= 0.1.3.0 && < 0.2
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
@@ -79,8 +79,8 @@ library internal
     , MonadRandom >= 0.6 && < 0.7
     , monoid-subclasses >= 1.2.5.1 && < 1.3
     , nonempty-containers >= 0.3.4.5 && < 0.4
-    , ouroboros-consensus >= 0.20.0.0 && < 0.22.0.0
-    , ouroboros-consensus-cardano
+    , ouroboros-consensus >= 0.21.0.0 && < 0.22
+    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
     , pretty-simple >= 4.1.2.0 && < 4.2
     , QuickCheck >= 2.14 && <= 2.16
     , serialise >= 0.2.6.1 && < 0.3
@@ -113,28 +113,28 @@ test-suite test
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses
-    , cardano-api
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api >= 10.1.0.0 && < 10.2
     , cardano-api-extra
     , cardano-balance-tx:internal
-    , cardano-binary == 1.7.1.0
+    , cardano-binary >= 1.7.1.0 && < 1.8
     , cardano-coin-selection
     , cardano-crypto >= 1.1.2 && < 1.2
-    , cardano-crypto-class
+    , cardano-crypto-class >= 2.1.5.0 && < 2.2
     , cardano-crypto-wrapper == 1.5.1.3
-    , cardano-ledger-alonzo
-    , cardano-ledger-alonzo-test >= 1.3.0 && < 1.4
-    , cardano-ledger-api
-    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib}
-    , cardano-ledger-byron
-    , cardano-ledger-conway
-    , cardano-ledger-conway:testlib
-    , cardano-ledger-core
-    , cardano-ledger-mary:testlib
-    , cardano-ledger-shelley
+    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
+    , cardano-ledger-alonzo-test >= 1.3.0.0 && < 1.4
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib} >= 1.10.0.0 && < 1.11
+    , cardano-ledger-byron >= 1.0.1.0 && < 1.1
+    , cardano-ledger-conway >= 1.17.3.0 && < 1.18
+    , cardano-ledger-conway:testlib >= 1.17.3.0 && < 1.18
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-ledger-mary:testlib >= 1.7.0.1 && < 1.8
+    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
     , cardano-numeric
-    , cardano-slotting
-    , cardano-strict-containers
+    , cardano-slotting >= 0.2.0.0 && < 0.3
+    , cardano-strict-containers >= 0.1.3.0 && < 0.2
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
@@ -155,9 +155,9 @@ test-suite test
     , MonadRandom
     , monoid-subclasses
     , nonempty-containers
-    , ouroboros-consensus
-    , ouroboros-consensus-cardano
-    , ouroboros-network-api
+    , ouroboros-consensus >= 0.21.0.0 && < 0.22
+    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
+    , ouroboros-network-api >= 0.10.0.0 && < 0.11
     , QuickCheck >= 2.14 && < 2.16
     , quickcheck-classes >= 0.6.5 && < 0.7
     , sop-extras >= 0.2.1 && < 0.3

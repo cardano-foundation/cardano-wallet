@@ -66,7 +66,7 @@ library
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , JuicyPixels
     , local-cluster
@@ -107,7 +107,7 @@ benchmark restore
     , aeson
     , base
     , bytestring
-    , cardano-addresses
+    , cardano-addresses >= 3.12.0 && < 3.13
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
@@ -122,7 +122,7 @@ benchmark restore
     , crypto-primitives
     , filepath
     , fmt
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , optparse-applicative
     , say
@@ -140,7 +140,7 @@ benchmark latency
   build-depends:
     , aeson
     , base
-    , cardano-addresses
+    , cardano-addresses >= 3.12.0 && < 3.13
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-exe
@@ -161,7 +161,7 @@ benchmark latency
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , local-cluster
     , mtl
@@ -186,9 +186,9 @@ benchmark db
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses
-    , cardano-api
-    , cardano-crypto
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-crypto >= 1.1.2 && < 1.2
     , cardano-wallet
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
@@ -208,7 +208,7 @@ benchmark db
     , filepath
     , fmt
     , foldl
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , memory
     , mtl
@@ -229,7 +229,7 @@ benchmark api
     , aeson
     , base
     , bytestring
-    , cardano-api
+    , cardano-api >= 10.1.0.0 && < 10.2
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
@@ -241,7 +241,7 @@ benchmark api
     , containers
     , filepath
     , fmt
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , mtl
     , say

@@ -55,9 +55,9 @@ executable cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
-    , lobemo-backend-ekg
+    , lobemo-backend-ekg >= 0.2.0.0 && < 0.3
     , network-uri
     , optparse-applicative
     , text
@@ -104,8 +104,8 @@ library
     , ansi-terminal
     , base
     , bytestring
-    , cardano-addresses
-    , cardano-addresses-cli
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-addresses-cli >= 3.12.0 && < 3.13
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-network-layer
@@ -119,7 +119,7 @@ library
     , filepath
     , fmt
     , http-client
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , network
     , ntp-client

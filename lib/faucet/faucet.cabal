@@ -58,7 +58,7 @@ library
     , aeson-pretty
     , base
     , bytestring
-    , cardano-addresses
+    , cardano-addresses >= 3.12.0 && < 3.13
     , containers
     , directory
     , extra
