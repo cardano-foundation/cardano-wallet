@@ -40,13 +40,13 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses
-    , cardano-api:{cardano-api, internal}
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api:{cardano-api, internal} >= 10.1.0.0 && < 10.2
     , cardano-balance-tx:{cardano-balance-tx, internal}
-    , cardano-binary
-    , cardano-crypto
-    , cardano-ledger-api
-    , cardano-ledger-core
+    , cardano-binary >= 1.7.1.0 && < 1.8
+    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
     , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
@@ -67,7 +67,7 @@ library
     , http-media
     , http-types
     , int-cast
-    , iohk-monitoring
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , memory
     , mtl
     , network-uri

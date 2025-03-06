@@ -53,7 +53,7 @@ index-state: 2024-10-10T00:52:24Z
 
 index-state:
   , hackage.haskell.org 2024-10-10T00:52:24Z
-  , cardano-haskell-package 2025-01-07T17:42:00Z
+  , cardano-haskell-packages 2025-01-07T17:42:00Z
 
 packages:
   lib/address-derivation-discovery
@@ -190,7 +190,6 @@ constraints:
   -- Cardano Node dependencies:
   , io-classes == 1.5.0.0
   , io-classes -asserts
-
 
   , cardano-ledger-api == 1.9.4.0
 

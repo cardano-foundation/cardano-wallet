@@ -103,14 +103,14 @@ library
     , base >= 4.14 && < 5
     , base58-bytestring >= 0.1 && < 0.2
     , bytestring >= 0.10.6 && < 0.13
-    , cardano-addresses == 3.12.0
-    , cardano-api >= 10.1 && < 10.2
-    , cardano-binary == 1.7.1.0
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-binary >= 1.7.1.0 && < 1.8
     , cardano-cli >= 10.1 && < 10.2
     , cardano-data >= 1.2.3.1 && < 1.3
-    , cardano-ledger-api >= 1.9.2.0 && < 1.10
-    , cardano-ledger-core
-    , cardano-ledger-shelley
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -133,7 +133,7 @@ library
     , insert-ordered-containers >=0.2.3 && < 0.3
     , int-cast >= 0.2.0.0 && < 0.3
     , io-classes >= 1.0 && < 1.8
-    , iohk-monitoring >= 0.2 && < 0.3
+    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , iohk-monitoring-extra
     , lens >= 5.2.3 && < 5.4
     , lens-aeson >= 1.2.3 && < 1.3
@@ -146,8 +146,8 @@ library
     -- commit f22c31611c295637a3e72b341cd1c56d1d87b993
     , openapi3 >= 3.2.3 && < 3.3
     , optparse-applicative >= 0.18.1.0 && < 0.19
-    , ouroboros-network
-    , ouroboros-network-api == 0.10.0.0
+    , ouroboros-network >= 0.17.1.2 && < 0.18
+    , ouroboros-network-api >= 0.10.0.0 && < 0.11
     , pathtype >= 0.8.1.3 && < 0.9
     , profunctors >= 5.6.2 && < 5.7
     , QuickCheck >= 2.14 && < 2.16
@@ -228,14 +228,14 @@ common test-common
     , aeson-qq >= 0.8.4 && < 0.9
     , base
     , bytestring
-    , cardano-addresses
-    , cardano-binary
-    , cardano-ledger-alonzo
-    , cardano-ledger-babbage
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-ledger-mary
-    , cardano-ledger-shelley
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-binary >= 1.7.1.0 && < 1.8
+    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
+    , cardano-ledger-babbage >= 1.10.0.0 && < 1.11
+    , cardano-ledger-byron >= 1.0.1.0 && < 1.1
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-ledger-mary >= 1.7.0.1 && < 1.8
+    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -252,8 +252,8 @@ common test-common
     , local-cluster:local-cluster-process
     , mtl
     , openapi3
-    , ouroboros-consensus-cardano >= 0.20 && < 0.21
-    , ouroboros-network >= 0.17 && < 0.18
+    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
+    , ouroboros-network >= 0.17.1.2 && < 0.18
     , pathtype
     , QuickCheck
     , streaming >= 0.2.4 && < 0.3

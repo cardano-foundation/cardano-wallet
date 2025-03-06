@@ -47,14 +47,14 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses
-    , cardano-crypto
-    , cardano-crypto-class
-    , cardano-ledger-api
-    , cardano-ledger-byron
-    , cardano-ledger-core
-    , cardano-ledger-shelley
-    , cardano-slotting
+    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-crypto-class >= 2.1.5.0 && < 2.2
+    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-byron >= 1.0.1.0 && < 1.1
+    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
+    , cardano-slotting >= 0.2.0.0 && < 0.3
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cborg
@@ -69,7 +69,7 @@ library
     , int-cast
     , lens
     , memory
-    , ouroboros-consensus-cardano
+    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
     , QuickCheck
     , quiet
     , random
