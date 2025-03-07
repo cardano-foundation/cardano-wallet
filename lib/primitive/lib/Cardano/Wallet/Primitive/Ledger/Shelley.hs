@@ -16,6 +16,7 @@
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -381,7 +382,9 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_15, NodeToClientV_16]
+nodeToClientVersions =
+    error "ToFix 10.2.1"
+    -- [NodeToClientV_15, NodeToClientV_16]
 
 --------------------------------------------------------------------------------
 --
@@ -786,11 +789,12 @@ cardanoCertKeysForWitnesses
     -> [W.RewardAccount]
 cardanoCertKeysForWitnesses = \case
     Cardano.TxCertificatesNone -> []
-    Cardano.TxCertificates _era certs _witsMap ->
-        map toRewardAccount
-        $ mapMaybe Cardano.selectStakeCredentialWitness certs
- where
-    toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
+    _ -> error "ToFix 10.2.1"
+    -- Cardano.TxCertificates _era certs _witsMap ->
+    --     map toRewardAccount
+    --     $ mapMaybe Cardano.selectStakeCredentialWitness certs
+ -- where
+    -- toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
 
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c

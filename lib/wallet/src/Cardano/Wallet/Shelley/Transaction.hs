@@ -827,143 +827,147 @@ mkUnsignedTx
     left toErrMkTx
     $ fmap removeDummyInput
     $ Cardano.createTransactionBody shelleyEra
-    Cardano.TxBodyContent
-    { Cardano.txIns = inputWits
+    $ error "ToFix 10.2.1" -- txSupplementalData is gone ?
+    -- Cardano.TxBodyContent
+    -- { Cardano.txIns = inputWits
 
-    , txInsReference =
-        let hasRefInp = \case
-                Left _ -> False
-                Right _ -> True
-            filteredRefInp = filter hasRefInp $ Map.elems mintingSource
-            toNodeTxIn (Right (ReferenceInput txin)) = toCardanoTxIn txin
-            toNodeTxIn _ = error "at this moment we should have reference input"
-        in
-        if null filteredRefInp
-        then
-            Cardano.TxInsReferenceNone
-        else
-            Cardano.TxInsReference
-                babbageOnwards
-                (toNodeTxIn <$> filteredRefInp)
+    -- , txInsReference =
+    --     let hasRefInp = \case
+    --             Left _ -> False
+    --             Right _ -> True
+    --         filteredRefInp = filter hasRefInp $ Map.elems mintingSource
+    --         toNodeTxIn (Right (ReferenceInput txin)) = toCardanoTxIn txin
+    --         toNodeTxIn _ = error "at this moment we should have reference input"
+    --     in
+    --     if null filteredRefInp
+    --     then
+    --         Cardano.TxInsReferenceNone
+    --     else
+    --         Cardano.TxInsReference
+    --             babbageOnwards
+    --             (toNodeTxIn <$> filteredRefInp)
 
-    , Cardano.txOuts = case refScriptM of
-        Nothing ->
-            map (toCardanoTxOut shelleyEra Nothing) outs
-        Just _ -> case outs of
-            firstOut:rest ->
-                let cardanoFirstTxOut =
-                        toCardanoTxOut shelleyEra refScriptM firstOut
-                in
-                cardanoFirstTxOut :
-                    (map (toCardanoTxOut shelleyEra Nothing) rest)
-            _ ->
-                []
+    -- , Cardano.txOuts = case refScriptM of
+    --     Nothing ->
+    --         map (toCardanoTxOut shelleyEra Nothing) outs
+    --     Just _ -> case outs of
+    --         firstOut:rest ->
+    --             let cardanoFirstTxOut =
+    --                     toCardanoTxOut shelleyEra refScriptM firstOut
+    --             in
+    --             cardanoFirstTxOut :
+    --                 (map (toCardanoTxOut shelleyEra Nothing) rest)
+    --         _ ->
+    --             []
 
-    , Cardano.txWithdrawals = case stakingScriptM of
-        Nothing ->
-            let ctx = Cardano.BuildTxWith
-                    $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
-            in
-            Cardano.TxWithdrawals shelleyEra
-                (map (\(key, coin) -> (key, coin, ctx)) wdrls)
-        Just stakingScript ->
-            let
-                buildVal =
-                    Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
-                        (toScriptWitness stakingScript)
-                ctx = Cardano.BuildTxWith buildVal
-            in
-            Cardano.TxWithdrawals shelleyEra
-                (map (\(key, coin) -> (key, coin, ctx)) wdrls)
+    -- , Cardano.txWithdrawals = case stakingScriptM of
+    --     Nothing ->
+    --         let ctx = Cardano.BuildTxWith
+    --                 $ Cardano.KeyWitness Cardano.KeyWitnessForStakeAddr
+    --         in
+    --         Cardano.TxWithdrawals shelleyEra
+    --             (map (\(key, coin) -> (key, coin, ctx)) wdrls)
+    --     Just stakingScript ->
+    --         let
+    --             buildVal =
+    --                 Cardano.ScriptWitness Cardano.ScriptWitnessForStakeAddr
+    --                     (toScriptWitness stakingScript)
+    --             ctx = Cardano.BuildTxWith buildVal
+    --         in
+    --         Cardano.TxWithdrawals shelleyEra
+    --             (map (\(key, coin) -> (key, coin, ctx)) wdrls)
 
-    -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
-    -- care about collateral or PParams (for script integrity hash) here.
-    --
-    -- If constructTransaction because of multisig in the future ever needs to
-    -- run/redeem Plutus scripts, we should re-use balanceTransaction and remove
-    -- this @mkUnsignedTx@. (We should do this regardless.)
-    , txInsCollateral = Cardano.TxInsCollateralNone
-    , txTotalCollateral = Cardano.TxTotalCollateralNone
-    , txReturnCollateral = Cardano.TxReturnCollateralNone
-    , txProtocolParams = Cardano.BuildTxWith Nothing
-    , txScriptValidity = Cardano.TxScriptValidityNone
-    , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
+    -- -- @mkUnsignedTx@ is never used with Plutus scripts, and so we never have to
+    -- -- care about collateral or PParams (for script integrity hash) here.
+    -- --
+    -- -- If constructTransaction because of multisig in the future ever needs to
+    -- -- run/redeem Plutus scripts, we should re-use balanceTransaction and remove
+    -- -- this @mkUnsignedTx@. (We should do this regardless.)
+    -- , txInsCollateral = Cardano.TxInsCollateralNone
+    -- , txTotalCollateral = Cardano.TxTotalCollateralNone
+    -- , txReturnCollateral = Cardano.TxReturnCollateralNone
+    -- , txProtocolParams = Cardano.BuildTxWith Nothing
+    -- , txScriptValidity = Cardano.TxScriptValidityNone
+    -- , txExtraKeyWits = Cardano.TxExtraKeyWitnessesNone
 
-    , Cardano.txCertificates = case stakingScriptM of
-        Nothing ->
-            let
-                witPair = []
-                ctx = Cardano.BuildTxWith witPair
-            in
-                Cardano.TxCertificates shelleyEra certs ctx
-        Just stakingScript ->
-            let
-                buildKey =
-                    Cardano.StakeCredentialByScript
-                    . Cardano.hashScript
-                    . Cardano.SimpleScript
-                    $ toCardanoSimpleScript stakingScript
-                buildVal =
-                    Cardano.ScriptWitness
-                        Cardano.ScriptWitnessForStakeAddr
-                        (toScriptWitness stakingScript)
-                witPair = [(buildKey, buildVal)]
-                ctx = Cardano.BuildTxWith witPair
-            in
-            Cardano.TxCertificates shelleyEra certs ctx
+    -- , Cardano.txCertificates = case stakingScriptM of
+    --     Nothing ->
+    --         let
+    --             witPair = []
+    --             ctx = Cardano.BuildTxWith witPair
+    --         in  error "ToFix 10.2.1"
+    --             -- Cardano.TxCertificates shelleyEra certs ctx
+    --     Just stakingScript ->
+    --         let
+    --             buildKey =
+    --                 Cardano.StakeCredentialByScript
+    --                 . Cardano.hashScript
+    --                 . Cardano.SimpleScript
+    --                 $ toCardanoSimpleScript stakingScript
+    --             buildVal =
+    --                 Cardano.ScriptWitness
+    --                     Cardano.ScriptWitnessForStakeAddr
+    --                     (toScriptWitness stakingScript)
+    --             witPair = [(buildKey, buildVal)]
+    --             ctx = Cardano.BuildTxWith witPair
+    --         in
+    --         error "ToFix 10.2.1"
+    --             -- Cardano.TxCertificates shelleyEra certs ctx
 
-    , Cardano.txFee = Cardano.TxFeeExplicit shelleyEra fees
+    -- , Cardano.txFee = Cardano.TxFeeExplicit shelleyEra fees
 
-    , Cardano.txValidityLowerBound =
-        case fst ttl of
-            Nothing ->
-                Cardano.TxValidityNoLowerBound
-            Just from ->
-                Cardano.TxValidityLowerBound allegraOnwards from
+    -- , Cardano.txValidityLowerBound =
+    --     case fst ttl of
+    --         Nothing ->
+    --             Cardano.TxValidityNoLowerBound
+    --         Just from ->
+    --             Cardano.TxValidityLowerBound allegraOnwards from
 
-    , Cardano.txValidityUpperBound =
-        Cardano.TxValidityUpperBound shelleyEra (Just $ snd ttl)
+    -- , Cardano.txValidityUpperBound =
+    --     Cardano.TxValidityUpperBound shelleyEra (Just $ snd ttl)
 
-    , Cardano.txMetadata =
-        case md of
-            Nothing -> Cardano.TxMetadataNone
-            Just d -> Cardano.TxMetadataInEra shelleyEra d
+    -- , Cardano.txMetadata =
+    --     case md of
+    --         Nothing -> Cardano.TxMetadataNone
+    --         Just d -> Cardano.TxMetadataInEra shelleyEra d
 
-    , Cardano.txAuxScripts =
-        Cardano.TxAuxScriptsNone
+    -- , Cardano.txAuxScripts =
+    --     Cardano.TxAuxScriptsNone
 
-    , Cardano.txUpdateProposal =
-        Cardano.TxUpdateProposalNone
+    -- , Cardano.txUpdateProposal =
+    --     Cardano.TxUpdateProposalNone
 
-    , Cardano.txMintValue =
-        let mintValue = toCardanoValue (TokenBundle (Coin 0) mintData)
-            burnValue =
-                Cardano.negateValue $
-                toCardanoValue (TokenBundle (Coin 0) burnData)
-            toScriptWitnessGeneral = \case
-                Left script -> toScriptWitness script
-                Right (ReferenceInput txin) ->
-                    Cardano.SimpleScriptWitness
-                        scriptWitsSupported $
-                            Cardano.SReferenceScript
-                            (toCardanoTxIn txin)
-                            Nothing
-            witMap =
-                Map.map toScriptWitnessGeneral $
-                Map.mapKeys
-                    (toCardanoPolicyId . AssetId.policyId)
-                    mintingSource
-            ctx = Cardano.BuildTxWith witMap
-        in Cardano.TxMintValue maryOnwards (mintValue <> burnValue) ctx
+    -- , Cardano.txMintValue =
+    --     let mintValue = toCardanoValue (TokenBundle (Coin 0) mintData)
+    --         burnValue =
+    --             Cardano.negateValue $
+    --             toCardanoValue (TokenBundle (Coin 0) burnData)
+    --         toScriptWitnessGeneral = \case
+    --             Left script -> toScriptWitness script
+    --             Right (ReferenceInput txin) ->
+    --                 Cardano.SimpleScriptWitness
+    --                     scriptWitsSupported $
+    --                         error "ToFix 10.2.1"
+    --                         -- Cardano.SReferenceScript
+    --                         -- (toCardanoTxIn txin)
+    --                         -- Nothing
+    --         witMap =
+    --             Map.map toScriptWitnessGeneral $
+    --             Map.mapKeys
+    --                 (toCardanoPolicyId . AssetId.policyId)
+    --                 mintingSource
+    --         ctx = Cardano.BuildTxWith witMap
+    --     in error "ToFix 10.2.1"
+    --         -- Cardano.TxMintValue maryOnwards (mintValue <> burnValue) ctx
 
-    , Cardano.txProposalProcedures =
-        Nothing
-    , Cardano.txVotingProcedures =
-        Nothing
-    , txCurrentTreasuryValue = Nothing
-    , txTreasuryDonation = Nothing
-    , txSupplementalData = Cardano.BuildTxWith Cardano.TxSupplementalDataNone
-    }
+    -- , Cardano.txProposalProcedures =
+    --     Nothing
+    -- , Cardano.txVotingProcedures =
+    --     Nothing
+    -- , txCurrentTreasuryValue = Nothing
+    -- , txTreasuryDonation = Nothing
+    -- , txSupplementalData = Cardano.BuildTxWith Cardano.TxSupplementalDataNone
+    -- }
   where
     era = Write.recentEra @era
 

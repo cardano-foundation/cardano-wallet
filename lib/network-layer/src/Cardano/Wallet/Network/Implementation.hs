@@ -10,6 +10,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -265,10 +270,13 @@ import Fmt
 import GHC.Stack
     ( HasCallStack
     )
+-- import Network.Mux
+--     ( MuxError (..)
+--     , MuxErrorType (..)
+--     , WithMuxBearer (..)
+--     )
 import Network.Mux
-    ( MuxError (..)
-    , MuxErrorType (..)
-    , WithMuxBearer (..)
+    ( Mode (..)
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -322,7 +330,6 @@ import Ouroboros.Network.Driver.Simple
     )
 import Ouroboros.Network.Mux
     ( MiniProtocolCb (..)
-    , MuxMode (..)
     , OuroborosApplicationWithMinimalCtx
     , RunMiniProtocol (..)
     , RunMiniProtocolWithMinimalCtx
@@ -575,7 +582,8 @@ withNodeNetworkLayerBase
                     txSubmissionQ
             let trNodeTip = MsgConnectionStatus ClientNodeTip >$< tr
                 ouroborosApp :: NodeToClientVersion -> WalletOuroborosApplication IO
-                ouroborosApp = nodeToClientProtocols =<< mkProtocols
+                ouroborosApp = error "ToFix 10.2.1"
+                    -- nodeToClientProtocols =<< mkProtocols
             link
                 =<< async
                     (connectClient trNodeTip handlers ouroborosApp versionData conn)
@@ -823,7 +831,8 @@ mkWalletClient
     -> NodeToClientVersion
     -> WalletOuroborosApplication m
 mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
-    nodeToClientProtocols protocols nodeToClientVer
+    error "ToFix 10.2.1"
+    -- nodeToClientProtocols protocols nodeToClientVer
   where
     protocols =
         NodeToClientProtocols
@@ -854,7 +863,8 @@ mkFetchBlockClient
     -> NodeToClientVersion
     -> WalletOuroborosApplication m
 mkFetchBlockClient cfg blockQ nodeToClientVer =
-    nodeToClientProtocols protocols nodeToClientVer
+    error "ToFix 10.2.1"
+    -- nodeToClientProtocols protocols nodeToClientVer
   where
     protocols =
         NodeToClientProtocols
@@ -884,22 +894,23 @@ mkDelegationRewardsClient
     -> NodeToClientVersion
     -> WalletOuroborosApplication m
 mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
-    nodeToClientProtocols protocols nodeToClientVer
-  where
-    protocols =
-        NodeToClientProtocols
-            { localChainSyncProtocol = doNothingProtocol
-            , localTxSubmissionProtocol = doNothingProtocol
-            , localTxMonitorProtocol = doNothingProtocol
-            , localStateQueryProtocol =
-                InitiatorProtocolOnly $ MiniProtocolCb $ \_ channel -> do
-                    let tr' = MsgLocalStateQuery DelegationRewardsClient >$< tr
-                        codecs' = serialisedCodecs nodeToClientVer cfg
-                        codec = cStateQueryCodec codecs'
-                    runPeer tr' codec channel
-                        $ localStateQueryClientPeer
-                        $ localStateQuery queryRewardQ
-            }
+    error "ToFix 10.2.1"
+    -- nodeToClientProtocols protocols nodeToClientVer
+--   where
+--     protocols =
+--         NodeToClientProtocols
+--             { localChainSyncProtocol = doNothingProtocol
+--             , localTxSubmissionProtocol = doNothingProtocol
+--             , localTxMonitorProtocol = doNothingProtocol
+--             , localStateQueryProtocol =
+--                 InitiatorProtocolOnly $ MiniProtocolCb $ \_ channel -> do
+--                     let tr' = MsgLocalStateQuery DelegationRewardsClient >$< tr
+--                         codecs' = serialisedCodecs nodeToClientVer cfg
+--                         codec = cStateQueryCodec codecs'
+--                     runPeer tr' codec channel
+--                         $ localStateQueryClientPeer
+--                         $ localStateQuery queryRewardQ
+--             }
 
 type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 
@@ -993,11 +1004,13 @@ mkWalletToNodeProtocols
                     , localStateQueryProtocol =
                         InitiatorProtocolOnly $ MiniProtocolCb
                             $ \_ channel -> do
-                            let codec = cStateQueryCodec $ serialisedCodecs v cfg
+                            let codec = cStateQueryCodec $ error "ToFix 10.2.1"
+                                    -- serialisedCodecs v cfg
                                 client = localStateQuery localStateQueryQ
                                 peer = localStateQueryClientPeer client
                                 tr' = MsgLocalStateQuery TipSyncClient >$< tr
-                            runPeer tr' codec channel peer
+                            error "ToFix 10.2.1"
+                            -- runPeer tr' codec channel peer
                     , localTxSubmissionProtocol =
                         InitiatorProtocolOnly $ MiniProtocolCb
                             $ \_ channel -> do
@@ -1182,17 +1195,19 @@ connectClient
     -> IO ()
 connectClient tr handlers client vData conn = withIOManager $ \manager ->
     connectTo (localSnocket manager) tracers versions (nodeSocketFile conn)
-        & recoveringNodeConnection tr handlers
+        & error "ToFix 10.2.1"
+        -- recoveringNodeConnection tr handlers
   where
     versions =
         combineVersions
-            [ simpleSingletonVersions version vData (client version)
+            [ simpleSingletonVersions version vData (error "ToFix 10.2.1") -- (client version)
             | version <- nodeToClientVersions
             ]
     tracers =
         NetworkConnectTracers
             { nctMuxTracer = nullTracer
-            , nctHandshakeTracer = contramap MsgHandshakeTracer tr
+            , nctHandshakeTracer = error "ToFix 10.2.1"
+                    -- contramap MsgHandshakeTracer tr
             }
 
 recoveringNodeConnection
@@ -1216,10 +1231,10 @@ retryOnConnectionLost tr =
         Handler
             $ handleIOException
             $ MsgConnectionLost . ReasonException >$< tr
-    , \_retryStatus ->
-        Handler
-            $ handleMuxError
-            $ MsgConnectionLost >$< tr
+    , \_retryStatus -> error "ToFix 10.2.1"
+        -- Handler
+        --     $ handleMuxError
+        --     $ MsgConnectionLost >$< tr
     ]
 
 -- When the node's connection vanished, we may also want to handle things in a
@@ -1243,25 +1258,27 @@ handleIOException tr e = traceWith tr e $> retryAction
         | "resource exhausted" `isInfixOf` show e = ConsultPolicy
         | otherwise = DontRetry
 
-handleMuxError :: Tracer IO ReasonConnectionLost -> MuxError -> IO RetryAction
-handleMuxError tr muxErr = do
-    traceWith tr (ReasonMuxError muxErr)
-    case errorType muxErr of
-        MuxUnknownMiniProtocol -> pure DontRetry
-        MuxDecodeError -> pure DontRetry
-        MuxIngressQueueOverRun -> pure DontRetry
-        MuxInitiatorOnly -> pure DontRetry
-        MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
-        MuxCleanShutdown -> pure DontRetry
-        MuxIOException e -> handleIOException (ReasonException >$< tr) e
-        MuxBearerClosed -> pure ConsultPolicy
-        -- MuxSDU*Timeout errors arise because the bandwidth of the
-        -- interprocess communication socket dropped unexpectedly,
-        -- and the socket library decided to cut off the connection
-        -- after ~ 30 seconds.
-        -- Chances are that the system is overloaded, let's retry in 30 seconds.
-        MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
-        MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+handleMuxError :: Tracer IO ConnectionStatusLog -> a -> IO RetryAction
+handleMuxError = error "ToFix 10.2.1"
+-- handleMuxError :: Tracer IO ReasonConnectionLost -> MuxError -> IO RetryAction
+-- handleMuxError tr muxErr = do
+--     traceWith tr (ReasonMuxError muxErr)
+--     case errorType muxErr of
+--         MuxUnknownMiniProtocol -> pure DontRetry
+--         MuxDecodeError -> pure DontRetry
+--         MuxIngressQueueOverRun -> pure DontRetry
+--         MuxInitiatorOnly -> pure DontRetry
+--         MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
+--         MuxCleanShutdown -> pure DontRetry
+--         MuxIOException e -> handleIOException (ReasonException >$< tr) e
+--         MuxBearerClosed -> pure ConsultPolicy
+--         -- MuxSDU*Timeout errors arise because the bandwidth of the
+--         -- interprocess communication socket dropped unexpectedly,
+--         -- and the socket library decided to cut off the connection
+--         -- after ~ 30 seconds.
+--         -- Chances are that the system is overloaded, let's retry in 30 seconds.
+--         MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+--         MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
 
 {-------------------------------------------------------------------------------
     Helper functions of the Control.* and STM variety
@@ -1329,7 +1346,7 @@ isSlowQuery :: String -> DiffTime -> Bool
 isSlowQuery _label = (>= 0.2)
 
 data ReasonConnectionLost
-    = ReasonMuxError MuxError
+    = ReasonMuxError Void --MuxError
     | ReasonException IOException
 
 data ConnectionStatusLog where
@@ -1338,7 +1355,7 @@ data ConnectionStatusLog where
     MsgConnectionLost
         :: ReasonConnectionLost -> ConnectionStatusLog
     MsgHandshakeTracer
-        :: WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace
+        :: Void -- WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace
         -> ConnectionStatusLog
 
 instance ToText ConnectionStatusLog where
@@ -1349,17 +1366,18 @@ instance ToText ConnectionStatusLog where
                 , toText (n + 1)
                 , "). Retrying in a bit..."
                 ]
-        MsgConnectionLost reason -> case reason of
-            ReasonMuxError MuxError{errorType, errorMsg} ->
-                "Node connection lost because of the mux error ("
-                    <> T.pack (show errorType)
-                    <> "): "
-                    <> T.pack errorMsg
-            ReasonException e ->
-                "Node connection lost because of the exception: "
-                    <> T.pack (show e)
-        MsgHandshakeTracer (WithMuxBearer conn h) ->
-            pretty conn <> " " <> T.pack (show h)
+        _ -> error "ToFix 10.2.1"
+        -- MsgConnectionLost reason -> case reason of
+        --     ReasonMuxError MuxError{errorType, errorMsg} ->
+        --         "Node connection lost because of the mux error ("
+        --             <> T.pack (show errorType)
+        --             <> "): "
+        --             <> T.pack errorMsg
+        --     ReasonException e ->
+        --         "Node connection lost because of the exception: "
+        --             <> T.pack (show e)
+        -- MsgHandshakeTracer (WithMuxBearer conn h) ->
+        --     pretty conn <> " " <> T.pack (show h)
 
 instance HasPrivacyAnnotation ConnectionStatusLog
 instance HasSeverityAnnotation ConnectionStatusLog where
@@ -1371,18 +1389,18 @@ instance HasSeverityAnnotation ConnectionStatusLog where
         MsgConnectionLost reason -> case reason of
             ReasonException ie | isResourceVanishedError ie -> Warning
             ReasonException _ie -> Debug
-            ReasonMuxError muxError ->
-                case errorType muxError of
-                    MuxUnknownMiniProtocol -> Debug
-                    MuxDecodeError -> Debug
-                    MuxIngressQueueOverRun -> Debug
-                    MuxInitiatorOnly -> Debug
-                    MuxIOException _ -> Debug
-                    MuxSDUReadTimeout -> Debug
-                    MuxSDUWriteTimeout -> Debug
-                    MuxShutdown _ -> Debug
-                    MuxCleanShutdown -> Debug
-                    MuxBearerClosed -> Warning
+            ReasonMuxError muxError -> error "ToFix 10.2.1"
+                -- case errorType muxError of
+                --     MuxUnknownMiniProtocol -> Debug
+                --     MuxDecodeError -> Debug
+                --     MuxIngressQueueOverRun -> Debug
+                --     MuxInitiatorOnly -> Debug
+                --     MuxIOException _ -> Debug
+                --     MuxSDUReadTimeout -> Debug
+                --     MuxSDUWriteTimeout -> Debug
+                --     MuxShutdown _ -> Debug
+                --     MuxCleanShutdown -> Debug
+                --     MuxBearerClosed -> Warning
 
 data Client
     = ClientChainSync
@@ -1455,7 +1473,8 @@ instance ToText Log where
         MsgPostTx txbytes ->
             "Posting transaction, serialized as:\n" +| hexF txbytes |+ ""
         MsgLocalStateQuery client msg ->
-            T.pack (show client <> " " <> show msg)
+            T.pack (show client <> " " <> error "ToFix 10.2.1")
+                -- show msg)
         MsgNodeTip bh ->
             T.unwords
                 [ "Network node tip is"
