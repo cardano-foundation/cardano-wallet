@@ -63,8 +63,12 @@ generate_constraint() {
 for update in "${updates[@]}"; do
     version=$(sed -n "s/.*any\.$update ==\([0-9.]*\),.*/\1/p" "$freeze_file")
     constraint=$(generate_constraint "$version")
-    echo "$update $constraint"
-    update_cabal_files "$update" "$constraint"
+    if [ -z "$version" ]; then
+        echo "Version for $update not found in $freeze_file"
+    else
+        echo "$update $constraint"
+        update_cabal_files "$update" "$constraint"
+    fi
 done
 
 find lib -name '*.cabal' -exec cabal-fmt -i {} \;
