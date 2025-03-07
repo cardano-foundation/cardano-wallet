@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Cardano Wallet Backend API
-  version: v2025-01-09
+  version: v2025-03-04
   license:
     name: Apache-2.0
     url: https://raw.githubusercontent.com/cardano-foundation/cardano-wallet/master/LICENSE
