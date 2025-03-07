@@ -215,9 +215,9 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         in
             nonInputWits <> inputWits
   where
-    CardanoApi.Tx (CardanoApi.TxBody txbodycontent) _keyWits
+    CardanoApi.Tx body _keyWits
         = toCardanoApiTx tx
-
+    txbodycontent = CardanoApi.getTxBodyContent body
     timelockTotalWitCount :: Natural
     timelockTotalWitCount = sum $ Map.elems $ Map.unionWith
         (\_est spec -> spec) -- Allow specified values to override
