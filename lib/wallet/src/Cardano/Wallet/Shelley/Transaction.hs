@@ -486,8 +486,7 @@ signTransaction
         , mapMaybe mkStakingScriptWitness stakingScriptsKeyHashes
         ]
       where
-        Cardano.TxBody bodyContent = body
-
+        bodyContent = Cardano.getTxBodyContent body
         inputs =
             [ Compatibility.fromCardanoTxIn i
             | (i, _) <- Cardano.txIns bodyContent
