@@ -898,10 +898,10 @@ toCardanoTxOut era refScriptM = case era of
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
                     <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+                        (Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr) addr)
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+                    (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
 
     toConwayTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ConwayEra
@@ -928,11 +928,11 @@ toCardanoTxOut era refScriptM = case era of
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraConway)
                     <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+                        (Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr) addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+                    (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
 
 toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
@@ -1013,7 +1013,7 @@ rewardAccountFromAddress :: W.Address -> Maybe W.RewardAccount
 rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr bytes
   where
     parseAddr :: ByteString -> Maybe (Cardano.Address Cardano.ShelleyAddr)
-    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes AsShelleyAddress
+    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr)
 
     ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference StandardCrypto
     ref (Cardano.ShelleyAddress _n _paymentKey stakeRef) = stakeRef
