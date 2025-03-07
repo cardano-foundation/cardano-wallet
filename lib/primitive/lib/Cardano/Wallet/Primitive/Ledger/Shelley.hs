@@ -142,7 +142,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
     ( EncCBORGroup
     )
-import Cardano.Ledger.Era
+import Cardano.Ledger.Core
     ( Era (..)
     , TxSeq
     )
