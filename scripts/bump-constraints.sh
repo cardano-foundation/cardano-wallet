@@ -7,6 +7,7 @@ updates=(
     "cardano-addresses"
     "cardano-api"
     "cardano-binary"
+    "cardano-cli"
     "cardano-crypto-class"
     "cardano-crypto-test"
     "cardano-crypto"
@@ -25,10 +26,12 @@ updates=(
     "cardano-ledger-shelley"
     "cardano-slotting"
     "cardano-strict-containers"
+    "data-default"
     "io-classes"
     "iohk-monitoring"
     "katip"
     "lobemo-backend-ekg"
+    "network-mux"
     "ouroboros-consensus-cardano"
     "ouroboros-consensus-diffusion"
     "ouroboros-consensus-protocol"
@@ -37,6 +40,7 @@ updates=(
     "ouroboros-network-framework"
     "ouroboros-network-protocols"
     "ouroboros-network"
+    "typed-protocols"
 )
 
 freeze_file="$1"
