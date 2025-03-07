@@ -41,17 +41,17 @@ library
     , aeson
     , base
     , bytestring
-    , cardano-api                                  >=10.1.0.0 && <10.2
+    , cardano-api                                  >=10.8.0.0 && <10.9
     , cardano-binary                               >=1.7.1.0  && <1.8
     , cardano-crypto-class                         >=2.1.5.0  && <2.2
     , cardano-crypto-test                          >=1.5.0.2  && <1.6
-    , cardano-ledger-alonzo                        >=1.11.0.0 && <1.12
-    , cardano-ledger-api                           >=1.9.4.0  && <1.10
-    , cardano-ledger-byron-test                    >=1.5.1.1  && <1.6
-    , cardano-ledger-conway:testlib                >=1.17.3.0 && <1.18
-    , cardano-ledger-core                          >=1.15.0.0 && <1.16
+    , cardano-ledger-alonzo                        >=1.12.0.0 && <1.13
+    , cardano-ledger-api                           >=1.10.0.0 && <1.11
+    , cardano-ledger-byron-test                    >=1.5.2.0  && <1.6
+    , cardano-ledger-conway:testlib                >=1.18.1.0 && <1.19
+    , cardano-ledger-core                          >=1.16.0.0 && <1.17
     , cardano-ledger-core:testlib
-    , cardano-ledger-shelley                       >=1.14.1.0 && <1.15
+    , cardano-ledger-shelley                       >=1.15.0.0 && <1.16
     , cardano-strict-containers                    >=0.1.3.0  && <0.2
     , cardano-wallet-test-utils
     , containers
