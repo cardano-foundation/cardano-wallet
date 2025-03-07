@@ -48,7 +48,7 @@ library
     , delta-types
     , exceptions
     , generic-lens
-    , io-classes
+    , io-classes         >=1.5.0.0 && <1.6
     , monad-logger
     , persistent
     , persistent-sqlite

@@ -52,7 +52,7 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses                    >=3.12.0   && <3.13
-    , cardano-ledger-shelley               >=1.14.1.0 && <1.15
+    , cardano-ledger-shelley               >=1.15.0.0 && <1.16
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
@@ -136,11 +136,11 @@ library scenarios
     , bech32-th
     , bytestring
     , cardano-addresses                     >=3.12.0   && <3.13
-    , cardano-api                           >=10.1.0.0 && <10.2
+    , cardano-api                           >=10.8.0.0 && <10.9
     , cardano-crypto                        >=1.1.2    && <1.2
     , cardano-crypto-class                  >=2.1.5.0  && <2.2
-    , cardano-ledger-alonzo                 >=1.11.0.0 && <1.12
-    , cardano-ledger-core                   >=1.15.0.0 && <1.16
+    , cardano-ledger-alonzo                 >=1.12.0.0 && <1.13
+    , cardano-ledger-core                   >=1.16.0.0 && <1.17
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application

@@ -53,7 +53,7 @@ index-state: 2025-01-01T23:24:19Z
 
 index-state:
   , hackage.haskell.org 2025-01-01T23:24:19Z
-  , cardano-haskell-packages 2025-02-11T21:18:23Z
+  , cardano-haskell-packages 2025-03-01T00:00:00Z
 
 packages:
   lib/address-derivation-discovery
@@ -168,7 +168,7 @@ allow-newer:
   , servant-openapi3:*
   , katip:Win32
   , ekg-wai:time
-
+  , cardano-wallet-read:cardano-ledger-api, ouroboros-consensus
 constraints:
     base >= 4.18.2.0 && < 5
   , openapi3 >= 3.2.0
