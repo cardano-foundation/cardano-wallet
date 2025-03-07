@@ -25,6 +25,8 @@
 -- suppress false warning
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Avoid NonEmpty.unzip" #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -2028,9 +2030,15 @@ buildCoinSelectionForTransaction
             _ -> Nothing
     }
   where
-    Cardano.TxBody Cardano.TxBodyContent
-        { txIns, txOuts, txInsCollateral, txWithdrawals } =
-            Cardano.getTxBody $ Write.toCardanoApiTx tx
+    Cardano.TxBodyContent
+        { txIns
+        , txOuts
+        , txInsCollateral
+        , txWithdrawals
+        } =
+            Cardano.getTxBodyContent
+                $ Cardano.getTxBody
+                $ Write.toCardanoApiTx tx
 
     resolveInput txIn = do
         (txOut, derivationPath) <- maybeToList (lookupTxIn wallet txIn)
