@@ -109,10 +109,12 @@ import Data.Text
 import Data.Void
     ( Void
     )
-import Network.TypedProtocol.Pipelined
-    ( N (..)
+import Network.TypedProtocol
+    ( natToInt
+    )
+import Network.TypedProtocol.Peer.Client
+    ( N (Z)
     , Nat (..)
-    , natToInt
     )
 import Numeric.Natural
     ( Natural
