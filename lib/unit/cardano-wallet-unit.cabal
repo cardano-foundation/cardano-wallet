@@ -197,7 +197,6 @@ test-suite unit
     Cardano.Pool.DB.LayerSpec
     Cardano.Pool.DB.MVarSpec
     Cardano.Pool.DB.Properties
-    Cardano.Pool.RankSpec
     Cardano.Wallet.Address.Derivation.ByronSpec
     Cardano.Wallet.Address.Derivation.IcarusSpec
     Cardano.Wallet.Address.Derivation.MintBurnSpec
