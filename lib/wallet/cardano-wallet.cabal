@@ -148,8 +148,6 @@ library
     Cardano.Pool.DB.Sqlite.TH
     Cardano.Pool.Metadata
     Cardano.Pool.Metadata.Types
-    Cardano.Pool.Rank
-    Cardano.Pool.Rank.Likelihood
     Cardano.Pool.Types
     Cardano.Wallet
     Cardano.Wallet.Address.Keys.BoundedAddressLength
