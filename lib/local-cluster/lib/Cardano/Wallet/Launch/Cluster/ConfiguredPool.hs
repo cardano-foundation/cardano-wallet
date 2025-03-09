@@ -6,9 +6,11 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
-{-# OPTIONS_GHC -Wno-missing-local-signatures #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use <$>" #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-missing-local-signatures #-}
 
 module Cardano.Wallet.Launch.Cluster.ConfiguredPool
     ( ConfiguredPool (..)
@@ -469,7 +471,8 @@ configurePool metadataServer recipe = do
 
         registerViaShelleyGenesis = do
             poolId <- stakePoolIdFromOperatorVerKey opPub
-            vrf <- poolVrfFromFile vrfPub
+            vrf <- error "ToFix 10.2.1"
+                -- poolVrfFromFile vrfPub
             stakePubHash <- stakingKeyHashFromFile ownerPub
             pledgeAddr <- stakingAddrFromVkFile ownerPub
 

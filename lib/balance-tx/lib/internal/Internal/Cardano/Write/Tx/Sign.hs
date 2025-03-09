@@ -7,6 +7,9 @@
 {-# LANGUAGE TupleSections #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use camelCase" #-}
+{-# OPTIONS_GHC -Wno-type-defaults #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 -- |
 -- Copyright: © 2023 IOHK, 2023 Cardano Foundation
@@ -195,8 +198,9 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
             _ -> 0
         txCerts = case CardanoApi.txCertificates txbodycontent of
             CardanoApi.TxCertificatesNone -> 0
-            CardanoApi.TxCertificates _ certs _ ->
-                sumVia estimateDelegSigningKeys certs
+            _ -> error "ToFix 10.2.1"
+            -- CardanoApi.TxCertificates _ certs _ ->
+            --     sumVia estimateDelegSigningKeys certs
 
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
@@ -215,9 +219,9 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
         in
             nonInputWits <> inputWits
   where
-    CardanoApi.Tx (CardanoApi.TxBody txbodycontent) _keyWits
+    CardanoApi.Tx body _keyWits
         = toCardanoApiTx tx
-
+    txbodycontent = CardanoApi.getTxBodyContent body
     timelockTotalWitCount :: Natural
     timelockTotalWitCount = sum $ Map.elems $ Map.unionWith
         (\_est spec -> spec) -- Allow specified values to override

@@ -16,6 +16,7 @@
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -142,7 +143,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
     ( EncCBORGroup
     )
-import Cardano.Ledger.Era
+import Cardano.Ledger.Core
     ( Era (..)
     , TxSeq
     )
@@ -381,7 +382,9 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_15, NodeToClientV_16]
+nodeToClientVersions =
+    error "ToFix 10.2.1"
+    -- [NodeToClientV_15, NodeToClientV_16]
 
 --------------------------------------------------------------------------------
 --
@@ -786,11 +789,12 @@ cardanoCertKeysForWitnesses
     -> [W.RewardAccount]
 cardanoCertKeysForWitnesses = \case
     Cardano.TxCertificatesNone -> []
-    Cardano.TxCertificates _era certs _witsMap ->
-        map toRewardAccount
-        $ mapMaybe Cardano.selectStakeCredentialWitness certs
- where
-    toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
+    _ -> error "ToFix 10.2.1"
+    -- Cardano.TxCertificates _era certs _witsMap ->
+    --     map toRewardAccount
+    --     $ mapMaybe Cardano.selectStakeCredentialWitness certs
+ -- where
+    -- toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
 
 toShelleyCoin :: W.Coin -> SL.Coin
 toShelleyCoin (W.Coin c) = SL.Coin $ intCast c
@@ -898,10 +902,10 @@ toCardanoTxOut era refScriptM = case era of
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
                     <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+                        (Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr) addr)
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+                    (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
 
     toConwayTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ConwayEra
@@ -928,11 +932,11 @@ toCardanoTxOut era refScriptM = case era of
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraConway)
                     <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+                        (Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr) addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+                    (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
 
 toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
@@ -1013,7 +1017,7 @@ rewardAccountFromAddress :: W.Address -> Maybe W.RewardAccount
 rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr bytes
   where
     parseAddr :: ByteString -> Maybe (Cardano.Address Cardano.ShelleyAddr)
-    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes AsShelleyAddress
+    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr)
 
     ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference StandardCrypto
     ref (Cardano.ShelleyAddress _n _paymentKey stakeRef) = stakeRef

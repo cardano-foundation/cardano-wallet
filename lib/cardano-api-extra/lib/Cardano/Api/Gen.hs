@@ -7,6 +7,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Cardano.Api.Gen
     ( genAddressAny
@@ -132,6 +136,7 @@ import Cardano.Api
     , ByronEra
     , CardanoEra (..)
     , Certificate
+    , Convert (..)
     , ConwayEra
     , ConwayEraOnwards (..)
     , CostModel (..)
@@ -679,9 +684,10 @@ genSimpleScriptOrReferenceInput =
     oneof
         [ SScript
             <$> genSimpleScript
-        , SReferenceScript
-            <$> genReferenceInput
-            <*> liftArbitrary genScriptHash
+        , error "ToFix 10.2.1"
+        -- , SReferenceScript
+        --     <$> genReferenceInput
+        --     <*> liftArbitrary genScriptHash
         ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
@@ -790,34 +796,36 @@ genValueForMinting =
     fromList <$> listOf ((,) <$> genAssetIdNoAda <*> genSignedQuantity)
 
 genTxMintValue :: forall era. CardanoEra era -> Gen (TxMintValue BuildTx era)
-genTxMintValue era = withEraWitness era $ \supported ->
-    do
-        let
-            scriptWitnessGenerators :: [Gen (ScriptWitness WitCtxMint era)]
-            scriptWitnessGenerators =
-                [ genScriptWitnessMint langInEra
-                | AnyScriptLanguage lang <- [minBound .. maxBound]
-                , Just langInEra <-
-                    [ scriptLanguageSupportedInEra
-                        (maryEraOnwardsToShelleyBasedEra supported)
-                        lang
-                    ]
-                ]
-        oneof
-            [ pure TxMintNone
-            , TxMintValue supported
-                <$> genValueForMinting
-                <*> ( (BuildTxWith . Map.fromList)
-                        <$> scale
-                            (`div` 3)
-                            ( listOf
-                                ( (,)
-                                    <$> genPolicyId
-                                    <*> oneof scriptWitnessGenerators
-                                )
-                            )
-                    )
-            ]
+genTxMintValue = error "ToFix 10.2.1"
+-- genTxMintValue :: forall era. CardanoEra era -> Gen (TxMintValue BuildTx era)
+-- genTxMintValue era = withEraWitness era $ \supported ->
+--     do
+--         let
+--             scriptWitnessGenerators :: [Gen (ScriptWitness WitCtxMint era)]
+--             scriptWitnessGenerators =
+--                 [ genScriptWitnessMint langInEra
+--                 | AnyScriptLanguage lang <- [minBound .. maxBound]
+--                 , Just langInEra <-
+--                     [ scriptLanguageSupportedInEra
+--                         (maryEraOnwardsToShelleyBasedEra supported)
+--                         lang
+--                     ]
+--                 ]
+--         oneof
+--             [ pure TxMintNone
+--             , TxMintValue supported
+--                 <$> genValueForMinting
+--                 <*> ( (BuildTxWith . Map.fromList)
+--                         <$> scale
+--                             (`div` 3)
+--                             ( listOf
+--                                 ( (,)
+--                                     <$> genPolicyId
+--                                     <*> oneof scriptWitnessGenerators
+--                                 )
+--                             )
+--                     )
+--             ]
 
 genNetworkMagic :: Gen NetworkMagic
 genNetworkMagic = do
@@ -1601,22 +1609,24 @@ genTxCertificate era =
         _ -> error "genTxCertificate: unsupported era"
 
 genTxCertificates :: CardanoEra era -> Gen (TxCertificates BuildTx era)
-genTxCertificates era = withEraWitness era $ \sbe ->
-    oneof
-        [ pure TxCertificatesNone
-        , TxCertificates sbe
-            <$> scale (`div` 3) (listOf (genTxCertificate era))
-            <*> ( BuildTxWith
-                    <$> scale
-                        (`div` 3)
-                        ( listOf
-                            ( (,)
-                                <$> genStakeCredential
-                                <*> genWitnessStake era
-                            )
-                        )
-                )
-        ]
+genTxCertificates = error "ToFix 10.2.1"
+-- genTxCertificates :: CardanoEra era -> Gen (TxCertificates BuildTx era)
+-- genTxCertificates era = withEraWitness era $ \sbe ->
+--     oneof
+--         [ pure TxCertificatesNone
+--         , TxCertificates sbe
+--             <$> scale (`div` 3) (listOf (genTxCertificate era))
+--             <*> ( BuildTxWith
+--                     <$> scale
+--                         (`div` 3)
+--                         ( listOf
+--                             ( (,)
+--                                 <$> genStakeCredential
+--                                 <*> genWitnessStake era
+--                             )
+--                         )
+--                 )
+--         ]
 
 genProtocolParametersUpdate :: Gen ProtocolParametersUpdate
 genProtocolParametersUpdate = do
@@ -1646,7 +1656,7 @@ genProtocolParametersUpdate = do
         liftArbitrary genCoin
     protocolUpdatePoolRetireMaxEpoch <-
         liftArbitrary genInterval
-    protocolUpdateStakePoolTargetNum <-
+    protocolUpdateStakePoolTargetNum <- fmap fromIntegral <$>
         liftArbitrary genNat
     protocolUpdatePoolPledgeInfluence <-
         liftArbitrary genRational
@@ -1760,112 +1770,116 @@ genVotingProcedures w = case w of
             , pure TxVotingProceduresNone
             ]
 
-genSupplementalData
-    :: CardanoEra era
-    -> ( Gen
-            (BuildTxWith BuildTx (ShelleyApi.TxSupplementalDatums era2))
-       )
-genSupplementalData era = fmap BuildTxWith
-    $ flip (inEonForEra (pure ShelleyApi.TxSupplementalDataNone)) era
-    $ \case
-        ConwayEraOnwardsConway -> oneof
-            [ pure ShelleyApi.TxSupplementalDataNone
-            , ShelleyApi.TxSupplementalDatums <$> listOf genHashableScriptData
-            ]
+genSupplementalData :: a
+genSupplementalData = error "ToFix 10.2.1"
+-- genSupplementalData
+--     :: CardanoEra era
+--     -> ( Gen
+--             (BuildTxWith BuildTx
+--                 (ShelleyApi.TxSupplementalDatums era2))
+--        )
+-- genSupplementalData era = fmap BuildTxWith
+--     $ flip (inEonForEra (pure ShelleyApi.TxSupplementalDataNone)) era
+--     $ \case
+--         ConwayEraOnwardsConway -> oneof
+--             [ pure ShelleyApi.TxSupplementalDataNone
+--             , ShelleyApi.TxSupplementalDatums <$> listOf genHashableScriptData
+--             ]
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
-genTxBodyContent era = withEraWitness era $ \sbe -> do
-    txIns <- scale (`div` 3) $ do
-        txIns <- listOf1 genTxIn
-        ctxs <- vectorOf (length txIns) (genWitnessSpend era)
-        pure $ zip txIns (BuildTxWith <$> ctxs)
-    txOuts <- scale (`div` 3) $ listOf1 $ genTxOut era
-    txFee <- genTxFee era
-    txMetadata <- genTxMetadataInEra era
-    txAuxScripts <- genTxAuxScripts era
-    txWithdrawals <- genTxWithdrawals era
-    txCertificates <- genTxCertificates era
-    txUpdateProposal <- genUpdateProposal era
-    txMintValue <- genTxMintValue era
-    txScriptValidity <- genTxScriptValidity era
-    txExtraKeyWits <- genExtraKeyWitnesses era
-    txTotalCollateral <- genTxTotalCollateral era
-    txReturnCollateral <- genTxReturnCollateral era
-    txValidityLowerBound <- genTxValidityLowerBound era
-    txValidityUpperBound <- genTxValidityUpperBound era
-    txProposalProcedures <- genMaybeFeaturedInEra genProposals era
-    txVotingProcedures <- genMaybeFeaturedInEra genVotingProcedures era
-    txCurrentTreasuryValue <-
-        genMaybeFeaturedInEra (const (pure <$> genCoin)) era
-    txTreasuryDonation <- genMaybeFeaturedInEra (const genCoin) era
-    txSupplementalData <- genSupplementalData era
-    let
-        txBody =
-            TxBodyContent
-                { Api.txIns
-                , Api.txOuts
-                , -- NOTE: We are adding collateral at a later step, despite only
-                  -- generating @TxInsCollateralNone@ here. This seems to be because
-                  -- the generation currently is dependent on
-                  -- @collectTxBodyScriptWitnesses txBody@.
-                  Api.txInsCollateral = TxInsCollateralNone
-                , -- TODO add proper generator, perhaps as part of ADP-1655
-                  Api.txInsReference = TxInsReferenceNone
-                , Api.txTotalCollateral
-                , Api.txReturnCollateral
-                , Api.txFee
-                , -- , Api.txValidityRange
-                  Api.txMetadata
-                , Api.txAuxScripts
-                , Api.txExtraKeyWits
-                , Api.txProtocolParams = BuildTxWith Nothing
-                , Api.txWithdrawals
-                , Api.txCertificates
-                , Api.txUpdateProposal
-                , Api.txMintValue
-                , Api.txScriptValidity
-                , Api.txValidityLowerBound
-                , Api.txValidityUpperBound
-                , Api.txProposalProcedures
-                , Api.txVotingProcedures
-                , Api.txCurrentTreasuryValue
-                , Api.txTreasuryDonation
-                , Api.txSupplementalData
-                }
+genTxBodyContent = error "ToFix 10.2.1"
+-- genTxBodyContent era = withEraWitness era $ \sbe -> do
+--     txIns <- scale (`div` 3) $ do
+--         txIns <- listOf1 genTxIn
+--         ctxs <- vectorOf (length txIns) (genWitnessSpend era)
+--         pure $ zip txIns (BuildTxWith <$> ctxs)
+--     txOuts <- scale (`div` 3) $ listOf1 $ genTxOut era
+--     txFee <- genTxFee era
+--     txMetadata <- genTxMetadataInEra era
+--     txAuxScripts <- genTxAuxScripts era
+--     txWithdrawals <- genTxWithdrawals era
+--     txCertificates <- genTxCertificates era
+--     txUpdateProposal <- genUpdateProposal era
+--     txMintValue <- genTxMintValue era
+--     txScriptValidity <- genTxScriptValidity era
+--     txExtraKeyWits <- genExtraKeyWitnesses era
+--     txTotalCollateral <- genTxTotalCollateral era
+--     txReturnCollateral <- genTxReturnCollateral era
+--     txValidityLowerBound <- genTxValidityLowerBound era
+--     txValidityUpperBound <- genTxValidityUpperBound era
+--     txProposalProcedures <- genMaybeFeaturedInEra genProposals era
+--     txVotingProcedures <- genMaybeFeaturedInEra genVotingProcedures era
+--     txCurrentTreasuryValue <-
+--         genMaybeFeaturedInEra (const (pure <$> genCoin)) era
+--     txTreasuryDonation <- genMaybeFeaturedInEra (const genCoin) era
+--     txSupplementalData <- genSupplementalData era
+--     let
+--         txBody =
+--             TxBodyContent
+--                 { Api.txIns
+--                 , Api.txOuts
+--                 , -- NOTE: We are adding collateral at a later step, despite only
+--                   -- generating @TxInsCollateralNone@ here. This seems to be because
+--                   -- the generation currently is dependent on
+--                   -- @collectTxBodyScriptWitnesses txBody@.
+--                   Api.txInsCollateral = TxInsCollateralNone
+--                 , -- TODO add proper generator, perhaps as part of ADP-1655
+--                   Api.txInsReference = TxInsReferenceNone
+--                 , Api.txTotalCollateral
+--                 , Api.txReturnCollateral
+--                 , Api.txFee
+--                 , -- , Api.txValidityRange
+--                   Api.txMetadata
+--                 , Api.txAuxScripts
+--                 , Api.txExtraKeyWits
+--                 , Api.txProtocolParams = BuildTxWith Nothing
+--                 , Api.txWithdrawals
+--                 , Api.txCertificates
+--                 , Api.txUpdateProposal
+--                 , Api.txMintValue
+--                 , Api.txScriptValidity
+--                 , Api.txValidityLowerBound
+--                 , Api.txValidityUpperBound
+--                 , Api.txProposalProcedures
+--                 , Api.txVotingProcedures
+--                 , Api.txCurrentTreasuryValue
+--                 , Api.txTreasuryDonation
+--                 , Api.txSupplementalData
+--                 }
 
-    let witnesses = collectTxBodyScriptWitnesses sbe txBody
-        pparams = BuildTxWith $ Just $ protocolParametersForHashing sbe
-    -- No use of a script language means no need for collateral
-    if Set.null (languages witnesses)
-        then do
-            collateral <- genTxInsCollateral era
-            pure
-                txBody
-                    { Api.txProtocolParams = pparams
-                    , Api.txInsCollateral = collateral
-                    }
-        else do
-            collateral <-
-                case forEraMaybeEon era of
-                    Nothing -> pure TxInsCollateralNone
-                    Just supported ->
-                        TxInsCollateral supported
-                            <$> frequency
-                                [ (95, return [])
-                                , (5, listOf genTxIn)
-                                ]
-            pure
-                txBody
-                    { Api.txProtocolParams = pparams
-                    , Api.txInsCollateral = collateral
-                    }
-  where
-    languages :: [(a, AnyScriptWitness era)] -> Set AnyPlutusScriptVersion
-    languages witnesses =
-        Set.fromList
-            [ AnyPlutusScriptVersion v
-            | (_, AnyScriptWitness (PlutusScriptWitness _ v _ _ _ _)) <- witnesses
-            ]
+--     let witnesses = collectTxBodyScriptWitnesses sbe txBody
+--         pparams = BuildTxWith $ Just $ protocolParametersForHashing sbe
+--     -- No use of a script language means no need for collateral
+--     if Set.null (languages witnesses)
+--         then do
+--             collateral <- genTxInsCollateral era
+--             pure
+--                 txBody
+--                     { Api.txProtocolParams = pparams
+--                     , Api.txInsCollateral = collateral
+--                     }
+--         else do
+--             collateral <-
+--                 case forEraMaybeEon era of
+--                     Nothing -> pure TxInsCollateralNone
+--                     Just supported ->
+--                         TxInsCollateral supported
+--                             <$> frequency
+--                                 [ (95, return [])
+--                                 , (5, listOf genTxIn)
+--                                 ]
+--             pure
+--                 txBody
+--                     { Api.txProtocolParams = pparams
+--                     , Api.txInsCollateral = collateral
+--                     }
+--   where
+--     languages :: [(a, AnyScriptWitness era)] -> Set AnyPlutusScriptVersion
+--     languages witnesses =
+--         Set.fromList
+--             [ AnyPlutusScriptVersion v
+--             | (_, AnyScriptWitness (PlutusScriptWitness _ v _ _ _ _)) <- witnesses
+--             ]
 
 genTxBody :: CardanoEra era -> Gen (TxBody era)
 genTxBody era = withEraWitness era $ \se -> do

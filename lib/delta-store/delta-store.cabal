@@ -32,7 +32,7 @@ library
       base
     , delta-types
     , fmt
-    , io-classes
+    , io-classes >= 1.5.0.0 && < 1.6
     , mtl
     , QuickCheck
     , transformers
