@@ -119,6 +119,7 @@ import qualified Cardano.Wallet.Primitive.Types.Tx.Constraints as W
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.Map as Map
+import qualified GHC.IsList as IsList
 
 -- | Estimate the size of the transaction when fully signed.
 --
@@ -195,9 +196,8 @@ estimateKeyWitnessCounts utxo tx timelockKeyWitCounts =
             _ -> 0
         txCerts = case CardanoApi.txCertificates txbodycontent of
             CardanoApi.TxCertificatesNone -> 0
-            CardanoApi.TxCertificates _ certs _ ->
-                sumVia estimateDelegSigningKeys certs
-
+            CardanoApi.TxCertificates _ certs ->
+                sumVia estimateDelegSigningKeys $ fst <$> IsList.toList certs
         nonInputWits = numberOfShelleyWitnesses $ fromIntegral $
             length txExtraKeyWits' +
             length txWithdrawals' +
