@@ -27,6 +27,9 @@ import Cardano.Api
     , SerialiseAsCBOR (..)
     , runExceptT
     )
+import Cardano.Api.Ledger
+    ( toVRFVerKeyHash
+    )
 import Cardano.Binary
     ( FromCBOR (..)
     )
@@ -476,7 +479,7 @@ configurePool metadataServer recipe = do
             let params =
                     Ledger.PoolParams
                         { ppId = poolId
-                        , ppVrf = vrf
+                        , ppVrf = toVRFVerKeyHash vrf
                         , ppPledge = Ledger.Coin $ intCast pledgeAmt
                         , ppCost = Ledger.Coin 0
                         , ppMargin = unsafeUnitInterval 0.1
