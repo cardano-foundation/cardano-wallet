@@ -342,6 +342,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 import qualified GHC.IsList as GHC
+import qualified GHC.IsList as IsList
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
@@ -383,7 +384,8 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_15, NodeToClientV_16]
+nodeToClientVersions =
+    [NodeToClientV_16, NodeToClientV_17]
 
 --------------------------------------------------------------------------------
 --
@@ -788,10 +790,11 @@ cardanoCertKeysForWitnesses
     -> [W.RewardAccount]
 cardanoCertKeysForWitnesses = \case
     Cardano.TxCertificatesNone -> []
-    Cardano.TxCertificates _era certs _witsMap ->
+    Cardano.TxCertificates _era certs ->
         map toRewardAccount
-        $ mapMaybe Cardano.selectStakeCredentialWitness certs
- where
+            $ mapMaybe (Cardano.selectStakeCredentialWitness . fst)
+            $ IsList.toList certs
+  where
     toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
 
 toShelleyCoin :: W.Coin -> SL.Coin
@@ -940,7 +943,6 @@ toCardanoTxOut era refScriptM = case era of
 toCardanoAssetId :: W.AssetId -> Cardano.AssetId
 toCardanoAssetId (W.AssetId pid name) =
     Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
-
 
 toCardanoAssetName :: W.AssetName -> Cardano.AssetName
 toCardanoAssetName (W.UnsafeAssetName name) =
