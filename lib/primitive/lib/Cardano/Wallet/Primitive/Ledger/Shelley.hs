@@ -70,6 +70,8 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromShelleyTxIn
     , toCardanoPolicyId
     , toCardanoSimpleScript
+    , toCardanoAssetId
+    , toCardanoAssetName
 
       -- ** Stake pools
     , fromPoolId
@@ -935,20 +937,26 @@ toCardanoTxOut era refScriptM = case era of
                     (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
 
+toCardanoAssetId :: W.AssetId -> Cardano.AssetId
+toCardanoAssetId (W.AssetId pid name) =
+    Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
+
+
+toCardanoAssetName :: W.AssetName -> Cardano.AssetName
+toCardanoAssetName (W.UnsafeAssetName name) =
+    just
+        "toCardanoValue"
+        "AssetName"
+        [ eitherToMaybe
+            $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
+        ]
+
 toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
 toCardanoValue tb = GHC.fromList $
     (Cardano.AdaAssetId, coinToQuantity coin) :
     map (bimap toCardanoAssetId toQuantity) bundle
   where
     (coin, bundle) = TokenBundle.toFlatList tb
-    toCardanoAssetId (W.AssetId pid name) =
-        Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
-
-    toCardanoAssetName (W.UnsafeAssetName name) =
-        just "toCardanoValue" "AssetName"
-        [ eitherToMaybe
-            $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
-        ]
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity

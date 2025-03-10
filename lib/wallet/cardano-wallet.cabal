@@ -106,6 +106,7 @@ library
     , ntp-client
     , OddWord
     , optparse-applicative
+    , ordered-containers
     , ouroboros-consensus           >=0.22.0.0 && <0.23
     , ouroboros-consensus-cardano   >=0.21.0.1 && <0.22
     , ouroboros-network             >=0.19.0.3 && <0.20
