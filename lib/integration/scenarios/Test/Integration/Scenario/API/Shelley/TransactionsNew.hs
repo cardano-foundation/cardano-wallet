@@ -5310,13 +5310,14 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
     getMetadataFromTx
         :: InAnyCardanoEra Cardano.Tx
         -> Maybe (Map.Map Word64 TxMetadataValue)
-    getMetadataFromTx (InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
-        \(Cardano.TxBody bodyContent) ->
-            Cardano.txMetadata bodyContent & \case
-                Cardano.TxMetadataNone ->
-                    Nothing
-                Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
-                    Just m
+    getMetadataFromTx (InAnyCardanoEra _ tx) =
+        Cardano.getTxBody tx
+            & \body ->
+                Cardano.txMetadata (Cardano.getTxBodyContent body) & \case
+                    Cardano.TxMetadataNone ->
+                        Nothing
+                    Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->
+                        Just m
 
     -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload

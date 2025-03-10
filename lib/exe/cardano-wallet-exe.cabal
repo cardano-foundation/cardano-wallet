@@ -113,7 +113,7 @@ library
     , cardano-wallet-read
     , cardano-wallet-secrets
     , contra-tracer
-    , data-default
+    , data-default >= 0.8.0.0 && < 0.9
     , directory
     , file-embed
     , filepath
