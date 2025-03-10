@@ -178,7 +178,8 @@ import Control.Monad.Class.MonadST
     ( MonadST
     )
 import Control.Monad.Class.MonadThrow
-    ( MonadThrow
+    ( MonadMask
+    , MonadThrow
     )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer
@@ -266,9 +267,9 @@ import GHC.Stack
     ( HasCallStack
     )
 import Network.Mux
-    ( MuxError (..)
-    , MuxErrorType (..)
-    , WithMuxBearer (..)
+    ( Error (..)
+    , Mode (..)
+    , WithBearer (..)
     )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
@@ -322,7 +323,6 @@ import Ouroboros.Network.Driver.Simple
     )
 import Ouroboros.Network.Mux
     ( MiniProtocolCb (..)
-    , MuxMode (..)
     , OuroborosApplicationWithMinimalCtx
     , RunMiniProtocol (..)
     , RunMiniProtocolWithMinimalCtx
@@ -354,6 +354,7 @@ import Ouroboros.Network.Protocol.LocalStateQuery.Client
     )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
     ( LocalStateQuery
+    , State (..)
     )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( localTxSubmissionClientPeer
@@ -392,6 +393,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.Cardano.Block as Consensus
 import qualified Ouroboros.Consensus.Shelley.Ledger.Mempool as Consensus
+import qualified Ouroboros.Network.Driver.Stateful as Stateful
 
 {- HLINT ignore "Use readTVarIO" -}
 {- HLINT ignore "Use newTVarIO" -}
@@ -574,7 +576,10 @@ withNodeNetworkLayerBase
                     (atomically . repsertTMVar eraVar)
                     txSubmissionQ
             let trNodeTip = MsgConnectionStatus ClientNodeTip >$< tr
-                ouroborosApp :: NodeToClientVersion -> WalletOuroborosApplication IO
+                ouroborosApp
+                    :: NodeToClientVersion
+                    -> NodeToClientVersionData
+                    -> WalletOuroborosApplication IO
                 ouroborosApp = nodeToClientProtocols =<< mkProtocols
             link
                 =<< async
@@ -603,7 +608,9 @@ withNodeNetworkLayerBase
             -> IO ()
         runFetchBlockClient retryHandlers blockQ = do
             let ouroborosApp
-                    :: NodeToClientVersion -> WalletOuroborosApplication IO
+                    :: NodeToClientVersion
+                    -> NodeToClientVersionData
+                    -> WalletOuroborosApplication IO
                 ouroborosApp = mkFetchBlockClient cfg blockQ
             connectClient nullTracer retryHandlers ouroborosApp versionData conn
 
@@ -821,6 +828,7 @@ mkWalletClient
     -> ChainFollower m (Point block) (Tip block) (NonEmpty block)
     -> CodecConfig block
     -> NodeToClientVersion
+    -> NodeToClientVersionData
     -> WalletOuroborosApplication m
 mkWalletClient tr pipeliningStrategy follower cfg nodeToClientVer =
     nodeToClientProtocols protocols nodeToClientVer
@@ -852,6 +860,7 @@ mkFetchBlockClient
     => CodecConfig block
     -> TQueue m (FetchBlockCmd m block (Point block))
     -> NodeToClientVersion
+    -> NodeToClientVersionData
     -> WalletOuroborosApplication m
 mkFetchBlockClient cfg blockQ nodeToClientVer =
     nodeToClientProtocols protocols nodeToClientVer
@@ -875,16 +884,17 @@ mkFetchBlockClient cfg blockQ nodeToClientVer =
 -- purposes of querying delegations and rewards.
 mkDelegationRewardsClient
     :: forall m
-     . (MonadThrow m, MonadST m, MonadTimer m, MonadIO m)
+     . (MonadST m, MonadTimer m, MonadIO m, MonadAsync m, MonadMask m)
     => Tracer m Log
     -- ^ Base trace for underlying protocols
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
     -- ^ Communication channel with the LocalStateQuery client
     -> NodeToClientVersion
+    -> NodeToClientVersionData
     -> WalletOuroborosApplication m
-mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
-    nodeToClientProtocols protocols nodeToClientVer
+mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer nodeToClientVerData =
+    nodeToClientProtocols protocols nodeToClientVer nodeToClientVerData
   where
     protocols =
         NodeToClientProtocols
@@ -896,13 +906,12 @@ mkDelegationRewardsClient tr cfg queryRewardQ nodeToClientVer =
                     let tr' = MsgLocalStateQuery DelegationRewardsClient >$< tr
                         codecs' = serialisedCodecs nodeToClientVer cfg
                         codec = cStateQueryCodec codecs'
-                    runPeer tr' codec channel
+                    Stateful.runPeer tr' codec channel StateIdle
                         $ localStateQueryClientPeer
                         $ localStateQuery queryRewardQ
             }
 
 type CardanoInterpreter sc = Interpreter (CardanoEras sc)
-
 -- | Construct node protocols with the given communication channels,
 -- for the purpose of:
 --
@@ -912,7 +921,13 @@ type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 --  * Submitting transactions
 mkWalletToNodeProtocols
     :: forall m
-     . (HasCallStack, MonadUnliftIO m, MonadThrow m, MonadST m, MonadTimer m)
+     . ( HasCallStack
+       , MonadUnliftIO m
+       , MonadST m
+       , MonadTimer m
+       , MonadAsync m
+       , MonadMask m
+       )
     => Tracer m Log
     -- ^ Base trace for underlying protocols
     -> NetworkParameters
@@ -997,7 +1012,8 @@ mkWalletToNodeProtocols
                                 client = localStateQuery localStateQueryQ
                                 peer = localStateQueryClientPeer client
                                 tr' = MsgLocalStateQuery TipSyncClient >$< tr
-                            runPeer tr' codec channel peer
+                            Stateful.runPeer tr' codec channel StateIdle
+                                 peer
                     , localTxSubmissionProtocol =
                         InitiatorProtocolOnly $ MiniProtocolCb
                             $ \_ channel -> do
@@ -1176,13 +1192,16 @@ serialisedCodecs nodeToClientVersion cfg =
 connectClient
     :: Tracer IO ConnectionStatusLog
     -> RetryHandlers
-    -> (NodeToClientVersion -> WalletOuroborosApplication IO)
+    -> ( NodeToClientVersion
+         -> NodeToClientVersionData
+         -> WalletOuroborosApplication IO
+       )
     -> NodeToClientVersionData
     -> CardanoNodeConn
     -> IO ()
 connectClient tr handlers client vData conn = withIOManager $ \manager ->
     connectTo (localSnocket manager) tracers versions (nodeSocketFile conn)
-        & recoveringNodeConnection tr handlers
+        & void . recoveringNodeConnection tr handlers
   where
     versions =
         combineVersions
@@ -1243,25 +1262,24 @@ handleIOException tr e = traceWith tr e $> retryAction
         | "resource exhausted" `isInfixOf` show e = ConsultPolicy
         | otherwise = DontRetry
 
-handleMuxError :: Tracer IO ReasonConnectionLost -> MuxError -> IO RetryAction
+handleMuxError :: Tracer IO ReasonConnectionLost -> Error -> IO RetryAction
 handleMuxError tr muxErr = do
     traceWith tr (ReasonMuxError muxErr)
-    case errorType muxErr of
-        MuxUnknownMiniProtocol -> pure DontRetry
-        MuxDecodeError -> pure DontRetry
-        MuxIngressQueueOverRun -> pure DontRetry
-        MuxInitiatorOnly -> pure DontRetry
-        MuxShutdown _ -> pure DontRetry -- fixme: #2212 consider cases
-        MuxCleanShutdown -> pure DontRetry
-        MuxIOException e -> handleIOException (ReasonException >$< tr) e
-        MuxBearerClosed -> pure ConsultPolicy
+    case muxErr of
+        UnknownMiniProtocol _ -> pure DontRetry
+        SDUDecodeError _ -> pure DontRetry
+        IngressQueueOverRun _ _ -> pure DontRetry
+        InitiatorOnly _ -> pure DontRetry
+        Shutdown _ _ -> pure DontRetry -- fixme: #2212 consider cases
+        IOException e _ -> handleIOException (ReasonException >$< tr) e
+        BearerClosed _ -> pure ConsultPolicy
         -- MuxSDU*Timeout errors arise because the bandwidth of the
         -- interprocess communication socket dropped unexpectedly,
         -- and the socket library decided to cut off the connection
         -- after ~ 30 seconds.
         -- Chances are that the system is overloaded, let's retry in 30 seconds.
-        MuxSDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
-        MuxSDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+        SDUReadTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
+        SDUWriteTimeout -> pure $ ConsultPolicyOverrideDelay 30_000_000
 
 {-------------------------------------------------------------------------------
     Helper functions of the Control.* and STM variety
@@ -1329,7 +1347,7 @@ isSlowQuery :: String -> DiffTime -> Bool
 isSlowQuery _label = (>= 0.2)
 
 data ReasonConnectionLost
-    = ReasonMuxError MuxError
+    = ReasonMuxError Error
     | ReasonException IOException
 
 data ConnectionStatusLog where
@@ -1338,7 +1356,7 @@ data ConnectionStatusLog where
     MsgConnectionLost
         :: ReasonConnectionLost -> ConnectionStatusLog
     MsgHandshakeTracer
-        :: WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace
+        :: WithBearer (ConnectionId LocalAddress) (HandshakeTrace)
         -> ConnectionStatusLog
 
 instance ToText ConnectionStatusLog where
@@ -1350,15 +1368,13 @@ instance ToText ConnectionStatusLog where
                 , "). Retrying in a bit..."
                 ]
         MsgConnectionLost reason -> case reason of
-            ReasonMuxError MuxError{errorType, errorMsg} ->
+            ReasonMuxError muxError ->
                 "Node connection lost because of the mux error ("
-                    <> T.pack (show errorType)
-                    <> "): "
-                    <> T.pack errorMsg
+                    <> T.pack (show muxError)
             ReasonException e ->
                 "Node connection lost because of the exception: "
                     <> T.pack (show e)
-        MsgHandshakeTracer (WithMuxBearer conn h) ->
+        MsgHandshakeTracer (WithBearer conn h) ->
             pretty conn <> " " <> T.pack (show h)
 
 instance HasPrivacyAnnotation ConnectionStatusLog
@@ -1372,17 +1388,16 @@ instance HasSeverityAnnotation ConnectionStatusLog where
             ReasonException ie | isResourceVanishedError ie -> Warning
             ReasonException _ie -> Debug
             ReasonMuxError muxError ->
-                case errorType muxError of
-                    MuxUnknownMiniProtocol -> Debug
-                    MuxDecodeError -> Debug
-                    MuxIngressQueueOverRun -> Debug
-                    MuxInitiatorOnly -> Debug
-                    MuxIOException _ -> Debug
-                    MuxSDUReadTimeout -> Debug
-                    MuxSDUWriteTimeout -> Debug
-                    MuxShutdown _ -> Debug
-                    MuxCleanShutdown -> Debug
-                    MuxBearerClosed -> Warning
+                case muxError of
+                    UnknownMiniProtocol _ -> Debug
+                    SDUDecodeError _ -> Debug
+                    IngressQueueOverRun _ _ -> Debug
+                    InitiatorOnly _ -> Debug
+                    IOException _ _ -> Debug
+                    SDUReadTimeout -> Debug
+                    SDUWriteTimeout -> Debug
+                    Shutdown _ _ -> Debug
+                    BearerClosed _ -> Warning
 
 data Client
     = ClientChainSync
@@ -1407,12 +1422,13 @@ data Log where
         -> Log
     MsgLocalStateQuery
         :: QueryClientName
-        -> ( TraceSendRecv
+        -> ( Stateful.TraceSendRecv
                 ( LocalStateQuery
                     (CardanoBlock StandardCrypto)
                     (Point (CardanoBlock StandardCrypto))
                     (Query (CardanoBlock StandardCrypto))
                 )
+            State
            )
         -> Log
     MsgPostTx :: ByteString -> Log
