@@ -23,11 +23,6 @@ import Cardano.Wallet.UI.Common.Html.Lib
 import Cardano.Wallet.UI.Common.Html.Pages.Lib
     ( box
     )
-import Cardano.Wallet.UI.Type
-    ( WHtml
-    , onDeposit
-    , onShelley
-    )
 import Data.Text
     ( Text
     )
@@ -70,7 +65,7 @@ data PostWalletConfig = PostWalletConfig
 --------------------------------------------------------------------------------
 
 -- | Add a form tag with the appropriate attributes for a POST request
-postWalletFormTagH :: Text -> PostWalletConfig -> WHtml () -> WHtml ()
+postWalletFormTagH :: Text -> PostWalletConfig -> Html () -> Html ()
 postWalletFormTagH idName PostWalletConfig{} =
     div_
         [ autocomplete_ "off"
@@ -83,7 +78,7 @@ postWalletFormTagH idName PostWalletConfig{} =
 --------------------------------------------------------------------------------
 
 -- | Widget to create a new wallet from a mnemonic
-newWalletFromMnemonicH :: (Maybe Bool -> Link) -> PostWalletConfig -> WHtml ()
+newWalletFromMnemonicH :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
 newWalletFromMnemonicH walletMnemonicLink config = do
     box "Restore from Mnemonic" mempty $ do
         div_ [class_ "p-2"] $ do
@@ -104,7 +99,7 @@ mnemonicH (Just mnemonic) = do
         copyButton "copy-mnemonic"
 
 -- | Form fields for restoring a wallet from a mnemonic
-mnemonicSetupFieldsH :: (Maybe Bool -> Link) -> PostWalletConfig -> WHtml ()
+mnemonicSetupFieldsH :: (Maybe Bool -> Link) -> PostWalletConfig -> Html ()
 mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
     div_ [class_ "border-start"] $ do
         div_ [class_ "d-flex justify-content-end align-items-center"]
@@ -129,27 +124,18 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
             , name_ "mnemonics"
             , placeholder_ "Mnemonic Sentence"
             ]
-    onDeposit
-        $ div_ [class_ "border-start"]
-        $ input_
-            [ formControl
-            , type_ "number"
-            , name_ "trackedCustomers"
-            , placeholder_ "Tracked Customers"
-            ]
-    onShelley
-        $ input_
-            [ formControl
-            , type_ "text"
-            , name_ "name"
-            , placeholder_ "Wallet Name"
-            ]
     input_
-            [ formControl
-            , type_ "password"
-            , name_ "password"
-            , placeholder_ "Signing Passphrase"
-            ]
+        [ formControl
+        , type_ "text"
+        , name_ "name"
+        , placeholder_ "Wallet Name"
+        ]
+    input_
+        [ formControl
+        , type_ "password"
+        , name_ "password"
+        , placeholder_ "Signing Passphrase"
+        ]
     div_ [class_ "d-flex justify-content-end align-items-center"] $ do
         button_
             [ class_ "btn btn-primary btn-block mb-3"
@@ -169,7 +155,7 @@ mnemonicSetupFieldsH walletMnemonicLink PostWalletConfig{..} = do
 -- Wallet restoration from public key
 --------------------------------------------------------------------------------
 
-newWalletFromXPubH :: PostWalletConfig -> WHtml ()
+newWalletFromXPubH :: PostWalletConfig -> Html ()
 newWalletFromXPubH config@PostWalletConfig{..} = do
     box "Restore from Public Key" mempty $ div_ [class_ "p-2"] $ do
         postWalletFormTagH "wallet-from-xpub" config $ do
@@ -179,13 +165,6 @@ newWalletFromXPubH config@PostWalletConfig{..} = do
                 , name_ "xpub"
                 , placeholder_ "Extended Public Key"
                 ]
-            onDeposit
-                $ input_
-                    [ formControl
-                    , type_ "number"
-                    , name_ "trackedCustomers"
-                    , placeholder_ "Tracked Customers"
-                    ]
             div_ [class_ "d-flex justify-content-end align-items-center"] $ do
                 button_
                     [ class_ "btn btn-primary btn-block mb-3"
