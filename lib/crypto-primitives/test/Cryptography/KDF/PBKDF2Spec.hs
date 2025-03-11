@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cryptography.KDF.PBKDF2Spec
     ( spec
@@ -35,7 +37,17 @@ import Test.Hspec
     , it
     , shouldBe
     )
+import Test.QuickCheck
+    ( Arbitrary (..)
+    , Property
+    , chooseInt
+    , oneof
+    , property
+    , vectorOf
+    , (===)
+    )
 
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -313,6 +325,17 @@ spec = do
             { key = "6BBCD65DA84D7BB1D214908270352A56FF25B375E53B7D3F237330666CCBF0DF"
             , iv = "FD40C29618D438E3658388C52EB7974E"
             }
+
+    describe "password and password padded with \NUL produce the same (key, iv) pair" $
+        it "generateKey conf passwd salt == generateKey conf (passwd <> \NUL <> ...) salt" $
+        property @(TestCaseSHA256 -> Property) $
+        \(TestCase algo' iters' keyL' ivL' passwd' salt') -> do
+            let nulsToAdd = 64 - BS.length passwd'
+            let passwdPadded = passwd' <> BS.replicate nulsToAdd 0
+            generateKey (PBKDF2Config algo' iters' keyL' ivL') passwd' salt'
+                ===
+                generateKey (PBKDF2Config algo' iters' keyL' ivL') passwdPadded salt'
+
   where
     toKeyIV TestCase {..} =
         tohex (generateKey (PBKDF2Config algo iters keyL ivL) passwd salt)
@@ -335,3 +358,25 @@ data OpenSSLOutput = OpenSSLOutput
     { key :: Text
     , iv :: Text
     } deriving (Show, Eq)
+
+type TestCaseSHA256 = TestCase SHA256
+
+instance Arbitrary TestCaseSHA256 where
+    arbitrary = do
+        passwd' <-
+            BS.pack <$> do
+            len <- chooseInt (1, 63)
+            vectorOf len arbitrary
+        saltLen <- chooseInt (1,32)
+        salt' <- oneof
+            [ pure Nothing
+            , Just . BS.pack <$> vectorOf saltLen arbitrary
+            ]
+        pure $ TestCase
+            { algo = SHA256
+            , iters = 10000
+            , keyL = 32
+            , ivL = 16
+            , passwd = passwd'
+            , salt = salt'
+            }

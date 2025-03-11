@@ -56,16 +56,21 @@ generateKey
     :: HashAlgorithm h
     => PBKDF2Config h
     -> ByteString
-    -- ^ payload
+    -- ^ password
+    -- Remark/limitation:
+    -- As byte || operation is taken when hashing password,
+    -- the password shorter than 64-byte is padded with \NUL (0x00)
+    -- meaning passwords p, p <> 'NUL', p <> 'NUL' <> 'NUL', ... are indifferentiable and
+    -- result in the same (key,iv) for the rest arguments identical.
     -> Maybe ByteString
     -- ^ salt
     -> (ByteString, ByteString)
     -- ^ (key, iv)
-generateKey PBKDF2Config{hash,iterations,keyLength,ivLength} payload saltM =
+generateKey PBKDF2Config{hash,iterations,keyLength,ivLength} password saltM =
     BS.splitAt keyLength whole
   where
     whole = generate
         (prfHMAC hash)
         (Parameters iterations (keyLength + ivLength))
-        payload
+        password
         (fromMaybe BS.empty saltM)

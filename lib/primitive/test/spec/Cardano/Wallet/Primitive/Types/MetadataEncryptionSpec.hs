@@ -23,6 +23,9 @@ import Data.ByteArray.Encoding
 import Data.ByteString
     ( ByteString
     )
+import Data.Char
+    ( isAlphaNum
+    )
 import Data.Either
     ( isLeft
     )
@@ -57,6 +60,8 @@ import Test.QuickCheck
 
 import qualified Cardano.Api as Cardano
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -433,10 +438,19 @@ spec = do
 fromHexToM :: Text -> Maybe ByteString
 fromHexToM = rightToMaybe . convertFromBase Base16 . T.encodeUtf8
 
+newtype MetadataPassword = MetadataPassword {unPassword :: ByteString}
+    deriving (Eq, Show)
+
+instance Arbitrary MetadataPassword where
+    arbitrary = do
+        pwdLen <- chooseInt (5,10)
+        chars <- vectorOf pwdLen arbitrary `suchThat` L.all isAlphaNum
+        pure $ MetadataPassword $ B8.pack chars
+
 data TestingSetup = TestingSetup
     { payload :: Cardano.TxMetadata
-    , password :: ByteString
-    , passwordOther :: ByteString
+    , password :: MetadataPassword
+    , passwordOther :: MetadataPassword
     , salt :: ByteString
     } deriving (Eq, Show)
 
@@ -452,10 +466,8 @@ instance Arbitrary TestingSetup where
     arbitrary = do
         msgNum <- chooseInt (1,10)
         txts <- vectorOf msgNum (getMsg <$> arbitrary)
-        pwdLen1 <- chooseInt (5,10)
-        pwdLen2 <- chooseInt (5,10)
-        pwd1 <- BS.pack <$> vectorOf pwdLen1 arbitrary
-        pwd2 <- (BS.pack <$> vectorOf pwdLen2 arbitrary) `suchThat` (/= pwd1)
+        pwd1 <-  arbitrary
+        pwd2 <- arbitrary `suchThat` (/= pwd1)
         salt' <- BS.pack <$> vectorOf 8 arbitrary
         let metadata toEncrypt =
                 Cardano.TxMetadata $ Map.fromList
@@ -478,7 +490,7 @@ instance Arbitrary TestingSetup where
             }
 
 prop_roundtrip :: TestingSetup -> Property
-prop_roundtrip (TestingSetup payload' pwd' _ salt') = do
+prop_roundtrip (TestingSetup payload' (MetadataPassword pwd') _ salt') = do
     (mapLeft
      (const ErrMissingValidEncryptionPayload)
      (toMetadataEncrypted pwd' payload' (Just salt'))
@@ -486,7 +498,7 @@ prop_roundtrip (TestingSetup payload' pwd' _ salt') = do
         === Right payload'
 
 prop_passphrase :: TestingSetup -> Expectation
-prop_passphrase (TestingSetup payload' pwd1 pwd2 salt') = do
+prop_passphrase (TestingSetup payload' (MetadataPassword pwd1) (MetadataPassword pwd2) salt') = do
     (mapLeft
      (const ErrMissingValidEncryptionPayload)
      (toMetadataEncrypted pwd1 payload' (Just salt'))
@@ -494,7 +506,7 @@ prop_passphrase (TestingSetup payload' pwd1 pwd2 salt') = do
         `shouldSatisfy` isLeft
 
 prop_structure_after_enc :: TestingSetup -> Expectation
-prop_structure_after_enc (TestingSetup payload' pwd' _ salt') = do
+prop_structure_after_enc (TestingSetup payload' (MetadataPassword pwd') _ salt') = do
     let hasMsgWithList (Cardano.TxMetaText k, Cardano.TxMetaList _) =
             k == cip83EncryptPayloadKey
         hasMsgWithList _ = False
