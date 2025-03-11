@@ -63,7 +63,6 @@ library common
     Cardano.Wallet.UI.Lib.ListOf
     Cardano.Wallet.UI.Signal
     Cardano.Wallet.UI.Static
-    Cardano.Wallet.UI.Type
 
   other-modules:    Paths_cardano_wallet_ui
   build-depends:
@@ -82,7 +81,6 @@ library common
     , http-media
     , lens
     , lucid
-    , mmorph
     , mtl
     , operational
     , random
@@ -140,4 +138,3 @@ library shelley
 
   hs-source-dirs:   src/shelley
   default-language: Haskell2010
-
