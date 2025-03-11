@@ -60,9 +60,9 @@ import Test.QuickCheck
 
 import qualified Cardano.Api as Cardano
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as C8
-import qualified Data.Map.Strict as Map
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -445,7 +445,7 @@ instance Arbitrary MetadataPassword where
     arbitrary = do
         pwdLen <- chooseInt (5,10)
         chars <- vectorOf pwdLen arbitrary `suchThat` L.all isAlphaNum
-        pure $ MetadataPassword $ C8.pack chars
+        pure $ MetadataPassword $ B8.pack chars
 
 data TestingSetup = TestingSetup
     { payload :: Cardano.TxMetadata
