@@ -2,7 +2,7 @@ agents:
   queue: cardano-wallet
 
 env:
-  LC_ALL: "C.UTF-8"
+  LC_ALL: "en_US.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
   RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"
   MAIN_PIPELINE_DIR: "./scripts/buildkite/main"
