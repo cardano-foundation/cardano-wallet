@@ -59,6 +59,7 @@ library
     , int-cast
     , iproute
     , network
+    , ordered-containers
     , plutus-ledger-api:plutus-ledger-api-testlib
     , QuickCheck
     , quickcheck-instances
