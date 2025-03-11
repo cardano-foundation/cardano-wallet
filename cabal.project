@@ -59,6 +59,7 @@ packages:
   lib/address-derivation-discovery
   lib/api
   lib/application-extras
+  lib/application-tls
   lib/balance-tx/
   lib/benchmarks/
   lib/buildkite/
