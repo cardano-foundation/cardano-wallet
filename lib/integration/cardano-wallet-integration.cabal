@@ -56,8 +56,8 @@ library framework
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-extras
-    , cardano-wallet-exe
-    , cardano-wallet-exe:shelley
+    , cardano-wallet-application
+    , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -143,7 +143,7 @@ library scenarios
     , cardano-ledger-core >= 1.15.0.0 && < 1.16
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-exe
+    , cardano-wallet-application
     , cardano-wallet-integration:framework
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -234,7 +234,7 @@ test-suite e2e
     , cardano-addresses >= 3.12.0 && < 3.13
     , cardano-wallet-api
     , cardano-wallet-application-extras
-    , cardano-wallet-exe
+    , cardano-wallet-application
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -256,4 +256,4 @@ test-suite integration
   import:             integration-common
   type:               exitcode-stdio-1.0
   main-is:            integration-tests.hs
-  build-tool-depends: cardano-wallet-exe:cardano-wallet
+  build-tool-depends: cardano-wallet-application:cardano-wallet

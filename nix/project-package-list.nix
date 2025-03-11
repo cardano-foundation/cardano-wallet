@@ -10,7 +10,7 @@
   "cardano-wallet-benchmarks"
   "cardano-wallet-blackbox-benchmarks"
   "cardano-wallet-buildkite"
-  "cardano-wallet-exe"
+  "cardano-wallet-application"
   "cardano-wallet-integration"
   "cardano-wallet-launcher"
   "cardano-wallet-network-layer"

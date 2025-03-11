@@ -24,7 +24,7 @@ let
           ({ config, ... }: {
             services.cardano-wallet = let cfg = config.services.cardano-wallet; in
               {
-                package = lib.mkDefault project.hsPkgs.cardano-wallet-exe.components.exes.cardano-wallet;
+                package = lib.mkDefault project.hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
                 walletMode = lib.mkDefault ({ mainnet = "mainnet"; }.${envConfig.name} or "testnet");
                 genesisFile = lib.mkIf (cfg.walletMode != "mainnet")
                   (lib.mkDefault envConfig.nodeConfig.ByronGenesisFile);

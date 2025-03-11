@@ -134,7 +134,7 @@
 
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
-        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-exe.components.exes) cardano-wallet;
+        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-application.components.exes) cardano-wallet;
         haskell-nix = prev.haskell-nix // {
           extraPkgconfigMappings = prev.haskell-nix.extraPkgconfigMappings // {
               # String pkgconfig-depends names are mapped to lists of Nixpkgs
@@ -207,7 +207,7 @@
                 # Cardano wallet
                 cardano-wallet = import ./nix/release-build.nix {
                   inherit pkgs;
-                  exe = project.hsPkgs.cardano-wallet-exe.components.exes.cardano-wallet;
+                  exe = project.hsPkgs.cardano-wallet-application.components.exes.cardano-wallet;
                   backend = self.cardano-node;
                 };
                 # Local test cluster and mock metadata server

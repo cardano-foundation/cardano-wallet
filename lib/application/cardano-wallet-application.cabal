@@ -1,5 +1,5 @@
 cabal-version:   3.4
-name:            cardano-wallet-exe
+name:            cardano-wallet-application
 version:         2025.3.4
 synopsis:        cardano-wallet executable
 
@@ -51,8 +51,8 @@ executable cardano-wallet
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-tls
-    , cardano-wallet-exe
-    , cardano-wallet-exe:shelley
+    , cardano-wallet-application
+    , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
@@ -77,7 +77,7 @@ library shelley
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-tls
-    , cardano-wallet-exe
+    , cardano-wallet-application
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-ui:common
@@ -147,4 +147,4 @@ library
     Cardano.Wallet.Application.Version
     Cardano.Wallet.Application.Version.TH
 
-  other-modules:   Paths_cardano_wallet_exe
+  other-modules:   Paths_cardano_wallet_application

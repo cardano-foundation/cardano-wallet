@@ -1,4 +1,4 @@
-# Revision history for cardano-wallet-exe
+# Revision history for cardano-wallet-application
 
 ## 2024.7.27
 

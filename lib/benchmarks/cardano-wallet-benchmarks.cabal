@@ -143,8 +143,8 @@ benchmark latency
     , cardano-addresses >= 3.12.0 && < 3.13
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-exe
-    , cardano-wallet-exe:shelley
+    , cardano-wallet-application
+    , cardano-wallet-application:shelley
     , cardano-wallet-application-extras
     , cardano-wallet-benchmarks
     , cardano-wallet-integration:framework
