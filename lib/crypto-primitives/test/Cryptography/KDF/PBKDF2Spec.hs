@@ -335,6 +335,7 @@ spec = do
             generateKey (PBKDF2Config algo' iters' keyL' ivL') passwd' salt'
                 ===
                 generateKey (PBKDF2Config algo' iters' keyL' ivL') passwdPadded salt'
+
   where
     toKeyIV TestCase {..} =
         tohex (generateKey (PBKDF2Config algo iters keyL ivL) passwd salt)
