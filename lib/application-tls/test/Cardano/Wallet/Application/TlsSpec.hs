@@ -80,6 +80,7 @@ import Network.TLS
     , Credentials (..)
     , Shared (..)
     , Supported (..)
+    , defaultParamsClient
     , noSessionManager
     )
 import Network.TLS.Extra.Cipher
@@ -245,25 +246,20 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
   where
     sockSettings = Nothing
     clientParams caChain credentials =
-        ClientParams
+        (defaultParamsClient "127.0.0.1" "")
             { clientUseMaxFragmentLength = Nothing
-            , clientServerIdentification = ("127.0.0.1", "")
             , clientUseServerNameIndication = True
             , clientWantSessionResume = Nothing
             , clientShared = clientShared caChain credentials
             , clientHooks = clientHooks credentials
             , clientSupported = clientSupported
-            , clientDebug = def
-            , clientEarlyData = def
             }
 
     clientShared caChain credentials =
-        Shared
+        def
             { sharedCredentials = Credentials [credentials]
             , sharedCAStore = makeCertificateStore caChain
             , sharedSessionManager = noSessionManager
-            , sharedValidationCache = def
-            , sharedHelloExtensions = def
             }
 
     clientHooks credentials =
