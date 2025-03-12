@@ -61,7 +61,7 @@ else
 fi
 
 # shellcheck disable=SC2086
-cabal run --project-dir ${SCRIPT_DIR}/../../.. -O0 cardano-wallet-exe:exe:cardano-wallet -- \
+cabal run --project-dir ${SCRIPT_DIR}/../../.. -O0 cardano-wallet-application:exe:cardano-wallet -- \
     serve \
     --log-level DEBUG \
     --trace-application DEBUG \

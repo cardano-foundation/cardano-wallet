@@ -216,7 +216,7 @@ executable local-cluster
     , temporary-extra
     , text
     , unliftio
-    , with-utf8 >= 1.1.0 && < 1.2 
+    , with-utf8 >= 1.1.0 && < 1.2
 
 common test-common
   import:             language
@@ -259,7 +259,7 @@ common test-common
     , streaming >= 0.2.4 && < 0.3
     , time
     , unliftio
-    , with-utf8 >= 1.1.0 && < 1.2 
+    , with-utf8 >= 1.1.0 && < 1.2
 
   build-tool-depends: hspec-discover:hspec-discover
 
@@ -283,7 +283,7 @@ test-suite test-local-cluster
     SpecHook
 
   build-tool-depends:
-    , cardano-wallet-exe:cardano-wallet
+    , cardano-wallet-application:cardano-wallet
     , local-cluster:local-cluster
 
 executable test-local-cluster-exe

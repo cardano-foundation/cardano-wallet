@@ -1,5 +1,5 @@
 cabal-version:   3.4
-name:            cardano-wallet-exe
+name:            cardano-wallet-application
 version:         2025.3.4
 synopsis:        cardano-wallet executable
 
@@ -50,14 +50,15 @@ executable cardano-wallet
     , base
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-exe
-    , cardano-wallet-exe:shelley
+    , cardano-wallet-application-tls
+    , cardano-wallet-application
+    , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                 >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
-    , lobemo-backend-ekg >= 0.2.0.0 && < 0.3
+    , lobemo-backend-ekg              >=0.2.0.0 && <0.3
     , network-uri
     , optparse-applicative
     , text
@@ -75,7 +76,8 @@ library shelley
     , base
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-exe
+    , cardano-wallet-application-tls
+    , cardano-wallet-application
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-ui:common
@@ -104,22 +106,22 @@ library
     , ansi-terminal
     , base
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-addresses-cli >= 3.12.0 && < 3.13
+    , cardano-addresses               >=3.12.0  && <3.13
+    , cardano-addresses-cli           >=3.12.0  && <3.13
     , cardano-wallet
     , cardano-wallet-api
+    , cardano-wallet-application-tls
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-read
     , cardano-wallet-secrets
     , contra-tracer
-    , data-default
     , directory
     , file-embed
     , filepath
     , fmt
     , http-client
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                 >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
     , network
     , ntp-client
@@ -132,23 +134,17 @@ library
     , text
     , text-class
     , time
-    , tls
     , unliftio
     , wai-middleware-logging
     , warp
     , warp-tls
-    , x509
-    , x509-store
-    , x509-validation
 
   exposed-modules:
     Cardano.Wallet.Application.CLI
     Cardano.Wallet.Application.Logging
     Cardano.Wallet.Application.Server
-    Cardano.Wallet.Application.Tls
     Cardano.Wallet.Application.Tracers
     Cardano.Wallet.Application.Version
     Cardano.Wallet.Application.Version.TH
 
-  other-modules:   Paths_cardano_wallet_exe
-
+  other-modules:   Paths_cardano_wallet_application

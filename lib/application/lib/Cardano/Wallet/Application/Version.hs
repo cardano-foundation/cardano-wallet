@@ -53,7 +53,7 @@ import Fmt
     , fmt
     , padLeftF
     )
-import Paths_cardano_wallet_exe
+import Paths_cardano_wallet_application
     ( version
     )
 

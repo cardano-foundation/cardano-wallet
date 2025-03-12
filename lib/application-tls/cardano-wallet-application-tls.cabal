@@ -1,0 +1,81 @@
+cabal-version:   3.4
+name:            cardano-wallet-application-tls
+version:         0.2025.3.4
+synopsis:        cardano-wallet application tls support
+license:         Apache-2.0
+license-file:    LICENSE
+author:          hal team
+maintainer:      hal@cardanofoundation.org
+category:        Crypto
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-exe
+  ghc-options:
+    -threaded -rtsopts -Wall -Wredundant-constraints -Wunused-packages
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-lib
+  ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:          language, opts-lib
+  hs-source-dirs:  lib
+  build-depends:
+    , base
+    , data-default
+    , tls
+    , warp-tls
+    , x509
+    , x509-store
+    , x509-validation
+
+  exposed-modules: Cardano.Wallet.Application.Tls
+
+test-suite unit
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Main.hs
+  build-tool-depends: hspec-discover:hspec-discover
+  build-depends:
+    , base
+    , bytestring
+    , cardano-sl-x509
+    , cardano-wallet-application-tls
+    , cardano-wallet-test-utils
+    , connection
+    , data-default
+    , directory
+    , filepath
+    , hspec
+    , http-client
+    , http-client-tls
+    , http-types
+    , network
+    , streaming-commons
+    , tls
+    , unliftio
+    , wai
+    , warp
+    , warp-tls
+    , x509
+    , x509-store
+
+  other-modules:      Cardano.Wallet.Application.TlsSpec

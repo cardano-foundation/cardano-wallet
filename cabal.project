@@ -58,36 +58,37 @@ index-state:
 packages:
   lib/address-derivation-discovery
   lib/api
+  lib/application
   lib/application-extras
-  lib/balance-tx/
-  lib/benchmarks/
-  lib/buildkite/
-  lib/cardano-api-extra/
-  lib/crypto-primitives/
-  lib/coin-selection/
-  lib/delta-chain/
-  lib/delta-store/
-  lib/delta-table/
-  lib/delta-types/
-  lib/exe/
-  lib/faucet/
-  lib/iohk-monitoring-extra/
-  lib/integration/
-  lib/launcher/
-  lib/local-cluster/
-  lib/network-layer/
-  lib/numeric/
-  lib/primitive/
+  lib/application-tls
+  lib/balance-tx
+  lib/benchmarks
+  lib/buildkite
+  lib/cardano-api-extra
+  lib/coin-selection
+  lib/crypto-primitives
+  lib/delta-chain
+  lib/delta-store
+  lib/delta-table
+  lib/delta-types
+  lib/faucet
+  lib/integration
+  lib/iohk-monitoring-extra
+  lib/launcher
+  lib/local-cluster
+  lib/network-layer
+  lib/numeric
+  lib/primitive
   lib/secrets
-  lib/std-gen-seed/
-  lib/temporary-extra/
-  lib/test-utils/
-  lib/text-class/
-  lib/ui/
-  lib/unit/
-  lib/wai-middleware-logging/
-  lib/wallet-benchmarks/
-  lib/wallet/
+  lib/std-gen-seed
+  lib/temporary-extra
+  lib/test-utils
+  lib/text-class
+  lib/ui
+  lib/unit
+  lib/wai-middleware-logging
+  lib/wallet
+  lib/wallet-benchmarks
 
 --------------------------------------------------------------------------------
 -- BEGIN OpenAPI
@@ -297,6 +298,9 @@ package wai-middleware-logging
   tests: True
 
 package cardano-wallet-ui
+  tests: True
+
+package cardano-wallet-application-tls
   tests: True
 
 -- Now disable all other tests with a global flag.
