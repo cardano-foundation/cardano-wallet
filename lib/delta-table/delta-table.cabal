@@ -10,22 +10,18 @@ author:             Cardano Foundation (High Assurance Lab)
 maintainer:         hal@cardanofoundation.org
 copyright:          2023-2024 Cardano Foundation
 category:           Database
-
-extra-source-files:
-    README.md
+extra-source-files: README.md
 
 common language
-  default-language:
-    Haskell2010
+  default-language:   Haskell2010
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
 
 common opts-lib
   ghc-options:
-    -Wall -Wcompat
-    -Wredundant-constraints
-    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -43,40 +39,40 @@ library
   import:          language, opts-lib
   hs-source-dirs:  src
   build-depends:
-      base
+    , base
     , bytestring
     , containers
     , delta-store
     , delta-types
     , io-classes
-    , Only == 0.1
+    , Only           ==0.1
     , sqlite-simple
     , text
     , transformers
-  hs-source-dirs:
-      src
+
+  hs-source-dirs:  src
   exposed-modules:
-      Data.Table
-      Database.Table
-      Database.Table.SQLite.Simple
-      Demo.Database
+    Data.Table
+    Database.Table
+    Database.Table.SQLite.Simple
+    Demo.Database
+
   other-modules:
-      Database.Table.Schema
-      Database.Table.SQL.Column
-      Database.Table.SQL.Expr
-      Database.Table.SQL.Stmt
-      Database.Table.SQL.Table
-      Database.Table.SQL.Var
-      Database.Table.SQLite.Simple.Exec
-      Database.Table.SQLite.Simple.Monad
+    Database.Table.Schema
+    Database.Table.SQL.Column
+    Database.Table.SQL.Expr
+    Database.Table.SQL.Stmt
+    Database.Table.SQL.Table
+    Database.Table.SQL.Var
+    Database.Table.SQLite.Simple.Exec
+    Database.Table.SQLite.Simple.Monad
 
 test-suite unit
   import:             language, opts-exe
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test/unit
   main-is:            Main.hs
-  build-tool-depends:
-      hspec-discover:hspec-discover
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:
-      base
+    , base
     , hspec

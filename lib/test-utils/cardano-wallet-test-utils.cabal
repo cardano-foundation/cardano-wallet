@@ -1,53 +1,51 @@
-name:                cardano-wallet-test-utils
-version:             0.2025.3.4
-synopsis:            Shared utilities for writing unit and property tests.
-description:         Shared utilities for writing unit and property tests.
-homepage:            https://github.com/cardano-foundation/cardano-wallet
-author:              Cardano Foundation (High Assurance Lab)
-maintainer:          hal@cardanofoundation.org
-copyright:           2018-2020 IOHK
-license:             Apache-2.0
-category:            Web
-build-type:          Simple
-cabal-version:       >=1.10
+name:          cardano-wallet-test-utils
+version:       0.2025.3.4
+synopsis:      Shared utilities for writing unit and property tests.
+description:   Shared utilities for writing unit and property tests.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2020 IOHK
+license:       Apache-2.0
+category:      Web
+build-type:    Simple
+cabal-version: >=1.10
 
 flag release
-    description: Enable optimization and `-Werror`
-    default: False
-    manual: True
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 library
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wredundant-constraints
-      -Wcompat
-  if (flag(release))
-    ghc-options:
-      -Werror
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -Wall -Wredundant-constraints -Wcompat
+
+  if flag(release)
+    ghc-options: -Werror
+
   build-depends:
-      base
-    , aeson
+      aeson
+    , base
     , containers
     , contra-tracer
-    , filepath
-    , file-embed
-    , formatting
-    , hspec
     , either
+    , file-embed
+    , filepath
     , fmt
+    , formatting
     , generics-sop
+    , hspec
     , hspec-core
     , hspec-expectations
     , hspec-golden-aeson
     , http-api-data
     , HUnit
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
     , int-cast
+    , iohk-monitoring       >=0.2.0.0 && <0.3
     , lattices
     , monoid-subclasses
     , optparse-applicative
@@ -63,63 +61,60 @@ library
     , unliftio-core
     , wai-app-static
     , warp
-  hs-source-dirs:
-      src
+
+  hs-source-dirs:     src
   exposed-modules:
-      Test.Hspec.Extra
-      Test.Hspec.Goldens
-      Test.QuickCheck.Extra
-      Test.Utils.Env
-      Test.Utils.FilePath
-      Test.Utils.Laws
-      Test.Utils.Laws.PartialOrd
-      Test.Utils.Paths
-      Test.Utils.Pretty
-      Test.Utils.Roundtrip
-      Test.Utils.Resource
-      Test.Utils.Platform
-      Test.Utils.Startup
-      Test.Utils.StaticServer
-      Test.Utils.Time
-      Test.Utils.Trace
+    Test.Hspec.Extra
+    Test.Hspec.Goldens
+    Test.QuickCheck.Extra
+    Test.Utils.Env
+    Test.Utils.FilePath
+    Test.Utils.Laws
+    Test.Utils.Laws.PartialOrd
+    Test.Utils.Paths
+    Test.Utils.Platform
+    Test.Utils.Pretty
+    Test.Utils.Resource
+    Test.Utils.Roundtrip
+    Test.Utils.Startup
+    Test.Utils.StaticServer
+    Test.Utils.Time
+    Test.Utils.Trace
 
 test-suite unit
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -threaded -rtsopts -Wall
+
+  if flag(release)
     ghc-options: -O2 -Werror
+
   build-depends:
       base
     , cardano-wallet-test-utils
     , containers
     , extra
     , fmt
+    , generic-lens
+    , generics-sop
     , hspec
     , hspec-core
     , hspec-expectations-lifted
-    , generic-lens
-    , generics-sop
     , lattices
     , monoid-subclasses
+    , QuickCheck
     , safe
     , silently
-    , QuickCheck
     , unliftio
     , unliftio-core
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      test
-  main-is:
-      test-utils-unit-test.hs
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            test-utils-unit-test.hs
   other-modules:
-      Test.Hspec.ExtraSpec
-      Test.QuickCheck.ExtraSpec
+    Test.Hspec.ExtraSpec
+    Test.QuickCheck.ExtraSpec

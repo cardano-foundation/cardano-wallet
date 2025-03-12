@@ -1,16 +1,15 @@
-cabal-version:      3.6
-name:               cardano-wallet-api
-version:            0.2025.3.4
-synopsis:           Cardano wallet http api.
-description:        Please see README.md
-homepage:           https://github.com/cardano-foundation/cardano-wallet
-author:             Cardano Foundation (High Assurance Lab)
-maintainer:         hal@cardanofoundation.org
-copyright:          2018-2022 IOHK, 2024 Cardano Foundation
-license:            Apache-2.0
-category:           Web
-build-type:         Simple
-
+cabal-version: 3.6
+name:          cardano-wallet-api
+version:       0.2025.3.4
+synopsis:      Cardano wallet http api.
+description:   Please see README.md
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2024 Cardano Foundation
+license:       Apache-2.0
+category:      Web
+build-type:    Simple
 
 common language
   default-language:   Haskell2010
@@ -40,13 +39,15 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-api:{cardano-api, internal} >= 10.1.0.0 && < 10.2
-    , cardano-balance-tx:{cardano-balance-tx, internal}
-    , cardano-binary >= 1.7.1.0 && < 1.8
-    , cardano-crypto >= 1.1.2 && < 1.2
-    , cardano-ledger-api >= 1.9.4.0 && < 1.10
-    , cardano-ledger-core >= 1.15.0.0 && < 1.16
+    , cardano-addresses             >=3.12.0   && <3.13
+    , cardano-api                   >=10.1.0.0 && <10.2
+    , cardano-api:internal
+    , cardano-balance-tx
+    , cardano-balance-tx:internal
+    , cardano-binary                >=1.7.1.0  && <1.8
+    , cardano-crypto                >=1.1.2    && <1.2
+    , cardano-ledger-api            >=1.9.4.0  && <1.10
+    , cardano-ledger-core           >=1.15.0.0 && <1.16
     , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
@@ -67,7 +68,7 @@ library
     , http-media
     , http-types
     , int-cast
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring               >=0.2.0.0  && <0.3
     , memory
     , mtl
     , network-uri
@@ -125,5 +126,5 @@ library
     Cardano.Wallet.Api.Types.Transaction
     Cardano.Wallet.Api.Types.WalletAsset
     Cardano.Wallet.Api.Types.WalletAssets
-  other-modules:
-    Paths_cardano_wallet_api
+
+  other-modules:   Paths_cardano_wallet_api

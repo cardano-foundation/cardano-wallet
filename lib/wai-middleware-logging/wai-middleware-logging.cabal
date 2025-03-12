@@ -39,6 +39,7 @@ library
   exposed-modules:
     Network.Wai.Middleware.Logging
     Network.Wai.Middleware.ServerError
+
   build-depends:
     , aeson
     , base
@@ -46,7 +47,7 @@ library
     , bytestring
     , contra-tracer
     , http-types
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring       >=0.2.0.0 && <0.3
     , servant-server
     , text
     , text-class
@@ -73,7 +74,7 @@ test-suite unit
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring            >=0.2.0.0 && <0.3
     , network
     , QuickCheck
     , servant-server

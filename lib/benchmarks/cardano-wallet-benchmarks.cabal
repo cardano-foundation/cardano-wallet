@@ -49,14 +49,14 @@ library
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
     , cassava
+    , Chart
+    , Chart-diagrams
     , comonad
     , containers
-    , diagrams-lib
-    , diagrams-rasterific
-    , Chart-diagrams
-    , Chart
     , criterion-measurement
     , deepseq
+    , diagrams-lib
+    , diagrams-rasterific
     , directory
     , extra
     , filepath
@@ -66,7 +66,7 @@ library
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                       >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
     , JuicyPixels
     , local-cluster
@@ -90,9 +90,9 @@ library
     , with-utf8
 
   exposed-modules:
+    Cardano.Wallet.Benchmarks.Charting
     Cardano.Wallet.Benchmarks.Collect
     Cardano.Wallet.Benchmarks.History
-    Cardano.Wallet.Benchmarks.Charting
     Cardano.Wallet.Benchmarks.Latency.BenchM
     Cardano.Wallet.Benchmarks.Latency.Measure
     Cardano.Wallet.BenchShared
@@ -107,7 +107,7 @@ benchmark restore
     , aeson
     , base
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-addresses             >=3.12.0  && <3.13
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
@@ -122,7 +122,7 @@ benchmark restore
     , crypto-primitives
     , filepath
     , fmt
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring               >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
     , optparse-applicative
     , say
@@ -140,12 +140,12 @@ benchmark latency
   build-depends:
     , aeson
     , base
-    , cardano-addresses >= 3.12.0 && < 3.13
+    , cardano-addresses                     >=3.12.0  && <3.13
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
-    , cardano-wallet-application:shelley
     , cardano-wallet-application-extras
+    , cardano-wallet-application:shelley
     , cardano-wallet-benchmarks
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher
@@ -161,7 +161,7 @@ benchmark latency
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                       >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
     , local-cluster
     , mtl
@@ -186,9 +186,9 @@ benchmark db
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-api >= 10.1.0.0 && < 10.2
-    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-addresses                >=3.12.0   && <3.13
+    , cardano-api                      >=10.1.0.0 && <10.2
+    , cardano-crypto                   >=1.1.2    && <1.2
     , cardano-wallet
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
@@ -208,7 +208,7 @@ benchmark db
     , filepath
     , fmt
     , foldl
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                  >=0.2.0.0  && <0.3
     , iohk-monitoring-extra
     , memory
     , mtl
@@ -229,7 +229,7 @@ benchmark api
     , aeson
     , base
     , bytestring
-    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-api                      >=10.1.0.0 && <10.2
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
@@ -241,7 +241,7 @@ benchmark api
     , containers
     , filepath
     , fmt
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                  >=0.2.0.0  && <0.3
     , iohk-monitoring-extra
     , mtl
     , say
@@ -282,8 +282,8 @@ executable benchmark-history
     , containers
     , contra-tracer
     , directory
-    , filepath
     , exceptions
+    , filepath
     , foldl
     , http-client
     , http-client-tls

@@ -1,33 +1,31 @@
-name:                delta-store
-version:             0.2025.3.4
-synopsis:            Facility for storing a Haskell value, using delta types.
-homepage:            https://github.com/cardano-foundation/cardano-wallet
-author:              Cardano Foundation (High Assurance Lab)
-maintainer:          hal@cardanofoundation.org
-copyright:           2021 IOHK
-license:             Apache-2.0
-category:            Web
-build-type:          Simple
-cabal-version:       >=1.10
+name:          delta-store
+version:       0.2025.3.4
+synopsis:      Facility for storing a Haskell value, using delta types.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2021 IOHK
+license:       Apache-2.0
+category:      Web
+build-type:    Simple
+cabal-version: >=1.10
 
 flag release
-    description: Enable optimization and `-Werror`
-    default: False
-    manual: True
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 library
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
-  if (flag(release))
-    ghc-options:
-      -Werror
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
+    ghc-options: -Werror
+
   build-depends:
       base
     , delta-types
@@ -36,39 +34,35 @@ library
     , mtl
     , QuickCheck
     , transformers
-  hs-source-dirs:
-      src
+
+  hs-source-dirs:     src
   exposed-modules:
-      Data.DBVar
-      Data.Delta.Update
-      Data.Store
-      Test.Store
+    Data.DBVar
+    Data.Delta.Update
+    Data.Store
+    Test.Store
 
 test-suite unit
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -threaded -rtsopts -Wall
+
+  if flag(release)
     ghc-options: -O2 -Werror
+
   build-depends:
       base
-    , hspec
-    , QuickCheck
-    , fmt
     , delta-store
     , delta-types
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      test/unit
-  main-is:
-      Main.hs
-  other-modules:
-      Data.StoreSpec
+    , fmt
+    , hspec
+    , QuickCheck
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            Main.hs
+  other-modules:      Data.StoreSpec

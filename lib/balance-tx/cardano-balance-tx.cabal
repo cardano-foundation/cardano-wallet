@@ -1,15 +1,15 @@
-cabal-version:      3.0
-name:               cardano-balance-tx
-version:            0.2025.3.4
-synopsis:           Balancing transactions for the Cardano blockchain.
-description:        Please see README.md.
-homepage:           https://github.com/cardano-foundation/cardano-wallet
-author:             Cardano Foundation (High Assurance Lab)
-maintainer:         hal@cardanofoundation.org
-copyright:          2018-2022 IOHK, 2023 Cardano Foundation
-license:            Apache-2.0
-category:           Blockchain, Cardano, Transactions
-build-type:         Simple
+cabal-version: 3.0
+name:          cardano-balance-tx
+version:       0.2025.3.4
+synopsis:      Balancing transactions for the Cardano blockchain.
+description:   Please see README.md.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2023 Cardano Foundation
+license:       Apache-2.0
+category:      Blockchain, Cardano, Transactions
+build-type:    Simple
 
 common language
   default-language:   Haskell2010
@@ -39,7 +39,8 @@ library
   hs-source-dirs:  lib/main
   build-depends:
     , cardano-balance-tx:internal
-    , cardano-ledger-api >= 1.9.4.0 && < 1.10
+    , cardano-ledger-api           >=1.9.4.0 && <1.10
+
   exposed-modules:
     Cardano.Write.Eras
     Cardano.Write.Tx
@@ -49,44 +50,45 @@ library internal
   hs-source-dirs:  lib/internal
   visibility:      public
   build-depends:
-    , base >= 4.14 && < 5
-    , bytestring >= 0.10.6 && < 0.13
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-api >= 10.1.0.0 && < 10.2
+    , base                         >=4.14     && <5
+    , bytestring                   >=0.10.6   && <0.13
+    , cardano-addresses            >=3.12.0   && <3.13
+    , cardano-api                  >=10.1.0.0 && <10.2
     , cardano-coin-selection
-    , cardano-crypto-class >= 2.1.5.0 && < 2.2
-    , cardano-ledger-allegra >= 1.6.0.1 && < 1.7
-    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
-    , cardano-ledger-api >= 1.9.4.0 && < 1.10
-    , cardano-ledger-babbage >= 1.10.0.0 && < 1.11
+    , cardano-crypto-class         >=2.1.5.0  && <2.2
+    , cardano-ledger-allegra       >=1.6.0.1  && <1.7
+    , cardano-ledger-alonzo        >=1.11.0.0 && <1.12
+    , cardano-ledger-api           >=1.9.4.0  && <1.10
+    , cardano-ledger-babbage       >=1.10.0.0 && <1.11
     , cardano-ledger-binary
-    , cardano-ledger-conway >= 1.17.3.0 && < 1.18
-    , cardano-ledger-core >= 1.15.0.0 && < 1.16
-    , cardano-ledger-mary >= 1.7.0.1 && < 1.8
-    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
-    , cardano-slotting >= 0.2.0.0 && < 0.3
-    , cardano-strict-containers >= 0.1.3.0 && < 0.2
+    , cardano-ledger-conway        >=1.17.3.0 && <1.18
+    , cardano-ledger-core          >=1.15.0.0 && <1.16
+    , cardano-ledger-mary          >=1.7.0.1  && <1.8
+    , cardano-ledger-shelley       >=1.14.1.0 && <1.15
+    , cardano-slotting             >=0.2.0.0  && <0.3
+    , cardano-strict-containers    >=0.1.3.0  && <0.2
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
-    , cborg >= 0.2.1 && <0.3
-    , containers >= 0.5 && < 0.8
-    , deepseq >= 1.4.4 && < 1.6
-    , fmt >= 0.6.3 && < 0.7
-    , generic-lens >= 2.2.2.0 && < 2.3
-    , groups >= 0.5.3 && < 0.6
-    , int-cast >= 0.2.0.0 && < 0.3
-    , lens >= 5.2.3 && < 5.4
-    , MonadRandom >= 0.6 && < 0.7
-    , monoid-subclasses >= 1.2.5.1 && < 1.3
-    , nonempty-containers >= 0.3.4.5 && < 0.4
-    , ouroboros-consensus >= 0.21.0.0 && < 0.22
-    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
-    , pretty-simple >= 4.1.2.0 && < 4.2
-    , QuickCheck >= 2.14 && <= 2.16
-    , serialise >= 0.2.6.1 && < 0.3
+    , cborg                        >=0.2.1    && <0.3
+    , containers                   >=0.5      && <0.8
+    , deepseq                      >=1.4.4    && <1.6
+    , fmt                          >=0.6.3    && <0.7
+    , generic-lens                 >=2.2.2.0  && <2.3
+    , groups                       >=0.5.3    && <0.6
+    , int-cast                     >=0.2.0.0  && <0.3
+    , lens                         >=5.2.3    && <5.4
+    , MonadRandom                  >=0.6      && <0.7
+    , monoid-subclasses            >=1.2.5.1  && <1.3
+    , nonempty-containers          >=0.3.4.5  && <0.4
+    , ouroboros-consensus          >=0.21.0.0 && <0.22
+    , ouroboros-consensus-cardano  >=0.20.0.0 && <0.21
+    , pretty-simple                >=4.1.2.0  && <4.2
+    , QuickCheck                   >=2.14     && <2.16.0
+    , serialise                    >=0.2.6.1  && <0.3
     , std-gen-seed
-    , text >= 1.2 && < 2.2
-    , transformers >= 0.6.1.0 && < 0.7
+    , text                         >=1.2      && <2.2
+    , transformers                 >=0.6.1.0  && <0.7
+
   exposed-modules:
     Internal.Cardano.Write.Eras
     Internal.Cardano.Write.Tx
@@ -113,59 +115,61 @@ test-suite test
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-addresses               >=3.12.0    && <3.13
+    , cardano-api                     >=10.1.0.0  && <10.2
     , cardano-api-extra
     , cardano-balance-tx:internal
-    , cardano-binary >= 1.7.1.0 && < 1.8
+    , cardano-binary                  >=1.7.1.0   && <1.8
     , cardano-coin-selection
-    , cardano-crypto >= 1.1.2 && < 1.2
-    , cardano-crypto-class >= 2.1.5.0 && < 2.2
-    , cardano-crypto-wrapper == 1.5.1.3
-    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
-    , cardano-ledger-alonzo-test >= 1.3.0.0 && < 1.4
-    , cardano-ledger-api >= 1.9.4.0 && < 1.10
-    , cardano-ledger-babbage:{cardano-ledger-babbage, testlib} >= 1.10.0.0 && < 1.11
-    , cardano-ledger-byron >= 1.0.1.0 && < 1.1
-    , cardano-ledger-conway >= 1.17.3.0 && < 1.18
-    , cardano-ledger-conway:testlib >= 1.17.3.0 && < 1.18
-    , cardano-ledger-core >= 1.15.0.0 && < 1.16
-    , cardano-ledger-mary:testlib >= 1.7.0.1 && < 1.8
-    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
+    , cardano-crypto                  >=1.1.2     && <1.2
+    , cardano-crypto-class            >=2.1.5.0   && <2.2
+    , cardano-crypto-wrapper          ==1.5.1.3
+    , cardano-ledger-alonzo           >=1.11.0.0  && <1.12
+    , cardano-ledger-alonzo-test      >=1.3.0.0   && <1.4
+    , cardano-ledger-api              >=1.9.4.0   && <1.10
+    , cardano-ledger-babbage          >=1.10.0.0  && <1.11
+    , cardano-ledger-babbage:testlib
+    , cardano-ledger-byron            >=1.0.1.0   && <1.1
+    , cardano-ledger-conway           >=1.17.3.0  && <1.18
+    , cardano-ledger-conway:testlib
+    , cardano-ledger-core             >=1.15.0.0  && <1.16
+    , cardano-ledger-mary:testlib     >=1.7.0.1   && <1.8
+    , cardano-ledger-shelley          >=1.14.1.0  && <1.15
     , cardano-numeric
-    , cardano-slotting >= 0.2.0.0 && < 0.3
-    , cardano-strict-containers >= 0.1.3.0 && < 0.2
+    , cardano-slotting                >=0.2.0.0   && <0.3
+    , cardano-strict-containers       >=0.1.3.0   && <0.2
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
     , cborg
     , containers
-    , data-default >= 0.7.1.1 && < 0.8
-    , directory >= 1.3.8 && < 1.4
-    , filepath >= 1.4.300.1 && < 1.6
-    , fmt >= 0.6.3.0 && < 0.7
+    , data-default                    >=0.7.1.1   && <0.8
+    , directory                       >=1.3.8     && <1.4
+    , filepath                        >=1.4.300.1 && <1.6
+    , fmt                             >=0.6.3.0   && <0.7
     , generic-lens
-    , generics-sop >= 0.5.1.4 && < 0.6
+    , generics-sop                    >=0.5.1.4   && <0.6
     , groups
-    , hspec >= 2.11.0 && < 2.12
+    , hspec                           >=2.11.0    && <2.12
     , hspec-core
-    , hspec-golden >= 0.2.2 && < 0.3
+    , hspec-golden                    >=0.2.2     && <0.3
     , int-cast
     , lens
     , MonadRandom
     , monoid-subclasses
     , nonempty-containers
-    , ouroboros-consensus >= 0.21.0.0 && < 0.22
-    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
-    , ouroboros-network-api >= 0.10.0.0 && < 0.11
-    , QuickCheck >= 2.14 && < 2.16
-    , quickcheck-classes >= 0.6.5 && < 0.7
-    , sop-extras >= 0.2.1 && < 0.3
+    , ouroboros-consensus             >=0.21.0.0  && <0.22
+    , ouroboros-consensus-cardano     >=0.20.0.0  && <0.21
+    , ouroboros-network-api           >=0.10.0.0  && <0.11
+    , QuickCheck                      >=2.14      && <2.16
+    , quickcheck-classes              >=0.6.5     && <0.7
+    , sop-extras                      >=0.2.1     && <0.3
     , std-gen-seed
     , text
-    , time >= 1.12.2 && < 1.15
+    , time                            >=1.12.2    && <1.15
     , transformers
-    , with-utf8 >= 1.1.0 && < 1.2 
+    , with-utf8                       >=1.1.0     && <1.2
+
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Internal.Cardano.Write.Tx.Balance.CoinSelectionSpec

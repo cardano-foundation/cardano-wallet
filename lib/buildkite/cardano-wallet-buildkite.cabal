@@ -73,5 +73,5 @@ executable delete-logs
     , cardano-wallet-buildkite
     , contra-tracer
     , optparse-applicative
-    , text
     , streaming
+    , text

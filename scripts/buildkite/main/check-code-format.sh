@@ -26,4 +26,6 @@ echo "+++ Check code format: no trailing whitespace"
 
 find . -type f -name '*.hs' -exec sed -i -r 's/[[:space:]]*$//' {} +
 
+find lib -name '*.cabal' -exec cabal-fmt -i {} \;
+
 git diff --exit-code
