@@ -12,8 +12,8 @@ extra-doc-files: CHANGELOG.md
 library
   default-language:   Haskell2010
   default-extensions:
-    NoImplicitPrelude
     DerivingStrategies
+    NoImplicitPrelude
     OverloadedStrings
 
   ghc-options:

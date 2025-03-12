@@ -1,15 +1,15 @@
-cabal-version:      3.8
-name:               address-derivation-discovery
-version:            0.2025.3.4
-synopsis:           Address derivation and discovery.
-description:        Please see README.md.
-homepage:           https://github.com/cardano-foundation/cardano-wallet
-author:             Cardano Foundation (High Assurance Lab)
-maintainer:         hal@cardanofoundation.org
-copyright:          2018-2022 IOHK, 2023 Cardano Foundation
-license:            Apache-2.0
-category:           Blockchain, Cardano, Address, Derivation, Discovery
-build-type:         Simple
+cabal-version: 3.8
+name:          address-derivation-discovery
+version:       0.2025.3.4
+synopsis:      Address derivation and discovery.
+description:   Please see README.md.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2022 IOHK, 2023 Cardano Foundation
+license:       Apache-2.0
+category:      Blockchain, Cardano, Address, Derivation, Discovery
+build-type:    Simple
 
 common language
   default-language:   Haskell2010
@@ -38,7 +38,6 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
-
   build-depends:
     , aeson
     , base
@@ -47,14 +46,14 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-crypto >= 1.1.2 && < 1.2
-    , cardano-crypto-class >= 2.1.5.0 && < 2.2
-    , cardano-ledger-api >= 1.9.4.0 && < 1.10
-    , cardano-ledger-byron >= 1.0.1.0 && < 1.1
-    , cardano-ledger-core >= 1.15.0.0 && < 1.16
-    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
-    , cardano-slotting >= 0.2.0.0 && < 0.3
+    , cardano-addresses            >=3.12.0   && <3.13
+    , cardano-crypto               >=1.1.2    && <1.2
+    , cardano-crypto-class         >=2.1.5.0  && <2.2
+    , cardano-ledger-api           >=1.9.4.0  && <1.10
+    , cardano-ledger-byron         >=1.0.1.0  && <1.1
+    , cardano-ledger-core          >=1.15.0.0 && <1.16
+    , cardano-ledger-shelley       >=1.14.1.0 && <1.15
+    , cardano-slotting             >=0.2.0.0  && <0.3
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cborg
@@ -69,7 +68,7 @@ library
     , int-cast
     , lens
     , memory
-    , ouroboros-consensus-cardano >= 0.20.0.0 && < 0.21
+    , ouroboros-consensus-cardano  >=0.20.0.0 && <0.21
     , QuickCheck
     , quiet
     , random

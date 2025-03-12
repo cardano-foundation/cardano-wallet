@@ -1,38 +1,37 @@
-cabal-version:       2.2
-name:                delta-types
-version:             1.0.0.0
-synopsis:            Delta types, also known as change actions.
+cabal-version:   2.2
+name:            delta-types
+version:         1.0.0.0
+synopsis:        Delta types, also known as change actions.
 description:
-    A __delta type__ @da@ for a __base type__ @a@ is a collection
-    of values, each of which corresponds to a change @a → a@ of the base type.
-    .
-    See also
-    .
-    * [Delta encodings help separate business logic from database operations](https://bobkonf.de/2023/apfelmus.html)
-    .
-    * [Fixing Incremental Computation: Derivatives of Fixpoints, and the Recursive Semantics of Datalog](http://arxiv.org/abs/1811.06069)
-      (Here, the concept of a delta type is called a __change action__.)
-homepage:            https://github.com/cardano-foundation/cardano-wallet
-license:             Apache-2.0
-license-file:        LICENSE
-author:              Cardano Foundation (High Assurance Lab)
-maintainer:          hal@cardanofoundation.org
-copyright:           2021-2023 IOHK, 2024-2025 Cardano Foundation
-category:            Data Structures
-build-type:          Simple
-tested-with:
-    GHC == 9.6.6
+  A __delta type__ @da@ for a __base type__ @a@ is a collection
+  of values, each of which corresponds to a change @a → a@ of the base type.
+  .
+  See also
+  .
+  * [Delta encodings help separate business logic from database operations](https://bobkonf.de/2023/apfelmus.html)
+  .
+  * [Fixing Incremental Computation: Derivatives of Fixpoints, and the Recursive Semantics of Datalog](http://arxiv.org/abs/1811.06069)
+  (Here, the concept of a delta type is called a __change action__.)
 
+homepage:        https://github.com/cardano-foundation/cardano-wallet
+license:         Apache-2.0
+license-file:    LICENSE
+author:          Cardano Foundation (High Assurance Lab)
+maintainer:      hal@cardanofoundation.org
+copyright:       2021-2023 IOHK, 2024-2025 Cardano Foundation
+category:        Data Structures
+build-type:      Simple
+tested-with:     GHC ==9.6.6
 extra-doc-files:
-  README.md
   CHANGELOG.md
+  README.md
 
 common language
-  default-language:
-    Haskell2010
+  default-language:   Haskell2010
   default-extensions:
     NoImplicitPrelude
     OverloadedStrings
+
   other-extensions:
     BangPatterns
     FlexibleContexts
@@ -46,9 +45,8 @@ common language
 
 common opts-lib
   ghc-options:
-    -Wall -Wcompat
-    -Wredundant-constraints
-    -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
 
   if flag(release)
     ghc-options: -O2 -Werror
@@ -63,12 +61,13 @@ flag release
   manual:      True
 
 library
-  import:           language, opts-lib
-  hs-source-dirs:   src
+  import:          language, opts-lib
+  hs-source-dirs:  src
   build-depends:
-    , base >= 4.14 && < 5
-    , containers >= 0.5 && < 0.8
-    , semigroupoids >= 6.0.1 && < 6.1
+    , base           >=4.14  && <5
+    , containers     >=0.5   && <0.8
+    , semigroupoids  >=6.0.1 && <6.1
+
   exposed-modules:
     Data.Delta
     Data.Delta.Core
@@ -79,13 +78,13 @@ library
     Data.Delta.Set
 
 test-suite unit
-  import:           language, opts-exe
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   test/unit
-  main-is:          Main.hs
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            Main.hs
   build-depends:
     , base
-    , hspec >= 2.11.0 && < 2.12
+    , hspec  >=2.11.0 && <2.12
+
   build-tool-depends: hspec-discover:hspec-discover
-  other-modules:
-    Data.DeltaSpec
+  other-modules:      Data.DeltaSpec

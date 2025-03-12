@@ -50,15 +50,15 @@ executable cardano-wallet
     , base
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-application-tls
     , cardano-wallet-application
+    , cardano-wallet-application-tls
     , cardano-wallet-application:shelley
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
-    , iohk-monitoring                 >=0.2.0.0 && <0.3
+    , iohk-monitoring                     >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
-    , lobemo-backend-ekg              >=0.2.0.0 && <0.3
+    , lobemo-backend-ekg                  >=0.2.0.0 && <0.3
     , network-uri
     , optparse-applicative
     , text
@@ -76,8 +76,8 @@ library shelley
     , base
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-application-tls
     , cardano-wallet-application
+    , cardano-wallet-application-tls
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-ui:common

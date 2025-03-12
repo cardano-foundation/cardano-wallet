@@ -1,64 +1,58 @@
-name:                cardano-numeric
-version:             2020.12.8
-synopsis:            Types and functions for performing numerical calculations.
-homepage:            https://github.com/cardano-foundation/cardano-wallet
-author:              Cardano Foundation (High Assurance Lab)
-maintainer:          hal@cardanofoundation.org
-copyright:           2018-2020 IOHK
-license:             Apache-2.0
-category:            Math
-build-type:          Simple
-cabal-version:       >=1.10
+name:          cardano-numeric
+version:       2020.12.8
+synopsis:      Types and functions for performing numerical calculations.
+homepage:      https://github.com/cardano-foundation/cardano-wallet
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+copyright:     2018-2020 IOHK
+license:       Apache-2.0
+category:      Math
+build-type:    Simple
+cabal-version: >=1.10
 
 flag release
-    description: Enable optimization and `-Werror`
-    default: False
-    manual: True
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
 
 library
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -Wall
-      -Wcompat
-      -fwarn-redundant-constraints
-  if (flag(release))
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -Wall -Wcompat -fwarn-redundant-constraints
+
+  if flag(release)
     ghc-options: -O2 -Werror
+
   build-depends:
       base
     , lattices
     , safe
-  hs-source-dirs:
-      src
-  exposed-modules:
-      Cardano.Numeric.Util
+
+  hs-source-dirs:     src
+  exposed-modules:    Cardano.Numeric.Util
 
 test-suite unit
-  default-language:
-      Haskell2010
+  default-language:   Haskell2010
   default-extensions:
-      NoImplicitPrelude
-      OverloadedStrings
-  ghc-options:
-      -threaded -rtsopts
-      -Wall
-  if (flag(release))
+    NoImplicitPrelude
+    OverloadedStrings
+
+  ghc-options:        -threaded -rtsopts -Wall
+
+  if flag(release)
     ghc-options: -O2 -Werror
+
   build-depends:
       base
     , cardano-numeric
     , hspec
     , QuickCheck
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      test/unit
-  main-is:
-      numeric-unit-test.hs
-  other-modules:
-      Cardano.Numeric.UtilSpec
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            numeric-unit-test.hs
+  other-modules:      Cardano.Numeric.UtilSpec

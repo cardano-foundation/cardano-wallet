@@ -11,8 +11,8 @@ build-type:    Simple
 library
   default-language:   Haskell2010
   default-extensions:
-    NoImplicitPrelude
     DerivingStrategies
+    NoImplicitPrelude
     OverloadedStrings
 
   ghc-options:
@@ -28,7 +28,7 @@ library
   exposed-modules:    System.IO.Temp.Extra
   build-depends:
     , base
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring        >=0.2.0.0 && <0.3
     , iohk-monitoring-extra
     , temporary
     , text

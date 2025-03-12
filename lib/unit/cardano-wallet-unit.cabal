@@ -44,7 +44,7 @@ library test-common
   build-depends:
     , base
     , bytestring
-    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-api                   >=10.1.0.0 && <10.2
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet
@@ -73,19 +73,19 @@ test-suite unit
     , bech32
     , bech32-th
     , bytestring
-    , cardano-addresses >= 3.12.0 && < 3.13
-    , cardano-api >= 10.1.0.0 && < 10.2
+    , cardano-addresses                   >=3.12.0   && <3.13
+    , cardano-api                         >=10.1.0.0 && <10.2
     , cardano-api-extra
-    , cardano-api:internal >= 10.1.0.0 && < 10.2
+    , cardano-api:internal
     , cardano-balance-tx
     , cardano-balance-tx:internal
-    , cardano-crypto >= 1.1.2 && < 1.2
-    , cardano-crypto-class >= 2.1.5.0 && < 2.2
-    , cardano-ledger-alonzo >= 1.11.0.0 && < 1.12
-    , cardano-ledger-babbage >= 1.10.0.0 && < 1.11
-    , cardano-ledger-core >= 1.15.0.0 && < 1.16
-    , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
-    , cardano-slotting >= 0.2.0.0 && < 0.3
+    , cardano-crypto                      >=1.1.2    && <1.2
+    , cardano-crypto-class                >=2.1.5.0  && <2.2
+    , cardano-ledger-alonzo               >=1.11.0.0 && <1.12
+    , cardano-ledger-babbage              >=1.10.0.0 && <1.11
+    , cardano-ledger-core                 >=1.15.0.0 && <1.16
+    , cardano-ledger-shelley              >=1.14.1.0 && <1.15
+    , cardano-slotting                    >=0.2.0.0  && <0.3
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
@@ -129,7 +129,7 @@ test-suite unit
     , int-cast
     , io-classes
     , io-sim
-    , iohk-monitoring >= 0.2.0.0 && < 0.3
+    , iohk-monitoring                     >=0.2.0.0  && <0.3
     , iohk-monitoring-extra
     , lattices
     , lens
@@ -145,9 +145,9 @@ test-suite unit
     , OddWord
     , openapi3
     , optparse-applicative
-    , ouroboros-consensus >= 0.21.0.0 && < 0.22
-    , ouroboros-network >= 0.17.1.2 && < 0.18
-    , ouroboros-network-api >= 0.10.0.0 && < 0.11
+    , ouroboros-consensus                 >=0.21.0.0 && <0.22
+    , ouroboros-network                   >=0.17.1.2 && <0.18
+    , ouroboros-network-api               >=0.10.0.0 && <0.11
     , pathtype
     , persistent
     , persistent-sqlite

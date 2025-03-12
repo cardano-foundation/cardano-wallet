@@ -1,11 +1,11 @@
-cabal-version:   3.0
-name:            std-gen-seed
-version:         0.2025.3.4
-synopsis:        Support for standard random number generator seeds
-license:         Apache-2.0
-author:          Cardano Foundation (High Assurance Lab)
-maintainer:      hal@cardanofoundation.org
-build-type:      Simple
+cabal-version: 3.0
+name:          std-gen-seed
+version:       0.2025.3.4
+synopsis:      Support for standard random number generator seeds
+license:       Apache-2.0
+author:        Cardano Foundation (High Assurance Lab)
+maintainer:    hal@cardanofoundation.org
+build-type:    Simple
 
 common language
   default-language:   Haskell2010
@@ -32,33 +32,28 @@ flag release
 
 library
   import:          language, opts-lib
-  exposed-modules:
-    System.Random.StdGenSeed
-  hs-source-dirs:     src
+  exposed-modules: System.Random.StdGenSeed
+  hs-source-dirs:  src
   build-depends:
     , base
-    , random
     , MonadRandom
     , OddWord
     , quiet
+    , random
     , splitmix
 
 test-suite unit
   import:             language, opts-exe
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   build-depends:
-      base
+    , base
     , hspec
     , QuickCheck
-    , std-gen-seed
     , random
-  build-tool-depends:
-      hspec-discover:hspec-discover
-  type:
-     exitcode-stdio-1.0
-  hs-source-dirs:
-      test/unit
-  main-is:
-      std-gen-seed-unit-test.hs
-  other-modules:
-      System.Random.StdGenSeedSpec
+    , std-gen-seed
+
+  build-tool-depends: hspec-discover:hspec-discover
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test/unit
+  main-is:            std-gen-seed-unit-test.hs
+  other-modules:      System.Random.StdGenSeedSpec

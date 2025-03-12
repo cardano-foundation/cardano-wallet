@@ -66,3 +66,5 @@ for update in "${updates[@]}"; do
     echo "$update $constraint"
     update_cabal_files "$update" "$constraint"
 done
+
+find lib -name '*.cabal' -exec cabal-fmt -i {} \;

@@ -26,8 +26,8 @@ flag release
   manual:      True
 
 library
-  import:             language
-  default-language:   Haskell2010
+  import:           language
+  default-language: Haskell2010
   ghc-options:
     -O2 -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
     -Wunused-foralls -Wunused-foralls -fprint-explicit-foralls
@@ -37,16 +37,18 @@ library
     -fwarn-unused-do-bind -fwarn-incomplete-uni-patterns
     -freverse-errors
 
-  hs-source-dirs:     src
-  exposed-modules:    Cryptography.Cipher.ChaChaPoly1305
-                      Cryptography.Cipher.AES256CBC
-                      Cryptography.Core
-                      Cryptography.ECC.Edwards25519
-                      Cryptography.Hash.Blake
-                      Cryptography.Hash.Core
-                      Cryptography.KDF.PBKDF2
-                      Cryptography.KDF.Scrypt
-                      Cryptography.Padding.PKCS7
+  hs-source-dirs:   src
+  exposed-modules:
+    Cryptography.Cipher.AES256CBC
+    Cryptography.Cipher.ChaChaPoly1305
+    Cryptography.Core
+    Cryptography.ECC.Edwards25519
+    Cryptography.Hash.Blake
+    Cryptography.Hash.Core
+    Cryptography.KDF.PBKDF2
+    Cryptography.KDF.Scrypt
+    Cryptography.Padding.PKCS7
+
   build-depends:
     , base
     , bytestring
@@ -74,6 +76,7 @@ test-suite test
     , QuickCheck
     , text
     , with-utf8
+
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Cryptography.Cipher.AES256CBCSpec
