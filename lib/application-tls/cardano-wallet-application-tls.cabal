@@ -47,3 +47,35 @@ library
     , x509-validation
 
   exposed-modules: Cardano.Wallet.Application.Tls
+
+test-suite unit
+  import:             language, opts-exe
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Main.hs
+  build-tool-depends: hspec-discover:hspec-discover
+  build-depends:
+    , base
+    , bytestring
+    , cardano-sl-x509
+    , cardano-wallet-application-tls
+    , cardano-wallet-test-utils
+    , connection
+    , data-default
+    , directory
+    , filepath
+    , hspec
+    , http-client
+    , http-client-tls
+    , http-types
+    , network
+    , streaming-commons
+    , tls
+    , unliftio
+    , wai
+    , warp
+    , warp-tls
+    , x509
+    , x509-store
+
+  other-modules:      Cardano.Wallet.Application.TlsSpec

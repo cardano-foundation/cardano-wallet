@@ -299,6 +299,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
               packages.cardano-wallet-unit.components.tests.unit = fullyStaticOptions;
               packages.cardano-wallet-benchmarks.components.benchmarks.db = fullyStaticOptions;
               packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
+              packages.cardano-wallet-application-tls.components.tests.unit = fullyStaticOptions;
 
               # Haddock not working for cross builds and is not needed anyway
               doHaddock = false;

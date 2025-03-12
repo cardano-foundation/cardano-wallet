@@ -300,6 +300,9 @@ package wai-middleware-logging
 package cardano-wallet-ui
   tests: True
 
+package cardano-wallet-application-tls
+  tests: True
+
 -- Now disable all other tests with a global flag.
 -- This is what they do in cardano-node/cabal.project.
 

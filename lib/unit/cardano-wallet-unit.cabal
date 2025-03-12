@@ -85,13 +85,11 @@ test-suite unit
     , cardano-ledger-babbage >= 1.10.0.0 && < 1.11
     , cardano-ledger-core >= 1.15.0.0 && < 1.16
     , cardano-ledger-shelley >= 1.14.1.0 && < 1.15
-    , cardano-sl-x509
     , cardano-slotting >= 0.2.0.0 && < 0.3
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
     , cardano-wallet-application-extras
-    , cardano-wallet-application-tls
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -211,7 +209,6 @@ test-suite unit
     Cardano.Wallet.Api.ServerSpec
     Cardano.Wallet.Api.TypesSpec
     Cardano.Wallet.ApiSpec
-    Cardano.Wallet.Application.TlsSpec
     Cardano.Wallet.Balance.Migration.PlanningSpec
     Cardano.Wallet.Balance.Migration.SelectionSpec
     Cardano.Wallet.Balance.MigrationSpec
