@@ -44,13 +44,13 @@ local-cluster:
 unit-tests-cabal-match match:
   LOCAL_CLUSTER_CONFIGS=../../lib/local-cluster/test/data/cluster-configs \
   cabal test \
+    cardano-wallet-application-tls:unit \
     cardano-balance-tx:test \
     cardano-numeric:unit \
     cardano-wallet-blackbox-benchmarks:unit \
     cardano-wallet-launcher:unit \
     cardano-wallet-network-layer:unit \
     cardano-wallet-primitive:test \
-    cardano-wallet-read:test \
     cardano-wallet-secrets:test \
     cardano-wallet-test-utils:unit \
     cardano-wallet-unit:unit \
@@ -59,7 +59,6 @@ unit-tests-cabal-match match:
     delta-table:unit \
     delta-types:unit \
     std-gen-seed:unit \
-    text-class:unit \
     wai-middleware-logging:unit \
     -O0 -v0 \
     --test-options '--match="{{match}}"'

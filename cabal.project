@@ -252,6 +252,9 @@ package delta-store
 package delta-types
   tests: True
 
+package delta-table
+  tests: True
+
 package cardano-balance-tx
   tests: True
 
@@ -301,6 +304,18 @@ package cardano-wallet-ui
   tests: True
 
 package cardano-wallet-application-tls
+  tests: True
+
+package cardano-wallet-blackbox-benchmarks
+  tests: True
+
+package cardano-wallet-secrets
+  tests: True
+
+package std-gen-seed
+  tests: True
+
+package text-class
   tests: True
 
 -- Now disable all other tests with a global flag.
