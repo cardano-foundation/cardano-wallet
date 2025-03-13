@@ -77,5 +77,6 @@ test-suite unit
     , warp-tls
     , x509
     , x509-store
+    , x509-system
 
   other-modules:      Cardano.Wallet.Application.TlsSpec
