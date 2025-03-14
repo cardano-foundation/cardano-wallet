@@ -131,7 +131,26 @@
 
       # Definitions
       supportedSystems = import ./nix/supported-systems.nix;
-
+      fix-crypton-x509 = final: prev:
+        let
+          old = prev.haskell-nix;
+          fix = { pkgs, buildModules, config, lib, ... }: {
+            packages = { } // pkgs.lib.optionalAttrs
+              (pkgs.stdenv.hostPlatform.isDarwin && !pkgs.stdenv.cc.nativeLibc) {
+                # Workaround for broken nixpkgs darwin.security_tool in
+                # Mojave. This mirrors the workaround in nixpkgs
+                # haskellPackages.
+                #
+                # ref:
+                # https://github.com/NixOS/nixpkgs/pull/47676
+                # https://github.com/NixOS/nixpkgs/issues/45042
+                crypton-x509-system.components.library.preBuild =
+                  "substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security";
+              };
+          };
+        in {
+          haskell-nix = old // { defaultModules = old.defaultModules ++ [ fix ]; };
+        };
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
         inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-application.components.exes) cardano-wallet;
@@ -167,6 +186,7 @@
               # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
               overlay
+              fix-crypton-x509
             ];
           };
 

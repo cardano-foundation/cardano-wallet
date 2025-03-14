@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.Application.TlsSpec
     ( spec
@@ -23,6 +22,7 @@ import Cardano.X509.Configuration
     )
 import Control.Monad
     ( unless
+    , void
     )
 import Data.ByteString.Lazy
     ( ByteString
@@ -80,6 +80,7 @@ import Network.TLS
     , Credentials (..)
     , Shared (..)
     , Supported (..)
+    , defaultParamsClient
     , noSessionManager
     )
 import Network.TLS.Extra.Cipher
@@ -100,6 +101,9 @@ import System.FilePath
 import System.IO
     ( hPutStrLn
     , stderr
+    )
+import System.X509
+    ( getSystemCertificateStore
     )
 import Test.Hspec
     ( Spec
@@ -129,6 +133,15 @@ import qualified Network.Wai.Handler.WarpTLS as Warp
 
 spec :: Spec
 spec = describe "TLS Client Authentication" $ do
+    it "Can create a TLS default manager" $ do
+        void $ newManager defaultManagerSettings
+
+    it "Check security program is available" $ do
+        void getSystemCertificateStore
+
+    it "Can create a TLS manager" $ do
+        void $ newManager $ mkManagerSettings def Nothing
+
     it "Respond to authenticated client if TLS is enabled" $ do
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" $ \(port, socket) -> do
@@ -245,25 +258,20 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
   where
     sockSettings = Nothing
     clientParams caChain credentials =
-        ClientParams
+        (defaultParamsClient "127.0.0.1" "")
             { clientUseMaxFragmentLength = Nothing
-            , clientServerIdentification = ("127.0.0.1", "")
             , clientUseServerNameIndication = True
             , clientWantSessionResume = Nothing
             , clientShared = clientShared caChain credentials
             , clientHooks = clientHooks credentials
             , clientSupported = clientSupported
-            , clientDebug = def
-            , clientEarlyData = def
             }
 
     clientShared caChain credentials =
-        Shared
+        def
             { sharedCredentials = Credentials [credentials]
             , sharedCAStore = makeCertificateStore caChain
             , sharedSessionManager = noSessionManager
-            , sharedValidationCache = def
-            , sharedHelloExtensions = def
             }
 
     clientHooks credentials =

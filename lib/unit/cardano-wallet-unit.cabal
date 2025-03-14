@@ -99,10 +99,10 @@ test-suite unit
     , cardano-wallet-unit:test-common
     , cardano-wallet:mock-token-metadata
     , cborg
-    , connection
     , containers
     , contra-tracer
     , crypto-primitives
+    , crypton-connection
     , data-default
     , data-interval
     , deepseq

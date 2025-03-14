@@ -38,15 +38,33 @@ library
   import:          language, opts-lib
   hs-source-dirs:  lib
   build-depends:
+    , aeson                    >=2
+    , asn1-encoding
+    , asn1-types
     , base
+    , base64-bytestring
+    , bytestring
+    , crypton
+    , crypton-x509
+    , crypton-x509-store
+    , crypton-x509-validation
     , data-default
+    , data-default-class
+    , directory
+    , exceptions
+    , filepath
+    , hourglass
+    , ip                       >=1.7.4
+    , text
     , tls
-    , warp-tls
-    , x509
-    , x509-store
-    , x509-validation
+    , warp-tls                 >=3.4.7
+    , wide-word
+    , yaml
 
-  exposed-modules: Cardano.Wallet.Application.Tls
+  exposed-modules:
+    Cardano.Wallet.Application.Tls
+    Cardano.X509.Configuration
+    Data.X509.Extra
 
 test-suite unit
   import:             language, opts-exe
@@ -57,10 +75,12 @@ test-suite unit
   build-depends:
     , base
     , bytestring
-    , cardano-sl-x509
     , cardano-wallet-application-tls
     , cardano-wallet-test-utils
-    , connection
+    , crypton-connection
+    , crypton-x509
+    , crypton-x509-store
+    , crypton-x509-system
     , data-default
     , directory
     , filepath
@@ -75,7 +95,5 @@ test-suite unit
     , wai
     , warp
     , warp-tls
-    , x509
-    , x509-store
 
   other-modules:      Cardano.Wallet.Application.TlsSpec
