@@ -92,6 +92,10 @@ add_missing_json_goldens:
 integration-tests-cabal-match match:
     just integration-tests-cabal-options '--match="{{match}}"'
 
+# with seed for reproducibility
+integration-tests-cabal-match-seed match seed:
+    just integration-tests-cabal-options '--match "{{match}}" --seed="{{seed}}"'
+
 # run any integration test matching the given pattern via cabal
 integration-tests-cabal-options options:
   TESTS_TRACING_MIN_SEVERITY=Warning \
