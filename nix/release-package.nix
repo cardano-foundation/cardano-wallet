@@ -12,6 +12,7 @@
 , exes
 , nodeConfigs
 , format
+, rewrite-libs ? null
 }:
 
 let
@@ -77,7 +78,7 @@ pkgs.stdenv.mkDerivation {
 
   '' + lib.optionalString isMacOS ''
     # Rewrite library paths to standard non-nix locations
-    ( cd $name; rewrite-libs . `ls -1 | grep -Fv .dylib`
+    ( cd $name; ${rewrite-libs} . `ls -1 | grep -Fv .dylib`
       for a in *; do /usr/bin/codesign -f -s - $a; done
     )
 
