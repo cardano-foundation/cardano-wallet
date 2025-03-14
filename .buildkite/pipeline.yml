@@ -81,7 +81,7 @@ steps:
 
 
   - group: Linux Checks
-    if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
+    # if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
     key: linux-tests
     depends_on:
       - linux-artifacts
