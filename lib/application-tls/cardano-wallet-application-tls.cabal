@@ -80,6 +80,7 @@ test-suite unit
     , crypton-connection
     , crypton-x509
     , crypton-x509-store
+    , crypton-x509-system
     , data-default
     , directory
     , filepath

@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Cardano.Wallet.Application.TlsSpec
     ( spec
@@ -23,6 +22,7 @@ import Cardano.X509.Configuration
     )
 import Control.Monad
     ( unless
+    , void
     )
 import Data.ByteString.Lazy
     ( ByteString
@@ -102,6 +102,9 @@ import System.IO
     ( hPutStrLn
     , stderr
     )
+import System.X509
+    ( getSystemCertificateStore
+    )
 import Test.Hspec
     ( Spec
     , describe
@@ -130,6 +133,15 @@ import qualified Network.Wai.Handler.WarpTLS as Warp
 
 spec :: Spec
 spec = describe "TLS Client Authentication" $ do
+    it "Can create a TLS default manager" $ do
+        void $ newManager defaultManagerSettings
+
+    it "Check security program is available" $ do
+        void getSystemCertificateStore
+
+    it "Can create a TLS manager" $ do
+        void $ newManager $ mkManagerSettings def Nothing
+
     it "Respond to authenticated client if TLS is enabled" $ do
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" $ \(port, socket) -> do
