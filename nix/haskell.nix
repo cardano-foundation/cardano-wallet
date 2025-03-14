@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: rewrite-libs: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -63,8 +63,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
       # '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
-        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
-        rewrite-libs $out/bin $out/bin/*
+        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ binutils nix ])}
+        ${rewrite-libs} $out/bin $out/bin/*
       '';
 
       stripBinariesPostInstall = lib.optionalString stdenv.hostPlatform.isLinux ''
@@ -98,7 +98,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
 
       # this is a local variable, it controls only the index-state of the
       # tools
-      indexState = "2024-08-20T21:35:22Z";
+      indexState = "2025-01-01T23:24:19Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 

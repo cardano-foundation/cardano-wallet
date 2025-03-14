@@ -2,7 +2,7 @@ agents:
   queue: cardano-wallet
 
 env:
-  LC_ALL: "C.UTF-8"
+  LC_ALL: "en_US.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
   STATE_DIR: "/var/lib/buildkite-agent/cache"
   STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
