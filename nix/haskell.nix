@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-libs: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -57,8 +57,8 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: haskell-n
         '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
-        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
-        rewrite-libs $out/bin $out/bin/*
+        export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ binutils nix ])}
+        ${rewrite-libs}/bin/rewrite-libs $out/bin $out/bin/*
       '';
 
       stripBinariesPostInstall = lib.optionalString stdenv.hostPlatform.isLinux ''
