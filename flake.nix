@@ -176,11 +176,9 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
-              iohkNix.overlays.utils
               iohkNix.overlays.crypto
               iohkNix.overlays.cardano-lib
               haskellNix.overlay
-              iohkNix.overlays.haskell-nix-extra
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
@@ -218,6 +216,7 @@
               nodePackages
               mithrilPackages
               set-git-rev.packages.default
+              rewrite-libs.packages.default
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -310,7 +309,10 @@
               installPhase = "echo $nativeBuildInputs > $out";
             };
           };
-
+          rewrite-libs = import ./nix/rewrite-libs/rewrite-libs.nix {
+            inherit system;
+            inherit nixpkgs flake-utils haskellNix;
+          };
           # One ${system} can cross-compile artifacts for other platforms.
           mkReleaseArtifacts = project:
             let # compiling with musl gives us a statically linked executable
@@ -343,7 +345,7 @@
                 let
                   # windows is cross-compiled from linux
                   windowsPackages =
-                    mkPackages project.projectCross.mingwW64 // {
+                    mkPackages project.projectCross.ucrt64 // {
                       cardano-cli =
                         cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
                       cardano-node =
@@ -389,6 +391,7 @@
                   ];
                   platform = "macos-intel";
                   format = "tar.gz";
+                  rewrite-libs = rewrite-libs.packages.default;
                 };
               };
               macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
@@ -404,6 +407,7 @@
                   ];
                   platform = "macos-silicon";
                   format = "tar.gz";
+                  rewrite-libs = rewrite-libs.packages.default;
                 };
               };
             };
