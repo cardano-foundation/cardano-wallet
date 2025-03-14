@@ -116,7 +116,7 @@ steps:
           mkdir integration-test-dir
           export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
           export INTEGRATION_TEST_DIR=integration-test-dir
-          nix shell 'nixpkgs#just' -c just conway-integration-tests
+          nix shell 'nixpkgs#just' -c just conway-integration-tests 6
       artifact_paths: [ "./integration-test-dir/**" ]
       agents:
         system: ${linux}
@@ -498,7 +498,7 @@ steps:
     - label: Run Integration Tests (macOS)
       key: macos-tests-integration
       depends_on: macos-integration-tests-block
-      command: nix shell 'nixpkgs#just' -c just conway-integration-tests
+      command: nix shell 'nixpkgs#just' -c just conway-integration-tests 2
       agents:
         system: ${macos}
         queue: "cardano-wallet"

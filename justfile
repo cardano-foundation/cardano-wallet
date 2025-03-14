@@ -125,16 +125,15 @@ babbage-integration-tests-cabal:
 conway-integration-tests-cabal:
   just conway-integration-tests-cabal-match ""
 
-
 # run any integration test matching the given pattern via nix
-integration-tests match:
+integration-tests j match:
   CARDANO_WALLET_TEST_DATA=lib/integration/test/data \
   TESTS_RETRY_FAILED=1 \
   nix shell \
     '.#cardano-wallet' \
     '.#local-cluster' \
     '.#integration-exe' \
-    -c integration-exe -j 6 --match="{{match}}"
+    -c integration-exe -j "{{j}}" --match="{{match}}"
 
 node:
   nix shell \
@@ -142,33 +141,21 @@ node:
   'github:IntersectMBO/cardano-node?ref=10.1.4#cardano-node' \
   'github:IntersectMBO/cardano-node?ref=10.1.4#cardano-cli'
 
-# run babbage integration tests matching the given pattern via nix
-babbage-integration-tests-match match:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
-  LOCAL_CLUSTER_ERA=babbage \
-  nix shell \
-    '.#cardano-node' \
-    '.#cardano-cli' \
-    --accept-flake-config \
-    -c just integration-tests "{{match}}"
 
 # run conway integration tests matching the given pattern via nix
-conway-integration-tests-match match:
+conway-integration-tests-match j match:
   LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
   LOCAL_CLUSTER_ERA=conway \
   nix shell \
     '.#cardano-node' \
     '.#cardano-cli' \
     --accept-flake-config \
-    -c just integration-tests "{{match}}"
+    -c just integration-tests "{{j}}" "{{match}}"
 
-# run babbage integration tests via nix
-babbage-integration-tests:
-  just babbage-integration-tests-match ""
 
 # run conway integration tests via nix
-conway-integration-tests:
-  just conway-integration-tests-match ""
+conway-integration-tests j:
+  just conway-integration-tests-match "{{j}}" ""
 
 latency-bench:
    BENCHMARK_CSV_FILE=ignore-me/latency-bench.csv \
