@@ -34,5 +34,6 @@ steps:
             release-candidate-branch: "$BRANCH"
             release-cabal-version: "$CABAL"
             triggered-by: "$BASE_BUILD"
+            test-concurrency: "1"
 
 YAML
