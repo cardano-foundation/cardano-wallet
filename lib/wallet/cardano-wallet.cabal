@@ -38,9 +38,10 @@ flag release
   manual:      True
 
 library
-  import:          language, opts-lib
-  hs-source-dirs:  src
-  ghc-options:     -Wincomplete-uni-patterns -Wincomplete-record-updates
+  import:             language, opts-lib
+  hs-source-dirs:     src
+  ghc-options:        -Wincomplete-uni-patterns -Wincomplete-record-updates
+  build-tool-depends: alex:alex
   build-depends:
     , address-derivation-discovery
     , aeson
