@@ -185,6 +185,7 @@
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
+              (import ./nix/overlays/basement.nix)
               overlay
               fix-crypton-x509
             ];
