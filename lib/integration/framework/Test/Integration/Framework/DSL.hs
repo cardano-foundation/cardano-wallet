@@ -598,11 +598,6 @@ import System.Directory
 import System.Exit
     ( ExitCode (..)
     )
-import System.IO
-    ( hClose
-    , hFlush
-    , hPutStr
-    )
 import Test.Hspec
     ( Expectation
     , HasCallStack
@@ -659,8 +654,7 @@ import UnliftIO.Process
     ( CreateProcess (..)
     , StdStream (..)
     , proc
-    , waitForProcess
-    , withCreateProcess
+    , readCreateProcessWithExitCode
     )
 import Web.HttpApiData
     ( ToHttpApiData (..)
@@ -692,7 +686,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.IO as TIO
 import qualified Network.HTTP.Types.Status as HTTP
 
 --
@@ -3149,18 +3142,11 @@ createWalletViaCLI ctx args mnemonic secondFactor passphrase =
         let fullArgs =
                 [ "wallet", "create", "from-recovery-phrase", "from-genesis" ] ++ portArgs ++ args
         let process = proc' commandName fullArgs
-        liftIO $ withCreateProcess process $
-            \(Just stdin) (Just stdout) (Just stderr) h -> do
-                hPutStr stdin mnemonic
-                hPutStr stdin secondFactor
-                hPutStr stdin (passphrase ++ "\n")
-                hPutStr stdin (passphrase ++ "\n")
-                hFlush stdin
-                hClose stdin
-                c <- waitForProcess h
-                out <- TIO.hGetContents stdout
-                err <- TIO.hGetContents stderr
-                return (c, T.unpack out, err)
+            inputs = mnemonic ++ secondFactor ++ unlines [ passphrase, passphrase ]
+        liftIO $ do
+          (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
+          pure (ex, sout, T.pack serr)
+
     free (ExitFailure _, _, _) = return ()
     free (ExitSuccess, output, _) = do
         w <- expectValidJSON (Proxy @ApiWallet) output
@@ -3260,15 +3246,9 @@ createAddressViaCLI ctx args pass = do
             , "--port", show (ctx ^. typed @(Port "wallet"))
             ] ++ args
     let process = proc' commandName execArgs
-    liftIO $ withCreateProcess process $
-        \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin (pass <> "\n")
-            hFlush stdin
-            hClose stdin
-            c <- waitForProcess h
-            out <- TIO.hGetContents stdout
-            err <- TIO.hGetContents stderr
-            pure (c, out, err)
+    liftIO $ do
+      (ex, sout, serr) <- readCreateProcessWithExitCode process (pass <> "\n")
+      pure (ex, T.pack sout, T.pack serr)
 
 importAddressViaCLI
     :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)
@@ -3340,17 +3320,13 @@ updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNewConfirm = do
             , "--port", show (ctx ^. typed @(Port "wallet"))
             , wid
             ]
-    liftIO $ withCreateProcess process $
-        \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin (ppOld <> "\n")
-            hPutStr stdin (ppNew <> "\n")
-            hPutStr stdin (ppNewConfirm <> "\n")
-            hFlush stdin
-            hClose stdin
-            c <- waitForProcess h
-            out <- TIO.hGetContents stdout
-            err <- TIO.hGetContents stderr
-            pure (c, out, err)
+        inputs = unlines [ ppOld
+                         , ppNew
+                         , ppNewConfirm
+                         ]
+    liftIO $ do
+      (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
+      pure (ex, T.pack sout, T.pack serr)
 
 updateWalletPassphraseWithMnemonicViaCLI
     :: forall s m. (HasType (Port "wallet") s, MonadIO m)
@@ -3371,16 +3347,14 @@ updateWalletPassphraseWithMnemonicViaCLI ctx wid mnemonic ppNew ppNewConfirm = d
             , "--mnemonic"
             , wid
             ]
-    liftIO $ withCreateProcess process $
-        \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin (T.unpack (T.unwords mnemonic) <> "\n\n")
-            hPutStr stdin (ppNew <> "\n")
-            hPutStr stdin (ppNewConfirm <> "\n")
-            hClose stdin
-            c <- waitForProcess h
-            out <- TIO.hGetContents stdout
-            err <- TIO.hGetContents stderr
-            pure (c, out, err)
+        inputs = unlines [ T.unpack (T.unwords mnemonic)
+                         , ""
+                         , ppNew
+                         , ppNewConfirm
+                         ]
+    liftIO $ do
+      (ex, sout, serr) <- readCreateProcessWithExitCode process inputs
+      pure (ex, T.pack sout, T.pack serr)
 
 postTransactionViaCLI
     :: forall s m. (HasType (Port "wallet") s, MonadIO m)
@@ -3394,21 +3368,9 @@ postTransactionViaCLI ctx passphrase args = do
     let fullArgs =
             ["transaction", "create"] ++ portArgs ++ args
     let process = proc' commandName fullArgs
-    liftIO $ withCreateProcess process $
-        \(Just stdin) (Just stdout) (Just stderr) h -> do
-            hPutStr stdin (passphrase ++ "\n")
-            hFlush stdin
-            hClose stdin
-            out <- TIO.hGetContents stdout
-            err <- TIO.hGetContents stderr
-            -- For some reason, when
-            -- - waitForProcess is called before hGetContents
-            -- - os is windows
-            -- - postTransactionViaCLI was called with >= 5 outputs
-            -- waitForProcess blocks indefinetely. Hence we call waitForProcess
-            -- last.
-            c <- waitForProcess h
-            return (c, T.unpack out, err)
+    liftIO $ do
+      (ex, sout, serr) <- readCreateProcessWithExitCode process (passphrase ++ "\n")
+      pure (ex, sout, T.pack serr)
 
 postTransactionFeeViaCLI
     :: forall r s m. (CmdResult r, HasType (Port "wallet") s, MonadIO m)

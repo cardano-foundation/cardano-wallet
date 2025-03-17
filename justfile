@@ -120,9 +120,8 @@ integration-tests match:
     '.#cardano-wallet' \
     '.#local-cluster' \
     '.#integration-exe' \
-    -c integration-exe -j 2 --match="{{match}}"
-
-
+    -c integration-exe -j 6 --match="{{match}}"
+    
 node:
   nix shell \
   --accept-flake-config \
