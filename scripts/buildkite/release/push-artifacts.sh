@@ -45,5 +45,5 @@ artifact() {
 artifact "cardano-wallet-$NEW_GIT_TAG-linux64.tar.gz" "cardano-wallet-$TAG-linux64.tar.gz"
 artifact "cardano-wallet.exe-$NEW_GIT_TAG-win64.zip" "cardano-wallet.exe-$TAG-win64.zip"
 artifact "cardano-wallet-$NEW_GIT_TAG-macos-silicon.tar.gz" "cardano-wallet-$TAG-macos-silicon.tar.gz"
-artifact "cardano-wallet-$NEW_GIT_TAG-macos-intel.tar.gz" "cardano-wallet-$TAG-macos-intel.tar.gz"
+# artifact "cardano-wallet-$NEW_GIT_TAG-macos-intel.tar.gz" "cardano-wallet-$TAG-macos-intel.tar.gz"
 artifact "cardano-wallet-$NEW_GIT_TAG-docker-image.tgz" "cardano-wallet-$TAG-docker-image.tgz"
