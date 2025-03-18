@@ -298,6 +298,13 @@ steps:
       agents:
         system: ${linux}
 
+    - label: Check for git revision in version output
+      key: git-revision
+      depends_on: []
+      command: scripts/buildkite/main/git-revision.sh
+      agents:
+        system: ${linux}
+
   - group: Linux Benchmarks
     key: linux-benchmarks
     depends_on: linux-nix

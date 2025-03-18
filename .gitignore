@@ -30,7 +30,7 @@ cabal*.project.local*
 .ghci
 
 ### Nix ###
-/result*
+result*
 /.nix-shell-cabal.project*
 cabal.project.old
 check-cabal-project.sh

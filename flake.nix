@@ -205,6 +205,10 @@
             root = ./configs;
             fileset = ./configs;
           };
+          set-git-rev = import ./nix/set-git-rev/set-git-rev.nix {
+            inherit system;
+            inherit nixpkgs flake-utils haskellNix;
+          };
 
           walletProject = (import ./nix/haskell.nix
               CHaP
@@ -212,6 +216,7 @@
               nixpkgs-unstable.legacyPackages.${system}
               nodePackages
               mithrilPackages
+              set-git-rev.packages.default
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -477,9 +482,9 @@
         };
 
       systems = eachSystem supportedSystems mkOutputs;
+      rev = self.rev or null;
     in
-      lib.recursiveUpdate systems {
-        inherit overlay nixosModule nixosModules;
-      }
-  ;
+  lib.recursiveUpdate systems { inherit overlay nixosModule nixosModules; } // {
+    revision = rev;
+  } ;
 }

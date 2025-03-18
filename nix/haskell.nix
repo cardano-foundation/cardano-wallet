@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -52,15 +52,9 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: haskell-nix.cabalProje
 
       # setGitRev is a postInstall script to stamp executables with
       # version info. It uses the "gitrev" option.
-      # use buildPackages here, we want set-git-rev on the build machine even under
-      # cross compilation (e.g. to windows)
-      setGitRevPostInstall = setGitRevPostInstall' config.gitrev;
-      setGitRevPostInstall' = gitrev: '' '';
-      # The following is commented out because it causes error with
-      # 'packages.cardano-node.package.identifier.name' not being defined.
-      # setGitRevPostInstall' = gitrev: ''
-      #   ${pkgs.buildPackages.haskellBuildUtils}/bin/set-git-rev "${gitrev}" $out/bin/*
-      # '';
+      setGitRevPostInstall = ''
+         ${set-git-rev}/bin/set-git-rev "${config.gitrev}" $out/bin/*
+        '';
 
       rewriteLibsPostInstall = lib.optionalString (pkgs.stdenv.hostPlatform.isDarwin) ''
         export PATH=$PATH:${lib.makeBinPath (with pkgs.buildPackages; [ haskellBuildUtils binutils nix ])}
