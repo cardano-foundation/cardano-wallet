@@ -18,6 +18,16 @@ build target='all':
   cabal build {{target}} --enable-benchmarks --enable-tests \
     --minimize-conflict-set -O0 -v0 --ghc-options="-Werror "
 
+
+run target +args='':
+    just build "{{target}}"
+    # shellcheck disable=SC1083
+    cabal run "{{target}}" \
+        --minimize-conflict-set \
+        --enable-benchmarks \
+        --enable-tests \
+        -O0 -v0 --ghc-options="-Werror " {{args}}
+
 # build after clean
 clean-build:
   cabal clean
@@ -121,7 +131,7 @@ integration-tests match:
     '.#local-cluster' \
     '.#integration-exe' \
     -c integration-exe -j 6 --match="{{match}}"
-    
+
 node:
   nix shell \
   --accept-flake-config \
