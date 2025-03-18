@@ -6,7 +6,7 @@ set -euox pipefail
 # Function to display usage information
 usage() {
     echo "Usage: $0 [sync|start|stop|logs|help]"
-    echo "  sync: Sync the service and wait for it to be ready"
+    echo "  sync [timeout]: Sync the service and wait for it to be ready"
     echo "  start: Start the service"
     echo "  start-with-mithril: Start the service with mithril boostrap"
     echo "  stop: Stop the service"
@@ -119,7 +119,7 @@ case "$1" in
         startup
 
         # Initialize timeout and start time for the sync operation
-        timeout=10000
+        timeout=${2:-600}
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time
