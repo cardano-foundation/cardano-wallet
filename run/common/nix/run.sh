@@ -172,7 +172,7 @@ case "$1" in
         sleep 10
 
         # Initialize timeout and start time for the sync operation
-        timeout=10000
+        timeout=${2:=600}
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time

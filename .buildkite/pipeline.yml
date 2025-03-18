@@ -142,14 +142,13 @@ steps:
       concurrency_group: 'linux-e2e-tests'
 
     - label: Preview Network Boot Sync
-      timeout_in_minutes: 10
       depends_on: []
       command: |
         cd run/preview/nix
         rm -rf logs
         mkdir -p logs
         rm -rf databases
-        ./run.sh sync
+        ./run.sh sync 600
       artifact_paths:
         - "./run/preview/nix/logs/*"
       agents:
@@ -162,14 +161,13 @@ steps:
         NETWORK: testnet
 
     - label: Mainnet Boot Sync
-      timeout_in_minutes: 10
       depends_on: []
       command: |
         cd run/mainnet/nix
         rm -rf logs
         mkdir -p logs
         rm -rf databases
-        ./run.sh sync
+        ./run.sh sync 600
       artifact_paths:
         - "./run/mainnet/nix/logs/*"
       agents:
@@ -187,7 +185,6 @@ steps:
       key: linux-mainnet-full-sync-block
 
     - label: Mainnet Boot Sync with Mithril
-      timeout_in_minutes: 120
       soft_fail :
         - exit_status: 44
       depends_on:
@@ -198,7 +195,7 @@ steps:
         mkdir -p logs
         rm -rf databases
         ./snapshot.sh
-        ./run.sh sync
+        ./run.sh sync 7200
       artifact_paths:
         - "./run/mainnet/nix/logs/*"
       agents:
