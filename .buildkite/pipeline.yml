@@ -291,6 +291,13 @@ steps:
       agents:
         system: ${linux}
 
+    - label: Check eol is present
+      key: eol
+      depends_on: []
+      command: 'nix develop --command scripts/enforce-eol.sh'
+      agents:
+        system: ${linux}
+
   - group: Linux Benchmarks
     key: linux-benchmarks
     depends_on: linux-nix
