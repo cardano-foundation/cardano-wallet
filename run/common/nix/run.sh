@@ -7,7 +7,7 @@ set -euo pipefail
 
 usage() {
     echo "Usage: $0 [sync]"
-    echo "  sync: Sync the service and wait for it to be ready"
+    echo "  sync [timeout]: Sync the service and wait for it to be ready"
     echo "  start: Start node and wallet services"
 }
 # Check if no arguments are provided and display usage if true

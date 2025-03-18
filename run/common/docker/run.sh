@@ -6,7 +6,7 @@ set -euox pipefail
 # Function to display usage information
 usage() {
     echo "Usage: $0 [sync|start|stop|logs|help]"
-    echo "  sync: Sync the service and wait for it to be ready"
+    echo "  sync [timeout]: Sync the service and wait for it to be ready"
     echo "  start: Start the service"
     echo "  start-with-mithril: Start the service with mithril boostrap"
     echo "  stop: Stop the service"
@@ -28,9 +28,6 @@ RELEASE_WALLET_TAG=2025.3.4
 
 WALLET_TAG=${WALLET_TAG:=$RELEASE_WALLET_TAG}
 export WALLET_TAG
-
-NODE_TAG=10.1.4
-export NODE_TAG
 
 # Generate a random port for the wallet service and export it
 RANDOM_PORT=$(shuf -i 2000-65000 -n 1)
@@ -119,7 +116,7 @@ case "$1" in
         startup
 
         # Initialize timeout and start time for the sync operation
-        timeout=10000
+        timeout=${2:-600}
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time

@@ -626,7 +626,7 @@ steps:
           cd run/mainnet/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "docker-image-tag")
           rm -rf databases
-          ./run.sh sync
+          ./run.sh sync 600
         agents:
           system: x86_64-linux
         env:
@@ -634,13 +634,12 @@ steps:
           USE_LOCAL_IMAGE: true
 
       - label: Preview Boot Sync
-        timeout_in_minutes: 30
         command: |
           export COMPOSE_PROJECT_NAME=$(head /dev/urandom | tr -dc a-z | head -c 8 ; echo '')
           cd run/preview/docker
           export WALLET_TAG=$(buildkite-agent meta-data get "docker-image-tag")
           rm -rf databases
-          ./run.sh sync
+          ./run.sh sync 600
         agents:
           system: x86_64-linux
         env:
@@ -653,7 +652,6 @@ steps:
         key: mithril-mainnet-full-sync-block
 
       - label: Mainnet Boot Sync via Mithril
-        timeout_in_minutes: 120
         depends_on: mithril-mainnet-full-sync-block
         command: |
           export COMPOSE_PROJECT_NAME=$(head /dev/urandom | tr -dc a-z | head -c 8 ; echo '')
@@ -661,7 +659,7 @@ steps:
           export WALLET_TAG=$(buildkite-agent meta-data get "docker-image-tag")
           rm -rf databases
           ./snapshot.sh
-          ./run.sh sync
+          ./run.sh sync 7200
         agents:
           system: x86_64-linux
         env:
