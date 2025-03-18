@@ -1,4 +1,5 @@
-#! /usr/bin/env -S nix shell '.#cardano-wallet' '.#cardano-node' '.#cardano-cli'  --command bash
+#! /usr/bin/env nix
+#! nix shell .#cardano-wallet .#cardano-node .#cardano-cli  --command bash
 # shellcheck shell=bash
 
 # set -euox pipefail
@@ -171,7 +172,7 @@ case "$1" in
         sleep 10
 
         # Initialize timeout and start time for the sync operation
-        timeout=10000
+        timeout=${2:=600}
         start_time=$(date +%s)
 
         # Commands to query service status and node tip time
