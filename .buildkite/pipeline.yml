@@ -4,8 +4,6 @@ agents:
 env:
   LC_ALL: "C.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
-  STATE_DIR: "/var/lib/buildkite-agent/cache"
-  STATE_DIR_MACOS: "/var/lib/buildkite-agent-hal-mac/cache"
   RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"
   MAIN_PIPELINE_DIR: "./scripts/buildkite/main"
   # Mithril variables
@@ -62,11 +60,17 @@ steps:
     depends_on:
       - linux-nix
     steps:
-    - label: Nix Build (linux)
+
+    - label: Nix build (linux)
+      key: linux-build
       commands:
         - nix build -L .#cardano-wallet
-        - nix build -L .#cardano-node
-        - nix build -L .#cardano-cli
+      agents:
+        system: ${linux}
+
+    - label: Nix evaluate shell (linux)
+      commands:
+        - nix shell -L .#cardano-node .#cardano-cli .#cardano-wallet --command cardano-wallet version
       agents:
         system: ${linux}
 
@@ -77,7 +81,6 @@ steps:
       artifact_paths: [ "./result/linux/**" ]
       agents:
         system: ${linux}
-
 
   - group: Linux Checks
     if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "FALSE"
