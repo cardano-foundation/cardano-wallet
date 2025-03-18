@@ -482,9 +482,9 @@
         };
 
       systems = eachSystem supportedSystems mkOutputs;
+      rev = self.rev or null;
     in
-      lib.recursiveUpdate systems {
-        inherit overlay nixosModule nixosModules;
-      }
-  ;
+  lib.recursiveUpdate systems { inherit overlay nixosModule nixosModules; } // {
+    revision = rev;
+  } ;
 }
