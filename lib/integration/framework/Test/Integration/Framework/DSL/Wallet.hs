@@ -7,6 +7,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Test.Integration.Framework.DSL.Wallet
     ( createARandomWalletWithMnemonics
     , createWalletFromMnemonics

@@ -3,6 +3,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Cardano.Wallet.Launch.Cluster.CommandLine
     ( CommandLineOptions (..)
     , WalletPresence (..)
