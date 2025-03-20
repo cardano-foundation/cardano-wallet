@@ -9,7 +9,7 @@ git tag -l | xargs git tag -d
 git fetch --tags
 
 if [ "$RELEASE" == "false" ]; then
-    if [ "$TEST_RC" == "TRUE" ]; then
+    if [ "$TEST_RC" != "TRUE" ]; then
         git tag -d nightly || true
         TAG=nightly
     else
