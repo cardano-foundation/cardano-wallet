@@ -448,7 +448,6 @@ steps:
         queue: "cardano-wallet"
 
     - label: Build Package (macOS, x86_64)
-      if: 0 == 1 # https://github.com/cardano-foundation/cardano-wallet/issues/5049
       key: macos-intel-package
       depends_on: block-macos
       command: 'nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
