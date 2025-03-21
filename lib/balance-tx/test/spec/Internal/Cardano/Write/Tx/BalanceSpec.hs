@@ -82,7 +82,7 @@ import Cardano.Ledger.Babbage.TxInfo
 import Cardano.Ledger.Conway.TxInfo
     ( ConwayContextError (..)
     )
-import Cardano.Ledger.Era
+import Cardano.Ledger.Core
     ( Era
     )
 import Cardano.Ledger.Keys.Bootstrap

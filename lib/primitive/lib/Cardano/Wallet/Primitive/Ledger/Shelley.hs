@@ -70,6 +70,8 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
     , fromShelleyTxIn
     , toCardanoPolicyId
     , toCardanoSimpleScript
+    , toCardanoAssetId
+    , toCardanoAssetName
 
       -- ** Stake pools
     , fromPoolId
@@ -142,7 +144,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
     ( EncCBORGroup
     )
-import Cardano.Ledger.Era
+import Cardano.Ledger.Core
     ( Era (..)
     , TxSeq
     )
@@ -340,6 +342,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Percentage as Percentage
 import qualified Data.Set as Set
 import qualified GHC.IsList as GHC
+import qualified GHC.IsList as IsList
 import qualified Ouroboros.Consensus.Protocol.Praos as Consensus
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Consensus
 import qualified Ouroboros.Consensus.Protocol.TPraos as Consensus
@@ -381,7 +384,8 @@ emptyGenesis gp = W.Block
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersions :: [NodeToClientVersion]
-nodeToClientVersions = [NodeToClientV_15, NodeToClientV_16]
+nodeToClientVersions =
+    [NodeToClientV_16, NodeToClientV_17]
 
 --------------------------------------------------------------------------------
 --
@@ -786,10 +790,11 @@ cardanoCertKeysForWitnesses
     -> [W.RewardAccount]
 cardanoCertKeysForWitnesses = \case
     Cardano.TxCertificatesNone -> []
-    Cardano.TxCertificates _era certs _witsMap ->
+    Cardano.TxCertificates _era certs ->
         map toRewardAccount
-        $ mapMaybe Cardano.selectStakeCredentialWitness certs
- where
+            $ mapMaybe (Cardano.selectStakeCredentialWitness . fst)
+            $ IsList.toList certs
+  where
     toRewardAccount = fromStakeCredential . Cardano.toShelleyStakeCredential
 
 toShelleyCoin :: W.Coin -> SL.Coin
@@ -898,10 +903,10 @@ toCardanoTxOut era refScriptM = case era of
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraBabbage)
                     <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+                        (Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr) addr)
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+                    (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
 
     toConwayTxOut :: HasCallStack => W.TxOut -> Cardano.TxOut ctx ConwayEra
@@ -928,12 +933,25 @@ toCardanoTxOut era refScriptM = case era of
             [ Cardano.AddressInEra
                 (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraConway)
                     <$> eitherToMaybe
-                        (Cardano.deserialiseFromRawBytes AsShelleyAddress addr)
+                        (Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr) addr)
 
             , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
                 <$> eitherToMaybe
-                    (Cardano.deserialiseFromRawBytes AsByronAddress addr)
+                    (Cardano.deserialiseFromRawBytes (AsAddress AsByronAddr) addr)
             ]
+
+toCardanoAssetId :: W.AssetId -> Cardano.AssetId
+toCardanoAssetId (W.AssetId pid name) =
+    Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
+
+toCardanoAssetName :: W.AssetName -> Cardano.AssetName
+toCardanoAssetName (W.UnsafeAssetName name) =
+    just
+        "toCardanoValue"
+        "AssetName"
+        [ eitherToMaybe
+            $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
+        ]
 
 toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
 toCardanoValue tb = GHC.fromList $
@@ -941,14 +959,6 @@ toCardanoValue tb = GHC.fromList $
     map (bimap toCardanoAssetId toQuantity) bundle
   where
     (coin, bundle) = TokenBundle.toFlatList tb
-    toCardanoAssetId (W.AssetId pid name) =
-        Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
-
-    toCardanoAssetName (W.UnsafeAssetName name) =
-        just "toCardanoValue" "AssetName"
-        [ eitherToMaybe
-            $ Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
-        ]
 
     coinToQuantity = fromIntegral . W.unCoin
     toQuantity = fromIntegral . W.unTokenQuantity
@@ -1013,7 +1023,7 @@ rewardAccountFromAddress :: W.Address -> Maybe W.RewardAccount
 rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr bytes
   where
     parseAddr :: ByteString -> Maybe (Cardano.Address Cardano.ShelleyAddr)
-    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes AsShelleyAddress
+    parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr)
 
     ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference StandardCrypto
     ref (Cardano.ShelleyAddress _n _paymentKey stakeRef) = stakeRef

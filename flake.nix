@@ -90,7 +90,7 @@
 
   inputs = {
     nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
-    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
+    nixpkgs.follows = "haskellNix/nixpkgs-2411";
     hostNixpkgs.follows = "nixpkgs";
     CHaP = {
       url = "github:intersectmbo/cardano-haskell-packages?ref=repo";
@@ -115,7 +115,7 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.1.4";
+    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.2.1";
     mithril.url = "github:input-output-hk/mithril?ref=2506.0";
   };
 
@@ -154,13 +154,6 @@
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
         inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-application.components.exes) cardano-wallet;
-        haskell-nix = prev.haskell-nix // {
-          extraPkgconfigMappings = prev.haskell-nix.extraPkgconfigMappings // {
-              # String pkgconfig-depends names are mapped to lists of Nixpkgs
-              # package names
-              "libblst" = [ "blst" ];
-          };
-        };
       };
 
       nixosModule = { pkgs, lib, ... }: {
@@ -176,17 +169,19 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
-              iohkNix.overlays.utils
+              # Same overlay sequence as used by cardano-node
               iohkNix.overlays.crypto
-              iohkNix.overlays.cardano-lib
               haskellNix.overlay
-              iohkNix.overlays.haskell-nix-extra
+              iohkNix.overlays.haskell-nix-crypto
+              iohkNix.overlays.cardano-lib
+
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
-              overlay
+              (import ./nix/overlays/basement.nix)
               fix-crypton-x509
+              overlay
             ];
           };
 
@@ -217,6 +212,7 @@
               nodePackages
               mithrilPackages
               set-git-rev.packages.default
+              rewrite-libs.packages.default
             ).appendModule [{
             gitrev =
               if config.gitrev != null
@@ -309,11 +305,14 @@
               installPhase = "echo $nativeBuildInputs > $out";
             };
           };
-
+          rewrite-libs = import ./nix/rewrite-libs/rewrite-libs.nix {
+            inherit system;
+            inherit nixpkgs flake-utils haskellNix;
+          };
           # One ${system} can cross-compile artifacts for other platforms.
           mkReleaseArtifacts = project:
             let # compiling with musl gives us a statically linked executable
-              linuxPackages = mkPackages project.projectCross.musl64;
+              linuxPackages = mkPackages project.projectCross.ucrt64;
               linuxReleaseExes = [
                 linuxPackages.cardano-wallet
                 linuxPackages.bech32
@@ -342,7 +341,7 @@
                 let
                   # windows is cross-compiled from linux
                   windowsPackages =
-                    mkPackages project.projectCross.mingwW64 // {
+                    mkPackages project.projectCross.ucrt64 // {
                       cardano-cli =
                         cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
                       cardano-node =
@@ -388,6 +387,7 @@
                   ];
                   platform = "macos-intel";
                   format = "tar.gz";
+                  rewrite-libs = rewrite-libs.packages.default;
                 };
               };
               macos-silicon = lib.optionalAttrs buildPlatform.isAarch64 {
@@ -403,6 +403,7 @@
                   ];
                   platform = "macos-silicon";
                   format = "tar.gz";
+                  rewrite-libs = rewrite-libs.packages.default;
                 };
               };
             };
