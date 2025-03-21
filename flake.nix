@@ -154,13 +154,6 @@
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
         inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-application.components.exes) cardano-wallet;
-        haskell-nix = prev.haskell-nix // {
-          extraPkgconfigMappings = prev.haskell-nix.extraPkgconfigMappings // {
-              # String pkgconfig-depends names are mapped to lists of Nixpkgs
-              # package names
-              "libblst" = [ "blst" ];
-          };
-        };
       };
 
       nixosModule = { pkgs, lib, ... }: {
@@ -176,16 +169,19 @@
             inherit system;
             inherit (haskellNix) config;
             overlays = [
+              # Same overlay sequence as used by cardano-node
               iohkNix.overlays.crypto
-              iohkNix.overlays.cardano-lib
               haskellNix.overlay
+              iohkNix.overlays.haskell-nix-extra
+              iohkNix.overlays.haskell-nix-crypto
+              iohkNix.overlays.cardano-lib
               # Cardano deployments
               (import ./nix/overlays/cardano-deployments.nix)
               # Our own utils (cardanoWalletLib)
               (import ./nix/overlays/common-lib.nix)
               (import ./nix/overlays/basement.nix)
-              overlay
               fix-crypton-x509
+              overlay
             ];
           };
 
