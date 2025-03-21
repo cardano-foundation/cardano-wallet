@@ -90,6 +90,10 @@ packages:
   lib/wallet
   lib/wallet-benchmarks
 
+constraints:
+   selective == 0.7.0.1
+ , parsers == 0.12.11
+
 --------------------------------------------------------------------------------
 -- BEGIN OpenAPI
 

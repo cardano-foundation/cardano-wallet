@@ -90,7 +90,7 @@
 
   inputs = {
     nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
-    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
+    nixpkgs.follows = "haskellNix/nixpkgs-2411";
     hostNixpkgs.follows = "nixpkgs";
     CHaP = {
       url = "github:intersectmbo/cardano-haskell-packages?ref=repo";
@@ -316,7 +316,7 @@
           # One ${system} can cross-compile artifacts for other platforms.
           mkReleaseArtifacts = project:
             let # compiling with musl gives us a statically linked executable
-              linuxPackages = mkPackages project.projectCross.musl64;
+              linuxPackages = mkPackages project.projectCross.ucrt64;
               linuxReleaseExes = [
                 linuxPackages.cardano-wallet
                 linuxPackages.bech32

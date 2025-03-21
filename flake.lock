@@ -2181,7 +2181,7 @@
         "mithril": "mithril",
         "nixpkgs": [
           "haskellNix",
-          "nixpkgs-unstable"
+          "nixpkgs-2411"
         ],
         "nixpkgs-unstable": "nixpkgs-unstable_3"
       }
