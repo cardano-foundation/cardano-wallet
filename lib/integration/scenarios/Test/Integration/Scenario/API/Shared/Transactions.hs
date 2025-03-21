@@ -468,8 +468,8 @@ spec = describe "SHARED_TRANSACTIONS" $ do
         -- checking metadata before signing via directly inspecting serialized
         -- tx
         let getMetadata (Cardano.InAnyCardanoEra _ tx) = Cardano.getTxBody tx &
-                \(Cardano.TxBody bodyContent) ->
-                    Cardano.txMetadata bodyContent & \case
+                \body ->
+                    Cardano.txMetadata (Cardano.getTxBodyContent body) & \case
                         Cardano.TxMetadataNone ->
                             Nothing
                         Cardano.TxMetadataInEra _ (Cardano.TxMetadata m) ->

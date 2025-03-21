@@ -2,7 +2,7 @@ agents:
   queue: cardano-wallet
 
 env:
-  LC_ALL: "C.UTF-8"
+  LC_ALL: "en_US.UTF-8"
   NIX_PATH: "channel:nixos-21.11"
   RELEASE_SCRIPTS_DIR: "./scripts/buildkite/release"
   MAIN_PIPELINE_DIR: "./scripts/buildkite/main"
@@ -448,6 +448,7 @@ steps:
         queue: "cardano-wallet"
 
     - label: Build Package (macOS, x86_64)
+      if: 0 == 1 # https://github.com/cardano-foundation/cardano-wallet/issues/5049
       key: macos-intel-package
       depends_on: block-macos
       command: 'nix build -L -o result/macos-intel .#packages.x86_64-darwin.ci.artifacts.macos-intel.release'
@@ -479,6 +480,7 @@ steps:
       key: macos-unit-tests-block
 
     - label: Run Unit Tests (macOS, x86_64)
+      if: 0 == 1 # https://github.com/cardano-foundation/cardano-wallet/issues/5049
       key: macos-intel-tests-run-unit
       depends_on: macos-unit-tests-block
       command: 'nix build -L .#ci.x86_64-darwin.tests.run.unit'

@@ -12,6 +12,7 @@
 , exes
 , nodeConfigs
 , format
+, rewrite-libs ? null
 }:
 
 let
@@ -38,7 +39,6 @@ in
 pkgs.stdenv.mkDerivation {
   inherit name;
   buildInputs = with pkgs.buildPackages; [
-    haskellBuildUtils
     nix
   ]
   ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ darwin.binutils ] else [ binutils ])
@@ -77,7 +77,7 @@ pkgs.stdenv.mkDerivation {
 
   '' + lib.optionalString isMacOS ''
     # Rewrite library paths to standard non-nix locations
-    ( cd $name; rewrite-libs . `ls -1 | grep -Fv .dylib`
+    ( cd $name; ${rewrite-libs}/bin/rewrite-libs . `ls -1 | grep -Fv .dylib`
       for a in *; do /usr/bin/codesign -f -s - $a; done
     )
 
