@@ -345,7 +345,7 @@
                 let
                   # windows is cross-compiled from linux
                   windowsPackages =
-                    mkPackages project.projectCross.mingwW64 // {
+                    mkPackages project.projectCross.ucrt64 // {
                       cardano-cli =
                         cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
                       cardano-node =
