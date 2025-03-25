@@ -1,7 +1,5 @@
 /* Base styles and content styles */
 
-@import 'variables.css';
-
 :root {
     /* Browser default font-size is 16px, this way 1 rem = 10px */
     font-size: 62.5%;
@@ -190,6 +188,16 @@ kbd {
     line-height: 10px;
     padding: 4px 5px;
     vertical-align: middle;
+}
+
+sup {
+    /* Set the line-height for superscript and footnote references so that there
+       isn't an awkward space appearing above lines that contain the footnote.
+
+       See https://github.com/rust-lang/mdBook/pull/2443#discussion_r1813773583
+       for an explanation.
+    */
+    line-height: 0;
 }
 
 :not(.footnote-definition) + .footnote-definition,
