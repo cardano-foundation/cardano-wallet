@@ -7,6 +7,7 @@ updates=(
     "cardano-addresses"
     "cardano-api"
     "cardano-binary"
+    "cardano-cli"
     "cardano-crypto-class"
     "cardano-crypto-test"
     "cardano-crypto"
@@ -25,8 +26,12 @@ updates=(
     "cardano-ledger-shelley"
     "cardano-slotting"
     "cardano-strict-containers"
+    "data-default"
+    "io-classes"
     "iohk-monitoring"
+    "katip"
     "lobemo-backend-ekg"
+    "network-mux"
     "ouroboros-consensus-cardano"
     "ouroboros-consensus-diffusion"
     "ouroboros-consensus-protocol"
@@ -35,6 +40,7 @@ updates=(
     "ouroboros-network-framework"
     "ouroboros-network-protocols"
     "ouroboros-network"
+    "typed-protocols"
 )
 
 freeze_file="$1"
@@ -63,8 +69,12 @@ generate_constraint() {
 for update in "${updates[@]}"; do
     version=$(sed -n "s/.*any\.$update ==\([0-9.]*\),.*/\1/p" "$freeze_file")
     constraint=$(generate_constraint "$version")
-    echo "$update $constraint"
-    update_cabal_files "$update" "$constraint"
+    if [ -z "$version" ]; then
+        echo "Version for $update not found in $freeze_file"
+    else
+        echo "$update $constraint"
+        update_cabal_files "$update" "$constraint"
+    fi
 done
 
 find lib -name '*.cabal' -exec cabal-fmt -i {} \;

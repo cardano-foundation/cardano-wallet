@@ -138,8 +138,8 @@ integration-tests j match:
 node:
   nix shell \
   --accept-flake-config \
-  'github:IntersectMBO/cardano-node?ref=10.1.4#cardano-node' \
-  'github:IntersectMBO/cardano-node?ref=10.1.4#cardano-cli'
+  'github:IntersectMBO/cardano-node?ref=10.2.1#cardano-node' \
+  'github:IntersectMBO/cardano-node?ref=10.2.1#cardano-cli'
 
 
 # run conway integration tests matching the given pattern via nix

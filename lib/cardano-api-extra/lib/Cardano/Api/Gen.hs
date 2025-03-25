@@ -7,6 +7,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Cardano.Api.Gen
     ( genAddressAny
@@ -132,6 +136,7 @@ import Cardano.Api
     , ByronEra
     , CardanoEra (..)
     , Certificate
+    , Convert (..)
     , ConwayEra
     , ConwayEraOnwards (..)
     , CostModel (..)
@@ -241,7 +246,6 @@ import Cardano.Api
     , makeStakeAddressUnregistrationCertificate
     , makeStakePoolRegistrationCertificate
     , makeStakePoolRetirementCertificate
-    , maryEraOnwardsToShelleyBasedEra
     , scriptLanguageSupportedInEra
     , shelleyAddressInEra
     , validateAndHashStakePoolMetadata
@@ -407,6 +411,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
 import qualified Data.Map as Map
+import qualified Data.Map.Ordered.Strict as OMap
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -681,7 +686,6 @@ genSimpleScriptOrReferenceInput =
             <$> genSimpleScript
         , SReferenceScript
             <$> genReferenceInput
-            <*> liftArbitrary genScriptHash
         ]
 
 genScript :: ScriptLanguage lang -> Gen (Script lang)
@@ -785,38 +789,40 @@ genSignedValue = do
 
 -- | Generate a 'Value' suitable for minting, i.e. non-ADA asset ID and a
 -- positive or negative quantity.
-genValueForMinting :: Gen Value
+genValueForMinting :: Gen [(AssetId, Quantity)]
 genValueForMinting =
-    fromList <$> listOf ((,) <$> genAssetIdNoAda <*> genSignedQuantity)
+    listOf ((,) <$> genAssetIdNoAda <*> genSignedQuantity)
 
-genTxMintValue :: forall era. CardanoEra era -> Gen (TxMintValue BuildTx era)
+genTxMintValue
+    :: forall era. CardanoEra era -> Gen (TxMintValue BuildTx era)
 genTxMintValue era = withEraWitness era $ \supported ->
     do
         let
-            scriptWitnessGenerators :: [Gen (ScriptWitness WitCtxMint era)]
+            scriptWitnessGenerators :: Gen (ScriptWitness WitCtxMint era)
             scriptWitnessGenerators =
-                [ genScriptWitnessMint langInEra
-                | AnyScriptLanguage lang <- [minBound .. maxBound]
-                , Just langInEra <-
-                    [ scriptLanguageSupportedInEra
-                        (maryEraOnwardsToShelleyBasedEra supported)
-                        lang
+                oneof
+                    [ genScriptWitnessMint langInEra
+                    | AnyScriptLanguage lang <- [minBound .. maxBound]
+                    , Just langInEra <-
+                        [ scriptLanguageSupportedInEra
+                            (convert supported)
+                            lang
+                        ]
                     ]
-                ]
+            mints = do
+                policy <- genPolicyId
+                assets <- listOf $ do
+                    assetName <- genAssetName
+                    quantity <- genSignedQuantity
+                    script <- BuildTxWith <$> scriptWitnessGenerators
+                    pure (assetName, quantity, script)
+                pure (policy, assets)
+
         oneof
             [ pure TxMintNone
-            , TxMintValue supported
-                <$> genValueForMinting
-                <*> ( (BuildTxWith . Map.fromList)
-                        <$> scale
-                            (`div` 3)
-                            ( listOf
-                                ( (,)
-                                    <$> genPolicyId
-                                    <*> oneof scriptWitnessGenerators
-                                )
-                            )
-                    )
+            , scale (`div` 3)
+                $ TxMintValue supported . Map.fromList
+                    <$> listOf mints
             ]
 
 genNetworkMagic :: Gen NetworkMagic
@@ -1600,22 +1606,25 @@ genTxCertificate era =
                     e
         _ -> error "genTxCertificate: unsupported era"
 
-genTxCertificates :: CardanoEra era -> Gen (TxCertificates BuildTx era)
-genTxCertificates era = withEraWitness era $ \sbe ->
+genTxCertificates
+    :: CardanoEra era -> Gen (TxCertificates BuildTx era)
+genTxCertificates era = withEraWitness era $ \sbe -> do
+    let stakingCore =
+            (,)
+                <$> genStakeCredential
+                <*> genWitnessStake era
+        staking = BuildTxWith <$> oneof [pure Nothing, Just <$> stakingCore]
+        stakingCertificate = do
+            cert <- genTxCertificate era
+            stake <- staking
+            pure (cert, stake)
+        certificates =
+            scale (`div` 3)
+                $ TxCertificates sbe . OMap.fromList
+                    <$> listOf stakingCertificate
     oneof
         [ pure TxCertificatesNone
-        , TxCertificates sbe
-            <$> scale (`div` 3) (listOf (genTxCertificate era))
-            <*> ( BuildTxWith
-                    <$> scale
-                        (`div` 3)
-                        ( listOf
-                            ( (,)
-                                <$> genStakeCredential
-                                <*> genWitnessStake era
-                            )
-                        )
-                )
+        , certificates
         ]
 
 genProtocolParametersUpdate :: Gen ProtocolParametersUpdate
@@ -1646,7 +1655,7 @@ genProtocolParametersUpdate = do
         liftArbitrary genCoin
     protocolUpdatePoolRetireMaxEpoch <-
         liftArbitrary genInterval
-    protocolUpdateStakePoolTargetNum <-
+    protocolUpdateStakePoolTargetNum <- fmap fromIntegral <$>
         liftArbitrary genNat
     protocolUpdatePoolPledgeInfluence <-
         liftArbitrary genRational
@@ -1760,19 +1769,6 @@ genVotingProcedures w = case w of
             , pure TxVotingProceduresNone
             ]
 
-genSupplementalData
-    :: CardanoEra era
-    -> ( Gen
-            (BuildTxWith BuildTx (ShelleyApi.TxSupplementalDatums era2))
-       )
-genSupplementalData era = fmap BuildTxWith
-    $ flip (inEonForEra (pure ShelleyApi.TxSupplementalDataNone)) era
-    $ \case
-        ConwayEraOnwardsConway -> oneof
-            [ pure ShelleyApi.TxSupplementalDataNone
-            , ShelleyApi.TxSupplementalDatums <$> listOf genHashableScriptData
-            ]
-
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = withEraWitness era $ \sbe -> do
     txIns <- scale (`div` 3) $ do
@@ -1798,7 +1794,6 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
     txCurrentTreasuryValue <-
         genMaybeFeaturedInEra (const (pure <$> genCoin)) era
     txTreasuryDonation <- genMaybeFeaturedInEra (const genCoin) era
-    txSupplementalData <- genSupplementalData era
     let
         txBody =
             TxBodyContent
@@ -1830,7 +1825,6 @@ genTxBodyContent era = withEraWitness era $ \sbe -> do
                 , Api.txVotingProcedures
                 , Api.txCurrentTreasuryValue
                 , Api.txTreasuryDonation
-                , Api.txSupplementalData
                 }
 
     let witnesses = collectTxBodyScriptWitnesses sbe txBody

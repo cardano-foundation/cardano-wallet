@@ -880,10 +880,8 @@ prop_signTransaction_neverChangesTxBody
                 :: InAnyCardanoEra Cardano.Tx
                 -> InAnyCardanoEra (Cardano.TxBodyContent Cardano.ViewTx)
             txBodyContent
-                (InAnyCardanoEra e
-                    (Cardano.Tx (Cardano.TxBody bodyContent) _wits)
-                ) =
-                InAnyCardanoEra e bodyContent
+                (InAnyCardanoEra e (Cardano.Tx body _wits)) =
+                    InAnyCardanoEra e $ Cardano.getTxBodyContent body
 
             bodyContentBefore = txBodyContent $ cardanoTx sealedTx
             bodyContentAfter = txBodyContent $ cardanoTx sealedTx'

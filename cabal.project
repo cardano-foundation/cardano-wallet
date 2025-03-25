@@ -49,11 +49,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2024-10-10T00:52:24Z
+index-state: 2025-01-01T23:24:19Z
 
 index-state:
-  , hackage.haskell.org 2024-10-10T00:52:24Z
-  , cardano-haskell-packages 2025-01-07T17:42:00Z
+  , hackage.haskell.org 2025-01-01T23:24:19Z
+  , cardano-haskell-packages 2025-03-01T00:00:00Z
 
 packages:
   lib/address-derivation-discovery
@@ -155,8 +155,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/cardano-foundation/cardano-wallet-agda
-    tag: b5f11bde33585277aa3628b01fe6f5ee8bed2101
-    --sha256: 0dc0b60vbq1ljwrdxr45nc99c3gdn98myjyd3c9xmlkn8cwpvjwx
+    tag: 7663f8ae600462ba460e771e651ff3bd66fe4a5c
+    --sha256: sha256-3ielFSr9G1YUuQcImCv3eppYbwE+WA9tEFc219VWHgk=
     subdir:
       lib/cardano-wallet-read
 
@@ -168,20 +168,16 @@ allow-newer:
   , servant-openapi3:*
   , katip:Win32
   , ekg-wai:time
-
 constraints:
     base >= 4.18.2.0 && < 5
   , openapi3 >= 3.2.0
   , persistent ^>= 2.14.6.0
-
-  , bech32 >= 1.1.7
 
   -- Force newer version of `lobemo-backend-ekg` here,
   -- because older versions depend on `snap-server`,
   -- which in turns fails to link on linux musl
   -- due to some missing `sendfile64` hack.
   -- (We use linux musl to get statically linked binaries.)
-  , lobemo-backend-ekg >= 0.2.0.0
 
   -- lower versions of katip won't build with the Win32-2.12.0.1
   -- which is shipped with the ghc-9.2.8
@@ -189,14 +185,7 @@ constraints:
 
 
   -- Cardano Node dependencies:
-  , io-classes == 1.5.0.0
   , io-classes -asserts
-
-  , cardano-ledger-api == 1.9.4.0
-
-  , ouroboros-network == 0.17.1.2
-
-  , cardano-api == 10.1.0.0
 
 
 -- Related to: https://github.com/haskell/cabal/issues/8554
