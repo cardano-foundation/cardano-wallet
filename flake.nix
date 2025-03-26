@@ -107,7 +107,7 @@
     };
     flake-utils.url = "github:numtide/flake-utils";
     iohkNix = {
-      url = "github:input-output-hk/iohk-nix";
+      url = "github:input-output-hk/iohk-nix?rev=911835056d2b48a9ae65b4e3a2925c88a320a6ab";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     flake-compat = {
