@@ -1,6 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -Wno-x-partial #-}
+
 module Test.Hspec.ExtraSpec (spec) where
 
 import Prelude
