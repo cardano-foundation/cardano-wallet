@@ -13,9 +13,11 @@ where
 
 import Prelude
 
+import Cardano.Address.KeyHash
+    ( KeyRole (..)
+    )
 import Cardano.Address.Script
     ( KeyHash (KeyHash)
-    , KeyRole (..)
     )
 import Cardano.Wallet.Primitive.Types.AnyExplicitScripts
     ( AnyExplicitScript

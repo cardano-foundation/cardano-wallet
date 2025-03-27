@@ -3,7 +3,6 @@
 set -euo pipefail
 
 updates=(
-    "cardano-addresses-cli"
     "cardano-addresses"
     "cardano-api"
     "cardano-binary"

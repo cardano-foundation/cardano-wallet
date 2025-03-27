@@ -107,7 +107,6 @@ library
     , base
     , bytestring
     , cardano-addresses               >=3.12.0  && <3.13
-    , cardano-addresses-cli           >=3.12.0  && <3.13
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-tls
