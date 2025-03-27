@@ -39,10 +39,12 @@ import Prelude hiding
     ( id
     )
 
+import Cardano.Address.KeyHash
+    ( KeyHash (..)
+    , KeyRole (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (..)
-    , KeyRole (..)
     , Script (..)
     , ScriptHash (..)
     , ScriptTemplate (..)

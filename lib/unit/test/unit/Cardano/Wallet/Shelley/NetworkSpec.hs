@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -99,7 +100,7 @@ import System.Directory
 import System.Environment.Extended
     ( isEnvSet
     )
-import System.IO.Extra
+import "extra" System.IO.Extra
     ( withTempFile
     )
 import System.IO.Temp.Extra

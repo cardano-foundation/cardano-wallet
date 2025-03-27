@@ -267,7 +267,7 @@ import Servant.Server
     )
 
 import qualified Cardano.Address.Derivation as CA
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Wallet.Address.Derivation.Shared as Shared

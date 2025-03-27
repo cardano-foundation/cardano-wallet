@@ -50,7 +50,7 @@ import Cardano.Wallet.Read
     , Tx
     )
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyRole (..)
     )
 import Cardano.Ledger.Babbage

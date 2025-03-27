@@ -13,7 +13,7 @@ where
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (KeyHash)
     , KeyRole (..)
     )

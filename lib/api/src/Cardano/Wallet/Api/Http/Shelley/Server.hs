@@ -142,8 +142,6 @@ import Cardano.Address.Derivation
     )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (KeyHash)
-    , KeyRole (..)
     , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
@@ -839,6 +837,7 @@ import UnliftIO.Exception
     ( tryAnyDeep
     )
 
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
@@ -3456,7 +3455,7 @@ decodeTransaction
                         $ maybe
                             AnyWitnessCountCtx
                             ( ShelleyWalletCtx
-                                . KeyHash Policy
+                                . CA.KeyHash CA.Policy
                                 . xpubToBytes
                             )
                             policyKeyM
@@ -3810,8 +3809,8 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     isTimelock (NativeExplicitScript _ _) = True
     isTimelock _ = False
 
-    isDelegationKeyHash (KeyHash CA.Delegation _) = True
-    isDelegationKeyHash (KeyHash _ _) = False
+    isDelegationKeyHash (CA.KeyHash CA.Delegation _) = True
+    isDelegationKeyHash (CA.KeyHash _ _) = False
 
     hasDelegationKeyHash s =
         isTimelock s && all isDelegationKeyHash (retrieveAllKeyHashes s)

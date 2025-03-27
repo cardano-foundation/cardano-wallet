@@ -38,10 +38,12 @@ import Cardano.Address.Derivation
     , xprvToBytes
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (Delegation, Payment)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)

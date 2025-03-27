@@ -55,10 +55,12 @@ import Cardano.Address.Derivation
     ( XPrv
     , toXPub
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     , ScriptHash (..)
     , foldScript
     , toScriptHash
