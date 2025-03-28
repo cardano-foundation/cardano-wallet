@@ -40,6 +40,7 @@
 > will be thoroughly reviewed, but no new features will be developed
 > by the Cardano Foundation.
 
+  [cardano-node]: https://github.com/IntersectMBO/cardano-node
 ## Overview
 
 Cardano Wallet is software that helps you manage your ADA.
