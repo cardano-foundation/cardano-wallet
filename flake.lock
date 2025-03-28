@@ -808,11 +808,11 @@
     "hackage": {
       "flake": false,
       "locked": {
-        "lastModified": 1740702249,
-        "narHash": "sha256-+4J0jzz55cgDxndQHZ92o/uM7NhLLdQahMAtpkOfZ4U=",
+        "lastModified": 1743121476,
+        "narHash": "sha256-aoNiDcHJki99PirRkXlLSCzbyIW+LodeKORrNth3g3k=",
         "owner": "input-output-hk",
         "repo": "hackage.nix",
-        "rev": "5626963b37c97ba5d1d0908c2ffc2a04596b7db2",
+        "rev": "030af770197abf970443bb114f6b2cbe9564ac1e",
         "type": "github"
       },
       "original": {

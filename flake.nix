@@ -241,7 +241,7 @@
 
                 # Adrestia tool belt
                 inherit (project.hsPkgs.bech32.components.exes) bech32;
-                inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
+                inherit (project.hsPkgs.cardano-addresses.components.exes) cardano-address;
 
                 # Cardano
                 cardano-cli = nodeProject.hsPkgs.cardano-cli.components.exes.cardano-cli;

@@ -60,7 +60,7 @@ library
     , iproute
     , network
     , ordered-containers
-    , plutus-ledger-api:plutus-ledger-api-testlib
+    , plutus-ledger-api:plutus-ledger-api-testlib  >=1.37.0.0 && <1.38
     , QuickCheck
     , quickcheck-instances
     , random
