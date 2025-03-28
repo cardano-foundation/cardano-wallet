@@ -32,7 +32,7 @@
 > Starting April 1st, 2025, the Cardano Wallet is entering
 > maintenance-only mode. The Cardano Foundation is committed to
 > maintaining it for the foreseeable future by upgrading to new
-> versions of the cardano-node, fixing bugs, improving quality and
+> versions of the [cardano-node][], fixing bugs, improving quality and
 > stability of both the code and server stability, plus providing
 > general user support.
 >
