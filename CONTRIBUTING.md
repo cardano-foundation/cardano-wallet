@@ -8,7 +8,8 @@ If you find a bug or you'd like to propose a feature, please feel free to raise 
 > versions of the cardano-node, fixing bugs, improving quality and
 > stability of both the code and server stability, plus providing
 > general user support.
->
+
+  [cardano-node]: https://github.com/IntersectMBO/cardano-node
 > Contributions for new features are welcome and
 > will be thoroughly reviewed, but no new features will be developed
 > by the Cardano Foundation.
