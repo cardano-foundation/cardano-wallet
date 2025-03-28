@@ -27,6 +27,20 @@
 
 <hr/>
 
+> [!IMPORTANT]
+>
+> Starting April 1st, 2025, the Cardano Wallet is entering
+> maintenance-only mode. The Cardano Foundation is committed to
+> maintaining it for the foreseeable future by upgrading to new
+> versions of the [cardano-node][], fixing bugs, improving quality and
+> stability of both the code and server stability, plus providing
+> general user support.
+>
+> Contributions for new features are welcome and
+> will be thoroughly reviewed, but no new features will be developed
+> by the Cardano Foundation.
+
+  [cardano-node]: https://github.com/IntersectMBO/cardano-node
 ## Overview
 
 Cardano Wallet is software that helps you manage your ADA.
