@@ -78,6 +78,8 @@ updates=(
     "ouroboros-network-protocols"
     "ouroboros-network"
     "typed-protocols"
+    "plutus-core"
+    "plutus-ledger-api"
 )
 
 # for every update, get the version from the freeze file and update the cabal files
