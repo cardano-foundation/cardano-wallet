@@ -33,7 +33,6 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner
-    , KeyHash
     , Script (..)
     , ScriptTemplate (..)
     , toScriptHash
@@ -81,7 +80,7 @@ import GHC.Stack
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
@@ -152,11 +151,11 @@ replaceCosignersWithVerKeys
     :: CA.Role
     -> ScriptTemplate
     -> Index 'Soft 'CredFromScriptK
-    -> Script KeyHash
+    -> Script CA.KeyHash
 replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
     replaceCosigner scriptTemplate
   where
-    replaceCosigner :: Script Cosigner -> Script KeyHash
+    replaceCosigner :: Script Cosigner -> Script CA.KeyHash
     replaceCosigner = \case
         RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
         RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
@@ -169,7 +168,7 @@ replaceCosignersWithVerKeys role' (ScriptTemplate xpubs scriptTemplate) ix =
         Index 'Soft 'CredFromScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
     convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
 
-    toKeyHash :: HasCallStack => Cosigner -> KeyHash
+    toKeyHash :: HasCallStack => Cosigner -> CA.KeyHash
     toKeyHash c =
         case Map.lookup c xpubs of
             Nothing -> error "Impossible: cosigner without accXPpub."

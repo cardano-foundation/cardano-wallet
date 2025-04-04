@@ -24,9 +24,11 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Mint
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyRole (..)
-    , ScriptHash (..)
+    )
+import Cardano.Address.Script
+    ( ScriptHash (..)
     )
 import Cardano.Crypto.Hash
     ( hashToBytes

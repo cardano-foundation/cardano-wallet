@@ -18,12 +18,14 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash
     , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
     , keyHashFromBytes
+    )
+import Cardano.Address.Script
+    ( Script (..)
+    , ScriptHash (..)
     , serializeScript
     , toScriptHash
     )

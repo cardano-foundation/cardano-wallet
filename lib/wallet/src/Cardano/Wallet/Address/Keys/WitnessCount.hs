@@ -18,10 +18,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubToBytes
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , ScriptTemplate (..)
+    )
+import Cardano.Address.Script
+    ( ScriptTemplate (..)
     )
 import Cardano.Wallet.Address.Derivation
     ( Role (MutableAccount)
@@ -54,7 +56,7 @@ import Cardano.Wallet.Transaction
     ( WitnessCountCtx (..)
     )
 
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Data.Map as Map
 
 toWitnessCountCtx

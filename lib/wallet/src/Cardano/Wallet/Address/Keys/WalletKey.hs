@@ -29,7 +29,7 @@ import Cardano.Address.Derivation
     ( XPrv
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (KeyHash)
     , KeyRole
     )

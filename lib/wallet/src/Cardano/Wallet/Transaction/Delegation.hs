@@ -17,9 +17,11 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
