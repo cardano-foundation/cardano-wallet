@@ -16,9 +16,11 @@ import Cardano.Address.Derivation
     ( XPrv
     , XPub
     )
+import Cardano.Address.KeyHash
+    ( KeyHash
+    )
 import Cardano.Address.Script
     ( Cosigner
-    , KeyHash
     , Script (..)
     , ScriptHash (unScriptHash)
     , toScriptHash
@@ -69,7 +71,7 @@ import GHC.Stack
     ( HasCallStack
     )
 
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Data.Map as Map
 
 toTokenPolicyId

@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 {-# OPTIONS_GHC -Wno-missing-local-signatures #-}
 module Cardano.Wallet.Launch.Cluster.Faucet.SerializeSpec
     ( spec
@@ -19,7 +20,7 @@ import Cardano.Wallet.Launch.Cluster.Faucet.Serialize
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( FileOf (..)
     )
-import System.IO.Extra
+import "extra" System.IO.Extra
     ( withTempFile
     )
 import System.Path

@@ -23,12 +23,14 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash
     , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
     , keyHashFromBytes
+    )
+import Cardano.Address.Script
+    ( Script (..)
+    , ScriptHash (..)
     , toScriptHash
     )
 import Cardano.Api
@@ -366,7 +368,7 @@ import UnliftIO.Exception
     ( fromEither
     )
 
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley

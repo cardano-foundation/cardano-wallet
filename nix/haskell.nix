@@ -92,7 +92,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
       # this is a local variable, it controls only the index-state of the
       # tools
-      indexState = "2025-01-01T23:24:19Z";
+      indexState = "2025-04-01T23:24:19Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
@@ -124,7 +124,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
         nativeBuildInputs = (with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
           nodePkgs.cardano-node
-          cardano-addresses-cli.components.exes.cardano-address
           bech32.components.exes.bech32
         ]) ++ (with pkgs.buildPackages.buildPackages; [
           just
@@ -304,7 +303,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           # supported for hpack package" which appear in nix-shell
           {
             packages.cardano-addresses.cabal-generator = lib.mkForce null;
-            packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
           }
 
         ];
