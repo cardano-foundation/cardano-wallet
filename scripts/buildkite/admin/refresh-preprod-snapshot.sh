@@ -11,7 +11,7 @@ export GENESIS_VERIFICATION_KEY=5b3132372c37332c3132342c3136312c362c3133372c3133
 mithril() {
     # shellcheck disable=SC2048
     # shellcheck disable=SC2086
-    nix shell "github:input-output-hk/mithril?ref=2506.0" -c $*
+    nix shell "github:input-output-hk/mithril?ref=2517.1" -c $*
 }
 
 mithril echo "mithril is available" || exit 44

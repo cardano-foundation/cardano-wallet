@@ -91,7 +91,7 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
             "aarch64" -> "arm64"
             other -> other
 
-    version       = "2450.0"
+    version       = "2517.1"
     mithrilTar    = "mithril-" <> version <> "-" <> platform <> ".tar"
     mithrilPackage = mithrilTar <> ".gz"
     downloadUrl   = "https://github.com/input-output-hk/mithril/releases/download/"
