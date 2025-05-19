@@ -1,7 +1,7 @@
 ############################################################################
 # Builds Haskell packages with Haskell.nix
 ############################################################################
-CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-libs: haskell-nix.cabalProject' [
+CHaP: haskell-nix: nixpkgs-recent: nodePkgs: set-git-rev: rewrite-libs: haskell-nix.cabalProject' [
   ({ lib, pkgs, buildProject, ... }: {
     options = {
       gitrev = lib.mkOption {
@@ -146,7 +146,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           haskellPackages.pretty-simple
           haskellPackages.weeder
           haskellPackages.stylish-haskell
-          mithrilPkgs.mithril-client-cli
 
         ]);
         shellHook = "export LOCAL_CLUSTER_CONFIGS=${localClusterConfigs}";
