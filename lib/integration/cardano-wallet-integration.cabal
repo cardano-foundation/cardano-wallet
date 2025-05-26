@@ -51,7 +51,7 @@ library framework
     , bech32
     , bech32-th
     , bytestring
-    , cardano-addresses                    >=3.12.0   && <3.13
+    , cardano-addresses                    >=4.0.0    && <4.1
     , cardano-ledger-shelley               >=1.15.0.0 && <1.16
     , cardano-wallet
     , cardano-wallet-api
@@ -135,7 +135,7 @@ library scenarios
     , base
     , bech32-th
     , bytestring
-    , cardano-addresses                     >=3.12.0   && <3.13
+    , cardano-addresses                     >=4.0.0     && <4.1
     , cardano-api                           >=10.8.0.0 && <10.9
     , cardano-crypto                        >=1.1.2    && <1.2
     , cardano-crypto-class                  >=2.1.5.0  && <2.2
@@ -231,7 +231,7 @@ test-suite e2e
   build-depends:
     , aeson
     , bytestring
-    , cardano-addresses                     >=3.12.0 && <3.13
+    , cardano-addresses                     >=4.0.0   && <4.1
     , cardano-wallet-api
     , cardano-wallet-application
     , cardano-wallet-application-extras

@@ -73,7 +73,7 @@ test-suite unit
     , bech32
     , bech32-th
     , bytestring
-    , cardano-addresses                   >=3.12.0   && <3.13
+    , cardano-addresses                   >=4.0.0     && <4.1
     , cardano-api                         >=10.8.0.0 && <10.9
     , cardano-api-extra
     , cardano-api:internal

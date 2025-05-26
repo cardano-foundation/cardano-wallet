@@ -45,18 +45,7 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses             >=3.12.0   && <3.13
-    , cardano-api                   >=10.8.0.0 && <10.9
-    , cardano-api:internal
-    , cardano-binary                >=1.7.1.0  && <1.8
-    , cardano-crypto                >=1.1.2    && <1.2
-    , cardano-crypto-class          >=2.1.5.0  && <2.2
-    , cardano-crypto-wrapper
-    , cardano-data                  >=1.2.3.1  && <1.3
-    , cardano-ledger-allegra        >=1.6.1.0  && <1.7
-    , cardano-ledger-alonzo         >=1.12.0.0 && <1.13
-    , cardano-ledger-api            >=1.10.0.0 && <1.11
-    , cardano-ledger-babbage        >=1.10.1.0 && <1.11
+    , cardano-addresses             >=4.0.0     && <4.1
     , cardano-ledger-binary
     , cardano-ledger-byron          >=1.0.2.0  && <1.1
     , cardano-ledger-conway         >=1.18.1.0 && <1.19
@@ -229,7 +218,7 @@ test-suite test
     , base58-bytestring
     , binary
     , bytestring
-    , cardano-addresses               >=3.12.0   && <3.13
+    , cardano-addresses               >=4.0.0     && <4.1
     , cardano-api                     >=10.8.0.0 && <10.9
     , cardano-crypto-class            >=2.1.5.0  && <2.2
     , cardano-ledger-allegra:testlib  >=1.6.1.0  && <1.7

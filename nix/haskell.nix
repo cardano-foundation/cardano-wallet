@@ -124,7 +124,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
         nativeBuildInputs = (with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
           nodePkgs.cardano-node
-          cardano-addresses-cli.components.exes.cardano-address
+          cardano-addresses.components.exes.cardano-address
           bech32.components.exes.bech32
         ]) ++ (with pkgs.buildPackages.buildPackages; [
           just
@@ -304,7 +304,6 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           # supported for hpack package" which appear in nix-shell
           {
             packages.cardano-addresses.cabal-generator = lib.mkForce null;
-            packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
           }
 
         ];
