@@ -21,9 +21,6 @@ module Cardano.Read.Ledger.Tx.Inputs
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
     , inputsTxBodyL
@@ -60,12 +57,12 @@ import qualified Cardano.Ledger.Shelley.API as SH
 
 type family InputsType era where
     InputsType Byron = NonEmpty BY.TxIn
-    InputsType Shelley = Set (SH.TxIn StandardCrypto)
-    InputsType Allegra = Set (SH.TxIn StandardCrypto)
-    InputsType Mary = Set (SH.TxIn StandardCrypto)
-    InputsType Alonzo = Set (SH.TxIn StandardCrypto)
-    InputsType Babbage = Set (SH.TxIn StandardCrypto)
-    InputsType Conway = Set (SH.TxIn StandardCrypto)
+    InputsType Shelley = Set SH.TxIn
+    InputsType Allegra = Set SH.TxIn
+    InputsType Mary = Set SH.TxIn
+    InputsType Alonzo = Set SH.TxIn
+    InputsType Babbage = Set SH.TxIn
+    InputsType Conway = Set SH.TxIn
 
 newtype Inputs era = Inputs (InputsType era)
 

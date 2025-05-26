@@ -46,9 +46,6 @@ import Cardano.Crypto.VRF
 import Cardano.Crypto.VRF.Praos
     ( PraosVRF
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     , Version
@@ -61,6 +58,9 @@ import Cardano.Ledger.Block
     )
 import Cardano.Ledger.Keys
     ( VKey (..)
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Protocol.TPraos.BHeader
     ( BHBody (..)
@@ -155,14 +155,14 @@ headerShelley v slotNumber blockNumber =
     BHeader <*> mkSignedKES $ hbody v slotNumber blockNumber
 
 mkShelleyBlock
-    :: ( L.EraSegWits (era StandardCrypto)
+    :: ( L.EraSegWits era
        , EncCBOR (HeaderEra era)
        , HeaderEra era ~ BHeader StandardCrypto
-       , TxT cardano_era ~ L.Tx (era StandardCrypto)
+       , TxT cardano_era ~ L.Tx era
        )
     => Version
     -> BlockParameters cardano_era
-    -> O.ShelleyBlock (TPraos StandardCrypto) (era StandardCrypto)
+    -> O.ShelleyBlock (TPraos StandardCrypto) era
 mkShelleyBlock v BlockParameters{blockNumber, slotNumber, txs} =
     mkAnyAfterShelleyBlock txs $ headerShelley v slotNumber' blockNumber'
   where
@@ -174,36 +174,35 @@ mkShelleyBlock v BlockParameters{blockNumber, slotNumber, txs} =
 --------------------------------------------------------------------------------
 
 mkAnyAfterShelleyBlock
-    :: ( L.EraSegWits (era StandardCrypto)
+    :: ( L.EraSegWits era
        , EncCBOR (HeaderEra era)
-       , O.ProtoCrypto proto ~ StandardCrypto
        , HeaderEra era ~ O.ShelleyProtocolHeader proto
-       , TxT era2 ~ L.Tx (era StandardCrypto)
+       , TxT era2 ~ L.Tx era
        )
     => [Tx era2]
     -> HeaderEra era
-    -> O.ShelleyBlock proto (era StandardCrypto)
+    -> O.ShelleyBlock proto era
 mkAnyAfterShelleyBlock txs header =
     O.ShelleyBlock (block txs' header) hash
   where
     txs' = unTx <$> txs
 
-hash :: O.ShelleyHash StandardCrypto
+hash :: O.ShelleyHash
 hash = O.ShelleyHash $ Crypto.UnsafeHash $ BS.pack $ replicate 32 42
 
 block
-    :: ( L.EraSegWits (era StandardCrypto)
+    :: ( L.EraSegWits era
        , EncCBOR (HeaderEra era)
        )
-    => [L.Tx (era StandardCrypto)]
+    => [L.Tx era]
     -> HeaderEra era
-    -> L.Block (HeaderEra era) (era StandardCrypto)
+    -> L.Block (HeaderEra era) era
 block txs header' = Block header' (txseq txs)
 
 txseq
-    :: (L.EraSegWits (era StandardCrypto))
-    => [L.Tx (era StandardCrypto)]
-    -> L.TxSeq (era StandardCrypto)
+    :: (L.EraSegWits era)
+    => [L.Tx era]
+    -> L.TxSeq era
 txseq = L.toTxSeq . Seq.fromList
 
 mkSignedKES
@@ -225,7 +224,8 @@ oCertamente =
 
 oCertSignable :: OCertSignable StandardCrypto
 oCertSignable =
-    OCertSignable (deriveVerKeyKES $ genKeyKES seedKeyKES) 42 $ KESPeriod 42
+    OCertSignable (deriveVerKeyKES $ genKeyKES seedKeyKES) 42
+        $ KESPeriod 42
 
 seedKeyKES :: Crypto.Seed
 seedKeyKES =
@@ -253,7 +253,7 @@ seedKeyVRF =
 mkKeyVRF' :: VRFAlgorithm a => SignKeyVRF a
 mkKeyVRF' = genKeyVRF seedKeyVRF
 
-hashHeader :: HashHeader StandardCrypto
+hashHeader :: HashHeader
 hashHeader = HashHeader $ Crypto.UnsafeHash $ BS.pack $ replicate 32 42
 
 {-# NOINLINE seedKeyDSIGN #-}

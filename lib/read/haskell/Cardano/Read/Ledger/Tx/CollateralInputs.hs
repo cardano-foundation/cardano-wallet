@@ -24,8 +24,7 @@ module Cardano.Read.Ledger.Tx.CollateralInputs
 import Prelude
 
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , collateralInputsTxBodyL
+    ( collateralInputsTxBodyL
     )
 import Cardano.Ledger.Core
     ( bodyTxL
@@ -61,9 +60,9 @@ type family CollateralInputsType era where
     CollateralInputsType Shelley = ()
     CollateralInputsType Allegra = ()
     CollateralInputsType Mary = ()
-    CollateralInputsType Alonzo = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType Babbage = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType Conway = Set (SH.TxIn StandardCrypto)
+    CollateralInputsType Alonzo = Set SH.TxIn
+    CollateralInputsType Babbage = Set SH.TxIn
+    CollateralInputsType Conway = Set SH.TxIn
 
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 

@@ -29,9 +29,6 @@ import Cardano.Ledger.Alonzo.Tx
 import Cardano.Ledger.Alonzo.TxBody
     ( scriptIntegrityHashTxBodyL
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -64,9 +61,9 @@ type family IntegrityType era where
     IntegrityType Shelley = ()
     IntegrityType Allegra = ()
     IntegrityType Mary = ()
-    IntegrityType Alonzo = StrictMaybe (ScriptIntegrityHash StandardCrypto)
-    IntegrityType Babbage = StrictMaybe (ScriptIntegrityHash StandardCrypto)
-    IntegrityType Conway = StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    IntegrityType Alonzo = StrictMaybe ScriptIntegrityHash
+    IntegrityType Babbage = StrictMaybe ScriptIntegrityHash
+    IntegrityType Conway = StrictMaybe ScriptIntegrityHash
 
 newtype Integrity era = Integrity (IntegrityType era)
 

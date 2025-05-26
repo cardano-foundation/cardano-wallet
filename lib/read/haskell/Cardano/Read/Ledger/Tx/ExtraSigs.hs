@@ -12,17 +12,12 @@
 -- License: Apache-2.0
 --
 -- Raw extra signers required data extraction from 'Tx'
---
-
 module Cardano.Read.Ledger.Tx.ExtraSigs where
 
 import Prelude
 
 import Cardano.Ledger.Alonzo.TxBody
     ( reqSignerHashesTxBodyL
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto
     )
 import Cardano.Ledger.Core
     ( bodyTxL
@@ -60,16 +55,17 @@ type family ExtraSigsType era where
     ExtraSigsType Shelley = ()
     ExtraSigsType Allegra = ()
     ExtraSigsType Mary = ()
-    ExtraSigsType Alonzo = Set (KeyHash 'Witness StandardCrypto)
-    ExtraSigsType Babbage = Set (KeyHash 'Witness StandardCrypto)
-    ExtraSigsType Conway = Set (KeyHash 'Witness StandardCrypto)
+    ExtraSigsType Alonzo = Set (KeyHash 'Witness)
+    ExtraSigsType Babbage = Set (KeyHash 'Witness)
+    ExtraSigsType Conway = Set (KeyHash 'Witness)
 
 newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 
 deriving instance Show (ExtraSigsType era) => Show (ExtraSigs era)
 deriving instance Eq (ExtraSigsType era) => Eq (ExtraSigs era)
 
-{-# INLINABLE getEraExtraSigs #-}
+{-# INLINEABLE getEraExtraSigs #-}
+
 -- | Get extra signatures required for a transaction in any era.
 getEraExtraSigs :: forall era. IsEra era => Tx era -> ExtraSigs era
 getEraExtraSigs = case theEra @era of

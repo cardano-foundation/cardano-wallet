@@ -2,7 +2,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 
 module Cardano.Read.Ledger.Block.HeaderHash
     ( HeaderHash (..)
@@ -22,9 +21,6 @@ where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Binary
     ( EncCBOR
     , EncCBORGroup
@@ -34,6 +30,9 @@ import Cardano.Ledger.Core
     )
 import Cardano.Ledger.Hashes
     ( EraIndependentBlockHeader
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash
@@ -71,9 +70,6 @@ import Ouroboros.Consensus.Byron.Ledger
 import Ouroboros.Consensus.Shelley.Ledger
     ( ShelleyHash (unShelleyHash)
     )
-import Ouroboros.Consensus.Shelley.Protocol.Abstract
-    ( ProtoCrypto
-    )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
     ()
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
@@ -95,12 +91,12 @@ import qualified Ouroboros.Network.Block as O
 -- | Era-specific header hash type from the ledger
 type family HeaderHashT era where
     HeaderHashT Byron = ByronHash
-    HeaderHashT Shelley = ShelleyHash StandardCrypto
-    HeaderHashT Allegra = ShelleyHash StandardCrypto
-    HeaderHashT Mary = ShelleyHash StandardCrypto
-    HeaderHashT Alonzo = ShelleyHash StandardCrypto
-    HeaderHashT Babbage = ShelleyHash StandardCrypto
-    HeaderHashT Conway = ShelleyHash StandardCrypto
+    HeaderHashT Shelley = ShelleyHash
+    HeaderHashT Allegra = ShelleyHash
+    HeaderHashT Mary = ShelleyHash
+    HeaderHashT Alonzo = ShelleyHash
+    HeaderHashT Babbage = ShelleyHash
+    HeaderHashT Conway = ShelleyHash
 
 -- | Era-specific header hash type from the ledger
 newtype HeaderHash era = HeaderHash (HeaderHashT era)
@@ -118,14 +114,13 @@ getEraHeaderHash = case theEra @era of
     Conway -> \(Block block) -> HeaderHash $ getHeaderHashShelley block
 
 getHeaderHashShelley
-    :: ( ProtoCrypto (praos StandardCrypto) ~ StandardCrypto
-       , Shelley.ProtocolHeaderSupportsEnvelope (praos StandardCrypto)
+    :: ( Shelley.ProtocolHeaderSupportsEnvelope (praos StandardCrypto)
        , L.Era era
        , EncCBORGroup (TxSeq era)
        , EncCBOR (Shelley.ShelleyProtocolHeader (praos StandardCrypto))
        )
     => O.ShelleyBlock (praos StandardCrypto) era
-    -> ShelleyHash StandardCrypto
+    -> ShelleyHash
 getHeaderHashShelley
     (O.ShelleyBlock (Shelley.Block header _) _) = Shelley.pHeaderHash header
 
@@ -165,12 +160,12 @@ getRawHeaderHash = case theEra @era of
 -- | Era-specific previous header hash type from the ledger
 type family PrevHeaderHashT era where
     PrevHeaderHashT Byron = O.ChainHash ByronBlock
-    PrevHeaderHashT Shelley = PrevHash StandardCrypto
-    PrevHeaderHashT Allegra = PrevHash StandardCrypto
-    PrevHeaderHashT Mary = PrevHash StandardCrypto
-    PrevHeaderHashT Alonzo = PrevHash StandardCrypto
-    PrevHeaderHashT Babbage = PrevHash StandardCrypto
-    PrevHeaderHashT Conway = PrevHash StandardCrypto
+    PrevHeaderHashT Shelley = PrevHash
+    PrevHeaderHashT Allegra = PrevHash
+    PrevHeaderHashT Mary = PrevHash
+    PrevHeaderHashT Alonzo = PrevHash
+    PrevHeaderHashT Babbage = PrevHash
+    PrevHeaderHashT Conway = PrevHash
 
 -- | Era-specific previous header hash type from the ledger
 newtype PrevHeaderHash era = PrevHeaderHash (PrevHeaderHashT era)
@@ -182,7 +177,7 @@ getPrevHeaderHashShelley
        , Shelley.ProtocolHeaderSupportsEnvelope proto
        )
     => O.ShelleyBlock proto era
-    -> PrevHash (ProtoCrypto proto)
+    -> PrevHash
 getPrevHeaderHashShelley (O.ShelleyBlock (Shelley.Block header _) _) =
     Shelley.pHeaderPrevHash header
 

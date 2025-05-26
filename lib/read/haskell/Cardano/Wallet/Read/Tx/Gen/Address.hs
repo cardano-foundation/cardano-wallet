@@ -8,7 +8,6 @@ import Prelude
 
 import Cardano.Ledger.Api
     ( Addr
-    , StandardCrypto
     )
 import Cardano.Wallet.Read.Tx.Gen.TxParameters
     ( Address (..)
@@ -22,7 +21,7 @@ fromRight :: String -> Either a p -> p
 fromRight _ (Right x) = x
 fromRight e (Left _) = error e
 
-decodeShelleyAddress :: Address -> Addr StandardCrypto
+decodeShelleyAddress :: Address -> Addr
 decodeShelleyAddress (ByronAddress b) =
     fromRight "expected valid Byron address"
         $ Shelley.decodeAddrEither b

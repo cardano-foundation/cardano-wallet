@@ -23,9 +23,6 @@ module Cardano.Read.Ledger.Tx.ReferenceInputs
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Babbage.TxBody
     ( referenceInputsTxBodyL
     )
@@ -64,8 +61,8 @@ type family ReferenceInputsType era where
     ReferenceInputsType Allegra = ()
     ReferenceInputsType Mary = ()
     ReferenceInputsType Alonzo = ()
-    ReferenceInputsType Babbage = Set (SH.TxIn StandardCrypto)
-    ReferenceInputsType Conway = Set (SH.TxIn StandardCrypto)
+    ReferenceInputsType Babbage = Set SH.TxIn
+    ReferenceInputsType Conway = Set SH.TxIn
 
 newtype ReferenceInputs era = ReferenceInputs (ReferenceInputsType era)
 

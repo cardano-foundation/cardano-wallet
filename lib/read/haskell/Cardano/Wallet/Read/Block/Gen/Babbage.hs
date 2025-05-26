@@ -21,9 +21,6 @@ import Cardano.Crypto.VRF
     ( CertifiedVRF (CertifiedVRF)
     , VRFAlgorithm (..)
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     )
@@ -33,6 +30,9 @@ import Cardano.Ledger.Binary
     )
 import Cardano.Ledger.Keys
     ( VKey (..)
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash (..)
@@ -72,14 +72,14 @@ import qualified Cardano.Ledger.Slot as L
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
 mkBabbageBlock
-    :: ( L.EraSegWits (era StandardCrypto)
+    :: ( L.EraSegWits era
        , EncCBOR (HeaderEra era)
        , HeaderEra era ~ Header StandardCrypto
-       , TxT cardano_era ~ L.Tx (era StandardCrypto)
+       , TxT cardano_era ~ L.Tx era
        )
     => Version
     -> BlockParameters cardano_era
-    -> O.ShelleyBlock (Praos StandardCrypto) (era StandardCrypto)
+    -> O.ShelleyBlock (Praos StandardCrypto) era
 mkBabbageBlock v BlockParameters{blockNumber, slotNumber, txs} =
     mkAnyAfterShelleyBlock txs $ babbageHeader v slotNumber' blockNumber'
   where
@@ -94,7 +94,8 @@ babbageHeader
 babbageHeader v slotNumber blockNumber =
     Header <*> mkSignedKES $ babbageBody v slotNumber blockNumber
 
-babbageBody :: Version -> L.SlotNo -> L.BlockNo -> HeaderBody StandardCrypto
+babbageBody
+    :: Version -> L.SlotNo -> L.BlockNo -> HeaderBody StandardCrypto
 babbageBody v slotNumber blockNumber =
     HeaderBody
         { hbBlockNo = blockNumber

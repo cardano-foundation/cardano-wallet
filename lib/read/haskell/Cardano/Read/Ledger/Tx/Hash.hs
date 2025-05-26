@@ -53,7 +53,7 @@ import Control.Lens
 import qualified Cardano.Crypto as CryptoC
 import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.SafeHash as SafeHash
+import qualified Cardano.Ledger.Hashes as SafeHash
 
 {-# INLINE getEraTxHash #-}
 -- | Extract the hash of a transaction in any era.
@@ -75,6 +75,6 @@ shelleyTxHash tx = fromShelleyTxId $ txIdTxBody (tx ^. bodyTxL)
 byronTxHash :: ATxAux a -> Crypto.ByteString
 byronTxHash = CryptoC.hashToBytes . serializeCborHash . taTx
 
-fromShelleyTxId :: TxId crypto -> Crypto.ByteString
+fromShelleyTxId :: TxId -> Crypto.ByteString
 fromShelleyTxId (TxId h) =
     Crypto.hashToBytes $ SafeHash.extractHash h

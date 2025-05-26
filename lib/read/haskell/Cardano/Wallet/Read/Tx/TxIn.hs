@@ -6,8 +6,6 @@
 -- License: Apache-2.0
 --
 -- 'TxIn' — transaction input.
---
-
 module Cardano.Wallet.Read.Tx.TxIn
     ( TxIn
     , pattern TxIn
@@ -17,13 +15,10 @@ module Cardano.Wallet.Read.Tx.TxIn
     , pattern TxIx
     , word16FromTxIx
     )
-    where
+where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Wallet.Read.Tx.TxId
     ( TxId
     )
@@ -45,11 +40,11 @@ import qualified Cardano.Ledger.TxIn as SH
 -- coercion between @Set TxIn@ and @Set (SH.TxIn StandardCrypto)@.
 -- Unfortunately, 'Set' expects a nominal role.
 -- (See the design literature on 'Data.Coercible'.)
-type TxIn = SH.TxIn StandardCrypto
+type TxIn = SH.TxIn
 
 {-# COMPLETE TxIn #-}
 pattern TxIn :: TxId -> TxIx -> TxIn
-pattern TxIn{inputId,inputIx} = SH.TxIn inputId inputIx
+pattern TxIn{inputId, inputIx} = SH.TxIn inputId inputIx
 
 -- | Index of a transaction output.
 -- Equivalent to 'Word16'.
@@ -57,8 +52,9 @@ type TxIx = SH.TxIx
 
 {-# COMPLETE TxIx #-}
 pattern TxIx :: Word16 -> TxIx
-pattern TxIx{word16FromTxIx} <- (fromTxIx -> word16FromTxIx) where
-    TxIx w16 = SH.mkTxIx w16
+pattern TxIx{word16FromTxIx} <- (fromTxIx -> word16FromTxIx)
+    where
+        TxIx w16 = SH.TxIx w16
 
 fromTxIx :: TxIx -> Word16
 fromTxIx (SH.TxIx w16) = fromIntegral w16

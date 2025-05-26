@@ -20,9 +20,6 @@ module Cardano.Read.Ledger.Value
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -46,10 +43,10 @@ type family ValueType era where
     ValueType Byron = BY.Lovelace
     ValueType Shelley = SH.Coin
     ValueType Allegra = SH.Coin
-    ValueType Mary = MA.MaryValue StandardCrypto
-    ValueType Alonzo = MA.MaryValue StandardCrypto
-    ValueType Babbage = MA.MaryValue StandardCrypto
-    ValueType Conway = MA.MaryValue StandardCrypto
+    ValueType Mary = MA.MaryValue
+    ValueType Alonzo = MA.MaryValue
+    ValueType Babbage = MA.MaryValue
+    ValueType Conway = MA.MaryValue
 
 newtype Value era = Value (ValueType era)
 

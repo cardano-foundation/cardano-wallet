@@ -4,13 +4,12 @@
 -- |
 -- Copyright: © 2024 Cardano Foundation
 -- License: Apache-2.0
---
 module Cardano.Read.Ledger.Tx.TxId
     ( TxIdType
     , TxId (..)
     , getEraTxId
     )
-    where
+where
 
 import Prelude
 
@@ -19,9 +18,6 @@ import Cardano.Chain.UTxO
     )
 import Cardano.Crypto.Hashing
     ( serializeCborHash
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto
     )
 import Cardano.Ledger.Core
     ( bodyTxL
@@ -54,12 +50,12 @@ import qualified Cardano.Ledger.TxIn as SH.TxIn
 
 type family TxIdType era where
     TxIdType Byron = BY.TxId
-    TxIdType Shelley = SH.TxIn.TxId StandardCrypto
-    TxIdType Allegra = SH.TxIn.TxId StandardCrypto
-    TxIdType Mary = SH.TxIn.TxId StandardCrypto
-    TxIdType Alonzo = SH.TxIn.TxId StandardCrypto
-    TxIdType Babbage = SH.TxIn.TxId StandardCrypto
-    TxIdType Conway = SH.TxIn.TxId StandardCrypto
+    TxIdType Shelley = SH.TxIn.TxId
+    TxIdType Allegra = SH.TxIn.TxId
+    TxIdType Mary = SH.TxIn.TxId
+    TxIdType Alonzo = SH.TxIn.TxId
+    TxIdType Babbage = SH.TxIn.TxId
+    TxIdType Conway = SH.TxIn.TxId
 
 newtype TxId era = TxId {unTxId :: TxIdType era}
 
@@ -80,5 +76,5 @@ byronTxId = serializeCborHash . taTx
 shelleyTxId
     :: SH.Core.EraTx era
     => SH.Core.Tx era
-    -> SH.TxIn.TxId (SH.Core.EraCrypto era)
+    -> SH.TxIn.TxId
 shelleyTxId tx = txIdTxBody (tx ^. bodyTxL)

@@ -12,20 +12,17 @@
 -- License: Apache-2.0
 --
 -- Raw certificate data extraction from 'Tx'
---
-
 module Cardano.Read.Ledger.Tx.Certificates
     ( CertificatesType
     , Certificates (..)
     , getEraCertificates
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , bodyTxL
+    ( bodyTxL
     , certsTxBodyL
     )
 import Cardano.Ledger.Conway.TxCert
@@ -64,26 +61,29 @@ type family CertificatesType era where
     CertificatesType Byron =
         ()
     CertificatesType Shelley =
-        StrictSeq (ShelleyTxCert (Ledger.ShelleyEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Ledger.ShelleyEra)
     CertificatesType Allegra =
-        StrictSeq (ShelleyTxCert (Ledger.AllegraEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Ledger.AllegraEra)
     CertificatesType Mary =
-        StrictSeq (ShelleyTxCert (Ledger.MaryEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Ledger.MaryEra)
     CertificatesType Alonzo =
-        StrictSeq (ShelleyTxCert (Ledger.AlonzoEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Ledger.AlonzoEra)
     CertificatesType Babbage =
-        StrictSeq (ShelleyTxCert (Ledger.BabbageEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Ledger.BabbageEra)
     CertificatesType Conway =
-        StrictSeq (ConwayTxCert (Ledger.ConwayEra StandardCrypto))
+        StrictSeq (ConwayTxCert Ledger.ConwayEra)
 
 newtype Certificates era = Certificates (CertificatesType era)
 
-deriving instance Show (CertificatesType era) => Show (Certificates era)
+deriving instance
+    Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
-{-# INLINABLE getEraCertificates #-}
+{-# INLINEABLE getEraCertificates #-}
+
 -- | Extract certificates from a 'Tx' in any era.
-getEraCertificates :: forall era . IsEra era => Tx era -> Certificates era
+getEraCertificates
+    :: forall era. IsEra era => Tx era -> Certificates era
 getEraCertificates = case theEra @era of
     Byron -> const $ Certificates ()
     Shelley -> certificates

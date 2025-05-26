@@ -15,7 +15,6 @@ import Cardano.Ledger.Alonzo.Tx
     )
 import Cardano.Ledger.Alonzo.TxAuxData
     ( AlonzoTxAuxData
-    , AuxiliaryDataHash
     )
 import Cardano.Ledger.Alonzo.TxBody
     ( AlonzoTxBody (..)
@@ -27,7 +26,7 @@ import Cardano.Ledger.Alonzo.TxWits
     )
 import Cardano.Ledger.Api
     ( AlonzoEra
-    , StandardCrypto
+    , TxAuxDataHash
     )
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
@@ -88,23 +87,23 @@ import Data.Set
 
 mkAlonzoTx
     :: TxParameters
-    -> AlonzoTx (AlonzoEra StandardCrypto)
+    -> AlonzoTx AlonzoEra
 mkAlonzoTx TxParameters{txInputs, txOutputs} =
     AlonzoTx (body txInputs txOutputs) wits valid aux
 
 valid :: IsValid
 valid = IsValid True
 
-wits :: AlonzoTxWits (AlonzoEra StandardCrypto)
+wits :: AlonzoTxWits AlonzoEra
 wits = mempty
 
-aux :: StrictMaybe (AlonzoTxAuxData (AlonzoEra StandardCrypto))
+aux :: StrictMaybe (AlonzoTxAuxData AlonzoEra)
 aux = maybeToStrictMaybe Nothing
 
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> AlonzoTxBody (AlonzoEra StandardCrypto)
+    -> AlonzoTxBody AlonzoEra
 body ins outs =
     AlonzoTxBody
         (txins ins)
@@ -123,28 +122,29 @@ body ins outs =
 
 txouts
     :: NonEmpty (Address, Lovelace)
-    -> StrictSeq (AlonzoTxOut (AlonzoEra StandardCrypto))
+    -> StrictSeq (AlonzoTxOut AlonzoEra)
 txouts xs = fromList $ do
     (addr, Lovelace val) <- toList xs
-    pure $ AlonzoTxOut (decodeShelleyAddress addr) (mkMaryValue val) SNothing
+    pure
+        $ AlonzoTxOut (decodeShelleyAddress addr) (mkMaryValue val) SNothing
 
 network :: StrictMaybe Network
 network = SNothing
 
-auxhash :: StrictMaybe (AuxiliaryDataHash StandardCrypto)
+auxhash :: StrictMaybe TxAuxDataHash
 auxhash = SNothing
 
-integrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto)
+integrity :: StrictMaybe ScriptIntegrityHash
 integrity = SNothing
 
-whash :: Set (KeyHash 'Witness StandardCrypto)
+whash :: Set (KeyHash 'Witness)
 whash = mempty
 
-collateralIns :: Set (TxIn StandardCrypto)
+collateralIns :: Set TxIn
 collateralIns = mempty
 
-mint :: MultiAsset StandardCrypto
+mint :: MultiAsset
 mint = mempty
 
-exampleAlonzoTx :: AlonzoTx (AlonzoEra StandardCrypto)
+exampleAlonzoTx :: AlonzoTx AlonzoEra
 exampleAlonzoTx = mkAlonzoTx exampleTxParameters

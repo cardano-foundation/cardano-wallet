@@ -19,11 +19,11 @@ module Cardano.Read.Ledger.Block.BHeader
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Block
     ( bheader
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)

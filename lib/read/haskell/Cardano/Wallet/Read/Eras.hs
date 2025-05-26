@@ -3,60 +3,46 @@
 -- License: Apache-2.0
 --
 -- Re-export `EraValue` library.
---
-
 module Cardano.Wallet.Read.Eras
-  ( -- * Eras
-    Era (..)
-  , IsEra (..)
-  , Allegra
-  , Alonzo
-  , Babbage
-  , Byron
-  , Conway
-  , Mary
-  , Shelley
-
-  , KnownEras
-  , knownEras
-  , indexOfEra
-  , parseEraIndex
-
-    -- * Era-existential values
-  , EraValue (..)
-  , getEra
-  , eraValueSerialize
-
-  -- * Specials
-  , sequenceEraValue
-
-  -- * Era polymorphic functions.
-  -- * Applying era functions.
-  , applyEraFun
-  , applyEraFunValue
-
-  -- * Re-export structure combinators
-  , (:.:)(..)
-  , K (..)
-  , unK
-  , (:*:)(..)
-  , unComp
-  )
-  where
-
-import Cardano.Read.Ledger.Eras
-    ( Allegra
+    ( -- * Eras
+      Era (..)
+    , IsEra (..)
+    , Allegra
     , Alonzo
     , Babbage
     , Byron
     , Conway
-    , Era (..)
-    , IsEra (..)
-    , KnownEras
     , Mary
     , Shelley
+    , KnownEras
+    , knownEras
     , indexOfEra
+    , parseEraIndex
+
+      -- * Era-existential values
+    , EraValue (..)
+    , getEra
+    , eraValueSerialize
+
+      -- * Specials
+    , sequenceEraValue
+
+      -- * Era polymorphic functions.
+
+      -- * Applying era functions.
+    , applyEraFun
+    , applyEraFunValue
+
+      -- * Re-export structure combinators
+    , (:.:) (..)
+    , K (..)
+    , unK
+    , (:*:) (..)
+    , unComp
     )
+where
+
+import Cardano.Read.Ledger.Eras.KnownEras
 import Cardano.Wallet.Read.Eras.EraValue
     ( EraValue (..)
     , applyEraFun

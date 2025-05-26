@@ -23,9 +23,6 @@ module Cardano.Read.Ledger.Tx.Mint
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -60,10 +57,10 @@ type family MintType era where
   MintType Byron = ()
   MintType Shelley = ()
   MintType Allegra = ()
-  MintType Mary = MultiAsset StandardCrypto
-  MintType Alonzo = MultiAsset StandardCrypto
-  MintType Babbage = MultiAsset StandardCrypto
-  MintType Conway = MultiAsset StandardCrypto
+  MintType Mary = MultiAsset
+  MintType Alonzo = MultiAsset
+  MintType Babbage = MultiAsset
+  MintType Conway = MultiAsset
 
 newtype Mint era = Mint (MintType era)
 

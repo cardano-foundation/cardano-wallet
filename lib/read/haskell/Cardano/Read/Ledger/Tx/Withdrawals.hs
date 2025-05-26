@@ -12,8 +12,6 @@
 -- License: Apache-2.0
 --
 -- Raw withdrawals data extraction from 'Tx'
---
-
 module Cardano.Read.Ledger.Tx.Withdrawals
     ( WithdrawalsType
     , Withdrawals (..)
@@ -27,9 +25,6 @@ import Prelude
 import Cardano.Ledger.Address
     ( RewardAccount
     , unWithdrawals
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto
     )
 import Cardano.Ledger.Coin
     ( Coin
@@ -65,25 +60,27 @@ import Data.Map
 import qualified Cardano.Ledger.Api as Ledger
 
 type family WithdrawalsType era where
-  WithdrawalsType Byron = ()
-  WithdrawalsType Shelley = RewardWithdrawals
-  WithdrawalsType Allegra = RewardWithdrawals
-  WithdrawalsType Mary = RewardWithdrawals
-  WithdrawalsType Alonzo = RewardWithdrawals
-  WithdrawalsType Babbage = RewardWithdrawals
-  WithdrawalsType Conway = RewardWithdrawals
+    WithdrawalsType Byron = ()
+    WithdrawalsType Shelley = RewardWithdrawals
+    WithdrawalsType Allegra = RewardWithdrawals
+    WithdrawalsType Mary = RewardWithdrawals
+    WithdrawalsType Alonzo = RewardWithdrawals
+    WithdrawalsType Babbage = RewardWithdrawals
+    WithdrawalsType Conway = RewardWithdrawals
 
-type RewardWithdrawals = Map (RewardAccount StandardCrypto) Coin
+type RewardWithdrawals = Map RewardAccount Coin
 
 newtype Withdrawals era
-    = Withdrawals { withdrawalsAsMap :: WithdrawalsType era }
+    = Withdrawals {withdrawalsAsMap :: WithdrawalsType era}
 
 deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
 deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 
-{-# INLINABLE getEraWithdrawals #-}
+{-# INLINEABLE getEraWithdrawals #-}
+
 -- | Extract withdrawals from tx for any available era.
-getEraWithdrawals :: forall era . IsEra era => Tx era -> Withdrawals era
+getEraWithdrawals
+    :: forall era. IsEra era => Tx era -> Withdrawals era
 getEraWithdrawals = case theEra @era of
     Byron -> \_ -> Withdrawals ()
     Shelley -> withdrawals
@@ -98,5 +95,5 @@ getEraWithdrawals = case theEra @era of
 shelleyWithdrawals
     :: Ledger.EraTx era
     => Ledger.Tx era
-    -> Map (RewardAccount (Ledger.EraCrypto era)) Coin
+    -> Map RewardAccount Coin
 shelleyWithdrawals = unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)

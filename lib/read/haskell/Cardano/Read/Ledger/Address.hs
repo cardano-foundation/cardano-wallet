@@ -19,9 +19,6 @@ module Cardano.Read.Ledger.Address
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Wallet.Read.Eras
     ( Allegra
     , Alonzo
@@ -41,12 +38,12 @@ import qualified Cardano.Ledger.Address as SH
 
 type family CompactAddrType era where
     CompactAddrType Byron = BY.CompactAddress
-    CompactAddrType Shelley = SH.CompactAddr StandardCrypto
-    CompactAddrType Allegra = SH.CompactAddr StandardCrypto
-    CompactAddrType Mary = SH.CompactAddr StandardCrypto
-    CompactAddrType Alonzo = SH.CompactAddr StandardCrypto
-    CompactAddrType Babbage = SH.CompactAddr StandardCrypto
-    CompactAddrType Conway = SH.CompactAddr StandardCrypto
+    CompactAddrType Shelley = SH.CompactAddr
+    CompactAddrType Allegra = SH.CompactAddr
+    CompactAddrType Mary = SH.CompactAddr
+    CompactAddrType Alonzo = SH.CompactAddr
+    CompactAddrType Babbage = SH.CompactAddr
+    CompactAddrType Conway = SH.CompactAddr
 
 newtype CompactAddr era = CompactAddr (CompactAddrType era)
 

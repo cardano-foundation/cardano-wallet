@@ -15,12 +15,10 @@ import Prelude
 import Cardano.Ledger.Alonzo
     ( AlonzoTxAuxData
     )
-import Cardano.Ledger.Alonzo.TxAuxData
-    ( AuxiliaryDataHash
-    )
+
 import Cardano.Ledger.Api
     ( Datum (NoDatum)
-    , StandardCrypto
+    , TxAuxDataHash
     )
 import Cardano.Ledger.Api.Era
     ( BabbageEra
@@ -105,23 +103,23 @@ import Data.Set
 
 mkBabbageTx
     :: TxParameters
-    -> AlonzoTx (BabbageEra StandardCrypto)
+    -> AlonzoTx BabbageEra
 mkBabbageTx TxParameters{txInputs, txOutputs} =
     AlonzoTx (body txInputs txOutputs) wits valid aux
 
 valid :: IsValid
 valid = IsValid True
 
-wits :: AlonzoTxWits (BabbageEra StandardCrypto)
+wits :: AlonzoTxWits BabbageEra
 wits = mempty
 
-aux :: StrictMaybe (AlonzoTxAuxData (BabbageEra StandardCrypto))
+aux :: StrictMaybe (AlonzoTxAuxData BabbageEra)
 aux = maybeToStrictMaybe Nothing
 
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> BabbageTxBody (BabbageEra StandardCrypto)
+    -> BabbageTxBody BabbageEra
 body ins outs =
     BabbageTxBody
         (txins ins)
@@ -145,16 +143,16 @@ totalCollateral :: StrictMaybe Coin
 totalCollateral = SNothing
 
 collateralReturn
-    :: StrictMaybe (Sized (BabbageTxOut (BabbageEra StandardCrypto)))
+    :: StrictMaybe (Sized (BabbageTxOut BabbageEra))
 collateralReturn = SNothing
 
-referenceIns :: Set (TxIn StandardCrypto)
+referenceIns :: Set TxIn
 referenceIns = mempty
 
 txouts
     :: Version
     -> NonEmpty (Address, Lovelace)
-    -> StrictSeq (Sized (BabbageTxOut (BabbageEra StandardCrypto)))
+    -> StrictSeq (Sized (BabbageTxOut BabbageEra))
 txouts v xs = fromList $ do
     (addr, Lovelace val) <- toList xs
     pure
@@ -168,20 +166,20 @@ txouts v xs = fromList $ do
 network :: StrictMaybe Network
 network = SNothing
 
-auxhash :: StrictMaybe (AuxiliaryDataHash StandardCrypto)
+auxhash :: StrictMaybe TxAuxDataHash
 auxhash = SNothing
 
-integrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto)
+integrity :: StrictMaybe ScriptIntegrityHash
 integrity = SNothing
 
-whash :: Set (KeyHash 'Witness StandardCrypto)
+whash :: Set (KeyHash 'Witness)
 whash = mempty
 
-collateralIns :: Set (TxIn StandardCrypto)
+collateralIns :: Set TxIn
 collateralIns = mempty
 
-mint :: MultiAsset StandardCrypto
+mint :: MultiAsset
 mint = mempty
 
-exampleBabbageTx :: AlonzoTx (BabbageEra StandardCrypto)
+exampleBabbageTx :: AlonzoTx BabbageEra
 exampleBabbageTx = mkBabbageTx exampleTxParameters

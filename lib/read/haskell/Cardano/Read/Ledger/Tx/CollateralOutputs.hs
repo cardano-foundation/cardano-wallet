@@ -12,20 +12,15 @@
 -- License: Apache-2.0
 --
 -- Raw collateral output data extraction from 'Tx'
---
-
 module Cardano.Read.Ledger.Tx.CollateralOutputs
     ( CollateralOutputsType
     , CollateralOutputs (..)
     , getEraCollateralOutputs
     )
-    where
+where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Babbage.Collateral
     ()
 import Cardano.Ledger.Babbage.Rules
@@ -71,19 +66,22 @@ type family CollateralOutputsType era where
     CollateralOutputsType Shelley = ()
     CollateralOutputsType Allegra = ()
     CollateralOutputsType Mary = ()
-    CollateralOutputsType Alonzo =  ()
-    CollateralOutputsType Babbage
-        = StrictMaybe (BabbageTxOut (BA.BabbageEra StandardCrypto))
-    CollateralOutputsType Conway
-        = StrictMaybe (BabbageTxOut (Conway.ConwayEra StandardCrypto))
+    CollateralOutputsType Alonzo = ()
+    CollateralOutputsType Babbage =
+        StrictMaybe (BabbageTxOut BA.BabbageEra)
+    CollateralOutputsType Conway =
+        StrictMaybe (BabbageTxOut Conway.ConwayEra)
 
 newtype CollateralOutputs era = CollateralOutputs (CollateralOutputsType era)
 
-deriving instance Show (CollateralOutputsType era)
+deriving instance
+    Show (CollateralOutputsType era)
     => Show (CollateralOutputs era)
-deriving instance Eq (CollateralOutputsType era) => Eq (CollateralOutputs era)
+deriving instance
+    Eq (CollateralOutputsType era) => Eq (CollateralOutputs era)
 
-{-# INLINABLE getEraCollateralOutputs #-}
+{-# INLINEABLE getEraCollateralOutputs #-}
+
 -- | Get the 'CollateralOutputs' for a given 'Tx' in any era.
 getEraCollateralOutputs
     :: forall era. IsEra era => Tx era -> CollateralOutputs era

@@ -20,9 +20,6 @@ module Cardano.Read.Ledger.Block.Block
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -37,6 +34,9 @@ import Cardano.Read.Ledger.Eras
 import Cardano.Wallet.Read.Eras
     ( EraValue (..)
     )
+import Ouroboros.Consensus.Cardano.Block
+    ( StandardCrypto
+    )
 import Ouroboros.Consensus.Protocol.Praos
     ( Praos
     )
@@ -50,7 +50,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
 -- | Type synonym for 'CardanoBlock',
 -- using the same cryptographic functionalities as Mainnet.
-type ConsensusBlock = O.CardanoBlock O.StandardCrypto
+type ConsensusBlock = O.CardanoBlock StandardCrypto
 
 -- Family of era-specific block types
 -- TODO: ADP-3351 The results of this type family should be ledger types,
@@ -59,17 +59,17 @@ type family BlockT era where
     BlockT Byron =
         O.ByronBlock
     BlockT Shelley =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.ShelleyEra StandardCrypto)
+        O.ShelleyBlock (TPraos StandardCrypto) (O.ShelleyEra )
     BlockT Allegra =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.AllegraEra StandardCrypto)
+        O.ShelleyBlock (TPraos StandardCrypto) (O.AllegraEra )
     BlockT Mary =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.MaryEra StandardCrypto)
+        O.ShelleyBlock (TPraos StandardCrypto ) (O.MaryEra )
     BlockT Alonzo =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.AlonzoEra StandardCrypto)
+        O.ShelleyBlock (TPraos StandardCrypto) (O.AlonzoEra )
     BlockT Babbage =
-        O.ShelleyBlock (Praos StandardCrypto) (O.BabbageEra StandardCrypto)
+        O.ShelleyBlock (Praos StandardCrypto) (O.BabbageEra )
     BlockT Conway =
-        O.ShelleyBlock (Praos StandardCrypto) (O.ConwayEra StandardCrypto)
+        O.ShelleyBlock (Praos StandardCrypto) (O.ConwayEra )
 
 newtype Block era = Block {unBlock :: BlockT era}
 

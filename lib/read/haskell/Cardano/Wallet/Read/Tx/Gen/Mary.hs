@@ -17,7 +17,6 @@ import Cardano.Ledger.Allegra.TxAuxData
     )
 import Cardano.Ledger.Api
     ( MaryEra
-    , StandardCrypto
     )
 import Cardano.Ledger.Coin
     ( Coin (..)
@@ -72,17 +71,17 @@ import Data.Sequence.Strict
 
 mkMaryTx
     :: TxParameters
-    -> ShelleyTx (MaryEra StandardCrypto)
+    -> ShelleyTx MaryEra
 mkMaryTx TxParameters{txInputs, txOutputs} =
     ShelleyTx (body txInputs txOutputs) wits aux
 
-aux :: StrictMaybe (AllegraTxAuxData (MaryEra StandardCrypto))
+aux :: StrictMaybe (AllegraTxAuxData MaryEra)
 aux = maybeToStrictMaybe Nothing
 
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> MaryTxBody (MaryEra StandardCrypto)
+    -> MaryTxBody MaryEra
 body ins outs =
     MaryTxBody
         (txins ins)
@@ -95,21 +94,21 @@ body ins outs =
         auxb
         mint
 
-mint :: MultiAsset StandardCrypto
+mint :: MultiAsset
 mint = mempty
 
 txouts
     :: NonEmpty (Address, Lovelace)
-    -> StrictSeq (ShelleyTxOut (MaryEra StandardCrypto))
+    -> StrictSeq (ShelleyTxOut MaryEra)
 txouts xs = fromList $ do
     (addr, Lovelace val) <- toList xs
     pure $ ShelleyTxOut (decodeShelleyAddress addr) $ mkMaryValue val
 
-mkMaryValue :: Integer -> MaryValue StandardCrypto
+mkMaryValue :: Integer -> MaryValue
 mkMaryValue lovelace = MaryValue (Coin lovelace) mempty
 
 validity :: ValidityInterval
 validity = ValidityInterval SNothing SNothing
 
-exampleMaryTx :: ShelleyTx (MaryEra StandardCrypto)
+exampleMaryTx :: ShelleyTx MaryEra
 exampleMaryTx = mkMaryTx exampleTxParameters
