@@ -26,7 +26,7 @@ import Cardano.Api
     , metadataValueFromJsonNoSchema
     , metadataValueToJsonNoSchema
     )
-import Cardano.Api.Error
+import Cardano.Api.Internal.Error
     ( displayError
     )
 import Control.Monad

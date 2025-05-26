@@ -1093,7 +1093,7 @@ genTxMetadataValue =
             ((,) <$> genTxMetadataValue <*> genTxMetadataValue)
 
 genPtr :: Gen Ptr
-genPtr = safePtr <$> genSlotNo32 <*> genTxIx <*> genCertIx
+genPtr = Ledger.Ptr <$> genSlotNo32 <*> genTxIx <*> genCertIx
 
 genTxIx :: Gen Ledger.TxIx
 genTxIx = Ledger.TxIx <$> arbitrary
@@ -1356,7 +1356,7 @@ genPoolId = genVerificationKeyHash AsStakePoolKey
 genMIRPot :: Gen MIRPot
 genMIRPot = elements [ReservesMIR, TreasuryMIR]
 
-genMIRTarget :: Gen (Ledger.MIRTarget StandardCrypto)
+genMIRTarget :: Gen (Ledger.MIRTarget)
 genMIRTarget = error "TODO conway: genMIRTarget"
 
 genStakePoolMetadata :: Gen StakePoolMetadata
@@ -1756,7 +1756,7 @@ genProposals w = case w of
     ConwayEraOnwardsConway ->
         oneof
             [ pure TxProposalProceduresNone
-            , TxProposalProcedures <$> arbitrary <*> pure (BuildTxWith mempty)
+            , TxProposalProcedures <$> _arbitrary <*> pure (BuildTxWith mempty)
             ]
 
 genVotingProcedures :: ConwayEraOnwards era -> Gen (ShelleyApi.TxVotingProcedures BuildTx era)
@@ -1957,7 +1957,7 @@ genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
 -- Assisting ledger generators
 --------------------------------------------------------------------------------
 
-genKeyHash :: Gen (Ledger.KeyHash keyRole StandardCrypto)
+genKeyHash :: Gen (Ledger.KeyHash keyRole)
 genKeyHash =
     Ledger.KeyHash
         . fromMaybe (error "genKeyHash: invalid hash")
@@ -1965,14 +1965,14 @@ genKeyHash =
         . BS.pack
         <$> vectorOf 28 arbitrary
 
-genCredential :: Gen (Ledger.Credential keyRole StandardCrypto)
+genCredential :: Gen (Ledger.Credential keyRole)
 genCredential =
     oneof
         [ Ledger.KeyHashObj <$> genKeyHash
         , Ledger.ScriptHashObj <$> genLedgerScriptHash
         ]
 
-genLedgerScriptHash :: Gen (Ledger.ScriptHash StandardCrypto)
+genLedgerScriptHash :: Gen (Ledger.ScriptHash)
 genLedgerScriptHash =
     Ledger.ScriptHash
         . fromMaybe (error "genKeyHash: invalid hash")
@@ -1980,7 +1980,7 @@ genLedgerScriptHash =
         . BS.pack
         <$> vectorOf 28 arbitrary
 
-genConwayDelegatee :: Gen (Ledger.Delegatee StandardCrypto)
+genConwayDelegatee :: Gen (Ledger.Delegatee)
 genConwayDelegatee =
     oneof
         [ Ledger.DelegStake <$> genKeyHash
@@ -1988,7 +1988,7 @@ genConwayDelegatee =
         , Ledger.DelegStakeVote <$> genKeyHash <*> genDRep
         ]
 
-genDRep :: Gen (Ledger.DRep StandardCrypto)
+genDRep :: Gen (Ledger.DRep)
 genDRep =
     oneof
         [ DRepCredential <$> genCredential

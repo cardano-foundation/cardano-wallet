@@ -55,10 +55,10 @@ getInputs = case theEra @era of
     Babbage -> mkShelleyTxInputsIns
     Conway -> mkShelleyTxInputsIns
 
-fromShelleyTxIns :: Foldable t => (t (SH.TxIn crypto)) -> [W.TxIn]
+fromShelleyTxIns :: Foldable t => (t SH.TxIn) -> [W.TxIn]
 fromShelleyTxIns ins = fromShelleyTxIn <$> toList ins
 
-mkShelleyTxInputsIns :: (Foldable t, InputsType era ~ t (SH.TxIn crypto))
+mkShelleyTxInputsIns :: (Foldable t, InputsType era ~ t SH.TxIn)
     => Inputs era -- ^
   -> [W.TxIn]
 mkShelleyTxInputsIns (Inputs ins) = fromShelleyTxIns ins
@@ -70,7 +70,7 @@ fromByronTxIn (BY.TxInUtxo id_ ix) = W.TxIn
     }
 
 fromShelleyTxIn
-    :: SL.TxIn crypto
+    :: SL.TxIn
     -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
     W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)

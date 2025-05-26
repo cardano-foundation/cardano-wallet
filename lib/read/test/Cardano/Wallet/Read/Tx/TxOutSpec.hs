@@ -11,8 +11,7 @@ import Cardano.Ledger.Address
     ( Addr (Addr)
     )
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , mkBasicTxOut
+    ( mkBasicTxOut
     )
 import Cardano.Ledger.BaseTypes
     ( Network (Mainnet)
@@ -84,7 +83,7 @@ spec =
     Generators
 ------------------------------------------------------------------------------}
 
-genAddr :: Gen (Addr StandardCrypto)
+genAddr :: Gen Addr
 genAddr = mkAddr . mkPaymentCred . B8.pack
     <$> vectorOf (2*28) (elements $ ['0'..'9'] <> ['a'..'f'])
 
@@ -105,7 +104,7 @@ genTxOut = do
 ------------------------------------------------------------------------------}
 mkBasicOutput
     :: forall era. IsEra era
-    => Addr StandardCrypto -> Value -> Output era
+    => Addr -> Value -> Output era
 mkBasicOutput addr value = case theEra :: Era era of
     Byron -> error "not implemented"
     Shelley -> Output $ mkBasicTxOut addr (getCoin value)
@@ -115,12 +114,12 @@ mkBasicOutput addr value = case theEra :: Era era of
     Babbage -> Output $ mkBasicTxOut addr (toMaryValue value)
     Conway -> Output $ mkBasicTxOut addr (toMaryValue value)
 
-mkPaymentCred :: ByteString -> PaymentCredential StandardCrypto
+mkPaymentCred :: ByteString -> PaymentCredential
 mkPaymentCred =
     KeyHashObj
     . KeyHash
     . fromMaybe (error "paymentCred: invalid hex length")
     . hashFromBytesAsHex
 
-mkAddr :: PaymentCredential StandardCrypto -> Addr StandardCrypto
+mkAddr :: PaymentCredential -> Addr
 mkAddr x = Addr Mainnet x StakeRefNull

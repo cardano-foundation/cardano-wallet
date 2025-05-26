@@ -157,7 +157,7 @@ mkShelleyCertsK
     -> [W.Certificate]
 mkShelleyCertsK (Certificates cs) = map fromShelleyCert $ toList cs
 
-mkPoolRegistrationCertificate :: PoolParams c -> W.Certificate
+mkPoolRegistrationCertificate :: PoolParams -> W.Certificate
 mkPoolRegistrationCertificate pp =
     W.CertificateOfPool
         $ Registration
@@ -172,7 +172,7 @@ mkPoolRegistrationCertificate pp =
                     <$> strictMaybeToMaybe (ppMetadata pp)
             }
 
-mkPoolRetirementCertificate :: (SL.KeyHash rol sc) -> EpochNo -> W.Certificate
+mkPoolRetirementCertificate :: (SL.KeyHash rol) -> EpochNo -> W.Certificate
 mkPoolRetirementCertificate pid (EpochNo e) =
     W.CertificateOfPool
         $ Retirement
@@ -183,7 +183,7 @@ mkPoolRetirementCertificate pid (EpochNo e) =
 
 mkRegisterKeyCertificate
     :: Maybe W.Coin
-    -> SL.Credential 'SL.Staking crypto
+    -> SL.Credential 'SL.Staking
     -> W.Certificate
 mkRegisterKeyCertificate deposit =
     W.CertificateOfDelegation deposit
@@ -192,7 +192,7 @@ mkRegisterKeyCertificate deposit =
 
 mkDelegationNone
     :: Maybe W.Coin
-    -> SL.Credential 'SL.Staking crypto
+    -> SL.Credential 'SL.Staking
     -> W.Certificate
 mkDelegationNone deposit credentials =
     W.CertificateOfDelegation deposit
@@ -200,8 +200,8 @@ mkDelegationNone deposit credentials =
 
 mkDelegationVoting
     :: Maybe W.Coin
-    -> SL.Credential 'SL.Staking crypto
-    -> Ledger.Delegatee crypto
+    -> SL.Credential 'SL.Staking
+    -> Ledger.Delegatee
     -> W.Certificate
 mkDelegationVoting deposit cred = \case
     Ledger.DelegStake pool ->
@@ -217,7 +217,7 @@ mkDelegationVoting deposit cred = \case
             $ W.CertVoteAndDelegate (fromStakeCredential cred)
             (Just $ fromPoolKeyHash pool) (Just $ fromLedgerDRep vote)
 
-fromLedgerDRep :: Ledger.DRep crypto -> DRep
+fromLedgerDRep :: Ledger.DRep -> DRep
 fromLedgerDRep = \case
     Ledger.DRepAlwaysAbstain -> Abstain
     Ledger.DRepAlwaysNoConfidence -> NoConfidence
@@ -256,18 +256,18 @@ fromPoolMetadata meta =
 --
 -- Unlike with Jörmungandr, the reward account payload doesn't represent a
 -- public key but a HASH of a public key.
-fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.RewardAccount
+fromStakeCredential :: SL.Credential 'SL.Staking -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
         W.FromScriptHash (hashToBytes h)
     SL.KeyHashObj (SL.KeyHash h) ->
         W.FromKeyHash (hashToBytes h)
 
-fromPoolKeyHash :: SL.KeyHash rol sc -> PoolId
+fromPoolKeyHash :: SL.KeyHash rol -> PoolId
 fromPoolKeyHash (SL.KeyHash h) =
     PoolId (hashToBytes h)
 
-fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> PoolOwner
+fromOwnerKeyHash :: SL.KeyHash 'SL.Staking -> PoolOwner
 fromOwnerKeyHash (SL.KeyHash h) =
     PoolOwner (hashToBytes h)
 

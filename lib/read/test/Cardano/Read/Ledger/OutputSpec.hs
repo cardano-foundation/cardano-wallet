@@ -11,8 +11,7 @@ import Cardano.Ledger.Address
     ( Addr (Addr)
     )
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , mkBasicTxOut
+    ( mkBasicTxOut
     )
 import Cardano.Ledger.BaseTypes
     ( Network (Mainnet)
@@ -79,7 +78,7 @@ outputPtr1 = Output $ mkBasicTxOut addrInvalidPtr $ inject (Coin 13)
 outputPtr2 :: Output Babbage
 outputPtr2 = Output $ mkBasicTxOut addrNullPtr $ inject (Coin 13)
 
-addrInvalidPtr :: Addr StandardCrypto
+addrInvalidPtr :: Addr
 addrInvalidPtr =
     Addr
         Mainnet
@@ -90,7 +89,7 @@ addrInvalidPtr =
     maxWord16plus3 :: Int
     maxWord16plus3 = fromIntegral (maxBound :: Word16) + 3
 
-addrNullPtr :: Addr StandardCrypto
+addrNullPtr :: Addr
 addrNullPtr =
     Addr
         Mainnet
@@ -99,12 +98,12 @@ addrNullPtr =
   where
     nullPtr = Ptr (toEnum 0) (toEnum 0) (toEnum 0)
 
-paymentCred :: PaymentCredential StandardCrypto
+paymentCred :: PaymentCredential
 paymentCred =
     mkPaymentCred
         "6505f8fa4e47723170d3e60bbc30d6ec406f368b1c84e1f75b0a8cba"
 
-mkPaymentCred :: ByteString -> PaymentCredential StandardCrypto
+mkPaymentCred :: ByteString -> PaymentCredential
 mkPaymentCred =
     KeyHashObj
     . KeyHash
