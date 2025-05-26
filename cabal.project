@@ -150,9 +150,9 @@ allow-newer:
   , servant-openapi3:*
   , katip:Win32
   , ekg-wai:time
+  , openapi3:QuickCheck
 constraints:
     base >= 4.18.2.0 && < 5
-  , openapi3 >= 3.2.0
   , persistent ^>= 2.14.6.0
 
   -- Force newer version of `lobemo-backend-ekg` here,
