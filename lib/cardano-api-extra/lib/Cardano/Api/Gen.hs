@@ -270,13 +270,11 @@ import Cardano.Api.Shelley
     , toShelleyPoolParams
     )
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , emptyPParams
+    ( emptyPParams
     )
 import Cardano.Ledger.Credential.Safe
     ( Ptr
     , SlotNo32 (..)
-    , safePtr
     )
 import Cardano.Ledger.DRep
     ( DRep (..)

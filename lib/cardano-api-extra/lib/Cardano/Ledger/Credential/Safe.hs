@@ -13,8 +13,6 @@ module Cardano.Ledger.Credential.Safe
     (
       -- * Safe 'Ptr' interface
       Ptr
-    , safePtr
-    , safeUnwrapPtr
 
       -- * Conversions to and from 'Slot32'
     , SlotNo32 (..)
@@ -28,12 +26,9 @@ import Prelude
 import Cardano.Api
     ( SlotNo (..)
     )
-import Cardano.Ledger.BaseTypes
-    ( CertIx
-    , TxIx
-    )
 import Cardano.Ledger.Credential
     ( Ptr (..)
+    , SlotNo32 (..)
     )
 import Data.IntCast
     ( intCast
@@ -53,34 +48,6 @@ import GHC.Stack
 --------------------------------------------------------------------------------
 -- Safe public interface
 --------------------------------------------------------------------------------
-
--- | Safely constructs a 'Ptr' without silent truncation of slot numbers.
---
--- Use 'toSlotNo32' to convert an ordinary 'SlotNo' to a 'SlotNo32'.
---
--- This function should satisfy the following property:
---
--- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
---
-safePtr :: SlotNo32 -> TxIx -> CertIx -> Ptr
-safePtr = Ptr . fromSlotNo32
-
--- | Safely deconstructs a 'Ptr'.
---
--- Use 'fromSlotNo32' to convert the returned slot number to a 'SlotNo'.
---
--- This function should satisfy the following property:
---
--- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
---
-safeUnwrapPtr :: Ptr -> (SlotNo32, TxIx, CertIx)
-safeUnwrapPtr (Ptr s t c) = (unsafeToSlotNo32 s, t, c)
-
--- | A 32-bit wide slot number.
---
-newtype SlotNo32 = SlotNo32 Word32
-    deriving newtype (Eq, Num, Ord)
-    deriving stock Show
 
 -- | Converts an ordinary 'SlotNo' into a 'SlotNo32'.
 --
