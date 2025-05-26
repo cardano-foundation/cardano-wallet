@@ -52,7 +52,7 @@ library internal
   build-depends:
     , base                         >=4.14     && <5
     , bytestring                   >=0.10.6   && <0.13
-    , cardano-addresses            >=3.12.0   && <3.13
+    , cardano-addresses            >=4.0.0    && <4.1
     , cardano-api                  >=10.8.0.0 && <10.9
     , cardano-coin-selection
     , cardano-crypto-class         >=2.1.5.0  && <2.2
@@ -115,7 +115,7 @@ test-suite test
     , address-derivation-discovery
     , base
     , bytestring
-    , cardano-addresses               >=3.12.0    && <3.13
+    , cardano-addresses               >=4.0.0     && <4.1
     , cardano-api                     >=10.8.0.0  && <10.9
     , cardano-api-extra
     , cardano-balance-tx:internal

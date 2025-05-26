@@ -45,7 +45,7 @@ library
     , bech32-th
     , binary
     , bytestring
-    , cardano-addresses             >=3.12.0   && <3.13
+    , cardano-addresses             >=4.0.0    && <4.1
     , cardano-api                   >=10.8.0.0 && <10.9
     , cardano-api:internal
     , cardano-binary                >=1.7.1.0  && <1.8
@@ -229,7 +229,7 @@ test-suite test
     , base58-bytestring
     , binary
     , bytestring
-    , cardano-addresses               >=3.12.0   && <3.13
+    , cardano-addresses               >=4.0.0    && <4.1
     , cardano-api                     >=10.8.0.0 && <10.9
     , cardano-crypto-class            >=2.1.5.0  && <2.2
     , cardano-ledger-allegra:testlib  >=1.6.1.0  && <1.7
