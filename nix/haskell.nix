@@ -92,7 +92,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
 
       # this is a local variable, it controls only the index-state of the
       # tools
-      indexState = "2025-01-01T23:24:19Z";
+      indexState = "2025-04-16T18:30:40Z";
 
       localClusterConfigs = config.src + /lib/local-cluster/test/data/cluster-configs;
 
