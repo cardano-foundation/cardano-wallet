@@ -3,13 +3,13 @@
 set -euo pipefail
 
 updates=(
-    "cardano-addresses-cli"
     "cardano-addresses"
     "cardano-api"
     "cardano-binary"
     "cardano-cli"
     "cardano-crypto-class"
     "cardano-crypto-test"
+    "cardano-crypto-wrapper"
     "cardano-crypto"
     "cardano-data"
     "cardano-ledger-allegra"
@@ -24,6 +24,7 @@ updates=(
     "cardano-ledger-core"
     "cardano-ledger-mary"
     "cardano-ledger-shelley"
+    "cardano-protocol-tpraos"
     "cardano-slotting"
     "cardano-strict-containers"
     "data-default"
@@ -32,6 +33,7 @@ updates=(
     "katip"
     "lobemo-backend-ekg"
     "network-mux"
+    "network"
     "ouroboros-consensus-cardano"
     "ouroboros-consensus-diffusion"
     "ouroboros-consensus-protocol"
@@ -40,7 +42,9 @@ updates=(
     "ouroboros-network-framework"
     "ouroboros-network-protocols"
     "ouroboros-network"
+    "sop-extras"
     "typed-protocols"
+    "Win32-network"
 )
 
 freeze_file="$1"
