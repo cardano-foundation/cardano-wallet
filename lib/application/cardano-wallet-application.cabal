@@ -56,7 +56,7 @@ executable cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , contra-tracer
-    , iohk-monitoring                     >=0.2.0.0 && <0.3
+    , iohk-monitoring                     >=0.2.1.0 && <0.3
     , iohk-monitoring-extra
     , lobemo-backend-ekg                  >=0.2.0.0 && <0.3
     , network-uri
@@ -85,14 +85,14 @@ library shelley
     , contra-tracer
     , extra
     , generic-lens
-    , network
+    , network                         >=3.2.7.0 && <3.3
     , network-uri
     , servant-server
     , streaming-commons
     , transformers
     , unliftio
     , warp
-    , Win32-network
+    , Win32-network                   >=0.2.0.1 && <0.3
 
   exposed-modules: Cardano.Wallet.Application
 
@@ -106,8 +106,7 @@ library
     , ansi-terminal
     , base
     , bytestring
-    , cardano-addresses               >=3.12.0  && <3.13
-    , cardano-addresses-cli           >=3.12.0  && <3.13
+    , cardano-addresses               >=4.0.0   && <4.1
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application-tls
@@ -121,9 +120,9 @@ library
     , filepath
     , fmt
     , http-client
-    , iohk-monitoring                 >=0.2.0.0 && <0.3
+    , iohk-monitoring                 >=0.2.1.0 && <0.3
     , iohk-monitoring-extra
-    , network
+    , network                         >=3.2.7.0 && <3.3
     , ntp-client
     , optparse-applicative
     , servant-client

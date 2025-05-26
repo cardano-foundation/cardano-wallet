@@ -32,7 +32,7 @@ library
   hs-source-dirs:     lib
   build-depends:
     , base
-    , network
+    , network            >=3.2.7.0 && <3.3
     , network-uri
     , random-shuffle
     , safe

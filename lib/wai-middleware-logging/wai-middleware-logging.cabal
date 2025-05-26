@@ -47,7 +47,7 @@ library
     , bytestring
     , contra-tracer
     , http-types
-    , iohk-monitoring       >=0.2.0.0 && <0.3
+    , iohk-monitoring       >=0.2.1.0 && <0.3
     , servant-server
     , text
     , text-class
@@ -74,8 +74,8 @@ test-suite unit
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring            >=0.2.0.0 && <0.3
-    , network
+    , iohk-monitoring            >=0.2.1.0 && <0.3
+    , network                    >=3.2.7.0 && <3.3
     , QuickCheck
     , servant-server
     , streaming-commons

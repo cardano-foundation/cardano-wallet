@@ -66,7 +66,7 @@ benchmark memory
     , cardano-wallet-launcher
     , contra-tracer
     , filepath
-    , iohk-monitoring                     >=0.2.0.0 && <0.3
+    , iohk-monitoring                     >=0.2.1.0 && <0.3
     , iohk-monitoring-extra
     , mtl
     , optparse-applicative

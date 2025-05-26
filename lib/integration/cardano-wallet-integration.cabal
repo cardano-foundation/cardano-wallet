@@ -52,7 +52,7 @@ library framework
     , bech32-th
     , bytestring
     , cardano-addresses                    >=4.0.0    && <4.1
-    , cardano-ledger-shelley               >=1.15.0.0 && <1.16
+    , cardano-ledger-shelley               >=1.16.0.0 && <1.17
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
@@ -84,7 +84,7 @@ library framework
     , http-client
     , http-types
     , HUnit
-    , iohk-monitoring                      >=0.2.0.0  && <0.3
+    , iohk-monitoring                      >=0.2.1.0  && <0.3
     , iohk-monitoring-extra
     , lens
     , lobemo-backend-ekg                   >=0.2.0.0  && <0.3
@@ -136,11 +136,11 @@ library scenarios
     , bech32-th
     , bytestring
     , cardano-addresses                     >=4.0.0     && <4.1
-    , cardano-api                           >=10.8.0.0 && <10.9
-    , cardano-crypto                        >=1.1.2    && <1.2
-    , cardano-crypto-class                  >=2.1.5.0  && <2.2
-    , cardano-ledger-alonzo                 >=1.12.0.0 && <1.13
-    , cardano-ledger-core                   >=1.16.0.0 && <1.17
+    , cardano-api                           >=10.14.1.0 && <10.15
+    , cardano-crypto                        >=1.3.0     && <1.4
+    , cardano-crypto-class                  >=2.2.2.0   && <2.3
+    , cardano-ledger-alonzo                 >=1.13.0.0  && <1.14
+    , cardano-ledger-core                   >=1.17.0.0  && <1.18
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application
@@ -244,7 +244,7 @@ test-suite e2e
     , file-embed
     , filepath
     , hspec
-    , network
+    , network                               >=3.2.7.0 && <3.3
     , network-uri
     , temporary
     , text

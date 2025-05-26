@@ -34,8 +34,8 @@ library
     , filepath         >=1.4.300.1 && <1.6
     , fmt              >=0.6.3.0   && <0.7
     , http-conduit     >=2.3.9     && <2.4
-    , iohk-monitoring  >=0.2.0.0   && <0.3
-    , network          >=3.1.2.5   && <3.2
+    , iohk-monitoring  >=0.2.1.0   && <0.3
+    , network          >=3.2.7.0   && <3.3
     , process          >=1.6.19.0  && <1.7
     , text             >=1.2       && <2.2
     , text-class
@@ -81,7 +81,7 @@ test-suite unit
     , hspec                      >=2.11.0  && <2.12
     , hspec-core
     , hspec-expectations         >=0.8.4   && <0.9
-    , iohk-monitoring            >=0.2.0.0 && <0.3
+    , iohk-monitoring            >=0.2.1.0 && <0.3
     , retry                      >=0.9.3   && <0.10
     , text
     , text-class

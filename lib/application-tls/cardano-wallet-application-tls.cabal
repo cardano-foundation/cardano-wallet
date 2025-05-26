@@ -48,7 +48,7 @@ library
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-validation
-    , data-default             >=0.8.0.0 && <0.9
+    , data-default             >=0.8.0.1 && <0.9
     , data-default-class
     , directory
     , exceptions
@@ -81,14 +81,14 @@ test-suite unit
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-system
-    , data-default                    >=0.8.0.0 && <0.9
+    , data-default                    >=0.8.0.1 && <0.9
     , directory
     , filepath
     , hspec
     , http-client
     , http-client-tls
     , http-types
-    , network
+    , network                         >=3.2.7.0 && <3.3
     , streaming-commons
     , tls
     , unliftio
