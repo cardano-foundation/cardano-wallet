@@ -136,6 +136,7 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
           curlFull
           jq
           yq
+          lmdb
           mdbook
           haskellPackages.fourmolu
           haskellPackages.ghcid
