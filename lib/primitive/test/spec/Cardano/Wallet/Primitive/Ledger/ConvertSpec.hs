@@ -67,7 +67,7 @@ import Data.Typeable
     , typeRep
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
+    ( BabbageEra
     )
 import Test.Cardano.Ledger.Allegra.Arbitrary
     ()
@@ -111,7 +111,7 @@ spec = describe "Cardano.Wallet.Primitive.Ledger.ConvertSpec" $
         ledgerRoundtrip $ Proxy @TxIn
 
     describe "Timelock roundtrips (toLedgerTimelockScript, toWalletScript)" $ do
-        let ledger = toLedgerTimelockScript @StandardBabbage
+        let ledger = toLedgerTimelockScript @BabbageEra
         let wallet = toWalletScript (const Unknown)
 
         it "ledger . wallet . ledger == ledger" $ property $ \s -> do

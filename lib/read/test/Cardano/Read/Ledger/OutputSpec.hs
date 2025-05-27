@@ -85,7 +85,7 @@ addrInvalidPtr =
         paymentCred
         (StakeRefPtr invalidPtr)
   where
-    invalidPtr = Ptr (toEnum 0) (toEnum 0) (toEnum maxWord16plus3)
+    invalidPtr = Ptr 0 (toEnum 0) (toEnum maxWord16plus3)
     maxWord16plus3 :: Int
     maxWord16plus3 = fromIntegral (maxBound :: Word16) + 3
 
@@ -96,7 +96,7 @@ addrNullPtr =
         paymentCred
         (StakeRefPtr nullPtr)
   where
-    nullPtr = Ptr (toEnum 0) (toEnum 0) (toEnum 0)
+    nullPtr = Ptr 0 (toEnum 0) (toEnum 0)
 
 paymentCred :: PaymentCredential
 paymentCred =

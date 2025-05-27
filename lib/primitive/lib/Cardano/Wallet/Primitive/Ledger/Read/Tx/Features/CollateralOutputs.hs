@@ -26,8 +26,8 @@ import Data.Maybe.Strict
     ( strictMaybeToMaybe
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
-    , StandardConway
+    ( BabbageEra
+    , ConwayEra
     )
 
 import qualified Cardano.Ledger.Babbage as Babbage
@@ -52,13 +52,13 @@ getCollateralOutputs = case theEra @era of
         fromConwayTxOut <$> strictMaybeToMaybe mo
 
 fromBabbageTxOut
-    :: Babbage.BabbageTxOut StandardBabbage
+    :: Babbage.BabbageTxOut BabbageEra
     -> W.TxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromConwayTxOut
-    :: Babbage.BabbageTxOut StandardConway
+    :: Babbage.BabbageTxOut ConwayEra
     -> W.TxOut
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum _refScript) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)

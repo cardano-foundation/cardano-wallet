@@ -146,13 +146,13 @@ import Data.Set
     )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
-    , StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
+    , AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ConwayEra
     , StandardCrypto
-    , StandardMary
-    , StandardShelley
+    , MaryEra
+    , ShelleyEra
     )
 import Streaming
     ( MonadIO (liftIO)
@@ -464,28 +464,28 @@ txOutFromOutput = case theEra :: Era era of
     fromByronTxOut (Byron.TxOut addr amount) =
         TxOut (serialize' addr) (fromIntegral $ unsafeGetLovelace amount)
 
-    fromShelleyTxOut :: SL.ShelleyTxOut StandardShelley -> TxOut
+    fromShelleyTxOut :: SL.ShelleyTxOut ShelleyEra -> TxOut
     fromShelleyTxOut (SL.ShelleyTxOut addr (Coin amount)) =
         TxOut (SL.serialiseAddr addr) amount
 
-    fromAllegraTxOut :: SL.ShelleyTxOut StandardAllegra -> TxOut
+    fromAllegraTxOut :: SL.ShelleyTxOut AllegraEra -> TxOut
     fromAllegraTxOut (SL.ShelleyTxOut addr (Coin amount)) =
         TxOut (SL.serialiseAddr addr) amount
 
-    fromMaryTxOut :: SL.ShelleyTxOut StandardMary -> TxOut
+    fromMaryTxOut :: SL.ShelleyTxOut MaryEra -> TxOut
     fromMaryTxOut (SL.ShelleyTxOut addr (MaryValue (Coin amount) _)) =
         TxOut (SL.serialiseAddr addr) amount
 
-    fromAlonzoTxOut :: Alonzo.AlonzoTxOut StandardAlonzo -> TxOut
+    fromAlonzoTxOut :: Alonzo.AlonzoTxOut AlonzoEra -> TxOut
     fromAlonzoTxOut (Alonzo.AlonzoTxOut addr (MaryValue (Coin amount) _) _) =
         TxOut (SL.serialiseAddr addr) amount
 
-    fromBabbageTxOut :: Babbage.BabbageTxOut StandardBabbage -> TxOut
+    fromBabbageTxOut :: Babbage.BabbageTxOut BabbageEra -> TxOut
     fromBabbageTxOut
         (Babbage.BabbageTxOut addr (MaryValue (Coin amount) _) _ _) =
             TxOut (SL.serialiseAddr addr) amount
 
-    fromConwayTxOut :: Babbage.BabbageTxOut StandardConway -> TxOut
+    fromConwayTxOut :: Babbage.BabbageTxOut ConwayEra -> TxOut
     fromConwayTxOut
         (Babbage.BabbageTxOut addr (MaryValue (Coin amount) _) _ _) =
             TxOut (SL.serialiseAddr addr) amount

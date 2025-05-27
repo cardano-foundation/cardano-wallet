@@ -35,8 +35,8 @@ module Internal.Cardano.Write.Tx
 
     -- ** Misc
     , StandardCrypto
-    , StandardBabbage
-    , StandardConway
+    , BabbageEra
+    , ConwayEra
 
     -- * PParams
     , PParams
@@ -223,8 +223,8 @@ import Numeric.Natural
     ( Natural
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
-    , StandardConway
+    ( BabbageEra
+    , ConwayEra
     )
 
 import qualified Cardano.Api as CardanoApi

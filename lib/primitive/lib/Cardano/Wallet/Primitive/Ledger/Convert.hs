@@ -57,18 +57,16 @@ module Cardano.Wallet.Primitive.Ledger.Convert
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Crypto.Hash
     ( hashFromBytes
     , hashToBytes
-    )
-import Cardano.Ledger.Api
-    ( Babbage
-    , Conway
     )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
@@ -147,9 +145,8 @@ import Numeric.Natural
     ( Natural
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
-    , StandardConway
-    , StandardCrypto
+    ( BabbageEra
+    , ConwayEra
     )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -165,7 +162,7 @@ import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.Plutus.Language as Ledger
-import qualified Cardano.Ledger.SafeHash as SafeHash
+import qualified Cardano.Ledger.Hashes as Hashes
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.Shelley.Scripts as Scripts
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -217,16 +214,16 @@ toWalletCoin (Ledger.Coin c) = Coin.unsafeFromIntegral c
 -- that is similar to the wallet's 'TokenBundle' type. The ada quantity is
 -- stored as a separate value, and asset quantities are stored in a nested map.
 
-instance Convert TokenBundle (Ledger.MaryValue StandardCrypto) where
+instance Convert TokenBundle Ledger.MaryValue where
     toLedger = toLedgerTokenBundle
     toWallet = toWalletTokenBundle
 
-toLedgerTokenBundle :: TokenBundle -> Ledger.MaryValue StandardCrypto
+toLedgerTokenBundle :: TokenBundle -> Ledger.MaryValue
 toLedgerTokenBundle bundle =
     Ledger.MaryValue ledgerAda ledgerTokens
   where
     ledgerAda = toLedgerCoin $ TokenBundle.getCoin bundle
-    ledgerTokens :: Ledger.MultiAsset StandardCrypto
+    ledgerTokens :: Ledger.MultiAsset
     ledgerTokens = bundle
         & view #tokens
         & TokenMap.toNestedMap
@@ -237,7 +234,7 @@ toLedgerTokenBundle bundle =
         & Map.mapKeys toLedgerAssetName
         & Map.map toLedgerTokenQuantity
 
-toWalletTokenBundle :: Ledger.MaryValue StandardCrypto -> TokenBundle
+toWalletTokenBundle :: Ledger.MaryValue -> TokenBundle
 toWalletTokenBundle
     (Ledger.MaryValue ledgerAda (Ledger.MultiAsset ledgerTokens)) =
         TokenBundle.fromNestedMap (walletAda, walletTokens)
@@ -270,11 +267,11 @@ toWalletAssetName (Ledger.AssetName bytes) =
 -- Conversions for 'TokenPolicyId'
 --------------------------------------------------------------------------------
 
-instance Convert TokenPolicyId (Ledger.PolicyID StandardCrypto) where
+instance Convert TokenPolicyId Ledger.PolicyID where
     toLedger = toLedgerTokenPolicyId
     toWallet = toWalletTokenPolicyId
 
-toLedgerTokenPolicyId :: TokenPolicyId -> Ledger.PolicyID StandardCrypto
+toLedgerTokenPolicyId :: TokenPolicyId -> Ledger.PolicyID
 toLedgerTokenPolicyId p@(UnsafeTokenPolicyId (Hash bytes)) =
     case hashFromBytes bytes of
         Just hash ->
@@ -286,7 +283,7 @@ toLedgerTokenPolicyId p@(UnsafeTokenPolicyId (Hash bytes)) =
                 , pretty p
                 ]
 
-toWalletTokenPolicyId :: Ledger.PolicyID StandardCrypto -> TokenPolicyId
+toWalletTokenPolicyId :: Ledger.PolicyID -> TokenPolicyId
 toWalletTokenPolicyId (Ledger.PolicyID (Ledger.ScriptHash hash)) =
     UnsafeTokenPolicyId (Hash (hashToBytes hash))
 
@@ -316,20 +313,20 @@ toWalletTokenQuantity q
 -- Conversions for 'TxIn'
 --------------------------------------------------------------------------------
 
-instance Convert TxIn (Ledger.TxIn StandardCrypto) where
+instance Convert TxIn Ledger.TxIn where
     toLedger (TxIn tid ix) =
         Ledger.TxIn (toLedgerHash tid) (toEnum $ intCast ix)
       where
         toLedgerHash (Hash h) =
             Ledger.TxId
-                $ SafeHash.unsafeMakeSafeHash
+                $ Hashes.unsafeMakeSafeHash
                 $ Crypto.UnsafeHash
                 $ toShort h
 
     toWallet (Ledger.TxIn (Ledger.TxId tid) ix) =
         TxIn (convertId tid) (convertIx ix)
       where
-        convertId = Hash . Crypto.hashToBytes . SafeHash.extractHash
+        convertId = Hash . Crypto.hashToBytes . Hashes.extractHash
 
         convertIx = fromMaybe err . intCastMaybe . fromEnum
           where
@@ -343,11 +340,11 @@ instance Convert TxIn (Ledger.TxIn StandardCrypto) where
 -- Conversions for 'Address'
 --------------------------------------------------------------------------------
 
-instance Convert Address (Ledger.Addr StandardCrypto) where
+instance Convert Address Ledger.Addr where
     toLedger = toLedgerAddress
     toWallet = toWalletAddress
 
-toLedgerAddress :: Address -> Ledger.Addr StandardCrypto
+toLedgerAddress :: Address -> Ledger.Addr
 toLedgerAddress (Address bytes) = case Ledger.decodeAddrLenient bytes of
     Just addr -> addr
     Nothing -> error $ unwords
@@ -355,7 +352,7 @@ toLedgerAddress (Address bytes) = case Ledger.decodeAddrLenient bytes of
         , pretty (Address bytes)
         ]
 
-toWalletAddress :: Ledger.Addr StandardCrypto -> Address
+toWalletAddress :: Ledger.Addr -> Address
 toWalletAddress = Address . Ledger.serialiseAddr
 
 --------------------------------------------------------------------------------
@@ -364,7 +361,7 @@ toWalletAddress = Address . Ledger.serialiseAddr
 
 toBabbageTxOut
     :: TxOut
-    -> Babbage.BabbageTxOut StandardBabbage
+    -> Babbage.BabbageTxOut BabbageEra
 toBabbageTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
         (toLedger addr)
@@ -374,7 +371,7 @@ toBabbageTxOut (TxOut addr bundle) =
 
 toConwayTxOut
     :: TxOut
-    -> Babbage.BabbageTxOut StandardConway
+    -> Babbage.BabbageTxOut ConwayEra
 toConwayTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
         (toLedger addr)
@@ -384,14 +381,14 @@ toConwayTxOut (TxOut addr bundle) =
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromConwayTxOut
-    :: Babbage.BabbageTxOut StandardConway
+    :: Babbage.BabbageTxOut ConwayEra
     -> TxOut
 fromConwayTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromBabbageTxOut
-    :: Babbage.BabbageTxOut StandardBabbage
+    :: Babbage.BabbageTxOut BabbageEra
     -> TxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
@@ -400,22 +397,22 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
 -- Conversions for 'UTxO'
 --------------------------------------------------------------------------------
 
-toLedgerUTxOBabbage :: UTxO -> Ledger.UTxO Babbage
+toLedgerUTxOBabbage :: UTxO -> Ledger.UTxO BabbageEra
 toLedgerUTxOBabbage (UTxO m) = Ledger.UTxO
     $ Map.mapKeys toLedger
     $ Map.map toBabbageTxOut m
 
-toLedgerUTxOConway :: UTxO -> Ledger.UTxO Conway
+toLedgerUTxOConway :: UTxO -> Ledger.UTxO ConwayEra
 toLedgerUTxOConway (UTxO m) = Ledger.UTxO
     $ Map.mapKeys toLedger
     $ Map.map toConwayTxOut m
 
-toWalletUTxOBabbage :: Ledger.UTxO Babbage -> UTxO
+toWalletUTxOBabbage :: Ledger.UTxO BabbageEra -> UTxO
 toWalletUTxOBabbage (Ledger.UTxO m) = UTxO
     $ Map.mapKeys toWallet
     $ Map.map fromBabbageTxOut m
 
-toWalletUTxOConway :: Ledger.UTxO Conway -> UTxO
+toWalletUTxOConway :: Ledger.UTxO ConwayEra -> UTxO
 toWalletUTxOConway (Ledger.UTxO m) = UTxO
     $ Map.mapKeys toWallet
     $ Map.map fromConwayTxOut m
@@ -516,7 +513,7 @@ toLedgerTimelockScript s = case s of
 toLedgerDelegatee
     :: Maybe PoolId
     -> Maybe DRep
-    -> Conway.Delegatee StandardCrypto
+    -> Conway.Delegatee
 toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Nothing) ->
         Conway.DelegStake (toKeyHash poolId)
@@ -534,7 +531,7 @@ toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     toKeyHash (PoolId pid) = Ledger.KeyHash . Crypto.UnsafeHash $ toShort pid
 
 toLedgerDRep
-    :: DRep -> Ledger.DRep StandardCrypto
+    :: DRep -> Ledger.DRep
 toLedgerDRep = \case
     Abstain -> Ledger.DRepAlwaysAbstain
     NoConfidence -> Ledger.DRepAlwaysNoConfidence

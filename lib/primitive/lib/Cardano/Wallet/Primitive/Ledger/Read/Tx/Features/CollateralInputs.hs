@@ -37,7 +37,7 @@ getCollateralInputs = case theEra @era of
     Conway -> mkShelleyTxCollateralInputsIns
 
 mkShelleyTxCollateralInputsIns
-    :: (Foldable t, CollateralInputsType era ~ t (SH.TxIn crypto))
+    :: (Foldable t, CollateralInputsType era ~ t SH.TxIn)
     => CollateralInputs era -- ^
   -> [W.TxIn]
 mkShelleyTxCollateralInputsIns (CollateralInputs ins) = fromShelleyTxIns ins

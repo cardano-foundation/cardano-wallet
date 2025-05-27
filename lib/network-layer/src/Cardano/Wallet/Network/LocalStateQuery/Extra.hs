@@ -56,13 +56,13 @@ import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
 import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ConwayEra
     , StandardCrypto
-    , StandardMary
-    , StandardShelley
+    , MaryEra
+    , ShelleyEra
     )
 
 import qualified Cardano.Wallet.Read as Read
@@ -125,12 +125,12 @@ onAnyEra' a b c d e f g =
 -- @PParams@ in alonzo.
 onAnyEra
     :: LSQ Byron.ByronBlock m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardShelley) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAllegra) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardMary) m a
-    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) StandardAlonzo) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardBabbage) m a
-    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) StandardConway) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) ShelleyEra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) AllegraEra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) MaryEra) m a
+    -> LSQ (Shelley.ShelleyBlock (TPraos StandardCrypto) AlonzoEra) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) BabbageEra) m a
+    -> LSQ (Shelley.ShelleyBlock (Praos StandardCrypto) ConwayEra) m a
     -> LSQ (CardanoBlock StandardCrypto) m a
 onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
     currentEra >>= \case

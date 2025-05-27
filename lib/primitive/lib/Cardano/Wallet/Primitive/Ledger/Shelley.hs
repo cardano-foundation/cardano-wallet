@@ -25,7 +25,7 @@
 module Cardano.Wallet.Primitive.Ledger.Shelley
     ( CardanoBlock
     , StandardCrypto
-    , StandardShelley
+    , ShelleyEra
 
       -- * Protocol Parameters
     , NetworkId (..)
@@ -101,9 +101,11 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -255,12 +257,10 @@ import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
     , HardForkBlock (..)
-    , StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
+    , AllegraEra
+    , AlonzoEra
+    , MaryEra
+    , ShelleyEra
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..)
@@ -445,7 +445,7 @@ fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
     :: W.EraInfo Bound
-    -> Ledger.PParams StandardShelley
+    -> Ledger.PParams ShelleyEra
     -> W.ProtocolParameters
 fromShelleyPParams eraInfo pp =
     W.ProtocolParameters
@@ -465,7 +465,7 @@ fromShelleyPParams eraInfo pp =
 
 fromAllegraPParams
     :: W.EraInfo Bound
-    -> Ledger.PParams StandardAllegra
+    -> Ledger.PParams AllegraEra
     -> W.ProtocolParameters
 fromAllegraPParams eraInfo pp =
     W.ProtocolParameters
@@ -485,7 +485,7 @@ fromAllegraPParams eraInfo pp =
 
 fromMaryPParams
     :: W.EraInfo Bound
-    -> Ledger.PParams StandardMary
+    -> Ledger.PParams MaryEra
     -> W.ProtocolParameters
 fromMaryPParams eraInfo pp =
     W.ProtocolParameters
@@ -510,7 +510,7 @@ fromBoundToEpochNo (Bound _relTime _slotNo (EpochNo e)) =
 fromAlonzoPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams StandardAlonzo
+    -> Ledger.PParams AlonzoEra
     -> W.ProtocolParameters
 fromAlonzoPParams eraInfo pp =
     W.ProtocolParameters
@@ -534,7 +534,7 @@ fromAlonzoPParams eraInfo pp =
 fromBabbagePParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams StandardBabbage
+    -> Ledger.PParams BabbageEra
     -> W.ProtocolParameters
 fromBabbagePParams eraInfo pp =
     W.ProtocolParameters
@@ -559,7 +559,7 @@ fromBabbagePParams eraInfo pp =
 fromConwayPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams StandardConway
+    -> Ledger.PParams ConwayEra
     -> W.ProtocolParameters
 fromConwayPParams eraInfo pp =
     W.ProtocolParameters
@@ -638,7 +638,7 @@ stakeKeyDepositFromPParams
     :: Ledger.EraPParams era => Ledger.PParams era -> W.Coin
 stakeKeyDepositFromPParams = toWalletCoin . view ppKeyDepositL
 
-slottingParametersFromGenesis :: ShelleyGenesis e -> W.SlottingParameters
+slottingParametersFromGenesis :: ShelleyGenesis -> W.SlottingParameters
 slottingParametersFromGenesis g =
     W.SlottingParameters
         { getSlotLength =
@@ -649,12 +649,12 @@ slottingParametersFromGenesis g =
             W.ActiveSlotCoefficient . fromRational . SL.unboundRational
                 $ sgActiveSlotsCoeff g
         , getSecurityParameter =
-            Quantity . fromIntegral $ sgSecurityParam g
+            Quantity . fromIntegral . SL.unNonZero $ sgSecurityParam g
         }
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: ShelleyGenesis StandardCrypto
+    :: ShelleyGenesis
     -> (W.NetworkParameters, W.Block, [PoolCertificate])
 fromGenesisData g =
     ( W.NetworkParameters
@@ -676,7 +676,7 @@ fromGenesisData g =
     -- For now we use a dummy value.
     dummyGenesisHash = W.Hash . BS.pack $ replicate 32 1
 
-    poolCerts :: SLAPI.ShelleyGenesisStaking StandardCrypto -> [PoolCertificate]
+    poolCerts :: SLAPI.ShelleyGenesisStaking -> [PoolCertificate]
     poolCerts (SLAPI.ShelleyGenesisStaking pools _stake) = do
         (_, pp) <- ListMap.toList pools
         pure $ W.Registration $ PoolRegistrationCertificate
@@ -694,7 +694,7 @@ fromGenesisData g =
     -- The genesis data on haskell nodes is not a block at all, unlike the
     -- block0 on jormungandr. This function is a method to deal with the
     -- discrepancy.
-    genesisBlockFromTxOuts :: [(SL.Addr StandardCrypto, SL.Coin)] -> W.Block
+    genesisBlockFromTxOuts :: [(SL.Addr, SL.Coin)] -> W.Block
     genesisBlockFromTxOuts outs = W.Block
         { delegations  = []
         , header = W.BlockHeader
@@ -725,13 +725,13 @@ fromGenesisData g =
             }
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
-                SL.initialFundsPseudoTxIn @StandardCrypto addr
+                SL.initialFundsPseudoTxIn addr
 
 --
 -- Stake pools
 --
 
-fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> PoolId
+fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool -> PoolId
 fromPoolId (SL.KeyHash x) = PoolId $ hashToBytes x
 
 fromPoolDistr
@@ -745,8 +745,7 @@ fromPoolDistr =
 
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards
-    :: forall era. ()
-    => O.NonMyopicMemberRewards era
+    :: O.NonMyopicMemberRewards
     -> Map (Either W.Coin W.RewardAccount) (Map PoolId W.Coin)
 fromNonMyopicMemberRewards =
     Map.map (Map.map toWalletCoin . Map.mapKeys fromPoolId)
@@ -816,10 +815,10 @@ fromPoolMetadata meta =
     , StakePoolMetadataHash (pmHash meta)
     )
 
-fromPoolKeyHash :: SL.KeyHash rol sc -> PoolId
+fromPoolKeyHash :: SL.KeyHash rol -> PoolId
 fromPoolKeyHash (SL.KeyHash h) = PoolId (hashToBytes h)
 
-fromOwnerKeyHash :: SL.KeyHash 'SL.Staking crypto -> PoolOwner
+fromOwnerKeyHash :: SL.KeyHash 'SL.Staking -> PoolOwner
 fromOwnerKeyHash (SL.KeyHash h) = PoolOwner (hashToBytes h)
 
 fromCardanoAddress :: Cardano.Address Cardano.ShelleyAddr -> W.Address
@@ -995,9 +994,9 @@ just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1+|": unable to deserialise "+|t2)
 
 toLedgerStakeCredential
-    :: (Crypto.HashAlgorithm (SL.ADDRHASH crypto))
+    :: (Crypto.HashAlgorithm SL.ADDRHASH)
     => W.RewardAccount
-    -> SL.StakeCredential crypto
+    -> SL.StakeCredential
 toLedgerStakeCredential = \case
     W.FromKeyHash bs ->
           SL.KeyHashObj
@@ -1025,10 +1024,10 @@ rewardAccountFromAddress (W.Address bytes) = refToAccount . ref =<< parseAddr by
     parseAddr :: ByteString -> Maybe (Cardano.Address Cardano.ShelleyAddr)
     parseAddr = eitherToMaybe . Cardano.deserialiseFromRawBytes (AsAddress AsShelleyAddr)
 
-    ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference StandardCrypto
+    ref :: Cardano.Address Cardano.ShelleyAddr -> SL.StakeReference
     ref (Cardano.ShelleyAddress _n _paymentKey stakeRef) = stakeRef
 
-    refToAccount :: SL.StakeReference StandardCrypto -> Maybe W.RewardAccount
+    refToAccount :: SL.StakeReference -> Maybe W.RewardAccount
     refToAccount (SL.StakeRefBase cred) = Just $ fromStakeCredential cred
     refToAccount (SL.StakeRefPtr _) = Nothing
     refToAccount SL.StakeRefNull = Nothing

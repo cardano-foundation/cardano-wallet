@@ -30,11 +30,6 @@ import Cardano.Wallet.Read.Eras
 import Data.Foldable
     ( toList
     )
-import Data.Word
-    ( Word16
-    , Word32
-    , Word64
-    )
 
 import qualified Cardano.Chain.UTxO as BY
 import qualified Cardano.Crypto.Hashing as CC
@@ -73,16 +68,4 @@ fromShelleyTxIn
     :: SL.TxIn
     -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid (SL.TxIx ix)) =
-    W.TxIn (W.Hash $ fromShelleyTxId txid) (unsafeCast ix)
-  where
-    -- During the Vasil hard-fork the cardano-ledger team moved from
-    -- representing transaction indices with Word16s, to using Word64s (see
-    -- commit
-    -- https://github.com/IntersectMBO/cardano-ledger/commit/4097a9055e6ea57161755e6a8cbfcf719b65e9ab).
-    -- However, the valid range is still 0 <= x <= (maxBound :: Word16), so we
-    -- reflect that here.
-    unsafeCast :: Word64 -> Word32
-    unsafeCast txIx =
-        if txIx > fromIntegral (maxBound :: Word16)
-        then error $ "Value for wallet TxIx is out of a valid range: " <> show txIx
-        else fromIntegral txIx
+    W.TxIn (W.Hash $ fromShelleyTxId txid) (fromIntegral ix)
