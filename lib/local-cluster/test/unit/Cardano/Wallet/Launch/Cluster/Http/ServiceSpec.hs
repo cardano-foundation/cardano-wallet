@@ -145,14 +145,14 @@ import Data.Set
     ( Set
     )
 import Ouroboros.Consensus.Cardano.Block
-    ( CardanoBlock
-    , AllegraEra
+    ( AllegraEra
     , AlonzoEra
     , BabbageEra
+    , CardanoBlock
     , ConwayEra
-    , StandardCrypto
     , MaryEra
     , ShelleyEra
+    , StandardCrypto
     )
 import Streaming
     ( MonadIO (liftIO)

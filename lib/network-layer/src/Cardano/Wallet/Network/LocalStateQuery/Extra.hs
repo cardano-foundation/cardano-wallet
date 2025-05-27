@@ -60,9 +60,9 @@ import Ouroboros.Consensus.Shelley.Eras
     , AlonzoEra
     , BabbageEra
     , ConwayEra
-    , StandardCrypto
     , MaryEra
     , ShelleyEra
+    , StandardCrypto
     )
 
 import qualified Cardano.Wallet.Read as Read

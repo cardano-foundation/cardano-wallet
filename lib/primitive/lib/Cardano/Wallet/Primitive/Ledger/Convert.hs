@@ -159,10 +159,10 @@ import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway.TxCert as Conway
 import qualified Cardano.Ledger.Core as LCore
 import qualified Cardano.Ledger.DRep as Ledger
+import qualified Cardano.Ledger.Hashes as Hashes
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.Plutus.Language as Ledger
-import qualified Cardano.Ledger.Hashes as Hashes
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.Shelley.Scripts as Scripts
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

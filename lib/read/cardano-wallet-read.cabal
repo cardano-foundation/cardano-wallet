@@ -102,12 +102,6 @@ library
     Cardano.Wallet.Read
     Cardano.Wallet.Read.Address
     Cardano.Wallet.Read.Block
---    Cardano.Wallet.Read.Block.Gen
-    -- Cardano.Wallet.Read.Block.Gen.Babbage
-    -- Cardano.Wallet.Read.Block.Gen.BlockParameters
-    -- Cardano.Wallet.Read.Block.Gen.Build
-    -- Cardano.Wallet.Read.Block.Gen.Byron
---    Cardano.Wallet.Read.Block.Gen.Shelley
     Cardano.Wallet.Read.Chain
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Hash
@@ -126,6 +120,12 @@ library
     Cardano.Wallet.Read.Tx.Gen.TxParameters
     Cardano.Wallet.Read.Value
 
+  --    Cardano.Wallet.Read.Block.Gen
+  -- Cardano.Wallet.Read.Block.Gen.Babbage
+  -- Cardano.Wallet.Read.Block.Gen.BlockParameters
+  -- Cardano.Wallet.Read.Block.Gen.Build
+  -- Cardano.Wallet.Read.Block.Gen.Byron
+  --    Cardano.Wallet.Read.Block.Gen.Shelley
   other-modules:
     Cardano.Wallet.Read.Chain.Genesis
     Cardano.Wallet.Read.Chain.Point

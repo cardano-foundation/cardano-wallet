@@ -21,6 +21,7 @@ module Cardano.Read.Ledger.Eras.KnownEras
     , Conway
     , Mary
     , Shelley
+    , withEra
     ) where
 
 import Prelude
@@ -91,3 +92,6 @@ indexOfEra e = case e of
     Alonzo -> 4
     Babbage -> 5
     Conway -> 6
+
+withEra :: IsEra era => (Era era -> a) -> a
+withEra f = f theEra

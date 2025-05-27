@@ -279,11 +279,11 @@ import Cardano.Ledger.Credential.Safe
 import Cardano.Ledger.DRep
     ( DRep (..)
     )
-import Cardano.Ledger.Plutus.Language
-    ( Language (..)
-    )
 import Cardano.Ledger.Hashes
     ( unsafeMakeSafeHash
+    )
+import Cardano.Ledger.Plutus.Language
+    ( Language (..)
     )
 import Data.Aeson
     ( ToJSON (..)
