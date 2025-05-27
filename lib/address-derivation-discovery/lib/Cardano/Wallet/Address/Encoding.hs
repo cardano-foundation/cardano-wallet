@@ -101,9 +101,6 @@ import Data.Text.Class
 import Data.Word
     ( Word8
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardCrypto
-    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA
@@ -146,7 +143,7 @@ scripthashStakeAddressPrefix = 0xF0
 -- Unlike with Jörmungandr, the reward account payload doesn't represent a
 -- public key but a HASH of a public key.
 --
-fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.RewardAccount
+fromStakeCredential :: SL.Credential 'SL.Staking -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
         W.FromScriptHash (hashToBytes h)
@@ -185,7 +182,7 @@ shelleyDecodeStakeAddress ::
 shelleyDecodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
-    rewardAcnt <- SL.decodeRewardAccount @StandardCrypto bytes
+    rewardAcnt <- SL.decodeRewardAccount bytes
         & left (TextDecodingError . show @String) . reportFailure
     guardNetwork (SL.raNetwork rewardAcnt) serverNetwork
     pure $ fromStakeCredential $ SL.raCredential rewardAcnt
@@ -248,12 +245,11 @@ errMalformedAddress = TextDecodingError
 -- discrimination.
 shelleyDecodeAddress :: SL.Network -> Text -> Either TextDecodingError W.Address
 shelleyDecodeAddress serverNetwork =
-    decodeBytes >=> decodeShelleyAddress @StandardCrypto
+    decodeBytes >=> decodeShelleyAddress
   where
-    decodeShelleyAddress :: forall c.
-        (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
+    decodeShelleyAddress :: ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
-        case SL.decodeAddrLenient @c bytes of
+        case SL.decodeAddrLenient bytes of
             Just (SL.Addr addrNetwork _ _) -> do
                 guardNetwork addrNetwork serverNetwork
                 pure (W.Address bytes)

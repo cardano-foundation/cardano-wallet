@@ -729,7 +729,7 @@ localStateQuery queue =
               -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
-          go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry) $
+          go (LSQry qry) cont = LSQ.SendMsgQuery _foo $
               -- We only need to support queries of the type `BlockQuery`.
               LSQ.ClientStQuerying $ \res -> do
                   pure $ cont res
@@ -768,7 +768,7 @@ data LSQ block (m :: Type -> Type) a where
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
 
     -- | A local state query.
-    LSQry :: (BlockQuery block res) -> LSQ block m res
+    LSQry :: (BlockQuery block footprint res) -> LSQ block m res
 
 instance Functor (LSQ block m) where
     fmap = liftM

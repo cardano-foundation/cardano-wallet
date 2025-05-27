@@ -85,7 +85,6 @@ import Cardano.Ledger.Api
     ( BabbageEraTxBody (totalCollateralTxBodyL)
     , Script
     , ScriptHash
-    , StandardCrypto
     , TxCert
     , addrTxWitsL
     , bodyTxL
@@ -269,6 +268,7 @@ import Text.Pretty.Simple
     ( pShow
     )
 
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.CoinSelection.UTxOIndex as UTxOIndex
 import qualified Cardano.CoinSelection.UTxOSelection as UTxOSelection
@@ -1305,7 +1305,7 @@ updateTx tx extraContent = do
     TxUpdate _ _ _ extraInputScripts _ = extraContent
 
     extraInputScripts'
-        :: Map (ScriptHash StandardCrypto) (Script era)
+        :: Map ScriptHash (Script era)
     extraInputScripts' =
         Map.fromList $ map (pairWithHash . convert) extraInputScripts
       where

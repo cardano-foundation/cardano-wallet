@@ -42,9 +42,6 @@ import Cardano.Launcher.Node
     , MaybeK (..)
     , NodePort (..)
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.BaseTypes
     ( Network (Testnet)
     , StrictMaybe (..)

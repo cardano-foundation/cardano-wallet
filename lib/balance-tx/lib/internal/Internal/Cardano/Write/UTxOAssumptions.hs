@@ -20,6 +20,7 @@ import Internal.Cardano.Write.Tx
     )
 
 import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 
 -- | Assumptions about UTxOs that are needed for coin selection.
 data UTxOAssumptions

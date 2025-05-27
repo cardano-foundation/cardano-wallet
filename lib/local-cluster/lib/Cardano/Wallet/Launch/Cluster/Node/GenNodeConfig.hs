@@ -20,9 +20,6 @@ import Cardano.BM.Data.Output
 import Cardano.BM.Data.Severity
     ( Severity (..)
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
     )
@@ -116,7 +113,7 @@ genNodeConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
     -> ClusterM
         ( FileOf "node-config"
-        , ShelleyGenesis StandardCrypto
+        , ShelleyGenesis
         , NodeToClientVersionData
         )
 genNodeConfig nodeSegment name genesisFiles clusterEra logCfg = do

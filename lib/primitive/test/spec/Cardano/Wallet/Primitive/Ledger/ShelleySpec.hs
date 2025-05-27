@@ -18,12 +18,14 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash
     , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
     , keyHashFromBytes
+    )
+import Cardano.Address.Script
+    ( Script (..)
+    , ScriptHash (..)
     , serializeScript
     , toScriptHash
     )
@@ -31,11 +33,9 @@ import Cardano.Crypto.Hash.Class
     ( digest
     )
 import Cardano.Ledger.Core
-    ( PParams
+    ( HASH
+    , PParams
     , ppDL
-    )
-import Cardano.Ledger.Crypto
-    ( Crypto (..)
     )
 import Cardano.Mnemonic
     ( ConsistentEntropy
@@ -183,7 +183,7 @@ spec = do
 
         let mkDecentralizationParam
                 :: SL.UnitInterval
-                -> PParams (SL.ShelleyEra StandardCrypto)
+                -> PParams SL.ShelleyEra
             mkDecentralizationParam i = SL.emptyPParams & ppDL .~ i
 
         let testCases :: [(Ratio Word64, Text)]
@@ -473,7 +473,7 @@ instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
             n <- choose (0, 100)
             hash <- toCardanoHash
                 . Hash
-                . digest (Proxy @(HASH StandardCrypto))
+                . digest (Proxy @HASH)
                 . BS.pack <$> vector 5
             return $ Tip (SlotNo n) hash (BlockNo n)
 

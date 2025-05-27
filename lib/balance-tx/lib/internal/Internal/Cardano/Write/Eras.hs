@@ -185,18 +185,16 @@ class
 type RecentEraConstraints era =
     ( Core.Era era
     , Core.EraTx era
-    , Core.EraCrypto era ~ StandardCrypto
     , Core.Script era ~ AlonzoScript era
     , Core.Tx era ~ Babbage.AlonzoTx era
     , Core.EraTxOut era
     , Core.EraTxCert era
-    , Core.Value era ~ MaryValue StandardCrypto
+    , Core.Value era ~ MaryValue
     , Core.TxWits era ~ AlonzoTxWits era
     , Alonzo.AlonzoEraPParams era
     , Ledger.AlonzoEraTx era
     , ScriptsNeeded era ~ AlonzoScriptsNeeded era
     , AlonzoEraScript era
-    , Ledger.Crypto (Core.EraCrypto era)
     , Eq (Core.TxOut era)
     , Eq (Core.Tx era)
     , Babbage.BabbageEraTxBody era

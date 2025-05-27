@@ -34,7 +34,6 @@ module Internal.Cardano.Write.Tx
     , toCardanoApiTx
 
     -- ** Misc
-    , StandardCrypto
     , BabbageEra
     , ConwayEra
 
@@ -161,9 +160,6 @@ import Cardano.Ledger.Conway.PParams
 import Cardano.Ledger.Conway.Scripts
     ( PlutusScript (..)
     )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Mary
     ( MaryValue
     )
@@ -272,7 +268,7 @@ instance Monoid KeyWitnessCounts where
 -- TxIn
 --------------------------------------------------------------------------------
 
-type TxIn = Ledger.TxIn StandardCrypto
+type TxIn = Ledger.TxIn
 
 -- | Useful for testing
 unsafeMkTxIn :: ByteString -> Word -> TxIn
@@ -280,7 +276,7 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
     (toTxId hash)
     (fromIntegral ix)
   where
-    toTxId :: ByteString -> Ledger.TxId StandardCrypto
+    toTxId :: ByteString -> Ledger.TxId
     toTxId h =
         (Ledger.TxId (unsafeMakeSafeHash $ UnsafeHash $ toShort h))
 
@@ -290,24 +286,24 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 
 type TxOutInBabbage = Babbage.BabbageTxOut Babbage
 
-type Address = Ledger.Addr StandardCrypto
+type Address = Ledger.Addr
 
-type RewardAccount = Ledger.RewardAccount StandardCrypto
+type RewardAccount = Ledger.RewardAccount
 type Script = AlonzoScript
-type ScriptHash = Core.ScriptHash StandardCrypto
-type Value = MaryValue StandardCrypto
+type ScriptHash = Core.ScriptHash
+type Value = MaryValue
 
 unsafeAddressFromBytes :: ByteString -> Address
 unsafeAddressFromBytes bytes = case Ledger.decodeAddr bytes of
     Just addr -> addr
     Nothing -> error "unsafeAddressFromBytes: failed to deserialise"
 
-type DatumHash = Alonzo.DataHash StandardCrypto
+type DatumHash = Alonzo.DataHash
 
 datumHashFromBytes :: ByteString -> Maybe DatumHash
 datumHashFromBytes = fmap unsafeMakeSafeHash <$> Crypto.hashFromBytes
 
-datumHashToBytes :: SafeHash crypto a -> ByteString
+datumHashToBytes :: SafeHash a -> ByteString
 datumHashToBytes = Crypto.hashToBytes . extractHash
 
 -- | Type representing a TxOut in the latest or previous era.
@@ -627,7 +623,7 @@ evaluateTransactionBalance pp depositLookup =
     --
     -- https://cardanofoundation.atlassian.net/browse/ADP-3404
     dRepDepositAssumeCurrent
-        :: Core.Credential 'Ledger.DRepRole StandardCrypto
+        :: Core.Credential 'Ledger.DRepRole
         -> Maybe Coin
     dRepDepositAssumeCurrent _drepCred = case recentEra @era of
         RecentEraConway -> Just $ pp ^. ppDRepDepositL
@@ -643,7 +639,7 @@ evaluateTransactionBalance pp depositLookup =
     --
     -- https://cardanofoundation.atlassian.net/browse/ADP-3274
     assumePoolIsReg
-        :: Ledger.KeyHash 'Ledger.StakePool StandardCrypto
+        :: Ledger.KeyHash 'Ledger.StakePool
         -> Bool
     assumePoolIsReg _keyHash = True
 
@@ -651,16 +647,16 @@ evaluateTransactionBalance pp depositLookup =
 -- Policy and asset identifiers
 --------------------------------------------------------------------------------
 
-type PolicyId = Value.PolicyID StandardCrypto
+type PolicyId = Value.PolicyID
 
 {-# COMPLETE PolicyId #-}
 pattern PolicyId
-    :: Core.ScriptHash StandardCrypto
-    -> Value.PolicyID StandardCrypto
+    :: Core.ScriptHash
+    -> Value.PolicyID
 pattern PolicyId h = Value.PolicyID h
 
 --------------------------------------------------------------------------------
 -- Stake Credential
 --------------------------------------------------------------------------------
 
-type StakeCredential = Core.StakeCredential StandardCrypto
+type StakeCredential = Core.StakeCredential

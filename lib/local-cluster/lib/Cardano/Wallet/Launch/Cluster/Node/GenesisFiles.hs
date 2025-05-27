@@ -46,6 +46,7 @@ import Cardano.Ledger.BaseTypes
     , EpochSize (..)
     , Network (Testnet)
     , natVersion
+    , unsafeNonZero
     )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
@@ -282,7 +283,7 @@ generateGenesis initialFunds genesisMods = do
                     ShelleyGenesis
                         { sgSystemStart = systemStart
                         , sgActiveSlotsCoeff = unsafePositiveUnitInterval 0.5
-                        , sgSecurityParam = 10
+                        , sgSecurityParam = unsafeNonZero 10
                         , sgEpochLength = EpochSize 120
                         , sgSlotLength = 0.25
                         , sgUpdateQuorum = 1
