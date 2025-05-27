@@ -282,7 +282,7 @@ import Cardano.Ledger.DRep
 import Cardano.Ledger.Plutus.Language
     ( Language (..)
     )
-import Cardano.Ledger.SafeHash
+import Cardano.Ledger.Hashes
     ( unsafeMakeSafeHash
     )
 import Data.Aeson
@@ -1756,8 +1756,12 @@ genProposals w = case w of
     ConwayEraOnwardsConway ->
         oneof
             [ pure TxProposalProceduresNone
-            , TxProposalProcedures <$> _arbitrary <*> pure (BuildTxWith mempty)
+            , TxProposalProcedures . fromList <$> genProcedures
             ]
+        where
+            genProcedures = listOf $ do
+                procedure <- arbitrary
+                pure (procedure, BuildTxWith Nothing)
 
 genVotingProcedures :: ConwayEraOnwards era -> Gen (ShelleyApi.TxVotingProcedures BuildTx era)
 genVotingProcedures w = case w of
