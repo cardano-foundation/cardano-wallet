@@ -34,15 +34,9 @@ import Data.IntCast
     ( intCast
     , intCastMaybe
     )
-import Data.Maybe
-    ( fromMaybe
-    )
 import Data.Word
     ( Word32
     , Word64
-    )
-import GHC.Stack
-    ( HasCallStack
     )
 
 --------------------------------------------------------------------------------
@@ -60,13 +54,3 @@ toSlotNo32 (SlotNo n) = SlotNo32 <$> intCastMaybe @Word64 @Word32 n
 --
 fromSlotNo32 :: SlotNo32 -> SlotNo
 fromSlotNo32 (SlotNo32 n) = SlotNo (intCast @Word32 @Word64 n)
-
---------------------------------------------------------------------------------
--- Unsafe internal interface
---------------------------------------------------------------------------------
-
-unsafeToSlotNo32 :: HasCallStack => SlotNo -> SlotNo32
-unsafeToSlotNo32 = fromMaybe reportFailure . toSlotNo32
-  where
-    reportFailure = error
-        "unsafeToSlotNo32: unable to convert SlotNo to SlotNo32"

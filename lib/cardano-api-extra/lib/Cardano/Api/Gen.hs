@@ -809,12 +809,12 @@ genTxMintValue era = withEraWitness era $ \supported ->
                     ]
             mints = do
                 policy <- genPolicyId
-                assets <- listOf $ do
+                assets <- fromList <$> (listOf $ do
                     assetName <- genAssetName
                     quantity <- genSignedQuantity
-                    script <- BuildTxWith <$> scriptWitnessGenerators
-                    pure (assetName, quantity, script)
-                pure (policy, assets)
+                    pure (assetName, quantity))
+                script <- BuildTxWith <$> scriptWitnessGenerators
+                pure (policy, (assets, script))
 
         oneof
             [ pure TxMintNone
