@@ -33,9 +33,13 @@ import Cardano.Api.Ledger
 import Cardano.Binary
     ( FromCBOR (..)
     )
-import Cardano.CLI.Types.Key
+import Cardano.CLI.Type.Key
     ( VerificationKeyOrFile (..)
     , readVerificationKeyOrFile
+    )
+import qualified Cardano.Crypto.VRF as Crypto
+import Cardano.Crypto.VRF.Simple
+    ( SimpleVRF
     )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
@@ -196,7 +200,7 @@ data ConfiguredPool = ConfiguredPool
     -- ^ The 'PoolRecipe' used to create this 'ConfiguredPool'.
     , registerViaShelleyGenesis
         :: ClusterM
-            (ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto)
+            (ShelleyGenesis -> ShelleyGenesis)
     , finalizeShelleyGenesisSetup :: RunningNode -> ClusterM ()
     -- ^ Submit any pool retirement certificate according to the 'recipe'
     -- on-chain.
@@ -336,7 +340,7 @@ readFailVerificationKeyOrFile role (FileOf op) =
 stakePoolIdFromOperatorVerKey
     :: HasCallStack
     => FileOf "op-pub"
-    -> ClusterM (Ledger.KeyHash 'Ledger.StakePool (StandardCrypto))
+    -> ClusterM (Ledger.KeyHash 'Ledger.StakePool)
 stakePoolIdFromOperatorVerKey opPub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile AsStakePoolKey opPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
@@ -347,7 +351,7 @@ stakePoolIdFromOperatorVerKey opPub = do
 poolVrfFromFile
     :: HasCallStack
     => FileOf "vrf-pub"
-    -> ClusterM (Ledger.Hash StandardCrypto (Ledger.VerKeyVRF StandardCrypto))
+    -> ClusterM (Ledger.Hash (Crypto.VerKeyVRF SimpleVRF))
 poolVrfFromFile vrfPub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile AsVrfKey vrfPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
@@ -358,7 +362,7 @@ poolVrfFromFile vrfPub = do
 stakingKeyHashFromFile
     :: HasCallStack
     => FileOf "stake-pub"
-    -> ClusterM (Ledger.KeyHash 'Ledger.Staking StandardCrypto)
+    -> ClusterM (Ledger.KeyHash 'Ledger.Staking)
 stakingKeyHashFromFile stakePub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile AsStakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey
@@ -369,7 +373,7 @@ stakingKeyHashFromFile stakePub = do
 stakingAddrFromVkFile
     :: HasCallStack
     => FileOf "stake-pub"
-    -> ClusterM (Ledger.Addr StandardCrypto)
+    -> ClusterM Ledger.Addr
 stakingAddrFromVkFile stakePub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile AsStakeKey stakePub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey

@@ -107,6 +107,7 @@ library
     , cardano-api                        >=10.14.1.0 && <10.15
     , cardano-binary                     >=1.7.1.0   && <1.8
     , cardano-cli                        >=10.8.0.0  && <10.9
+    , cardano-crypto-class               >=2.2       && <2.3
     , cardano-data                       >=1.2.4.0   && <1.3
     , cardano-ledger-api                 >=1.11.0.0  && <1.12
     , cardano-ledger-core                >=1.17.0.0  && <1.18

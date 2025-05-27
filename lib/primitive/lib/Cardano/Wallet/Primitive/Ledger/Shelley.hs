@@ -253,7 +253,6 @@ import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Protocol.TPraos.BHeader as SL
@@ -809,8 +808,7 @@ just :: Builder -> Builder -> [Maybe a] -> a
 just t1 t2 = tina (t1 +| ": unable to deserialise " +| t2)
 
 toLedgerStakeCredential
-    :: (Crypto.HashAlgorithm SL.ADDRHASH)
-    => W.RewardAccount
+    :: W.RewardAccount
     -> SL.StakeCredential
 toLedgerStakeCredential = \case
     W.FromKeyHash bs ->
