@@ -143,10 +143,11 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
         AnyCardanoEra ConwayEra -> mapQuery QueryIfCurrentConway onConway
   where
     mapQuery
-        :: ( forall r
-              . BlockQuery block1 r
+        :: ( forall fp r
+              . BlockQuery block1 fp r
              -> BlockQuery
                     block2
+                    fp
                     ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r)
            )
         -> LSQ block1 m a

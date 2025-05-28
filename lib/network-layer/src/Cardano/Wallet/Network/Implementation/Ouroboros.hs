@@ -103,6 +103,9 @@ import Data.List.NonEmpty
 import Data.Ord
     ( comparing
     )
+import Data.Singletons
+    ( SingI
+    )
 import Data.Text
     ( Text
     )
@@ -729,7 +732,7 @@ localStateQuery queue =
               -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
               -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
           go (LSQPure a) cont = cont a
-          go (LSQry qry) cont = LSQ.SendMsgQuery _foo $
+          go (LSQry qry) cont = LSQ.SendMsgQuery (BlockQuery qry) $
               -- We only need to support queries of the type `BlockQuery`.
               LSQ.ClientStQuerying $ \res -> do
                   pure $ cont res
@@ -768,7 +771,7 @@ data LSQ block (m :: Type -> Type) a where
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
 
     -- | A local state query.
-    LSQry :: (BlockQuery block footprint res) -> LSQ block m res
+    LSQry :: SingI fp => (BlockQuery block fp res) -> LSQ block m res
 
 instance Functor (LSQ block m) where
     fmap = liftM
