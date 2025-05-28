@@ -201,6 +201,9 @@ import Control.Monad
     , guard
     , when
     )
+import Data.Bifunctor
+    ( first
+    )
 import Data.Functor
     ( ($>)
     , (<&>)
@@ -928,7 +931,7 @@ mkUnsignedTx
                     Cardano.SimpleScriptWitness scriptWitsSupported
                         $ Cardano.SReferenceScript
                         $ toCardanoTxIn txin
-            collect burn (assetId, TokenQuantity q) = do
+            collect burnOrMint (assetId, TokenQuantity q) = do
                 scriptSource <- case Map.lookup assetId mintingSource of
                     Just script -> pure
                         $ Cardano.BuildTxWith
@@ -937,14 +940,36 @@ mkUnsignedTx
                 pure $ Map.singleton
                     ( toCardanoPolicyId . AssetId.policyId $ assetId)
                     [ (toCardanoAssetName $ assetName assetId
-                        , (if burn then negate else id) $ fromIntegral q
+                        , burnOrMint $ fromIntegral q
                         , scriptSource
                         )
                       ]
+
+            -- NOTE: TxMintValue takes as second argument a (PolicyAssets,
+            -- BuildTxWith ... Witness) where PolicyAssets is a Map AssetName
+            -- Quantity, so we need to transform a list of triples (AssetName,
+            -- Quantity, BuildTxWith .. Witness) into such a thing which is
+            -- quite awkward.
+            --
+            -- If it happens the mintingSource map has different scripts for
+            -- different AssetNames with the /same/ PolicyId, we will run
+            -- into troubles. So we should probably ensure the map is indexed
+            -- by PolicyId and not by AssetId.
+            mkPolicyAssets [] = Nothing
+            mkPolicyAssets ((assetName, quantity, witness) : assets) =
+                Just
+                $ first Cardano.PolicyAssets
+                $ foldr
+                    (\ (assetName', quantity', _) (assetMap, witness') ->
+                            (Map.insertWith (+) assetName' quantity' assetMap, witness'))
+                    (Map.singleton assetName quantity, witness)
+                    assets
+
         in Cardano.TxMintValue maryOnwards
+            $ Map.mapMaybe mkPolicyAssets
             $ Map.unionsWith (<>)
-            $ (TokenMap.toFlatList mintData >>= collect False)
-                <> (TokenMap.toFlatList burnData >>= collect True)
+            $ (TokenMap.toFlatList mintData >>= collect id)
+                <> (TokenMap.toFlatList burnData >>= collect negate)
 
     , Cardano.txProposalProcedures =
         Nothing

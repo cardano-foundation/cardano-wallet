@@ -248,9 +248,12 @@ import Cardano.Address.Derivation
     ( XPrv
     , XPub
     )
+import Cardano.Address.KeyHash
+    ( KeyHash
+    , KeyRole (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash
     )
 import Cardano.Api
     ( serialiseToCBOR
@@ -350,7 +353,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeBIP44
     )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..)
+    ( CredentialType
     , ErrAddCosigner (..)
     , ErrScriptTemplate (..)
     , SharedState (..)
@@ -2111,7 +2114,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
 
         policyKey :: Maybe (KeyHash, XPrv, Passphrase "encryption")
         policyKey = afterByron key $ \key' ->
-                ( hashVerificationKey key CA.Policy $ liftRawKey key'
+                ( hashVerificationKey key Policy $ liftRawKey key'
                     $ toXPub xprv
                 , xprv
                 , rootPwd
@@ -2125,7 +2128,7 @@ signTransaction key tl preferredLatestEra witCountCtx keyLookup mextraRewardAcc
             case xprvM of
                 Just xprv ->
                     Just
-                        ( hashVerificationKey key CA.Delegation
+                        ( hashVerificationKey key Delegation
                             $ liftRawKey key'
                             $ toXPub xprv
                         , xprv
