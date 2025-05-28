@@ -23,12 +23,14 @@ import Cardano.Address.Derivation
     ( XPub
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash
     , KeyRole (..)
-    , Script (..)
-    , ScriptHash (..)
     , keyHashFromBytes
+    )
+import Cardano.Address.Script
+    ( Script (..)
+    , ScriptHash (..)
     , toScriptHash
     )
 import Cardano.Api
@@ -1475,7 +1477,7 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
         let referenceScript = NativeExplicitScript scriptUsed (ViaReferenceInput refInp)
         let witnessCountWithNativeScript = mkApiWitnessCount WitnessCount
                 { verificationKey = 1
-                , scripts = [changeRoleInAnyExplicitScript CA.Unknown referenceScript]
+                , scripts = [changeRoleInAnyExplicitScript Unknown referenceScript]
                 , bootstrap = 0
                 }
 

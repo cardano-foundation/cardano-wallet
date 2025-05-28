@@ -213,7 +213,7 @@ import Test.Integration.Framework.Request
     ( RequestException
     )
 
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Faucet.Mnemonics as Mnemonics

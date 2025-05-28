@@ -140,10 +140,12 @@ import Cardano.Address.Derivation
     , xpubPublicKey
     , xpubToBytes
     )
+import Cardano.Address.KeyHash
+    ( KeyHash (KeyHash)
+    , KeyRole (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (KeyHash)
-    , KeyRole (..)
     , Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
@@ -260,7 +262,7 @@ import Cardano.Wallet.Address.Discovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Address.Discovery.Shared
-    ( CredentialType (..)
+    ( CredentialType
     , SharedState (..)
     )
 import Cardano.Wallet.Address.HasDelegation
@@ -3810,7 +3812,7 @@ submitSharedTransaction ctx apiw@(ApiT wid) apitx = do
     isTimelock (NativeExplicitScript _ _) = True
     isTimelock _ = False
 
-    isDelegationKeyHash (KeyHash CA.Delegation _) = True
+    isDelegationKeyHash (KeyHash Delegation _) = True
     isDelegationKeyHash (KeyHash _ _) = False
 
     hasDelegationKeyHash s =

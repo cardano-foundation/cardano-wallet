@@ -38,10 +38,12 @@ import Cardano.Address.Derivation
     , xprvToBytes
     , xpubPublicKey
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (Delegation, Payment)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
@@ -56,6 +58,9 @@ import Cardano.Api.Gen
     )
 import Cardano.Api.Shelley
     ( ShelleyLedgerEra
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (SomeMnemonic)
@@ -342,21 +347,19 @@ import Test.Utils.Pretty
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Error as Cardano
+import qualified Cardano.Api.Internal.Error as Cardano
 import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Write.Eras as Write
-    ( Babbage
-    , CardanoApiEra
+    ( CardanoApiEra
     , IsRecentEra
     , RecentEra (RecentEraBabbage, RecentEraConway)
     , cardanoEraFromRecentEra
@@ -443,7 +446,7 @@ stakeAddressForKey
 stakeAddressForKey net pubkey =
     Cardano.StakeAddress
         net (SL.KeyHashObj (SL.KeyHash $ hash pubkey)
-            :: SL.Credential 'SL.Staking Crypto.StandardCrypto)
+            :: SL.Credential 'SL.Staking)
   where
     hash :: XPub -> Crypto.Hash Crypto.Blake2b_224 a
     hash = fromJust . Crypto.hashFromBytes . blake2b224 . xpubPublicKey
@@ -1381,7 +1384,7 @@ emptyTxSkeleton =
 mockTxConstraints :: TxConstraints
 mockTxConstraints =
     txConstraints
-        (mockPParams @Write.Babbage)
+        (mockPParams @BabbageEra)
         TxWitnessShelleyUTxO
 data MockSelection = MockSelection
     { txInputCount :: Int

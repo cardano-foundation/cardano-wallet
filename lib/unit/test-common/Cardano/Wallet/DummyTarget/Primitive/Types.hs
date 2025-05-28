@@ -26,8 +26,8 @@ import Prelude
 import Cardano.Wallet.Network
     ( NetworkLayer (..)
     )
-import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( fromConwayPParams
+import Cardano.Wallet.Primitive.Ledger.Read.PParams
+    ( primitiveProtocolParameters
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
@@ -68,6 +68,9 @@ import Cardano.Wallet.Primitive.Types.Tx.TxIn
     )
 import Cardano.Wallet.Primitive.Types.Tx.TxOut
     ( TxOut (..)
+    )
+import Cardano.Wallet.Read.PParams.Mock
+    ( mockPParamsConway
     )
 import Cardano.Wallet.Read.Tx.CBOR
     ( TxCBOR
@@ -141,9 +144,9 @@ dummyNetworkParameters = NetworkParameters
     }
 
 dummyProtocolParameters :: ProtocolParameters
-dummyProtocolParameters = fromConwayPParams
+dummyProtocolParameters = primitiveProtocolParameters
     emptyEraInfo
-    (mockPParams @Write.Conway)
+    mockPParamsConway
 
 dummyLedgerProtocolParameters :: Write.IsRecentEra era => Write.PParams era
 dummyLedgerProtocolParameters = mockPParams

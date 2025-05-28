@@ -23,7 +23,7 @@ import Cardano.Api
     , metadataFromJson
     , metadataToJson
     )
-import Cardano.Api.Error
+import Cardano.Api.Internal.Error
     ( displayError
     )
 import Cardano.Pool.Metadata.Types

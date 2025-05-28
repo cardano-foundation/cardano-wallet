@@ -106,6 +106,7 @@ library
     Cardano.Wallet.Read.Eras
     Cardano.Wallet.Read.Hash
     Cardano.Wallet.Read.PParams
+    Cardano.Wallet.Read.PParams.Mock
     Cardano.Wallet.Read.Tx
     Cardano.Wallet.Read.Tx.CBOR
     Cardano.Wallet.Read.Tx.Gen
@@ -130,7 +131,6 @@ library
     Cardano.Wallet.Read.Chain.Genesis
     Cardano.Wallet.Read.Chain.Point
     Cardano.Wallet.Read.Eras.EraValue
-    Cardano.Wallet.Read.PParams.Mock
     Cardano.Wallet.Read.Tx.CollateralInputs
     Cardano.Wallet.Read.Tx.Inputs
     Cardano.Wallet.Read.Tx.ScriptValidity
