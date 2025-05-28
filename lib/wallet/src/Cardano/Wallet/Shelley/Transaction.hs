@@ -55,10 +55,12 @@ import Cardano.Address.Derivation
     ( XPrv
     , toXPub
     )
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     , ScriptHash (..)
     , foldScript
     , toScriptHash
@@ -240,7 +242,7 @@ import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api as Cardano
 import qualified Cardano.Api.Byron as Byron
-import qualified Cardano.Api.Error as Cardano
+import qualified Cardano.Api.Internal.Error as Cardano
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto

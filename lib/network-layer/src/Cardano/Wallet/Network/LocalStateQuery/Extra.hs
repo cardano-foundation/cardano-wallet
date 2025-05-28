@@ -78,7 +78,7 @@ byronOrShelleyBased
           . LSQ
                 ( Shelley.ShelleyBlock
                     (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
+                    shelleyEra
                 )
                 m
                 a
@@ -170,7 +170,7 @@ shelleyBased
           . LSQ
                 ( Shelley.ShelleyBlock
                     (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
+                    shelleyEra
                 )
                 m
                 a

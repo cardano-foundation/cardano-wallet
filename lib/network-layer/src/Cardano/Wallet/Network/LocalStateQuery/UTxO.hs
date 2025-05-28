@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Ledger.TxIn
     ( TxIn
     )
-import Cardano.Ledger.UTxO
+import Cardano.Ledger.State
     ( UTxO
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
@@ -45,7 +45,7 @@ import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 type LSQ' m = LSQ (CardanoBlock StandardCrypto) m
 
 getUTxOByTxIn
-    :: Set (TxIn StandardCrypto) -> LSQ' m (MaybeInRecentEra UTxO)
+    :: Set TxIn -> LSQ' m (MaybeInRecentEra UTxO)
 getUTxOByTxIn ins =
     onAnyEra
         (pure InNonRecentEraByron)

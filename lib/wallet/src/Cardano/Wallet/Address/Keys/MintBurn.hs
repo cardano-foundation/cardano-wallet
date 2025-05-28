@@ -16,9 +16,12 @@ import Cardano.Address.Derivation
     ( XPrv
     , XPub
     )
+import Cardano.Address.KeyHash
+    ( KeyHash
+    , KeyRole (..)
+    )
 import Cardano.Address.Script
     ( Cosigner
-    , KeyHash
     , Script (..)
     , ScriptHash (unScriptHash)
     , toScriptHash
@@ -69,7 +72,6 @@ import GHC.Stack
     ( HasCallStack
     )
 
-import qualified Cardano.Address.Script as CA
 import qualified Data.Map as Map
 
 toTokenPolicyId
@@ -124,7 +126,7 @@ replaceCosigner kf cosignerMap = \case
   where
     toKeyHash :: HasCallStack => Cosigner -> KeyHash
     toKeyHash c = case Map.lookup c cosignerMap of
-        Just xpub -> hashVerificationKey kf CA.Policy (liftRawKey kf xpub)
+        Just xpub -> hashVerificationKey kf Policy (liftRawKey kf xpub)
         Nothing -> error "Impossible: cosigner without xpub."
 
 -- | Derive the policy private key that should be used to create mint/burn
@@ -144,4 +146,4 @@ derivePolicyKeyAndHash kf pwd rootPrv policyIx = (policyK, vkeyHash)
   where
     policyK = liftRawKey kf policyPrv
     policyPrv = derivePolicyPrivateKey pwd (getRawKey kf rootPrv) policyIx
-    vkeyHash = hashVerificationKey kf CA.Payment (publicKey kf policyK)
+    vkeyHash = hashVerificationKey kf Payment (publicKey kf policyK)
