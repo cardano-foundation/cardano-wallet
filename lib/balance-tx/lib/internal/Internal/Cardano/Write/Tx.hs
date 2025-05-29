@@ -160,6 +160,11 @@ import Cardano.Ledger.Conway.PParams
 import Cardano.Ledger.Conway.Scripts
     ( PlutusScript (..)
     )
+import Cardano.Ledger.Hashes
+    ( SafeHash
+    , extractHash
+    , unsafeMakeSafeHash
+    )
 import Cardano.Ledger.Mary
     ( MaryValue
     )
@@ -169,11 +174,6 @@ import Cardano.Ledger.Mary.Value
 import Cardano.Ledger.Plutus.Data
     ( BinaryData
     , Datum (..)
-    )
-import Cardano.Ledger.Hashes
-    ( SafeHash
-    , extractHash
-    , unsafeMakeSafeHash
     )
 import Cardano.Ledger.Val
     ( coin

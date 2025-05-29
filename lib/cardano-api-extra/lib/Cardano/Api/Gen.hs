@@ -809,7 +809,7 @@ genTxMintValue era = withEraWitness era $ \supported ->
                     ]
             mints = do
                 policy <- genPolicyId
-                assets <- fromList <$> (listOf $ do
+                assets <- fromList <$> listOf (do
                     assetName <- genAssetName
                     quantity <- genSignedQuantity
                     pure (assetName, quantity))

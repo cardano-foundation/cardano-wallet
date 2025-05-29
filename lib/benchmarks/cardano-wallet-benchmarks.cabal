@@ -107,9 +107,8 @@ benchmark restore
     , aeson
     , base
     , bytestring
-    , cardano-addresses             >=4.0.0   && <4.1
-    , cardano-balance-tx
-    , cardano-balance-tx:internal
+    , cardano-addresses                                  >=4.0.0   && <4.1
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-benchmarks
@@ -122,7 +121,7 @@ benchmark restore
     , crypto-primitives
     , filepath
     , fmt
-    , iohk-monitoring               >=0.2.1.0 && <0.3
+    , iohk-monitoring                                    >=0.2.1.0 && <0.3
     , iohk-monitoring-extra
     , optparse-applicative
     , say
@@ -141,12 +140,11 @@ benchmark latency
   build-depends:
     , aeson
     , base
-    , cardano-addresses                     >=4.0.0   && <4.1
+    , cardano-addresses                                                 >=4.0.0   && <4.1
     , cardano-wallet
     , cardano-wallet-api
-    , cardano-wallet-application
     , cardano-wallet-application-extras
-    , cardano-wallet-application:shelley
+    , cardano-wallet-application:{cardano-wallet-application, shelley}
     , cardano-wallet-benchmarks
     , cardano-wallet-integration:framework
     , cardano-wallet-launcher
@@ -162,7 +160,7 @@ benchmark latency
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring                       >=0.2.1.0 && <0.3
+    , iohk-monitoring                                                   >=0.2.1.0 && <0.3
     , iohk-monitoring-extra
     , local-cluster
     , mtl
@@ -230,9 +228,8 @@ benchmark api
     , aeson
     , base
     , bytestring
-    , cardano-api                      >=10.14.1.0 && <10.15
-    , cardano-balance-tx
-    , cardano-balance-tx:internal
+    , cardano-api                                        >=10.14.1.0 && <10.15
+    , cardano-balance-tx:{cardano-balance-tx, internal}
     , cardano-wallet
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
@@ -242,7 +239,7 @@ benchmark api
     , containers
     , filepath
     , fmt
-    , iohk-monitoring                  >=0.2.1.0   && <0.3
+    , iohk-monitoring                                    >=0.2.1.0   && <0.3
     , iohk-monitoring-extra
     , mtl
     , say

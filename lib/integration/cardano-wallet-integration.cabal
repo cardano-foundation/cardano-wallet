@@ -51,19 +51,17 @@ library framework
     , bech32
     , bech32-th
     , bytestring
-    , cardano-addresses                    >=4.0.0    && <4.1
-    , cardano-ledger-shelley               >=1.16.0.0 && <1.17
-    , cardano-wallet
+    , cardano-addresses                                                 >=4.0.0    && <4.1
+    , cardano-ledger-shelley                                            >=1.16.0.0 && <1.17
     , cardano-wallet-api
-    , cardano-wallet-application
     , cardano-wallet-application-extras
-    , cardano-wallet-application:shelley
+    , cardano-wallet-application:{cardano-wallet-application, shelley}
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
     , cardano-wallet-secrets
     , cardano-wallet-test-utils
-    , cardano-wallet:mock-token-metadata
+    , cardano-wallet:{cardano-wallet, mock-token-metadata}
     , cborg
     , command
     , containers
@@ -84,12 +82,11 @@ library framework
     , http-client
     , http-types
     , HUnit
-    , iohk-monitoring                      >=0.2.1.0  && <0.3
+    , iohk-monitoring                                                   >=0.2.1.0  && <0.3
     , iohk-monitoring-extra
     , lens
-    , lobemo-backend-ekg                   >=0.2.0.0  && <0.3
-    , local-cluster
-    , local-cluster:local-cluster-process
+    , lobemo-backend-ekg                                                >=0.2.0.0  && <0.3
+    , local-cluster:{local-cluster, local-cluster-process}
     , memory
     , microstache
     , monad-loops

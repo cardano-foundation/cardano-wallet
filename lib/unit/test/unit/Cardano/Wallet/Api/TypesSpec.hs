@@ -35,9 +35,6 @@
 
 module Cardano.Wallet.Api.TypesSpec (spec) where
 
-import Prelude hiding
-    ( id
-    )
 import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
@@ -606,6 +603,9 @@ import Network.URI
     )
 import Numeric.Natural
     ( Natural
+    )
+import Prelude hiding
+    ( id
     )
 import Servant
     ( Capture

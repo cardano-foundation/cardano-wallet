@@ -48,20 +48,19 @@ library
     , async
     , base
     , bytestring
-    , cardano-addresses             >=4.0.0     && <4.1
-    , cardano-api                   >=10.14.1.0 && <10.15
-    , cardano-balance-tx
-    , cardano-balance-tx:internal
-    , cardano-binary                >=1.7.1.0   && <1.8
-    , cardano-crypto                >=1.3.0     && <1.4
-    , cardano-crypto-class          >=2.2.2.0   && <2.3
-    , cardano-crypto-wrapper        >=1.6.0.0   && <1.7
-    , cardano-ledger-allegra        >=1.7.0.0   && <1.8
-    , cardano-ledger-api            >=1.11.0.0  && <1.12
-    , cardano-ledger-byron          >=1.1.0.0   && <1.2
-    , cardano-ledger-core           >=1.17.0.0  && <1.18
-    , cardano-slotting              >=0.2.0.0   && <0.3
-    , cardano-strict-containers     >=0.1.4.0   && <0.2
+    , cardano-addresses                                  >=4.0.0     && <4.1
+    , cardano-api                                        >=10.14.1.0 && <10.15
+    , cardano-balance-tx:{cardano-balance-tx, internal}
+    , cardano-binary                                     >=1.7.1.0   && <1.8
+    , cardano-crypto                                     >=1.3.0     && <1.4
+    , cardano-crypto-class                               >=2.2.2.0   && <2.3
+    , cardano-crypto-wrapper                             >=1.6.0.0   && <1.7
+    , cardano-ledger-allegra                             >=1.7.0.0   && <1.8
+    , cardano-ledger-api                                 >=1.11.0.0  && <1.12
+    , cardano-ledger-byron                               >=1.1.0.0   && <1.2
+    , cardano-ledger-core                                >=1.17.0.0  && <1.18
+    , cardano-slotting                                   >=0.2.0.0   && <0.3
+    , cardano-strict-containers                          >=0.1.4.0   && <0.2
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -91,8 +90,8 @@ library
     , http-client-tls
     , http-types
     , int-cast
-    , io-classes                    >=1.5.0.0   && <1.6
-    , iohk-monitoring               >=0.2.1.0   && <0.3
+    , io-classes                                         >=1.5.0.0   && <1.6
+    , iohk-monitoring                                    >=0.2.1.0   && <0.3
     , iohk-monitoring-extra
     , lens
     , list-transformer
@@ -107,10 +106,10 @@ library
     , OddWord
     , optparse-applicative
     , ordered-containers
-    , ouroboros-consensus           >=0.26.0.1  && <0.27
-    , ouroboros-consensus-cardano   >=0.25.0.1  && <0.26
-    , ouroboros-network             >=0.20.1.0  && <0.21
-    , ouroboros-network-api         >=0.13.0.0  && <0.14
+    , ouroboros-consensus                                >=0.26.0.1  && <0.27
+    , ouroboros-consensus-cardano                        >=0.25.0.1  && <0.26
+    , ouroboros-network                                  >=0.20.1.0  && <0.21
+    , ouroboros-network-api                              >=0.13.0.0  && <0.14
     , path-pieces
     , persistent
     , persistent-sqlite
@@ -135,7 +134,7 @@ library
     , unliftio-core
     , unordered-containers
     , vector
-    , Win32-network                 >=0.2.0.1   && <0.3
+    , Win32-network                                      >=0.2.0.1   && <0.3
 
   exposed-modules:
     Cardano.Api.Extra
@@ -293,7 +292,6 @@ executable mock-token-metadata-server
   main-is:       exe/mock-token-metadata-server.hs
   build-depends:
     , base
-    , cardano-wallet
-    , cardano-wallet:mock-token-metadata
+    , cardano-wallet:{cardano-wallet, mock-token-metadata}
     , optparse-applicative
     , wai-extra

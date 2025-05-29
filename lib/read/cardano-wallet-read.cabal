@@ -6,20 +6,17 @@ description:
   Data types and functions for blockchain data,
   such as blocks, transactions, certificates, ….
   These types are
-
   * self-contained,
   * compatible with types from the [cardano-ledger](https://github.com/IntersectMBO/cardano-ledger) packages,
   * parameterized uniformly over the Cardano era (Byron, Shelley, …),
   * but: focus on reading from the blockchain,
-    self-contained construction of transactions is not a design goal,
+  self-contained construction of transactions is not a design goal,
   * but: not complete, tailored to wallet needs
-
   This package is useful when reading data from the blockchain,
   when you have handle data from historic eras in a structured manner.
   When writing data to the blockchain, i.e. when creating new transactions,
   we instead recommend that you use
   types that are specific to the current (and the upcoming) era.
-
   The source code for this package also contains a partial,
   preliminary axiomatization of these types using
   [agda2hs](https://github.com/agda/agda2hs).
@@ -145,7 +142,6 @@ library
     , bytestring                    >=0.10.6   && <0.13
     , cardano-crypto                >=1.3.0    && <1.4
     , cardano-crypto-class          >=2.2.2.0  && <2.3
---    , cardano-crypto-praos          >=2.2.0.0  && <2.3
     , cardano-crypto-wrapper        >=1.6.0.0  && <1.7
     , cardano-data                  >=1.2.4.0  && <1.3
     , cardano-ledger-allegra        >=1.7.0.0  && <1.8
@@ -167,16 +163,17 @@ library
     , lens                          >=5.2.3    && <5.4
     , memory                        >=0.18.0   && <0.19
     , nothunks                      >=0.1.5    && <0.4
---    , operational                   >=0.2.4.2  && <0.3
     , ouroboros-consensus           >=0.26.0.1 && <0.27
     , ouroboros-consensus-cardano   >=0.25.0.1 && <0.26
     , ouroboros-consensus-protocol  >=0.12.0.0 && <0.13
     , ouroboros-network-api         >=0.13.0.0 && <0.14
---    , QuickCheck                    >=2.14     && <2.16.0
     , text                          >=1.2      && <2.2
     , time                          >=1.12.2   && <1.15
     , transformers                  >=0.6.1.0  && <0.7
 
+  --    , cardano-crypto-praos          >=2.2.0.0  && <2.3
+  --    , operational                   >=0.2.4.2  && <0.3
+  --    , QuickCheck                    >=2.14     && <2.16.0
   hs-source-dirs:   haskell
   default-language: Haskell2010
 

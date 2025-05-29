@@ -19,8 +19,8 @@ import Internal.Cardano.Write.Tx
     ( Address
     )
 
-import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.KeyHash as CA
+import qualified Cardano.Address.Script as CA
 
 -- | Assumptions about UTxOs that are needed for coin selection.
 data UTxOAssumptions

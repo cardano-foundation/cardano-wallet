@@ -57,13 +57,13 @@ import Cardano.Ledger.Credential
     ( Credential (..)
     , StakeCredential
     )
-import Cardano.Ledger.Tools
-    ( addDummyWitsTx
-    )
 import Cardano.Ledger.State
     ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
     , getMinFeeTxUtxo
     , txinLookup
+    )
+import Cardano.Ledger.Tools
+    ( addDummyWitsTx
     )
 import Cardano.Wallet.Primitive.Types.Tx.Constraints
     ( TxSize (..)

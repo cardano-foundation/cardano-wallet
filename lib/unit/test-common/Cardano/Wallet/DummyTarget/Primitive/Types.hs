@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
     ( -- * Dummy values

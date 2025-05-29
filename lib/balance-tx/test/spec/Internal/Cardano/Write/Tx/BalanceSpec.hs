@@ -76,11 +76,11 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (getProducedValue)
     )
-import Cardano.Ledger.BaseTypes
-    ( unsafeNonZero
-    )
 import Cardano.Ledger.Babbage.TxInfo
     ( BabbageContextError (..)
+    )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
     )
 import Cardano.Ledger.Conway.TxInfo
     ( ConwayContextError (..)

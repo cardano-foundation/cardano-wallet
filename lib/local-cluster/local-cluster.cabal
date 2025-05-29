@@ -229,17 +229,17 @@ common test-common
   build-depends:
     , aeson
     , aeson-pretty
-    , aeson-qq                             >=0.8.4    && <0.9
+    , aeson-qq                                              >=0.8.4    && <0.9
     , base
     , bytestring
-    , cardano-addresses                    >=4.0.0    && <4.1
-    , cardano-binary                       >=1.7.1.0  && <1.8
-    , cardano-ledger-alonzo                >=1.13.0.0 && <1.14
-    , cardano-ledger-babbage               >=1.11.0.0 && <1.12
-    , cardano-ledger-byron                 >=1.1.0.0  && <1.2
-    , cardano-ledger-core                  >=1.17.0.0 && <1.18
-    , cardano-ledger-mary                  >=1.8.0.0  && <1.9
-    , cardano-ledger-shelley               >=1.16.0.0 && <1.17
+    , cardano-addresses                                     >=4.0.0    && <4.1
+    , cardano-binary                                        >=1.7.1.0  && <1.8
+    , cardano-ledger-alonzo                                 >=1.13.0.0 && <1.14
+    , cardano-ledger-babbage                                >=1.11.0.0 && <1.12
+    , cardano-ledger-byron                                  >=1.1.0.0  && <1.2
+    , cardano-ledger-core                                   >=1.17.0.0 && <1.18
+    , cardano-ledger-mary                                   >=1.8.0.0  && <1.9
+    , cardano-ledger-shelley                                >=1.16.0.0 && <1.17
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -247,23 +247,22 @@ common test-common
     , cardano-wallet-test-utils
     , containers
     , contra-tracer
-    , extra                                >=1.7.16   && <1.9
+    , extra                                                 >=1.7.16   && <1.9
     , foldl
-    , hspec                                >=2.11.0   && <2.12
-    , hspec-golden                         >=0.2.2    && <0.3
+    , hspec                                                 >=2.11.0   && <2.12
+    , hspec-golden                                          >=0.2.2    && <0.3
     , iohk-monitoring-extra
-    , local-cluster
-    , local-cluster:local-cluster-process
+    , local-cluster:{local-cluster, local-cluster-process}
     , mtl
     , openapi3
-    , ouroboros-consensus-cardano          >=0.25.0.1 && <0.26
-    , ouroboros-network                    >=0.20.1.0 && <0.21
+    , ouroboros-consensus-cardano                           >=0.25.0.1 && <0.26
+    , ouroboros-network                                     >=0.20.1.0 && <0.21
     , pathtype
     , QuickCheck
-    , streaming                            >=0.2.4    && <0.3
+    , streaming                                             >=0.2.4    && <0.3
     , time
     , unliftio
-    , with-utf8                            >=1.1.0    && <1.2
+    , with-utf8                                             >=1.1.0    && <1.2
 
   build-tool-depends: hspec-discover:hspec-discover
 
