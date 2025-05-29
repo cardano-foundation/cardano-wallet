@@ -24,8 +24,8 @@ import Data.Default
     )
 import Internal.Cardano.Write.Eras
     ( AnyRecentEra
-    , Babbage
-    , Conway
+    , BabbageEra
+    , ConwayEra
     )
 import Internal.Cardano.Write.Tx
     ( computeMinimumCoinForTxOut
@@ -99,7 +99,7 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Babbage)"
                 $ property $ \out delta perByte -> do
-                    let pp = (def :: PParams Babbage)
+                    let pp = (def :: PParams BabbageEra)
                             & ppCoinsPerUTxOByteL .~ perByte
                     let c = delta <> computeMinimumCoinForTxOut pp out
                     isBelowMinimumCoinForTxOut pp
@@ -109,7 +109,7 @@ spec = do
             it "isBelowMinimumCoinForTxOut (setCoin (result <> delta)) \
                \ == False (Conway)"
                 $ property $ \out delta perByte -> do
-                    let pp = (def :: PParams Conway)
+                    let pp = (def :: PParams ConwayEra)
                             & ppCoinsPerUTxOByteL .~ perByte
                     let c = delta <> computeMinimumCoinForTxOut pp out
                     isBelowMinimumCoinForTxOut pp

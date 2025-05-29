@@ -170,7 +170,7 @@ import Cardano.Ledger.Plutus.Data
     ( BinaryData
     , Datum (..)
     )
-import Cardano.Ledger.SafeHash
+import Cardano.Ledger.Hashes
     ( SafeHash
     , extractHash
     , unsafeMakeSafeHash
@@ -206,9 +206,7 @@ import GHC.Stack
     ( HasCallStack
     )
 import Internal.Cardano.Write.Eras
-    ( Babbage
-    , CardanoApiEra
-    , Conway
+    ( CardanoApiEra
     , IsRecentEra (..)
     , LatestLedgerEra
     , MaybeInRecentEra (..)
@@ -284,7 +282,7 @@ unsafeMkTxIn hash ix = Ledger.mkTxInPartial
 -- TxOut
 --------------------------------------------------------------------------------
 
-type TxOutInBabbage = Babbage.BabbageTxOut Babbage
+type TxOutInBabbage = Babbage.BabbageTxOut BabbageEra
 
 type Address = Ledger.Addr
 
@@ -335,7 +333,7 @@ wrapTxOutInRecentEra out = case recentEra @era of
             BabbageTxOut addr v d s = out
         in
             TxOutInRecentEra addr v d (strictMaybeToMaybe s)
-    RecentEraBabbage -> wrapTxOutInRecentEra @Conway $ upgradeTxOut out
+    RecentEraBabbage -> wrapTxOutInRecentEra @ConwayEra $ upgradeTxOut out
 
 data ErrInvalidTxOutInEra
     = InlinePlutusV3ScriptNotSupportedInBabbage
@@ -357,7 +355,7 @@ recentEraToConwayTxOut (TxOutInRecentEra addr val datum mscript) =
 
 recentEraToBabbageTxOut
     :: TxOutInRecentEra
-    -> Either ErrInvalidTxOutInEra (BabbageTxOut Babbage)
+    -> Either ErrInvalidTxOutInEra (BabbageTxOut BabbageEra)
 recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
     Babbage.BabbageTxOut addr val
         (downgradeDatum datum)
@@ -372,8 +370,8 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
             Alonzo.Datum (coerce binaryData)
 
     downgradeScript
-        :: AlonzoScript Conway
-        -> Either ErrInvalidTxOutInEra (AlonzoScript Babbage)
+        :: AlonzoScript ConwayEra
+        -> Either ErrInvalidTxOutInEra (AlonzoScript BabbageEra)
     downgradeScript = \case
         TimelockScript timelockEra
             -> pure $ Alonzo.TimelockScript (translateTimelock timelockEra)
@@ -381,8 +379,8 @@ recentEraToBabbageTxOut (TxOutInRecentEra addr val datum mscript) =
             -> PlutusScript <$> downgradePlutusScript s
 
     downgradePlutusScript
-        :: PlutusScript Conway
-        -> Either ErrInvalidTxOutInEra (PlutusScript Babbage)
+        :: PlutusScript ConwayEra
+        -> Either ErrInvalidTxOutInEra (PlutusScript BabbageEra)
     downgradePlutusScript = \case
         ConwayPlutusV1 s -> pure $ BabbagePlutusV1 s
         ConwayPlutusV2 s -> pure $ BabbagePlutusV2 s
@@ -487,13 +485,13 @@ deserializeTx = case recentEra @era of
     RecentEraBabbage -> deserializeBabbageTx
     RecentEraConway -> deserializeConwayTx
   where
-    deserializeBabbageTx :: ByteString -> Tx Babbage
+    deserializeBabbageTx :: ByteString -> Tx BabbageEra
     deserializeBabbageTx
         = fromCardanoApiTx
         . either (error . show) id
         . CardanoApi.deserialiseFromCBOR (CardanoApi.AsTx CardanoApi.AsBabbageEra)
 
-    deserializeConwayTx :: ByteString -> Tx Conway
+    deserializeConwayTx :: ByteString -> Tx ConwayEra
     deserializeConwayTx
         = fromCardanoApiTx
         . either (error . show) id

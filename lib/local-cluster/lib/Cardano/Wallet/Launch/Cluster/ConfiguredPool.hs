@@ -37,6 +37,7 @@ import Cardano.CLI.Type.Key
     ( VerificationKeyOrFile (..)
     , readVerificationKeyOrFile
     )
+import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Crypto.VRF as Crypto
 import Cardano.Crypto.VRF.Simple
     ( SimpleVRF
@@ -50,6 +51,9 @@ import Cardano.Ledger.BaseTypes
     ( Network (Testnet)
     , StrictMaybe (..)
     , textToUrl
+    )
+import Cardano.Ledger.Hashes
+    ( HASH
     )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis (..)
@@ -351,7 +355,7 @@ stakePoolIdFromOperatorVerKey opPub = do
 poolVrfFromFile
     :: HasCallStack
     => FileOf "vrf-pub"
-    -> ClusterM (Ledger.Hash (Crypto.VerKeyVRF SimpleVRF))
+    -> ClusterM (Crypto.Hash HASH (Crypto.VerKeyVRF SimpleVRF))
 poolVrfFromFile vrfPub = do
     stakePoolVerKey <- readFailVerificationKeyOrFile AsVrfKey vrfPub
     let bytes = serialiseToCBOR $ verificationKeyHash stakePoolVerKey

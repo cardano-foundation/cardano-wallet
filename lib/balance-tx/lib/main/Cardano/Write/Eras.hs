@@ -6,9 +6,7 @@ module Cardano.Write.Eras
     (
     -- * Recent Eras
     -- ** Names
-      Babbage
-    , Conway
-    , LatestLedgerEra
+      LatestLedgerEra
 
     -- * 'RecentEra' type
     , RecentEra (..)
@@ -32,9 +30,7 @@ module Cardano.Write.Eras
 
 import Internal.Cardano.Write.Eras
     ( AnyRecentEra (..)
-    , Babbage
     , CardanoApiEra
-    , Conway
     , InAnyRecentEra (..)
     , IsRecentEra (..)
     , LatestLedgerEra

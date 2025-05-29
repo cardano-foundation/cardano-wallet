@@ -19,8 +19,8 @@
 --
 -- Recent eras.
 module Internal.Cardano.Write.Eras
-    ( Babbage
-    , Conway
+    ( BabbageEra
+    , ConwayEra
     , LatestLedgerEra
 
     , RecentEra (..)
@@ -59,14 +59,11 @@ import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
     )
 import Cardano.Ledger.Api
-    ( Babbage
-    , Conway
+    ( BabbageEra
+    , ConwayEra
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Mary
     ( MaryValue
@@ -108,7 +105,7 @@ import qualified Data.Set as Set
 -- Eras
 --------------------------------------------------------------------------------
 
-type LatestLedgerEra = Conway
+type LatestLedgerEra = ConwayEra
 
 --------------------------------------------------------------------------------
 -- RecentEra
@@ -157,8 +154,8 @@ type LatestLedgerEra = Conway
 -- makeAndSerializeTx :: IsRecentEra era => Intent -> ByteString
 -- @@
 data RecentEra era where
-    RecentEraBabbage :: RecentEra Babbage
-    RecentEraConway :: RecentEra Conway
+    RecentEraBabbage :: RecentEra BabbageEra
+    RecentEraConway :: RecentEra ConwayEra
 
 deriving instance Eq (RecentEra era)
 deriving instance Show (RecentEra era)
@@ -210,10 +207,10 @@ type RecentEraConstraints era =
     , Core.NativeScript era ~ Timelock era
     )
 
-instance IsRecentEra Babbage where
+instance IsRecentEra BabbageEra where
     recentEra = RecentEraBabbage
 
-instance IsRecentEra Conway where
+instance IsRecentEra ConwayEra where
     recentEra = RecentEraConway
 
 data MaybeInRecentEra (thing :: Type -> Type)
@@ -222,12 +219,12 @@ data MaybeInRecentEra (thing :: Type -> Type)
     | InNonRecentEraAllegra
     | InNonRecentEraMary
     | InNonRecentEraAlonzo
-    | InRecentEraBabbage (thing Babbage)
-    | InRecentEraConway (thing Conway)
+    | InRecentEraBabbage (thing BabbageEra)
+    | InRecentEraConway (thing ConwayEra)
 
-deriving instance (Eq (a Babbage), (Eq (a Conway)))
+deriving instance (Eq (a BabbageEra), (Eq (a ConwayEra)))
     => Eq (MaybeInRecentEra a)
-deriving instance (Show (a Babbage), (Show (a Conway)))
+deriving instance (Show (a BabbageEra), (Show (a ConwayEra)))
     => Show (MaybeInRecentEra a)
 
 -- | An existential type like 'AnyCardanoEra', but for 'RecentEra'.
@@ -268,11 +265,11 @@ allRecentEras :: Set AnyRecentEra
 allRecentEras = Set.fromList [minBound .. maxBound]
 
 data InAnyRecentEra thing
-    = InConway (thing Conway)
-    | InBabbage (thing Babbage)
+    = InConway (thing ConwayEra)
+    | InBabbage (thing BabbageEra)
 
-deriving instance (Show (thing Conway), (Show (thing Babbage))) => Show (InAnyRecentEra thing)
-deriving instance (Eq (thing Conway), (Eq (thing Babbage))) => Eq (InAnyRecentEra thing)
+deriving instance (Show (thing ConwayEra), (Show (thing BabbageEra))) => Show (InAnyRecentEra thing)
+deriving instance (Eq (thing ConwayEra), (Eq (thing BabbageEra))) => Eq (InAnyRecentEra thing)
 
 toInAnyRecentEra
     :: forall era thing. IsRecentEra era => thing era -> InAnyRecentEra thing
@@ -285,8 +282,8 @@ toInAnyRecentEra thing = case recentEra @era of
 --------------------------------------------------------------------------------
 -- | Type family for converting to "Cardano.Api" eras.
 type family CardanoApiEra era = cardanoApiEra | cardanoApiEra -> era
-type instance CardanoApiEra Babbage = CardanoApi.BabbageEra
-type instance CardanoApiEra Conway = CardanoApi.ConwayEra
+type instance CardanoApiEra BabbageEra = CardanoApi.BabbageEra
+type instance CardanoApiEra ConwayEra = CardanoApi.ConwayEra
 
 -- | Convert to a 'CardanoEra'.
 cardanoEraFromRecentEra

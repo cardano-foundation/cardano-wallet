@@ -28,8 +28,8 @@ import Data.Maybe
     ( fromMaybe
     )
 import Internal.Cardano.Write.Eras
-    ( Babbage
-    , Conway
+    ( BabbageEra
+    , ConwayEra
     , IsRecentEra (..)
     , RecentEra (..)
     )
@@ -106,7 +106,7 @@ mockPParams = case recentEra @era of
     unsafeWrap :: PParamsHKD Identity era -> PParams era
     unsafeWrap = unsafeCoerce
 
-    conwayPParams :: ConwayPParams Identity Conway
+    conwayPParams :: ConwayPParams Identity ConwayEra
     conwayPParams = upgradeConwayPParams upgrade babbagePParams
       where
         upgrade :: UpgradeConwayPParams Identity
@@ -140,7 +140,7 @@ mockPParams = case recentEra @era of
             , ucppPlutusV3CostModel = conwayPlutusV3CostModel
             }
 
-    babbagePParams :: BabbagePParams Identity Babbage
+    babbagePParams :: BabbagePParams Identity BabbageEra
     babbagePParams = BabbagePParams
       { bppMinFeeA = 44
       -- ^ The linear factor for the minimum fee calculation

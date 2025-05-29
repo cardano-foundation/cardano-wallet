@@ -259,8 +259,7 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
     sockSettings = Nothing
     clientParams caChain credentials =
         (defaultParamsClient "127.0.0.1" "")
-            { clientUseMaxFragmentLength = Nothing
-            , clientUseServerNameIndication = True
+            { clientUseServerNameIndication = True
             , clientWantSessionResume = Nothing
             , clientShared = clientShared caChain credentials
             , clientHooks = clientHooks credentials
