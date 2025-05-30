@@ -183,7 +183,6 @@ test-suite test
   ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Cardano.Read.Ledger.OutputSpec
     Cardano.Wallet.Read.EraValueSpec
     Cardano.Wallet.Read.Tx.CBORSpec
     Cardano.Wallet.Read.Tx.TxIdSpec
