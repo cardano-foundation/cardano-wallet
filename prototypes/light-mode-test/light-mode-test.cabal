@@ -3,20 +3,20 @@ name:               light-mode-test
 version:            0.2025.3.31
 synopsis:           Explore feasability of light mode
 description:
-    This prototype explores whether we can implement a "light mode"
-    for cardano-wallet which aims to make synchronisation faster by
-    using a less trusted source for blockchain data.
-    .
-    Here, we explore the feasability of http://blockfrost.io as
-    a data source. Specifically:
-    .
-    * Does the data source provide enough data so that we can implement all of 'NetworkLayer'?
-    .
-    * Does it suffice to change 'NetworkLayer' to use a 'BlockSummary'?
-    .
-    The "Light" module provides detailed answers to these questions.
-    .
-    The "Demo" module contains example code for running these answers.
+  This prototype explores whether we can implement a "light mode"
+  for cardano-wallet which aims to make synchronisation faster by
+  using a less trusted source for blockchain data.
+  .
+  Here, we explore the feasability of http://blockfrost.io as
+  a data source. Specifically:
+  .
+  * Does the data source provide enough data so that we can implement all of 'NetworkLayer'?
+  .
+  * Does it suffice to change 'NetworkLayer' to use a 'BlockSummary'?
+  .
+  The "Light" module provides detailed answers to these questions.
+  .
+  The "Demo" module contains example code for running these answers.
 
 bug-reports:        https://github.com/cardano-foundation/cardano-wallet
 author:             Cardano Foundation (High Assurance Lab)
@@ -24,38 +24,37 @@ maintainer:         hal@cardanofoundation.org
 copyright:          2021-2022 IOHK
 license:            Apache-2.0
 category:           Cardano
-
 extra-source-files:
-    CHANGELOG.md
-    README.md
-    img/*.png
-data-files:
-    data/addresses.txt
+  CHANGELOG.md
+  img/*.png
+  README.md
+
+data-files:         data/addresses.txt
 
 library
-    default-language:
-        Haskell2010
-    default-extensions:
-        OverloadedStrings
-    build-depends:
-        base
-      , blockfrost-api
-      , blockfrost-client
-      , blockfrost-client-core
-      , blockfrost-pretty
-      , containers
-      , random
-      , transformers
-      , time
-      , text
-      , say
-    exposed-modules:
-        Light
-        Demo
-    other-modules:
-        Light.ReadBlocks
-        Light.StakePools
-        Light.SubmitTx
-        Light.Types
-    hs-source-dirs:
-        src
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+  build-depends:
+    , base
+    , blockfrost-api
+    , blockfrost-client
+    , blockfrost-client-core
+    , blockfrost-pretty
+    , containers
+    , random
+    , say
+    , text
+    , time
+    , transformers
+
+  exposed-modules:
+    Demo
+    Light
+
+  other-modules:
+    Light.ReadBlocks
+    Light.StakePools
+    Light.SubmitTx
+    Light.Types
+
+  hs-source-dirs:     src

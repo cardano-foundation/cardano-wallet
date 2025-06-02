@@ -66,55 +66,56 @@ library
   -- other-modules:
   -- other-extensions:
   build-depends:
-    , base                                               >=4.14      && <5
-    , bytestring                                         >=0.10.6    && <0.13
-    , cardano-api                                        >=10.14.1.0 && <10.15
-    , cardano-balance-tx:{cardano-balance-tx, internal}
-    , cardano-binary                                     >=1.7.1.0   && <1.8
-    , cardano-crypto-class                               >=2.2.2.0   && <2.3
-    , cardano-ledger-alonzo                              >=1.13.0.0  && <1.14
-    , cardano-ledger-api                                 >=1.11.0.0  && <1.12
-    , cardano-ledger-babbage                             >=1.11.0.0  && <1.12
-    , cardano-ledger-byron                               >=1.1.0.0   && <1.2
-    , cardano-ledger-core                                >=1.17.0.0  && <1.18
-    , cardano-ledger-mary                                >=1.8.0.0   && <1.9
-    , cardano-ledger-shelley                             >=1.16.0.0  && <1.17
-    , cardano-slotting                                   >=0.2.0.0   && <0.3
+    , base                           >=4.14      && <5
+    , bytestring                     >=0.10.6    && <0.13
+    , cardano-api                    >=10.14.1.0 && <10.15
+    , cardano-balance-tx
+    , cardano-balance-tx:internal
+    , cardano-binary                 >=1.7.1.0   && <1.8
+    , cardano-crypto-class           >=2.2.2.0   && <2.3
+    , cardano-ledger-alonzo          >=1.13.0.0  && <1.14
+    , cardano-ledger-api             >=1.11.0.0  && <1.12
+    , cardano-ledger-babbage         >=1.11.0.0  && <1.12
+    , cardano-ledger-byron           >=1.1.0.0   && <1.2
+    , cardano-ledger-core            >=1.17.0.0  && <1.18
+    , cardano-ledger-mary            >=1.8.0.0   && <1.9
+    , cardano-ledger-shelley         >=1.16.0.0  && <1.17
+    , cardano-slotting               >=0.2.0.0   && <0.3
     , cardano-wallet-launcher
     , cardano-wallet-primitive
-    , cardano-wallet-read                                >=1.0.0.0   && <1.1
-    , cborg                                              >=0.2.1     && <0.3
-    , containers                                         >=0.5       && <0.8
-    , contra-tracer                                      >=0.1       && <0.3
-    , exceptions                                         >=0.10.7    && <0.11
-    , fmt                                                >=0.6.3     && <0.7
-    , io-classes                                         >=1.5.0.0   && <1.6
-    , iohk-monitoring                                    >=0.2.1.0   && <0.3
+    , cardano-wallet-read            >=1.0.0.0   && <1.1
+    , cborg                          >=0.2.1     && <0.3
+    , containers                     >=0.5       && <0.8
+    , contra-tracer                  >=0.1       && <0.3
+    , exceptions                     >=0.10.7    && <0.11
+    , fmt                            >=0.6.3     && <0.7
+    , io-classes                     >=1.5.0.0   && <1.6
+    , iohk-monitoring                >=0.2.1.0   && <0.3
     , iohk-monitoring-extra
-    , network-mux                                        >=0.7       && <0.8
-    , nothunks                                           >=0.1.5     && <0.4
-    , ouroboros-consensus                                >=0.26.0.1  && <0.27
-    , ouroboros-consensus-cardano                        >=0.25.0.1  && <0.26
-    , ouroboros-consensus-diffusion                      >=0.22.0.1  && <0.23
-    , ouroboros-consensus-protocol                       >=0.12.0.0  && <0.13
-    , ouroboros-network                                  >=0.20.1.0  && <0.21
-    , ouroboros-network-api                              >=0.13.0.0  && <0.14
-    , ouroboros-network-framework                        >=0.17.0.0  && <0.18
-    , ouroboros-network-protocols                        >=0.14.0.0  && <0.15
-    , parallel                                           >=3.2.2     && <3.3
-    , retry                                              >=0.9.3     && <0.10
-    , safe                                               >=0.3.19    && <0.4
+    , network-mux                    >=0.7       && <0.8
+    , nothunks                       >=0.1.5     && <0.4
+    , ouroboros-consensus            >=0.26.0.1  && <0.27
+    , ouroboros-consensus-cardano    >=0.25.0.1  && <0.26
+    , ouroboros-consensus-diffusion  >=0.22.0.1  && <0.23
+    , ouroboros-consensus-protocol   >=0.12.0.0  && <0.13
+    , ouroboros-network              >=0.20.1.0  && <0.21
+    , ouroboros-network-api          >=0.13.0.0  && <0.14
+    , ouroboros-network-framework    >=0.17.0.0  && <0.18
+    , ouroboros-network-protocols    >=0.14.0.0  && <0.15
+    , parallel                       >=3.2.2     && <3.3
+    , retry                          >=0.9.3     && <0.10
+    , safe                           >=0.3.19    && <0.4
     , singletons
-    , streaming                                          >=0.2.4     && <0.3
-    , strict-stm                                         ==1.5.0.0
-    , text                                               >=1.2       && <2.2
+    , streaming                      >=0.2.4     && <0.3
+    , strict-stm                     ==1.5.0.0
+    , text                           >=1.2       && <2.2
     , text-class
-    , time                                               >=1.12.2    && <1.15
-    , transformers                                       >=0.6.1.0   && <0.7
-    , typed-protocols                                    >=0.3.0.0   && <0.4
+    , time                           >=1.12.2    && <1.15
+    , transformers                   >=0.6.1.0   && <0.7
+    , typed-protocols                >=0.3.0.0   && <0.4
     , typed-protocols-stateful
-    , unliftio                                           >=0.2.25    && <0.3
-    , unliftio-core                                      >=0.1.1     && <0.3
+    , unliftio                       >=0.2.25    && <0.3
+    , unliftio-core                  >=0.1.1     && <0.3
 
 test-suite unit
   import:             language, opts-exe

@@ -228,15 +228,16 @@ test-suite test
     , base58-bytestring
     , binary
     , bytestring
-    , cardano-addresses                                   >=4.0.0     && <4.1
-    , cardano-api                                         >=10.14.1.0 && <10.15
-    , cardano-crypto-class                                >=2.2.2.0   && <2.3
-    , cardano-ledger-allegra:testlib                      >=1.7.0.0   && <1.8
-    , cardano-ledger-api                                  >=1.11.0.0  && <1.12
-    , cardano-ledger-core:{cardano-ledger-core, testlib}  >=1.17.0.0  && <1.18
-    , cardano-ledger-shelley                              >=1.16.0.0  && <1.17
+    , cardano-addresses               >=4.0.0     && <4.1
+    , cardano-api                     >=10.14.1.0 && <10.15
+    , cardano-crypto-class            >=2.2.2.0   && <2.3
+    , cardano-ledger-allegra:testlib  >=1.7.0.0   && <1.8
+    , cardano-ledger-api              >=1.11.0.0  && <1.12
+    , cardano-ledger-core             >=1.17.0.0  && <1.18
+    , cardano-ledger-core:testlib
+    , cardano-ledger-shelley          >=1.16.0.0  && <1.17
     , cardano-numeric
-    , cardano-slotting                                    >=0.2.0.0   && <0.3
+    , cardano-slotting                >=0.2.0.0   && <0.3
     , cardano-wallet-primitive
     , cardano-wallet-test-utils
     , containers
@@ -250,18 +251,18 @@ test-suite test
     , generic-lens
     , hspec
     , hspec-core
-    , iohk-monitoring                                     >=0.2.1.0   && <0.3
+    , iohk-monitoring                 >=0.2.1.0   && <0.3
     , lens
     , memory
-    , ouroboros-consensus                                 >=0.26.0.1  && <0.27
-    , ouroboros-consensus-cardano                         >=0.25.0.1  && <0.26
-    , ouroboros-network-api                               >=0.13.0.0  && <0.14
+    , ouroboros-consensus             >=0.26.0.1  && <0.27
+    , ouroboros-consensus-cardano     >=0.25.0.1  && <0.26
+    , ouroboros-network-api           >=0.13.0.0  && <0.14
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances
     , quickcheck-monoid-subclasses
     , quickcheck-quid
-    , sop-extras                                          >=0.4.0.0   && <0.5
+    , sop-extras                      >=0.4.0.0   && <0.5
     , string-qq
     , text
     , text-class
