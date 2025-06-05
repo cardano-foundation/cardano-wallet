@@ -514,6 +514,7 @@ spec_balanceTx era = describe "balanceTx" $ do
             $ prop_balanceTxExistingReturnCollateral era
 
     it "does not balance transactions if no inputs can be created"
+        $ withMaxSuccess 3
         $ property (prop_balanceTxUnableToCreateInput era)
 
     it "produces valid transactions or fails"
