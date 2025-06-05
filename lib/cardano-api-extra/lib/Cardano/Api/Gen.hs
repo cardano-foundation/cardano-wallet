@@ -1900,11 +1900,11 @@ displayError = show
 
 -- | Similar to 'genTxBody', but with a distribution better suitable for testing
 -- balancing.
-genTxBodyForBalancing :: CardanoEra era -> Gen (TxBody era)
+genTxBodyForBalancing :: ShelleyApi.IsShelleyBasedEra era => CardanoEra era -> Gen (TxBody era)
 genTxBodyForBalancing era = withEraWitness era $ \se -> do
-    res <- createTransactionBody se <$> genStrippedContent
-    case res of
-        Left err -> error (displayError err)
+    content <- genStrippedContent
+    case createTransactionBody se content of
+        Left err -> error (displayError err <> "\n" <> show content)
         Right txBody -> pure txBody
   where
     genStrippedContent = do
@@ -1918,7 +1918,7 @@ genTxBodyForBalancing era = withEraWitness era $ \se -> do
                             TxInsCollateral colInEra _ -> TxInsCollateral colInEra []
                         }
             False -> pure content
-    genShouldStrip = frequency [(90, pure True), (10, pure False)]
+    genShouldStrip = frequency [(100, pure True), (0, pure False)]
 
 genWitnesses :: CardanoEra era -> TxBody era -> Gen [KeyWitness era]
 genWitnesses era body =
@@ -1979,7 +1979,7 @@ genTx =
 -- TODO: Generate txs with no inputs
 -- TODO: Generate txs with existing key witnesses
 -- TODO: Generate txs with no outputs
-genTxForBalancing :: CardanoEra era -> Gen (Tx era)
+genTxForBalancing :: ShelleyApi.IsShelleyBasedEra era => CardanoEra era -> Gen (Tx era)
 genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
 
 --------------------------------------------------------------------------------
