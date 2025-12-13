@@ -17,10 +17,6 @@ import Prelude
 import Cardano.Wallet.Launch.Cluster
     ( FileOf (..)
     )
-import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ignoreInBabbage
-    , ignoreInConway
-    )
 import Cardano.Wallet.Launch.Cluster.FileOf
     ( DirOf (..)
     , absolutize
@@ -101,10 +97,7 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 main :: forall netId n. (netId ~ 42, n ~ 'Testnet netId) => IO ()
 main = withTestsSetup $ \testDir (tr, tracers) -> do
     localClusterEra <- Cluster.clusterEraFromEnv
-    let _noConway, _noBabbage :: SpecM a () -> SpecM a ()
-        _noConway = ignoreInConway localClusterEra
-        _noBabbage = ignoreInBabbage localClusterEra
-        testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
+    let testnetMagic = Cluster.TestnetMagic (natVal (Proxy @netId))
     testDataDir <- do
         dir <- fromMaybe "."
             <$> lookupEnv "CARDANO_WALLET_TEST_DATA"

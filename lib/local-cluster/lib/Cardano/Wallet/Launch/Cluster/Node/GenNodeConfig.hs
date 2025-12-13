@@ -192,17 +192,18 @@ controlExperimental = \case
     _ -> setExperimental False
 
 setExperimental :: Bool -> ChangeValue
-setExperimental enabled value = value
-    & atKey "ExperimentalProtocolsEnabled" ?~ Bool enabled
-    & atKey "ExperimentalHardForksEnabled" ?~ Bool enabled
+setExperimental enabled value =
+    value
+        & atKey "ExperimentalProtocolsEnabled" ?~ Bool enabled
+        & atKey "ExperimentalHardForksEnabled" ?~ Bool enabled
 
 setHardForksForLatestEras :: ClusterEra -> ChangeValue
 setHardForksForLatestEras clusterEra =
     case clusterEra of
-        BabbageHardFork -> setHardFork (T.pack $ show BabbageHardFork)
         ConwayHardFork ->
             setHardFork (T.pack $ show ConwayHardFork)
-                . setHardFork (T.pack $ show BabbageHardFork)
+
+-- . setHardFork (T.pack $ show BabbageHardFork)
 
 scribeToJSON :: ScribeDefinition -> [Value]
 scribeToJSON ScribeDefinition{..} =
@@ -228,8 +229,9 @@ addMinSeverityStdout severity =
         _ -> scribe
 
 removeGenesisHashes :: ChangeValue
-removeGenesisHashes value = value
-    & atKey "ByronGenesisHash" .~ Nothing
-    & atKey "ShelleyGenesisHash" .~ Nothing
-    & atKey "AlonzoGenesisHash" .~ Nothing
-    & atKey "ConwayGenesisHash" .~ Nothing
+removeGenesisHashes value =
+    value
+        & atKey "ByronGenesisHash" .~ Nothing
+        & atKey "ShelleyGenesisHash" .~ Nothing
+        & atKey "AlonzoGenesisHash" .~ Nothing
+        & atKey "ConwayGenesisHash" .~ Nothing

@@ -50,20 +50,20 @@ issueStakeVkCert prefix (FileOf stakePub) = do
     DirOf outputDir <- asks cfgClusterDir
     lastHardFork <- asks cfgLastHardFork
     let certPath = outputDir </> relFile (untag prefix <> "-stake") <.> "cert"
-    cli $
-        [ clusterEraToString lastHardFork
-        , "stake-address"
-        , "registration-certificate"
-        , "--staking-verification-key-file"
-        , toFilePath stakePub
-        , "--out-file"
-        , toFilePath certPath
-        ] <> case lastHardFork of
-            BabbageHardFork -> []
-            ConwayHardFork -> [
-                "--key-reg-deposit-amt"
-                , "1000000"
-                ]
+    cli
+        $ [ clusterEraToString lastHardFork
+          , "stake-address"
+          , "registration-certificate"
+          , "--staking-verification-key-file"
+          , toFilePath stakePub
+          , "--out-file"
+          , toFilePath certPath
+          ]
+            <> case lastHardFork of
+                ConwayHardFork ->
+                    [ "--key-reg-deposit-amt"
+                    , "1000000"
+                    ]
     pure $ FileOf certPath
 
 -- | Create a stake address registration certificate from a script

@@ -16,7 +16,7 @@ import Cardano.Launcher.Node
     ( MaybeK
     )
 import Cardano.Wallet.Launch.Cluster.ClusterEra
-    ( ClusterEra (BabbageHardFork)
+    ( ClusterEra (ConwayHardFork)
     )
 import Cardano.Wallet.Launch.Cluster.Config
     ( OsNamedPipe
@@ -57,8 +57,12 @@ singleNodeParams
     -> MaybeK d OsNamedPipe
     -> NodeParams d
 singleNodeParams genesisFiles severity extraLogFile =
-    NodeParams genesisFiles BabbageHardFork (0, []) LogFileConfig
-        { minSeverityTerminal = severity
-        , extraLogDir = fmap fst extraLogFile
-        , minSeverityFile = maybe severity snd extraLogFile
-        }
+    NodeParams
+        genesisFiles
+        ConwayHardFork
+        (0, [])
+        LogFileConfig
+            { minSeverityTerminal = severity
+            , extraLogDir = fmap fst extraLogFile
+            , minSeverityFile = maybe severity snd extraLogFile
+            }

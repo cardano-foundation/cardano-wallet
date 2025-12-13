@@ -311,7 +311,8 @@ observerSpec = sequential $ describe "Observer" $ do
             . map (\k -> (k, f k))
             . Set.toList
 
-    queryKeys :: (Monad m, Ord k) => Observer m k v -> Set k -> m (Map k (Maybe v))
+    queryKeys
+        :: (Monad m, Ord k) => Observer m k v -> Set k -> m (Map k (Maybe v))
     queryKeys observer keys =
         Map.fromList
             <$> mapM
@@ -363,12 +364,16 @@ observerSpec = sequential $ describe "Observer" $ do
 
 randomName :: MonadIO m => m String
 randomName = do
-    n :: Int  <- randomIO
+    n :: Int <- randomIO
     pure $ "test-" <> show n
 
 withTestNode
     :: Tracer IO ClusterLog
-    -> (NetworkParameters -> CardanoNodeConn -> NodeToClientVersionData -> IO a)
+    -> ( NetworkParameters
+         -> CardanoNodeConn
+         -> NodeToClientVersionData
+         -> IO a
+       )
     -> IO a
 withTestNode tr action = evalContT $ do
     skipCleanup <- lift $ SkipCleanup <$> isEnvSet "NO_CLEANUP"
@@ -383,16 +388,16 @@ withTestNode tr action = evalContT $ do
             then ContT $ \k -> do
                 fp <- randomName
                 let pipeName = mkWindowsPipeName fp
-                k (WindowsPipe pipeName) `finally`
-                    removePathForcibly pipeName
-        else do
-            socket <- ContT withTempFile
-            pure $ UnixPipe $ FileOf $ absFile socket
+                k (WindowsPipe pipeName)
+                    `finally` removePathForcibly pipeName
+            else do
+                socket <- ContT withTempFile
+                pure $ UnixPipe $ FileOf $ absFile socket
     cfgClusterConfigs <- lift localClusterConfigsFromEnv
     let clusterConfig =
             Cluster.Config
                 { cfgStakePools = defaultPoolConfigs
-                , cfgLastHardFork = BabbageHardFork
+                , cfgLastHardFork = ConwayHardFork
                 , cfgNodeLogging = LogFileConfig Info Nothing Info
                 , cfgClusterDir = DirOf @"cluster" $ absDir dir
                 , cfgClusterConfigs
