@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 
 function mithril() {
-    nix shell 'github:input-output-hk/mithril?ref=2506.0' --command mithril-client $@
+    nix shell 'github:input-output-hk/mithril?ref=2543.1-hotfix' --command mithril-client $@
 }
 
 function jq() {
@@ -19,6 +19,7 @@ source ${SCRIPT_DIR}/.env
 
 export AGGREGATOR_ENDPOINT
 export GENESIS_VERIFICATION_KEY
+export ANCILLARY_VERIFICATION_KEY
 
 mkdir -p ./databases
 
@@ -26,6 +27,6 @@ NODE_DB=${NODE_DB:=./databases/node-db}
 mkdir -p "$NODE_DB"
 rm -rf "${NODE_DB:?}"/*
 
-digest=$(mithril cdb snapshot list --json | jq -r .[0].digest)
-(cd "${NODE_DB}" && mithril cdb download "$digest")
+hash=$(mithril cdb snapshot list --json | jq -r .[0].hash)
+(cd "${NODE_DB}" && mithril cdb download --include-ancillary "$hash")
 (cd "${NODE_DB}" && mv db/* . && rm -rf db)

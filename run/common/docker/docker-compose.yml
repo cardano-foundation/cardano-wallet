@@ -52,7 +52,7 @@ services:
   mithril:
     env_file:
       - .env
-    image: ghcr.io/input-output-hk/mithril-client:2506.0-2627f17
+    image: ghcr.io/input-output-hk/mithril-client:main-16c4ecf
     user: ${USER_ID}:${GROUP_ID}
     volumes:
       - ${NODE_DB}:/app/db
