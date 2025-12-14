@@ -5,7 +5,8 @@
   '';
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
+
     flake-utils.url = "github:hamishmack/flake-utils/hkm/nested-hydraJobs";
     attic.url = "github:zhaofengli/attic";
   };

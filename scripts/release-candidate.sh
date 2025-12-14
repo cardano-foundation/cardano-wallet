@@ -5,18 +5,18 @@ set -euo pipefail
 # date from git tag
 # example v2023-04-04 -> 2023-04-04
 tag_date() {
-  echo "${1##v}"
+    echo "${1##v}"
 }
 # cabal version from git tag
 # example v2023-04-04 -> 2023.4.4
 tag_cabal_ver() {
-  tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
+    tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
 }
 
 BASE_COMMIT=$(curl -X GET -H "Authorization: Bearer ${BUILDKITE_API_TOKEN}" \
     "https://api.buildkite.com/v2/organizations/cardano-foundation/pipelines/cardano-wallet/builds" \
     | jq -r \
-        '[.[] | select(.state == "passed" and .branch == "master") | .commit][0]')
+'[.[] | select(.state == "passed" and .branch == "master") | .commit][0]')
 
 echo "BASE_COMMIT=$BASE_COMMIT"
 
@@ -34,7 +34,7 @@ echo "OLD_GIT_TAG=$OLD_GIT_TAG"
 OLD_CABAL_VERSION=$(tag_cabal_ver "$OLD_GIT_TAG")
 echo "OLD_CABAL_VERSION=$OLD_CABAL_VERSION"
 
-CARDANO_NODE_TAG="10.2.1"
+CARDANO_NODE_TAG="10.5.3"
 echo "CARDANO_NODE_TAG=$CARDANO_NODE_TAG"
 
 git checkout "$BASE_COMMIT"
