@@ -32,7 +32,7 @@ clusterEraFromEnv :: IO ClusterEra
 clusterEraFromEnv = do
     mera <- lookupEnvNonEmpty var
     case mera of
-        Nothing -> pure BabbageHardFork
+        Nothing -> pure ConwayHardFork
         Just era -> getEra era
   where
     var = "LOCAL_CLUSTER_ERA"
@@ -49,7 +49,7 @@ clusterEraFromEnv = do
         "allegra" -> err "allegra"
         "mary" -> err "mary"
         "alonzo" -> err "alonzo"
-        "babbage" -> pure BabbageHardFork
+        "babbage" -> err "babbage"
         "conway" -> pure ConwayHardFork
         _ -> die $ var ++ ": unknown era"
 

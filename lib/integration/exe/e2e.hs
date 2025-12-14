@@ -133,6 +133,7 @@ getConfig = do
     -- Needed for mithril-client
     setEnvIfMissing "GENESIS_VERIFICATION_KEY" mithrilPreprodGenesisVerificationKey
     setEnvIfMissing "AGGREGATOR_ENDPOINT" mithrilPreprodAggregatorEndpoint
+    setEnvIfMissing "ANCILLARY_VERIFICATION_KEY" mithrilAncillaryVerificationKey
 
     pure $ E2EConfig {..}
   where
@@ -315,3 +316,6 @@ mithrilPreprodGenesisVerificationKey = "5b3132372c37332c3132342c3136312c362c3133
 
 mithrilPreprodAggregatorEndpoint :: String
 mithrilPreprodAggregatorEndpoint = "https://aggregator.release-preprod.api.mithril.network/aggregator"
+
+mithrilAncillaryVerificationKey :: String
+mithrilAncillaryVerificationKey = "5b3138392c3139322c3231362c3135302c3131342c3231362c3233372c3231302c34352c31382c32312c3139362c3230382c3234362c3134362c322c3235322c3234332c3235312c3139372c32382c3135372c3230342c3134352c33302c31342c3232382c3136382c3132392c38332c3133362c33365d"

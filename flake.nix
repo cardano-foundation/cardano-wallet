@@ -115,13 +115,28 @@
       flake = false;
     };
     customConfig.url = "github:input-output-hk/empty-flake";
-    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.2.1";
-    mithril.url = "github:input-output-hk/mithril?ref=2506.0";
+    cardano-node-runtime.url = "github:IntersectMBO/cardano-node?ref=10.5.3";
+    mithril = {
+      url = "github:input-output-hk/mithril?ref=2543.1-hotfix";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+      };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, hostNixpkgs, flake-utils,
-              haskellNix, iohkNix, CHaP, customConfig, cardano-node-runtime,
-              mithril , ... }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nixpkgs-unstable,
+      hostNixpkgs,
+      flake-utils,
+      haskellNix,
+      iohkNix,
+      CHaP,
+      customConfig,
+      cardano-node-runtime,
+      mithril,
+      ...
+    }:
     let
       # Import libraries
       lib = import ./nix/lib.nix nixpkgs.lib;
@@ -131,39 +146,56 @@
 
       # Definitions
       supportedSystems = import ./nix/supported-systems.nix;
-      fix-crypton-x509 = final: prev:
+      fix-crypton-x509 =
+        final: prev:
         let
           old = prev.haskell-nix;
-          fix = { pkgs, buildModules, config, lib, ... }: {
-            packages = { } // pkgs.lib.optionalAttrs
-              (pkgs.stdenv.hostPlatform.isDarwin && !pkgs.stdenv.cc.nativeLibc) {
-                # Workaround for broken nixpkgs darwin.security_tool in
-                # Mojave. This mirrors the workaround in nixpkgs
-                # haskellPackages.
-                #
-                # ref:
-                # https://github.com/NixOS/nixpkgs/pull/47676
-                # https://github.com/NixOS/nixpkgs/issues/45042
-                crypton-x509-system.components.library.preBuild =
-                  "substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security";
-              };
+          fix =
+            {
+              pkgs,
+              buildModules,
+              config,
+              lib,
+              ...
+            }:
+            {
+              packages =
+                { }
+                // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.isDarwin && !pkgs.stdenv.cc.nativeLibc) {
+                  # Workaround for broken nixpkgs darwin.security_tool in
+                  # Mojave. This mirrors the workaround in nixpkgs
+                  # haskellPackages.
+                  #
+                  # ref:
+                  # https://github.com/NixOS/nixpkgs/pull/47676
+                  # https://github.com/NixOS/nixpkgs/issues/45042
+                  crypton-x509-system.components.library.preBuild = "substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security";
+                };
+            };
+        in
+        {
+          haskell-nix = old // {
+            defaultModules = old.defaultModules ++ [ fix ];
           };
-        in {
-          haskell-nix = old // { defaultModules = old.defaultModules ++ [ fix ]; };
         };
       overlay = final: prev: {
         cardanoWalletHaskellProject = self.legacyPackages.${final.system};
-        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-application.components.exes) cardano-wallet;
+        inherit (final.cardanoWalletHaskellProject.hsPkgs.cardano-wallet-application.components.exes)
+          cardano-wallet
+          ;
       };
 
-      nixosModule = { pkgs, lib, ... }: {
-        imports = [ ./nix/nixos/cardano-wallet-service.nix ];
-        services.cardano-node.package = lib.mkDefault self.packages.${pkgs.system}.cardano-node;
-      };
+      nixosModule =
+        { pkgs, lib, ... }:
+        {
+          imports = [ ./nix/nixos/cardano-wallet-service.nix ];
+          services.cardano-node.package = lib.mkDefault self.packages.${pkgs.system}.cardano-node;
+        };
       nixosModules.cardano-wallet = nixosModule;
 
       # Define flake outputs for a particular system.
-      mkOutputs = system:
+      mkOutputs =
+        system:
         let
           pkgs = import nixpkgs {
             inherit system;
@@ -191,7 +223,8 @@
             isProjectPackage
             collectComponents
             collectChecks
-            check;
+            check
+            ;
 
           mithrilPackages = mithril.packages.${system};
           nodePackages = cardano-node-runtime.packages.${system};
@@ -205,23 +238,26 @@
             inherit nixpkgs flake-utils haskellNix;
           };
 
-          walletProject = (import ./nix/haskell.nix
-              CHaP
-              pkgs.haskell-nix
-              nixpkgs-unstable.legacyPackages.${system}
+          walletProject =
+            (import ./nix/haskell.nix CHaP pkgs.haskell-nix nixpkgs-unstable.legacyPackages.${system}
               nodePackages
               mithrilPackages
               set-git-rev.packages.default
               rewrite-libs.packages.default
-            ).appendModule [{
-            gitrev =
-              if config.gitrev != null
-              then config.gitrev
-              else self.rev or "0000000000000000000000000000000000000000";
-          }
-            config.haskellNix];
+            ).appendModule
+              [
+                {
+                  gitrev =
+                    if config.gitrev != null then
+                      config.gitrev
+                    else
+                      self.rev or "0000000000000000000000000000000000000000";
+                }
+                config.haskellNix
+              ];
 
-          mkPackages = project:
+          mkPackages =
+            project:
             let
               coveredProject = project.appendModule { coverage = true; };
               self = {
@@ -256,42 +292,53 @@
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
                 # `tests` are the test suites which have been built.
-                tests =
-                  lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
+                tests = lib.removeRecurse (collectComponents "tests" isProjectPackage coveredProject.hsPkgs);
                 # `checks` are the result of executing the tests.
                 checks = lib.removeRecurse (collectChecks isProjectPackage coveredProject.hsPkgs);
                 # `benchmarks` are only built, not run.
-                benchmarks =
-                  lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
+                benchmarks = lib.removeRecurse (collectComponents "benchmarks" isProjectPackage project.hsPkgs);
               };
             in
             self;
 
           # nix run .#<network>/wallet
-          mkScripts = project: flattenTree (import ./nix/scripts.nix {
-            inherit project evalService;
-            customConfigs = [ config ];
-          });
+          mkScripts =
+            project:
+            flattenTree (
+              import ./nix/scripts.nix {
+                inherit project evalService;
+                customConfigs = [ config ];
+              }
+            );
 
           # See the imported file for how to use the docker build.
-          mkDockerImage = isRelease: packages:
+          mkDockerImage =
+            isRelease: packages:
             let
-            version = (builtins.head exes).version;
-            revision = "c-" + self.shortRev;
-            exes = with packages; [ cardano-wallet local-cluster ];
+              version = (builtins.head exes).version;
+              revision = "c-" + self.shortRev;
+              exes = with packages; [
+                cardano-wallet
+                local-cluster
+              ];
             in
 
-          pkgs.callPackage ./nix/docker.nix {
-            inherit exes;
-            base = with packages; [
-              bech32
-              cardano-address
-              cardano-cli
-              cardano-node
-              (pkgs.linkFarm "docker-config-layer" [{ name = "config"; path = pkgs.cardano-node-deployments; }])
-            ];
-            tag = if isRelease then version else revision;
-          };
+            pkgs.callPackage ./nix/docker.nix {
+              inherit exes;
+              base = with packages; [
+                bech32
+                cardano-address
+                cardano-cli
+                cardano-node
+                (pkgs.linkFarm "docker-config-layer" [
+                  {
+                    name = "config";
+                    path = pkgs.cardano-node-deployments;
+                  }
+                ])
+              ];
+              tag = if isRelease then version else revision;
+            };
 
           mkDevShells = project: rec {
             default = project.shell;
@@ -299,7 +346,11 @@
 
             docs = pkgs.mkShell {
               name = "cardano-wallet-docs";
-              nativeBuildInputs = [ pkgs.mdbook pkgs.mdbook-mermaid pkgs.mdbook-admonish];
+              nativeBuildInputs = [
+                pkgs.mdbook
+                pkgs.mdbook-mermaid
+                pkgs.mdbook-admonish
+              ];
               # allow building the shell so that it can be cached
               phases = [ "installPhase" ];
               installPhase = "echo $nativeBuildInputs > $out";
@@ -310,7 +361,8 @@
             inherit nixpkgs flake-utils haskellNix;
           };
           # One ${system} can cross-compile artifacts for other platforms.
-          mkReleaseArtifacts = project:
+          mkReleaseArtifacts =
+            project:
             let # compiling with musl gives us a statically linked executable
               linuxPackages = mkPackages project.projectCross.musl64;
               linuxReleaseExes = [
@@ -321,33 +373,33 @@
                 cardano-node-runtime.hydraJobs.x86_64-linux.musl.cardano-node
               ];
               # Which exes should be put in the release archives.
-              checkReleaseContents = jobs: map (exe: jobs.${exe}) [
-                "cardano-wallet"
-                "bech32"
-                "cardano-address"
-                "cardano-cli"
-                "cardano-node"
-              ];
-            in lib.optionalAttrs buildPlatform.isLinux {
-              linux64.release =
-                import ./nix/release-package.nix {
-                  inherit pkgs nodeConfigs;
-                  walletLib = lib;
-                  exes = linuxReleaseExes;
-                  platform = "linux64";
-                  format = "tar.gz";
-                };
+              checkReleaseContents =
+                jobs:
+                map (exe: jobs.${exe}) [
+                  "cardano-wallet"
+                  "bech32"
+                  "cardano-address"
+                  "cardano-cli"
+                  "cardano-node"
+                ];
+            in
+            lib.optionalAttrs buildPlatform.isLinux {
+              linux64.release = import ./nix/release-package.nix {
+                inherit pkgs nodeConfigs;
+                walletLib = lib;
+                exes = linuxReleaseExes;
+                platform = "linux64";
+                format = "tar.gz";
+              };
               win64 =
                 let
                   # windows is cross-compiled from linux
-                  windowsPackages =
-                    mkPackages project.projectCross.ucrt64 // {
-                      cardano-cli =
-                        cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
-                      cardano-node =
-                        cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-node;
-                    };
-                in {
+                  windowsPackages = mkPackages project.projectCross.ucrt64 // {
+                    cardano-cli = cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-cli;
+                    cardano-node = cardano-node-runtime.hydraJobs.x86_64-linux.windows.cardano-node;
+                  };
+                in
+                {
                   release = import ./nix/release-package.nix {
                     inherit pkgs nodeConfigs;
                     walletLib = lib;
@@ -378,13 +430,17 @@
                 release = import ./nix/release-package.nix {
                   inherit pkgs nodeConfigs;
                   walletLib = lib;
-                  exes = let macOsPkgs = mkPackages project; in [
-                    macOsPkgs.cardano-wallet
-                    macOsPkgs.bech32
-                    macOsPkgs.cardano-address
-                    nodePackages.cardano-cli
-                    nodePackages.cardano-node
-                  ];
+                  exes =
+                    let
+                      macOsPkgs = mkPackages project;
+                    in
+                    [
+                      macOsPkgs.cardano-wallet
+                      macOsPkgs.bech32
+                      macOsPkgs.cardano-address
+                      nodePackages.cardano-cli
+                      nodePackages.cardano-node
+                    ];
                   platform = "macos-intel";
                   format = "tar.gz";
                   rewrite-libs = rewrite-libs.packages.default;
@@ -394,13 +450,17 @@
                 release = import ./nix/release-package.nix {
                   inherit pkgs nodeConfigs;
                   walletLib = lib;
-                  exes = let macOsPkgs = mkPackages project; in [
-                    macOsPkgs.cardano-wallet
-                    macOsPkgs.bech32
-                    macOsPkgs.cardano-address
-                    nodePackages.cardano-cli
-                    nodePackages.cardano-node
-                  ];
+                  exes =
+                    let
+                      macOsPkgs = mkPackages project;
+                    in
+                    [
+                      macOsPkgs.cardano-wallet
+                      macOsPkgs.bech32
+                      macOsPkgs.cardano-address
+                      nodePackages.cardano-cli
+                      nodePackages.cardano-node
+                    ];
                   platform = "macos-silicon";
                   format = "tar.gz";
                   rewrite-libs = rewrite-libs.packages.default;
@@ -420,54 +480,52 @@
           defaultApp = apps.cardano-wallet;
 
           packages =
-             mkPackages walletProject
-          // mkScripts walletProject
-          // rec {
-            dockerImage =
-              mkDockerImage true imagePackages;
-            dockerTestImage =
-              mkDockerImage false imagePackages;
-          } //
+            mkPackages walletProject
+            // mkScripts walletProject
+            // rec {
+              dockerImage = mkDockerImage true imagePackages;
+              dockerTestImage = mkDockerImage false imagePackages;
+            }
+            //
 
-          (lib.optionalAttrs buildPlatform.isLinux {
-            nixosTests = import ./nix/nixos/tests {
-              inherit pkgs;
-              project = walletProject;
-            };
-          }) // {
-            # Continuous integration builds
-            ci.tests.all = pkgs.releaseTools.aggregate {
-              name = "cardano-wallet-tests";
-              meta.description = "Build (all) tests";
-              constituents =
-                lib.collect lib.isDerivation packages.tests;
-            };
+              (lib.optionalAttrs buildPlatform.isLinux {
+                nixosTests = import ./nix/nixos/tests {
+                  inherit pkgs;
+                  project = walletProject;
+                };
+              })
+            // {
+              # Continuous integration builds
+              ci.tests.all = pkgs.releaseTools.aggregate {
+                name = "cardano-wallet-tests";
+                meta.description = "Build (all) tests";
+                constituents = lib.collect lib.isDerivation packages.tests;
+              };
 
-            ci.benchmarks =
-              let
-                collectedBenchmarks =
-                  lib.concatMapAttrs (_n: v: v) packages.benchmarks;
-              in
-                collectedBenchmarks // {
+              ci.benchmarks =
+                let
+                  collectedBenchmarks = lib.concatMapAttrs (_n: v: v) packages.benchmarks;
+                in
+                collectedBenchmarks
+                // {
                   all = pkgs.releaseTools.aggregate {
                     name = "cardano-wallet-benchmarks";
                     meta.description = "Build all benchmarks";
-                    constituents =
-                      lib.collect lib.isDerivation collectedBenchmarks;
+                    constituents = lib.collect lib.isDerivation collectedBenchmarks;
                   };
                 };
-            ci.artifacts = mkReleaseArtifacts walletProject // {
-              dockerImage = packages.dockerImage;
+              ci.artifacts = mkReleaseArtifacts walletProject // {
+                dockerImage = packages.dockerImage;
+              };
             };
-          };
 
           # Heinrich: I don't quite understand the 'checks' attribute. See also
           # https://www.reddit.com/r/NixOS/comments/x5cjmz/comment/in0qqm6/?utm_source=share&utm_medium=web2x&context=3
           checks = packages.checks;
 
           mkApp = name: pkg: {
-              type = "app";
-              program = pkg.exePath or "${pkg}/bin/${pkg.name or name}";
+            type = "app";
+            program = pkg.exePath or "${pkg}/bin/${pkg.name or name}";
           };
           apps = lib.mapAttrs mkApp packages;
 
@@ -476,16 +534,15 @@
           ci.tests.run.unit = pkgs.releaseTools.aggregate {
             name = "tests.run.unit";
             meta.description = "Run unit tests";
-            constituents =
-              lib.collect lib.isDerivation
-                (lib.keepUnitChecks packages.checks);
+            constituents = lib.collect lib.isDerivation (lib.keepUnitChecks packages.checks);
           };
         };
 
       systems = eachSystem supportedSystems mkOutputs;
       rev = self.rev or null;
     in
-  lib.recursiveUpdate systems { inherit overlay nixosModule nixosModules; } // {
-    revision = rev;
-  } ;
+    lib.recursiveUpdate systems { inherit overlay nixosModule nixosModules; }
+    // {
+      revision = rev;
+    };
 }

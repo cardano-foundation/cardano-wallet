@@ -39,7 +39,7 @@ newtype MithrilExePath = MithrilExePath { mithrilExePath :: FilePath }
 -- | Download the latest snapshot node db into /db relative to the supplied dir.
 downloadLatestSnapshot :: FilePath -> MithrilExePath -> IO ()
 downloadLatestSnapshot outputParentDir (MithrilExePath mithril) = do
-    callProcess mithril ["cdb", "download", "latest", "--download-dir", outputParentDir]
+    callProcess mithril ["cdb", "download", "latest", "--include-ancillary", "--download-dir", outputParentDir]
 
 -- | Downloads the latest Mithril release package,
 -- extracts it, and returns the path to the mithril client executable.
@@ -91,7 +91,7 @@ downloadMithril workingDir = withCurrentDirectory workingDir $ do
             "aarch64" -> "arm64"
             other -> other
 
-    version       = "2450.0"
+    version = "2543.1-hotfix"
     mithrilTar    = "mithril-" <> version <> "-" <> platform <> ".tar"
     mithrilPackage = mithrilTar <> ".gz"
     downloadUrl   = "https://github.com/input-output-hk/mithril/releases/download/"

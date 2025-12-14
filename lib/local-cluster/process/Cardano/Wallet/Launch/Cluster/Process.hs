@@ -143,6 +143,9 @@ withLocalCluster name walletOption envs faucetFundsValue = do
     liftIO $ saveFunds (FileOf $ absFile faucetFundsPath) faucetFundsValue
     (logsPathName, command) <-
         localClusterCommand name walletOption envs port faucetFundsPath
+    liftIO
+        $ putStrLn
+        $ "Starting local-cluster with command: " ++ show command
     ToTextTracer processLogs <- case logsPathName of
         Nothing -> pure $ ToTextTracer nullTracer
         Just path ->

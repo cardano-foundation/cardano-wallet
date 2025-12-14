@@ -347,8 +347,11 @@ withServer
     dbDecorator = do
         _ <- ContT $ \k -> bracketTracer' tr "withServer" $ k ()
         ((runMonitorQ, runFaucetQ), ToTextTracer clog) <-
-            withLocalCluster "main-integration-tests" NoWallet
-                defaultEnvVars faucetFunds
+            withLocalCluster
+                "main-integration-tests"
+                NoWallet
+                defaultEnvVars
+                faucetFunds
         smashUrl <- ContT $ withSMASH clog (toFilePath . absDirOf $ testDir)
         (np, uri) <-
             onClusterStart
@@ -376,7 +379,9 @@ onClusterStart
             liftIO $ createDirectory $ toFilePath db
             listen <- liftIO $ walletListenFromEnv envFromText
             let testMetadata = absDirOf testDataDir </> relFile "token-metadata.json"
-            tokenMetaUrl <- ContT $ withMetadataServer (queryServerStatic $ toFilePath testMetadata)
+            tokenMetaUrl <-
+                ContT
+                    $ withMetadataServer (queryServerStatic $ toFilePath testMetadata)
             ContT $ \k -> do
                 end <-
                     serveWallet
@@ -407,7 +412,6 @@ onClusterStart
 -- | Convert @ClusterEra@ to a @ApiEra@.
 clusterToApiEra :: ClusterEra -> ApiEra
 clusterToApiEra = \case
-    BabbageHardFork -> ApiBabbage
     ConwayHardFork -> ApiConway
 
 httpManager :: IO Manager
