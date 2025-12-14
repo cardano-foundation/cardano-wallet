@@ -328,6 +328,9 @@ import GHC.TypeLits
     , Nat
     , natVal
     )
+import Main.Utf8
+    ( withUtf8
+    )
 import Numeric
     ( fromRat
     , showFFloat
@@ -393,7 +396,7 @@ hoursToMicroseconds = (* 3_600) . (* 1_000_000)
 newtype NodeSyncTimeout = NodeSyncTimeout (Maybe Int)
 
 main :: IO ()
-main = do
+main = withUtf8 $ do
     r <- execBenchWithNode argsNetworkConfig $ \args ->
         cardanoRestoreBench (argBenchName args)
             $ NodeSyncTimeout
@@ -594,7 +597,8 @@ data BenchRndResults = BenchRndResults
     , listTransactionsLimitedTime :: Time
     , importOneAddressTime :: Time
     , importManyAddressesTime :: Time
-    , estimateFeesTime :: Either CannotEstimateFeeForWalletWithEmptyUTxO Time
+    , estimateFeesTime
+        :: Either CannotEstimateFeeForWalletWithEmptyUTxO Time
     , walletOverview :: WalletOverview
     }
     deriving (Show, Generic)
@@ -721,7 +725,8 @@ data BenchSeqResults = BenchSeqResults
     , listAddressesTime :: Time
     , listTransactionsTime :: Time
     , listTransactionsLimitedTime :: Time
-    , estimateFeesTime :: Either CannotEstimateFeeForWalletWithEmptyUTxO Time
+    , estimateFeesTime
+        :: Either CannotEstimateFeeForWalletWithEmptyUTxO Time
     , walletOverview :: WalletOverview
     }
     deriving (Show, Generic)
@@ -1286,7 +1291,8 @@ instance HasSNetworkId n => ToText (BenchmarkLog n) where
 -- "0.10"
 --
 -- rather than "0.1", but we'll have to live with it.
-showPercentFromPermyriad :: forall (p :: Nat). KnownNat p => Proxy p -> Text
+showPercentFromPermyriad
+    :: forall (p :: Nat). KnownNat p => Proxy p -> Text
 showPercentFromPermyriad =
     T.pack . display . (/ 100) . toRational . natVal
   where

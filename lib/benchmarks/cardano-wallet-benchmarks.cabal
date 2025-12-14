@@ -131,6 +131,7 @@ benchmark restore
     , time
     , transformers
     , unliftio
+    , with-utf8
 
 benchmark latency
   import:         language, opts-exe
