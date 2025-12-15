@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name:          temporary-extra
-version:       0.2025.3.31
+version:       0.2025.12.15
 synopsis:      Extra functionality extending the temporary package
 license:       Apache-2.0
 license-file:  LICENSE
