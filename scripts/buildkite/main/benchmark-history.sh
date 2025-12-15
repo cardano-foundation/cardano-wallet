@@ -6,7 +6,7 @@ set -euox pipefail
 mkdir -p ./benchmark-history
 
 benchmark-history \
-    --since 2024-08-25 \
+    --since 2025-07-01 \
     --charts-dir benchmark-history
 
 # shellcheck disable=SC2295
