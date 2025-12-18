@@ -58,7 +58,6 @@ library
     , diagrams-lib
     , diagrams-rasterific
     , directory
-    , extra
     , filepath
     , fmt
     , foldl
@@ -154,7 +153,6 @@ benchmark latency
     , cardano-wallet-primitive
     , directory
     , exceptions
-    , extra
     , faucet
     , filepath
     , fmt
@@ -205,7 +203,6 @@ benchmark db
     , crypto-primitives
     , deepseq
     , directory
-    , extra
     , filepath
     , fmt
     , foldl
