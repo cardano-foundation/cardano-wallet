@@ -57,10 +57,12 @@ module Cardano.Wallet.Primitive.Ledger.Convert
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
     , KeyRole (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Crypto.Hash
     ( hashFromBytes

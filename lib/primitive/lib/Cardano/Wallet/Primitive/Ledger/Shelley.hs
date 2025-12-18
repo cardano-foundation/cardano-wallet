@@ -101,9 +101,11 @@ module Cardano.Wallet.Primitive.Ledger.Shelley
 
 import Prelude
 
-import Cardano.Address.Script
+import Cardano.Address.KeyHash
     ( KeyHash (..)
-    , Script (..)
+    )
+import Cardano.Address.Script
+    ( Script (..)
     )
 import Cardano.Api
     ( AnyCardanoEra (..)
