@@ -6,6 +6,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -224,7 +225,7 @@ import System.Environment.Extended
 import System.IO
     ( stdout
     )
-import System.IO.Extra
+import "extra" System.IO.Extra
     ( withTempFile
     )
 import System.IO.Temp.Extra
