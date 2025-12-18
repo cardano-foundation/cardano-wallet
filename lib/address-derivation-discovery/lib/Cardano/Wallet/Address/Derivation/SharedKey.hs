@@ -31,9 +31,11 @@ module Cardano.Wallet.Address.Derivation.SharedKey
 
 import Prelude
 
+import Cardano.Address.KeyHash
+    ( KeyHash
+    )
 import Cardano.Address.Script
     ( Cosigner
-    , KeyHash
     , Script (..)
     , ScriptTemplate (..)
     , toScriptHash
@@ -81,7 +83,7 @@ import GHC.Stack
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
-import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.KeyHash as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
