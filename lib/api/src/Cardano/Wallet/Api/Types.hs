@@ -262,9 +262,11 @@ import Cardano.Address.Derivation
     , xpubFromBytes
     , xpubToBytes
     )
+import Cardano.Address.KeyHash
+    ( KeyHash (..)
+    )
 import Cardano.Address.Script
     ( Cosigner (..)
-    , KeyHash (..)
     , Script
     , ScriptHash (..)
     , ScriptTemplate
