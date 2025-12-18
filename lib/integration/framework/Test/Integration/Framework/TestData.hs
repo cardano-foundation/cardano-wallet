@@ -506,7 +506,7 @@ errMsg400ScriptTimelocksContradictory =
 
 errMsg400ScriptNotUniformRoles :: String
 errMsg400ScriptNotUniformRoles =
-    "All keys of a script must have the same role: either payment or delegation."
+    "All keys of a script must have the same role: payment, delegation, policy, representative, committee cold or committee hot."
 
 --------------------------------------------------------------------------------
 -- Transaction metadata
