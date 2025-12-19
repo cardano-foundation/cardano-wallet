@@ -10,6 +10,8 @@ Available commands:
                            extended private key
   child                    Derive child keys from a parent
                            public/private key
+  private                  Get the signing or chain code part of
+                           an extended private key
   public                   Get the public counterpart of a
                            private key
   inspect                  Show information about a key

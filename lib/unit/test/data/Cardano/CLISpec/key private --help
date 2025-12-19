@@ -1,0 +1,8 @@
+Usage:  key private (--chain-code | --signing-key)
+
+  Get the signing or chain code part of an extended private key
+
+Available options:
+  -h,--help                Show this help text
+
+The private key is read from stdin.To get a signing key pass '--signing-key'.To get a chain code pass '--chain-code'.Bech32 encoding will be used.In order to have the signing key hex encoded pass the result to the stdin of bech32 tool.
