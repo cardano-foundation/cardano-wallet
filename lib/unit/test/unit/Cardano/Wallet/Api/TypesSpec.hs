@@ -1301,7 +1301,14 @@ instance Arbitrary ApiCredential where
               , pure $ CredentialExtendedPubKey xpubKey
               , pure $ CredentialKeyHash keyHash
               , pure $ CredentialScriptHash scriptHash
-              , CredentialScript <$> arbitrary ]
+              , CredentialScript <$> genSharedKeyHashScript ]
+          where
+            genSharedKeyHash = do
+                cred <- oneof [pure PaymentShared, pure DelegationShared]
+                KeyHash cred . BS.pack <$> vectorOf 28 arbitrary
+            genSharedKeyHashScript = do
+                keyHashes <- vectorOf 10 genSharedKeyHash
+                genScript keyHashes
 
 instance Arbitrary ApiCredentialType where
     arbitrary = ApiCredentialType <$> arbitraryBoundedEnum

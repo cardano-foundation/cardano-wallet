@@ -103,7 +103,7 @@ library
     , base                               >=4.14      && <5
     , base58-bytestring                  >=0.1       && <0.2
     , bytestring                         >=0.10.6    && <0.13
-    , cardano-addresses                  >=4.0.0     && <4.1
+    , cardano-addresses                  >=4.0.2     && <4.1
     , cardano-api                        >=10.8.0.0  && <10.9
     , cardano-binary                     >=1.7.1.0   && <1.8
     , cardano-cli                        >=10.4.0.0  && <10.5
@@ -231,7 +231,7 @@ common test-common
     , aeson-qq                             >=0.8.4    && <0.9
     , base
     , bytestring
-    , cardano-addresses                    >=4.0.0    && <4.1
+    , cardano-addresses                    >=4.0.2    && <4.1
     , cardano-binary                       >=1.7.1.0  && <1.8
     , cardano-ledger-alonzo                >=1.12.0.0 && <1.13
     , cardano-ledger-babbage               >=1.10.1.0 && <1.11

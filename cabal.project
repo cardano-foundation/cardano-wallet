@@ -49,11 +49,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2025-01-01T23:24:19Z
+index-state: 2026-01-07T08:31:51Z
 
 index-state:
-  , hackage.haskell.org 2025-01-01T23:24:19Z
-  , cardano-haskell-packages 2025-03-01T00:00:00Z
+  , hackage.haskell.org 2026-01-07T08:31:51Z
+  , cardano-haskell-packages 2026-01-05T11:07:19Z
 
 packages:
   lib/address-derivation-discovery
@@ -118,8 +118,8 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/IntersectMBO/cardano-addresses
-    tag: 3749045778e0d8bb1f2bed1c598594eeed0b442e
-    --sha256: lNCt4V4TyD9EmQwA6dcbEOdhVdAEXPeG4B2IP93icaw=
+    tag: f48aedbc3a613475b3d90ef6a13ae55d6fc89ea8
+    --sha256: Oxj10j25U6thKr2qp1ahQc5oHz3mKDCHbVcg5eA9EQo=
 
 
 package cardano-addresses
