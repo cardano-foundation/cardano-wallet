@@ -189,7 +189,7 @@ benchmark db
     , bytestring
     , cardano-addresses                >=4.0.2    && <4.1
     , cardano-api                      >=10.8.0.0 && <10.9
-    , cardano-crypto                   >=1.1.2    && <1.2
+    , cardano-crypto                   >= 1.2.0   && < 1.3
     , cardano-wallet
     , cardano-wallet-benchmarks
     , cardano-wallet-network-layer
