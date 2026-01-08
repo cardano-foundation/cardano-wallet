@@ -72,7 +72,7 @@ library
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-binary                 >=1.7.1.0  && <1.8
-    , cardano-crypto-class           >=2.1.5.0  && <2.2
+    , cardano-crypto-class           ^>=2.2.3
     , cardano-ledger-alonzo          >=1.12.0.0 && <1.13
     , cardano-ledger-api             >=1.10.0.0 && <1.11
     , cardano-ledger-babbage         >=1.10.1.0 && <1.11

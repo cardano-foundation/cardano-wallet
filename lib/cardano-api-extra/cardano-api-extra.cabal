@@ -43,7 +43,7 @@ library
     , bytestring
     , cardano-api                                  >=10.8.0.0 && <10.9
     , cardano-binary                               >=1.7.1.0  && <1.8
-    , cardano-crypto-class                         >=2.1.5.0  && <2.2
+    , cardano-crypto-class                         ^>=2.2.3
     , cardano-crypto-test                          >=1.5.0.2  && <1.6
     , cardano-ledger-alonzo                        >=1.12.0.0 && <1.13
     , cardano-ledger-api                           >=1.10.0.0 && <1.11
