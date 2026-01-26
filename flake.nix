@@ -443,6 +443,7 @@
               tests = lib.collect lib.isDerivation windowsPackages.tests;
               benchmarks = lib.collect lib.isDerivation windowsPackages.benchmarks;
             };
+            inherit windowsPackages;
           };
         }
         # macos is never cross-compiled
@@ -505,6 +506,7 @@
             inherit pkgs;
             project = walletProject;
           };
+          musl64Packages = mkPackages walletProject.projectCross.musl64;
         })
         // {
           # Continuous integration builds
