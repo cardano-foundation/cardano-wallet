@@ -1,12 +1,16 @@
-{ pkgs, project, lib, ... }: with pkgs;
-let
+{
+  pkgs,
+  project,
+  lib,
+  ...
+}:
+with pkgs; let
   inherit (project.hsPkgs.cardano-wallet.components.exes) cardano-wallet;
   inherit (pkgs) cardanoLib;
-in
-{
+in {
   name = "wallet-nixos-test";
   nodes = {
-    machine = { config, ... }: {
+    machine = {config, ...}: {
       nixpkgs.pkgs = pkgs;
       imports = [
         ../.
@@ -26,18 +30,18 @@ in
       services.cardano-node = {
         enable = true;
         environment = "mainnet";
-        environments = { mainnet = { }; };
+        environments = {mainnet = {};};
         package = project.hsPkgs.cardano-node.components.exes.cardano-node;
         inherit (cardanoLib.environments.mainnet) nodeConfig;
         topology = cardanoLib.mkEdgeTopology {
           port = 3001;
-          edgeNodes = [ "127.0.0.1" ];
+          edgeNodes = ["127.0.0.1"];
         };
         systemdSocketActivation = true;
       };
       systemd.services.cardano-node.serviceConfig.Restart = lib.mkForce "no";
       systemd.services.cardano-wallet = {
-        after = [ "cardano-node.service" ];
+        after = ["cardano-node.service"];
         serviceConfig = {
           Restart = "no";
           SupplementaryGroups = "cardano-node";
@@ -55,5 +59,4 @@ in
         "${cardano-wallet}/bin/cardano-wallet network information"
     )
   '';
-
 }

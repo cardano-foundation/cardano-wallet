@@ -9,20 +9,20 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = inputs:
-    let
-      supportedSystems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-        "aarch64-linux"
-        "aarch64-darwin"
-       ]; in
-    inputs.flake-utils.lib.eachSystem supportedSystems (system:
-      let
+  outputs = inputs: let
+    supportedSystems = [
+      "x86_64-linux"
+      "x86_64-darwin"
+      "aarch64-linux"
+      "aarch64-darwin"
+    ];
+  in
+    inputs.flake-utils.lib.eachSystem supportedSystems (
+      system: let
         # Imports
         pkgs = inputs.nixpkgs.legacyPackages.${system};
       in {
-        packages = { };
+        packages = {};
 
         devShells.default = pkgs.mkShell {
           buildInputs = [
