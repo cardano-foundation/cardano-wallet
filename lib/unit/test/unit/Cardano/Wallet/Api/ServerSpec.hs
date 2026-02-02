@@ -101,6 +101,9 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
     , mkSlotLength
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..)
     )
@@ -288,7 +291,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                     (SlotNo 20)
                     (EpochNo 1)
 
-            era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+            era1Params = HF.defaultEraParams (SecurityParam $ unsafeNonZero 2) (mkSlotLength 1)
             summary = HF.summaryWithExactly $ exactlyOne $
                 HF.EraSummary start (HF.EraEnd end) era1Params
             int = HF.mkInterpreter summary

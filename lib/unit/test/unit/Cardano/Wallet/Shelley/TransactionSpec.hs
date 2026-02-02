@@ -344,7 +344,6 @@ import Test.Utils.Pretty
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.Error as Cardano
 import qualified Cardano.Api.Ledger as L
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
@@ -425,7 +424,7 @@ showTransactionBody
     -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
     -> String
 showTransactionBody recentEra =
-    either Cardano.displayError show
+    either show show
         . Cardano.createTransactionBody
             (Write.shelleyBasedEraFromRecentEra recentEra)
 
@@ -434,7 +433,7 @@ unsafeMakeTransactionBody
     -> Cardano.TxBodyContent Cardano.BuildTx (Write.CardanoApiEra era)
     -> Cardano.TxBody (Write.CardanoApiEra era)
 unsafeMakeTransactionBody recentEra =
-    either (error . Cardano.displayError) id
+    either (error . show) id
         . Cardano.createTransactionBody
             (Write.shelleyBasedEraFromRecentEra recentEra)
 
@@ -444,8 +443,7 @@ stakeAddressForKey
     -> Cardano.StakeAddress
 stakeAddressForKey net pubkey =
     Cardano.StakeAddress
-        net (SL.KeyHashObj (SL.KeyHash $ hash pubkey)
-            :: SL.Credential 'SL.Staking Crypto.StandardCrypto)
+        net (SL.KeyHashObj (SL.KeyHash $ hash pubkey))
   where
     hash :: XPub -> Crypto.Hash Crypto.Blake2b_224 a
     hash = fromJust . Crypto.hashFromBytes . blake2b224 . xpubPublicKey
