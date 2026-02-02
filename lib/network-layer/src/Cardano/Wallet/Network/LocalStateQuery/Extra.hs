@@ -34,6 +34,9 @@ import Cardano.Wallet.Read
     , Mary
     , Shelley
     )
+import Data.Singletons
+    ( SingI
+    )
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
     )
@@ -78,7 +81,7 @@ byronOrShelleyBased
           . LSQ
                 ( Shelley.ShelleyBlock
                     (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
+                    shelleyEra
                 )
                 m
                 a
@@ -143,10 +146,12 @@ onAnyEra onByron onShelley onAllegra onMary onAlonzo onBabbage onConway =
         AnyCardanoEra ConwayEra -> mapQuery QueryIfCurrentConway onConway
   where
     mapQuery
-        :: ( forall r
-              . BlockQuery block1 r
+        :: ( forall footprint r
+              . SingI footprint
+             => BlockQuery block1 footprint r
              -> BlockQuery
                     block2
+                    footprint
                     ((Either (MismatchEraInfo (CardanoEras StandardCrypto))) r)
            )
         -> LSQ block1 m a
@@ -169,7 +174,7 @@ shelleyBased
           . LSQ
                 ( Shelley.ShelleyBlock
                     (praos StandardCrypto)
-                    (shelleyEra StandardCrypto)
+                    shelleyEra
                 )
                 m
                 a

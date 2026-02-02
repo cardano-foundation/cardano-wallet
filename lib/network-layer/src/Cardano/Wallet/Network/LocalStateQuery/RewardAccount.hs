@@ -38,9 +38,6 @@ import Data.Set
 import Ouroboros.Consensus.Cardano
     ( CardanoBlock
     )
-import Ouroboros.Consensus.Cardano.Block
-    ( EraCrypto
-    )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
@@ -79,8 +76,7 @@ fetchRewardAccounts accounts =
     byronValue = Map.fromList . map (,W.Coin 0) $ Set.toList accounts
 
     shelleyQry
-        :: (Crypto.HashAlgorithm (SL.ADDRHASH (EraCrypto shelleyEra)))
-        => LSQ
+        :: LSQ
             (Shelley.ShelleyBlock protocol shelleyEra)
             IO
             (Map W.RewardAccount W.Coin)
@@ -92,9 +88,9 @@ fetchRewardAccounts accounts =
 
     fromBalanceResult
         :: ( Map
-                (SL.Credential 'SL.Staking crypto)
-                (SL.KeyHash 'SL.StakePool crypto)
-           , SL.RewardAccounts crypto
+                (SL.Credential 'SL.Staking)
+                (SL.KeyHash 'SL.StakePool)
+           , SL.RewardAccounts
            )
         -> Map W.RewardAccount W.Coin
     fromBalanceResult (_, rewardAccounts) =
@@ -103,8 +99,8 @@ fetchRewardAccounts accounts =
         )
 
 getStakeDelegDeposits
-    :: Set (StakeCredential StandardCrypto)
-    -> LSQ' (Map (StakeCredential StandardCrypto) Ledger.Coin)
+    :: Set StakeCredential
+    -> LSQ' (Map StakeCredential Ledger.Coin)
 getStakeDelegDeposits credentials =
     onAnyEra
         (pure byronValue)
@@ -115,5 +111,5 @@ getStakeDelegDeposits credentials =
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
         (LSQry $ Shelley.GetStakeDelegDeposits credentials)
   where
-    byronValue :: Map (StakeCredential StandardCrypto) Ledger.Coin
+    byronValue :: Map StakeCredential Ledger.Coin
     byronValue = Map.fromList . map (,Ledger.Coin 0) $ Set.toList credentials
