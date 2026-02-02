@@ -89,6 +89,7 @@ packages:
   lib/wai-middleware-logging
   lib/wallet
   lib/wallet-benchmarks
+  lib/cardano-wallet-read
 
 --------------------------------------------------------------------------------
 -- BEGIN OpenAPI
@@ -141,13 +142,6 @@ source-repository-package
     --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
     subdir: generated
 
-source-repository-package
-    type: git
-    location: https://github.com/cardano-foundation/cardano-wallet-agda
-    tag: 7663f8ae600462ba460e771e651ff3bd66fe4a5c
-    --sha256: sha256-3ielFSr9G1YUuQcImCv3eppYbwE+WA9tEFc219VWHgk=
-    subdir:
-      lib/cardano-wallet-read
 
 --------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section

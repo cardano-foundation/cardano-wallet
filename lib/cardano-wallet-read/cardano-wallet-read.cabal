@@ -1,0 +1,215 @@
+cabal-version:   3.6
+name:            cardano-wallet-read
+version:         1.0.0.1
+synopsis:
+  Read Cardano block data, parametrized by era
+description:
+  Data types and functions for blockchain data,
+  such as blocks, transactions, certificates, ….
+  These types are
+
+  * self-contained,
+  * compatible with types from the [cardano-ledger](https://github.com/IntersectMBO/cardano-ledger) packages,
+  * parameterized uniformly over the Cardano era (Byron, Shelley, …),
+  * but: focus on reading from the blockchain,
+    self-contained construction of transactions is not a design goal,
+  * but: not complete, tailored to wallet needs
+
+  This package is useful when reading data from the blockchain,
+  when you have handle data from historic eras in a structured manner.
+  When writing data to the blockchain, i.e. when creating new transactions,
+  we instead recommend that you use
+  types that are specific to the current (and the upcoming) era.
+
+  The source code for this package also contains a partial,
+  preliminary axiomatization of these types using
+  [agda2hs](https://github.com/agda/agda2hs).
+
+homepage:        https://github.com/cardano-foundation/cardano-wallet
+license:         Apache-2.0
+license-file:    LICENSE
+author:          Cardano Foundation (High Assurance Lab)
+maintainer:      hal@cardanofoundation.org
+copyright:       2023-2025 Cardano Foundation
+category:        Cardano
+build-type:      Simple
+tested-with:
+    GHC == 9.6.6
+
+extra-doc-files:
+  CHANGELOG.md
+extra-source-files:
+  cardano-wallet-read.agda-lib
+  agda/**/*.agda
+
+common language
+  default-language:   Haskell2010
+  default-extensions:
+    NoImplicitPrelude
+    OverloadedStrings
+
+common opts-exe
+  ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+common opts-lib
+  ghc-options:
+    -Wall -Wcompat -Wredundant-constraints -Wincomplete-uni-patterns
+    -Wincomplete-record-updates -Wunused-packages
+
+  if flag(release)
+    ghc-options: -O2 -Werror
+
+flag release
+  description: Enable optimization and `-Werror`
+  default:     False
+  manual:      True
+
+library
+  import:           opts-lib, language
+  exposed-modules:
+    Cardano.Read.Ledger
+    Cardano.Read.Ledger.Address
+    Cardano.Read.Ledger.Block.Block
+    Cardano.Read.Ledger.Block.BHeader
+    Cardano.Read.Ledger.Block.BlockNo
+    Cardano.Read.Ledger.Block.HeaderHash
+    Cardano.Read.Ledger.Block.SlotNo
+    Cardano.Read.Ledger.Block.Txs
+    Cardano.Read.Ledger.Eras
+    Cardano.Read.Ledger.Eras.KnownEras
+    Cardano.Read.Ledger.PParams
+    Cardano.Read.Ledger.Tx.Inputs
+    Cardano.Read.Ledger.Tx.Outputs
+    Cardano.Read.Ledger.Tx.TxId
+    Cardano.Read.Ledger.Tx.Certificates
+    Cardano.Read.Ledger.Tx.CBOR
+    Cardano.Read.Ledger.Tx.CollateralInputs
+    Cardano.Read.Ledger.Tx.CollateralOutputs
+    Cardano.Read.Ledger.Tx.Eras
+    Cardano.Read.Ledger.Tx.ExtraSigs
+    Cardano.Read.Ledger.Tx.Fee
+    Cardano.Read.Ledger.Tx.Hash
+    Cardano.Read.Ledger.Tx.Integrity
+    Cardano.Read.Ledger.Tx.Metadata
+    Cardano.Read.Ledger.Tx.Mint
+    Cardano.Read.Ledger.Tx.Output
+    Cardano.Read.Ledger.Tx.ReferenceInputs
+    Cardano.Read.Ledger.Tx.ScriptValidity
+    Cardano.Read.Ledger.Tx.Validity
+    Cardano.Read.Ledger.Tx.Withdrawals
+    Cardano.Read.Ledger.Tx.Witnesses
+    Cardano.Read.Ledger.Tx.Tx
+    Cardano.Read.Ledger.Value
+    Cardano.Wallet.Read
+    Cardano.Wallet.Read.Address
+    Cardano.Wallet.Read.Block
+    Cardano.Wallet.Read.Block.Gen
+    Cardano.Wallet.Read.Block.Gen.Babbage
+    Cardano.Wallet.Read.Block.Gen.BlockParameters
+    Cardano.Wallet.Read.Block.Gen.Build
+    Cardano.Wallet.Read.Block.Gen.Byron
+    Cardano.Wallet.Read.Block.Gen.Shelley
+    Cardano.Wallet.Read.Chain
+    Cardano.Wallet.Read.Eras
+    Cardano.Wallet.Read.Hash
+    Cardano.Wallet.Read.PParams
+    Cardano.Wallet.Read.Tx
+    Cardano.Wallet.Read.Tx.CBOR
+    Cardano.Wallet.Read.Tx.Gen
+    Cardano.Wallet.Read.Tx.Gen.Address
+    Cardano.Wallet.Read.Tx.Gen.Allegra
+    Cardano.Wallet.Read.Tx.Gen.Alonzo
+    Cardano.Wallet.Read.Tx.Gen.Babbage
+    Cardano.Wallet.Read.Tx.Gen.Byron
+    Cardano.Wallet.Read.Tx.Gen.Conway
+    Cardano.Wallet.Read.Tx.Gen.Mary
+    Cardano.Wallet.Read.Tx.Gen.Shelley
+    Cardano.Wallet.Read.Tx.Gen.TxParameters
+    Cardano.Wallet.Read.Value
+  other-modules:
+    Cardano.Wallet.Read.Chain.Genesis
+    Cardano.Wallet.Read.Chain.Point
+    Cardano.Wallet.Read.Eras.EraValue
+    Cardano.Wallet.Read.PParams.Mock
+    Cardano.Wallet.Read.Tx.CollateralInputs
+    Cardano.Wallet.Read.Tx.Inputs
+    Cardano.Wallet.Read.Tx.ScriptValidity
+    Cardano.Wallet.Read.Tx.Tx
+    Cardano.Wallet.Read.Tx.TxId
+    Cardano.Wallet.Read.Tx.TxIn
+    Cardano.Wallet.Read.Tx.TxOut
+    Cardano.Wallet.Read.Tx.Validity
+
+  build-depends:
+    , base >= 4.14 && < 5
+    , bytestring >= 0.10.6 && < 0.13
+    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-crypto-praos >= 2.2.0.0 && < 2.3
+    , cardano-crypto-class >= 2.1.5.0 && < 2.2
+    , cardano-crypto-wrapper >= 1.5.1.3 && < 1.6
+    , cardano-data >= 1.2.3.1 && < 1.3
+    , cardano-ledger-allegra >= 1.6.1.0 && < 1.7
+    , cardano-ledger-alonzo >= 1.12.0.0 && < 1.13
+    , cardano-ledger-api >= 1.10.0.0 && < 1.11
+    , cardano-ledger-babbage >= 1.10.1.0 && < 1.11
+    , cardano-ledger-binary
+    , cardano-ledger-byron >= 1.0.2.0 && < 1.1
+    , cardano-ledger-conway >= 1.18.1.0 && < 1.19
+    , cardano-ledger-core >= 1.16.0.0 && < 1.17
+    , cardano-ledger-mary >= 1.7.1.0 && < 1.8
+    , cardano-ledger-shelley >= 1.15.0.0 && < 1.16
+    , cardano-protocol-tpraos >= 1.3.0.0 && < 1.4
+    , cardano-strict-containers >= 0.1.3.0 && < 0.2
+    , containers >= 0.5 && < 0.8
+    , deepseq >= 1.4.4 && < 1.6
+    , fmt >= 0.6.3.0 && < 0.7
+    , generics-sop >= 0.5.1.4 && < 0.6
+    , lens >= 5.2.3 && < 5.4
+    , memory >= 0.18.0 && < 0.19
+    , nothunks >= 0.1.5 && < 0.4
+    , operational >= 0.2.4.2 && < 0.3
+    , ouroboros-consensus >= 0.22.0.0 && < 0.23
+    , ouroboros-consensus-cardano >= 0.21.0.1 && < 0.22
+    , ouroboros-consensus-protocol >= 0.10.0.0 && < 0.11
+    , ouroboros-network-api >= 0.12.0.0 && < 0.13
+    , QuickCheck >= 2.14 && <= 2.16
+    , text >= 1.2 && < 2.2
+    , time >= 1.12.2 && < 1.15
+    , transformers >= 0.6.1.0 && < 0.7
+
+  hs-source-dirs:   haskell
+  default-language: Haskell2010
+
+test-suite test
+  import:             opts-exe, language
+  default-language:   Haskell2010
+  ghc-options:        -with-rtsopts=-M2G -with-rtsopts=-N4
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Cardano.Read.Ledger.OutputSpec
+    Cardano.Wallet.Read.EraValueSpec
+    Cardano.Wallet.Read.Tx.CBORSpec
+    Cardano.Wallet.Read.Tx.TxIdSpec
+    Cardano.Wallet.Read.Tx.TxOutSpec
+    Test.Unit.Cardano.Read.Ledger.Tx
+    Spec
+    SpecHook
+
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            run-tests.hs
+  build-depends:
+    , base
+    , bytestring
+    , cardano-ledger-api >= 1.10.0.0 && < 1.11
+    , cardano-ledger-core >= 1.16.0.0 && < 1.17
+    , cardano-ledger-mary >= 1.7.1.0 && < 1.8
+    , cardano-wallet-read
+    , hspec >= 2.11.0 && < 2.12
+    , lens
+    , memory
+    , QuickCheck >= 2.14 && <= 2.16
+    , with-utf8 >= 1.1.0.0 && < 1.2
