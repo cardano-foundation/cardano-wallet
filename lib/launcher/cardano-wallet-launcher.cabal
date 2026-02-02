@@ -35,7 +35,7 @@ library
     , fmt              >=0.6.3.0   && <0.7
     , http-conduit     >=2.3.9     && <2.4
     , iohk-monitoring  >=0.2.0.0   && <0.3
-    , network                            >=3.1.2.5   && <3.3
+    , network          >=3.1.2.5   && <3.3
     , process          >=1.6.19.0  && <1.7
     , text             >=1.2       && <2.2
     , text-class
