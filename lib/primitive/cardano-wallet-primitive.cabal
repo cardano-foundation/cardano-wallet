@@ -233,6 +233,7 @@ test-suite test
     , cardano-crypto-class            ^>=2.2.3
     , cardano-ledger-allegra:testlib  >=1.7.0.0   && <1.8
     , cardano-ledger-api              >=1.11.0.0  && <1.12
+    , cardano-ledger-babbage          >=1.11.0.0  && <1.12
     , cardano-ledger-core             >=1.17.0.0  && <1.18
     , cardano-ledger-core:testlib
     , cardano-ledger-shelley          >=1.16.0.0  && <1.17

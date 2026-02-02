@@ -68,9 +68,11 @@ import Cardano.Crypto.Hash
     ( hashFromBytes
     , hashToBytes
     )
-import Cardano.Ledger.Api
-    ( Babbage
-    , Conway
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
     )
 import Cardano.Slotting.Slot
     ( SlotNo (..)
@@ -148,10 +150,6 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardBabbage
-    , StandardConway
-    )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Address as Ledger
@@ -166,7 +164,7 @@ import qualified Cardano.Ledger.DRep as Ledger
 import qualified Cardano.Ledger.Keys as Ledger
 import qualified Cardano.Ledger.Mary.Value as Ledger
 import qualified Cardano.Ledger.Plutus.Language as Ledger
-import qualified Cardano.Ledger.SafeHash as SafeHash
+import qualified Cardano.Ledger.Hashes as Hashes
 import qualified Cardano.Ledger.Shelley.API as Ledger
 import qualified Cardano.Ledger.Shelley.Scripts as Scripts
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
@@ -323,14 +321,14 @@ instance Convert TxIn Ledger.TxIn where
       where
         toLedgerHash (Hash h) =
             Ledger.TxId
-                $ SafeHash.unsafeMakeSafeHash
+                $ Hashes.unsafeMakeSafeHash
                 $ Crypto.UnsafeHash
                 $ toShort h
 
     toWallet (Ledger.TxIn (Ledger.TxId tid) ix) =
         TxIn (convertId tid) (convertIx ix)
       where
-        convertId = Hash . Crypto.hashToBytes . SafeHash.extractHash
+        convertId = Hash . Crypto.hashToBytes . Hashes.extractHash
 
         convertIx = fromMaybe err . intCastMaybe . fromEnum
           where
@@ -365,7 +363,7 @@ toWalletAddress = Address . Ledger.serialiseAddr
 
 toBabbageTxOut
     :: TxOut
-    -> Babbage.BabbageTxOut StandardBabbage
+    -> Babbage.BabbageTxOut BabbageEra
 toBabbageTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
         (toLedger addr)
@@ -375,7 +373,7 @@ toBabbageTxOut (TxOut addr bundle) =
 
 toConwayTxOut
     :: TxOut
-    -> Babbage.BabbageTxOut StandardConway
+    -> Babbage.BabbageTxOut ConwayEra
 toConwayTxOut (TxOut addr bundle) =
     Babbage.BabbageTxOut
         (toLedger addr)
@@ -385,14 +383,14 @@ toConwayTxOut (TxOut addr bundle) =
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromConwayTxOut
-    :: Babbage.BabbageTxOut StandardConway
+    :: Babbage.BabbageTxOut ConwayEra
     -> TxOut
 fromConwayTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
 
 -- NOTE: Inline scripts and datums will be lost in the conversion.
 fromBabbageTxOut
-    :: Babbage.BabbageTxOut StandardBabbage
+    :: Babbage.BabbageTxOut BabbageEra
     -> TxOut
 fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
     = TxOut (toWallet addr) (toWallet val)
@@ -401,22 +399,22 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr val _ _)
 -- Conversions for 'UTxO'
 --------------------------------------------------------------------------------
 
-toLedgerUTxOBabbage :: UTxO -> Ledger.UTxO Babbage
+toLedgerUTxOBabbage :: UTxO -> Ledger.UTxO BabbageEra
 toLedgerUTxOBabbage (UTxO m) = Ledger.UTxO
     $ Map.mapKeys toLedger
     $ Map.map toBabbageTxOut m
 
-toLedgerUTxOConway :: UTxO -> Ledger.UTxO Conway
+toLedgerUTxOConway :: UTxO -> Ledger.UTxO ConwayEra
 toLedgerUTxOConway (UTxO m) = Ledger.UTxO
     $ Map.mapKeys toLedger
     $ Map.map toConwayTxOut m
 
-toWalletUTxOBabbage :: Ledger.UTxO Babbage -> UTxO
+toWalletUTxOBabbage :: Ledger.UTxO BabbageEra -> UTxO
 toWalletUTxOBabbage (Ledger.UTxO m) = UTxO
     $ Map.mapKeys toWallet
     $ Map.map fromBabbageTxOut m
 
-toWalletUTxOConway :: Ledger.UTxO Conway -> UTxO
+toWalletUTxOConway :: Ledger.UTxO ConwayEra -> UTxO
 toWalletUTxOConway (Ledger.UTxO m) = UTxO
     $ Map.mapKeys toWallet
     $ Map.map fromConwayTxOut m
