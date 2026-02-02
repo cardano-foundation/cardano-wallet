@@ -19,9 +19,9 @@ lint-lib dir:
   cd "lib/{{dir}}"
   pkg=$(grep -m1 "^name:" *.cabal | awk '{print $2}')
   echo "+++ stylish-haskell"
-  stylish-haskell --config ../../.stylish-haskell.yaml --inplace $(find src test -name '*.hs' 2>/dev/null || true)
+  stylish-haskell --config ../../.stylish-haskell.yaml --inplace $(find . -name '*.hs' -not -path '*/dist-newstyle/*' 2>/dev/null || true)
   echo "+++ hlint"
-  hlint src test 2>/dev/null || hlint src
+  hlint . --ignore-glob='dist-newstyle/**' 2>/dev/null || true
   echo "+++ cabal-fmt"
   cabal-fmt -i *.cabal
   echo "+++ build $pkg"
