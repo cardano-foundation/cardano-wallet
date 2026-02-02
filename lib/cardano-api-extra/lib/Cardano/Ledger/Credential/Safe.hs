@@ -1,5 +1,3 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -34,20 +32,15 @@ import Cardano.Ledger.BaseTypes
     )
 import Cardano.Ledger.Credential
     ( Ptr (..)
+    , SlotNo32 (..)
     )
 import Data.IntCast
     ( intCast
     , intCastMaybe
     )
-import Data.Maybe
-    ( fromMaybe
-    )
 import Data.Word
     ( Word32
     , Word64
-    )
-import GHC.Stack
-    ( HasCallStack
     )
 
 --------------------------------------------------------------------------------
@@ -63,7 +56,7 @@ import GHC.Stack
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
 --
 safePtr :: SlotNo32 -> TxIx -> CertIx -> Ptr
-safePtr = Ptr . fromSlotNo32
+safePtr = Ptr
 
 -- | Safely deconstructs a 'Ptr'.
 --
@@ -74,13 +67,7 @@ safePtr = Ptr . fromSlotNo32
 -- prop> safeUnwrapPtr (safePtr s t c) == (s, t, c)
 --
 safeUnwrapPtr :: Ptr -> (SlotNo32, TxIx, CertIx)
-safeUnwrapPtr (Ptr s t c) = (unsafeToSlotNo32 s, t, c)
-
--- | A 32-bit wide slot number.
---
-newtype SlotNo32 = SlotNo32 Word32
-    deriving newtype (Eq, Num, Ord)
-    deriving stock Show
+safeUnwrapPtr (Ptr s t c) = (s, t, c)
 
 -- | Converts an ordinary 'SlotNo' into a 'SlotNo32'.
 --
@@ -93,13 +80,3 @@ toSlotNo32 (SlotNo n) = SlotNo32 <$> intCastMaybe @Word64 @Word32 n
 --
 fromSlotNo32 :: SlotNo32 -> SlotNo
 fromSlotNo32 (SlotNo32 n) = SlotNo (intCast @Word32 @Word64 n)
-
---------------------------------------------------------------------------------
--- Unsafe internal interface
---------------------------------------------------------------------------------
-
-unsafeToSlotNo32 :: HasCallStack => SlotNo -> SlotNo32
-unsafeToSlotNo32 = fromMaybe reportFailure . toSlotNo32
-  where
-    reportFailure = error
-        "unsafeToSlotNo32: unable to convert SlotNo to SlotNo32"

@@ -159,6 +159,7 @@ import Cardano.Api
     , PaymentCredential (..)
     , PlutusScript
     , PlutusScriptVersion
+    , PolicyAssets (..)
     , PolicyId (PolicyId)
     , PraosNonce
     , ProtocolParametersUpdate (ProtocolParametersUpdate)
@@ -230,6 +231,7 @@ import Cardano.Api
     , Witness (..)
     , byronAddressInEra
     , collectTxBodyScriptWitnesses
+    , conwayEraOnwardsConstraints
     , createTransactionBody
     , forEraMaybeEon
     , hashScript
@@ -246,6 +248,8 @@ import Cardano.Api
     , makeStakeAddressUnregistrationCertificate
     , makeStakePoolRegistrationCertificate
     , makeStakePoolRetirementCertificate
+    , mkTxProposalProcedures
+    , mkTxVotingProcedures
     , scriptLanguageSupportedInEra
     , shelleyAddressInEra
     , validateAndHashStakePoolMetadata
@@ -270,8 +274,7 @@ import Cardano.Api.Shelley
     , toShelleyPoolParams
     )
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , emptyPParams
+    ( emptyPParams
     )
 import Cardano.Ledger.Credential.Safe
     ( Ptr
@@ -811,12 +814,10 @@ genTxMintValue era = withEraWitness era $ \supported ->
                     ]
             mints = do
                 policy <- genPolicyId
-                assets <- listOf $ do
-                    assetName <- genAssetName
-                    quantity <- genSignedQuantity
-                    script <- BuildTxWith <$> scriptWitnessGenerators
-                    pure (assetName, quantity, script)
-                pure (policy, assets)
+                assets <- PolicyAssets . Map.fromList <$> listOf
+                    ((,) <$> genAssetName <*> genSignedQuantity)
+                script <- BuildTxWith <$> scriptWitnessGenerators
+                pure (policy, (assets, script))
 
         oneof
             [ pure TxMintNone
@@ -1358,7 +1359,7 @@ genPoolId = genVerificationKeyHash AsStakePoolKey
 genMIRPot :: Gen MIRPot
 genMIRPot = elements [ReservesMIR, TreasuryMIR]
 
-genMIRTarget :: Gen (Ledger.MIRTarget StandardCrypto)
+genMIRTarget :: Gen Ledger.MIRTarget
 genMIRTarget = error "TODO conway: genMIRTarget"
 
 genStakePoolMetadata :: Gen StakePoolMetadata
@@ -1753,21 +1754,20 @@ genMaybeFeaturedInEra f =
     inEonForEra (pure Nothing) $ \w ->
         fmap Just (genFeaturedInEra w (f w))
 
-genProposals :: forall era. ConwayEraOnwards era -> Gen (ShelleyApi.TxProposalProcedures BuildTx era)
-genProposals w = case w of
-    ConwayEraOnwardsConway ->
-        oneof
-            [ pure TxProposalProceduresNone
-            , TxProposalProcedures <$> arbitrary <*> pure (BuildTxWith mempty)
-            ]
+genProposals
+    :: forall era
+     . ConwayEraOnwards era
+    -> Gen (ShelleyApi.TxProposalProcedures BuildTx era)
+genProposals w = conwayEraOnwardsConstraints w $
+    pure $ mkTxProposalProcedures []
 
-genVotingProcedures :: ConwayEraOnwards era -> Gen (ShelleyApi.TxVotingProcedures BuildTx era)
-genVotingProcedures w = case w of
-    ConwayEraOnwardsConway ->
-        oneof
-            [ TxVotingProcedures <$> arbitrary <*> pure (BuildTxWith mempty)
-            , pure TxVotingProceduresNone
-            ]
+genVotingProcedures
+    :: ConwayEraOnwards era
+    -> Gen (ShelleyApi.TxVotingProcedures BuildTx era)
+genVotingProcedures w = conwayEraOnwardsConstraints w $
+    case mkTxVotingProcedures [] of
+        Right vp -> pure vp
+        Left _ -> pure TxVotingProceduresNone
 
 genTxBodyContent :: CardanoEra era -> Gen (TxBodyContent BuildTx era)
 genTxBodyContent era = withEraWitness era $ \sbe -> do
@@ -1959,7 +1959,7 @@ genTxForBalancing era = makeSignedTransaction [] <$> genTxBodyForBalancing era
 -- Assisting ledger generators
 --------------------------------------------------------------------------------
 
-genKeyHash :: Gen (Ledger.KeyHash keyRole StandardCrypto)
+genKeyHash :: Gen (Ledger.KeyHash keyRole)
 genKeyHash =
     Ledger.KeyHash
         . fromMaybe (error "genKeyHash: invalid hash")
@@ -1967,14 +1967,14 @@ genKeyHash =
         . BS.pack
         <$> vectorOf 28 arbitrary
 
-genCredential :: Gen (Ledger.Credential keyRole StandardCrypto)
+genCredential :: Gen (Ledger.Credential keyRole)
 genCredential =
     oneof
         [ Ledger.KeyHashObj <$> genKeyHash
         , Ledger.ScriptHashObj <$> genLedgerScriptHash
         ]
 
-genLedgerScriptHash :: Gen (Ledger.ScriptHash StandardCrypto)
+genLedgerScriptHash :: Gen Ledger.ScriptHash
 genLedgerScriptHash =
     Ledger.ScriptHash
         . fromMaybe (error "genKeyHash: invalid hash")
@@ -1982,7 +1982,7 @@ genLedgerScriptHash =
         . BS.pack
         <$> vectorOf 28 arbitrary
 
-genConwayDelegatee :: Gen (Ledger.Delegatee StandardCrypto)
+genConwayDelegatee :: Gen Ledger.Delegatee
 genConwayDelegatee =
     oneof
         [ Ledger.DelegStake <$> genKeyHash
@@ -1990,7 +1990,7 @@ genConwayDelegatee =
         , Ledger.DelegStakeVote <$> genKeyHash <*> genDRep
         ]
 
-genDRep :: Gen (Ledger.DRep StandardCrypto)
+genDRep :: Gen Ledger.DRep
 genDRep =
     oneof
         [ DRepCredential <$> genCredential
