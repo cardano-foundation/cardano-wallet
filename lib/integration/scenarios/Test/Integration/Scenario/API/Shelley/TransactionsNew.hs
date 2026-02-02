@@ -5727,8 +5727,8 @@ spec = describe "NEW_SHELLEY_TRANSACTIONS" $ do
                 (unsafeFromHex $ T.encodeUtf8 cborHex)
 
             (Right txBody) =
-                Cardano.deserialiseFromTextEnvelope
-                (Cardano.AsTxBody Cardano.AsAlonzoEra) textEnvelope
+                Cardano.deserialiseFromTextEnvelope @(Cardano.TxBody Cardano.AlonzoEra)
+                    textEnvelope
 
             toCborHexTx txbody =
                 T.decodeUtf8 $
