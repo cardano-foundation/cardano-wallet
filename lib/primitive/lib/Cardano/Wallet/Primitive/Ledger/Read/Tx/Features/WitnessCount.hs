@@ -12,7 +12,6 @@ import Cardano.Address.KeyHash
     )
 import Cardano.Ledger.Api
     ( ScriptHash
-    , StandardCrypto
     , addrTxWitsL
     , bootAddrTxWitsL
     , hashScript
@@ -181,7 +180,7 @@ babbageWitnessCount tx witCtx =
         -> BabbageTxOut Babbage
         -> Maybe
             ( ScriptReference
-            , ScriptHash StandardCrypto
+            , ScriptHash
             , AlonzoScript Babbage
             )
     scriptWithHashIx ix txout =
@@ -224,7 +223,7 @@ conwayWitnessCount tx witCtx =
             -> BabbageTxOut Conway
             -> Maybe
                 ( ScriptReference
-                , ScriptHash StandardCrypto
+                , ScriptHash
                 , AlonzoScript Conway
                 )
         scriptWithHashIx ix txout =

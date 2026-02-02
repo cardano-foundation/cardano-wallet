@@ -379,7 +379,7 @@ simplifyAddress :: Address -> Maybe Address
 simplifyAddress (Address addrBytes) = do
     -- Don't try to simplify malformed addresses or stake addresses. Note that
     -- "decodeAddrLenient" will not parse stake addresses.
-    _ <- L.decodeAddrLenient addrBytes :: Maybe (L.Addr CC.StandardCrypto)
+    _ <- L.decodeAddrLenient addrBytes :: Maybe (L.Addr)
 
     bytes <- case runGetMaybe getAddressType (BL.fromStrict addrBytes) of
         Just BootstrapAddress ->
@@ -444,10 +444,10 @@ prop_simplifyAddress_validAddress =
                     property True
                 Just (Address simplifiedBytes) ->
                     let
-                        originalAddress :: Maybe (L.Addr CC.StandardCrypto)
+                        originalAddress :: Maybe (L.Addr)
                         originalAddress = L.decodeAddrLenient addrBytes
 
-                        simplifiedAddress :: Maybe (L.Addr CC.StandardCrypto)
+                        simplifiedAddress :: Maybe (L.Addr)
                         simplifiedAddress = L.decodeAddrLenient simplifiedBytes
 
                         commonErrorOutput :: Testable prop => prop -> Property
@@ -573,10 +573,10 @@ prop_addressSuitableForCollateral =
 isValidAddress :: Address -> Bool
 isValidAddress (Address addrBytes) =
     isJust (L.decodeAddrLenient addrBytes
-        :: Maybe (L.Addr CC.StandardCrypto))
+        :: Maybe (L.Addr))
     ||
     isJust (L.deserialiseRewardAccount addrBytes
-        :: Maybe (L.RewardAccount CC.StandardCrypto))
+        :: Maybe (L.RewardAccount))
 
 -- To be extra sure, we also test addressSuitableForCollateral with some golden
 -- addresses:
@@ -768,18 +768,18 @@ shelleyEnterprisePaymentAddrGolden :: BL.ByteString
 shelleyEnterprisePaymentAddrGolden = unsafeBech32Decode
     "addr_test1vpdylg53ekxh2404mfgw4pt4gfm7dc9dkc74ck0gtrld8uqewynck"
 
-genByronAddr :: Gen (L.Addr CC.StandardCrypto)
+genByronAddr :: Gen (L.Addr)
 genByronAddr = L.AddrBootstrap <$> arbitrary
 
-genStakeAddr :: Gen (L.RewardAccount CC.StandardCrypto)
+genStakeAddr :: Gen (L.RewardAccount)
 genStakeAddr = arbitrary
 
 -- Some helper functions
 
-asAddress :: L.Addr CC.StandardCrypto -> Address
+asAddress :: L.Addr -> Address
 asAddress = Address . L.serialiseAddr
 
-asStakeAddress :: L.RewardAccount crypto -> Address
+asStakeAddress :: L.RewardAccount -> Address
 asStakeAddress = Address . L.serialiseRewardAccount
 
 runGetMaybe :: B.Get a -> BL.ByteString -> Maybe a

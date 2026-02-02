@@ -97,7 +97,7 @@ getOutputs = case theEra @era of
     Babbage -> \(Outputs os) -> fst . fromBabbageTxOut <$> toList os
     Conway -> \(Outputs os) -> fst . fromConwayTxOut <$> toList os
 
-fromShelleyAddress :: SL.Addr crypto -> W.Address
+fromShelleyAddress :: SL.Addr -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
 
 fromShelleyTxOut :: SL.ShelleyTxOut StandardShelley -> W.TxOut
@@ -122,7 +122,7 @@ fromAlonzoTxOut (Alonzo.AlonzoTxOut addr value _) =
 
 fromBabbageTxOut
     :: Babbage.BabbageTxOut StandardBabbage
-    -> (W.TxOut, Maybe (AlonzoScript (Babbage.BabbageEra SL.StandardCrypto)))
+    -> (W.TxOut, Maybe (AlonzoScript Babbage.BabbageEra))
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of
@@ -132,7 +132,7 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
 
 fromConwayTxOut
     :: Babbage.BabbageTxOut StandardConway
-    -> (W.TxOut, Maybe (AlonzoScript (Conway.ConwayEra SL.StandardCrypto)))
+    -> (W.TxOut, Maybe (AlonzoScript Conway.ConwayEra))
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
     , case refScript of

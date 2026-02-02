@@ -21,9 +21,6 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash
     )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Ledger.SafeHash
     ( SafeToHash (originalBytes)
     )
@@ -63,7 +60,7 @@ integrity = case theEra @era of
     yesIntegrity (Integrity es) = getIntegrity es
 
 getIntegrity
-    :: StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    :: StrictMaybe ScriptIntegrityHash
     -> Maybe (W.Hash "ScriptIntegrity")
 getIntegrity = strictMaybeToMaybe . fmap (W.Hash . originalBytes)
 

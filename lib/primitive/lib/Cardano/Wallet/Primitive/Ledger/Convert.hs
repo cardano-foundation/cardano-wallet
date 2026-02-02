@@ -151,7 +151,6 @@ import Numeric.Natural
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardBabbage
     , StandardConway
-    , StandardCrypto
     )
 
 import qualified Cardano.Crypto.Hash.Class as Crypto
@@ -219,16 +218,16 @@ toWalletCoin (Ledger.Coin c) = Coin.unsafeFromIntegral c
 -- that is similar to the wallet's 'TokenBundle' type. The ada quantity is
 -- stored as a separate value, and asset quantities are stored in a nested map.
 
-instance Convert TokenBundle (Ledger.MaryValue StandardCrypto) where
+instance Convert TokenBundle Ledger.MaryValue where
     toLedger = toLedgerTokenBundle
     toWallet = toWalletTokenBundle
 
-toLedgerTokenBundle :: TokenBundle -> Ledger.MaryValue StandardCrypto
+toLedgerTokenBundle :: TokenBundle -> Ledger.MaryValue
 toLedgerTokenBundle bundle =
     Ledger.MaryValue ledgerAda ledgerTokens
   where
     ledgerAda = toLedgerCoin $ TokenBundle.getCoin bundle
-    ledgerTokens :: Ledger.MultiAsset StandardCrypto
+    ledgerTokens :: Ledger.MultiAsset
     ledgerTokens = bundle
         & view #tokens
         & TokenMap.toNestedMap
@@ -239,7 +238,7 @@ toLedgerTokenBundle bundle =
         & Map.mapKeys toLedgerAssetName
         & Map.map toLedgerTokenQuantity
 
-toWalletTokenBundle :: Ledger.MaryValue StandardCrypto -> TokenBundle
+toWalletTokenBundle :: Ledger.MaryValue -> TokenBundle
 toWalletTokenBundle
     (Ledger.MaryValue ledgerAda (Ledger.MultiAsset ledgerTokens)) =
         TokenBundle.fromNestedMap (walletAda, walletTokens)
@@ -272,11 +271,11 @@ toWalletAssetName (Ledger.AssetName bytes) =
 -- Conversions for 'TokenPolicyId'
 --------------------------------------------------------------------------------
 
-instance Convert TokenPolicyId (Ledger.PolicyID StandardCrypto) where
+instance Convert TokenPolicyId Ledger.PolicyID where
     toLedger = toLedgerTokenPolicyId
     toWallet = toWalletTokenPolicyId
 
-toLedgerTokenPolicyId :: TokenPolicyId -> Ledger.PolicyID StandardCrypto
+toLedgerTokenPolicyId :: TokenPolicyId -> Ledger.PolicyID
 toLedgerTokenPolicyId p@(UnsafeTokenPolicyId (Hash bytes)) =
     case hashFromBytes bytes of
         Just hash ->
@@ -288,7 +287,7 @@ toLedgerTokenPolicyId p@(UnsafeTokenPolicyId (Hash bytes)) =
                 , pretty p
                 ]
 
-toWalletTokenPolicyId :: Ledger.PolicyID StandardCrypto -> TokenPolicyId
+toWalletTokenPolicyId :: Ledger.PolicyID -> TokenPolicyId
 toWalletTokenPolicyId (Ledger.PolicyID (Ledger.ScriptHash hash)) =
     UnsafeTokenPolicyId (Hash (hashToBytes hash))
 
@@ -318,7 +317,7 @@ toWalletTokenQuantity q
 -- Conversions for 'TxIn'
 --------------------------------------------------------------------------------
 
-instance Convert TxIn (Ledger.TxIn StandardCrypto) where
+instance Convert TxIn Ledger.TxIn where
     toLedger (TxIn tid ix) =
         Ledger.TxIn (toLedgerHash tid) (toEnum $ intCast ix)
       where
@@ -345,11 +344,11 @@ instance Convert TxIn (Ledger.TxIn StandardCrypto) where
 -- Conversions for 'Address'
 --------------------------------------------------------------------------------
 
-instance Convert Address (Ledger.Addr StandardCrypto) where
+instance Convert Address Ledger.Addr where
     toLedger = toLedgerAddress
     toWallet = toWalletAddress
 
-toLedgerAddress :: Address -> Ledger.Addr StandardCrypto
+toLedgerAddress :: Address -> Ledger.Addr
 toLedgerAddress (Address bytes) = case Ledger.decodeAddrLenient bytes of
     Just addr -> addr
     Nothing -> error $ unwords
@@ -357,7 +356,7 @@ toLedgerAddress (Address bytes) = case Ledger.decodeAddrLenient bytes of
         , pretty (Address bytes)
         ]
 
-toWalletAddress :: Ledger.Addr StandardCrypto -> Address
+toWalletAddress :: Ledger.Addr -> Address
 toWalletAddress = Address . Ledger.serialiseAddr
 
 --------------------------------------------------------------------------------
@@ -518,7 +517,7 @@ toLedgerTimelockScript s = case s of
 toLedgerDelegatee
     :: Maybe PoolId
     -> Maybe DRep
-    -> Conway.Delegatee StandardCrypto
+    -> Conway.Delegatee
 toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     (Just poolId, Nothing) ->
         Conway.DelegStake (toKeyHash poolId)
@@ -536,7 +535,7 @@ toLedgerDelegatee poolM vaM = case (poolM, vaM) of
     toKeyHash (PoolId pid) = Ledger.KeyHash . Crypto.UnsafeHash $ toShort pid
 
 toLedgerDRep
-    :: DRep -> Ledger.DRep StandardCrypto
+    :: DRep -> Ledger.DRep
 toLedgerDRep = \case
     Abstain -> Ledger.DRepAlwaysAbstain
     NoConfidence -> Ledger.DRepAlwaysNoConfidence

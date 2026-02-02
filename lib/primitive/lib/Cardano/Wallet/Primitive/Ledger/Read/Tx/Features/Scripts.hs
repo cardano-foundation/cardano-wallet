@@ -20,7 +20,6 @@ import Cardano.Ledger.Api
     , Babbage
     , Conway
     , ScriptHash
-    , StandardCrypto
     , hashScript
     )
 import Cardano.Ledger.Babbage
@@ -77,7 +76,7 @@ alonzoAnyExplicitScript witCtx = \case
 babbageAnyExplicitScript
     :: WitnessCountCtx
     -> ( ScriptReference
-        , ScriptHash StandardCrypto
+        , ScriptHash
         , AlonzoScript Babbage
         )
     -> (TokenPolicyId, AnyExplicitScript)
@@ -100,7 +99,7 @@ babbageAnyExplicitScript witCtx (scriptRef, scriptH, script) =
 conwayAnyExplicitScript
     :: WitnessCountCtx
     -> ( ScriptReference
-        , ScriptHash StandardCrypto
+        , ScriptHash
         , AlonzoScript Conway
         )
     -> (TokenPolicyId, AnyExplicitScript)

@@ -36,8 +36,8 @@ import Cardano.Ledger.Core
     ( PParams
     , ppDL
     )
-import Cardano.Ledger.Crypto
-    ( Crypto (..)
+import Cardano.Ledger.Hashes
+    ( HASH
     )
 import Cardano.Mnemonic
     ( ConsistentEntropy
@@ -185,7 +185,7 @@ spec = do
 
         let mkDecentralizationParam
                 :: SL.UnitInterval
-                -> PParams (SL.ShelleyEra StandardCrypto)
+                -> PParams SL.ShelleyEra
             mkDecentralizationParam i = SL.emptyPParams & ppDL .~ i
 
         let testCases :: [(Ratio Word64, Text)]
@@ -288,7 +288,7 @@ toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
 
 toPaymentHash :: Text -> Cardano.SimpleScript
 toPaymentHash txt =
-    case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
+    case Cardano.deserialiseFromRawBytesHex @(Cardano.Hash Cardano.PaymentKey) (T.encodeUtf8 txt) of
         Right payKeyHash -> Cardano.RequireSignature payKeyHash
         Left err -> error $ "toPaymentHash: " <> show err
 
@@ -475,7 +475,7 @@ instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
             n <- choose (0, 100)
             hash <- toCardanoHash
                 . Hash
-                . digest (Proxy @(HASH StandardCrypto))
+                . digest (Proxy @HASH)
                 . BS.pack <$> vector 5
             return $ Tip (SlotNo n) hash (BlockNo n)
 

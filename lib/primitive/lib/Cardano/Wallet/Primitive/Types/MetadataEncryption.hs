@@ -26,9 +26,6 @@ import Cardano.Api
     , metadataValueFromJsonNoSchema
     , metadataValueToJsonNoSchema
     )
-import Cardano.Api.Error
-    ( displayError
-    )
 import Control.Monad
     ( when
     )
@@ -327,4 +324,4 @@ instance ToJSON TxMetadataValue where
     toJSON = metadataValueToJsonNoSchema
 
 instance FromJSON TxMetadataValue where
-    parseJSON = either (fail . displayError) pure . metadataValueFromJsonNoSchema
+    parseJSON = either (fail . show) pure . metadataValueFromJsonNoSchema

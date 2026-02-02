@@ -17,9 +17,6 @@ import Prelude
 import Cardano.Crypto.Hash.Class
     ( hashToBytes
     )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Read.Ledger.Block.BHeader
     ( getEraBHeader
     )
@@ -108,7 +105,7 @@ primitiveHash = case theEra @era of
     Conway -> mkHashShelley
   where
     mkHashShelley
-        :: HeaderHashT era ~ ShelleyHash crypto
+        :: HeaderHashT era ~ ShelleyHash
         => HeaderHash era
         -> W.Hash "BlockHeader"
     mkHashShelley (HeaderHash (ShelleyHash h)) = W.Hash . hashToBytes $ h
@@ -131,7 +128,7 @@ primitivePrevHash gp = case theEra @era of
 
   where
     mkPrevHashShelley
-        :: (SL.PrevHash StandardCrypto ~ PrevHeaderHashT era)
+        :: (SL.PrevHash ~ PrevHeaderHashT era)
         => PrevHeaderHash era
         -> W.Hash "BlockHeader"
     mkPrevHashShelley (PrevHeaderHash h) = fromPrevHash h
@@ -141,7 +138,7 @@ primitivePrevHash gp = case theEra @era of
         O.GenesisHash -> genesisHash
         O.BlockHash h -> fromByronHash h
     fromPrevHash
-        :: SL.PrevHash StandardCrypto
+        :: SL.PrevHash
         -> W.Hash "BlockHeader"
     fromPrevHash = \case
         SL.GenesisHash -> genesisHash
