@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2020-2022 IOHK
@@ -25,7 +25,7 @@ import Cardano.Ledger.Babbage.TxBody
 import Cardano.Ledger.Core
     ( bodyTxL
     )
-import Cardano.Ledger.Shelley.API qualified as SH
+import qualified Cardano.Ledger.Shelley.API as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo

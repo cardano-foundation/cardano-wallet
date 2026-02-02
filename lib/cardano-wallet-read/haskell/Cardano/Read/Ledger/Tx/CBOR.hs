@@ -26,7 +26,7 @@ import Cardano.Ledger.Binary
     , decodeFull
     , decodeFullAnnotator
     )
-import Cardano.Ledger.Binary.Encoding qualified as Ledger
+import qualified Cardano.Ledger.Binary.Encoding as Ledger
 import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
@@ -35,7 +35,7 @@ import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )
-import Data.ByteString.Lazy qualified as BL
+import qualified Data.ByteString.Lazy as BL
 
 {-# INLINEABLE serializeTx #-}
 

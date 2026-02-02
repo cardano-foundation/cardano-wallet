@@ -19,7 +19,7 @@ import Prelude
 import Cardano.Chain.UTxO
     ( taTx
     )
-import Cardano.Chain.UTxO qualified as BY
+import qualified Cardano.Chain.UTxO as BY
 import Cardano.Crypto.Hashing
     ( serializeCborHash
     )
@@ -27,8 +27,8 @@ import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
     )
-import Cardano.Ledger.Core qualified as SH.Core
-import Cardano.Ledger.TxIn qualified as SH.TxIn
+import qualified Cardano.Ledger.Core as SH.Core
+import qualified Cardano.Ledger.TxIn as SH.TxIn
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo

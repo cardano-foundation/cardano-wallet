@@ -41,9 +41,9 @@ import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
 
-import Ouroboros.Consensus.Byron.Ledger qualified as O
-import Ouroboros.Consensus.Cardano.Block qualified as O
-import Ouroboros.Consensus.Shelley.Ledger qualified as O
+import qualified Ouroboros.Consensus.Byron.Ledger as O
+import qualified Ouroboros.Consensus.Cardano.Block as O
+import qualified Ouroboros.Consensus.Shelley.Ledger as O
 
 {- | Type synonym for 'CardanoBlock',
 using the same cryptographic functionalities as Mainnet.

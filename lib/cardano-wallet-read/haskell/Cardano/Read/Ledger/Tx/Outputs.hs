@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2020-2022 IOHK
@@ -19,7 +19,7 @@ where
 
 import Prelude
 
-import Cardano.Chain.UTxO qualified as BY
+import qualified Cardano.Chain.UTxO as BY
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )

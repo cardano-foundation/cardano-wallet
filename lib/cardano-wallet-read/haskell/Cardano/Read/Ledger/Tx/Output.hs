@@ -27,7 +27,7 @@ where
 
 import Prelude
 
-import Cardano.Chain.UTxO qualified as BY
+import qualified Cardano.Chain.UTxO as BY
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )
@@ -50,7 +50,7 @@ import Cardano.Ledger.Binary
     , decodeFullDecoder
     , shelleyProtVer
     )
-import Cardano.Ledger.Binary.Encoding qualified as Ledger
+import qualified Cardano.Ledger.Binary.Encoding as Ledger
 import Cardano.Ledger.Core
     ( compactAddrTxOutL
     , valueTxOutL
@@ -81,7 +81,7 @@ import Cardano.Read.Ledger.Value
 import Control.Lens
     ( view
     )
-import Data.ByteString.Lazy qualified as BL
+import qualified Data.ByteString.Lazy as BL
 import Data.Text
     ( Text
     )

@@ -15,8 +15,8 @@ where
 
 import Prelude
 
-import Cardano.Chain.Update qualified as BY
-import Cardano.Ledger.Core qualified as SH
+import qualified Cardano.Chain.Update as BY
+import qualified Cardano.Ledger.Core as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo

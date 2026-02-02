@@ -19,10 +19,6 @@ import Cardano.Ledger.Allegra.TxBody
     )
 import Cardano.Ledger.Api
     ( AllegraEra
-    
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Shelley.Tx
     ( ShelleyTx (ShelleyTx)
@@ -56,17 +52,17 @@ import Data.Maybe.Strict
 
 mkAllegraTx
     :: TxParameters
-    -> ShelleyTx (AllegraEra StandardCrypto)
+    -> ShelleyTx AllegraEra
 mkAllegraTx TxParameters{txInputs, txOutputs} =
     ShelleyTx (body txInputs txOutputs) wits aux
 
-aux :: StrictMaybe (AllegraTxAuxData (AllegraEra StandardCrypto))
+aux :: StrictMaybe (AllegraTxAuxData AllegraEra)
 aux = maybeToStrictMaybe Nothing
 
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> AllegraTxBody (AllegraEra StandardCrypto)
+    -> AllegraTxBody AllegraEra
 body ins outs =
     AllegraTxBody
         (txins ins)
@@ -81,5 +77,5 @@ body ins outs =
 exampleValidity :: ValidityInterval
 exampleValidity = ValidityInterval SNothing SNothing
 
-exampleAllegraTx :: ShelleyTx (AllegraEra StandardCrypto)
+exampleAllegraTx :: ShelleyTx AllegraEra
 exampleAllegraTx = mkAllegraTx exampleTxParameters

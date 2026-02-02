@@ -22,7 +22,7 @@ module Cardano.Read.Ledger.Block.SlotNo
 
 import Prelude
 
-import Cardano.Ledger.BaseTypes qualified as Ledger
+import qualified Cardano.Ledger.BaseTypes as Ledger
 import Cardano.Read.Ledger.Block.BHeader
     ( BHeader (..)
     )
@@ -30,7 +30,7 @@ import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
     )
-import Data.Text qualified as T
+import qualified Data.Text as T
 import GHC.Generics
     ( Generic
     )
@@ -44,12 +44,10 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( pHeaderSlot
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    (
-    )
+    ()
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    (
-    )
-import Ouroboros.Network.Block qualified as O
+    ()
+import qualified Ouroboros.Network.Block as O
 
 {-# INLINEABLE getEraSlotNo #-}
 

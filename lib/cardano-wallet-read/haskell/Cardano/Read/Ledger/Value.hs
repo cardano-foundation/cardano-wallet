@@ -19,10 +19,10 @@ where
 
 import Prelude
 
-import Cardano.Chain.Common qualified as BY
-import Cardano.Ledger.BaseTypes qualified as SH
-import Cardano.Ledger.Coin qualified as SH
-import Cardano.Ledger.Mary.Value qualified as MA
+import qualified Cardano.Chain.Common as BY
+import qualified Cardano.Ledger.BaseTypes as SH
+import qualified Cardano.Ledger.Coin as SH
+import qualified Cardano.Ledger.Mary.Value as MA
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo

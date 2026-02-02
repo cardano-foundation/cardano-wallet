@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2020-2024 IOHK
@@ -17,12 +17,12 @@ where
 
 import Prelude
 
-import Cardano.Chain.UTxO qualified as BY
+import qualified Cardano.Chain.UTxO as BY
 import Cardano.Ledger.Core
     ( bodyTxL
     , inputsTxBodyL
     )
-import Cardano.Ledger.Shelley.API qualified as SH
+import qualified Cardano.Ledger.Shelley.API as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo

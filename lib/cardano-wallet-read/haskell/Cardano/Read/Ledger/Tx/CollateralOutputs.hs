@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2020-2022 IOHK
@@ -20,14 +20,11 @@ where
 import Prelude
 
 import Cardano.Ledger.Babbage.Collateral
-    (
-    )
+    ()
 import Cardano.Ledger.Babbage.Rules
-    (
-    )
+    ()
 import Cardano.Ledger.Babbage.Tx
-    (
-    )
+    ()
 import Cardano.Ledger.Babbage.TxBody
     ( BabbageTxOut (..)
     , collateralReturnTxBodyL

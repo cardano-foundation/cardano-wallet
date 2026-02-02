@@ -18,8 +18,8 @@ where
 
 import Prelude
 
-import Cardano.Chain.Common qualified as BY
-import Cardano.Ledger.Address qualified as SH
+import qualified Cardano.Chain.Common as BY
+import qualified Cardano.Ledger.Address as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo

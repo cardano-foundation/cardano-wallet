@@ -28,10 +28,6 @@ import Cardano.Ledger.Address
 import Cardano.Ledger.Api
     ( Era
     , ShelleyEra
-    
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Api.Tx.In
     ( mkTxInPartial
@@ -114,21 +110,21 @@ import qualified Data.Set as Set
 
 mkShelleyTx
     :: TxParameters
-    -> ShelleyTx (ShelleyEra StandardCrypto)
+    -> ShelleyTx ShelleyEra
 mkShelleyTx TxParameters{txInputs, txOutputs} =
     ShelleyTx (body txInputs txOutputs) wits aux
 
-aux :: StrictMaybe (ShelleyTxAuxData (ShelleyEra StandardCrypto))
+aux :: StrictMaybe (ShelleyTxAuxData ShelleyEra)
 aux = maybeToStrictMaybe Nothing
 
-wits :: L.EraScript (era StandardCrypto) => ShelleyTxWits (era StandardCrypto)
+wits :: L.EraScript era => ShelleyTxWits era
 wits = mempty
 
 body
     :: HasCallStack
     => NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> ShelleyTxBody (ShelleyEra StandardCrypto)
+    -> ShelleyTxBody ShelleyEra
 body ins outs =
     ShelleyTxBody
         (txins ins)
@@ -140,7 +136,7 @@ body ins outs =
         upd
         auxb
 
-auxb :: StrictMaybe (AuxiliaryDataHash StandardCrypto)
+auxb :: StrictMaybe AuxiliaryDataHash
 auxb = maybeToStrictMaybe Nothing
 
 upd :: StrictMaybe (Update era)
@@ -152,16 +148,15 @@ slot = SlotNo 0
 txfee :: Coin
 txfee = Coin 0
 
-wdrls :: Withdrawals StandardCrypto
+wdrls :: Withdrawals
 wdrls = Withdrawals mempty
 
-certs :: StrictSeq (ShelleyTxCert (era StandardCrypto))
+certs :: StrictSeq (ShelleyTxCert era)
 certs = mempty
 
 txouts
     :: ( Era era
        , L.Value era ~ Coin
-       , L.EraCrypto era ~ StandardCrypto
        )
     => NonEmpty (Address, Lovelace)
     -> StrictSeq (ShelleyTxOut era)
@@ -169,29 +164,29 @@ txouts xs = fromList $ do
     (addr, Lovelace val) <- toList xs
     pure $ ShelleyTxOut (decodeShelleyAddress addr) $ Coin val
 
-mkShelleyPaymentPart :: ByteString -> Addr StandardCrypto
+mkShelleyPaymentPart :: ByteString -> Addr
 mkShelleyPaymentPart x = Addr Mainnet (payment x) staking
 
-staking :: StakeReference StandardCrypto
+staking :: StakeReference
 staking = StakeRefNull
 
 payment
     :: ByteString
-    -> PaymentCredential StandardCrypto
+    -> PaymentCredential
 payment x = KeyHashObj $ KeyHash $ UnsafeHash $ B.toShort x
 
-txins :: HasCallStack => NonEmpty (Index, TxId) -> Set (TxIn StandardCrypto)
+txins :: HasCallStack => NonEmpty (Index, TxId) -> Set TxIn
 txins = foldMap $ uncurry mkShelleyInput
 
 mkShelleyInput
     :: HasCallStack
     => Index
     -> TxId
-    -> Set (TxIn StandardCrypto)
+    -> Set TxIn
 mkShelleyInput (Index idx) txid =
     Set.singleton
         $ mkTxInPartial txid
         $ fromIntegral idx
 
-exampleShelleyTx :: ShelleyTx (ShelleyEra StandardCrypto)
+exampleShelleyTx :: ShelleyTx ShelleyEra
 exampleShelleyTx = mkShelleyTx exampleTxParameters

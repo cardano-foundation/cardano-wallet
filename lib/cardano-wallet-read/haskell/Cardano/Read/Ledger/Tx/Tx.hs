@@ -15,7 +15,7 @@ module Cardano.Read.Ledger.Tx.Tx
 
 import Prelude
 
-import Cardano.Chain.UTxO qualified as Byron
+import qualified Cardano.Chain.UTxO as Byron
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx
     )

@@ -29,15 +29,20 @@ where
 
 import Prelude
 
-import Cardano.Crypto.Hashing qualified as Byron
+import qualified Cardano.Crypto.Hashing as Byron
 
-import Cardano.Ledger.Binary (EncCBOR, EncCBORGroup)
-import Cardano.Ledger.Core qualified as Core
+import Cardano.Ledger.Binary
+    ( EncCBOR
+    , EncCBORGroup
+    )
+import qualified Cardano.Ledger.Core as Core
 import Cardano.Ledger.Hashes
     ( EraIndependentBlockHeader
     )
-import Cardano.Ledger.Shelley.API qualified as Shelley
-import Cardano.Protocol.Crypto (StandardCrypto)
+import qualified Cardano.Ledger.Shelley.API as Shelley
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
+    )
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash
     )
@@ -61,8 +66,8 @@ import Cardano.Read.Ledger.Hash
     , castHash
     , hashFromBytesShort
     )
-import Cardano.Read.Ledger.Hash qualified as Hash
-import Data.ByteString.Char8 qualified as B8
+import qualified Cardano.Read.Ledger.Hash as Hash
+import qualified Data.ByteString.Char8 as B8
 import Data.Maybe
     ( fromJust
     )
@@ -76,18 +81,16 @@ import Ouroboros.Consensus.Byron.Ledger
 import Ouroboros.Consensus.Shelley.Ledger
     ( ShelleyHash (unShelleyHash)
     )
-import Ouroboros.Consensus.Shelley.Ledger.Block qualified as O
+import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyProtocolHeader
     )
-import Ouroboros.Consensus.Shelley.Protocol.Abstract qualified as Shelley
+import qualified Ouroboros.Consensus.Shelley.Protocol.Abstract as Shelley
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    (
-    )
+    ()
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    (
-    )
-import Ouroboros.Network.Block qualified as O
+    ()
+import qualified Ouroboros.Network.Block as O
 
 {-----------------------------------------------------------------------------
     HeaderHash

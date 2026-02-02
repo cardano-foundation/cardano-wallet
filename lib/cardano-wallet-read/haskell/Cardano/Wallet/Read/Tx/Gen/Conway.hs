@@ -17,19 +17,15 @@ import Cardano.Ledger.Alonzo.Tx
     ( IsValid (..)
     , ScriptIntegrityHash
     )
-import Cardano.Ledger.Alonzo.TxAuxData
-    ( AuxiliaryDataHash
-    )
 import Cardano.Ledger.Api
     ( ConwayEra
     , Datum (NoDatum)
-    
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
+    )
+import Cardano.Ledger.AuxiliaryData
+    ( AuxiliaryDataHash
     )
 import Cardano.Ledger.Babbage
     ( BabbageTxOut
@@ -118,23 +114,23 @@ import Data.Set
 
 mkConwayTx
     :: TxParameters
-    -> AlonzoTx (ConwayEra StandardCrypto)
+    -> AlonzoTx ConwayEra
 mkConwayTx TxParameters{txInputs, txOutputs} =
     AlonzoTx (body txInputs txOutputs) wits valid aux
 
 valid :: IsValid
 valid = IsValid True
 
-wits :: AlonzoTxWits (ConwayEra StandardCrypto)
+wits :: AlonzoTxWits ConwayEra
 wits = mempty
 
-aux :: StrictMaybe (AlonzoTxAuxData (ConwayEra StandardCrypto))
+aux :: StrictMaybe (AlonzoTxAuxData ConwayEra)
 aux = SNothing
 
 body
     :: NonEmpty (Index, TxId)
     -> NonEmpty (Address, Lovelace)
-    -> ConwayTxBody (ConwayEra StandardCrypto)
+    -> ConwayTxBody ConwayEra
 body ins outs =
     ConwayTxBody
         (txins ins)
@@ -158,28 +154,28 @@ body ins outs =
         mempty
 
 collateralReturn
-    :: StrictMaybe (Sized (BabbageTxOut (ConwayEra StandardCrypto)))
+    :: StrictMaybe (Sized (BabbageTxOut ConwayEra))
 collateralReturn = SNothing
 
-proposalProcedures :: OSet (ProposalProcedure (ConwayEra StandardCrypto))
+proposalProcedures :: OSet (ProposalProcedure ConwayEra)
 proposalProcedures = mempty
 
-votingProcedures :: VotingProcedures (ConwayEra StandardCrypto)
+votingProcedures :: VotingProcedures ConwayEra
 votingProcedures = VotingProcedures mempty
 
-witnesses :: Set (KeyHash 'Witness StandardCrypto)
+witnesses :: Set (KeyHash 'Witness)
 witnesses = mempty
 
-certs :: OSet (ConwayTxCert (ConwayEra StandardCrypto))
+certs :: OSet (ConwayTxCert ConwayEra)
 certs = mempty
 
-referenceIns :: Set (TxIn StandardCrypto)
+referenceIns :: Set TxIn
 referenceIns = mempty
 
 txouts
     :: Version
     -> NonEmpty (Address, Lovelace)
-    -> StrictSeq (Sized (BabbageTxOut (ConwayEra StandardCrypto)))
+    -> StrictSeq (Sized (BabbageTxOut ConwayEra))
 txouts v xs = fromList $ do
     (addr, Lovelace val) <- toList xs
     pure
@@ -193,17 +189,17 @@ txouts v xs = fromList $ do
 network :: StrictMaybe Network
 network = SNothing
 
-auxhash :: StrictMaybe (AuxiliaryDataHash StandardCrypto)
+auxhash :: StrictMaybe AuxiliaryDataHash
 auxhash = SNothing
 
-integrity :: StrictMaybe (ScriptIntegrityHash StandardCrypto)
+integrity :: StrictMaybe ScriptIntegrityHash
 integrity = SNothing
 
-collateralIns :: Set (TxIn StandardCrypto)
+collateralIns :: Set TxIn
 collateralIns = mempty
 
-mint :: MultiAsset StandardCrypto
+mint :: MultiAsset
 mint = mempty
 
-exampleConwayTx :: AlonzoTx (ConwayEra StandardCrypto)
+exampleConwayTx :: AlonzoTx ConwayEra
 exampleConwayTx = mkConwayTx exampleTxParameters

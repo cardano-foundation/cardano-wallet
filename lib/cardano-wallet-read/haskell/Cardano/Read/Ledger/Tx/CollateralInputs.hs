@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2020-2022 IOHK
@@ -22,7 +22,9 @@ import Prelude
 import Cardano.Ledger.Api
     ( collateralInputsTxBodyL
     )
-import Cardano.Ledger.Api.Tx.In (TxIn)
+import Cardano.Ledger.Api.Tx.In
+    ( TxIn
+    )
 import Cardano.Ledger.Core
     ( bodyTxL
     )

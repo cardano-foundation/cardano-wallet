@@ -38,14 +38,12 @@ import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( pHeaderBlock
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    (
-    )
+    ()
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    (
-    )
+    ()
 
-import Data.Text qualified as T
-import Ouroboros.Network.Block qualified as O
+import qualified Data.Text as T
+import qualified Ouroboros.Network.Block as O
 
 {-# INLINEABLE getEraBlockNo #-}
 

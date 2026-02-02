@@ -1,5 +1,5 @@
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- |
 Copyright: © 2020-2022 IOHK
@@ -24,7 +24,7 @@ import Cardano.Ledger.Address
     ( RewardAccount
     , unWithdrawals
     )
-import Cardano.Ledger.Api qualified as Ledger
+import qualified Cardano.Ledger.Api as Ledger
 import Cardano.Ledger.Coin
     ( Coin
     )

@@ -35,4 +35,4 @@ import Cardano.Crypto.Hash.Blake2b
     ( Blake2b_224
     , Blake2b_256
     )
-import Cardano.Crypto.Hash.Class qualified as H
+import qualified Cardano.Crypto.Hash.Class as H

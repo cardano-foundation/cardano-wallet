@@ -20,8 +20,10 @@ import Prelude
 import Cardano.Ledger.Block
     ( bheader
     )
-import Cardano.Protocol.Crypto (StandardCrypto)
-import Cardano.Protocol.TPraos.BHeader qualified as TPraos
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
+    )
+import qualified Cardano.Protocol.TPraos.BHeader as TPraos
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
@@ -42,17 +44,15 @@ import GHC.Generics
 import Ouroboros.Consensus.Block.Abstract
     ( getHeader
     )
-import Ouroboros.Consensus.Byron.Ledger.Block qualified as Byron
+import qualified Ouroboros.Consensus.Byron.Ledger.Block as Byron
 import Ouroboros.Consensus.Protocol.Praos.Header
     ( Header
     )
-import Ouroboros.Consensus.Shelley.Ledger.Block qualified as O
+import qualified Ouroboros.Consensus.Shelley.Ledger.Block as O
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    (
-    )
+    ()
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    (
-    )
+    ()
 
 -- | Family of era-specific block header types.
 type family BHeaderT era where
