@@ -20,6 +20,9 @@ import Cardano.Api
 import Cardano.BM.Trace
     ( nullTracer
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Cardano.Slotting.Slot
     ( EpochNo (..)
     )
@@ -100,9 +103,6 @@ import Network.Socket
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
     , mkSlotLength
-    )
-import Cardano.Ledger.BaseTypes
-    ( unsafeNonZero
     )
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..)

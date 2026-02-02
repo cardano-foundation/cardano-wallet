@@ -79,6 +79,9 @@ import Cardano.Ledger.Api.UTxO
 import Cardano.Ledger.Babbage.TxInfo
     ( BabbageContextError (..)
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Cardano.Ledger.Conway.TxInfo
     ( ConwayContextError (..)
     )
@@ -328,9 +331,6 @@ import Numeric.Natural
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..)
     , mkSlotLength
-    )
-import Cardano.Ledger.BaseTypes
-    ( unsafeNonZero
     )
 import Ouroboros.Consensus.Config
     ( SecurityParam (..)

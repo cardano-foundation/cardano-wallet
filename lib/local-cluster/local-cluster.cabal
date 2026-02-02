@@ -104,13 +104,13 @@ library
     , base58-bytestring                  >=0.1       && <0.2
     , bytestring                         >=0.10.6    && <0.13
     , cardano-addresses                  >=4.0.2     && <4.1
-    , cardano-api  >=10.16.0.0 && <10.17
+    , cardano-api                        >=10.16.0.0 && <10.17
     , cardano-binary                     >=1.7.1.0   && <1.8
     , cardano-cli                        >=10.11.0.0
     , cardano-data                       >=1.2.3.1   && <1.3
-    , cardano-ledger-api  >=1.11.0.0 && <1.12
-    , cardano-ledger-core  >=1.17.0.0 && <1.18
-    , cardano-ledger-shelley  >=1.16.0.0 && <1.17
+    , cardano-ledger-api                 >=1.11.0.0  && <1.12
+    , cardano-ledger-core                >=1.17.0.0  && <1.18
+    , cardano-ledger-shelley             >=1.16.0.0  && <1.17
     , cardano-wallet-application-extras
     , cardano-wallet-launcher
     , cardano-wallet-primitive
@@ -130,7 +130,7 @@ library
     , http-media                         >=0.8.1.1   && <0.9
     , insert-ordered-containers          >=0.2.3     && <0.3
     , int-cast                           >=0.2.0.0   && <0.3
-    , io-classes                    >=1.5.0.0  && <1.9
+    , io-classes                         >=1.5.0.0   && <1.9
     , iohk-monitoring                    >=0.2.0.0   && <0.3
     , iohk-monitoring-extra
     , lens                               >=5.2.3     && <5.4
@@ -142,8 +142,8 @@ library
     , OddWord                            >=1.0.1.1   && <1.1
     , openapi3                           >=3.2.3     && <3.3
     , optparse-applicative               >=0.18.1.0  && <0.19
-    , ouroboros-network  >=0.21.0.0 && <0.22
-    , ouroboros-network-api  >=0.14.0.0 && <0.15
+    , ouroboros-network                  >=0.21.0.0  && <0.22
+    , ouroboros-network-api              >=0.14.0.0  && <0.15
     , pathtype                           >=0.8.1.3   && <0.9
     , profunctors                        >=5.6.2     && <5.7
     , QuickCheck                         >=2.14      && <2.16
@@ -233,12 +233,12 @@ common test-common
     , bytestring
     , cardano-addresses                    >=4.0.2    && <4.1
     , cardano-binary                       >=1.7.1.0  && <1.8
-    , cardano-ledger-alonzo  >=1.13.0.0 && <1.14
-    , cardano-ledger-babbage  >=1.11.0.0 && <1.12
-    , cardano-ledger-byron          >=1.1.0.0  && <1.2
-    , cardano-ledger-core  >=1.17.0.0 && <1.18
-    , cardano-ledger-mary        >=1.8.0.0  && <1.9
-    , cardano-ledger-shelley  >=1.16.0.0 && <1.17
+    , cardano-ledger-alonzo                >=1.13.0.0 && <1.14
+    , cardano-ledger-babbage               >=1.11.0.0 && <1.12
+    , cardano-ledger-byron                 >=1.1.0.0  && <1.2
+    , cardano-ledger-core                  >=1.17.0.0 && <1.18
+    , cardano-ledger-mary                  >=1.8.0.0  && <1.9
+    , cardano-ledger-shelley               >=1.16.0.0 && <1.17
     , cardano-wallet-launcher
     , cardano-wallet-network-layer
     , cardano-wallet-primitive
@@ -255,8 +255,8 @@ common test-common
     , local-cluster:local-cluster-process
     , mtl
     , openapi3
-    , ouroboros-consensus-cardano  >=0.25.0.0 && <0.26
-    , ouroboros-network  >=0.21.0.0 && <0.22
+    , ouroboros-consensus-cardano          >=0.25.0.0 && <0.26
+    , ouroboros-network                    >=0.21.0.0 && <0.22
     , pathtype
     , QuickCheck
     , streaming                            >=0.2.4    && <0.3

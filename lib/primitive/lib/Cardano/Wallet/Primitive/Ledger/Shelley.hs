@@ -125,6 +125,12 @@ import Cardano.Crypto.Hash.Class
     ( Hash (UnsafeHash)
     , hashToBytes
     )
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
+    )
 import Cardano.Ledger.Api
     ( ppCollateralPercentageL
     , ppDL
@@ -138,6 +144,9 @@ import Cardano.Ledger.Api
     , ppNOptL
     , ppPricesL
     )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe
     , urlToText
@@ -145,13 +154,22 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
     ( EncCBORGroup
     )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
 import Cardano.Ledger.Core
     ( Era (..)
     , TxSeq
     )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
 import Cardano.Ledger.PoolParams
     ( PoolMetadata (..)
     , PoolParams (..)
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
     )
 import Cardano.Ledger.Shelley.Genesis
     ( fromNominalDiffTimeMicro
@@ -251,24 +269,6 @@ import Fmt
     )
 import GHC.Stack
     ( HasCallStack
-    )
-import Cardano.Ledger.Allegra
-    ( AllegraEra
-    )
-import Cardano.Ledger.Alonzo
-    ( AlonzoEra
-    )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
-    )
-import Cardano.Ledger.Conway
-    ( ConwayEra
-    )
-import Cardano.Ledger.Mary
-    ( MaryEra
-    )
-import Cardano.Ledger.Shelley
-    ( ShelleyEra
     )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock

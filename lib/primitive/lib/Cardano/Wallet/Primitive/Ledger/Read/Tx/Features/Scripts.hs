@@ -15,15 +15,19 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Scripts
 
 import Prelude
 
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
+    )
 import Cardano.Ledger.Api
-    ( Alonzo
-    , Babbage
-    , Conway
-    , ScriptHash
+    ( ScriptHash
     , hashScript
     )
 import Cardano.Ledger.Babbage
     ( AlonzoScript
+    , BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
     )
 import Cardano.Ledger.Mary.Value
     ( PolicyID (..)
@@ -50,20 +54,11 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCountCtx
     , toKeyRole
     )
-import Cardano.Ledger.Alonzo
-    ( AlonzoEra
-    )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
-    )
-import Cardano.Ledger.Conway
-    ( ConwayEra
-    )
 
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
 
 alonzoAnyExplicitScript
-    :: WitnessCountCtx -> AlonzoScript Alonzo -> AnyExplicitScript
+    :: WitnessCountCtx -> AlonzoScript AlonzoEra -> AnyExplicitScript
 alonzoAnyExplicitScript witCtx = \case
     Alonzo.TimelockScript script ->
         NativeExplicitScript
@@ -73,7 +68,7 @@ alonzoAnyExplicitScript witCtx = \case
         PlutusExplicitScript
             (PlutusScriptInfo
                 (toPlutusScriptInfo @AlonzoEra s)
-                (fromLedgerScriptHash $ hashScript @Alonzo script)
+                (fromLedgerScriptHash $ hashScript @AlonzoEra script)
             )
             ViaSpending
 
@@ -81,7 +76,7 @@ babbageAnyExplicitScript
     :: WitnessCountCtx
     -> ( ScriptReference
         , ScriptHash
-        , AlonzoScript Babbage
+        , AlonzoScript BabbageEra
         )
     -> (TokenPolicyId, AnyExplicitScript)
 babbageAnyExplicitScript witCtx (scriptRef, scriptH, script) =
@@ -96,7 +91,7 @@ babbageAnyExplicitScript witCtx (scriptRef, scriptH, script) =
             PlutusExplicitScript
                 (PlutusScriptInfo
                     (toPlutusScriptInfo @BabbageEra s)
-                    (fromLedgerScriptHash $ hashScript @Babbage script)
+                    (fromLedgerScriptHash $ hashScript @BabbageEra script)
                 )
                 scriptRef
 
@@ -104,7 +99,7 @@ conwayAnyExplicitScript
     :: WitnessCountCtx
     -> ( ScriptReference
         , ScriptHash
-        , AlonzoScript Conway
+        , AlonzoScript ConwayEra
         )
     -> (TokenPolicyId, AnyExplicitScript)
 conwayAnyExplicitScript witCtx (scriptRef, scriptH, script) =
@@ -119,6 +114,6 @@ conwayAnyExplicitScript witCtx (scriptRef, scriptH, script) =
             PlutusExplicitScript
                 (PlutusScriptInfo
                     (toPlutusScriptInfo @ConwayEra s)
-                    (fromLedgerScriptHash $ hashScript @Conway script)
+                    (fromLedgerScriptHash $ hashScript @ConwayEra script)
                 )
                 scriptRef

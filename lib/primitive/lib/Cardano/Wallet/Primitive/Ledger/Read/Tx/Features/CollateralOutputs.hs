@@ -9,6 +9,12 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.CollateralOutputs
 
 import Prelude
 
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
 import Cardano.Read.Ledger.Tx.CollateralOutputs
     ( CollateralOutputs (..)
     )
@@ -24,12 +30,6 @@ import Cardano.Wallet.Read.Eras
     )
 import Data.Maybe.Strict
     ( strictMaybeToMaybe
-    )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
-    )
-import Cardano.Ledger.Conway
-    ( ConwayEra
     )
 
 import qualified Cardano.Ledger.Babbage as Babbage

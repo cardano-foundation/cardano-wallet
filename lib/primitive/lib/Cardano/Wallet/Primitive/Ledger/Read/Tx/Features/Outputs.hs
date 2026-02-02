@@ -24,8 +24,24 @@ import Cardano.Binary
 import Cardano.Chain.Common
     ( unsafeGetLovelace
     )
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
 import Cardano.Ledger.Alonzo
-    ( AlonzoScript
+    ( AlonzoEra
+    , AlonzoScript
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
     )
 import Cardano.Ledger.Shelley.API
     ( StrictMaybe (SJust, SNothing)
@@ -52,24 +68,6 @@ import Data.Foldable
 import GHC.Stack
     ( HasCallStack
     )
-import Cardano.Ledger.Allegra
-    ( AllegraEra
-    )
-import Cardano.Ledger.Alonzo
-    ( AlonzoEra
-    )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
-    )
-import Cardano.Ledger.Conway
-    ( ConwayEra
-    )
-import Cardano.Ledger.Mary
-    ( MaryEra
-    )
-import Cardano.Ledger.Shelley
-    ( ShelleyEra
-    )
 
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.UTxO as Byron
@@ -79,7 +77,6 @@ import qualified Cardano.Ledger.Alonzo.TxBody as Alonzo
 import qualified Cardano.Ledger.Babbage as Babbage
 import qualified Cardano.Ledger.Babbage.TxBody as Babbage
 import qualified Cardano.Ledger.Conway as Conway
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Address as W
