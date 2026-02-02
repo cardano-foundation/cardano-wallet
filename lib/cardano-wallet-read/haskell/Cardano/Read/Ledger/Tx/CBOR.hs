@@ -1,8 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-
 {- |
 Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
 License: Apache-2.0
@@ -10,10 +5,13 @@ License: Apache-2.0
 Binary serialization of transactions.
 -}
 module Cardano.Read.Ledger.Tx.CBOR
-    ( serializeTx
+    ( -- * Serialization
+      serializeTx
+
+      -- * Deserialization
     , deserializeTx
     )
-    where
+where
 
 import Prelude
 
@@ -28,6 +26,7 @@ import Cardano.Ledger.Binary
     , decodeFull
     , decodeFullAnnotator
     )
+import Cardano.Ledger.Binary.Encoding qualified as Ledger
 import Cardano.Read.Ledger.Eras
     ( Era (..)
     , IsEra (..)
@@ -36,13 +35,12 @@ import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)
     , TxT
     )
+import Data.ByteString.Lazy qualified as BL
 
-import qualified Cardano.Ledger.Binary.Encoding as Ledger
-import qualified Data.ByteString.Lazy as BL
+{-# INLINEABLE serializeTx #-}
 
-{-# INLINABLE serializeTx #-}
 -- | CBOR serialization of a tx in any era.
-serializeTx :: forall era . IsEra era => Tx era -> BL.ByteString
+serializeTx :: forall era. IsEra era => Tx era -> BL.ByteString
 serializeTx = case era of
     Byron -> f (versionForEra era)
     Shelley -> f (versionForEra era)
@@ -57,10 +55,12 @@ serializeTx = case era of
     f :: EncCBOR (TxT era) => Ledger.Version -> Tx era -> BL.ByteString
     f protVer = Ledger.serialize protVer . unTx
 
-{-# INLINABLE deserializeTx #-}
+{-# INLINEABLE deserializeTx #-}
+
 -- | CBOR deserialization of a tx in any era.
 deserializeTx
-    :: forall era . IsEra era
+    :: forall era
+     . IsEra era
     => BL.ByteString -> Either DecoderError (Tx era)
 deserializeTx = case era of
     Byron -> fmap Tx . decodeFull (versionForEra era)
@@ -76,6 +76,7 @@ deserializeTx = case era of
         fmap Tx . decodeFullAnnotator protVer label decCBOR
 
 {-# INLINE versionForEra #-}
+
 -- | Protocol version that we use for encoding and decoding.
 versionForEra :: forall era. Era era -> Ledger.Version
 versionForEra era = case era of

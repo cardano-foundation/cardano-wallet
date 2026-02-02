@@ -1,25 +1,21 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw script integrity data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw script integrity data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Integrity
-    ( IntegrityType
+    ( -- * Integrity type
+      IntegrityType
     , Integrity (..)
+
+      -- * Extraction
     , getEraIntegrity
     )
-    where
+where
 
 import Prelude
 
@@ -28,9 +24,6 @@ import Cardano.Ledger.Alonzo.Tx
     )
 import Cardano.Ledger.Alonzo.TxBody
     ( scriptIntegrityHashTxBodyL
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto
     )
 import Cardano.Ledger.Core
     ( bodyTxL
@@ -59,21 +52,32 @@ import Data.Maybe.Strict
     ( StrictMaybe
     )
 
+-- |
+-- Era-specific script integrity hash type.
+--
+-- Pre-Alonzo eras return unit @()@ as Plutus scripts are not supported.
+-- Alonzo and later return an optional hash committing to redeemers,
+-- datums, and cost models.
 type family IntegrityType era where
     IntegrityType Byron = ()
     IntegrityType Shelley = ()
     IntegrityType Allegra = ()
     IntegrityType Mary = ()
-    IntegrityType Alonzo = StrictMaybe (ScriptIntegrityHash StandardCrypto)
-    IntegrityType Babbage = StrictMaybe (ScriptIntegrityHash StandardCrypto)
-    IntegrityType Conway = StrictMaybe (ScriptIntegrityHash StandardCrypto)
+    IntegrityType Alonzo =
+        StrictMaybe ScriptIntegrityHash
+    IntegrityType Babbage =
+        StrictMaybe ScriptIntegrityHash
+    IntegrityType Conway =
+        StrictMaybe ScriptIntegrityHash
 
+-- | Era-indexed script integrity hash wrapper.
 newtype Integrity era = Integrity (IntegrityType era)
 
 deriving instance Show (IntegrityType era) => Show (Integrity era)
 deriving instance Eq (IntegrityType era) => Eq (Integrity era)
 
-{-# INLINABLE getEraIntegrity #-}
+{-# INLINEABLE getEraIntegrity #-}
+
 -- | Extract the script integrity data from a transaction in any available era.
 getEraIntegrity :: forall era. IsEra era => Tx era -> Integrity era
 getEraIntegrity = case theEra @era of

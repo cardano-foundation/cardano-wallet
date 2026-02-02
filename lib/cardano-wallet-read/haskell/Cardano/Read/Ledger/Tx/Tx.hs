@@ -1,8 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -13,12 +8,14 @@ The 'Tx' type represents transactions as they are read from the mainnet ledger.
 It is compatible with the era-specific index types from @cardano-ledger@.
 -}
 module Cardano.Read.Ledger.Tx.Tx
-    ( Tx (..)
+    ( -- * Transaction type
+      Tx (..)
     , TxT
     ) where
 
 import Prelude
 
+import Cardano.Chain.UTxO qualified as Byron
 import Cardano.Ledger.Alonzo.Tx
     ( AlonzoTx
     )
@@ -35,9 +32,14 @@ import Cardano.Read.Ledger.Eras
     , Shelley
     )
 
-import qualified Cardano.Chain.UTxO as Byron
-
--- | Closed type family returning the ledger 'Tx' type for each known @era@.
+-- |
+-- Closed type family returning the ledger transaction type for each known era.
+--
+-- The transaction type differs between eras:
+--
+-- * Byron uses 'ATxAux'
+-- * Shelley through Mary use 'ShelleyTx'
+-- * Alonzo and later use 'AlonzoTx'
 type family TxT era where
     TxT Byron = Byron.ATxAux ()
     TxT Shelley = ShelleyTx Shelley
@@ -47,7 +49,11 @@ type family TxT era where
     TxT Babbage = AlonzoTx Babbage
     TxT Conway = AlonzoTx Conway
 
--- | A tx in any era
+-- |
+-- Era-indexed transaction wrapper.
+--
+-- Use the accessor functions from the @Cardano.Read.Ledger.Tx.*@ modules
+-- to extract transaction components like inputs, outputs, fees, etc.
 newtype Tx era = Tx {unTx :: TxT era}
 
 deriving instance Show (TxT era) => Show (Tx era)

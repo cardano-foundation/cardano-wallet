@@ -1,14 +1,11 @@
-{-# LANGUAGE TypeFamilies #-}
-
--- |
--- Copyright: © 2020 IOHK
--- License: Apache-2.0
---
-
+{- |
+Copyright: © 2020 IOHK
+License: Apache-2.0
+-}
 module Cardano.Read.Ledger.Tx.Eras
     ( onTx
     )
-    where
+where
 
 import Cardano.Read.Ledger.Tx.Tx
     ( Tx (..)

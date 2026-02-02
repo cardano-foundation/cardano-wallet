@@ -21,9 +21,6 @@ module Cardano.Wallet.Read.Address
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Read.Ledger.Address
     ( translateCompactAddrShelleyFromByron
     )
@@ -42,7 +39,7 @@ import qualified Data.ByteString.Short as SBS
 {-----------------------------------------------------------------------------
     CompactAddr
 ------------------------------------------------------------------------------}
-type CompactAddr = SH.CompactAddr StandardCrypto
+type CompactAddr = SH.CompactAddr
 
 toShortByteString :: CompactAddr -> SBS.ShortByteString
 toShortByteString = SH.unCompactAddr

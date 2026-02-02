@@ -39,9 +39,6 @@ import Prelude hiding
     ( subtract
     )
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Coin
     ( Coin (Coin)
     )
@@ -72,7 +69,7 @@ pattern CoinC{unCoin} = Coin unCoin
 
 type AssetName = MA.AssetName
 
-type PolicyID = MA.PolicyID StandardCrypto
+type PolicyID = MA.PolicyID
 
 type Quantity = Integer
 
@@ -84,21 +81,21 @@ data AssetID
 deriving instance Eq AssetID
 deriving instance Ord AssetID
 
-type MultiAsset = MA.MultiAsset StandardCrypto
+type MultiAsset = MA.MultiAsset
 
 {-----------------------------------------------------------------------------
     Value
 ------------------------------------------------------------------------------}
 
 -- | Monetary values, representing both ADA and native assets/tokens.
-newtype Value = Value (MA.MaryValue StandardCrypto)
+newtype Value = Value MA.MaryValue
 
 -- | Internal: Convert from ledger 'MaryValue'.
-fromMaryValue :: MA.MaryValue StandardCrypto -> Value
+fromMaryValue :: MA.MaryValue -> Value
 fromMaryValue = Value
 
 -- | Internal: Convert to ledger 'MaryValue'.
-toMaryValue :: Value -> MA.MaryValue StandardCrypto
+toMaryValue :: Value -> MA.MaryValue
 toMaryValue (Value v) = v
 
 instance Eq Value where

@@ -45,8 +45,23 @@ extra-source-files:
 common language
   default-language:   Haskell2010
   default-extensions:
+    DataKinds
+    DeriveGeneric
+    DerivingStrategies
+    FlexibleContexts
+    GeneralizedNewtypeDeriving
+    FlexibleInstances
+    GADTs
+    ImportQualifiedPost
+    LambdaCase
     NoImplicitPrelude
     OverloadedStrings
+    RankNTypes
+    ScopedTypeVariables
+    StandaloneDeriving
+    TypeApplications
+    TypeFamilies
+    TypeOperators
 
 common opts-exe
   ghc-options: -threaded -rtsopts -Wall -Wredundant-constraints
@@ -79,7 +94,9 @@ library
     Cardano.Read.Ledger.Block.SlotNo
     Cardano.Read.Ledger.Block.Txs
     Cardano.Read.Ledger.Eras
+    Cardano.Read.Ledger.Eras.EraValue
     Cardano.Read.Ledger.Eras.KnownEras
+    Cardano.Read.Ledger.Hash
     Cardano.Read.Ledger.PParams
     Cardano.Read.Ledger.Tx.Inputs
     Cardano.Read.Ledger.Tx.Outputs

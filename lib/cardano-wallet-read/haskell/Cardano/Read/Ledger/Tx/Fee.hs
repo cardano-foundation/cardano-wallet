@@ -1,25 +1,21 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw fee data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw fee data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Fee
-    ( FeeType
+    ( -- * Fee type
+      FeeType
     , Fee (..)
+
+      -- * Extraction
     , getEraFee
     )
-    where
+where
 
 import Prelude
 
@@ -51,6 +47,11 @@ import Control.Lens
     ( (^.)
     )
 
+-- |
+-- Era-specific fee type.
+--
+-- Byron returns unit @()@ as fees are implicit. Shelley and later
+-- return 'Coin' (lovelace amount).
 type family FeeType era where
     FeeType Byron = ()
     FeeType Shelley = Coin
@@ -60,12 +61,14 @@ type family FeeType era where
     FeeType Babbage = Coin
     FeeType Conway = Coin
 
+-- | Era-indexed transaction fee wrapper.
 newtype Fee era = Fee (FeeType era)
 
 deriving instance Show (FeeType era) => Show (Fee era)
 deriving instance Eq (FeeType era) => Eq (Fee era)
 
-{-# INLINABLE getEraFee #-}
+{-# INLINEABLE getEraFee #-}
+
 -- | Extract fee from 'Tx' in all available eras.
 getEraFee :: forall era. IsEra era => Tx era -> Fee era
 getEraFee = case theEra @era of

@@ -1,24 +1,20 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw withdrawals data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw withdrawals data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Withdrawals
-    ( WithdrawalsType
+    ( -- * Withdrawal type
+      WithdrawalsType
     , Withdrawals (..)
-    , getEraWithdrawals
     , RewardWithdrawals
+
+      -- * Extraction
+    , getEraWithdrawals
     , shelleyWithdrawals
     ) where
 
@@ -28,9 +24,7 @@ import Cardano.Ledger.Address
     ( RewardAccount
     , unWithdrawals
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
+import Cardano.Ledger.Api qualified as Ledger
 import Cardano.Ledger.Coin
     ( Coin
     )
@@ -62,28 +56,35 @@ import Data.Map
     ( Map
     )
 
-import qualified Cardano.Ledger.Api as Ledger
-
+-- |
+-- Era-specific withdrawal type.
+--
+-- Byron does not support staking, so withdrawals return unit @()@.
+-- Shelley and later return a map from reward accounts to coin amounts.
 type family WithdrawalsType era where
-  WithdrawalsType Byron = ()
-  WithdrawalsType Shelley = RewardWithdrawals
-  WithdrawalsType Allegra = RewardWithdrawals
-  WithdrawalsType Mary = RewardWithdrawals
-  WithdrawalsType Alonzo = RewardWithdrawals
-  WithdrawalsType Babbage = RewardWithdrawals
-  WithdrawalsType Conway = RewardWithdrawals
+    WithdrawalsType Byron = ()
+    WithdrawalsType Shelley = RewardWithdrawals
+    WithdrawalsType Allegra = RewardWithdrawals
+    WithdrawalsType Mary = RewardWithdrawals
+    WithdrawalsType Alonzo = RewardWithdrawals
+    WithdrawalsType Babbage = RewardWithdrawals
+    WithdrawalsType Conway = RewardWithdrawals
 
-type RewardWithdrawals = Map (RewardAccount StandardCrypto) Coin
+-- | Map from reward accounts to coin amounts being withdrawn.
+type RewardWithdrawals = Map RewardAccount Coin
 
+-- | Era-indexed stake reward withdrawals wrapper.
 newtype Withdrawals era
-    = Withdrawals { withdrawalsAsMap :: WithdrawalsType era }
+    = Withdrawals {withdrawalsAsMap :: WithdrawalsType era}
 
 deriving instance Show (WithdrawalsType era) => Show (Withdrawals era)
 deriving instance Eq (WithdrawalsType era) => Eq (Withdrawals era)
 
-{-# INLINABLE getEraWithdrawals #-}
+{-# INLINEABLE getEraWithdrawals #-}
+
 -- | Extract withdrawals from tx for any available era.
-getEraWithdrawals :: forall era . IsEra era => Tx era -> Withdrawals era
+getEraWithdrawals
+    :: forall era. IsEra era => Tx era -> Withdrawals era
 getEraWithdrawals = case theEra @era of
     Byron -> \_ -> Withdrawals ()
     Shelley -> withdrawals
@@ -95,8 +96,9 @@ getEraWithdrawals = case theEra @era of
   where
     withdrawals = onTx $ Withdrawals . shelleyWithdrawals
 
+-- | Extract withdrawals from a Shelley-era (or later) transaction.
 shelleyWithdrawals
     :: Ledger.EraTx era
     => Ledger.Tx era
-    -> Map (RewardAccount (Ledger.EraCrypto era)) Coin
+    -> Map RewardAccount Coin
 shelleyWithdrawals = unWithdrawals . view (bodyTxL . withdrawalsTxBodyL)

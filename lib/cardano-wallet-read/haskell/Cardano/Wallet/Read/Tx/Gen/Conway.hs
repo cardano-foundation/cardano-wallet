@@ -23,7 +23,10 @@ import Cardano.Ledger.Alonzo.TxAuxData
 import Cardano.Ledger.Api
     ( ConwayEra
     , Datum (NoDatum)
-    , StandardCrypto
+    
+    )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto
     )
 import Cardano.Ledger.Api.Tx.In
     ( TxIn

@@ -1,7 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -11,18 +7,20 @@ License: Apache-2.0
 Era-indexed address types.
 -}
 module Cardano.Read.Ledger.Address
-    ( CompactAddrType
+    ( -- * Compact address type
+      CompactAddrType
     , CompactAddr (..)
+
+      -- * Conversions
     , translateCompactAddrShelleyFromByron
     )
-    where
+where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
-import Cardano.Wallet.Read.Eras
+import Cardano.Chain.Common qualified as BY
+import Cardano.Ledger.Address qualified as SH
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage
@@ -32,27 +30,27 @@ import Cardano.Wallet.Read.Eras
     , Shelley
     )
 
-import qualified Cardano.Chain.Common as BY
-import qualified Cardano.Ledger.Address as SH
-
 {-----------------------------------------------------------------------------
-    Output
+    Compact address
 ------------------------------------------------------------------------------}
 
+-- | Era-specific compact address type.
 type family CompactAddrType era where
     CompactAddrType Byron = BY.CompactAddress
-    CompactAddrType Shelley = SH.CompactAddr StandardCrypto
-    CompactAddrType Allegra = SH.CompactAddr StandardCrypto
-    CompactAddrType Mary = SH.CompactAddr StandardCrypto
-    CompactAddrType Alonzo = SH.CompactAddr StandardCrypto
-    CompactAddrType Babbage = SH.CompactAddr StandardCrypto
-    CompactAddrType Conway = SH.CompactAddr StandardCrypto
+    CompactAddrType Shelley = SH.CompactAddr
+    CompactAddrType Allegra = SH.CompactAddr
+    CompactAddrType Mary = SH.CompactAddr
+    CompactAddrType Alonzo = SH.CompactAddr
+    CompactAddrType Babbage = SH.CompactAddr
+    CompactAddrType Conway = SH.CompactAddr
 
+-- | Era-indexed compact address wrapper.
 newtype CompactAddr era = CompactAddr (CompactAddrType era)
 
 deriving instance Show (CompactAddrType era) => Show (CompactAddr era)
 deriving instance Eq (CompactAddrType era) => Eq (CompactAddr era)
 
+-- | Convert a Byron compact address to a Shelley compact address.
 translateCompactAddrShelleyFromByron
     :: CompactAddrType Byron -> CompactAddrType Shelley
 translateCompactAddrShelleyFromByron = SH.fromBoostrapCompactAddress

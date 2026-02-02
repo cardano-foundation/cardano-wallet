@@ -27,10 +27,12 @@ import Cardano.Ledger.Alonzo.TxWits
     )
 import Cardano.Ledger.Api
     ( AlonzoEra
-    , StandardCrypto
     )
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
+    )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto
     )
 import Cardano.Ledger.BaseTypes
     ( Network

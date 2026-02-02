@@ -28,7 +28,10 @@ import Cardano.Ledger.Address
 import Cardano.Ledger.Api
     ( Era
     , ShelleyEra
-    , StandardCrypto
+    
+    )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto
     )
 import Cardano.Ledger.Api.Tx.In
     ( mkTxInPartial

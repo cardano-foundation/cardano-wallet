@@ -1,8 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {- |
@@ -12,19 +7,27 @@ License: Apache-2.0
 Era-indexed transaction output.
 -}
 module Cardano.Read.Ledger.Tx.Output
-    ( OutputType
+    ( -- * Output type
+      OutputType
     , Output (..)
+
+      -- * Accessors
     , getEraCompactAddr
     , getEraValue
+
+      -- * Era upgrades
     , upgradeToOutputBabbage
     , upgradeToOutputConway
+
+      -- * Serialization
     , deserializeOutput
     , serializeOutput
     )
-    where
+where
 
 import Prelude
 
+import Cardano.Chain.UTxO qualified as BY
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )
@@ -47,6 +50,7 @@ import Cardano.Ledger.Binary
     , decodeFullDecoder
     , shelleyProtVer
     )
+import Cardano.Ledger.Binary.Encoding qualified as Ledger
 import Cardano.Ledger.Core
     ( compactAddrTxOutL
     , valueTxOutL
@@ -58,12 +62,7 @@ import Cardano.Read.Ledger.Address
     ( CompactAddr (..)
     , CompactAddrType
     )
-import Cardano.Read.Ledger.Value
-    ( Value (..)
-    , ValueType
-    , maryValueFromByronValue
-    )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
     , Babbage
@@ -74,21 +73,24 @@ import Cardano.Wallet.Read.Eras
     , Mary
     , Shelley
     )
+import Cardano.Read.Ledger.Value
+    ( Value (..)
+    , ValueType
+    , maryValueFromByronValue
+    )
 import Control.Lens
     ( view
     )
+import Data.ByteString.Lazy qualified as BL
 import Data.Text
     ( Text
     )
-
-import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Ledger.Binary.Encoding as Ledger
-import qualified Data.ByteString.Lazy as BL
 
 {-----------------------------------------------------------------------------
     Output
 ------------------------------------------------------------------------------}
 
+-- | Era-specific single output type.
 type family OutputType era where
     OutputType Byron = BY.TxOut
     OutputType Shelley = ShelleyTxOut Shelley
@@ -98,6 +100,7 @@ type family OutputType era where
     OutputType Babbage = BabbageTxOut Babbage
     OutputType Conway = BabbageTxOut Conway
 
+-- | Era-indexed single transaction output wrapper.
 newtype Output era = Output (OutputType era)
 
 deriving instance Show (OutputType era) => Show (Output era)
@@ -108,7 +111,10 @@ deriving instance Eq (OutputType era) => Eq (Output era)
 ------------------------------------------------------------------------------}
 
 {-# INLINEABLE getEraCompactAddr #-}
-getEraCompactAddr :: forall era. IsEra era => Output era -> CompactAddr era
+
+-- | Extract the compact address from an output in any era.
+getEraCompactAddr
+    :: forall era. IsEra era => Output era -> CompactAddr era
 getEraCompactAddr = case theEra :: Era era of
     Byron -> address $ (\(BY.CompactTxOut a _) -> a) . BY.toCompactTxOut
     Shelley -> address (view compactAddrTxOutL)
@@ -118,13 +124,16 @@ getEraCompactAddr = case theEra :: Era era of
     Babbage -> address (view compactAddrTxOutL)
     Conway -> address (view compactAddrTxOutL)
 
--- Helper function for type inference
+-- | Helper function for type inference in 'getEraCompactAddr'.
 address
     :: (OutputType era -> CompactAddrType era)
-    -> Output era -> CompactAddr era
+    -> Output era
+    -> CompactAddr era
 address f (Output x) = CompactAddr (f x)
 
 {-# INLINEABLE getEraValue #-}
+
+-- | Extract the value from an output in any era.
 getEraValue :: forall era. IsEra era => Output era -> Value era
 getEraValue = case theEra :: Era era of
     Byron -> value BY.txOutValue
@@ -135,7 +144,7 @@ getEraValue = case theEra :: Era era of
     Babbage -> value (view valueTxOutL)
     Conway -> value (view valueTxOutL)
 
--- Helper function for type inference
+-- | Helper function for type inference in 'getEraValue'.
 value :: (OutputType era -> ValueType era) -> Output era -> Value era
 value f (Output x) = Value (f x)
 
@@ -144,65 +153,90 @@ value f (Output x) = Value (f x)
 ------------------------------------------------------------------------------}
 
 {-# INLINEABLE upgradeToOutputBabbage #-}
--- | Upgrade an 'Output' to the 'Babbage' era if possibile.
---
--- Hardfork: Update this function to the new era.
+
+{- | Upgrade an 'Output' to the 'Babbage' era if possibile.
+
+Hardfork: Update this function to the new era.
+-}
 upgradeToOutputBabbage
-    :: forall era. IsEra era
-    => Output era -> Maybe (Output Babbage)
+    :: forall era
+     . IsEra era
+    => Output era
+    -> Maybe (Output Babbage)
 upgradeToOutputBabbage = case theEra :: Era era of
-    Byron -> Just . onOutput
-        (\(BY.TxOut addr lovelace) ->
-            mkBasicTxOut
-                (AddrBootstrap (BootstrapAddress addr))
-                (maryValueFromByronValue lovelace)
-        )
-    Shelley -> Just . onOutput
-        (upgradeTxOut . upgradeTxOut . upgradeTxOut . upgradeTxOut)
-    Allegra -> Just . onOutput
-        (upgradeTxOut . upgradeTxOut . upgradeTxOut)
-    Mary -> Just . onOutput
-        (upgradeTxOut . upgradeTxOut)
+    Byron ->
+        Just
+            . onOutput
+                ( \(BY.TxOut addr lovelace) ->
+                    mkBasicTxOut
+                        (AddrBootstrap (BootstrapAddress addr))
+                        (maryValueFromByronValue lovelace)
+                )
+    Shelley ->
+        Just
+            . onOutput
+                (upgradeTxOut . upgradeTxOut . upgradeTxOut . upgradeTxOut)
+    Allegra ->
+        Just
+            . onOutput
+                (upgradeTxOut . upgradeTxOut . upgradeTxOut)
+    Mary ->
+        Just
+            . onOutput
+                (upgradeTxOut . upgradeTxOut)
     Alonzo -> Just . onOutput upgradeTxOut
-    Babbage -> Just . id
+    Babbage -> Just
     Conway -> const Nothing
 
 {-# INLINEABLE upgradeToOutputConway #-}
--- | Upgrade an 'Output' to the 'Conway' era.
---
--- Hardfork: Update this function to the next era.
-upgradeToOutputConway :: forall era. IsEra era => Output era -> Output Conway
+
+{- | Upgrade an 'Output' to the 'Conway' era.
+
+Hardfork: Update this function to the next era.
+-}
+upgradeToOutputConway
+    :: forall era. IsEra era => Output era -> Output Conway
 upgradeToOutputConway = case theEra :: Era era of
     Byron -> onOutput
         $ \(BY.TxOut addr lovelace) ->
             mkBasicTxOut
                 (AddrBootstrap (BootstrapAddress addr))
                 (maryValueFromByronValue lovelace)
-    Shelley -> onOutput
-        $ upgradeTxOut . upgradeTxOut . upgradeTxOut . upgradeTxOut
-        . upgradeTxOut
-    Allegra -> onOutput
-        $ upgradeTxOut . upgradeTxOut . upgradeTxOut . upgradeTxOut
-    Mary -> onOutput
-        $ upgradeTxOut . upgradeTxOut . upgradeTxOut
-    Alonzo -> onOutput
-        $ upgradeTxOut . upgradeTxOut
+    Shelley ->
+        onOutput
+            $ upgradeTxOut
+                . upgradeTxOut
+                . upgradeTxOut
+                . upgradeTxOut
+                . upgradeTxOut
+    Allegra ->
+        onOutput
+            $ upgradeTxOut . upgradeTxOut . upgradeTxOut . upgradeTxOut
+    Mary ->
+        onOutput
+            $ upgradeTxOut . upgradeTxOut . upgradeTxOut
+    Alonzo ->
+        onOutput
+            $ upgradeTxOut . upgradeTxOut
     Babbage -> onOutput upgradeTxOut
     Conway -> id
 
--- Helper function for type inference
+-- | Helper function for type inference in era upgrade operations.
 onOutput
     :: (OutputType era1 -> OutputType era2)
-    -> Output era1 -> Output era2
+    -> Output era1
+    -> Output era2
 onOutput f (Output x) = Output (f x)
 
 {-----------------------------------------------------------------------------
     Serialization
 ------------------------------------------------------------------------------}
 
-{-# INLINABLE serializeOutput #-}
+{-# INLINEABLE serializeOutput #-}
+
 -- | Serialize an 'Output' in binary format, e.g. for storing in a database.
-serializeOutput :: forall era. IsEra era => Output era -> BL.ByteString
+serializeOutput
+    :: forall era. IsEra era => Output era -> BL.ByteString
 serializeOutput = case theEra :: Era era of
     Byron -> encode byronProtVer
     Shelley -> encode (eraProtVerLow @Shelley)
@@ -214,16 +248,22 @@ serializeOutput = case theEra :: Era era of
   where
     encode
         :: EncCBOR (OutputType era)
-        => Ledger.Version -> Output era -> BL.ByteString
+        => Ledger.Version
+        -> Output era
+        -> BL.ByteString
     encode protVer (Output out) = Ledger.serialize protVer out
 
-{-# INLINABLE deserializeOutput #-}
--- | Deserialize an 'Output' from the binary format.
---
--- prop> ∀ o.  deserializeOutput (serializeOutput o) == Just o
+{-# INLINEABLE deserializeOutput #-}
+
+{- | Deserialize an 'Output' from the binary format.
+
+prop> ∀ o.  deserializeOutput (serializeOutput o) == Just o
+-}
 deserializeOutput
-    :: forall era . IsEra era
-    => BL.ByteString -> Either DecoderError (Output era)
+    :: forall era
+     . IsEra era
+    => BL.ByteString
+    -> Either DecoderError (Output era)
 deserializeOutput = case theEra :: Era era of
     Byron -> fmap Output . decodeFull byronProtVer
     Shelley -> decode shelleyProtVer "ShelleyTxOut"

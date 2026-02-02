@@ -1,32 +1,34 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
+{- |
+Copyright: © 2024 Cardano Foundation
+License: Apache-2.0
 
--- |
--- Copyright: © 2024 Cardano Foundation
--- License: Apache-2.0
---
+Era-indexed transaction identifier extraction.
+-}
 module Cardano.Read.Ledger.Tx.TxId
-    ( TxIdType
+    ( -- * Transaction ID type
+      TxIdType
     , TxId (..)
+
+      -- * Extraction
     , getEraTxId
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Chain.UTxO
     ( taTx
     )
+import Cardano.Chain.UTxO qualified as BY
 import Cardano.Crypto.Hashing
     ( serializeCborHash
-    )
-import Cardano.Ledger.Api
-    ( StandardCrypto
     )
 import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
     )
+import Cardano.Ledger.Core qualified as SH.Core
+import Cardano.Ledger.TxIn qualified as SH.TxIn
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -48,22 +50,22 @@ import Control.Lens
     ( (^.)
     )
 
-import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Ledger.Core as SH.Core
-import qualified Cardano.Ledger.TxIn as SH.TxIn
-
+-- | Era-specific transaction ID type.
 type family TxIdType era where
     TxIdType Byron = BY.TxId
-    TxIdType Shelley = SH.TxIn.TxId StandardCrypto
-    TxIdType Allegra = SH.TxIn.TxId StandardCrypto
-    TxIdType Mary = SH.TxIn.TxId StandardCrypto
-    TxIdType Alonzo = SH.TxIn.TxId StandardCrypto
-    TxIdType Babbage = SH.TxIn.TxId StandardCrypto
-    TxIdType Conway = SH.TxIn.TxId StandardCrypto
+    TxIdType Shelley = SH.TxIn.TxId
+    TxIdType Allegra = SH.TxIn.TxId
+    TxIdType Mary = SH.TxIn.TxId
+    TxIdType Alonzo = SH.TxIn.TxId
+    TxIdType Babbage = SH.TxIn.TxId
+    TxIdType Conway = SH.TxIn.TxId
 
+-- | Era-indexed transaction ID wrapper.
 newtype TxId era = TxId {unTxId :: TxIdType era}
 
 {-# INLINEABLE getEraTxId #-}
+
+-- | Extract the transaction ID from a transaction in any era.
 getEraTxId :: forall era. IsEra era => Tx era -> TxId era
 getEraTxId = case theEra :: Era era of
     Byron -> TxId . onTx byronTxId
@@ -80,5 +82,5 @@ byronTxId = serializeCborHash . taTx
 shelleyTxId
     :: SH.Core.EraTx era
     => SH.Core.Tx era
-    -> SH.TxIn.TxId (SH.Core.EraCrypto era)
+    -> SH.TxIn.TxId
 shelleyTxId tx = txIdTxBody (tx ^. bodyTxL)

@@ -19,7 +19,10 @@ import Cardano.Ledger.Allegra.TxBody
     )
 import Cardano.Ledger.Api
     ( AllegraEra
-    , StandardCrypto
+    
+    )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto
     )
 import Cardano.Ledger.Shelley.Tx
     ( ShelleyTx (ShelleyTx)

@@ -3,18 +3,29 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+-- |
+-- Module      : Cardano.Read.Ledger.Block.Txs
+-- Copyright   : © 2024 Cardano Foundation
+-- License     : Apache-2.0
+--
+-- Transaction extraction from blocks. This module provides the function
+-- to extract the list of transactions contained within a block.
 module Cardano.Read.Ledger.Block.Txs
     ( getEraTransactions
     ) where
 
 import Prelude
 
+import Cardano.Chain.Block qualified as Byron
+import Cardano.Chain.UTxO qualified as Byron
+import Cardano.Ledger.Api qualified as Ledger
 import Cardano.Ledger.Binary
     ( EncCBOR
     )
 import Cardano.Ledger.Core
     ( EraSegWits (..)
     )
+import Cardano.Ledger.Shelley.API qualified as Shelley
 import Cardano.Read.Ledger.Block.Block
     ( Block (..)
     )
@@ -30,21 +41,18 @@ import Cardano.Read.Ledger.Tx.Tx
 import Data.Foldable
     ( toList
     )
+import Ouroboros.Consensus.Byron.Ledger qualified as Byron
+import Ouroboros.Consensus.Byron.Ledger qualified as O
+import Ouroboros.Consensus.Shelley.Ledger qualified as O
 import Ouroboros.Consensus.Shelley.Protocol.Abstract
     ( ShelleyProtocolHeader
     )
 import Ouroboros.Consensus.Shelley.Protocol.Praos
-    ()
+    (
+    )
 import Ouroboros.Consensus.Shelley.Protocol.TPraos
-    ()
-
-import qualified Cardano.Chain.Block as Byron
-import qualified Cardano.Chain.UTxO as Byron
-import qualified Cardano.Ledger.Api as Ledger
-import qualified Cardano.Ledger.Shelley.API as Shelley
-import qualified Ouroboros.Consensus.Byron.Ledger as Byron
-import qualified Ouroboros.Consensus.Byron.Ledger as O
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
+    (
+    )
 
 {-# INLINEABLE getEraTransactions #-}
 

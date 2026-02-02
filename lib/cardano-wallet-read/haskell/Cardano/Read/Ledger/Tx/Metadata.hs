@@ -1,22 +1,18 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw mint data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw mint data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Metadata
-    ( MetadataType
+    ( -- * Metadata type
+      MetadataType
     , Metadata (..)
+
+      -- * Extraction
     , getEraMetadata
     ) where
 
@@ -58,22 +54,30 @@ import Data.Maybe.Strict
     ( StrictMaybe
     )
 
+-- |
+-- Era-specific metadata (auxiliary data) type.
+--
+-- Byron returns unit @()@ as metadata is not supported.
+-- Later eras return optional auxiliary data structures.
 type family MetadataType era where
-  MetadataType Byron = ()
-  MetadataType Shelley = StrictMaybe (ShelleyTxAuxData Shelley)
-  MetadataType Allegra = StrictMaybe (AllegraTxAuxData Allegra)
-  MetadataType Mary = StrictMaybe (AllegraTxAuxData Mary)
-  MetadataType Alonzo = StrictMaybe (AlonzoTxAuxData Alonzo)
-  MetadataType Babbage = StrictMaybe (AlonzoTxAuxData Babbage)
-  MetadataType Conway = StrictMaybe (AlonzoTxAuxData Conway)
+    MetadataType Byron = ()
+    MetadataType Shelley = StrictMaybe (ShelleyTxAuxData Shelley)
+    MetadataType Allegra = StrictMaybe (AllegraTxAuxData Allegra)
+    MetadataType Mary = StrictMaybe (AllegraTxAuxData Mary)
+    MetadataType Alonzo = StrictMaybe (AlonzoTxAuxData Alonzo)
+    MetadataType Babbage = StrictMaybe (AlonzoTxAuxData Babbage)
+    MetadataType Conway = StrictMaybe (AlonzoTxAuxData Conway)
 
+-- | Era-indexed transaction metadata wrapper.
 newtype Metadata era = Metadata (MetadataType era)
 
 deriving instance Show (MetadataType era) => Show (Metadata era)
 deriving instance Eq (MetadataType era) => Eq (Metadata era)
 
-{-# INLINABLE getEraMetadata #-}
-getEraMetadata :: forall era . IsEra era => Tx era -> Metadata era
+{-# INLINEABLE getEraMetadata #-}
+
+-- | Extract the metadata from a transaction in any era.
+getEraMetadata :: forall era. IsEra era => Tx era -> Metadata era
 getEraMetadata = case theEra @era of
     Byron -> \_ -> Metadata ()
     Shelley -> metadata
@@ -82,6 +86,5 @@ getEraMetadata = case theEra @era of
     Alonzo -> metadata
     Babbage -> metadata
     Conway -> metadata
-
   where
     metadata = onTx $ Metadata . view auxDataTxL

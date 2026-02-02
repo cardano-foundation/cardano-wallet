@@ -1,25 +1,21 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw validity interval data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw validity interval data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Validity
-    ( getEraValidity
-    , ValidityType
+    ( -- * Validity type
+      ValidityType
     , Validity (..)
+
+      -- * Extraction
+    , getEraValidity
     )
-    where
+where
 
 import Prelude
 
@@ -59,6 +55,14 @@ import Control.Lens
     ( (^.)
     )
 
+-- |
+-- Era-specific validity type.
+--
+-- Validity constraints differ across eras:
+--
+-- * Byron: Unit @()@ (no explicit validity)
+-- * Shelley: 'SlotNo' (time-to-live, transaction invalid after this slot)
+-- * Allegra and later: 'ValidityInterval' (valid between two slots)
 type family ValidityType era where
     ValidityType Byron = ()
     ValidityType Shelley = SlotNo
@@ -68,14 +72,16 @@ type family ValidityType era where
     ValidityType Babbage = ValidityInterval
     ValidityType Conway = ValidityInterval
 
+-- | Era-indexed transaction validity wrapper.
 newtype Validity era = Validity (ValidityType era)
 
 deriving instance Show (ValidityType era) => Show (Validity era)
 deriving instance Eq (ValidityType era) => Eq (Validity era)
 
-{-# INLINABLE getEraValidity #-}
+{-# INLINEABLE getEraValidity #-}
+
 -- | Extract validity data from tx for any available era.
-getEraValidity :: forall era . IsEra era => Tx era -> Validity era
+getEraValidity :: forall era. IsEra era => Tx era -> Validity era
 getEraValidity = case theEra @era of
     Byron -> \_ -> Validity ()
     Shelley -> anyValidity ttlTxBodyL

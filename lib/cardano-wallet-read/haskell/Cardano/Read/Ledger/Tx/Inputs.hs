@@ -1,33 +1,28 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2024 IOHK
--- License: Apache-2.0
---
-
+{- |
+Copyright: © 2020-2024 IOHK
+License: Apache-2.0
+-}
 module Cardano.Read.Ledger.Tx.Inputs
-    ( InputsType
+    ( -- * Input types
+      InputsType
     , Inputs (..)
+
+      -- * Extraction
     , getEraInputs
     )
-    where
+where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
+import Cardano.Chain.UTxO qualified as BY
 import Cardano.Ledger.Core
     ( bodyTxL
     , inputsTxBodyL
     )
+import Cardano.Ledger.Shelley.API qualified as SH
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -55,25 +50,29 @@ import Data.Set
     ( Set
     )
 
-import qualified Cardano.Chain.UTxO as BY
-import qualified Cardano.Ledger.Shelley.API as SH
-
+-- |
+-- Era-specific input collection type.
+--
+-- Byron uses a non-empty list while later eras use a set.
 type family InputsType era where
     InputsType Byron = NonEmpty BY.TxIn
-    InputsType Shelley = Set (SH.TxIn StandardCrypto)
-    InputsType Allegra = Set (SH.TxIn StandardCrypto)
-    InputsType Mary = Set (SH.TxIn StandardCrypto)
-    InputsType Alonzo = Set (SH.TxIn StandardCrypto)
-    InputsType Babbage = Set (SH.TxIn StandardCrypto)
-    InputsType Conway = Set (SH.TxIn StandardCrypto)
+    InputsType Shelley = Set SH.TxIn
+    InputsType Allegra = Set SH.TxIn
+    InputsType Mary = Set SH.TxIn
+    InputsType Alonzo = Set SH.TxIn
+    InputsType Babbage = Set SH.TxIn
+    InputsType Conway = Set SH.TxIn
 
+-- | Era-indexed transaction inputs wrapper.
 newtype Inputs era = Inputs (InputsType era)
 
 deriving instance Show (InputsType era) => Show (Inputs era)
 deriving instance Eq (InputsType era) => Eq (Inputs era)
 
-{-# INLINABLE getEraInputs #-}
-getEraInputs :: forall era . IsEra era => Tx era -> Inputs era
+{-# INLINEABLE getEraInputs #-}
+
+-- | Extract the transaction inputs from a transaction in any era.
+getEraInputs :: forall era. IsEra era => Tx era -> Inputs era
 getEraInputs = case theEra @era of
     Byron -> onTx $ \tx -> Inputs $ BY.txInputs $ BY.taTx tx
     Shelley -> shelleyInputs

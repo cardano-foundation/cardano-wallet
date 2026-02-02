@@ -49,6 +49,9 @@ import Cardano.Crypto.VRF.Praos
 import Cardano.Ledger.Api
     ( StandardCrypto
     )
+import Cardano.Ledger.Crypto
+    ( StandardCrypto
+    )
 import Cardano.Ledger.BaseTypes
     ( ProtVer (..)
     , Version

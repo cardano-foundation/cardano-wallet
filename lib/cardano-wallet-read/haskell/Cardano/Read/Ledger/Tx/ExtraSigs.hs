@@ -1,29 +1,24 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw extra signers required data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
-module Cardano.Read.Ledger.Tx.ExtraSigs where
+Raw extra signers required data extraction from 'Tx'
+-}
+module Cardano.Read.Ledger.Tx.ExtraSigs
+    ( ExtraSigsType
+    , ExtraSigs (..)
+    , getEraExtraSigs
+    ) where
 
 import Prelude
 
 import Cardano.Ledger.Alonzo.TxBody
     ( reqSignerHashesTxBodyL
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
+
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -55,21 +50,28 @@ import Data.Set
     ( Set
     )
 
+-- |
+-- Era-specific extra signers type.
+--
+-- Pre-Alonzo eras return unit @()@ as extra signers are not supported.
+-- Alonzo and later return a set of key hashes that must sign the transaction.
 type family ExtraSigsType era where
     ExtraSigsType Byron = ()
     ExtraSigsType Shelley = ()
     ExtraSigsType Allegra = ()
     ExtraSigsType Mary = ()
-    ExtraSigsType Alonzo = Set (KeyHash 'Witness StandardCrypto)
-    ExtraSigsType Babbage = Set (KeyHash 'Witness StandardCrypto)
-    ExtraSigsType Conway = Set (KeyHash 'Witness StandardCrypto)
+    ExtraSigsType Alonzo = Set (KeyHash 'Witness)
+    ExtraSigsType Babbage = Set (KeyHash 'Witness)
+    ExtraSigsType Conway = Set (KeyHash 'Witness)
 
+-- | Era-indexed required extra signers wrapper.
 newtype ExtraSigs era = ExtraSigs (ExtraSigsType era)
 
 deriving instance Show (ExtraSigsType era) => Show (ExtraSigs era)
 deriving instance Eq (ExtraSigsType era) => Eq (ExtraSigs era)
 
-{-# INLINABLE getEraExtraSigs #-}
+{-# INLINEABLE getEraExtraSigs #-}
+
 -- | Get extra signatures required for a transaction in any era.
 getEraExtraSigs :: forall era. IsEra era => Tx era -> ExtraSigs era
 getEraExtraSigs = case theEra @era of

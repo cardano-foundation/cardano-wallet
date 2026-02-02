@@ -1,31 +1,23 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw mint data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw mint data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Mint
-    ( MintType
+    ( -- * Mint type
+      MintType
     , Mint (..)
+
+      -- * Extraction
     , getEraMint
     ) where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -56,21 +48,29 @@ import Control.Lens
     ( view
     )
 
+-- |
+-- Era-specific minting type.
+--
+-- Pre-Mary eras return unit @()@ as native tokens are not supported.
+-- Mary and later return 'MultiAsset' representing minted\/burned tokens.
 type family MintType era where
-  MintType Byron = ()
-  MintType Shelley = ()
-  MintType Allegra = ()
-  MintType Mary = MultiAsset StandardCrypto
-  MintType Alonzo = MultiAsset StandardCrypto
-  MintType Babbage = MultiAsset StandardCrypto
-  MintType Conway = MultiAsset StandardCrypto
+    MintType Byron = ()
+    MintType Shelley = ()
+    MintType Allegra = ()
+    MintType Mary = MultiAsset
+    MintType Alonzo = MultiAsset
+    MintType Babbage = MultiAsset
+    MintType Conway = MultiAsset
 
+-- | Era-indexed minting\/burning wrapper.
 newtype Mint era = Mint (MintType era)
 
 deriving instance Show (MintType era) => Show (Mint era)
 deriving instance Eq (MintType era) => Eq (Mint era)
 
-{-# INLINABLE getEraMint #-}
+{-# INLINEABLE getEraMint #-}
+
+-- | Extract the minted\/burned native tokens from a transaction in any era.
 getEraMint :: forall era. IsEra era => Tx era -> Mint era
 getEraMint = case theEra @era of
     Byron -> \_ -> Mint ()

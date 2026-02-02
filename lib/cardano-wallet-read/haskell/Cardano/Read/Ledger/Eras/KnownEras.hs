@@ -1,9 +1,3 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
-
 {- |
 Copyright: © 2020-2022 IOHK, 2024 Cardano Foundation
 License: Apache-2.0
@@ -11,66 +5,100 @@ License: Apache-2.0
 A type list of known eras, useful for indexing types by era.
 -}
 module Cardano.Read.Ledger.Eras.KnownEras
-    ( Era (..)
+    ( -- * Era singleton
+      Era (..)
     , IsEra (..)
 
+      -- * Known eras
     , KnownEras
     , indexOfEra
 
+      -- * Era type aliases
+    , Byron
+    , Shelley
     , Allegra
+    , Mary
     , Alonzo
     , Babbage
-    , Byron
     , Conway
-    , Mary
-    , Shelley
     ) where
 
 import Prelude
 
 import Cardano.Ledger.Api
-    ( Allegra
-    , Alonzo
-    , Babbage
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
     , ByronEra
-    , Conway
-    , Mary
-    , Shelley
-    , StandardCrypto
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
     )
 
-type Byron = ByronEra StandardCrypto
+-- | The Byron era (pre-Shelley).
+type Byron = ByronEra
 
--- | Singleton type for eras.
---
--- This GADT provides a value-level representation of eras.
+-- | The Shelley era (first proof-of-stake era).
+type Shelley = ShelleyEra
+
+-- | The Allegra era (token locking).
+type Allegra = AllegraEra
+
+-- | The Mary era (multi-asset support).
+type Mary = MaryEra
+
+-- | The Alonzo era (Plutus smart contracts).
+type Alonzo = AlonzoEra
+
+-- | The Babbage era (Plutus V2, reference inputs).
+type Babbage = BabbageEra
+
+-- | The Conway era (governance).
+type Conway = ConwayEra
+
+{- | Singleton type for eras.
+
+This GADT provides a value-level representation of eras.
+-}
 data Era era where
-    Byron :: Era Byron
-    Shelley :: Era Shelley
-    Allegra :: Era Allegra
-    Mary :: Era Mary
-    Alonzo :: Era Alonzo
-    Babbage :: Era Babbage
-    Conway :: Era Conway
+    Byron :: Era ByronEra
+    Shelley :: Era ShelleyEra
+    Allegra :: Era AllegraEra
+    Mary :: Era MaryEra
+    Alonzo :: Era AlonzoEra
+    Babbage :: Era BabbageEra
+    Conway :: Era ConwayEra
 
 deriving instance Eq (Era era)
 deriving instance Show (Era era)
 
--- | Singleton class for eras.
+-- |
+-- Singleton class for eras.
+--
+-- This class provides a way to obtain the 'Era' value for a given era type.
+-- All known eras have instances of this class.
 class IsEra era where
+    -- | Get the singleton 'Era' value for this era type.
     theEra :: Era era
 
-instance IsEra Byron where theEra = Byron
-instance IsEra Shelley where theEra = Shelley
-instance IsEra Allegra where theEra = Allegra
-instance IsEra Mary where theEra = Mary
-instance IsEra Alonzo where theEra = Alonzo
-instance IsEra Babbage where theEra = Babbage
-instance IsEra Conway where theEra = Conway
+instance IsEra ByronEra where theEra = Byron
+instance IsEra ShelleyEra where theEra = Shelley
+instance IsEra AllegraEra where theEra = Allegra
+instance IsEra MaryEra where theEra = Mary
+instance IsEra AlonzoEra where theEra = Alonzo
+instance IsEra BabbageEra where theEra = Babbage
+instance IsEra ConwayEra where theEra = Conway
 
 -- | Type-level list of known eras, in chronological order.
 type KnownEras =
-    '[Byron, Shelley, Allegra, Mary, Alonzo, Babbage, Conway]
+    '[ ByronEra
+     , ShelleyEra
+     , AllegraEra
+     , MaryEra
+     , AlonzoEra
+     , BabbageEra
+     , ConwayEra
+     ]
 
 -- | Official numbering of the members of 'KnownEras'.
 indexOfEra :: Era era -> Int

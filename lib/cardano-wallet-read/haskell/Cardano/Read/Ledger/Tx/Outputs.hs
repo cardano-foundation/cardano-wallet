@@ -1,26 +1,25 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw era-dependent tx outputs data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw era-dependent tx outputs data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Outputs
-    ( OutputsType
+    ( -- * Output types
+      OutputsType
     , Outputs (..)
+
+      -- * Extraction
     , getEraOutputs
     )
-    where
+where
 
 import Prelude
 
+import Cardano.Chain.UTxO qualified as BY
 import Cardano.Ledger.Alonzo.TxOut
     ( AlonzoTxOut
     )
@@ -61,8 +60,15 @@ import Data.Sequence.Strict
     ( StrictSeq
     )
 
-import qualified Cardano.Chain.UTxO as BY
-
+-- |
+-- Era-specific output collection type.
+--
+-- The output type evolves across eras to support new features:
+--
+-- * Byron\/Shelley\/Allegra: Simple address + coin
+-- * Mary: Multi-asset values
+-- * Alonzo: Datum hashes
+-- * Babbage\/Conway: Inline datums and reference scripts
 type family OutputsType era where
     OutputsType Byron = NonEmpty BY.TxOut
     OutputsType Shelley = StrictSeq (ShelleyTxOut Shelley)
@@ -72,13 +78,16 @@ type family OutputsType era where
     OutputsType Babbage = StrictSeq (BabbageTxOut Babbage)
     OutputsType Conway = StrictSeq (BabbageTxOut Conway)
 
+-- | Era-indexed transaction outputs wrapper.
 newtype Outputs era = Outputs (OutputsType era)
 
 deriving instance Show (OutputsType era) => Show (Outputs era)
 deriving instance Eq (OutputsType era) => Eq (Outputs era)
 
 {-# INLINE getEraOutputs #-}
-getEraOutputs :: forall era . IsEra era => Tx era -> Outputs era
+
+-- | Extract the transaction outputs from a transaction in any era.
+getEraOutputs :: forall era. IsEra era => Tx era -> Outputs era
 getEraOutputs = case theEra :: Era era of
     Byron -> onTx $ Outputs . BY.txOutputs . BY.taTx
     Shelley -> outputs

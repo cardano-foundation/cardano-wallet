@@ -1,28 +1,25 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- |
--- Copyright: © 2022 IOHK
--- License: Apache-2.0
---
--- The 'Block' type.
---
+{- |
+Copyright: © 2022 IOHK
+License: Apache-2.0
+
+The 'Block' type.
+-}
 module Cardano.Read.Ledger.Block.Block
-    ( ConsensusBlock
+    ( -- * Consensus block type
+      ConsensusBlock
+
+      -- * Era-indexed block
     , Block (..)
+
+      -- * Conversions
     , fromConsensusBlock
     , toConsensusBlock
     ) where
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Read.Ledger.Eras
     ( Allegra
     , Alonzo
@@ -34,7 +31,7 @@ import Cardano.Read.Ledger.Eras
     , Mary
     , Shelley
     )
-import Cardano.Wallet.Read.Eras
+import Cardano.Read.Ledger.Eras.EraValue
     ( EraValue (..)
     )
 import Ouroboros.Consensus.Protocol.Praos
@@ -44,40 +41,38 @@ import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
     )
 
-import qualified Ouroboros.Consensus.Byron.Ledger as O
-import qualified Ouroboros.Consensus.Cardano.Block as O
-import qualified Ouroboros.Consensus.Shelley.Ledger as O
+import Ouroboros.Consensus.Byron.Ledger qualified as O
+import Ouroboros.Consensus.Cardano.Block qualified as O
+import Ouroboros.Consensus.Shelley.Ledger qualified as O
 
--- | Type synonym for 'CardanoBlock',
--- using the same cryptographic functionalities as Mainnet.
+{- | Type synonym for 'CardanoBlock',
+using the same cryptographic functionalities as Mainnet.
+-}
 type ConsensusBlock = O.CardanoBlock O.StandardCrypto
 
--- Family of era-specific block types
+-- |
+-- Family of era-specific block types.
+--
 -- TODO: ADP-3351 The results of this type family should be ledger types,
 -- not ouroboros-consensus types.
 type family BlockT era where
-    BlockT Byron =
-        O.ByronBlock
-    BlockT Shelley =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.ShelleyEra StandardCrypto)
-    BlockT Allegra =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.AllegraEra StandardCrypto)
-    BlockT Mary =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.MaryEra StandardCrypto)
-    BlockT Alonzo =
-        O.ShelleyBlock (TPraos StandardCrypto) (O.AlonzoEra StandardCrypto)
-    BlockT Babbage =
-        O.ShelleyBlock (Praos StandardCrypto) (O.BabbageEra StandardCrypto)
-    BlockT Conway =
-        O.ShelleyBlock (Praos StandardCrypto) (O.ConwayEra StandardCrypto)
+    BlockT Byron = O.ByronBlock
+    BlockT Shelley = O.ShelleyBlock (TPraos O.StandardCrypto) Shelley
+    BlockT Allegra = O.ShelleyBlock (TPraos O.StandardCrypto) Allegra
+    BlockT Mary = O.ShelleyBlock (TPraos O.StandardCrypto) Mary
+    BlockT Alonzo = O.ShelleyBlock (TPraos O.StandardCrypto) Alonzo
+    BlockT Babbage = O.ShelleyBlock (Praos O.StandardCrypto) Babbage
+    BlockT Conway = O.ShelleyBlock (Praos O.StandardCrypto) Conway
 
+-- | Era-indexed block wrapper around the consensus block type.
 newtype Block era = Block {unBlock :: BlockT era}
 
 deriving instance Show (BlockT era) => Show (Block era)
 deriving instance Eq (BlockT era) => Eq (Block era)
 
--- | Convert block as received from cardano-node
--- via Haskell library of mini-protocol.
+{- | Convert block as received from cardano-node
+via Haskell library of mini-protocol.
+-}
 fromConsensusBlock :: ConsensusBlock -> EraValue Block
 fromConsensusBlock = \case
     O.BlockByron b -> EraValue (Block b :: Block Byron)
@@ -88,8 +83,11 @@ fromConsensusBlock = \case
     O.BlockBabbage block -> EraValue (Block block :: Block Babbage)
     O.BlockConway block -> EraValue (Block block :: Block Conway)
 
-{-# INLINABLE toConsensusBlock #-}
-toConsensusBlock :: forall era . IsEra era => Block era -> ConsensusBlock
+{-# INLINEABLE toConsensusBlock #-}
+
+-- | Convert an era-indexed 'Block' back to a 'ConsensusBlock'.
+toConsensusBlock
+    :: forall era. IsEra era => Block era -> ConsensusBlock
 toConsensusBlock = case theEra :: Era era of
     Byron -> O.BlockByron . unBlock
     Shelley -> O.BlockShelley . unBlock

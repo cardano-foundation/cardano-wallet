@@ -21,9 +21,6 @@ module Cardano.Wallet.Read.Tx.TxIn
 
 import Prelude
 
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Wallet.Read.Tx.TxId
     ( TxId
     )
@@ -42,10 +39,10 @@ import qualified Cardano.Ledger.TxIn as SH
 -- It references the 'TxId' and an output index.
 --
 -- Note: We use a type synonym here because we want zero-cost
--- coercion between @Set TxIn@ and @Set (SH.TxIn StandardCrypto)@.
+-- coercion between @Set TxIn@ and @Set SH.TxIn@.
 -- Unfortunately, 'Set' expects a nominal role.
 -- (See the design literature on 'Data.Coercible'.)
-type TxIn = SH.TxIn StandardCrypto
+type TxIn = SH.TxIn
 
 {-# COMPLETE TxIn #-}
 pattern TxIn :: TxId -> TxIx -> TxIn

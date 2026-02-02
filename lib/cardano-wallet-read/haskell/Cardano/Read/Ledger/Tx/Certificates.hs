@@ -1,31 +1,26 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw certificate data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw certificate data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.Certificates
-    ( CertificatesType
+    ( -- * Certificate type
+      CertificatesType
     , Certificates (..)
+
+      -- * Extraction
     , getEraCertificates
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , bodyTxL
+    ( bodyTxL
     , certsTxBodyL
     )
 import Cardano.Ledger.Conway.TxCert
@@ -58,32 +53,40 @@ import Data.Sequence.Strict
     ( StrictSeq
     )
 
-import qualified Cardano.Ledger.Api as Ledger
-
+-- |
+-- Era-specific certificate type.
+--
+-- Byron returns unit @()@ as staking is not supported.
+-- Shelley through Babbage use 'ShelleyTxCert' for staking operations.
+-- Conway uses 'ConwayTxCert' which adds governance certificates.
 type family CertificatesType era where
     CertificatesType Byron =
         ()
     CertificatesType Shelley =
-        StrictSeq (ShelleyTxCert (Ledger.ShelleyEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Shelley)
     CertificatesType Allegra =
-        StrictSeq (ShelleyTxCert (Ledger.AllegraEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Allegra)
     CertificatesType Mary =
-        StrictSeq (ShelleyTxCert (Ledger.MaryEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Mary)
     CertificatesType Alonzo =
-        StrictSeq (ShelleyTxCert (Ledger.AlonzoEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Alonzo)
     CertificatesType Babbage =
-        StrictSeq (ShelleyTxCert (Ledger.BabbageEra StandardCrypto))
+        StrictSeq (ShelleyTxCert Babbage)
     CertificatesType Conway =
-        StrictSeq (ConwayTxCert (Ledger.ConwayEra StandardCrypto))
+        StrictSeq (ConwayTxCert Conway)
 
+-- | Era-indexed stake certificates wrapper.
 newtype Certificates era = Certificates (CertificatesType era)
 
-deriving instance Show (CertificatesType era) => Show (Certificates era)
+deriving instance
+    Show (CertificatesType era) => Show (Certificates era)
 deriving instance Eq (CertificatesType era) => Eq (Certificates era)
 
-{-# INLINABLE getEraCertificates #-}
+{-# INLINEABLE getEraCertificates #-}
+
 -- | Extract certificates from a 'Tx' in any era.
-getEraCertificates :: forall era . IsEra era => Tx era -> Certificates era
+getEraCertificates
+    :: forall era. IsEra era => Tx era -> Certificates era
 getEraCertificates = case theEra @era of
     Byron -> const $ Certificates ()
     Shelley -> certificates

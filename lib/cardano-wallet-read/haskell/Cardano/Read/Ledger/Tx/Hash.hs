@@ -1,24 +1,24 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
+-- |
+-- Module      : Cardano.Read.Ledger.Tx.Hash
+-- Copyright   : © 2024 Cardano Foundation
+-- License     : Apache-2.0
+--
+-- Transaction hash extraction as raw bytes. This provides the hash
+-- digest for a transaction across all eras.
 module Cardano.Read.Ledger.Tx.Hash
-    ( byronTxHash
+    ( -- * Hash extraction
+      getEraTxHash
+
+      -- * Era-specific helpers
+    , byronTxHash
     , shelleyTxHash
     , fromShelleyTxId
-    , getEraTxHash
     )
-    where
+where
 
 import Prelude
 
@@ -29,10 +29,14 @@ import Cardano.Chain.UTxO
 import Cardano.Crypto
     ( serializeCborHash
     )
+import Cardano.Crypto qualified as CryptoC
+import Cardano.Crypto.Hash qualified as Crypto
 import Cardano.Ledger.Core
     ( bodyTxL
     , txIdTxBody
     )
+import Cardano.Ledger.Core qualified as SL.Core
+import Cardano.Ledger.Hashes qualified as SafeHash
 import Cardano.Ledger.TxIn
     ( TxId (..)
     )
@@ -50,12 +54,8 @@ import Control.Lens
     ( (^.)
     )
 
-import qualified Cardano.Crypto as CryptoC
-import qualified Cardano.Crypto.Hash as Crypto
-import qualified Cardano.Ledger.Core as SL.Core
-import qualified Cardano.Ledger.SafeHash as SafeHash
-
 {-# INLINE getEraTxHash #-}
+
 -- | Extract the hash of a transaction in any era.
 getEraTxHash :: forall era. IsEra era => Tx era -> Crypto.ByteString
 getEraTxHash = case theEra @era of
@@ -69,12 +69,16 @@ getEraTxHash = case theEra @era of
   where
     mkShelleyHash = onTx $ \tx -> shelleyTxHash tx
 
-shelleyTxHash :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
+-- | Extract the transaction hash from a Shelley-era (or later) transaction.
+shelleyTxHash
+    :: SL.Core.EraTx era => SL.Core.Tx era -> Crypto.ByteString
 shelleyTxHash tx = fromShelleyTxId $ txIdTxBody (tx ^. bodyTxL)
 
+-- | Extract the transaction hash from a Byron-era transaction.
 byronTxHash :: ATxAux a -> Crypto.ByteString
 byronTxHash = CryptoC.hashToBytes . serializeCborHash . taTx
 
-fromShelleyTxId :: TxId crypto -> Crypto.ByteString
+-- | Convert a Shelley transaction ID to raw bytes.
+fromShelleyTxId :: TxId -> Crypto.ByteString
 fromShelleyTxId (TxId h) =
     Crypto.hashToBytes $ SafeHash.extractHash h

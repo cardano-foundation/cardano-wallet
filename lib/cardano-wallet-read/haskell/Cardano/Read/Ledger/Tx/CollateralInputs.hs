@@ -1,32 +1,28 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
--- |
--- Copyright: © 2020-2022 IOHK
--- License: Apache-2.0
---
--- Raw collateral inputs data extraction from 'Tx'
---
+{- |
+Copyright: © 2020-2022 IOHK
+License: Apache-2.0
 
+Raw collateral inputs data extraction from 'Tx'
+-}
 module Cardano.Read.Ledger.Tx.CollateralInputs
-    ( CollateralInputsType
+    ( -- * Collateral input type
+      CollateralInputsType
     , CollateralInputs (..)
+
+      -- * Extraction
     , getEraCollateralInputs
     )
-    where
+where
 
 import Prelude
 
 import Cardano.Ledger.Api
-    ( StandardCrypto
-    , collateralInputsTxBodyL
+    ( collateralInputsTxBodyL
     )
+import Cardano.Ledger.Api.Tx.In (TxIn)
 import Cardano.Ledger.Core
     ( bodyTxL
     )
@@ -54,25 +50,33 @@ import Data.Set
     ( Set
     )
 
-import qualified Cardano.Ledger.Shelley.API as SH
-
+-- |
+-- Era-specific collateral inputs type.
+--
+-- Pre-Alonzo eras return unit @()@ as collateral is not supported.
+-- Alonzo and later return a set of transaction inputs used as collateral.
 type family CollateralInputsType era where
     CollateralInputsType Byron = ()
     CollateralInputsType Shelley = ()
     CollateralInputsType Allegra = ()
     CollateralInputsType Mary = ()
-    CollateralInputsType Alonzo = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType Babbage = Set (SH.TxIn StandardCrypto)
-    CollateralInputsType Conway = Set (SH.TxIn StandardCrypto)
+    CollateralInputsType Alonzo = Set TxIn
+    CollateralInputsType Babbage = Set TxIn
+    CollateralInputsType Conway = Set TxIn
 
+-- | Era-indexed collateral inputs wrapper.
 newtype CollateralInputs era = CollateralInputs (CollateralInputsType era)
 
-deriving instance Show (CollateralInputsType era) => Show (CollateralInputs era)
-deriving instance Eq (CollateralInputsType era) => Eq (CollateralInputs era)
+deriving instance
+    Show (CollateralInputsType era) => Show (CollateralInputs era)
+deriving instance
+    Eq (CollateralInputsType era) => Eq (CollateralInputs era)
 
-{-# INLINABLE getEraCollateralInputs #-}
+{-# INLINEABLE getEraCollateralInputs #-}
+
 -- | Extract the collateral inputs from a 'Tx' in any era.
-getEraCollateralInputs :: forall era. IsEra era => Tx era -> CollateralInputs era
+getEraCollateralInputs
+    :: forall era. IsEra era => Tx era -> CollateralInputs era
 getEraCollateralInputs = case theEra @era of
     Byron -> \_ -> CollateralInputs ()
     Shelley -> \_ -> CollateralInputs ()
