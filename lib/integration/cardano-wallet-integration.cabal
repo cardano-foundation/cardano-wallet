@@ -141,6 +141,7 @@ library scenarios
     , cardano-crypto-class                  ^>=2.2.3
     , cardano-ledger-alonzo                 >=1.13.0.0  && <1.14
     , cardano-ledger-core                   >=1.17.0.0  && <1.18
+    , cardano-protocol-tpraos               >=1.4.0.0   && <1.5
     , cardano-wallet
     , cardano-wallet-api
     , cardano-wallet-application

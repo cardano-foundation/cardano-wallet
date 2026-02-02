@@ -57,7 +57,7 @@ import Cardano.Ledger.Credential
 import Cardano.Ledger.Tools
     ( addDummyWitsTx
     )
-import Cardano.Ledger.UTxO
+import Cardano.Ledger.State
     ( EraUTxO (getScriptsHashesNeeded, getScriptsNeeded)
     , getMinFeeTxUtxo
     , txinLookup

@@ -32,8 +32,8 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Tx.In
     ( mkTxInPartial
     )
-import Cardano.Ledger.AuxiliaryData
-    ( AuxiliaryDataHash
+import Cardano.Ledger.Hashes
+    ( TxAuxDataHash
     )
 import Cardano.Ledger.BaseTypes
     ( Network (..)
@@ -136,7 +136,7 @@ body ins outs =
         upd
         auxb
 
-auxb :: StrictMaybe AuxiliaryDataHash
+auxb :: StrictMaybe TxAuxDataHash
 auxb = maybeToStrictMaybe Nothing
 
 upd :: StrictMaybe (Update era)

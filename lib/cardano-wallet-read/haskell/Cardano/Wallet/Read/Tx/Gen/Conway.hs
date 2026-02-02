@@ -24,8 +24,8 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
     )
-import Cardano.Ledger.AuxiliaryData
-    ( AuxiliaryDataHash
+import Cardano.Ledger.Hashes
+    ( TxAuxDataHash
     )
 import Cardano.Ledger.Babbage
     ( BabbageTxOut
@@ -189,7 +189,7 @@ txouts v xs = fromList $ do
 network :: StrictMaybe Network
 network = SNothing
 
-auxhash :: StrictMaybe AuxiliaryDataHash
+auxhash :: StrictMaybe TxAuxDataHash
 auxhash = SNothing
 
 integrity :: StrictMaybe ScriptIntegrityHash

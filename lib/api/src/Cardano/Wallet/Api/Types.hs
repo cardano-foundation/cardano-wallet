@@ -275,7 +275,6 @@ import Cardano.Address.Script
 import Cardano.Api
     ( StakeAddress
     , deserialiseFromBech32
-    , proxyToAsType
     , serialiseToBech32
     )
 import Cardano.Mnemonic

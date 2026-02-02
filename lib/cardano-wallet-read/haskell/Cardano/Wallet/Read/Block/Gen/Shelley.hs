@@ -31,8 +31,7 @@ import Cardano.Crypto.Hash
     ( ByteString
     )
 import Cardano.Crypto.KES
-    ( KESAlgorithm (..)
-    , UnsoundPureKESAlgorithm (..)
+    ( UnsoundPureKESAlgorithm (..)
     , UnsoundPureSignKeyKES
     , sizeSignKeyKES
     , unsoundPureSignedKES
@@ -60,7 +59,7 @@ import Cardano.Ledger.Binary
 import Cardano.Ledger.Block
     ( Block (..)
     )
-import Cardano.Ledger.Crypto
+import Cardano.Protocol.Crypto
     ( StandardCrypto
     )
 import Cardano.Ledger.Keys
@@ -176,7 +175,6 @@ mkShelleyBlock v BlockParameters{blockNumber, slotNumber, txs} =
 mkAnyAfterShelleyBlock
     :: ( L.EraSegWits era
        , EncCBOR (HeaderEra era)
-       , O.ProtoCrypto proto ~ StandardCrypto
        , HeaderEra era ~ O.ShelleyProtocolHeader proto
        , TxT era2 ~ L.Tx era
        )

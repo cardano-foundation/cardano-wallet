@@ -287,7 +287,7 @@ import Cardano.Ledger.DRep
 import Cardano.Ledger.Plutus.Language
     ( Language (..)
     )
-import Cardano.Ledger.SafeHash
+import Cardano.Ledger.Hashes
     ( unsafeMakeSafeHash
     )
 import Data.Aeson

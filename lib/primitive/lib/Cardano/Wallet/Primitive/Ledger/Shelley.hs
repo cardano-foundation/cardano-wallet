@@ -144,9 +144,7 @@ import Cardano.Ledger.Api
     , ppNOptL
     , ppPricesL
     )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
-    )
+import qualified Cardano.Ledger.Babbage as Ledger.Babbage
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe
     , urlToText
@@ -154,9 +152,7 @@ import Cardano.Ledger.BaseTypes
 import Cardano.Ledger.Binary
     ( EncCBORGroup
     )
-import Cardano.Ledger.Conway
-    ( ConwayEra
-    )
+import qualified Cardano.Ledger.Conway as Ledger.Conway
 import Cardano.Ledger.Core
     ( Era (..)
     , TxSeq
@@ -303,7 +299,6 @@ import qualified Cardano.Ledger.Api as Ledger
 import qualified Cardano.Ledger.BaseTypes as SL
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Ledger.Shelley.API as SLAPI
 import qualified Cardano.Protocol.TPraos.BHeader as SL
@@ -547,7 +542,7 @@ fromAlonzoPParams eraInfo pp =
 fromBabbagePParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams BabbageEra
+    -> Ledger.PParams Ledger.Babbage.BabbageEra
     -> W.ProtocolParameters
 fromBabbagePParams eraInfo pp =
     W.ProtocolParameters
@@ -572,7 +567,7 @@ fromBabbagePParams eraInfo pp =
 fromConwayPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams ConwayEra
+    -> Ledger.PParams Ledger.Conway.ConwayEra
     -> W.ProtocolParameters
 fromConwayPParams eraInfo pp =
     W.ProtocolParameters

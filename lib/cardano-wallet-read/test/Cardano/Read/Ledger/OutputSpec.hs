@@ -50,9 +50,6 @@ import Data.ByteString
 import Data.Maybe
     ( fromMaybe
     )
-import Data.Word
-    ( Word16
-    )
 import Test.Hspec
     ( Spec
     , it
@@ -60,7 +57,6 @@ import Test.Hspec
 import Test.QuickCheck
     ( (.&&.)
     , (=/=)
-    , (===)
     )
 
 spec :: Spec

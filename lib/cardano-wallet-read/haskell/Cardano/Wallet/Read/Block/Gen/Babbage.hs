@@ -28,7 +28,7 @@ import Cardano.Ledger.Binary
     ( EncCBOR
     , Version
     )
-import Cardano.Ledger.Crypto
+import Cardano.Protocol.Crypto
     ( StandardCrypto
     )
 import Cardano.Ledger.Keys

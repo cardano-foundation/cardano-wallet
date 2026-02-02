@@ -43,7 +43,7 @@ import Cardano.Wallet.Read.Tx.Tx
     ( Tx
     )
 
-import qualified Cardano.Ledger.SafeHash as SafeHash
+import qualified Cardano.Ledger.Hashes as Hashes
 import qualified Cardano.Ledger.TxIn as SH.TxIn
 import qualified Cardano.Read.Ledger.Tx.TxId as L
 
@@ -68,12 +68,12 @@ pattern TxId x <- (hashFromTxId -> x)
 -- | Wrap hash of a transaction body as 'TxId'.
 txIdFromHash
     :: Hash Blake2b_256 EraIndependentTxBody -> TxId
-txIdFromHash = SH.TxIn.TxId . SafeHash.unsafeMakeSafeHash
+txIdFromHash = SH.TxIn.TxId . Hashes.unsafeMakeSafeHash
 
 -- | Unwrap 'TxId' as hash of a transaction body.
 hashFromTxId
     :: TxId -> Hash Blake2b_256 EraIndependentTxBody
-hashFromTxId (SH.TxIn.TxId h) = SafeHash.extractHash h
+hashFromTxId (SH.TxIn.TxId h) = Hashes.extractHash h
 
 {-# INLINEABLE getTxId #-}
 -- | Extract the 'TxId' of a transaction.

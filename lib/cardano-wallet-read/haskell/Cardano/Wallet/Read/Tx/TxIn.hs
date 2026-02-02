@@ -55,7 +55,7 @@ type TxIx = SH.TxIx
 {-# COMPLETE TxIx #-}
 pattern TxIx :: Word16 -> TxIx
 pattern TxIx{word16FromTxIx} <- (fromTxIx -> word16FromTxIx) where
-    TxIx w16 = SH.mkTxIx w16
+    TxIx w16 = SH.TxIx (fromIntegral w16)
 
 fromTxIx :: TxIx -> Word16
 fromTxIx (SH.TxIx w16) = fromIntegral w16

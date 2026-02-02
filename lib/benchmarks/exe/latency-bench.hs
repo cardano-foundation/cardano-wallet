@@ -147,6 +147,9 @@ import Cardano.Wallet.Shelley.BlockchainSource
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Control.Applicative
     ( (<**>)
     )
@@ -727,7 +730,7 @@ withShelleyServer tracers action = withFaucet $ \faucetClientEnv -> do
                                 [ over #sgSlotLength (const 0.2)
                                 , -- to avoid "PastHorizonException" errors, as wallet
                                   -- doesn't keep up with retrieving fresh time interpreter.
-                                  over #sgSecurityParam (const 100)
+                                  over #sgSecurityParam (const (unsafeNonZero 100))
                                   -- when it low then cluster is not making blocks;
                                 ]
                             , cfgTracer = stdoutTextTracer

@@ -161,9 +161,6 @@ import Cardano.Ledger.Conway.PParams
 import Cardano.Ledger.Conway.Scripts
     ( PlutusScript (..)
     )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Mary
     ( MaryValue
     )
@@ -174,7 +171,7 @@ import Cardano.Ledger.Plutus.Data
     ( BinaryData
     , Datum (..)
     )
-import Cardano.Ledger.SafeHash
+import Cardano.Ledger.Hashes
     ( SafeHash
     , extractHash
     , unsafeMakeSafeHash
@@ -225,6 +222,7 @@ import Numeric.Natural
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardBabbage
     , StandardConway
+    , StandardCrypto
     )
 
 import qualified Cardano.Api as CardanoApi

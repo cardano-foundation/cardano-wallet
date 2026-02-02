@@ -59,14 +59,11 @@ import Cardano.Ledger.Alonzo.UTxO
     ( AlonzoScriptsNeeded
     )
 import Cardano.Ledger.Api
-    ( Babbage
-    , Conway
+    ( BabbageEra
+    , ConwayEra
     )
 import Cardano.Ledger.Api.UTxO
     ( EraUTxO (ScriptsNeeded)
-    )
-import Cardano.Ledger.Crypto
-    ( StandardCrypto
     )
 import Cardano.Ledger.Mary
     ( MaryValue
@@ -108,7 +105,13 @@ import qualified Data.Set as Set
 -- Eras
 --------------------------------------------------------------------------------
 
-type LatestLedgerEra = Conway
+-- | Type alias for backward compatibility
+type Babbage = BabbageEra
+
+-- | Type alias for backward compatibility
+type Conway = ConwayEra
+
+type LatestLedgerEra = ConwayEra
 
 --------------------------------------------------------------------------------
 -- RecentEra

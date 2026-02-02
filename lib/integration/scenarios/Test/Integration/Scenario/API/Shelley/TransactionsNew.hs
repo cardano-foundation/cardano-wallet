@@ -43,7 +43,7 @@ import Cardano.Crypto.DSIGN.Class
 import Cardano.Ledger.Alonzo.Core
     ( reqSignerHashesTxBodyL
     )
-import Cardano.Ledger.Crypto
+import Cardano.Protocol.Crypto
     ( StandardCrypto
     )
 import Cardano.Mnemonic

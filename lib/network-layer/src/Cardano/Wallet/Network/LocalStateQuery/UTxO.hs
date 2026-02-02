@@ -14,7 +14,7 @@ import Prelude
 import Cardano.Ledger.TxIn
     ( TxIn
     )
-import Cardano.Ledger.UTxO
+import Cardano.Ledger.State
     ( UTxO
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros

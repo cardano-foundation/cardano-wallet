@@ -268,7 +268,6 @@ import Internal.Cardano.Write.Tx
     , Coin (..)
     , Datum (..)
     , FeePerByte (..)
-    , StandardCrypto
     , Tx
     , TxIn
     , TxOut

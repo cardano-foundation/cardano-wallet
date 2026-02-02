@@ -101,9 +101,6 @@ import Data.Text.Class
 import Data.Word
     ( Word8
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardCrypto
-    )
 
 import qualified Cardano.Address as CA
 import qualified Cardano.Address.Style.Shelley as CA

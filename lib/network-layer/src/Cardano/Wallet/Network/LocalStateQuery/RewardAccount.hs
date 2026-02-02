@@ -42,12 +42,9 @@ import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
     )
 
-import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
 import qualified Cardano.Ledger.Credential as SL
-import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley.API as SL
-import qualified Cardano.Ledger.Shelley.LedgerState as SL
 import qualified Cardano.Wallet.Primitive.Ledger.Convert as Ledger
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
@@ -90,7 +87,7 @@ fetchRewardAccounts accounts =
         :: ( Map
                 (SL.Credential 'SL.Staking)
                 (SL.KeyHash 'SL.StakePool)
-           , SL.RewardAccounts
+           , Map (SL.Credential 'SL.Staking) Ledger.Coin
            )
         -> Map W.RewardAccount W.Coin
     fromBalanceResult (_, rewardAccounts) =

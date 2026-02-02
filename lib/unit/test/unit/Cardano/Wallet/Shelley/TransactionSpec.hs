@@ -349,7 +349,6 @@ import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Crypto.Hash.Blake2b as Crypto
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Crypto as Crypto
 import qualified Cardano.Ledger.Shelley.API as SL
 import qualified Cardano.Wallet.Address.Derivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin

@@ -87,7 +87,6 @@ import Test.QuickCheck
 
 import qualified Cardano.Ledger.Address as L
 import qualified Cardano.Ledger.Api.Tx.Address as L
-import qualified Cardano.Ledger.Crypto as CC
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Binary.Get as B
 import qualified Data.Binary.Put as B
