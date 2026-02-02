@@ -39,12 +39,12 @@ library
   hs-source-dirs:  lib
   build-depends:
     , aeson                    >=2
-    , asn1-encoding
-    , asn1-types
     , base
     , base64-bytestring
     , bytestring
     , crypton
+    , crypton-asn1-encoding
+    , crypton-asn1-types
     , crypton-x509
     , crypton-x509-store
     , crypton-x509-validation
@@ -53,9 +53,9 @@ library
     , directory
     , exceptions
     , filepath
-    , hourglass
     , ip                       >=1.7.4
     , text
+    , time-hourglass
     , tls
     , warp-tls                 >=3.4.7
     , wide-word
