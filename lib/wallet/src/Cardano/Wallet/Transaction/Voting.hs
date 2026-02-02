@@ -51,7 +51,7 @@ import Data.ByteString.Short
     )
 
 import qualified Cardano.Api as Cardano
-import qualified Cardano.Api.ReexposeLedger as Ledger
+import qualified Cardano.Api.Ledger as Ledger
 import qualified Cardano.Api.Shelley as Cardano
 
 {-----------------------------------------------------------------------------
