@@ -49,11 +49,11 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 -- repeating the index-state for hackage to work around hackage.nix parsing limitation
-index-state: 2026-01-07T08:31:51Z
+index-state: 2026-02-02T00:00:00Z
 
 index-state:
-  , hackage.haskell.org 2026-01-07T08:31:51Z
-  , cardano-haskell-packages 2026-01-05T11:07:19Z
+  , hackage.haskell.org 2026-02-02T00:00:00Z
+  , cardano-haskell-packages 2026-01-30T00:00:00Z
 
 packages:
   lib/address-derivation-discovery
@@ -97,51 +97,6 @@ packages:
 -- Using a fork until our patches can be merged upstream
 
 -- TODO: ADP-1713
-source-repository-package
-  type: git
-  location: https://github.com/biocad/servant-openapi3
-  tag: 4165b837d3a71debd1059c3735460075840000b5
-  --sha256: 1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9
-
--- TODO: ADP-1713
-source-repository-package
-  type: git
-  location: https://github.com/paolino/openapi3
-  tag: f22c31611c295637a3e72b341cd1c56d1d87b993
-  --sha256: 10l7wlaz9rcr3fysi1vwg7qqa826bb7nidkpx9jy1q7ja7ddw47i
-
--- END OpenAPI
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- BEGIN Cardano Addresses Dependency
-
-source-repository-package
-    type: git
-    location: https://github.com/IntersectMBO/cardano-addresses
-    tag: f48aedbc3a613475b3d90ef6a13ae55d6fc89ea8
-    --sha256: Oxj10j25U6thKr2qp1ahQc5oHz3mKDCHbVcg5eA9EQo=
-
-
-package cardano-addresses
-    ghc-options:
-        -Wwarn=incomplete-uni-patterns
--- END Cardano Addresses Dependency
---------------------------------------------------------------------------------
-
-source-repository-package
-    type: git
-    location: https://github.com/input-output-hk/cardano-sl-x509
-    tag: a91add165152fa36f08e95fafe7da24f1dba4690
-    --sha256: 1ia8vlqghis92cla8qmqa6kh8f3jn29b01fshyk5hmgy5373s684
-
-source-repository-package
-    type: git
-    location: https://github.com/cardano-foundation/cardano-wallet-client.git
-    tag: 353412ca621dc28af53e4a19795338b19bab1b7b
-    --sha256: 04q58c82wy6x9nkwqbvcxbv6s61fx08h5kf62sb511aqp08id4bb
-    subdir: generated
-
 
 --------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section
@@ -152,11 +107,18 @@ allow-newer:
   , katip:Win32
   , ekg-wai:time
   , plutus-core:cardano-crypto
-  , cardano-wallet-read:cardano-crypto              
+  , cardano-wallet-read:cardano-crypto
+  , cardano-ledger-byron-test:cardano-ledger-byron
+  , strict-stm:io-classes
+  , cardano-cli:cardano-api
+  , si-timers:io-classes
 constraints:
     base >= 4.18.2.0 && < 5
   , openapi3 >= 3.2.0
   , persistent ^>= 2.14.6.0
+  , text ^>= 2.0
+  -- bytesmith 0.3.14.0 uses text API incompatible with text-2.x
+  , bytesmith < 0.3.14
 
   -- Force newer version of `lobemo-backend-ekg` here,
   -- because older versions depend on `snap-server`,
@@ -301,3 +263,4 @@ tests: False
 
 package bitvec
    flags: -simd
+

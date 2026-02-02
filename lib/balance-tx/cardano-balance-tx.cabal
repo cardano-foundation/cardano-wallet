@@ -39,7 +39,7 @@ library
   hs-source-dirs:  lib/main
   build-depends:
     , cardano-balance-tx:internal
-    , cardano-ledger-api           >=1.10.0.0 && <1.11
+    , cardano-ledger-api  >=1.11.0.0 && <1.12
 
   exposed-modules:
     Cardano.Write.Eras
@@ -53,18 +53,18 @@ library internal
     , base                         >=4.14     && <5
     , bytestring                   >=0.10.6   && <0.13
     , cardano-addresses            >=4.0.2    && <4.1
-    , cardano-api                  >=10.8.0.0 && <10.9
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-coin-selection
     , cardano-crypto-class         ^>=2.2.3
-    , cardano-ledger-allegra       >=1.6.1.0  && <1.7
-    , cardano-ledger-alonzo        >=1.12.0.0 && <1.13
-    , cardano-ledger-api           >=1.10.0.0 && <1.11
-    , cardano-ledger-babbage       >=1.10.1.0 && <1.11
+    , cardano-ledger-allegra        >=1.7.0.0  && <1.8
+    , cardano-ledger-alonzo  >=1.13.0.0 && <1.14
+    , cardano-ledger-api  >=1.11.0.0 && <1.12
+    , cardano-ledger-babbage  >=1.11.0.0 && <1.12
     , cardano-ledger-binary
-    , cardano-ledger-conway        >=1.18.1.0 && <1.19
-    , cardano-ledger-core          >=1.16.0.0 && <1.17
-    , cardano-ledger-mary          >=1.7.1.0  && <1.8
-    , cardano-ledger-shelley       >=1.15.0.0 && <1.16
+    , cardano-ledger-conway  >=1.19.0.0 && <1.20
+    , cardano-ledger-core  >=1.17.0.0 && <1.18
+    , cardano-ledger-mary        >=1.8.0.0  && <1.9
+    , cardano-ledger-shelley  >=1.16.0.0 && <1.17
     , cardano-slotting             >=0.2.0.0  && <0.3
     , cardano-strict-containers    >=0.1.3.0  && <0.2
     , cardano-wallet-primitive
@@ -80,8 +80,8 @@ library internal
     , MonadRandom                  >=0.6      && <0.7
     , monoid-subclasses            >=1.2.5.1  && <1.3
     , nonempty-containers          >=0.3.4.5  && <0.4
-    , ouroboros-consensus          >=0.22.0.0 && <0.23
-    , ouroboros-consensus-cardano  >=0.21.0.1 && <0.22
+    , ouroboros-consensus  >=0.27.0.0 && <0.28
+    , ouroboros-consensus-cardano  >=0.25.0.0 && <0.26
     , pretty-simple                >=4.1.2.0  && <4.2
     , QuickCheck                   >=2.14     && <2.16.0
     , serialise                    >=0.2.6.1  && <0.3
@@ -116,25 +116,25 @@ test-suite test
     , base
     , bytestring
     , cardano-addresses               >=4.0.2     && <4.1
-    , cardano-api                     >=10.8.0.0  && <10.9
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-api-extra
     , cardano-balance-tx:internal
     , cardano-binary                  >=1.7.1.0   && <1.8
     , cardano-coin-selection
     , cardano-crypto                  >= 1.2.0    && < 1.3
     , cardano-crypto-class            ^>=2.2.3
-    , cardano-crypto-wrapper          ==1.5.1.3
-    , cardano-ledger-alonzo           >=1.12.0.0  && <1.13
+    , cardano-crypto-wrapper          >=1.5.1.3 && <1.7
+    , cardano-ledger-alonzo  >=1.13.0.0 && <1.14
     , cardano-ledger-alonzo-test      >=1.3.0.1   && <1.4
-    , cardano-ledger-api              >=1.10.0.0  && <1.11
-    , cardano-ledger-babbage          >=1.10.1.0  && <1.11
+    , cardano-ledger-api  >=1.11.0.0 && <1.12
+    , cardano-ledger-babbage  >=1.11.0.0 && <1.12
     , cardano-ledger-babbage:testlib
-    , cardano-ledger-byron            >=1.0.2.0   && <1.1
-    , cardano-ledger-conway           >=1.18.1.0  && <1.19
+    , cardano-ledger-byron          >=1.1.0.0  && <1.2
+    , cardano-ledger-conway  >=1.19.0.0 && <1.20
     , cardano-ledger-conway:testlib
-    , cardano-ledger-core             >=1.16.0.0  && <1.17
-    , cardano-ledger-mary:testlib     >=1.7.1.0   && <1.8
-    , cardano-ledger-shelley          >=1.15.0.0  && <1.16
+    , cardano-ledger-core  >=1.17.0.0 && <1.18
+    , cardano-ledger-mary:testlib     >=1.8.0.0   && <1.9
+    , cardano-ledger-shelley  >=1.16.0.0 && <1.17
     , cardano-numeric
     , cardano-slotting                >=0.2.0.0   && <0.3
     , cardano-strict-containers       >=0.1.3.0   && <0.2
@@ -158,12 +158,12 @@ test-suite test
     , MonadRandom
     , monoid-subclasses
     , nonempty-containers
-    , ouroboros-consensus             >=0.22.0.0  && <0.23
-    , ouroboros-consensus-cardano     >=0.21.0.1  && <0.22
-    , ouroboros-network-api           >=0.12.0.0  && <0.13
+    , ouroboros-consensus  >=0.27.0.0 && <0.28
+    , ouroboros-consensus-cardano  >=0.25.0.0 && <0.26
+    , ouroboros-network-api  >=0.14.0.0 && <0.15
     , QuickCheck                      >=2.14      && <2.16
     , quickcheck-classes              >=0.6.5     && <0.7
-    , sop-extras                      >=0.2.1     && <0.3
+    , sop-extras                      >=0.4.0.0     && <0.5
     , std-gen-seed
     , text
     , time                            >=1.12.2    && <1.15

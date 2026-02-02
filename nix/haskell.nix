@@ -116,11 +116,13 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             index-state = indexState;
             version = "latest";
           };
-          hoogle = {
-            index-state = indexState;
-            version = "latest";
-          };
+          # TODO: re-enable hoogle after fixing bytesmith:text compatibility
+          # hoogle = {
+          #   index-state = indexState;
+          #   version = "latest";
+          # };
         };
+        withHoogle = false;
         nativeBuildInputs = (with buildProject.hsPkgs; [
           nodePkgs.cardano-cli
           nodePkgs.cardano-node

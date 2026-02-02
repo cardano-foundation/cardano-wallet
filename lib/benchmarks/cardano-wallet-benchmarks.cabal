@@ -188,7 +188,7 @@ benchmark db
     , base
     , bytestring
     , cardano-addresses                >=4.0.2    && <4.1
-    , cardano-api                      >=10.8.0.0 && <10.9
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-crypto                   >= 1.2.0   && < 1.3
     , cardano-wallet
     , cardano-wallet-benchmarks
@@ -230,7 +230,7 @@ benchmark api
     , aeson
     , base
     , bytestring
-    , cardano-api                      >=10.8.0.0 && <10.9
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-wallet

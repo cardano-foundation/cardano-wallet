@@ -46,23 +46,22 @@ library
     , binary
     , bytestring
     , cardano-addresses             >=4.0.2    && <4.1
-    , cardano-api                   >=10.8.0.0 && <10.9
-    , cardano-api:internal
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-binary                >=1.7.1.0  && <1.8
     , cardano-crypto                >= 1.2.0   && < 1.3
     , cardano-crypto-class          ^>=2.2.3
     , cardano-crypto-wrapper
     , cardano-data                  >=1.2.3.1  && <1.3
-    , cardano-ledger-allegra        >=1.6.1.0  && <1.7
-    , cardano-ledger-alonzo         >=1.12.0.0 && <1.13
-    , cardano-ledger-api            >=1.10.0.0 && <1.11
-    , cardano-ledger-babbage        >=1.10.1.0 && <1.11
+    , cardano-ledger-allegra        >=1.7.0.0  && <1.8
+    , cardano-ledger-alonzo  >=1.13.0.0 && <1.14
+    , cardano-ledger-api  >=1.11.0.0 && <1.12
+    , cardano-ledger-babbage  >=1.11.0.0 && <1.12
     , cardano-ledger-binary
-    , cardano-ledger-byron          >=1.0.2.0  && <1.1
-    , cardano-ledger-conway         >=1.18.1.0 && <1.19
-    , cardano-ledger-core           >=1.16.0.0 && <1.17
-    , cardano-ledger-mary           >=1.7.1.0  && <1.8
-    , cardano-ledger-shelley        >=1.15.0.0 && <1.16
+    , cardano-ledger-byron          >=1.1.0.0  && <1.2
+    , cardano-ledger-conway  >=1.19.0.0 && <1.20
+    , cardano-ledger-core  >=1.17.0.0 && <1.18
+    , cardano-ledger-mary        >=1.8.0.0  && <1.9
+    , cardano-ledger-shelley  >=1.16.0.0 && <1.17
     , cardano-numeric
     , cardano-protocol-tpraos
     , cardano-slotting              >=0.2.0.0  && <0.3
@@ -95,11 +94,11 @@ library
     , network-uri
     , nothunks
     , OddWord
-    , ouroboros-consensus           >=0.22.0.0 && <0.23
-    , ouroboros-consensus-cardano   >=0.21.0.1 && <0.22
-    , ouroboros-consensus-protocol  >=0.10.0.0 && <0.11
-    , ouroboros-network             >=0.19.0.3 && <0.20
-    , ouroboros-network-api         >=0.12.0.0 && <0.13
+    , ouroboros-consensus  >=0.27.0.0 && <0.28
+    , ouroboros-consensus-cardano  >=0.25.0.0 && <0.26
+    , ouroboros-consensus-protocol  >=0.12.0.0 && <0.13
+    , ouroboros-network  >=0.21.0.0 && <0.22
+    , ouroboros-network-api  >=0.14.0.0 && <0.15
     , pretty-simple
     , QuickCheck
     , quiet
@@ -230,13 +229,13 @@ test-suite test
     , binary
     , bytestring
     , cardano-addresses               >=4.0.2    && <4.1
-    , cardano-api                     >=10.8.0.0 && <10.9
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-crypto-class            ^>=2.2.3
-    , cardano-ledger-allegra:testlib  >=1.6.1.0  && <1.7
-    , cardano-ledger-api              >=1.10.0.0 && <1.11
-    , cardano-ledger-core             >=1.16.0.0 && <1.17
+    , cardano-ledger-allegra:testlib  >=1.7.0.0  && <1.8
+    , cardano-ledger-api  >=1.11.0.0 && <1.12
+    , cardano-ledger-core  >=1.17.0.0 && <1.18
     , cardano-ledger-core:testlib
-    , cardano-ledger-shelley          >=1.15.0.0 && <1.16
+    , cardano-ledger-shelley  >=1.16.0.0 && <1.17
     , cardano-numeric
     , cardano-slotting                >=0.2.0.0  && <0.3
     , cardano-wallet-primitive
@@ -255,9 +254,9 @@ test-suite test
     , iohk-monitoring                 >=0.2.0.0  && <0.3
     , lens
     , memory
-    , ouroboros-consensus             >=0.22.0.0 && <0.23
-    , ouroboros-consensus-cardano     >=0.21.0.1 && <0.22
-    , ouroboros-network-api           >=0.12.0.0 && <0.13
+    , ouroboros-consensus  >=0.27.0.0 && <0.28
+    , ouroboros-consensus-cardano  >=0.25.0.0 && <0.26
+    , ouroboros-network-api  >=0.14.0.0 && <0.15
     , QuickCheck
     , quickcheck-classes
     , quickcheck-instances

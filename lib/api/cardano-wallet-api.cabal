@@ -40,14 +40,13 @@ library
     , binary
     , bytestring
     , cardano-addresses             >=4.0.2    && <4.1
-    , cardano-api                   >=10.8.0.0 && <10.9
-    , cardano-api:internal
+    , cardano-api  >=10.16.0.0 && <10.17
     , cardano-balance-tx
     , cardano-balance-tx:internal
     , cardano-binary                >=1.7.1.0  && <1.8
     , cardano-crypto                >= 1.2.0   && < 1.3
-    , cardano-ledger-api            >=1.10.0.0 && <1.11
-    , cardano-ledger-core           >=1.16.0.0 && <1.17
+    , cardano-ledger-api  >=1.11.0.0 && <1.12
+    , cardano-ledger-core  >=1.17.0.0 && <1.18
     , cardano-wallet
     , cardano-wallet-launcher
     , cardano-wallet-network-layer

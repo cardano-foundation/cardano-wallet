@@ -44,7 +44,7 @@ library
     , containers
     , delta-store
     , delta-types
-    , io-classes     >=1.5.0.0 && <1.6
+    , io-classes                    >=1.5.0.0  && <1.9
     , Only           ==0.1
     , sqlite-simple
     , text

@@ -146,22 +146,22 @@ library
   build-depends:
     , base >= 4.14 && < 5
     , bytestring >= 0.10.6 && < 0.13
-    , cardano-crypto >= 1.1.2 && < 1.2
+    , cardano-crypto >= 1.1.2 && < 1.4
     , cardano-crypto-praos >= 2.2.0.0 && < 2.3
-    , cardano-crypto-class >= 2.1.5.0 && < 2.2
-    , cardano-crypto-wrapper >= 1.5.1.3 && < 1.6
+    , cardano-crypto-class >= 2.2.3.0 && < 2.3
+    , cardano-crypto-wrapper >= 1.5.1.3 && < 1.7
     , cardano-data >= 1.2.3.1 && < 1.3
-    , cardano-ledger-allegra >= 1.6.1.0 && < 1.7
-    , cardano-ledger-alonzo >= 1.12.0.0 && < 1.13
-    , cardano-ledger-api >= 1.10.0.0 && < 1.11
-    , cardano-ledger-babbage >= 1.10.1.0 && < 1.11
+    , cardano-ledger-allegra >= 1.7.0.0 && < 1.8
+    , cardano-ledger-alonzo >= 1.13.0.0 && < 1.14
+    , cardano-ledger-api >= 1.11.0.0 && < 1.12
+    , cardano-ledger-babbage >= 1.11.0.0 && < 1.12
     , cardano-ledger-binary
-    , cardano-ledger-byron >= 1.0.2.0 && < 1.1
-    , cardano-ledger-conway >= 1.18.1.0 && < 1.19
-    , cardano-ledger-core >= 1.16.0.0 && < 1.17
-    , cardano-ledger-mary >= 1.7.1.0 && < 1.8
-    , cardano-ledger-shelley >= 1.15.0.0 && < 1.16
-    , cardano-protocol-tpraos >= 1.3.0.0 && < 1.4
+    , cardano-ledger-byron >= 1.1.0.0 && < 1.2
+    , cardano-ledger-conway >= 1.19.0.0 && < 1.20
+    , cardano-ledger-core >= 1.17.0.0 && < 1.18
+    , cardano-ledger-mary >= 1.8.0.0 && < 1.9
+    , cardano-ledger-shelley >= 1.16.0.0 && < 1.17
+    , cardano-protocol-tpraos >= 1.4.0.0 && < 1.5
     , cardano-strict-containers >= 0.1.3.0 && < 0.2
     , containers >= 0.5 && < 0.8
     , deepseq >= 1.4.4 && < 1.6
@@ -171,10 +171,10 @@ library
     , memory >= 0.18.0 && < 0.19
     , nothunks >= 0.1.5 && < 0.4
     , operational >= 0.2.4.2 && < 0.3
-    , ouroboros-consensus >= 0.22.0.0 && < 0.23
-    , ouroboros-consensus-cardano >= 0.21.0.1 && < 0.22
-    , ouroboros-consensus-protocol >= 0.10.0.0 && < 0.11
-    , ouroboros-network-api >= 0.12.0.0 && < 0.13
+    , ouroboros-consensus >= 0.27.0.0 && < 0.28
+    , ouroboros-consensus-cardano >= 0.25.0.0 && < 0.26
+    , ouroboros-consensus-protocol >= 0.12.0.0 && < 0.13
+    , ouroboros-network-api >= 0.14.0.0 && < 0.15
     , QuickCheck >= 2.14 && <= 2.16
     , text >= 1.2 && < 2.2
     , time >= 1.12.2 && < 1.15
@@ -204,9 +204,9 @@ test-suite test
   build-depends:
     , base
     , bytestring
-    , cardano-ledger-api >= 1.10.0.0 && < 1.11
-    , cardano-ledger-core >= 1.16.0.0 && < 1.17
-    , cardano-ledger-mary >= 1.7.1.0 && < 1.8
+    , cardano-ledger-api >= 1.11.0.0 && < 1.12
+    , cardano-ledger-core >= 1.17.0.0 && < 1.18
+    , cardano-ledger-mary >= 1.8.0.0 && < 1.9
     , cardano-wallet-read
     , hspec >= 2.11.0 && < 2.12
     , lens
