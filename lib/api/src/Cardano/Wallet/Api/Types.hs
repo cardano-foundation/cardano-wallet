@@ -2657,7 +2657,7 @@ instance HasSNetworkId n => FromJSON (ApiRedeemer n) where
                 ApiRedeemerMinting bytes <$> (o .: "policy_id")
             "rewarding" -> do
                 text <- o .: "stake_address"
-                case deserialiseFromBech32 (proxyToAsType Proxy) text of
+                case deserialiseFromBech32 @StakeAddress text of
                     Left e -> fail (show e)
                     Right addr -> pure $ ApiRedeemerRewarding bytes addr
             _ ->
