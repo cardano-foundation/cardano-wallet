@@ -24,7 +24,7 @@
 module Cardano.Wallet.Primitive.Ledger.Shelley
     ( CardanoBlock
     , StandardCrypto
-    , StandardShelley
+    , ShelleyEra
 
       -- * Protocol Parameters
     , NetworkId (..)
@@ -252,16 +252,28 @@ import Fmt
 import GHC.Stack
     ( HasCallStack
     )
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
+    )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock
     , CardanoEras
     , HardForkBlock (..)
-    , StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
     )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..)
@@ -446,7 +458,7 @@ fromMaxSize = Quantity . fromIntegral
 
 fromShelleyPParams
     :: W.EraInfo Bound
-    -> Ledger.PParams StandardShelley
+    -> Ledger.PParams ShelleyEra
     -> W.ProtocolParameters
 fromShelleyPParams eraInfo pp =
     W.ProtocolParameters
@@ -466,7 +478,7 @@ fromShelleyPParams eraInfo pp =
 
 fromAllegraPParams
     :: W.EraInfo Bound
-    -> Ledger.PParams StandardAllegra
+    -> Ledger.PParams AllegraEra
     -> W.ProtocolParameters
 fromAllegraPParams eraInfo pp =
     W.ProtocolParameters
@@ -486,7 +498,7 @@ fromAllegraPParams eraInfo pp =
 
 fromMaryPParams
     :: W.EraInfo Bound
-    -> Ledger.PParams StandardMary
+    -> Ledger.PParams MaryEra
     -> W.ProtocolParameters
 fromMaryPParams eraInfo pp =
     W.ProtocolParameters
@@ -511,7 +523,7 @@ fromBoundToEpochNo (Bound _relTime _slotNo (EpochNo e)) =
 fromAlonzoPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams StandardAlonzo
+    -> Ledger.PParams AlonzoEra
     -> W.ProtocolParameters
 fromAlonzoPParams eraInfo pp =
     W.ProtocolParameters
@@ -535,7 +547,7 @@ fromAlonzoPParams eraInfo pp =
 fromBabbagePParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams StandardBabbage
+    -> Ledger.PParams BabbageEra
     -> W.ProtocolParameters
 fromBabbagePParams eraInfo pp =
     W.ProtocolParameters
@@ -560,7 +572,7 @@ fromBabbagePParams eraInfo pp =
 fromConwayPParams
     :: HasCallStack
     => W.EraInfo Bound
-    -> Ledger.PParams StandardConway
+    -> Ledger.PParams ConwayEra
     -> W.ProtocolParameters
 fromConwayPParams eraInfo pp =
     W.ProtocolParameters

@@ -16,6 +16,9 @@ import Cardano.Address.KeyHash
 import Cardano.Address.Script
     ( Script (..)
     )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
 import Cardano.Wallet.Primitive.Ledger.Convert
     ( Convert (..)
     , toLedgerTimelockScript
@@ -67,9 +70,6 @@ import Data.Proxy
 import Data.Typeable
     ( Typeable
     , typeRep
-    )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
     )
 import Test.Cardano.Ledger.Allegra.Arbitrary
     ()

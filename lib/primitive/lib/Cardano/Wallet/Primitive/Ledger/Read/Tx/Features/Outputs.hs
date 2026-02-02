@@ -52,13 +52,23 @@ import Data.Foldable
 import GHC.Stack
     ( HasCallStack
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAllegra
-    , StandardAlonzo
-    , StandardBabbage
-    , StandardConway
-    , StandardMary
-    , StandardShelley
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
     )
 
 import qualified Cardano.Api.Shelley as Cardano
@@ -100,28 +110,28 @@ getOutputs = case theEra @era of
 fromShelleyAddress :: SL.Addr -> W.Address
 fromShelleyAddress = W.Address . SL.serialiseAddr
 
-fromShelleyTxOut :: SL.ShelleyTxOut StandardShelley -> W.TxOut
+fromShelleyTxOut :: SL.ShelleyTxOut ShelleyEra -> W.TxOut
 fromShelleyTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
-fromAllegraTxOut :: SL.ShelleyTxOut StandardAllegra -> W.TxOut
+fromAllegraTxOut :: SL.ShelleyTxOut AllegraEra -> W.TxOut
 fromAllegraTxOut (SL.ShelleyTxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ Ledger.toWalletCoin amount)
 
-fromMaryTxOut :: SL.ShelleyTxOut StandardMary -> W.TxOut
+fromMaryTxOut :: SL.ShelleyTxOut MaryEra -> W.TxOut
 fromMaryTxOut (SL.ShelleyTxOut addr value) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromAlonzoTxOut
-    :: Alonzo.AlonzoTxOut StandardAlonzo
+    :: Alonzo.AlonzoTxOut AlonzoEra
     -> W.TxOut
 fromAlonzoTxOut (Alonzo.AlonzoTxOut addr value _) =
     W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
 
 fromBabbageTxOut
-    :: Babbage.BabbageTxOut StandardBabbage
+    :: Babbage.BabbageTxOut BabbageEra
     -> (W.TxOut, Maybe (AlonzoScript Babbage.BabbageEra))
 fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)
@@ -131,7 +141,7 @@ fromBabbageTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     )
 
 fromConwayTxOut
-    :: Babbage.BabbageTxOut StandardConway
+    :: Babbage.BabbageTxOut ConwayEra
     -> (W.TxOut, Maybe (AlonzoScript Conway.ConwayEra))
 fromConwayTxOut (Babbage.BabbageTxOut addr value _datum refScript) =
     ( W.TxOut (fromShelleyAddress addr) (toWalletTokenBundle value)

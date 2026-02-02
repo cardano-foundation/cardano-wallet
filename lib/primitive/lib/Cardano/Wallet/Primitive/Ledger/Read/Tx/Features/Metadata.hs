@@ -23,14 +23,32 @@ module Cardano.Wallet.Primitive.Ledger.Read.Tx.Features.Metadata
 
 import Prelude
 
+import Cardano.Ledger.Allegra
+    ( AllegraEra
+    )
 import Cardano.Ledger.Allegra.TxAuxData
     ( AllegraTxAuxData (..)
+    )
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
     )
 import Cardano.Ledger.Alonzo.TxAuxData
     ( AlonzoTxAuxData (..)
     )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
 import Cardano.Ledger.BaseTypes
     ( strictMaybeToMaybe
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
+    )
+import Cardano.Ledger.Mary
+    ( MaryEra
+    )
+import Cardano.Ledger.Shelley
+    ( ShelleyEra
     )
 import Cardano.Ledger.Shelley.TxAuxData
     ( Metadatum
@@ -48,24 +66,6 @@ import Data.Map
     )
 import Data.Word
     ( Word64
-    )
-import Cardano.Ledger.Allegra
-    ( AllegraEra
-    )
-import Cardano.Ledger.Alonzo
-    ( AlonzoEra
-    )
-import Cardano.Ledger.Babbage
-    ( BabbageEra
-    )
-import Cardano.Ledger.Conway
-    ( ConwayEra
-    )
-import Cardano.Ledger.Mary
-    ( MaryEra
-    )
-import Cardano.Ledger.Shelley
-    ( ShelleyEra
     )
 
 import qualified Cardano.Api.Shelley as Cardano

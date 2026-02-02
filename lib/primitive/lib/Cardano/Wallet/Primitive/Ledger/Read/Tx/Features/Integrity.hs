@@ -21,7 +21,7 @@ import Prelude
 import Cardano.Ledger.Alonzo.Tx
     ( ScriptIntegrityHash
     )
-import Cardano.Ledger.SafeHash
+import Cardano.Ledger.Hashes
     ( SafeToHash (originalBytes)
     )
 import Cardano.Read.Ledger.Tx.Integrity

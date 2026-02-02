@@ -50,10 +50,14 @@ import Cardano.Wallet.Primitive.Types.WitnessCount
     ( WitnessCountCtx
     , toKeyRole
     )
-import Ouroboros.Consensus.Shelley.Eras
-    ( StandardAlonzo
-    , StandardBabbage
-    , StandardConway
+import Cardano.Ledger.Alonzo
+    ( AlonzoEra
+    )
+import Cardano.Ledger.Babbage
+    ( BabbageEra
+    )
+import Cardano.Ledger.Conway
+    ( ConwayEra
     )
 
 import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
@@ -68,7 +72,7 @@ alonzoAnyExplicitScript witCtx = \case
     script@(Alonzo.PlutusScript s) ->
         PlutusExplicitScript
             (PlutusScriptInfo
-                (toPlutusScriptInfo @StandardAlonzo s)
+                (toPlutusScriptInfo @AlonzoEra s)
                 (fromLedgerScriptHash $ hashScript @Alonzo script)
             )
             ViaSpending
@@ -91,7 +95,7 @@ babbageAnyExplicitScript witCtx (scriptRef, scriptH, script) =
         Alonzo.PlutusScript s ->
             PlutusExplicitScript
                 (PlutusScriptInfo
-                    (toPlutusScriptInfo @StandardBabbage s)
+                    (toPlutusScriptInfo @BabbageEra s)
                     (fromLedgerScriptHash $ hashScript @Babbage script)
                 )
                 scriptRef
@@ -114,7 +118,7 @@ conwayAnyExplicitScript witCtx (scriptRef, scriptH, script) =
         Alonzo.PlutusScript s ->
             PlutusExplicitScript
                 (PlutusScriptInfo
-                    (toPlutusScriptInfo @StandardConway s)
+                    (toPlutusScriptInfo @ConwayEra s)
                     (fromLedgerScriptHash $ hashScript @Conway script)
                 )
                 scriptRef
