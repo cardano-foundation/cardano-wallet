@@ -264,3 +264,15 @@ tests: False
 package bitvec
    flags: -simd
 
+-- -------------------------------------------------------------------------
+-- cardano-cli: Pin to specific version to avoid Nix package database conflicts
+-- See: https://github.com/IntersectMBO/cardano-cli
+
+source-repository-package
+  type: git
+  location: https://github.com/IntersectMBO/cardano-cli
+  tag: cardano-cli-10.11.0.0
+  --sha256: sha256-pJkhKwmXVvE5aulIMUe7TtlI53h5t8y720Zn3EJ/YnU=
+  subdir:
+    cardano-cli
+

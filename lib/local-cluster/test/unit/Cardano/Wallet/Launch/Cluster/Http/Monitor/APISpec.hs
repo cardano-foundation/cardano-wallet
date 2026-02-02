@@ -36,9 +36,6 @@ import Cardano.Wallet.Launch.Cluster.Monitoring.Phase
     ( History (..)
     , Phase (..)
     )
-import Cardano.Wallet.Primitive.Ledger.Shelley
-    ( StandardCrypto
-    )
 import Control.Monitoring.Tracing
     ( MonitorState (..)
     )
@@ -214,7 +211,7 @@ genNodeToClientVersionData =
             , query = True
             }
 
-genShelleyGenesis :: Gen (ShelleyGenesis StandardCrypto)
+genShelleyGenesis :: Gen ShelleyGenesis
 genShelleyGenesis = pure $ case fromJSON shelleyGenesis of
     Success genesis -> genesis
     Error e -> error e

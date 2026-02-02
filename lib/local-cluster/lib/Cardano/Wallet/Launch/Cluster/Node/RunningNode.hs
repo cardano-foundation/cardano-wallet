@@ -9,9 +9,6 @@ import Prelude
 import Cardano.Launcher.Node
     ( CardanoNodeConn
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis
     )
@@ -22,6 +19,6 @@ import Ouroboros.Network.NodeToClient
 -- | Information about a launched node.
 data RunningNode = RunningNode
     { runningNodeSocketPath :: CardanoNodeConn
-    , runningNodeShelleyGenesis :: ShelleyGenesis StandardCrypto
+    , runningNodeShelleyGenesis :: ShelleyGenesis
     , runningNodeVersionData :: NodeToClientVersionData
     } deriving stock (Show, Eq)

@@ -123,8 +123,16 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
         };
         withHoogle = true;
         nativeBuildInputs = (with buildProject.hsPkgs; [
-          nodePkgs.cardano-cli
-          nodePkgs.cardano-node
+          # Wrap cardano-cli/node to only expose binaries, not Haskell libraries
+          # This prevents GHC package database pollution with conflicting versions
+          (pkgs.runCommand "cardano-cli-bin" {} ''
+            mkdir -p $out/bin
+            ln -s ${nodePkgs.cardano-cli}/bin/cardano-cli $out/bin/
+          '')
+          (pkgs.runCommand "cardano-node-bin" {} ''
+            mkdir -p $out/bin
+            ln -s ${nodePkgs.cardano-node}/bin/cardano-node $out/bin/
+          '')
           cardano-addresses.components.exes.cardano-address
           bech32.components.exes.bech32
         ]) ++ (with pkgs.buildPackages.buildPackages; [

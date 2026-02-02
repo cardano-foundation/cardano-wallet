@@ -16,9 +16,6 @@ import Prelude
 import Cardano.BM.Tracer
     ( Tracer
     )
-import Cardano.Ledger.Api
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Shelley.API
     ( ShelleyGenesis
     )
@@ -50,7 +47,7 @@ newtype TestnetMagic = TestnetMagic {testnetMagicToNatural :: Natural}
     deriving stock (Show)
 
 type ShelleyGenesisModifier =
-    ShelleyGenesis StandardCrypto -> ShelleyGenesis StandardCrypto
+    ShelleyGenesis -> ShelleyGenesis
 
 data OsNamedPipe
     = UnixPipe (FileOf "node-to-client-socket")
