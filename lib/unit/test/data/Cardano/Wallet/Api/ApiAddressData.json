@@ -1,0 +1,117 @@
+{
+    "samples": [
+        {
+            "payment": "script1tjy0ckzj7xwrqdt7fhjwzwltwk6aj58r29n53396pug4ukz099t",
+            "stake": "script1mzahfpx9u42mkwuujwnkd780fp3cnmnxn4zktrpdpg8cke3y0qc"
+        },
+        {
+            "payment": {
+                "any": [
+                    "addr_shared_vkh1rrkt7376af68gwkmywkxa334uyzgqh0qpp7g75czy04nkzdfunz",
+                    {
+                        "active_from": 2
+                    },
+                    "addr_shared_vkh1kfn6dqrt2j5kua9nd7aqap8lm7s6efkde3jlgga0gczdwx4vgnu",
+                    "addr_shared_vkh1rrkt7376af68gwkmywkxa334uyzgqh0qpp7g75czy04nkzdfunz",
+                    {
+                        "active_from": 2
+                    },
+                    {
+                        "active_from": 8
+                    },
+                    "stake_shared_vkh1pvkgg9wxxwhynvmuhw6z6j0rsqe2f5hjruzkceruh74tvq9zu2x",
+                    {
+                        "active_from": 5
+                    },
+                    {
+                        "active_until": 3
+                    },
+                    {
+                        "active_until": 4
+                    }
+                ]
+            },
+            "stake": {
+                "any": [
+                    {
+                        "some": {
+                            "at_least": 2,
+                            "from": [
+                                "stake_shared_vkh1avhsgqmy5y6mjatt6sdxzg2stvfkdjyr6c5sut0neft6qk27muy",
+                                "stake_shared_vkh15hlawqz9083agq6647wg5cqqdsxzf294v69zdea4yeghu67nr2u"
+                            ]
+                        }
+                    },
+                    {
+                        "any": [
+                            {
+                                "active_from": 8
+                            },
+                            {
+                                "active_from": 8
+                            },
+                            "stake_shared_vkh1hdf6pdac4dqhakygn09xgnkmg49n5a3x8dg3pmvjd3w8vajc5ql",
+                            {
+                                "active_until": 6
+                            },
+                            {
+                                "active_until": 9
+                            },
+                            {
+                                "active_until": 8
+                            }
+                        ]
+                    },
+                    {
+                        "all": [
+                            {
+                                "active_until": 3
+                            },
+                            {
+                                "active_until": 4
+                            },
+                            "addr_shared_vkh1hxanwcqaaf4u7xydvq8fklfam2m9wsvezy2y35pt87jzjcjqlxl",
+                            {
+                                "active_from": 9
+                            }
+                        ]
+                    }
+                ]
+            },
+            "validation": "recommended"
+        },
+        {
+            "payment": "addr_xvk1zqgqsjl646z9kshzq9et9jr2naz7lrz70y6a8crqm4wxn8h4gd2f42hgh4alkqx0ed44v6dj7zzyf8fcr89lwaj898e756gmhuclwjqq0hx6r",
+            "validation": "required"
+        },
+        {
+            "stake": "addr_xvk1465pt4cj0qnlfhfk8undymptt73ng0gjmude9zae5ds7vk3frpjpatv9nnahf2f0wmdpcq2ksyqlsw38x72q23v6l46s6rf5kajf8qcmcmrvt"
+        },
+        {
+            "payment": "addr_vk1r5qfu9fax0m8ds2ljknd4lzt88feaeal0qugkwgjj7qvkd2z84xstsrx8y",
+            "validation": "recommended"
+        },
+        {
+            "payment": "script1tnaxg2dlk4vl44daslaj9npq98667w2g622w9u9y3vsr63r7q25",
+            "stake": "script18t6fqm7xs5vtmuuwwzt2acxa085xq0mwzhyu73wmjwtr6j9q5x8",
+            "validation": "recommended"
+        },
+        {
+            "payment": "addr_vkh1ngvpd0ehzl9vsfe8x9xjfsn23znnawes467x45wnp4uvwef7hx3",
+            "validation": "required"
+        },
+        {
+            "payment": "addr_vkh1mkfa530enecu42s3aevhkg9fvfnrt45fphysa28znshlc7gvwd0",
+            "stake": "addr_xvk1kv5kqwgpty6m2qrj2g5q65zzy2fshjgw77p25p928yylzu8rnag7ey4she0nfunaznf9wxw9mnnqu9xw33w3v3gs7zkdwjxjxs0kr6gpshk9u",
+            "validation": "required"
+        },
+        {
+            "stake": "addr_vkh1ejamc3xl099tldtdxus2y32dam3mx4m4hwycj54lmkyd654xrtq"
+        },
+        {
+            "payment": "addr_vk124z7fva22drclw0jvmrhvkfhc95e5ww2ajff963hpdp03ql502wqpfcc2s",
+            "validation": "required"
+        }
+    ],
+    "seed": -1953761117
+}
