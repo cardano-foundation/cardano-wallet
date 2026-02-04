@@ -169,6 +169,28 @@ The "Dev Shell Attic Cache (macos)" job pushes build artifacts to the Attic cach
 
 3. **Verify Attic server** is reachable: `curl -I https://attic.cf-app.org/`
 
+4. **SSL Certificate Error** - If you see:
+   ```
+   invalid peer certificate: UnknownIssuer
+   ```
+
+   The mac-builder may be resolving `attic.cf-app.org` to an internal IP (via internal DNS) that serves a certificate signed by the internal CA, which is not in the system trust store.
+
+   Check which IP is being used:
+   ```bash
+   ping -c1 attic.cf-app.org
+   ```
+
+   If it resolves to an internal IP (e.g., `10.1.21.x`), override with the external IP in `/etc/hosts`:
+   ```bash
+   # First, remove any existing internal DNS entry for attic from /etc/hosts
+   sudo sed -i '' 's/ attic.cf-app.org//g; s/ attic//g' /etc/hosts
+   # Then add the external IP
+   echo "195.48.82.220 attic.cf-app.org" | sudo tee -a /etc/hosts
+   ```
+
+   The external server uses a Let's Encrypt certificate which is trusted by default.
+
 #### Stale Processes
 
 Test cluster processes (cardano-node) may accumulate if builds are interrupted:
