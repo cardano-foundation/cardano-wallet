@@ -76,3 +76,58 @@ Windows permissions are quite complex and beyond the cognitive abilities of most
    psexec -s -i cmd
    ```
 3. If some steps fail to delete checkout directory, ensure there's no other process on the machine (in particular, shells...) locking the directory
+
+## macOS Machine (hal-mac)
+
+The macOS builder runs on a Mac Mini (Apple Silicon) managed via nix-darwin. The machine is accessible via SSH through the jumpbox:
+
+```bash
+ssh mac-builder  # requires SSH config with ProxyJump through jumpbox-dev
+```
+
+### Buildkite Agent Configuration
+
+The agent runs as a launchd service under the `buildkite-agent-hal-mac` user:
+
+- **Service plist**: `/Library/LaunchDaemons/org.nixos.buildkite-agent-hal-mac.plist`
+- **Config file**: `/var/lib/buildkite-agent-hal-mac/buildkite-agent.cfg`
+- **Token file**: `/var/lib/buildkite-agent-hal-mac/buildkite-token`
+- **Log file**: `/var/lib/buildkite-agent-hal-mac/buildkite-agent.log`
+- **Agent tags**: `queue=cardano-wallet,system=aarch64-darwin`
+
+### Updating the Agent Token
+
+If the Buildkite agent token expires or becomes invalid, the agent will fail to connect with `401 Unauthorized: Invalid access token` errors in the log.
+
+To update the token:
+
+1. **Create a new agent token** in Buildkite:
+   - Go to https://buildkite.com/organizations/cardano-foundation/agents#tokens
+   - Click "New Token" and give it a description (e.g., "hal-mac")
+   - Copy the token value (it's only shown once)
+
+2. **Update the token on the machine**:
+   ```bash
+   ssh mac-builder
+   sudo tee /var/lib/buildkite-agent-hal-mac/buildkite-token <<< 'YOUR_NEW_TOKEN'
+   ```
+
+3. **Restart the agent**:
+   ```bash
+   sudo launchctl kickstart -k system/org.nixos.buildkite-agent-hal-mac
+   ```
+
+4. **Verify the agent is running**:
+   ```bash
+   pgrep -fl buildkite-agent
+   tail -20 /var/lib/buildkite-agent-hal-mac/buildkite-agent.log
+   ```
+
+### Troubleshooting
+
+- **Check agent status**: `pgrep -fl buildkite-agent`
+- **View logs**: `tail -f /var/lib/buildkite-agent-hal-mac/buildkite-agent.log`
+- **Restart service**: `sudo launchctl kickstart -k system/org.nixos.buildkite-agent-hal-mac`
+- **Stop service**: `sudo launchctl stop system/org.nixos.buildkite-agent-hal-mac`
+
+Note: Stale test cluster processes (cardano-node) may accumulate if builds are interrupted. Check with `ps aux | grep cardano-node` and kill orphaned processes if needed.
