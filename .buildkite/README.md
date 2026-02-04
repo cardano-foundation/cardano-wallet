@@ -123,6 +123,14 @@ To update the token:
    tail -20 /var/lib/buildkite-agent-hal-mac/buildkite-agent.log
    ```
 
+### Environment Variables
+
+The buildkite hooks (`/nix/store/.../buildkite-agent-hooks/environment`) set up:
+
+- `ATTIC_TOKEN` - from `/var/lib/buildkite-agent-hal-mac/env-attic-token`
+- `FIXTURE_DECRYPTION_KEY` - from `/var/lib/buildkite-agent-hal-mac/env-fixture-decryption-key`
+- `HAL_E2E_PREPROD_MNEMONICS` - from `/var/lib/buildkite-agent-hal-mac/env-hal-e2e-preprod-mnemonics`
+
 ### Troubleshooting
 
 - **Check agent status**: `pgrep -fl buildkite-agent`
@@ -130,4 +138,42 @@ To update the token:
 - **Restart service**: `sudo launchctl kickstart -k system/org.nixos.buildkite-agent-hal-mac`
 - **Stop service**: `sudo launchctl stop system/org.nixos.buildkite-agent-hal-mac`
 
-Note: Stale test cluster processes (cardano-node) may accumulate if builds are interrupted. Check with `ps aux | grep cardano-node` and kill orphaned processes if needed.
+#### Git Safe Directory Error
+
+If builds fail with:
+```
+error: repository path '...' is not owned by current user
+```
+
+This happens because Nix's git fetcher runs as a different user than the checkout directory owner. Fix by adding a system-wide git safe.directory config:
+
+```bash
+sudo git config --system --add safe.directory '*'
+```
+
+#### Attic Cache Failures
+
+The "Dev Shell Attic Cache (macos)" job pushes build artifacts to the Attic cache server. If it fails:
+
+1. **Check Attic token** - The JWT token in `/var/lib/buildkite-agent-hal-mac/env-attic-token` may have expired. Decode the token to check:
+   ```bash
+   cat /var/lib/buildkite-agent-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
+   ```
+   Look for the `exp` field (Unix timestamp).
+
+2. **Test Attic login**:
+   ```bash
+   ATTIC_TOKEN=$(cat /var/lib/buildkite-agent-hal-mac/env-attic-token)
+   nix-shell -p attic-client --run "attic login adrestia https://attic.cf-app.org/ $ATTIC_TOKEN"
+   ```
+
+3. **Verify Attic server** is reachable: `curl -I https://attic.cf-app.org/`
+
+#### Stale Processes
+
+Test cluster processes (cardano-node) may accumulate if builds are interrupted:
+```bash
+ps aux | grep cardano-node
+# Kill orphaned processes if needed
+pkill -f "cardano-node.*test-cluster"
+```
