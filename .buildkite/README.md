@@ -138,19 +138,6 @@ The buildkite hooks (`/nix/store/.../buildkite-agent-hooks/environment`) set up:
 - **Restart service**: `sudo launchctl kickstart -k system/org.nixos.buildkite-agent-hal-mac`
 - **Stop service**: `sudo launchctl stop system/org.nixos.buildkite-agent-hal-mac`
 
-#### Git Safe Directory Error
-
-If builds fail with:
-```
-error: repository path '...' is not owned by current user
-```
-
-This happens because Nix's git fetcher runs as a different user than the checkout directory owner. Fix by adding a system-wide git safe.directory config:
-
-```bash
-sudo git config --system --add safe.directory '*'
-```
-
 #### Attic Cache Failures
 
 The "Dev Shell Attic Cache (macos)" job pushes build artifacts to the Attic cache server. If it fails:
