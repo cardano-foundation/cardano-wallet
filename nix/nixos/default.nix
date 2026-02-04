@@ -1,1 +1,1 @@
-{ imports = import ./module-list.nix; }
+{imports = import ./module-list.nix;}

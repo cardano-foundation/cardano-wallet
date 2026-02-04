@@ -1,11 +1,15 @@
-{ indexState, src, haskell-nix, ... }:
-let
-  shell = { pkgs, ... }: {
+{
+  indexState,
+  src,
+  haskell-nix,
+  ...
+}: let
+  shell = {pkgs, ...}: {
     tools = {
-      cabal = { index-state = indexState; };
-      cabal-fmt = { index-state = indexState; };
-      haskell-language-server = { index-state = indexState; };
-      hoogle = { index-state = indexState; };
+      cabal = {index-state = indexState;};
+      cabal-fmt = {index-state = indexState;};
+      haskell-language-server = {index-state = indexState;};
+      hoogle = {index-state = indexState;};
     };
     withHoogle = true;
     buildInputs = [
@@ -21,12 +25,16 @@ let
     '';
   };
 
-  mkProject = ctx@{ lib, pkgs, ... }: {
+  mkProject = ctx @ {
+    lib,
+    pkgs,
+    ...
+  }: {
     name = "cardano-deposit-wallet";
     compiler-nix-name = "ghc966";
     inherit src;
-    shell = shell { inherit pkgs; };
-    modules = [ ];
+    shell = shell {inherit pkgs;};
+    modules = [];
   };
   project = haskell-nix.cabalProject' mkProject;
   packages = {

@@ -5,23 +5,20 @@
 # dependencies, and sets up the Hydra build artifact.
 #
 ###############################################################################
-
-{ pkgs
-, walletLib
-, platform
-, exes
-, nodeConfigs
-, format
-, rewrite-libs ? null
-}:
-
-let
+{
+  pkgs,
+  walletLib,
+  platform,
+  exes,
+  nodeConfigs,
+  format,
+  rewrite-libs ? null,
+}: let
   inherit (pkgs) lib;
 
   exe = assert lib.assertMsg (lib.length exes > 0) "empty list of exes";
     lib.head exes;
-  name =
-    "${walletLib.gitTagFromCabalVersion exe.meta.name}-${platform}";
+  name = "${walletLib.gitTagFromCabalVersion exe.meta.name}-${platform}";
 
   makeTarball = format == "tar.gz";
   makeZip = format == "zip";
@@ -29,118 +26,134 @@ let
   isLinux = platform == "linux64";
   isMacOS = platform == "macos-intel" || platform == "macos-silicon";
   isWindows = platform == "win64";
-
 in
   assert lib.assertMsg (makeTarball || makeZip)
-    "format must be tar.gz or zip";
+  "format must be tar.gz or zip";
   assert lib.assertMsg (isLinux || isMacOS || isWindows)
-    "wrong platform \"${platform}\"";
+  "wrong platform \"${platform}\"";
+    pkgs.stdenv.mkDerivation {
+      inherit name;
+      buildInputs = with pkgs.buildPackages;
+        [
+          nix
+        ]
+        ++ (
+          if pkgs.stdenv.hostPlatform.isDarwin
+          then [darwin.binutils]
+          else [binutils]
+        )
+        ++ lib.optionals makeTarball [gnutar gzip]
+        ++ lib.optionals makeZip [zip];
+      checkInputs = with pkgs.buildPackages;
+        [
+          ruby_3_1
+          gnugrep
+          gnused
+        ]
+        ++ lib.optionals isMacOS [darwin.cctools]
+        ++ lib.optionals isWindows [unzip winePackages.minimal]
+        ++ lib.optional (stdenv.buildPlatform.libc == "glibc") glibcLocales;
 
-pkgs.stdenv.mkDerivation {
-  inherit name;
-  buildInputs = with pkgs.buildPackages; [
-    nix
-  ]
-  ++ (if pkgs.stdenv.hostPlatform.isDarwin then [ darwin.binutils ] else [ binutils ])
-  ++ lib.optionals makeTarball [ gnutar gzip ]
-  ++ lib.optionals makeZip [ zip ];
-  checkInputs = with pkgs.buildPackages; [
-    ruby_3_1
-    gnugrep
-    gnused
-  ]
-  ++ lib.optionals isMacOS [ darwin.cctools ]
-  ++ lib.optionals isWindows [ unzip winePackages.minimal ]
-  ++ lib.optional (stdenv.buildPlatform.libc == "glibc") glibcLocales;
+      doCheck = true;
+      phases = ["buildPhase" "checkPhase"];
+      pkgname = "${name}.${format}";
+      exeName = lib.getName exe.name;
+      buildPhase =
+        ''
+          mkdir -p $out/nix-support $name
 
-  doCheck = true;
-  phases = [ "buildPhase" "checkPhase" ];
-  pkgname = "${name}.${format}";
-  exeName = lib.getName exe.name;
-  buildPhase = ''
-    mkdir -p $out/nix-support $name
+          # Note: On Windows, each output directory of a derivation in `exes`
+          # may contain a copy of the same DLLs — for example,
+          # the `cardano-wallet` and `bech32` derivations both contain `libffi-8.dll`.
+          # When copying all DLLs to the output directory,
+          # we silently discard duplicates, hoping that were equal anyway.
+          # If the duplicates are not equal, we may get subtle conflicts
+          # where two executables depend on slightly different DLLs with the same name.
+          # This should not happen, but this Note exists to remind us of the possibility.
+          #
+          cp --no-preserve=timestamps --update=none --recursive \
+            ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} \
+            $name
 
-    # Note: On Windows, each output directory of a derivation in `exes`
-    # may contain a copy of the same DLLs — for example,
-    # the `cardano-wallet` and `bech32` derivations both contain `libffi-8.dll`.
-    # When copying all DLLs to the output directory,
-    # we silently discard duplicates, hoping that were equal anyway.
-    # If the duplicates are not equal, we may get subtle conflicts
-    # where two executables depend on slightly different DLLs with the same name.
-    # This should not happen, but this Note exists to remind us of the possibility.
-    #
-    cp --no-preserve=timestamps --update=none --recursive \
-      ${lib.concatMapStringsSep " " (exe: "${exe}/bin/*") exes} \
-      $name
+          chmod -R +w $name
 
-    chmod -R +w $name
+        ''
+        + lib.optionalString isMacOS ''
+          # Rewrite library paths to standard non-nix locations
+          ( cd $name; ${rewrite-libs}/bin/rewrite-libs . `ls -1 | grep -Fv .dylib`
+            for a in *; do /usr/bin/codesign -f -s - $a; done
+          )
 
-  '' + lib.optionalString isMacOS ''
-    # Rewrite library paths to standard non-nix locations
-    ( cd $name; ${rewrite-libs}/bin/rewrite-libs . `ls -1 | grep -Fv .dylib`
-      for a in *; do /usr/bin/codesign -f -s - $a; done
-    )
+        ''
+        + ''
+          # Add configuration files
+          mkdir -p $name/configs
+          cp  --recursive ${nodeConfigs}/cardano/* $name/configs
+          chmod -R +w $name
 
-  '' + ''
-    # Add configuration files
-    mkdir -p $name/configs
-    cp  --recursive ${nodeConfigs}/cardano/* $name/configs
-    chmod -R +w $name
+        ''
+        + lib.optionalString (isLinux || isMacOS) ''
+          mkdir -p $name/auto-completion/{bash,zsh,fish}
+          cp ${exe}/share/bash-completion/completions/* $name/auto-completion/bash/$exeName.sh
+          cp ${exe}/share/zsh/vendor-completions/* $name/auto-completion/zsh/_$exeName
+          cp ${exe}/share/fish/vendor_completions.d/* $name/auto-completion/fish/$exeName.fish
 
-  '' + lib.optionalString (isLinux || isMacOS) ''
-    mkdir -p $name/auto-completion/{bash,zsh,fish}
-    cp ${exe}/share/bash-completion/completions/* $name/auto-completion/bash/$exeName.sh
-    cp ${exe}/share/zsh/vendor-completions/* $name/auto-completion/zsh/_$exeName
-    cp ${exe}/share/fish/vendor_completions.d/* $name/auto-completion/fish/$exeName.fish
+        ''
+        + lib.optionalString makeTarball ''
+          tar -czf $out/$pkgname $name
+        ''
+        + lib.optionalString makeZip ''
+          ( cd $name; zip -r $out/$pkgname . )
+        ''
+        + ''
+          echo "file binary-dist $out/$pkgname" > $out/nix-support/hydra-build-products
+        ''
+        + lib.optionalString isWindows ''
 
-  '' + lib.optionalString makeTarball ''
-    tar -czf $out/$pkgname $name
-  '' + lib.optionalString makeZip ''
-    ( cd $name; zip -r $out/$pkgname . )
-  '' + ''
-    echo "file binary-dist $out/$pkgname" > $out/nix-support/hydra-build-products
-  '' + lib.optionalString isWindows ''
+          # make a separate configuration package if needed
+          if [ -d ${exe}/configuration ]; then
+            cp --no-preserve=mode,timestamps -R ${exe}/configuration .
 
-    # make a separate configuration package if needed
-    if [ -d ${exe}/configuration ]; then
-      cp --no-preserve=mode,timestamps -R ${exe}/configuration .
+            ( cd configuration; zip -r $out/$name-configuration.zip . )
+            echo "file binary-dist $out/$name-configuration.zip" >> $out/nix-support/hydra-build-products
+          fi
 
-      ( cd configuration; zip -r $out/$name-configuration.zip . )
-      echo "file binary-dist $out/$name-configuration.zip" >> $out/nix-support/hydra-build-products
-    fi
+          # make a separate deployments configuration package if needed
+          if [ -d ${exe}/deployments ]; then
+            cp --no-preserve=mode,timestamps -R ${exe}/deployments .
 
-    # make a separate deployments configuration package if needed
-    if [ -d ${exe}/deployments ]; then
-      cp --no-preserve=mode,timestamps -R ${exe}/deployments .
+            ( cd deployments; zip -r $out/$name-deployments.zip . )
+            echo "file binary-dist $out/$name-deployments.zip" >> $out/nix-support/hydra-build-products
+          fi
+        '';
 
-      ( cd deployments; zip -r $out/$name-deployments.zip . )
-      echo "file binary-dist $out/$name-deployments.zip" >> $out/nix-support/hydra-build-products
-    fi
-  '';
+      # test that executables work
+      exeRunner = lib.optionalString isWindows "wine64";
+      checkPhase =
+        ''
+          cd `mktemp -d`
+          echo " - extracting $pkgname"
+          ${lib.optionalString makeTarball "tar -xzvf $out/$pkgname"}
+          ${lib.optionalString makeZip "unzip $out/$pkgname"}
 
-  # test that executables work
-  exeRunner = lib.optionalString isWindows "wine64";
-  checkPhase = ''
-    cd `mktemp -d`
-    echo " - extracting $pkgname"
-    ${lib.optionalString makeTarball "tar -xzvf $out/$pkgname"}
-    ${lib.optionalString makeZip "unzip $out/$pkgname"}
+        ''
+        + lib.optionalString isWindows ''
+          # setup wine
+          export WINEPREFIX=$TMP
+          export HOME=$TMP
+          export WINEDLLOVERRIDES="winemac.drv=d"
+          export WINEDEBUG=warn-all,fixme-all,-menubuilder,-mscoree,-ole,-secur32,-winediag
 
-  '' + lib.optionalString isWindows ''
-    # setup wine
-    export WINEPREFIX=$TMP
-    export HOME=$TMP
-    export WINEDLLOVERRIDES="winemac.drv=d"
-    export WINEDEBUG=warn-all,fixme-all,-menubuilder,-mscoree,-ole,-secur32,-winediag
+        ''
+        + ''
+          export PATH=`pwd`/$name:$PATH
 
-  '' + ''
-    export PATH=`pwd`/$name:$PATH
-
-    echo " - running checks"
-    ruby ${../scripts/check-bundle.rb} $exeName $exeRunner
-  '';
-} // lib.optionalAttrs (pkgs.stdenv.buildPlatform.libc == "glibc") {
-  LOCALE_ARCHIVE = "${pkgs.buildPackages.glibcLocales}/lib/locale/locale-archive";
-  LANG = "en_US.UTF-8";
-  LC_ALL = "en_US.UTF-8";
-}
+          echo " - running checks"
+          ruby ${../scripts/check-bundle.rb} $exeName $exeRunner
+        '';
+    }
+    // lib.optionalAttrs (pkgs.stdenv.buildPlatform.libc == "glibc") {
+      LOCALE_ARCHIVE = "${pkgs.buildPackages.glibcLocales}/lib/locale/locale-archive";
+      LANG = "en_US.UTF-8";
+      LC_ALL = "en_US.UTF-8";
+    }
