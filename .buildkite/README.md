@@ -76,3 +76,113 @@ Windows permissions are quite complex and beyond the cognitive abilities of most
    psexec -s -i cmd
    ```
 3. If some steps fail to delete checkout directory, ensure there's no other process on the machine (in particular, shells...) locking the directory
+
+## macOS Machine (hal-mac)
+
+The macOS builder runs on a Mac Mini (Apple Silicon) managed via nix-darwin. The machine is accessible via SSH through the jumpbox:
+
+```bash
+ssh mac-builder  # requires SSH config with ProxyJump through jumpbox-dev
+```
+
+### Buildkite Agent Configuration
+
+The agent runs as a launchd service under the `buildkite-agent-hal-mac` user:
+
+- **Service plist**: `/Library/LaunchDaemons/org.nixos.buildkite-agent-hal-mac.plist`
+- **Config file**: `/var/lib/buildkite-agent-hal-mac/buildkite-agent.cfg`
+- **Token file**: `/var/lib/buildkite-agent-hal-mac/buildkite-token`
+- **Log file**: `/var/lib/buildkite-agent-hal-mac/buildkite-agent.log`
+- **Agent tags**: `queue=cardano-wallet,system=aarch64-darwin`
+
+### Updating the Agent Token
+
+If the Buildkite agent token expires or becomes invalid, the agent will fail to connect with `401 Unauthorized: Invalid access token` errors in the log.
+
+To update the token:
+
+1. **Create a new agent token** in Buildkite:
+   - Go to https://buildkite.com/organizations/cardano-foundation/agents#tokens
+   - Click "New Token" and give it a description (e.g., "hal-mac")
+   - Copy the token value (it's only shown once)
+
+2. **Update the token on the machine**:
+   ```bash
+   ssh mac-builder
+   sudo tee /var/lib/buildkite-agent-hal-mac/buildkite-token <<< 'YOUR_NEW_TOKEN'
+   ```
+
+3. **Restart the agent**:
+   ```bash
+   sudo launchctl kickstart -k system/org.nixos.buildkite-agent-hal-mac
+   ```
+
+4. **Verify the agent is running**:
+   ```bash
+   pgrep -fl buildkite-agent
+   tail -20 /var/lib/buildkite-agent-hal-mac/buildkite-agent.log
+   ```
+
+### Environment Variables
+
+The buildkite hooks (`/nix/store/.../buildkite-agent-hooks/environment`) set up:
+
+- `ATTIC_TOKEN` - from `/var/lib/buildkite-agent-hal-mac/env-attic-token`
+- `FIXTURE_DECRYPTION_KEY` - from `/var/lib/buildkite-agent-hal-mac/env-fixture-decryption-key`
+- `HAL_E2E_PREPROD_MNEMONICS` - from `/var/lib/buildkite-agent-hal-mac/env-hal-e2e-preprod-mnemonics`
+
+### Troubleshooting
+
+- **Check agent status**: `pgrep -fl buildkite-agent`
+- **View logs**: `tail -f /var/lib/buildkite-agent-hal-mac/buildkite-agent.log`
+- **Restart service**: `sudo launchctl kickstart -k system/org.nixos.buildkite-agent-hal-mac`
+- **Stop service**: `sudo launchctl stop system/org.nixos.buildkite-agent-hal-mac`
+
+#### Attic Cache Failures
+
+The "Dev Shell Attic Cache (macos)" job pushes build artifacts to the Attic cache server. If it fails:
+
+1. **Check Attic token** - The JWT token in `/var/lib/buildkite-agent-hal-mac/env-attic-token` may have expired. Decode the token to check:
+   ```bash
+   cat /var/lib/buildkite-agent-hal-mac/env-attic-token | cut -d. -f2 | base64 -d
+   ```
+   Look for the `exp` field (Unix timestamp).
+
+2. **Test Attic login**:
+   ```bash
+   ATTIC_TOKEN=$(cat /var/lib/buildkite-agent-hal-mac/env-attic-token)
+   nix-shell -p attic-client --run "attic login adrestia https://attic.cf-app.org/ $ATTIC_TOKEN"
+   ```
+
+3. **Verify Attic server** is reachable: `curl -I https://attic.cf-app.org/`
+
+4. **SSL Certificate Error** - If you see:
+   ```
+   invalid peer certificate: UnknownIssuer
+   ```
+
+   The mac-builder may be resolving `attic.cf-app.org` to an internal IP (via internal DNS) that serves a certificate signed by the internal CA, which is not in the system trust store.
+
+   Check which IP is being used:
+   ```bash
+   ping -c1 attic.cf-app.org
+   ```
+
+   If it resolves to an internal IP (e.g., `10.1.21.x`), override with the external IP in `/etc/hosts`:
+   ```bash
+   # First, remove any existing internal DNS entry for attic from /etc/hosts
+   sudo sed -i '' 's/ attic.cf-app.org//g; s/ attic//g' /etc/hosts
+   # Then add the external IP
+   echo "195.48.82.220 attic.cf-app.org" | sudo tee -a /etc/hosts
+   ```
+
+   The external server uses a Let's Encrypt certificate which is trusted by default.
+
+#### Stale Processes
+
+Test cluster processes (cardano-node) may accumulate if builds are interrupted:
+```bash
+ps aux | grep cardano-node
+# Kill orphaned processes if needed
+pkill -f "cardano-node.*test-cluster"
+```
