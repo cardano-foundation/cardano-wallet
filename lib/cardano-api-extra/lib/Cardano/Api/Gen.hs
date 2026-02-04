@@ -636,8 +636,13 @@ genTxReturnCollateral era = withEraWitness era $ \supported ->
 
 genPlutusScript :: PlutusScriptVersion lang -> Gen (PlutusScript lang)
 genPlutusScript _ =
-    -- We make no attempt to create a valid script
-    PlutusScriptSerialised . SBS.toShort <$> arbitrary
+    -- Use a minimal valid "always succeeds" script instead of arbitrary bytes.
+    -- The new cardano-api validates scripts during TxBody creation, so random
+    -- bytes will fail with TxBodyPlutusScriptDecodeError.
+    -- This hex-encoded script is: (\_ _ _ -> ()) in UPLC flat format.
+    pure $ PlutusScriptSerialised $ SBS.pack
+        [0x4d, 0x01, 0x00, 0x00, 0x33, 0x22, 0x22, 0x20
+        , 0x05, 0x12, 0x00, 0x12, 0x00, 0x11]
 
 genPlutusScriptOrReferenceInput
     :: PlutusScriptVersion lang
