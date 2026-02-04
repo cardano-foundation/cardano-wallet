@@ -105,9 +105,15 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..)
     )
 import Cardano.Wallet.Read
-    ( Era (..)
+    ( Allegra
+    , Alonzo
+    , Babbage
+    , Conway
+    , Era (..)
     , EraValue
     , IsEra (..)
+    , Mary
+    , Shelley
     , Tx
     , applyEraFun
     , (:*:) (..)
@@ -149,14 +155,6 @@ import Ouroboros.Consensus.Cardano.Block
     )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto
-    )
-import Cardano.Wallet.Read
-    ( Allegra
-    , Alonzo
-    , Babbage
-    , Conway
-    , Mary
-    , Shelley
     )
 import Streaming
     ( MonadIO (liftIO)

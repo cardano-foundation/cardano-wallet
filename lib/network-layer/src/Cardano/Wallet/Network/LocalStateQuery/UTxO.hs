@@ -11,11 +11,11 @@ module Cardano.Wallet.Network.LocalStateQuery.UTxO
 
 import Prelude
 
-import Cardano.Ledger.TxIn
-    ( TxIn
-    )
 import Cardano.Ledger.State
     ( UTxO
+    )
+import Cardano.Ledger.TxIn
+    ( TxIn
     )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)

@@ -21,9 +21,6 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Era
     ( BabbageEra
     )
-import Cardano.Ledger.Hashes
-    ( TxAuxDataHash
-    )
 import Cardano.Ledger.Babbage.Tx
     ( AlonzoTx (AlonzoTx)
     , IsValid (..)
@@ -47,6 +44,9 @@ import Cardano.Ledger.Binary
     )
 import Cardano.Ledger.Coin
     ( Coin
+    )
+import Cardano.Ledger.Hashes
+    ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
     ( KeyHash

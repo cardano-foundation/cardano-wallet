@@ -24,9 +24,6 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
     )
-import Cardano.Ledger.Hashes
-    ( TxAuxDataHash
-    )
 import Cardano.Ledger.Babbage
     ( BabbageTxOut
     )
@@ -57,6 +54,9 @@ import Cardano.Ledger.Conway.TxCert
     )
 import Cardano.Ledger.Conway.TxWits
     ( AlonzoTxWits
+    )
+import Cardano.Ledger.Hashes
+    ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
     ( KeyHash

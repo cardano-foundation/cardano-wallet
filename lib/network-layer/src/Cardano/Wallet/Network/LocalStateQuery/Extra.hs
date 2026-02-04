@@ -22,6 +22,14 @@ import Cardano.Api
     ( AnyCardanoEra (..)
     , CardanoEra (..)
     )
+import Cardano.Ledger.Api
+    ( AllegraEra
+    , AlonzoEra
+    , BabbageEra
+    , ConwayEra
+    , MaryEra
+    , ShelleyEra
+    )
 import Cardano.Wallet.Network.Implementation.Ouroboros
     ( LSQ (..)
     )
@@ -57,14 +65,6 @@ import Ouroboros.Consensus.Protocol.Praos
     )
 import Ouroboros.Consensus.Protocol.TPraos
     ( TPraos
-    )
-import Cardano.Ledger.Api
-    ( AllegraEra
-    , AlonzoEra
-    , BabbageEra
-    , ConwayEra
-    , MaryEra
-    , ShelleyEra
     )
 import Ouroboros.Consensus.Shelley.Eras
     ( StandardCrypto

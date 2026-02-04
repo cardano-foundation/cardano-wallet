@@ -59,11 +59,11 @@ import Cardano.Ledger.Binary
 import Cardano.Ledger.Block
     ( Block (..)
     )
-import Cardano.Protocol.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Keys
     ( VKey (..)
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Protocol.TPraos.BHeader
     ( BHBody (..)

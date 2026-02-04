@@ -141,7 +141,7 @@ benchmark latency
   build-depends:
     , aeson
     , base
-    , cardano-addresses                     >=4.0.2   && <4.1
+    , cardano-addresses                     >=4.0.2    && <4.1
     , cardano-ledger-core                   >=1.17.0.0 && <1.18
     , cardano-wallet
     , cardano-wallet-api
@@ -163,7 +163,7 @@ benchmark latency
     , hspec
     , http-client
     , http-types
-    , iohk-monitoring                       >=0.2.0.0 && <0.3
+    , iohk-monitoring                       >=0.2.0.0  && <0.3
     , iohk-monitoring-extra
     , local-cluster
     , mtl

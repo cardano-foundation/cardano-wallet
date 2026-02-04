@@ -30,11 +30,11 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Tx.In
     ( TxIn
     )
-import Cardano.Ledger.Hashes
-    ( TxAuxDataHash
-    )
 import Cardano.Ledger.BaseTypes
     ( Network
+    )
+import Cardano.Ledger.Hashes
+    ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
     ( KeyHash

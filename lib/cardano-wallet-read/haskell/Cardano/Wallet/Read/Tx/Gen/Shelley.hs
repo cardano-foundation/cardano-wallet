@@ -32,9 +32,6 @@ import Cardano.Ledger.Api
 import Cardano.Ledger.Api.Tx.In
     ( mkTxInPartial
     )
-import Cardano.Ledger.Hashes
-    ( TxAuxDataHash
-    )
 import Cardano.Ledger.BaseTypes
     ( Network (..)
     )
@@ -45,6 +42,9 @@ import Cardano.Ledger.Credential
     ( Credential (KeyHashObj)
     , PaymentCredential
     , StakeReference (..)
+    )
+import Cardano.Ledger.Hashes
+    ( TxAuxDataHash
     )
 import Cardano.Ledger.Keys
     ( KeyHash (..)

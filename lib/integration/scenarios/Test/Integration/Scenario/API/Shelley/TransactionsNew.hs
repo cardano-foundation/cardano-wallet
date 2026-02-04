@@ -43,9 +43,6 @@ import Cardano.Crypto.DSIGN.Class
 import Cardano.Ledger.Alonzo.Core
     ( reqSignerHashesTxBodyL
     )
-import Cardano.Protocol.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Mnemonic
     ( SomeMnemonic (..)
     )
@@ -58,6 +55,9 @@ import Cardano.Pool.Types
     , PoolOwner (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Wallet.Address.Derivation
     ( DerivationIndex (..)

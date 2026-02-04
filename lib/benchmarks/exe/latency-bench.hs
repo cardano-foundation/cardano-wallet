@@ -35,6 +35,9 @@ import Cardano.BM.ToTextTracer
 import Cardano.BM.Trace
     ( traceInTVarIO
     )
+import Cardano.Ledger.BaseTypes
+    ( unsafeNonZero
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic
     )
@@ -146,9 +149,6 @@ import Cardano.Wallet.Shelley.BlockchainSource
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText
-    )
-import Cardano.Ledger.BaseTypes
-    ( unsafeNonZero
     )
 import Control.Applicative
     ( (<**>)

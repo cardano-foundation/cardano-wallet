@@ -97,6 +97,20 @@ packages:
 -- Using a fork until our patches can be merged upstream
 
 -- TODO: ADP-1713
+source-repository-package
+  type: git
+  location: https://github.com/biocad/servant-openapi3
+  tag: 4165b837d3a71debd1059c3735460075840000b5
+  --sha256: 1dngrr353kjhmwhn0b289jzqz5rf32llwcv79zcyq15ldpqpbib9
+
+-- TODO: ADP-1713
+source-repository-package
+  type: git
+  location: https://github.com/paolino/openapi3
+  tag: de14a3faabe216b117d83294baac662dcc5eebc2
+
+-- END OpenAPI
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- BEGIN Constraints tweaking section

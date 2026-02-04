@@ -28,11 +28,11 @@ import Cardano.Ledger.Binary
     ( EncCBOR
     , Version
     )
-import Cardano.Protocol.Crypto
-    ( StandardCrypto
-    )
 import Cardano.Ledger.Keys
     ( VKey (..)
+    )
+import Cardano.Protocol.Crypto
+    ( StandardCrypto
     )
 import Cardano.Protocol.TPraos.BHeader
     ( PrevHash (..)
