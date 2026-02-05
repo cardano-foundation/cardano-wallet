@@ -106,7 +106,9 @@ steps:
     - label: Run Unit Tests (linux)
       key: linux-tests-unit
       depends_on: []
-      command: 'nix build -L .#ci.${linux}.tests.run.unit'
+      command: nix develop --command ./scripts/buildkite/main/run-unit-tests.sh
+      env:
+        LOCAL_CLUSTER_CONFIGS: lib/local-cluster/test/data/cluster-configs
       agents:
         system: ${linux}
 
