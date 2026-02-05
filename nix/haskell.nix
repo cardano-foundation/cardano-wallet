@@ -263,6 +263,19 @@ CHaP: haskell-nix: nixpkgs-recent: nodePkgs: mithrilPkgs: set-git-rev: rewrite-l
             packages.cardano-crypto-class.components.library.pkgconfig = lib.mkForce [ [ pkgs.libsodium-vrf pkgs.secp256k1 pkgs.libblst ] ];
           })
 
+          # Windows cross-compilation fixes (from cardano-node)
+          ({ lib, pkgs, ... }: lib.mkIf pkgs.stdenv.hostPlatform.isWindows {
+            packages.unix-compat.postPatch = ''
+              sed -i 's/msvcrt//g' unix-compat.cabal
+            '';
+            packages.unix-time.postPatch = ''
+              sed -i 's/mingwex//g' unix-time.cabal
+            '';
+            # For these two packages the custom setups fail with multiple lib:Cabal instances
+            packages.entropy.package.buildType = lib.mkForce "Simple";
+            packages.HsOpenSSL.package.buildType = lib.mkForce "Simple";
+          })
+
           # Build fixes for library dependencies
           {
             # Packages we wish to ignore version bounds of.
