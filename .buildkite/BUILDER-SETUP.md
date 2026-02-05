@@ -48,9 +48,13 @@ Machines are named based on their IP address's last octet:
 
 ### 1. Install Nix
 
-If Nix is already installed but not in PATH, add to `/etc/profile.d/`:
+If Nix is already installed but not in PATH, configure it system-wide:
 
 ```bash
+# Add nix to PATH for all users and all shell types (including non-login SSH)
+echo 'PATH="/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin"' | sudo tee /etc/environment
+
+# Also add profile.d script for interactive shells
 sudo ln -sf /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh /etc/profile.d/nix.sh
 ```
 
@@ -273,7 +277,13 @@ You should see agents registering and "Waiting for instructions...":
 
 ### "nix: command not found"
 
-Ensure `/nix/var/nix/profiles/default/bin` is in PATH in the environment hook.
+Ensure `/nix/var/nix/profiles/default/bin` is in PATH. For SSH commands to work without login shells, add to `/etc/environment`:
+
+```bash
+echo 'PATH="/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin"' | sudo tee /etc/environment
+```
+
+Also ensure the environment hook sets PATH explicitly for buildkite-agent.
 
 ### "experimental Nix feature 'nix-command' is disabled"
 
