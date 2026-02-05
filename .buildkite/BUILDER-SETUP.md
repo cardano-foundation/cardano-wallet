@@ -121,7 +121,16 @@ sudo apt-get update
 sudo apt-get install -y buildkite-agent
 ```
 
-### 6. Configure Buildkite Agent
+### 6. Install Docker
+
+```bash
+sudo apt-get install -y docker.io
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker buildkite-agent
+```
+
+### 7. Configure Buildkite Agent
 
 Edit `/etc/buildkite-agent/buildkite-agent.cfg`:
 
@@ -173,7 +182,7 @@ plugins-path="/etc/buildkite-agent/plugins"
 no-color=true
 ```
 
-### 7. Create Environment Hook
+### 8. Create Environment Hook
 
 Create `/etc/buildkite-agent/hooks/environment`:
 
@@ -217,7 +226,7 @@ sudo chmod +x /etc/buildkite-agent/hooks/environment
 sudo chown buildkite-agent:buildkite-agent /etc/buildkite-agent/hooks/environment
 ```
 
-### 8. Copy SSH Keys
+### 9. Copy SSH Keys
 
 Copy SSH keys from existing builder to `/var/lib/buildkite-agent/.ssh/`:
 
@@ -231,7 +240,7 @@ sudo chmod 700 /var/lib/buildkite-agent/.ssh
 sudo chmod 600 /var/lib/buildkite-agent/.ssh/*
 ```
 
-### 9. Configure Attic Cache
+### 10. Configure Attic Cache
 
 Create `/var/lib/buildkite-agent/.config/attic/config.toml`:
 
@@ -248,7 +257,7 @@ sudo mkdir -p /var/lib/buildkite-agent/.config/attic
 sudo chown -R buildkite-agent:buildkite-agent /var/lib/buildkite-agent/.config
 ```
 
-### 10. Create /cache Symlink
+### 11. Create /cache Symlink
 
 Some builds expect a `/cache` directory:
 
@@ -256,7 +265,7 @@ Some builds expect a `/cache` directory:
 sudo ln -s /tmp /cache
 ```
 
-### 11. Start Buildkite Agent
+### 12. Start Buildkite Agent
 
 ```bash
 sudo systemctl enable buildkite-agent
