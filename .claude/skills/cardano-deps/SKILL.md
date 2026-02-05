@@ -281,32 +281,9 @@ iserv-proxy: Network.Socket.connect: <socket: 126>: does not exist (Connection r
 <no location info>: error: ghc-iserv terminated (1)
 ```
 
-or
+This happens when Template Haskell packages (like `th-orphans`) fail during Windows cross-compilation. The root cause is usually a CHaP version mismatch causing different transitive dependencies.
 
-```
-iserv-proxy-interpreter.exe:Network.Socket.setSockOpt:failed(Badprotocoloption(WSAENOPROTOOPT))
-```
-
-This happens when Template Haskell packages fail during Windows cross-compilation. The root cause is usually:
-
-1. **hackage.nix version mismatch**: The `hackage.nix` input determines which package versions are available to haskell.nix. If it's too new, it may include package versions with features wine doesn't support (e.g., `network >= 3.2.8.0` added socket options wine doesn't implement).
-
-2. **CHaP version mismatch**: Different CHaP versions resolve different transitive dependencies.
-
-**Fix 1 - Pin hackage.nix** (most common fix):
-
-```nix
-# In flake.nix, pin hackage to a working version:
-hackage = {
-  # Pin to version before network 3.2.8.0 (Aug 2025)
-  url = "github:input-output-hk/hackage.nix?rev=5626963b37c97ba5d1d0908c2ffc2a04596b7db2";
-  flake = false;
-};
-```
-
-Then: `nix flake lock --update-input hackage`
-
-**Fix 2 - Align CHaP with cardano-node**:
+**Fix**: Align CHaP with the target cardano-node version:
 
 ```bash
 # Get cardano-node's CHaP rev
@@ -319,19 +296,12 @@ nix flake update CHaP --override-input CHaP github:intersectmbo/cardano-haskell-
 ```
 
 **Debug steps**:
-1. Compare hackage.nix timestamps between working and failing branches:
+1. Compare derivation inputs between working (master) and failing builds:
    ```bash
-   cat flake.lock | jq '.nodes.hackage.locked.lastModified'
+   diff <(nix-store -qR /nix/store/<master-drv> | sort) \
+        <(nix-store -qR /nix/store/<failing-drv> | sort)
    ```
-2. Compare iserv-proxy derivation inputs:
-   ```bash
-   # Find iserv-proxy-lib derivations
-   find /nix/store -maxdepth 1 -name "*iserv-proxy-lib*x86_64-w64-mingw32*.drv"
-
-   # Check network version in each
-   nix derivation show <drv> | jq -r '.[] | .inputDrvs | keys[] | select(contains("network"))'
-   ```
-3. If working branch uses `network-3.2.7.0` and failing uses `network-3.2.8.0`, pin hackage.nix
+2. Look for differences in `iserv-proxy`, `network`, `th-orphans` versions
 
 ## Automation Opportunities
 
