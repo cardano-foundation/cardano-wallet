@@ -154,9 +154,46 @@ steps:
       <<: *linux_unit_test
       command: nix develop --command cabal test cardano-wallet-test-utils:unit -O0 -v0 --test-options "+RTS -M2G -RTS"
 
-    - label: "Unit: cardano-wallet-unit"
+    # cardano-wallet-unit split by test module prefix
+    - label: "Unit: wallet-unit / Byron + CLI"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-unit:unit -O0 -v0 --test-options "+RTS -M2G -RTS"
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / DB.Sqlite + Pool"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.DB./" --match "/Cardano.Pool./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Address"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Address./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Api"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Api./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Balance"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Balance./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / DB"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.DB./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Primitive"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Primitive./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Shelley"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Other Wallet"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet./" --skip "/Cardano.Wallet.Address./" --skip "/Cardano.Wallet.Api./" --skip "/Cardano.Wallet.Balance./" --skip "/Cardano.Wallet.DB./" --skip "/Cardano.Wallet.Primitive./" --skip "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -RTS
+
+    - label: "Unit: wallet-unit / Control + Data"
+      <<: *linux_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Control./" --match "/Data./" -j1 +RTS -M2G -RTS
 
     - label: "Unit: delta-chain"
       <<: *linux_unit_test

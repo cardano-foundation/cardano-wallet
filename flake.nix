@@ -289,6 +289,22 @@
                 # pin an ouroborus-network rev.
                 inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
 
+                # Unit test executables (for running with custom RTS flags)
+                unit-cardano-wallet-unit = project.hsPkgs.cardano-wallet-unit.components.tests.unit;
+                unit-cardano-wallet-primitive = project.hsPkgs.cardano-wallet-primitive.components.tests.test;
+                unit-cardano-wallet-secrets = project.hsPkgs.cardano-wallet-secrets.components.tests.test;
+                unit-cardano-wallet-network-layer = project.hsPkgs.cardano-wallet-network-layer.components.tests.unit;
+                unit-cardano-wallet-test-utils = project.hsPkgs.cardano-wallet-test-utils.components.tests.unit;
+                unit-cardano-wallet-launcher = project.hsPkgs.cardano-wallet-launcher.components.tests.unit;
+                unit-cardano-wallet-application-tls = project.hsPkgs.cardano-wallet-application-tls.components.tests.unit;
+                unit-cardano-numeric = project.hsPkgs.cardano-numeric.components.tests.unit;
+                unit-delta-chain = project.hsPkgs.delta-chain.components.tests.unit;
+                unit-delta-store = project.hsPkgs.delta-store.components.tests.unit;
+                unit-delta-table = project.hsPkgs.delta-table.components.tests.unit;
+                unit-delta-types = project.hsPkgs.delta-types.components.tests.unit;
+                unit-std-gen-seed = project.hsPkgs.std-gen-seed.components.tests.unit;
+                unit-wai-middleware-logging = project.hsPkgs.wai-middleware-logging.components.tests.unit;
+
                 # Combined project coverage report
                 testCoverageReport = coveredProject.projectCoverageReport;
                 # `tests` are the test suites which have been built.
