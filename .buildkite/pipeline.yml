@@ -157,7 +157,8 @@ steps:
     # cardano-wallet-unit split by test module prefix
     - label: "Unit: wallet-unit / Byron + CLI"
       <<: *linux_unit_test
-      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -RTS
+      # CLI tests need golden files from lib/unit/test/data
+      command: cd lib/unit && nix shell ../../.#cardano-cli -c nix run ../../.#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -RTS
 
     - label: "Unit: wallet-unit / DB.Sqlite + Pool"
       <<: *linux_unit_test
