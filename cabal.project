@@ -108,6 +108,7 @@ source-repository-package
   type: git
   location: https://github.com/paolino/openapi3
   tag: de14a3faabe216b117d83294baac662dcc5eebc2
+  --sha256: 15va6w0mjwziv7iqqwsc4grq3mf37ljdnqxirr9n5yljyyl29dvb
 
 -- END OpenAPI
 --------------------------------------------------------------------------------
