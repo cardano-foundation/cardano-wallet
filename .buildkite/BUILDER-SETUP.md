@@ -9,11 +9,34 @@ The Buildkite builders are Debian-based VMs that run CI jobs for cardano-wallet.
 - **Buildkite Agent** for job execution
 - **Attic** for Nix binary cache
 
-## Machine Naming Convention
+## Machine Types
 
-Builders are named based on their IP address's last octet:
-- `builder` (10.1.21.12) → `machine:zurich.12-agent`
-- `builder-new` (10.1.21.17) → `machine:zurich.17-agent`
+There are two types of Buildkite machines:
+
+### Builders (CI)
+- **Purpose**: Run CI builds and tests
+- **Agents**: 30 parallel agents
+- **Queues**: `adrestia`, `cardano-wallet`
+
+| Machine | IP | Agent Name |
+|---------|-----|------------|
+| builder | 10.1.21.12 | `machine:zurich.12-agent` |
+| builder-new | 10.1.21.17 | `machine:zurich.17-agent` |
+
+### Benchmarks
+- **Purpose**: Run performance benchmarks
+- **Agents**: 6 parallel agents (fewer to reduce interference)
+- **Queues**: `default`, `adrestia-bench`
+
+| Machine | IP | Agent Name |
+|---------|-----|------------|
+| benchmark | 10.1.21.13 | `machine:zurich.13-agent` |
+| benchmark-new | 10.1.21.18 | `machine:zurich.18-agent` |
+
+## Naming Convention
+
+Machines are named based on their IP address's last octet:
+- `10.1.21.XX` → `machine:zurich.XX-agent`
 
 ## Prerequisites
 
@@ -98,6 +121,8 @@ sudo apt-get install -y buildkite-agent
 
 Edit `/etc/buildkite-agent/buildkite-agent.cfg`:
 
+#### For Builders (CI machines)
+
 ```ini
 # Get token from Buildkite UI: Organization Settings → Agents → Agent Token
 token="YOUR_AGENT_TOKEN"
@@ -105,11 +130,35 @@ token="YOUR_AGENT_TOKEN"
 # Name format: machine:zurich.XX-agent:%spawn (XX = last IP octet)
 name="machine:zurich.17-agent:%spawn"
 
-# Number of parallel agents
+# Number of parallel agents (30 for builders)
 spawn=30
 
-# Queue tags
+# Queue tags for CI builds
 tags="queue=adrestia,queue=cardano-wallet,system=x86_64-linux"
+
+# Paths
+build-path="/var/lib/buildkite-agent/builds"
+hooks-path="/etc/buildkite-agent/hooks"
+plugins-path="/etc/buildkite-agent/plugins"
+
+# Logging
+no-color=true
+```
+
+#### For Benchmarks
+
+```ini
+# Get token from Buildkite UI: Organization Settings → Agents → Agent Token
+token="YOUR_AGENT_TOKEN"
+
+# Name format: machine:zurich.XX-agent:%spawn (XX = last IP octet)
+name="machine:zurich.18-agent:%spawn"
+
+# Number of parallel agents (6 for benchmarks - less interference)
+spawn=6
+
+# Queue tags for benchmarks
+tags="queue=default,queue=adrestia-bench,system=x86_64-linux"
 
 # Paths
 build-path="/var/lib/buildkite-agent/builds"
@@ -216,7 +265,9 @@ Verify agents are running:
 sudo journalctl -u buildkite-agent -f
 ```
 
-You should see 30 agents registering and "Waiting for instructions..."
+You should see agents registering and "Waiting for instructions...":
+- **Builders**: 30 agents
+- **Benchmarks**: 6 agents
 
 ## Troubleshooting
 
