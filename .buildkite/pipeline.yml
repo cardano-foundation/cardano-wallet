@@ -633,9 +633,47 @@ steps:
       <<: *macos_unit_test
       command: nix develop --command cabal test cardano-wallet-test-utils:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
 
-    - label: "Unit (macOS): cardano-wallet-unit"
+    # cardano-wallet-unit split by test module prefix
+    - label: "Unit (macOS): wallet-unit / Byron + CLI"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-unit:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      # CLI tests need golden files from lib/unit/test/data
+      command: cd lib/unit && nix shell ../../.#cardano-cli -c nix run ../../.#unit-cardano-wallet-unit -- --match "/Cardano.Byron./" --match "/Cardano.CLI/" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / DB.Sqlite + Pool"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.DB./" --match "/Cardano.Pool./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Address"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Address./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Api"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Api./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Balance"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Balance./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / DB"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.DB./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Primitive"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Primitive./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Shelley"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Other Wallet"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Cardano.Wallet./" --skip "/Cardano.Wallet.Address./" --skip "/Cardano.Wallet.Api./" --skip "/Cardano.Wallet.Balance./" --skip "/Cardano.Wallet.DB./" --skip "/Cardano.Wallet.Primitive./" --skip "/Cardano.Wallet.Shelley./" -j1 +RTS -M2G -s -RTS
+
+    - label: "Unit (macOS): wallet-unit / Control + Data"
+      <<: *macos_unit_test
+      command: nix shell .#cardano-cli -c nix run .#unit-cardano-wallet-unit -- --match "/Control./" --match "/Data./" -j1 +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): delta-chain"
       <<: *macos_unit_test
