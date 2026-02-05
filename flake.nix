@@ -102,9 +102,7 @@
       inputs.hackage.follows = "hackage";
     };
     hackage = {
-      # Pin to version before network 3.2.8.0 (Aug 2025) to avoid wine/iserv socket issues
-      # network 3.2.8.0 added IP_DONTFRAG socket option which wine doesn't support
-      url = "github:input-output-hk/hackage.nix?rev=5626963b37c97ba5d1d0908c2ffc2a04596b7db2";
+      url = "github:input-output-hk/hackage.nix";
       flake = false;
     };
     flake-utils.url = "github:numtide/flake-utils";
