@@ -1,0 +1,18 @@
+[Unit]
+Description=GitHub Actions Runner %i
+After=network.target
+
+[Service]
+ExecStart=/home/gha-runner/actions-runner-%i/run.sh
+User=gha-runner
+WorkingDirectory=/home/gha-runner/actions-runner-%i
+Environment="PATH=/home/gha-runner/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+Environment="NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
