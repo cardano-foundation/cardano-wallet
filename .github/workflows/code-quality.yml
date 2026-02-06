@@ -10,8 +10,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    name: "Build dev shell"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build dev shell
+        run: nix build .#devShells.x86_64-linux.default.inputDerivation
+
   checks:
     name: ${{ matrix.name }}
+    needs: build
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     strategy:
       fail-fast: false

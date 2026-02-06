@@ -10,8 +10,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    name: "Build test executables"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build all unit test derivations
+        run: nix build -L .#unit-cardano-wallet-unit .#unit-cardano-numeric .#unit-cardano-balance-tx .#unit-cardano-wallet-primitive .#unit-cardano-wallet-secrets .#unit-cardano-wallet-test-utils .#unit-cardano-wallet-launcher .#unit-cardano-wallet-network-layer .#unit-cardano-wallet-application-tls .#unit-cardano-wallet-blackbox-benchmarks .#unit-delta-chain .#unit-delta-store .#unit-delta-table .#unit-delta-types .#unit-std-gen-seed .#unit-wai-middleware-logging .#cardano-cli
+
   unit-tests:
     name: ${{ matrix.name }}
+    needs: build
     runs-on: [self-hosted, linux, x86_64, cardano-wallet]
     strategy:
       fail-fast: false
