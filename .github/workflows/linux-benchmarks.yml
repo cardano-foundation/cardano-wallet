@@ -1,0 +1,82 @@
+name: Linux Benchmarks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Build benchmarks"
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build all benchmark derivations
+        run: nix build -L .#ci.benchmarks.all .#local-cluster .#cardano-node .#cardano-wallet
+
+  benchmarks:
+    name: "${{ matrix.name }}"
+    needs: build
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet-bench]
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "API Benchmark"
+            command: |
+              nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
+                bash scripts/buildkite/main/bench-api.sh
+            timeout: 20
+            artifacts: "*.txt,*.json,*.csv"
+
+          - name: "Latency Benchmark"
+            command: |
+              bash scripts/buildkite/main/bench-latency.sh
+            timeout: 30
+            artifacts: "*.csv"
+
+          - name: "DB Benchmark"
+            command: |
+              nix shell 'nixpkgs#coreutils' -c \
+                bash scripts/buildkite/main/bench-db.sh
+            timeout: 50
+            artifacts: "bench-db.*"
+
+          - name: "Read-blocks Benchmark"
+            command: |
+              nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' -c \
+                bash scripts/buildkite/main/bench-read-blocks.sh
+            timeout: 20
+            artifacts: "*.log,*.csv"
+
+          - name: "Memory Benchmark"
+            command: |
+              nix shell 'nixpkgs#coreutils' 'nixpkgs#gnugrep' 'nixpkgs#gawk' 'nixpkgs#time' 'nixpkgs#haskellPackages.hp2pretty' -c \
+                bash scripts/buildkite/main/bench-memory.sh
+            timeout: 20
+            artifacts: "*.log,*.svg,*.hp,*.csv"
+
+    env:
+      LC_ALL: C.UTF-8
+      TMPDIR: /tmp/gha-bench
+      BENCHMARK_CSV_FILE: bench-results.csv
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run benchmark
+        run: |
+          mkdir -p "$TMPDIR"
+          ${{ matrix.command }}
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
+          if-no-files-found: ignore
