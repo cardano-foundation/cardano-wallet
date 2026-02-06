@@ -301,13 +301,15 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     sharedState = mkSharedStateFromAccountXPub' @n accXPub' accIx' IncreasingChangeAddresses g pTemplate' dTemplate'
     addr = AddressPool.addressFromIx (getAddrPool sharedState) keyIx
     (_, sharedState') = isShared @n (liftPaymentAddress @n addr) sharedState
-    mapOfConsecutiveUnused
-        = drop 1
-        . L.dropWhile (== Unused)
+    mapOfConsecutiveUnused = case
+        ( L.dropWhile (== Unused)
         . L.map snd
         . L.sortOn fst
         . Map.elems . AddressPool.addresses
         $ getAddrPool sharedState'
+        ) of
+            (_:rest) -> rest
+            [] -> error "mapOfConsecutiveUnused: empty after dropWhile"
 
 preconditions
     :: Index 'Soft 'CredFromScriptK
