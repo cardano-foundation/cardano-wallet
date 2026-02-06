@@ -803,10 +803,12 @@ steps:
         - curl.exe -sI https://github.com 2>&1
         - echo "--- powershell TLS test"
         - powershell -Command "[Net.ServicePointManager]::SecurityProtocol; Invoke-WebRequest -Uri 'https://github.com' -Method Head -UseBasicParsing | Select-Object StatusCode"
-        - echo "--- certutil root store"
-        - certutil -store Root DigiCert 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "DigiCert not found in Root store"
-        - echo "--- certutil CA store"
-        - certutil -store CA DigiCert 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "DigiCert not found in CA store"
+        - echo "--- check USERTrust ECC root cert"
+        - certutil -store Root "USERTrust ECC" 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "USERTrust ECC not found in Root store"
+        - echo "--- check Sectigo intermediate"
+        - certutil -store CA Sectigo 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "Sectigo not found in CA store"
+        - echo "--- list all Root store certs"
+        - certutil -store Root 2>&1 | findstr /i "Subject"
       agents:
         system: ${windows}
       env:
