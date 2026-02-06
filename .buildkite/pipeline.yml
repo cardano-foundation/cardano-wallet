@@ -120,39 +120,39 @@ steps:
 
     - label: "Unit: cardano-wallet-application-tls"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-application-tls:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: cd lib/application-tls && nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-balance-tx"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-balance-tx:test -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: cd lib/balance-tx && nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-numeric"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-numeric:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-wallet-blackbox-benchmarks"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-blackbox-benchmarks:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-wallet-launcher"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-launcher:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-wallet-network-layer"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-network-layer:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-wallet-primitive"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-primitive:test -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: cd lib/primitive && nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-wallet-secrets"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-secrets:test -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
 
     - label: "Unit: cardano-wallet-test-utils"
       <<: *linux_unit_test
-      command: nix develop --command cabal test cardano-wallet-test-utils:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
 
     # cardano-wallet-unit split by test module prefix
     - label: "Unit: wallet-unit / Byron + CLI"
@@ -198,27 +198,27 @@ steps:
 
     - label: "Unit: delta-chain"
       <<: *linux_unit_test
-      command: nix develop --command cabal test delta-chain:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
 
     - label: "Unit: delta-store"
       <<: *linux_unit_test
-      command: nix develop --command cabal test delta-store:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
 
     - label: "Unit: delta-table"
       <<: *linux_unit_test
-      command: nix develop --command cabal test delta-table:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
 
     - label: "Unit: delta-types"
       <<: *linux_unit_test
-      command: nix develop --command cabal test delta-types:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
 
     - label: "Unit: std-gen-seed"
       <<: *linux_unit_test
-      command: nix develop --command cabal test std-gen-seed:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
 
     - label: "Unit: wai-middleware-logging"
       <<: *linux_unit_test
-      command: nix develop --command cabal test wai-middleware-logging:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
 
     - label: Conway Integration Tests (linux)
       key: linux-tests-integration-conway
@@ -599,39 +599,39 @@ steps:
     # macOS unit tests - run each suite with memory limits
     - label: "Unit (macOS): cardano-wallet-application-tls"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-application-tls:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: cd lib/application-tls && nix run ../../.#unit-cardano-wallet-application-tls -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-balance-tx"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-balance-tx:test -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: cd lib/balance-tx && nix run ../../.#unit-cardano-balance-tx -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-numeric"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-numeric:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-numeric -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-wallet-blackbox-benchmarks"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-blackbox-benchmarks:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-blackbox-benchmarks -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-wallet-launcher"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-launcher:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-launcher -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-wallet-network-layer"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-network-layer:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-network-layer -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-wallet-primitive"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-primitive:test -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: cd lib/primitive && nix run ../../.#unit-cardano-wallet-primitive -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-wallet-secrets"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-secrets:test -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-secrets -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): cardano-wallet-test-utils"
       <<: *macos_unit_test
-      command: nix develop --command cabal test cardano-wallet-test-utils:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-cardano-wallet-test-utils -- +RTS -M2G -s -RTS
 
     # cardano-wallet-unit split by test module prefix
     - label: "Unit (macOS): wallet-unit / Byron + CLI"
@@ -677,27 +677,27 @@ steps:
 
     - label: "Unit (macOS): delta-chain"
       <<: *macos_unit_test
-      command: nix develop --command cabal test delta-chain:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-chain -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): delta-store"
       <<: *macos_unit_test
-      command: nix develop --command cabal test delta-store:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-store -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): delta-table"
       <<: *macos_unit_test
-      command: nix develop --command cabal test delta-table:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-table -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): delta-types"
       <<: *macos_unit_test
-      command: nix develop --command cabal test delta-types:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-delta-types -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): std-gen-seed"
       <<: *macos_unit_test
-      command: nix develop --command cabal test std-gen-seed:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-std-gen-seed -- +RTS -M2G -s -RTS
 
     - label: "Unit (macOS): wai-middleware-logging"
       <<: *macos_unit_test
-      command: nix develop --command cabal test wai-middleware-logging:unit -O0 -v0 --test-options "+RTS -M2G -s -RTS"
+      command: nix run .#unit-wai-middleware-logging -- +RTS -M2G -s -RTS
 
     - block: MacOS Integration Tests
       # if: build.env("RELEASE_CANDIDATE") == null
@@ -776,7 +776,7 @@ steps:
         - mkdir -p windows\tests
         - tar -xf windows-tests.zip -C windows\tests
         - cd windows\tests # tests seem to rely on ..\.. being the repo root
-        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M4G -N2
+        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -N2
       agents:
         system: ${windows}
       env:

@@ -153,6 +153,7 @@ import Test.Hspec.Expectations.Lifted
     )
 import Test.Hspec.Extra
     ( it
+    , xit
     )
 import Test.Integration.Framework.Context
     ( Context (..)
@@ -1660,7 +1661,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let epochs = poolGarbageCollectionEpochNo <$> events
             (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
-    it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools"
+    -- TODO: flaky timeout on CI, see #5108
+    xit "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools"
         $ \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx (_smashUrl ctx)
             -- This can be slow; let's retry less frequently and with a longer

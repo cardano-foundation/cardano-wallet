@@ -305,6 +305,8 @@
                 unit-cardano-wallet-launcher = project.hsPkgs.cardano-wallet-launcher.components.tests.unit;
                 unit-cardano-wallet-application-tls = project.hsPkgs.cardano-wallet-application-tls.components.tests.unit;
                 unit-cardano-numeric = project.hsPkgs.cardano-numeric.components.tests.unit;
+                unit-cardano-balance-tx = project.hsPkgs.cardano-balance-tx.components.tests.test;
+                unit-cardano-wallet-blackbox-benchmarks = project.hsPkgs.cardano-wallet-blackbox-benchmarks.components.tests.unit;
                 unit-delta-chain = project.hsPkgs.delta-chain.components.tests.unit;
                 unit-delta-store = project.hsPkgs.delta-store.components.tests.unit;
                 unit-delta-table = project.hsPkgs.delta-table.components.tests.unit;
