@@ -30,6 +30,7 @@ import Data.List
     )
 import Data.Maybe
     ( fromMaybe
+    , listToMaybe
     )
 import Fmt
     ( (+|)
@@ -345,7 +346,7 @@ instance Arbitrary HspecArgs where
                ]
         num = show @Int . getPositive <$> arbitrary
 
-        nubArgs = nubBy ((==) `on` head)
+        nubArgs = nubBy ((==) `on` listToMaybe)
 
         genOpt :: String -> Gen String
         genOpt name = elements $ map ("--" ++) [name, "no-" ++ name]

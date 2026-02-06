@@ -109,6 +109,7 @@ import Ouroboros.Consensus.Config.SecurityParam
 import Test.Hspec
     ( Spec
     , describe
+    , expectationFailure
     , it
     , runIO
     , shouldBe
@@ -222,10 +223,10 @@ spec = do
                     runExceptT $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isLeft
-                logs `shouldSatisfy` (\case
-                    [MsgInterpreterPastHorizon Nothing _ _] -> True
-                    _ -> False)
-                getSeverityAnnotation (head logs) `shouldBe` Notice
+                case logs of
+                    [log1@(MsgInterpreterPastHorizon Nothing _ _)] -> do
+                        getSeverityAnnotation log1 `shouldBe` Notice
+                    _ -> expectationFailure "Expected single MsgInterpreterPastHorizon log"
 
             it "(neverFails \"because\" ti) logs failures as Error" $ do
                 (logs, res) <- captureLogging $ \tr -> do
@@ -235,10 +236,10 @@ spec = do
                     try @IO @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isLeft
-                logs `shouldSatisfy` (\case
-                    [MsgInterpreterPastHorizon (Just "because") _ _] -> True
-                    _ -> False)
-                getSeverityAnnotation (head logs) `shouldBe` Error
+                case logs of
+                    [log1@(MsgInterpreterPastHorizon (Just "because") _ _)] -> do
+                        getSeverityAnnotation log1 `shouldBe` Error
+                    _ -> expectationFailure "Expected single MsgInterpreterPastHorizon log"
 
             it "(unsafeExtendSafeZone ti) doesn't fail nor log" $ do
                 (logs, res) <- captureLogging $ \tr -> do
@@ -258,10 +259,10 @@ spec = do
                     try @IO @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isLeft
-                logs `shouldSatisfy` (\case
-                    [MsgInterpreterPastHorizon Nothing _ _] -> True
-                    _ -> False)
-                getSeverityAnnotation (head logs) `shouldBe` Notice
+                case logs of
+                    [log1@(MsgInterpreterPastHorizon Nothing _ _)] -> do
+                        getSeverityAnnotation log1 `shouldBe` Notice
+                    _ -> expectationFailure "Expected single MsgInterpreterPastHorizon log"
   where
     forkInterpreter =
         let

@@ -385,7 +385,9 @@ prop_readPoolProductionCursorTipIsLast DBLayer{..} (StakePoolsFixture pairs _) =
         run $ atomically $ forM_ pairs $ \(pool, slot) ->
             unsafeRunExceptT $ putPoolProduction slot pool
         tip <- run $ atomically $ last <$> readPoolProductionCursor 2
-        assert $ tip == snd (head pairs)
+        case pairs of
+            ((_, firstSlot):_) -> assert $ tip == firstSlot
+            [] -> error "expected non-empty pairs"
 
 -- | Can read pool production only for a given epoch
 prop_readPoolNoEpochLeaks
@@ -398,7 +400,7 @@ prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
     slotPartition = L.groupBy ((==) `on` epochOf')
         $ L.sortOn epochOf'
         $ map (view #slotNo . snd) pairs
-    epochGroups = map (\sls -> (epochOf' $ head sls, sls)) slotPartition
+    epochGroups = map (\sls -> case sls of (s:_) -> (epochOf' s, sls); [] -> error "empty group") slotPartition
     setup = liftIO $ atomically cleanDB
     prop = do
         run $ do
@@ -1223,7 +1225,7 @@ prop_unfetchedPoolMetadataRefsIgnoring DBLayer{..} entries =
         run . atomically $ mapM_ (uncurry putPoolRegistration) entries'
 
     propIgnoredMetadataRefs = do
-        let recent = head metas
+        let recent = case metas of (m:_) -> m; [] -> error "expected metas"
         run . atomically $ putFetchAttempt recent
         refs <- run . atomically $ unfetchedPoolMetadataRefs 10
         monitor $ counterexample $ unlines
@@ -1243,7 +1245,7 @@ prop_readSystemSeedIdempotent DBLayer{..} (Positive n) =
     setup = run $ atomically cleanDB
     prop = do
         seeds <- map show <$> replicateM n (run $ atomically readSystemSeed)
-        let firstS = head seeds
+        let firstS = case seeds of (s:_) -> s; [] -> error "expected seeds"
         monitor $ counterexample $ show seeds
         monitor $ counterexample $ show $ filter (/= firstS) seeds
         assert (all (== firstS) seeds)

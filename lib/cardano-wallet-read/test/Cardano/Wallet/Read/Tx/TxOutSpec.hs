@@ -91,7 +91,7 @@ genValue :: Gen Value
 genValue = injectCoin . CoinC . getPositive <$> arbitrary
 
 genNonByronEra :: Gen (EraValue Era)
-genNonByronEra = elements (tail knownEras)
+genNonByronEra = elements (drop 1 knownEras)
 
 genTxOut :: Gen TxOut
 genTxOut = do
