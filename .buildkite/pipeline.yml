@@ -34,16 +34,6 @@ definitions:
 
 steps:
 
-  - label: "Windows curl.exe download test"
-    timeout_in_minutes: 5
-    command: |
-      echo "--- download mithril via curl.exe"
-      curl.exe -L -o mithril-2543.1-hotfix-windows-x64.tar.gz https://github.com/input-output-hk/mithril/releases/download/2543.1-hotfix/mithril-2543.1-hotfix-windows-x64.tar.gz
-      echo "--- verify file"
-      Get-Item mithril-2543.1-hotfix-windows-x64.tar.gz | Select-Object Name, Length
-    agents:
-      system: ${windows}
-
   - label: Check Nix (linux)
     # Check whether regenerate.sh was applied when it had to be applied.
     key: linux-nix
@@ -807,7 +797,6 @@ steps:
 
     - label: ⚙️ Windows E2E Tests
       timeout_in_minutes: 120
-      depends_on: []
       commands:
         - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
         - buildkite-agent artifact download "windows-tests.zip" .
