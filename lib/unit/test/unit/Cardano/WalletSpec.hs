@@ -653,7 +653,7 @@ walletListTransactionsWithLimit wallet@(_, _, _) =
                 pure  (tx ^. #txId, slot )
         pointInRange xs f = slotNoTime
                     $ SlotNo
-                    $ f $ unSlotNo (last xs) - unSlotNo (head xs)
+                    $ f $ unSlotNo (NE.last (NE.fromList xs)) - unSlotNo (NE.head (NE.fromList xs))
 
     in
     monadicIO $ do

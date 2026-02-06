@@ -200,10 +200,12 @@ setupPreprodWallets tr mnemonics ctx = do
             | w ^. #balance . #total . #toNatural > 5_000_000
                 = pure Nothing
             | otherwise = do
-                addr <- view #id . head . getResponse
+                resp <- getResponse
                     <$> request @[ApiAddressWithPath ('Testnet 1)] ctx -- hardcoded to preprod
                             (Link.listAddresses @'Shelley w) Default Empty
-                pure $ Just $ toStringViaJson addr
+                case resp of
+                    (a:_) -> pure $ Just $ toStringViaJson (view #id a)
+                    [] -> error "expected addresses in wallet"
 
         toStringViaJson :: ToJSON a => a -> String
         toStringViaJson x =

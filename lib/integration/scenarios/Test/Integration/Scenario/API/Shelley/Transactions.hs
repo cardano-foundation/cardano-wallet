@@ -1074,7 +1074,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (take 2 srcAddrs)
                 return (wSrc, nAssetsPerAddr)
             wDest <- emptyWallet ctx
-            destAddr <- head . map (view #id) <$> listAddresses @n ctx wDest
+            destAddr <- listAddresses @n ctx wDest >>= \case
+                (a:_) -> pure $ view #id a; [] -> error "expected addresses"
             waitForTxImmutability ctx
 
             -- 2. Try spending from each wallet, and record the response.
@@ -2867,7 +2868,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_06 - Can't redeem rewards using byron wallet"
         $ \ctx -> runResourceT $ do
             (wSelf, addrs) <- fixtureIcarusWalletAddrs @n ctx
-            let addr = encodeAddress (sNetworkId @n) (head addrs)
+            addr <- case addrs of
+                (a:_) -> pure $ encodeAddress (sNetworkId @n) a
+                [] -> error "expected addresses"
 
             let payload =
                     Json

@@ -217,7 +217,9 @@ genPKI dir = do
         BS.writeFile (base <.> "pem") $ key' <> "\n" <> cert' <> "\n"
     writeCert f = BS.writeFile (dir </> f <.> "crt") . encodePEM . snd
 
-    findCert outDir = head . filter ((== outDir) . takeFileName . certOutDir)
+    findCert outDir certs = case filter ((== outDir) . takeFileName . certOutDir) certs of
+        (c:_) -> c
+        [] -> error "findCert: no matching certificate found"
 
 warpSettings :: Warp.Settings
 warpSettings =
@@ -284,10 +286,12 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert, tlsSvCert, tlsSvKey} = do
             { supportedCiphers = ciphersuite_default
             }
 
-    readCredentials certFile keyFile =
-        (,) . CertificateChain
-            <$> readSignedObject certFile
-            <*> (head <$> readKeyFile keyFile)
+    readCredentials certFile keyFile = do
+        certs <- readSignedObject certFile
+        keys <- readKeyFile keyFile
+        case keys of
+            (k:_) -> pure (CertificateChain certs, k)
+            [] -> error "readCredentials: no key found in file"
 
 -- | Start the application server, using the given settings and a bound socket.
 start
