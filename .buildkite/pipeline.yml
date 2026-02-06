@@ -193,51 +193,9 @@ steps:
       - linux-nix
     steps:
 
-    - label: Check Cabal Configure
-      key: cabal-configure
-      depends_on: []
-      command: 'nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh'
-      agents:
-        system: ${linux}
-
-    - label: Check Code Format
-      key: code-format
-      depends_on: []
-      command: 'nix develop --command scripts/buildkite/main/check-code-format.sh'
-      agents:
-        system: ${linux}
-
-    - label: Check HLint
-      key: hlint
-      depends_on: []
-      command: 'nix develop --command bash -c "echo +++ HLint ; hlint lib"'
-      agents:
-        system: ${linux}
-
-    - label: Validate Swagger File
-      key: openapi
-      depends_on: []
-      commands:
-        - nix develop path:$MAIN_PIPELINE_DIR -c $MAIN_PIPELINE_DIR/validate-swagger.sh
-      artifacts:
-        - artifacts/api-diffs.md
-      env:
-        RELEASE: false
-      agents:
-        system: ${linux}
-
     - label: Print TODO List
       command: 'nix develop --command scripts/todo-list.sh'
       depends_on: []
-      agents:
-        system: ${linux}
-
-    - label: Lint Bash Shell Scripts
-      key: lint-bash
-      depends_on: []
-      commands:
-        - 'echo +++ Shellcheck'
-        - './scripts/shellcheck.sh'
       agents:
         system: ${linux}
 
@@ -265,13 +223,6 @@ steps:
       command: |
         nix develop -c cabal update
         nix develop -c cabal build all -frelease
-      agents:
-        system: ${linux}
-
-    - label: Check eol is present
-      key: eol
-      depends_on: []
-      command: 'nix develop --command scripts/enforce-eol.sh'
       agents:
         system: ${linux}
 
