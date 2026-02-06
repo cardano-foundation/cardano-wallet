@@ -50,7 +50,7 @@ shrinkTokenPolicyId i
     | i == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head testTokenPolicyIds
+    simplest = case testTokenPolicyIds of (x:_) -> x; [] -> error "impossible"
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a large range (to minimize the risk of

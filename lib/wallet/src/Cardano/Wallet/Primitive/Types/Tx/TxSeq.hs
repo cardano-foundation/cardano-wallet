@@ -516,8 +516,8 @@ shrinkAssetIds s = mapAssetIds toSimpleAssetId s
   where
     toSimpleAssetId :: AssetId -> AssetId
     toSimpleAssetId = mapToFunction
-        (head simpleAssetIds)
-        (Map.fromList $ F.toList (assetIds s) `zip` simpleAssetIds)
+        (NE.head simpleAssetIdsNE)
+        (Map.fromList $ F.toList (assetIds s) `zip` NE.toList simpleAssetIdsNE)
 
 -- | Simplifies the set of transaction identifiers within a 'TxSeq'.
 --
@@ -529,8 +529,8 @@ shrinkTxIds s = mapTxIds toSimpleTxId s
   where
     toSimpleTxId :: Hash "Tx" -> Hash "Tx"
     toSimpleTxId = mapToFunction
-        (head simpleTxIds)
-        (Map.fromList $ F.toList (txIds s) `zip` simpleTxIds)
+        (NE.head simpleTxIdsNE)
+        (Map.fromList $ F.toList (txIds s) `zip` NE.toList simpleTxIdsNE)
 
 --------------------------------------------------------------------------------
 -- Internal interface
@@ -540,16 +540,17 @@ shrinkTxIds s = mapTxIds toSimpleTxId s
 -- Domain-specific constants
 --------------------------------------------------------------------------------
 
-simpleAssetIds :: [AssetId]
-simpleAssetIds
-    = AssetId (UnsafeTokenPolicyId $ Hash mempty)
+simpleAssetIdsNE :: NonEmpty AssetId
+simpleAssetIdsNE
+    = NE.fromList
+    $ AssetId (UnsafeTokenPolicyId $ Hash mempty)
     . UnsafeAssetName
     . T.encodeUtf8
     . T.pack
-    . show <$> [0 :: Integer ..]
+    . show <$> [0 :: Integer .. 1000]
 
-simpleTxIds :: [Hash "Tx"]
-simpleTxIds = Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer ..]
+simpleTxIdsNE :: NonEmpty (Hash "Tx")
+simpleTxIdsNE = NE.fromList $ Hash . T.encodeUtf8 . T.pack . show <$> [0 :: Integer .. 1000]
 
 --------------------------------------------------------------------------------
 -- Domain-specific functions

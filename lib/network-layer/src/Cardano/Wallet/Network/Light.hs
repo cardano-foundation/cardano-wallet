@@ -121,7 +121,9 @@ latest xs = maximumBy compareSlot xs
 secondLatest :: [Read.ChainPoint] -> Read.ChainPoint
 secondLatest []  = Read.GenesisPoint
 secondLatest [_] = Read.GenesisPoint
-secondLatest xs  = head . tail $ sortBy (flip compareSlot) xs
+secondLatest xs  = case sortBy (flip compareSlot) xs of
+    (_:y:_) -> y
+    _ -> Read.GenesisPoint
 
 -- | Compare the slot numbers of two 'Read.ChainPoint's,
 -- but where the 'Read.GenesisPoint' comes before all other slot numbers.

@@ -223,8 +223,7 @@ import Cardano.Wallet.Address.Derivation
     , stakeDerivationPath
     )
 import Cardano.Wallet.Address.Derivation.Byron
-    ( ByronKey
-    , mkByronKeyFromMasterKey
+    ( mkByronKeyFromMasterKey
     )
 import Cardano.Wallet.Address.Derivation.Icarus
     ( IcarusKey
@@ -1549,10 +1548,9 @@ mkLegacyWallet ctx wid cp meta _ pending progress = do
         W.withRootKey @s db wid mempty Prelude.id (\_ _ -> pure ())
 
 postRandomWallet
-    :: forall ctx s k n.
+    :: forall ctx s n.
         ( ctx ~ ApiLayer s
         , s ~ RndState n
-        , k ~ ByronKey
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]

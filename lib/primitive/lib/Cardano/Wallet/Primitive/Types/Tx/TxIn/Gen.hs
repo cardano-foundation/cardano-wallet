@@ -61,7 +61,7 @@ shrinkTxHash x
     | x == simplest = []
     | otherwise = [simplest]
   where
-    simplest = head txHashes
+    simplest = case txHashes of (h:_) -> h; [] -> error "impossible"
 
 txHashes :: [Hash "Tx"]
 txHashes = mkTxHash <$> ['0' .. '9'] <> ['A' .. 'F']
