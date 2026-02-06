@@ -135,25 +135,6 @@ integration-tests j match:
     '.#integration-exe' \
     -c integration-exe -j "{{j}}" --match="{{match}}"
 
-# run integration tests sequentially (one at a time) via nix
-integration-tests-sequential match:
-  CARDANO_WALLET_TEST_DATA=lib/integration/test/data \
-  TESTS_RETRY_FAILED=1 \
-  nix shell \
-    '.#cardano-wallet' \
-    '.#local-cluster' \
-    '.#integration-exe' \
-    -c integration-exe --sequential --match="{{match}}"
-
-# run conway integration tests sequentially via nix
-conway-integration-tests-sequential match:
-  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
-  LOCAL_CLUSTER_ERA=conway \
-  nix shell \
-    '.#cardano-node' \
-    '.#cardano-cli' \
-    --accept-flake-config \
-    -c just integration-tests-sequential "{{match}}"
 
 node:
   nix shell \
