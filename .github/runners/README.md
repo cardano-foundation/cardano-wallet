@@ -21,7 +21,7 @@ Run as `gha-runner`:
 REPO_URL="https://github.com/cardano-foundation/cardano-wallet"
 RUNNER_VERSION="2.322.0"  # check https://github.com/actions/runner/releases
 
-for i in 1 2 3 4; do
+for i in $(seq 1 12); do
   mkdir -p ~/actions-runner-$i && cd ~/actions-runner-$i
   curl -sL "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" | tar xz
   ./config.sh --url "$REPO_URL" \
@@ -39,7 +39,7 @@ Install the service template as root:
 ```bash
 sudo cp gha-runner@.service /etc/systemd/system/
 sudo systemctl daemon-reload
-for i in 1 2 3 4; do
+for i in $(seq 1 12); do
   sudo systemctl enable --now gha-runner@$i
 done
 ```
@@ -47,7 +47,7 @@ done
 ### 4. Verify
 
 ```bash
-systemctl status gha-runner@{1,2,3,4}
+systemctl status gha-runner@{1..12}
 ```
 
 Runners should appear at:
@@ -65,9 +65,9 @@ Runner work directories grow over time. Set up a weekly cron:
 
 ### Scaling
 
-With 4 runners and 26 test jobs, expect ~7 batches. Increase to 8 runners
-if wall-clock time exceeds 50 minutes. Each runner uses its own work
-directory but shares the host Nix store via the daemon socket.
+With 12 runners and ~37 jobs across 3 workflows, most jobs run in parallel.
+Each runner uses its own work directory but shares the host Nix store
+via the daemon socket.
 
 ### Removing runners
 
