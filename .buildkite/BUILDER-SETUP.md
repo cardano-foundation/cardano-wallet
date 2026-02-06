@@ -124,11 +124,13 @@ sudo apt-get install -y buildkite-agent
 ### 6. Install Docker
 
 ```bash
-sudo apt-get install -y docker.io
+sudo apt-get install -y docker.io docker-compose
 sudo systemctl enable docker
 sudo systemctl start docker
 sudo usermod -aG docker buildkite-agent
 ```
+
+Note: `docker-compose` provides the `docker compose` command (v2). The `docker.io` package alone doesn't include it.
 
 ### 7. Configure Buildkite Agent
 
