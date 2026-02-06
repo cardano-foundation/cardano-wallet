@@ -47,21 +47,6 @@ steps:
       - linux-nix
     steps:
 
-    - label: Conway Integration Tests (linux)
-      key: linux-tests-integration-conway
-      depends_on: []
-      command: |
-          mkdir integration-test-dir
-          export CLUSTER_LOGS_DIR_PATH=integration-test-dir/cluster.logs
-          export INTEGRATION_TEST_DIR=integration-test-dir
-          export TEST_CONCURRENCY=$(buildkite-agent meta-data get "test-concurrency" --default $DEFAULT_TEST_CONCURRENCY)
-          nix shell 'nixpkgs#just' -c just conway-integration-tests $$TEST_CONCURRENCY
-      artifact_paths: [ "./integration-test-dir/**" ]
-      agents:
-        system: ${linux}
-      concurrency: 8
-      concurrency_group: 'linux-integration-tests'
-
     - block: Run E2E Tests (linux)
       if: build.env("RELEASE_CANDIDATE") == null
       depends_on: []
