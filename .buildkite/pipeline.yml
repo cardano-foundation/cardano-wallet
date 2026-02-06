@@ -731,90 +731,86 @@ steps:
       concurrency_group: 'macos-e2e-tests'
 
   # TODO: Windows builds disabled pending #5107 (OOM) and #5110 (TLS)
-  - group: Windows Artifacts
-    key: windows-artifacts
-    depends_on:
-      - linux-nix
-    if: false
-    steps:
-    - block: Build Windows Artifacts (windows)
-      depends_on: []
-      if: |
-        build.branch !~ /^gh-readonly-queue\/master/
-          && build.branch != "master"
-          && build.branch != "rc-latest"
-          && build.env("RELEASE_CANDIDATE") == null
-      key: trigger-build-windows-artifacts
-
-    - label: Build Package (windows)
-      key: windows-package
-      depends_on:
-        - trigger-build-windows-artifacts
-      command: nix build -L -o result/windows .#ci.artifacts.win64.release
-      artifact_paths: [ "./result/windows/**" ]
-      agents:
-        system: ${linux}
-
-
-    - label: Build Testing Bundle (windows)
-      key: windows-testing-bundle
-      depends_on:
-        - trigger-build-windows-artifacts
-      command: |
-        nix build -L -o result .#ci.artifacts.win64.tests
-        cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
-      artifact_paths: [ "./windows-tests.zip"]
-      agents:
-        system: ${linux}
-
-  # TODO: Windows tests disabled pending #5107 (OOM) and #5110 (TLS)
-  - group: Windows Checks
-    depends_on:
-      - windows-artifacts
-    if: false
-    steps:
-    - label: Windows Unit Tests
-      commands:
-        - buildkite-agent artifact download "windows-tests.zip" .
-        - mkdir -p windows\tests
-        - tar -xf windows-tests.zip -C windows\tests
-        - cd windows\tests # tests seem to rely on ..\.. being the repo root
-        - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -N2
-      agents:
-        system: ${windows}
-      env:
-        LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
-      concurrency: 1
-      concurrency_group: 'windows-tests'
-
-    - label: Windows Text Class Tests
-      command: |
-        buildkite-agent artifact download "windows-tests.zip" .
-        mkdir windows-tests
-        tar -xf windows-tests.zip -C windows-tests
-        .\windows-tests\text-class-test-unit.exe --color
-      agents:
-        system: ${windows}
-      concurrency: 1
-      concurrency_group: 'windows-tests'
-
-    - block: Windows E2E Tests
-      depends_on: []
-      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
-      key: trigger-windows-e2e-tests
-
-    - label: ⚙️ Windows E2E Tests
-      timeout_in_minutes: 120
-      depends_on:
-        - trigger-windows-e2e-tests
-      commands:
-        - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod # ensure the configs don't diverge despite being duplicated
-        - buildkite-agent artifact download "windows-tests.zip" .
-        - mkdir windows-tests
-        - tar -xf windows-tests.zip -C windows-tests
-        - .\windows-tests\cardano-wallet-integration-test-e2e.exe
-      agents:
-        system: ${windows}
+  # - group: Windows Artifacts
+  #   key: windows-artifacts
+  #   depends_on:
+  #     - linux-nix
+  #   steps:
+  #   - block: Build Windows Artifacts (windows)
+  #     depends_on: []
+  #     if: |
+  #       build.branch !~ /^gh-readonly-queue\/master/
+  #         && build.branch != "master"
+  #         && build.branch != "rc-latest"
+  #         && build.env("RELEASE_CANDIDATE") == null
+  #     key: trigger-build-windows-artifacts
+  #
+  #   - label: Build Package (windows)
+  #     key: windows-package
+  #     depends_on:
+  #       - trigger-build-windows-artifacts
+  #     command: nix build -L -o result/windows .#ci.artifacts.win64.release
+  #     artifact_paths: [ "./result/windows/**" ]
+  #     agents:
+  #       system: ${linux}
+  #
+  #   - label: Build Testing Bundle (windows)
+  #     key: windows-testing-bundle
+  #     depends_on:
+  #       - trigger-build-windows-artifacts
+  #     command: |
+  #       nix build -L -o result .#ci.artifacts.win64.tests
+  #       cp result/cardano-wallet-*-tests-win64.zip ./windows-tests.zip
+  #     artifact_paths: [ "./windows-tests.zip"]
+  #     agents:
+  #       system: ${linux}
+  #
+  # - group: Windows Checks
+  #   depends_on:
+  #     - windows-artifacts
+  #   steps:
+  #   - label: Windows Unit Tests
+  #     commands:
+  #       - buildkite-agent artifact download "windows-tests.zip" .
+  #       - mkdir -p windows\tests
+  #       - tar -xf windows-tests.zip -C windows\tests
+  #       - cd windows\tests
+  #       - .\cardano-wallet-unit-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -N2
+  #     agents:
+  #       system: ${windows}
+  #     env:
+  #       LOCAL_CLUSTER_CONFIGS: test\data\cluster-configs
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+  #
+  #   - label: Windows Text Class Tests
+  #     command: |
+  #       buildkite-agent artifact download "windows-tests.zip" .
+  #       mkdir windows-tests
+  #       tar -xf windows-tests.zip -C windows-tests
+  #       .\windows-tests\text-class-test-unit.exe --color
+  #     agents:
+  #       system: ${windows}
+  #     concurrency: 1
+  #     concurrency_group: 'windows-tests'
+  #
+  #   - block: Windows E2E Tests
+  #     depends_on: []
+  #     if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
+  #     key: trigger-windows-e2e-tests
+  #
+  #   - label: ⚙️ Windows E2E Tests
+  #     timeout_in_minutes: 120
+  #     depends_on:
+  #       - trigger-windows-e2e-tests
+  #     commands:
+  #       - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+  #       - buildkite-agent artifact download "windows-tests.zip" .
+  #       - mkdir windows-tests
+  #       - tar -xf windows-tests.zip -C windows-tests
+  #       - .\windows-tests\cardano-wallet-integration-test-e2e.exe
+  #     agents:
+  #       system: ${windows}
       env:
       concurrency: 1
       concurrency_group: 'windows-tests'
