@@ -805,6 +805,20 @@ steps:
       concurrency: 1
       concurrency_group: 'windows-tests'
 
+    - label: ⚙️ Windows E2E Tests
+      timeout_in_minutes: 120
+      depends_on: []
+      commands:
+        - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod
+        - buildkite-agent artifact download "windows-tests.zip" .
+        - mkdir windows-tests
+        - tar -xf windows-tests.zip -C windows-tests
+        - .\windows-tests\cardano-wallet-integration-test-e2e.exe
+      agents:
+        system: ${windows}
+      env:
+      concurrency: 1
+      concurrency_group: 'windows-tests'
 
   - group: Docker
     key: docker-artifacts
