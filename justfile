@@ -145,6 +145,16 @@ integration-tests-sequential match:
     '.#integration-exe-sequential' \
     -c integration-exe-sequential --match="{{match}}"
 
+# run conway integration tests sequentially via nix
+conway-integration-tests-sequential match:
+  LOCAL_CLUSTER_CONFIGS=lib/local-cluster/test/data/cluster-configs \
+  LOCAL_CLUSTER_ERA=conway \
+  nix shell \
+    '.#cardano-node' \
+    '.#cardano-cli' \
+    --accept-flake-config \
+    -c just integration-tests-sequential "{{match}}"
+
 node:
   nix shell \
   --accept-flake-config \
