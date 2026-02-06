@@ -1666,7 +1666,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             -- This can be slow; let's retry less frequently and with a longer
             -- timeout.
             let s = 1_000_000
-            eventuallyUsingDelay (10 * s) 300 "metadata is fetched" $ do
+            eventuallyUsingDelay (10 * s) 480 "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
                 verify
                     r
