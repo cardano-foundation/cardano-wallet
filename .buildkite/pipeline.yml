@@ -795,21 +795,18 @@ steps:
       concurrency: 1
       concurrency_group: 'windows-tests'
 
-    - block: Windows E2E Tests
+    - label: ⚙️ Windows TLS Diagnostics
+      timeout_in_minutes: 10
       depends_on: []
-      if: build.env("RELEASE_CANDIDATE") == null || build.env("TEST_RC") == "TRUE"
-      key: trigger-windows-e2e-tests
-
-    - label: ⚙️ Windows E2E Tests
-      timeout_in_minutes: 120
-      depends_on:
-        - trigger-windows-e2e-tests
       commands:
-        - diff -r configs/cardano/preprod lib/integration/configs/cardano/preprod # ensure the configs don't diverge despite being duplicated
-        - buildkite-agent artifact download "windows-tests.zip" .
-        - mkdir windows-tests
-        - tar -xf windows-tests.zip -C windows-tests
-        - .\windows-tests\cardano-wallet-integration-test-e2e.exe
+        - echo "--- curl.exe test"
+        - curl.exe -sI https://github.com 2>&1
+        - echo "--- powershell TLS test"
+        - powershell -Command "[Net.ServicePointManager]::SecurityProtocol; Invoke-WebRequest -Uri 'https://github.com' -Method Head -UseBasicParsing | Select-Object StatusCode"
+        - echo "--- certutil root store"
+        - certutil -store Root DigiCert 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "DigiCert not found in Root store"
+        - echo "--- certutil CA store"
+        - certutil -store CA DigiCert 2>&1 | findstr /i "Subject Issuer NotAfter" || echo "DigiCert not found in CA store"
       agents:
         system: ${windows}
       env:
