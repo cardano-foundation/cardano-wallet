@@ -1,0 +1,45 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: ${{ matrix.name }}
+    runs-on: [self-hosted, linux, x86_64, cardano-wallet]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Check Code Format"
+            command: nix develop --command scripts/buildkite/main/check-code-format.sh
+
+          - name: "Check HLint"
+            command: nix develop --command bash -c "echo +++ HLint ; hlint lib"
+
+          - name: "Check Cabal Configure"
+            command: nix develop --command scripts/buildkite/check-haskell-nix-cabal.sh
+
+          - name: "Lint Bash Scripts"
+            command: ./scripts/shellcheck.sh
+
+          - name: "Check EOL"
+            command: nix develop --command scripts/enforce-eol.sh
+
+          - name: "Validate Swagger"
+            command: nix develop path:./scripts/buildkite/main -c ./scripts/buildkite/main/validate-swagger.sh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run check
+        run: ${{ matrix.command }}
